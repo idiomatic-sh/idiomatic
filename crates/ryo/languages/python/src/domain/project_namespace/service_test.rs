@@ -1,6 +1,6 @@
 //! Project namespace membership controls independent of successful dependency resolution.
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::{candidates, memberships};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::project_namespace::types::{EntryKind, ImportedRoot, MembershipState};
 use ryo::languages::{FileId, FilePath};
 
@@ -265,7 +265,9 @@ const CASES: &[Case<fn(), (), ()>] = &[
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName("namespace_root_stays_present_while_dotted_children_are_observed_separately"),
+        name: CaseName(
+            "namespace_root_stays_present_while_dotted_children_are_observed_separately",
+        ),
         word: Word::Succeeds,
         input: || namespace_root_stays_present_while_dotted_children_are_observed_separately,
         expect: Expect::Value(()),
@@ -277,7 +279,9 @@ const CASES: &[Case<fn(), (), ()>] = &[
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName("dotted_child_add_delete_type_change_and_partial_observation_change_its_kind"),
+        name: CaseName(
+            "dotted_child_add_delete_type_change_and_partial_observation_change_its_kind",
+        ),
         word: Word::Succeeds,
         input: || dotted_child_add_delete_type_change_and_partial_observation_change_its_kind,
         expect: Expect::Value(()),

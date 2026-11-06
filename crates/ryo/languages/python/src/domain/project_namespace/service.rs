@@ -3,7 +3,10 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use ryo::languages::{FileId, FilePath};
 
-use super::types::{EntryKind, ImportedRoot, NamespaceMembership, MembershipState, NamespaceMemberships};
+use super::types::{
+    DottedPath, EntryKind, EntryName, FilesystemPath, ImportPath, ImportedRoot, MembershipKey,
+    MembershipState, NamespaceMembership, NamespaceMemberships, Prefix,
+};
 use crate::domain::fact_notes::types::Note;
 
 /// First components of absolute imports, retaining the importing file's identity.
@@ -28,7 +31,7 @@ pub(crate) fn imported_roots(notes: &[Option<Note>]) -> Vec<ImportedRoot> {
             roots.insert(ImportedRoot {
                 file: FileId(u32::try_from(number).unwrap_or(u32::MAX)),
                 root: root.into(),
-                path: import.path.0.clone().into(),
+                path: ImportPath::from(import.path.0.clone()),
             });
         }
     }
@@ -36,7 +39,7 @@ pub(crate) fn imported_roots(notes: &[Option<Note>]) -> Vec<ImportedRoot> {
 }
 
 /// Dotted prefixes and their filesystem spellings, from the first component onward.
-fn prefixes(path: &str) -> Vec<(String, String)> {
+fn prefixes(path: &ImportPath) -> Vec<Prefix> {
     let mut dotted = String::new();
     let mut filesystem = String::new();
     let mut result = Vec::new();
@@ -47,27 +50,43 @@ fn prefixes(path: &str) -> Vec<(String, String)> {
         }
         dotted.push_str(component);
         filesystem.push_str(component);
-        result.push((dotted.clone(), filesystem.clone()));
+        result.push(Prefix {
+            dotted: DottedPath(dotted.clone()),
+            filesystem: FilesystemPath(filesystem.clone()),
+        });
     }
     result
 }
 
-fn entry_paths(search: &FilePath, filesystem: &str) -> [(FilePath, bool); 5] {
+fn entry_paths(search: &FilePath, filesystem: &FilesystemPath) -> [(FilePath, bool); 5] {
+    let filesystem = &filesystem.0;
     [
-        (beneath(search, &format!("{filesystem}.py")), true),
-        (beneath(search, &format!("{filesystem}.pyi")), true),
-        (beneath(search, filesystem), false),
-        (beneath(search, &format!("{filesystem}/__init__.py")), true),
-        (beneath(search, &format!("{filesystem}/__init__.pyi")), true),
+        (
+            beneath(search, &EntryName(format!("{filesystem}.py"))),
+            true,
+        ),
+        (
+            beneath(search, &EntryName(format!("{filesystem}.pyi"))),
+            true,
+        ),
+        (beneath(search, &EntryName(filesystem.clone())), false),
+        (
+            beneath(search, &EntryName(format!("{filesystem}/__init__.py"))),
+            true,
+        ),
+        (
+            beneath(search, &EntryName(format!("{filesystem}/__init__.pyi"))),
+            true,
+        ),
     ]
 }
 
 /// A candidate beneath a declared root; no implicit repository or src root is supplied.
-fn beneath(search: &FilePath, entry: &str) -> FilePath {
+fn beneath(search: &FilePath, entry: &EntryName) -> FilePath {
     if search.0.is_empty() {
-        FilePath(entry.into())
+        FilePath(entry.0.as_str().into())
     } else {
-        FilePath(format!("{}/{entry}", search.0).into())
+        FilePath(format!("{}/{}", search.0, entry.0).into())
     }
 }
 
@@ -80,12 +99,12 @@ pub(crate) fn candidates(
     let Some(search_roots) = search_roots else {
         return Vec::new();
     };
-    let names: BTreeSet<String> = roots
+    let names: BTreeSet<FilesystemPath> = roots
         .iter()
         .flat_map(|root| {
             prefixes(&root.path)
                 .into_iter()
-                .map(|(_, filesystem)| filesystem)
+                .map(|prefix| prefix.filesystem)
         })
         .collect();
     let mut candidates = BTreeSet::new();
@@ -101,7 +120,7 @@ pub(crate) fn candidates(
 
 fn classify(
     search_roots: Option<&[FilePath]>,
-    filesystem: &str,
+    filesystem: &FilesystemPath,
     candidate: &impl Fn(&FilePath, bool) -> Option<bool>,
 ) -> Vec<EntryKind> {
     let Some(search_roots) = search_roots else {
@@ -155,14 +174,13 @@ pub(crate) fn memberships(
     incomplete_notes: Vec<FileId>,
     candidate: impl Fn(&FilePath, bool) -> Option<bool>,
 ) -> NamespaceMemberships {
-    let paths: BTreeSet<(String, String)> =
-        roots.iter().flat_map(|root| prefixes(&root.path)).collect();
-    let mut classified: BTreeMap<String, Vec<EntryKind>> = paths
+    let paths: BTreeSet<Prefix> = roots.iter().flat_map(|root| prefixes(&root.path)).collect();
+    let mut classified: BTreeMap<DottedPath, Vec<EntryKind>> = paths
         .iter()
-        .map(|(dotted, filesystem)| {
+        .map(|prefix| {
             (
-                dotted.clone(),
-                classify(search_roots, filesystem, &candidate),
+                prefix.dotted.clone(),
+                classify(search_roots, &prefix.filesystem, &candidate),
             )
         })
         .collect();
@@ -170,10 +188,12 @@ pub(crate) fn memberships(
     // module file and a directory of the same name can coexist; the physical
     // child remains observed even though Python's import resolver may choose
     // the module file. This fact does not decide import resolution.
-    for (path, _) in &paths {
-        let Some((parent, _)) = path.rsplit_once('.') else {
+    for prefix in &paths {
+        let path = &prefix.dotted;
+        let Some((parent, _)) = path.0.rsplit_once('.') else {
             continue;
         };
+        let parent = DottedPath(parent.to_owned());
         let present = |kinds: Option<&Vec<EntryKind>>| {
             kinds.is_some_and(|kinds| {
                 kinds.iter().any(|kind| {
@@ -184,21 +204,25 @@ pub(crate) fn memberships(
                 })
             })
         };
-        if present(classified.get(path)) && !present(classified.get(parent)) {
+        if present(classified.get(path)) && !present(classified.get(&parent)) {
             classified.insert(path.clone(), vec![EntryKind::Unknown]);
         }
     }
 
     let mut rows = BTreeSet::new();
     for imported in roots {
-        for (path, _) in prefixes(&imported.path) {
-            rows.insert((imported.file, imported.root.clone(), path));
+        for prefix in prefixes(&imported.path) {
+            rows.insert(MembershipKey {
+                file: imported.file,
+                root: imported.root.clone(),
+                path: prefix.dotted,
+            });
         }
     }
     let rows = rows
         .into_iter()
-        .flat_map(|(file, root, path)| {
-            classified[&path].iter().map(move |&kind| {
+        .flat_map(|key| {
+            classified[&key.path].iter().map(move |&kind| {
                 let state = match kind {
                     EntryKind::Module | EntryKind::Package | EntryKind::Namespace => {
                         MembershipState::Present
@@ -207,9 +231,9 @@ pub(crate) fn memberships(
                     EntryKind::Unknown => MembershipState::Unknown,
                 };
                 NamespaceMembership {
-                    file,
-                    root: root.clone(),
-                    path: path.clone().into_boxed_str(),
+                    file: key.file,
+                    root: key.root.clone(),
+                    path: ImportPath::from(key.path.0.clone()),
                     state,
                     kind,
                 }
