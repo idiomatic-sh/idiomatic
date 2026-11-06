@@ -31,9 +31,11 @@ let orphans = antijoin(left=inside-rows, right=module-keys, left-on=["owner", "c
 let representatives = union(left=module-rows, right=orphans);
 let no-interface = antijoin(left=representatives, right=interface-keys, left-on=["owner", "collection"], right-on=["owner", "collection"]);
 let strays = antijoin(left=direct-rows, right=direct-rs-paths, left-on=["path"], right-on=["path"]);
-let member-dirs = select * from item-dir-rows where glob_any(item, "{interface,types,errors}");
+let reserved-member-dirs = select * from item-dir-rows where glob_any(item, "{interface,types,errors}");
+let value-roles = select path as path from "tastemaker.placed" where glob_any(template, "{value,value-module,value-test}");
+let member-dirs = antijoin(left=reserved-member-dirs, right=value-roles, left-on=["path"], right-on=["path"]);
 let fixtures-dirs = select * from item-dir-rows where glob_any(item, "fixtures");
-let non-item-dirs = union(left=member-dirs, right=fixtures-dirs);
+let non-item-dirs = union(left=reserved-member-dirs, right=fixtures-dirs);
 let plain-item-dirs = antijoin(left=item-dir-rows, right=non-item-dirs, left-on=["path"], right-on=["path"]);
 let plain-dir-collections = project(from=plain-item-dirs, columns=["owner", "collection"]);
 let item-collections = union(left=item-module-collections, right=plain-dir-collections);
@@ -76,7 +78,7 @@ emit findings-9 subject "path" key("collection", "item", "problem");
 [diagnostic]
 primary = "path"
 message = "`collections/{collection}` in `{owner}` {problem}"
-help = "{fix} (`<owner>` and `<collection>` are the directory and the collection named above.) An ignore is never the fix."
+help = "{fix} (`<owner>` and `<collection>` are the directory and the collection named above.) Exact placed value, value-module and value-test roles may live below a collection types namespace; unplaced files and other roles remain refused. An ignore is never the fix."
 
 [given]
 include = ['src/collections.rs', 'src/collections/**']
@@ -3265,3 +3267,48 @@ pub struct Point {
 then.findings = [
   { path = 'src/collections/shapes.rs' },
 ]
+
+[[scenarios]]
+id = "placed-values-below-types"
+scenario = "Exact common value roles may use the collection types namespace."
+given.files.'src/collections.rs' = "pub mod shapes;"
+given.files.'src/collections/shapes.rs' = "pub mod interface; pub mod circle; pub mod types;"
+given.files.'src/collections/shapes/interface.rs' = "pub trait ShapesItem {}"
+given.files.'src/collections/shapes/circle.rs' = "pub mod item;"
+given.files.'src/collections/shapes/circle/item.rs' = "pub struct Circle;"
+given.files.'src/collections/shapes/types.rs' = "pub mod key;"
+given.files.'src/collections/shapes/types/key.rs' = "pub mod value; #[cfg(test)] mod value_test;"
+given.files.'src/collections/shapes/types/key/value.rs' = "pub struct Key(u32);"
+given.files.'src/collections/shapes/types/key/value_test.rs' = "#[test] fn succeeds() {}"
+given.files.'tastemaker.toml' = "workspace = { name = \"values\", dependencies = [{ package = \"idiomatic.arch\", path = \"../../..\" }] }\nrules = [{ rule = \"idiomatic.arch/collection-members\", include = [\"src/**\"] }]\ntemplates = [\n{ template = \"idiomatic.arch/value-module\", file = \"src/collections/shapes/types/key.rs\" },\n{ template = \"idiomatic.arch/value\", file = \"src/collections/shapes/types/key/value.rs\" },\n{ template = \"idiomatic.arch/value-test\", file = \"src/collections/shapes/types/key/value_test.rs\" },\n]\n"
+then.only = ["idiomatic.arch/collection-members"]
+
+[[scenarios]]
+id = "unplaced-value-directory-is-refused"
+scenario = "Naming a directory types does not place its values."
+given.files.'src/collections.rs' = "pub mod shapes;"
+given.files.'src/collections/shapes.rs' = "pub mod interface; pub mod circle; pub mod types;"
+given.files.'src/collections/shapes/interface.rs' = "pub trait ShapesItem {}"
+given.files.'src/collections/shapes/circle.rs' = "pub mod item;"
+given.files.'src/collections/shapes/circle/item.rs' = "pub struct Circle;"
+given.files.'src/collections/shapes/types.rs' = "pub mod key;"
+given.files.'src/collections/shapes/types/key.rs' = "pub mod value; #[cfg(test)] mod value_test;"
+given.files.'src/collections/shapes/types/key/value.rs' = "pub struct Key(u32);"
+given.files.'src/collections/shapes/types/key/value_test.rs' = "#[test] fn succeeds() {}"
+then.findings = [{path="src/collections/shapes/types/key.rs"}, {path="src/collections/shapes/types/key/value.rs"}, {path="src/collections/shapes/types/key/value_test.rs"}]
+
+[[scenarios]]
+id = "wrong-role-does-not-authorize-types-directory"
+scenario = "A different placed role does not authorize reserved member directories."
+given.files.'src/collections.rs' = "pub mod shapes;"
+given.files.'src/collections/shapes.rs' = "pub mod interface; pub mod circle; pub mod types;"
+given.files.'src/collections/shapes/interface.rs' = "pub trait ShapesItem {}"
+given.files.'src/collections/shapes/circle.rs' = "pub mod item;"
+given.files.'src/collections/shapes/circle/item.rs' = "pub struct Circle;"
+given.files.'src/collections/shapes/types.rs' = "pub mod key;"
+given.files.'src/collections/shapes/types/key.rs' = "pub mod value; #[cfg(test)] mod value_test;"
+given.files.'src/collections/shapes/types/key/value.rs' = "pub struct Key(u32);"
+given.files.'src/collections/shapes/types/key/value_test.rs' = "#[test] fn succeeds() {}"
+given.files.'tastemaker.toml' = "workspace = { name = \"values\", dependencies = [{ package = \"idiomatic.arch\", path = \"../../..\" }] }\nrules = [{ rule = \"idiomatic.arch/collection-members\", include = [\"src/**\"] }]\ntemplates = [\n{ template = \"idiomatic.arch/value-module\", file = \"src/collections/shapes/types/key.rs\" },\n{ template = \"idiomatic.arch/unit-test\", file = \"src/collections/shapes/types/key/value.rs\" },\n{ template = \"idiomatic.arch/value-test\", file = \"src/collections/shapes/types/key/value_test.rs\" },\n]\n"
+then.only = ["idiomatic.arch/collection-members"]
+then.findings = [{path="src/collections/shapes/types/key/value.rs"}]

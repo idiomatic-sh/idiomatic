@@ -22,6 +22,9 @@ use crate::domain::paths::types::RepoPath;
 /// The query of the built-in rule that reads `relation`, every column of each row.
 #[must_use]
 pub fn query(relation: Relation) -> QueryText {
+    if relation == Relation::Edges {
+        return QueryText(super::constants::SEMANTIC_EDGES.into());
+    }
     let (name, subject, key) = match relation {
         Relation::Edges => (EDGES_RELATION, SOURCE_COLUMN, EDGE_KEY),
         Relation::Names => (NAMES_RELATION, FILE_COLUMN, NAME_KEY),

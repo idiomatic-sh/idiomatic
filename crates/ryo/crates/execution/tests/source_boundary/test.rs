@@ -310,8 +310,8 @@ fn actual_runtime_authority_is_private_to_its_owner() {
         },
         Probe {
             owner: PROGRAM,
-            source: "mod retarget_registered_representation { use crate::domain::table_model::collections::representations::types::{RegisteredRepresentation, RepresentationKind}; fn bypass(route: &mut RegisteredRepresentation) { route.0 = RepresentationKind::Computed; } const _: fn(&mut RegisteredRepresentation) = bypass; }".into(),
-            expected: Expectation::Refuse { code: "E0616", first: "0", second: "private" },
+            source: "mod retarget_registered_representation { use crate::domain::table_model::collections::representations::types::{registered_representation::value::RegisteredRepresentation, RepresentationKind}; fn bypass(route: &mut RegisteredRepresentation) { route.kind = RepresentationKind::Computed; } const _: fn(&mut RegisteredRepresentation) = bypass; }".into(),
+            expected: Expectation::Refuse { code: "E0616", first: "kind", second: "private" },
         },
         Probe {
             owner: PROGRAM,

@@ -8,7 +8,7 @@ use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 /// No upstream scheduler, cache owner or retained state is a primitive capability.
-pub(in crate::domain::operator) trait OperatorsItem: Sync {
+pub(in super::super::super) trait OperatorsItem: Sync {
     fn prepare(
         &self,
         operation: &Operation,

@@ -5,7 +5,7 @@ use crate::domain::table_model::types::Rows;
 pub(crate) use super::registration::registered;
 
 pub(crate) fn kind(input: RepresentationInput<'_>) -> RepresentationKind {
-    RepresentationKind::of(input)
+    super::types::registered_representation::value::RegisteredRepresentation::kind(input)
 }
 pub(crate) fn borrowed<'a>(rows: &'a Rows<'a>) -> RepresentationInput<'a> {
     match rows {

@@ -150,7 +150,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn written(relation: Relation) -> &'static str {
     match relation {
         Relation::Edges => {
-            "let rows = select * from \"source-dependency\";\nemit rows subject \"source\" key(\"target\", \"span\");\n"
+            r#"let nodes = select id, kind, file, span from "syntax-tree" where text = "";
+let paths = select * from nodes where kind = "path";
+let visibility = select * from nodes where kind = "visibility";
+let nested = axis(from=visibility, relation="syntax-child", direction=descendant, domain=paths);
+let scopes = select r.file as source, r.span as span from nested as l join paths as r on l.related = r.id;
+let written = select * from "source-dependency";
+let rows = antijoin(left=written, right=scopes, left-on=["source", "span"], right-on=["source", "span"]);
+emit rows subject "source" key("target", "span");
+"#
         }
         Relation::Names => {
             "let rows = select * from \"static-import\";\nemit rows subject \"file\" key(\"occurrence\");\n"
