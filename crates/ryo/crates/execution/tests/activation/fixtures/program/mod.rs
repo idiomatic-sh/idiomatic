@@ -81,6 +81,7 @@ fn plan(index: usize) -> Plan {
     }
 }
 
+
 pub(in crate::fixtures) fn engine() -> ExecutionUseCaseImpl {
     ExecutionUseCaseImpl::new(
         Arc::new(
@@ -97,10 +98,7 @@ pub(in crate::fixtures) fn corpus() -> [CorpusInput; 1] {
         modified: Nanoseconds(0),
     })]
 }
-pub(in crate::fixtures) fn prepared(
-    engine: &ExecutionUseCaseImpl,
-    total: usize,
-) -> PreparedProgram {
+pub(in crate::fixtures) fn prepared(engine: &ExecutionUseCaseImpl, total: usize) -> PreparedProgram {
     engine
         .prepare(PreparedRequest {
             plans: (0..total).map(plan).collect(),

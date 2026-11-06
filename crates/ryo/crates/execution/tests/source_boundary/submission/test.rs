@@ -238,10 +238,7 @@ fn project_route(entry: Entry) {
         &[root(0), extra, root(2)],
         Some(RuleIndex(3)),
     );
-    assert!(matches!(
-        callback.refused,
-        Some(OperatingError::WrongBinding)
-    ));
+    assert!(matches!(callback.refused, Some(OperatingError::WrongBinding)));
     assert_eq!(callback.outcomes.len(), 1);
 }
 
@@ -249,10 +246,7 @@ fn project_route(entry: Entry) {
 fn every_submission_route_refuses_an_incomplete_or_extra_root_set() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let routes: Vec<(&str, Box<dyn Fn()>)> = vec![
-        (
-            "ExecutionRequest for RequestExecution",
-            Box::new(file_route),
-        ),
+        ("ExecutionRequest for RequestExecution", Box::new(file_route)),
         (
             "ProjectRootExecution for ProjectPhase",
             Box::new(|| project_route(Entry::Phase)),

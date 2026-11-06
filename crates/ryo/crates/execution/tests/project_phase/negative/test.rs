@@ -280,11 +280,7 @@ fn an_extra_root_is_refused_by_name_without_displacing_the_declared_roots() {
     };
     let submitted = submit(&engine, Entry::Phase, 3, &[root(0), extra, root(2)], None);
     assert!(submitted.refused.is_none());
-    assert_eq!(
-        submitted.outcomes.len(),
-        3,
-        "the extra root keeps its own slot"
-    );
+    assert_eq!(submitted.outcomes.len(), 3, "the extra root keeps its own slot");
     assert!(submitted.outcomes[0].is_ok());
     assert!(
         matches!(submitted.outcomes[1], Err(OperatingError::NotRun)),
@@ -292,17 +288,8 @@ fn an_extra_root_is_refused_by_name_without_displacing_the_declared_roots() {
     );
     assert!(submitted.outcomes[2].is_ok());
 
-    let guarded = submit(
-        &engine,
-        Entry::Phase,
-        3,
-        &[root(0), extra, root(2)],
-        Some(RuleIndex(3)),
-    );
-    assert!(matches!(
-        guarded.refused,
-        Some(OperatingError::WrongBinding)
-    ));
+    let guarded = submit(&engine, Entry::Phase, 3, &[root(0), extra, root(2)], Some(RuleIndex(3)));
+    assert!(matches!(guarded.refused, Some(OperatingError::WrongBinding)));
     assert_eq!(
         guarded.outcomes.len(),
         1,
