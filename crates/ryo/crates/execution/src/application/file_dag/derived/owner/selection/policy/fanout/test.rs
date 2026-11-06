@@ -19,7 +19,7 @@ use ryo_relations::domain::terms::service::term_symbol;
 use ryo_relations::domain::terms::types::{DeclarationKind, NameText, Symbol};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, LiteralText, Operand, ParameterId, QueryLiteral, Test,
+    ColumnIndex, PlanComparison, LiteralText, Operand, ParameterId, QueryLiteral, Test,
 };
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rows::types::Table;
@@ -60,7 +60,7 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
         Arc::new(Selector {
             relation: Relation::Defines,
             identity: Arc::new(crate::domain::table_model::types::SelectionIdentity {
-                comparisons: vec![Comparison {
+                comparisons: vec![PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(0)),
                     right: Operand::Literal(QueryLiteral::Text(text)),
@@ -75,7 +75,7 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
     let mut selectors = vec![selector(LiteralText("class".into()))];
     selectors.extend((0..7).map(|number| selector(LiteralText(format!("word{number}").into()))));
     let inactive = selector(LiteralText("absent".into()));
-    let bad = Comparison {
+    let bad = PlanComparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(0)),
         right: Operand::Parameter(ParameterId(0)),

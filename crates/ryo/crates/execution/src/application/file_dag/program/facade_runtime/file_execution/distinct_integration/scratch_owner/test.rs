@@ -3,7 +3,7 @@ use super::super::*;
 use crate::domain::operating::types::ExecutionObservation;
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
-    plan_parts::types::{Comparison, HostedNumber, Operand, Test},
+    plan_parts::types::{PlanComparison, HostedNumber, Operand, Test},
     records::types::Cell as HostedCell,
 };
 pub(in super::super) fn hosted(kinds: &[HostKind], rows: Vec<Vec<HostedCell>>) -> HostRelation {
@@ -158,7 +158,7 @@ fn dynamic_regex_initialization_is_execution_local_and_lazy() {
         let (result, observed) = execute(
             Operation::Select {
                 from: PlanInput::Step(StepId(0)),
-                comparisons: vec![Comparison {
+                comparisons: vec![PlanComparison {
                     test: Test::Matches,
                     left: Operand::Column(ColumnIndex(0)),
                     right: Operand::Column(ColumnIndex(0)),

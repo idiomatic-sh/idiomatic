@@ -15,7 +15,7 @@ use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::{FileId, KindBits, Offset, Position};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run, selects};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Comparison;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Direction;
 use ryo_values::domain::plan_parts::types::Input as Source;
 use ryo_values::domain::plan_parts::types::JoinColumn;
@@ -96,7 +96,7 @@ fn node_table(starts: impl IntoIterator<Item = u32>) -> Table {
 }
 
 /// The axis operation that walks `direction` over the tree, from column 0 to column 1 of the edges, with the domain's filter and output.
-fn axis(direction: Direction, filter: Vec<Comparison>, output: Vec<JoinColumn>) -> Operation {
+fn axis(direction: Direction, filter: Vec<PlanComparison>, output: Vec<JoinColumn>) -> Operation {
     Operation::Axis {
         from: FROM,
         edges: FROM,
@@ -257,7 +257,7 @@ fn the_siblings_in_the_tree_are_the_children_beside_under_the_same_parent()
 }
 
 /// The descendants of the root among the elements of the tree that a filter admits, read from the tree.
-fn walks_among_the_filtered_elements(filter: Vec<Comparison>) -> Result<Vec<Cell>, OperatingError> {
+fn walks_among_the_filtered_elements(filter: Vec<PlanComparison>) -> Result<Vec<Cell>, OperatingError> {
     let out = over_the_tree(
         &axis(Direction::Descendant, filter, Vec::new()),
         &node_table([0]),
@@ -269,7 +269,7 @@ fn walks_among_the_filtered_elements(filter: Vec<Comparison>) -> Result<Vec<Cell
 }
 
 fn only_the_elements_a_filter_admits_answer() -> Result<Value, OperatingError> {
-    let text_is_b = Comparison {
+    let text_is_b = PlanComparison {
         test: Test::Equal,
         left: Operand::Column(column(2)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText("b".into()))),

@@ -491,7 +491,7 @@ impl<'a> PrimitiveLease<'a> {
 /// Exact semantic program bound once; a primitive cannot substitute comparisons.
 #[derive(Clone, Debug)]
 pub(crate) struct PreparedPredicates {
-    pub comparisons: Vec<ryo_values::domain::plan_parts::types::Comparison>,
+    pub comparisons: Vec<ryo_values::domain::plan_parts::types::PlanComparison>,
     pub kinds: Vec<CellKind>,
 }
 

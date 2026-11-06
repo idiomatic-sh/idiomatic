@@ -6,7 +6,7 @@ use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
     plan_parts::types::{
-        Applied, ColumnIndex, Comparison, Function, HostedNumber, Input as Source, LiteralText,
+        Applied, ColumnIndex, PlanComparison, Function, HostedNumber, Input as Source, LiteralText,
         Operand, ParameterId, ParameterName, QueryLiteral, StepId, Test,
     },
     plans::types::{Operation, ParameterType, PlanParameter},
@@ -63,7 +63,7 @@ fn services(test: Test, left: Operand, right: Operand) -> Result<usize, Failure>
         },
         Operation::Select {
             from: Source::Step(StepId(0)),
-            comparisons: vec![Comparison {
+            comparisons: vec![PlanComparison {
                 test,
                 left,
                 right,
@@ -104,7 +104,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 },
                 Operation::Select {
                     from: Source::Step(StepId(0)),
-                    comparisons: vec![Comparison {
+                    comparisons: vec![PlanComparison {
                         test: if matches!(scenario, Scenario::Unbound) {
                             Test::Equal
                         } else {

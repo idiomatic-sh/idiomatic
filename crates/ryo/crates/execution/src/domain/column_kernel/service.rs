@@ -23,7 +23,7 @@ use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::service::kinds;
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView, Value};
 use ryo_values::domain::plan_parts::types::{
-    Comparison, Input, JoinColumn, Operand, QueryLiteral, Side, Test,
+    PlanComparison, Input, JoinColumn, Operand, QueryLiteral, Side, Test,
 };
 use ryo_values::domain::plans::types::{Operation, Plan};
 use ryo_values::domain::plan_parts::types::StepScope;
@@ -32,7 +32,7 @@ use ryo_values::domain::plan_parts::types::StepScope;
 /// text also cannot match a malformed Symbol that the ordinary evaluator reads
 /// as empty. Other comparisons retain their original evaluation and error order.
 fn total_symbol_filter(
-    comparisons: &[Comparison],
+    comparisons: &[PlanComparison],
 ) -> Option<(
     ryo_values::domain::plan_parts::types::ColumnIndex,
     ryo_values::domain::plan_parts::types::LiteralText,

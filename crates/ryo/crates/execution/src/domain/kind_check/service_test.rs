@@ -8,7 +8,7 @@ use ryo_values::domain::descriptions::types::LanguageName;
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary, KindWord};
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    Applied, ColumnIndex, Comparison, Function, LiteralText, Operand, ParameterId, QueryLiteral,
+    Applied, ColumnIndex, PlanComparison, Function, LiteralText, Operand, ParameterId, QueryLiteral,
     StepId, Test,
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
@@ -52,7 +52,7 @@ fn numeric_text_is_not_mistaken_for_a_declared_syntax_kind() {
 
 fn plan_comparing_kind(test: Test, right: Operand, relation: Relation, site: KindSite) -> Plan {
     let source = ryo_values::domain::plan_parts::types::Input::Relation(relation);
-    let comparisons = vec![Comparison {
+    let comparisons = vec![PlanComparison {
         test,
         left: Operand::Column(ColumnIndex(1)),
         right,

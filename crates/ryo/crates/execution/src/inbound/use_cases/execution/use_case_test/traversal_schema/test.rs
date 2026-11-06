@@ -21,7 +21,7 @@ use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
         plan_parts::types::{
-            ColumnIndex, Comparison, Direction, Input as Source, JoinColumn, LiteralText, Operand,
+            ColumnIndex, PlanComparison, Direction, Input as Source, JoinColumn, LiteralText, Operand,
             QueryLiteral, Side, StepId, Test,
         },
         plans::types::Operation,
@@ -173,7 +173,7 @@ fn native(scenario: Scenario) -> Result<Value, Failure> {
         let first = Operation::Select {
             from: Source::Relation(Relation::SyntaxTree),
             kept: vec![column(0)],
-            comparisons: vec![Comparison {
+            comparisons: vec![PlanComparison {
                 left: Operand::Column(column(1)),
                 test: Test::Equal,
                 right: Operand::Literal(QueryLiteral::Text(LiteralText(

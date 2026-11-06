@@ -46,7 +46,7 @@ fn compact(table: &Table) -> ryo_values::domain::table_words::types::CompactTabl
     assert!(names.is_empty());
     assert_eq!(
         service::compact_rectangular(&compact),
-        ryo_values::domain::table_words::types::Shape::Rectangular
+        ryo_values::domain::table_words::types::TableShape::Rectangular
     );
     compact
 }

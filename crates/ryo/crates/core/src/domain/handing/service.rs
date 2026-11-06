@@ -100,7 +100,7 @@ pub(crate) fn hand_into(
                 staged.push(ryo_values::domain::stores::types::StagedRow {
                     file,
                     bucket: each.bucket,
-                    ordinal,
+                    ordinal: ryo_values::domain::records::types::StagedOrdinal(ordinal),
                     words,
                 })
             }

@@ -8,7 +8,7 @@ use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
         plan_parts::types::{
-            ColumnIndex, Comparison, Input as PlanInput, JoinColumn, LiteralText, Operand,
+            ColumnIndex, PlanComparison, Input as PlanInput, JoinColumn, LiteralText, Operand,
             QueryLiteral, Side, StepId, Test,
         },
         plans::types::Operation,
@@ -19,7 +19,7 @@ type Value = ();
 type Failure = OperatingError;
 fn subject((): Input) -> Result<Value, Failure> {
     let (elements, mut symbols) = fixtures::tree_with_names();
-    let has_text = Comparison {
+    let has_text = PlanComparison {
         test: Test::NotEqual,
         left: Operand::Column(ColumnIndex(2)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText("".into()))),

@@ -87,7 +87,7 @@ pub struct StagedRow {
     /// Its destination bucket.
     pub bucket: Bucket,
     /// Original fresh-row position among both inline and staged rows, preserving tie order.
-    pub ordinal: u64,
+    pub ordinal: crate::domain::records::types::StagedOrdinal,
     /// Plain descriptor; no path or IO resource crosses into domain data.
     pub words: crate::domain::records::types::StagedWords,
 }
@@ -213,11 +213,11 @@ pub struct OldWords {
     /// File number encoded by this row.
     pub file: StoredFileNumber,
     /// Start of the row's file-number and payload-length header.
-    pub header: u64,
+    pub header: crate::domain::records::types::HeaderOffset,
     /// Start of its packed bytes in the opened snapshot.
-    pub offset: u64,
+    pub offset: crate::domain::records::types::PayloadOffset,
     /// Exact packed byte count.
-    pub length: u64,
+    pub length: crate::domain::records::types::PayloadLength,
 }
 
 /// The words a file handed the steps that read across files in one bucket.

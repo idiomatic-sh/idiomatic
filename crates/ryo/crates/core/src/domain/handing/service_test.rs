@@ -160,8 +160,8 @@ fn staged_descriptors_move_without_reading_unwanted_payloads_and_keep_fresh_orde
     use ryo_values::domain::records::types::{RecordWords, StagedWords, StagingSession};
     let span = StagedWords {
         session: StagingSession(7),
-        offset: 0,
-        length: 1024 * 1024,
+        offset: ryo_values::domain::records::types::PayloadOffset(0),
+        length: ryo_values::domain::records::types::PayloadLength(1024 * 1024),
     };
     let handed = Handed {
         buckets: vec![
@@ -206,7 +206,7 @@ fn staged_descriptors_move_without_reading_unwanted_payloads_and_keep_fresh_orde
         [vec![1], vec![2]]
     );
     assert_eq!(staged.len(), 1);
-    assert_eq!(staged[0].ordinal, 1);
+    assert_eq!(staged[0].ordinal, ryo_values::domain::records::types::StagedOrdinal(1));
     assert_eq!(staged[0].file, StoredFileNumber(2));
     assert_eq!(staged[0].words, span);
 }

@@ -3,7 +3,7 @@ use ryo_relations::domain::relations::{service::kinds, types::Relation};
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::{
     service::remapped,
-    types::{ColumnIndex, Comparison, Input, RepeatedRows},
+    types::{ColumnIndex, PlanComparison, Input, RepeatedRows},
 };
 use ryo_values::domain::plans::types::{Operation, Plan};
 use ryo_values::domain::plan_parts::types::StepScope;
@@ -11,7 +11,7 @@ use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 
 /// A relation identity, ordered predicates over its original columns, and a composed output projection.
-type Prefix = (Relation, Vec<Comparison>, Vec<ColumnIndex>);
+type Prefix = (Relation, Vec<PlanComparison>, Vec<ColumnIndex>);
 
 /// Follow only bag-preserving relation-rooted filters and projections.
 /// Distinct, joins, hosted inputs, and other operators are normalization barriers.
@@ -69,7 +69,7 @@ fn prefix(below: &[Option<Prefix>], operation: &Operation) -> Option<Prefix> {
     };
     for comparison in comparisons {
         let map = |column: ColumnIndex| columns.get(usize::try_from(column.0).ok()?).copied();
-        chosen.push(Comparison {
+        chosen.push(PlanComparison {
             test: comparison.test,
             left: remapped(&comparison.left, &map)?,
             right: remapped(&comparison.right, &map)?,

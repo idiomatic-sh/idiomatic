@@ -9,7 +9,7 @@ use super::types::{
 };
 use ryo_values::domain::plan_parts::service::each_column;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Comparison;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plans::service::{inputs_of, named};
@@ -100,7 +100,7 @@ fn names_role(columns: &[ColumnIndex]) -> RoleNamed {
 }
 
 /// Whether a comparison reads the role.
-fn compares_role(comparisons: &[Comparison]) -> RoleCompared {
+fn compares_role(comparisons: &[PlanComparison]) -> RoleCompared {
     let role = role_column();
     let mut compared = false;
     for each in comparisons {

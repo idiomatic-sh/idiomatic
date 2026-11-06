@@ -177,9 +177,9 @@ fn replay_under_capture(
     let mut metadata = ryo_values::domain::run_metadata::service::from_plans(&plans);
     for rule in &mut metadata {
         rule.frontier_capture.fill(if captured {
-            ryo_values::domain::run_metadata::types::FrontierCapture::Captured
+            ryo_values::domain::run_metadata::types::FrontierFeed::Captured
         } else {
-            ryo_values::domain::run_metadata::types::FrontierCapture::CrossFile
+            ryo_values::domain::run_metadata::types::FrontierFeed::CrossFile
         });
     }
     let (program, request) = prepared_test_program(&plans, &ids, &[]);
@@ -238,7 +238,7 @@ fn a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not
     let mut wrong_digest = good.clone();
     wrong_digest.rule_digest = Digest([9; 16]);
     let mut wrong_ordinal = good.clone();
-    wrong_ordinal.input = 1;
+    wrong_ordinal.input = ryo_values::domain::records::types::FrontierOrdinal(1);
     let mut wrong_coverage = good.clone();
     wrong_coverage.coverage = FrontierCoverage::Partial(Vec::new());
     let refused = |result: Result<(), FileAnalysisError>| {
@@ -1425,8 +1425,8 @@ fn successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads() 
             }
             Ok(RecordWords::Staged(StagedWords {
                 session: StagingSession(1),
-                offset: u64::try_from(offset).expect("small count"),
-                length: u64::try_from(words.0.len()).expect("size"),
+                offset: ryo_values::domain::records::types::PayloadOffset(u64::try_from(offset).expect("small count")),
+                length: ryo_values::domain::records::types::PayloadLength(u64::try_from(words.0.len()).expect("size")),
             }))
         }
     }
@@ -1471,7 +1471,10 @@ fn successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads() 
     assert_eq!(read.calls.load(Ordering::Relaxed), 64);
     assert!(handed.buckets.iter().all(|row| matches!(
         row.words,
-        RecordWords::Staged(StagedWords { length: 4096, .. })
+        RecordWords::Staged(StagedWords {
+            length: ryo_values::domain::records::types::PayloadLength(4096),
+            ..
+        })
     )));
     let failing = StagingRead {
         fail: true,
@@ -1568,8 +1571,8 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
         proof: crate::outbound::lint_store::fixtures::proof(),
         words: RecordWords::Staged(StagedWords {
             session: StagingSession(u64::MAX),
-            offset: u64::MAX,
-            length: 9,
+            offset: ryo_values::domain::records::types::PayloadOffset(u64::MAX),
+            length: ryo_values::domain::records::types::PayloadLength(9),
         }),
     });
     let placed = PlacedScopes {
@@ -1664,9 +1667,9 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
         snapshot: StoreSnapshot(u64::MAX),
         bucket: Bucket(1),
         file: StoredFileNumber(0),
-        header: u64::MAX,
-        offset: u64::MAX,
-        length: 9,
+        header: ryo_values::domain::records::types::HeaderOffset(u64::MAX),
+        offset: ryo_values::domain::records::types::PayloadOffset(u64::MAX),
+        length: ryo_values::domain::records::types::PayloadLength(9),
     };
     old_handed.frontier.push(ReadWords {
         file: StoredFileNumber(0),

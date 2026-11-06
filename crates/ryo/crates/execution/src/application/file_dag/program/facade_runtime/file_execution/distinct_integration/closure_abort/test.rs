@@ -2,7 +2,7 @@
 use super::super::*;
 use ryo_values::domain::{
     hosted::types::HostKind,
-    plan_parts::types::{Comparison, HostedNumber, LiteralText, Operand, QueryLiteral, Test},
+    plan_parts::types::{PlanComparison, HostedNumber, LiteralText, Operand, QueryLiteral, Test},
     records::types::Cell as HostCell,
 };
 
@@ -46,7 +46,7 @@ fn exercise(refusal: Refusal, fused: bool) {
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: PlanInput::Step(StepId(1)),
-                comparisons: vec![Comparison {
+                comparisons: vec![PlanComparison {
                     test: Test::Matches,
                     left: Operand::Literal(QueryLiteral::Text(LiteralText("a".into()))),
                     right: Operand::Column(ColumnIndex(1)),

@@ -16,7 +16,7 @@ use ryo_values::domain::descriptions::types::{
 use ryo_values::domain::files::types::{Glob, GlobsMatcher, Hits, MatchCandidate};
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, Input as PlanInput, LiteralText, Operand, QueryLiteral, StepId, Test,
+    ColumnIndex, PlanComparison, Input as PlanInput, LiteralText, Operand, QueryLiteral, StepId, Test,
 };
 use ryo_values::domain::plans::types::{Emit, Feature, Operation, OperationKind, Plan, PlanStep};
 use ryo_values::domain::runs::types::{RuleId, RuleNumber};
@@ -177,7 +177,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn plan(relation: Relation, word: Option<&str>) -> Plan {
     let comparisons = word
-        .map(|text| Comparison {
+        .map(|text| PlanComparison {
             test: Test::Equal,
             left: Operand::Column(ColumnIndex(1)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),

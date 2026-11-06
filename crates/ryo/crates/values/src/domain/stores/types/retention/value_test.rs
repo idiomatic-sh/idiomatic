@@ -286,8 +286,8 @@ fn records() -> RetainedBytes {
         proof: proof(),
         words: RecordWords::Staged(StagedWords {
             session: StagingSession(1),
-            offset: 0,
-            length: 11,
+            offset: crate::domain::records::types::PayloadOffset(0),
+            length: crate::domain::records::types::PayloadLength(11),
         }),
     });
     let frontier = Vec::<RuleFrontier>::with_capacity(2);
@@ -405,11 +405,11 @@ fn staged() -> RetainedBytes {
         rows.push(StagedRow {
             file: StoredFileNumber(0),
             bucket: Bucket(0),
-            ordinal,
+            ordinal: crate::domain::records::types::StagedOrdinal(ordinal),
             words: StagedWords {
                 session: StagingSession(1),
-                offset: 0,
-                length,
+                offset: crate::domain::records::types::PayloadOffset(0),
+                length: crate::domain::records::types::PayloadLength(length),
             },
         });
     }

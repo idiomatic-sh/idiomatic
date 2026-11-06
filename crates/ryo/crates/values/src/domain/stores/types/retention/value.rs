@@ -77,7 +77,7 @@ impl RetainedBytes {
                     RecordWords::Staged(span) => {
                         bytes.staged_objects += 1;
                         bytes.staged_payload_bytes =
-                            bytes.staged_payload_bytes.saturating_add(span.length);
+                            bytes.staged_payload_bytes.saturating_add(span.length.0);
                     }
                 }
             }
@@ -128,7 +128,7 @@ impl RetainedBytes {
             staged_payload_bytes: kept
                 .staged
                 .iter()
-                .map(|row| row.words.length)
+                .map(|row| row.words.length.0)
                 .fold(0_u64, u64::saturating_add),
             ..Self::default()
         }

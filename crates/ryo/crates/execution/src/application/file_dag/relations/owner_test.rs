@@ -47,7 +47,7 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     assert!(names.is_empty());
     assert_eq!(
         service::compact_rectangular(&compact),
-        ryo_values::domain::table_words::types::Shape::Rectangular
+        ryo_values::domain::table_words::types::TableShape::Rectangular
     );
     let compact = Arc::new(compact);
     let compact_weak = Arc::downgrade(&compact);

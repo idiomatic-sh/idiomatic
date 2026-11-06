@@ -475,7 +475,7 @@ fn operation(
     left: &[u32],
     right: &[u32],
     output: &[(Side, u32)],
-    filter: Vec<ryo_values::domain::plan_parts::types::Comparison>,
+    filter: Vec<ryo_values::domain::plan_parts::types::PlanComparison>,
     view: &[u32],
 ) -> Operation {
     Operation::Join {

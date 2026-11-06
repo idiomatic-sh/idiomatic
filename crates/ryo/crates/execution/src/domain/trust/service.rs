@@ -16,7 +16,7 @@ use crate::domain::rules::service::id_at;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Comparison;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::Operand;
 use ryo_values::domain::plan_parts::types::QueryLiteral;
@@ -36,7 +36,7 @@ fn kind_place(relation: Relation) -> Option<ColumnIndex> {
 }
 
 /// Whether a comparison lets a row of this kind through, as far as it can be told from the comparison alone.
-fn admits(comparison: &Comparison, kind: &LackingKind) -> Passage {
+fn admits(comparison: &PlanComparison, kind: &LackingKind) -> Passage {
     let kind: &str = &kind.0;
     let Operand::Literal(QueryLiteral::Text(text)) = &comparison.right else {
         return Passage::LetsThrough;

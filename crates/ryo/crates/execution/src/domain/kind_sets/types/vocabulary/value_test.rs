@@ -14,12 +14,12 @@ use ryo_relations::domain::relations::types::{FileId, KindBits, Offset};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, LiteralText, Operand, QueryLiteral, Test,
+    ColumnIndex, PlanComparison, LiteralText, Operand, QueryLiteral, Test,
 };
 
 /// One authored kind comparison at the supplied input column.
-fn compared(test: Test, place: u32, literal: &str) -> Comparison {
-    Comparison {
+fn compared(test: Test, place: u32, literal: &str) -> PlanComparison {
+    PlanComparison {
         test,
         left: Operand::Column(column(place)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(literal.into()))),
@@ -202,7 +202,7 @@ fn equal_kind_sums_do_not_identify_prepared_vocabularies() {
 fn dynamic_kind_patterns_do_not_enter_prepared_metadata() {
     let (elements, mut symbols) = prepared_tree(&["file", "word"]);
     let prepared = prepare_vocabulary(&mut None, &elements, &symbols, SourceView(b"a")).unwrap();
-    let comparisons = vec![Comparison {
+    let comparisons = vec![PlanComparison {
         test: Test::Matches,
         left: Operand::Column(column(1)),
         right: Operand::Column(column(2)),

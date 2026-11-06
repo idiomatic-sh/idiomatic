@@ -2,7 +2,7 @@
 use super::super::cases::test::table_of;
 use super::super::*;
 use crate::domain::operating::types::Memo;
-use ryo_values::domain::plan_parts::types::{Comparison, Operand, QueryLiteral, Test};
+use ryo_values::domain::plan_parts::types::{PlanComparison, Operand, QueryLiteral, Test};
 
 struct Callback<'a>(
     &'a mut dyn FnMut(&mut OperatorContext<'_>, &[Cell]) -> Result<(), OperatingError>,
@@ -84,7 +84,7 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
             operation: Operation::Select {
                 from: PlanInput::Step(joined),
                 kept: vec![],
-                comparisons: vec![Comparison {
+                comparisons: vec![PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(0)),
                     right: Operand::Literal(QueryLiteral::Number(Integer(20))),

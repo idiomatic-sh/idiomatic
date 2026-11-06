@@ -208,10 +208,26 @@ pub struct StagedWords {
     /// Foreign or stale sessions are never resolved by another snapshot.
     pub session: StagingSession,
     /// Byte offset from the start of this session's spool.
-    pub offset: u64,
+    pub offset: PayloadOffset,
     /// Exact packed payload length, with no framing bytes.
-    pub length: u64,
+    pub length: PayloadLength,
 }
+
+/// A byte position of packed words in a spool or a snapshot file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct PayloadOffset(pub u64);
+
+/// The exact byte length of packed words in a spool or a snapshot file.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub struct PayloadLength(pub u64);
+
+/// The byte position where a stored row's header starts.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct HeaderOffset(pub u64);
+
+/// A fresh row's position among both inline and staged rows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct StagedOrdinal(pub u64);
 
 /// Normalized fresh words are either inline or a descriptor, never a domain-owned file handle.
 #[derive(Clone, Debug, PartialEq, Eq)]

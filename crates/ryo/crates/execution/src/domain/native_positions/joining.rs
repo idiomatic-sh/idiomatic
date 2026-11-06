@@ -33,7 +33,7 @@ use ryo_operators::inbound::use_cases::operators::interface::{
 };
 use ryo_relations::domain::relations::types::{Position, Relation, Value};
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Comparison, Input},
+    plan_parts::types::{ColumnIndex, PlanComparison, Input},
     plans::types::Operation,
     rows::types::RowIndex,
 };
@@ -123,7 +123,7 @@ impl PositionJoinDriver for TreeMatch<'_, '_, '_, '_> {
 
 struct EdgeMatches<'a, 't, 'c> {
     tree: &'a TreeRows<'t>,
-    filter: &'a [Comparison],
+    filter: &'a [PlanComparison],
     cells: &'a mut Vec<Value>,
     context: &'a mut OperatorContext<'c>,
     found: &'a FoundPositions,

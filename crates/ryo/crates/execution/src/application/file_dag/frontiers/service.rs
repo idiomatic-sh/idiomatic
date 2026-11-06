@@ -88,7 +88,7 @@ pub(crate) fn prepare(
             .and_then(|rule| rule.frontier_capture.get(place))
             .copied()
             .ok_or(OperatingError::NotRun)?
-            == ryo_values::domain::run_metadata::types::FrontierCapture::CrossFile
+            == ryo_values::domain::run_metadata::types::FrontierFeed::CrossFile
         {
             continue;
         }

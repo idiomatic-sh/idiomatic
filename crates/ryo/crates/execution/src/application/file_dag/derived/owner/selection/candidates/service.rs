@@ -167,7 +167,7 @@ fn selective(
 
 /// Equality lookup never interns query text and verifies symbol hashes by exact text.
 fn discriminator(
-    comparison: &ryo_values::domain::plan_parts::types::Comparison,
+    comparison: &ryo_values::domain::plan_parts::types::PlanComparison,
     program: &Selector,
     source: ColumnsView<'_>,
     context: &OperatorContext<'_>,

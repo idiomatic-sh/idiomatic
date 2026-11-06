@@ -11,7 +11,7 @@ use crate::domain::{
     executable_program::types::{Instruction, LogicalInstruction},
     operating::types::Emit as RowSink,
 };
-use ryo_values::domain::plan_parts::types::{Comparison, Operand, QueryLiteral, Test};
+use ryo_values::domain::plan_parts::types::{PlanComparison, Operand, QueryLiteral, Test};
 use std::{
     cell::Cell as Counter,
     collections::{BTreeMap, BTreeSet},
@@ -308,7 +308,7 @@ pub(super) fn observe(omit: bool) -> Coverage {
                     from: PlanInput::Relation(relation),
                     kept: vec![ColumnIndex(0)],
                     comparisons: if index == 1 || index == 2 {
-                        vec![Comparison {
+                        vec![PlanComparison {
                             test: Test::Equal,
                             left: Operand::Literal(QueryLiteral::Number(Integer(index))),
                             right: Operand::Literal(QueryLiteral::Number(Integer(index))),

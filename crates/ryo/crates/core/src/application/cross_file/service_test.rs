@@ -1209,7 +1209,7 @@ fn equal_policies_do_not_alias_distinct_admitted_frontier_payloads() {
 
 #[test]
 fn many_distinct_project_populations_allocate_only_reached_region_state() {
-    use ryo_values::domain::plan_parts::types::{Comparison, Operand, QueryLiteral, Test};
+    use ryo_values::domain::plan_parts::types::{PlanComparison, Operand, QueryLiteral, Test};
     use std::sync::atomic::Ordering;
     const POPULATIONS: usize = 8;
     let calls = Arc::new(ProjectCalls::default());
@@ -1222,7 +1222,7 @@ fn many_distinct_project_populations_allocate_only_reached_region_state() {
                 scope: StepScope::CrossFile,
                 operation: Operation::Select {
                     from: PlanInput::Step(StepId(1)),
-                    comparisons: vec![Comparison {
+                    comparisons: vec![PlanComparison {
                         test: Test::Equal,
                         left: Operand::Column(ColumnIndex(1)),
                         right: Operand::Literal(QueryLiteral::Number(

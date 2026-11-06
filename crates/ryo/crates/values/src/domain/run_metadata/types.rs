@@ -6,8 +6,12 @@ use crate::domain::plan_parts::types::StepScope;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FeatureSource {
     AllInputs,
-    Input(usize),
+    Input(SourcePosition),
 }
+
+/// A source position among the inputs of a step.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SourcePosition(pub usize);
 
 /// One source-bound feature of an original logical step.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -35,7 +39,7 @@ pub enum ProjectRead {
 
 /// Whether a rule has steps that run across files.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CrossSteps {
+pub enum CrossFileSteps {
     /// At least one step runs across files.
     Present,
     /// Every step runs within one file.
@@ -44,7 +48,7 @@ pub enum CrossSteps {
 
 /// How a frontier slot of a rule is fed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum FrontierCapture {
+pub enum FrontierFeed {
     /// A per-file captured frontier.
     Captured,
     /// A cross-file observation input.
@@ -55,8 +59,8 @@ pub enum FrontierCapture {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RuleRunMetadata {
     pub reads_project: ProjectRead,
-    pub has_cross_steps: CrossSteps,
+    pub has_cross_steps: CrossFileSteps,
     /// A `CrossFile` slot is a cross-file observation input, never a per-file captured frontier.
-    pub frontier_capture: Box<[FrontierCapture]>,
+    pub frontier_capture: Box<[FrontierFeed]>,
     pub steps: Box<[StepMetadata]>,
 }

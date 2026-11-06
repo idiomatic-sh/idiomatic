@@ -9,7 +9,7 @@ use ryo_relations::domain::relations::{
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     plan_parts::types::{
-        ColumnIndex, Comparison, Direction, Input, JoinColumn, LiteralText, Operand, QueryLiteral,
+        ColumnIndex, PlanComparison, Direction, Input, JoinColumn, LiteralText, Operand, QueryLiteral,
         Side, StepId, StepScope, Test,
     },
     plans::types::{Emit, Operation, Plan, PlanStep},
@@ -51,7 +51,7 @@ fn plan(index: usize) -> Plan {
         );
         Operation::Select {
             from: Input::Relation(Relation::Function),
-            comparisons: vec![Comparison {
+            comparisons: vec![PlanComparison {
                 test: Test::Equal,
                 left: Operand::Column(name),
                 right: Operand::Literal(QueryLiteral::Text(LiteralText(

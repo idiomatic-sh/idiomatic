@@ -1,5 +1,5 @@
 use super::*;
-use ryo_values::domain::plan_parts::types::{Comparison, JoinColumn};
+use ryo_values::domain::plan_parts::types::{PlanComparison, JoinColumn};
 use ryo_values::domain::plans::types::{Emit, PlanStep};
 
 fn fixture() -> (Plan, Vec<CellKind>) {
@@ -36,7 +36,7 @@ fn fixture() -> (Plan, Vec<CellKind>) {
     };
     let select = Operation::Select {
         from: Input::Step(StepId(1)),
-        comparisons: vec![Comparison {
+        comparisons: vec![PlanComparison {
             test: Test::LessThan,
             left: Operand::Column(ColumnIndex(0)),
             right: Operand::Column(ColumnIndex(1)),

@@ -36,7 +36,7 @@ use ryo_values::domain::hosted::types::{
 };
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, HostedNumber, Input as PlanInput, LiteralText, Operand, ParameterName,
+    ColumnIndex, PlanComparison, HostedNumber, Input as PlanInput, LiteralText, Operand, ParameterName,
     QueryLiteral, QueryText, StepId, Test,
 };
 use ryo_values::domain::plans::types::{
@@ -163,7 +163,7 @@ const SOURCES: [(&str, &str); 3] = [
 
 /// A plan over `function`: every row, or only the rows whose name is the text given.
 fn plan_with_name(name: &str) -> Plan {
-    let comparison = Comparison {
+    let comparison = PlanComparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(1)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(name.into()))),
@@ -1531,16 +1531,16 @@ fn changed_nested_module() -> Result<Value, Failure> {
         };
         query_bundle(
             document_source(
-                source_id("root").unwrap(),
+                source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap(),
                 "import outer from \"outer\"; let found = outer(); emit found subject id key(id);",
             ),
             [
                 document_source(
-                    source_id("outer").unwrap(),
+                    source_id(ryo_values::domain::program::types::QuerySpelling("outer")).unwrap(),
                     "import nested from \"nested\"; output relation<id: node>; let found = nested(); return found;",
                 ),
                 document_source(
-                    source_id("nested").unwrap(),
+                    source_id(ryo_values::domain::program::types::QuerySpelling("nested")).unwrap(),
                     format!("output relation<id: node>; let found = select {projection} from \"syntax-tree\"; return found;").into_boxed_str(),
                 ),
             ],
@@ -1573,11 +1573,11 @@ fn changed_fragment_plan() -> Result<Value, Failure> {
         );
         ryo_values::domain::program::service::query_bundle(
             ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id("root").unwrap(),
+                ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap(),
                 "import choose from \"query/filter\"; let files = select path from \"filesystem.file\"; let result = choose(files=files); emit result subject \"path\" key(\"path\");",
             ),
             [ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id("query/filter").unwrap(),
+                ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("query/filter")).unwrap(),
                 module.into_boxed_str(),
             )],
         )

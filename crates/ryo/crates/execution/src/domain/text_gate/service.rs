@@ -17,13 +17,13 @@ use crate::domain::table_scratch::types::{
     TextStarts, TextVerdicts, TextedFile, TreeSize,
 };
 use ryo_values::domain::plan_parts::service::each_column;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Comparison, Operand};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison, Operand};
 
 /// The comparisons that ask of the text of an element something that does not depend on the element,
 /// by their place among the comparisons: what is decided once for each text and not for each element.
 pub(crate) fn text_gate(
     tree: &TreeRows<'_>,
-    comparisons: &[Comparison],
+    comparisons: &[PlanComparison],
     gate: &mut ComparisonNumbers,
 ) {
     let gate = &mut gate.0;
@@ -49,7 +49,7 @@ pub(crate) fn text_gate(
 
 /// The comparisons the kind sets and the text gate have not decided, by their place among `comparisons`, into `rest`.
 pub(crate) fn undecided(
-    comparisons: &[Comparison],
+    comparisons: &[PlanComparison],
     gate: &ComparisonNumbers,
     kinds_by: KindsBy,
     rest: &mut ComparisonNumbers,
@@ -75,7 +75,7 @@ pub(crate) fn undecided(
 pub(crate) fn text_admitted(
     tree: &TreeRows<'_>,
     index: ElementIndex,
-    comparisons: &[Comparison],
+    comparisons: &[PlanComparison],
     gate: &ComparisonNumbers,
     text_ok: &mut TextVerdicts,
     names: NameCount,
@@ -115,7 +115,7 @@ pub(crate) fn text_admitted(
 )]
 fn decided(
     text: Symbol,
-    comparisons: &[Comparison],
+    comparisons: &[PlanComparison],
     gate: &ComparisonNumbers,
     text_ok: &mut TextVerdicts,
     names: NameCount,
@@ -201,7 +201,7 @@ fn group_by_text(
 )]
 pub(crate) fn text_candidates(
     tree: &TreeRows<'_>,
-    comparisons: &[Comparison],
+    comparisons: &[PlanComparison],
     gate: &ComparisonNumbers,
     text_ok: &mut TextVerdicts,
     names: NameCount,
@@ -295,7 +295,7 @@ pub(crate) fn text_candidates(
 }
 
 /// The places of the columns the comparisons read, each once, in order.
-pub(crate) fn needed_of(comparisons: &[Comparison], needed: &mut ColumnPlaces) {
+pub(crate) fn needed_of(comparisons: &[PlanComparison], needed: &mut ColumnPlaces) {
     let needed = &mut needed.0;
     needed.clear();
     for comparison in comparisons {
@@ -311,7 +311,7 @@ pub(crate) fn needed_of(comparisons: &[Comparison], needed: &mut ColumnPlaces) {
 
 /// The places of the columns the comparisons numbered `which` read, each once, in order.
 pub(crate) fn needed_of_rest(
-    comparisons: &[Comparison],
+    comparisons: &[PlanComparison],
     which: &ComparisonNumbers,
     needed: &mut ColumnPlaces,
 ) {

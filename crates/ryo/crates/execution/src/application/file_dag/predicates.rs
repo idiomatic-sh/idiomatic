@@ -69,7 +69,7 @@ mod tests {
     use super::*;
     use ryo_relations::domain::relations::types::Relation;
     use ryo_values::domain::plan_parts::types::{
-        Comparison, Input, LiteralText, Operand, QueryLiteral, Test,
+        PlanComparison, Input, LiteralText, Operand, QueryLiteral, Test,
     };
     use ryo_values::domain::plans::types::Operation;
     use std::sync::atomic::Ordering;
@@ -77,13 +77,13 @@ mod tests {
     #[test]
     fn failed_preceding_predicate_never_acquires_invalid_regex() {
         let comparisons = vec![
-            Comparison {
+            PlanComparison {
                 left: Operand::Column(ryo_values::domain::plan_parts::types::ColumnIndex(0)),
                 right: Operand::Literal(QueryLiteral::Text(LiteralText("pass".into()))),
                 test: Test::Equal,
                 origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             },
-            Comparison {
+            PlanComparison {
                 left: Operand::Literal(QueryLiteral::Text(LiteralText("subject".into()))),
                 right: Operand::Literal(QueryLiteral::Text(LiteralText("[".into()))),
                 test: Test::Matches,

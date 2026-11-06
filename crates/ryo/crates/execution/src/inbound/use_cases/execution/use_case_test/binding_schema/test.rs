@@ -3,7 +3,7 @@ use super::super::super::fixtures;
 use crate::domain::operating::errors::OperatingError;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Comparison, LiteralText, Operand, ParameterId, Test},
+    plan_parts::types::{ColumnIndex, PlanComparison, LiteralText, Operand, ParameterId, Test},
     query_bindings::types::ParameterBinding,
     rows::types::{RowCount, Table},
 };
@@ -33,7 +33,7 @@ fn execution_boundary(scenario: Scenario) -> Result<Value, Failure> {
     } else {
         &[CellKind::Symbol]
     };
-    let comparison = Comparison {
+    let comparison = PlanComparison {
         test: Test::Matches,
         left: Operand::Column(ColumnIndex(0)),
         right: if dynamic {

@@ -256,13 +256,13 @@ fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<()
 
 fn literal(text: &str, columns: Vec<ColumnIndex>) -> Selector {
     use ryo_values::domain::{
-        plan_parts::types::{Comparison, LiteralText, Operand, QueryLiteral, Test},
+        plan_parts::types::{PlanComparison, LiteralText, Operand, QueryLiteral, Test},
         query_bindings::types::ParameterBinding,
     };
     Selector {
         relation: Relation::Defines,
         identity: Arc::new(crate::domain::table_model::types::SelectionIdentity {
-            comparisons: vec![Comparison {
+            comparisons: vec![PlanComparison {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(0)),
                 right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),

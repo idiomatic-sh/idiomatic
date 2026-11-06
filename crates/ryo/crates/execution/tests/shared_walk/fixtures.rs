@@ -27,7 +27,7 @@ use ryo_relations::domain::{
 };
 use ryo_values::domain::{
     plan_parts::types::{
-        ColumnIndex, Comparison, Input, LiteralText, Operand, ParameterId, ParameterName,
+        ColumnIndex, PlanComparison, Input, LiteralText, Operand, ParameterId, ParameterName,
         QueryLiteral, Test,
     },
     plans::types::{Operation, ParameterType, PlanParameter},
@@ -72,8 +72,8 @@ pub(super) enum Selector {
     RegexBeforeAbsentKind,
     AbsentKindBeforeRegex,
 }
-pub(super) fn compared(test: Test, column: u32, right: Operand) -> Comparison {
-    Comparison {
+pub(super) fn compared(test: Test, column: u32, right: Operand) -> PlanComparison {
+    PlanComparison {
         test,
         left: Operand::Column(ColumnIndex(column)),
         right,
@@ -83,7 +83,7 @@ pub(super) fn compared(test: Test, column: u32, right: Operand) -> Comparison {
 pub(super) fn text(text: &str) -> Operand {
     Operand::Literal(QueryLiteral::Text(LiteralText(text.into())))
 }
-pub(super) fn selection(selector: Selector) -> Vec<Comparison> {
+pub(super) fn selection(selector: Selector) -> Vec<PlanComparison> {
     let kind = |name| compared(Test::Equal, 1, text(name));
     let regex = compared(Test::Matches, 2, Operand::Column(ColumnIndex(2)));
     match selector {

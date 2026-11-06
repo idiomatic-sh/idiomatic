@@ -26,7 +26,7 @@ use ryo_relations::domain::relations::{
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     plan_parts::types::{
-        ColumnIndex, Comparison, Input, Operand, ParameterId, ParameterName, RepeatedRows, StepId,
+        ColumnIndex, PlanComparison, Input, Operand, ParameterId, ParameterName, RepeatedRows, StepId,
         StepScope, Test, WholeNumber,
     },
     plans::types::{Emit, Operation, ParameterType, Plan, PlanParameter, PlanStep},
@@ -51,7 +51,7 @@ fn binding_plan() -> Plan {
                 scope: StepScope::PerFile,
                 operation: Operation::Select {
                     from: Input::Relation(Relation::LanguageTarget),
-                    comparisons: vec![Comparison {
+                    comparisons: vec![PlanComparison {
                         test: Test::Equal,
                         left: Operand::Column(ColumnIndex(1)),
                         right: Operand::Parameter(ParameterId(0)),

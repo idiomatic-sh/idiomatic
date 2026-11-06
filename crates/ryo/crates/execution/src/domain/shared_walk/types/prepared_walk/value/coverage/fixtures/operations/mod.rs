@@ -11,7 +11,7 @@ use ryo_values::domain::hosted::types::{
 };
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    CapturePattern, ColumnIndex, Comparison, Direction, HostedNumber, Input, JoinColumn,
+    CapturePattern, ColumnIndex, PlanComparison, Direction, HostedNumber, Input, JoinColumn,
     LiteralText, Operand, ParameterId, ParameterName, QueryLiteral, RepeatedRows, Side, StepId,
     TableKey, Test,
 };
@@ -83,8 +83,8 @@ fn output() -> Vec<JoinColumn> {
         },
     ]
 }
-fn equal(column: ColumnIndex) -> Comparison {
-    Comparison {
+fn equal(column: ColumnIndex) -> PlanComparison {
+    PlanComparison {
         test: Test::Equal,
         left: Operand::Column(column),
         right: Operand::Column(column),

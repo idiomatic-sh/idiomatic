@@ -6,7 +6,7 @@ use super::service::{catalog, fed_over, tally};
 use crate::domain::operator::types::RowsFed;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Comparison;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
 use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plan_parts::types::Operand;
@@ -47,7 +47,7 @@ fn select_over_function() -> Plan {
         steps: vec![PlanStep {
             operation: Operation::Select {
                 from: PlanInput::Relation(Relation::Function),
-                comparisons: vec![Comparison {
+                comparisons: vec![PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText("main".into()))),

@@ -554,7 +554,7 @@ fn project_grouping_reads_only_actual_captured_function_names() {
 fn named_function_selection_replays_without_running_project_steps_or_hiding_absence() {
     use ryo_relations::domain::relations::{service::node_id, types::Position};
     use ryo_values::domain::plan_parts::types::{
-        Comparison, LiteralText, Operand, QueryLiteral, Test,
+        PlanComparison, LiteralText, Operand, QueryLiteral, Test,
     };
     for absent in [false, true] {
         let engine = engine();
@@ -563,7 +563,7 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Relation(Relation::Function),
-                comparisons: vec![Comparison {
+                comparisons: vec![PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText("main".into()))),

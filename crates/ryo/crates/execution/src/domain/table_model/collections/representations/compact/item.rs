@@ -35,7 +35,7 @@ impl RepresentationsItem for CompactItem {
             return Err(OperatingError::ShapeMismatch);
         }
         if ryo_values::domain::table_words::service::compact_rectangular(table)
-            != ryo_values::domain::table_words::types::Shape::Rectangular
+            != ryo_values::domain::table_words::types::TableShape::Rectangular
         {
             return Err(OperatingError::ShapeMismatch);
         }

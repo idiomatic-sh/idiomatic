@@ -1,6 +1,6 @@
 //! Extract the few non-executable rule facts once while plans are transient.
 use super::types::{
-    CrossSteps, FeatureSlot, FeatureSource, FrontierCapture, ProjectRead, RuleRunMetadata,
+    CrossFileSteps, FeatureSlot, FeatureSource, FrontierFeed, ProjectRead, RuleRunMetadata,
     StepMetadata,
 };
 use crate::domain::plan_parts::types::StepScope;
@@ -29,18 +29,18 @@ fn from_plan(plan: &Plan) -> RuleRunMetadata {
             ProjectRead::Ignores
         },
         has_cross_steps: if plan.steps.iter().any(|step| step.scope == StepScope::CrossFile) {
-            CrossSteps::Present
+            CrossFileSteps::Present
         } else {
-            CrossSteps::Absent
+            CrossFileSteps::Absent
         },
         frontier_capture: plan.frontier.iter().map(|input| {
             if matches!(input, Input::BoundObservation(id) if plan.observation_inputs
                 .get(id.0 as usize)
                 .is_some_and(|schema| schema.scope == StepScope::CrossFile))
             {
-                FrontierCapture::CrossFile
+                FrontierFeed::CrossFile
             } else {
-                FrontierCapture::Captured
+                FrontierFeed::Captured
             }
         }).collect(),
         steps: plan.steps.iter().map(|step| {
@@ -63,7 +63,7 @@ fn from_plan(plan: &Plan) -> RuleRunMetadata {
                 let Input::Relation(relation) = input else { return None; };
                 Some(FeatureSlot {
                     feature: Feature::Relation(*relation),
-                    source: FeatureSource::Input(place),
+                    source: FeatureSource::Input(super::types::SourcePosition(place)),
                 })
             }));
             StepMetadata {

@@ -14,7 +14,7 @@ use ryo_relations::domain::{
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
     plan_parts::types::{
-        ColumnIndex, Comparison, Input as PlanInput, LiteralText, Operand, ParameterId,
+        ColumnIndex, PlanComparison, Input as PlanInput, LiteralText, Operand, ParameterId,
         QueryLiteral, StepId, StepScope, Test,
     },
     plans::types::{Emit, Operation, Plan, PlanStep},
@@ -41,7 +41,7 @@ fn plan(name: &str) -> Plan {
         steps: vec![PlanStep {
             operation: Operation::Select {
                 from: PlanInput::Relation(Relation::SyntaxTree),
-                comparisons: vec![Comparison {
+                comparisons: vec![PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(if name.is_empty() { 2 } else { 1 })),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText(name.into()))),
@@ -162,7 +162,7 @@ fn predicate_order_preserves_errors_and_short_circuits() {
     let Operation::Select { comparisons, .. } = &mut first.steps[0].operation else {
         unreachable!()
     };
-    let invalid = Comparison {
+    let invalid = PlanComparison {
         test: Test::Matches,
         left: Operand::Column(ColumnIndex(2)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText("[".into()))),
@@ -192,7 +192,7 @@ pub(crate) fn add_pattern(plans: &mut [Plan; 4], parameter: u32) {
         let Operation::Select { comparisons, .. } = &mut plans[rule].steps[0].operation else {
             unreachable!();
         };
-        comparisons.push(Comparison {
+        comparisons.push(PlanComparison {
             test: Test::Matches,
             left: Operand::Column(ColumnIndex(2)),
             right: Operand::Parameter(ParameterId(parameter)),
@@ -245,13 +245,13 @@ fn different_kind_errors_keep_the_first_source_row() {
             unreachable!();
         };
         *comparisons = vec![
-            Comparison {
+            PlanComparison {
                 test: Test::NotEqual,
                 left: Operand::Column(ColumnIndex(1)),
                 right: Operand::Literal(QueryLiteral::Text(LiteralText("file".into()))),
                 origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             },
-            Comparison {
+            PlanComparison {
                 test: Test::Matches,
                 left: Operand::Literal(QueryLiteral::Text(LiteralText("x".into()))),
                 right: Operand::Column(ColumnIndex(2)),
@@ -439,7 +439,7 @@ fn succeeds() {
 
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
-pub(crate) fn relation_plan(relation: Relation, comparisons: Vec<Comparison>) -> Plan {
+pub(crate) fn relation_plan(relation: Relation, comparisons: Vec<PlanComparison>) -> Plan {
     let mut selected = plan("word");
     selected.steps[0].operation = Operation::Select {
         from: PlanInput::Relation(relation),
@@ -449,8 +449,8 @@ pub(crate) fn relation_plan(relation: Relation, comparisons: Vec<Comparison>) ->
     selected
 }
 
-fn numbered(column: u32, value: i64) -> Comparison {
-    Comparison {
+fn numbered(column: u32, value: i64) -> PlanComparison {
+    PlanComparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(column)),
         right: Operand::Literal(QueryLiteral::Number(Integer(value))),
@@ -619,7 +619,7 @@ fn an_unready_class_of_a_demanded_rule_performs_no_semantic_work() {
     selected.steps.push(PlanStep {
         operation: Operation::Select {
             from: PlanInput::Relation(Relation::SyntaxTree),
-            comparisons: vec![Comparison {
+            comparisons: vec![PlanComparison {
                 test: Test::Matches,
                 left: Operand::Column(ColumnIndex(2)),
                 right: Operand::Literal(QueryLiteral::Text(LiteralText("[".into()))),

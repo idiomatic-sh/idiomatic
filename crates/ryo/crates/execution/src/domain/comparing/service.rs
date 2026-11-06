@@ -27,14 +27,14 @@ use ryo_matching::inbound::use_cases::matching::{
     compiled::CompiledTextGlobs, interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
 };
 use ryo_values::domain::plan_parts::service::columns_of;
-use ryo_values::domain::plan_parts::types::{Comparison, Operand, QueryLiteral, Test};
+use ryo_values::domain::plan_parts::types::{PlanComparison, Operand, QueryLiteral, Test};
 use {ryo_values::domain::rows::service::cell, ryo_values::domain::rows::service::column_in};
 
 /// How many verdicts about texts a worker keeps from file to file.
 const VERDICTS: usize = 1 << 14;
 
 /// Whether a name of the file is equal, or not equal, to a text the query wrote, when the comparison is that.
-fn equal_to_text(comparison: &Comparison, row: &[Value], texts: &Texts<'_>) -> Option<Verdict> {
+fn equal_to_text(comparison: &PlanComparison, row: &[Value], texts: &Texts<'_>) -> Option<Verdict> {
     let equal = match comparison.test {
         Test::Equal => true,
         Test::NotEqual => false,
@@ -75,7 +75,7 @@ fn equal_to_text(comparison: &Comparison, row: &[Value], texts: &Texts<'_>) -> O
 
 /// Whether one comparison holds for one row, decided by the family its test belongs to.
 pub(crate) fn evaluate_comparison(
-    comparison: &Comparison,
+    comparison: &PlanComparison,
     row: &[Value],
     bindings: &[ParameterBinding],
     texts: &Texts<'_>,
@@ -117,7 +117,7 @@ pub(crate) fn evaluate_comparison(
 
 /// Uses a fixed operand's compiled matcher; a column operand remains row-dependent.
 fn compiled_glob(
-    comparison: &Comparison,
+    comparison: &PlanComparison,
     left: &Datum<'_>,
     right: &Datum<'_>,
     prepared: Option<&PreparedMatchers>,
@@ -163,7 +163,7 @@ fn compiled_glob(
 
 /// What the verdict of a glob is kept under when it asks of one name or of one file's path something that does not depend on the
 /// row: the tag of the key (0 for a name, 1 for a file) and the hash of the name's text or the number of the file.
-fn glob_subject(comparison: &Comparison, row: &[Value]) -> Option<GlobSubject> {
+fn glob_subject(comparison: &PlanComparison, row: &[Value]) -> Option<GlobSubject> {
     let column = match (&comparison.left, &comparison.right) {
         (Operand::Column(index), Operand::Parameter(_) | Operand::Literal(_))
         | (Operand::Parameter(_) | Operand::Literal(_), Operand::Column(index)) => *index,
@@ -188,7 +188,7 @@ fn glob_subject(comparison: &Comparison, row: &[Value]) -> Option<GlobSubject> {
 /// column with something that does not depend on the row, and the row's cell is a name of the file.
 fn memo_place(
     number: ComparisonNumber,
-    comparison: &Comparison,
+    comparison: &PlanComparison,
     row: &[Value],
     kinds: &[CellKind],
     names: NameCount,
@@ -216,7 +216,7 @@ fn memo_place(
 /// decided once for each distinct name of the file, as the prototype decides a name's predicates once
 /// when it interns the name.
 fn holds_one_bound(
-    numbered: (ComparisonNumber, &Comparison),
+    numbered: (ComparisonNumber, &PlanComparison),
     row: &[Value],
     shape: (&[CellKind], NameCount),
     texts: &Texts<'_>,
@@ -316,7 +316,7 @@ fn holds_one_bound(
 /// algorithm with native callers. Symbols and source text are read-only; only
 /// the explicitly supplied comparison workspace can change.
 pub(crate) fn holds_bound(
-    comparisons: &[Comparison],
+    comparisons: &[PlanComparison],
     row: &[Value],
     shape: (&[CellKind], NameCount),
     texts: &Texts<'_>,
@@ -345,7 +345,7 @@ pub(crate) fn holds_bound(
 /// Evaluate one comparison with the operator context's own texts, bindings and scratch.
 fn holds_one(
     number: ComparisonNumber,
-    comparison: &Comparison,
+    comparison: &PlanComparison,
     row: &[Value],
     kinds: &[CellKind],
     names: NameCount,
@@ -374,7 +374,7 @@ fn holds_one(
 
 /// Whether every comparison holds for the row.
 pub(crate) fn holds_all(
-    comparisons: &[Comparison],
+    comparisons: &[PlanComparison],
     row: &[Value],
     kinds: &[CellKind],
     names: NameCount,
@@ -398,7 +398,7 @@ pub(crate) fn holds_all(
 
 /// Whether the comparisons numbered `which` hold for the row.
 pub(crate) fn holds_some(
-    comparisons: &[Comparison],
+    comparisons: &[PlanComparison],
     which: &ComparisonNumbers,
     row: &[Value],
     kinds: &[CellKind],

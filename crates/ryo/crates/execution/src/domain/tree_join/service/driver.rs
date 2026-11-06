@@ -7,7 +7,7 @@ pub(super) struct Driver<'a, 'f, 'c> {
     pub(super) state: &'a mut TreeState,
     pub(super) work: &'a crate::domain::operator::contract::types::WorkCounters,
     pub(super) tree: &'a TreeRows<'f>,
-    pub(super) comparisons: &'a [Comparison],
+    pub(super) comparisons: &'a [PlanComparison],
     pub(super) context: &'a mut OperatorContext<'c>,
     pub(super) emit: &'a mut dyn Emit,
     pub(super) at: usize,

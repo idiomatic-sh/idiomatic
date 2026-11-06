@@ -66,7 +66,7 @@ fn plan() -> Plan {
                 operation: Operation::Select {
                     from: InputSource::Relation(Relation::Function),
                     kept: vec![ColumnIndex(0), ColumnIndex(2)],
-                    comparisons: vec![Comparison {
+                    comparisons: vec![PlanComparison {
                         test: Test::Equal,
                         left: Operand::Column(ColumnIndex(1)),
                         right: Operand::Literal(QueryLiteral::Text(LiteralText("main".into()))),

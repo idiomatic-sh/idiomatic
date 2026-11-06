@@ -30,7 +30,7 @@ use crate::domain::tree_join::collections::strategies::types::{Fitting, NodeColu
 use ryo_derived::domain::contract::types::Finding;
 use ryo_language::domain::elements::service::{kind_at, parent_at, text_at};
 use ryo_operators::inbound::use_cases::operators::interface::OperatorCall;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Comparison};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison};
 use ryo_values::domain::rows::errors::TableModelError;
 mod driver;
 
@@ -69,7 +69,7 @@ pub(crate) fn tree_value(tree: &TreeRows<'_>, at: Position, column: ColumnIndex)
 /// Takes what the join needs from the scratch of `context`, and makes ready what its comparisons decide.
 pub(crate) fn take_state(
     tree: &TreeRows<'_>,
-    comparisons: &[Comparison],
+    comparisons: &[PlanComparison],
     context: &mut OperatorContext<'_>,
 ) -> TreeState {
     let names = NameCount(name_count(context.symbols.as_ref()).0);

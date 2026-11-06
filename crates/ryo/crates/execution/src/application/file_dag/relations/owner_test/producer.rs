@@ -9,7 +9,7 @@ use ryo_relations::domain::relations::{
     types::{ColumnsView, FileId, Integer, Relation, Value},
 };
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, Operand, ParameterId, Test, WholeNumber,
+    ColumnIndex, PlanComparison, Operand, ParameterId, Test, WholeNumber,
 };
 use std::sync::Arc;
 use {
@@ -43,7 +43,7 @@ fn exercise_real_selector(limit: Retention) {
     let program = Arc::new(Selector {
         relation,
         identity: Arc::new(SelectionIdentity {
-            comparisons: vec![Comparison {
+            comparisons: vec![PlanComparison {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(1)),
                 right: Operand::Parameter(ParameterId(0)),

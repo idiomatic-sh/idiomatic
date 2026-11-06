@@ -2,14 +2,14 @@
 use super::prefix;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
-    Applied, ColumnIndex, Comparison, ComparisonOrigin, ComparisonOriginId, Function, Input,
+    Applied, ColumnIndex, PlanComparison, ComparisonOrigin, ComparisonOriginId, Function, Input,
     LiteralText, Operand, ParameterId, QueryLiteral, RepeatedRows, StepId, Test,
 };
 use ryo_values::domain::plans::types::Operation;
 
 /// A typed symbol predicate with independent source-origin ownership.
-fn comparison(column: u32, origin: u32) -> Comparison {
-    Comparison {
+fn comparison(column: u32, origin: u32) -> PlanComparison {
+    PlanComparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(column)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText("call".into()))),

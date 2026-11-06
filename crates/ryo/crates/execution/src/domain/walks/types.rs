@@ -6,7 +6,7 @@ use crate::domain::kind_sets::types::KindScratch;
 use crate::domain::operating::types::NameCount;
 use crate::domain::table_cells::types::ColumnPlaces;
 use crate::domain::table_scratch::types::{ComparisonNumbers, TextVerdicts};
-use ryo_values::domain::plan_parts::types::Comparison;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 
 /// Which elements of the tree are marked by position.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -23,14 +23,14 @@ pub(crate) enum Admit<'x> {
     /// The elements marked by position.
     Marks(Marked),
     /// The elements the comparisons admit.
-    Filter(FilterScratch, &'x [Comparison]),
+    Filter(FilterScratch, &'x [PlanComparison]),
 }
 
 /// How the entities a walk reaches are told to be answers: marked by place, when the domain is a table, or
 /// decided where they are, when the domain is the elements of the tree and a filter of them.
 pub(crate) enum Admission<'x> {
     /// The elements the filter admits.
-    Filtered(&'x [Comparison]),
+    Filtered(&'x [PlanComparison]),
 }
 
 /// What deciding an element by a filter works with, taken out of the scratch while the walk runs.

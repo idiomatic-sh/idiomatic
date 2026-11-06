@@ -437,7 +437,7 @@ fn compiled_tree_and_step_joins_cannot_bypass_the_same_semantic_refusal() {
 #[test]
 fn native_provenance_preserves_canonical_left_then_right_refusal_even_when_left_is_empty() {
     use ryo_values::domain::plan_parts::types::{
-        Comparison, LiteralText, Operand, QueryLiteral, Test,
+        PlanComparison, LiteralText, Operand, QueryLiteral, Test,
     };
     for (left_fails, right_fails, error) in [
         (false, true, Some(OperatingError::NotRead)),
@@ -452,7 +452,7 @@ fn native_provenance_preserves_canonical_left_then_right_refusal_even_when_left_
             operation: Operation::Select {
                 from: PlanInput::Relation(Relation::SyntaxTree),
                 kept: vec![ColumnIndex(0)],
-                comparisons: vec![Comparison {
+                comparisons: vec![PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText("absent-kind".into()))),
@@ -532,7 +532,7 @@ fn native_provenance_preserves_canonical_left_then_right_refusal_even_when_left_
 #[test]
 fn empty_native_step_join_validates_both_sources_without_sorting_rhs_keys() {
     use ryo_values::domain::plan_parts::types::{
-        Comparison, LiteralText, Operand, QueryLiteral, Test,
+        PlanComparison, LiteralText, Operand, QueryLiteral, Test,
     };
     for (refuse_right, foreign_tree) in [(false, false), (true, false), (false, true)] {
         let (left_elements, mut symbols) = wide_tree(1, true);
@@ -544,7 +544,7 @@ fn empty_native_step_join_validates_both_sources_without_sorting_rhs_keys() {
                 operation: Operation::Select {
                     from: PlanInput::Relation(Relation::SyntaxTree),
                     kept: vec![ColumnIndex(0)],
-                    comparisons: vec![Comparison {
+                    comparisons: vec![PlanComparison {
                         test: Test::Equal,
                         left: Operand::Column(ColumnIndex(1)),
                         right: Operand::Literal(QueryLiteral::Text(LiteralText(
@@ -635,7 +635,7 @@ fn empty_native_step_join_validates_both_sources_without_sorting_rhs_keys() {
 #[test]
 fn tree_lookup_preflight_preserves_required_support_and_optional_equality_fallback() {
     use ryo_derived::domain::contract::types::ViewRequest;
-    use ryo_values::domain::plan_parts::types::{Comparison, Operand, Test};
+    use ryo_values::domain::plan_parts::types::{PlanComparison, Operand, Test};
     let (elements, mut symbols) = wide_tree(1, true);
     let right = tree_rows(&elements, TreeForm::Elements);
     let mut materialized = Table::default();
@@ -651,7 +651,7 @@ fn tree_lookup_preflight_preserves_required_support_and_optional_equality_fallba
                     table_of(&[CellKind::Symbol], &[&[root_kind]])
                 };
                 let filter = if required == 1 {
-                    vec![Comparison {
+                    vec![PlanComparison {
                         test: Test::Equal,
                         left: Operand::Column(ColumnIndex(1)),
                         right: Operand::Column(ColumnIndex(1)),
@@ -716,7 +716,7 @@ fn tree_lookup_preflight_preserves_required_support_and_optional_equality_fallba
                 &[0],
                 &[0],
                 &[(Side::Left, 0)],
-                vec![Comparison {
+                vec![PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(0)),
                     right: Operand::Column(ColumnIndex(0)),

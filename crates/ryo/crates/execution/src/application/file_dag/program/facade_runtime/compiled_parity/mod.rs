@@ -27,7 +27,7 @@ use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     plan_parts::types::{
-        ColumnIndex, Comparison, Input as PlanInput, JoinColumn, LiteralText, Operand,
+        ColumnIndex, PlanComparison, Input as PlanInput, JoinColumn, LiteralText, Operand,
         QueryLiteral, RepeatedRows, Side, StepId, StepScope, Test,
     },
     plans::types::{Emit, Operation, Plan, PlanStep},
@@ -66,14 +66,14 @@ fn plan(scenario: Scenario) -> Plan {
                 scenario,
                 Scenario::RowsOfWords | Scenario::DistinctKinds | Scenario::KeptKinds
             ) {
-                vec![Comparison {
+                vec![PlanComparison {
                     test: Test::NotEqual,
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText("file".into()))),
                     origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }]
             } else {
-                vec![Comparison {
+                vec![PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText("word".into()))),
@@ -92,7 +92,7 @@ fn plan(scenario: Scenario) -> Plan {
         steps.push(PlanStep {
             operation: Operation::Select {
                 from: PlanInput::Step(StepId(0)),
-                comparisons: vec![Comparison {
+                comparisons: vec![PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText("word".into()))),
@@ -182,7 +182,7 @@ fn plan(scenario: Scenario) -> Plan {
             },
             scope: StepScope::PerFile,
         };
-        let text_is = |column, test, text: &str| Comparison {
+        let text_is = |column, test, text: &str| PlanComparison {
             test,
             left: Operand::Column(ColumnIndex(column)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),

@@ -30,7 +30,7 @@ use ryo_relations::domain::{
 use ryo_values::domain::{
     files::types::SourceView,
     plan_parts::types::{
-        ColumnIndex, Comparison, LiteralText, Operand, ParameterId, QueryLiteral, Test,
+        ColumnIndex, PlanComparison, LiteralText, Operand, ParameterId, QueryLiteral, Test,
     },
     query_bindings::types::ParameterBinding,
 };
@@ -103,7 +103,7 @@ fn fanout(exit: Exit) -> Result<DerivedKind, OperatingError> {
         Arc::new(Selector {
             relation: Relation::Defines,
             identity: Arc::new(SelectionIdentity {
-                comparisons: vec![Comparison {
+                comparisons: vec![PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(0)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
@@ -136,7 +136,7 @@ fn fanout(exit: Exit) -> Result<DerivedKind, OperatingError> {
 /// A selector whose parameter is bound to a table: the comparison refuses with `WrongBinding`.
 fn refusing(base: &Selector) -> Arc<Selector> {
     let mut bad = base.clone();
-    let bind = Comparison {
+    let bind = PlanComparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(0)),
         right: Operand::Parameter(ParameterId(0)),

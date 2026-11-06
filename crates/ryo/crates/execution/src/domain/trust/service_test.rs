@@ -7,7 +7,7 @@ use super::service::{blocked, matters};
 use super::types::{Bearing, Blocking, RelationRead};
 use crate::domain::coverage::types::{Lacking, LackingKind, Partial};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Comparison, Operand, QueryLiteral, Test};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison, Operand, QueryLiteral, Test};
 use ryo_values::domain::stored_facts::types::PartialCause;
 
 /// What a row of the cases does.
@@ -41,7 +41,7 @@ fn subject(scenario: Input) -> Value {
         Scenario::Matters(test, literal, missing) => {
             let read = RelationRead {
                 relation: Relation::Defines,
-                kinds: vec![Comparison {
+                kinds: vec![PlanComparison {
                     test,
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText(literal.into()))),

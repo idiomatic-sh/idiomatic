@@ -37,7 +37,7 @@ fn inline_and_staged_mixed_rows_match_legacy_bytes_at_varint_boundaries() {
         let staged = [StagedRow {
             file: rows[1].file,
             bucket: rows[1].bucket,
-            ordinal: 1,
+            ordinal: ryo_values::domain::records::types::StagedOrdinal(1),
             words: span,
         }];
         let inline = [rows[0].clone(), rows[2].clone()];
@@ -126,7 +126,7 @@ fn corrupt_headers_order_and_truncated_payloads_are_refused() {
     let row = StagedRow {
         file: StoredFileNumber(0),
         bucket: Bucket(3),
-        ordinal: 1,
+        ordinal: ryo_values::domain::records::types::StagedOrdinal(1),
         words,
     };
     assert!(fresh(&[], &[row]).is_err());
@@ -134,8 +134,14 @@ fn corrupt_headers_order_and_truncated_payloads_are_refused() {
         fresh(
             &[],
             &[
-                StagedRow { ordinal: 0, ..row },
-                StagedRow { ordinal: 0, ..row }
+                StagedRow {
+                    ordinal: ryo_values::domain::records::types::StagedOrdinal(0),
+                    ..row
+                },
+                StagedRow {
+                    ordinal: ryo_values::domain::records::types::StagedOrdinal(0),
+                    ..row
+                }
             ]
         )
         .is_err()
@@ -199,8 +205,8 @@ fn streamed_payload_copies_have_bounded_write_chunks_and_propagate_write_failure
         Some(&mut spool),
     )
     .expect("bounded copy");
-    assert!(output.largest < usize::try_from(span.length).expect("size"));
-    assert!(output.bytes >= usize::try_from(span.length).expect("size"));
+    assert!(output.largest < usize::try_from(span.length.0).expect("size"));
+    assert!(output.bytes >= usize::try_from(span.length.0).expect("size"));
     let mut failing = ObservedWriter {
         largest: 0,
         bytes: 0,
@@ -345,9 +351,9 @@ fn old_descriptor_enumeration_skips_huge_payloads_and_resolution_reads_one() {
         snapshot: StoreSnapshot(91),
         bucket: Bucket(3),
         file: rows[1].file,
-        header: rows[1].header,
-        offset: rows[1].span.start.0,
-        length: rows[1].span.length.0,
+        header: ryo_values::domain::records::types::HeaderOffset(rows[1].header),
+        offset: ryo_values::domain::records::types::PayloadOffset(rows[1].span.start.0),
+        length: ryo_values::domain::records::types::PayloadLength(rows[1].span.length.0),
     };
     file.bytes = 0;
     let mut loaded = PackedWords::default();
@@ -364,7 +370,7 @@ fn old_descriptor_enumeration_skips_huge_payloads_and_resolution_reads_one() {
     assert!(loaded.0.iter().all(|byte| *byte == 0x5a));
     assert_eq!(
         file.bytes as u64,
-        descriptor.length + descriptor.offset - descriptor.header
+        descriptor.length.0 + descriptor.offset.0 - descriptor.header.0
     );
     // A tiny requested bucket must not read ahead into an adjacent unrequested section.
     let mut tiny = Sparse {
@@ -404,15 +410,15 @@ fn old_descriptor_enumeration_skips_huge_payloads_and_resolution_reads_one() {
             ..descriptor
         },
         OldWords {
-            length: u64::MAX,
+            length: ryo_values::domain::records::types::PayloadLength(u64::MAX),
             ..descriptor
         },
         OldWords {
-            header: u64::MAX,
+            header: ryo_values::domain::records::types::HeaderOffset(u64::MAX),
             ..descriptor
         },
         OldWords {
-            offset: descriptor.offset + 1,
+            offset: ryo_values::domain::records::types::PayloadOffset(descriptor.offset.0 + 1),
             ..descriptor
         },
         OldWords {
@@ -470,9 +476,9 @@ fn old_payloads_and_headers_share_one_exact_read_without_neighbor_prefetch() {
                 snapshot: StoreSnapshot(81),
                 bucket: Bucket(3),
                 file: first.file,
-                header: first.header,
-                offset: first.span.start.0,
-                length: first.span.length.0,
+                header: ryo_values::domain::records::types::HeaderOffset(first.header),
+                offset: ryo_values::domain::records::types::PayloadOffset(first.span.start.0),
+                length: ryo_values::domain::records::types::PayloadLength(first.span.length.0),
             };
             file.reads = 0;
             file.transferred = 0;
@@ -490,13 +496,13 @@ fn old_payloads_and_headers_share_one_exact_read_without_neighbor_prefetch() {
             assert_eq!(file.reads, 1);
             assert_eq!(
                 u64::try_from(file.transferred).expect("count"),
-                descriptor.offset - descriptor.header + descriptor.length,
+                descriptor.offset.0 - descriptor.header.0 + descriptor.length.0,
                 "only this exact header and payload are read"
             );
             let malformed = OldWords {
-                header: bucket.start.0 + 1,
-                offset: bucket.start.0 + 17,
-                length: 0,
+                header: ryo_values::domain::records::types::HeaderOffset(bucket.start.0 + 1),
+                offset: ryo_values::domain::records::types::PayloadOffset(bucket.start.0 + 17),
+                length: ryo_values::domain::records::types::PayloadLength(0),
                 ..descriptor
             };
             file.reads = 0;
@@ -512,7 +518,7 @@ fn old_payloads_and_headers_share_one_exact_read_without_neighbor_prefetch() {
                 .is_err()
             );
             assert_eq!(file.reads, 0, "oversized headers are refused before IO");
-            let header = usize::try_from(descriptor.header).expect("header offset");
+            let header = usize::try_from(descriptor.header.0).expect("header offset");
             file.bytes.get_mut()[header] ^= 1;
             assert!(
                 read_old_in(
@@ -554,9 +560,9 @@ fn positional_old_payload_read_preserves_cursor_and_refuses_late_truncation() {
         snapshot: StoreSnapshot(81),
         bucket: Bucket(3),
         file: first.file,
-        header: first.header,
-        offset: first.span.start.0,
-        length: first.span.length.0,
+        header: ryo_values::domain::records::types::HeaderOffset(first.header),
+        offset: ryo_values::domain::records::types::PayloadOffset(first.span.start.0),
+        length: ryo_values::domain::records::types::PayloadLength(first.span.length.0),
     };
     let cursor = file.seek(SeekFrom::End(0)).expect("cursor");
     let mut loaded = PackedWords::default();
@@ -572,7 +578,7 @@ fn positional_old_payload_read_preserves_cursor_and_refuses_late_truncation() {
     assert_eq!(loaded, selected.words);
     assert_eq!(file.seek(SeekFrom::Current(0)).expect("cursor"), cursor);
 
-    file.set_len(descriptor.offset + descriptor.length - 1)
+    file.set_len(descriptor.offset.0 + descriptor.length.0 - 1)
         .expect("truncate selected payload");
     assert!(
         read_old_file_in(

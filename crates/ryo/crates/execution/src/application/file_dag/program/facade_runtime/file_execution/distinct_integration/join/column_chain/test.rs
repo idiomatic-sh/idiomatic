@@ -4,7 +4,7 @@ use super::super::*;
 use ryo_language::domain::symbols::{service::intern_derived, types::ByteSlice};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::{
-    Comparison, Input, LiteralText, Operand, QueryLiteral, Test,
+    PlanComparison, Input, LiteralText, Operand, QueryLiteral, Test,
 };
 use std::sync::atomic::Ordering;
 fn column(number: u32) -> ColumnIndex {
@@ -56,7 +56,7 @@ pub(in super::super) fn plan() -> Plan {
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Step(StepId(1)),
-                comparisons: vec![Comparison {
+                comparisons: vec![PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(column(3)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText("body".into()))),

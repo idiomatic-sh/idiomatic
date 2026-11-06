@@ -4,7 +4,7 @@ use super::types::{BindingsAgreement, Merge, MergedStep, Rooted, StepClass};
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::operator::types::StepPlace;
 use crate::domain::positions::types::ClassPlace;
-use ryo_values::domain::plan_parts::types::{Applied, ColumnIndex, Comparison, Input, Operand};
+use ryo_values::domain::plan_parts::types::{Applied, ColumnIndex, PlanComparison, Input, Operand};
 use ryo_values::domain::plans::types::{Operation, Plan};
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
@@ -70,7 +70,7 @@ fn rooted(below: &[Option<Rooted>], operation: &Operation) -> Option<Rooted> {
         Input::BoundObservation(_) => return None,
     };
     for comparison in comparisons {
-        chosen.push(Comparison {
+        chosen.push(PlanComparison {
             test: comparison.test,
             left: over_source(&comparison.left, &columns)?,
             right: over_source(&comparison.right, &columns)?,
@@ -127,7 +127,7 @@ fn operand_bindings_match(
 
 /// Keep each rule's missing-vector fallback and compare exact typed values only where read.
 pub(crate) fn predicate_bindings_match(
-    comparisons: &[Comparison],
+    comparisons: &[PlanComparison],
     left: Option<&[ParameterBinding]>,
     right: Option<&[ParameterBinding]>,
 ) -> BindingsAgreement {

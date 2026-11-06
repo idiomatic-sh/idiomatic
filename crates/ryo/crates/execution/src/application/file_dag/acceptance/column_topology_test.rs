@@ -17,7 +17,7 @@ use ryo_values::domain::{
         ObservationColumn, ObservationColumnName, ObservationName, PlanObservation,
     },
     plan_parts::types::{
-        ColumnIndex, Comparison, HostedNumber, Input as PlanInput, JoinColumn, LiteralText,
+        ColumnIndex, PlanComparison, HostedNumber, Input as PlanInput, JoinColumn, LiteralText,
         Operand, ParameterId, QueryLiteral, RepeatedRows, Side, StepId, StepScope, Test,
     },
     plans::types::{Emit, Operation, Plan, PlanStep},
@@ -108,7 +108,7 @@ fn plan(projected: Vec<ColumnIndex>) -> Plan {
                 scope: StepScope::PerFile,
                 operation: Operation::Select {
                     from: PlanInput::Step(StepId(1)),
-                    comparisons: vec![Comparison {
+                    comparisons: vec![PlanComparison {
                         test: Test::Equal,
                         left: Operand::Column(column(3)),
                         right: Operand::Literal(QueryLiteral::Text(LiteralText("body".into()))),

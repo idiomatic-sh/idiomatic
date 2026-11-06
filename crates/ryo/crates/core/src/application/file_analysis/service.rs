@@ -1087,7 +1087,7 @@ impl FileAnalysis {
                 .get(rule.0)
                 .and_then(|rule| rule.frontier_capture.get(input))
                 .copied()
-                == Some(ryo_values::domain::run_metadata::types::FrontierCapture::Captured)
+                == Some(ryo_values::domain::run_metadata::types::FrontierFeed::Captured)
             && setting.first_bucket.get(rule.0).copied().map(|first| {
                 ryo_values::domain::stored_facts::service::frontier_bucket(
                     first,

@@ -94,7 +94,7 @@ fn fed_by_step(step: &StepMetadata, fed: &RowsFed) -> Vec<FeatureRows> {
             feature: slot.feature,
             rows: RowTotal(match slot.source {
                 FeatureSource::AllInputs => all_inputs,
-                FeatureSource::Input(place) => fed.0.get(place).copied().unwrap_or(0),
+                FeatureSource::Input(place) => fed.0.get(place.0).copied().unwrap_or(0),
             }),
         })
         .collect()

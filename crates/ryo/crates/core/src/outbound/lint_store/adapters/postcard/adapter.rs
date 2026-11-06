@@ -227,9 +227,9 @@ impl LintStorePostcardAdapter {
                         snapshot,
                         bucket: each.bucket,
                         file: row.file,
-                        header: row.header,
-                        offset: row.span.start.0,
-                        length: row.span.length.0,
+                        header: ryo_values::domain::records::types::HeaderOffset(row.header),
+                        offset: ryo_values::domain::records::types::PayloadOffset(row.span.start.0),
+                        length: ryo_values::domain::records::types::PayloadLength(row.span.length.0),
                     }),
                 });
             }
@@ -513,7 +513,7 @@ impl ReadStore for PostcardRead {
             .iter()
             .find(|row| {
                 row.bucket == words.bucket
-                    && row.span.start.0 < words.header
+                    && row.span.start.0 < words.header.0
                     && row
                         .span
                         .start
@@ -522,7 +522,8 @@ impl ReadStore for PostcardRead {
                         .is_some_and(|end| {
                             words
                                 .offset
-                                .checked_add(words.length)
+                                .0
+                                .checked_add(words.length.0)
                                 .is_some_and(|after| after <= end)
                         })
             })

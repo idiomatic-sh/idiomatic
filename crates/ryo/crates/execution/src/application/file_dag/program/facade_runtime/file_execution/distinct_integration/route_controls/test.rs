@@ -9,7 +9,7 @@ use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn},
 };
-use ryo_values::domain::plan_parts::types::{Comparison, Operand, Test};
+use ryo_values::domain::plan_parts::types::{PlanComparison, Operand, Test};
 use ryo_values::domain::stored_facts::types::PartialCause;
 use std::sync::atomic::{AtomicUsize, Ordering};
 #[derive(Debug, Default)]
@@ -335,7 +335,7 @@ pub(in super::super) fn ordered_strategy_fixture() -> (Plan, Vec<CellKind>) {
     };
     let select = Operation::Select {
         from: PlanInput::Step(StepId(1)),
-        comparisons: vec![Comparison {
+        comparisons: vec![PlanComparison {
             test: Test::LessThan,
             left: Operand::Column(ColumnIndex(0)),
             right: Operand::Column(ColumnIndex(1)),

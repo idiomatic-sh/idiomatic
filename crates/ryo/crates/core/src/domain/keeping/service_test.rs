@@ -187,12 +187,12 @@ fn configuration_follows_the_rules() -> Value {
     let same = configuration(&rules);
     let with_module = |body: &str| {
         let root = ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id("rules/F401")
+            ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("rules/F401"))
                 .expect("root id is nonblank"),
             "root query",
         );
         let module = ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id("python/ruff/suppress")
+            ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("python/ruff/suppress"))
                 .expect("module id is nonblank"),
             body,
         );

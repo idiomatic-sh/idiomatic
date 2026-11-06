@@ -186,8 +186,8 @@ fn staged_records_and_final_store_retain_only_descriptors_for_large_logical_payl
                         proof: crate::outbound::lint_store::fixtures::proof(),
                         words: RecordWords::Staged(StagedWords {
                             session: StagingSession(1),
-                            offset: u64::from(number) * 1024 * 1024,
-                            length: 1024 * 1024,
+                            offset: ryo_values::domain::records::types::PayloadOffset(u64::from(number) * 1024 * 1024),
+                            length: ryo_values::domain::records::types::PayloadLength(1024 * 1024),
                         }),
                     }],
                     ..Handed::default()

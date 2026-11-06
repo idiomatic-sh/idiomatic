@@ -5,7 +5,7 @@ use crate::domain::table_model::service::check_columns;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::service::parameter_in;
 use ryo_values::domain::plan_parts::types::{
-    Comparison, Operand, ParameterId, QueryLiteral, TableKey,
+    PlanComparison, Operand, ParameterId, QueryLiteral, TableKey,
 };
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
@@ -108,7 +108,7 @@ impl<'a> BindingShape<'a> {
     /// Validate fixed operand failures, leaving row-dependent matching to execution.
     pub(crate) fn predicates(
         &self,
-        comparisons: &[Comparison],
+        comparisons: &[PlanComparison],
         kinds: &[CellKind],
     ) -> Result<(), OperatingError> {
         for comparison in comparisons {

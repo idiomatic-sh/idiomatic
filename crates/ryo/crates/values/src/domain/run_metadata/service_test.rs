@@ -1,11 +1,11 @@
 //! Metadata preserves declared phases, bound-input capture policy and every feature's real input ordinal.
 use super::service::from_plans;
-use super::types::{CrossSteps, FeatureSource, FrontierCapture, ProjectRead};
+use super::types::{CrossFileSteps, FeatureSource, FrontierFeed, ProjectRead};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     observations::types::{BoundObservationInput, ObservationBindingName},
     plan_parts::types::{
-        ColumnIndex, Comparison, Direction, Input as PlanInput, LiteralText, ObservationBindingId,
+        ColumnIndex, PlanComparison, Direction, Input as PlanInput, LiteralText, ObservationBindingId,
         Operand, QueryLiteral, RepeatedRows, StepId, StepScope, Test,
     },
     plans::types::{Emit, Feature, Operation, OperationKind, Plan, PlanStep},
@@ -68,7 +68,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             },
             Metadata::Feature {
                 feature: Feature::Relation(Relation::Function),
-                source: FeatureSource::Input(0),
+                source: FeatureSource::Input(super::types::SourcePosition(0)),
             },
         ])),
     },
@@ -99,7 +99,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             },
             Metadata::Feature {
                 feature: Feature::Relation(Relation::Function),
-                source: FeatureSource::Input(0),
+                source: FeatureSource::Input(super::types::SourcePosition(0)),
             },
             Metadata::Step {
                 operation: OperationKind::Project,
@@ -171,7 +171,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             },
             Metadata::Feature {
                 feature: Feature::Relation(Relation::Identifier),
-                source: FeatureSource::Input(0),
+                source: FeatureSource::Input(super::types::SourcePosition(0)),
             },
             Metadata::Step {
                 operation: OperationKind::Join,
@@ -191,7 +191,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             },
             Metadata::Feature {
                 feature: Feature::Relation(Relation::Function),
-                source: FeatureSource::Input(1),
+                source: FeatureSource::Input(super::types::SourcePosition(1)),
             },
             Metadata::Step {
                 operation: OperationKind::Axis,
@@ -211,11 +211,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             },
             Metadata::Feature {
                 feature: Feature::Relation(Relation::SyntaxChild),
-                source: FeatureSource::Input(1),
+                source: FeatureSource::Input(super::types::SourcePosition(1)),
             },
             Metadata::Feature {
                 feature: Feature::Relation(Relation::SyntaxTree),
-                source: FeatureSource::Input(2),
+                source: FeatureSource::Input(super::types::SourcePosition(2)),
             },
         ])),
     },
@@ -256,8 +256,8 @@ fn project(from: PlanInput) -> PlanStep {
         scope: StepScope::CrossFile,
     }
 }
-fn comparison(test: Test) -> Comparison {
-    Comparison {
+fn comparison(test: Test) -> PlanComparison {
+    PlanComparison {
         test,
         left: Operand::Column(ColumnIndex(1)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText("name".into()))),
@@ -357,12 +357,12 @@ fn subject(input: Input) -> Result<Value, Failure> {
     for rule in extracted {
         output.push(Metadata::Rule {
             reads_project: rule.reads_project == ProjectRead::Reads,
-            has_cross_steps: rule.has_cross_steps == CrossSteps::Present,
+            has_cross_steps: rule.has_cross_steps == CrossFileSteps::Present,
         });
         output.extend(rule.frontier_capture.iter().copied().enumerate().map(
             |(input, retained)| Metadata::Capture {
                 input,
-                retained: retained == FrontierCapture::Captured,
+                retained: retained == FrontierFeed::Captured,
             },
         ));
         for step in rule.steps {

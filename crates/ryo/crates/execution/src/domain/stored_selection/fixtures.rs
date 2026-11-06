@@ -2,7 +2,7 @@
 use crate::domain::stored_selection::types::Selector;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, Operand, ParameterId, Test, WholeNumber,
+    ColumnIndex, PlanComparison, Operand, ParameterId, Test, WholeNumber,
 };
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use std::sync::Arc;
@@ -11,7 +11,7 @@ pub(crate) fn program(value: i64) -> Arc<Selector> {
     Arc::new(Selector {
         relation: Relation::Function,
         identity: Arc::new(crate::domain::table_model::types::SelectionIdentity {
-            comparisons: vec![Comparison {
+            comparisons: vec![PlanComparison {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(0)),
                 right: Operand::Parameter(ParameterId(0)),
@@ -42,7 +42,7 @@ pub(crate) fn plan() -> ryo_values::domain::plans::types::Plan {
                 scope: StepScope::PerFile,
                 operation: Operation::Select {
                     from: Input::Relation(Relation::Function),
-                    comparisons: vec![Comparison {
+                    comparisons: vec![PlanComparison {
                         test: Test::Equal,
                         left: Operand::Column(ColumnIndex(1)),
                         right: Operand::Literal(QueryLiteral::Text(LiteralText("main".into()))),

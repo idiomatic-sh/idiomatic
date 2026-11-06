@@ -9,7 +9,7 @@ use ryo_values::domain::descriptions::types::{RelationName, StepCount, ValidateR
 use ryo_values::domain::hosted::types::HostedRelation;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, Input, LiteralText, Operand, QueryLiteral, StepId, Test,
+    ColumnIndex, PlanComparison, Input, LiteralText, Operand, QueryLiteral, StepId, Test,
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 use ryo_values::domain::program::types::RefusalMessage;
@@ -51,7 +51,7 @@ impl Default for QueryLanguageFake {
 }
 
 /// A per-file step over `function` that keeps the rows `comparisons` admit.
-fn select(comparisons: Vec<Comparison>) -> PlanStep {
+fn select(comparisons: Vec<PlanComparison>) -> PlanStep {
     PlanStep {
         operation: Operation::Select {
             from: Input::Relation(Relation::Function),
@@ -102,7 +102,7 @@ impl QueryLanguageFake {
     /// A fake whose plan compares the kind of the nodes of the syntax tree with a word that names no kind.
     #[must_use]
     pub fn comparing_a_kind() -> Self {
-        let comparison = Comparison {
+        let comparison = PlanComparison {
             test: Test::Equal,
             left: Operand::Column(ColumnIndex(1)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText("no-such-kind".into()))),
@@ -121,7 +121,7 @@ impl QueryLanguageFake {
     /// A fake whose plan compares a column the rows of `function` do not have.
     #[must_use]
     pub fn comparing_a_missing_column() -> Self {
-        let comparison = Comparison {
+        let comparison = PlanComparison {
             test: Test::Equal,
             left: Operand::Column(ColumnIndex(9)),
             right: Operand::Literal(QueryLiteral::Number(Integer(1))),
