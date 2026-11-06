@@ -397,6 +397,24 @@ pub(crate) fn compile(
         }
     }
     super::native::offer(&regions, &native_shapes, &mut candidates);
+    // Native positions are published for a reader that consumes positions. A region read by one
+    // that has no native route must hand it rows, so its stored selection stays the offer.
+    let mut read_by_rows = vec![false; regions.len()];
+    for (reader, region) in regions.iter().enumerate() {
+        if candidates[reader].native.is_some() {
+            continue;
+        }
+        for source in region.inputs.iter() {
+            if let InputSource::Region(id) = source {
+                read_by_rows[id.0] = true;
+            }
+        }
+    }
+    for (at, candidate) in candidates.iter_mut().enumerate() {
+        if read_by_rows[at] && candidate.selection.is_some() {
+            candidate.native = None;
+        }
+    }
     for (at, candidate) in candidates.into_iter().enumerate() {
         let route = choose(candidate);
         match &route {

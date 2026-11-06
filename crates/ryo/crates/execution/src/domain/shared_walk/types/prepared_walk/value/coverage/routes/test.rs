@@ -222,10 +222,14 @@ fn verify_table(text: &str) -> Result<(), RouteRefusal> {
     }
     Ok(())
 }
-const SHARING_TABLE: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../languages/python/benchmarks/linters/ruff/sharing/fixtures/mod.rs"
-));
+/// Read at run time: the boundary probes compile a copy of this crate that has no sibling workspace.
+fn sharing_table() -> String {
+    std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../languages/python/benchmarks/linters/ruff/sharing/fixtures/mod.rs"),
+    )
+    .expect("the python sharing table")
+}
 fn head_of(corpus: &Corpus, kind: OperationKind) -> LogicalInstruction {
     corpus
         .program
@@ -258,9 +262,9 @@ fn route_subject(scenario: RouteScenario) -> Result<(), RouteRefusal> {
             corpus.walk.physical[at.0] = Some(WalkRoute::Barrier(WalkBarrier::Continuation));
             verify_program(&corpus)
         }
-        RouteScenario::SharingTable => verify_table(SHARING_TABLE),
+        RouteScenario::SharingTable => verify_table(&sharing_table()),
         RouteScenario::SharingTableMovedKind => {
-            verify_table(&SHARING_TABLE.replacen("\"Hosted\"", "\"Join\"", 1))
+            verify_table(&sharing_table().replacen("\"Hosted\"", "\"Join\"", 1))
         }
     }
 }
