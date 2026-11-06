@@ -121,8 +121,10 @@ pub(crate) fn written<'a>(tree: &Tree<'a>, at: Position) -> Text<'a> {
         tree.source
             .0
             .get(start..end)
-            .and_then(|bytes| std::str::from_utf8(bytes).ok()) // the bytes of a node that are not text have no text, which the reader takes as an empty name: the row keeps its place either way
-            .unwrap_or_default(),
+            .map_or("", |bytes| {
+                // the bytes of a node that are not text have no text, which the reader takes as an empty name: the row keeps its place either way
+                std::str::from_utf8(bytes).unwrap_or_default()
+            }),
     )
 }
 

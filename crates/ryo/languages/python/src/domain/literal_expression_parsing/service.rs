@@ -51,7 +51,9 @@ pub(crate) fn clear(index: &mut LiteralParseIndex) {
 /// without changing any prefix, quote, escape, or literal-body byte.
 fn carrier(tree: &Tree<'_>, node: Position, symbols: &Symbols, source: &mut String) -> Option<()> {
     source.clear();
-    source.try_reserve(3).ok()?;
+    if source.try_reserve(3).is_err() {
+        return None;
+    }
     source.push_str(constants::CARRIER_OPEN);
     let mut tokens = 0_usize;
     for token in below(tree, node).filter(|at| kind(tree, *at) == Kind::Token(Token::String)) {
@@ -64,7 +66,12 @@ fn carrier(tree: &Tree<'_>, node: Position, symbols: &Symbols, source: &mut Stri
         let _body = crate::domain::raw_format::service::body(
             crate::domain::raw_format::types::RawFormatToken(spelling.0),
         )?;
-        source.try_reserve(spelling.0.len().checked_add(1)?).ok()?;
+        if source
+            .try_reserve(spelling.0.len().checked_add(1)?)
+            .is_err()
+        {
+            return None;
+        }
         source.push_str(spelling.0);
         source.push('\n');
         tokens = tokens.checked_add(1)?;
@@ -72,7 +79,9 @@ fn carrier(tree: &Tree<'_>, node: Position, symbols: &Symbols, source: &mut Stri
     if tokens == 0 {
         return None;
     }
-    source.try_reserve(1).ok()?;
+    if source.try_reserve(1).is_err() {
+        return None;
+    }
     source.push(')');
     Some(())
 }

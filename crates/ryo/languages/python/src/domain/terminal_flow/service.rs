@@ -40,11 +40,10 @@ fn clauses<'a>(tree: &'a Tree<'_>, at: Position) -> impl Iterator<Item = Positio
 
 /// Read a previously computed child summary, defaulting when unavailable.
 fn node_index(nodes: &[NodeSummary], at: Position) -> NodeSummary {
-    usize::try_from(at.0)
-        .ok()
-        .and_then(|index| nodes.get(index))
-        .copied()
-        .unwrap_or_default()
+    let Ok(slot) = usize::try_from(at.0) else {
+        return NodeSummary::default();
+    };
+    nodes.get(slot).copied().unwrap_or_default()
 }
 
 /// Fold the terminal behavior of statements in one ordered field.
@@ -366,10 +365,10 @@ pub(crate) fn prepare<'a>(
 
 /// Return the exposed terminal label for a function node.
 pub(crate) fn outcome(index: &TerminalIndex, at: Position) -> Option<&'static str> {
-    let value = index
-        .nodes
-        .get(usize::try_from(at.0).ok()?)?
-        .function_terminal;
+    let Ok(slot) = usize::try_from(at.0) else {
+        return None;
+    };
+    let value = index.nodes.get(slot)?.function_terminal;
     Some(match value {
         TerminalOutcome::None | TerminalOutcome::Implicit => constants::IMPLICIT,
         TerminalOutcome::Raise => constants::RAISE,

@@ -83,7 +83,7 @@ pub(crate) fn classify<'a>(tree: &'a Tree<'_>, at: Position) -> NumericClassific
             }),
             None => NumericClassification::MissingPayload,
         },
-        Some(FLOAT_SCALAR) => match value.and_then(|value| value.parse::<u64>().ok()) {
+        Some(FLOAT_SCALAR) => match value.and_then(|value| match value.parse::<u64>() { Ok(parsed) => Some(parsed), Err(_) => None }) {
             Some(bits) => NumericClassification::Known(NumericLiteral {
                 kind: crate::domain::syntax::constants::FLOAT_SCALAR,
                 value: NumericValue::Float(bits),

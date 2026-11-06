@@ -95,15 +95,15 @@ pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> LiteralClassification {
                 flag(crate::domain::syntax::constants::INTEGER_SCALAR, value == constants::ZERO_PAYLOAD, false, false)
             }),
         FLOAT_SCALAR => payload(tree, at, SCALAR_VALUE)
-            .and_then(|bits| bits.parse::<u64>().ok())
+            .and_then(|bits| match bits.parse::<u64>() { Ok(parsed) => Some(parsed), Err(_) => None })
             .map_or(LiteralClassification::MissingPayload, |bits| {
                 flag(crate::domain::syntax::constants::FLOAT_SCALAR, f64::from_bits(bits) == 0.0_f64, false, false)
             }),
         COMPLEX_SCALAR => payload(tree, at, SCALAR_VALUE)
-            .and_then(|real| real.parse::<u64>().ok())
+            .and_then(|real| match real.parse::<u64>() { Ok(parsed) => Some(parsed), Err(_) => None })
             .zip(
                 payload(tree, at, SCALAR_IMAGINARY)
-                    .and_then(|imaginary| imaginary.parse::<u64>().ok()),
+                    .and_then(|imaginary| match imaginary.parse::<u64>() { Ok(parsed) => Some(parsed), Err(_) => None }),
             )
             .map_or(LiteralClassification::MissingPayload, |(real, imaginary)| {
                 flag(
@@ -114,7 +114,7 @@ pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> LiteralClassification {
                 )
             }),
         BOOLEAN_SCALAR => payload(tree, at, SCALAR_VALUE)
-            .and_then(|value| value.parse::<bool>().ok())
+            .and_then(|value| match value.parse::<bool>() { Ok(parsed) => Some(parsed), Err(_) => None })
             .map_or(LiteralClassification::MissingPayload, |boolean| {
                 flag(crate::domain::syntax::constants::BOOLEAN_SCALAR, false, false, boolean)
             }),

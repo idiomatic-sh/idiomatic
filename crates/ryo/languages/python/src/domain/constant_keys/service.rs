@@ -35,9 +35,12 @@ pub(crate) fn clear(index: &mut ConstantKeyIndex) {
 /// The retained representative for one supported occurrence.
 #[must_use]
 pub(crate) fn key_of(index: &ConstantKeyIndex, at: Position) -> Option<Position> {
+    let Ok(slot) = usize::try_from(at.0) else {
+        return None;
+    };
     index
         .classes
-        .get(usize::try_from(at.0).ok()?)
+        .get(slot)
         .copied()
         .flatten()
         .map(|class| class.representative)
@@ -84,26 +87,36 @@ fn number(tree: &Tree<'_>, at: Position) -> Option<NumberKey> {
             },
             Err(_) => return None,
         },
-        FLOAT_SCALAR => NumberKey {
-            real: float_key(f64::from_bits(
-                property(tree, at, SCALAR_VALUE)?.parse().ok()?,
-            )),
-            imaginary: zero,
-        },
-        COMPLEX_SCALAR => NumberKey {
-            real: float_key(f64::from_bits(
-                property(tree, at, SCALAR_VALUE)?.parse().ok()?,
-            )),
-            imaginary: float_key(f64::from_bits(
-                property(tree, at, SCALAR_IMAGINARY)?.parse().ok()?,
-            )),
-        },
-        BOOLEAN_SCALAR => NumberKey {
-            real: RealKey::Integer(i128::from(u8::from(
-                property(tree, at, SCALAR_VALUE)?.parse::<bool>().ok()?,
-            ))),
-            imaginary: zero,
-        },
+        FLOAT_SCALAR => {
+            let Ok(bits) = property(tree, at, SCALAR_VALUE)?.parse() else {
+                return None;
+            };
+            NumberKey {
+                real: float_key(f64::from_bits(bits)),
+                imaginary: zero,
+            }
+        }
+        COMPLEX_SCALAR => {
+            let Ok(real) = property(tree, at, SCALAR_VALUE)?.parse() else {
+                return None;
+            };
+            let Ok(imaginary) = property(tree, at, SCALAR_IMAGINARY)?.parse() else {
+                return None;
+            };
+            NumberKey {
+                real: float_key(f64::from_bits(real)),
+                imaginary: float_key(f64::from_bits(imaginary)),
+            }
+        }
+        BOOLEAN_SCALAR => {
+            let Ok(truth) = property(tree, at, SCALAR_VALUE)?.parse::<bool>() else {
+                return None;
+            };
+            NumberKey {
+                real: RealKey::Integer(i128::from(u8::from(truth))),
+                imaginary: zero,
+            }
+        }
         _ => return None,
     };
     Some(answer)
@@ -111,7 +124,10 @@ fn number(tree: &Tree<'_>, at: Position) -> Option<NumberKey> {
 
 /// Read the already-built numeric payload at a child expression.
 fn numeric_class(classes: &[Option<KeyClass>], at: Position) -> Option<NumericState> {
-    classes.get(usize::try_from(at.0).ok()?)?.as_ref()?.number
+    let Ok(slot) = usize::try_from(at.0) else {
+        return None;
+    };
+    classes.get(slot)?.as_ref()?.number
 }
 
 /// Find a child in the requested Python AST field.
@@ -221,7 +237,10 @@ fn tuple_key(tree: &Tree<'_>, at: Position, index: &mut ConstantKeyIndex) -> Opt
     for child in
         languages::children(tree.elements, at).filter(|child| field_of(tree, *child) == Field::Elts)
     {
-        let Some(Some(class)) = index.classes.get(usize::try_from(child.0).ok()?).copied() else {
+        let Ok(slot) = usize::try_from(child.0) else {
+            return None;
+        };
+        let Some(Some(class)) = index.classes.get(slot).copied() else {
             return None;
         };
         push_word(index, KeyWord::Child(class.representative))?;
@@ -353,9 +372,12 @@ pub(super) fn intern_with_hash(
         }
         candidate = record.previous;
     }
-    index.words.try_reserve(index.scratch.len()).ok()?;
-    index.records.try_reserve(1).ok()?;
-    index.buckets.try_reserve(1).ok()?;
+    if index.words.try_reserve(index.scratch.len()).is_err()
+        || index.records.try_reserve(1).is_err()
+        || index.buckets.try_reserve(1).is_err()
+    {
+        return None;
+    }
     let start = index.words.len();
     index.words.extend_from_slice(&index.scratch);
     let place = KeyRecordIndex(index.records.len());

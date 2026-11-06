@@ -52,11 +52,10 @@ pub(crate) fn clear(index: &mut ExpressionShapeIndex) {
 /// The existing canonical representative of one occurrence.
 #[must_use]
 pub(crate) fn shape_of(index: &ExpressionShapeIndex, at: Position) -> Option<Position> {
-    index
-        .classes
-        .get(usize::try_from(at.0).ok()?)
-        .copied()
-        .flatten()
+    let Ok(slot) = usize::try_from(at.0) else {
+        return None;
+    };
+    index.classes.get(slot).copied().flatten()
 }
 /// Intern a full key. Hash collisions share a bucket, never an expression identity.
 pub(super) fn intern(index: &mut ExpressionShapeIndex, at: Position, hash: ShapeHash) -> Position {
@@ -296,10 +295,15 @@ pub(crate) fn prepare<'a>(
             index.state = ShapeState::Partial;
             return None;
         }
-        let count = usize::try_from(languages::end_of(tree.elements).0).ok()?;
+        let Ok(count) = usize::try_from(languages::end_of(tree.elements).0) else {
+            return None;
+        };
         index.classes.resize(count, None);
         for raw in (0..count).rev() {
-            let at = Position(u32::try_from(raw).ok()?);
+            let Ok(position) = u32::try_from(raw) else {
+                return None;
+            };
+            let at = Position(position);
             if is_token(tree, at) == Leaf::Token
                 || crate::domain::semantic_syntax::service::visibility(tree, model, at, symbols)
                     != crate::domain::semantic_syntax::types::Visibility::Visible
