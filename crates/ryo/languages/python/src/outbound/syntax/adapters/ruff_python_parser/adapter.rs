@@ -1,4 +1,5 @@
 //! Parse native source, report frontend diagnostics, and schedule embedded expression writing.
+use ruff_text_size::Ranged;
 use super::constants::{INVALID_UTF8, NOT_UTF8, PARSER_ERROR, UNSUPPORTED_SYNTAX};
 use super::declaration::semantic_syntax_errors;
 use super::future::module_future_annotations;

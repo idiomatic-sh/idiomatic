@@ -2,7 +2,7 @@
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::item::ConstantKeyItem;
-use crate::domain::relations::collections::fixtures::contract::check;
+use super::super::fixtures::contract::check;
 use crate::fixtures::reading::reading;
 
 fn repeated_numeric_literals_share_a_key_and_keep_both_rows() {

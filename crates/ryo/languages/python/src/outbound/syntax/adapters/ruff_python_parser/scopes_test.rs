@@ -4,7 +4,11 @@ use super::fixtures::diagnostics::diagnostics_of;
 use super::scopes::ScopeKind;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::syntax::types::PythonSourceKind;
-use crate::settings::PythonParserSettings;
+use super::adapter::SyntaxRuffPythonParserAdapter;
+use crate::outbound::syntax::interface::SyntaxPort as _;
+use crate::outbound::syntax::types::SourceText;
+use crate::settings::{PythonParserSettings, PythonTargetVersion};
+use ryo::languages::{self, ByteSlice, Elements, Symbols};
 
 fn bare_starred_loop_target_preserves_accepted_ast_with_validation_error() {
     let source = "f=open(\"x\",\"w\")\nfor *[x] in rows:\n    f.write(x)\n";
@@ -126,9 +130,6 @@ const BODIES: &[Case<Body, (), ()>] = &[
 /// Runs the body of one case.
 fn body(given: Body) -> Result<(), ()> {
     match given {
-        Body::ComprehensionRebindingPreservesAstAndRespectsLambdaScope => {
-            comprehension_rebinding_preserves_ast_and_respects_lambda_scope()
-        }
         Body::BareStarredLoopTargetPreservesAcceptedAstWithValidationError => {
             bare_starred_loop_target_preserves_accepted_ast_with_validation_error()
         }

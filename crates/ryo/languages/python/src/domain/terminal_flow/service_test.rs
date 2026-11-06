@@ -22,7 +22,7 @@ fn is_lazy_retained_and_invalidated_between_files() {
     assert_eq!(index.state, IndexState::Complete);
     let function = (0..index.nodes.len()).find_map(|slot| {
         let position = languages::Position(u32::try_from(slot).ok()?);
-        (outcome(&index, position) == Some("raise")).then_some(position)
+        (outcome(&index, position) == Some(languages::NameText("raise"))).then_some(position)
     });
     assert!(function.is_some());
     let capacity = index.nodes.capacity();

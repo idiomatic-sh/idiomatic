@@ -16,7 +16,7 @@ fn target(version: PythonTargetVersion, source: &'static str) -> (i64, i64) {
     .expect("an empty source is read");
     assert!(report.causes.is_empty());
     assert_eq!(report.rows.len(), 1);
-    let [Want::File(file), Want::Number(major), Want::Number(minor)] = **report.rows[0] else {
+    let [Want::File(file), Want::Number(major), Want::Number(minor)] = *report.rows[0] else {
         panic!("target row has file and numeric version columns");
     };
     assert_eq!(file, "item.py");

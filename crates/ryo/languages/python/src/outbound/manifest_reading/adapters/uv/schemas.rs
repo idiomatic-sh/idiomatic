@@ -13,7 +13,7 @@ use crate::domain::packages::types::{
     Checkout, Declared, ManifestPath, Marker, Naming, PackageName, Redirect, Reference, Revision,
     Written,
 };
-use crate::domain::patterns::types::{Directory, Part, Pattern};
+use crate::domain::patterns::types::{Directory, PatternPart, Pattern};
 use crate::outbound::manifest_reading::errors::ManifestReadingError;
 
 /// A `pyproject.toml`.
@@ -133,7 +133,7 @@ impl From<ManifestSchema> for Declared {
                     name: PackageName(name.clone().into()),
                     location: entry
                         .path
-                        .and_then(|path| match locating(directory, Part(&path)) {
+                        .and_then(|path| match locating(directory, PatternPart(&path)) {
                             Reference::Located(location) => Some(location),
                             Reference::Named | Reference::Unresolvable => None,
                         }),

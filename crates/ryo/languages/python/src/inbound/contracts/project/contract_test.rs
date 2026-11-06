@@ -483,31 +483,48 @@ fn positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots() 
 
 /// Which of the file's cases a row runs.
 #[derive(Clone, Copy, Debug)]
-enum Body {}
+enum Body {
+    /// The case `primary_metadata_rejection_keeps_real_dependency_projection`.
+    PrimaryMetadataRejectionKeepsRealDependencyProjection,
+    /// The case `metadata_rejection_and_dependency_refusal_have_independent_applicability`.
+    MetadataRejectionAndDependencyRefusalHaveIndependentApplicability,
+    /// The case `module_identity_only_preserves_inputs_without_projecting_or_validating`.
+    ModuleIdentityOnlyPreservesInputsWithoutProjectingOrValidating,
+    /// The case `positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots`.
+    PositiveNamespaceFactsRetainActualReaderPartialForUnobservedRoots,
+}
 
 /// The rows of the cases whose bodies assert for themselves.
-const BODIES: &[Case<Body, (), ()>] = &[Case {
-    name: CaseName("positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots"),
-    word: Word::Succeeds,
-    input: || Body::PositiveNamespaceFactsRetainActualReaderPartialForUnobservedRoots,
-    expect: Expect::Value(()),
-}];
+const BODIES: &[Case<Body, (), ()>] = &[
+    Case {
+        name: CaseName("primary_metadata_rejection_keeps_real_dependency_projection"),
+        word: Word::Succeeds,
+        input: || Body::PrimaryMetadataRejectionKeepsRealDependencyProjection,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("metadata_rejection_and_dependency_refusal_have_independent_applicability"),
+        word: Word::Succeeds,
+        input: || Body::MetadataRejectionAndDependencyRefusalHaveIndependentApplicability,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("module_identity_only_preserves_inputs_without_projecting_or_validating"),
+        word: Word::Succeeds,
+        input: || Body::ModuleIdentityOnlyPreservesInputsWithoutProjectingOrValidating,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots"),
+        word: Word::Succeeds,
+        input: || Body::PositiveNamespaceFactsRetainActualReaderPartialForUnobservedRoots,
+        expect: Expect::Value(()),
+    },
+];
 
 /// Runs the body of one case.
 fn body(given: Body) -> Result<(), ()> {
     match given {
-        Body::PositiveNamespaceFactsRetainActualReaderPartialForUnobservedRoots => {
-            positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots()
-        }
-        Body::ModuleIdentityOnlyPreservesInputsWithoutProjectingOrValidating => {
-            module_identity_only_preserves_inputs_without_projecting_or_validating()
-        }
-        Body::MetadataRejectionAndDependencyRefusalHaveIndependentApplicability => {
-            metadata_rejection_and_dependency_refusal_have_independent_applicability()
-        }
-        Body::PrimaryMetadataRejectionKeepsRealDependencyProjection => {
-            primary_metadata_rejection_keeps_real_dependency_projection()
-        }
         Body::PrimaryMetadataRejectionKeepsRealDependencyProjection => {
             primary_metadata_rejection_keeps_real_dependency_projection()
         }

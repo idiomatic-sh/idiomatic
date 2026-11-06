@@ -63,7 +63,7 @@ fn truncated_or_invalid_token_stream_cannot_certify_absence() {
         .position(|token| token.kind() == TokenKind::Comment)
         .unwrap();
     assert!(!covered(&parsed.tokens()[..stop], source.as_bytes(), false));
-    let invalid = Token::new(
+    let invalid = RuffToken::new(
         TokenKind::Unknown,
         TextRange::empty(TextSize::new(0)),
         TokenFlags::empty(),

@@ -41,6 +41,7 @@ type Input = Given;
 type Value = Seen;
 type Failure = ();
 
+#[derive(Debug, PartialEq)]
 enum Seen {
     /// Every element: its kind and the text it spans.
     Elements(&'static [(Kind, &'static str)]),

@@ -15,7 +15,7 @@ use crate::domain::packages::types::{
     Checkout, Declared, Interpreter, ManifestPath, Naming, PackageName, Reference, Requirement,
     Revision, Specifier, Written,
 };
-use crate::domain::patterns::types::{Directory, Part};
+use crate::domain::patterns::types::{Directory, PatternPart};
 use crate::outbound::manifest_reading::errors::ManifestReadingError;
 
 /// The name Poetry gives the dependencies of the package itself.
@@ -169,7 +169,7 @@ fn requirements(
                 origin,
                 reference: table
                     .path
-                    .map_or(Reference::Named, |path| locating(directory, Part(&path))),
+                    .map_or(Reference::Named, |path| locating(directory, PatternPart(&path))),
             }
         })
         .collect()

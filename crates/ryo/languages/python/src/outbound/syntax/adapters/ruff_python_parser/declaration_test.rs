@@ -199,25 +199,9 @@ const BODIES: &[Case<Body, (), ()>] = &[
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(
-            "future_lazy_prohibition_has_its_own_preserved_cause_at_old_and_supported_targets",
-        ),
-        word: Word::Succeeds,
-        input: || Body::FutureLazyProhibitionHasItsOwnPreservedCauseAtOldAndSupportedTargets,
-        expect: Expect::Value(()),
-    },
-    Case {
         name: CaseName("semantic_syntax_checks_only_run_after_an_accepted_parse"),
         word: Word::Succeeds,
         input: || Body::SemanticSyntaxChecksOnlyRunAfterAnAcceptedParse,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(
-            "starred_targets_require_unpacking_containers_without_affecting_expression_stars",
-        ),
-        word: Word::Succeeds,
-        input: || Body::StarredTargetsRequireUnpackingContainersWithoutAffectingExpressionStars,
         expect: Expect::Value(()),
     },
 ];
@@ -237,23 +221,8 @@ fn body(given: Body) -> Result<(), ()> {
         Body::SeparateScopesAndDifferentNamesDoNotConflict => {
             separate_scopes_and_different_names_do_not_conflict()
         }
-        Body::FutureLazyProhibitionHasItsOwnPreservedCauseAtOldAndSupportedTargets => {
-            future_lazy_prohibition_has_its_own_preserved_cause_at_old_and_supported_targets()
-        }
-        Body::SeparatingLazyCausePreservesPlacementAndUnknownFeatureCauses => {
-            separating_lazy_cause_preserves_placement_and_unknown_feature_causes()
-        }
         Body::SemanticSyntaxChecksOnlyRunAfterAnAcceptedParse => {
             semantic_syntax_checks_only_run_after_an_accepted_parse()
-        }
-        Body::ComprehensionRebindingPreservesAstAndRespectsLambdaScope => {
-            comprehension_rebinding_preserves_ast_and_respects_lambda_scope()
-        }
-        Body::BareStarredLoopTargetPreservesAcceptedAstWithValidationError => {
-            bare_starred_loop_target_preserves_accepted_ast_with_validation_error()
-        }
-        Body::StarredTargetsRequireUnpackingContainersWithoutAffectingExpressionStars => {
-            starred_targets_require_unpacking_containers_without_affecting_expression_stars()
         }
     }
     Ok(())

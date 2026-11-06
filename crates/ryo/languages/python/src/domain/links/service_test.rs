@@ -5,7 +5,7 @@ use super::service::{outcome, python_directories, roots_for};
 use super::types::{FilePlace, ImportOutcome, Listing};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::fact_notes::types::{DottedPath, Form, ImportNote, Level, Spelling};
-use crate::domain::packages::types::Location;
+use crate::domain::packages::types::PackageLocation;
 use ryo::languages::{FileId, FilePath, Offset};
 
 /// The files of the repository the cases import in, in the order of their paths, and the directories of its packages.
@@ -106,9 +106,9 @@ fn subject((path, form, level, dotted): Input) -> Value {
         files: &files,
         directories: &directories,
     };
-    let packages: Vec<Location> = PACKAGES
+    let packages: Vec<PackageLocation> = PACKAGES
         .iter()
-        .map(|each| Location((*each).into()))
+        .map(|each| PackageLocation((*each).into()))
         .collect();
     let roots = roots_for(listing, &packages, FilePlace(path));
     outcome(

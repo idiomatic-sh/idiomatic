@@ -16,7 +16,7 @@ use crate::domain::packages::service::{
 use crate::domain::packages::types::{
     Checkout, Declared, Interpreter, ManifestPath, Naming, Reference, Requirement, Written,
 };
-use crate::domain::patterns::types::{Directory, Part};
+use crate::domain::patterns::types::{Directory, PatternPart};
 use crate::outbound::manifest_reading::errors::ManifestReadingError;
 
 /// What opens a comment, after the whitespace that sets it off.
@@ -135,9 +135,9 @@ fn requirement(text: &str, directory: Directory<'_>, kind: DependencyKind) -> Re
         (
             name.to_owned(),
             Reference::Named,
-            url_origin(Part(url)),
+            url_origin(PatternPart(url)),
             Checkout {
-                revision: url_revision(Part(url)),
+                revision: url_revision(PatternPart(url)),
                 ..Checkout::default()
             },
         )
@@ -150,9 +150,9 @@ fn requirement(text: &str, directory: Directory<'_>, kind: DependencyKind) -> Re
         (
             unnamed(text),
             Reference::Unresolvable,
-            url_origin(Part(text)),
+            url_origin(PatternPart(text)),
             Checkout {
-                revision: url_revision(Part(text)),
+                revision: url_revision(PatternPart(text)),
                 ..Checkout::default()
             },
         )
@@ -164,7 +164,7 @@ fn requirement(text: &str, directory: Directory<'_>, kind: DependencyKind) -> Re
         {
             Reference::Unresolvable
         } else {
-            locating(directory, Part(path))
+            locating(directory, PatternPart(path))
         };
         (
             unnamed(text),
@@ -218,7 +218,7 @@ fn collect(
     let kind = kind_of(path);
     for line in logical(text) {
         if let Some(included) = option_value(&line, "-r", "--requirement") {
-            let found = match locating(directory, Part(included)) {
+            let found = match locating(directory, PatternPart(included)) {
                 Reference::Located(location) => {
                     available.iter().find(|each| *each.path.0 == *location.0)
                 }

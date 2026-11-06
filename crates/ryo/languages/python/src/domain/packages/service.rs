@@ -14,7 +14,7 @@ use super::types::{
 };
 use crate::domain::patterns::constants::{HERE, SEPARATOR};
 use crate::domain::patterns::service::matches_directory;
-use crate::domain::patterns::types::{Directory, Matching, Part, Pattern};
+use crate::domain::patterns::types::{Directory, Matching, PatternPart, Pattern};
 
 /// A name as PEP 503 normalizes it.
 #[must_use]
@@ -40,7 +40,7 @@ pub(crate) fn normalized(name: &PackageName) -> Normalized {
 
 /// Where the URL `url` says a package comes from: a git repository for `git+`, a path for `file:`, an archive for any other.
 #[must_use]
-pub(crate) fn url_origin(url: Part<'_>) -> languages::DependencyOrigin {
+pub(crate) fn url_origin(url: PatternPart<'_>) -> languages::DependencyOrigin {
     let url = url.0.trim();
     if url.starts_with(GIT_SCHEME) {
         languages::DependencyOrigin::Git
@@ -60,7 +60,7 @@ pub(crate) fn origin_of(requirement: &Written) -> languages::DependencyOrigin {
         .next()
         .and_then(|head| head.split_once(DIRECT))
         .map_or(languages::DependencyOrigin::Registry, |(_, url)| {
-            url_origin(Part(url))
+            url_origin(PatternPart(url))
         })
 }
 
@@ -135,7 +135,7 @@ fn above(directory: Directory<'_>) -> Directory<'_> {
 /// The directory `relative` names from `directory`, as a requirement's reference: located when it stays inside the repository, else
 /// unresolvable.
 #[must_use]
-pub(crate) fn locating(directory: Directory<'_>, relative: Part<'_>) -> Reference {
+pub(crate) fn locating(directory: Directory<'_>, relative: PatternPart<'_>) -> Reference {
     let mut parts: Vec<&str> = directory
         .0
         .split(SEPARATOR)
