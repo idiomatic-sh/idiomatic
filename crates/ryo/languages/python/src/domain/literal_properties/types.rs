@@ -1,16 +1,17 @@
 //! The closed answers of the `literal_properties` concept.
+use ryo::languages::{Flag, NameText};
 
 /// A known primitive category and the three explicitly limited predicates.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Properties {
     /// The closed primitive category.
-    pub kind: &'static str,
+    pub kind: NameText<'static>,
     /// Whether a numeric parser value is exactly zero.
-    pub zero: bool,
+    pub zero: Flag,
     /// Whether a decoded string or bytes parser value is empty.
-    pub empty: bool,
+    pub empty: Flag,
     /// Whether the parsed boolean is `True`.
-    pub boolean: bool,
+    pub boolean: Flag,
 }
 
 /// A constant that is not a primitive occurrence, has a complete primitive payload, or lacks one.
@@ -23,3 +24,7 @@ pub(crate) enum LiteralClassification {
     /// A primitive node exists but lacks required parser payload.
     MissingPayload,
 }
+
+/// Whether the parser's `Constant` node is a synthetic piece of an interpolated string.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Interpolated(pub bool);

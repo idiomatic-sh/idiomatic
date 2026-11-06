@@ -25,10 +25,10 @@ ryo::reads! {
                     partial INCOMPLETE => languages::Missing::Any;
                 }
                 LiteralClassification::Known(properties) => {
-                    given kind = languages::intern_derived(symbols, tree.source, languages::NameText(properties.kind));
-                    given zero = if properties.zero { languages::Flag::Raised } else { languages::Flag::Lowered };
-                    given empty = if properties.empty { languages::Flag::Raised } else { languages::Flag::Lowered };
-                    given boolean = if properties.boolean { languages::Flag::Raised } else { languages::Flag::Lowered };
+                    given kind = languages::intern_derived(symbols, tree.source, properties.kind);
+                    given zero = properties.zero;
+                    given empty = properties.empty;
+                    given boolean = properties.boolean;
                     row { id: node(expression), kind: value(kind), zero: value(zero), empty: value(empty), boolean: value(boolean), file: file, span: span(expression), }
                 }
             }

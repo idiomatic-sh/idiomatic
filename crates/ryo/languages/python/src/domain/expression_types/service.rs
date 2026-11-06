@@ -279,7 +279,7 @@ fn classify_expression(
         Kind::Node(Node::JoinedStr) => Resolution::Atom(BasicType::String),
         Kind::Node(Node::Constant) => match classify_literal(tree, at) {
             LiteralClassification::Known(properties) => Resolution::Atom(super::constants::literal_type(
-                languages::NameText(properties.kind),
+                properties.kind,
             )),
             LiteralClassification::MissingPayload => return ExpressionClassification::MissingPayload,
             LiteralClassification::NotPrimitive => {

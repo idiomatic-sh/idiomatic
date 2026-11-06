@@ -9,7 +9,7 @@ use crate::domain::{
     syntax::{service::kind, types::Kind},
 };
 use crate::fixtures::reading::parsed;
-use ryo::languages::{self, ByteSlice, Tree};
+use ryo::languages::{self, ByteSlice, Flag, NameText, Tree};
 
 fn properties(source: &'static str) -> Vec<Properties> {
     let file = parsed(source.as_bytes()).expect("literal examples parse");
@@ -29,11 +29,12 @@ fn properties(source: &'static str) -> Vec<Properties> {
 }
 
 fn property(kind: &'static str, zero: bool, empty: bool, boolean: bool) -> Properties {
+    let flag = |raised: bool| if raised { Flag::Raised } else { Flag::Lowered };
     Properties {
-        kind,
-        zero,
-        empty,
-        boolean,
+        kind: NameText(kind),
+        zero: flag(zero),
+        empty: flag(empty),
+        boolean: flag(boolean),
     }
 }
 
