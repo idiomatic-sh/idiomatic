@@ -222,6 +222,9 @@ fn run_with(
             Exit::Errors => fixture.select(&error, source, &mut context).map(|_| kind),
         }
     };
+    // The consumer's own state (the operator scratch and the memo it filled) ends with the exit.
+    drop(scratch);
+    drop(memo);
     released_at_exit(
         kind,
         exit,
