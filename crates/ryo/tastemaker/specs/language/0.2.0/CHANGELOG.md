@@ -1,5 +1,9 @@
 # language
 
+## 0.2.0
+
+Places `benchmark` 0.2.0 (and through it `benchmark-linter` 0.2.0). Nothing else changes; 0.1.0 stays as published.
+
 ## 0.1.0
 
 The first version. A language is placed beside its `crate` and `nu-hex` entries by one entry over `languages/{lang}`.
