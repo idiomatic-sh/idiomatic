@@ -45,8 +45,12 @@ fn escape(rest: Written<'_>) -> Option<Escaped<'_>> {
         '"' => '"',
         'x' => {
             let read = number(after, HEX_DIGITS, HEXADECIMAL)?;
+            // an escape past 255 is no byte: the Go specification refuses it, and the literal has no value
+            let Ok(octet) = u8::try_from(read.code.0) else {
+                return None;
+            };
             return Some(Escaped::Byte {
-                octet: Octet(u8::try_from(read.code.0).ok()?), // an escape past 255 is no byte: the Go specification refuses it, and the literal has no value
+                octet: Octet(octet),
                 after: read.after,
             });
         }
@@ -64,8 +68,12 @@ fn escape(rest: Written<'_>) -> Option<Escaped<'_>> {
         }
         '0'..='7' => {
             let read = number(rest, OCTAL_DIGITS, OCTAL)?;
+            // an escape past 255 is no byte: the Go specification refuses it, and the literal has no value
+            let Ok(octet) = u8::try_from(read.code.0) else {
+                return None;
+            };
             return Some(Escaped::Byte {
-                octet: Octet(u8::try_from(read.code.0).ok()?), // an escape past 255 is no byte: the Go specification refuses it, and the literal has no value
+                octet: Octet(octet),
                 after: read.after,
             });
         }
@@ -99,9 +107,11 @@ fn interpreted(content: Written<'_>) -> Option<Unquoted<'_>> {
         }
     }
     bytes.extend_from_slice(rest.as_bytes());
-    String::from_utf8(bytes)
-        .ok() // escapes that spell bytes which are no text leave the literal with no text value
-        .map(|text| Unquoted(Cow::Owned(text)))
+    // escapes that spell bytes which are no text leave the literal with no text value
+    let Ok(text) = String::from_utf8(bytes) else {
+        return None;
+    };
+    Some(Unquoted(Cow::Owned(text)))
 }
 
 /// The text of the raw string whose content is `content`, between its back quotes: Go drops its carriage returns.

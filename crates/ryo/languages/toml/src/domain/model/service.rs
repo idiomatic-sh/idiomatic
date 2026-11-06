@@ -80,7 +80,8 @@ pub(crate) fn boolean(tree: &Tree<'_>, at: Option<Position>) -> languages::Flag 
     let raised = at
         .filter(|each| value_kind(kind(tree, *each)) == Some(ValueKind::Boolean))
         .and_then(|each| languages::decoded_at(tree.elements, each))
-        .and_then(|text| text.0.parse::<bool>().ok()) // a decoded value that does not read as the kind its node says is no value, which the column holds as its default
+        // a decoded value that does not read as the kind its node says is no value, which the column holds as its default
+        .map(|text| text.0.parse::<bool>().unwrap_or_default())
         .unwrap_or_default();
     if raised {
         languages::Flag::Raised
@@ -95,7 +96,8 @@ pub(crate) fn integer(tree: &Tree<'_>, at: Option<Position>) -> languages::Integ
     languages::Integer(
         at.filter(|each| value_kind(kind(tree, *each)) == Some(ValueKind::Integer))
             .and_then(|each| languages::decoded_at(tree.elements, each))
-            .and_then(|text| text.0.parse::<i64>().ok()) // a decoded value that does not read as the kind its node says is no value, which the column holds as its default
+            // a decoded value that does not read as the kind its node says is no value, which the column holds as its default
+            .map(|text| text.0.parse::<i64>().unwrap_or_default())
             .unwrap_or_default(),
     )
 }

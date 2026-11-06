@@ -83,7 +83,8 @@ pub(crate) fn written<'a>(tree: &Tree<'a>, at: languages::Position) -> Text<'a> 
         tree.source
             .0
             .get(start..end)
-            .and_then(|bytes| std::str::from_utf8(bytes).ok()) // the bytes of a node that are not text have no text, which the reader takes as an empty name: the row keeps its place either way
+            // the bytes of a node that are not text have no text, which the reader takes as an empty name: the row keeps its place either way
+            .map(|bytes| std::str::from_utf8(bytes).unwrap_or_default())
             .unwrap_or_default(),
     )
 }

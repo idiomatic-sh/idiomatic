@@ -132,7 +132,10 @@ impl Project for ProjectContract {
                 .iter()
                 .map(|bytes| {
                     // the one error of a notes read is bytes that hold no note: a file the parse noted nothing of
-                    self.notes.note_in(bytes).ok()
+                    let Ok(note) = self.notes.note_in(bytes) else {
+                        return None;
+                    };
+                    Some(note)
                 })
                 .collect();
             linked(&request.files, &notes, packages)

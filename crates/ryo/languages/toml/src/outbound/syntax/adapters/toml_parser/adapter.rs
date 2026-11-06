@@ -26,7 +26,7 @@ use crate::outbound::syntax::types::SourceText;
 
 use super::constants::{DIGIT_SEPARATOR, NESTING, NOT_UTF8};
 use super::schemas::{event_kind, reports, scalar_kind, string_kind};
-use super::types::{Decoded, Decoding, Held, Opened, Part, TableReadPhase, Scratch, TomlText};
+use super::types::{Decoded, Decoding, HeldSpace, Opened, Part, TableReadPhase, Scratch, TomlText};
 
 /// The `toml_parser` syntax adapter.
 #[derive(Debug)]
@@ -62,11 +62,11 @@ struct Writer<'b, 'w, 's> {
     /// The constructs open, the document first.
     open: Vec<Kind>,
     /// White space and text the parser could not read, met after a part of a key.
-    held: Vec<Held>,
+    held: Vec<HeldSpace>,
     /// Whether a header is being read, so a key opens no key-value.
     reading: TableReadPhase,
     /// An empty token that waits for the next one.
-    empty: Option<Held>,
+    empty: Option<HeldSpace>,
     /// How many arrays and inline tables are open.
     depth: Count,
     /// How many the parser was told not to open, whose closing it still gives.
@@ -101,7 +101,7 @@ impl Writer<'_, '_, '_> {
 
     /// Writes a token of `kind` over `span`.
     fn token(&mut self, kind: Kind, span: Span) {
-        self.write(Held {
+        self.write(HeldSpace {
             kind,
             start: start_of(span),
             end: end_of(span),
@@ -111,7 +111,7 @@ impl Writer<'_, '_, '_> {
     /// Writes a token. The parser stands in for what is missing (a closing bracket) with an empty token where it noticed, and may
     /// give the text it could not read there afterwards: an empty token waits for the next one, so the tokens are written in the
     /// order of the file.
-    fn write(&mut self, token: Held) {
+    fn write(&mut self, token: HeldSpace) {
         if token.start == token.end {
             self.flush();
             self.empty = Some(token);
@@ -135,7 +135,7 @@ impl Writer<'_, '_, '_> {
     }
 
     /// Writes a token, and before it any text the parser gave no event for.
-    fn put(&mut self, token: Held) {
+    fn put(&mut self, token: HeldSpace) {
         languages::lossless_token(
             &mut self.tree,
             kind_bits(token.kind),
@@ -181,7 +181,7 @@ impl Writer<'_, '_, '_> {
     /// Writes white space or text the parser could not read, or holds it when it comes after a part of a key, whose key may go on.
     fn trivia(&mut self, kind: Kind, span: Span) {
         if self.top() == Kind::Node(Node::Key) {
-            self.held.push(Held {
+            self.held.push(HeldSpace {
                 kind,
                 start: start_of(span),
                 end: end_of(span),
@@ -299,20 +299,29 @@ impl Writer<'_, '_, '_> {
             .unwrap_or_default();
         let value = match classified {
             ScalarKind::Boolean(value) => Some(value.to_string()),
-            ScalarKind::Integer(radix) => i64::from_str_radix(&self.scratch.0, radix.value())
-                .ok() // an integer TOML refuses (out of range) has no value: the token keeps its text and gets no decoded value
-                .map(|value| value.to_string()),
-            ScalarKind::Float => written
-                .chars()
-                .filter(|each| *each != DIGIT_SEPARATOR)
-                .collect::<String>()
-                .parse::<f64>()
-                .ok() // a float that does not read has no value: the token keeps its text and gets no decoded value
-                .map(|value| format!("{value:?}")),
-            ScalarKind::DateTime => written
-                .parse::<toml::value::Datetime>()
-                .ok() // a date-time that does not read has no value: the token keeps its text and gets no decoded value
-                .map(|value| value.to_string()),
+            // an integer TOML refuses (out of range) has no value: the token keeps its text and gets no decoded value
+            ScalarKind::Integer(radix) => {
+                match i64::from_str_radix(&self.scratch.0, radix.value()) {
+                    Ok(value) => Some(value.to_string()),
+                    Err(_) => None,
+                }
+            }
+            // a float that does not read has no value: the token keeps its text and gets no decoded value
+            ScalarKind::Float => {
+                let digits = written
+                    .chars()
+                    .filter(|each| *each != DIGIT_SEPARATOR)
+                    .collect::<String>();
+                match digits.parse::<f64>() {
+                    Ok(value) => Some(format!("{value:?}")),
+                    Err(_) => None,
+                }
+            }
+            // a date-time that does not read has no value: the token keeps its text and gets no decoded value
+            ScalarKind::DateTime => match written.parse::<toml::value::Datetime>() {
+                Ok(value) => Some(value.to_string()),
+                Err(_) => None,
+            },
             ScalarKind::String => None,
         };
         match value {

@@ -92,17 +92,22 @@ fn target(
             Ok::<_, ParseError<()>>(inner.expect_string()?.to_string())
         });
         parser.reset(&state);
-        found.ok() // a `url(` whose block holds no string names no target: the parser's refusal is the answer that there is none
+        // a `url(` whose block holds no string names no target: the parser's refusal is the answer that there is none
+        let Ok(found) = found else {
+            return None;
+        };
+        Some(found)
     } else if let Token::AtKeyword(name) = token
         && name.eq_ignore_ascii_case(IMPORT)
     {
         let state = parser.state();
-        let found = parser
-            .expect_url_or_string()
-            .ok() // an `@import` followed by no url or string names no target: the parser's refusal is the answer that there is none
-            .map(|url| url.to_string());
+        let found = parser.expect_url_or_string().map(|url| url.to_string());
         parser.reset(&state);
-        found
+        // an `@import` followed by no url or string names no target: the parser's refusal is the answer that there is none
+        let Ok(found) = found else {
+            return None;
+        };
+        Some(found)
     } else {
         None
     };
