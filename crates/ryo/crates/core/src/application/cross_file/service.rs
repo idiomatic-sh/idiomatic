@@ -63,100 +63,137 @@ impl CrossFile {
             publication,
         }
     }
-    /// One application call submits all currently available tasks to the engine stage.
+    /// The sealed application inventory is the required input to engine work.
     pub(crate) fn evaluate_batch(
         &self,
         crossing: &CrossingInput<'_>,
-        tasks: Vec<super::types::ProjectTask<'_>>,
+        batch: super::preparation::service::SealedBatch,
         stage: &impl ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution,
         symbols: &mut Symbols,
         guard: impl FnMut(
             ryo_execution::inbound::use_cases::execution::types::RuleIndex,
         ) -> Result<(), super::errors::CrossError>,
     ) -> ryo_execution::inbound::use_cases::execution::types::ProjectBatch<
-        Result<super::types::CrossedWithPublications, RulesError>,
+        super::types::ProjectOutcome,
         super::errors::CrossError,
     > {
+        use super::{
+            errors::CrossError, preparation::types::PreparedProject, types::ProjectOutcome,
+        };
         use ryo_execution::inbound::use_cases::execution::types::{
             EmitDemand, ObservationDemand, ProjectBatch, ProjectInput, ProjectTask, RuleDemand,
         };
-        let partials = tasks
-            .iter()
-            .map(|task| {
-                let evaluation = match crossing.answering {
-                    Answering::Findings => crate::domain::crossing::service::partials_for(
-                        &crossing.domain,
-                        task.todo.rule,
-                    ),
-                    Answering::Rows(_) => Default::default(),
-                };
-                crossing
-                    .program
-                    .observation_reads(task.todo.rule)
-                    .map(|reads| {
-                        (
-                            evaluation,
-                            crate::domain::crossing::service::partials_for_reads(
+        struct Ready {
+            scope: ryo_execution::inbound::use_cases::execution::types::ProjectScope,
+            frontier:
+                Option<ryo_execution::inbound::use_cases::execution::types::PreparedFrontiers>,
+            bound: Vec<ryo_execution::inbound::use_cases::execution::types::BoundInput>,
+            slot: PublicationSlot,
+            evaluation: ryo_execution::inbound::use_cases::execution::types::Partials,
+            publication: ryo_execution::inbound::use_cases::execution::types::Partials,
+        }
+        let mut entries = batch
+            .into_entries()
+            .into_vec()
+            .into_iter()
+            .map(|(todo, task)| {
+                let prepared = task.and_then(
+                    |PreparedProject {
+                         scope,
+                         frontier,
+                         bound,
+                         slot,
+                     }| {
+                        let evaluation = match crossing.answering {
+                            Answering::Findings => crate::domain::crossing::service::partials_for(
                                 &crossing.domain,
-                                task.todo.rule,
-                                &reads,
+                                todo.rule,
                             ),
-                        )
-                    })
-            })
-            .collect::<Vec<_>>();
-        let mut targets = Vec::with_capacity(tasks.len());
-        let mut inputs = Vec::with_capacity(tasks.len());
-        let mut failures = Vec::with_capacity(tasks.len());
-        for (task, partials) in tasks.into_iter().zip(&partials) {
-            targets.push((task.todo, task.slot));
-            match partials {
-                Ok((evaluation, publication)) => {
-                    failures.push(None);
-                    inputs.push(ProjectTask {
-                        rule: task.todo.rule,
-                        demand: RuleDemand {
-                            emit: EmitDemand::Enabled,
-                            observations: ObservationDemand::Required,
-                        },
-                        input: ProjectInput {
-                            scope: task.scope,
+                            Answering::Rows(_) => Default::default(),
+                        };
+                        let reads = crossing
+                            .program
+                            .observation_reads(todo.rule)
+                            .map_err(|error| CrossError::from(failed(&todo.id, &error)))?;
+                        let publication = crate::domain::crossing::service::partials_for_reads(
+                            &crossing.domain,
+                            todo.rule,
+                            &reads,
+                        );
+                        Ok(Ready {
+                            scope,
+                            frontier: Some(frontier),
+                            bound,
+                            slot,
                             evaluation,
                             publication,
-                            ordinary: task.frontier,
-                            bound: task.bound,
-                            arenas: crossing.arenas,
-                        },
-                    });
-                }
-                Err(error) => failures.push(Some(failed(&task.todo.id, error))),
-            }
-        }
+                        })
+                    },
+                );
+                (todo, prepared)
+            })
+            .collect::<Vec<_>>();
+        let inputs = entries
+            .iter_mut()
+            .filter_map(|(todo, prepared)| {
+                let ready = prepared.as_mut().ok()?;
+                Some(ProjectTask {
+                    rule: todo.rule,
+                    demand: RuleDemand {
+                        emit: EmitDemand::Enabled,
+                        observations: ObservationDemand::Required,
+                    },
+                    input: ProjectInput {
+                        scope: &ready.scope,
+                        evaluation: &ready.evaluation,
+                        publication: &ready.publication,
+                        ordinary: ready
+                            .frontier
+                            .take()
+                            .expect("each sealed ready occurrence is submitted once"),
+                        bound: &ready.bound,
+                        arenas: crossing.arenas,
+                    },
+                })
+            })
+            .collect();
         let (completed, refused) = match stage.evaluate(inputs, symbols, guard) {
             ProjectBatch::Complete(completed) => (completed, None),
             ProjectBatch::Refused { completed, error } => (completed, Some(error)),
         };
         let mut evaluated = completed.into_iter();
-        let mut completed = Vec::with_capacity(targets.len());
-        for ((todo, slot), failure) in targets.into_iter().zip(failures) {
-            if let Some(error) = failure {
-                completed.push(Err(error));
-                continue;
-            }
-            let Some(outcome) = evaluated.next() else {
-                if refused.is_some() {
-                    break;
+        let mut completed = Vec::with_capacity(entries.len());
+        for (todo, prepared) in entries {
+            let result = match prepared {
+                Err(error) => Err(error),
+                Ok(ready) => {
+                    let Some(outcome) = evaluated.next() else {
+                        if refused.is_some() {
+                            break;
+                        }
+                        completed.push(ProjectOutcome {
+                            result: Err(CrossError::from(failed(
+                                &todo.id,
+                                &"project root outcome missing",
+                            ))),
+                            todo,
+                        });
+                        continue;
+                    };
+                    (|| {
+                        let outcome =
+                            outcome.map_err(|error| CrossError::from(failed(&todo.id, &error)))?;
+                        let evaluated =
+                            crate::application::run_coordination::cross_execution::collected(
+                                outcome,
+                            )
+                            .map_err(|error| CrossError::from(failed(&todo.id, &error)))?;
+                        self.complete_phase(crossing, &todo, evaluated, symbols, ready.slot)
+                            .map_err(CrossError::from)
+                    })()
                 }
-                completed.push(Err(failed(&todo.id, &"project root outcome missing")));
-                continue;
             };
-            completed.push((|| {
-                let outcome = outcome.map_err(|error| failed(&todo.id, &error))?;
-                let evaluated =
-                    crate::application::run_coordination::cross_execution::collected(outcome)
-                        .map_err(|error| failed(&todo.id, &error))?;
-                self.complete_phase(crossing, todo, evaluated, symbols, slot)
-            })());
+            completed.push(ProjectOutcome { todo, result });
         }
         match refused {
             Some(error) => ProjectBatch::Refused { completed, error },
@@ -284,6 +321,7 @@ impl CrossFile {
             publications.clear();
         }
         Ok(super::types::CrossedWithPublications {
+            slot: publication,
             crossed: Crossed {
                 unknowns,
                 rendered,

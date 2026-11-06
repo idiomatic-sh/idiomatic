@@ -1,5 +1,6 @@
 /// Diagnostic result plus the actual admitted identities of its complete and partial named roots.
 pub(crate) struct CrossedWithPublications {
+    pub slot: ryo_execution::inbound::use_cases::execution::types::PublicationSlot,
     pub crossed: crate::domain::answering::types::Crossed,
     pub publications: Vec<(
         ryo_values::domain::observations::types::ObservationIndex,
@@ -21,11 +22,8 @@ pub(crate) struct ObservationRun<'a> {
     pub todo: &'a [crate::domain::answering::types::Todo],
 }
 
-/// One declared task; the scope and bindings belong to the shared project stage.
-pub(crate) struct ProjectTask<'a> {
-    pub todo: &'a crate::domain::answering::types::Todo,
-    pub frontier: ryo_execution::inbound::use_cases::execution::types::PreparedFrontiers,
-    pub bound: &'a [ryo_execution::inbound::use_cases::execution::types::BoundInput],
-    pub slot: ryo_execution::inbound::use_cases::execution::types::PublicationSlot,
-    pub scope: &'a ryo_execution::inbound::use_cases::execution::types::ProjectScope,
+/// Each delivered occurrence retains the immutable declaration it accounts for.
+pub(crate) struct ProjectOutcome {
+    pub todo: crate::domain::answering::types::Todo,
+    pub result: Result<CrossedWithPublications, super::errors::CrossError>,
 }
