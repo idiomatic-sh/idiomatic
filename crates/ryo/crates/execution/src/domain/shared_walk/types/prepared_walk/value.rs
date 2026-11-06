@@ -381,6 +381,7 @@ struct PreparedPredicate {
 #[derive(Debug)]
 pub(crate) struct NativeBatch {
     class_count: ClassCount,
+    refusal: Option<crate::domain::shared_walk::types::WalkRefusal>,
     classes: std::collections::BTreeMap<
         ClassPlace,
         (
@@ -446,6 +447,12 @@ impl NativeBatch {
             .saturating_add(next.counts.result_slots.0);
         Ok(())
     }
+    pub(crate) fn refusal(&self) -> Option<crate::domain::shared_walk::types::WalkRefusal> {
+        self.refusal
+    }
+    pub(in crate::domain::shared_walk) fn refuse_representation(&mut self) {
+        self.refusal = Some(crate::domain::shared_walk::types::WalkRefusal::Representation);
+    }
     pub(crate) fn counts(&self) -> crate::domain::shared_walk::types::WalkCounts {
         self.counts
     }
@@ -493,6 +500,7 @@ impl NativeBatch {
     pub(in crate::domain::shared_walk) fn empty(class_count: ClassCount) -> Self {
         Self {
             class_count,
+            refusal: None,
             classes: Default::default(),
             counts: Default::default(),
         }

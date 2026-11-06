@@ -168,6 +168,7 @@ pub(crate) fn evaluate(
             .validate()
             .is_err()
     {
+        batch.refuse_representation();
         return batch;
     }
     let tree = match rows {

@@ -20,7 +20,9 @@ pub(super) struct Observation {
     pub census: Census,
     pub classes: std::collections::BTreeMap<u64, String>,
     pub dispatches: Vec<Dispatch>,
-    pub admitted: BTreeSet<(String, u64)>,
+    pub heads: std::collections::BTreeMap<u64, u64>,
+    pub ready: Vec<ReadyHead>,
+    pub refused: BTreeSet<(String, String, u64)>,
 }
 pub(super) fn observe() -> Result<Observation, Box<dyn std::error::Error>> {
     let canonical = Path::new(env!("CARGO_MANIFEST_DIR")).join("benchmarks/linters/ruff");
@@ -42,7 +44,12 @@ pub(super) fn observe() -> Result<Observation, Box<dyn std::error::Error>> {
     let staged = temporary.path().join("suite");
     // Stage the whole declared profile; the production worker resolves which
     // supporting definitions are needed by the selected diagnostic cohort.
-    let definitions = profile.defaults.iter().chain(&profile.supporting_rules).cloned().collect();
+    let definitions = profile
+        .defaults
+        .iter()
+        .chain(&profile.supporting_rules)
+        .cloned()
+        .collect();
     suite.stage(
         ArtifactPath(&canonical),
         ArtifactPath(&staged),
@@ -126,7 +133,15 @@ pub(super) struct Census {
     pub barriers: [u64; 7],
 }
 #[derive(Clone)]
+pub(super) struct ReadyHead {
+    pub logical: u64,
+    pub relation: String,
+    pub generation: String,
+    pub population: String,
+}
+#[derive(Clone)]
 pub(super) struct Dispatch {
+    pub generation: String,
     pub relation: String,
     pub population: String,
     pub classes: Vec<u64>,
@@ -145,7 +160,9 @@ fn decode(
     let mut census = None;
     let mut classes = std::collections::BTreeMap::new();
     let mut dispatches = Vec::new();
-    let mut admitted = BTreeSet::new();
+    let mut heads = std::collections::BTreeMap::new();
+    let mut ready = Vec::new();
+    let mut refused = BTreeSet::new();
     for line in lines.lines() {
         let event: serde_json::Value = serde_json::from_str(line)?;
         let fields = &event["fields"];
@@ -177,6 +194,12 @@ fn decode(
                 assert!(census.replace(actual).is_none(), "duplicate request census");
             }
             "shared_walk_class" => {
+                for head in serde_json::from_str::<Vec<u64>>(fields["heads"].as_str().unwrap())? {
+                    assert!(
+                        heads.insert(head, count(fields, "class")).is_none(),
+                        "one compiled class per physical head"
+                    );
+                }
                 assert!(
                     classes
                         .insert(
@@ -188,12 +211,31 @@ fn decode(
                 );
             }
             "shared_walk_ready" => {
-                admitted.insert((
-                    fields["population"].as_str().unwrap().to_owned(),
-                    count(fields, "class"),
-                ));
+                assert_eq!(fields["phase"].as_str(), Some("PerFile"));
+                ready.push(ReadyHead {
+                    logical: count(fields, "logical"),
+                    relation: fields["relation"].as_str().unwrap().to_owned(),
+                    generation: fields["generation"].as_str().unwrap().to_owned(),
+                    population: population(fields, true),
+                });
+            }
+            "shared_walk_refused" => {
+                assert_eq!(
+                    fields["reason"].as_str(),
+                    Some("Representation"),
+                    "only the actual representation admission guard can discharge an obligation"
+                );
+                let generation = fields["generation"].as_str().unwrap().to_owned();
+                let population = population(fields, false);
+                for class in serde_json::from_str::<Vec<u64>>(fields["classes"].as_str().unwrap())?
+                {
+                    // Equivalent ready heads may independently reach the same
+                    // authoritative representation refusal; identity is already bound.
+                    refused.insert((generation.clone(), population.clone(), class));
+                }
             }
             "shared_walk_dispatch" => dispatches.push(Dispatch {
+                generation: fields["generation"].as_str().unwrap().to_owned(),
                 relation: fields["relation"].as_str().unwrap().to_owned(),
                 population: fields["population"].as_str().unwrap().to_owned(),
                 classes: serde_json::from_str(fields["classes"].as_str().unwrap())?,
@@ -210,6 +252,25 @@ fn decode(
         census: census.expect("actual bound program census"),
         classes,
         dispatches,
-        admitted,
+        heads,
+        ready,
+        refused,
     })
+}
+
+fn population(fields: &serde_json::Value, require_proof: bool) -> String {
+    let population = fields["population"]
+        .as_str()
+        .expect("actual admitted population");
+    if let Some(proof) = population
+        .strip_prefix("Ok(")
+        .and_then(|value| value.strip_suffix(')'))
+    {
+        return proof.to_owned();
+    }
+    assert!(
+        !require_proof && population.starts_with("PopulationId("),
+        "runtime admission proof must succeed: {fields}"
+    );
+    population.to_owned()
 }

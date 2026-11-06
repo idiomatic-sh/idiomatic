@@ -401,7 +401,8 @@ pub(crate) fn prepare(
             continuation = census.continuation.0);
         for class in census.classes {
             tracing::trace!(target: crate::application::file_dag::program::constants::WALK_TARGET, event = crate::application::file_dag::program::constants::WALK_CLASS,
-                class = class.0, relation = ?walk.classes()[class.0].source);
+                class = class.0, relation = ?walk.classes()[class.0].source,
+                heads = ?program.regions().iter().flat_map(|region| region.instructions.iter()).filter(|instruction| walk.class_for(instruction) == Some(class)).map(|instruction| instruction.logical.0).collect::<Vec<_>>());
         }
     }
 

@@ -1549,6 +1549,42 @@ impl ProgramExecution {
             )
             .map_err(InvocationFailure::Semantic)?;
             if !progress.ready {
+                // Observe the runtime obligation before the callback can omit it.
+                // Schema and scope admission above established valid source geometry;
+                // no PreparedWalk class or submission result selects this inventory.
+                if tracing::enabled!(target: crate::application::file_dag::program::constants::WALK_TARGET, tracing::Level::TRACE)
+                    && region.phase == ryo_values::domain::plans::types::StepScope::PerFile
+                {
+                    use ryo_values::domain::{
+                        plan_parts::types::{Input, RepeatedRows},
+                        plans::types::Operation,
+                    };
+                    let relation = match &first.operation {
+                        Operation::Select {
+                            from: Input::Relation(relation),
+                            ..
+                        }
+                        | Operation::Project {
+                            from: Input::Relation(relation),
+                            distinct: RepeatedRows::Kept,
+                            ..
+                        } => Some(*relation),
+                        _ => None,
+                    };
+                    if let (Partition::File(file), Some(relation)) = (&self.partition, relation) {
+                        let population = admitted
+                            .first()
+                            .ok_or(OperatingError::MissingInput { position: 1 })
+                            .and_then(|input| input.population(&self.owner));
+                        // Log the complete proof result: an invalid proof cannot silently
+                        // disappear from diagnostics or change execution error ordering.
+                        tracing::trace!(target: crate::application::file_dag::program::constants::WALK_TARGET,
+                            event = crate::application::file_dag::program::constants::WALK_READY,
+                            logical = first.logical.0, region = id.0, relation = ?relation,
+                            phase = ?region.phase, file = file.file().0,
+                            generation = ?Arc::as_ptr(&self.generation), population = ?population);
+                    }
+                }
                 kernels
                     .ready(&ReadySelection { permit: &permit }, &admitted, context)
                     .map_err(InvocationFailure::Semantic)?;
@@ -1982,6 +2018,10 @@ impl<'scope> KernelPermit<'scope> {
         } else {
             Err(OperatingError::WrongOperation)
         }
+    }
+    /// Opaque diagnostic correlation for this live generation; never execution authority.
+    pub(in crate::application::file_dag::program) fn diagnostic_generation(&self) -> *const () {
+        Arc::as_ptr(self.generation)
     }
     pub(in crate::application::file_dag::program) fn descriptor(
         &self,

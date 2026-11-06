@@ -684,6 +684,10 @@ fn invalid_generic_representation_or_relation_schema_declines_without_semantic_w
             &mut WalkWork::default(),
         );
         assert!(invalid.class(ClassPlace(0)).is_none());
+        assert_eq!(
+            invalid.refusal(),
+            Some(crate::domain::shared_walk::types::WalkRefusal::Representation)
+        );
         assert_eq!(invalid.counts().passes.0, 0);
         table.count = RowCount(usize::MAX);
         let oversized = evaluate(
@@ -708,6 +712,10 @@ fn invalid_generic_representation_or_relation_schema_declines_without_semantic_w
             &mut WalkWork::default(),
         );
         assert!(wrong_schema.class(ClassPlace(0)).is_none());
+        assert!(
+            wrong_schema.refusal().is_none(),
+            "a foreign ready class is not a representation refusal"
+        );
         assert_eq!(wrong_schema.counts().passes.0, 0);
     });
 }
@@ -748,6 +756,10 @@ fn an_unready_class_of_a_demanded_rule_performs_no_semantic_work() {
     );
     let idle = evaluate_plans(&prepared, &bindings, &[]);
     assert!(idle.class(ready).is_none());
+    assert!(
+        idle.refusal().is_none(),
+        "no demand cannot invent a representation refusal"
+    );
     assert!(idle.class(unready).is_none());
     assert_eq!(idle.counts().passes.0, 0);
     assert_eq!(idle.counts().source_rows.0, 0);

@@ -52,15 +52,24 @@ impl WalkPartition<'_> {
             return Ok(false);
         };
         let permit = ready.permit();
-        if prepared.walk_class(permit.descriptor()).is_none() {
+        let Some(class) = prepared.walk_class(permit.descriptor()) else {
             return Ok(false);
-        }
+        };
         let [input] = inputs else {
             return Err(OperatingError::WrongOperation);
         };
         let rows = input.rows(owner, read)?;
         let relation = walk.relation(prepared, permit)?;
-        walk.submit(prepared, ready, relation, &rows)
+        let submitted = walk.submit(prepared, ready, relation, &rows)?;
+        if !submitted {
+            tracing::trace!(target: super::constants::WALK_TARGET,
+                event = super::constants::WALK_REFUSED,
+                logical = permit.descriptor().logical.0, relation = ?relation,
+                generation = ?permit.diagnostic_generation(), population = ?input.population(owner),
+                classes = ?[class.0],
+                reason = ?crate::domain::shared_walk::types::WalkRefusal::Representation);
+        }
+        Ok(submitted)
     }
     pub(super) fn acquire(
         &self,
@@ -169,9 +178,6 @@ impl FileWalk {
             population: admitted.population(),
             relation,
         };
-        tracing::trace!(target: super::constants::WALK_TARGET,
-            event = super::constants::WALK_READY,
-            class = class.0, relation = ?relation, population = ?key.population);
         let mut sources = self.batches.borrow_mut();
         let source = sources.entry(key).or_insert_with(|| SourceWork {
             ready: BTreeSet::new(),
@@ -303,12 +309,19 @@ impl PermittedWalk<'_, '_, '_> {
         );
         let counts = batch.counts();
         tracing::trace!(target: super::constants::WALK_TARGET, event = super::constants::WALK_DISPATCH,
-            relation = ?self.source.relation(), population = ?self.source.population(),
+            relation = ?self.source.relation(), population = ?self.source.population(), generation = ?self.permit.diagnostic_generation(),
             classes = ?self.ready.iter().filter(|class| batch.class(**class).is_some()).map(|class| class.0).collect::<Vec<_>>(),
             passes = counts.passes.0, source_rows = counts.source_rows.0,
             decoded_rows = counts.decoded_rows.0, predicate_rows = counts.predicate_rows.0,
             predicate_tests = counts.predicate_tests.0, predicate_reuses = counts.predicate_reuses.0,
             result_slots = counts.result_slots.0);
+        if let Some(reason) = batch.refusal() {
+            tracing::trace!(target: super::constants::WALK_TARGET,
+                event = super::constants::WALK_REFUSED,
+                relation = ?self.source.relation(), population = ?self.source.population(),
+                generation = ?self.permit.diagnostic_generation(), classes = ?self.ready.iter().map(|class| class.0).collect::<Vec<_>>(),
+                reason = ?reason);
+        }
         Ok(batch)
     }
 }

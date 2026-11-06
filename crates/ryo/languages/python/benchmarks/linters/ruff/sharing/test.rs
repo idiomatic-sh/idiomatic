@@ -15,7 +15,10 @@ fn subject(_: Input) -> Result<Value, Failure> {
     let observed = observe().map_err(|error| error.to_string())?;
     verify(observed.clone())?;
     let mut omitted = observed;
-    assert!(omitted.dispatches.len() > 1, "negative control retains other actual dispatches");
+    assert!(
+        omitted.dispatches.len() > 1,
+        "negative control retains other actual dispatches"
+    );
     omitted.dispatches.remove(0);
     assert!(
         std::panic::catch_unwind(|| verify(omitted)).is_err(),
@@ -34,8 +37,7 @@ fn verify(observed: Observation) -> Result<Value, Failure> {
     );
     assert_eq!(census.rules.into_iter().collect::<BTreeSet<_>>(), expected);
     assert_eq!(
-        census.instructions,
-        census.physical_instructions,
+        census.instructions, census.physical_instructions,
         "route census covers the independent compiled instruction total, including observation unions"
     );
     assert_eq!(
@@ -52,6 +54,25 @@ fn verify(observed: Observation) -> Result<Value, Failure> {
     assert!(
         !observed.dispatches.is_empty(),
         "actual eligible heads dispatch through their file owner"
+    );
+    assert_eq!(
+        observed.heads.len() as u64,
+        census.shared,
+        "all prepared shared instructions retain their separate physical IDs"
+    );
+    let mut expected = BTreeSet::new();
+    for head in observed.ready {
+        let class = *observed
+            .heads
+            .get(&head.logical)
+            .expect("runtime-admitted eligible physical head has no compiled shared mapping");
+        assert_eq!(observed.classes.get(&class), Some(&head.relation));
+        // Equivalent physical heads share only after each ID has been accounted for.
+        expected.insert((head.generation, head.population, class));
+    }
+    assert!(
+        !expected.is_empty(),
+        "authoritative runtime admission precedes any callback"
     );
     let mut dispatched = BTreeSet::new();
     let (mut passes, mut rows) = (0, 0);
@@ -72,7 +93,7 @@ fn verify(observed: Observation) -> Result<Value, Failure> {
                 "actual bound source class"
             );
             assert!(
-                dispatched.insert((event.population.clone(), class)),
+                dispatched.insert((event.generation.clone(), event.population.clone(), class)),
                 "class reevaluated in same admitted population"
             );
         }
@@ -80,16 +101,28 @@ fn verify(observed: Observation) -> Result<Value, Failure> {
         rows += event.source_rows;
         assert!(event.decoded_rows <= event.source_rows);
     }
+    assert!(
+        dispatched.is_disjoint(&observed.refused),
+        "an admitted class is either served or explicitly refused by representation admission"
+    );
+    let covered = dispatched
+        .union(&observed.refused)
+        .cloned()
+        .collect::<BTreeSet<_>>();
     assert_eq!(
-        dispatched, observed.admitted,
-        "every admitted ready class is served by exactly one actual shared dispatch per population"
+        covered, expected,
+        "every runtime-admitted physical head is served or explicitly representation-refused, independently of submission"
     );
     assert!(dispatched.len() > 1 && passes > 0 && rows > 0);
     assert!(
         shared_cohort,
         "actual configured rules must share a source traversal across distinct classes"
     );
-    // This corpus proves all runtime-admitted classes under all413 selection.
+    // The expected inventory comes from runtime admission before the overridable
+    // ready callback. The private runtime omission control skips an actual
+    // submission while retaining other dispatches; dispatch deletion above is
+    // an additional transport/accounting falsifier.
+    // This corpus proves reached eligible heads under all413 selection.
     // Independently proving every statically eligible head is classified correctly
     // remains a separate contract; dormant classes need not execute.
     // Replay/native/column/ordered proofs remain execution's actual route tests.

@@ -117,3 +117,9 @@ pub(crate) struct WalkCensus {
     pub request: WalkRouteCount,
     pub continuation: WalkRouteCount,
 }
+
+/// A declined representation is emitted only by the semantic preflight that inspected it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum WalkRefusal {
+    Representation,
+}
