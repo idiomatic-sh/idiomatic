@@ -437,7 +437,7 @@ fn run_chain(
         }],
         services,
         ryo_values::domain::files::types::SourceView(fixtures::SOURCE),
-        crate::application::file_dag::program::facade_runtime::types::ReuseFusibility::Eligible,
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut case.symbols,
         Some(&semantic),
         None,

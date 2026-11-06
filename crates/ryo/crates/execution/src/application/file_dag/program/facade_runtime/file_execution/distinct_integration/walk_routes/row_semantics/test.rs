@@ -7,23 +7,14 @@ use super::super::fixtures::{Population, Program, Residency, cells, demand};
 use crate::domain::executable_program::fusion::types::{Fusibility, Ineligible};
 use ryo_values::domain::plans::service::kind_of;
 
-fn describe(attempt: Result<RootOutcomeView, OperatingError>) -> String {
-    match attempt {
-        Ok(view) => format!("{view:?}"),
-        Err(error) => format!("refused {error:?}"),
-    }
+fn describe(attempt: Result<String, OperatingError>) -> String {
+    attempt.unwrap_or_else(|error| format!("refused {error:?}"))
 }
-#[derive(Debug)]
-enum RootOutcomeView {
-    Complete(Vec<Cell>, usize),
-    Failed(String),
-    Other,
-}
-fn view(root: RootOutcome) -> RootOutcomeView {
+fn view(root: RootOutcome) -> String {
     match root {
-        RootOutcome::Complete(table) => RootOutcomeView::Complete(table.cells, table.count.0),
-        RootOutcome::Failed(error) => RootOutcomeView::Failed(format!("{error:?}")),
-        _ => RootOutcomeView::Other,
+        RootOutcome::Complete(table) => format!("Complete({:?}, {})", table.cells, table.count.0),
+        RootOutcome::Failed(error) => format!("Failed({error:?})"),
+        _ => "Other".to_owned(),
     }
 }
 
@@ -91,7 +82,7 @@ fn exercise(route: RowRoute) -> Result<(), OperatingError> {
     match route {
         RowRoute::Hosted => assert_eq!(
             answer,
-            describe(Ok(RootOutcomeView::Complete(cells(&[5, 6]), 2))),
+            format!("Complete({:?}, 2)", cells(&[5, 6])),
             "the host relation's rows"
         ),
         RowRoute::Rows => assert!(answer.starts_with("Complete"), "{answer}"),
