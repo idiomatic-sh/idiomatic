@@ -1,22 +1,24 @@
 //! Pure traversals feed completed answers to the common resource owner.
 use super::super::{
-    handles::service::{DomainHandle, GraphHandle, RootAnswer},
-    handles::types::GraphSharing,
+    handles::{
+        service::{DomainHandle, GraphHandle, RootAnswer},
+        types::GraphSharing,
+    },
     reserve::types::Reserve,
     retained::types::{GraphEntry, NearestMemo, RootMemo},
 };
-use crate::application::file_dag::derived::constants;
-use crate::application::file_dag::derived::ledger::types::{
-    BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount,
-};
+use super::completed::service::completed;
 use crate::application::file_dag::derived::{
+    constants,
     ledger::{
         capacity::{arc_bytes, vector},
-        types::Backing,
+        types::{Backing, BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount},
     },
-    owner::DerivedOwner,
-    owner::cache::types::CacheBackend,
-    owner::graphs::service::{replace, slot},
+    owner::{
+        DerivedOwner,
+        cache::types::CacheBackend,
+        graphs::service::{replace, slot},
+    },
 };
 use crate::domain::{
     operating::errors::OperatingError,
@@ -383,22 +385,4 @@ impl<'a> DemandAnswers<'a> {
         cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(cache.bytes);
         Ok(Some(cache.nearest.len() - 1))
     }
-}
-
-fn completed(
-    owner: &DerivedOwner,
-    graph: &GraphEntry,
-    rows: Arc<Vec<u32>>,
-) -> Result<RootAnswer, OperatingError> {
-    let mut backings = graph.backings.to_vec();
-    backings.push(Backing {
-        key: BackingKey {
-            tag: BackingTag(20),
-            address: BackingAddress(Arc::as_ptr(&rows) as usize),
-        },
-        bytes: ByteCount(arc_bytes::<Vec<u32>>().0 + vector(&rows).0),
-        retention_units: UnitCount(0),
-    });
-    let lease = owner.required_lease(&backings)?;
-    Ok(RootAnswer::new(rows, Arc::clone(&graph.storage), lease))
 }
