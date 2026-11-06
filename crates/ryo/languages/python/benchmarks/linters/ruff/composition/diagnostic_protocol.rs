@@ -12,9 +12,13 @@ pub(super) enum WorkerTracing {
     JsonLines,
 }
 
+/// The first argument of a worker invocation.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct WorkerCommand<'a>(pub(super) &'a str);
+
 /// Resolve only the three documented worker protocols.
-pub(super) fn tracing_for_command(command: &str) -> Option<WorkerTracing> {
-    match command {
+pub(super) fn tracing_for_command(command: WorkerCommand<'_>) -> Option<WorkerTracing> {
+    match command.0 {
         RUN_RYO => Some(WorkerTracing::Disabled),
         PROFILE_RYO => Some(WorkerTracing::Chrome),
         DIAGNOSTIC_RYO => Some(WorkerTracing::JsonLines),

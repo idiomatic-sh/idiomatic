@@ -7,6 +7,7 @@ use super::constants::{
 };
 use super::corpus::{Corpus, SourceProfile};
 use super::output;
+use super::request_input::BenchmarkArgument;
 use ryo_benchmark::domain::suite::service::require_accounted;
 use ryo_benchmark::inbound::use_cases::audit::interface::AuditUseCase as _;
 use ryo_benchmark::inbound::use_cases::certify::{
@@ -23,31 +24,39 @@ use ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage;
 use ryo_benchmark_contracts::domain::workloads::types::Suite;
 use std::{path::PathBuf, sync::Arc};
 
+/// The first argument of a measure invocation.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct MeasureCommand<'a>(pub(super) &'a str);
+
 /// Certify both contestants, then measure every project of the corpus and publish or report the samples.
 #[expect(
     clippy::too_many_lines,
     reason = "certification and the corpus loop are one ordered timeline; each project's measurement lives in the corpus part"
 )]
 pub(super) fn measure(
-    command: &str,
-    args: &mut dyn Iterator<Item = String>,
+    command: MeasureCommand<'_>,
+    args: &mut dyn Iterator<Item = BenchmarkArgument>,
     observations: &mut dyn std::io::Write,
     suite_source: &Arc<dyn SuitePort>,
 ) -> Result<(), Error> {
+    let command = command.0;
     if cfg!(debug_assertions) {
         return Err(Error::Invalid(constants::RELEASE_REQUIRED.into()));
     }
     let executable = PathBuf::from(
         args.next()
+            .map(|argument| argument.0)
             .ok_or_else(|| Error::Invalid(constants::EXPECTED_RUFF.into()))?,
     )
     .canonicalize()?;
     let cache = PathBuf::from(
         args.next()
+            .map(|argument| argument.0)
             .ok_or_else(|| Error::Invalid(constants::EXPECTED_CACHE.into()))?,
     );
     let collector_path = PathBuf::from(
         args.next()
+            .map(|argument| argument.0)
             .ok_or_else(|| Error::Invalid(constants::EXPECTED_COLLECTOR.into()))?,
     )
     .canonicalize()?;
@@ -61,7 +70,7 @@ pub(super) fn measure(
     )
     .audit(&commands::directory(), &tool)?;
     let authored_total = audit.authored_count();
-    let selection_or_inventory = args.next();
+    let selection_or_inventory = args.next().map(|argument| argument.0);
     let scope = if matches!(
         command,
         constants::MEASURE | constants::MEASURE_ACCOUNTED_VALID

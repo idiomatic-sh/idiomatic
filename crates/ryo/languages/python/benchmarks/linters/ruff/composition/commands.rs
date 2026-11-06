@@ -10,6 +10,7 @@ use super::constants::{
 };
 use super::diagnostic_protocol::WorkerTracing;
 use super::request_input::{BenchmarkArgument, worker_input};
+use super::targets::{ReferenceSpelling, TargetConfiguration};
 use ryo_benchmark::inbound::use_cases::audit::interface::AuditUseCase as _;
 use ryo_benchmark::inbound::use_cases::run_ryo::{
     interface::RunRyoUseCase as _, use_case::RunRyoUseCaseImpl,
@@ -55,8 +56,11 @@ pub(super) fn worker(
     if args.next().is_some() {
         return Err(Error::Invalid(UNEXPECTED_TRAILING_WORKER_ARGUMEN.into()));
     }
-    super::request_input::checked_worker_identity(&input, parser_configuration.as_deref())?;
-    let target_version = parser_target(parser_configuration.as_deref())?;
+    super::request_input::checked_worker_identity(
+        &input,
+        parser_configuration.as_deref().map(TargetConfiguration),
+    )?;
+    let target_version = parser_target(parser_configuration.as_deref().map(TargetConfiguration))?;
     let languages = ryo::linter::Languages(vec![ryo_python::linked_with_settings(
         ryo_python::settings::PythonParserSettings::new(target_version),
     )]);
@@ -125,7 +129,10 @@ pub(super) fn verify_cases(
                 return Err(Error::Invalid(CASE_RECEIPT_DESTINATION_MUST_BE_N.into()));
             }
         } else if argument.0.starts_with(SHARD) {
-            if shard.replace(parse_shard(&argument.0)?).is_some() {
+            if shard
+                .replace(parse_shard(ShardCoordinates(&argument.0))?)
+                .is_some()
+            {
                 return Err(Error::Invalid(DUPLICATE_CASE_SHARD_ARGUMENT.into()));
             }
         } else if let Some(path) = argument.0.strip_prefix(CASE_SELECTION) {
@@ -212,11 +219,15 @@ pub(super) fn verify_cases(
     Ok(count)
 }
 
+/// The text of one `--shard=index/count` argument.
+struct ShardCoordinates<'a>(&'a str);
+
 /// Parse explicit zero-based shard coordinates using the validated application type.
 fn parse_shard(
-    value: &str,
+    value: ShardCoordinates<'_>,
 ) -> Result<ryo_benchmark_contracts::domain::requests::types::case_shard::value::CaseShard, Error> {
     let coordinates = value
+        .0
         .strip_prefix(SHARD)
         .ok_or_else(|| Error::Invalid(EXPECTED_SHARD_INDEX_COUNT.into()))?;
     let (index, count) = coordinates
@@ -267,22 +278,28 @@ pub(super) fn reference(executable: PathBuf, tool: Tool) -> Result<LinterRuffAda
     {
         return Err(Error::Invalid(PINNED_REFERENCE_DOES_NOT_EVALUATE.into()));
     }
-    let target_version = ruff_target(tool.parser_configuration.as_deref())?.to_owned();
+    let target_version = ruff_target(
+        tool.parser_configuration
+            .as_deref()
+            .map(TargetConfiguration),
+    )?
+    .0
+    .to_owned();
     Ok(LinterRuffAdapter::new(LinterRuffSettings {
         executable,
         defaults: tool.defaults.into_iter().collect(),
-        target_version,
+        target_version: target_version.into(),
     }))
 }
 
 /// Map the sealed shared identity to Ruff's explicit CLI value.
-fn ruff_target(configuration: Option<&str>) -> Result<&'static str, Error> {
+fn ruff_target(configuration: Option<TargetConfiguration<'_>>) -> Result<ReferenceSpelling, Error> {
     Ok(super::targets::resolve(configuration)?.reference)
 }
 
 /// Use exactly the same explicit identity for the linked parser as the reference.
 fn parser_target(
-    configuration: Option<&str>,
+    configuration: Option<TargetConfiguration<'_>>,
 ) -> Result<ryo_python::settings::PythonTargetVersion, Error> {
     Ok(super::targets::resolve(configuration)?.parser)
 }

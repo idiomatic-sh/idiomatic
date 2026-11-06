@@ -10,18 +10,26 @@ use super::constants::{
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_python::settings::PythonTargetVersion;
 
+/// The explicit target version text of a request or command line.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct TargetConfiguration<'a>(pub(super) &'a str);
+
+/// The pinned Ruff CLI spelling of one target version.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct ReferenceSpelling(pub(super) &'static str);
+
 /// The reference CLI spelling and linked parser mode for one canonical identity.
 #[derive(Clone, Copy, Debug)]
 pub(super) struct Target {
     /// The same version passed to the linked Python language.
     pub(super) parser: PythonTargetVersion,
     /// The pinned Ruff CLI spelling, without enabling preview or changing rules.
-    pub(super) reference: &'static str,
+    pub(super) reference: ReferenceSpelling,
 }
 
 /// Resolve an explicit supported version; moving latest and implicit defaults are refused.
-pub(super) fn resolve(configuration: Option<&str>) -> Result<Target, Error> {
-    let (parser, reference) = match configuration {
+pub(super) fn resolve(configuration: Option<TargetConfiguration<'_>>) -> Result<Target, Error> {
+    let (parser, reference) = match configuration.map(|configuration| configuration.0) {
         Some(PYTHON_TARGET_3_7) => (PythonTargetVersion::Py37, PY37),
         Some(PYTHON_TARGET_3_8) => (PythonTargetVersion::Py38, PY38),
         Some(PYTHON_TARGET_3_9) => (PythonTargetVersion::Py39, PY39),
@@ -35,7 +43,10 @@ pub(super) fn resolve(configuration: Option<&str>) -> Result<Target, Error> {
             return Err(Error::Invalid(UNSUPPORTED_OR_MISSING_RUFF_PARSER.into()));
         }
     };
-    Ok(Target { parser, reference })
+    Ok(Target {
+        parser,
+        reference: ReferenceSpelling(reference),
+    })
 }
 
 #[cfg(test)]
@@ -43,18 +54,20 @@ mod tests {
     use super::{
         EXPLICIT_LEGACY_TARGET, EXPLICIT_NATIVE_ANNOTATION_TARGET, PYTHON_TARGET_3_6,
         PYTHON_TARGET_3_7, PYTHON_TARGET_3_09, PYTHON_TARGET_3_10_2, PYTHON_TARGET_3_14,
-        PYTHON_TARGET_3_16, PYTHON_TARGET_LATEST, resolve,
+        PYTHON_TARGET_3_16, PYTHON_TARGET_LATEST, TargetConfiguration, resolve,
     };
     use ryo_python::settings::PythonTargetVersion;
 
     #[test]
     fn legacy_and_native_annotation_boundaries_select_the_requested_parser() {
-        let legacy = resolve(Some(PYTHON_TARGET_3_7)).expect(EXPLICIT_LEGACY_TARGET);
+        let legacy =
+            resolve(Some(TargetConfiguration(PYTHON_TARGET_3_7))).expect(EXPLICIT_LEGACY_TARGET);
         assert_eq!(legacy.parser, PythonTargetVersion::Py37);
-        assert_eq!(legacy.reference, "py37");
-        let native = resolve(Some(PYTHON_TARGET_3_14)).expect(EXPLICIT_NATIVE_ANNOTATION_TARGET);
+        assert_eq!(legacy.reference.0, "py37");
+        let native = resolve(Some(TargetConfiguration(PYTHON_TARGET_3_14)))
+            .expect(EXPLICIT_NATIVE_ANNOTATION_TARGET);
         assert_eq!(native.parser, PythonTargetVersion::Py314);
-        assert_eq!(native.reference, "py314");
+        assert_eq!(native.reference.0, "py314");
     }
 
     #[test]
@@ -67,7 +80,10 @@ mod tests {
             Some(PYTHON_TARGET_3_09),
             Some(PYTHON_TARGET_3_10_2),
         ] {
-            assert!(resolve(value).is_err(), "{value:?}");
+            assert!(
+                resolve(value.map(TargetConfiguration)).is_err(),
+                "{value:?}"
+            );
         }
     }
 }

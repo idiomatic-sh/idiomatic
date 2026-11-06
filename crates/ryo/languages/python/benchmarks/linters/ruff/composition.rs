@@ -29,8 +29,10 @@ pub(crate) fn run(
             | self::constants::DIAGNOSTIC_RYO,
         ) => self::commands::worker(
             args.map(self::request_input::BenchmarkArgument),
-            self::diagnostic_protocol::tracing_for_command(command.as_deref().unwrap_or_default())
-                .ok_or_else(|| Error::Invalid(UNSUPPORTED_WORKER_COMMAND.into()))?,
+            self::diagnostic_protocol::tracing_for_command(
+                self::diagnostic_protocol::WorkerCommand(command.as_deref().unwrap_or_default()),
+            )
+            .ok_or_else(|| Error::Invalid(UNSUPPORTED_WORKER_COMMAND.into()))?,
         ),
         Some(self::constants::VERIFY_CASES) => {
             let count =
@@ -54,8 +56,8 @@ pub(crate) fn run(
             | self::constants::MEASURE_SCOPED
             | self::constants::MEASURE_VALID,
         ) => self::measure::measure(
-            command.as_deref().unwrap_or_default(),
-            &mut args,
+            self::measure::MeasureCommand(command.as_deref().unwrap_or_default()),
+            &mut args.map(self::request_input::BenchmarkArgument),
             observations,
             &suite_source,
         ),

@@ -26,7 +26,7 @@ fn reads_the_exact_explicit_request_file() -> Result<(), Box<dyn std::error::Err
         request_input::BenchmarkArgument(request_path.to_string_lossy().into_owned()),
     ]
     .into_iter();
-    assert_eq!(request_input::worker_input(&mut arguments)?, request);
+    assert_eq!(request_input::worker_input(&mut arguments)?.0, request);
     assert!(arguments.next().is_none());
     Ok(())
 }
@@ -34,7 +34,7 @@ fn reads_the_exact_explicit_request_file() -> Result<(), Box<dyn std::error::Err
 fn retains_the_explicit_inline_json_debug_protocol() -> Result<(), Box<dyn std::error::Error>> {
     let request = ROOT_TMP_PROJECT_FILES_A_PY;
     let mut arguments = [request_input::BenchmarkArgument(request.into())].into_iter();
-    assert_eq!(request_input::worker_input(&mut arguments)?, request);
+    assert_eq!(request_input::worker_input(&mut arguments)?.0, request);
     assert!(arguments.next().is_none());
     Ok(())
 }
@@ -46,10 +46,16 @@ fn worker_execution_requires_the_actual_target_and_canonical_phase()
         (RULE_APPLICABILITY): {(UP045): ACCEPTED_SYNTAX, (EXE004): ALWAYS}
     });
     let configuration = Some(PYTHON_TARGET_3_10);
-    request_input::checked_worker_identity(&request.to_string(), configuration)?;
+    request_input::checked_worker_identity(
+        &request_input::WorkerInput(request.to_string()),
+        configuration.map(targets::TargetConfiguration),
+    )?;
     for missing_or_wrong in [None, Some(PYTHON_TARGET_3_11), Some(PYTHON_TARGET_3_9)] {
         assert!(matches!(
-            request_input::checked_worker_identity(&request.to_string(), missing_or_wrong),
+            request_input::checked_worker_identity(
+                &request_input::WorkerInput(request.to_string()),
+                missing_or_wrong.map(targets::TargetConfiguration)
+            ),
             Err(Error::Invalid(_))
         ));
     }
@@ -62,7 +68,10 @@ fn worker_execution_requires_the_actual_target_and_canonical_phase()
             .is_some()
     );
     assert!(matches!(
-        request_input::checked_worker_identity(&missing.to_string(), configuration),
+        request_input::checked_worker_identity(
+            &request_input::WorkerInput(missing.to_string()),
+            configuration.map(targets::TargetConfiguration)
+        ),
         Err(Error::Invalid(_))
     ));
     for phases in [
@@ -75,7 +84,10 @@ fn worker_execution_requires_the_actual_target_and_canonical_phase()
         let mut changed = request.clone();
         changed[RULE_APPLICABILITY] = phases;
         assert!(matches!(
-            request_input::checked_worker_identity(&changed.to_string(), configuration),
+            request_input::checked_worker_identity(
+                &request_input::WorkerInput(changed.to_string()),
+                configuration.map(targets::TargetConfiguration)
+            ),
             Err(Error::Invalid(_))
         ));
     }
@@ -88,7 +100,10 @@ fn worker_execution_requires_the_actual_target_and_canonical_phase()
             .is_some()
     );
     assert!(matches!(
-        request_input::checked_worker_identity(&absent.to_string(), configuration),
+        request_input::checked_worker_identity(
+            &request_input::WorkerInput(absent.to_string()),
+            configuration.map(targets::TargetConfiguration)
+        ),
         Err(Error::Invalid(_))
     ));
     Ok(())
@@ -111,20 +126,29 @@ fn every_explicit_supported_target_preserves_request_and_phase_identity()
             (PARSER_CONFIGURATION): configuration,
             (RULE_APPLICABILITY): {(UP045): ACCEPTED_SYNTAX, (EXE004): ALWAYS}
         });
-        request_input::checked_worker_identity(&request.to_string(), Some(configuration))?;
+        request_input::checked_worker_identity(
+            &request_input::WorkerInput(request.to_string()),
+            Some(targets::TargetConfiguration(configuration)),
+        )?;
         let wrong = if configuration == PYTHON_TARGET_3_10 {
             PYTHON_TARGET_3_14
         } else {
             PYTHON_TARGET_3_10
         };
         assert!(matches!(
-            request_input::checked_worker_identity(&request.to_string(), Some(wrong)),
+            request_input::checked_worker_identity(
+                &request_input::WorkerInput(request.to_string()),
+                Some(targets::TargetConfiguration(wrong))
+            ),
             Err(Error::Invalid(_))
         ));
         let mut missing_phase = request;
         missing_phase[RULE_APPLICABILITY] = serde_json::Value::Null;
         assert!(matches!(
-            request_input::checked_worker_identity(&missing_phase.to_string(), Some(configuration)),
+            request_input::checked_worker_identity(
+                &request_input::WorkerInput(missing_phase.to_string()),
+                Some(targets::TargetConfiguration(configuration))
+            ),
             Err(Error::Invalid(_))
         ));
     }
@@ -134,16 +158,22 @@ fn every_explicit_supported_target_preserves_request_and_phase_identity()
 fn worker_modes_are_explicit_and_keep_diagnostics_out_of_timed_run() {
     use diagnostic_protocol::{WorkerTracing, tracing_for_command};
 
-    assert_eq!(tracing_for_command(RUN_RYO), Some(WorkerTracing::Disabled));
     assert_eq!(
-        tracing_for_command(PROFILE_RYO),
+        tracing_for_command(diagnostic_protocol::WorkerCommand(RUN_RYO)),
+        Some(WorkerTracing::Disabled)
+    );
+    assert_eq!(
+        tracing_for_command(diagnostic_protocol::WorkerCommand(PROFILE_RYO)),
         Some(WorkerTracing::Chrome)
     );
     assert_eq!(
-        tracing_for_command(DIAGNOSTIC_RYO),
+        tracing_for_command(diagnostic_protocol::WorkerCommand(DIAGNOSTIC_RYO)),
         Some(WorkerTracing::JsonLines)
     );
-    assert_eq!(tracing_for_command(DIAGNOSTIC_UNKNOWN), None);
+    assert_eq!(
+        tracing_for_command(diagnostic_protocol::WorkerCommand(DIAGNOSTIC_UNKNOWN)),
+        None
+    );
 }
 
 #[derive(Clone, Copy)]

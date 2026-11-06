@@ -56,7 +56,7 @@ impl LinterPort for LinterRuffAdapter {
                 .join(constants::RULE_SEPARATOR)
                 .into(),
             constants::TARGET_VERSION.into(),
-            self.settings.target_version.clone().into(),
+            self.settings.target_version.clone(),
         ];
         if let Some(context) = &request.rule_context {
             let root = std::path::absolute(&request.root)?;
