@@ -6,6 +6,7 @@ mod inventory;
 mod routes;
 mod witness;
 const PROGRAM: &str = "src/application/file_dag/program.rs";
+const REQUEST: &str = "src/inbound/use_cases/execution/use_case.rs";
 pub(super) fn controls() -> Vec<Probe> {
     vec![
         Probe {
@@ -32,6 +33,33 @@ mod counted_metadata {
             expected: Expectation::Refuse {
                 code: "E0616",
                 first: "rules",
+                second: "private",
+            },
+        },
+        // The provider read is reachable only through the request-owned cache.
+        Probe {
+            compilation: Compilation::Library,
+            owner: REQUEST,
+            source: "mod cached_frontiers { const _: () = { let _ = crate::application::file_dag::frontiers::types::FrontierCache::prepared; }; }".into(),
+            expected: Expectation::Accept,
+        },
+        Probe {
+            compilation: Compilation::Library,
+            owner: PROGRAM,
+            source: "mod uncached_frontiers { const _: () = { let _ = crate::application::file_dag::frontiers::service::prepare; }; }".into(),
+            expected: Expectation::Refuse {
+                code: "E0603",
+                first: "prepare",
+                second: "private",
+            },
+        },
+        Probe {
+            compilation: Compilation::Library,
+            owner: REQUEST,
+            source: "mod uncached_frontiers_from_request { const _: () = { let _ = crate::application::file_dag::frontiers::service::prepare; }; }".into(),
+            expected: Expectation::Refuse {
+                code: "E0603",
+                first: "prepare",
                 second: "private",
             },
         },
