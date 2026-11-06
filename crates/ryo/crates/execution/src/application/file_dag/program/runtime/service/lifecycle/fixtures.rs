@@ -65,9 +65,9 @@ impl KernelInvocation for RuntimeProbe {
         _: &crate::application::file_dag::program::runtime::service::ReadySelection<'_, '_>,
         _: &[AdmittedInput],
         _: &mut OperatorContext<'_>,
-    ) -> Result<bool, OperatingError> {
+    ) -> Result<(), OperatingError> {
         // These lifecycle controls exercise ordinary invocation, not selection sharing.
-        Ok(false)
+        Ok(())
     }
     fn ordered(
         &self,

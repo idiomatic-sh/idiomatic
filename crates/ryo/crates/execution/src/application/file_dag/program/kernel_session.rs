@@ -73,9 +73,10 @@ impl KernelInvocation for KernelSession<'_, '_> {
         ready: &crate::application::file_dag::program::runtime::service::ReadySelection<'_, '_>,
         inputs: &[super::admission::AdmittedInput],
         _context: &mut OperatorContext<'_>,
-    ) -> Result<bool, OperatingError> {
+    ) -> Result<(), OperatingError> {
         self.walk
             .submit(self.prepared, ready, inputs, &self.owner, self.read)
+            .map(|_| ())
     }
 
     fn ordered(
