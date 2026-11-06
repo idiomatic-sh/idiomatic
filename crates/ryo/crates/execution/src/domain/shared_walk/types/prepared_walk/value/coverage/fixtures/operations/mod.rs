@@ -405,3 +405,23 @@ pub(in super::super) fn compiled_operations() -> Corpus {
     walk.retain_program_consumers(&program).unwrap();
     Corpus { program, walk }
 }
+
+/// Authored plans through the normal operator, graph and program compilers, without a walk.
+pub(in super::super) fn compile_program(
+    plans: &[Plan],
+    bindings: &[Vec<ParameterBinding>],
+) -> ExecutableProgram {
+    let hosted = Vec::new();
+    let operators = RequestOperators::prepare_with_schemas(
+        plans,
+        bindings,
+        &hosted,
+        &ryo_relations::domain::relations::service::kinds,
+        std::sync::Arc::new(
+            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ),
+    )
+    .unwrap();
+    let graph = crate::domain::file_program::service::compile_prepared(plans, &operators);
+    crate::domain::executable_program::service::compile(plans, graph, &Sources, &operators).unwrap()
+}
