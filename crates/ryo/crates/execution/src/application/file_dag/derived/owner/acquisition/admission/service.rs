@@ -1,7 +1,8 @@
 //! Sole source-capability issuer; every field is private to this module.
 use crate::application::file_dag::derived::ledger::{Backing, ResourceLease};
+use crate::application::file_dag::derived::owner::DerivedOwner;
 use crate::application::file_dag::derived::owner::acquisition::semantics::service::DerivedStorage;
-use crate::application::file_dag::derived::owner::{DerivedOwner, PopulationId};
+use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::domain::{
     derived_views::types::{DerivedContract, DerivedInputs, MembershipSpace},
     operating::errors::OperatingError,
@@ -115,7 +116,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition) struct Acquisi
     owner: Arc<()>,
     live: Arc<crate::application::file_dag::relations::GenerationLease>,
     plan: Arc<DerivedContract>,
-    populations: Vec<crate::application::file_dag::derived::owner::PopulationId>,
+    populations: Vec<crate::application::file_dag::derived::population::types::PopulationId>,
     lifetime: AcquisitionLifetime,
 }
 /// Only acquisition admission binds actual immutable sources to their owner and descriptor.

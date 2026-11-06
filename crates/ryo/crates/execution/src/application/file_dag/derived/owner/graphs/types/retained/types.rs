@@ -1,8 +1,8 @@
 //! Retained graph storage belongs to the application owner, never semantic algorithms.
 use crate::application::file_dag::derived::ledger::Backing;
 use crate::application::file_dag::derived::ledger::ResourceLease;
-use crate::application::file_dag::derived::owner::PopulationId;
 use crate::application::file_dag::derived::owner::acquisition::semantics::service::DerivedStorage;
+use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::domain::stored_graph::types::{GraphDomain, Orientation};
 use ryo_derived::domain::contract::types::CompactGraph;
 use std::sync::Arc;

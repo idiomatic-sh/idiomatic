@@ -258,7 +258,10 @@ impl DerivedOwner {
                 let promote = required && entry.required.is_none();
                 if promote {
                     let entry = state.entries.get_mut(&key).expect("existing view");
-                    entry.required = Some(handle.clone());
+                    entry.required = Some(OwnedView {
+                        storage: Arc::clone(handle.storage()),
+                        _lease: Arc::clone(handle.lease()),
+                    });
                     let (bytes, backend, overlap) = (
                         entry.working,
                         entry.backend,
@@ -348,7 +351,7 @@ impl DerivedOwner {
             cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(cache.bytes);
             state.retained_bytes += bytes;
             state.retained_predicates += usize::from(plan.kind == DerivedKind::PredicateMatches);
-            Some(RetainedView {
+            Some(OwnedView {
                 storage: Arc::clone(&storage),
                 _lease: lease,
             })
@@ -394,7 +397,10 @@ impl DerivedOwner {
                 admission,
                 _plan: Arc::clone(plan),
                 weak: Arc::downgrade(&storage),
-                required: required.then(|| handle.clone()),
+                required: required.then(|| OwnedView {
+                    storage: Arc::clone(handle.storage()),
+                    _lease: Arc::clone(handle.lease()),
+                }),
                 retained,
                 backings,
                 lease: Arc::downgrade(handle.lease()),

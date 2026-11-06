@@ -118,16 +118,16 @@ impl DerivedOwner {
         )
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag) fn view_weak(
+    pub(in crate::application::file_dag) fn view_witness(
         &self,
         kind: DerivedKind,
-    ) -> Option<std::sync::Weak<DerivedStorage>> {
+    ) -> Option<super::witness::service::BackingWitness> {
         self.state
             .borrow()
             .entries
             .values()
             .find(|entry| entry._plan.kind == kind)
-            .map(|entry| entry.weak.clone())
+            .map(|entry| super::witness::service::BackingWitness::new(entry.weak.clone()))
     }
 }
 

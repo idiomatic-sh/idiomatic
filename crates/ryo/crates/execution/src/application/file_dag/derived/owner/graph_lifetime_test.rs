@@ -289,7 +289,7 @@ fn impossible_selected_position_admission_does_not_evict_dormant_index() {
     );
     let before = fixture.snapshot();
     let mut positions = Vec::with_capacity(
-        crate::application::file_dag::derived::owner::selection::MAX_RETAINED_POSITION_CAPACITY + 1,
+        crate::application::file_dag::derived::owner::selection::types::MAX_RETAINED_POSITION_CAPACITY + 1,
     );
     positions.extend([0, 1]);
     let Rows::Stored(source) = input else {

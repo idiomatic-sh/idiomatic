@@ -166,7 +166,7 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
     let table = Table {
         kinds: vec![],
         cells: vec![],
-        count: RowCount(super::super::MAX_RETAINED_POSITION_CAPACITY + 1),
+        count: RowCount(super::super::types::MAX_RETAINED_POSITION_CAPACITY + 1),
     };
     let owner = fixture.owner();
     let publication = owner.computed(table.clone())?;
@@ -199,11 +199,14 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
     let DerivedView::RowIds(rows) = handle.view()? else {
         panic!("predicate view")
     };
-    assert_eq!(rows.len(), super::super::MAX_RETAINED_POSITION_CAPACITY + 1);
+    assert_eq!(
+        rows.len(),
+        super::super::types::MAX_RETAINED_POSITION_CAPACITY + 1
+    );
     assert_eq!(rows.first(), Some(&0));
     assert_eq!(
         rows.last(),
-        Some(&(super::super::MAX_RETAINED_POSITION_CAPACITY as u32))
+        Some(&(super::super::types::MAX_RETAINED_POSITION_CAPACITY as u32))
     );
     let after = fixture.snapshot(None);
     assert_eq!(after.selections, 0);

@@ -3,9 +3,8 @@ use super::types::{BuiltDomain, BuiltGraph};
 use crate::application::file_dag::derived::ledger::append_backing;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::AdmittedViewInputs;
 use crate::application::file_dag::derived::{
-    owner::cache::types::CacheBackend,
-    owner::graphs::types::handles::service::GraphHandle,
-    owner::{DerivedOwner, PopulationId},
+    owner::DerivedOwner, owner::cache::types::CacheBackend,
+    owner::graphs::types::handles::service::GraphHandle, population::types::PopulationId,
 };
 use crate::domain::{
     operating::errors::OperatingError,

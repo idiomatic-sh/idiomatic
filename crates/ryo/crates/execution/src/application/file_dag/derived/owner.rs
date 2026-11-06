@@ -1,5 +1,6 @@
 //! Central acquisition, mandatory working ownership and optional retained capacity.
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
+use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::application::file_dag::route_counts::BuildRoute;
 use crate::domain::{derived_views::types::*, operating::errors::OperatingError};
 use acquisition::semantics::service::DerivedStorage;
@@ -10,15 +11,10 @@ use std::{
     sync::{Arc, Weak},
 };
 
-mod diagnostics;
-mod footprint;
-#[path = "owner/lifetime.rs"]
-mod lifetime;
-mod observations;
-#[cfg(test)]
-pub(in crate::application::file_dag) use observations::IndexObservation;
 pub(in crate::application::file_dag) mod acquisition;
 mod backings;
+mod diagnostics;
+mod footprint;
 mod graph;
 #[cfg(test)]
 pub(crate) mod graph_fixture;
@@ -30,15 +26,13 @@ mod graph_retention;
 #[path = "owner/index_lifetime_test.rs"]
 mod index_lifetime_test;
 mod leases;
+#[path = "owner/lifetime.rs"]
+mod lifetime;
+mod observations;
 #[cfg(test)]
 pub(crate) mod resource_fixture;
 mod setup;
 
-/// Assigned only after application admission; canonical DAG producers keep one ID across rules.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(in crate::application::file_dag) struct PopulationId(
-    pub(in crate::application::file_dag) usize,
-);
 /// Runtime semantic dependencies that are not columns: candidate filter and exact dense ordering.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub(in crate::application::file_dag) struct ViewContext {
@@ -63,7 +57,7 @@ struct Key {
     len: u8,
     context: ViewContext,
 }
-struct RetainedView {
+struct OwnedView {
     storage: Arc<DerivedStorage>,
     _lease: Arc<super::ledger::ResourceLease>,
 }
@@ -71,8 +65,8 @@ struct Entry {
     admission: usize,
     _plan: Arc<DerivedContract>,
     weak: Weak<DerivedStorage>,
-    required: Option<acquisition::admission::service::AcquiredView>,
-    retained: Option<RetainedView>,
+    required: Option<OwnedView>,
+    retained: Option<OwnedView>,
     backings: Arc<[super::ledger::Backing]>,
     lease: Weak<super::ledger::ResourceLease>,
     bytes: usize,
@@ -112,30 +106,6 @@ pub(crate) struct DerivedOwner {
     max_entries: usize,
 }
 impl DerivedOwner {
-    /// A finite semantic workspace belongs to this exact live population owner.
-    /// The descriptor was prepared once by the request; undeclared raw orders refuse.
-    pub(in crate::application::file_dag) fn finite_raw(
-        &self,
-        owner: std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
-        prepared: Option<Arc<DerivedContract>>,
-        permit: &crate::application::file_dag::program::runtime::service::KernelPermit<'_>,
-    ) -> Result<impl crate::domain::operator::contract::derived::ScopedDerived, OperatingError>
-    {
-        if !std::ptr::eq(self, &owner.derived)
-            || prepared
-                .as_ref()
-                .is_some_and(|plan| !matches!(&plan.request, ViewRequest::RawKeyOrder { .. }))
-        {
-            return Err(OperatingError::WrongOperation);
-        }
-        permit.validate_derived_owner(&owner)?;
-        let admitted = prepared
-            .as_ref()
-            .map(|plan| self.admit_raw(plan, &owner, permit))
-            .transpose()?;
-        Ok(raw_scope::RawScope::for_program(owner, prepared, admitted))
-    }
-
     #[cfg(test)]
     pub(in crate::application::file_dag) fn prepare_view(
         &self,
@@ -161,75 +131,6 @@ impl DerivedOwner {
             file_prepared: std::cell::Cell::new(false),
             max_entries,
         }
-    }
-    pub(super) fn reclaim_optional_preserving(
-        &self,
-        cache: &mut CacheBackend,
-        cost: usize,
-        protected: &[super::ledger::Backing],
-        extra_units: usize,
-    ) {
-        let mut state = self.state.borrow_mut();
-        let ledger = self.ledger.borrow();
-        let mut candidates = state
-            .entries
-            .iter()
-            .filter_map(|(key, entry)| {
-                (entry.required.is_none()
-                    && ledger.optional_payload_only(&entry.backings)
-                    && entry
-                        .retained
-                        .as_ref()
-                        .is_some_and(|retained| Arc::strong_count(&retained.storage) == 1)
-                    && !entry
-                        .backings
-                        .iter()
-                        .any(|backing| protected.iter().any(|needed| needed.key == backing.key)))
-                .then(|| (entry.admission, key.clone()))
-            })
-            .collect::<Vec<_>>();
-        drop(ledger);
-        candidates.sort_unstable_by_key(|candidate| candidate.0);
-        let mut released = 0;
-        let mut released_predicates = 0;
-        let mut released_indexes = 0;
-        for (_, key) in candidates {
-            if cache
-                .bytes
-                .checked_add(cost)
-                .is_some_and(|bytes| bytes <= cache.limit)
-                && self
-                    .ledger
-                    .borrow()
-                    .snapshot()
-                    .optional_units
-                    .checked_add(extra_units)
-                    .is_some_and(|units| units <= crate::application::file_dag::derived::owner::selection::MAX_RETAINED_POSITION_CAPACITY)
-            {
-                break;
-            }
-            let before = self.ledger.borrow().snapshot().view_optional_bytes;
-            let Some(entry) = state.entries.get_mut(&key) else {
-                continue;
-            };
-            let removed = entry.retained.take();
-            released += entry.bytes;
-            released_predicates += usize::from(entry._plan.kind == DerivedKind::PredicateMatches);
-            released_indexes += u64::from(entry._plan.kind == DerivedKind::Equality);
-            // Drop the optional lease before observing the physical union. A
-            // graph or publication alias may still own some of these backings.
-            drop(removed);
-            let after = self.ledger.borrow().snapshot().view_optional_bytes;
-            let physical = before.saturating_sub(after);
-            cache.bytes = cache.bytes.saturating_sub(physical);
-            cache.graph_counts.reclaimed_bytes += physical as u64;
-        }
-        state.retained_bytes = state.retained_bytes.saturating_sub(released);
-        state.retained_predicates = state
-            .retained_predicates
-            .saturating_sub(released_predicates);
-        cache.graph_counts.reclaimed_selections += released_predicates as u64;
-        cache.graph_counts.reclaimed_indexes += released_indexes;
     }
     pub(in crate::application::file_dag) fn counts(&self) -> (u64, u64, u64) {
         let state = self.state.borrow();
@@ -329,3 +230,6 @@ pub(in crate::application::file_dag) mod cache;
 pub(in crate::application::file_dag) mod graphs;
 pub(in crate::application::file_dag) mod index;
 pub(in crate::application::file_dag) mod selection;
+
+#[cfg(test)]
+pub(in crate::application::file_dag) mod witness;

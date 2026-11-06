@@ -98,7 +98,7 @@ pub(crate) struct PublicationScope {
             super::project_population::types::ProjectInvocationKey<
                 super::restored::ValidatedFrontier,
             >,
-            super::super::derived::owner::PopulationId,
+            super::super::derived::population::types::PopulationId,
         >,
     >,
     symbols: std::cell::OnceCell<ryo_language::domain::symbols::types::TransportPermit>,

@@ -1,6 +1,6 @@
 //! Population proofs, partition identity and readiness are minted by admission only.
 use super::super::{
-    derived::owner::PopulationId,
+    derived::population::types::PopulationId,
     relations::{PublishedInput, RelationOwner},
 };
 use crate::domain::{
@@ -255,7 +255,7 @@ impl AdmittedInput {
     pub(in crate::application::file_dag::program) fn population(
         &self,
         owner: &Rc<RelationOwner>,
-    ) -> Result<crate::application::file_dag::derived::owner::PopulationId, OperatingError> {
+    ) -> Result<crate::application::file_dag::derived::population::types::PopulationId, OperatingError> {
         self.publication(owner)?;
         Ok(self.proof.population)
     }
