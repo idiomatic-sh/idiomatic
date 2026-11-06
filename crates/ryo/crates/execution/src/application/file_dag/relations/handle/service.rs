@@ -36,7 +36,7 @@ impl PublishedInput {
     pub(crate) fn as_ref(&self) -> &RelationResult {
         &self.record
     }
-    pub(in crate::application::file_dag) fn record(&self) -> &Arc<RelationResult> {
+    pub(in crate::application::file_dag::relations) fn record(&self) -> &Arc<RelationResult> {
         &self.record
     }
     pub(in crate::application::file_dag::relations) fn normalization_charged(&self) -> bool {

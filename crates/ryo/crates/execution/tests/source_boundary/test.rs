@@ -325,6 +325,7 @@ fn actual_runtime_authority_is_private_to_its_owner() {
         },
     ]);
     probes.extend(controls());
+    probes.extend(super::publication::controls());
     for Probe {
         owner,
         source: probe,

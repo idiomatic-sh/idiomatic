@@ -3,3 +3,5 @@ mod test;
 
 mod derived;
 mod fixtures;
+
+mod publication;
