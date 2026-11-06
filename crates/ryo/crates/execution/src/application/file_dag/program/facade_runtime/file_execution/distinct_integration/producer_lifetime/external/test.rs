@@ -1,76 +1,23 @@
 //! Actual external aliases retain one production backing through terminal exits.
 use super::super::super::*;
-use super::super::fixtures::{FinalConsumer, ProjectionOrder, shared_plan};
+use super::fixtures::{ExternalRootExit, PreparedCase, prepare_case};
 use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn},
 };
 use ryo_values::domain::rows::errors::TableModelError;
 
-#[derive(Clone, Copy, Debug)]
-enum ExternalRootExit {
-    Finish,
-    RejectedDelivery,
-    SemanticFailure,
-    ProviderRefusal,
-    SkippedAlias,
-    UndemandedAlias,
-    CaptureCallbackRefusal,
-    CaptureCollectedFailure,
-    CaptureCancelledAlias,
-}
-
 /// Two diagnostic obligations share an external Union root. Distinct Join
 /// consumers acquire the real producer's equality lease during the same batch.
 /// Unlike an internal-only producer, the externally held Union must stay live
 /// after both Join readers release and until the file ends.
 fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
-    let capture_rule = match exit {
-        ExternalRootExit::CaptureCallbackRefusal | ExternalRootExit::CaptureCancelledAlias => {
-            Some(RuleIndex(0))
-        }
-        ExternalRootExit::CaptureCollectedFailure => Some(RuleIndex(3)),
-        _ => None,
-    };
-    let derived = crate::application::file_dag::testing::program_derived_port();
-    let mut external = shared_plan(ProjectionOrder::Forward, FinalConsumer::Completes);
-    external.steps.truncate(2);
-    external.emit.step = StepId(1);
-    let mut rules = vec![rule(); 4];
-    for (at, rule) in rules.iter_mut().enumerate() {
-        rule.id = RuleId(format!("external-root-{at}").into());
-    }
-    let mut plans = vec![
-        external.clone(),
-        external,
-        shared_plan(ProjectionOrder::Forward, FinalConsumer::Completes),
-        shared_plan(
-            ProjectionOrder::Reversed,
-            match exit {
-                ExternalRootExit::SemanticFailure | ExternalRootExit::CaptureCollectedFailure => {
-                    FinalConsumer::InvalidTerminal
-                }
-                ExternalRootExit::ProviderRefusal => FinalConsumer::RefusingProvider,
-                _ => FinalConsumer::Completes,
-            },
-        ),
-    ];
-    if let Some(rule) = capture_rule {
-        plans[rule.0].frontier = vec![PlanInput::Step(StepId(1))];
-    }
-    let prepared = crate::application::file_dag::program::preparation::service::prepare(
-        Compiled {
-            schedule: RuleSchedule::Independent,
-            observations: vec![vec![]; 4],
-            plans,
-            bindings: vec![vec![]; 4],
-        },
-        &rules,
-        &vec![Digest([0; 16]); 4],
-        &[],
-        Arc::clone(&derived),
-        ObservationIdentity::Independent,
-    )?;
+    let PreparedCase {
+        prepared,
+        services,
+        intents,
+        capture_rule,
+    } = prepare_case(exit)?;
     let root = |rule: RuleIndex| *prepared.program().rules()[rule.0].emit.as_ref().unwrap();
     let producer = root(RuleIndex(0));
     assert_eq!(
@@ -78,44 +25,6 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
         root(RuleIndex(1)),
         "actual compiled external root is shared"
     );
-    let services = Arc::new(ProgramServices::new(
-        Arc::new(CommonOperatorEngine::new(Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
-        ))),
-        derived,
-        &[CorpusInput::Available(CorpusEntry {
-            executable: ExecutablePermission::Unknown,
-            path: FilePath("external-roots.input".into()),
-            size: FileSize(0),
-            modified: Nanoseconds(0),
-        })],
-    ));
-    let intent = FileRuleIntent::Run {
-        diagnostic: DiagnosticDelivery::Collected,
-        observations: ObservationDemand::NotRequired,
-        capture: CaptureIntent::Disabled,
-    };
-    let mut intents = [intent; 4];
-    intents[0] = FileRuleIntent::Run {
-        diagnostic: DiagnosticDelivery::Forwarded,
-        observations: ObservationDemand::NotRequired,
-        capture: CaptureIntent::Disabled,
-    };
-    match exit {
-        ExternalRootExit::SkippedAlias | ExternalRootExit::CaptureCancelledAlias => {
-            intents[1] = FileRuleIntent::Skipped(
-                crate::application::file_dag::program::admission::ApplicabilityReason::DiagnosticNotApplicable,
-            );
-        }
-        ExternalRootExit::UndemandedAlias => intents[1] = FileRuleIntent::Undemanded,
-        _ => {}
-    }
-    if let Some(rule) = capture_rule {
-        let FileRuleIntent::Run { capture, .. } = &mut intents[rule.0] else {
-            panic!("capture belongs to a declared live consumer")
-        };
-        *capture = CaptureIntent::DiagnosticAndObservations;
-    }
     let external_readers = if matches!(
         exit,
         ExternalRootExit::SkippedAlias
