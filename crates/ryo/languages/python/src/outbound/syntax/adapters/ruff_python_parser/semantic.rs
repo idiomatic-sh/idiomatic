@@ -181,7 +181,7 @@ impl SemanticSession for PythonSemanticSession {
         let parsed = self.parsed.get_or_insert_with(|| {
             ruff_python_parser::parse_unchecked(
                 source,
-                super::adapter::options(self.source_kind, &self.settings),
+                super::options::options(self.source_kind, &self.settings),
             )
         });
         let mut asked = Requested {

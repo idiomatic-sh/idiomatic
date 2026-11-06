@@ -135,11 +135,21 @@ const BODIES: &[Case<Body, (), ()>] = &[
 /// Runs the body of one case.
 fn body(given: Body) -> Result<(), ()> {
     match given {
-        Body::InvalidAuthorRetainsValidDependencyProjection => invalid_author_retains_valid_dependency_projection(),
-        Body::InvalidDependencyShapeNeverPublishesAFabricatedRequirement => invalid_dependency_shape_never_publishes_a_fabricated_requirement(),
-        Body::ClonedDocumentPreservesUnicodeErrorSpanWithoutReparsing => cloned_document_preserves_unicode_error_span_without_reparsing(),
-        Body::InvalidRequirementTextIsNotAProjectedDependency => invalid_requirement_text_is_not_a_projected_dependency(),
-        Body::MetadataOnlyDoesNotProjectRejectedDependencies => metadata_only_does_not_project_rejected_dependencies(),
+        Body::InvalidAuthorRetainsValidDependencyProjection => {
+            invalid_author_retains_valid_dependency_projection()
+        }
+        Body::InvalidDependencyShapeNeverPublishesAFabricatedRequirement => {
+            invalid_dependency_shape_never_publishes_a_fabricated_requirement()
+        }
+        Body::ClonedDocumentPreservesUnicodeErrorSpanWithoutReparsing => {
+            cloned_document_preserves_unicode_error_span_without_reparsing()
+        }
+        Body::InvalidRequirementTextIsNotAProjectedDependency => {
+            invalid_requirement_text_is_not_a_projected_dependency()
+        }
+        Body::MetadataOnlyDoesNotProjectRejectedDependencies => {
+            metadata_only_does_not_project_rejected_dependencies()
+        }
     }
     Ok(())
 }

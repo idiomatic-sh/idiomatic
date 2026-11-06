@@ -8,9 +8,7 @@
 use super::service::parse_percent_string;
 use super::types::Failure;
 use crate::domain::format_syntax::interface::FormatSyntax;
-use crate::domain::format_syntax::types::{
-    FormatDialect, FormatInput, FormatParseResult,
-};
+use crate::domain::format_syntax::types::{FormatDialect, FormatInput, FormatParseResult};
 
 /// The parser used by the Python language composition.
 pub(crate) struct RuffLiteralCFormat;

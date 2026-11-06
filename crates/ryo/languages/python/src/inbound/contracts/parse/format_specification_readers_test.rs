@@ -1,9 +1,9 @@
 //! Real readers retain grammar ancestry and origins independently of call policy.
 use super::FormatSpecificationItem;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::relations::collections::relations::fixtures::contract::check;
 use crate::fixtures::reading::reading;
 use ryo::languages::contract::Want;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 fn literals_without_method_calls_and_fstrings_have_independent_spec_facts() {
     check::<FormatSpecificationItem>();
     let result = reading::<FormatSpecificationItem>("'{:q}'\n'{:{width:y}}'\nf'{value:q}'\n");
@@ -131,10 +131,18 @@ const CASES: &[Case<Body, (), ()>] = &[
 /// Runs the body of one case.
 fn body(given: Body) -> Result<(), ()> {
     match given {
-        Body::LiteralsWithoutMethodCallsAndFstringsHaveIndependentSpecFacts => literals_without_method_calls_and_fstrings_have_independent_spec_facts(),
-        Body::MalformedBracesAndAbsentColonsDoNotFabricateSpecs => malformed_braces_and_absent_colons_do_not_fabricate_specs(),
-        Body::UnicodeWidthAndPrecisionAreStandardSyntax => unicode_width_and_precision_are_standard_syntax(),
-        Body::DynamicFstringValueRemainsUnknownAndNestedSpecsKeepAncestry => dynamic_fstring_value_remains_unknown_and_nested_specs_keep_ancestry(),
+        Body::LiteralsWithoutMethodCallsAndFstringsHaveIndependentSpecFacts => {
+            literals_without_method_calls_and_fstrings_have_independent_spec_facts()
+        }
+        Body::MalformedBracesAndAbsentColonsDoNotFabricateSpecs => {
+            malformed_braces_and_absent_colons_do_not_fabricate_specs()
+        }
+        Body::UnicodeWidthAndPrecisionAreStandardSyntax => {
+            unicode_width_and_precision_are_standard_syntax()
+        }
+        Body::DynamicFstringValueRemainsUnknownAndNestedSpecsKeepAncestry => {
+            dynamic_fstring_value_remains_unknown_and_nested_specs_keep_ancestry()
+        }
     }
     Ok(())
 }

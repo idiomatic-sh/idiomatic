@@ -1,12 +1,12 @@
 //! Regression cases for ruff literal cformat bindings.
 use super::grammar::RuffLiteralCFormat;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::format_syntax::interface::FormatSyntax;
+use crate::domain::format_syntax::service::flag_text;
 use crate::domain::format_syntax::types::{
     FormatArgument, FormatDialect, FormatErrorKind, FormatParseError, FormatParseResult,
     FormatQuantityMode, FormatSummary, ParsedFormat,
 };
-use crate::domain::format_syntax::interface::FormatSyntax;
-use crate::domain::format_syntax::service::flag_text;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 
 fn parsed(source: &str) -> ParsedFormat {
     match RuffLiteralCFormat::parse(
@@ -201,12 +201,24 @@ const CASES: &[Case<Body, (), ()>] = &[
 /// Runs the body of one case.
 fn body(given: Body) -> Result<(), ()> {
     match given {
-        Body::EscapedPercentIsAValidZeroFieldFormat => escaped_percent_is_a_valid_zero_field_format(),
-        Body::DynamicWidthAndPrecisionEachConsumePositionalValues => dynamic_width_and_precision_each_consume_positional_values(),
-        Body::RepeatedMappingKeysAndMixedPositionalFieldsArePreserved => repeated_mapping_keys_and_mixed_positional_fields_are_preserved(),
-        Body::MalformedPercentAndUnicodeErrorIndicesUseScalarOffsets => malformed_percent_and_unicode_error_indices_use_scalar_offsets(),
-        Body::UnmatchedMappingAndOverflowAreDiagnostics => unmatched_mapping_and_overflow_are_diagnostics(),
-        Body::FlagsArePreservedWithoutReorderingTheGrammarOrApplyingPrecedence => flags_are_preserved_without_reordering_the_grammar_or_applying_precedence(),
+        Body::EscapedPercentIsAValidZeroFieldFormat => {
+            escaped_percent_is_a_valid_zero_field_format()
+        }
+        Body::DynamicWidthAndPrecisionEachConsumePositionalValues => {
+            dynamic_width_and_precision_each_consume_positional_values()
+        }
+        Body::RepeatedMappingKeysAndMixedPositionalFieldsArePreserved => {
+            repeated_mapping_keys_and_mixed_positional_fields_are_preserved()
+        }
+        Body::MalformedPercentAndUnicodeErrorIndicesUseScalarOffsets => {
+            malformed_percent_and_unicode_error_indices_use_scalar_offsets()
+        }
+        Body::UnmatchedMappingAndOverflowAreDiagnostics => {
+            unmatched_mapping_and_overflow_are_diagnostics()
+        }
+        Body::FlagsArePreservedWithoutReorderingTheGrammarOrApplyingPrecedence => {
+            flags_are_preserved_without_reordering_the_grammar_or_applying_precedence()
+        }
     }
     Ok(())
 }

@@ -1,6 +1,6 @@
 //! The types of the `ruff_python_parser` adapter: plain data, public fields and derives, with no constructor and no inherent impl.
 use ruff_python_ast::token::{Token as RuffToken, Tokens};
-use ryo::languages::{self, Offset};
+use ryo::languages::{self, DiagnosticCode, DiagnosticPhase, Offset, TreeImpact};
 
 /// How many nodes are open: zero outside the root.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -131,4 +131,18 @@ impl std::fmt::Display for DebugSpelling<'_> {
         }
         Ok(())
     }
+}
+
+/// One parser-library syntax diagnostic, before byte-range normalization.
+pub(super) struct SemanticSyntaxDiagnostic {
+    /// The diagnostic text emitted by the parser.
+    pub message: String,
+    /// The parser-native source range.
+    pub range: ruff_text_size::TextRange,
+    /// Stable provider-owned classification code.
+    pub code: DiagnosticCode,
+    /// The parser or validation phase that owns this diagnostic.
+    pub phase: DiagnosticPhase,
+    /// Whether the diagnostic preserves usable syntax facts.
+    pub impact: TreeImpact,
 }

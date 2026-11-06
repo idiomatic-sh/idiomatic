@@ -188,7 +188,9 @@ const BODIES: &[Case<Body, (), ()>] = &[
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName("positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots"),
+        name: CaseName(
+            "positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots",
+        ),
         word: Word::Succeeds,
         input: || Body::PositiveNamespaceFactsRetainActualReaderPartialForUnobservedRoots,
         expect: Expect::Value(()),
@@ -198,10 +200,18 @@ const BODIES: &[Case<Body, (), ()>] = &[
 /// Runs the body of one case.
 fn body(given: Body) -> Result<(), ()> {
     match given {
-        Body::PrimaryMetadataRejectionKeepsRealDependencyProjection => primary_metadata_rejection_keeps_real_dependency_projection(),
-        Body::MetadataRejectionAndDependencyRefusalHaveIndependentApplicability => metadata_rejection_and_dependency_refusal_have_independent_applicability(),
-        Body::ModuleIdentityOnlyPreservesInputsWithoutProjectingOrValidating => module_identity_only_preserves_inputs_without_projecting_or_validating(),
-        Body::PositiveNamespaceFactsRetainActualReaderPartialForUnobservedRoots => positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots(),
+        Body::PrimaryMetadataRejectionKeepsRealDependencyProjection => {
+            primary_metadata_rejection_keeps_real_dependency_projection()
+        }
+        Body::MetadataRejectionAndDependencyRefusalHaveIndependentApplicability => {
+            metadata_rejection_and_dependency_refusal_have_independent_applicability()
+        }
+        Body::ModuleIdentityOnlyPreservesInputsWithoutProjectingOrValidating => {
+            module_identity_only_preserves_inputs_without_projecting_or_validating()
+        }
+        Body::PositiveNamespaceFactsRetainActualReaderPartialForUnobservedRoots => {
+            positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots()
+        }
     }
     Ok(())
 }

@@ -1,51 +1,12 @@
 //! Compiler declaration validity is independent of stub typing or future recovery.
+
 use super::adapter::SyntaxRuffPythonParserAdapter;
-use crate::outbound::syntax::{
-    interface::SyntaxPort as _,
-    types::{PythonSourceKind, SourceText},
-};
+use super::fixtures::diagnostics::{diagnostics, diagnostics_at, diagnostics_of};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::syntax::interface::SyntaxPort as _;
+use crate::outbound::syntax::types::{PythonSourceKind, SourceText};
 use crate::settings::{PythonParserSettings, PythonTargetVersion};
 use ryo::languages::{self, ByteSlice, Elements, Symbols};
-use crate::cases::{Case, CaseName, Expect, Word, run};
-
-fn diagnostics(source: &str, kind: PythonSourceKind) -> Vec<(String, String, String, u32, u32)> {
-    diagnostics_at(source, kind, PythonTargetVersion::Py310)
-}
-
-fn diagnostics_at(
-    source: &str,
-    kind: PythonSourceKind,
-    target: PythonTargetVersion,
-) -> Vec<(String, String, String, u32, u32)> {
-    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
-    let mut builder =
-        languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-    SyntaxRuffPythonParserAdapter::default().read(
-        SourceText(source.as_bytes()),
-        kind,
-        &PythonParserSettings::new(target),
-        &mut builder,
-    );
-    assert_eq!(
-        languages::syntax_acceptance(&elements),
-        languages::SyntaxAcceptance::Accepted
-    );
-    assert!(
-        !languages::has_incomplete_syntax(&elements),
-        "declaration error must preserve complete AST facts"
-    );
-    languages::diagnostics(&elements)
-        .map(|diagnostic| {
-            (
-                diagnostic.phase.name().to_owned(),
-                diagnostic.impact.name().to_owned(),
-                diagnostic.code.as_str().to_owned(),
-                diagnostic.start.0,
-                diagnostic.end.0,
-            )
-        })
-        .collect()
-}
 
 fn conflicting_declarations_are_rejected_in_either_order_and_in_stub_sources() {
     for source in [
@@ -83,59 +44,98 @@ fn separate_scopes_and_different_names_do_not_conflict() {
     }
 }
 
-fn future_lazy_prohibition_has_its_own_preserved_cause_at_old_and_supported_targets() {
-    let statement = "lazy from __future__ import annotations";
-    let source = format!("{statement}\ndef f(x:int): ...\n");
-    for target in [PythonTargetVersion::Py310, PythonTargetVersion::Py315] {
-        for kind in [PythonSourceKind::Python, PythonSourceKind::Stub] {
-            let rows = diagnostics_at(&source, kind, target);
-            let lazy: Vec<_> = rows
-                .iter()
-                .filter(|row| row.2 == "future-lazy-invalid")
-                .collect();
-            assert_eq!(lazy.len(), 1, "{target:?} {kind:?}: {rows:?}");
-            assert_eq!(lazy[0].0, "validation");
-            assert_eq!(lazy[0].1, "preserved");
-            assert_eq!(
-                (lazy[0].3, lazy[0].4),
-                (0, u32::try_from(statement.len()).unwrap())
-            );
-            assert!(!rows.iter().any(|row| row.2 == "future-directive-invalid"));
-            assert_eq!(
-                rows.len(),
-                if target == PythonTargetVersion::Py310 {
-                    2
-                } else {
-                    1
-                }
-            );
-        }
-    }
+fn semantic_syntax_checks_only_run_after_an_accepted_parse() {
+    let diagnostics_for = |source: &str| {
+        let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+        let mut builder =
+            languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
+        SyntaxRuffPythonParserAdapter::default().read(
+            SourceText(source.as_bytes()),
+            PythonSourceKind::Python,
+            &PythonParserSettings::new(PythonTargetVersion::Py310),
+            &mut builder,
+        );
+        let diagnostics: Vec<_> = languages::diagnostics(&elements)
+            .map(|diagnostic| {
+                (
+                    diagnostic.phase.name().to_owned(),
+                    diagnostic.code.as_str().to_owned(),
+                )
+            })
+            .collect();
+        (languages::syntax_acceptance(&elements), diagnostics)
+    };
+
+    let (accepted, semantic_errors) = diagnostics_for("nonlocal x\n");
+    assert_eq!(accepted, languages::SyntaxAcceptance::Accepted);
+    assert!(
+        semantic_errors
+            .iter()
+            .any(|(phase, code)| { phase == "validation" && code == "nonlocal-at-module" })
+    );
+
+    let (rejected, parse_errors) = diagnostics_for("nonlocal x\nx =\n");
+    assert_eq!(rejected, languages::SyntaxAcceptance::Rejected);
+    assert!(
+        parse_errors
+            .iter()
+            .any(|(phase, code)| { phase == "parse" && code == "parser-error" })
+    );
+    assert!(
+        !parse_errors
+            .iter()
+            .any(|(phase, code)| { phase == "validation" && code == "nonlocal-at-module" })
+    );
 }
 
-fn separating_lazy_cause_preserves_placement_and_unknown_feature_causes() {
-    for kind in [PythonSourceKind::Python, PythonSourceKind::Stub] {
-        let placement = diagnostics_at(
-            "x=1\nfrom __future__ import annotations\n",
-            kind,
-            PythonTargetVersion::Py315,
+fn comprehension_rebinding_preserves_ast_and_respects_lambda_scope() {
+    let cases = [
+        (
+            "x=[data[index] for index,value in data.items() if (index:=0)]\n",
+            Some((51, 56)),
+        ),
+        ("x=[(i:=0) for i in data]\n", Some((4, 5))),
+        ("x=[[(i:=0) for j in other] for i in data]\n", Some((5, 6))),
+        ("x=[(i:=0) for j in data for i in other]\n", Some((4, 5))),
+        ("x=[lambda: (i:=0) for i in data]\n", None),
+        ("x=[(obj:=0) for obj.attr in data]\n", None),
+        ("x=[(other:=0) for i in data]\n", None),
+        ("x={(i:=0) for i in data}\n", Some((4, 5))),
+        ("x={i:(i:=0) for i in data}\n", Some((6, 7))),
+        ("x=((i:=0) for i in data)\n", Some((4, 5))),
+        (
+            "x=[(lambda arg=(i:=0): arg) for i in data]\n",
+            Some((16, 17)),
+        ),
+    ];
+    for (source, expected) in cases {
+        let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+        let mut builder =
+            languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
+        SyntaxRuffPythonParserAdapter::default().read(
+            SourceText(source.as_bytes()),
+            PythonSourceKind::Python,
+            &PythonParserSettings::new(PythonTargetVersion::Py310),
+            &mut builder,
         );
-        assert_eq!(placement.len(), 1);
-        assert_eq!(placement[0].2, "future-directive-invalid");
-        let unknown = diagnostics_at(
-            "from __future__ import not_a_feature\n",
-            kind,
-            PythonTargetVersion::Py315,
+        assert_eq!(
+            languages::syntax_acceptance(&elements),
+            languages::SyntaxAcceptance::Accepted,
+            "{source}"
         );
-        assert_eq!(unknown.len(), 1);
-        assert_eq!(unknown[0].2, "future-feature-not-defined");
-        assert!(
-            diagnostics_at(
-                "lazy import collections\n",
-                kind,
-                PythonTargetVersion::Py315
-            )
-            .is_empty()
+        assert!(!languages::has_incomplete_syntax(&elements), "{source}");
+        let diagnostics: Vec<_> = languages::diagnostics(&elements)
+            .map(|diagnostic| {
+                assert_eq!(diagnostic.phase.name(), "validation", "{source}");
+                assert_eq!(diagnostic.impact.name(), "preserved", "{source}");
+                assert_eq!(diagnostic.code.as_str(), "comprehension-rebind", "{source}");
+                (diagnostic.start.0, diagnostic.end.0)
+            })
+            .collect();
+        assert_eq!(
+            diagnostics,
+            expected.into_iter().collect::<Vec<_>>(),
+            "{source}"
         );
     }
 }
@@ -143,18 +143,24 @@ fn separating_lazy_cause_preserves_placement_and_unknown_feature_causes() {
 /// Which of the file's cases a row runs.
 #[derive(Clone, Copy, Debug)]
 enum Body {
+    /// The case `comprehension_rebinding_preserves_ast_and_respects_lambda_scope`.
+    ComprehensionRebindingPreservesAstAndRespectsLambdaScope,
     /// The case `conflicting_declarations_are_rejected_in_either_order_and_in_stub_sources`.
     ConflictingDeclarationsAreRejectedInEitherOrderAndInStubSources,
     /// The case `separate_scopes_and_different_names_do_not_conflict`.
     SeparateScopesAndDifferentNamesDoNotConflict,
-    /// The case `future_lazy_prohibition_has_its_own_preserved_cause_at_old_and_supported_targets`.
-    FutureLazyProhibitionHasItsOwnPreservedCauseAtOldAndSupportedTargets,
-    /// The case `separating_lazy_cause_preserves_placement_and_unknown_feature_causes`.
-    SeparatingLazyCausePreservesPlacementAndUnknownFeatureCauses,
+    /// The case `semantic_syntax_checks_only_run_after_an_accepted_parse`.
+    SemanticSyntaxChecksOnlyRunAfterAnAcceptedParse,
 }
 
 /// The rows of the cases whose bodies assert for themselves.
-const CASES: &[Case<Body, (), ()>] = &[
+const BODIES: &[Case<Body, (), ()>] = &[
+    Case {
+        name: CaseName("comprehension_rebinding_preserves_ast_and_respects_lambda_scope"),
+        word: Word::Succeeds,
+        input: || Body::ComprehensionRebindingPreservesAstAndRespectsLambdaScope,
+        expect: Expect::Value(()),
+    },
     Case {
         name: CaseName("conflicting_declarations_are_rejected_in_either_order_and_in_stub_sources"),
         word: Word::Succeeds,
@@ -168,15 +174,25 @@ const CASES: &[Case<Body, (), ()>] = &[
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName("future_lazy_prohibition_has_its_own_preserved_cause_at_old_and_supported_targets"),
+        name: CaseName(
+            "future_lazy_prohibition_has_its_own_preserved_cause_at_old_and_supported_targets",
+        ),
         word: Word::Succeeds,
         input: || Body::FutureLazyProhibitionHasItsOwnPreservedCauseAtOldAndSupportedTargets,
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName("separating_lazy_cause_preserves_placement_and_unknown_feature_causes"),
+        name: CaseName("semantic_syntax_checks_only_run_after_an_accepted_parse"),
         word: Word::Succeeds,
-        input: || Body::SeparatingLazyCausePreservesPlacementAndUnknownFeatureCauses,
+        input: || Body::SemanticSyntaxChecksOnlyRunAfterAnAcceptedParse,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "starred_targets_require_unpacking_containers_without_affecting_expression_stars",
+        ),
+        word: Word::Succeeds,
+        input: || Body::StarredTargetsRequireUnpackingContainersWithoutAffectingExpressionStars,
         expect: Expect::Value(()),
     },
 ];
@@ -184,15 +200,143 @@ const CASES: &[Case<Body, (), ()>] = &[
 /// Runs the body of one case.
 fn body(given: Body) -> Result<(), ()> {
     match given {
-        Body::ConflictingDeclarationsAreRejectedInEitherOrderAndInStubSources => conflicting_declarations_are_rejected_in_either_order_and_in_stub_sources(),
-        Body::SeparateScopesAndDifferentNamesDoNotConflict => separate_scopes_and_different_names_do_not_conflict(),
-        Body::FutureLazyProhibitionHasItsOwnPreservedCauseAtOldAndSupportedTargets => future_lazy_prohibition_has_its_own_preserved_cause_at_old_and_supported_targets(),
-        Body::SeparatingLazyCausePreservesPlacementAndUnknownFeatureCauses => separating_lazy_cause_preserves_placement_and_unknown_feature_causes(),
+        Body::ComprehensionRebindingPreservesAstAndRespectsLambdaScope => {
+            comprehension_rebinding_preserves_ast_and_respects_lambda_scope()
+        }
+        Body::ConflictingDeclarationsAreRejectedInEitherOrderAndInStubSources => {
+            conflicting_declarations_are_rejected_in_either_order_and_in_stub_sources()
+        }
+        Body::SeparateScopesAndDifferentNamesDoNotConflict => {
+            separate_scopes_and_different_names_do_not_conflict()
+        }
+        Body::FutureLazyProhibitionHasItsOwnPreservedCauseAtOldAndSupportedTargets => {
+            future_lazy_prohibition_has_its_own_preserved_cause_at_old_and_supported_targets()
+        }
+        Body::SeparatingLazyCausePreservesPlacementAndUnknownFeatureCauses => {
+            separating_lazy_cause_preserves_placement_and_unknown_feature_causes()
+        }
+        Body::SemanticSyntaxChecksOnlyRunAfterAnAcceptedParse => {
+            semantic_syntax_checks_only_run_after_an_accepted_parse()
+        }
+        Body::ComprehensionRebindingPreservesAstAndRespectsLambdaScope => {
+            comprehension_rebinding_preserves_ast_and_respects_lambda_scope()
+        }
+        Body::BareStarredLoopTargetPreservesAcceptedAstWithValidationError => {
+            bare_starred_loop_target_preserves_accepted_ast_with_validation_error()
+        }
+        Body::StarredTargetsRequireUnpackingContainersWithoutAffectingExpressionStars => {
+            starred_targets_require_unpacking_containers_without_affecting_expression_stars()
+        }
     }
     Ok(())
 }
 
+/// A file's source text.
+type Input = &'static str;
+/// Each diagnostic's message and byte range, in report order.
+type Value = &'static [(&'static str, u32, u32)];
+type Failure = ();
+
+/// The rows of the declaration checks on parameters, type parameters and keywords: what the adapter reports of a file, by message and
+/// byte range.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("positional_only_keyword_only_and_variadic_parameters_can_be_distinct"),
+        word: Word::Succeeds,
+        input: || "def f(a, /, b, *args, c, **kwargs): ...\n",
+        expect: Expect::Value(&[]),
+    },
+    Case {
+        name: CaseName("duplicate_lambda_parameters_are_reported"),
+        word: Word::Succeeds,
+        input: || "lambda x, x: x\n",
+        expect: Expect::Value(&[("Duplicate parameter \"x\"", 10, 11)]),
+    },
+    Case {
+        name: CaseName("same_parameter_name_in_nested_functions_is_not_a_duplicate"),
+        word: Word::Succeeds,
+        input: || "def outer(x):\n    def inner(x): ...\n",
+        expect: Expect::Value(&[]),
+    },
+    Case {
+        name: CaseName("duplicate_type_parameters_report_each_later_occurrence"),
+        word: Word::Succeeds,
+        input: || "def f[T, T, T](): ...\n",
+        expect: Expect::Value(&[
+            ("duplicate type parameter", 9, 10),
+            ("duplicate type parameter", 12, 13),
+        ]),
+    },
+    Case {
+        name: CaseName("non_default_type_parameters_after_a_default_are_reported"),
+        word: Word::Succeeds,
+        input: || "def f[T = int, U, V](): ...\n",
+        expect: Expect::Value(&[
+            (
+                "non default type parameter `U` follows default type parameter",
+                15,
+                16,
+            ),
+            (
+                "non default type parameter `V` follows default type parameter",
+                18,
+                19,
+            ),
+        ]),
+    },
+    Case {
+        name: CaseName("a_fully_defaulted_type_parameter_suffix_is_valid"),
+        word: Word::Succeeds,
+        input: || "def f[T, U = int, V = str](): ...\n",
+        expect: Expect::Value(&[]),
+    },
+    Case {
+        name: CaseName("class_type_parameter_default_order_uses_its_local_scope"),
+        word: Word::Succeeds,
+        input: || "class C[T = int, U]: ...\n",
+        expect: Expect::Value(&[(
+            "non default type parameter `U` follows default type parameter",
+            17,
+            18,
+        )]),
+    },
+    Case {
+        name: CaseName("duplicate_call_keywords_report_the_second_keyword_range"),
+        word: Word::Succeeds,
+        input: || "call(x=1, x=2)\n",
+        expect: Expect::Value(&[("Duplicate keyword argument `x`", 10, 13)]),
+    },
+    Case {
+        name: CaseName("dictionary_expansion_keyword_duplicates_are_not_syntax_errors"),
+        word: Word::Succeeds,
+        input: || "call(x=1, **{\"x\": 2})\n",
+        expect: Expect::Value(&[]),
+    },
+    Case {
+        name: CaseName("duplicate_class_keywords_report_the_second_keyword_range"),
+        word: Word::Succeeds,
+        input: || "class C(metaclass=A, metaclass=B): ...\n",
+        expect: Expect::Value(&[("Duplicate keyword argument `metaclass`", 21, 32)]),
+    },
+    Case {
+        name: CaseName("duplicate_parameter_diagnostic_survives_an_unbound_name_in_the_body"),
+        word: Word::Succeeds,
+        input: || "def f(x, x):\n    print(missing)\n",
+        expect: Expect::Value(&[("Duplicate parameter \"x\"", 9, 10)]),
+    },
+];
+
+/// What the adapter reports of one source.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Ok(diagnostics_of(
+        text,
+        PythonSourceKind::Python,
+        PythonParserSettings::default(),
+    ))
+}
+
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, body);
+    run(CASES, Word::Succeeds, subject);
+    run(BODIES, Word::Succeeds, body);
 }

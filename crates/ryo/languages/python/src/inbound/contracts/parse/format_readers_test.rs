@@ -1,9 +1,9 @@
 //! Regression cases for format readers bindings.
 use super::{FormatFieldItem, FormatParseItem};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::relations::collections::relations::fixtures::contract::check;
 use crate::fixtures::reading::reading;
 use ryo::languages::contract::Want;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 
 fn parse_rows_distinguish_zero_fields_malformed_and_dynamic_inputs() {
     check::<FormatParseItem>();
@@ -163,11 +163,21 @@ const CASES: &[Case<Body, (), ()>] = &[
 /// Runs the body of one case.
 fn body(given: Body) -> Result<(), ()> {
     match given {
-        Body::ParseRowsDistinguishZeroFieldsMalformedAndDynamicInputs => parse_rows_distinguish_zero_fields_malformed_and_dynamic_inputs(),
-        Body::ConversionRowsKeepRepeatedMappingKeysAndOrder => conversion_rows_keep_repeated_mapping_keys_and_order(),
-        Body::UnknownAndMalformedInputsHaveNoConversionRows => unknown_and_malformed_inputs_have_no_conversion_rows(),
-        Body::TemplateStringsAreNotPercentStringInputs => template_strings_are_not_percent_string_inputs(),
-        Body::ErrorCharactersPreserveTwoAndFourByteUnicodeScalars => error_characters_preserve_two_and_four_byte_unicode_scalars(),
+        Body::ParseRowsDistinguishZeroFieldsMalformedAndDynamicInputs => {
+            parse_rows_distinguish_zero_fields_malformed_and_dynamic_inputs()
+        }
+        Body::ConversionRowsKeepRepeatedMappingKeysAndOrder => {
+            conversion_rows_keep_repeated_mapping_keys_and_order()
+        }
+        Body::UnknownAndMalformedInputsHaveNoConversionRows => {
+            unknown_and_malformed_inputs_have_no_conversion_rows()
+        }
+        Body::TemplateStringsAreNotPercentStringInputs => {
+            template_strings_are_not_percent_string_inputs()
+        }
+        Body::ErrorCharactersPreserveTwoAndFourByteUnicodeScalars => {
+            error_characters_preserve_two_and_four_byte_unicode_scalars()
+        }
     }
     Ok(())
 }

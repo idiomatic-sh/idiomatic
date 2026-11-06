@@ -1,9 +1,9 @@
 //! Regression cases for brace format readers bindings.
 use super::{BraceFormatFieldItem, BraceFormatParseItem};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::relations::collections::relations::fixtures::contract::check;
 use crate::fixtures::reading::reading;
 use ryo::languages::contract::Want;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 
 fn parse_rows_preserve_empty_valid_malformed_and_dynamic_states() {
     check::<BraceFormatParseItem>();
@@ -101,9 +101,15 @@ const CASES: &[Case<Body, (), ()>] = &[
 /// Runs the body of one case.
 fn body(given: Body) -> Result<(), ()> {
     match given {
-        Body::ParseRowsPreserveEmptyValidMalformedAndDynamicStates => parse_rows_preserve_empty_valid_malformed_and_dynamic_states(),
-        Body::FieldRowsKeepDuplicatesAndNestedParentOrder => field_rows_keep_duplicates_and_nested_parent_order(),
-        Body::OversizedPositionalSelectorKeepsExactDigitsAndOverflowFlag => oversized_positional_selector_keeps_exact_digits_and_overflow_flag(),
+        Body::ParseRowsPreserveEmptyValidMalformedAndDynamicStates => {
+            parse_rows_preserve_empty_valid_malformed_and_dynamic_states()
+        }
+        Body::FieldRowsKeepDuplicatesAndNestedParentOrder => {
+            field_rows_keep_duplicates_and_nested_parent_order()
+        }
+        Body::OversizedPositionalSelectorKeepsExactDigitsAndOverflowFlag => {
+            oversized_positional_selector_keeps_exact_digits_and_overflow_flag()
+        }
     }
     Ok(())
 }

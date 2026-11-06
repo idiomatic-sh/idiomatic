@@ -1,11 +1,11 @@
 //! Regression cases for ruff literal braceformat bindings.
 use super::grammar::RuffLiteralBraceFormat;
 use super::service::parse;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::brace_format::interface::BraceFormatSyntax as _;
 use crate::domain::brace_format::types::{
     BraceFieldContext, BraceFormatError, BraceFormatResult, BraceSelector,
 };
-use crate::cases::{Case, CaseName, Expect, Word, run};
 
 fn preserves_selector_kinds_duplicates_and_nested_order() {
     let parsed = parse("{{{key!r:{width}} {} {2} {2}").expect("valid format");
@@ -211,11 +211,19 @@ const CASES: &[Case<Body, (), ()>] = &[
 /// Runs the body of one case.
 fn body(given: Body) -> Result<(), ()> {
     match given {
-        Body::PreservesSelectorKindsDuplicatesAndNestedOrder => preserves_selector_kinds_duplicates_and_nested_order(),
-        Body::RetainsDecodedSpecTextAndExplicitEmptyColon => retains_decoded_spec_text_and_explicit_empty_colon(),
-        Body::DistinguishesValidEmptyFromMalformedAndDigitKeyword => distinguishes_valid_empty_from_malformed_and_digit_keyword(),
+        Body::PreservesSelectorKindsDuplicatesAndNestedOrder => {
+            preserves_selector_kinds_duplicates_and_nested_order()
+        }
+        Body::RetainsDecodedSpecTextAndExplicitEmptyColon => {
+            retains_decoded_spec_text_and_explicit_empty_colon()
+        }
+        Body::DistinguishesValidEmptyFromMalformedAndDigitKeyword => {
+            distinguishes_valid_empty_from_malformed_and_digit_keyword()
+        }
         Body::ReportsNestingAndUnmatchedBraces => reports_nesting_and_unmatched_braces(),
-        Body::FullSelectorPathsAndConversionsSurviveSpecRetention => full_selector_paths_and_conversions_survive_spec_retention(),
+        Body::FullSelectorPathsAndConversionsSurviveSpecRetention => {
+            full_selector_paths_and_conversions_survive_spec_retention()
+        }
     }
     Ok(())
 }

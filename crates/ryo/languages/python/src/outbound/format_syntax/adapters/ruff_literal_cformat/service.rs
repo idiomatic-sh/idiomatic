@@ -119,9 +119,7 @@ fn parse_field(cursor: &mut Cursor<'_>, ordinal: usize) -> Result<ParsedField, F
     }
 
     let width = quantity(cursor)?;
-    let precision = if peek(cursor)
-        .is_some_and(|character| character.value == '.')
-    {
+    let precision = if peek(cursor).is_some_and(|character| character.value == '.') {
         let _dot = advance(cursor);
         match quantity(cursor)? {
             FormatQuantityMode::None => FormatQuantityMode::Dot,
@@ -133,9 +131,7 @@ fn parse_field(cursor: &mut Cursor<'_>, ordinal: usize) -> Result<ParsedField, F
         FormatQuantityMode::None
     };
 
-    if peek(cursor)
-        .is_some_and(|character| matches!(character.value, 'h' | 'l' | 'L'))
-    {
+    if peek(cursor).is_some_and(|character| matches!(character.value, 'h' | 'l' | 'L')) {
         let _length = advance(cursor);
     }
 

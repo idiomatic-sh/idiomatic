@@ -140,7 +140,9 @@ const BODIES: &[Case<Body, (), ()>] = &[
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName("byte_literal_recovery_uses_original_source_acceptance_and_diagnostic_readiness"),
+        name: CaseName(
+            "byte_literal_recovery_uses_original_source_acceptance_and_diagnostic_readiness",
+        ),
         word: Word::Succeeds,
         input: || Body::ByteLiteralRecoveryUsesOriginalSourceAcceptanceAndDiagnosticReadiness,
         expect: Expect::Value(()),
@@ -150,10 +152,18 @@ const BODIES: &[Case<Body, (), ()>] = &[
 /// Runs the body of one case.
 fn body(given: Body) -> Result<(), ()> {
     match given {
-        Body::ParseContractPassesPathKindAndItsSettingsToSyntax => parse_contract_passes_path_kind_and_its_settings_to_syntax(),
-        Body::LinkedPythonKeepsLatestAsItsDefaultTarget => linked_python_keeps_latest_as_its_default_target(),
-        Body::ExplicitSourceSelectionPreservesPathsAndDefaultRecognition => explicit_source_selection_preserves_paths_and_default_recognition(),
-        Body::ByteLiteralRecoveryUsesOriginalSourceAcceptanceAndDiagnosticReadiness => byte_literal_recovery_uses_original_source_acceptance_and_diagnostic_readiness(),
+        Body::ParseContractPassesPathKindAndItsSettingsToSyntax => {
+            parse_contract_passes_path_kind_and_its_settings_to_syntax()
+        }
+        Body::LinkedPythonKeepsLatestAsItsDefaultTarget => {
+            linked_python_keeps_latest_as_its_default_target()
+        }
+        Body::ExplicitSourceSelectionPreservesPathsAndDefaultRecognition => {
+            explicit_source_selection_preserves_paths_and_default_recognition()
+        }
+        Body::ByteLiteralRecoveryUsesOriginalSourceAcceptanceAndDiagnosticReadiness => {
+            byte_literal_recovery_uses_original_source_acceptance_and_diagnostic_readiness()
+        }
     }
     Ok(())
 }

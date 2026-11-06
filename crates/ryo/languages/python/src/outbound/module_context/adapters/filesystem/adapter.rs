@@ -1,7 +1,7 @@
 //! Disk package marker observations fed to the pure module context policy.
 use crate::domain::module_context::{
     service,
-    types::{ModuleDecision, Markers, ModuleContexts, ModuleIdentity},
+    types::{Markers, ModuleContexts, ModuleDecision, ModuleIdentity},
 };
 use crate::outbound::module_context::interface::ModuleContextPort;
 use ryo::languages::{FileId, FilePath, ProjectError, ProjectRequest, Repository, ToolMessage};
@@ -98,7 +98,9 @@ impl ModuleContextPort for ModuleContextFilesystemAdapter {
                             ));
                             let _previous = markers.0.insert(marker, present);
                         }
-                        complete @ (ModuleDecision::Known(_) | ModuleDecision::Unknown) => break complete,
+                        complete @ (ModuleDecision::Known(_) | ModuleDecision::Unknown) => {
+                            break complete;
+                        }
                     }
                 }
             } else {

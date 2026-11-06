@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 
 use crate::domain::dependencies::service::pep440_exactness;
 use crate::domain::manifest_validation::types::{
-    ManifestDiagnostic, Location, MetadataDemand, Phase, Validation,
+    Location, ManifestDiagnostic, MetadataDemand, Phase, Validation,
 };
 use crate::domain::packages::types::Reason;
 use crate::outbound::manifest_reading::types::ManifestRead;

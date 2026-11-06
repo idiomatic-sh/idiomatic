@@ -245,7 +245,7 @@ fn complete_relation_rows_do_not_depend_on_demand_order() {
     fn run(order: &[languages::Relation]) -> Vec<(languages::Relation, Vec<Vec<String>>)> {
         let source = b"Alias = list[\"'T'\"]\nvalue = env[\"ordinary_key\"]\n";
         let count = Arc::new(AtomicUsize::new(0));
-    let syntax = observed_ruff_python_parser(Arc::clone(&count));
+        let syntax = observed_ruff_python_parser(Arc::clone(&count));
         let parse = ParseContract::new(
             PythonParserSettings::new(PythonTargetVersion::Py310),
             Arc::new(syntax),

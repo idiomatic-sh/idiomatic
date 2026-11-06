@@ -36,7 +36,9 @@ const CASES: &[Case<Given, Value, Failure>] = &[
 ];
 
 /// The rows the adapter answers for a Given repository of these files.
-fn rows(files: &[&str]) -> Result<Vec<crate::domain::module_context::types::ModuleIdentity>, ProjectError> {
+fn rows(
+    files: &[&str],
+) -> Result<Vec<crate::domain::module_context::types::ModuleIdentity>, ProjectError> {
     let contexts = ModuleContextFilesystemAdapter.resolve(&request(Repository::Given, files))?;
     assert!(!contexts.partial);
     Ok(contexts.rows)
@@ -57,7 +59,11 @@ fn subject(given: Given) -> Result<Value, Failure> {
                 .map(|row| {
                     format!(
                         "{} {} {} {} {}",
-                        row.file.0, row.path, row.module_name, row.package_name, row.package_root_name
+                        row.file.0,
+                        row.path,
+                        row.module_name,
+                        row.package_name,
+                        row.package_root_name
                     )
                 })
                 .collect::<Vec<_>>();

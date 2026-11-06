@@ -24,9 +24,9 @@ use crate::domain::relations::collections::relations::inherits::item::InheritsIt
 use crate::domain::relations::collections::relations::parameter::item::ParameterItem;
 use crate::domain::relations::collections::relations::reference::item::ReferenceItem;
 use crate::domain::relations::collections::relations::scope::item::ScopeItem;
+use crate::domain::relations::collections::relations::standard_library_import::item::StandardLibraryImportItem;
 use crate::domain::relations::collections::relations::static_call::item::StaticCallItem;
 use crate::domain::relations::collections::relations::static_import::item::StaticImportItem;
-use crate::domain::relations::collections::relations::standard_library_import::item::StandardLibraryImportItem;
 use crate::domain::relations::collections::relations::string_literal::item::StringLiteralItem;
 use crate::domain::relations::collections::relations::syntax_child::item::SyntaxChildItem;
 use crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
@@ -96,7 +96,8 @@ impl Parse for ParseContract {
         request: &languages::ParseRequest<'_>,
         tree: &languages::Elements,
     ) -> Option<Box<dyn languages::SemanticSession>> {
-        self.syntax.begin_semantics(tree, source_kind(request.path.0), self.settings)
+        self.syntax
+            .begin_semantics(tree, source_kind(request.path.0), self.settings)
     }
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
