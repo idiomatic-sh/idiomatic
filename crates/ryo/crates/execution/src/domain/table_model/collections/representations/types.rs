@@ -16,21 +16,7 @@ macro_rules! kinds {
     };
 }
 kinds!(Stored, Selected, Tree, Computed, Compact, Positioned);
-impl RepresentationKind {
-    pub(super) fn of(input: RepresentationInput<'_>) -> Self {
-        match input {
-            RepresentationInput::Stored(_) => Self::Stored,
-            RepresentationInput::Selected { .. } => Self::Selected,
-            RepresentationInput::Tree(_) => Self::Tree,
-            RepresentationInput::Computed(_) => Self::Computed,
-            RepresentationInput::Compact(_) => Self::Compact,
-            RepresentationInput::Positioned(_) => Self::Positioned,
-        }
-    }
-}
-
-/// Catalog selection carries a closed kind, never an implementer or borrowed trait object.
-pub(crate) struct RegisteredRepresentation(pub(super) RepresentationKind);
+pub(crate) mod registered_representation;
 #[derive(Clone, Copy)]
 pub(crate) enum RepresentationInput<'a> {
     Stored(ColumnsView<'a>),

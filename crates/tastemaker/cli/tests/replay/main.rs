@@ -6,6 +6,7 @@ mod create;
 mod explain;
 #[path = "../fixtures/replay/fixes.rs"]
 mod fixes;
+mod imports;
 mod init;
 mod languages;
 mod samples;

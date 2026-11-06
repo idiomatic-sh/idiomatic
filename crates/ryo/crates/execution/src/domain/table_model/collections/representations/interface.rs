@@ -7,7 +7,7 @@ use crate::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
-pub(in crate::domain::table_model::collections::representations) trait RepresentationsItem: Sync {
+pub(super) trait RepresentationsItem: Sync {
     /// Declare immutable metadata. Physical checks are deferred until demanded.
     fn prepare<'file>(
         &self,
