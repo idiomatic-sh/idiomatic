@@ -41,6 +41,7 @@ postcard.workspace = true
 tempfile.workspace = true
 
 [dev-dependencies]
+toml.workspace = true
 cargo_metadata.workspace = true
 cucumber.workspace = true
 divan.workspace = true
@@ -68,3 +69,7 @@ fixtures = ["dep:dhat", "ryo_language/fixtures", "ryo_values/fixtures"]
 
 [lints]
 workspace = true
+
+[[test]]
+name = "project_batch_boundary"
+path = "tests/test.rs"

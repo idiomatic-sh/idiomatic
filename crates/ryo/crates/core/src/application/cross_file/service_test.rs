@@ -65,23 +65,23 @@ type Value = [usize; 3];
 type Failure = RulesError;
 
 /// What the cross-file steps of every rule read, owned.
-struct World {
+pub(super) struct World {
     placed: ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes,
     program: Arc<ryo_execution::inbound::use_cases::execution::types::PreparedProgram>,
-    request: ryo_execution::inbound::use_cases::execution::types::RequestExecution,
+    pub(super) request: ryo_execution::inbound::use_cases::execution::types::RequestExecution,
     metadata: Vec<ryo_values::domain::run_metadata::types::RuleMetadata>,
     ids: Vec<RuleId>,
     paths: Vec<ryo_language::domain::files::types::FilePath>,
     files: Vec<ryo_values::domain::files::types::CorpusInput>,
     needs: Vec<Needs>,
     arenas: Vec<ArenaBytes>,
-    covered: Vec<Covered>,
+    pub(super) covered: Vec<Covered>,
     skipped: Vec<ryo_values::domain::runs::types::Skipped>,
     project: Vec<Partial>,
 }
 
 /// A plan that counts across files the names a per-file step handed over, and emits the column `subject` of the counts.
-fn counting_plan(subject: u32, key: Vec<ColumnIndex>) -> Plan {
+pub(super) fn counting_plan(subject: u32, key: Vec<ColumnIndex>) -> Plan {
     Plan {
         observation_inputs: Vec::new(),
         observations: Vec::new(),
@@ -123,7 +123,7 @@ fn world(plan: Plan) -> World {
         )),
     )
 }
-fn world_with(
+pub(super) fn world_with(
     plans: Vec<Plan>,
     operators: Arc<dyn ryo_execution::inbound::use_cases::execution::types::OperatorsPort>,
 ) -> World {
@@ -235,7 +235,7 @@ fn world_with_applicability(
     }
 }
 
-fn crossing(world: &World) -> CrossingInput<'_> {
+pub(super) fn crossing(world: &World) -> CrossingInput<'_> {
     CrossingInput {
         program: Arc::clone(&world.program),
         arenas: &world.arenas,
@@ -266,7 +266,7 @@ fn prepared<'a>(
         prepared_in(world, &phase, RuleIndex(0), &world.covered, rows, symbols)?;
     Ok((phase, scope, frontiers))
 }
-fn prepared_in(
+pub(super) fn prepared_in(
     world: &World,
     phase: &ProjectPhase<'_>,
     rule: RuleIndex,
@@ -330,7 +330,7 @@ fn prepared_in(
     Ok((scope, frontiers))
 }
 
-fn todo(rule: usize) -> Todo {
+pub(super) fn todo(rule: usize) -> Todo {
     Todo {
         rule: RuleIndex(rule),
         id: RuleId("rule".into()),
@@ -354,7 +354,7 @@ fn name(hash: u64, place: u32) -> Cell {
 }
 
 /// Two source files contribute three actual Function-node rows to one project count.
-fn frontier_rows() -> Vec<(FileId, Table)> {
+pub(super) fn frontier_rows() -> Vec<(FileId, Table)> {
     use ryo_relations::domain::relations::{service::node_id, types::Position};
     use ryo_values::domain::rows::types::RowCount;
     let row = |file, positions: &[u32]| {
@@ -449,7 +449,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 &todo(0),
                 frontier,
                 &mut cross,
-                &scope,
+                scope,
                 &_phase,
             )?;
             [
@@ -471,7 +471,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 &todo(3),
                 frontier,
                 &mut cross,
-                &scope,
+                scope,
                 &_phase,
             )?;
             [
@@ -491,7 +491,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 &todo(0),
                 frontier,
                 &mut cross,
-                &scope,
+                scope,
                 &_phase,
             )?;
             [
@@ -576,7 +576,7 @@ fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
 
-fn service() -> CrossFile {
+pub(super) fn service() -> CrossFile {
     CrossFile::new(std::sync::Arc::new(
         crate::outbound::corpus::fixtures::fake::CorpusFake::default(),
     ), std::sync::Arc::new(crate::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new()))))
@@ -744,7 +744,7 @@ fn project_evaluation_rejects_frontiers_from_another_request() {
         &todo(0),
         frontier,
         &mut symbols,
-        &foreign,
+        foreign,
         &next_phase,
     );
     match result {
@@ -757,9 +757,9 @@ fn project_evaluation_rejects_frontiers_from_another_request() {
 }
 
 #[derive(Debug, Default)]
-struct ProjectCalls {
-    reductions: std::sync::atomic::AtomicUsize,
-    aggregates: std::sync::atomic::AtomicUsize,
+pub(super) struct ProjectCalls {
+    pub(super) reductions: std::sync::atomic::AtomicUsize,
+    pub(super) aggregates: std::sync::atomic::AtomicUsize,
 }
 impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase for ProjectCalls {
     fn operators(
@@ -817,7 +817,7 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
                 },
                 frontier,
                 &mut symbols,
-                &scope,
+                scope,
                 &phase,
             )
             .unwrap();
@@ -877,13 +877,12 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
             },
             old_frontier,
             &mut symbols,
-            &different,
+            different,
             &phase,
         );
         assert!(
             matches!(result, Err(error) if error == crate::domain::rules::service::failed(&rules.ids[1], &OperatingError::NotRead))
         );
-        drop(different);
         let (changed_scope, changed_frontier) = prepared_in(
             &rules,
             &phase,
@@ -901,7 +900,7 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
             },
             changed_frontier,
             &mut symbols,
-            &changed_scope,
+            changed_scope,
             &phase,
         );
         assert!(
@@ -910,7 +909,6 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
             )),
             "one interpreter cannot replay a different declared physical partition"
         );
-        drop(changed_scope);
         assert_eq!(calls.reductions.load(Ordering::SeqCst), 1);
         assert_eq!(calls.aggregates.load(Ordering::SeqCst), 2);
         let (_, foreign) = prepared_in(
@@ -938,13 +936,12 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
             &todo(0),
             foreign,
             &mut symbols,
-            &scope,
+            scope,
             &phase,
         );
         assert!(
             matches!(failed, Err(error) if error == crate::domain::rules::service::failed(&rules.ids[0], &OperatingError::NotRead))
         );
-        drop(scope);
         assert_eq!(calls.reductions.load(Ordering::SeqCst), 1);
         let (scope, frontier) = prepared_in(
             &rules,
@@ -960,7 +957,7 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
             &todo(0),
             frontier,
             &mut symbols,
-            &scope,
+            scope,
             &phase,
         )
         .unwrap();
@@ -971,7 +968,6 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
             "a new request requires its own grouping payload"
         );
         assert_eq!(calls.aggregates.load(Ordering::SeqCst), 4);
-        drop(scope);
         phase.finish().unwrap();
     }
 }
@@ -1030,7 +1026,7 @@ fn ordinary_phase_keeps_valid_rule_populations_and_partiality_separate() {
                 },
                 frontier,
                 &mut symbols,
-                &scope,
+                scope,
                 &phase,
             )
             .unwrap();
@@ -1159,7 +1155,7 @@ fn equal_policies_do_not_alias_distinct_admitted_frontier_payloads() {
                 },
                 frontier,
                 &mut symbols,
-                &scope,
+                scope,
                 &phase,
             )
             .unwrap();
@@ -1244,7 +1240,7 @@ fn many_distinct_project_populations_allocate_only_reached_region_state() {
             &todo(0),
             frontier,
             &mut symbols,
-            &scope,
+            scope,
             &phase,
         )
         .unwrap();
@@ -1298,18 +1294,7 @@ fn project_root_set_prepares_shared_publications_once_before_ordered_delivery() 
                 id: rules.ids[rule].clone(),
             });
         }
-        let tasks = todos
-            .iter()
-            .zip(&scopes)
-            .zip(frontiers)
-            .map(|((todo, scope), frontier)| super::types::ProjectTask {
-                todo,
-                scope,
-                frontier,
-                bound: &[],
-                slot: PublicationSlot::Unused,
-            })
-            .collect::<Vec<_>>();
+        let tasks = sealed_fixture_batch(&todos, scopes, frontiers);
         let results = completed_batch(service().evaluate_batch(
             &crossing(&rules),
             tasks,
@@ -1351,18 +1336,7 @@ fn project_root_set_prepares_shared_publications_once_before_ordered_delivery() 
             again_scopes.push(scope);
             again_frontiers.push(frontier);
         }
-        let again = todos
-            .iter()
-            .zip(&again_scopes)
-            .zip(again_frontiers)
-            .map(|((todo, scope), frontier)| super::types::ProjectTask {
-                todo,
-                scope,
-                frontier,
-                bound: &[],
-                slot: PublicationSlot::Unused,
-            })
-            .collect();
+        let again = sealed_fixture_batch(&todos, again_scopes, again_frontiers);
         let repeated = completed_batch(service().evaluate_batch(
             &crossing(&rules),
             again,
@@ -1381,8 +1355,6 @@ fn project_root_set_prepares_shared_publications_once_before_ordered_delivery() 
         );
         assert_eq!(calls.reductions.load(Ordering::SeqCst), 1);
         assert_eq!(calls.aggregates.load(Ordering::SeqCst), 2);
-        drop(again_scopes);
-        drop(scopes);
         phase.finish().unwrap();
     }
 }
@@ -1441,18 +1413,7 @@ fn project_root_set_preserves_distinct_actual_population_policy_in_both_orders()
                 id: rules.ids[rule].clone(),
             });
         }
-        let tasks = todos
-            .iter()
-            .zip(&scopes)
-            .zip(frontiers)
-            .map(|((todo, scope), frontier)| super::types::ProjectTask {
-                todo,
-                scope,
-                frontier,
-                bound: &[],
-                slot: PublicationSlot::Unused,
-            })
-            .collect();
+        let tasks = sealed_fixture_batch(&todos, scopes, frontiers);
         let results = completed_batch(service().evaluate_batch(
             &crossing(&rules),
             tasks,
@@ -1477,14 +1438,18 @@ fn project_root_set_preserves_distinct_actual_population_policy_in_both_orders()
         assert_eq!(phase.state_counts().populations.0, 2);
         assert_eq!(calls.reductions.load(Ordering::SeqCst), 2);
         assert_eq!(calls.aggregates.load(Ordering::SeqCst), 3);
-        drop(scopes);
         phase.finish().unwrap();
     }
 }
 
-fn completed_batch<T>(batch: ProjectBatch<T, super::errors::CrossError>) -> Vec<T> {
+fn completed_batch(
+    batch: ProjectBatch<super::types::ProjectOutcome, super::errors::CrossError>,
+) -> Vec<Result<super::types::CrossedWithPublications, super::errors::CrossError>> {
     match batch {
-        ProjectBatch::Complete(completed) => completed,
+        ProjectBatch::Complete(completed) => completed
+            .into_iter()
+            .map(|outcome| outcome.result)
+            .collect(),
         ProjectBatch::Refused { error, .. } => {
             panic!("the fixture declares no memory limit: {error}")
         }
@@ -1555,18 +1520,7 @@ fn project_budget_refuses_a_later_population_after_actual_work_and_releases_the_
                 id: rules.ids[rule].clone(),
             });
         }
-        let tasks = todos
-            .iter()
-            .zip(&scopes)
-            .zip(frontiers)
-            .map(|((todo, scope), frontier)| super::types::ProjectTask {
-                todo,
-                scope,
-                frontier,
-                bound: &[],
-                slot: PublicationSlot::Unused,
-            })
-            .collect();
+        let tasks = sealed_fixture_batch(&todos, scopes, frontiers);
         let guarded =
             service().evaluate_batch(&crossing(&rules), tasks, &phase, &mut symbols, |rule| {
                 Ok(crate::domain::budget::service::within(
@@ -1584,6 +1538,7 @@ fn project_budget_refuses_a_later_population_after_actual_work_and_releases_the_
                 .into_iter()
                 .next()
                 .unwrap()
+                .result
                 .unwrap()
                 .crossed
                 .rendered
@@ -1599,7 +1554,6 @@ fn project_budget_refuses_a_later_population_after_actual_work_and_releases_the_
             1,
             "refused population never starts source admission or semantic work"
         );
-        drop(scopes);
         phase
             .finish()
             .expect("all scopes settle after budget refusal");
@@ -1703,35 +1657,57 @@ fn refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_cohort() {
     }
 }
 
+/// Test resources enter through the actual immutable declaration owner.
+fn sealed_fixture_batch(
+    todo: &[Todo],
+    scopes: Vec<ProjectScope>,
+    frontiers: Vec<PreparedFrontiers>,
+) -> super::preparation::service::SealedBatch {
+    use super::preparation::{service::Preparation, types::PreparedProject};
+    let mut resources = scopes.into_iter().zip(frontiers);
+    let prepared = Preparation::ordinary(todo).prepare_all(|_, _| {
+        let (scope, frontier) = resources
+            .next()
+            .expect("fixture prepares every declared occurrence");
+        Ok(PreparedProject {
+            scope,
+            frontier,
+            bound: Vec::new(),
+            slot: PublicationSlot::Unused,
+        })
+    });
+    assert!(
+        resources.next().is_none(),
+        "fixture has no undeclared resources"
+    );
+    prepared.seal().unwrap()
+}
+
 /// Fixture assembly only: the sole application batch operation owns admission/evaluation.
 fn evaluate_fixture(
     crossing: &CrossingInput<'_>,
     todo: &Todo,
     frontier: PreparedFrontiers,
     symbols: &mut Symbols,
-    scope: &ProjectScope,
+    scope: ProjectScope,
     phase: &impl ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution,
 ) -> Result<crate::domain::answering::types::Crossed, RulesError> {
-    let ProjectBatch::Complete(mut results) = service().evaluate_batch(
-        crossing,
-        vec![super::types::ProjectTask {
-            todo,
-            scope,
-            frontier,
-            bound: &[],
-            slot: PublicationSlot::Unused,
-        }],
-        phase,
-        symbols,
-        |_| Ok(()),
-    ) else {
+    let batch = sealed_fixture_batch(std::slice::from_ref(todo), vec![scope], vec![frontier]);
+    let ProjectBatch::Complete(mut results) =
+        service().evaluate_batch(crossing, batch, phase, symbols, |_| Ok(()))
+    else {
         panic!("fixture host declares no memory limit")
     };
     assert_eq!(results.len(), 1, "one authored task has one result");
     results
         .pop()
         .expect("the exact result count was checked")
+        .result
         .map(|result| result.crossed)
+        .map_err(|error| match error {
+            super::errors::CrossError::Rules(error) => error,
+            error => crate::domain::rules::service::failed(&todo.id, &error),
+        })
 }
 
 /// Independent Findings-layout oracle for the authored count emit (no keys or headings).

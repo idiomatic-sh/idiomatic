@@ -956,95 +956,63 @@ impl LintUseCaseImpl {
         })?;
         // All ordinary project rules use the same interpreter and symbol generation.
         let mut cross = Symbols::default();
-        let mut prepared = Vec::with_capacity(todo.len());
-        for (index, each) in todo.iter().enumerate() {
-            let inputs = (|| -> Result<_, LintError> {
-                if index != 0 {
-                    self.within_budget(listing.budget, || vec![each.id.clone()])?;
-                }
-                let _memory_rule = memory_rule(&each.id, each.rule.0);
-                let first = *run.first_bucket.get(each.rule.0).ok_or_else(|| {
-                    LintError::from(crate::domain::rules::service::failed(
-                        &each.id,
-                        &"missing frontier bucket",
-                    ))
+        use crate::application::cross_file::{
+            errors::CrossError,
+            preparation::{service::Preparation, types::PreparedProject},
+        };
+        let prepared = Preparation::ordinary(todo).prepare_all(|occurrence, each| {
+            if occurrence.0 != 0 {
+                within(self.memory.resident_bytes()?, listing.budget, || {
+                    vec![each.id.clone()]
                 })?;
-                let scope = stage
-                    .project_scope(
-                        each.rule,
-                        crossing.domain.files,
-                        crossing.domain.covered,
-                        crossing.domain.skipped,
-                    )
-                    .map_err(|error| {
-                        LintError::from(crate::domain::rules::service::failed(&each.id, &error))
-                    })?;
-                let inputs = run
-                    .services
-                    .prepare_frontiers(
-                        FrontierRequest {
-                            scope: &scope,
-                            rule: each.rule,
-                            first,
-                            facts: kept_facts.as_ref(),
-                            project: handle.facts.as_ref(),
-                            project_symbols: &handle.symbols,
-                            demand: FrontierDemand::Diagnostic,
-                        },
-                        &mut cross,
-                    )
-                    .map_err(|error| match error {
-                        PreparationError::Facts(error) => LintError::from(error),
-                        PreparationError::Metadata(error) => {
-                            LintError::from(crate::domain::rules::service::failed(&each.id, &error))
-                        }
-                    })?;
-                Ok((scope, inputs))
-            })();
-            prepared.push(inputs);
-        }
-        // The task inputs stay alive for the whole root-set admission/delivery attempt.
-        let mut held = Vec::with_capacity(prepared.len());
-        let mut preparation_errors = Vec::with_capacity(prepared.len());
-        for result in prepared {
-            match result {
-                Ok((scope, frontier)) => {
-                    held.push(Some((scope, frontier)));
-                    preparation_errors.push(None);
-                }
-                Err(error) => {
-                    held.push(None);
-                    preparation_errors.push(Some(error));
-                }
             }
-        }
-        let mut frontiers = Vec::with_capacity(held.len());
-        let mut scopes = Vec::with_capacity(held.len());
-        for entry in held {
-            match entry {
-                Some((scope, frontier)) => {
-                    scopes.push(Some(scope));
-                    frontiers.push(Some(frontier));
-                }
-                None => {
-                    scopes.push(None);
-                    frontiers.push(None);
-                }
-            }
-        }
-        let tasks = todo.iter().zip(&scopes).zip(frontiers).filter_map(|((each, scope), frontier)| {
-            match (scope, frontier) {
-                (Some(scope), Some(frontier)) => Some(crate::application::cross_file::types::ProjectTask {
-                    todo: each, scope, frontier, bound: &[],
-                    slot: ryo_execution::inbound::use_cases::execution::types::PublicationSlot::Unused,
-                }),
-                _ => None,
-            }
-        }).collect();
+            let _memory_rule = memory_rule(&each.id, each.rule.0);
+            let first = *run.first_bucket.get(each.rule.0).ok_or_else(|| {
+                CrossError::from(crate::domain::rules::service::failed(
+                    &each.id,
+                    &"missing frontier bucket",
+                ))
+            })?;
+            let scope = stage
+                .project_scope(
+                    each.rule,
+                    crossing.domain.files,
+                    crossing.domain.covered,
+                    crossing.domain.skipped,
+                )
+                .map_err(|error| crate::domain::rules::service::failed(&each.id, &error))?;
+            let frontier = run
+                .services
+                .prepare_frontiers(
+                    FrontierRequest {
+                        scope: &scope,
+                        rule: each.rule,
+                        first,
+                        facts: kept_facts.as_ref(),
+                        project: handle.facts.as_ref(),
+                        project_symbols: &handle.symbols,
+                        demand: FrontierDemand::Diagnostic,
+                    },
+                    &mut cross,
+                )
+                .map_err(|error| match error {
+                    PreparationError::Facts(error) => CrossError::from(error),
+                    PreparationError::Metadata(error) => {
+                        CrossError::from(crate::domain::rules::service::failed(&each.id, &error))
+                    }
+                })?;
+            Ok(PreparedProject {
+                scope,
+                frontier,
+                bound: Vec::new(),
+                slot: ryo_execution::inbound::use_cases::execution::types::PublicationSlot::Unused,
+            })
+        });
+        let batch = prepared.seal().map_err(CrossError::from)?;
         use ryo_execution::inbound::use_cases::execution::types::ProjectBatch;
         let guarded =
             self.cross_file
-                .evaluate_batch(&crossing, tasks, &stage, &mut cross, |rule| {
+                .evaluate_batch(&crossing, batch, &stage, &mut cross, |rule| {
                     let id = run.ids.get(rule.0).ok_or(
                         ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun,
                     )?;
@@ -1058,34 +1026,14 @@ impl LintUseCaseImpl {
             ProjectBatch::Complete(completed) => (completed, None),
             ProjectBatch::Refused { completed, error } => (completed, Some(error)),
         };
-        let mut outcomes = outcomes.into_iter();
-        let mut made = Vec::with_capacity(preparation_errors.len());
-        for error in preparation_errors {
-            match error {
-                Some(error) => made.push(Err(error)),
-                None => match outcomes.next() {
-                    Some(outcome) => made.push(
-                        outcome
-                            .map(|result| result.crossed)
-                            .map_err(LintError::from),
-                    ),
-                    None if refused.is_some() => break,
-                    None => made.push(Err(LintError::from(crate::domain::rules::service::failed(
-                        &first_rule.id,
-                        &"missing project outcome",
-                    )))),
-                },
-            }
-        }
         observed_cross_symbols("before_cross_cleanup", &mut cross);
-        drop(scopes);
         // Always release the shared stage, but preserve an earlier rule/budget
         // failure over a cleanup refusal.
         let finished = stage.finish();
-        for (each, crossed) in todo.iter().zip(made) {
+        for outcome in outcomes {
             if settle(
-                each,
-                crossed?,
+                &outcome.todo,
+                outcome.result.map_err(LintError::from)?.crossed,
                 &mut answered.later,
                 &mut answered.fed,
                 &mut answered.unknowns,
