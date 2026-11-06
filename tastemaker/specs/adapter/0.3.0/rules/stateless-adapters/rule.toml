@@ -1,0 +1,154 @@
+description = "An adapter holds no process-global state: static items and thread_local! or lazy_static! declarations are reported; instance-owned cells and injected connections are allowed."
+why = "State belongs to an explicitly injected connection, partition or instance-owned handle. A Mutex, atomic, OnceLock or LazyLock field can legitimately retain that instance state; naming its type does not make it global. This rule finds static syntax nodes and thread_local! or lazy_static! macro declarations, including a static whose type is a cell. It does not infer resource ownership from a type name or inspect macro-generated declarations beyond those two macros. Connection lifetime, partition isolation and cleanup are proved by the port contract and composition substitution cases."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let names = select * from tree-tokens where glob_any(text, "{thread_local,lazy_static}");
+let name-refs = select r."parent" as "node" from names as l join "syntax-child" as r on l."id" = r."child";
+let segments = select r."parent" as "node" from name-refs as l join "syntax-child" as r on l."node" = r."child";
+let paths = select r."parent" as "node" from segments as l join "syntax-child" as r on l."node" = r."child";
+let owners = select r."parent" as "node" from paths as l join "syntax-child" as r on l."node" = r."child";
+let macro-calls = select * from tree-nodes where kind = "macro-call";
+let thread-locals = select r."file" as "file", r."span" as "span" from owners as l join macro-calls as r on l."node" = r."id";
+let statics = select * from tree-nodes where kind = "static";
+let static-rows = project(from=statics, columns=["file", "span"]);
+let findings = union(left=thread-locals, right=static-rows);
+emit findings subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this adapter holds process-global state"
+help = "Keep nothing global to the process in the adapter: hold the connection or client the edge injected and the adapter's settings, and let what must outlive a call live in the store behind the client. A field of the adapter's struct is fine. Replace a `static` constant with a `const`, and build a compiled pattern or a table in the adapter's constructor. A shared cache is an injected store; its crate boundary follows ownership. Ignore only a value computed once and never changed that cannot be a `const`: `// ignore: idiomatic.arch/adapter/stateless-adapters - <why this value never changes>` on its own line above the line the finding names."
+
+[given]
+include = ['adapter.rs']
+
+[[scenarios]]
+id = 'settings-only'
+scenario = 'An adapter holding a client the edge injected.'
+given.files.'adapter.rs' = '''
+use std::sync::Arc;
+
+use crate::outbound::names::interface::NamesPort;
+
+pub(crate) struct NamesMemoryAdapter {
+    client: Arc<dyn Client>,
+}
+
+trait Client {}
+
+impl NamesPort for NamesMemoryAdapter {}
+'''
+
+[[scenarios]]
+id = 'local-refcell'
+scenario = 'A RefCell local to one call is no state.'
+given.files.'adapter.rs' = '''
+use std::cell::RefCell;
+
+pub(crate) struct NamesMemoryAdapter;
+
+impl NamesMemoryAdapter {
+    fn tree(&self) -> usize {
+        let sink = RefCell::new(Vec::<u8>::new());
+        sink.borrow().len()
+    }
+}
+'''
+
+[[scenarios]]
+id = 'mutex-cache'
+scenario = 'Mutex and lazy cell fields are the state of one instance, not of the process.'
+given.files.'adapter.rs' = '''
+use std::collections::VecDeque;
+use std::sync::{LazyLock, Mutex, OnceLock};
+
+pub(crate) struct NamesMemoryAdapter {
+    kept: Mutex<VecDeque<String>>,
+    initialized: OnceLock<String>,
+    derived: LazyLock<String>,
+}
+'''
+
+[[scenarios]]
+id = 'atomic-counter'
+scenario = 'An atomic field is the state of one instance, not of the process.'
+given.files.'adapter.rs' = '''
+use std::sync::atomic::AtomicUsize;
+
+pub(crate) struct NamesMemoryAdapter {
+    calls: AtomicUsize,
+}
+'''
+
+[[scenarios]]
+id = 'thread-local-cache'
+scenario = 'A kept answer in a thread_local.'
+given.files.'adapter.rs' = '''
+use std::cell::RefCell;
+
+thread_local! {
+    static KEPT: RefCell<Option<String>> = const { RefCell::new(None) };
+}
+
+pub(crate) struct NamesMemoryAdapter;
+'''
+then.findings = [
+  { path = 'adapter.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'once-lock'
+scenario = 'A value kept in a OnceLock static.'
+given.files.'adapter.rs' = '''
+use std::sync::OnceLock;
+
+static KEPT: OnceLock<String> = OnceLock::new();
+
+pub(crate) struct NamesMemoryAdapter;
+'''
+then.findings = [
+  { path = 'adapter.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'lazy-lock'
+scenario = 'A value kept in a LazyLock static.'
+given.files.'adapter.rs' = '''
+use std::sync::LazyLock;
+
+static KEPT: LazyLock<String> = LazyLock::new(String::new);
+
+pub(crate) struct NamesMemoryAdapter;
+'''
+then.findings = [
+  { path = 'adapter.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'static-item'
+scenario = 'A plain static item.'
+given.files.'adapter.rs' = '''
+static NAMES: [&str; 2] = ["a", "b"];
+
+pub(crate) struct NamesMemoryAdapter;
+'''
+then.findings = [
+  { path = 'adapter.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'lazy-static-macro'
+scenario = 'A value kept by lazy_static.'
+given.files.'adapter.rs' = '''
+lazy_static::lazy_static! {
+    static ref KEPT: Vec<u8> = Vec::new();
+}
+
+pub(crate) struct NamesMemoryAdapter;
+'''
+then.findings = [
+  { path = 'adapter.rs', line = 1 },
+]

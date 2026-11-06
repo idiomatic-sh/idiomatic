@@ -133,7 +133,7 @@ workspace-completeness = "0.1.0"
 workspace-membership = "0.1.0"
 
 [packages."idiomatic.arch".specs]
-adapter = "0.2.0"
+adapter = ["0.2.0", "0.3.0"]
 application-service = "0.1.0"
 cli = "0.12.0"
 collection = "0.1.0"
@@ -145,9 +145,9 @@ entry = "0.1.0"
 idiomatic-project = "0.1.0"
 idiomatic-rust = "0.1.2"
 item = "0.1.0"
-nu-hex = "0.2.0"
+nu-hex = "0.3.0"
 pipeline = "0.1.0"
-port = "0.2.0"
+port = "0.3.0"
 sdk = "0.1.1"
 use-case = "0.1.0"
 
