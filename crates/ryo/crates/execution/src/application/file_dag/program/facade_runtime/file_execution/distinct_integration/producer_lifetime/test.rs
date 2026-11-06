@@ -2,7 +2,7 @@
 use super::super::*;
 use super::fixtures::{FinalConsumer, ProjectionOrder, numbers, shared_plan};
 use crate::application::file_dag::derived::owner::witness::service::{
-    BackingIdentity, BackingLiveness,
+    BackingIdentity, BackingLiveness, BackingWitness,
 };
 use ryo_relations::domain::relations::{
     service::to_bits,
@@ -229,7 +229,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
         .take_producer_releases(file.execution.file_state());
     assert_eq!(events.len(), if skipped_at_start { 2 } else { 4 });
     let mut live_before = 0;
-    let mut weak = None;
+    let mut weak: Option<&BackingWitness> = None;
     for pair in events.chunks_exact(2) {
         let (before, after) = (&pair[0], &pair[1]);
         assert_eq!(before.point, ConsumerReleasePoint::Before);
