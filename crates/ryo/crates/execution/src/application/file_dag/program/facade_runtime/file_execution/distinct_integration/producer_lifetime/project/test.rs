@@ -1,0 +1,266 @@
+//! Real publication scopes retain and release project batch leases.
+use super::super::super::*;
+use super::super::fixtures::{FinalConsumer, ProjectionOrder, shared_plan};
+use crate::application::file_dag::{
+    frontiers::types::{FrontierInput, FrontierSource, PreparedFrontiers},
+    program::{
+        facade::{ProjectBatch, ProjectFrontiers},
+        facade_runtime::{ProjectRootDeclaration, evaluate_roots},
+    },
+};
+use crate::domain::{
+    completion::types::CoverageState, coverage::types::Partials, table_model::types::Frontier,
+};
+use ryo_values::domain::rows::errors::TableModelError;
+
+#[derive(Clone, Copy, Debug)]
+enum PhaseExit {
+    Complete,
+    SemanticFailure,
+    RefuseBeforeWork,
+    RefuseLaterCohort,
+}
+
+fn exercise(exit: PhaseExit) -> Result<(), OperatingError> {
+    let mut external = shared_plan(ProjectionOrder::Forward, FinalConsumer::Completes);
+    external.steps.truncate(2);
+    external.emit.step = StepId(1);
+    let mut plans = vec![
+        external.clone(),
+        external,
+        shared_plan(ProjectionOrder::Forward, FinalConsumer::Completes),
+        shared_plan(
+            ProjectionOrder::Reversed,
+            if matches!(exit, PhaseExit::SemanticFailure) {
+                FinalConsumer::InvalidTerminal
+            } else {
+                FinalConsumer::Completes
+            },
+        ),
+    ];
+    for plan in &mut plans {
+        for step in &mut plan.steps {
+            step.scope = StepScope::CrossFile;
+        }
+        plan.frontier = vec![PlanInput::Relation(Relation::LanguageTarget)];
+    }
+    let mut rules = vec![rule(); 4];
+    for (at, rule) in rules.iter_mut().enumerate() {
+        rule.id = RuleId(format!("phase-reader-{at}").into());
+    }
+    let derived = crate::application::file_dag::testing::program_derived_port();
+    let prepared = facade::prepare(
+        Compiled {
+            schedule: RuleSchedule::Independent,
+            observations: vec![vec![]; 4],
+            plans,
+            bindings: vec![vec![]; 4],
+        },
+        &rules,
+        &vec![Digest([0; 16]); 4],
+        &[],
+        Arc::clone(&derived),
+        ObservationIdentity::Independent,
+    )?;
+    let corpus = [CorpusInput::Available(CorpusEntry {
+        executable: ExecutablePermission::Unknown,
+        path: FilePath("project-roots.input".into()),
+        size: FileSize(0),
+        modified: Nanoseconds(0),
+    })];
+    let services = Arc::new(ProgramServices::new(
+        Arc::new(CommonOperatorEngine::new(Arc::new(
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+        ))),
+        derived,
+        &corpus,
+    ));
+    let phase = facade::publication_owner(&prepared, &services)?;
+    let owner = Rc::clone(phase.owner());
+    owner.derived.set_optional_limit(0)?;
+    let required =
+        facade::required_partitions(&prepared, RuleIndex(0), &corpus, &[], &[], &services)?;
+    let source = PlanInput::Relation(Relation::LanguageTarget);
+    let source_root = prepared.program().rules()[0].frontier[0].clone();
+    let partials = Partials::default();
+    let mut symbols = Symbols::default();
+    let mut runs = Vec::new();
+    for at in 0..4 {
+        let distinct = at == 3 && matches!(exit, PhaseExit::RefuseLaterCohort);
+        let table = Table {
+            kinds: kinds(Relation::LanguageTarget).to_vec(),
+            cells: vec![
+                Cell::File(FileId(0)),
+                Cell::Number(Integer(if distinct { 8 } else { 2 })),
+                Cell::Number(Integer(9)),
+                Cell::File(FileId(0)),
+                Cell::Number(Integer(3)),
+                Cell::Number(Integer(7)),
+            ],
+            count: RowCount(2),
+        };
+        runs.push(facade::open_project(
+            &prepared,
+            required.clone(),
+            ScopePartials::Project {
+                evaluation: &partials,
+                publication: &partials,
+            },
+            ProjectFrontiers {
+                publication: &phase,
+                ordinary: PreparedFrontiers {
+                    producer: RuleIndex(at),
+                    sources: vec![FrontierSource {
+                        input: source,
+                        root: source_root.clone(),
+                    }]
+                    .into_boxed_slice(),
+                    rows: vec![FrontierInput::Decoded {
+                        frontier: Frontier {
+                            input: source,
+                            table,
+                        },
+                        coverage: CoverageState::Complete,
+                    }],
+                    program: Arc::clone(prepared.program()),
+                    required: required.clone(),
+                    refused: vec![],
+                },
+                bound_inputs: &[],
+            },
+            &mut symbols,
+            &[],
+            Arc::clone(&services),
+        ));
+    }
+    assert!(
+        runs.iter().all(Result::is_ok),
+        "all submitted project owners bind before scheduling"
+    );
+    let declarations: Vec<_> = (0..4)
+        .map(|at| ProjectRootDeclaration {
+            rule: RuleIndex(at),
+            demand: RuleDemand {
+                emit: EmitDemand::Enabled,
+                observations: ObservationDemand::NotRequired,
+            },
+        })
+        .collect();
+    let guards = std::cell::Cell::new(0);
+    let result = evaluate_roots(runs, &declarations, &mut symbols, |rule| {
+        guards.set(guards.get() + 1);
+        if matches!(exit, PhaseExit::RefuseBeforeWork)
+            || (matches!(exit, PhaseExit::RefuseLaterCohort) && rule == RuleIndex(3))
+        {
+            Err(OperatingError::WrongBinding)
+        } else {
+            Ok(())
+        }
+    });
+    let completed = match (exit, result) {
+        (PhaseExit::RefuseBeforeWork, ProjectBatch::Refused { completed, error }) => {
+            assert!(matches!(error, OperatingError::WrongBinding));
+            assert!(completed.is_empty());
+            assert_eq!(
+                phase.readiness_counts().evaluations.0,
+                0,
+                "guard refusal cannot admit any root"
+            );
+            assert_eq!(owner.derived.working_bytes(), 0);
+            assert_eq!(owner.derived.counts().0, 0);
+            completed
+        }
+        (PhaseExit::RefuseLaterCohort, ProjectBatch::Refused { completed, error }) => {
+            assert!(matches!(error, OperatingError::WrongBinding));
+            assert_eq!(
+                completed.len(),
+                3,
+                "earlier terminal deliveries survive batch cancellation"
+            );
+            assert_eq!(
+                guards.get(),
+                2,
+                "later population guard runs before its scheduling"
+            );
+            completed
+        }
+        (PhaseExit::Complete | PhaseExit::SemanticFailure, ProjectBatch::Complete(completed)) => {
+            assert_eq!(completed.len(), 4);
+            assert_eq!(
+                guards.get(),
+                1,
+                "equal populations use one actual batch admission"
+            );
+            completed
+        }
+        _ => panic!("unexpected project batch disposition for {exit:?}"),
+    };
+    let counts = phase.readiness_counts();
+    let builds = owner.derived.counts();
+    let live = owner.derived.working_bytes();
+    let backing = owner
+        .derived
+        .view_weak(ryo_derived::domain::contract::types::DerivedKind::Equality);
+    if !matches!(exit, PhaseExit::RefuseBeforeWork) {
+        assert!(
+            live > 0,
+            "phase owns required backing until every batch obligation ends"
+        );
+        assert_eq!(builds.0, 1, "refused later cohort creates no second index");
+        assert!(backing.as_ref().unwrap().upgrade().is_some());
+        assert!(counts.evaluations.0 > 0);
+    }
+    let mut transferred = Vec::new();
+    for (at, result) in completed.into_iter().enumerate() {
+        let result = result?;
+        match result.emit {
+            RootOutcome::Complete(table) => transferred.push(table),
+            RootOutcome::Failed(error) if at == 3 && matches!(exit, PhaseExit::SemanticFailure) => {
+                assert!(matches!(
+                    error,
+                    OperatingError::Table(TableModelError::NoSuchColumn { index: 99 })
+                ));
+            }
+            _ => panic!("completed project root lost terminal result"),
+        }
+    }
+    if transferred.len() >= 2 {
+        assert_eq!(
+            transferred[0], transferred[1],
+            "deduplicated project root delivers both consumers"
+        );
+        assert_eq!(transferred[0].count.0, 2);
+    }
+    phase.finish()?;
+    assert_eq!(
+        owner.derived.working_bytes(),
+        0,
+        "success/error/cancellation all release phase charges"
+    );
+    assert_eq!(owner.derived.owned_bytes(), 0);
+    assert!(
+        backing.is_none_or(|backing| backing.upgrade().is_none()),
+        "same real backing drops at phase finish"
+    );
+    assert_eq!(
+        owner.derived.counts(),
+        builds,
+        "finish cannot dispatch or acquire work"
+    );
+    for table in transferred {
+        assert!(table.count.0 > 0, "transferred rows survive retirement");
+    }
+    Ok(())
+}
+
+#[test]
+fn project_batch_success_failure_and_cancellation_release_actual_phase_leases() {
+    for exit in [
+        PhaseExit::Complete,
+        PhaseExit::SemanticFailure,
+        PhaseExit::RefuseBeforeWork,
+        PhaseExit::RefuseLaterCohort,
+    ] {
+        exercise(exit).unwrap_or_else(|error| panic!("{exit:?}: {error:?}"));
+    }
+}

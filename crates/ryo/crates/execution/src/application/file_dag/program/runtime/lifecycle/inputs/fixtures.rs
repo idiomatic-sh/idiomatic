@@ -1,5 +1,8 @@
 //! Compiled program lifecycle proof with a real owner.
-use super::super::super::*;
+use super::super::super::{
+    AdmittedInput, Emit, Inputs, OperatingError, OperatorContext, Partition, ProgramExecution,
+    RegionId,
+};
 use crate::application::file_dag::relations::RelationOwner;
 use crate::domain::{
     coverage::types::RuleIndex,

@@ -1,129 +1,14 @@
 //! Required derived storage follows real compiled producer consumers, including cancellation.
 use super::super::*;
+use super::fixtures::{FinalConsumer, ProjectionOrder, numbers, shared_plan};
 use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn},
 };
 use ryo_values::domain::rows::errors::TableModelError;
 
-fn shared_plan(swapped: bool, invalid_terminal: bool, refuse_provider: bool) -> Plan {
-    let mut steps = vec![
-        PlanStep {
-            scope: StepScope::PerFile,
-            operation: Operation::Project {
-                from: PlanInput::Relation(Relation::LanguageTarget),
-                columns: vec![ColumnIndex(0), ColumnIndex(1), ColumnIndex(2)],
-                distinct: RepeatedRows::Kept,
-            },
-        },
-        PlanStep {
-            scope: StepScope::PerFile,
-            operation: Operation::Union {
-                left: PlanInput::Step(StepId(0)),
-                right: PlanInput::Step(StepId(0)),
-            },
-        },
-        PlanStep {
-            scope: StepScope::PerFile,
-            operation: Operation::Join {
-                left: PlanInput::Step(StepId(0)),
-                right: PlanInput::Step(StepId(1)),
-                left_on: vec![ColumnIndex(1)],
-                right_on: vec![ColumnIndex(1)],
-                output: vec![
-                    JoinColumn {
-                        side: Side::Left,
-                        column: ColumnIndex(1 + u32::from(swapped)),
-                    },
-                    JoinColumn {
-                        side: Side::Right,
-                        column: ColumnIndex(1 + u32::from(!swapped)),
-                    },
-                ],
-                filter: vec![],
-                view: vec![],
-                reach: None,
-            },
-        },
-    ];
-    if refuse_provider {
-        // This actual reader first demands the first Join result, then the
-        // shared producer, and finally a schema-valid unavailable population.
-        // The cancellation therefore occurs after the first consumer released.
-        if let Operation::Join { output, .. } = &mut steps[2].operation {
-            *output = vec![
-                JoinColumn {
-                    side: Side::Left,
-                    column: ColumnIndex(1),
-                },
-                JoinColumn {
-                    side: Side::Right,
-                    column: ColumnIndex(2),
-                },
-            ];
-        }
-        steps.push(PlanStep {
-            scope: StepScope::PerFile,
-            operation: Operation::Axis {
-                from: PlanInput::Step(StepId(2)),
-                edges: PlanInput::Step(StepId(1)),
-                domain: PlanInput::Relation(Relation::SemanticChild),
-                direction: ryo_values::domain::plan_parts::types::Direction::Descendant,
-                id: ColumnIndex(0),
-                parent: ColumnIndex(1),
-                child: ColumnIndex(2),
-                domain_id: ColumnIndex(2),
-                domain_filter: vec![],
-                domain_view: vec![],
-                output: vec![],
-            },
-        });
-    }
-    if invalid_terminal {
-        steps.push(PlanStep {
-            scope: StepScope::PerFile,
-            operation: Operation::Project {
-                from: PlanInput::Step(StepId(2)),
-                columns: vec![ColumnIndex(99)],
-                distinct: RepeatedRows::Kept,
-            },
-        });
-    }
-    Plan {
-        observation_inputs: vec![],
-        observations: vec![],
-        parameters: vec![],
-        emit: Emit {
-            step: StepId((steps.len() - 1) as u32),
-            subject: ColumnIndex(0),
-            key: vec![],
-            headings: vec![],
-        },
-        steps,
-        frontier: vec![],
-        comparison_origins: vec![],
-    }
-}
-fn numbers(table: &Table) -> Vec<i64> {
-    table
-        .cells
-        .iter()
-        .map(|value| match value {
-            Cell::Number(Integer(number)) => *number,
-            other => panic!("number output required, got {other:?}"),
-        })
-        .collect()
-}
-#[derive(Clone, Copy)]
-enum FinalConsumer {
-    Completes,
-    SkippedAtStart,
-    InvalidTerminal,
-    RefusingProvider,
-}
 fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
     let skipped_at_start = matches!(final_consumer, FinalConsumer::SkippedAtStart);
-    let invalid_terminal = matches!(final_consumer, FinalConsumer::InvalidTerminal);
     let refuse_provider = matches!(final_consumer, FinalConsumer::RefusingProvider);
     let derived = crate::application::file_dag::testing::program_derived_port();
     let mut second = rule();
@@ -133,8 +18,8 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
             schedule: RuleSchedule::Independent,
             observations: vec![vec![], vec![]],
             plans: vec![
-                shared_plan(false, false, false),
-                shared_plan(true, invalid_terminal, refuse_provider),
+                shared_plan(ProjectionOrder::Forward, FinalConsumer::Completes),
+                shared_plan(ProjectionOrder::Reversed, final_consumer),
             ],
             bindings: vec![vec![], vec![]],
         },
@@ -144,17 +29,17 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
         Arc::clone(&derived),
         ObservationIdentity::Independent,
     )?;
-    let shared = |rule: usize| {
-        let logical = prepared.program().rules()[rule].original_steps[1]
+    let shared = |rule: RuleIndex| {
+        let logical = prepared.program().rules()[rule.0].original_steps[1]
             .as_ref()
             .unwrap()
             .logical;
         prepared.program().logical_regions()[logical.0]
     };
-    let producer = shared(0);
+    let producer = shared(RuleIndex(0));
     assert_eq!(
         producer,
-        shared(1),
+        shared(RuleIndex(1)),
         "both joins must demand the same actual computed producer"
     );
     assert_eq!(prepared.program().regions()[producer.0].consumers, 2);
@@ -165,7 +50,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
         derived,
         &[CorpusInput::Available(CorpusEntry {
             executable: ExecutablePermission::Unknown,
-            path: FilePath("shared-producer.py".into()),
+            path: FilePath("shared-producer.input".into()),
             size: FileSize(0),
             modified: Nanoseconds(0),
         })],
@@ -236,15 +121,15 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
         observations: ObservationDemand::NotRequired,
     };
     use crate::application::file_dag::program::runtime::ConsumerReleasePoint;
-    let consumer = |rule: usize, step: usize| {
-        let logical = prepared.program().rules()[rule].original_steps[step]
+    let consumer = |rule: RuleIndex, step: StepId| {
+        let logical = prepared.program().rules()[rule.0].original_steps[step.0 as usize]
             .as_ref()
             .unwrap()
             .logical;
         prepared.program().logical_regions()[logical.0]
     };
-    let first_consumer = consumer(0, 2);
-    let final_consumer_region = consumer(1, if refuse_provider { 3 } else { 2 });
+    let first_consumer = consumer(RuleIndex(0), StepId(2));
+    let final_consumer_region = consumer(RuleIndex(1), StepId(if refuse_provider { 3 } else { 2 }));
     file.execution.observe_producer_releases(
         file.execution.file_state(),
         producer,
@@ -276,7 +161,10 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
         };
         table
     };
-    assert_eq!(numbers(&first), [2, 9, 3, 7]);
+    assert_eq!(
+        numbers(&first),
+        [Integer(2), Integer(9), Integer(3), Integer(7)]
+    );
     // Delivery is after canonical scheduling. The live interval is observed at
     // the actual consumer release, never inferred from API call order.
     let first_counts = file.owner.derived.counts();
@@ -312,7 +200,10 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
                 let RootOutcome::Complete(second) = second.emit else {
                     return Err(OperatingError::NotRun);
                 };
-                assert_eq!(numbers(&second), [9, 2, 7, 3]);
+                assert_eq!(
+                    numbers(&second),
+                    [Integer(9), Integer(2), Integer(7), Integer(3)]
+                );
                 let final_counts = file.owner.derived.counts();
                 assert_eq!(
                     final_counts.0, first_counts.0,
@@ -393,7 +284,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
     );
     assert_eq!(
         numbers(&first),
-        [2, 9, 3, 7],
+        [Integer(2), Integer(9), Integer(3), Integer(7)],
         "transferred output survives producer retirement"
     );
     assert!(

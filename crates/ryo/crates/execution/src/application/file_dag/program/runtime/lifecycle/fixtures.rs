@@ -1,5 +1,9 @@
 //! Compiled program lifecycle proof with a real owner.
-use super::super::*;
+use super::super::{
+    AdmittedInput, ColumnCounters, Emit, Instruction, InvocationFailure, KernelInput,
+    KernelInvocation, KernelScratch, OperatingError, OperatorContext, ProgramExecution, RegionId,
+    StrategyOutcome,
+};
 use super::inputs::fixtures::{TestInputs, value};
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_language::domain::symbols::types::Symbols;
@@ -18,6 +22,7 @@ use {
 #[derive(Clone, Copy)]
 pub(super) enum RuntimeProbeMode {
     Plain,
+    SemanticAndCleanupFailure { completed: RegionId },
     NestedFailure { outer: RegionId, inner: RegionId },
     Reenter { root: RegionId },
 }
@@ -105,6 +110,21 @@ impl KernelInvocation for RuntimeProbe {
             .push(Value::Number(Integer(100 + instruction.producer.0 as i64)));
         let policy = CompletionPolicy::file(RuleIndex(0), FileId(0), &[]);
         match self.mode {
+            RuntimeProbeMode::SemanticAndCleanupFailure { completed } => {
+                let state = self.execution.file_state();
+                let before = self.execution.retry_checkpoint(state, completed).unwrap();
+                for _ in 0..2 {
+                    assert!(matches!(
+                        self.execution.release_inputs(state, completed),
+                        Err(OperatingError::NotRun)
+                    ));
+                    assert_eq!(
+                        self.execution.retry_checkpoint(state, completed).unwrap(),
+                        before
+                    );
+                }
+                return Err(InvocationFailure::Semantic(OperatingError::WrongBinding));
+            }
             RuntimeProbeMode::NestedFailure { outer, inner }
                 if instruction.producer == RuleIndex(0) =>
             {
