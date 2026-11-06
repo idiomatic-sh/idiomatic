@@ -3,6 +3,7 @@ use self::plans::Authored;
 use self::semantics::{Calls, Derived, Meanings};
 use super::super::*;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
+use crate::domain::positions::types::ClassPlace;
 use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn},
@@ -20,6 +21,7 @@ pub(super) enum Residency {
 pub(super) enum Population {
     Three,
     Duplicate,
+    Empty,
 }
 
 pub(super) struct Program {
@@ -61,9 +63,10 @@ impl Program {
                 modified: Nanoseconds(0),
             })],
         ));
-        let rows = match population {
-            Population::Three => [[1, 5], [2, 9], [3, 7]],
-            Population::Duplicate => [[2, 9], [2, 7], [3, 5]],
+        let rows: Vec<[i64; 2]> = match population {
+            Population::Three => vec![[1, 5], [2, 9], [3, 7]],
+            Population::Duplicate => vec![[2, 9], [2, 7], [3, 5]],
+            Population::Empty => vec![],
         };
         let columns = vec![
             FactColumn(vec![to_bits(Cell::File(FileId(0))).0; rows.len()]),
@@ -113,6 +116,22 @@ impl Program {
             kinds: kinds(relation),
             columns: &self.columns,
         }))
+    }
+    /// The source class of the rule's authored head, resolved from the prepared walk.
+    pub(super) fn head_class(&self, rule: RuleIndex) -> Result<ClassPlace, OperatingError> {
+        let program = self.prepared.program();
+        let head = program.rules()[rule.0].original_steps[0]
+            .as_ref()
+            .map_err(Clone::clone)?
+            .logical;
+        let region = program.logical_regions()[head.0];
+        let instruction = program.regions()[region.0]
+            .instructions
+            .first()
+            .ok_or(OperatingError::NotRun)?;
+        self.prepared
+            .walk_class(instruction)
+            .ok_or(OperatingError::NotRun)
     }
     pub(super) fn reads(&self) -> Calls {
         Calls(self.reads.load(Ordering::Relaxed))

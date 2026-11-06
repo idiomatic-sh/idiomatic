@@ -149,6 +149,7 @@ impl FileRun<'_> {
         let readiness = self.observation_snapshot();
         self.roots.clear();
         self.observed.clear();
+        self.walk.retire_all();
         self.owner.derived.report(self.file);
         let (builds, hits, refusals) = self.owner.derived.counts();
         tracing::trace!(target: RESOURCE_ROUTES_TARGET, file = self.file.0, builds, hits, refusals, event = FILE_OWNER_FINISH);
