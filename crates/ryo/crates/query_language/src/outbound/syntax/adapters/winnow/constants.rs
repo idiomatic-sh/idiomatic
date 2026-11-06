@@ -349,7 +349,7 @@ pub(crate) const GRAMMAR: &[GrammarLine] = &[
         example: "$max-lines",
     },
     GrammarLine {
-        name: "number",
+        name: ryo_relations::domain::relations::constants::NUMBER,
         form: "digit { digit }",
         example: "400",
     },

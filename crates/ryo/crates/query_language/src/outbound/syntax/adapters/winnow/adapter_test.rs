@@ -519,7 +519,7 @@ fn misread(name: &str, text: &str) -> usize {
         "argument" => whole(parsers::argument, text),
         "value" => whole(parsers::value, text),
         "parameter" => whole(parsers::parameter, text),
-        "number" => whole(parsers::number, text),
+        ryo_relations::domain::relations::constants::NUMBER => whole(parsers::number, text),
         "name_or_string" => whole(parsers::name_or_string, text),
         "string" => whole(parsers::string, text),
         "word" => whole(parsers::word, text),

@@ -9,9 +9,6 @@ use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plans::types::ParameterType;
 use ryo_values::domain::plans::types::QueryOperator;
 
-/// The text of the context argument, and of the relation word of a fragment signature.
-pub(crate) const CONTEXT: &str = "context";
-
 /// The text of the relation argument, and of the relation keyword.
 pub(crate) const RELATION: &str = "relation";
 
@@ -20,9 +17,6 @@ pub(crate) const DESTINATION: &str = "destination";
 
 /// The word a declaration writes for a flag.
 pub(crate) const BOOLEAN: &str = "boolean";
-
-/// The word a declaration writes for a number, and the grammar's name for a digit run.
-pub(crate) const NUMBER: &str = "number";
 
 /// Every operator, in the order the language documents them.
 pub(crate) const OPERATORS: [QueryOperator; 25] = [
@@ -98,7 +92,7 @@ pub(crate) fn operator_named(text: &str) -> Option<QueryOperator> {
 pub(crate) fn slot_name(slot: ArgumentSlot) -> &'static str {
     match slot {
         ArgumentSlot::Node => "node",
-        ArgumentSlot::Context => CONTEXT,
+        ArgumentSlot::Context => ryo_relations::domain::relations::constants::CONTEXT,
         ArgumentSlot::MaxLine => "max-line",
         ArgumentSlot::TabWidth => "tab-width",
         ArgumentSlot::Texts => "texts",
@@ -236,7 +230,7 @@ pub(crate) fn parameter_kind_named(declared: &str) -> Option<ParameterType> {
 pub(crate) fn fragment_scalar_kind_named(declared: &str) -> Option<ParameterType> {
     match declared {
         "string" | "text" => Some(ParameterType::Text),
-        "integer" | NUMBER => Some(ParameterType::Number),
+        "integer" | ryo_relations::domain::relations::constants::NUMBER => Some(ParameterType::Number),
         BOOLEAN => Some(ParameterType::Flag),
         _ => None,
     }
@@ -250,7 +244,7 @@ pub(crate) fn relation_cell_kind_named(declared: &str) -> Option<CellKind> {
         "symbol" | "text" => Some(CellKind::Symbol),
         "file" => Some(CellKind::File),
         "span" => Some(CellKind::Span),
-        NUMBER | "integer" => Some(CellKind::Number),
+        ryo_relations::domain::relations::constants::NUMBER | "integer" => Some(CellKind::Number),
         "flag" | BOOLEAN => Some(CellKind::Flag),
         _ => None,
     }
