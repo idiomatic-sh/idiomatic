@@ -37,9 +37,7 @@ impl GraphHandle {
     }
     pub(in crate::application::file_dag) fn graph(&self) -> &CompactGraph {
         #[cfg(test)]
-        self.acquired
-            .view()
-            .expect(constants::EXPECT_GRAPH_LEASE);
+        self.acquired.view().expect(constants::EXPECT_GRAPH_LEASE);
         &self.graph
     }
     pub(in crate::application::file_dag) fn orientation(&self) -> Orientation {

@@ -1,6 +1,6 @@
 //! Read-only diagnostic reporting stays inside the private resource owner.
-use crate::application::file_dag::derived::constants;
 use super::*;
+use crate::application::file_dag::derived::constants;
 use ryo_relations::domain::relations::types::FileId;
 impl DerivedOwner {
     pub(super) fn report_selector_occupancy(&self, requesting: PopulationId) {
@@ -27,7 +27,10 @@ impl DerivedOwner {
         retained
             .sort_unstable_by_key(|(_, entry)| (std::cmp::Reverse(entry.bytes), entry.admission));
         for (key, entry) in retained.into_iter().take(16) {
-            let value = entry.retained.as_ref().expect(constants::EXPECT_FILTERED_RETAINED);
+            let value = entry
+                .retained
+                .as_ref()
+                .expect(constants::EXPECT_FILTERED_RETAINED);
             let populations = &key.populations[..usize::from(key.len)];
             let pins = populations
                 .iter()

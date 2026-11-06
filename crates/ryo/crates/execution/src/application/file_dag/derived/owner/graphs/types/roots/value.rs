@@ -1,9 +1,9 @@
 //! Pure traversals feed completed answers to the common resource owner.
-use crate::application::file_dag::derived::constants;
 use super::super::{
     handles::service::{DomainHandle, GraphHandle, RootAnswer},
     retained::types::{GraphEntry, NearestMemo, RootMemo},
 };
+use crate::application::file_dag::derived::constants;
 use crate::application::file_dag::derived::{
     ledger::Backing,
     owner::DerivedOwner,
@@ -52,7 +52,10 @@ impl<'a> DemandAnswers<'a> {
         if let Some(cache) = self.cache.as_mut() {
             cache.graph_counts.roots += 1;
         }
-        crate::application::file_dag::route_counts::event(constants::REACH_REQUEST, constants::ROUTE_GRAPH);
+        crate::application::file_dag::route_counts::event(
+            constants::REACH_REQUEST,
+            constants::ROUTE_GRAPH,
+        );
         let Some(partition) = access.graph().partition(partition) else {
             return Ok(None);
         };
@@ -70,11 +73,17 @@ impl<'a> DemandAnswers<'a> {
                 .iter()
                 .find(|answer| answer.root == root && answer.orientation == access.orientation())
         {
-            crate::application::file_dag::route_counts::event(constants::REACH_MEMO_HIT, constants::ROUTE_GRAPH);
+            crate::application::file_dag::route_counts::event(
+                constants::REACH_MEMO_HIT,
+                constants::ROUTE_GRAPH,
+            );
             cache.graph_counts.memo_hits += 1;
             return completed(self.owner, entry, Arc::clone(&answer.reached)).map(Some);
         }
-        crate::application::file_dag::route_counts::event(constants::REACH_TRAVERSAL, constants::ROUTE_GRAPH);
+        crate::application::file_dag::route_counts::event(
+            constants::REACH_TRAVERSAL,
+            constants::ROUTE_GRAPH,
+        );
         let mut traversal = GraphTraversal::new(access.raw_graph(), walk);
         let stopped = traversal.breadth(root, access.orientation(), None);
         traversal.sort();
@@ -101,13 +110,19 @@ impl<'a> DemandAnswers<'a> {
         access.validate_owner(self.owner)?;
         domain.validate_owner(self.owner, access)?;
         let domain = domain.raw_domain();
-        crate::application::file_dag::route_counts::event(constants::NEAREST_REQUEST, constants::ROUTE_GRAPH);
+        crate::application::file_dag::route_counts::event(
+            constants::NEAREST_REQUEST,
+            constants::ROUTE_GRAPH,
+        );
         if access
             .graph()
             .forest(crate::domain::stored_graph::types::traversal::value::direction(orientation))
             .is_none()
         {
-            crate::application::file_dag::route_counts::event(constants::NEAREST_TRAVERSAL, constants::ROUTE_GRAPH);
+            crate::application::file_dag::route_counts::event(
+                constants::NEAREST_TRAVERSAL,
+                constants::ROUTE_GRAPH,
+            );
             let stopped = GraphTraversal::new(access.raw_graph(), walk).breadth(
                 root,
                 orientation,
@@ -118,7 +133,12 @@ impl<'a> DemandAnswers<'a> {
                 cache.graph_counts.expanded += walk.expanded;
                 cache.graph_counts.examined += walk.examined;
             }
-            return Ok(stopped.then(|| *walk.reached.last().expect(constants::EXPECT_QUALIFYING_ENCOUNTER)));
+            return Ok(stopped.then(|| {
+                *walk
+                    .reached
+                    .last()
+                    .expect(constants::EXPECT_QUALIFYING_ENCOUNTER)
+            }));
         }
         let shared = self.forest_context(access, domain, orientation)?;
         let (answer, hit) = if let (Some(index), Some(cache)) = (shared, self.cache.as_mut()) {

@@ -1,7 +1,9 @@
 //! Invocation-lifetime builds and acquisitions that no population pin retains.
-use crate::application::file_dag::derived::owner::*;
 use crate::application::file_dag::derived::ledger::Backing;
-use crate::application::file_dag::derived::owner::acquisition::admission::service::{AcquiredView, AcquisitionLifetime, AdmittedViewInputs};
+use crate::application::file_dag::derived::owner::acquisition::admission::service::{
+    AcquiredView, AcquisitionLifetime, AdmittedViewInputs,
+};
+use crate::application::file_dag::derived::owner::*;
 
 impl DerivedOwner {
     pub(in crate::application::file_dag) fn scoped_build(
@@ -70,7 +72,8 @@ impl DerivedOwner {
             return Err(OperatingError::WrongOperation);
         }
         let (storage, built) = build()?;
-        let mut required = crate::application::file_dag::derived::owner::backings::view(&storage)?.to_vec();
+        let mut required =
+            crate::application::file_dag::derived::owner::backings::view(&storage)?.to_vec();
         for backing in backings {
             crate::application::file_dag::derived::ledger::append_backing(&mut required, *backing)?;
         }

@@ -43,7 +43,10 @@ impl GraphSelection {
         let (Some(left), Some(right)) = (self.rows.upgrade(), other.rows.upgrade()) else {
             return false;
         };
-        crate::application::file_dag::route_counts::event(constants::GRAPH_POSITIONS_COMPARE, constants::ROUTE_GRAPH);
+        crate::application::file_dag::route_counts::event(
+            constants::GRAPH_POSITIONS_COMPARE,
+            constants::ROUTE_GRAPH,
+        );
         left == right
     }
 }

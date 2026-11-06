@@ -1,8 +1,10 @@
 //! Shared lookup, lazy physical construction, ownership and retention decision for a population-scoped view.
 use crate::application::file_dag::derived::constants;
-use crate::application::file_dag::derived::owner::*;
-use crate::application::file_dag::derived::owner::acquisition::admission::service::{AcquiredView, AcquisitionLifetime, AdmittedViewInputs};
+use crate::application::file_dag::derived::owner::acquisition::admission::service::{
+    AcquiredView, AcquisitionLifetime, AdmittedViewInputs,
+};
 use crate::application::file_dag::derived::owner::selection;
+use crate::application::file_dag::derived::owner::*;
 use crate::application::file_dag::route_counts;
 
 impl DerivedOwner {
@@ -121,7 +123,10 @@ impl DerivedOwner {
                 .get(&key)
                 .and_then(|entry| entry.weak.upgrade())
             {
-                let entry = state.entries.get(&key).expect(constants::EXPECT_EXISTING_VIEW);
+                let entry = state
+                    .entries
+                    .get(&key)
+                    .expect(constants::EXPECT_EXISTING_VIEW);
                 let backings = Arc::clone(&entry.backings);
                 let lease = match entry.lease.upgrade() {
                     Some(lease) => lease,
@@ -130,7 +135,10 @@ impl DerivedOwner {
                 let handle = self.complete_view(plan, storage, lease, backings, admitted, false)?;
                 let promote = required && entry.required.is_none();
                 if promote {
-                    let entry = state.entries.get_mut(&key).expect(constants::EXPECT_EXISTING_VIEW);
+                    let entry = state
+                        .entries
+                        .get_mut(&key)
+                        .expect(constants::EXPECT_EXISTING_VIEW);
                     entry.required = Some(OwnedView {
                         storage: Arc::clone(handle.storage()),
                         _lease: Arc::clone(handle.lease()),
@@ -147,8 +155,11 @@ impl DerivedOwner {
                     state.peak_required_views = state.peak_required_views.max(state.required_views);
                     state.peak_required_bytes = state.peak_required_bytes.max(state.required_bytes);
                 }
-                state.entries.get_mut(&key).expect(constants::EXPECT_EXISTING_VIEW).lease =
-                    Arc::downgrade(handle.lease());
+                state
+                    .entries
+                    .get_mut(&key)
+                    .expect(constants::EXPECT_EXISTING_VIEW)
+                    .lease = Arc::downgrade(handle.lease());
                 state.hits += 1;
                 route_counts::event(constants::OWNER_HIT, route_counts::derived(plan.kind));
                 if let Some(cache) = cache.as_deref_mut() {
