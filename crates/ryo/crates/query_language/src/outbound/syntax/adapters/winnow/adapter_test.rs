@@ -74,6 +74,8 @@ enum Scenario {
     ListAfterIn,
     /// Checks the grammar table: how many of its entries break the check.
     Grammar(Coverage),
+    /// A check that drives the adapter itself and asserts what it reads; it answers no steps.
+    Check(fn()),
 }
 
 /// What a row of the cases asks of the adapter.
@@ -86,6 +88,10 @@ type Failure = SyntaxError;
 fn subject(scenario: Input) -> Result<Value, Failure> {
     if let Scenario::Grammar(coverage) = scenario {
         return Ok(uncovered(coverage));
+    }
+    if let Scenario::Check(check) = scenario {
+        check();
+        return Ok(0);
     }
     let text = match scenario {
         Scenario::OrderedDfs => {
@@ -100,7 +106,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::FunctionsAndAffixes => FUNCTIONS,
         Scenario::CallAndJoin => IFS_IN_FUNCTIONS,
         Scenario::ListsOfStrings => ANTIJOIN,
-        Scenario::MisspelledKeyword | Scenario::Grammar(_) => MISSPELLED,
+        Scenario::MisspelledKeyword | Scenario::Grammar(_) | Scenario::Check(_) => MISSPELLED,
         Scenario::TwoEmits => TWO_EMITS,
         Scenario::ListAfterIn => LIST_AFTER_IN,
     };
@@ -131,12 +137,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         | Scenario::Unclosed
         | Scenario::DanglingOr
         | Scenario::ListAfterIn
-        | Scenario::Grammar(_) => {}
+        | Scenario::Grammar(_)
+        | Scenario::Check(_) => {}
     }
     Ok(program.steps.len())
 }
 
-#[test]
 fn fragment_emit_is_rejected_at_its_original_module_span() {
     use crate::outbound::syntax::errors::SyntaxError;
     use crate::outbound::syntax::interface::SyntaxPort as _;
@@ -396,6 +402,42 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             )
         }),
     },
+    Case {
+        name: CaseName("fragment_emit_is_rejected_at_its_original_module_span"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(fragment_emit_is_rejected_at_its_original_module_span),
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("fragment_document_reads_typed_signature_nested_import_and_return"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(fragment_document_reads_typed_signature_nested_import_and_return),
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("source_names_keep_written_spelling_separate_from_definition_identity"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(source_names_keep_written_spelling_separate_from_definition_identity),
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("numeric_gte_reads_literal_and_parameter_operands_in_both_positions"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(numeric_gte_reads_literal_and_parameter_operands_in_both_positions),
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("integer_successor_reads_ordered_text_and_integer_operands"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(integer_successor_reads_ordered_text_and_integer_operands),
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("natural_lt_reads_text_and_parameter_operands"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(natural_lt_reads_text_and_parameter_operands),
+        expect: Expect::Value(0),
+    },
 ];
 
 #[test]
@@ -579,7 +621,6 @@ fn uncovered(coverage: Coverage) -> usize {
     }
 }
 
-#[test]
 fn fragment_document_reads_typed_signature_nested_import_and_return() {
     use winnow::stream::LocatingSlice;
 
@@ -605,7 +646,6 @@ fn fragment_document_reads_typed_signature_nested_import_and_return() {
     assert_eq!(root.imports[0].module.0.as_ref(), "python/ruff/suppress");
 }
 
-#[test]
 fn source_names_keep_written_spelling_separate_from_definition_identity() {
     let parsed = SyntaxWinnowAdapter
         .read(QueryView(
@@ -627,7 +667,6 @@ fn source_names_keep_written_spelling_separate_from_definition_identity() {
     assert_eq!(parsed.emit.step.1, Some(second));
 }
 
-#[test]
 fn numeric_gte_reads_literal_and_parameter_operands_in_both_positions() {
     let query = "param limit: integer; let n = select * from \"numeric-literal\" where numeric_gte(value, $limit) and numeric_gte(86400, value); emit n subject file key(span);";
     let program = SyntaxWinnowAdapter
@@ -651,7 +690,6 @@ fn numeric_gte_reads_literal_and_parameter_operands_in_both_positions() {
     assert!(matches!(test_at(select, 1).left, WrittenOperand::Number(_)));
 }
 
-#[test]
 fn integer_successor_reads_ordered_text_and_integer_operands() {
     let program = SyntaxWinnowAdapter.read(QueryView("let a = select * from \"numeric-literal\" where integer_successor(value, 43); emit a subject file key(id);"))
         .expect("successor predicate parses");
@@ -665,7 +703,6 @@ fn integer_successor_reads_ordered_text_and_integer_operands() {
     ));
 }
 
-#[test]
 fn natural_lt_reads_text_and_parameter_operands() {
     let program = SyntaxWinnowAdapter.read(QueryView("param limit: string; let a = select * from \"function\" where natural_lt(name, $limit) and natural_lt(\"item2\", name); emit a subject file key(span);"))
         .expect("natural text predicate parses");

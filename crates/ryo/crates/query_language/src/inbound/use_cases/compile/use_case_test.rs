@@ -25,10 +25,28 @@ use ryo_values::domain::program::types::{
     WrittenEmit, WrittenLiteral, WrittenOperand, WrittenRelation, WrittenTest,
 };
 
+/// What a row asks of the use case.
+#[derive(Clone, Copy)]
+enum Scenario {
+    /// Compile what the ports a row gives hold, twice, and count the steps.
+    Compile(fn() -> Given),
+    /// A check that drives the use case itself and asserts what it answers.
+    Check(fn()),
+}
+
+/// What a row answers.
+#[derive(Debug, PartialEq, Eq)]
+enum Answer {
+    /// The compiled plan has this many steps.
+    Steps(usize),
+    /// The check ran and held every assertion it makes.
+    Checked,
+}
+
 /// What a row gives the use case.
-type Input = fn() -> Given;
-/// What `compile` answers: how many steps the plan has.
-type Value = usize;
+type Input = Scenario;
+/// What a row answers.
+type Value = Answer;
 type Failure = CompileError;
 
 const NOWHERE: QuerySpan = QuerySpan {
@@ -192,7 +210,6 @@ fn same_text_twice() -> Given {
     text_the_fake_reads()
 }
 
-#[test]
 fn fragment_contract_compiles_against_real_relation_columns() {
     use crate::outbound::syntax::fixtures::winnow::winnow;
     let root = ryo_values::domain::program::service::query_bundle(
@@ -223,7 +240,6 @@ fn fragment_contract_compiles_against_real_relation_columns() {
     assert_eq!(report.plan.emit.headings.len(), 1);
 }
 
-#[test]
 fn fragment_relation_contracts_reject_input_and_output_shape_mismatches() {
     use crate::outbound::syntax::fixtures::winnow::winnow;
 
@@ -284,7 +300,6 @@ fn fragment_relation_contracts_reject_input_and_output_shape_mismatches() {
     );
 }
 
-#[test]
 fn nested_fragment_validation_error_keeps_the_inner_source_and_import_trace() {
     use crate::outbound::syntax::fixtures::winnow::winnow;
 
@@ -326,7 +341,6 @@ fn nested_fragment_validation_error_keeps_the_inner_source_and_import_trace() {
     ));
 }
 
-#[test]
 fn fragment_calls_cannot_capture_caller_or_nested_private_steps() {
     use crate::outbound::syntax::fixtures::winnow::winnow;
 
@@ -394,7 +408,6 @@ fn fragment_calls_cannot_capture_caller_or_nested_private_steps() {
     }
 }
 
-#[test]
 fn a_fused_fragment_comparison_keeps_its_original_source_span() {
     use crate::outbound::syntax::fixtures::winnow::winnow;
     use ryo_values::domain::plans::types::Operation;
@@ -495,7 +508,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ..text_the_fake_reads()
             }
         },
-        expect: Expect::Value(1),
+        expect: Expect::Value(Answer::Steps(1)),
     },
     Case {
         name: CaseName("blank_observation_name_is_refused"),
@@ -593,19 +606,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("compiles_valid_text_to_a_plan"),
         word: Word::Succeeds,
-        input: || text_the_fake_reads,
-        expect: Expect::Value(1),
+        input: || Scenario::Compile(text_the_fake_reads),
+        expect: Expect::Value(Answer::Steps(1)),
     },
     Case {
         name: CaseName("same_text_gives_the_same_plan"),
         word: Word::Succeeds,
-        input: || same_text_twice,
-        expect: Expect::Value(1),
+        input: || Scenario::Compile(same_text_twice),
+        expect: Expect::Value(Answer::Steps(1)),
     },
     Case {
         name: CaseName("invalid_text_is_refused"),
         word: Word::Refuses,
-        input: || text_the_fake_refuses,
+        input: || Scenario::Compile(text_the_fake_refuses),
         expect: Expect::Refusal(|error| {
             selects!(matches!(error, CompileError::Located { origin, error }
                 if !origin.source_id.0.is_empty()
@@ -616,7 +629,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("unknown_relation_is_refused"),
         word: Word::Refuses,
-        input: || catalog_without_relations,
+        input: || Scenario::Compile(catalog_without_relations),
         expect: Expect::Refusal(|error| {
             selects!(
                 matches!(error, CompileError::UnknownRelation { .. })
@@ -627,7 +640,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("type_mismatch_is_refused"),
         word: Word::Refuses,
-        input: || comparing_text_with_a_number,
+        input: || Scenario::Compile(comparing_text_with_a_number),
         expect: Expect::Refusal(|error| {
             selects!(
                 matches!(error, CompileError::Type { .. })
@@ -638,7 +651,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_word_that_is_no_kind_of_the_column_it_is_compared_with_is_refused"),
         word: Word::Refuses,
-        input: || a_kind_of_defines_that_is_misspelled,
+        input: || Scenario::Compile(a_kind_of_defines_that_is_misspelled),
         expect: Expect::Refusal(|error| {
             selects!(
                 matches!(
@@ -654,13 +667,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_word_that_is_a_kind_of_the_column_compiles"),
         word: Word::Succeeds,
-        input: || a_kind_of_defines_that_exists,
-        expect: Expect::Value(1),
+        input: || Scenario::Compile(a_kind_of_defines_that_exists),
+        expect: Expect::Value(Answer::Steps(1)),
     },
     Case {
         name: CaseName("a_step_nobody_defined_is_refused_as_invalid"),
         word: Word::Refuses,
-        input: || emitting_a_step_nobody_defined,
+        input: || Scenario::Compile(emitting_a_step_nobody_defined),
         expect: Expect::Refusal(|error| {
             selects!(
                 matches!(error, CompileError::Invalid { .. })
@@ -671,13 +684,67 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("fails_when_catalog_port_fails"),
         word: Word::Fails,
-        input: || failing_catalog,
+        input: || Scenario::Compile(failing_catalog),
         expect: Expect::Refusal(|error| selects!(matches!(error, CompileError::Catalog { .. }))),
+    },
+    Case {
+        name: CaseName("fragment_contract_compiles_against_real_relation_columns"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(fragment_contract_compiles_against_real_relation_columns),
+        expect: Expect::Value(Answer::Checked),
+    },
+    Case {
+        name: CaseName("fragment_relation_contracts_reject_input_and_output_shape_mismatches"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(fragment_relation_contracts_reject_input_and_output_shape_mismatches),
+        expect: Expect::Value(Answer::Checked),
+    },
+    Case {
+        name: CaseName("nested_fragment_validation_error_keeps_the_inner_source_and_import_trace"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(nested_fragment_validation_error_keeps_the_inner_source_and_import_trace),
+        expect: Expect::Value(Answer::Checked),
+    },
+    Case {
+        name: CaseName("fragment_calls_cannot_capture_caller_or_nested_private_steps"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(fragment_calls_cannot_capture_caller_or_nested_private_steps),
+        expect: Expect::Value(Answer::Checked),
+    },
+    Case {
+        name: CaseName("a_fused_fragment_comparison_keeps_its_original_source_span"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(a_fused_fragment_comparison_keeps_its_original_source_span),
+        expect: Expect::Value(Answer::Checked),
+    },
+    Case {
+        name: CaseName("raw_tree_file_joins_keep_single_and_and_or_filters_outside_the_join"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(raw_tree_file_joins_keep_single_and_and_or_filters_outside_the_join),
+        expect: Expect::Value(Answer::Checked),
+    },
+    Case {
+        name: CaseName("authored_observation_keeps_independent_root_through_optimization"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(authored_observation_keeps_independent_root_through_optimization),
+        expect: Expect::Value(Answer::Checked),
+    },
+    Case {
+        name: CaseName("bound_observation_preserves_declared_schema_and_phase"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(bound_observation_preserves_declared_schema_and_phase),
+        expect: Expect::Value(Answer::Checked),
     },
 ];
 
-fn subject(given: fn() -> Given) -> Result<Value, Failure> {
-    let given = given();
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    let given = match scenario {
+        Scenario::Compile(given) => given(),
+        Scenario::Check(check) => {
+            check();
+            return Ok(Answer::Checked);
+        }
+    };
     let use_case = CompileUseCaseImpl::new(Arc::new(given.syntax), Arc::new(given.catalog));
     let request = CompileRequest {
         observations: given.observations,
@@ -687,7 +754,7 @@ fn subject(given: fn() -> Given) -> Result<Value, Failure> {
     let first = use_case.compile(request.clone())?;
     let second = use_case.compile(request)?;
     assert_eq!(first, second, "compilation is deterministic");
-    Ok(first.plan.steps.len())
+    Ok(Answer::Steps(first.plan.steps.len()))
 }
 
 #[test]
@@ -706,7 +773,6 @@ fn fails() {
 }
 
 /// A file-key join uses the generic executor, which needs a separate predicate step.
-#[test]
 fn raw_tree_file_joins_keep_single_and_and_or_filters_outside_the_join() {
     use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
     use ryo_values::domain::plans::types::Operation;
@@ -771,7 +837,6 @@ fn raw_tree_file_joins_keep_single_and_and_or_filters_outside_the_join() {
     }
 }
 
-#[test]
 fn authored_observation_keeps_independent_root_through_optimization() {
     use ryo_values::domain::plan_parts::types::Input;
     use ryo_values::domain::program::types::QueryBundle;
@@ -812,7 +877,6 @@ fn authored_observation_keeps_independent_root_through_optimization() {
     );
 }
 
-#[test]
 fn bound_observation_preserves_declared_schema_and_phase() {
     use ryo_relations::domain::relations::types::CellKind;
     use ryo_values::domain::observations::types::{

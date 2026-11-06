@@ -10,11 +10,32 @@ use ryo_values::domain::hosted::types::{ColumnLabel, HostedColumn, HostedName, H
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::program::types::QueryView;
 
-type Input = &'static str;
-type Value = bool;
+type Text = &'static str;
+type Operations = bool;
 type Failure = LoweringError;
 
-fn subject(text: Input) -> Result<Value, Failure> {
+/// What a row asks of the part.
+#[derive(Clone, Copy)]
+enum Scenario {
+    /// Lower the text the row gives.
+    Text(Text),
+    /// A check that drives the part itself and asserts what it answers.
+    Check(fn()),
+}
+
+/// What a row answers.
+#[derive(Debug, PartialEq, Eq)]
+enum Answer {
+    /// The lowering answered this.
+    Lowered(Operations),
+    /// The check ran and held every assertion it makes.
+    Checked,
+}
+
+type Input = Scenario;
+type Value = Answer;
+
+fn lower(text: Text) -> Result<Operations, Failure> {
     let program = winnow()
         .read(QueryView(text))
         .expect("query fixture parses");
@@ -51,11 +72,21 @@ fn subject(text: Input) -> Result<Value, Failure> {
     }))
 }
 
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    match scenario {
+        Scenario::Text(text) => lower(text).map(Answer::Lowered),
+        Scenario::Check(check) => {
+            check();
+            Ok(Answer::Checked)
+        }
+    }
+}
+
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("semantic_call_rejects_extra_arguments"),
         word: Word::Refuses,
-        input: || r#"let a = render-syntax(from="function", node="id", context="assignment-target", output="rendered", extra="id"); emit a subject file key(file);"#,
+        input: || Scenario::Text(r#"let a = render-syntax(from="function", node="id", context="assignment-target", output="rendered", extra="id"); emit a subject file key(file);"#),
         expect: Expect::Refusal(|error| {
             selects!(matches!(error, LoweringError::SemanticArgument { .. }))
         }),
@@ -63,7 +94,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("semantic_call_rejects_project_input"),
         word: Word::Refuses,
-        input: || r#"let a = render-syntax(from="global", node="id", context="assignment-target", output="rendered"); emit a subject file key(file);"#,
+        input: || Scenario::Text(r#"let a = render-syntax(from="global", node="id", context="assignment-target", output="rendered"); emit a subject file key(file);"#),
         expect: Expect::Refusal(|error| {
             selects!(matches!(error, LoweringError::CrossFileSemantic { .. }))
         }),
@@ -71,7 +102,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("semantic_call_rejects_unknown_context"),
         word: Word::Refuses,
-        input: || r#"let a = render-syntax(from="function", node="id", context="not-a-context", output="rendered"); emit a subject file key(file);"#,
+        input: || Scenario::Text(r#"let a = render-syntax(from="function", node="id", context="not-a-context", output="rendered"); emit a subject file key(file);"#),
         expect: Expect::Refusal(|error| {
             selects!(matches!(
                 error,
@@ -82,7 +113,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("span_bounds_rejects_extra_arguments"),
         word: Word::Refuses,
-        input: || r#"let a = span-bounds(from="function", span="span", start-output="begin", end-output="finish", extra="span"); emit a subject file key(file);"#,
+        input: || Scenario::Text(r#"let a = span-bounds(from="function", span="span", start-output="begin", end-output="finish", extra="span"); emit a subject file key(file);"#),
         expect: Expect::Refusal(|error| {
             selects!(matches!(error, LoweringError::SpanBoundsArgument { .. }))
         }),
@@ -90,7 +121,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("source_matches_rejects_extra_arguments"),
         word: Word::Refuses,
-        input: || r#"let a = source-matches(from="function", span="span", pattern="fn", output="hit", extra="span"); emit a subject file key(file);"#,
+        input: || Scenario::Text(r#"let a = source-matches(from="function", span="span", pattern="fn", output="hit", extra="span"); emit a subject file key(file);"#),
         expect: Expect::Refusal(|error| {
             selects!(matches!(error, LoweringError::SourceMatchesArgument { .. }))
         }),
@@ -98,7 +129,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("source_matches_rejects_project_input"),
         word: Word::Refuses,
-        input: || r#"let a = source-matches(from="global", span="span", pattern="fn", output="hit"); emit a subject file key(file);"#,
+        input: || Scenario::Text(r#"let a = source-matches(from="global", span="span", pattern="fn", output="hit"); emit a subject file key(file);"#),
         expect: Expect::Refusal(|error| {
             selects!(matches!(
                 error,
@@ -109,7 +140,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("source_matches_requires_line_pair"),
         word: Word::Refuses,
-        input: || r#"let a = source-matches(from="function", span="span", pattern="fn", output="hit", base-line="line"); emit a subject file key(file);"#,
+        input: || Scenario::Text(r#"let a = source-matches(from="function", span="span", pattern="fn", output="hit", base-line="line"); emit a subject file key(file);"#),
         expect: Expect::Refusal(|error| {
             selects!(matches!(error, LoweringError::SourceMatchesLinePair { .. }))
         }),
@@ -117,7 +148,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("source_matches_requires_capture_pair"),
         word: Word::Refuses,
-        input: || r#"let a = source-matches(from="function", span="span", pattern="fn", output="hit", capture="group"); emit a subject file key(file);"#,
+        input: || Scenario::Text(r#"let a = source-matches(from="function", span="span", pattern="fn", output="hit", capture="group"); emit a subject file key(file);"#),
         expect: Expect::Refusal(|error| {
             selects!(matches!(
                 error,
@@ -128,7 +159,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("source_matches_requires_declared_capture"),
         word: Word::Refuses,
-        input: || r#"let a = source-matches(from="function", span="span", pattern="fn", output="hit", capture="group", capture-output="captured"); emit a subject file key(file);"#,
+        input: || Scenario::Text(r#"let a = source-matches(from="function", span="span", pattern="fn", output="hit", capture="group", capture-output="captured"); emit a subject file key(file);"#),
         expect: Expect::Refusal(|error| {
             selects!(matches!(
                 error,
@@ -139,7 +170,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("span_between_rejects_extra_arguments"),
         word: Word::Refuses,
-        input: || r#"let a = span-between(from="function", start="span", end="span", output="hit", extra="span"); emit a subject file key(file);"#,
+        input: || Scenario::Text(r#"let a = span-between(from="function", start="span", end="span", output="hit", extra="span"); emit a subject file key(file);"#),
         expect: Expect::Refusal(|error| {
             selects!(matches!(error, LoweringError::SpanArgument { .. }))
         }),
@@ -147,7 +178,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("span_between_rejects_project_input"),
         word: Word::Refuses,
-        input: || r#"let a = span-between(from="global", start="span", end="span", output="hit"); emit a subject file key(file);"#,
+        input: || Scenario::Text(r#"let a = span-between(from="global", start="span", end="span", output="hit"); emit a subject file key(file);"#),
         expect: Expect::Refusal(|error| {
             selects!(matches!(error, LoweringError::CrossFileSpan { .. }))
         }),
@@ -155,7 +186,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("ambiguous_output_map_refused"),
         word: Word::Refuses,
-        input: || r#"let a = ordered-match(left="source-location", right="source-location", left-on=[file], right-on=[file], left-order="start-byte", right-order="end-byte", output={file: [left,file], file: [right,file]}); emit a subject file key(file);"#,
+        input: || Scenario::Text(r#"let a = ordered-match(left="source-location", right="source-location", left-on=[file], right-on=[file], left-order="start-byte", right-order="end-byte", output={file: [left,file], file: [right,file]}); emit a subject file key(file);"#),
         expect: Expect::Refusal(|error| {
             selects!(matches!(error, LoweringError::DuplicateOutput { .. }))
         }),
@@ -163,19 +194,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("replace_appends_text"),
         word: Word::Succeeds,
-        input: || r#"let a = replace(from="function", text="name", pattern="_", replacement="-", output="label"); emit a subject file key(label);"#,
-        expect: Expect::Value(true),
+        input: || Scenario::Text(r#"let a = replace(from="function", text="name", pattern="_", replacement="-", output="label"); emit a subject file key(label);"#),
+        expect: Expect::Value(Answer::Lowered(true)),
     },
     Case {
         name: CaseName("empty_regex_and_replacement_are_constants"),
         word: Word::Succeeds,
-        input: || r#"let a = replace(from="function", text="name", pattern="", replacement="", output="label"); emit a subject file key(label);"#,
-        expect: Expect::Value(true),
+        input: || Scenario::Text(r#"let a = replace(from="function", text="name", pattern="", replacement="", output="label"); emit a subject file key(label);"#),
+        expect: Expect::Value(Answer::Lowered(true)),
     },
     Case {
         name: CaseName("invalid_regex_refused_without_rows"),
         word: Word::Refuses,
-        input: || r#"let a = replace(from="function", text="name", pattern="[", replacement="", output="label"); emit a subject file key(label);"#,
+        input: || Scenario::Text(r#"let a = replace(from="function", text="name", pattern="[", replacement="", output="label"); emit a subject file key(label);"#),
         expect: Expect::Refusal(|error| {
             selects!(matches!(error, LoweringError::InvalidRegex { .. }))
         }),
@@ -183,7 +214,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("numeric_text_refused"),
         word: Word::Refuses,
-        input: || r#"let a = replace(from="source-location", text="start-byte", pattern="a", replacement="", output="label"); emit a subject file key(label);"#,
+        input: || Scenario::Text(r#"let a = replace(from="source-location", text="start-byte", pattern="a", replacement="", output="label"); emit a subject file key(label);"#),
         expect: Expect::Refusal(|error| {
             selects!(matches!(error, LoweringError::KindMismatch { .. }))
         }),
@@ -191,7 +222,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("output_collision_refused"),
         word: Word::Refuses,
-        input: || r#"let a = replace(from="function", text="name", pattern="a", replacement="", output="name"); emit a subject file key(name);"#,
+        input: || Scenario::Text(r#"let a = replace(from="function", text="name", pattern="a", replacement="", output="name"); emit a subject file key(name);"#),
         expect: Expect::Refusal(|error| {
             selects!(matches!(error, LoweringError::DuplicateOutput { .. }))
         }),
@@ -199,13 +230,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("explicit_projection_and_numeric_order"),
         word: Word::Succeeds,
-        input: || r#"let a = ordered-match(left="source-location", right="source-location", left-on=[file], right-on=[file], left-order="start-byte", right-order="end-byte", output={file: [left,file], span: [right,span]}); emit a subject file key(span);"#,
-        expect: Expect::Value(true),
+        input: || Scenario::Text(r#"let a = ordered-match(left="source-location", right="source-location", left-on=[file], right-on=[file], left-order="start-byte", right-order="end-byte", output={file: [left,file], span: [right,span]}); emit a subject file key(span);"#),
+        expect: Expect::Value(Answer::Lowered(true)),
     },
     Case {
         name: CaseName("text_order_refused"),
         word: Word::Refuses,
-        input: || r#"let a = ordered-match(left="function", right="function", left-on=[file], right-on=[file], left-order="name", right-order="name", output={file: [left,file]}); emit a subject file key(file);"#,
+        input: || Scenario::Text(r#"let a = ordered-match(left="function", right="function", left-on=[file], right-on=[file], left-order="name", right-order="name", output={file: [left,file]}); emit a subject file key(file);"#),
         expect: Expect::Refusal(|error| {
             selects!(matches!(error, LoweringError::KindMismatch { .. }))
         }),
@@ -213,7 +244,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("unlike_group_keys_refused"),
         word: Word::Refuses,
-        input: || r#"let a = ordered-match(left="source-location", right="source-location", left-on=[file], right-on=["start-byte"], left-order="start-byte", right-order="end-byte", output={file: [left,file]}); emit a subject file key(file);"#,
+        input: || Scenario::Text(r#"let a = ordered-match(left="source-location", right="source-location", left-on=[file], right-on=["start-byte"], left-order="start-byte", right-order="end-byte", output={file: [left,file]}); emit a subject file key(file);"#),
         expect: Expect::Refusal(|error| {
             selects!(matches!(error, LoweringError::KindMismatch { .. }))
         }),
@@ -221,10 +252,40 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("unequal_key_counts_refused"),
         word: Word::Refuses,
-        input: || r#"let a = ordered-match(left="source-location", right="source-location", left-on=[file], right-on=[], left-order="start-byte", right-order="end-byte", output={file: [left,file]}); emit a subject file key(file);"#,
+        input: || Scenario::Text(r#"let a = ordered-match(left="source-location", right="source-location", left-on=[file], right-on=[], left-order="start-byte", right-order="end-byte", output={file: [left,file]}); emit a subject file key(file);"#),
         expect: Expect::Refusal(|error| {
             selects!(matches!(error, LoweringError::KindMismatch { .. }))
         }),
+    },
+    Case {
+        name: CaseName("span_between_types_and_arguments"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(span_between_types_and_arguments),
+        expect: Expect::Value(Answer::Checked),
+    },
+    Case {
+        name: CaseName("span_between_checks_instantiated_fragment_scope"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(span_between_checks_instantiated_fragment_scope),
+        expect: Expect::Value(Answer::Checked),
+    },
+    Case {
+        name: CaseName("source_matches_types_arguments_pattern_and_scope"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(source_matches_types_arguments_pattern_and_scope),
+        expect: Expect::Value(Answer::Checked),
+    },
+    Case {
+        name: CaseName("source_matches_named_capture_is_typed_and_validated"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(source_matches_named_capture_is_typed_and_validated),
+        expect: Expect::Value(Answer::Checked),
+    },
+    Case {
+        name: CaseName("span_bounds_types_outputs_and_file_scope"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(span_bounds_types_outputs_and_file_scope),
+        expect: Expect::Value(Answer::Checked),
     },
 ];
 
@@ -277,7 +338,6 @@ fn span_plan(
         .map_err(|error| error.to_string())
 }
 
-#[test]
 fn span_between_types_and_arguments() {
     let valid = r#"let a = span-between(from="function", start="span", end="span", output="diagnostic"); emit a subject file key(diagnostic);"#;
     let plan = span_plan(valid, None, &[]).expect("typed span projection");
@@ -318,7 +378,6 @@ fn span_between_types_and_arguments() {
     }
 }
 
-#[test]
 fn span_between_checks_instantiated_fragment_scope() {
     use ryo_relations::domain::relations::types::CellKind;
     use ryo_values::domain::hosted::types::{
@@ -359,7 +418,6 @@ let a = compose(rows=rows); emit a subject file key(diagnostic);"#;
     );
 }
 
-#[test]
 fn source_matches_types_arguments_pattern_and_scope() {
     use ryo_relations::domain::relations::types::CellKind;
     use ryo_values::domain::hosted::types::{
@@ -433,7 +491,6 @@ emit a subject file key(hit);"#;
     }
 }
 
-#[test]
 fn source_matches_named_capture_is_typed_and_validated() {
     let valid = r#"let a = source-matches(from="function", span="span", pattern="(?P<run>\\\\+)", output="hit", capture="run", capture-output="run_span", capture-text-output="run_text"); emit a subject file key(hit);"#;
     let plan = span_plan(valid, None, &[]).expect("named capture lowers");
@@ -466,7 +523,6 @@ fn source_matches_named_capture_is_typed_and_validated() {
     }
 }
 
-#[test]
 fn span_bounds_types_outputs_and_file_scope() {
     use ryo_relations::domain::relations::types::CellKind;
     use ryo_values::domain::hosted::types::{

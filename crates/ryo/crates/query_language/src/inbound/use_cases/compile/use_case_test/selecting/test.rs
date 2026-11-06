@@ -14,11 +14,32 @@ use ryo_values::domain::plans::types::{Operation, PlanStep, StepScope};
 use ryo_values::domain::program::types::{Expression, QueryView};
 
 /// The query text a row gives.
-type Input = &'static str;
+type Text = &'static str;
 /// The operations of the plan's steps, in order, named.
-type Value = &'static str;
+type Operations = &'static str;
 /// What the lowering refuses a row with.
 type Failure = LoweringError;
+
+/// What a row asks of the part.
+#[derive(Clone, Copy)]
+enum Scenario {
+    /// Lower the text the row gives.
+    Text(Text),
+    /// A check that drives the part itself and asserts what it answers.
+    Check(fn()),
+}
+
+/// What a row answers.
+#[derive(Debug, PartialEq, Eq)]
+enum Answer {
+    /// The lowering answered this.
+    Lowered(Operations),
+    /// The check ran and held every assertion it makes.
+    Checked,
+}
+
+type Input = Scenario;
+type Value = Answer;
 
 const KEYED: &str =
     "let a = select id, name from \"function\" where name = \"main\"; emit a subject name key(id);";
@@ -29,40 +50,56 @@ const UNKEYED: &str =
     "let a = select name, file as \"f\" from \"function\"; emit a subject f key(f);";
 
 /// The rows of this part's cases.
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    match scenario {
+        Scenario::Text(text) => lower(text).map(Answer::Lowered),
+        Scenario::Check(check) => {
+            check();
+            Ok(Answer::Checked)
+        }
+    }
+}
+
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName(
             "a_projection_keeping_a_column_that_says_which_row_it_is_is_one_step_with_the_filter",
         ),
         word: Word::Succeeds,
-        input: || KEYED,
-        expect: Expect::Value("select"),
+        input: || Scenario::Text(KEYED),
+        expect: Expect::Value(Answer::Lowered("select")),
     },
     Case {
         name: CaseName("a_projection_keeping_no_such_column_drops_repeats"),
         word: Word::Succeeds,
-        input: || UNKEYED,
-        expect: Expect::Value("project"),
+        input: || Scenario::Text(UNKEYED),
+        expect: Expect::Value(Answer::Lowered("project")),
     },
     Case {
         name: CaseName("an_or_filters_each_alternative_and_unites_them"),
         word: Word::Succeeds,
-        input: || EITHER,
-        expect: Expect::Value("select select union"),
+        input: || Scenario::Text(EITHER),
+        expect: Expect::Value(Answer::Lowered("select select union")),
     },
     Case {
         name: CaseName("an_or_with_a_projection_unites_the_alternatives_before_it"),
         word: Word::Succeeds,
-        input: || EITHER_KEYED,
-        expect: Expect::Value("select select union project-keyed"),
+        input: || Scenario::Text(EITHER_KEYED),
+        expect: Expect::Value(Answer::Lowered("select select union project-keyed")),
     },
     Case {
         name: CaseName("an_unknown_column_in_an_alternative_is_refused"),
         word: Word::Refuses,
-        input: || UNKNOWN_IN_OR,
+        input: || Scenario::Text(UNKNOWN_IN_OR),
         expect: Expect::Refusal(|error| {
             selects!(matches!(error, LoweringError::UnknownColumn { name, .. } if name == "nothing"))
         }),
+    },
+    Case {
+        name: CaseName("many_or_alternatives_keep_each_filter_and_bound_union_depth"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(many_or_alternatives_keep_each_filter_and_bound_union_depth),
+        expect: Expect::Value(Answer::Checked),
     },
 ];
 
@@ -130,7 +167,7 @@ fn named(steps: &[PlanStep]) -> String {
 }
 
 /// Lowers the text step by step with the part's own lowering, but the answer must be one of the known lists.
-fn subject(text: Input) -> Result<Value, Failure> {
+fn lower(text: Text) -> Result<Operations, Failure> {
     let program = winnow()
         .read(QueryView(text))
         .expect("the row's text is readable");
@@ -174,7 +211,6 @@ fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
 
-#[test]
 fn many_or_alternatives_keep_each_filter_and_bound_union_depth() {
     let tests = (0..195)
         .map(|number| format!("name = \"alternative_{number}\""))
