@@ -28,11 +28,11 @@ ryo::reads! {
                     MembershipState::Unknown => constants::UNKNOWN,
                 }))),
                 kind: value(languages::intern_derived(symbols, languages::ByteSlice(&[]), languages::NameText(match membership.kind {
-                    EntryKind::Module => "module",
-                    EntryKind::Package => "package",
-                    EntryKind::Namespace => "namespace",
-                    EntryKind::Absent => "absent",
-                    EntryKind::Unknown => "unknown",
+                    EntryKind::Module => super::constants::MODULE,
+                    EntryKind::Package => super::constants::PACKAGE,
+                    EntryKind::Namespace => super::constants::NAMESPACE,
+                    EntryKind::Absent => super::constants::ABSENT,
+                    EntryKind::Unknown => crate::domain::language::constants::UNKNOWN,
                 }))),
             }
         }

@@ -1,5 +1,6 @@
 //! Missing payload is partial only when the optional bytes relation is demanded.
 
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::super::fixtures::contract::check;
 use super::item::BytesLiteralItem;
 use crate::domain::{
@@ -74,7 +75,6 @@ impl SyntaxPort for MissingPayload {
     }
 }
 
-#[test]
 fn decoded_bytes_keep_octets_and_join_adjacent_pieces() {
     check::<BytesLiteralItem>();
     let result = reading::<BytesLiteralItem>("b'\\x00\\xff' b'A'\nb''\nbr'\\n'\n'not bytes'\n");
@@ -90,7 +90,6 @@ fn decoded_bytes_keep_octets_and_join_adjacent_pieces() {
     );
 }
 
-#[test]
 fn unrequested_payload_is_unread_and_requested_missing_payload_is_partial() {
     for payload in [
         MissingPayload(None, None),
@@ -147,10 +146,39 @@ fn unrequested_payload_is_unread_and_requested_missing_payload_is_partial() {
     }
 }
 
-#[test]
 fn synthetic_fstring_text_is_not_a_primitive_bytes_payload() {
     let result = reading::<BytesLiteralItem>("''.strip(f'aa')\nf'{value}text'\nb'aa'\n");
     assert!(result.causes.is_empty(), "{:?}", result.causes);
     assert_eq!(result.rows.len(), 1);
     assert_eq!(result.rows[0][2], languages::contract::want_name("6161"));
+}
+
+/// Each check below states its own source and asserts its own outcome.
+const CASES: &[Case<fn(), (), ()>] = &[
+    Case {
+        name: CaseName("decoded_bytes_keep_octets_and_join_adjacent_pieces"),
+        word: Word::Succeeds,
+        input: || decoded_bytes_keep_octets_and_join_adjacent_pieces,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("unrequested_payload_is_unread_and_requested_missing_payload_is_partial"),
+        word: Word::Succeeds,
+        input: || unrequested_payload_is_unread_and_requested_missing_payload_is_partial,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("synthetic_fstring_text_is_not_a_primitive_bytes_payload"),
+        word: Word::Succeeds,
+        input: || synthetic_fstring_text_is_not_a_primitive_bytes_payload,
+        expect: Expect::Value(()),
+    },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |check| {
+        check();
+        Ok(())
+    });
 }

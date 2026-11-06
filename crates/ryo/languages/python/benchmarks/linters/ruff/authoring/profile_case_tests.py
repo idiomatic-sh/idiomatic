@@ -8,6 +8,7 @@ import tempfile
 from pathlib import Path
 import tomllib
 from authoring import case_records
+from authoring import case_observations
 from authoring import profile_config
 from authoring import profile_proofs
 from authoring import profile_sources
@@ -35,22 +36,22 @@ def project_inputs_identity_self_test() -> None:
 def execution_metadata_self_test() -> None:
     """Version boundaries retain old diagnostics without inventing known execution or waiving fresh candidate guards."""
     row = {'observation_schema': 'benchmark-case/v2', 'execution_metadata': {'availability': 'complete'}, 'files': ['case.py'], 'skipped': [], 'coverage': {'selected_rule_file_pairs': 1, 'evaluated_rule_file_pairs': 1, 'skipped_rule_file_pairs': 0, 'unknown_or_unread_rule_file_pairs': 0}}
-    assert case_records.record_execution_complete(row)
-    assert case_records.record_execution_comparison(row, row) == 'exact'
+    assert case_observations.record_execution_complete(row)
+    assert case_observations.record_execution_comparison(row, row) == 'exact'
     unavailable = {**row, 'execution_metadata': {'availability': 'unavailable', 'reason': 'findings-only format'}, 'coverage': None}
-    assert case_records.record_execution_comparison(unavailable, row) == 'incomparable'
+    assert case_observations.record_execution_comparison(unavailable, row) == 'incomparable'
     legacy = {key: value for key, value in row.items() if key not in {'observation_schema', 'execution_metadata'}}
-    assert not case_records.record_execution_complete(legacy)
-    assert case_records.record_execution_comparison(unavailable, legacy) == 'incomparable'
-    assert case_records.record_execution_comparison(legacy, row) == 'incomparable'
+    assert not case_observations.record_execution_complete(legacy)
+    assert case_observations.record_execution_comparison(unavailable, legacy) == 'incomparable'
+    assert case_observations.record_execution_comparison(legacy, row) == 'incomparable'
     for invalid in ({**row, 'execution_metadata': {'availability': 'unknown'}}, {**row, 'coverage': None}, {**row, 'coverage': {**row['coverage'], 'unknown_or_unread_rule_file_pairs': 1}}, {**row, 'coverage': {**row['coverage'], 'selected_rule_file_pairs': 2}}):
-        assert not case_records.record_execution_complete(invalid)
-        assert case_records.record_execution_comparison(unavailable, invalid) == 'different'
+        assert not case_observations.record_execution_complete(invalid)
+        assert case_observations.record_execution_comparison(unavailable, invalid) == 'different'
     skipped = {**row, 'skipped': [{'rule': 'UP025', 'path': 'case.py', 'reason': 'syntax-rejected'}], 'coverage': {**row['coverage'], 'evaluated_rule_file_pairs': 0, 'skipped_rule_file_pairs': 1}}
-    assert case_records.record_execution_complete(skipped)
-    assert case_records.record_execution_comparison(row, skipped) == 'different'
-    assert case_records.record_execution_comparison(skipped, skipped) == 'exact'
-    assert case_records.record_execution_comparison(unavailable, skipped) == 'incomparable'
+    assert case_observations.record_execution_complete(skipped)
+    assert case_observations.record_execution_comparison(row, skipped) == 'different'
+    assert case_observations.record_execution_comparison(skipped, skipped) == 'exact'
+    assert case_observations.record_execution_comparison(unavailable, skipped) == 'incomparable'
 
 def context_guard_self_test() -> None:
     """Independent native receipt rejects missing, mixed, and undeclared context evidence."""
@@ -246,7 +247,7 @@ def reference_discrepancy_self_test() -> None:
         source_digest.update(text.encode())
     assert source_digest.hexdigest() == cross['source_sha256']
     assert json.dumps(cross['output'], sort_keys=True, separators=(',', ':'), ensure_ascii=False) == cross['canonical_utf8']
-    source = profile_config.RUFF_DIR / 'fixtures/reference-discrepancy'
+    source = profile_config.REPOSITORY / 'crates/ryo/crates/benchmark/tests/fixtures/reference-discrepancy-python-f821'
     with tempfile.TemporaryDirectory(prefix='reference-discrepancy-guard-') as temporary:
         profile = Path(temporary)
         shutil.copyfile(source / 'benchmark.toml', profile / 'benchmark.toml')
@@ -348,7 +349,7 @@ def reference_discrepancy_self_test() -> None:
 
 def discrepancy_artifact_staging_self_test() -> None:
     """Declared evidence is shared exactly once and cannot escape or replace inputs."""
-    fixture = profile_config.RUFF_DIR / 'fixtures/reference-discrepancy'
+    fixture = profile_config.REPOSITORY / 'crates/ryo/crates/benchmark/tests/fixtures/reference-discrepancy-python-f821'
     with tempfile.TemporaryDirectory(prefix='ryo-evidence-staging-') as temporary:
         directory = Path(temporary)
         source = directory / 'source'

@@ -35,7 +35,7 @@ pub(crate) struct RawFormatSegment {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct RawFormatIndex {
     /// Budgeted previous-source grammar results; no source-node identities.
-    pub memo: crate::domain::grammar_cache::types::Memo<FormatParseResult>,
+    pub memo: crate::domain::grammar_cache::types::GrammarMemo<FormatParseResult>,
     /// Exact unescaped raw bodies, parsed once per distinct input.
     pub by_input: indexmap::IndexMap<FormatCacheInput, FormatResultIndex>,
     /// One complete grammar result per distinct body.

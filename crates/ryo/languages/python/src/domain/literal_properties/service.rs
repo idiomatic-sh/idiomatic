@@ -1,5 +1,6 @@
 //! Classify literals from parser-owned scalar and decoded-token properties without evaluating them.
 
+use super::types::{Interpolated, LiteralClassification, Properties};
 use crate::domain::{
     nodes::types::Node,
     syntax::{
@@ -12,52 +13,29 @@ use crate::domain::{
     },
     tokens::types::Token,
 };
-use ryo::languages::{self, Position, Tree};
-
-/// A known primitive category and the three explicitly limited predicates.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Properties {
-    /// The closed primitive category.
-    pub kind: &'static str,
-    /// Whether a numeric parser value is exactly zero.
-    pub zero: bool,
-    /// Whether a decoded string or bytes parser value is empty.
-    pub empty: bool,
-    /// Whether the parsed boolean is `True`.
-    pub boolean: bool,
-}
-
-/// A constant that is not a primitive occurrence, has a complete primitive payload, or lacks one.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Classification {
-    /// Not a primitive literal row, including synthetic interpolation fragments.
-    NotPrimitive,
-    /// A complete parser-derived result.
-    Known(Properties),
-    /// A primitive node exists but lacks required parser payload.
-    MissingPayload,
-}
+use ryo::languages::{self, Flag, NameText, Position, Tree};
+use super::constants;
 
 /// Whether the parser's `Constant` node is a synthetic piece of an interpolated string.
-fn interpolation_fragment(tree: &Tree<'_>, at: Position) -> bool {
+fn interpolation_fragment(tree: &Tree<'_>, at: Position) -> Interpolated {
     let mut child = at;
     let mut above = parent(tree, child);
     while above != child {
         match kind(tree, above) {
             // Values and format-spec expressions are real Python expressions. Constants
             // beneath them remain primitive occurrences even though they are in a string.
-            Kind::Node(Node::FormattedValue | Node::Interpolation) => return false,
-            Kind::Node(Node::JoinedStr | Node::TemplateStr) => return true,
+            Kind::Node(Node::FormattedValue | Node::Interpolation) => return Interpolated(false),
+            Kind::Node(Node::JoinedStr | Node::TemplateStr) => return Interpolated(true),
             Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => {}
         }
         child = above;
         above = parent(tree, above);
     }
-    false
+    Interpolated(false)
 }
 
 /// Whether every decoded piece of this primitive string is empty.
-fn decoded_string_empty(tree: &Tree<'_>, at: Position) -> Option<bool> {
+fn decoded_string_empty(tree: &Tree<'_>, at: Position) -> Option<Flag> {
     let mut found = false;
     let mut nonempty = false;
     for token in below(tree, at).filter(|each| kind(tree, *each) == Kind::Token(Token::String)) {
@@ -65,7 +43,7 @@ fn decoded_string_empty(tree: &Tree<'_>, at: Position) -> Option<bool> {
         found = true;
         nonempty |= !decoded.0.is_empty();
     }
-    found.then_some(!nonempty)
+    found.then_some(if nonempty { Flag::Lowered } else { Flag::Raised })
 }
 
 /// Read one parser-owned scalar payload without interpreting source spelling.
@@ -73,13 +51,18 @@ fn payload<'a>(
     tree: &'a Tree<'_>,
     at: Position,
     property: languages::PropertyId,
-) -> Option<&'a str> {
-    languages::property_at(tree.elements, at, property).map(|text| text.0)
+) -> Option<NameText<'a>> {
+    languages::property_at(tree.elements, at, property)
 }
 
 /// Build a complete primitive classification from its parsed category and predicates.
-fn flag(kind: &'static str, zero: bool, empty: bool, boolean: bool) -> Classification {
-    Classification::Known(Properties {
+fn flag(
+    kind: NameText<'static>,
+    zero: Flag,
+    empty: Flag,
+    boolean: Flag,
+) -> LiteralClassification {
+    LiteralClassification::Known(Properties {
         kind,
         zero,
         empty,
@@ -89,59 +72,88 @@ fn flag(kind: &'static str, zero: bool, empty: bool, boolean: bool) -> Classific
 
 /// Classify one native or enabled embedded primitive occurrence. No spelling is parsed again.
 #[must_use]
-pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> Classification {
-    if kind(tree, at) != Kind::Node(Node::Constant) || interpolation_fragment(tree, at) {
-        return Classification::NotPrimitive;
+pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> LiteralClassification {
+    if kind(tree, at) != Kind::Node(Node::Constant) || interpolation_fragment(tree, at).0 {
+        return LiteralClassification::NotPrimitive;
     }
 
     // Keep typed bytes separate from decoded text, even though both are constant expressions.
     let scalar_kind = payload(tree, at, SCALAR_KIND);
-    if scalar_kind == Some(BYTES_SCALAR) {
-        return payload(tree, at, SCALAR_VALUE).map_or(Classification::MissingPayload, |value| {
-            flag("bytes", false, value.is_empty(), false)
+    if scalar_kind.map(|each| each.0) == Some(BYTES_SCALAR) {
+        return payload(tree, at, SCALAR_VALUE).map_or(LiteralClassification::MissingPayload, |value| {
+            flag(
+                NameText(crate::domain::syntax::constants::BYTES_SCALAR),
+                Flag::Lowered,
+                if value.0.is_empty() { Flag::Raised } else { Flag::Lowered },
+                Flag::Lowered,
+            )
         });
     }
 
     if literal(tree, at) == Literal::String {
-        return decoded_string_empty(tree, at).map_or(Classification::MissingPayload, |empty| {
-            flag("string", false, empty, false)
+        return decoded_string_empty(tree, at).map_or(LiteralClassification::MissingPayload, |empty| {
+            flag(NameText(constants::STRING), Flag::Lowered, empty, Flag::Lowered)
         });
     }
 
     let Some(scalar_kind) = scalar_kind else {
-        return Classification::MissingPayload;
+        return LiteralClassification::MissingPayload;
     };
-    match scalar_kind {
+    match scalar_kind.0 {
         INTEGER_SCALAR => payload(tree, at, SCALAR_VALUE)
-            .map_or(Classification::MissingPayload, |value| {
-                flag("integer", value == "0", false, false)
+            .map_or(LiteralClassification::MissingPayload, |value| {
+                flag(
+                    NameText(crate::domain::syntax::constants::INTEGER_SCALAR),
+                    if value.0 == constants::ZERO_PAYLOAD { Flag::Raised } else { Flag::Lowered },
+                    Flag::Lowered,
+                    Flag::Lowered,
+                )
             }),
         FLOAT_SCALAR => payload(tree, at, SCALAR_VALUE)
-            .and_then(|bits| bits.parse::<u64>().ok())
-            .map_or(Classification::MissingPayload, |bits| {
-                flag("float", f64::from_bits(bits) == 0.0_f64, false, false)
+            .and_then(|bits| match bits.0.parse::<u64>() { Ok(parsed) => Some(parsed), Err(_) => None })
+            .map_or(LiteralClassification::MissingPayload, |bits| {
+                flag(
+                    NameText(crate::domain::syntax::constants::FLOAT_SCALAR),
+                    if f64::from_bits(bits) == 0.0_f64 { Flag::Raised } else { Flag::Lowered },
+                    Flag::Lowered,
+                    Flag::Lowered,
+                )
             }),
         COMPLEX_SCALAR => payload(tree, at, SCALAR_VALUE)
-            .and_then(|real| real.parse::<u64>().ok())
+            .and_then(|real| match real.0.parse::<u64>() { Ok(parsed) => Some(parsed), Err(_) => None })
             .zip(
                 payload(tree, at, SCALAR_IMAGINARY)
-                    .and_then(|imaginary| imaginary.parse::<u64>().ok()),
+                    .and_then(|imaginary| match imaginary.0.parse::<u64>() { Ok(parsed) => Some(parsed), Err(_) => None }),
             )
-            .map_or(Classification::MissingPayload, |(real, imaginary)| {
+            .map_or(LiteralClassification::MissingPayload, |(real, imaginary)| {
                 flag(
-                    "complex",
-                    f64::from_bits(real) == 0.0_f64 && f64::from_bits(imaginary) == 0.0_f64,
-                    false,
-                    false,
+                    NameText(crate::domain::syntax::constants::COMPLEX_SCALAR),
+                    if f64::from_bits(real) == 0.0_f64 && f64::from_bits(imaginary) == 0.0_f64 {
+                        Flag::Raised
+                    } else {
+                        Flag::Lowered
+                    },
+                    Flag::Lowered,
+                    Flag::Lowered,
                 )
             }),
         BOOLEAN_SCALAR => payload(tree, at, SCALAR_VALUE)
-            .and_then(|value| value.parse::<bool>().ok())
-            .map_or(Classification::MissingPayload, |boolean| {
-                flag("boolean", false, false, boolean)
+            .and_then(|value| match value.0.parse::<bool>() { Ok(parsed) => Some(parsed), Err(_) => None })
+            .map_or(LiteralClassification::MissingPayload, |boolean| {
+                flag(
+                    NameText(crate::domain::syntax::constants::BOOLEAN_SCALAR),
+                    Flag::Lowered,
+                    Flag::Lowered,
+                    if boolean { Flag::Raised } else { Flag::Lowered },
+                )
             }),
-        NONE_SCALAR => flag("null", false, false, false),
-        ELLIPSIS_SCALAR => flag("ellipsis", false, false, false),
-        _ => Classification::MissingPayload,
+        NONE_SCALAR => flag(NameText(constants::NULL), Flag::Lowered, Flag::Lowered, Flag::Lowered),
+        ELLIPSIS_SCALAR => flag(
+            NameText(crate::domain::syntax::constants::ELLIPSIS_SCALAR),
+            Flag::Lowered,
+            Flag::Lowered,
+            Flag::Lowered,
+        ),
+        _ => LiteralClassification::MissingPayload,
     }
 }

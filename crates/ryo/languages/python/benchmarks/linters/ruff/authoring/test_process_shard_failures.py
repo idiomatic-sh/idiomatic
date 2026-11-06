@@ -93,7 +93,7 @@ class ProcessShardTests(unittest.TestCase):
     def test_generic_record_boundary_refuses_invalid_rows_without_process_cases(self):
         for row in [None, [], {'rule':[], 'name':'case', 'side':'reference'}, {'rule':'A001', 'name':{}, 'side':'reference'}, {'rule':'A001', 'name':'case', 'side':[]}]:
             with self.subTest(row=row), self.assertRaises(ValueError):
-                case_records.complete_case_ids([], [row])
+                case_observations.complete_case_ids([], [row])
 
     def test_missing_required_metadata_never_resumes_byte_only_rows_as_complete(self):
         self.case = {'rule': 'A001', 'name': 'case', 'reference_discrepancy': None, 'file_observation': 'posix-executable'}

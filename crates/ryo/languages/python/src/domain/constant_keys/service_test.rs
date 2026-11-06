@@ -1,17 +1,21 @@
 //! Independent boundary checks for typed constant keys.
 
 use super::service::{clear, intern_with_hash, key_of, prepare};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::constant_keys::types::{KeyClass, RetainedKeyIndex};
 use crate::domain::{
-    constant_keys::types::{ConstantKeyIndex, KeyState, KeyWord, LiteralKind},
+    constant_keys::types::{KeyHash, KeyState, KeyWord, LiteralKind},
     model::types::Declarations,
-    semantic_syntax::service::positions,
+    semantic_syntax::{
+        service::{positions, visibility},
+        types::Visibility,
+    },
     syntax::service::{kind, written},
     syntax::types::Kind,
 };
 use crate::fixtures::reading::{initialize_model, parsed};
 use ryo::languages::{self, ByteSlice, Tree};
 
-#[test]
 fn supported_numeric_keys_normalize_and_unsupported_expressions_are_absent() {
     let file = parsed(b"1\nTrue\n1.0\n0x1\n1+0j\n1+1\n(f(), 2)\n(1, (2,))\n(1.0, (2,))\n(18446744073709551616, 1)\n(18446744073709551616, 1.0)\n(-18446744073709551616, 1)\n(-18446744073709551616, 1.0)\n18446744073709551615\n0xffffffffffffffff\n1_000\n0x3e8\n-True\n-1\n")
         .expect("independent source parses");
@@ -23,7 +27,9 @@ fn supported_numeric_keys_normalize_and_unsupported_expressions_are_absent() {
     let mut symbols = file.symbols;
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    let index = prepare(&tree, &model, &mut symbols);
+    let index = prepare(&tree, &model.constant_keys, &mut symbols, |at, symbols| {
+        (visibility(&tree, &model, at, symbols) == Visibility::Visible).into()
+    });
     assert_eq!(
         index.state,
         KeyState::Complete,
@@ -72,7 +78,6 @@ fn supported_numeric_keys_normalize_and_unsupported_expressions_are_absent() {
     assert!(equivalent("(1, (2,))", "(1.0, (2,))"));
 }
 
-#[test]
 fn float_boundaries_and_huge_integer_structural_keys_are_retained() {
     let file = parsed(b"9007199254740992\n9007199254740992.0\n9007199254740993\n9007199254740993.0\n18446744073709551616\n18446744073709551616\n-0.0\n0.0\n")
         .expect("independent source parses");
@@ -84,7 +89,9 @@ fn float_boundaries_and_huge_integer_structural_keys_are_retained() {
     let mut symbols = file.symbols;
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    let index = prepare(&tree, &model, &mut symbols);
+    let index = prepare(&tree, &model.constant_keys, &mut symbols, |at, symbols| {
+        (visibility(&tree, &model, at, symbols) == Visibility::Visible).into()
+    });
     let values: Vec<_> = positions(&tree)
         .filter(|at| {
             matches!(
@@ -130,7 +137,6 @@ fn float_boundaries_and_huge_integer_structural_keys_are_retained() {
     assert_eq!(keys[6], keys[7]);
 }
 
-#[test]
 fn underflow_subnormal_infinity_complex_and_unary_values_follow_typed_payloads() {
     let source = b"0\n1e-9999\n5e-324\n1e9999\n0j\n1j\n1+1j\n1.0+1j\n1-1j\n1.0-1j\n9007199254740993+0j\n9007199254740992\n-0.0\n0.0\n18446744073709551615\n18446744073709551616.0\n";
     let file = parsed(source).expect("independent source parses");
@@ -142,7 +148,9 @@ fn underflow_subnormal_infinity_complex_and_unary_values_follow_typed_payloads()
     let mut symbols = file.symbols;
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    let index = prepare(&tree, &model, &mut symbols);
+    let index = prepare(&tree, &model.constant_keys, &mut symbols, |at, symbols| {
+        (visibility(&tree, &model, at, symbols) == Visibility::Visible).into()
+    });
     let occurrences: Vec<_> = positions(&tree)
         .filter(|at| {
             matches!(
@@ -175,7 +183,6 @@ fn underflow_subnormal_infinity_complex_and_unary_values_follow_typed_payloads()
     assert_ne!(key("18446744073709551615"), key("18446744073709551616.0"));
 }
 
-#[test]
 fn invalidation_clears_occurrences_but_keeps_the_reader_reusable() {
     let mut model = Declarations::default();
     let first = parsed(b"1\n").expect("source parses");
@@ -190,7 +197,12 @@ fn invalidation_clears_occurrences_but_keeps_the_reader_reusable() {
         model.constant_keys.borrow().records.is_empty(),
         "parsing is lazy"
     );
-    let first_index = prepare(&first_tree, &model, &mut first_symbols);
+    let first_index = prepare(
+        &first_tree,
+        &model.constant_keys,
+        &mut first_symbols,
+        |at, symbols| (visibility(&first_tree, &model, at, symbols) == Visibility::Visible).into(),
+    );
     let first_words = first_index.words.clone();
     assert!(!first_index.records.is_empty());
     drop(first_index);
@@ -204,27 +216,76 @@ fn invalidation_clears_occurrences_but_keeps_the_reader_reusable() {
     };
     let mut second_symbols = second.symbols;
     initialize_model(&second_tree, &mut model);
-    let second_index = prepare(&second_tree, &model, &mut second_symbols);
+    let second_index = prepare(
+        &second_tree,
+        &model.constant_keys,
+        &mut second_symbols,
+        |at, symbols| (visibility(&second_tree, &model, at, symbols) == Visibility::Visible).into(),
+    );
     assert!(!second_index.records.is_empty());
     assert_ne!(second_index.words, first_words);
 }
 
-#[test]
 fn full_keys_disambiguate_hash_collisions() {
-    let mut index = ConstantKeyIndex::default();
+    let mut index = RetainedKeyIndex::<KeyClass, KeyWord, KeyHash, KeyState>::default();
     index.scratch.push(KeyWord::Literal(
         LiteralKind::Integer,
         Some(languages::Symbol(10)),
     ));
-    let first = intern_with_hash(&mut index, languages::Position(2), 0).expect("first key interns");
+    let first = intern_with_hash(&mut index, languages::Position(2), KeyHash(0))
+        .expect("first key interns");
     index.scratch.clear();
     index.scratch.push(KeyWord::Literal(
         LiteralKind::Integer,
         Some(languages::Symbol(11)),
     ));
     // Test the collision chain directly by using the same bucket hash in the service's intern path.
-    let second =
-        intern_with_hash(&mut index, languages::Position(5), 0).expect("second key interns");
+    let second = intern_with_hash(&mut index, languages::Position(5), KeyHash(0))
+        .expect("second key interns");
     assert_ne!(first, second);
     assert_eq!(index.records.len(), 2);
+}
+
+/// Each check below states its own source and asserts its own outcome.
+const CASES: &[Case<fn(), (), ()>] = &[
+    Case {
+        name: CaseName("supported_numeric_keys_normalize_and_unsupported_expressions_are_absent"),
+        word: Word::Succeeds,
+        input: || supported_numeric_keys_normalize_and_unsupported_expressions_are_absent,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("float_boundaries_and_huge_integer_structural_keys_are_retained"),
+        word: Word::Succeeds,
+        input: || float_boundaries_and_huge_integer_structural_keys_are_retained,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "underflow_subnormal_infinity_complex_and_unary_values_follow_typed_payloads",
+        ),
+        word: Word::Succeeds,
+        input: || underflow_subnormal_infinity_complex_and_unary_values_follow_typed_payloads,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("invalidation_clears_occurrences_but_keeps_the_reader_reusable"),
+        word: Word::Succeeds,
+        input: || invalidation_clears_occurrences_but_keeps_the_reader_reusable,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("full_keys_disambiguate_hash_collisions"),
+        word: Word::Succeeds,
+        input: || full_keys_disambiguate_hash_collisions,
+        expect: Expect::Value(()),
+    },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |check| {
+        check();
+        Ok(())
+    });
 }

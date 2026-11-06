@@ -1,5 +1,6 @@
 //! Missing payload is partial only when the optional numeric relation is demanded.
 
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::super::fixtures::contract::check;
 use super::item::NumericLiteralItem;
 use crate::domain::{
@@ -74,7 +75,6 @@ impl SyntaxPort for MissingPayload {
     }
 }
 
-#[test]
 fn numeric_reader_has_valid_rows_and_preserves_validation_completeness() {
     check::<NumericLiteralItem>();
     let result = reading::<NumericLiteralItem>("nonlocal x\n0x10\n1.0\nTrue\n1j\n");
@@ -82,7 +82,6 @@ fn numeric_reader_has_valid_rows_and_preserves_validation_completeness() {
     assert_eq!(result.rows.len(), 2);
 }
 
-#[test]
 fn unrequested_payload_is_unread_and_requested_missing_payload_is_partial() {
     for payload in [
         MissingPayload(None, None),
@@ -137,4 +136,28 @@ fn unrequested_payload_is_unread_and_requested_missing_payload_is_partial() {
             assert!(written.rows.is_empty());
         }
     }
+}
+
+/// Each check below states its own source and asserts its own outcome.
+const CASES: &[Case<fn(), (), ()>] = &[
+    Case {
+        name: CaseName("numeric_reader_has_valid_rows_and_preserves_validation_completeness"),
+        word: Word::Succeeds,
+        input: || numeric_reader_has_valid_rows_and_preserves_validation_completeness,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("unrequested_payload_is_unread_and_requested_missing_payload_is_partial"),
+        word: Word::Succeeds,
+        input: || unrequested_payload_is_unread_and_requested_missing_payload_is_partial,
+        expect: Expect::Value(()),
+    },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |check| {
+        check();
+        Ok(())
+    });
 }

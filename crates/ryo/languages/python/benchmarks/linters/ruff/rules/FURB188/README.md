@@ -9,7 +9,7 @@ The 2 certified cases below retain their exact source bytes and full intended an
 To reproduce Ruff's reference finding for `known-empty-suffix-literal-zero`, write its exact named file from [cases.toml](cases.toml) into an isolated directory and run the pinned Ruff 0.16.5 executable (SHA256 `52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8`):
 
 ```sh
-RAYON_NUM_THREADS=1 /home/vscode/.local/bin/ruff check --isolated --output-format json --cache-dir ./ruff-cache --select FURB188 --target-version py310 -- case.py
+RAYON_NUM_THREADS=1 ruff check --isolated --output-format json --cache-dir ./ruff-cache --select FURB188 --target-version py310 -- case.py
 ```
 
 ### Documented source-specific difference
@@ -24,5 +24,5 @@ if text.endswith(""):
 ```
 
 - Intended: none. Pinned Ruff observed: FURB188 case.py:0–42.
-- Basis: Exact known-empty-string suffix discrepancy: pinned rule documentation promises same-behavior replacement and the actual emitted fix is marked safe. Primary evidence: [exact_python_semantics.py](../../profiles/FURB188/evidence/exact_python_semantics.py), [exact-python-results.json](../../profiles/FURB188/evidence/exact-python-results.json).
+- Basis: Exact known-empty-string suffix discrepancy: pinned rule documentation promises same-behavior replacement and the actual emitted fix is marked safe. Primary evidence: [exact-source-controls.py](../../profiles/FURB188/evidence/exact-source-controls.py), [exact-python-results.json](../../profiles/FURB188/evidence/exact-python-results.json).
 - Reproduce: use the [profile](../../profiles/FURB188/benchmark.toml), exact named source in [cases.toml](cases.toml), and [raw receipt](../../results/full-inventory-current/furb188-target-supplement/raw-receipts.tar.gz); the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.

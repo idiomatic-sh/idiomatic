@@ -1,10 +1,12 @@
 //! The types of the `model` concept: plain data, public fields and derives, with no constructor and no inherent impl. What the
 //! language works out of a file once, before its readers run.
 
-use crate::domain::brace_format::types::BraceFormatIndex;
-use crate::domain::constant_keys::types::ConstantKeyIndex;
+use crate::domain::brace_format::types::{BraceFormatResult, BraceFormatState, CachedBraceFormat};
+use crate::domain::constant_keys::types::{KeyClass, KeyHash, KeyState, KeyWord, RetainedKeyIndex};
 use crate::domain::expression_types::types::ExpressionTypeIndex;
-use crate::domain::format_syntax::types::FormatParseIndex;
+use crate::domain::format_syntax::types::{
+    CachedFormat, FormatParseResult, FormatParseState, RetainedFormatIndex,
+};
 use crate::domain::indentation::types::IndentationIndex;
 use crate::domain::terminal_flow::types::TerminalIndex;
 use crate::domain::{labels::types::Field, syntax::types::Kind};
@@ -53,20 +55,22 @@ pub(crate) struct LexicalBinding {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Declarations {
     /// Configured language target, attached to every recognized source file.
-    pub language_target: (i64, i64),
+    pub language_target: crate::domain::standard_library::types::TargetVersion,
     /// Lazy canonical expression classes, invalidated between source revisions.
-    pub expression_shapes: RefCell<ExpressionShapeIndex>,
+    pub expression_shapes: RefCell<RetainedKeyIndex<Position, ShapeWord, ShapeHash, ShapeState>>,
     /// Lazy normalized constant-expression keys, invalidated between source revisions.
-    pub constant_keys: RefCell<ConstantKeyIndex>,
+    pub constant_keys: RefCell<RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>>,
     /// Lazy decoded percent-format parses, invalidated between source revisions.
-    pub format_parsing: RefCell<FormatParseIndex>,
+    pub format_parsing:
+        RefCell<RetainedFormatIndex<FormatParseResult, CachedFormat, FormatParseState>>,
     /// Lazy individual raw-token percent-format parses, independently demanded.
     pub raw_format: RefCell<crate::domain::raw_format::types::RawFormatIndex>,
     /// Independent lazy outcomes for original literal expression carriers.
     pub literal_expression_parsing:
         RefCell<crate::domain::literal_expression_parsing::types::LiteralParseIndex>,
     /// Lazy decoded brace-format parses, invalidated between source revisions.
-    pub brace_format: RefCell<BraceFormatIndex>,
+    pub brace_format:
+        RefCell<RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>>,
     /// Lazy basic expression types, invalidated between source revisions.
     pub expression_types: RefCell<ExpressionTypeIndex>,
     /// Lazy terminal function summaries, invalidated between source revisions.
@@ -149,19 +153,6 @@ pub(crate) enum ShapeWord {
 /// A hash chooses candidates only; full stored keys establish equality.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct ShapeHash(pub u64);
-/// An index into the retained class records.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ShapeRecordIndex(pub usize);
-/// A canonical key and an original syntax representative.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct ShapeRecord {
-    /// Its complete key in the shared arena.
-    pub words: std::ops::Range<usize>,
-    /// A real syntax occurrence, not a truncated hash.
-    pub representative: Position,
-    /// Another key with the same hash, compared in full on lookup.
-    pub previous: Option<ShapeRecordIndex>,
-}
 /// Whether the retained index belongs to a complete current tree.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) enum ShapeState {
@@ -174,21 +165,6 @@ pub(crate) enum ShapeState {
     Partial,
 }
 /// Storage is kept across source edits; no index is built until requested.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct ExpressionShapeIndex {
-    /// One optional canonical representative per syntax element.
-    pub classes: Vec<Option<Position>>,
-    /// Full keys, stored once for each unique class.
-    pub words: Vec<ShapeWord>,
-    /// Canonical classes and collision chains.
-    pub records: Vec<ShapeRecord>,
-    /// Hash bucket heads; equality never relies on this key alone.
-    pub buckets: std::collections::HashMap<ShapeHash, ShapeRecordIndex>,
-    /// One reusable key builder.
-    pub scratch: Vec<ShapeWord>,
-    /// Current parse validity.
-    pub state: ShapeState,
-}
 /// A sparse environment frame; branches inherit their entry state without copying it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct BindingFrameId(pub usize);
@@ -216,11 +192,32 @@ pub(crate) enum BindingKnowledge {
     /// An unsupported or namespace-wide effect may supply additional candidates.
     Uncertain,
 }
+/// A position in the retained candidate arena.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct CandidateIndex(pub usize);
+
+/// The candidates of one set of alternatives in the retained arena.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct CandidateRange {
+    /// The first candidate.
+    pub start: CandidateIndex,
+    /// One past the last candidate.
+    pub end: CandidateIndex,
+}
+
+/// The number of binding frames belonging to the current source revision.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct FrameCount(pub usize);
+
+/// Where a completed-arm scratch segment begins.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ArmStart(pub usize);
+
 /// An arena-backed set of real declarations, with absence distinct from uncertainty.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct BindingAlternatives {
     /// Real declaration occurrences in the retained candidate arena.
-    pub candidates: std::ops::Range<usize>,
+    pub candidates: CandidateRange,
     /// Whether an alternative can have no declaration.
     pub absence: BindingAbsence,
     /// Whether the known alternatives exhaust this static analysis.
@@ -244,7 +241,7 @@ pub(crate) struct BindingEnvironments {
     /// Frames are recycled between source revisions.
     pub frames: Vec<BindingFrame>,
     /// Number of frames belonging to the current source revision.
-    pub active: usize,
+    pub active: FrameCount,
     /// Only changed namespace keys are stored in each frame.
     pub slots: std::collections::HashMap<BindingFrameKey, BindingAlternatives>,
     /// Candidate identities are real definitions, never unknown-node sentinels.
@@ -350,7 +347,7 @@ pub(crate) struct BindingBranch {
     /// Entry environment receiving the joined result.
     pub target: BindingFrameId,
     /// Offset into retained completed-arm scratch.
-    pub start: usize,
+    pub start: ArmStart,
 }
 /// Capacity-retaining lazy binding analysis, shared by the four relation readers.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -372,7 +369,7 @@ pub(crate) struct BindingAnalysisIndex {
     /// Mutation identities indexed by namespace/name for conservative repeated and exceptional regions.
     pub mutations: Vec<BindingMutation>,
     /// Evaluation-ordered events.
-    pub events: Vec<crate::domain::binding_results::types::Event>,
+    pub events: Vec<crate::domain::binding_results::types::BindingResultEvent>,
     /// Explicit state for every analyzed reference.
     pub reads: Vec<crate::domain::binding_results::types::Read>,
     /// Real declaration associations.
@@ -393,3 +390,7 @@ pub(crate) struct BindingMutation {
     /// Store, deletion, or exception cleanup.
     pub action: BindingAction,
 }
+
+/// Index of the next deferred binding phase to drain.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct PhaseCursor(pub usize);

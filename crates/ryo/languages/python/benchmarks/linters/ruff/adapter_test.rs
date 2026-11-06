@@ -1,5 +1,6 @@
 //! Invocation, operational failures and exact-source decoding through the actual adapter.
-use super::{BoundaryFailure, adapter::LinterRuffAdapter, failure, settings::LinterRuffSettings};
+use super::engine_test::boundary_failure_test::{BoundaryFailure, failure};
+use super::{adapter::LinterRuffAdapter, settings::LinterRuffSettings};
 use ryo::linter::RuleId;
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark::outbound::linter::fixtures::contract::check;
@@ -9,26 +10,13 @@ use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
 use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 
-#[derive(Clone, Copy)]
-enum AdapterScenario {
-    Contract,
-    Operational,
-    EmptyInput,
-    Invocation,
-    InvocationPy311,
-    MissingExecutable,
-    WarningFinding,
-    MissingCleanFile,
-    CleanWarning,
-    InvalidJson,
-    ContradictoryStatus,
-    UnrequestedFile,
-    DuplicateInput,
-    UnexpectedRule,
-    ReversedSpan,
-    CanonicalRoot,
-    FrontendFinding,
-}
+#[path = "engine_test/adapter_scenario_test.rs"]
+mod adapter_scenario_test;
+use adapter_scenario_test::{
+    AdapterScenario, finding_bytes, invocation_matches,
+    reference_roots_must_match_the_declared_project_scope,
+};
+
 type Input = AdapterScenario;
 type Value = bool;
 type Failure = BoundaryFailure;
@@ -136,6 +124,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || AdapterScenario::InvalidJson,
         expect: Expect::Error(BoundaryFailure::Json),
     },
+    Case {
+        name: CaseName("reference_roots_must_match_the_declared_project_scope"),
+        word: Word::Succeeds,
+        input: || AdapterScenario::ReferenceRootsMustMatchTheDeclaredProjectScope,
+        expect: Expect::Value(true),
+    },
 ];
 
 #[expect(
@@ -147,6 +141,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     reason = "one scenario dispatcher keeps the adapter contract matrix aligned with its cases"
 )]
 fn exercise(scenario: Input) -> Result<Value, Error> {
+    if matches!(
+        scenario,
+        AdapterScenario::ReferenceRootsMustMatchTheDeclaredProjectScope
+    ) {
+        return reference_roots_must_match_the_declared_project_scope().map(|()| true);
+    }
     let root = tempfile::tempdir()?;
     let executable = root.path().join("missing-ruff");
     let target_version = if matches!(scenario, AdapterScenario::InvocationPy311) {
@@ -238,7 +238,8 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         | AdapterScenario::DuplicateInput
         | AdapterScenario::UnexpectedRule
         | AdapterScenario::ReversedSpan
-        | AdapterScenario::CanonicalRoot => (1_i32, finding),
+        | AdapterScenario::CanonicalRoot
+        | AdapterScenario::ReferenceRootsMustMatchTheDeclaredProjectScope => (1_i32, finding),
     };
     let report = ruff.decode(
         &request,
@@ -301,121 +302,4 @@ fn refuses() {
 #[test]
 fn fails() {
     run(CASES, Word::Fails, subject);
-}
-
-#[test]
-#[expect(clippy::expect_used, reason = "the literal fixture rule is valid")]
-fn reference_roots_must_match_the_declared_project_scope() {
-    use ryo::linter::RelativePath;
-    let adapter = LinterRuffAdapter::new(LinterRuffSettings {
-        executable: "/missing-ruff".into(),
-        defaults: [RuleId::try_from("I001").expect("valid rule")]
-            .into_iter()
-            .collect(),
-        target_version: "py310".into(),
-    });
-    let mut request = RunRequest {
-        performance: Default::default(),
-        selected_rules: None,
-        rule_observations: None,
-        rule_context: None,
-        project_search_roots: Some(vec![RelativePath("".into()), RelativePath("src".into())]),
-        given_project_inventory: Default::default(),
-        staged_sources: None,
-        file_metadata: None,
-        context_manifest: None,
-        root: "/tmp".into(),
-        files: vec![RelativePath("input.py".into())],
-        state: "/tmp/cache".into(),
-    };
-    assert!(adapter.prepare(&request).is_ok());
-    request.project_search_roots = Some(vec![RelativePath("".into())]);
-    assert!(matches!(adapter.prepare(&request), Err(Error::Invalid(_))));
-    request.project_search_roots = Some(Vec::new());
-    assert!(matches!(adapter.prepare(&request), Err(Error::Invalid(_))));
-    request.project_search_roots = None;
-    assert!(adapter.prepare(&request).is_ok());
-    let unrelated = LinterRuffAdapter::new(LinterRuffSettings {
-        executable: "/missing-ruff".into(),
-        defaults: [RuleId::try_from("F401").expect("valid rule")]
-            .into_iter()
-            .collect(),
-        target_version: "py310".into(),
-    });
-    request.project_search_roots = Some(vec![RelativePath("".into())]);
-    assert!(matches!(
-        unrelated.prepare(&request),
-        Err(Error::Invalid(_))
-    ));
-}
-
-fn invocation_matches(
-    ruff: &LinterRuffAdapter,
-    request: &RunRequest,
-    executable: &std::path::Path,
-    target_version: &str,
-) -> Result<bool, Error> {
-    let invocation = ruff.prepare(request)?;
-    let expected: Vec<std::ffi::OsString> = [
-        "check",
-        "--isolated",
-        "--output-format",
-        "json",
-        "--cache-dir",
-    ]
-    .into_iter()
-    .map(Into::into)
-    .chain([
-        request.state.join("ruff").into_os_string(),
-        "--select".into(),
-        "E722".into(),
-        "--target-version".into(),
-        target_version.into(),
-        "--".into(),
-        "case.py".into(),
-    ])
-    .collect();
-    Ok(invocation.arguments == expected
-        && invocation
-            .environment
-            .get(std::ffi::OsStr::new("RAYON_NUM_THREADS"))
-            == Some(&"1".into())
-        && invocation.directory == request.root
-        && invocation.executable == executable)
-}
-
-/// Build independent reference-wire coordinates for valid and deliberately invalid cases.
-fn finding_bytes(scenario: Input, filename: &std::path::Path) -> Result<Vec<u8>, Error> {
-    let code = if matches!(scenario, AdapterScenario::UnexpectedRule) {
-        "F401"
-    } else {
-        "E722"
-    };
-    let end = if matches!(scenario, AdapterScenario::ReversedSpan) {
-        1_usize
-    } else {
-        7_usize
-    };
-    let start = if matches!(scenario, AdapterScenario::ReversedSpan) {
-        7_usize
-    } else {
-        1_usize
-    };
-    let mut findings = vec![serde_json::json!({
-        "code": code,
-        "filename": filename,
-        "cell": null,
-        "location": {"row": 3_usize, "column": start},
-        "end_location": {"row": 3_usize, "column": end}
-    })];
-    if matches!(scenario, AdapterScenario::FrontendFinding) {
-        findings.push(serde_json::json!({
-            "code": "invalid-syntax",
-            "filename": filename,
-            "cell": null,
-            "location": {"row": 3_usize, "column": 7_usize},
-            "end_location": {"row": 3_usize, "column": 8_usize}
-        }));
-    }
-    serde_json::to_vec(&findings).map_err(|error| Error::Json(Box::new(error)))
 }

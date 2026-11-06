@@ -1,17 +1,23 @@
 //! Lazily build full, parser-derived constant keys for supported Python expressions.
 
+use crate::domain::constant_keys::types::RetainedKeyIndex;
 use crate::domain::constant_keys::types::{
-    ConstantKeyIndex, KeyClass, KeyRecord, KeyRecordIndex, KeyState, KeyWord, LiteralKind,
-    NumberKey, NumericState, RealKey,
+    BuiltKey, KeyClass, KeyHash, KeyRecord, KeyRecordIndex, KeyState, KeyVisibility, KeyWord,
+    LiteralKind,
 };
+use crate::domain::constant_keys::types::{Fragment, KeyWordIndex, WordRange};
 use crate::domain::{
+    constant_numbers::{
+        service::{float_key, negate, number, property, to_float},
+        types::{ExactInteger, NumberKey, NumericState, RealKey},
+    },
     fields::service::field_of,
     labels::types::Field,
     nodes::types::Node,
     syntax::{
         constants::{
-            BOOLEAN_SCALAR, BYTES_SCALAR, COMPLEX_SCALAR, ELLIPSIS_SCALAR, FLOAT_SCALAR,
-            INTEGER_SCALAR, NONE_SCALAR, SCALAR_IMAGINARY, SCALAR_KIND, SCALAR_VALUE,
+            BYTES_SCALAR, COMPLEX_SCALAR, ELLIPSIS_SCALAR, INTEGER_SCALAR, NONE_SCALAR,
+            SCALAR_KIND, SCALAR_VALUE,
         },
         service::{below, kind, literal},
         types::{Kind, Literal},
@@ -19,17 +25,19 @@ use crate::domain::{
     tokens::types::Token,
 };
 use ryo::languages::{self, Position, Symbols, Tree};
-use std::cell::Ref;
+use std::cell::{Ref, RefCell};
 use std::hash::{Hash, Hasher};
 
-/// The numeric payload retained alongside a successfully constructed full key.
-struct BuiltKey {
-    /// Numeric value when this is a primitive or normalized numeric expression.
-    number: Option<NumericState>,
+/// Read the already-built numeric payload at a child expression.
+fn numeric_class(classes: &[Option<KeyClass>], at: Position) -> Option<NumericState> {
+    let Ok(slot) = usize::try_from(at.0) else {
+        return None;
+    };
+    classes.get(slot)?.as_ref()?.number
 }
 
 /// Invalidate file-local keys while retaining reusable allocations.
-pub(crate) fn clear(index: &mut ConstantKeyIndex) {
+pub(crate) fn clear(index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>) {
     index.classes.clear();
     index.words.clear();
     index.records.clear();
@@ -40,84 +48,19 @@ pub(crate) fn clear(index: &mut ConstantKeyIndex) {
 
 /// The retained representative for one supported occurrence.
 #[must_use]
-pub(crate) fn key_of(index: &ConstantKeyIndex, at: Position) -> Option<Position> {
+pub(crate) fn key_of(
+    index: &RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>,
+    at: Position,
+) -> Option<Position> {
+    let Ok(slot) = usize::try_from(at.0) else {
+        return None;
+    };
     index
         .classes
-        .get(usize::try_from(at.0).ok()?)
+        .get(slot)
         .copied()
         .flatten()
         .map(|class| class.representative)
-}
-
-/// Read one parser-owned scalar property from an element.
-fn property<'a>(tree: &'a Tree<'_>, at: Position, id: languages::PropertyId) -> Option<&'a str> {
-    languages::property_at(tree.elements, at, id).map(|value| value.0)
-}
-
-/// The first binary64 value outside the nonnegative `u64` normalization range.
-const U64_LIMIT: f64 = f64::from_bits(0x43f0_0000_0000_0000);
-
-/// Normalize a float to an integer only when a bounded conversion round-trips exactly.
-#[expect(
-    clippy::as_conversions,
-    clippy::cast_possible_truncation,
-    clippy::cast_precision_loss,
-    clippy::float_cmp,
-    reason = "the upper bound and exact round trip prove this value is an exact supported integer"
-)]
-fn float_key(value: f64) -> RealKey {
-    if value == 0.0_f64 {
-        return RealKey::Integer(0);
-    }
-    if value.is_finite() && value.abs() < U64_LIMIT {
-        let integer = value as i128;
-        if integer as f64 == value {
-            return RealKey::Integer(integer);
-        }
-    }
-    RealKey::Float(value.to_bits())
-}
-
-/// Normalize a parser-provided numeric or boolean literal.
-fn number(tree: &Tree<'_>, at: Position) -> Option<NumberKey> {
-    let scalar = property(tree, at, SCALAR_KIND)?;
-    let zero = RealKey::Integer(0);
-    let answer = match scalar {
-        INTEGER_SCALAR => match property(tree, at, SCALAR_VALUE)?.parse::<u64>() {
-            Ok(value) => NumberKey {
-                real: RealKey::Integer(i128::from(value)),
-                imaginary: zero,
-            },
-            Err(_) => return None,
-        },
-        FLOAT_SCALAR => NumberKey {
-            real: float_key(f64::from_bits(
-                property(tree, at, SCALAR_VALUE)?.parse().ok()?,
-            )),
-            imaginary: zero,
-        },
-        COMPLEX_SCALAR => NumberKey {
-            real: float_key(f64::from_bits(
-                property(tree, at, SCALAR_VALUE)?.parse().ok()?,
-            )),
-            imaginary: float_key(f64::from_bits(
-                property(tree, at, SCALAR_IMAGINARY)?.parse().ok()?,
-            )),
-        },
-        BOOLEAN_SCALAR => NumberKey {
-            real: RealKey::Integer(i128::from(u8::from(
-                property(tree, at, SCALAR_VALUE)?.parse::<bool>().ok()?,
-            ))),
-            imaginary: zero,
-        },
-        _ => return None,
-    };
-    Some(answer)
-}
-
-/// Read the already-built numeric payload at a child expression.
-fn numeric_class(classes: &[Option<KeyClass>], at: Position) -> Option<NumericState> {
-    classes.get(usize::try_from(at.0).ok()?)?.as_ref()?.number
 }
 
 /// Find a child in the requested Python AST field.
@@ -127,10 +70,10 @@ fn child_at(tree: &Tree<'_>, at: Position, wanted: Field) -> Option<Position> {
 
 /// Build a structural key for a nonnumeric literal from its parser payload.
 fn literal_word(tree: &Tree<'_>, at: Position, symbols: &mut Symbols) -> Option<KeyWord> {
-    let scalar = property(tree, at, SCALAR_KIND)?;
+    let scalar = property(tree, at, SCALAR_KIND)?.0;
     let (category, value) = match scalar {
-        BYTES_SCALAR => (LiteralKind::Bytes, property(tree, at, SCALAR_VALUE)?),
-        INTEGER_SCALAR => (LiteralKind::Integer, property(tree, at, SCALAR_VALUE)?),
+        BYTES_SCALAR => (LiteralKind::Bytes, property(tree, at, SCALAR_VALUE)?.0),
+        INTEGER_SCALAR => (LiteralKind::Integer, property(tree, at, SCALAR_VALUE)?.0),
         NONE_SCALAR => return Some(KeyWord::Literal(LiteralKind::Null, None)),
         ELLIPSIS_SCALAR => return Some(KeyWord::Literal(LiteralKind::Ellipsis, None)),
         _ => return None,
@@ -146,7 +89,10 @@ fn literal_word(tree: &Tree<'_>, at: Position, symbols: &mut Symbols) -> Option<
 }
 
 /// Append one key component, marking the reader partial if its retained buffer cannot grow.
-fn push_word(index: &mut ConstantKeyIndex, word: KeyWord) -> Option<()> {
+fn push_word(
+    index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>,
+    word: KeyWord,
+) -> Option<()> {
     if index.scratch.try_reserve(1).is_err() {
         index.state = KeyState::Partial;
         return None;
@@ -156,20 +102,20 @@ fn push_word(index: &mut ConstantKeyIndex, word: KeyWord) -> Option<()> {
 }
 
 /// Whether an occurrence is a synthetic literal segment inside an interpolated string.
-fn interpolation_fragment(tree: &Tree<'_>, at: Position) -> bool {
+fn interpolation_fragment(tree: &Tree<'_>, at: Position) -> Fragment {
     use crate::domain::syntax::service::parent;
     let mut child = at;
     let mut above = parent(tree, child);
     while above != child {
         match kind(tree, above) {
-            Kind::Node(Node::FormattedValue | Node::Interpolation) => return false,
-            Kind::Node(Node::JoinedStr | Node::TemplateStr) => return true,
+            Kind::Node(Node::FormattedValue | Node::Interpolation) => return Fragment::Standalone,
+            Kind::Node(Node::JoinedStr | Node::TemplateStr) => return Fragment::Interpolated,
             Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => {}
         }
         child = above;
         above = parent(tree, above);
     }
-    false
+    Fragment::Standalone
 }
 
 /// Build a key for a primitive constant, retaining decoded strings and bounded numeric values.
@@ -177,13 +123,13 @@ fn constant_key(
     tree: &Tree<'_>,
     at: Position,
     symbols: &mut Symbols,
-    index: &mut ConstantKeyIndex,
+    index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>,
 ) -> Option<BuiltKey> {
-    if interpolation_fragment(tree, at) {
+    if interpolation_fragment(tree, at) == Fragment::Interpolated {
         return None;
     }
-    if property(tree, at, SCALAR_KIND) == Some(INTEGER_SCALAR)
-        && property(tree, at, SCALAR_VALUE).is_some_and(|value| value.parse::<u64>().is_err())
+    if property(tree, at, SCALAR_KIND).map(|text| text.0) == Some(INTEGER_SCALAR)
+        && property(tree, at, SCALAR_VALUE).is_some_and(|value| value.0.parse::<u64>().is_err())
     {
         push_word(index, literal_word(tree, at, symbols)?)?;
         return Some(BuiltKey {
@@ -222,12 +168,19 @@ fn constant_key(
 }
 
 /// Combine already-built child keys in tuple order.
-fn tuple_key(tree: &Tree<'_>, at: Position, index: &mut ConstantKeyIndex) -> Option<BuiltKey> {
+fn tuple_key(
+    tree: &Tree<'_>,
+    at: Position,
+    index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>,
+) -> Option<BuiltKey> {
     push_word(index, KeyWord::Tuple)?;
     for child in
         languages::children(tree.elements, at).filter(|child| field_of(tree, *child) == Field::Elts)
     {
-        let Some(Some(class)) = index.classes.get(usize::try_from(child.0).ok()?).copied() else {
+        let Ok(slot) = usize::try_from(child.0) else {
+            return None;
+        };
+        let Some(Some(class)) = index.classes.get(slot).copied() else {
             return None;
         };
         push_word(index, KeyWord::Child(class.representative))?;
@@ -237,7 +190,11 @@ fn tuple_key(tree: &Tree<'_>, at: Position, index: &mut ConstantKeyIndex) -> Opt
 }
 
 /// Apply unary plus or minus to a supported numeric child.
-fn unary_key(tree: &Tree<'_>, at: Position, index: &mut ConstantKeyIndex) -> Option<BuiltKey> {
+fn unary_key(
+    tree: &Tree<'_>,
+    at: Position,
+    index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>,
+) -> Option<BuiltKey> {
     let operand = child_at(tree, at, Field::Operand)?;
     let NumericState::Number(mut number) = numeric_class(&index.classes, operand)? else {
         // Oversized integer signs stay on the ordinary structural-shape fallback path.
@@ -262,11 +219,11 @@ fn unary_key(tree: &Tree<'_>, at: Position, index: &mut ConstantKeyIndex) -> Opt
 fn complex_binary_key(
     tree: &Tree<'_>,
     at: Position,
-    index: &mut ConstantKeyIndex,
+    index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>,
 ) -> Option<BuiltKey> {
     let left = child_at(tree, at, Field::Left)?;
     let right = child_at(tree, at, Field::Right)?;
-    if property(tree, right, SCALAR_KIND) != Some(COMPLEX_SCALAR) {
+    if property(tree, right, SCALAR_KIND).map(|text| text.0) != Some(COMPLEX_SCALAR) {
         return None;
     }
     let operator =
@@ -280,7 +237,9 @@ fn complex_binary_key(
     let NumericState::Number(right_number) = numeric_class(&index.classes, right)? else {
         return None;
     };
-    if left_number.imaginary != RealKey::Integer(0) || right_number.real != RealKey::Integer(0) {
+    if left_number.imaginary != RealKey::Integer(ExactInteger(0))
+        || right_number.real != RealKey::Integer(ExactInteger(0))
+    {
         return None;
     }
     let left_real = to_float(left_number.real);
@@ -303,7 +262,7 @@ fn build_key(
     tree: &Tree<'_>,
     at: Position,
     symbols: &mut Symbols,
-    index: &mut ConstantKeyIndex,
+    index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>,
 ) -> Option<BuiltKey> {
     index.scratch.clear();
     match kind(tree, at) {
@@ -315,58 +274,45 @@ fn build_key(
     }
 }
 
-/// Negate one exact integer or IEEE float key.
-fn negate(value: RealKey) -> Option<RealKey> {
-    match value {
-        RealKey::Integer(value) => value.checked_neg().map(RealKey::Integer),
-        RealKey::Float(bits) => Some(RealKey::Float((-f64::from_bits(bits)).to_bits())),
-    }
-}
-/// Convert a real key back to its floating value for complex literal composition.
-fn to_float(value: RealKey) -> f64 {
-    match value {
-        RealKey::Integer(value) => integer_as_float(value),
-        RealKey::Float(bits) => f64::from_bits(bits),
-    }
-}
-#[expect(
-    clippy::as_conversions,
-    clippy::cast_precision_loss,
-    reason = "Python complex arithmetic converts the real operand to f64 before composing the result"
-)]
-/// Match Python complex arithmetic's conversion of a real operand to binary64.
-fn integer_as_float(value: i128) -> f64 {
-    value as f64
-}
-/// Hash a full key and intern it into the collision-checked record table.
-fn intern(index: &mut ConstantKeyIndex, at: Position) -> Option<Position> {
+fn intern(
+    index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>,
+    at: Position,
+) -> Option<Position> {
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     Hash::hash(&index.scratch, &mut hasher);
-    intern_with_hash(index, at, Hasher::finish(&hasher))
+    intern_with_hash(index, at, KeyHash(Hasher::finish(&hasher)))
 }
 
 /// Intern after a caller-selected hash, also making collision handling directly testable.
 pub(super) fn intern_with_hash(
-    index: &mut ConstantKeyIndex,
+    index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>,
     at: Position,
-    hash: u64,
+    hash: KeyHash,
 ) -> Option<Position> {
     let mut candidate = index.buckets.get(&hash).copied();
     while let Some(place) = candidate {
         let record = index.records.get(place.0)?;
-        if index.words.get(record.words.clone()) == Some(index.scratch.as_slice()) {
+        if index.words.get(record.words.start.0..record.words.end.0)
+            == Some(index.scratch.as_slice())
+        {
             return Some(record.representative);
         }
         candidate = record.previous;
     }
-    index.words.try_reserve(index.scratch.len()).ok()?;
-    index.records.try_reserve(1).ok()?;
-    index.buckets.try_reserve(1).ok()?;
+    if index.words.try_reserve(index.scratch.len()).is_err()
+        || index.records.try_reserve(1).is_err()
+        || index.buckets.try_reserve(1).is_err()
+    {
+        return None;
+    }
     let start = index.words.len();
     index.words.extend_from_slice(&index.scratch);
     let place = KeyRecordIndex(index.records.len());
     index.records.push(KeyRecord {
-        words: start..index.words.len(),
+        words: WordRange {
+            start: KeyWordIndex(start),
+            end: KeyWordIndex(index.words.len()),
+        },
         representative: at,
         previous: index.buckets.get(&hash).copied(),
     });
@@ -375,12 +321,13 @@ pub(super) fn intern_with_hash(
 }
 
 /// Prepare supported classes once, retaining complete rows even when another occurrence is unknown.
+/// Candidate visibility comes from the caller's semantic projection.
 pub(crate) fn prepare<'a>(
     tree: &Tree<'_>,
-    model: &'a crate::domain::model::types::Declarations,
+    held: &'a RefCell<RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>>,
     symbols: &mut Symbols,
-) -> Ref<'a, ConstantKeyIndex> {
-    let held = &model.constant_keys;
+    mut visible: impl FnMut(Position, &mut Symbols) -> KeyVisibility,
+) -> Ref<'a, RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>> {
     if held.borrow().state == KeyState::Fresh {
         let mut index = held.borrow_mut();
         let count = usize::try_from(languages::end_of(tree.elements).0).unwrap_or(usize::MAX);
@@ -399,9 +346,7 @@ pub(crate) fn prepare<'a>(
                 continue;
             };
             let at = Position(position);
-            if crate::domain::semantic_syntax::service::visibility(tree, model, at, symbols)
-                != crate::domain::semantic_syntax::types::Visibility::Visible
-            {
+            if visible(at, symbols) != KeyVisibility::Visible {
                 continue;
             }
             if !matches!(
@@ -425,7 +370,7 @@ pub(crate) fn prepare<'a>(
                 None => {
                     // Only actual primitive nodes with missing parser values make absence uncertain.
                     if kind(tree, at) == Kind::Node(Node::Constant)
-                        && !interpolation_fragment(tree, at)
+                        && interpolation_fragment(tree, at) == Fragment::Standalone
                         && (literal(tree, at) != Literal::Other
                             || property(tree, at, SCALAR_KIND).is_some())
                     {

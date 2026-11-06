@@ -26,7 +26,7 @@
             "column": 10,
             "row": 1
           },
-          "filename": "/tmp/ryo-i001-namespace-20261104/input.py",
+          "filename": "namespace/input.py",
           "fix": {
             "applicability": "safe",
             "edits": [
@@ -81,7 +81,7 @@
             "column": 10,
             "row": 1
           },
-          "filename": "/tmp/ryo-i001-namespace-20261104/input.pyi",
+          "filename": "namespace/input.pyi",
           "fix": {
             "applicability": "safe",
             "edits": [
@@ -184,7 +184,7 @@
             "column": 10,
             "row": 1
           },
-          "filename": "/tmp/ryo-i001-namespace-20261104/input.py",
+          "filename": "namespace/input.py",
           "fix": {
             "applicability": "safe",
             "edits": [
@@ -239,7 +239,7 @@
             "column": 2,
             "row": 3
           },
-          "filename": "/tmp/ryo-i001-namespace-20261104/input.py",
+          "filename": "namespace/input.py",
           "fix": {
             "applicability": "safe",
             "edits": [
@@ -294,7 +294,7 @@
             "column": 2,
             "row": 3
           },
-          "filename": "/tmp/ryo-i001-namespace-20261104/input.py",
+          "filename": "namespace/input.py",
           "fix": {
             "applicability": "safe",
             "edits": [
@@ -349,7 +349,7 @@
             "column": 11,
             "row": 2
           },
-          "filename": "/tmp/ryo-i001-namespace-20261104/input.py",
+          "filename": "namespace/input.py",
           "fix": {
             "applicability": "safe",
             "edits": [

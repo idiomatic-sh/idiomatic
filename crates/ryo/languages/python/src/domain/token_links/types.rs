@@ -15,7 +15,7 @@ pub(crate) enum LinkKind {
 
 /// One edge between existing native token identities.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Link {
+pub(crate) struct TokenLink {
     /// Existing source token identity.
     pub source: Position,
     /// Existing target token identity.
@@ -27,8 +27,44 @@ pub(crate) struct Link {
 /// A streaming result or explicit incomplete pairing knowledge.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Event {
-    Link(Link),
+    Link(TokenLink),
     Incomplete,
+}
+
+/// The unvisited native element positions of one scan.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct PositionCursor {
+    /// The next position to visit.
+    pub next: Position,
+    /// One past the last position to visit.
+    pub end: Position,
+}
+
+/// An unmatched opening delimiter.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Opener {
+    /// The delimiter's token type.
+    pub token: Token,
+    /// Its place.
+    pub at: Position,
+}
+
+/// Whether pairing knowledge is whole or was lost.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Pairing {
+    /// Every delimiter so far paired.
+    Whole,
+    /// Pairing knowledge was lost or could not be fully built.
+    Lost,
+}
+
+/// Whether the incomplete coverage event has been emitted.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Coverage {
+    /// Nothing was emitted yet.
+    Pending,
+    /// The incomplete coverage event was emitted.
+    Reported,
 }
 
 /// Invocation-local cursor and delimiter stack; no second token population.
@@ -36,15 +72,15 @@ pub(crate) struct Scan<'tree, 'source> {
     /// Completed native syntax tree borrowed for one demand.
     pub tree: &'tree Tree<'source>,
     /// Unvisited native element positions, excluding adopted expansions.
-    pub positions: std::ops::Range<u32>,
+    pub positions: PositionCursor,
     /// Previous recognized lexer token for successor edges.
     pub previous: Option<Position>,
     /// Unmatched typed opening delimiters in nesting order.
-    pub stack: Vec<(Token, Position)>,
+    pub stack: Vec<Opener>,
     /// At most two remaining edges from the current token.
-    pub pending: [Option<Link>; 2],
-    /// Pairing knowledge was lost or could not be fully built.
-    pub incomplete: bool,
-    /// The incomplete coverage event has already been emitted.
-    pub reported: bool,
+    pub pending: [Option<TokenLink>; 2],
+    /// Pairing knowledge so far.
+    pub pairing: Pairing,
+    /// The incomplete coverage event's state.
+    pub reported: Coverage,
 }

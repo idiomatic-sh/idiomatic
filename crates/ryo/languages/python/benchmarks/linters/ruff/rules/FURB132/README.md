@@ -2,7 +2,7 @@ Pinned source: Ruff 0.16.5, tag commit `9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a
 
 The effect guard follows `contains_effect`, including literal-only binary operands, effectful descendants, empty builtin initializers, and possible versus present f-string formatting effects. The membership test has one operator. Shared binding typing preserves annotation precedence, parameters, walrus/with initializers, return annotations, typing aliases and prior-binding checks.
 
-Validation: 101/101 exact cases pass on actual benchmark worker `65b5a3933be11bb735c9bfb805451ee378581bec1831daf245d3d37e92e5d94b`. Each case has complete reference/candidate records and zero unknown rule/file pairs. This bounded evidence is not a whole-corpus parity certificate. Receipts/hashes: `/tmp/assigned-type-20261101/verification.json`. No prepared-manifest registration changes.
+Validation: 101/101 exact cases pass on actual benchmark worker `65b5a3933be11bb735c9bfb805451ee378581bec1831daf245d3d37e92e5d94b`. Each case has complete reference/candidate records and zero unknown rule/file pairs. This bounded evidence is not a whole-corpus parity certificate. Receipts/hashes: `assigned-type-20261101/verification.json`. No prepared-manifest registration changes.
 
 ## Reference discrepancy report
 
@@ -13,7 +13,7 @@ The 1 certified case below retains their exact source bytes and full intended an
 To reproduce Ruff's reference finding for `function-return-annotation`, write its exact named file from [cases.toml](cases.toml) into an isolated directory and run the pinned Ruff 0.16.5 executable (SHA256 `52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8`):
 
 ```sh
-RAYON_NUM_THREADS=1 /home/vscode/.local/bin/ruff check --isolated --output-format json --cache-dir ./ruff-cache --select FURB132 --target-version py310 -- case.py
+RAYON_NUM_THREADS=1 ruff check --isolated --output-format json --cache-dir ./ruff-cache --select FURB132 --target-version py310 -- case.py
 ```
 
 ### Documented source-specific difference

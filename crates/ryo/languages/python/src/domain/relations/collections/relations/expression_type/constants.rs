@@ -4,7 +4,7 @@ pub(super) const ATOM: &str = "atom";
 /// The `union` relation label.
 pub(super) const UNION: &str = "union";
 /// The `unknown` relation label.
-pub(super) const UNKNOWN: &str = "unknown";
+pub(super) const UNKNOWN: &str = crate::domain::language::constants::UNKNOWN;
 /// The `type-error` relation label.
 pub(super) const TYPE_ERROR: &str = "type-error";
 /// The `empty` relation label.

@@ -1,0 +1,26 @@
+description = "One group of a contract part's test support."
+why = "The cases of one group of the contract's proof, one directory each, beneath the part's fixtures directory."
+content = '''
+//! A group of the contract's cases.
+'''
+
+[params]
+group = { type = "identifier", description = "The group, captured from its path." }
+
+[given]
+file = 'fixtures/links/mod.rs'
+params = { group = 'links' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'fixtures/links/mod.rs' = '''
+//! A group of the contract's cases.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'contract-fixture#count', path = '.' },
+]

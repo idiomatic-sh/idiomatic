@@ -1,7 +1,7 @@
 """Unavailable reference accounting never means observed zero or full-report parity."""
 import copy
 import unittest
-from authoring.case_records import record_contract_satisfied, case_expectation_summary
+from authoring.case_observations import record_contract_satisfied, case_expectation_summary
 
 
 class ContractTests(unittest.TestCase):

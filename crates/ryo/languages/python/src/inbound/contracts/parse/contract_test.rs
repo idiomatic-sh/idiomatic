@@ -106,8 +106,71 @@ const SAMPLES: &[languages::SourceFile] = &[
     languages::SourceFile { path: languages::SourcePath("broken.py"), bytes: languages::ByteSlice(b"good = 1\ndef broken(\n") },
 ];
 
+/// Which of the file's cases a row runs.
+#[derive(Clone, Copy, Debug)]
+enum Body {
+    /// The case `parse_contract_passes_path_kind_and_its_settings_to_syntax`.
+    ParseContractPassesPathKindAndItsSettingsToSyntax,
+    /// The case `linked_python_keeps_latest_as_its_default_target`.
+    LinkedPythonKeepsLatestAsItsDefaultTarget,
+    /// The case `explicit_source_selection_preserves_paths_and_default_recognition`.
+    ExplicitSourceSelectionPreservesPathsAndDefaultRecognition,
+    /// The case `byte_literal_recovery_uses_original_source_acceptance_and_diagnostic_readiness`.
+    ByteLiteralRecoveryUsesOriginalSourceAcceptanceAndDiagnosticReadiness,
+}
+
+/// The rows of the cases whose bodies assert for themselves.
+const BODIES: &[Case<Body, (), ()>] = &[
+    Case {
+        name: CaseName("parse_contract_passes_path_kind_and_its_settings_to_syntax"),
+        word: Word::Succeeds,
+        input: || Body::ParseContractPassesPathKindAndItsSettingsToSyntax,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("linked_python_keeps_latest_as_its_default_target"),
+        word: Word::Succeeds,
+        input: || Body::LinkedPythonKeepsLatestAsItsDefaultTarget,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("explicit_source_selection_preserves_paths_and_default_recognition"),
+        word: Word::Succeeds,
+        input: || Body::ExplicitSourceSelectionPreservesPathsAndDefaultRecognition,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "byte_literal_recovery_uses_original_source_acceptance_and_diagnostic_readiness",
+        ),
+        word: Word::Succeeds,
+        input: || Body::ByteLiteralRecoveryUsesOriginalSourceAcceptanceAndDiagnosticReadiness,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs the body of one case.
+fn body(given: Body) -> Result<(), ()> {
+    match given {
+        Body::ParseContractPassesPathKindAndItsSettingsToSyntax => {
+            parse_contract_passes_path_kind_and_its_settings_to_syntax()
+        }
+        Body::LinkedPythonKeepsLatestAsItsDefaultTarget => {
+            linked_python_keeps_latest_as_its_default_target()
+        }
+        Body::ExplicitSourceSelectionPreservesPathsAndDefaultRecognition => {
+            explicit_source_selection_preserves_paths_and_default_recognition()
+        }
+        Body::ByteLiteralRecoveryUsesOriginalSourceAcceptanceAndDiagnosticReadiness => {
+            byte_literal_recovery_uses_original_source_acceptance_and_diagnostic_readiness()
+        }
+    }
+    Ok(())
+}
+
 #[test]
 fn succeeds() {
+    run(BODIES, Word::Succeeds, body);
     run(CASES, Word::Succeeds, subject);
 }
 
@@ -142,11 +205,10 @@ impl SyntaxPort for CapturingSyntax {
         self.0
             .lock()
             .expect("capture lock")
-            .push((source_kind, settings.identity().to_owned()));
+            .push((source_kind, settings.identity().0.to_owned()));
     }
 }
 
-#[test]
 fn parse_contract_passes_path_kind_and_its_settings_to_syntax() {
     let seen = Arc::new(Mutex::new(Vec::new()));
     let settings = PythonParserSettings::new(PythonTargetVersion::Py310);
@@ -186,7 +248,6 @@ fn parse_contract_passes_path_kind_and_its_settings_to_syntax() {
     assert_eq!(language.configuration_identity().0, "python-target=3.10");
 }
 
-#[test]
 fn linked_python_keeps_latest_as_its_default_target() {
     assert_eq!(
         crate::linked().configuration_identity().0,
@@ -200,7 +261,6 @@ fn linked_python_keeps_latest_as_its_default_target() {
     );
 }
 
-#[test]
 fn explicit_source_selection_preserves_paths_and_default_recognition() {
     let provider = crate::linked().parse_engine();
     for path in ["test.txt", "file-with-dashes"] {
@@ -260,7 +320,6 @@ fn explicit_source_selection_preserves_paths_and_default_recognition() {
     assert!(languages::has_incomplete_lexical_stream(&elements));
 }
 
-#[test]
 fn byte_literal_recovery_uses_original_source_acceptance_and_diagnostic_readiness() {
     let provider = ParseContract::new(
         PythonParserSettings::default(),

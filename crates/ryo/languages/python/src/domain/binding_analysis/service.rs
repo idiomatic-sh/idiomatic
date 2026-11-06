@@ -5,8 +5,8 @@ use crate::domain::{
     binding_schedule::service::schedule,
     binding_states::service::{clear as clear_environments, join, open},
     model::types::{
-        BindingAction, BindingAnalysisIndex, BindingAnalysisState, BindingBranch, BindingPhaseKind,
-        Declarations,
+        ArmStart, BindingAction, BindingAnalysisIndex, BindingAnalysisState, BindingBranch,
+        BindingPhaseKind, Declarations,
     },
 };
 use ryo::languages::{self, Integer, Position, Symbols, Tree};
@@ -87,7 +87,7 @@ pub(crate) fn build(
                 };
                 index.branches.push(BindingBranch {
                     target,
-                    start: index.arms.len(),
+                    start: ArmStart(index.arms.len()),
                 });
                 frame = Some(open(&mut index.environments, Some(target), step.phase));
             }
@@ -113,12 +113,12 @@ pub(crate) fn build(
                 if let Some(completed) = frame {
                     index.arms.push(completed);
                 }
-                let Some(arms) = index.arms.get(branch.start..) else {
+                let Some(arms) = index.arms.get(branch.start.0..) else {
                     index.state = BindingAnalysisState::Incomplete;
                     return;
                 };
                 join(&mut index.environments, branch.target, arms);
-                index.arms.truncate(branch.start);
+                index.arms.truncate(branch.start.0);
                 frame = Some(branch.target);
             }
             BindingAction::Read

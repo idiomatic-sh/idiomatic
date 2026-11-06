@@ -131,8 +131,20 @@ pub(crate) fn oracle(text: &str, rows: &OracleRows) -> Vec<String> {
     oracle_with(text, rows, PythonVersion::latest())
 }
 
+/// Read independent row expectations with precisely the parser's selected Python 3 minor version.
+pub(crate) fn oracle_target<const MINOR: u8>(text: &str, rows: &OracleRows) -> Vec<String> {
+    oracle_with(
+        text,
+        rows,
+        PythonVersion {
+            major: 3,
+            minor: MINOR,
+        },
+    )
+}
+
 /// Reference callback configured to the same target as the fixture parser.
-pub(crate) fn oracle_with(text: &str, rows: &OracleRows, version: PythonVersion) -> Vec<String> {
+fn oracle_with(text: &str, rows: &OracleRows, version: PythonVersion) -> Vec<String> {
     let options = ParseOptions::from(Mode::Module).with_target_version(version);
     let parsed = parse_unchecked(text, options);
     let mut facts = Facts::default();

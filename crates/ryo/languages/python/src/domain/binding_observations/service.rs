@@ -2,7 +2,7 @@
 use crate::domain::{
     binding_lookup::service::resolve,
     binding_results::types::{
-        Event, EventKind, Read, ReadContext, ReadState, Shadow, ShadowRelationship, Usage,
+        BindingResultEvent, EventKind, Read, ReadContext, ReadState, Shadow, ShadowRelationship, Usage,
         UseCertainty,
     },
     binding_states::service::{annotate, assign, candidates, delete, lookup, wildcard},
@@ -71,7 +71,7 @@ fn read(
         &mut index.candidates,
     );
     let state = crate::domain::binding_uncertainty::service::refine(
-        crate::domain::binding_uncertainty::service::Refinement {
+        crate::domain::binding_uncertainty::types::UncertaintyRefinement {
             tree,
             model,
             reference: step.occurrence,
@@ -221,7 +221,7 @@ pub(crate) fn observe(
     if matches!(event_kind, EventKind::Global | EventKind::Nonlocal) {
         for occurrence in nodes(tree, step.occurrence) {
             if let Some(name) = name_of(tree, occurrence) {
-                index.events.push(Event {
+                index.events.push(BindingResultEvent {
                     occurrence,
                     name,
                     scope: binding_scope(tree, model, occurrence, name),
@@ -248,7 +248,7 @@ pub(crate) fn observe(
             |value| value.owner,
         )
     };
-    index.events.push(Event {
+    index.events.push(BindingResultEvent {
         occurrence: step.occurrence,
         name,
         scope,

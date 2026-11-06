@@ -13,32 +13,23 @@ use crate::domain::packages::types::{
     Checkout, Declared, ManifestPath, Marker, Naming, PackageName, Redirect, Reference, Revision,
     Written,
 };
-use crate::domain::patterns::types::{Directory, Part, Pattern};
+use crate::domain::patterns::types::{Directory, Pattern, PatternPart};
 use crate::outbound::manifest_reading::errors::ManifestReadingError;
-
-/// A `pyproject.toml`.
-#[derive(Debug, Default, Deserialize)]
-// the shape is the tables of pyproject.toml, read table for table: a flatter shape reads a different file
-struct PyprojectSchema {
-    /// The `[tool]` table, which holds uv's.
-    tool: Option<ToolSchema>,
-}
 
 /// A `pyproject.toml` and the directory it is in, which its paths are from.
 #[derive(Debug)]
 struct ManifestSchema {
     /// The directory the `pyproject.toml` is in, from the repository root.
     directory: Box<str>,
-    /// What the `pyproject.toml` says.
-    pyproject: PyprojectSchema,
+    /// What the `[tool.uv]` table of the `pyproject.toml` says.
+    uv: UvSchema,
 }
 
-/// A `[tool]`.
+/// A `[tool]`: only its `uv` table is read, as it is written, then read as the table of its own shape.
 #[derive(Debug, Default, Deserialize)]
-// the shape is the tables of pyproject.toml, read table for table: a flatter shape reads a different file
 struct ToolSchema {
     /// The `[tool.uv]` table.
-    uv: Option<UvSchema>,
+    uv: Option<toml::Value>,
 }
 
 /// A `[tool.uv]`.
@@ -101,11 +92,7 @@ struct SourceEntrySchema {
 
 impl From<ManifestSchema> for Declared {
     fn from(schema: ManifestSchema) -> Self {
-        let uv = schema
-            .pyproject
-            .tool
-            .and_then(|tool| tool.uv)
-            .unwrap_or_default();
+        let uv = schema.uv;
         let workspace = uv.workspace.unwrap_or_default();
         let directory = Directory(&schema.directory);
         let mut sources = Vec::new();
@@ -131,12 +118,12 @@ impl From<ManifestSchema> for Declared {
                 };
                 sources.push(Redirect {
                     name: PackageName(name.clone().into()),
-                    location: entry
-                        .path
-                        .and_then(|path| match locating(directory, Part(&path)) {
+                    location: entry.path.and_then(|path| {
+                        match locating(directory, PatternPart(&path)) {
                             Reference::Located(location) => Some(location),
                             Reference::Named | Reference::Unresolvable => None,
-                        }),
+                        }
+                    }),
                     origin,
                     marker: Marker(entry.marker.unwrap_or_default().into()),
                     checkout: Checkout {
@@ -179,14 +166,21 @@ pub(super) fn declared(
     manifest: &ManifestPath,
     text: &str,
 ) -> Result<Declared, ManifestReadingError> {
-    let pyproject = toml::from_str(text).map_err(|error: toml::de::Error| {
-        ManifestReadingError::Unreadable {
-            reason: error.message().to_owned(),
-        }
-    })?;
+    let unreadable = |error: toml::de::Error| ManifestReadingError::Unreadable {
+        reason: error.message().to_owned(),
+    };
+    let pyproject: toml::Table = toml::from_str(text).map_err(unreadable)?;
+    let tool = match pyproject.get("tool") {
+        Some(table) => table.clone().try_into::<ToolSchema>().map_err(unreadable)?,
+        None => ToolSchema::default(),
+    };
+    let uv = match tool.uv {
+        Some(table) => table.try_into::<UvSchema>().map_err(unreadable)?,
+        None => UvSchema::default(),
+    };
     Ok(ManifestSchema {
         directory: directory_of(manifest).0.into(),
-        pyproject,
+        uv,
     }
     .into())
 }

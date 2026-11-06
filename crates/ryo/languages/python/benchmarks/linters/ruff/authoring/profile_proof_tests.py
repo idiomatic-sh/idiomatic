@@ -10,6 +10,7 @@ from pathlib import Path
 import tomllib
 from authoring import profile_config
 from authoring import profile_proofs
+from authoring import native_standalone
 from authoring import profile_sources
 from authoring import profile_staging
 from authoring import profile_worker
@@ -100,7 +101,7 @@ def native_standalone_self_test() -> None:
                           case_count=sum(entry['case_count'] for entry in descriptor['profiles']),
                           phase_registry_sha256=profile_config.sha256(profile_config.RULE_PHASES_FILE),
                           intent='Self-test current registration only; no contestant execution or historical certification.')
-        resolved = profile_proofs.native_standalone_manifest(base, descriptor)
+        resolved = native_standalone.native_standalone_manifest(base, descriptor)
         assert len(resolved['profiles']) == descriptor['query_count']
         assert sum((p['case_count'] for p in resolved['profiles'].values())) == descriptor['case_count']
         assert resolved['combined_profiles'] == {} and (not resolved['native_identity']['historical_certification'])
@@ -113,7 +114,7 @@ def native_standalone_self_test() -> None:
         module = next(iter(descriptor['module_sha256']))
         wrong_module = changed(lambda value: value['module_sha256'].update({module: '0' * 64}))
         try:
-            profile_proofs.native_standalone_manifest(base, wrong_module)
+            native_standalone.native_standalone_manifest(base, wrong_module)
         except ValueError as error:
             assert str(error) == f'native module identity mismatch: {module}', str(error)
         else:
@@ -131,7 +132,7 @@ def native_standalone_self_test() -> None:
                     assert current[key] == entry[key], 'historical native source identity changed'
         for name, edit in mutations:
             try:
-                profile_proofs.native_standalone_manifest(base, changed(edit))
+                native_standalone.native_standalone_manifest(base, changed(edit))
             except ValueError:
                 pass
             else:

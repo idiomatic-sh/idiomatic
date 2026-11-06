@@ -1,47 +1,43 @@
 //! Reconstruct preserved logical string carriers and cache only syntactic outcomes.
+use super::constants;
 use super::{
     interface::LiteralExpressionSyntax,
     types::{
-        LiteralDialect, LiteralParseIndex, LiteralParseOccurrence, LiteralParseOutcome,
-        LiteralParseState,
+        CarrierInput, CarrierKey, CarrierText, CarrierVisibility, HostState, LiteralDialect,
+        LiteralParseIndex, LiteralParseOccurrence, LiteralParseOutcome, LiteralParseState,
     },
 };
 use crate::domain::{
-    model::types::Declarations,
     nodes::types::Node,
-    semantic_syntax::types::Visibility,
     syntax::{
         service::{below, kind, literal, standing},
         types::{Kind, Literal, Standing},
     },
     tokens::types::Token,
 };
-use ryo::languages::{self, Position, Symbols, Tree};
-use std::cell::Ref;
+use ryo::languages::{self, NameText, Position, Symbols, Tree};
+use std::cell::{Ref, RefCell};
 use std::collections::HashSet;
 
 /// Missing logical carriers must remain observable through a partial relation read.
-pub(crate) const INCOMPLETE: &str =
-    "literal-expression parsing requires complete logical string carriers";
+pub(crate) const INCOMPLETE: &str = constants::INCOMPLETE;
 
 /// Drop source identities and admit budgeted grammar outcomes for the next demand.
 pub(crate) fn clear(index: &mut LiteralParseIndex) {
     crate::domain::grammar_cache::service::empty(&mut index.memo);
-    for ((_dialect, input), outcome) in index.by_carrier.drain(..) {
+    for (key, outcome) in index.by_carrier.drain(..) {
         if outcome != LiteralParseOutcome::Unavailable {
-            crate::domain::grammar_cache::service::admit(&mut index.memo, input, outcome, 0);
+            crate::domain::grammar_cache::service::admit(
+                &mut index.memo,
+                crate::domain::grammar_cache::types::MemoKey(key.input.0),
+                outcome,
+            );
         }
     }
     crate::domain::grammar_cache::service::reset_map(&mut index.by_carrier);
     crate::domain::grammar_cache::service::reset(&mut index.occurrences);
     index.embedded.clear();
-    if index
-        .embedded
-        .capacity()
-        .saturating_mul(size_of::<Position>() + 1)
-        .saturating_mul(2)
-        > crate::domain::grammar_cache::service::ARENA_BUDGET
-    {
+    if index.embedded.capacity() > constants::EMBEDDED_CAPACITY {
         index.embedded = HashSet::new();
     }
     index.state = LiteralParseState::Fresh;
@@ -50,10 +46,18 @@ pub(crate) fn clear(index: &mut LiteralParseIndex) {
 /// Rebuild an injective spelling of the original string-token sequence.
 /// Grouping permits multiline implicit concatenation; newlines delimit tokens
 /// without changing any prefix, quote, escape, or literal-body byte.
-fn carrier(tree: &Tree<'_>, node: Position, symbols: &Symbols, source: &mut String) -> Option<()> {
+fn carrier(
+    tree: &Tree<'_>,
+    node: Position,
+    symbols: &Symbols,
+    source: &mut CarrierText,
+) -> Option<()> {
+    let source = &mut source.0;
     source.clear();
-    source.try_reserve(3).ok()?;
-    source.push_str("(\n");
+    if source.try_reserve(3).is_err() {
+        return None;
+    }
+    source.push_str(constants::CARRIER_OPEN);
     let mut tokens = 0_usize;
     for token in below(tree, node).filter(|at| kind(tree, *at) == Kind::Token(Token::String)) {
         let spelling = languages::text_of(
@@ -65,7 +69,12 @@ fn carrier(tree: &Tree<'_>, node: Position, symbols: &Symbols, source: &mut Stri
         let _body = crate::domain::raw_format::service::body(
             crate::domain::raw_format::types::RawFormatToken(spelling.0),
         )?;
-        source.try_reserve(spelling.0.len().checked_add(1)?).ok()?;
+        if source
+            .try_reserve(spelling.0.len().checked_add(1)?)
+            .is_err()
+        {
+            return None;
+        }
         source.push_str(spelling.0);
         source.push('\n');
         tokens = tokens.checked_add(1)?;
@@ -73,7 +82,9 @@ fn carrier(tree: &Tree<'_>, node: Position, symbols: &Symbols, source: &mut Stri
     if tokens == 0 {
         return None;
     }
-    source.try_reserve(1).ok()?;
+    if source.try_reserve(1).is_err() {
+        return None;
+    }
     source.push(')');
     Some(())
 }
@@ -81,36 +92,54 @@ fn carrier(tree: &Tree<'_>, node: Position, symbols: &Symbols, source: &mut Stri
 /// Return one cached result, reusing an already parsed embedded host when possible.
 fn outcome<P>(
     index: &mut LiteralParseIndex,
-    assembled: String,
-    embedded: bool,
+    assembled: CarrierText,
+    host: HostState,
 ) -> LiteralParseOutcome
 where
     P: LiteralExpressionSyntax,
 {
-    let key = (LiteralDialect::PythonStringAnnotation, assembled);
+    let key = CarrierKey {
+        dialect: LiteralDialect::PythonStringAnnotation,
+        input: assembled,
+    };
     if let Some(outcome) = index.by_carrier.get(&key).copied() {
-        crate::domain::grammar_cache::service::scratch(&mut index.memo, key.1);
+        crate::domain::grammar_cache::service::scratch(
+            &mut index.memo,
+            crate::domain::grammar_cache::types::Scratch(key.input.0),
+        );
         return outcome;
     }
-    if !crate::domain::grammar_cache::service::reserve(&mut index.by_carrier) {
+    if crate::domain::grammar_cache::service::reserve(&mut index.by_carrier)
+        == crate::domain::grammar_cache::types::Reservation::Refused
+    {
         return LiteralParseOutcome::Unavailable;
     }
-    let (stored_input, result) = if let Some((previous_input, result)) =
-        crate::domain::grammar_cache::service::take(&mut index.memo, &key.1)
-    {
-        crate::domain::grammar_cache::service::scratch(&mut index.memo, key.1);
-        (previous_input, result)
+    let (stored_input, result) = if let Some(taken) = crate::domain::grammar_cache::service::take(
+        &mut index.memo,
+        crate::domain::grammar_cache::types::Lookup(&key.input.0),
+    ) {
+        crate::domain::grammar_cache::service::scratch(
+            &mut index.memo,
+            crate::domain::grammar_cache::types::Scratch(key.input.0),
+        );
+        (CarrierText(taken.key.0), taken.value)
     } else {
-        (key.1, LiteralParseOutcome::Unavailable)
+        (key.input, LiteralParseOutcome::Unavailable)
     };
     let result = if result != LiteralParseOutcome::Unavailable {
         result
-    } else if embedded {
+    } else if host == HostState::Embedded {
         LiteralParseOutcome::Parsed
     } else {
-        P::parse(&stored_input, key.0)
+        P::parse(CarrierInput(&stored_input.0), key.dialect)
     };
-    let previous = index.by_carrier.insert((key.0, stored_input), result);
+    let previous = index.by_carrier.insert(
+        CarrierKey {
+            dialect: key.dialect,
+            input: stored_input,
+        },
+        result,
+    );
     debug_assert!(
         previous.is_none(),
         "a checked carrier has no cached outcome yet"
@@ -119,25 +148,29 @@ where
 }
 
 /// A relation-level demand scans eligible carriers once; no query host pushdown is assumed.
+/// Source order and candidate visibility come from the caller's semantic projection.
 pub(crate) fn prepare<'a, P>(
     tree: &Tree<'_>,
-    model: &'a Declarations,
+    held: &'a RefCell<LiteralParseIndex>,
     symbols: &mut Symbols,
+    positions: impl Iterator<Item = Position>,
+    mut visibility: impl FnMut(Position, &mut Symbols) -> CarrierVisibility,
 ) -> Ref<'a, LiteralParseIndex>
 where
     P: LiteralExpressionSyntax,
 {
-    if !crate::domain::grammar_cache::service::is_grammar::<P, _>(
-        &model.literal_expression_parsing.borrow().memo,
-        "python-string-annotation-carrier-v1",
-    ) {
-        clear(&mut model.literal_expression_parsing.borrow_mut());
+    if crate::domain::grammar_cache::service::grammar_state::<P, _>(
+        &held.borrow().memo,
+        crate::domain::grammar_cache::types::DialectName(P::GRAMMAR.0),
+    ) == crate::domain::grammar_cache::types::GrammarState::Stale
+    {
+        clear(&mut held.borrow_mut());
     }
-    if model.literal_expression_parsing.borrow().state == LiteralParseState::Fresh {
-        let mut index = model.literal_expression_parsing.borrow_mut();
+    if held.borrow().state == LiteralParseState::Fresh {
+        let mut index = held.borrow_mut();
         crate::domain::grammar_cache::service::grammar::<P, _>(
             &mut index.memo,
-            "python-string-annotation-carrier-v1",
+            crate::domain::grammar_cache::types::DialectName(P::GRAMMAR.0),
         );
         index.state = if languages::has_incomplete_syntax(tree.elements)
             || languages::has_incomplete_lexical_stream(tree.elements)
@@ -156,12 +189,11 @@ where
             }
             let _new_host = index.embedded.insert(expression.host);
         }
-        for node in crate::domain::semantic_syntax::service::positions(tree) {
+        for node in positions {
             if kind(tree, node) != Kind::Node(Node::Constant)
                 || literal(tree, node) != Literal::String
                 || standing(tree, node) != Standing::Own
-                || crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols)
-                    != Visibility::Visible
+                || visibility(node, symbols) != CarrierVisibility::Visible
             {
                 continue;
             }
@@ -169,12 +201,19 @@ where
                 index.state = LiteralParseState::Partial;
                 break;
             }
-            let mut source = std::mem::take(&mut index.memo.scratch);
+            let mut source = CarrierText(std::mem::take(&mut index.memo.scratch).0);
             let result = if carrier(tree, node, symbols, &mut source).is_some() {
-                let embedded = embedded_available && index.embedded.contains(&node);
-                outcome::<P>(&mut index, source, embedded)
+                let host = if embedded_available && index.embedded.contains(&node) {
+                    HostState::Embedded
+                } else {
+                    HostState::Standalone
+                };
+                outcome::<P>(&mut index, source, host)
             } else {
-                crate::domain::grammar_cache::service::scratch(&mut index.memo, source);
+                crate::domain::grammar_cache::service::scratch(
+                    &mut index.memo,
+                    crate::domain::grammar_cache::types::Scratch(source.0),
+                );
                 LiteralParseOutcome::Unavailable
             };
             if result == LiteralParseOutcome::Unavailable {
@@ -187,14 +226,14 @@ where
         }
         crate::domain::grammar_cache::service::empty(&mut index.memo);
     }
-    model.literal_expression_parsing.borrow()
+    held.borrow()
 }
 
 /// Translate an application-owned outcome into the stable relation vocabulary.
-pub(crate) const fn outcome_name(outcome: LiteralParseOutcome) -> &'static str {
+pub(crate) const fn outcome_name(outcome: LiteralParseOutcome) -> NameText<'static> {
     match outcome {
-        LiteralParseOutcome::Parsed => "parsed",
-        LiteralParseOutcome::Malformed => "malformed",
-        LiteralParseOutcome::Unavailable => "unavailable",
+        LiteralParseOutcome::Parsed => NameText(constants::PARSED),
+        LiteralParseOutcome::Malformed => NameText(constants::MALFORMED),
+        LiteralParseOutcome::Unavailable => NameText(constants::UNAVAILABLE),
     }
 }

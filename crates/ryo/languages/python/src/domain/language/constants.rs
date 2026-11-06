@@ -16,6 +16,9 @@ pub(crate) const SKIPS: &[ryo::languages::SkippedDirectory] = &[
     ryo::languages::SkippedDirectory(".ruff_cache"),
 ];
 
+/// The label of an answer the language cannot resolve statically.
+pub(crate) const UNKNOWN: &str = "unknown";
+
 /// What the language is called, in listings: the name of its directory.
 pub(crate) const NAME: &str = "python";
 

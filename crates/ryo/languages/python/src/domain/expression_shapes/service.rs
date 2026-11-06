@@ -1,7 +1,6 @@
 //! Lazily intern bottom-up parsed expression keys; source formatting and runtime value equality are separate.
-use crate::domain::model::types::{
-    ExpressionShapeIndex, ShapeHash, ShapeRecord, ShapeRecordIndex, ShapeState, ShapeWord,
-};
+use crate::domain::constant_keys::types::{KeyRecord, KeyRecordIndex, RetainedKeyIndex};
+use crate::domain::model::types::{ShapeHash, ShapeState, ShapeWord};
 use crate::domain::{
     extras::types::Extra,
     fields::service::field_of,
@@ -41,7 +40,7 @@ fn decoded_string_value(
     found.then(|| languages::end_name(symbols, tree.source, from))
 }
 /// Invalidate source-dependent classes while retaining all backing capacity.
-pub(crate) fn clear(index: &mut ExpressionShapeIndex) {
+pub(crate) fn clear(index: &mut RetainedKeyIndex<Position, ShapeWord, ShapeHash, ShapeState>) {
     index.classes.clear();
     index.words.clear();
     index.records.clear();
@@ -51,33 +50,44 @@ pub(crate) fn clear(index: &mut ExpressionShapeIndex) {
 }
 /// The existing canonical representative of one occurrence.
 #[must_use]
-pub(crate) fn shape_of(index: &ExpressionShapeIndex, at: Position) -> Option<Position> {
-    index
-        .classes
-        .get(usize::try_from(at.0).ok()?)
-        .copied()
-        .flatten()
+pub(crate) fn shape_of(
+    index: &RetainedKeyIndex<Position, ShapeWord, ShapeHash, ShapeState>,
+    at: Position,
+) -> Option<Position> {
+    let Ok(slot) = usize::try_from(at.0) else {
+        return None;
+    };
+    index.classes.get(slot).copied().flatten()
 }
 /// Intern a full key. Hash collisions share a bucket, never an expression identity.
-pub(super) fn intern(index: &mut ExpressionShapeIndex, at: Position, hash: ShapeHash) -> Position {
+pub(super) fn intern(
+    index: &mut RetainedKeyIndex<Position, ShapeWord, ShapeHash, ShapeState>,
+    at: Position,
+    hash: ShapeHash,
+) -> Position {
     let mut candidate = index.buckets.get(&hash).copied();
     while let Some(place) = candidate {
         let Some(record) = index.records.get(place.0) else {
             break;
         };
-        if index.words.get(record.words.clone()) == Some(index.scratch.as_slice()) {
+        if index.words.get(record.words.start.0..record.words.end.0)
+            == Some(index.scratch.as_slice())
+        {
             return record.representative;
         }
         candidate = record.previous;
     }
     let start = index.words.len();
     index.words.extend_from_slice(&index.scratch);
-    let record = ShapeRecord {
-        words: start..index.words.len(),
+    let record = KeyRecord {
+        words: crate::domain::constant_keys::types::WordRange {
+            start: crate::domain::constant_keys::types::KeyWordIndex(start),
+            end: crate::domain::constant_keys::types::KeyWordIndex(index.words.len()),
+        },
         representative: at,
         previous: index.buckets.get(&hash).copied(),
     };
-    let place = ShapeRecordIndex(index.records.len());
+    let place = KeyRecordIndex(index.records.len());
     index.records.push(record);
     let _previous_bucket_head = index.buckets.insert(hash, place);
     at
@@ -89,7 +99,7 @@ fn child(words: &mut Vec<ShapeWord>, classes: &[Option<Position>], field: Field,
     }
 }
 /// Operators are meaningful; separators, redundant parentheses and lexical trivia are not.
-fn significant(token: Token) -> bool {
+fn significant(token: Token) -> Option<Token> {
     matches!(
         token,
         Token::Name
@@ -115,6 +125,7 @@ fn significant(token: Token) -> bool {
             | Token::At
             | Token::Ellipsis
     )
+    .then_some(token)
 }
 /// Preserve the parser's literal category and payload, or its already-decoded text.
 fn constant(
@@ -271,7 +282,7 @@ fn key(
         if is_token(tree, each) == Leaf::Node {
             child(words, classes, field_of(tree, each), each);
         } else if let Kind::Token(token) = kind(tree, each)
-            && significant(token)
+            && significant(token).is_some()
         {
             words.push(ShapeWord::Token(
                 kind(tree, each),
@@ -288,7 +299,7 @@ pub(crate) fn prepare<'a>(
     tree: &Tree<'_>,
     model: &'a crate::domain::model::types::Declarations,
     symbols: &mut Symbols,
-) -> Option<Ref<'a, ExpressionShapeIndex>> {
+) -> Option<Ref<'a, RetainedKeyIndex<Position, ShapeWord, ShapeHash, ShapeState>>> {
     let held = &model.expression_shapes;
     if held.borrow().state == ShapeState::Fresh {
         let mut index = held.borrow_mut();
@@ -296,10 +307,15 @@ pub(crate) fn prepare<'a>(
             index.state = ShapeState::Partial;
             return None;
         }
-        let count = usize::try_from(languages::end_of(tree.elements).0).ok()?;
+        let Ok(count) = usize::try_from(languages::end_of(tree.elements).0) else {
+            return None;
+        };
         index.classes.resize(count, None);
         for raw in (0..count).rev() {
-            let at = Position(u32::try_from(raw).ok()?);
+            let Ok(position) = u32::try_from(raw) else {
+                return None;
+            };
+            let at = Position(position);
             if is_token(tree, at) == Leaf::Token
                 || crate::domain::semantic_syntax::service::visibility(tree, model, at, symbols)
                     != crate::domain::semantic_syntax::types::Visibility::Visible
@@ -310,7 +326,7 @@ pub(crate) fn prepare<'a>(
                 index.state = ShapeState::Partial;
                 continue;
             }
-            let ExpressionShapeIndex {
+            let RetainedKeyIndex {
                 classes, scratch, ..
             } = &mut *index;
             if languages::children(tree.elements, at).any(|child| {

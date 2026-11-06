@@ -117,13 +117,9 @@ pub(crate) fn written<'a>(tree: &Tree<'a>, at: Position) -> Text<'a> {
         usize::try_from(languages::start_at(tree.elements, at).0).unwrap_or(usize::MAX),
         usize::try_from(languages::end_at(tree.elements, at).0).unwrap_or(usize::MAX),
     );
-    Text(
-        tree.source
-            .0
-            .get(start..end)
-            .and_then(|bytes| std::str::from_utf8(bytes).ok()) // the bytes of a node that are not text have no text, which the reader takes as an empty name: the row keeps its place either way
-            .unwrap_or_default(),
-    )
+    let bytes = tree.source.0.get(start..end).unwrap_or_default();
+    // the bytes of a node that are not text have no text, which the reader takes as an empty name: the row keeps its place either way
+    Text(std::str::from_utf8(bytes).unwrap_or_default())
 }
 
 /// The text the element at `at` spans, as a name: a token's own text, or the text a node spans.

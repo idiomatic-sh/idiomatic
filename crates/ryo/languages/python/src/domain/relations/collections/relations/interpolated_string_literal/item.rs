@@ -14,9 +14,8 @@ use crate::domain::{
     tokens::types::Token,
 };
 use ryo::languages::{self, NameText, Position, Tree};
+use super::constants::MISSING;
 
-/// The reason a literal element without decoded text is unavailable.
-const MISSING: &str = "f-string literal fragment requires its parser-decoded token payload";
 
 /// The optional decoded f-string literal reader.
 pub(crate) struct InterpolatedStringLiteralItem;

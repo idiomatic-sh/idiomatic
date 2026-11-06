@@ -1,0 +1,32 @@
+//! The scenarios of the engine proofs.
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum EngineScenario {
+    Finding,
+    Missing,
+    Unread,
+    Partial,
+    InvalidSyntax,
+    LexicallyCompleteSyntaxError,
+    PreservedSemanticSyntaxError,
+    PreservedStubSemanticSyntaxError,
+    OrdinaryAnnotationNamedExpression,
+    InvalidSyntaxProjectionDisabled,
+    CustomFrontendProjection,
+    FutureFeatureProjection,
+    LateFutureDirectiveProjection,
+    UnknownFutureWithoutConsumer,
+    FrontendRuleCollision,
+    ProjectionCacheQueryChange,
+    QueryModuleInlineEquivalence,
+    TargetConfigurationCacheChange,
+    RejectedSyntaxWithProviderPartialsSkipsOnlyAcceptedSyntaxRules,
+    SharedSuppressionFragmentMatchesTheHistoricalInlineQueries,
+    LiteralPropertiesReachEngineQueriesForTrueAndFalseBooleanNodes,
+    DecodedNumericPayloadsAndStrictGreaterCompositionReachEngineQueries,
+    SelectedConsumerKeepsUnselectedProducerWithoutItsDiagnostics,
+    ActualI001MixedNamespaceObservationStaysUnknownOnColdAndWarmReplay,
+    LazyFutureStaysVisibleWithoutADedicatedSelectedRule,
+    ListedProjectInputsAndInvalidSourcesKeepDistinctReaders,
+    I001HiddenMatchAndRuf100OutputFollowFirstImportAndUnknownInventory,
+}

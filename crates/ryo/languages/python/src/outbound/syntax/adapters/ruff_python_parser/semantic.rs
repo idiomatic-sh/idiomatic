@@ -1,5 +1,6 @@
 //! Lazy, file-scoped Python syntax rendering for demanded AST nodes.
 
+use super::constants::LIST_SEPARATOR;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -7,11 +8,11 @@ use ruff_python_ast::visitor::{Visitor, walk_expr};
 use ruff_python_ast::{AnyNodeRef, Expr, ExprContext};
 use ruff_text_size::Ranged as _;
 use ryo::languages::{
-    self, RenderContext, RenderError, RenderOutcome, RenderRequest, SemanticSession,
+    self, Flag, RenderContext, RenderError, RenderOutcome, RenderRequest, SemanticSession,
 };
 
 use super::schemas::concrete_node_kind;
-use super::types::Strings;
+use super::types::{RenderedSyntax, Strings};
 use crate::domain::syntax::service::kind_bits;
 use crate::outbound::syntax::types::PythonSourceKind;
 use crate::settings::PythonParserSettings;
@@ -20,7 +21,7 @@ const UNSUPPORTED: languages::UnknownReason = languages::UnknownReason(24);
 
 /// Native element identity retained only for a file's demanded semantic session.
 pub(super) struct PythonSemanticSession {
-    elements: Vec<(u32, u32, languages::KindBits)>,
+    elements: Vec<ElementKey>,
     source_kind: PythonSourceKind,
     settings: PythonParserSettings,
     parsed: Option<ruff_python_parser::Parsed<ruff_python_ast::Mod>>,
@@ -37,7 +38,11 @@ impl PythonSemanticSession {
             .iter()
             .zip(tree.end.iter())
             .zip(tree.kind.iter())
-            .map(|((start, end), kind)| (start.0, end.0, *kind))
+            .map(|((start, end), kind)| ElementKey {
+                start: *start,
+                end: *end,
+                kind: *kind,
+            })
             .collect();
         Self {
             elements,
@@ -48,16 +53,22 @@ impl PythonSemanticSession {
     }
 }
 
-fn source_slice<'a>(expr: &Expr, source: &'a str) -> Option<&'a str> {
+fn source_slice<'a>(
+    expr: &Expr,
+    source: languages::NameText<'a>,
+) -> Option<languages::NameText<'a>> {
     let range = expr.range();
-    source.get(
-        usize::try_from(range.start().to_u32()).ok()?
-            ..usize::try_from(range.end().to_u32()).ok()?,
-    )
+    let (Ok(start), Ok(end)) = (
+        usize::try_from(range.start().to_u32()),
+        usize::try_from(range.end().to_u32()),
+    ) else {
+        return None;
+    };
+    source.0.get(start..end).map(languages::NameText)
 }
 
-fn target(expr: &Expr) -> bool {
-    match expr {
+fn target(expr: &Expr) -> Flag {
+    let stored = match expr {
         Expr::Name(name) => name.ctx == ExprContext::Store,
         Expr::Attribute(attribute) => attribute.ctx == ExprContext::Store,
         Expr::Subscript(subscript) => subscript.ctx == ExprContext::Store,
@@ -65,51 +76,56 @@ fn target(expr: &Expr) -> bool {
         Expr::List(list) => list.ctx == ExprContext::Store,
         Expr::Starred(starred) => starred.ctx == ExprContext::Store,
         _ => false,
-    }
+    };
+    if stored { Flag::Raised } else { Flag::Lowered }
 }
 
 /// Render only the syntax forms whose embedding can be proven from the AST.
 /// Other valid forms remain explicit Unknown instead of silently losing a row.
-fn render(expr: &Expr, context: RenderContext, source: &str) -> Option<String> {
+fn render(
+    expr: &Expr,
+    context: RenderContext,
+    source: languages::NameText<'_>,
+) -> Option<RenderedSyntax> {
     match expr {
-        Expr::Name(name) => Some(name.id.to_string()),
-        Expr::Attribute(attribute) => Some(format!(
+        Expr::Name(name) => Some(RenderedSyntax(name.id.to_string())),
+        Expr::Attribute(attribute) => Some(RenderedSyntax(format!(
             "{}.{}",
-            render(&attribute.value, RenderContext::AttributeReceiver, source)?,
+            render(&attribute.value, RenderContext::AttributeReceiver, source)?.0,
             attribute.attr
-        )),
-        Expr::Subscript(subscript) => Some(format!(
+        ))),
+        Expr::Subscript(subscript) => Some(RenderedSyntax(format!(
             "{}[{}]",
-            render(&subscript.value, RenderContext::AttributeReceiver, source)?,
-            render(&subscript.slice, RenderContext::PositionalArgument, source)?
-        )),
+            render(&subscript.value, RenderContext::AttributeReceiver, source)?.0,
+            render(&subscript.slice, RenderContext::PositionalArgument, source)?.0
+        ))),
         Expr::Tuple(tuple) => {
             let mut items = Vec::with_capacity(tuple.elts.len());
             for item in &tuple.elts {
-                items.push(render(item, RenderContext::PositionalArgument, source)?);
+                items.push(render(item, RenderContext::PositionalArgument, source)?.0);
             }
-            let mut text = items.join(", ");
+            let mut text = items.join(LIST_SEPARATOR);
             if items.len() == 1 {
                 text.push(',');
             }
             if context == RenderContext::AttributeReceiver
                 || context == RenderContext::PositionalArgument
             {
-                Some(format!("({text})"))
+                Some(RenderedSyntax(format!("({text})")))
             } else {
-                Some(text)
+                Some(RenderedSyntax(text))
             }
         }
         Expr::List(list) => {
             let mut items = Vec::with_capacity(list.elts.len());
             for item in &list.elts {
-                items.push(render(item, RenderContext::PositionalArgument, source)?);
+                items.push(render(item, RenderContext::PositionalArgument, source)?.0);
             }
-            Some(format!("[{}]", items.join(", ")))
+            Some(RenderedSyntax(format!("[{}]", items.join(LIST_SEPARATOR))))
         }
-        Expr::Starred(starred) if context == RenderContext::AssignmentTarget => {
-            Some(format!("*{}", render(&starred.value, context, source)?))
-        }
+        Expr::Starred(starred) if context == RenderContext::AssignmentTarget => Some(RenderedSyntax(
+            format!("*{}", render(&starred.value, context, source)?.0),
+        )),
         Expr::StringLiteral(_)
         | Expr::BytesLiteral(_)
         | Expr::NumberLiteral(_)
@@ -122,38 +138,61 @@ fn render(expr: &Expr, context: RenderContext, source: &str) -> Option<String> {
             if context == RenderContext::AttributeReceiver {
                 return None;
             }
-            source_slice(expr, source).map(str::to_owned)
+            source_slice(expr, source).map(|slice| RenderedSyntax(slice.0.to_owned()))
         }
         _ => None,
     }
 }
 
-type Key = (u32, u32, languages::KindBits);
+/// The extent and kind that identify one element of the table.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct ElementKey {
+    start: languages::Offset,
+    end: languages::Offset,
+    kind: languages::KindBits,
+}
+
+/// One requested rendering: which answer slot it fills and in what context.
+#[derive(Clone, Copy)]
+struct Wanted {
+    slot: Slot,
+    context: RenderContext,
+}
+
+/// The index of an answer in the batch.
+#[derive(Clone, Copy)]
+struct Slot(usize);
 
 struct Requested<'a> {
-    wanted: HashMap<Key, Vec<(usize, RenderContext)>>,
+    wanted: HashMap<ElementKey, Vec<Wanted>>,
     answers: Vec<Option<RenderOutcome>>,
-    source: &'a str,
+    source: languages::NameText<'a>,
 }
 
 impl<'a> Visitor<'a> for Requested<'_> {
     fn visit_expr(&mut self, expr: &'a Expr) {
         let range = expr.range();
-        let key = (
-            range.start().to_u32(),
-            range.end().to_u32(),
-            kind_bits(concrete_node_kind(
+        let key = ElementKey {
+            start: languages::Offset(range.start().to_u32()),
+            end: languages::Offset(range.end().to_u32()),
+            kind: kind_bits(concrete_node_kind(
                 AnyNodeRef::from(expr),
                 Strings::Formatted,
             )),
-        );
+        };
         if let Some(indices) = self.wanted.get(&key) {
-            for &(index, context) in indices {
-                let answer = if context == RenderContext::AssignmentTarget && !target(expr) {
+            for &Wanted {
+                slot: Slot(index),
+                context,
+            } in indices
+            {
+                let answer = if context == RenderContext::AssignmentTarget
+                    && target(expr) == Flag::Lowered
+                {
                     RenderOutcome::NotApplicable
                 } else {
                     render(expr, context, self.source)
-                        .map(|text| RenderOutcome::Known(Arc::from(text)))
+                        .map(|text| RenderOutcome::Known(Arc::from(text.0)))
                         .unwrap_or(RenderOutcome::Unsupported(UNSUPPORTED))
                 };
                 self.answers[index] = Some(match self.answers[index].take() {
@@ -181,26 +220,25 @@ impl SemanticSession for PythonSemanticSession {
         let parsed = self.parsed.get_or_insert_with(|| {
             ruff_python_parser::parse_unchecked(
                 source,
-                super::adapter::options(self.source_kind, &self.settings),
+                super::options::options(self.source_kind, &self.settings),
             )
         });
         let mut asked = Requested {
             wanted: HashMap::new(),
             answers: vec![None; requests.len()],
-            source,
+            source: languages::NameText(source),
         };
         for (index, request) in requests.iter().enumerate() {
-            let Some(&(start, end, kind)) = self.elements.get(
+            let Some(&key) = self.elements.get(
                 usize::try_from(languages::node_position(request.node).0).unwrap_or(usize::MAX),
             ) else {
                 asked.answers[index] = Some(RenderOutcome::Unsupported(UNSUPPORTED));
                 continue;
             };
-            asked
-                .wanted
-                .entry((start, end, kind))
-                .or_default()
-                .push((index, request.context));
+            asked.wanted.entry(key).or_default().push(Wanted {
+                slot: Slot(index),
+                context: request.context,
+            });
         }
         if let Some(module) = parsed.syntax().as_module() {
             asked.visit_body(&module.body);

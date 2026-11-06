@@ -139,10 +139,13 @@ fn subject(source: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+    run(CHECKS, Word::Succeeds, |check| {
+        check();
+        Ok(())
+    });
 }
 
 /// Compiler-mode metadata is shared with syntax checks, not inferred from alias spelling.
-#[test]
 fn future_annotation_timing_uses_validated_module_activation() {
     use crate::domain::model::types::BindingAnnotationTiming;
     use crate::inbound::contracts::parse::contract::ParseContract;
@@ -237,3 +240,13 @@ fn future_annotation_timing_uses_validated_module_activation() {
         }
     }
 }
+
+/// Each check below states its own source and asserts its own outcome.
+const CHECKS: &[Case<fn(), (), ()>] = &[
+    Case {
+        name: CaseName("future_annotation_timing_uses_validated_module_activation"),
+        word: Word::Succeeds,
+        input: || future_annotation_timing_uses_validated_module_activation,
+        expect: Expect::Value(()),
+    },
+];

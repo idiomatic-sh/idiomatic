@@ -59,3 +59,10 @@ pub(crate) const AUTHORITY: &str = "://";
 
 /// What a URL of a local file or directory starts with.
 pub(crate) const FILE_SCHEME: &str = "file:";
+
+/// Why a requested manifest cannot be given a validation row: its file identity is beyond the catalog.
+pub(crate) const FILE_IDENTITY_EXCEEDS_CATALOG: &str =
+    "requested manifest file identity exceeds the catalog range";
+
+/// What precedes the path of a requested manifest the metadata validator did not observe.
+pub(crate) const VALIDATOR_DID_NOT_OBSERVE: &str = "requested metadata validator did not observe ";

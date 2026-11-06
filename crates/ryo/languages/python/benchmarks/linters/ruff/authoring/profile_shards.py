@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 import tomllib
 from authoring import case_records
+from authoring import case_observations
 from authoring import profile_config
 from authoring import profile_worker
 
@@ -109,13 +110,13 @@ def verify_profile_sharded(name: str, profile_root: Path, worker: Path, ruff: Pa
             try:
                 for line in result_path.read_text(encoding='utf-8').splitlines():
                     observed.append(json.loads(line))
-                observed = case_records.case_record_objects(observed)
+                observed = case_observations.case_record_objects(observed)
             except (OSError, ValueError) as exception:
                 observed = []
                 error = '; '.join(filter(None, (error, f'native case receipt could not be read: {exception}')))
         selected_ids = {f"{case['rule']}/{case['name']}" for case in selected}
         try:
-            observed_ids = case_records.complete_case_ids(selected, observed, receipt_file=result_path)
+            observed_ids = case_observations.complete_case_ids(selected, observed, receipt_file=result_path)
         except (OSError, ValueError) as exception:
             observed_ids = set()
             error = '; '.join(filter(None, (error, f'case receipt validation failed: {exception}')))
@@ -151,9 +152,9 @@ def verify_profile_sharded(name: str, profile_root: Path, worker: Path, ruff: Pa
         if resume and receipt_path.is_file() and records_path.is_file():
             try:
                 receipt = json.loads(receipt_path.read_text(encoding='utf-8'))
-                records = case_records.case_record_objects([json.loads(line) for line in records_path.read_text(encoding='utf-8').splitlines()])
+                records = case_observations.case_record_objects([json.loads(line) for line in records_path.read_text(encoding='utf-8').splitlines()])
                 counts = collections.Counter(((row.get('rule'), row.get('name'), row.get('side')) for row in records))
-                records_valid = case_records.complete_case_ids(selected, records, receipt_file=records_path) == {f"{case['rule']}/{case['name']}" for case in selected} and all((counts[case['rule'], case['name'], side] == 1 for case in selected for side in ('reference', 'candidate'))) and (len(records) == 2 * len(selected))
+                records_valid = case_observations.complete_case_ids(selected, records, receipt_file=records_path) == {f"{case['rule']}/{case['name']}" for case in selected} and all((counts[case['rule'], case['name'], side] == 1 for case in selected for side in ('reference', 'candidate'))) and (len(records) == 2 * len(selected))
                 reused = receipt.get('global_identity') == global_identity and receipt.get('case_ids') == expected_ids and (receipt.get('case_result_records_valid') is True) and (receipt.get('case_results_sha256') == profile_config.sha256(records_path)) and records_valid
                 if reused:
                     receipts.append(receipt)
@@ -167,12 +168,12 @@ def verify_profile_sharded(name: str, profile_root: Path, worker: Path, ruff: Pa
             prior_validation_error = None
             if resume and records_path.is_file():
                 try:
-                    prior_records = case_records.case_record_objects([json.loads(line) for line in records_path.read_text(encoding='utf-8').splitlines()])
+                    prior_records = case_observations.case_record_objects([json.loads(line) for line in records_path.read_text(encoding='utf-8').splitlines()])
                 except (OSError, ValueError) as exception:
                     malformed = True
                     prior_validation_error = f'prior native case receipt could not be read: {exception}'
             try:
-                completed = set() if malformed else case_records.complete_case_ids(selected, prior_records, receipt_file=records_path)
+                completed = set() if malformed else case_observations.complete_case_ids(selected, prior_records, receipt_file=records_path)
             except (OSError, ValueError) as exception:
                 completed = set()
                 prior_validation_error = f'prior case receipt validation failed: {exception}'

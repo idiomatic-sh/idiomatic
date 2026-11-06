@@ -16,21 +16,21 @@ ryo::reads! {
   each (BUILTIN_NAMES.iter()) as builtin {
    given since = builtin_named(*builtin)?;
    given name = languages::intern_derived(symbols, tree.source, *builtin);
-   given kind = languages::intern_derived(symbols, tree.source, languages::NameText("builtin"));
+   given kind = languages::intern_derived(symbols, tree.source, languages::NameText(super::constants::BUILTIN));
    row {name:value(name),kind:value(kind),scope:node(at),since_major:value(since.major),since_minor:value(since.minor),file:file,}
   }
   each (BUILTIN_ATTRIBUTES.iter()) as attribute {
    given name = languages::intern_derived(symbols, tree.source, attribute.name);
-   given kind = languages::intern_derived(symbols, tree.source, languages::NameText("builtin"));
+   given kind = languages::intern_derived(symbols, tree.source, languages::NameText(super::constants::BUILTIN));
    row {name:value(name),kind:value(kind),scope:node(at),since_major:value(attribute.major),since_minor:value(attribute.minor),file:file,}
   }
   each (MODULE_GLOBALS.iter()) as global {
    given name = languages::intern_derived(symbols, tree.source, global.name);
-   given kind = languages::intern_derived(symbols, tree.source, languages::NameText("module-global"));
+   given kind = languages::intern_derived(symbols, tree.source, languages::NameText(super::constants::MODULE_GLOBAL));
    row {name:value(name),kind:value(kind),scope:node(at),since_major:value(global.major),since_minor:value(global.minor),file:file,}
   }
-  given name = languages::intern_derived(symbols, tree.source, languages::NameText("WindowsError"));
-  given kind = languages::intern_derived(symbols, tree.source, languages::NameText("platform-builtin"));
+  given name = languages::intern_derived(symbols, tree.source, languages::NameText(super::constants::WINDOWSERROR));
+  given kind = languages::intern_derived(symbols, tree.source, languages::NameText(super::constants::PLATFORM_BUILTIN));
   row {name:value(name),kind:value(kind),scope:node(at),since_major:value(languages::Integer(3)),since_minor:value(languages::Integer(0)),file:file,}
  }
 }
@@ -49,11 +49,31 @@ struct CatalogName {
 /// Names supplied by the builtins environment, including attributes of the builtins module.
 /// These module attributes overlap with module execution globals without sharing origin.
 const BUILTIN_ATTRIBUTES: &[CatalogName] = &[
-    catalog("__doc__", 3, 0),
-    catalog("__loader__", 3, 0),
-    catalog("__name__", 3, 0),
-    catalog("__package__", 3, 0),
-    catalog("__spec__", 3, 4),
+    catalog(
+        languages::NameText(super::constants::DOC),
+        languages::Integer(3),
+        languages::Integer(0),
+    ),
+    catalog(
+        languages::NameText(super::constants::LOADER),
+        languages::Integer(3),
+        languages::Integer(0),
+    ),
+    catalog(
+        languages::NameText(super::constants::NAME),
+        languages::Integer(3),
+        languages::Integer(0),
+    ),
+    catalog(
+        languages::NameText(super::constants::PACKAGE),
+        languages::Integer(3),
+        languages::Integer(0),
+    ),
+    catalog(
+        languages::NameText(super::constants::SPEC),
+        languages::Integer(3),
+        languages::Integer(4),
+    ),
 ];
 
 /// Selected known names installed by Python's module environment, not declarations.
@@ -65,24 +85,68 @@ const BUILTIN_ATTRIBUTES: &[CatalogName] = &[
 /// docs.python.org/3.6/whatsnew/3.6.html, docs.python.org/3/reference/datamodel.html,
 /// peps.python.org/pep-0302/, and peps.python.org/pep-0366/.
 const MODULE_GLOBALS: &[CatalogName] = &[
-    catalog("__annotations__", 3, 6),
-    catalog("__builtins__", 3, 0),
-    catalog("__cached__", 3, 2),
-    catalog("__doc__", 3, 0),
-    catalog("__file__", 3, 0),
-    catalog("__loader__", 3, 0),
-    catalog("__name__", 3, 0),
-    catalog("__package__", 3, 0),
-    catalog("__spec__", 3, 4),
-    catalog("__warningregistry__", 3, 0),
-    catalog("__annotate__", 3, 14),
+    catalog(
+        languages::NameText(super::constants::ANNOTATIONS),
+        languages::Integer(3),
+        languages::Integer(6),
+    ),
+    catalog(
+        languages::NameText(super::constants::BUILTINS),
+        languages::Integer(3),
+        languages::Integer(0),
+    ),
+    catalog(
+        languages::NameText(super::constants::CACHED),
+        languages::Integer(3),
+        languages::Integer(2),
+    ),
+    catalog(
+        languages::NameText(super::constants::DOC),
+        languages::Integer(3),
+        languages::Integer(0),
+    ),
+    catalog(
+        languages::NameText(super::constants::FILE),
+        languages::Integer(3),
+        languages::Integer(0),
+    ),
+    catalog(
+        languages::NameText(super::constants::LOADER),
+        languages::Integer(3),
+        languages::Integer(0),
+    ),
+    catalog(
+        languages::NameText(super::constants::NAME),
+        languages::Integer(3),
+        languages::Integer(0),
+    ),
+    catalog(
+        languages::NameText(super::constants::PACKAGE),
+        languages::Integer(3),
+        languages::Integer(0),
+    ),
+    catalog(
+        languages::NameText(super::constants::SPEC),
+        languages::Integer(3),
+        languages::Integer(4),
+    ),
+    catalog(
+        languages::NameText(super::constants::WARNINGREGISTRY),
+        languages::Integer(3),
+        languages::Integer(0),
+    ),
+    catalog(
+        languages::NameText(super::constants::ANNOTATE),
+        languages::Integer(3),
+        languages::Integer(14),
+    ),
 ];
 
 /// Build a static catalog row from a name and its first supported version.
-const fn catalog(name: &'static str, major: i64, minor: i64) -> CatalogName {
-    CatalogName {
-        name: languages::NameText(name),
-        major: languages::Integer(major),
-        minor: languages::Integer(minor),
-    }
+const fn catalog(
+    name: languages::NameText<'static>,
+    major: languages::Integer,
+    minor: languages::Integer,
+) -> CatalogName {
+    CatalogName { name, major, minor }
 }

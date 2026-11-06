@@ -4,7 +4,7 @@ B019 passes 92 exact oracle cases and RUF049 passes 86 on Ruff 0.16.5 with targe
 Python 3.10 and shipped defaults. The original 116 cases and all three previously
 failing expectation arrays remain unchanged. Integration owns registration.
 
-Evidence: `/tmp/contextual-closure-worker-20261101/verification.json` and its
+Evidence: `contextual-closure-worker-20261101/verification.json` and its
 `profiles/{B019,RUF049}/cases.jsonl` contain 356 complete reference/candidate
 records with zero unknown or unread rule/file pairs. Worker identity and Cargo
 bench-target metadata are in `build/identity.json`. These are fixture results,

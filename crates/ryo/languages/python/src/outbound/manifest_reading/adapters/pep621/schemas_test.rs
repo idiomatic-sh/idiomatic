@@ -83,12 +83,83 @@ fn subject(files: Input) -> Result<Value, Failure> {
         .map(|line| &*Box::leak(line.into_boxed_str()))
 }
 
-#[test]
-fn succeeds() {
-    run(CASES, Word::Succeeds, subject);
+/// Which of the file's cases a row runs.
+#[derive(Clone, Copy, Debug)]
+enum Body {
+    /// The case `invalid_author_retains_valid_dependency_projection`.
+    InvalidAuthorRetainsValidDependencyProjection,
+    /// The case `invalid_dependency_shape_never_publishes_a_fabricated_requirement`.
+    InvalidDependencyShapeNeverPublishesAFabricatedRequirement,
+    /// The case `cloned_document_preserves_unicode_error_span_without_reparsing`.
+    ClonedDocumentPreservesUnicodeErrorSpanWithoutReparsing,
+    /// The case `invalid_requirement_text_is_not_a_projected_dependency`.
+    InvalidRequirementTextIsNotAProjectedDependency,
+    /// The case `metadata_only_does_not_project_rejected_dependencies`.
+    MetadataOnlyDoesNotProjectRejectedDependencies,
+}
+
+/// The rows of the cases whose bodies assert for themselves.
+const BODIES: &[Case<Body, (), ()>] = &[
+    Case {
+        name: CaseName("invalid_author_retains_valid_dependency_projection"),
+        word: Word::Succeeds,
+        input: || Body::InvalidAuthorRetainsValidDependencyProjection,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("invalid_dependency_shape_never_publishes_a_fabricated_requirement"),
+        word: Word::Succeeds,
+        input: || Body::InvalidDependencyShapeNeverPublishesAFabricatedRequirement,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("cloned_document_preserves_unicode_error_span_without_reparsing"),
+        word: Word::Succeeds,
+        input: || Body::ClonedDocumentPreservesUnicodeErrorSpanWithoutReparsing,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("invalid_requirement_text_is_not_a_projected_dependency"),
+        word: Word::Succeeds,
+        input: || Body::InvalidRequirementTextIsNotAProjectedDependency,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("metadata_only_does_not_project_rejected_dependencies"),
+        word: Word::Succeeds,
+        input: || Body::MetadataOnlyDoesNotProjectRejectedDependencies,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs the body of one case.
+fn body(given: Body) -> Result<(), ()> {
+    match given {
+        Body::InvalidAuthorRetainsValidDependencyProjection => {
+            invalid_author_retains_valid_dependency_projection()
+        }
+        Body::InvalidDependencyShapeNeverPublishesAFabricatedRequirement => {
+            invalid_dependency_shape_never_publishes_a_fabricated_requirement()
+        }
+        Body::ClonedDocumentPreservesUnicodeErrorSpanWithoutReparsing => {
+            cloned_document_preserves_unicode_error_span_without_reparsing()
+        }
+        Body::InvalidRequirementTextIsNotAProjectedDependency => {
+            invalid_requirement_text_is_not_a_projected_dependency()
+        }
+        Body::MetadataOnlyDoesNotProjectRejectedDependencies => {
+            metadata_only_does_not_project_rejected_dependencies()
+        }
+    }
+    Ok(())
 }
 
 #[test]
+fn succeeds() {
+    run(BODIES, Word::Succeeds, body);
+    run(CASES, Word::Succeeds, subject);
+}
+
 fn invalid_author_retains_valid_dependency_projection() {
     use super::super::schemas::read;
     use crate::domain::manifest_validation::types::{MetadataDemand, Phase};
@@ -109,7 +180,6 @@ fn invalid_author_retains_valid_dependency_projection() {
     assert!(validation.incomplete.is_none());
 }
 
-#[test]
 fn invalid_dependency_shape_never_publishes_a_fabricated_requirement() {
     use super::super::schemas::read;
     use crate::domain::manifest_validation::types::MetadataDemand;
@@ -117,7 +187,10 @@ fn invalid_dependency_shape_never_publishes_a_fabricated_requirement() {
         "[project]\nname = 'example'\nversion = '1.0'\ndependencies = [1]\n",
         MetadataDemand::Both,
     );
-    assert!(result.declaration.expect("projection requested").is_err());
+    assert!(matches!(
+        result.declaration.expect("projection requested"),
+        Err(ManifestReadingError::Unreadable { .. })
+    ));
     assert!(
         !result
             .validation
@@ -127,7 +200,6 @@ fn invalid_dependency_shape_never_publishes_a_fabricated_requirement() {
     );
 }
 
-#[test]
 fn cloned_document_preserves_unicode_error_span_without_reparsing() {
     use serde::Deserialize;
     let text = "[project]\nname = 'example'\nversion = '1.0'\nauthors = [{name = 'é\\\\author', email = 1}]\n";
@@ -150,7 +222,6 @@ fn cloned_document_preserves_unicode_error_span_without_reparsing() {
     assert_eq!(text.get(span), text.get(expected_start..expected_end));
 }
 
-#[test]
 fn invalid_requirement_text_is_not_a_projected_dependency() {
     use super::super::schemas::read;
     use crate::domain::manifest_validation::types::MetadataDemand;
@@ -158,7 +229,10 @@ fn invalid_requirement_text_is_not_a_projected_dependency() {
         "[project]\nname = 'example'\nversion = '1.0'\ndependencies = ['...']\n",
         MetadataDemand::Both,
     );
-    assert!(result.declaration.expect("projection requested").is_err());
+    assert!(matches!(
+        result.declaration.expect("projection requested"),
+        Err(ManifestReadingError::Unreadable { .. })
+    ));
     assert_eq!(
         result
             .validation
@@ -169,7 +243,6 @@ fn invalid_requirement_text_is_not_a_projected_dependency() {
     );
 }
 
-#[test]
 fn metadata_only_does_not_project_rejected_dependencies() {
     use super::super::schemas::read;
     use crate::domain::manifest_validation::types::MetadataDemand;

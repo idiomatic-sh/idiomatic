@@ -8,7 +8,7 @@ use crate::domain::packages::constants::PYPROJECT;
 use crate::domain::patterns::constants::SEPARATOR;
 use crate::outbound::manifest_reading::interface::ManifestReadingPort;
 use crate::outbound::manifest_reading::types::Claim;
-use crate::outbound::manifest_reading::types::Reading;
+use crate::outbound::manifest_reading::types::ManifestRead;
 
 /// The `pep621` manifest reading adapter.
 #[derive(Debug)]
@@ -27,7 +27,7 @@ impl ManifestReadingPort for ManifestReadingPep621Adapter {
         }
     }
 
-    fn read(&self, manifest: &ManifestFile, demand: MetadataDemand) -> Reading {
+    fn read(&self, manifest: &ManifestFile, demand: MetadataDemand) -> ManifestRead {
         super::schemas::read(&manifest.text, demand)
     }
 }

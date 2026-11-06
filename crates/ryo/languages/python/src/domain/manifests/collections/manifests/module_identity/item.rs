@@ -6,16 +6,16 @@ pub(crate) struct ModuleIdentityItem;
 ryo::reads! {
     ModuleIdentityItem => languages::ModuleIdentity, manifests(Linked) |input, symbols|
     model contexts: ModuleContexts = (Some(input.derived.module_context.clone())) {
-        each (contexts.partial.then_some("module identity requires a named root or external package context")) as reason {
+        each (contexts.partial.0.then_some(super::constants::INCOMPLETE)) as reason {
             partial reason => languages::Missing::Any;
         }
         each (&contexts.rows) as module {
             row {
                 file: value(module.file),
-                path: value(languages::intern_derived(symbols, languages::ByteSlice(&[]), languages::NameText(&module.path))),
-                module_name: value(languages::intern_derived(symbols, languages::ByteSlice(&[]), languages::NameText(&module.module_name))),
-                package_name: value(languages::intern_derived(symbols, languages::ByteSlice(&[]), languages::NameText(&module.package_name))),
-                package_root_name: value(languages::intern_derived(symbols, languages::ByteSlice(&[]), languages::NameText(&module.package_root_name))),
+                path: value(languages::intern_derived(symbols, languages::ByteSlice(&[]), languages::NameText(&module.path.0))),
+                module_name: value(languages::intern_derived(symbols, languages::ByteSlice(&[]), languages::NameText(&module.module_name.0))),
+                package_name: value(languages::intern_derived(symbols, languages::ByteSlice(&[]), languages::NameText(&module.package_name.0))),
+                package_root_name: value(languages::intern_derived(symbols, languages::ByteSlice(&[]), languages::NameText(&module.package_root_name.0))),
             }
         }
     }

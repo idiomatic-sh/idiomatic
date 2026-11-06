@@ -1,7 +1,7 @@
 //! Retained per-node summaries for the lazy function terminal reader.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 /// Pinned structured terminal state before relation-vocabulary collapsing.
-pub(crate) enum Outcome {
+pub(crate) enum TerminalOutcome {
     /// A body falls through without a recognized terminal statement.
     Implicit,
     /// Every represented path raises.
@@ -21,13 +21,13 @@ pub(crate) enum Outcome {
 /// Bottom-up analysis retained for one syntax node.
 pub(crate) struct NodeSummary {
     /// Terminal effect when the node is a statement.
-    pub terminal: Outcome,
+    pub terminal: TerminalOutcome,
     /// Terminal result when the node defines a function.
-    pub function_terminal: Outcome,
+    pub function_terminal: TerminalOutcome,
     /// Whether a `break` can leave the active loop through this statement.
-    pub sometimes_breaks: bool,
+    pub sometimes_breaks: Breaks,
     /// Whether a match pattern is an unguarded wildcard or capture.
-    pub wildcard_pattern: bool,
+    pub wildcard_pattern: WildcardPattern,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -50,3 +50,15 @@ pub(crate) struct TerminalIndex {
     /// Validity of the retained summaries.
     pub state: IndexState,
 }
+
+/// Whether a `break` can leave the active loop.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct Breaks(pub bool);
+
+/// Whether a match pattern is an unguarded wildcard or capture.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct WildcardPattern(pub bool);
+
+/// Whether a terminal summary includes a return path.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct Returns(pub bool);

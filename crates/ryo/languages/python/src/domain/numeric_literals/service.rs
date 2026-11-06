@@ -1,6 +1,7 @@
 //! Normalize existing parser-owned payloads; never parse Python source spelling again.
 
-use super::types::{Classification, NumericLiteral, NumericValue};
+use super::constants::FLOAT_TEXT_BYTES;
+use super::types::{FloatBits, FloatBuffer, NumericClassification, NumericLiteral, NumericValue};
 use crate::domain::{
     nodes::types::Node,
     syntax::{
@@ -9,40 +10,8 @@ use crate::domain::{
         types::{Kind, Literal},
     },
 };
-use ryo::languages::{self, ByteSlice, NameText, Position, Symbol, Symbols, Tree};
-use std::fmt::Write as _;
-
-/// `Display`'s longest finite binary64 spelling fits without a heap allocation.
-struct FloatTextBuffer {
-    bytes: [u8; 350],
-    len: usize,
-}
-
-impl std::fmt::Write for FloatTextBuffer {
-    fn write_str(&mut self, text: &str) -> std::fmt::Result {
-        let end = self.len.checked_add(text.len()).ok_or(std::fmt::Error)?;
-        let Some(space) = self.bytes.get_mut(self.len..end) else {
-            return Err(std::fmt::Error);
-        };
-        space.copy_from_slice(text.as_bytes());
-        self.len = end;
-        Ok(())
-    }
-}
-
-impl FloatTextBuffer {
-    fn new() -> Self {
-        Self {
-            bytes: [0; 350],
-            len: 0,
-        }
-    }
-
-    fn text(&self) -> &str {
-        std::str::from_utf8(&self.bytes[..self.len])
-            .unwrap_or_else(|_| panic!("numeric Display only writes ASCII"))
-    }
-}
+use ryo::languages::{self, ByteSlice, Flag, NameText, Position, Symbol, Symbols, Tree};
+use super::constants;
 
 /// Intern an occurrence without allocating temporary decimal text on each file read.
 pub(crate) fn intern_value(
@@ -51,71 +20,77 @@ pub(crate) fn intern_value(
     numeric: &NumericLiteral<'_>,
 ) -> Symbol {
     match numeric.value {
-        NumericValue::Integer(text) => languages::intern_derived(symbols, source, NameText(text)),
+        NumericValue::Integer(text) => languages::intern_derived(symbols, source, text),
         NumericValue::Float(bits) => {
-            let mut buffer = FloatTextBuffer::new();
-            write_float(bits, &mut buffer);
-            languages::intern_derived(symbols, source, NameText(buffer.text()))
+            let mut buffer = FloatBuffer([0; FLOAT_TEXT_BYTES]);
+            let text = write_float(bits, &mut buffer);
+            languages::intern_derived(symbols, source, text)
         }
     }
 }
 
-/// Write a round-trip binary64 spelling into bounded stack storage.
-fn write_float(bits: u64, buffer: &mut FloatTextBuffer) {
-    let value = f64::from_bits(bits);
+/// Write a round-trip binary64 spelling into bounded stack storage and borrow its text.
+pub(super) fn write_float(bits: FloatBits, buffer: &mut FloatBuffer) -> NameText<'_> {
+    let value = f64::from_bits(bits.0);
+    let mut rest: &mut [u8] = &mut buffer.0[..];
     assert!(
-        write!(buffer, "{value}").is_ok(),
+        std::io::Write::write_fmt(&mut rest, format_args!("{value}")).is_ok(),
         "binary64 text fits the fixed buffer"
     );
-    if value.is_finite() && !buffer.text().contains(['.', 'e', 'E']) {
+    let mut written = FLOAT_TEXT_BYTES - rest.len();
+    if value.is_finite()
+        && !buffer.0[..written]
+            .iter()
+            .any(|byte| matches!(byte, b'.' | b'e' | b'E'))
+    {
+        let mut rest: &mut [u8] = &mut buffer.0[written..];
         assert!(
-            buffer.write_str(".0").is_ok(),
+            std::io::Write::write_all(&mut rest, constants::FLOAT_SUFFIX).is_ok(),
             "binary64 suffix fits the fixed buffer"
         );
+        written = FLOAT_TEXT_BYTES - rest.len();
     }
-}
-
-/// The same stack formatter is observed by the payload tests.
-#[cfg(test)]
-pub(crate) fn float_text(bits: u64) -> String {
-    let mut buffer = FloatTextBuffer::new();
-    write_float(bits, &mut buffer);
-    buffer.text().to_owned()
+    NameText(std::str::from_utf8(&buffer.0[..written]).expect(constants::ASCII_ONLY))
 }
 
 /// Validate a parser-normalized integer payload, without imposing a machine-width bound.
-fn canonical_integer(value: &str) -> bool {
-    let digits = value.strip_prefix('-').unwrap_or(value);
-    !digits.is_empty()
+fn canonical_integer(value: NameText<'_>) -> Flag {
+    let digits = value.0.strip_prefix('-').unwrap_or(value.0);
+    if !digits.is_empty()
         && digits.bytes().all(|byte| byte.is_ascii_digit())
         && (digits.len() == 1 || !digits.starts_with('0'))
+    {
+        Flag::Raised
+    } else {
+        Flag::Lowered
+    }
 }
 
 /// Read one primitive occurrence. Unary signs and arithmetic are not constant-folded.
-pub(crate) fn classify<'a>(tree: &'a Tree<'_>, at: Position) -> Classification<'a> {
+pub(crate) fn classify<'a>(tree: &'a Tree<'_>, at: Position) -> NumericClassification<'a> {
     if kind(tree, at) != Kind::Node(Node::Constant) {
-        return Classification::NotNumeric;
+        return NumericClassification::NotNumeric;
     }
-    let scalar_kind = languages::property_at(tree.elements, at, SCALAR_KIND).map(|text| text.0);
-    let value = languages::property_at(tree.elements, at, SCALAR_VALUE).map(|text| text.0);
-    match scalar_kind {
-        Some(INTEGER_SCALAR) => match value.filter(|value| canonical_integer(value)) {
-            Some(value) => Classification::Known(NumericLiteral {
-                kind: "integer",
+    let scalar_kind = languages::property_at(tree.elements, at, SCALAR_KIND);
+    let value = languages::property_at(tree.elements, at, SCALAR_VALUE);
+    match scalar_kind.map(|each| each.0) {
+        Some(INTEGER_SCALAR) => match value.filter(|value| canonical_integer(*value) == Flag::Raised) {
+            Some(value) => NumericClassification::Known(NumericLiteral {
+                kind: NameText(crate::domain::syntax::constants::INTEGER_SCALAR),
                 value: NumericValue::Integer(value),
             }),
-            None => Classification::MissingPayload,
+            None => NumericClassification::MissingPayload,
         },
-        Some(FLOAT_SCALAR) => match value.and_then(|value| value.parse::<u64>().ok()) {
-            Some(bits) => Classification::Known(NumericLiteral {
-                kind: "float",
-                value: NumericValue::Float(bits),
+        Some(FLOAT_SCALAR) => match value.and_then(|value| match value.0.parse::<u64>() { Ok(parsed) => Some(parsed), Err(_) => None }) {
+            Some(bits) => NumericClassification::Known(NumericLiteral {
+                kind: NameText(crate::domain::syntax::constants::FLOAT_SCALAR),
+                value: NumericValue::Float(FloatBits(bits)),
             }),
-            None => Classification::MissingPayload,
+            None => NumericClassification::MissingPayload,
         },
         // The literal discriminator remains available when scalar properties are missing.
-        Some(COMPLEX_SCALAR) => Classification::NotNumeric,
-        Some(_) | None if literal(tree, at) == Literal::Number => Classification::MissingPayload,
-        Some(_) | None => Classification::NotNumeric,
+        Some(COMPLEX_SCALAR) => NumericClassification::NotNumeric,
+        Some(_) | None if literal(tree, at) == Literal::Number => NumericClassification::MissingPayload,
+        Some(_) | None => NumericClassification::NotNumeric,
     }
 }

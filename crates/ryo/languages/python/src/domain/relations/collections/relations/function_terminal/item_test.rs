@@ -1,11 +1,11 @@
 //! Function terminal summaries cover structured statement paths.
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::super::fixtures::contract::check;
 use super::item::FunctionTerminalItem;
 use crate::fixtures::reading::reading;
 
 use ryo::languages::contract::Want;
 
-#[test]
 fn classifies_implicit_raise_return_and_conditional_paths() {
     check::<FunctionTerminalItem>();
     let report = reading::<FunctionTerminalItem>(concat!(
@@ -38,9 +38,32 @@ fn classifies_implicit_raise_return_and_conditional_paths() {
     );
 }
 
-#[test]
 fn parser_recovery_does_not_certify_function_outcomes() {
     check::<FunctionTerminalItem>();
     let report = reading::<FunctionTerminalItem>("def f():\n    return (\n");
     assert!(!report.causes.is_empty());
+}
+
+/// Each check below states its own source and asserts its own outcome.
+const CASES: &[Case<fn(), (), ()>] = &[
+    Case {
+        name: CaseName("classifies_implicit_raise_return_and_conditional_paths"),
+        word: Word::Succeeds,
+        input: || classifies_implicit_raise_return_and_conditional_paths,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("parser_recovery_does_not_certify_function_outcomes"),
+        word: Word::Succeeds,
+        input: || parser_recovery_does_not_certify_function_outcomes,
+        expect: Expect::Value(()),
+    },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |check| {
+        check();
+        Ok(())
+    });
 }

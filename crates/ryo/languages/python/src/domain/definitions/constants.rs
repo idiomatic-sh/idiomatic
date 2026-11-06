@@ -38,5 +38,3 @@ pub(crate) const KEYWORD_ONLY: &str = "keyword-only";
 pub(crate) const VAR_POSITIONAL: &str = "var-positional";
 /// `**kwargs`.
 pub(crate) const VAR_KEYWORD: &str = "var-keyword";
-/// The keyword of a coroutine definition, as its `NAME` token writes it.
-pub(crate) const ASYNC: &str = "async";

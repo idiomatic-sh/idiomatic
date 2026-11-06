@@ -153,19 +153,33 @@ pub(crate) struct FormatOccurrence {
 }
 
 /// Current source occurrences and a separate byte-budgeted content memo.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct FormatParseIndex {
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct RetainedFormatIndex<Output, Value, State> {
     /// Budgeted previous-source grammar results; no source-node identities.
-    pub memo: crate::domain::grammar_cache::types::Memo<FormatParseResult>,
+    pub memo: crate::domain::grammar_cache::types::GrammarMemo<Output>,
     /// Input text to one cached result, avoiding duplicate grammar work.
     pub by_input: indexmap::IndexMap<FormatCacheInput, FormatResultIndex>,
     /// Parsed or malformed results, one per distinct decoded input.
-    pub values: Vec<CachedFormat>,
+    pub values: Vec<Value>,
     /// Source occurrences and their cached values.
     pub occurrences: Vec<FormatOccurrence>,
     /// Cache validity for the current source.
-    pub state: FormatParseState,
+    pub state: State,
 }
+
+impl<Output, Value, State: Default> Default for RetainedFormatIndex<Output, Value, State> {
+    fn default() -> Self {
+        Self {
+            memo: crate::domain::grammar_cache::types::GrammarMemo::default(),
+            by_input: indexmap::IndexMap::new(),
+            values: Vec::new(),
+            occurrences: Vec::new(),
+            state: State::default(),
+        }
+    }
+}
+
+/// The retained index of percent-format parses.
 
 /// Whether the source-local format index is fresh, complete or partial.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -300,6 +314,3 @@ pub(crate) enum StringOccurrence {
     String,
     Other,
 }
-/// Existing cache admission charge for the owned result buffers.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct FormatOwnedBytes(pub usize);

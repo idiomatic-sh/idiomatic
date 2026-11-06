@@ -11,6 +11,7 @@ import tomllib
 from authoring import case_records
 from authoring import profile_config
 from authoring import profile_proofs
+from authoring import native_standalone
 from authoring import profile_sources
 from authoring import reference_discrepancies
 
@@ -68,7 +69,7 @@ def stage_binding(manifest: dict[str, object], selected: list[str], stack: conte
     return staged
 
 def stage_combined(profile_name: str, descriptor: dict[str, object], manifest: dict[str, object], stack: contextlib.ExitStack, output_directory: Path | None=None) -> tuple[str, Path]:
-    profile_proofs.verify_ready_assets(profile_name, descriptor, manifest)
+    native_standalone.verify_ready_assets(profile_name, descriptor, manifest)
     profile_path = profile_config.REPOSITORY / descriptor['profile_file']
     profile_data = tomllib.loads(profile_path.read_text(encoding='utf-8'))
     selected_rules = descriptor['selected_rules']

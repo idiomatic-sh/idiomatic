@@ -8,14 +8,12 @@ pub(crate) fn ruff_python_parser() -> impl crate::outbound::syntax::interface::S
     super::adapters::ruff_python_parser::adapter::SyntaxRuffPythonParserAdapter::default()
 }
 
-/// Observe actual carrier parsing on this adapter instance, without a process-global counter.
+/// Observe actual carrier parsing on this adapter instance, counting into the counter the caller holds, without a process-global counter.
 #[cfg(test)]
-pub(crate) fn observed_ruff_python_parser() -> (
-    impl crate::outbound::syntax::interface::SyntaxPort,
-    std::sync::Arc<std::sync::atomic::AtomicUsize>,
-) {
-    let adapter =
-        super::adapters::ruff_python_parser::adapter::SyntaxRuffPythonParserAdapter::default();
-    let count = std::sync::Arc::clone(&adapter.expansion_parses);
-    (adapter, count)
+pub(crate) fn observed_ruff_python_parser(
+    count: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+) -> impl crate::outbound::syntax::interface::SyntaxPort {
+    super::adapters::ruff_python_parser::adapter::SyntaxRuffPythonParserAdapter {
+        expansion_parses: count,
+    }
 }

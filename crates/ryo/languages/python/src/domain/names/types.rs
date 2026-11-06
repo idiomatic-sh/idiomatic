@@ -62,7 +62,7 @@ pub(crate) enum Knownness {
 
 /// Whether an expression is the object of an attribute that is read, and so part of the longer dotted name the attribute writes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Reading {
+pub(crate) enum NameReading {
     /// It is the object of an attribute that is read.
     ObjectOfRead,
     /// It stands on its own.

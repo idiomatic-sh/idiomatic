@@ -13,7 +13,7 @@ use crate::domain::packages::types::{
     Checkout, Declared, Interpreter, ManifestPath, Naming, Reference, Requirement, Revision,
     Specifier, Written,
 };
-use crate::domain::patterns::types::{Directory, Part};
+use crate::domain::patterns::types::{Directory, PatternPart};
 use crate::outbound::manifest_reading::errors::ManifestReadingError;
 
 /// A `Pipfile`.
@@ -78,7 +78,7 @@ fn requirements(
             table
                 .file
                 .as_deref()
-                .map_or(DependencyOrigin::Registry, |file| url_origin(Part(file)))
+                .map_or(DependencyOrigin::Registry, |file| url_origin(PatternPart(file)))
         };
         let written = match &table.markers {
             Some(markers) => format!("{name} ; {markers}"),
@@ -99,7 +99,7 @@ fn requirements(
             interpreter: Interpreter::default(),
             reference: table
                 .path
-                .map_or(Reference::Named, |path| locating(directory, Part(&path))),
+                .map_or(Reference::Named, |path| locating(directory, PatternPart(&path))),
         }
     })
 }

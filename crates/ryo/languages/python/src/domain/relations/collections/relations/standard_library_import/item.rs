@@ -20,7 +20,7 @@ ryo::reads! {
         kinds: [Kind::Node(Node::Alias)] as kind_bits,
         given target = import_target(tree, symbols, at)?;
         given text = languages::text_of(symbols, tree.source, target)?;
-        when contains(TargetVersion { major: PythonMajor(model.language_target.0), minor: PythonMinor(model.language_target.1) }, ModulePath(text.0)) {
+        when contains(model.language_target, ModulePath(text.0)) {
             StandardLibraryMembership::Standard => {
                 row {
                     occurrence: node(at),
@@ -30,7 +30,7 @@ ryo::reads! {
             }
             StandardLibraryMembership::Other => {}
             StandardLibraryMembership::UnverifiedRelease => {
-                partial "Python standard-library module catalog is unverified for this target release" => languages::Missing::Any;
+                partial super::constants::UNVERIFIED_CATALOG => languages::Missing::Any;
             }
         }
     }

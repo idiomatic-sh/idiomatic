@@ -1,4 +1,5 @@
 //! Compiler-mode rows follow the canonical frontend flag, never checker traversal snapshots.
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::super::fixtures::contract::check;
 use super::item::CompilerFeatureItem;
 use crate::settings::{PythonParserSettings, PythonTargetVersion};
@@ -22,7 +23,6 @@ fn feature(source: &'static str, path: &'static str, target: PythonTargetVersion
     enabled
 }
 
-#[test]
 fn only_valid_absolute_module_prefix_directives_enable_the_feature() {
     check::<CompilerFeatureItem>();
     for (source, enabled) in [
@@ -64,7 +64,6 @@ fn only_valid_absolute_module_prefix_directives_enable_the_feature() {
     }
 }
 
-#[test]
 fn native_deferred_annotations_do_not_invent_a_future_feature() {
     for target in [
         PythonTargetVersion::Py313,
@@ -78,4 +77,28 @@ fn native_deferred_annotations_do_not_invent_a_future_feature() {
             target
         ));
     }
+}
+
+/// Each check below states its own source and asserts its own outcome.
+const CASES: &[Case<fn(), (), ()>] = &[
+    Case {
+        name: CaseName("only_valid_absolute_module_prefix_directives_enable_the_feature"),
+        word: Word::Succeeds,
+        input: || only_valid_absolute_module_prefix_directives_enable_the_feature,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("native_deferred_annotations_do_not_invent_a_future_feature"),
+        word: Word::Succeeds,
+        input: || native_deferred_annotations_do_not_invent_a_future_feature,
+        expect: Expect::Value(()),
+    },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |check| {
+        check();
+        Ok(())
+    });
 }

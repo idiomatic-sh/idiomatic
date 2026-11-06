@@ -12,7 +12,7 @@ use crate::domain::{
 };
 use crate::fixtures::reading::{initialize_model, parsed};
 use crate::outbound::format_syntax::adapters::{
-    ruff_literal_braceformat::RuffLiteralBraceFormat, ruff_literal_cformat::RuffLiteralCFormat,
+    ruff_literal_braceformat::grammar::RuffLiteralBraceFormat, ruff_literal_cformat::grammar::RuffLiteralCFormat,
 };
 use ryo::languages::{self, ByteSlice, Symbols, Tree};
 use std::sync::atomic::{AtomicUsize, Ordering};

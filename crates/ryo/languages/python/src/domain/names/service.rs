@@ -4,7 +4,7 @@
 use ryo::languages::{self, Position, Symbol, Tree};
 
 use super::constants::DOT;
-use super::types::{Annotation, Assignment, Dottedness, Knownness, Reading, Unresolved, Use};
+use super::types::{Annotation, Assignment, Dottedness, Knownness, NameReading, Unresolved, Use};
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::{Category, Node};
 use crate::domain::scopes::service::{context, nth, place_among};
@@ -255,15 +255,15 @@ pub(crate) fn knownness(tree: &Tree<'_>, at: Position) -> Knownness {
 }
 
 /// Whether the expression at `at` is the object of an attribute that is read: part of the longer dotted name the attribute writes.
-fn reading(tree: &Tree<'_>, at: Position) -> Reading {
+fn reading(tree: &Tree<'_>, at: Position) -> NameReading {
     let above = parent(tree, at);
     if kind(tree, above) == Kind::Node(Node::Attribute)
         && place_among(tree, above, at, Category::Expression) == Some(CategoryIndex(0))
         && context(tree, above) == Context::Load
     {
-        Reading::ObjectOfRead
+        NameReading::ObjectOfRead
     } else {
-        Reading::Own
+        NameReading::Own
     }
 }
 
@@ -281,7 +281,7 @@ pub(crate) fn use_of(tree: &Tree<'_>, at: Position) -> Use {
             context(tree, at) == Context::Load && dottedness(tree, at) == Dottedness::Dotted
         }
         _ => false,
-    } && reading(tree, at) == Reading::Own;
+    } && reading(tree, at) == NameReading::Own;
     if used { Use::Reference } else { Use::Other }
 }
 

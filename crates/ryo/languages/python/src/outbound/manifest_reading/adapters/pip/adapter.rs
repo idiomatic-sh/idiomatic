@@ -11,7 +11,7 @@ use crate::domain::packages::types::ManifestPath;
 use crate::domain::patterns::constants::SEPARATOR;
 use crate::outbound::manifest_reading::interface::ManifestReadingPort;
 use crate::outbound::manifest_reading::types::Claim;
-use crate::outbound::manifest_reading::types::Reading;
+use crate::outbound::manifest_reading::types::ManifestRead;
 
 /// The `pip` manifest reading adapter, over every manifest of the run's repository: the files a requirements file includes are read from them.
 #[derive(Debug)]
@@ -46,14 +46,14 @@ impl ManifestReadingPort for ManifestReadingPipAdapter {
         }
     }
 
-    fn read(&self, manifest: &ManifestFile, demand: MetadataDemand) -> Reading {
+    fn read(&self, manifest: &ManifestFile, demand: MetadataDemand) -> ManifestRead {
         if demand == MetadataDemand::Diagnostics {
-            return Reading {
+            return ManifestRead {
                 declaration: None,
                 validation: None,
             };
         }
-        Reading {
+        ManifestRead {
             declaration: Some(declared(
                 &ManifestPath(manifest.path.0.clone()),
                 &manifest.text,

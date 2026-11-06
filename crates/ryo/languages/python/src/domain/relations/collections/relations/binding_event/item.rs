@@ -16,7 +16,7 @@ ryo::reads! {
    None=>{partial INCOMPLETE => languages::Missing::Any;}
    Some(index)=>{
     each (index.events.iter()) as answer {
-     given kind = languages::intern_derived(symbols, tree.source, languages::NameText(vocabulary::event(answer.kind)));
+     given kind = languages::intern_derived(symbols, tree.source, vocabulary::event(answer.kind));
 row { occurrence:node(answer.occurrence),name:value(answer.name),scope:node(answer.scope),phase:node(answer.phase),kind:value(kind),ordinal:value(answer.ordinal),file:file,span:span(answer.occurrence), }
     }
    }

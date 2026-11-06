@@ -57,7 +57,7 @@ pub(crate) enum ShadowRelationship {
 }
 /// One event in language evaluation order; declaration occurrences reuse defines identities.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Event {
+pub(crate) struct BindingResultEvent {
     /// Actual declaration, reference, or cleanup syntax node.
     pub occurrence: Position,
     /// Canonical identifier.
@@ -147,4 +147,13 @@ pub(crate) struct Candidate {
     pub binding: Position,
     /// Namespace supplying it.
     pub scope: Position,
+}
+
+/// The Python version from which a builtin binding exists; zero for states without a builtin alternative.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Availability {
+    /// The major version.
+    pub major: Integer,
+    /// The minor version.
+    pub minor: Integer,
 }

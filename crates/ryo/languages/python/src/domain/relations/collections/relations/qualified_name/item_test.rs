@@ -42,11 +42,24 @@ fn subject(source: Input) -> Value {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
+    run(CHECKS, Word::Succeeds, |check| {
+        check();
+        Ok(())
+    });
 }
 
-#[test]
 fn complete_ast_semantic_error_does_not_hide_qualified_names() {
     let result = subject("global x\nnonlocal x\nx\n");
     assert!(result.causes.is_empty());
     assert_eq!(result.rows.len(), 1);
 }
+
+/// Each check below states its own source and asserts its own outcome.
+const CHECKS: &[Case<fn(), (), ()>] = &[
+    Case {
+        name: CaseName("complete_ast_semantic_error_does_not_hide_qualified_names"),
+        word: Word::Succeeds,
+        input: || complete_ast_semantic_error_does_not_hide_qualified_names,
+        expect: Expect::Value(()),
+    },
+];

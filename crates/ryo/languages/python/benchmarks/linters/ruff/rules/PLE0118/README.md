@@ -2,4 +2,4 @@ The rule follows Ruff0.16.5 `SemanticSyntaxChecker::visit_expr` Name checks and 
 
 The three B019 cross-rule regressions are retained verbatim as PLE0118 negatives. The original seven arrays are unchanged. Additional controls include separate/nested classes, header/default/annotation evaluation, comprehensions/lambdas, non-Name declarations, repeated global statements, assignment/deletion and accepted-AST semantic diagnostics. The full pinned upstream load_before_global_declaration fixture is included.
 
-Validation:37/37 exact cases,74 complete paired records,zero Unknown on actual frozen worker65b5. Evidence `/tmp/assigned-type-20261101/PLE0118/verification.json`; integration owns the combined cohort rerun. No frozen-run, B019/RUF049 query or prepared-manifest changes.
+Validation:37/37 exact cases,74 complete paired records,zero Unknown on actual frozen worker65b5. Evidence `assigned-type-20261101/PLE0118/verification.json`; integration owns the combined cohort rerun. No frozen-run, B019/RUF049 query or prepared-manifest changes.

@@ -1,123 +1,107 @@
 //! Move grammar results across one reset without retaining a corpus of input strings.
-use super::types::{Entry, Memo};
-/// Reusable storage admission policy per optional grammar index (four indexes total).
-pub(crate) const BUDGET: usize = 16 * 1024;
-/// Half of the index allowance is available to content memo entries and assembly scratch.
-pub(crate) const MEMO_BUDGET: usize = BUDGET / 2;
-/// Each index has at most four reset source arenas; together they use the other half.
-pub(crate) const ARENA_BUDGET: usize = BUDGET / 8;
-/// Conservative map accounting: buckets plus control bytes, rounded upward twofold.
-/// Allocator bookkeeping/rounding is implementation dependent; this is a capacity budget.
+use super::constants::{
+    KEY_CAPACITY, MAP_CAPACITY, MEMO_ENTRIES, SCRATCH_CAPACITY, VECTOR_CAPACITY,
+};
+use super::types::{
+    DialectName, Entry, EntryCount, GrammarMemo, GrammarState, Lookup, MemoGrammar, MemoKey, ParserName,
+    Reservation, Scratch, Taken,
+};
+
+/// How many entries the memo holds.
 #[must_use]
-pub(crate) fn retained<V>(memo: &Memo<V>) -> usize {
-    memo.bytes
-        .saturating_add(memo.scratch.capacity())
-        .saturating_add(
-            memo.entries
-                .capacity()
-                .saturating_mul(size_of::<(String, Entry<V>)>().saturating_add(1))
-                .saturating_mul(2),
-        )
+pub(crate) fn len<V>(memo: &GrammarMemo<V>) -> EntryCount {
+    EntryCount(memo.entries.len())
 }
-/// Discard unmatched previous-source contents; retain only a budgeted empty table/scratch.
-pub(crate) fn empty<V>(memo: &mut Memo<V>) {
+
+/// Discard unmatched previous-source contents; retain only a bounded empty table and scratch.
+pub(crate) fn empty<V>(memo: &mut GrammarMemo<V>) {
     memo.entries.clear();
-    memo.bytes = 0;
-    if retained(memo) > MEMO_BUDGET {
+    if memo.entries.capacity() > MEMO_ENTRIES {
         memo.entries = std::collections::HashMap::new();
-        if memo.scratch.capacity() > ARENA_BUDGET {
-            memo.scratch = String::new();
-        }
+    }
+    if memo.scratch.0.capacity() > SCRATCH_CAPACITY {
+        memo.scratch = Scratch::default();
     }
 }
+
+fn identity<P>(dialect: DialectName) -> MemoGrammar {
+    MemoGrammar {
+        parser: ParserName(std::any::type_name::<P>()),
+        dialect,
+    }
+}
+
 /// Whether a current index was produced by this exact parser implementation and dialect.
 #[must_use]
-pub(crate) fn is_grammar<P, V>(memo: &Memo<V>, dialect: &'static str) -> bool {
-    memo.grammar == (std::any::type_name::<P>(), dialect)
+pub(crate) fn grammar_state<P, V>(memo: &GrammarMemo<V>, dialect: DialectName) -> GrammarState {
+    if memo.grammar == identity::<P>(dialect) {
+        GrammarState::Current
+    } else {
+        GrammarState::Stale
+    }
 }
+
 /// A parser implementation change invalidates reuse, even for identical text.
-pub(crate) fn grammar<P, V>(memo: &mut Memo<V>, dialect: &'static str) {
-    let identity = (std::any::type_name::<P>(), dialect);
+pub(crate) fn grammar<P, V>(memo: &mut GrammarMemo<V>, dialect: DialectName) {
+    let identity = identity::<P>(dialect);
     if memo.grammar != identity {
         empty(memo);
         memo.grammar = identity;
     }
 }
-/// Admit an owned result only when all its key/result capacity fits the reusable budget.
-pub(crate) fn admit<V>(memo: &mut Memo<V>, key: String, value: V, child_bytes: usize) {
-    let bytes = key.capacity().saturating_add(child_bytes);
-    if bytes > MEMO_BUDGET || retained(memo).saturating_add(bytes) > MEMO_BUDGET {
+
+/// Admit an owned result only while the memo has room and its key is modest.
+pub(crate) fn admit<V>(memo: &mut GrammarMemo<V>, key: MemoKey, value: V) {
+    if key.0.capacity() > KEY_CAPACITY || memo.entries.len() >= MEMO_ENTRIES {
         return;
     }
     if memo.entries.try_reserve(1).is_err() {
         return;
     }
-    if retained(memo).saturating_add(bytes) > MEMO_BUDGET {
-        empty(memo);
-        return;
-    }
-    let previous = memo.entries.insert(key, Entry { value, bytes });
-    if let Some(previous) = previous {
-        memo.bytes = memo.bytes.saturating_sub(previous.bytes);
-    }
-    memo.bytes = memo.bytes.saturating_add(bytes);
+    let _previous = memo.entries.insert(key, Entry { value });
 }
+
 /// Transfer a content-identical value into the new file's active index.
-pub(crate) fn take<V>(memo: &mut Memo<V>, key: &str) -> Option<(String, V)> {
-    let (key, entry) = memo.entries.remove_entry(key)?;
-    memo.bytes = memo.bytes.saturating_sub(entry.bytes);
-    Some((key, entry.value))
+pub(crate) fn take<V>(memo: &mut GrammarMemo<V>, key: Lookup<'_>) -> Option<Taken<V>> {
+    let (key, entry) = memo.entries.remove_entry(key.0)?;
+    Some(Taken {
+        key,
+        value: entry.value,
+    })
 }
+
 /// Keep only modest assembly capacity; a large input is active data, not a permanent pool.
-pub(crate) fn scratch<V>(memo: &mut Memo<V>, mut text: String) {
-    text.clear();
-    if text.capacity() <= ARENA_BUDGET
-        && retained(memo).saturating_add(text.capacity()) <= MEMO_BUDGET
-    {
+pub(crate) fn scratch<V>(memo: &mut GrammarMemo<V>, mut text: Scratch) {
+    text.0.clear();
+    if text.0.capacity() <= SCRATCH_CAPACITY {
         memo.scratch = text;
     }
 }
+
 /// Drop oversized active vector storage at reset; small output arenas remain reusable.
 pub(crate) fn reset<T>(values: &mut Vec<T>) {
     values.clear();
-    if values.capacity().saturating_mul(size_of::<T>()) > ARENA_BUDGET {
+    if values.capacity() > VECTOR_CAPACITY {
         *values = Vec::new();
     }
 }
-/// Conservative retained capacity for the pinned `IndexMap`'s two independent buffers.
-/// Dense entries include a stored hash; the second term covers the index/control table.
-/// Our growth path is only `try_reserve(1)`, which rounds dense storage to index capacity.
-/// Factors allow bucket load, alignment and growth headroom; allocator rounding is estimated.
-#[must_use]
-pub(crate) fn ordered_bytes<K, V>(map: &indexmap::IndexMap<K, V>) -> usize {
-    let capacity = map.capacity();
-    let dense = capacity
-        .saturating_mul(size_of::<(usize, K, V)>())
-        .saturating_mul(2);
-    let indices = capacity
-        .saturating_mul(size_of::<usize>().saturating_add(1))
-        .saturating_mul(4);
-    if capacity == 0 {
-        0
-    } else {
-        dense.saturating_add(indices).saturating_add(32)
-    }
-}
+
 /// Reserve both ordered-map buffers; on failure discard a possibly partly grown hash index.
-pub(crate) fn reserve<K, V>(map: &mut indexmap::IndexMap<K, V>) -> bool
+pub(crate) fn reserve<K, V>(map: &mut indexmap::IndexMap<K, V>) -> Reservation
 where
     K: Eq + std::hash::Hash,
 {
     if map.try_reserve(1).is_ok() {
-        true
+        Reservation::Granted
     } else {
         *map = indexmap::IndexMap::new();
-        false
+        Reservation::Refused
     }
 }
+
 /// Drop oversized source lookup storage after moving its owned entries into the memo.
 pub(crate) fn reset_map<K, V>(map: &mut indexmap::IndexMap<K, V>) {
-    if ordered_bytes(map) > ARENA_BUDGET {
+    if map.capacity() > MAP_CAPACITY {
         *map = indexmap::IndexMap::new();
     }
 }

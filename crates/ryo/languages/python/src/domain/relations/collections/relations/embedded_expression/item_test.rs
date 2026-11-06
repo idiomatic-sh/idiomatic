@@ -105,9 +105,12 @@ fn subject(source: Input) -> Result<Value, Failure> {
 fn succeeds() {
     check::<EmbeddedExpressionItem>();
     run(CASES, Word::Succeeds, subject);
+    run(CHECKS, Word::Succeeds, |check| {
+        check();
+        Ok(())
+    });
 }
 
-#[test]
 fn semantic_child_ordinals_are_global_across_call_argument_fields() {
     let children = reading::<SemanticChildItem>("call(first, key=second)\n");
     assert!(children.causes.is_empty());
@@ -127,3 +130,13 @@ fn semantic_child_ordinals_are_global_across_call_argument_fields() {
         keyword.and_then(|row| row.first())
     );
 }
+
+/// Each check below states its own source and asserts its own outcome.
+const CHECKS: &[Case<fn(), (), ()>] = &[
+    Case {
+        name: CaseName("semantic_child_ordinals_are_global_across_call_argument_fields"),
+        word: Word::Succeeds,
+        input: || semantic_child_ordinals_are_global_across_call_argument_fields,
+        expect: Expect::Value(()),
+    },
+];

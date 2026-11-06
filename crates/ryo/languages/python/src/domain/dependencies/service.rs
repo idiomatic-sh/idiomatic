@@ -8,14 +8,14 @@ use crate::domain::packages::constants::{
 };
 use crate::domain::packages::types::Specifier;
 use crate::domain::patterns::constants::SEPARATOR;
-use crate::domain::patterns::types::Part;
+use crate::domain::patterns::types::PatternPart;
 
 use crate::domain::packages::service::{
     causes_of, directory_of, file_of, members_of, normalized, parsed,
 };
 use crate::domain::packages::types::{
-    Checkout, Declared, Dependency, Location, Marker, Membership, Naming, Normalized, Package,
-    Packages, Parsed, Redirect, Reference, Replacement, Requirement, Revision, Target, Wired,
+    Checkout, Declared, Dependency, PackageLocation, Marker, PackageMembership, Naming, Normalized, Package,
+    Packages, Parsed, Redirect, Reference, Replacement, Requirement, Revision, PackageTarget, Wired,
     Wiring, Written,
 };
 
@@ -35,8 +35,8 @@ fn targets_of<'a>(
     package: &'a Package,
     requirement: &Requirement,
     read: &Parsed,
-) -> Vec<Target<'a>> {
-    let in_directory = |location: &Location| {
+) -> Vec<PackageTarget<'a>> {
+    let in_directory = |location: &PackageLocation| {
         packages.packages.iter().find(|other| {
             other.manifest != package.manifest && directory_of(&other.manifest).0 == &*location.0
         })
@@ -47,7 +47,7 @@ fn targets_of<'a>(
                 && name_of(&other.declared).is_some_and(|name| name == read.name)
         })
     };
-    let own = |found: Option<&'a Package>| Target {
+    let own = |found: Option<&'a Package>| PackageTarget {
         package: found,
         condition: None,
         origin: requirement.origin,
@@ -67,7 +67,7 @@ fn targets_of<'a>(
                 return vec![own(by_name())];
             }
             sent.into_iter()
-                .map(|redirect| Target {
+                .map(|redirect| PackageTarget {
                     package: match (&redirect.location, redirect.origin) {
                         (_, languages::DependencyOrigin::Workspace) => by_name(),
                         (Some(location), _) => in_directory(location),
@@ -106,7 +106,7 @@ fn checkout_with(requirement: &Checkout, source: Option<&Checkout>) -> Checkout 
 /// it; empty when none does. uv reads the overrides of the workspace root alone: a member's own are not applied.
 fn replacement_of(
     packages: &Packages,
-    members: &[Membership],
+    members: &[PackageMembership],
     package: &Package,
     name: &Normalized,
 ) -> Replacement {
@@ -201,7 +201,7 @@ pub(crate) fn wirings_in(files: &[languages::FilePath], packages: &Packages) -> 
 /// The revision a git URL names after the `@` that ends its path (`git+https://host/repo.git@v1.0#egg=repo` names `v1.0`); empty for
 /// a URL of another scheme or one that names none. The `@` of a user before the host is not it.
 #[must_use]
-pub(crate) fn url_revision(url: Part<'_>) -> Revision {
+pub(crate) fn url_revision(url: PatternPart<'_>) -> Revision {
     let url = url.0.trim();
     let Some(rest) = url.strip_prefix(GIT_SCHEME) else {
         return Revision::default();
@@ -227,7 +227,7 @@ pub(crate) fn checkout_of(requirement: &Written) -> Checkout {
             .split(MARKER)
             .next()
             .and_then(|head| head.split_once(DIRECT))
-            .map_or_else(Revision::default, |(_, url)| url_revision(Part(url))),
+            .map_or_else(Revision::default, |(_, url)| url_revision(PatternPart(url))),
         ..Checkout::default()
     }
 }

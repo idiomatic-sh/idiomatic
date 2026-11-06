@@ -5,5 +5,5 @@ pub(crate) mod service;
 mod service_test;
 pub(crate) mod types;
 
-#[cfg(any(test, feature = "fixtures"))]
+#[cfg(test)]
 pub(crate) mod fixtures;

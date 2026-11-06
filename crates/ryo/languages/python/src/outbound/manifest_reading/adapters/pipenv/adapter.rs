@@ -10,7 +10,7 @@ use crate::domain::packages::types::ManifestPath;
 use crate::domain::patterns::constants::SEPARATOR;
 use crate::outbound::manifest_reading::interface::ManifestReadingPort;
 use crate::outbound::manifest_reading::types::Claim;
-use crate::outbound::manifest_reading::types::Reading;
+use crate::outbound::manifest_reading::types::ManifestRead;
 
 /// The `pipenv` manifest reading adapter.
 #[derive(Debug)]
@@ -29,14 +29,14 @@ impl ManifestReadingPort for ManifestReadingPipenvAdapter {
         }
     }
 
-    fn read(&self, manifest: &ManifestFile, demand: MetadataDemand) -> Reading {
+    fn read(&self, manifest: &ManifestFile, demand: MetadataDemand) -> ManifestRead {
         if demand == MetadataDemand::Diagnostics {
-            return Reading {
+            return ManifestRead {
                 declaration: None,
                 validation: None,
             };
         }
-        Reading {
+        ManifestRead {
             declaration: Some(declared(
                 &ManifestPath(manifest.path.0.clone()),
                 &manifest.text,

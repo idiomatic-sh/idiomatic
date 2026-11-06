@@ -1,6 +1,6 @@
 //! Source provenance labels shared by the reader and independently asserted fixtures.
 /// The language builtin namespace supplies the name.
-pub(crate) const BUILTIN: &str = "builtin";
+pub(crate) const BUILTIN: &str = crate::domain::syntax::constants::BUILTIN;
 /// A local binding supplies a value without an imported path.
 pub(crate) const LOCAL: &str = "local";
 /// No lexical declaration supplies a known canonical path.

@@ -37,6 +37,6 @@ On actual worker SHA
 `65b5a3933be11bb735c9bfb805451ee378581bec1831daf245d3d37e92e5d94b`, B00523,
 SIM10217, SIM10317, SIM11458, SIM11714 total 129 cases / 258 complete records
 pass, with no unknowns, errors, or skipped files. Receipts are
-`/tmp/<lowercase-rule>-sol-seven/cases.jsonl`. This is retained-case evidence,
+`<lowercase-rule>-sol-seven/cases.jsonl`. This is retained-case evidence,
 not a universal parity claim. PLE1310 and PLW0406 have separate capability
 receipts and are not part of this authored batch.

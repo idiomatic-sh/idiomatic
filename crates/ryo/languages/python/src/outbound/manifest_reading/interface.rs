@@ -3,7 +3,7 @@
 use crate::domain::manifest_validation::types::MetadataDemand;
 
 use super::types::Claim;
-use super::types::Reading;
+use super::types::ManifestRead;
 use ryo::languages::{FilePath, ManifestFile, ManifestName};
 
 /// What every `project` adapter implements: one package manager's manifests.
@@ -20,5 +20,5 @@ pub(crate) trait ManifestReadingPort: Send + Sync {
     /// # Errors
     ///
     /// `Unreadable` when the text is not a manifest the tool can read.
-    fn read(&self, manifest: &ManifestFile, demand: MetadataDemand) -> Reading;
+    fn read(&self, manifest: &ManifestFile, demand: MetadataDemand) -> ManifestRead;
 }

@@ -2,4 +2,4 @@ Pinned Ruff0.16.5 tag `9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a`, Python3.10, st
 
 The FURB168 `recursive-none-grammar-8` source is retained verbatim and no longer emits PYI016. All original ten arrays remain unchanged. Both complete tagged fixtures are included. Additional exact controls cover annotations versus runtime values, generic subscriptions, cast/NewType/TypeVar/TypeAliasType/NamedTuple/TypedDict/mypy call operands, Annotated metadata, ignored call operands, assignment targets and nested Optional grammar.
 
-Validation:83/83 exact full reports,166 complete paired records,zero Unknown on actual frozen worker65b5. Evidence `/tmp/assigned-type-20261101/PYI016/verification.json`. This is bounded fixture evidence; no prepared-manifest change or whole-corpus parity claim.
+Validation:83/83 exact full reports,166 complete paired records,zero Unknown on actual frozen worker65b5. Evidence `assigned-type-20261101/PYI016/verification.json`. This is bounded fixture evidence; no prepared-manifest change or whole-corpus parity claim.

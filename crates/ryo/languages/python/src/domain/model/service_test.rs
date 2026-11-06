@@ -37,7 +37,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject((scope, name): Input) -> Value {
     let model = Declarations {
-        language_target: (3, 15),
+        language_target: crate::domain::standard_library::types::TargetVersion {
+            major: crate::domain::standard_library::types::PythonMajor(3),
+            minor: crate::domain::standard_library::types::PythonMinor(15),
+        },
         bindings: Vec::default(),
         expression_shapes: RefCell::default(),
         constant_keys: RefCell::default(),

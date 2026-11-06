@@ -1,6 +1,16 @@
 //! Project namespace membership controls independent of successful dependency resolution.
 use super::{candidates, memberships};
-use crate::domain::project_namespace::types::{EntryKind, ImportedRoot, MembershipState};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::project_namespace::types::{
+    EntryKind, EntryShape, ImportedRoot, MembershipState, Presence,
+};
+
+/// Adapt an observation written over booleans (is it a file, does it exist) to the typed callback.
+fn typed(
+    observe: impl Fn(&FilePath, bool) -> Option<bool>,
+) -> impl Fn(&FilePath, EntryShape) -> Option<Presence> {
+    move |candidate, shape| observe(candidate, shape == EntryShape::File).map(Presence::from)
+}
 use ryo::languages::{FileId, FilePath};
 
 fn path(value: &str) -> FilePath {
@@ -22,10 +32,9 @@ fn dotted(file: u32, name: &str) -> ImportedRoot {
     }
 }
 
-#[test]
 fn imported_root_membership_requires_complete_scope_or_positive_observation() {
     let imported = [root(0, "pkg"), root(1, "pkg")];
-    let undeclared = memberships(None, &imported, Vec::new(), |_, _| None);
+    let undeclared = memberships(None, &imported, Vec::new(), typed(|_, _| None));
     assert_eq!(
         undeclared
             .rows
@@ -34,16 +43,22 @@ fn imported_root_membership_requires_complete_scope_or_positive_observation() {
             .collect::<Vec<_>>(),
         vec![MembershipState::Unknown; 2]
     );
-    let declared_empty = memberships(Some(&[]), &imported, Vec::new(), |_, _| None);
+    let declared_empty = memberships(Some(&[]), &imported, Vec::new(), typed(|_, _| None));
     assert_eq!(declared_empty.rows[0].state, MembershipState::Absent);
     let search = [path("src"), path("vendor")];
-    let partly = memberships(Some(&search), &imported, Vec::new(), |candidate, _| {
-        (candidate.0.as_ref() == "src/pkg.py").then_some(false)
-    });
+    let partly = memberships(
+        Some(&search),
+        &imported,
+        Vec::new(),
+        typed(|candidate, _| (candidate.0.as_ref() == "src/pkg.py").then_some(false)),
+    );
     assert_eq!(partly.rows[0].state, MembershipState::Unknown);
-    let present = memberships(Some(&search), &imported, Vec::new(), |candidate, file| {
-        (candidate.0.as_ref() == "src/pkg.py" && file).then_some(true)
-    });
+    let present = memberships(
+        Some(&search),
+        &imported,
+        Vec::new(),
+        typed(|candidate, file| (candidate.0.as_ref() == "src/pkg.py" && file).then_some(true)),
+    );
     assert_eq!(
         present.rows.iter().map(|row| row.state).collect::<Vec<_>>(),
         vec![
@@ -55,14 +70,16 @@ fn imported_root_membership_requires_complete_scope_or_positive_observation() {
     );
 }
 
-#[test]
 fn namespace_directory_and_missing_child_have_distinct_memberships() {
     let imported = [root(0, "pkg"), root(0, "other")];
     let search = [path("src")];
     assert_eq!(candidates(Some(&search), &imported).len(), 10);
-    let rows = memberships(Some(&search), &imported, Vec::new(), |candidate, file| {
-        Some(candidate.0.as_ref() == "src/pkg" && !file)
-    })
+    let rows = memberships(
+        Some(&search),
+        &imported,
+        Vec::new(),
+        typed(|candidate, file| Some(candidate.0.as_ref() == "src/pkg" && !file)),
+    )
     .rows;
     assert_eq!(
         rows.iter()
@@ -78,7 +95,6 @@ fn namespace_directory_and_missing_child_have_distinct_memberships() {
     );
 }
 
-#[test]
 fn namespace_root_stays_present_while_dotted_children_are_observed_separately() {
     let imported = [dotted(0, "acme.storage"), dotted(0, "acme.billing")];
     let search = [path("src")];
@@ -93,7 +109,7 @@ fn namespace_root_stays_present_while_dotted_children_are_observed_separately() 
             _ => false,
         })
     };
-    let rows = memberships(Some(&search), &imported, Vec::new(), observed).rows;
+    let rows = memberships(Some(&search), &imported, Vec::new(), typed(observed)).rows;
     let kind = |path: &str| {
         rows.iter()
             .find(|row| row.path.as_ref() == path)
@@ -108,13 +124,18 @@ fn namespace_root_stays_present_while_dotted_children_are_observed_separately() 
             .map(|row| row.state),
         Some(MembershipState::Present)
     );
-    let incomplete = memberships(Some(&search), &imported, Vec::new(), |candidate, file| {
-        if candidate.0.as_ref() == "src/acme/storage" && !file {
-            None
-        } else {
-            observed(candidate, file)
-        }
-    });
+    let incomplete = memberships(
+        Some(&search),
+        &imported,
+        Vec::new(),
+        typed(|candidate, file| {
+            if candidate.0.as_ref() == "src/acme/storage" && !file {
+                None
+            } else {
+                observed(candidate, file)
+            }
+        }),
+    );
     assert_eq!(
         incomplete
             .rows
@@ -125,7 +146,6 @@ fn namespace_root_stays_present_while_dotted_children_are_observed_separately() 
     );
 }
 
-#[test]
 fn module_file_and_directory_collision_preserves_both_observed_prefixes() {
     let imported = [dotted(0, "acme.billing"), dotted(0, "acme.unknown")];
     let search = [path("src")];
@@ -135,7 +155,7 @@ fn module_file_and_directory_collision_preserves_both_observed_prefixes() {
         ("src/acme/unknown", false) => None,
         _ => Some(false),
     };
-    let rows = memberships(Some(&search), &imported, Vec::new(), observe).rows;
+    let rows = memberships(Some(&search), &imported, Vec::new(), typed(observe)).rows;
     let kind = |path: &str| {
         rows.iter()
             .find(|row| row.path.as_ref() == path)
@@ -162,7 +182,6 @@ fn module_file_and_directory_collision_preserves_both_observed_prefixes() {
     );
 }
 
-#[test]
 fn dotted_child_add_delete_type_change_and_partial_observation_change_its_kind() {
     let imported = [dotted(0, "acme.billing")];
     let search = [path("src")];
@@ -171,12 +190,12 @@ fn dotted_child_add_delete_type_change_and_partial_observation_change_its_kind()
             Some(&search),
             &imported,
             Vec::new(),
-            |candidate, file| match (candidate.0.as_ref(), file) {
+            typed(|candidate, file| match (candidate.0.as_ref(), file) {
                 ("src/acme", false) => Some(true),
                 ("src/acme/billing", false) => child_directory,
                 ("src/acme/billing/__init__.py", true) => initializer,
                 _ => Some(false),
-            },
+            }),
         )
         .rows
         .into_iter()
@@ -192,7 +211,6 @@ fn dotted_child_add_delete_type_change_and_partial_observation_change_its_kind()
     assert_eq!(state(Some(true), None), EntryKind::Unknown);
 }
 
-#[test]
 fn observed_package_in_another_declared_root_remains_a_real_project_entry() {
     let imported = [dotted(0, "acme.billing")];
     let observe = |candidate: &FilePath, file: bool| match (candidate.0.as_ref(), file) {
@@ -202,7 +220,7 @@ fn observed_package_in_another_declared_root_remains_a_real_project_entry() {
         _ => Some(false),
     };
     for roots in [[path("a"), path("b")], [path("b"), path("a")]] {
-        let rows = memberships(Some(&roots), &imported, Vec::new(), observe).rows;
+        let rows = memberships(Some(&roots), &imported, Vec::new(), typed(observe)).rows;
         assert_eq!(
             rows.iter()
                 .find(|row| row.path.as_ref() == "acme.billing")
@@ -213,33 +231,39 @@ fn observed_package_in_another_declared_root_remains_a_real_project_entry() {
     }
 }
 
-#[test]
 fn missing_or_conflicting_entry_cannot_prove_absence() {
     let imported = [root(0, "local")];
     let search = [path("")];
-    let rows = memberships(Some(&search), &imported, Vec::new(), |candidate, _| {
-        (candidate.0.as_ref() != "local.py").then_some(false)
-    })
+    let rows = memberships(
+        Some(&search),
+        &imported,
+        Vec::new(),
+        typed(|candidate, _| (candidate.0.as_ref() != "local.py").then_some(false)),
+    )
     .rows;
     assert_eq!(rows[0].state, MembershipState::Unknown);
 }
 
-#[test]
 fn positive_entries_keep_uncertainty_from_an_unobserved_search_root() {
     let imported = [root(0, "acme")];
     let search = [path("src"), path("lib")];
     for (module, expected) in [(false, EntryKind::Namespace), (true, EntryKind::Module)] {
-        let rows = memberships(Some(&search), &imported, Vec::new(), |candidate, file| {
-            if candidate.0.starts_with("lib/") {
-                None
-            } else {
-                Some(match candidate.0.as_ref() {
-                    "src/acme.py" => module && file,
-                    "src/acme" => !module && !file,
-                    _ => false,
-                })
-            }
-        })
+        let rows = memberships(
+            Some(&search),
+            &imported,
+            Vec::new(),
+            typed(|candidate, file| {
+                if candidate.0.starts_with("lib/") {
+                    None
+                } else {
+                    Some(match candidate.0.as_ref() {
+                        "src/acme.py" => module && file,
+                        "src/acme" => !module && !file,
+                        _ => false,
+                    })
+                }
+            }),
+        )
         .rows;
         assert_eq!(
             rows.iter()
@@ -255,4 +279,68 @@ fn positive_entries_keep_uncertainty_from_an_unobserved_search_root() {
                 .all(|row| row.file == FileId(0) && &*row.root == "acme" && &*row.path == "acme")
         );
     }
+}
+
+/// Each check below states its own source and asserts its own outcome.
+const CASES: &[Case<fn(), (), ()>] = &[
+    Case {
+        name: CaseName("imported_root_membership_requires_complete_scope_or_positive_observation"),
+        word: Word::Succeeds,
+        input: || imported_root_membership_requires_complete_scope_or_positive_observation,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("namespace_directory_and_missing_child_have_distinct_memberships"),
+        word: Word::Succeeds,
+        input: || namespace_directory_and_missing_child_have_distinct_memberships,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "namespace_root_stays_present_while_dotted_children_are_observed_separately",
+        ),
+        word: Word::Succeeds,
+        input: || namespace_root_stays_present_while_dotted_children_are_observed_separately,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("module_file_and_directory_collision_preserves_both_observed_prefixes"),
+        word: Word::Succeeds,
+        input: || module_file_and_directory_collision_preserves_both_observed_prefixes,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "dotted_child_add_delete_type_change_and_partial_observation_change_its_kind",
+        ),
+        word: Word::Succeeds,
+        input: || dotted_child_add_delete_type_change_and_partial_observation_change_its_kind,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("observed_package_in_another_declared_root_remains_a_real_project_entry"),
+        word: Word::Succeeds,
+        input: || observed_package_in_another_declared_root_remains_a_real_project_entry,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("missing_or_conflicting_entry_cannot_prove_absence"),
+        word: Word::Succeeds,
+        input: || missing_or_conflicting_entry_cannot_prove_absence,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("positive_entries_keep_uncertainty_from_an_unobserved_search_root"),
+        word: Word::Succeeds,
+        input: || positive_entries_keep_uncertainty_from_an_unobserved_search_root,
+        expect: Expect::Value(()),
+    },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |check| {
+        check();
+        Ok(())
+    });
 }

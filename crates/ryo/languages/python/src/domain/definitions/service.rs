@@ -4,7 +4,7 @@
 use ryo::languages::{self, ParameterKind, Position, Symbol, Tree};
 
 use super::constants::{
-    ASYNC, ASYNC_FUNCTION, ASYNC_METHOD, CLASS, EXCEPTION, FROM_IMPORT, FUNCTION, IMPORT,
+    ASYNC_FUNCTION, ASYNC_METHOD, CLASS, EXCEPTION, FROM_IMPORT, FUNCTION, IMPORT,
     KEYWORD_ONLY, METHOD, PARAM_SPEC, PATTERN, POSITIONAL_ONLY, POSITIONAL_OR_KEYWORD, TYPE_ALIAS,
     TYPE_VAR, TYPE_VAR_TUPLE, VAR_KEYWORD, VAR_POSITIONAL, VARIABLE,
 };
@@ -37,7 +37,7 @@ pub(crate) fn function_word(tree: &Tree<'_>, function: Position) -> Defined {
     let method = kind(tree, enclosing(tree, function)) == Kind::Node(Node::ClassDef);
     let coroutine = languages::children(tree.elements, function)
         .find(|each| kind(tree, *each) == Kind::Token(Token::Name))
-        .is_some_and(|keyword| written(tree, keyword).0 == ASYNC);
+        .is_some_and(|keyword| written(tree, keyword).0 == crate::domain::syntax::constants::ASYNC);
     match (method, coroutine) {
         (true, true) => defined(languages::DeclarationKind::Method, Refinement(ASYNC_METHOD)),
         (true, false) => defined(languages::DeclarationKind::Method, Refinement(METHOD)),

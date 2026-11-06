@@ -1,9 +1,9 @@
 //! The types of the `ruff_python_parser` adapter: plain data, public fields and derives, with no constructor and no inherent impl.
 use ruff_python_ast::token::{Token as RuffToken, Tokens};
-use ryo::languages::{self, Offset};
+use ryo::languages::{self, DiagnosticCode, DiagnosticPhase, Offset, TreeImpact};
 
 /// How many nodes are open: zero outside the root.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(super) struct Depth(pub usize);
 
 /// Whether the source-order visitor is traversing a type annotation.
@@ -70,7 +70,7 @@ pub(crate) struct ParserRefusal {
 /// The writer of the table: it walks the library's tree in the order of the file and writes its tokens between the nodes.
 pub(super) struct Writer<'b, 'w, 't> {
     /// Valid compiler activation computed from the module’s legal future-statement prefix.
-    pub future_annotations: bool,
+    pub future_annotations: FutureAnnotations,
     /// Annotation candidates are collected only in explicit annotation contexts.
     pub annotations: Vec<AnnotationCandidate>,
     /// Current syntactic context, refined by semantic binding before projection.
@@ -100,7 +100,7 @@ pub(super) struct Writer<'b, 'w, 't> {
     /// Source spelling retained only to distinguish normalized identifiers.
     pub source: languages::NameText<'t>,
     /// Reused scalar formatting buffer; `String` formatting has no failure path.
-    pub scalar: String,
+    pub scalar: ScalarBuffer,
 }
 
 /// Decoded bytes displayed as an unambiguous scalar payload without allocating a temporary string.
@@ -130,5 +130,81 @@ impl std::fmt::Display for DebugSpelling<'_> {
             }
         }
         Ok(())
+    }
+}
+
+/// The text of one parser diagnostic.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct DiagnosticMessage(pub String);
+
+impl From<&str> for DiagnosticMessage {
+    fn from(text: &str) -> Self {
+        Self(text.to_owned())
+    }
+}
+
+impl From<String> for DiagnosticMessage {
+    fn from(text: String) -> Self {
+        Self(text)
+    }
+}
+
+/// A reusable text buffer scalar payloads are formatted into.
+#[derive(Debug, Default)]
+pub(super) struct ScalarBuffer(pub String);
+
+/// The rendered spelling of one syntax form.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct RenderedSyntax(pub String);
+
+/// One parser-library syntax diagnostic, before byte-range normalization.
+pub(super) struct SemanticSyntaxDiagnostic {
+    /// The diagnostic text emitted by the parser.
+    pub message: DiagnosticMessage,
+    /// The parser-native source range.
+    pub range: ruff_text_size::TextRange,
+    /// Stable provider-owned classification code.
+    pub code: DiagnosticCode,
+    /// The parser or validation phase that owns this diagnostic.
+    pub phase: DiagnosticPhase,
+    /// Whether the diagnostic preserves usable syntax facts.
+    pub impact: TreeImpact,
+}
+
+/// Whether a valid module-prefix future statement enables postponed annotations.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct FutureAnnotations(pub bool);
+
+/// Whether the configured language version uses native deferred annotations.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct DeferredAnnotations(pub bool);
+
+/// Whether an annotation sits under generic type parameters.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct GenericScope(pub bool);
+
+/// Whether the lexer's token ranges cover the source completely.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct LexicallyComplete(pub bool);
+
+/// Whether a certified synthetic end-of-file error marks an unclosed delimiter.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct DelimiterEof(pub bool);
+
+/// Whether every future directive seen so far is known.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct FutureValidity(pub bool);
+
+/// Whether a token stream ends inside an open delimiter.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct UnclosedDelimiter(pub bool);
+
+/// A name bound in a scope; it hashes and compares as its text, so lookups by `&str` work.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
+pub(super) struct BoundName(pub String);
+
+impl std::borrow::Borrow<str> for BoundName {
+    fn borrow(&self) -> &str {
+        &self.0
     }
 }

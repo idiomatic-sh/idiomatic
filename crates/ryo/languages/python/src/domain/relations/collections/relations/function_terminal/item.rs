@@ -10,9 +10,8 @@ use crate::domain::{
     },
 };
 use ryo::languages;
+use super::constants::INCOMPLETE;
 
-/// The reason recovered syntax cannot certify terminal control flow.
-const INCOMPLETE: &str = "function terminal outcomes require a complete syntax tree";
 /// Reads one terminal outcome for each visible function.
 pub(crate) struct FunctionTerminalItem;
 
@@ -24,7 +23,7 @@ fn state(index: &TerminalIndex) -> IndexState {
 ryo::reads! {
     FunctionTerminalItem => languages::FunctionTerminal, model(Declarations) |tree, model, at, symbols| {
         kinds: [Kind::Node(Node::Module)] as kind_bits,
-        given index = prepare(tree, model);
+        given index = prepare(tree, &model.terminal_flow);
         when state(&index) {
             IndexState::Partial => { partial INCOMPLETE => languages::Missing::Any; }
             IndexState::Fresh => { partial INCOMPLETE => languages::Missing::Any; }
@@ -34,7 +33,7 @@ ryo::reads! {
             require matches!(crate::domain::syntax::service::kind(tree,function), Kind::Node(Node::FunctionDef|Node::AsyncFunctionDef));
             require crate::domain::semantic_syntax::service::visibility(tree, model, function, symbols) == Visibility::Visible;
             given outcome = outcome(&index,function)?;
-            given outcome = languages::intern_derived(symbols, tree.source, languages::NameText(outcome));
+            given outcome = languages::intern_derived(symbols, tree.source, outcome);
             row { id: node(function), outcome: value(outcome), file: file, span: span(function), }
         }
     }

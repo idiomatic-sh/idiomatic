@@ -115,3 +115,15 @@ pub(crate) const MODULE_FUTURE_ANNOTATIONS: ryo::languages::PropertyId =
 pub(crate) const MODULE_FUTURE_ANNOTATIONS_ENABLED: &str = "enabled";
 /// No valid module compiler directive enables postponed annotations.
 pub(crate) const MODULE_FUTURE_ANNOTATIONS_DISABLED: &str = "disabled";
+
+/// The keyword of a coroutine definition or comprehension, as its `NAME` token writes it.
+pub(crate) const ASYNC: &str = "async";
+
+/// The provenance and label of a name the language itself provides.
+pub(crate) const BUILTIN: &str = "builtin";
+
+/// The label of a name or member that is not there.
+pub(crate) const ABSENT: &str = "absent";
+
+/// The separator of a dotted module path.
+pub(crate) const DOT: &str = ".";

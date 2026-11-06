@@ -10,5 +10,5 @@ pub(crate) struct LinterRuffSettings {
     /// Rules permitted in normalized reference output.
     pub defaults: BTreeSet<RuleId>,
     /// Effective Python version selected by the sealed benchmark profile.
-    pub target_version: String,
+    pub target_version: std::ffi::OsString,
 }

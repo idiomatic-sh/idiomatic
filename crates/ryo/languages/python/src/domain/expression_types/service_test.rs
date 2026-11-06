@@ -20,7 +20,7 @@ fn is_lazy_retained_and_invalidated_between_files() {
         model.expression_types.borrow().state,
         ExpressionTypeState::Fresh
     );
-    let index = prepare(&first_tree, &model);
+    let index = prepare(&first_tree, &model.expression_types);
     assert_eq!(index.state, ExpressionTypeState::Complete);
     assert!(
         index
@@ -43,7 +43,7 @@ fn is_lazy_retained_and_invalidated_between_files() {
         model.expression_types.borrow().state,
         ExpressionTypeState::Fresh
     );
-    let replacement = prepare(&second_tree, &model);
+    let replacement = prepare(&second_tree, &model.expression_types);
     assert!(replacement.entries.capacity() >= capacity);
     assert!(
         replacement
