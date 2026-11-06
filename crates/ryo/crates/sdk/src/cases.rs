@@ -27,6 +27,7 @@ pub enum Selection {
 
 /// Whether an error is the one a row picks, as a selector answers it: `selects!(error, pattern)` is `Matches` when `error` matches
 /// the pattern the row names and `Differs` when it does not.
+#[macro_export]
 macro_rules! selects {
     ($error:expr, $($pattern:tt)+) => {
         if matches!($error, $($pattern)+) {

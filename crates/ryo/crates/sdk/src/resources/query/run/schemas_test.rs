@@ -5,6 +5,7 @@ use ryo_core::inbound::use_cases::lint::errors::LintError as CoreError;
 use super::super::errors::RunError;
 use super::RunErrorSchema;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 use crate::domain::query::types::RyoQlQuery;
 
 /// What a row offers the schemas.

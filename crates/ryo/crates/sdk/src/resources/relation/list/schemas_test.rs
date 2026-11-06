@@ -7,6 +7,7 @@ use super::super::entry::list;
 use super::super::errors::ListError;
 use super::ListRelationsErrorSchema;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 
 /// What a row offers the schemas.
 enum Offered {

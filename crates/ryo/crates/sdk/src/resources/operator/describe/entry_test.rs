@@ -4,6 +4,7 @@ use super::entry::describe;
 use super::errors::DescribeError;
 use super::types::DescribeRequest;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 use crate::domain::operator::types::OperatorName;
 
 type Input = &'static str;

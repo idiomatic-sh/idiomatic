@@ -14,6 +14,7 @@ use super::interface::ParseUseCase;
 use super::service::{absence, build, walk};
 use super::types::{FieldRequest, NoteRequest, ParseRequest};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 use crate::domain::answers::service::{absent, reads};
 use crate::domain::answers::types::{Expansions, ReadItem, Reader, Reads, Support};
 use crate::domain::elements::service::{end_of, enter_node, leave_node, table_builder, token};

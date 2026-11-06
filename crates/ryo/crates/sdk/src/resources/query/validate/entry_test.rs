@@ -3,6 +3,7 @@
 use super::entry::validate;
 use super::types::ValidateRequest;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 use crate::domain::host::types::{
     HostColumn, HostColumnName, HostDeclaration, HostKind, HostRelationName,
 };

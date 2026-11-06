@@ -8,6 +8,7 @@ use super::types::ProjectEngine;
 use super::types::{ManifestName, ProjectRequest, Resolved, RootPath};
 use super::use_case::ProjectUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 use crate::domain::reasons::types::ToolMessage;
 use crate::domain::symbols::types::Symbols;
 use crate::inbound::use_cases::parse::fixtures::contract::Discard;
