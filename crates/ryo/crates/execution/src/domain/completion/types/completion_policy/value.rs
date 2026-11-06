@@ -2,11 +2,11 @@
 //! unavailable inputs retain provenance and can never become a complete empty table.
 use crate::domain::{
     coverage::{
-        service::drop_uncertain,
+        service::{drop_inapplicable, drop_uncertain},
         types::{Partial, Partials, RuleIndex},
     },
     trust::{
-        service::{blocked, files_for},
+        service::{blocked, files_for, partial_files_for, skipped_files},
         types::{Blocking, RelationRead},
     },
 };
@@ -81,7 +81,8 @@ impl CompletionPolicy {
                 }
             }
             CompletionBehavior::BlockBeforeRun(_) => Vec::new(),
-            CompletionBehavior::DropAfterCollect(partials) => files_for(partials, reads),
+            // A skipped file reaches the answer through the readiness of its inputs, which knows what the answer is keyed by.
+            CompletionBehavior::DropAfterCollect(partials) => partial_files_for(partials, reads),
         };
         if files.is_empty() {
             CoverageState::Complete
@@ -115,9 +116,10 @@ impl CompletionPolicy {
         rows: &mut Table,
     ) {
         if let CompletionBehavior::DropAfterCollect(partials) = &self.behavior {
-            let uncertain = files_for(partials, needs);
             let kinds = rows.kinds.clone();
-            drop_uncertain(operation, &kinds, rows, &uncertain);
+            drop_uncertain(operation, &kinds, rows, &partial_files_for(partials, needs));
+            // A skipped file is out of scope for a count not keyed by file; it withholds only its own rows otherwise.
+            drop_inapplicable(operation, &kinds, rows, &skipped_files(partials));
         }
     }
     pub(crate) fn region_admission(&self, needs: &[RelationRead]) -> RegionAdmission {

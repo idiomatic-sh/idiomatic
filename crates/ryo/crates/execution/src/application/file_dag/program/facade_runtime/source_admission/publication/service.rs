@@ -30,6 +30,7 @@ impl SourceInputs<'_, '_> {
             && matches!(
                 readiness,
                 crate::application::file_dag::program::admission::Readiness::Partial { .. }
+                    | crate::application::file_dag::program::admission::Readiness::Inapplicable { .. }
             )
         {
             // A region starts with the admitted operands, then contains only
@@ -125,6 +126,11 @@ impl SourceInputs<'_, '_> {
                 }
                 crate::domain::completion::types::CoverageState::Partial { files } => {
                     crate::application::file_dag::program::admission::Readiness::Partial { files }
+                }
+                crate::domain::completion::types::CoverageState::Inapplicable { files } => {
+                    crate::application::file_dag::program::admission::Readiness::Inapplicable {
+                        files,
+                    }
                 }
             };
         }

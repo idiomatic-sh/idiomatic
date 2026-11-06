@@ -495,6 +495,7 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
             &corpus,
             &[],
             &skipped,
+            &[],
             &readiness,
             &[Bucket(0), Bucket(10), Bucket(20)],
             &[false, true, true],
@@ -502,7 +503,13 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
         .unwrap();
     let mut symbols = Symbols::default();
     let scope = stage
-        .project_scope(RuleIndex(1), &corpus, &[], &skipped)
+        .project_scope(
+            RuleIndex(1),
+            &corpus,
+            &[],
+            &skipped,
+            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+        )
         .unwrap();
     let slot = stage.reserve(RuleIndex(1)).unwrap();
     let ordinary = request
@@ -610,7 +617,13 @@ fn exercise(empty: bool, project_away_file: bool, stale_complete: bool, mode: Mo
     stage.finish(RuleIndex(1)).unwrap();
     drop(scope);
     let scope = stage
-        .project_scope(RuleIndex(2), &corpus, &[], &skipped)
+        .project_scope(
+            RuleIndex(2),
+            &corpus,
+            &[],
+            &skipped,
+            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+        )
         .unwrap();
     let bound = stage.bindings(RuleIndex(2)).unwrap();
     assert_eq!(

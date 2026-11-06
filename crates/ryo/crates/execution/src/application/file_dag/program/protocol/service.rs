@@ -28,6 +28,10 @@ impl ObservedPublication {
                 crate::domain::completion::types::CoverageState::Partial { files },
                 ryo_values::domain::observations::types::ProducerReadiness::Unknown(_),
             ) if !files.is_empty() => Ok(()),
+            (
+                crate::domain::completion::types::CoverageState::Inapplicable { files },
+                ryo_values::domain::observations::types::ProducerReadiness::Unknown(_),
+            ) if !files.is_empty() => Ok(()),
             _ => Err(OperatingError::ObservationIncomplete {
                 reason:
                     crate::application::file_dag::program::constants::PACKED_READINESS_DISAGREES

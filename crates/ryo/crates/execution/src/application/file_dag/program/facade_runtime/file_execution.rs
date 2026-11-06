@@ -290,12 +290,16 @@ pub(super) fn outcome_of<'facts>(
                 Ok(crate::domain::completion::types::CoverageState::Complete) => {
                     RootOutcome::Complete(table)
                 }
-                Ok(crate::domain::completion::types::CoverageState::Partial { files }) => {
-                    RootOutcome::Partial {
-                        table,
-                        affected: files,
-                    }
-                }
+                Ok(
+                    coverage @ (crate::domain::completion::types::CoverageState::Partial { .. }
+                    | crate::domain::completion::types::CoverageState::Inapplicable {
+                        ..
+                    }),
+                ) => RootOutcome::Partial {
+                    table,
+                    affected: crate::domain::completion::service::affected_files(&coverage)
+                        .unwrap_or_default(),
+                },
                 Err(error) => classify(error),
             },
             Err(error) => classify(error),

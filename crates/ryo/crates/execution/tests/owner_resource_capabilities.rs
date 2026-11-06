@@ -39,7 +39,7 @@ fn negative(directory: &Path, name: &str, source: &str, diagnostic: &str) {
 
 fn backend_scaffold(client: &str) -> String {
     let backend =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("src/application/file_dag/derived/backend.rs");
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("src/application/file_dag/derived/owner/cache/types.rs");
     let template = r#"
 #![allow(dead_code,unused_imports,private_interfaces)]
 extern crate self as ryo_language;
@@ -51,7 +51,7 @@ pub mod domain {
   #[derive(Debug)]pub struct CellKind;
   #[derive(Debug)]pub struct Relation;
  }}
- pub mod plan_parts {pub mod types {#[derive(Debug)]pub struct ColumnIndex;}}
+ pub mod plan_parts {pub mod types {#[derive(Debug)]pub struct ColumnIndex;#[derive(Debug)]pub struct LiteralText;}}
  pub mod stored_selection {pub mod types {
   #[derive(Debug)]pub struct PreparedSelectionViews;
   #[derive(Debug)]pub struct Selector;
@@ -70,20 +70,21 @@ pub mod domain {
 }
 pub mod application {pub mod file_dag {
  pub mod derived {
-  pub mod ledger {#[derive(Debug)]pub struct ResourceLease;}
-  pub mod graph_cache {pub mod types {pub mod retained {
-   #[derive(Debug)]pub struct GraphEntry;
-   #[derive(Debug)]pub struct DomainEntry;
-   #[derive(Debug)]pub struct NearestMemo;
-  }}}
-  #[path=__BACKEND__]pub mod backend;
   pub mod owner {
-   use super::backend::CacheBackend;
-   pub fn inspect(cache:&CacheBackend)->usize {cache.entries.len()}
+   pub mod graphs {pub mod types {pub mod retained {pub mod types {
+    #[derive(Debug)]pub struct GraphEntry;
+    #[derive(Debug)]pub struct DomainEntry;
+    #[derive(Debug)]pub struct NearestMemo;
+   }}}}
+   pub mod cache {
+    #[path=__BACKEND__]pub(in crate::application::file_dag) mod types;
+   }
+   use cache::types::CacheBackend;
+   pub fn inspect(cache:&CacheBackend)->usize {cache.graphs.len()}
   }
  }
  pub mod consumer {
-  use super::derived::backend::CacheBackend;
+  use super::derived::owner::cache::types::CacheBackend;
   pub fn legitimate(cache:&CacheBackend)->usize {super::derived::owner::inspect(cache)}
   __CLIENT__
  }
@@ -105,7 +106,7 @@ fn only_derived_owner_can_mutate_the_actual_backend() {
     for (name, client, diagnostic) in [
         (
             "consumer_read_entries",
-            "pub fn forbidden(cache:&CacheBackend)->usize {cache.entries.len()}",
+            "pub fn forbidden(cache:&CacheBackend)->usize {cache.graphs.len()}",
             "E0616",
         ),
         (
@@ -115,7 +116,7 @@ fn only_derived_owner_can_mutate_the_actual_backend() {
         ),
         (
             "consumer_rebind_entries",
-            "pub fn forbidden(seed:CacheBackend)->CacheBackend {CacheBackend{entries:Vec::new(),..seed}}",
+            "pub fn forbidden(seed:CacheBackend)->CacheBackend {CacheBackend{graphs:Vec::new(),..seed}}",
             "E0451",
         ),
     ] {
@@ -141,6 +142,7 @@ fn context_scaffold(client: &str) -> String {
 pub mod domain {
  pub mod operating {pub mod types {
   use crate::domain::{table_model::types::ParameterBinding,symbols::types::QuerySymbols,table_texts::types::SourceView,files::types::FilePath,stored_facts::types::ArenaBytes};
+  #[derive(Debug)]pub struct AfterTheFiles;
   #[derive(Debug)]pub struct Memo;
   #[derive(Debug)]pub struct OperatorScratch;
   pub trait SemanticLookup: std::fmt::Debug {}

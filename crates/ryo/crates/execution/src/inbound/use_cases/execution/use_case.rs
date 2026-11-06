@@ -299,6 +299,7 @@ impl ProjectStage for ProjectPhase<'_> {
         corpus: &[CorpusInput],
         covered: &[Covered],
         skipped: &[Skipped],
+        inapplicable: &InapplicableFiles,
     ) -> Result<ProjectScope, OperatingError> {
         let required = facade_runtime::service::required_partitions(
             &self.request.program,
@@ -306,6 +307,7 @@ impl ProjectStage for ProjectPhase<'_> {
             corpus,
             covered,
             skipped,
+            &inapplicable.0,
             &self.request.services,
         )?;
         Ok(ProjectScope {
@@ -527,8 +529,10 @@ impl ObservationExecution for ObservationStage<'_> {
         corpus: &[CorpusInput],
         covered: &[Covered],
         skipped: &[Skipped],
+        inapplicable: &InapplicableFiles,
     ) -> Result<ProjectScope, OperatingError> {
-        self.phase.project_scope(rule, corpus, covered, skipped)
+        self.phase
+            .project_scope(rule, corpus, covered, skipped, inapplicable)
     }
     fn finish(&mut self, rule: RuleIndex) -> Result<(), OperatingError> {
         self.publications.finish(rule)
@@ -559,6 +563,7 @@ impl ObservationPublication for ObservationStage<'_> {
         corpus: &[CorpusInput],
         covered: &[Covered],
         skipped: &[Skipped],
+        inapplicable: &[InapplicableFiles],
         frames: &[FileObservationReadiness],
         first_bucket: &[Bucket],
         selected: &[bool],
@@ -572,6 +577,7 @@ impl ObservationPublication for ObservationStage<'_> {
             corpus,
             covered,
             skipped,
+            inapplicable,
             frames,
             first_bucket,
             selected,

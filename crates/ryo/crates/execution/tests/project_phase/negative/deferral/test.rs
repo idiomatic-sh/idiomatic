@@ -34,7 +34,13 @@ fn a_file_emit_defers_at_project_scope_but_its_real_file_failure_is_not_deferred
     }];
     let phase = request.project_phase().unwrap();
     let scope = phase
-        .project_scope(RuleIndex(0), &corpus, &covered, &[])
+        .project_scope(
+            RuleIndex(0),
+            &corpus,
+            &covered,
+            &[],
+            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+        )
         .unwrap();
     let project = ProjectFacts::new(Relation::ModuleIdentity);
     let mut symbols = Symbols::default();

@@ -120,6 +120,7 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
                 &corpus,
                 &[],
                 &skipped,
+                &[],
                 &readiness,
                 &[Bucket(0), Bucket(10)],
                 &[false, true],

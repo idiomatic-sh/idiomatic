@@ -6,9 +6,9 @@ pub(crate) fn file_frontier_coverage(
     file: FileId,
 ) -> Result<ryo_values::domain::records::types::FrontierCoverage, OperatingError> {
     use ryo_values::domain::records::types::{FrontierAffected, FrontierCoverage};
-    match coverage {
-        crate::domain::completion::types::CoverageState::Complete => Ok(FrontierCoverage::Complete),
-        crate::domain::completion::types::CoverageState::Partial { files } => {
+    match affected_files(&coverage) {
+        None => Ok(FrontierCoverage::Complete),
+        Some(files) => {
             let mut affected = files
                 .into_iter()
                 .map(|cause| match cause {
@@ -31,6 +31,18 @@ pub(crate) fn file_frontier_coverage(
     }
 }
 
+/// The files a coverage lacks input of, an inapplicable one as the file it is; none when nothing lacks input.
+pub(crate) fn affected_files(
+    coverage: &crate::domain::completion::types::CoverageState,
+) -> Option<Vec<Option<FileId>>> {
+    use crate::domain::completion::types::CoverageState;
+    match coverage {
+        CoverageState::Complete => None,
+        CoverageState::Partial { files } => Some(files.clone()),
+        CoverageState::Inapplicable { files } => Some(files.iter().copied().map(Some).collect()),
+    }
+}
+
 /// Missing named populations obey the same absence semantics as physical reads.
 /// Positive operators retain admitted rows; absence-sensitive operators can
 /// trust a keyed answer only outside the affected physical partitions.
@@ -44,16 +56,30 @@ pub(crate) fn filter_contributor_rows(
         if input.ordinal >= u8::BITS as usize || absence_inputs & (1 << input.ordinal) == 0 {
             continue;
         }
-        if let super::types::CoverageState::Partial { files } = &input.coverage {
-            let mut affected = files.clone();
-            affected.sort_unstable();
-            affected.dedup();
-            crate::domain::coverage::service::drop_uncertain(
-                operation,
-                input.kinds,
-                rows,
-                &affected,
-            );
+        match &input.coverage {
+            super::types::CoverageState::Complete => {}
+            super::types::CoverageState::Partial { files } => {
+                let mut affected = files.clone();
+                affected.sort_unstable();
+                affected.dedup();
+                crate::domain::coverage::service::drop_uncertain(
+                    operation,
+                    input.kinds,
+                    rows,
+                    &affected,
+                );
+            }
+            super::types::CoverageState::Inapplicable { files } => {
+                let mut inapplicable = files.clone();
+                inapplicable.sort_unstable();
+                inapplicable.dedup();
+                crate::domain::coverage::service::drop_inapplicable(
+                    operation,
+                    input.kinds,
+                    rows,
+                    &inapplicable,
+                );
+            }
         }
     }
 }
@@ -71,9 +97,28 @@ pub(crate) fn output_coverage(
     use ryo_values::domain::{plan_parts::types::Side, plans::types::Operation};
     let file_kind = |kind: CellKind| matches!(kind, CellKind::File | CellKind::Node);
     let mut affected = Vec::new();
+    let mut inapplicable = Vec::new();
     for input in inputs {
-        let super::types::CoverageState::Partial { files } = &input.coverage else {
-            continue;
+        let counted = matches!(
+            operation,
+            Operation::GroupCount { .. } | Operation::GroupDigest { .. }
+        );
+        let mapped: Vec<Option<FileId>>;
+        let files = match &input.coverage {
+            super::types::CoverageState::Complete => continue,
+            // A file out of scope matters to a count only through the file or node the count is keyed by; any other operator
+            // treats it as a partial input.
+            super::types::CoverageState::Inapplicable { files } if counted => {
+                if output_kinds.iter().copied().any(file_kind) {
+                    inapplicable.extend_from_slice(files);
+                }
+                continue;
+            }
+            super::types::CoverageState::Inapplicable { files } => {
+                mapped = files.iter().copied().map(Some).collect();
+                &mapped
+            }
+            super::types::CoverageState::Partial { files } => files,
         };
         if files.is_empty() {
             return Err(OperatingError::ObservationIncomplete {
@@ -171,10 +216,19 @@ pub(crate) fn output_coverage(
     }
     affected.sort_unstable();
     affected.dedup();
-    Ok(if affected.is_empty() {
+    inapplicable.sort_unstable();
+    inapplicable.dedup();
+    Ok(if !affected.is_empty() {
+        affected.extend(inapplicable.into_iter().map(Some));
+        affected.sort_unstable();
+        affected.dedup();
+        super::types::CoverageState::Partial { files: affected }
+    } else if inapplicable.is_empty() {
         super::types::CoverageState::Complete
     } else {
-        super::types::CoverageState::Partial { files: affected }
+        super::types::CoverageState::Inapplicable {
+            files: inapplicable,
+        }
     })
 }
 

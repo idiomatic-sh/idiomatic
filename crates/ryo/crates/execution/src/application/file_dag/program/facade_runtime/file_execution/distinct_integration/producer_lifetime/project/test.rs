@@ -60,6 +60,7 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
             &corpus,
             &[],
             &[],
+            &[],
             &services,
         )?;
     let source = PlanInput::Relation(Relation::LanguageTarget);

@@ -186,7 +186,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 applicability_can_gate: true,
                 placed: &placed,
                 records: &[],
-                replaying: crate::domain::workers::types::Replaying::Findings,
+                reuse: &ryo_values::domain::stores::types::Reuse::Whole,
                 stored: &NOTHING_STORED,
                 handed: &NOTHING_HANDED,
                 wanted_buckets: &NOTHING_WANTED,

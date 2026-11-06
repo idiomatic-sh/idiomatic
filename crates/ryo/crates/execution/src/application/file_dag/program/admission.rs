@@ -32,6 +32,7 @@ pub(crate) struct RequiredPartitions {
     pub(super) files: Box<[FileId]>,
     pub(super) covered: Box<[crate::domain::coverage::types::Covered]>,
     pub(super) skipped: Box<[ryo_values::domain::runs::types::Skipped]>,
+    pub(super) inapplicable: Box<[FileId]>,
 }
 #[derive(Clone)]
 pub(super) enum Partition {
@@ -61,6 +62,7 @@ pub(in crate::application::file_dag::program) enum Emptiness {
 pub(super) enum Readiness {
     Complete,
     Partial { files: Vec<Option<FileId>> },
+    Inapplicable { files: Vec<FileId> },
 }
 /// Root provenance remains attached even when no rows can be supplied.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -220,27 +222,46 @@ pub(super) fn contributor_readiness(
     owner: &Rc<RelationOwner>,
 ) -> Result<Readiness, OperatingError> {
     let mut affected = Vec::new();
+    let mut inapplicable = Vec::new();
     for input in inputs {
         input.publication(owner)?;
         if input.partition.supplies(partition) == PartitionSupply::Lacks {
             return Err(OperatingError::NotRead);
         }
-        if let Readiness::Partial { files } = &input.readiness {
-            for file in files {
-                if !affected.contains(file) {
-                    affected.push(*file);
+        match &input.readiness {
+            Readiness::Complete => {}
+            Readiness::Partial { files } => {
+                for file in files {
+                    if !affected.contains(file) {
+                        affected.push(*file);
+                    }
+                }
+            }
+            Readiness::Inapplicable { files } => {
+                for file in files {
+                    if !inapplicable.contains(file) {
+                        inapplicable.push(*file);
+                    }
                 }
             }
         }
     }
-    if affected.is_empty()
-        && !inputs
-            .iter()
-            .any(|input| matches!(input.readiness, Readiness::Partial { .. }))
+    if inputs
+        .iter()
+        .any(|input| matches!(input.readiness, Readiness::Partial { .. }))
     {
+        for file in inapplicable {
+            if !affected.contains(&Some(file)) {
+                affected.push(Some(file));
+            }
+        }
+        Ok(Readiness::Partial { files: affected })
+    } else if inapplicable.is_empty() {
         Ok(Readiness::Complete)
     } else {
-        Ok(Readiness::Partial { files: affected })
+        Ok(Readiness::Inapplicable {
+            files: inapplicable,
+        })
     }
 }
 

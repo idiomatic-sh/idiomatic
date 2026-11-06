@@ -130,11 +130,13 @@ impl FileRun<'_> {
             crate::domain::completion::types::CoverageState::Complete => {
                 crate::application::file_dag::program::protocol::types::RowEmission::Complete
             }
-            crate::domain::completion::types::CoverageState::Partial { files } => {
-                crate::application::file_dag::program::protocol::types::RowEmission::Partial {
-                    affected: files,
-                }
-            }
+            affected @ (crate::domain::completion::types::CoverageState::Partial { .. }
+            | crate::domain::completion::types::CoverageState::Inapplicable {
+                ..
+            }) => crate::application::file_dag::program::protocol::types::RowEmission::Partial {
+                affected: crate::domain::completion::service::affected_files(&affected)
+                    .unwrap_or_default(),
+            },
         })
     }
 }

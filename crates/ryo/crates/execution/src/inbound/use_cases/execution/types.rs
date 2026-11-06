@@ -255,6 +255,11 @@ pub struct CaptureContext<'a> {
     pub words: &'a mut ryo_relations::domain::relations::types::Words,
 }
 pub use crate::domain::coverage::types::FileObservationReadiness;
+
+/// The files of the corpus that one rule has no frame for because it does not govern them or no language reads them, by file number.
+/// The edge that composes the languages and knows the governing mask names them; the engine discharges a missing source only for these.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct InapplicableFiles(pub Vec<ryo_relations::domain::relations::types::FileId>);
 pub use ryo_values::domain::records::types::CrossPublicationTransfer;
 
 pub use crate::domain::operator::types::RowsFed;

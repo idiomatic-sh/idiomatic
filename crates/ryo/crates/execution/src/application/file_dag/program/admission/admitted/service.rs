@@ -52,7 +52,9 @@ impl AdmittedInput {
     ) -> Result<ObservationReadiness, OperatingError> {
         match &self.readiness {
             Readiness::Complete => Ok(ObservationReadiness::Ready),
-            Readiness::Partial { .. } => Ok(ObservationReadiness::Waiting),
+            Readiness::Partial { .. } | Readiness::Inapplicable { .. } => {
+                Ok(ObservationReadiness::Waiting)
+            }
         }
     }
 
@@ -66,14 +68,21 @@ impl AdmittedInput {
                     files: files.clone(),
                 })
             }
+            Readiness::Inapplicable { files } => Ok(
+                crate::domain::completion::types::CoverageState::Inapplicable {
+                    files: files.clone(),
+                },
+            ),
         }
     }
     pub(in crate::application::file_dag::program) fn with_coverage(
         mut self,
         coverage: crate::domain::completion::types::CoverageState,
     ) -> Self {
-        if let crate::domain::completion::types::CoverageState::Partial { mut files } = coverage {
-            match &mut self.readiness {
+        use crate::domain::completion::types::CoverageState;
+        match coverage {
+            CoverageState::Complete => {}
+            CoverageState::Partial { mut files } => match &mut self.readiness {
                 Readiness::Complete => self.readiness = Readiness::Partial { files },
                 Readiness::Partial { files: existing } => {
                     for file in files.drain(..) {
@@ -82,7 +91,30 @@ impl AdmittedInput {
                         }
                     }
                 }
-            }
+                Readiness::Inapplicable { files: existing } => {
+                    files.extend(existing.iter().copied().map(Some));
+                    files.sort_unstable();
+                    files.dedup();
+                    self.readiness = Readiness::Partial { files };
+                }
+            },
+            CoverageState::Inapplicable { files } => match &mut self.readiness {
+                Readiness::Complete => self.readiness = Readiness::Inapplicable { files },
+                Readiness::Partial { files: existing } => {
+                    for file in files {
+                        if !existing.contains(&Some(file)) {
+                            existing.push(Some(file));
+                        }
+                    }
+                }
+                Readiness::Inapplicable { files: existing } => {
+                    for file in files {
+                        if !existing.contains(&file) {
+                            existing.push(file);
+                        }
+                    }
+                }
+            },
         }
         self
     }
@@ -182,7 +214,9 @@ impl AdmittedInput {
             return Err(OperatingError::NotRead);
         }
         match &self.readiness {
-            Readiness::Complete | Readiness::Partial { .. } => Ok(&self.publication),
+            Readiness::Complete | Readiness::Partial { .. } | Readiness::Inapplicable { .. } => {
+                Ok(&self.publication)
+            }
         }
     }
 }

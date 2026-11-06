@@ -10,7 +10,14 @@ pub(crate) enum ScopeIdentity {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum CoverageState {
     Complete,
-    Partial { files: Vec<Option<FileId>> },
+    Partial {
+        files: Vec<Option<FileId>>,
+    },
+    /// Only files that no language reads, or whose syntax a rule skipped, lack input. They are out of scope for answers not keyed
+    /// by file: they never make such an answer partial, yet they are never `Complete` for the rows keyed to them.
+    Inapplicable {
+        files: Vec<FileId>,
+    },
 }
 
 /// Whether incomplete physical facts permit observation publication.

@@ -249,6 +249,7 @@ pub(super) fn crossing(world: &World) -> CrossingInput<'_> {
             files: &world.files,
             covered: &world.covered,
             skipped: &world.skipped,
+            unread: &[],
             project: &world.project,
             answering: &crate::domain::render::types::Answering::Findings,
             unknown: &[],
@@ -310,7 +311,13 @@ pub(super) fn prepared_in(
         .expect("facts finish");
     let project = facts_port.worker().expect("project facts");
     let scope = phase
-        .project_scope(rule, &world.files, covered, &world.skipped)
+        .project_scope(
+            rule,
+            &world.files,
+            covered,
+            &world.skipped,
+            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+        )
         .expect("project scope");
     let frontiers = world
         .request
@@ -737,7 +744,13 @@ fn project_evaluation_rejects_frontiers_from_another_request() {
     let next = engine.begin(&rules.program, &rules.files);
     let next_phase = next.project_phase().expect("independent project phase");
     let foreign = next_phase
-        .project_scope(RuleIndex(0), &rules.files, &rules.covered, &[])
+        .project_scope(
+            RuleIndex(0),
+            &rules.files,
+            &rules.covered,
+            &[],
+            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+        )
         .expect("independent request over the same program and corpus");
     let result = evaluate_fixture(
         &crossing(&rules),
@@ -858,7 +871,13 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
             partial: vec![],
         }];
         let different = phase
-            .project_scope(RuleIndex(1), &rules.files, &changed, &[])
+            .project_scope(
+                RuleIndex(1),
+                &rules.files,
+                &changed,
+                &[],
+                &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            )
             .unwrap();
         let (_, old_frontier) = prepared_in(
             &rules,
@@ -929,7 +948,13 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
         rules.request = engine.begin(&rules.program, &rules.files);
         let phase = rules.request.project_phase().unwrap();
         let scope = phase
-            .project_scope(RuleIndex(0), &rules.files, &rules.covered, &[])
+            .project_scope(
+                RuleIndex(0),
+                &rules.files,
+                &rules.covered,
+                &[],
+                &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            )
             .unwrap();
         let failed = evaluate_fixture(
             &crossing(&rules),

@@ -255,7 +255,8 @@ impl CapturedProject {
         file.commit_frontier(RuleIndex(0), capture.input)?;
         file.finish()?;
         let phase = publication_owner(&prepared, &services)?;
-        let required = required_partitions(&prepared, RuleIndex(1), &corpus, &[], &[], &services)?;
+        let required =
+            required_partitions(&prepared, RuleIndex(1), &corpus, &[], &[], &[], &services)?;
         let length = capture.words.0.len();
         let token = crate::application::file_dag::program::restored::validate_restored_frontier(
             &prepared,

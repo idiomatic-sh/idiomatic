@@ -43,6 +43,7 @@ impl RequiredPartitions {
         files: &[ryo_values::domain::files::types::CorpusInput],
         covered: &[crate::domain::coverage::types::Covered],
         skipped: &[ryo_values::domain::runs::types::Skipped],
+        inapplicable: &[FileId],
     ) -> Result<Self, OperatingError> {
         if request.corpus() != files {
             return Err(OperatingError::NotRead);
@@ -56,6 +57,9 @@ impl RequiredPartitions {
         if covered
             .iter()
             .any(|entry| entry.file.0 as usize >= files.len())
+            || inapplicable
+                .iter()
+                .any(|file| file.0 as usize >= files.len())
         {
             return Err(OperatingError::NotRead);
         }
@@ -64,6 +68,7 @@ impl RequiredPartitions {
             files: ids.into_boxed_slice(),
             covered: covered.to_vec().into_boxed_slice(),
             skipped: skipped.to_vec().into_boxed_slice(),
+            inapplicable: inapplicable.to_vec().into_boxed_slice(),
         })
     }
     /// An explicit syntax rejection discharges transport, never completeness.
@@ -94,6 +99,10 @@ impl RequiredPartitions {
     }
     pub(in crate::application) fn files(&self) -> &[FileId] {
         &self.files
+    }
+    /// The files the edge named as having no frame for the rule: ungoverned, or read by no language.
+    pub(in crate::application) fn inapplicable(&self) -> &[FileId] {
+        &self.inapplicable
     }
 }
 

@@ -130,7 +130,10 @@ impl ProjectRun<'_> {
                             },
                             Ok((
                                 table,
-                                crate::domain::completion::types::CoverageState::Partial { .. },
+                                crate::domain::completion::types::CoverageState::Partial { .. }
+                                | crate::domain::completion::types::CoverageState::Inapplicable {
+                                    ..
+                                },
                             )) => ProjectObservation::Partial {
                                 table,
                                 publication: ObservedPublication::from_admitted(input),

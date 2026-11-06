@@ -72,8 +72,20 @@ impl Held<'_> {
         covered: &[Covered],
     ) -> Result<ProjectScope, OperatingError> {
         match self {
-            Held::Phase(phase) => phase.project_scope(rule, corpus, covered, &[]),
-            Held::Stage(stage) => stage.project_scope(rule, corpus, covered, &[]),
+            Held::Phase(phase) => phase.project_scope(
+                rule,
+                corpus,
+                covered,
+                &[],
+                &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            ),
+            Held::Stage(stage) => stage.project_scope(
+                rule,
+                corpus,
+                covered,
+                &[],
+                &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            ),
         }
     }
     fn scope(&self, rule: RuleIndex, corpus: &[CorpusInput], covered: &[Covered]) -> ProjectScope {
@@ -296,7 +308,13 @@ pub(crate) fn foreign_phase_outcome(
         request.project_phase().unwrap(),
     );
     let scope = owner
-        .project_scope(RuleIndex(0), &corpus, &covered, &[])
+        .project_scope(
+            RuleIndex(0),
+            &corpus,
+            &covered,
+            &[],
+            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+        )
         .unwrap();
     let ordinary = prepare_for(&request, &scope, RuleIndex(0)).unwrap();
     let partials = Partials::default();

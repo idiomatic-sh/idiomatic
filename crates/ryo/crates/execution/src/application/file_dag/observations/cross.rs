@@ -517,6 +517,8 @@ fn frontier_compatible(
             // admitted physical provenance, never by a cached readiness bit.
             if !matches!(physical, CoverageState::Partial { files }
                 if files.contains(&None) || files.contains(&Some(*file)))
+                && !matches!(physical, CoverageState::Inapplicable { files }
+                    if files.contains(file))
             {
                 return Ok(false);
             }
@@ -537,6 +539,7 @@ pub(crate) fn restore_frontiers(
     corpus: &[ryo_values::domain::files::types::CorpusInput],
     covered: &[crate::domain::coverage::types::Covered],
     skipped: &[ryo_values::domain::runs::types::Skipped],
+    inapplicable: &[crate::inbound::use_cases::execution::types::InapplicableFiles],
     frames: &[crate::domain::coverage::types::FileObservationReadiness],
     first_bucket: &[ryo_values::domain::stored_facts::types::Bucket],
     selected: &[bool],
@@ -586,6 +589,9 @@ pub(crate) fn restore_frontiers(
                 corpus,
                 covered,
                 skipped,
+                inapplicable
+                    .get(root.producer.0)
+                    .map_or(&[][..], |files| &files.0),
                 services,
             )?;
             let payload =

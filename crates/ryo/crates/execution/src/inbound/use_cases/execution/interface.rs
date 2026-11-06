@@ -140,6 +140,7 @@ pub trait ProjectStage: ProjectRootExecution {
         corpus: &[CorpusInput],
         covered: &[Covered],
         skipped: &[Skipped],
+        inapplicable: &InapplicableFiles,
     ) -> Result<ProjectScope, OperatingError>;
     fn finish(self) -> Result<(), OperatingError>;
 }
@@ -217,6 +218,7 @@ pub trait ObservationExecution {
         corpus: &[CorpusInput],
         covered: &[Covered],
         skipped: &[Skipped],
+        inapplicable: &InapplicableFiles,
     ) -> Result<ProjectScope, OperatingError>;
     fn finish(&mut self, rule: RuleIndex) -> Result<(), OperatingError>;
     fn finish_stage(self) -> Result<(), OperatingError>;
@@ -239,6 +241,7 @@ pub trait ObservationPublication {
         corpus: &[CorpusInput],
         covered: &[Covered],
         skipped: &[Skipped],
+        inapplicable: &[InapplicableFiles],
         readiness: &[FileObservationReadiness],
         first_bucket: &[Bucket],
         selected: &[bool],

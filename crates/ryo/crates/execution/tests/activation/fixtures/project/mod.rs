@@ -68,7 +68,7 @@ pub(crate) fn measure_project(
             let mut frontiers = Vec::with_capacity(demanded.len());
             for &rule in demanded {
                 let scope = phase
-                    .project_scope(RuleIndex(rule), &corpus, &covered, &[])
+                    .project_scope(RuleIndex(rule), &corpus, &covered, &[], &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default())
                     .unwrap();
                 frontiers.push(
                     request
@@ -108,9 +108,9 @@ pub(crate) fn measure_project(
                     },
                 })
                 .collect();
-            let ProjectBatch::Complete(outcomes) =
-                phase.evaluate(tasks, &mut symbols, |_| Ok::<(), std::convert::Infallible>(()))
-            else {
+            let ProjectBatch::Complete(outcomes) = phase.evaluate(tasks, &mut symbols, |_| {
+                Ok::<(), std::convert::Infallible>(())
+            }) else {
                 panic!("an infallible guard cannot refuse")
             };
             assert_eq!(outcomes.len(), demanded.len());
