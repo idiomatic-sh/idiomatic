@@ -99,25 +99,15 @@ pub enum AnswerShape {
     Rows(crate::domain::records::types::RowTotal),
 }
 
-/// Whether the common file DAG may retain optional completed node results.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum NodeResultReuse {
-    /// Required live consumer leases remain; optional completed node retention is disabled.
-    #[default]
-    Disabled,
-    /// Admit optional completed node results under the existing bounded policy.
-    Enabled,
-}
-
-/// Physical execution choices selected at the caller edge.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct ExecutionOptions {
-    /// Optional node result retention; does not select a different executor.
-    pub node_result_reuse: NodeResultReuse,
-    /// Enable eligible column kernels.
-    pub column_kernel: bool,
-}
-
 /// A rule, by its place among the rules of a run.
+///
+/// The caller edge chooses no physical strategy: the removed execution options and
+/// the node-result-reuse switch no longer resolve.
+/// ```compile_fail,E0432
+/// use ryo_values::domain::runs::types::ExecutionOptions;
+/// ```
+/// ```compile_fail,E0432
+/// use ryo_values::domain::runs::types::NodeResultReuse;
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RuleNumber(pub u32);

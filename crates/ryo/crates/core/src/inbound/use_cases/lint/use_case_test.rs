@@ -393,23 +393,12 @@ fn accepted_syntax_applicability_replays_skips_and_invalidates_on_policy_change(
 }
 
 /// The use case over the fakes `given` stands for.
-fn world(given: Given) -> World {
-    world_with_kernel(given, false)
-}
-
-/// Construct either physical backend over the same fake store and query identity.
-fn world_with_kernel(mut given: Given, column_kernel: bool) -> World {
+fn world(mut given: Given) -> World {
     let scheduler = Arc::new(std::mem::take(&mut given.scheduler));
     let query_language: Arc<
         dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort,
     > = Arc::<QueryLanguageFake>::clone(&given.query);
-    scheduled_world_with_query_kernel(
-        given,
-        scheduler,
-        WorkerCount(1),
-        query_language,
-        column_kernel,
-    )
+    scheduled_world_with_query(given, scheduler, WorkerCount(1), query_language)
 }
 
 /// The same fixture over an explicitly injected production scheduler.
@@ -429,41 +418,27 @@ fn scheduled_world_with_query(
         dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort,
     >,
 ) -> World {
-    scheduled_world_with_query_kernel(given, scheduler, workers, query_language, false)
-}
-
-fn scheduled_world_with_query_kernel(
-    given: Given,
-    scheduler: Arc<dyn SchedulerPort>,
-    workers: WorkerCount,
-    query_language: Arc<
-        dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort,
-    >,
-    column_kernel: bool,
-) -> World {
     let memory = Arc::new(given.memory);
     let operators = Arc::new(crate::outbound::operators::factory::use_case(
         ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
     ));
-    scheduled_world_with_query_kernel_resources(
+    scheduled_world_with_query_resources(
         given,
         scheduler,
         workers,
         query_language,
-        column_kernel,
         memory,
         operators,
     )
 }
 
-fn scheduled_world_with_query_kernel_resources(
+fn scheduled_world_with_query_resources(
     given: Given,
     scheduler: Arc<dyn SchedulerPort>,
     workers: WorkerCount,
     query_language: Arc<
         dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort,
     >,
-    column_kernel: bool,
     analysis_memory: Arc<dyn crate::outbound::memory::interface::MemoryPort>,
     operators: Arc<dyn ryo_execution::inbound::use_cases::execution::types::OperatorsPort>,
 ) -> World {
@@ -513,8 +488,7 @@ fn scheduled_world_with_query_kernel_resources(
                 Arc::clone(&analysis_language),
                 Arc::clone(&analysis_digest),
                 Arc::clone(&analysis_memory),
-            )
-            .with_column_kernel(column_kernel),
+            ),
             crate::application::cross_file::service::CrossFile::new(Arc::clone(&analysis_corpus), std::sync::Arc::new(crate::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())))),
             Arc::clone(&analysis_corpus),
             Arc::new(given.facts),
@@ -544,12 +518,8 @@ fn scheduled_world_with_query_kernel_resources(
 
 /// One lint over what `given` stands for.
 fn lint(given: Given) -> Lint {
-    lint_with_kernel(given, false)
-}
-
-fn lint_with_kernel(given: Given, column_kernel: bool) -> Lint {
     let asked = request(&given);
-    let world = world_with_kernel(given, column_kernel);
+    let world = world(given);
     let report = world.use_case.lint(asked);
     Lint {
         report: report.map(|answer| answer.unread.len()),
@@ -642,50 +612,13 @@ fn again(
     rule: &'static str,
     store: &Arc<LintStoreFake>,
 ) -> Lint {
-    again_with_kernel(files, root, rule, store, false)
-}
-
-fn again_with_kernel(
-    files: &[(&'static str, &'static str)],
-    root: &'static str,
-    rule: &'static str,
-    store: &Arc<LintStoreFake>,
-    column_kernel: bool,
-) -> Lint {
-    lint_with_kernel(
-        Given {
-            files: files.to_vec(),
-            store: Arc::clone(store),
-            root,
-            rules: vec![rule],
-            ..violations()
-        },
-        column_kernel,
-    )
-}
-
-/// A same-binary backend switch invalidates retained findings in both directions.
-#[test]
-fn column_kernel_strategy_is_part_of_stored_rule_identity() {
-    let store = Arc::new(LintStoreFake::default());
-    let run = |kernel| again_with_kernel(&SOURCES, "root", "a rule", &store, kernel);
-    let first = run(false);
-    let candidate = run(true);
-    let switched_back = run(false);
-    let warm = run(false);
-    assert_eq!(first.parses, 3);
-    assert_eq!(
-        candidate.parses, 3,
-        "candidate must not replay baseline records"
-    );
-    assert_eq!(
-        switched_back.parses, 3,
-        "baseline must not replay candidate records"
-    );
-    assert_eq!(warm.parses, 0, "same strategy still reuses exact records");
-    assert_eq!(first.rows, candidate.rows);
-    assert_eq!(first.rows, switched_back.rows);
-    assert_eq!(first.rows, warm.rows);
+    lint(Given {
+        files: files.to_vec(),
+        store: Arc::clone(store),
+        root,
+        rules: vec![rule],
+        ..violations()
+    })
 }
 
 /// The rows of this part's cases.

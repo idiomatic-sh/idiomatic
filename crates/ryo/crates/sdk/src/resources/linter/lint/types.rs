@@ -160,13 +160,19 @@ pub(crate) enum Spill {
 
 /// The engine a program builds once, with the languages it linked, and lints many repositories with: the compiler of
 /// queries, the plans compiled so far and the globs made so far are shared by every run over it. Made by `linter`.
+///
+/// A linter takes no physical-strategy options: the removed execution options and their builder no longer resolve.
+/// ```compile_fail,E0432
+/// use ryo::linter::ExecutionOptions;
+/// ```
+/// ```compile_fail,E0599
+/// fn select(linter: ryo::linter::Linter) -> ryo::linter::Linter { linter.with_execution(()) }
+/// ```
 pub struct Linter(LinterLintEngine);
 
 /// What every run over one linter shares: the directories the linked languages skip, the language port over them, the
 /// compiler of queries, the matching, the plans compiled so far, the build that runs and where runs that keep nothing spill.
 pub(crate) struct LinterLintEngine {
-    /// Explicit execution choices bound by the edge.
-    pub execution: ExecutionOptions,
     /// The directories every walk skips.
     pub skipped: ryo_core::outbound::corpus::types::SkippedDirectories,
     /// The linked languages, behind the language port.
@@ -190,11 +196,6 @@ pub(crate) struct LinterLintEngine {
 }
 
 impl Linter {
-    /// Update composition-owned execution options for the public builder entry.
-    pub(super) fn set_execution(&mut self, execution: ExecutionOptions) {
-        self.0.execution = execution;
-    }
-
     /// The linter over `engine`, which its sibling entry builds, never a caller.
     pub(super) const fn over(engine: LinterLintEngine) -> Self {
         Self(engine)
@@ -515,25 +516,6 @@ pub struct ParameterCell {
     pub key: ParameterText,
     /// The text.
     pub value: ParameterText,
-}
-
-/// Whether the common file DAG may retain optional completed node results.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum NodeResultReuse {
-    /// Required live consumer leases remain; optional completed node retention is disabled.
-    #[default]
-    Disabled,
-    /// Admit optional completed node results under the existing bounded policy.
-    Enabled,
-}
-
-/// Physical execution choices selected at the caller edge.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct ExecutionOptions {
-    /// Optional node result retention; does not select a different executor.
-    pub node_result_reuse: NodeResultReuse,
-    /// Enable eligible column kernels.
-    pub column_kernel: bool,
 }
 
 /// An explicit named input supplied as the distinct set union of selected producer outputs.

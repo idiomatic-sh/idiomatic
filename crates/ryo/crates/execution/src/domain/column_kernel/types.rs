@@ -6,14 +6,6 @@ use std::sync::Arc;
 
 use crate::domain::derived_views::types::DerivedContract;
 
-/// The default evaluator remains the production strategy until measured proof permits a switch.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum KernelStrategy {
-    #[default]
-    Existing,
-    Column,
-}
-
 /// One final kept cut whose intermediate join and equality filter can stay as row IDs.
 #[derive(Clone, Debug)]
 pub(crate) struct Chain {

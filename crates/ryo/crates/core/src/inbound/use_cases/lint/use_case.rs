@@ -37,7 +37,6 @@ use crate::domain::ordering::types::{Admittance, Ordered, Turn};
 use crate::domain::reporting::service::report_refused;
 use ryo_execution::inbound::use_cases::execution::types::Counting;
 use ryo_execution::inbound::use_cases::execution::types::RowsFed;
-use ryo_execution::inbound::use_cases::execution::types::TreeSteps;
 use ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes;
 use ryo_values::domain::hosted::service::identity as hosted_identity;
 
@@ -118,6 +117,13 @@ use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex, PoisonError};
 
 /// `lint`, over the ports it calls.
+///
+/// The lowered tree steps are the only way tree steps run: the removed operator-form
+/// switch does not resolve, and the stored rule digest holds no strategy marker.
+/// ```compile_fail,E0599
+/// use ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl;
+/// fn switch(use_case: LintUseCaseImpl) -> LintUseCaseImpl { use_case.unlowered() }
+/// ```
 pub struct LintUseCaseImpl {
     /// Reads, parses and evaluates one file in the worker that took its job.
     file_analysis: crate::application::file_analysis::service::FileAnalysis,
@@ -148,8 +154,6 @@ pub struct LintUseCaseImpl {
     digest: Arc<dyn DigestPort>,
     /// Keeps what a run found of each file and rule for the next run, for the build that made it.
     store: Arc<dyn LintStorePort>,
-    /// Whether the steps that read only the tree run as operators and not over the positions of its elements.
-    unlowered: TreeSteps,
     /// Whether the rows each step is fed are counted, for the report's `features`: a count that costs a call for every row.
     counting: Counting,
 }
@@ -200,7 +204,6 @@ impl LintUseCaseImpl {
             rows,
             digest,
             store,
-            unlowered: TreeSteps::Lowered,
             counting: Counting::DoesNotCount,
         }
     }
@@ -216,13 +219,6 @@ impl LintUseCaseImpl {
     #[must_use]
     pub fn counting(mut self) -> Self {
         self.counting = Counting::Counts;
-        self
-    }
-
-    /// The same, with the steps that read only the tree run as operators, as the proof that the lowering gives their rows.
-    #[must_use]
-    pub fn unlowered(mut self) -> Self {
-        self.unlowered = TreeSteps::AsOperators;
         self
     }
 
@@ -353,9 +349,6 @@ impl LintUseCaseImpl {
         ));
         // What the host declares is digested once: each rule's digest combines its own with it.
         let hosted = self.digest.digest(DigestBytes(&hosted_identity(hosted).0));
-        let node_reuse_policy = (self.file_analysis.execution().node_result_reuse
-            == ryo_values::domain::runs::types::NodeResultReuse::Enabled)
-            .then(|| self.digest.digest(DigestBytes(b"ryo-node-result-reuse-v1")));
         rules
             .iter()
             .zip(plans)
@@ -381,17 +374,6 @@ impl LintUseCaseImpl {
                         )),
                     ])
                 };
-                // Stored findings from the two physical backends are not interchangeable.
-                let own = if self.file_analysis.kernel_strategy()
-                    == ryo_execution::inbound::use_cases::execution::types::KernelStrategy::Column
-                {
-                    self.digest
-                        .combine(&[own, self.digest.digest(DigestBytes(b"column-kernel-v1"))])
-                } else {
-                    own
-                };
-                let own =
-                    node_reuse_policy.map_or(own, |strategy| self.digest.combine(&[own, strategy]));
                 let reads = reads_project(plan) == PlanReads::Reads;
                 StoredRule {
                     rule: RuleId(rule.id.0.clone()),

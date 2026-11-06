@@ -25,16 +25,6 @@ pub(crate) struct StepPlace(pub usize);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct PlanIdentity(pub usize);
 
-/// How the steps that read only the tree run.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum TreeSteps {
-    /// Over the positions of the tree.
-    #[default]
-    Lowered,
-    /// As operators, as they did before they were lowered.
-    AsOperators,
-}
-
 /// Which steps keep their rows in the pool's table of the step, by the step's place.
 #[derive(Debug, Default)]
 pub(crate) struct KeptSteps(pub Vec<bool>);
