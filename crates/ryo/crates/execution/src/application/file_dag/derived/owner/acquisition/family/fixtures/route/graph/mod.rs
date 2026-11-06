@@ -13,13 +13,14 @@ use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
 
 pub(super) fn graph(kind: DerivedKind, exit: Exit) -> Result<DerivedKind, OperatingError> {
     let fixture = GraphFixture::new(&[Relation::Function, Relation::Identifier], &[], LIMIT);
-    let result = through_graph(kind, exit, &fixture);
+    let mut floor = 0;
+    let result = through_graph(kind, exit, &fixture, &mut floor);
     let at_exit = fixture.snapshot();
     released_at_exit(
         kind,
         exit,
         (at_exit.required_bytes, at_exit.optional_bytes, at_exit.unique_bytes),
-        0,
+        floor,
     );
     fixture.clear();
     let state = fixture.snapshot();
@@ -34,6 +35,7 @@ fn through_graph(
     kind: DerivedKind,
     exit: Exit,
     fixture: &GraphFixture,
+    floor: &mut usize,
 ) -> Result<DerivedKind, OperatingError> {
     let columns = [FactColumn(vec![1, 2]), FactColumn(vec![2, 3])];
     let rows = Rows::Stored(ColumnsView {
@@ -47,10 +49,14 @@ fn through_graph(
     });
     let source = Input::Relation(Relation::Function);
     let edges = [ColumnIndex(0), ColumnIndex(1)];
+    let membership = kind == DerivedKind::Membership;
+    *floor = fixture.source_floor(Input::Relation(Relation::Function), &rows)?;
+    if membership {
+        *floor = fixture.source_floor(Input::Relation(Relation::Identifier), &domain_rows)?;
+    }
     let graph = fixture
         .acquire(source, &rows, edges, &[])?
         .ok_or(OperatingError::WrongOperation)?;
-    let membership = kind == DerivedKind::Membership;
     let domain = || {
         fixture
             .domain(
