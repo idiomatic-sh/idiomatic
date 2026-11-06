@@ -130,6 +130,11 @@ pub(crate) fn predicate_bindings_match(
 #[must_use]
 pub(crate) fn merge(plans: &[Plan], bindings: &[Vec<ParameterBinding>]) -> Merge {
     let mut merged = Merge::default();
+    // Classes bucketed by source relation: a class only ever matches its own source.
+    let mut by_source: std::collections::HashMap<
+        ryo_relations::domain::relations::types::Relation,
+        Vec<usize>,
+    > = std::collections::HashMap::new();
     for (rule, plan) in plans.iter().enumerate() {
         let mut of_rule = vec![None; plan.steps.len()];
         let mut below: Vec<Option<Rooted>> = Vec::with_capacity(plan.steps.len());
@@ -147,14 +152,16 @@ pub(crate) fn merge(plans: &[Plan], bindings: &[Vec<ParameterBinding>]) -> Merge
                 rule: RuleIndex(rule),
                 step: StepPlace(step),
             };
-            let same = merged.classes.iter().position(|class| {
-                class.source == chosen.source
-                    && class.comparisons == chosen.comparisons
-                    && predicate_bindings_match(
-                        &class.comparisons,
-                        bindings.get(class.first.rule.0).map(Vec::as_slice),
-                        bindings.get(rule).map(Vec::as_slice),
-                    )
+            let same = by_source.get(&chosen.source).and_then(|candidates| {
+                candidates.iter().copied().find(|&at| {
+                    let class = &merged.classes[at];
+                    class.comparisons == chosen.comparisons
+                        && predicate_bindings_match(
+                            &class.comparisons,
+                            bindings.get(class.first.rule.0).map(Vec::as_slice),
+                            bindings.get(rule).map(Vec::as_slice),
+                        )
+                })
             });
             let place = if let Some(place) = same {
                 if let Some(class) = merged.classes.get_mut(place) {
@@ -162,6 +169,10 @@ pub(crate) fn merge(plans: &[Plan], bindings: &[Vec<ParameterBinding>]) -> Merge
                 }
                 place
             } else {
+                by_source
+                    .entry(chosen.source)
+                    .or_default()
+                    .push(merged.classes.len());
                 merged.classes.push(StepClass {
                     source: chosen.source,
                     first: member,

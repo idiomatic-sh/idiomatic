@@ -41,29 +41,40 @@ impl PreparedWalk {
         self.prefixes.clear();
         self.predicates.clear();
         self.needed.clear();
+        // Predicates bucketed by (parent, source): only these can be equal.
+        let mut keyed: std::collections::HashMap<
+            (Option<PredicatePlace>, ryo_relations::domain::relations::types::Relation),
+            Vec<usize>,
+        > = std::collections::HashMap::new();
         for (at, class) in self.classes.classes.iter().enumerate() {
             let mut prefixes = Vec::new();
             let mut parent = None;
             for (number, comparison) in class.comparisons.iter().enumerate() {
-                let existing = self.predicates.iter().position(|candidate| {
-                    let other = &self.classes.classes[candidate.class.0];
-                    candidate.parent == parent
-                        && other.source == class.source
-                        && other.comparisons[candidate.number] == *comparison
-                        && crate::domain::step_classes::service::predicate_bindings_match(
-                            std::slice::from_ref(comparison),
-                            bindings.get(other.first.rule.0).map(Vec::as_slice),
-                            bindings.get(class.first.rule.0).map(Vec::as_slice),
-                        )
+                let existing = keyed.get(&(parent, class.source)).and_then(|bucket| {
+                    bucket.iter().copied().find(|&place| {
+                        let candidate = &self.predicates[place];
+                        let other = &self.classes.classes[candidate.class.0];
+                        other.comparisons[candidate.number] == *comparison
+                            && crate::domain::step_classes::service::predicate_bindings_match(
+                                std::slice::from_ref(comparison),
+                                bindings.get(other.first.rule.0).map(Vec::as_slice),
+                                bindings.get(class.first.rule.0).map(Vec::as_slice),
+                            )
+                    })
                 });
                 let place = match existing {
                     Some(place) => PredicatePlace(place),
                     None => {
                         let place = PredicatePlace(self.predicates.len());
+                        keyed
+                            .entry((parent, class.source))
+                            .or_default()
+                            .push(place.0);
                         self.predicates.push(PreparedPredicate {
                             class: ClassPlace(at),
                             number,
                             parent,
+                            comparison: comparison.clone(),
                         });
                         place
                     }
@@ -90,8 +101,7 @@ impl PreparedWalk {
         &self,
         predicate: PredicatePlace,
     ) -> &ryo_values::domain::plan_parts::types::Comparison {
-        let prepared = &self.predicates[predicate.0];
-        &self.classes.classes[prepared.class.0].comparisons[prepared.number]
+        &self.predicates[predicate.0].comparison
     }
     pub(crate) fn needed(
         &self,
@@ -196,7 +206,7 @@ impl PreparedWalk {
     pub(crate) fn retain_program_consumers(
         &mut self,
         program: &crate::domain::executable_program::types::ExecutableProgram,
-        bindings: &[Vec<ParameterBinding>],
+        _bindings: &[Vec<ParameterBinding>],
     ) -> Result<(), OperatingError> {
         let retained = self
             .classes
@@ -255,7 +265,20 @@ impl PreparedWalk {
                 *class = class.and_then(|old| remap[old.0]);
             }
         }
-        self.prepare_predicates(bindings);
+        // The trie was built once in `compile`; retention only drops the per-class
+        // entries of removed classes. Predicates own their comparison, so shared
+        // prefixes of the retained classes stay valid and equal.
+        let keep = |old: usize| remap[old].is_some();
+        let mut at = 0;
+        self.prefixes.retain(|_| {
+            at += 1;
+            keep(at - 1)
+        });
+        let mut at = 0;
+        self.needed.retain(|_| {
+            at += 1;
+            keep(at - 1)
+        });
         // Observation unions also own physical instructions, beyond the original
         // logical-to-region table. Allocate by actual instruction identity; holes
         // are absent instructions, never invented representation barriers.
@@ -372,9 +395,12 @@ fn source_barrier(
 
 #[derive(Debug)]
 struct PreparedPredicate {
+    /// The class and place that first defined it; meaningful only while building the trie.
     class: ClassPlace,
     number: usize,
     parent: Option<PredicatePlace>,
+    /// Owned, so retention can drop its defining class without invalidating the trie.
+    comparison: ryo_values::domain::plan_parts::types::Comparison,
 }
 
 /// Sparse results for only classes reached in this admitted population.

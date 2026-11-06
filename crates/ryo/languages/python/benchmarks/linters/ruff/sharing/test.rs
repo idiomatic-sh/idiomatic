@@ -19,10 +19,23 @@ fn subject(_: Input) -> Result<Value, Failure> {
         omitted.dispatches.len() > 1,
         "negative control retains other actual dispatches"
     );
+    let generation = omitted.dispatches[0].generation.clone();
+    let before = omitted.dispatches.len();
     omitted.dispatches.remove(0);
     assert!(
         std::panic::catch_unwind(|| verify(omitted)).is_err(),
         "removing an actual admitted cohort must fail coverage"
+    );
+    // Dropping every dispatch of one file generation must fail too: no generation is
+    // covered by another's evidence.
+    let mut silent = observe().map_err(|error| error.to_string())?;
+    silent
+        .dispatches
+        .retain(|dispatch| dispatch.generation != generation);
+    assert!(silent.dispatches.len() < before);
+    assert!(
+        std::panic::catch_unwind(|| verify(silent)).is_err(),
+        "a file generation with no dispatch must fail coverage"
     );
     Ok(())
 }
@@ -60,6 +73,52 @@ fn verify(observed: Observation) -> Result<Value, Failure> {
         census.shared,
         "all prepared shared instructions retain their separate physical IDs"
     );
+    // Project-stage and other non-file-head instructions are barriers, never classes: the
+    // runtime admits only per-file heads (asserted PerFile when decoded), and every admitted
+    // head is a compiled shared head, so a project-stage head is refused by construction.
+    assert!(
+        census.instructions > census.shared,
+        "barriers (including project-stage heads) remain beside the shared heads"
+    );
+    assert!(
+        observed
+            .ready
+            .iter()
+            .all(|head| observed.heads.contains_key(&head.logical)),
+        "no admitted head is outside the compiled shared heads"
+    );
+    // Two files: each file generation owns fresh populations; none is reused or shared.
+    let generations = observed
+        .ready
+        .iter()
+        .map(|head| head.generation.as_str())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        generations.len(),
+        2,
+        "one file generation for each of the two files"
+    );
+    let populations = generations
+        .iter()
+        .map(|generation| {
+            observed
+                .ready
+                .iter()
+                .filter(|head| head.generation == *generation)
+                .map(|head| head.population.as_str())
+                .collect::<BTreeSet<_>>()
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        populations[0].is_disjoint(&populations[1]),
+        "populations are not reused across file generations"
+    );
+    for dispatch in &observed.dispatches {
+        assert!(
+            generations.contains(dispatch.generation.as_str()),
+            "every dispatch belongs to an admitted file generation"
+        );
+    }
     let mut expected = BTreeSet::new();
     for head in observed.ready {
         let class = *observed

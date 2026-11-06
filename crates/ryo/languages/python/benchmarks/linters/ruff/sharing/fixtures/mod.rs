@@ -63,8 +63,20 @@ pub(super) fn observe() -> Result<Observation, Box<dyn std::error::Error>> {
         root.join("case.py"),
         "import os\n\ndef identity(value):\n    return value\n",
     )?;
-    let files = vec![ryo::linter::RelativePath("case.py".into())];
-    let tracked = vec![std::path::PathBuf::from("case.py")];
+    // A second file with different content: its file generation and admitted populations
+    // must be fresh, never reused from the first.
+    fs::write(
+        root.join("second.py"),
+        "class Second:\n    def method(self, value):\n        return value + 1\n",
+    )?;
+    let files = vec![
+        ryo::linter::RelativePath("case.py".into()),
+        ryo::linter::RelativePath("second.py".into()),
+    ];
+    let tracked = vec![
+        std::path::PathBuf::from("case.py"),
+        std::path::PathBuf::from("second.py"),
+    ];
     let context = suite.seal_context(ArtifactPath(&root), &files, &tracked)?;
     let request = RunRequest {
         performance: PerformanceOptions {
