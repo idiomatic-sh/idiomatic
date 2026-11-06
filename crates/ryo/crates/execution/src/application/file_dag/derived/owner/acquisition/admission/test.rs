@@ -8,7 +8,7 @@ use crate::domain::{
     operation_schema::types::InputShape,
     operator::contract::views::BorrowedRows,
 };
-use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
+use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
     rows::types::{RowCount, Table},
@@ -83,9 +83,9 @@ fn table() -> Table {
     Table {
         kinds: vec![CellKind::Number],
         cells: vec![
-            Value::Number(Integer(2)),
-            Value::Number(Integer(1)),
-            Value::Number(Integer(2)),
+            Cell::Number(Integer(2)),
+            Cell::Number(Integer(1)),
+            Cell::Number(Integer(2)),
         ],
         count: RowCount(3),
     }
