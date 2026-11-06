@@ -26,11 +26,41 @@ The bounded 2/3 overlap keeps shared-walk work moving while scheduling finishes 
 - [ ] Phase 6: restore exact frontier proofs and configuration invalidation in the deferred storage/replay controls.
 - [ ] Phase 7: repair benchmark scratch asset-version selection and obtain valid Rust, full-Django and source-bound review results.
 
+### Current work by phase — source `36e92e315`, validation290
+
+A checkbox requires the whole named item to pass; source progress is recorded separately.
+
+| Phase | Remaining item | Implementation / evidence |
+|---|---|---|
+| 2 ACTIVE | [ ] Seal every runtime/admission proof issuer against aliases and sibling construction. | Runtime ownership moved; review found a real alias-construction hole. Full protected-family repair is being authored. |
+| 2 ACTIVE | [ ] Bind admitted proof to the exact publication. | Opus found same-owner publication B can be paired with proof A; constructor-family repair assigned. |
+| 2 ACTIVE | [ ] Complete batch release, cancellation and primary-error behavior. | Primary-error precedence fixed; new control passes. Project lease control still fails with `Complete: NotRun`; execution433 passed/1 failed. |
+| 2 ACTIVE | [ ] Require complete declared root submission; close sparse-work and all-route negative controls. | Queue/batched callers exist; structural and counter proof remains incomplete. |
+| 2 ACTIVE | [ ] Close scheduling-owned cycles/TM findings and review exact combined source. | Preparation/protocol/runtime homes integrated; remaining context/publication/frontier/kernel coupling is open. |
+| 3 ACTIVE | [ ] Count every physical instruction, including synthetic observation unions. | Reviewer found census silently omitted synthetic unions. Correction and an independent-total control are next. |
+| 3 ACTIVE | [ ] Prove actual413 sharing with independent expected coverage. | Production benchmark test authored; current assertions prove reached multiclass sharing, not all eligible classes. |
+| 3 ACTIVE | [ ] Close ready-gate, source/barrier and result-lease enforcement. | Shared owner/prefix/traversal code exists; full route, alias and reentrancy acceptance remains open. |
+| 4 ACTIVE | [ ] Require admitted acquisition across all13 derived kinds. | Isolated source wave; caller threading unfinished. |
+| 4 ACTIVE | [ ] Unify raw ordering, graph construction and common acquired-view lifetime. | RawKeyOrder/common ledger source moves underway; graph/partition routes still being migrated. |
+| 4 ACTIVE | [ ] Migrate real fixtures, boundary tests and TM; integrate and execute. | Pending after production route migration. |
+| 5 QUEUED | [ ] Consolidate legal fusion behind the common program. | Existing strategies are not complete phase acceptance. No active implementation wave. |
+| 5 QUEUED | [ ] Remove redundant intermediates, repeated scans and superseded machinery. | Await consolidated scheduling/walk/derived ownership. |
+| 6 QUEUED | [ ] Unify cold/warm/edit reuse and frontier restoration. | Existing replay code has recorded failures; no active phase wave. |
+| 6 QUEUED | [ ] Prove file/project/configuration invalidation and retained lifetime. | Follow shared owners; preserve deferred failure controls. |
+| 1 QUEUED | [ ] Repair every deferred output failure; rerun all413 and full corpus. | Core175 passed/6 failed; historical public413 pass is not current-engine parity. |
+| 7 QUEUED | [ ] Close full TM, contracts, independent review and normal CI. | Whole required scope remains unaccepted. |
+| 7 QUEUED | [ ] Measure full-Django cold/warm/edit and Rust regressions; meet final objective. | No new performance measurement during phases2–6. |
+
+Latest combined nine-crate build passes. Validation290: execution433/434,
+SDK43/43, other five libraries155/155; Core175/181. Public boundary and
+actual413 sharing suites were still running/pending when this checkpoint was written.
+The project lease failure is an ownership blocker, not a deferred output failure.
+
 ### Phase 2 completion checklist
 
 Inventory audit: `bf525425c7`; current [paired source review](audits/2026-11-06-shared-walk/review.json) binds narrow row proofs to `c5abcc1da4` and validation280. All 83 rows require evidence for their entire scope; the overall verdict remains blocking.
 
-Current source checkpoint: `6331a0601`. Shared-walk guards, type ownership, lifecycle proofs and the actual configured413 proof are integrated; the larger preparation/runtime ownership split remains in flight. Last runtime validation is still280 on `c5abcc1da4`. No phase is verified.
+Current source checkpoint: `36e92e315`. Preparation/protocol/runtime ownership is integrated, and combined validation290 is underway. The current granular table above supersedes earlier activity descriptions; historical checked rows below retain their source-bound evidence. Newly contradicted claims are reopened. No phase is verified.
 
 - Validation280: eight-crate all-features build **PASS**; execution **431/431**, SDK **43/43**, five other libraries **155/155**, public boundaries **90/90**. Core **175 passed / 6 failed**; output/store-proof failures remain deferred to phases 1/6.
 - Six actual inbound budget scenarios **PASS**, using distinct file frontiers. Eight real-source Rust probes **PASS**, including forbidden ready-list construction and the removed permit walk factory. Inner source probes compile default features; broader claims remain open.
@@ -72,7 +102,7 @@ Current source checkpoint: `6331a0601`. Shared-walk guards, type ownership, life
 | ☑ | B4a.1 | Require one phase owner and symbol generation across ordinary project rules. | Proof280 / review: population, lifecycle, runtime280. |
 | ☑ | B4a.2 | Use the same interpreter and lifecycle for named and ordinary project work. | Proof280 / review: population, lifecycle, runtime280. |
 | ☑ | B4a.3 | Reuse equal populations and isolate distinct valid populations. | Proof280 / review: population, lifecycle, runtime280. |
-| ☑ | B4a.4 | Include payload/provenance, refusals, policy and bound members in identity. | Proof280 / review: population, lifecycle, runtime280. |
+| ☐ | B4a.4 | Include payload/provenance, refusals, policy and bound members in identity. | Reopened by Opus SP-1 on fb55: publication B plus proof A from the same live owner can retain the wrong population identity. Constructor-family repair and mismatched-publication control required. |
 | ☑ | B4a.5 | Test differing applicability under one global partition declaration, in both orders. | Proof280 / review: population, lifecycle, runtime280. |
 | ☑ | B4a.6 | Test equal-policy/different-payload isolation and equal-input reuse. | Proof280 / review: population, lifecycle, runtime280. |
 | ☑ | B4a.7 | Reject foreign generations and changed partition proofs; isolate population release. | Proof280 / review: population, lifecycle, runtime280. |
@@ -123,7 +153,7 @@ Current source checkpoint: `6331a0601`. Shared-walk guards, type ownership, life
 | ☑ | B4d.3 | Region: shared producer results and duplicate dependency scheduling. | Proof280 / review: routes, population, runtime280. |
 | ☑ | B4d.4 | Observation: direct aliases and union roots use actual producer publications. | Proof280 / review: routes, population, runtime280. |
 | ☑ | B4d.5 | EmptyObservation: only validated declarations can publish typed emptiness. | Proof280 / review: routes, population, runtime280. |
-| ☑ | B4d.6 | ObservationMember: Current/restored provenance and refusal survive scheduling. | Proof280 / review: routes, population, runtime280. |
+| ☐ | B4d.6 | ObservationMember: Current/restored provenance and refusal survive scheduling. | Reopened by Opus SP-1: current publication/token pairing is not bound to one exact publication. Historical route tests do not cover this mismatch. |
 | ☑ | B4d.7 | Direct roots without a Region use mandatory admission, not another evaluator. | Proof280 / review: routes, runtime280. |
 | ☑ | B4d.8 | Ordinary evaluation and shared-class replay use the same invocation authority. | Proof280 / review: routes, authority, runtime280. |
 | ☑ | B4d.9 | Native SyntaxTree/SyntaxChild positions use owner-issued source identity. | Proof280 / review: routes, lifecycle, runtime280. |
@@ -138,7 +168,7 @@ Current source checkpoint: `6331a0601`. Shared-walk guards, type ownership, life
 | Complete | Item | Requirement | Evidence state |
 |---|---|---|---|
 | ☑ | B5.1 | Keep one production interpreter; kernels cannot resolve dependencies. | Proof280 / review: readiness, paired. |
-| ☑ | B5.2 | Require runtime-issued authority for ordinary, ordered and column permits. | Proof280 / review: authority, runtime280. |
+| ☐ | B5.2 | Require runtime-issued authority for ordinary, ordered and column permits. | Reopened by current source review: an alias inside runtime/mod.rs can construct a protected record whose fields are pub(super). Whole issuer-family Rust/TM repair is active. |
 | ☐ | B5.3 | Only actual ready gates may submit shared-walk classes. | **open** — Eight real-source probes now pass for constructor/field/factory boundaries, but P3-1 permits crate-internal raw shared_walk::service::evaluate dispatch outside the rule placement. Entire internal dispatch guarantee remains open. Evidence: authority, tm281. |
 | ☐ | B5.4 | Prove internal issuance/dispatch bypasses fail; external privacy tests alone are insufficient. | **open** — Eight real-source probes now pass for constructor/field/factory boundaries, but P3-1 permits crate-internal raw shared_walk::service::evaluate dispatch outside the rule placement. Entire internal dispatch guarantee remains open. Evidence: authority, tm281. |
 | ☐ | B5.5 | Require owner, generation, partition, root and population scope at all lifecycle boundaries. | **open** — Scope checks and negatives pass on tested lifecycle routes; full entry-to-retirement owner/generation/partition/root/population boundary census remains open. Evidence: population, lifecycle, authority. |
@@ -173,7 +203,7 @@ Checkmarks below are narrow source-bound proofs from the [paired review](audits/
 | Complete | Item | Requirement | Evidence state |
 |---|---|---|---|
 | ☑ | P3.1 | Require a file-generation walk owner for every production file invocation; reject project-stage substitution and foreign generations. | All six kernel entry routes validate required file/project generation scope; two valid and three misuse controls execute in280. |
-| ☑ | P3.2 | Resolve all physical source heads once for the request and explicitly classify every operation's source barrier. | Physical source resolution/column demands are request-prepared; exhaustive26-operation barrier enum and request preparation controls pass. |
+| ☐ | P3.2 | Resolve all physical source heads once for the request and explicitly classify every operation's source barrier. | Reopened by current source review: physical census silently skips synthetic observation-union IDs. Complete classification and independent-total proof are pending. |
 | ☑ | P3.3 | Share exact ordered predicate prefixes and source column demands across distinct ready classes with equal referenced bindings. | Exact referenced bindings and authored prefix order drive shared prefix decisions; real counter, distinct/missing binding and first-error controls pass. |
 | ☑ | P3.4 | Acquire Positions, StoredSelection and ordinary replay results through one file owner; decline representations before predicate work and preserve real errors. | Positions/Stored/Rows consumers use the same validated acquisition owner; representation decline is before prepare/predicate work and portable errors do not fallback. Actual route controls pass. |
 | ☑ | P3.5 | Share direct pure Project source heads while preserving zero-column output, repeated columns and duplicate rows. | Real direct pure Project test preserves zero columns, duplicate/reordered projections, duplicates and source row order; invalid-schema bypass alleged by Opus is unreachable. |
@@ -271,13 +301,13 @@ Completion is binary: **INCOMPLETE** or **VERIFIED**. A category becomes VERIFIE
 | O4 native positioned | [six-operation evaluator](../../crates/execution/src/domain/native_positions/service.rs): Select, Project, Join, Axis, Antijoin and Union; the old recursive fragment executor is removed | Those six physical families; unsupported shapes decline before work and GroupCount uses the registered reduction route | ☐ |
 | O5 fused column | [column kernel](../../crates/execution/src/domain/column_kernel/service.rs): final Project over Select filter over Join; eligible strategy, refusal, ordered output and no fallback after semantic error | Project final, Select and Join descriptors; remaining fused Select/Project meaning stays in the execution layer pending semantic-caller closure | ☐ |
 | O6 cross-file/native | [project execution](../../crates/execution/src/application/file_dag/program/facade_runtime/project_execution.rs), [scope planner](../../crates/query_language/src/domain/planning/service.rs), [kernel session](../../crates/execution/src/application/file_dag/program/kernel_session.rs) | The same 26-kind registry serves admitted project roots; provider provenance, source coverage, lazy acquisition and physical-strategy proof remain open | ☐ |
-| O7 terminal/frontier | [program runtime](../../crates/execution/src/application/file_dag/program/runtime.rs) and [file root/capture owner](../../crates/execution/src/application/file_dag/program/facade_runtime/file_execution.rs): emitted prefix, lazy error, source-bound handover and last release | Applicable compiled emit/frontier roots; no old pipeline scheduler remains | ☐ |
+| O7 terminal/frontier | [program runtime](../../crates/execution/src/application/file_dag/program/runtime/service.rs) and [file root/capture owner](../../crates/execution/src/application/file_dag/program/facade_runtime/file_execution.rs): emitted prefix, lazy error, source-bound handover and last release | Applicable compiled emit/frontier roots; no old pipeline scheduler remains | ☐ |
 | O8 reached Join | [join plan](../../crates/values/src/domain/plans/types.rs), [Join item](../../crates/execution/src/domain/operator/collections/operators/join/item.rs), [execution lease](../../crates/execution/src/application/file_dag/execution/lease.rs): `Join.reach=Some`, diagnostic, readiness and graph reuse | Join only; current ordinary equality proof excludes this branch | ☐ |
 | D1 preparation | [derived requests](../../crates/execution/src/application/file_dag/derived/request.rs), [13-kind registry](../../crates/derived/src/domain/contract/types.rs), [engine wrappers](../../crates/execution/src/domain/derived_views/types.rs) | All 13 registered kinds; 12 common wrapper requests plus separately scoped raw ordering. Phase 4 consolidates acquisition and proof across them. | ☐ |
 | D2 acquisition/owner | [owner](../../crates/execution/src/application/file_dag/derived/owner.rs), [acquired view](../../crates/execution/src/application/file_dag/derived/view.rs): scoped/retained build, lease, charge and release | All 13 required kinds | ☐ |
 | D3 selector/fanout | [predicate](../../crates/execution/src/application/file_dag/derived/selection/predicate.rs), [fanout](../../crates/execution/src/application/file_dag/derived/selection/fanout.rs): direct build, raw view and separate postings retention | PredicateMatches, CandidatePostings, DistinctRepresentatives; selected Equality is a separate owner-backed lookup | ☐ |
 | D4 graph/closure | [graph build](../../crates/execution/src/application/file_dag/derived/graph/build.rs), [closure partitions](../../crates/execution/src/application/file_dag/closure_partitions.rs): engine acquisition, graph memo and partition lease transfer; af03dffed restores owner-driven advancement; success gate53 passes, abort/order controls await execution | Adjacency, Membership, PartitionOrder, ClosureAdjacency, CycleAdjacency, OrderedKeys, OrderedDfs | ☐ |
-| D5 raw positional order | [prepared native order](../../crates/execution/src/application/file_dag/program/facade.rs), [native positioned operations](../../crates/execution/src/domain/native_positions/service.rs), [raw ordering semantics](../../crates/derived/src/domain/raw_order.rs) | Required RawKeyOrder is the distinct thirteenth mechanism; old fragment/joins orchestration is retired | ☐ |
+| D5 raw positional order | [prepared native order](../../crates/execution/src/application/file_dag/program/preparation/service.rs), [native positioned operations](../../crates/execution/src/domain/native_positions/service.rs), [raw ordering semantics](../../crates/derived/src/domain/raw_order.rs) | Required RawKeyOrder is the distinct thirteenth mechanism; old fragment/joins orchestration is retired | ☐ |
 | D6 native/readiness | [native lookup semantics](../../crates/derived/src/domain/native.rs), [kernel session](../../crates/execution/src/application/file_dag/program/kernel_session.rs): exact admitted backing, pre-work decline, error and readiness | NativeLookup and applicable graph views; full-route proof remains open | ☐ |
 | D7 reuse/lifetime | [derived owner](../../crates/execution/src/application/file_dag/derived/owner.rs), [graph cache](../../crates/execution/src/application/file_dag/derived/graph_cache): aliases, changed identity, zero-budget live sharing and last release | All 13 required kinds | ☐ |
 | D8 direct semantic builders | [table model](../../crates/execution/src/domain/table_model/service.rs), [table groups](../../crates/execution/src/domain/table_groups/service.rs), [table reach](../../crates/execution/src/domain/table_reach/service.rs): nested `index`/`sort_rows` inside registered kernels; collected/fallback count/digest grouping is application-local, while streaming aggregation is operator reduction rather than a derived view | Equality, PartitionOrder and OrderedDfs internals; collected GroupCount/GroupDigest helper has no common derived lease | ☐ |
