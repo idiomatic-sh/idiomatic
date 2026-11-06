@@ -1,6 +1,6 @@
 //! Sole source-capability issuer; every field is private to this module.
-use crate::application::file_dag::derived::ledger::{Backing, ResourceLease};
-use crate::application::file_dag::derived::owner::acquisition::semantics::service::DerivedStorage;
+use crate::application::file_dag::derived::ledger::types::{Backing, ResourceLease};
+use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage;
 use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::domain::{
     derived_views::types::{DerivedContract, DerivedInputs, MembershipSpace},
@@ -9,13 +9,19 @@ use crate::domain::{
 use ryo_derived::domain::contract::types::DerivedKind;
 use ryo_derived::domain::contract::types::DerivedView;
 use std::sync::Arc;
+
+use super::types::PartitionCapacity;
+#[cfg(test)]
+use super::types::StorageIdentity;
+use crate::application::file_dag::derived::constants;
+use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
 #[derive(Clone, Debug)]
 pub(crate) struct AcquiredView {
     plan: Arc<DerivedContract>,
     storage: Arc<DerivedStorage>,
     lease: Arc<ResourceLease>,
     backings: Arc<[Backing]>,
-    built: bool,
+    construction: Construction,
     origin: AcquisitionOrigin,
 }
 
@@ -33,7 +39,7 @@ impl AcquiredView {
         lease: Arc<ResourceLease>,
         backings: Arc<[Backing]>,
         origin: AcquisitionOrigin,
-        built: bool,
+        construction: Construction,
     ) -> Self {
         Self {
             plan: Arc::clone(plan),
@@ -41,7 +47,7 @@ impl AcquiredView {
             lease,
             backings,
             origin,
-            built,
+            construction,
         }
     }
     pub(in crate::application::file_dag::derived::owner::acquisition) fn into_storage(
@@ -49,7 +55,10 @@ impl AcquiredView {
     ) -> Option<DerivedStorage> {
         let Self { storage, lease, .. } = self;
         drop(lease);
-        Arc::try_unwrap(storage).ok()
+        match Arc::try_unwrap(storage) {
+            Ok(storage) => Some(storage),
+            Err(_) => None,
+        }
     }
     pub(in crate::application::file_dag) fn dependency(&self) -> ResourceDependency {
         ResourceDependency {
@@ -60,24 +69,25 @@ impl AcquiredView {
     #[cfg(test)]
     pub(in crate::application::file_dag) fn partition_order_capacity(
         &self,
-    ) -> Result<usize, OperatingError> {
+    ) -> Result<PartitionCapacity, OperatingError> {
         if !matches!(self.view()?, DerivedView::PartitionOrder(_)) {
             return Err(OperatingError::WrongOperation);
         }
         self.storage
             .payload()
             .partition_order_capacity()
+            .map(PartitionCapacity)
             .ok_or(OperatingError::WrongOperation)
     }
-    pub(in crate::application::file_dag) fn was_built(&self) -> bool {
-        self.built
+    pub(in crate::application::file_dag) fn construction(&self) -> Construction {
+        self.construction
     }
     pub(in crate::application::file_dag) fn contract(&self) -> &DerivedContract {
         &self.plan
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag) fn same_storage(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.storage, &other.storage)
+    pub(in crate::application::file_dag) fn storage_identity(&self) -> StorageIdentity {
+        StorageIdentity(Arc::as_ptr(&self.storage))
     }
     /// The lease invariant is structural: `lease` is an owned field, so the ledger entries of
     /// `backings` stay required-live for as long as this value exists (`ResourceLease::drop`
@@ -139,9 +149,9 @@ enum AcquisitionSources<'a> {
 
 impl std::fmt::Debug for AcquisitionOrigin {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AcquisitionOrigin")
-            .field("lifetime", &self.lifetime)
-            .field("kind", &self.plan.kind)
+        f.debug_struct(constants::ORIGIN_TYPE)
+            .field(constants::ORIGIN_LIFETIME, &self.lifetime)
+            .field(constants::ORIGIN_KIND, &self.plan.kind)
             .finish_non_exhaustive()
     }
 }

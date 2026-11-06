@@ -1,6 +1,10 @@
 //! Entry points that acquire one population-scoped derived view.
 use super::super::*;
 use super::admission::service::{AcquiredView, AcquisitionLifetime, AdmittedViewInputs};
+use super::population::types::{
+    Acquisition, BackendRetention, Construction, OptionalRetention, StoredObservation,
+};
+use super::selection::types::StoredColumns;
 use crate::application::file_dag::route_counts::{self, BuildRoute};
 
 impl DerivedOwner {
@@ -11,10 +15,7 @@ impl DerivedOwner {
         context: ViewContext,
         inputs: DerivedInputs<'_, '_>,
         scratch: &mut DerivedScratch,
-        stored: Option<(
-            ryo_relations::domain::relations::types::Relation,
-            ryo_relations::domain::relations::types::ColumnsView<'_>,
-        )>,
+        stored: Option<StoredColumns<'_>>,
     ) -> Result<AcquiredView, OperatingError> {
         self.acquire_stored_with_route(
             BuildRoute::OwnerAcquire,
@@ -34,10 +35,7 @@ impl DerivedOwner {
         context: ViewContext,
         inputs: DerivedInputs<'_, '_>,
         scratch: &mut DerivedScratch,
-        stored: Option<(
-            ryo_relations::domain::relations::types::Relation,
-            ryo_relations::domain::relations::types::ColumnsView<'_>,
-        )>,
+        stored: Option<StoredColumns<'_>>,
     ) -> Result<AcquiredView, OperatingError> {
         let mut backend = self.backend.borrow_mut();
         self.acquire_in(
@@ -78,10 +76,7 @@ impl DerivedOwner {
         context: ViewContext,
         inputs: DerivedInputs<'_, '_>,
         scratch: &mut DerivedScratch,
-        stored: Option<(
-            ryo_relations::domain::relations::types::Relation,
-            ryo_relations::domain::relations::types::ColumnsView<'_>,
-        )>,
+        stored: Option<StoredColumns<'_>>,
         cache: Option<&mut CacheBackend>,
     ) -> Result<AcquiredView, OperatingError> {
         self.try_acquire_in(
@@ -97,10 +92,7 @@ impl DerivedOwner {
         context: ViewContext,
         inputs: DerivedInputs<'_, '_>,
         scratch: &mut DerivedScratch,
-        stored: Option<(
-            ryo_relations::domain::relations::types::Relation,
-            ryo_relations::domain::relations::types::ColumnsView<'_>,
-        )>,
+        stored: Option<StoredColumns<'_>>,
         cache: Option<&mut CacheBackend>,
     ) -> Result<Option<AcquiredView>, OperatingError> {
         admitted.validate(self, plan, &inputs)?;
@@ -112,12 +104,16 @@ impl DerivedOwner {
             plan,
             admitted,
             context,
-            stored.is_some(),
+            if stored.is_some() {
+                StoredObservation::Observed
+            } else {
+                StoredObservation::Unobserved
+            },
             cache,
             |cache| {
                 let allow_optional = match (stored, cache.as_deref()) {
-                    (Some((relation, _)), Some(cache)) if plan.kind == DerivedKind::Equality => {
-                        cache.eligible.contains(&relation)
+                    (Some(stored), Some(cache)) if plan.kind == DerivedKind::Equality => {
+                        cache.eligible.contains(&stored.relation)
                     }
                     (Some(_), None) if plan.kind == DerivedKind::Equality => false,
                     _ => true,
@@ -127,7 +123,16 @@ impl DerivedOwner {
                         self.build_admitted(plan, admitted, inputs, scratch, None)
                     })?;
                 // Optional retention is decided below by this owner, never by the kernel.
-                Ok(storage.map(|storage| (Arc::new(storage), true, false, allow_optional)))
+                Ok(storage.map(|storage| Acquisition {
+                    storage: Arc::new(storage),
+                    construction: Construction::Built,
+                    backend: BackendRetention::Unaccounted,
+                    optional: if allow_optional {
+                        OptionalRetention::Allowed
+                    } else {
+                        OptionalRetention::Refused
+                    },
+                }))
             },
         )
     }

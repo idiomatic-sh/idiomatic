@@ -14,7 +14,7 @@ use crate::domain::{
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 use std::sync::Arc;
 pub(super) mod identity;
-use identity::same_request;
+use identity::types::StaticRequest;
 pub(in crate::application::file_dag) struct RequestViews {
     semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
     plans: Vec<Arc<DerivedContract>>,
@@ -322,7 +322,7 @@ impl RequestViews {
         error: OperatingError,
     ) -> Result<Arc<DerivedContract>, OperatingError> {
         if let Some(plan) = self.plans.iter().find(|plan| {
-            same_request(&plan.request, request)
+            StaticRequest(&plan.request) == StaticRequest(request)
                 && plan.metadata == Err(error.clone())
                 && plan.schemas.len() == schemas.len()
                 && plan
@@ -345,7 +345,7 @@ impl RequestViews {
         schemas: &[InputShape<'_>],
     ) -> Result<Arc<DerivedContract>, OperatingError> {
         if let Some(plan) = self.plans.iter().find(|plan| {
-            same_request(&plan.request, request)
+            StaticRequest(&plan.request) == StaticRequest(request)
                 && plan.schemas.len() == schemas.len()
                 && plan
                     .schemas
@@ -364,12 +364,14 @@ impl RequestViews {
         Ok(plan)
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag) fn count(&self) -> usize {
-        self.plans.len()
+    pub(in crate::application::file_dag) fn count(&self) -> types::PlanCount {
+        types::PlanCount(self.plans.len())
     }
 }
 
 #[cfg(test)]
-mod tests;
+mod test;
+
+pub(in crate::application::file_dag) mod types;
 
 use ryo_derived::domain::contract::types::DerivedKind;

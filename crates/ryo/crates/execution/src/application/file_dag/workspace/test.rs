@@ -342,7 +342,7 @@ fn recapturing_publications_replaces_population_without_replacing_owner() {
                 .unwrap(),
         );
     }
-    assert!(!views[0].same_storage(&views[1]));
+    assert_ne!(views[0].storage_identity(), views[1].storage_identity());
     assert_eq!(owner.derived.counts().0, 2);
 }
 

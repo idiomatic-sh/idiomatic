@@ -78,25 +78,27 @@ fn hold(
         )
         .unwrap()
 }
-fn reclaim(fixture: &ResourceFixture, all_payload: bool) -> bool {
+fn reclaim(fixture: &ResourceFixture) -> Room {
     let owner = &fixture.owner().derived;
     let mut backend = owner.backend.borrow_mut();
     let cache = backend.as_mut().unwrap();
-    let cost = if all_payload {
-        // The single owner charges each optional physical allocation once.
-        // Request all that space; do not subtract the same equality payload
-        // twice as if an independent backend cache still owned a second copy.
-        let payload = owner.ledger.borrow().snapshot().view_optional_bytes;
-        assert!(payload > 0);
-        let metadata = cache
-            .bytes
-            .checked_sub(payload)
-            .expect("charged optional payload belongs to this cache");
-        cache.limit - metadata
-    } else {
-        cache.limit - cache.bytes + 1
-    };
-    owner.prepare_graph_room(cache, cost, &[]).unwrap()
+    // The single owner charges each optional physical allocation once.
+    // Request all that space; do not subtract the same equality payload
+    // twice as if an independent backend cache still owned a second copy.
+    let payload = owner.ledger.borrow().snapshot().view_optional_bytes.0;
+    assert!(payload > 0);
+    let metadata = cache
+        .bytes
+        .checked_sub(payload)
+        .expect("charged optional payload belongs to this cache");
+    let cost = cache.limit - metadata;
+    owner
+        .prepare_graph_room(
+            cache,
+            crate::application::file_dag::derived::ledger::types::ByteCount(cost),
+            &[],
+        )
+        .unwrap()
 }
 #[test]
 fn one_owner_reclaims_index_only_after_the_final_live_consumer_releases() {
@@ -106,7 +108,7 @@ fn one_owner_reclaims_index_only_after_the_final_live_consumer_releases() {
     let held = hold(&fixture, &columns);
     assert!(!fixture.no_invocation_index_handles());
     assert!(
-        !reclaim(&fixture, true),
+        reclaim(&fixture) == Room::Full,
         "a live consumer is not an owner-only alias"
     );
     assert_eq!(fixture.shared_index_backings(), 1);
@@ -116,7 +118,7 @@ fn one_owner_reclaims_index_only_after_the_final_live_consumer_releases() {
     // Preserve the lifetime contract: reclamation was refused with a live
     // consumer above, and is allowed only after that final consumer released it.
     assert!(weak.upgrade().is_some());
-    assert!(reclaim(&fixture, true));
+    assert!(reclaim(&fixture) == Room::Fits);
     assert!(weak.upgrade().is_none());
     assert_eq!(fixture.shared_index_backings(), 0);
     assert_eq!(
@@ -126,7 +128,8 @@ fn one_owner_reclaims_index_only_after_the_final_live_consumer_releases() {
             .ledger
             .borrow()
             .snapshot()
-            .view_optional_bytes,
+            .view_optional_bytes
+            .0,
         0
     );
 }
@@ -146,7 +149,8 @@ fn backend_clear_preserves_one_required_backing_until_last_consumer_drops() {
             .ledger
             .borrow()
             .snapshot()
-            .view_optional_bytes,
+            .view_optional_bytes
+            .0,
         0
     );
     let DerivedView::Equality(index) = held.view().unwrap() else {
@@ -167,7 +171,8 @@ fn backend_clear_preserves_one_required_backing_until_last_consumer_drops() {
             .ledger
             .borrow()
             .snapshot()
-            .unique_bytes,
+            .unique_bytes
+            .0,
         0
     );
 }

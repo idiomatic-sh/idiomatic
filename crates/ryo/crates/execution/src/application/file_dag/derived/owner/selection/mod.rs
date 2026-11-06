@@ -33,8 +33,10 @@ pub(super) mod candidates;
 mod fanout;
 mod literals;
 pub(in crate::application::file_dag) mod preparation;
-use crate::application::file_dag::derived::owner::acquisition::selection::service::{
-    SelectionSource, histogram, matches, shared_positions,
+use crate::application::file_dag::derived::owner::acquisition::selection::{
+    predicate::service::matches,
+    service::{SelectionSource, histogram, shared_positions},
+    types::RowBound,
 };
 use crate::application::file_dag::derived::owner::{DerivedOwner, ViewContext};
 use crate::application::file_dag::relations::{RelationOwner, admission::service::AdmittedInput};
@@ -89,7 +91,11 @@ fn make<'a>(
     };
     #[cfg(test)]
     {
-        cache.selector_descriptor = Some(Arc::as_ptr(&views) as usize);
+        cache.selector_descriptor = Some(
+            crate::application::file_dag::derived::owner::cache::types::DescriptorAddress(
+                Arc::as_ptr(&views) as usize,
+            ),
+        );
     }
     if views
         .predicate
@@ -102,7 +108,7 @@ fn make<'a>(
     let predicate = matches(
         cache, resources, program, &views, source, context, candidates,
     )?;
-    let rows = shared_positions(&predicate, population, population)?;
+    let rows = shared_positions(&predicate, RowBound(population), RowBound(population))?.0;
     let mut dependencies = [Some(predicate), None];
     // The shared result above always contains predicate matches, never distinct representatives.
     // Each terminal projection owns its representative IDs independently of other output maps.
@@ -121,7 +127,7 @@ fn make<'a>(
             &mut DerivedScratch::default(),
             None,
         )?;
-        let result = shared_positions(&acquired, population, rows.len())?;
+        let result = shared_positions(&acquired, RowBound(population), RowBound(rows.len()))?.0;
         dependencies[1] = Some(acquired);
         result
     } else {
@@ -173,7 +179,9 @@ impl DerivedOwner {
             .by_selector
             .get(&(Arc::as_ptr(program) as usize))
             .ok_or(OperatingError::NotRun)?;
-        if backend.selector_repetition_failed {
+        if backend.selector_repetition_failed
+            == crate::application::file_dag::derived::owner::cache::types::RepetitionTracking::Failed
+        {
             return Ok(None);
         }
         if views.group >= plans.groups {

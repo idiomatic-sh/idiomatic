@@ -3,4 +3,7 @@
 pub(crate) mod value;
 
 #[cfg(test)]
+mod constants;
+
+#[cfg(test)]
 mod test;

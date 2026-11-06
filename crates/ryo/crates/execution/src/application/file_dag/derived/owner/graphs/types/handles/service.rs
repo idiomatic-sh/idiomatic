@@ -1,9 +1,12 @@
 //! Required invocation leases travel with the immutable graph/domain handles.
+#[cfg(test)]
+use super::types::DataIdentity;
+use super::types::GraphSharing;
 use crate::application::file_dag::derived::constants;
-use crate::application::file_dag::derived::ledger::Backing;
-use crate::application::file_dag::derived::ledger::ResourceLease;
+use crate::application::file_dag::derived::ledger::types::Backing;
+use crate::application::file_dag::derived::ledger::types::ResourceLease;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
-use crate::application::file_dag::derived::owner::acquisition::semantics::service::DerivedStorage;
+use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage;
 use crate::domain::stored_graph::types::{GraphDomain, Orientation};
 use ryo_derived::domain::contract::types::CompactGraph;
 use std::{ops::Deref, sync::Arc};
@@ -12,7 +15,7 @@ use std::{ops::Deref, sync::Arc};
 pub(in crate::application::file_dag) struct GraphHandle {
     graph: Arc<CompactGraph>,
     orientation: Orientation,
-    shared: bool,
+    sharing: GraphSharing,
     acquired: AcquiredView,
 }
 impl GraphHandle {
@@ -20,7 +23,7 @@ impl GraphHandle {
         owner: &crate::application::file_dag::derived::owner::DerivedOwner,
         acquired: AcquiredView,
         orientation: Orientation,
-        shared: bool,
+        sharing: GraphSharing,
     ) -> Result<Self, crate::domain::operating::errors::OperatingError> {
         acquired.validate_owner(owner)?;
         let graph = acquired
@@ -31,7 +34,7 @@ impl GraphHandle {
         Ok(Self {
             graph,
             orientation,
-            shared,
+            sharing,
             acquired,
         })
     }
@@ -43,8 +46,8 @@ impl GraphHandle {
     pub(in crate::application::file_dag) fn orientation(&self) -> Orientation {
         self.orientation
     }
-    pub(in crate::application::file_dag::derived::owner) fn shared(&self) -> bool {
-        self.shared
+    pub(in crate::application::file_dag::derived::owner) fn sharing(&self) -> GraphSharing {
+        self.sharing
     }
     pub(in crate::application::file_dag::derived::owner) fn raw_graph(&self) -> &Arc<CompactGraph> {
         &self.graph
@@ -168,8 +171,8 @@ impl RootAnswer {
         }))
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag) fn same_data(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.rows, &other.rows)
+    pub(in crate::application::file_dag) fn data_identity(&self) -> DataIdentity {
+        DataIdentity(Arc::as_ptr(&self.rows).cast())
     }
     #[cfg(test)]
     pub(in crate::application::file_dag) fn weak(&self) -> std::sync::Weak<Vec<u32>> {

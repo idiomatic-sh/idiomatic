@@ -13,7 +13,10 @@ fn every_family_refuses_every_mismatched_capability() {
         (Scenario::Stale, OperatingError::NotRead),
         (Scenario::OtherPlan, OperatingError::WrongOperation),
         (Scenario::OtherPopulation, OperatingError::NotRead),
-        (Scenario::RetargetedDescriptor, OperatingError::WrongOperation),
+        (
+            Scenario::RetargetedDescriptor,
+            OperatingError::WrongOperation,
+        ),
     ];
     for kind in DerivedKind::ALL.iter().copied() {
         for (scenario, expected) in &refusals {

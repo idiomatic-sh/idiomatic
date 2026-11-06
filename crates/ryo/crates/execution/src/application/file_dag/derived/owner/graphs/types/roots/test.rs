@@ -1,4 +1,5 @@
 //! Root keys carry orientation and positive reach cannot invent a missing root.
+use super::constants;
 use crate::application::file_dag::derived::owner::fixtures::graph::GraphFixture;
 use crate::domain::stored_graph::types::GraphWalk;
 use crate::domain::table_model::types::Rows;
@@ -24,14 +25,14 @@ fn empty_graph_and_absent_partition_clear_previous_answer() {
             [ColumnIndex(0), ColumnIndex(1)],
             &[],
         )
-        .expect("valid columns")
-        .expect("empty graph");
+        .expect(constants::VALID_COLUMNS)
+        .expect(constants::EMPTY_GRAPH);
     let mut walk = GraphWalk::default();
     walk.reached.push(99);
     assert!(
         fixture
             .reach(&access, &[], Value::Number(Integer(1)), &mut walk)
-            .expect("valid root query")
+            .expect(constants::VALID_ROOT_QUERY)
             .is_none()
     );
     assert!(walk.reached.is_empty());

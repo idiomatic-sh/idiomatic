@@ -1,11 +1,13 @@
 //! Exact sharing keys, physical partiality, bounded retention and generation-local lifetimes.
 use super::service::LIMIT;
+use super::types::ByteLimit;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
+use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
 use crate::application::file_dag::derived::owner::fixtures::graph::GraphFixture;
 use crate::domain::table_model::types::Rows;
 use ryo_derived::domain::contract::types::DerivedView;
-fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> GraphFixture {
-    GraphFixture::new(wanted, partials, limit)
+fn new(wanted: &[Relation], partials: &[Partial], limit: ByteLimit) -> GraphFixture {
+    GraphFixture::new(wanted, partials, limit.0)
 }
 fn acquire(
     owner: &GraphFixture,
@@ -43,13 +45,13 @@ fn immutable_duplicate_rows_share_one_complete_index_without_cloning_buffers() {
         kinds: &[CellKind::Number, CellKind::Number],
         columns: &columns,
     };
-    let cache = new(&[Relation::Function], &[], LIMIT);
+    let cache = new(&[Relation::Function], &[], ByteLimit(LIMIT));
     let on = [ColumnIndex(0)];
     let first = acquire(&cache, Relation::Function, view, &on).expect("index");
-    assert!(first.was_built());
+    assert_eq!(first.construction(), Construction::Built);
     let second = acquire(&cache, Relation::Function, view, &on).expect("reuse");
-    assert!(!second.was_built());
-    assert!(first.same_storage(&second));
+    assert_eq!(second.construction(), Construction::Reused);
+    assert_eq!(first.storage_identity(), second.storage_identity());
     assert_eq!(cache.snapshot().indexes, 1);
     assert_eq!(
         matching_stored(
@@ -73,7 +75,11 @@ fn relation_order_repeats_schema_and_population_are_distinct_cache_keys() {
         kinds: &[CellKind::Number, CellKind::Number],
         columns: &columns,
     };
-    let cache = new(&[Relation::Function, Relation::Identifier], &[], LIMIT);
+    let cache = new(
+        &[Relation::Function, Relation::Identifier],
+        &[],
+        ByteLimit(LIMIT),
+    );
     for (relation, on) in [
         (Relation::Function, vec![ColumnIndex(0), ColumnIndex(1)]),
         (Relation::Function, vec![ColumnIndex(1), ColumnIndex(0)]),
@@ -83,7 +89,8 @@ fn relation_order_repeats_schema_and_population_are_distinct_cache_keys() {
         assert!(
             acquire(&cache, relation, view, &on)
                 .expect("new key")
-                .was_built()
+                .construction()
+                == Construction::Built
         );
     }
     let flags = ColumnsView {
@@ -106,11 +113,12 @@ fn relation_order_repeats_schema_and_population_are_distinct_cache_keys() {
     };
     assert!(acquire(&cache, Relation::Function, shorter, &[ColumnIndex(0)]).is_err());
     assert_eq!(cache.snapshot().indexes, 4);
-    let fresh = new(&[Relation::Function], &[], LIMIT);
+    let fresh = new(&[Relation::Function], &[], ByteLimit(LIMIT));
     assert!(
         acquire(&fresh, Relation::Function, shorter, &[ColumnIndex(0)])
             .expect("new generation")
-            .was_built()
+            .construction()
+            == Construction::Built
     );
 }
 
@@ -122,7 +130,7 @@ fn any_physical_partial_kind_and_inactive_relations_are_ineligible() {
         lacking: Lacking::Kind(LackingKind("unknown".into())),
         at: None,
     }];
-    let cache = new(&[Relation::Function], &partials, LIMIT);
+    let cache = new(&[Relation::Function], &partials, ByteLimit(LIMIT));
     let columns = [FactColumn(vec![1])];
     let view = ColumnsView {
         kinds: &[CellKind::Number],
@@ -130,7 +138,7 @@ fn any_physical_partial_kind_and_inactive_relations_are_ineligible() {
     };
     for relation in [Relation::Function, Relation::Identifier] {
         let result = acquire(&cache, relation, view, &[ColumnIndex(0)]).expect("local fallback");
-        assert!(result.was_built());
+        assert_eq!(result.construction(), Construction::Built);
         assert_eq!(equality(&result).rows().len(), 1);
     }
     assert_eq!(cache.snapshot().indexes, 0);
@@ -143,12 +151,12 @@ fn actual_capacities_and_arc_metadata_remain_bounded_on_refusal() {
         kinds: &[CellKind::Number],
         columns: &columns,
     };
-    let mut cache = new(&[Relation::Function], &[], LIMIT);
+    let mut cache = new(&[Relation::Function], &[], ByteLimit(LIMIT));
     let metadata = cache.snapshot().bytes;
     cache.set_limit(metadata);
     let result =
         acquire(&cache, Relation::Function, view, &[ColumnIndex(0)]).expect("required index");
-    assert!(result.was_built());
+    assert_eq!(result.construction(), Construction::Built);
     assert_eq!(equality(&result).rows().len(), 1024);
     let during = cache.snapshot();
     assert_eq!(during.indexes, 0);
@@ -173,7 +181,7 @@ fn cache_drop_releases_generation_and_new_file_id_reuse_starts_empty() {
         columns: &columns,
     };
     let weak = {
-        let cache = new(&[Relation::Function], &[], LIMIT);
+        let cache = new(&[Relation::Function], &[], ByteLimit(LIMIT));
         let acquired = acquire(&cache, Relation::Function, view, &[ColumnIndex(0)]).expect("index");
         Arc::downgrade(acquired.storage())
     };
@@ -181,11 +189,12 @@ fn cache_drop_releases_generation_and_new_file_id_reuse_starts_empty() {
         weak.upgrade().is_none(),
         "no generation survives its owner or invocation handles"
     );
-    let next = new(&[Relation::Function], &[], LIMIT);
+    let next = new(&[Relation::Function], &[], ByteLimit(LIMIT));
     assert!(
         acquire(&next, Relation::Function, view, &[ColumnIndex(0)])
             .expect("fresh")
-            .was_built()
+            .construction()
+            == Construction::Built
     );
     assert_eq!(next.snapshot().indexes, 1);
 }
@@ -197,7 +206,7 @@ fn invalid_columns_never_admit_and_normalized_flags_still_match_on_reuse() {
         kinds: &[CellKind::Flag],
         columns: &columns,
     };
-    let cache = new(&[Relation::Function], &[], LIMIT);
+    let cache = new(&[Relation::Function], &[], ByteLimit(LIMIT));
     let _invalid_key = acquire(&cache, Relation::Function, view, &[ColumnIndex(9)])
         .expect_err("invalid column must be refused before admission");
     assert_eq!(cache.snapshot().indexes, 0);
@@ -237,7 +246,7 @@ fn repeated_admissions_never_evict_live_entries_or_exceed_actual_retention() {
         kinds: &[CellKind::Number],
         columns: &columns,
     };
-    let cache = new(&[Relation::Function], &[], LIMIT);
+    let cache = new(&[Relation::Function], &[], ByteLimit(LIMIT));
     let mut handles = Vec::new();
     for width in 1..=64 {
         let key = vec![ColumnIndex(0); width];
@@ -270,7 +279,7 @@ fn derived_symbol_growth_does_not_change_a_frozen_stored_key() {
         kinds: &[CellKind::Symbol],
         columns: &columns,
     };
-    let cache = new(&[Relation::Function], &[], LIMIT);
+    let cache = new(&[Relation::Function], &[], ByteLimit(LIMIT));
     drop(acquire(&cache, Relation::Function, view, &[ColumnIndex(0)]).expect("index"));
     for index in 0_u32..128 {
         let _derived = intern_derived(
@@ -280,7 +289,7 @@ fn derived_symbol_growth_does_not_change_a_frozen_stored_key() {
         );
     }
     let reused = acquire(&cache, Relation::Function, view, &[ColumnIndex(0)]).expect("reuse");
-    assert!(!reused.was_built());
+    assert_eq!(reused.construction(), Construction::Reused);
     assert_eq!(
         matching_stored(
             view,
@@ -305,10 +314,10 @@ fn a_reused_index_still_resolves_full_composite_hash_collisions_exactly() {
         columns: &columns,
     };
     let on = [ColumnIndex(0), ColumnIndex(1)];
-    let cache = new(&[Relation::Function], &[], LIMIT);
+    let cache = new(&[Relation::Function], &[], ByteLimit(LIMIT));
     drop(acquire(&cache, Relation::Function, view, &on).expect("initial index"));
     let reused = acquire(&cache, Relation::Function, view, &on).expect("reused index");
-    assert!(!reused.was_built());
+    assert_eq!(reused.construction(), Construction::Reused);
     let index = equality(&reused);
     assert_eq!(
         index.hashes().first(),

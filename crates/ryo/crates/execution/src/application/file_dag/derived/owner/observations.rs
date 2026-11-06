@@ -16,14 +16,23 @@ impl DerivedOwner {
         ]))
     }
 
-    pub(super) fn has_live_equality(&self, rows: ColumnsView<'_>, columns: &[ColumnIndex]) -> bool {
+    pub(super) fn has_live_equality(
+        &self,
+        rows: ColumnsView<'_>,
+        columns: &[ColumnIndex],
+    ) -> EqualityLiveness {
         let count = rows.columns.first().map_or(0, |column| column.0.len());
-        self.state.borrow().entries.values().any(|entry| {
+        let live = self.state.borrow().entries.values().any(|entry| {
             matches!(&entry._plan.request, ViewRequest::Equality { columns: requested } if requested == columns)
                 && entry._plan.schemas.first().is_some_and(|schema| schema == rows.kinds)
                 && entry.weak.upgrade().is_some_and(|storage| {
                     matches!(storage.view(), Ok(ryo_derived::domain::contract::types::DerivedView::Equality(index)) if index.rows().len() == count)
                 })
-        })
+        });
+        if live {
+            EqualityLiveness::Live
+        } else {
+            EqualityLiveness::Absent
+        }
     }
 }

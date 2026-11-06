@@ -1,5 +1,5 @@
 //! One allocation ledger serves publication, views and backend retention.
-use super::super::ledger::{Backing, LeaseClass, Ledger, ResourceLease};
+use super::super::ledger::types::{Backing, LeaseClass, Ledger, ResourceLease};
 use super::*;
 impl DerivedOwner {
     pub(in crate::application::file_dag) fn required_lease(

@@ -10,16 +10,16 @@ pub(super) fn controls() -> Vec<Probe> {
         owner: SETUP,
         source: r#"
 mod targeted_activation {
-    use crate::application::file_dag::derived::prepared::PreparedDerived;
+    use crate::application::file_dag::derived::prepared::RequestDerived;
     use crate::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
-    fn read(value: &PreparedDerived, rule: RuleIndex, cache: &mut crate::application::file_dag::derived::owner::cache::types::CacheBackend) -> Result<(), OperatingError> {
+    fn read(value: &RequestDerived, rule: RuleIndex, cache: &mut crate::application::file_dag::derived::owner::cache::types::CacheBackend) -> Result<(), OperatingError> {
         let _ = value.relations_for(rule)?;
         let _ = value.selectors_for(rule)?;
         let _ = value.graph_for(rule)?;
         value.bind_views(cache);
         Ok(())
     }
-    const _: fn(&PreparedDerived, RuleIndex, &mut crate::application::file_dag::derived::owner::cache::types::CacheBackend) -> Result<(), OperatingError> = read;
+    const _: fn(&RequestDerived, RuleIndex, &mut crate::application::file_dag::derived::owner::cache::types::CacheBackend) -> Result<(), OperatingError> = read;
 }
 "#.into(),
         expected: Expectation::Accept,
@@ -39,14 +39,14 @@ mod targeted_activation {
         controls.push(Probe {
             compilation: Compilation::Library,
             owner: SETUP,
-            source: format!("mod raw_{field} {{ use crate::application::file_dag::derived::prepared::PreparedDerived as Metadata; fn read(value: &Metadata) {{ let _ = &value.{field}; }} const _: fn(&Metadata) = read; }}"),
+            source: format!("mod raw_{field} {{ use crate::application::file_dag::derived::prepared::RequestDerived as Metadata; fn read(value: &Metadata) {{ let _ = &value.{field}; }} const _: fn(&Metadata) = read; }}"),
             expected: Expectation::Refuse { code: "E0616", first: field, second: "private" },
         });
     }
     controls.push(Probe {
         compilation: Compilation::Library,
         owner: SETUP,
-        source: "mod raw_views_getter { use crate::application::file_dag::derived::prepared::PreparedDerived; fn read(value: &PreparedDerived) { let _ = value.views(); } const _: fn(&PreparedDerived) = read; }".into(),
+        source: "mod raw_views_getter { use crate::application::file_dag::derived::prepared::RequestDerived; fn read(value: &RequestDerived) { let _ = value.views(); } const _: fn(&RequestDerived) = read; }".into(),
         expected: Expectation::Refuse { code: "E0599", first: "views", second: "method" },
     });
     controls

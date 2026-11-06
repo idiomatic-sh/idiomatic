@@ -1,3 +1,4 @@
+use super::types::PlanCount;
 use super::*;
 use crate::domain::operator::contract::resources::{AxisResources, JoinResources};
 use ryo_relations::domain::relations::types::CellKind;
@@ -43,7 +44,7 @@ fn missing_input_is_prepared_but_refused_only_when_the_view_is_demanded() {
             .primary
             .plan
     ));
-    assert_eq!(views.count(), 1);
+    assert_eq!(views.count(), PlanCount(1));
 }
 
 #[test]
@@ -86,7 +87,7 @@ fn plain_join_and_axis_bind_finite_ordered_inputs_and_share_identical_plans() {
             .primary
             .plan
     ));
-    assert_eq!(views.count(), 3);
+    assert_eq!(views.count(), PlanCount(3));
 
     let axis = ResourceProgram::Axis(AxisResources {
         id: ColumnIndex(0),

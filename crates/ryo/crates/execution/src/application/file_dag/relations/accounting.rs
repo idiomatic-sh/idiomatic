@@ -1,6 +1,8 @@
 //! Describe immutable allocation identity once when publishing, never by hashing rows.
 use super::*;
-use crate::application::file_dag::derived::ledger::Backing;
+use crate::application::file_dag::derived::ledger::types::{
+    Backing, BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount,
+};
 impl RelationOwner {
     fn backings(&self, record: &Arc<RelationResult>) -> Vec<Backing> {
         let mut output = Vec::new();
@@ -25,60 +27,93 @@ impl RelationOwner {
             } => {
                 Self::record_backings(source, output);
                 output.push(Backing {
-                    key: (25, Arc::as_ptr(positions) as usize),
-                    retention_units: positions.slots.0.capacity(),
-                    bytes: size_of::<crate::domain::positions::types::Positions>()
-                        + 2 * size_of::<usize>()
-                        + positions.slots.0.capacity() * size_of::<u32>(),
+                    key: BackingKey {
+                        tag: BackingTag(25),
+                        address: BackingAddress(Arc::as_ptr(positions) as usize),
+                    },
+                    retention_units: UnitCount(positions.slots.0.capacity()),
+                    bytes: ByteCount(
+                        size_of::<crate::domain::positions::types::Positions>()
+                            + 2 * size_of::<usize>()
+                            + positions.slots.0.capacity() * size_of::<u32>(),
+                    ),
                 });
                 output.push(Backing {
-                    key: (26, Arc::as_ptr(shape) as usize),
-                    retention_units: 0,
-                    bytes: size_of::<crate::domain::lowering::types::LoweredShape>()
-                        + 2 * size_of::<usize>()
-                        + shape.columns.capacity()
-                            * size_of::<crate::domain::lowering::types::LoweredColumn>(),
+                    key: BackingKey {
+                        tag: BackingTag(26),
+                        address: BackingAddress(Arc::as_ptr(shape) as usize),
+                    },
+                    retention_units: UnitCount(0),
+                    bytes: ByteCount(
+                        size_of::<crate::domain::lowering::types::LoweredShape>()
+                            + 2 * size_of::<usize>()
+                            + shape.columns.capacity()
+                                * size_of::<crate::domain::lowering::types::LoweredColumn>(),
+                    ),
                 });
                 output.push(Backing {
-                    key: (27, kinds.as_ptr() as usize),
-                    retention_units: 0,
-                    bytes: std::mem::size_of_val(kinds.as_ref()) + 2 * size_of::<usize>(),
+                    key: BackingKey {
+                        tag: BackingTag(27),
+                        address: BackingAddress(kinds.as_ptr() as usize),
+                    },
+                    retention_units: UnitCount(0),
+                    bytes: ByteCount(
+                        std::mem::size_of_val(kinds.as_ref()) + 2 * size_of::<usize>(),
+                    ),
                 });
             }
             RelationBody::Computed(table) => output.push(Self::table_backing(table)),
             RelationBody::Compact(table) => {
                 let words = ryo_values::domain::table_words::service::compact_backing(table);
                 output.push(Backing {
-                    key: (22, Arc::as_ptr(words) as usize),
-                    retention_units: 0,
-                    bytes: size_of::<ryo_values::domain::stored_facts::types::KeptWords>()
-                        + 2 * size_of::<usize>()
-                        + words.0.0.capacity(),
+                    key: BackingKey {
+                        tag: BackingTag(22),
+                        address: BackingAddress(Arc::as_ptr(words) as usize),
+                    },
+                    retention_units: UnitCount(0),
+                    bytes: ByteCount(
+                        size_of::<ryo_values::domain::stored_facts::types::KeptWords>()
+                            + 2 * size_of::<usize>()
+                            + words.0.0.capacity(),
+                    ),
                 });
                 output.push(Backing {
-                    key: (24, Arc::as_ptr(table) as usize),
-                    retention_units: 0,
-                    bytes: ryo_values::domain::table_words::service::compact_metadata_bytes(table),
+                    key: BackingKey {
+                        tag: BackingTag(24),
+                        address: BackingAddress(Arc::as_ptr(table) as usize),
+                    },
+                    retention_units: UnitCount(0),
+                    bytes: ByteCount(
+                        ryo_values::domain::table_words::service::compact_metadata_bytes(table),
+                    ),
                 });
             }
             RelationBody::Selected { source, selection } => {
                 Self::record_backings(source, output);
                 output.push(Backing {
-                    key: (6, Arc::as_ptr(selection) as usize),
-                    retention_units: 0,
-                    bytes: size_of::<StoredSelection>()
-                        + 2 * size_of::<usize>()
-                        + selection.columns.capacity()
-                            * size_of::<ryo_values::domain::plan_parts::types::ColumnIndex>()
-                        + selection.kinds.capacity() * size_of::<CellKind>(),
+                    key: BackingKey {
+                        tag: BackingTag(6),
+                        address: BackingAddress(Arc::as_ptr(selection) as usize),
+                    },
+                    retention_units: UnitCount(0),
+                    bytes: ByteCount(
+                        size_of::<StoredSelection>()
+                            + 2 * size_of::<usize>()
+                            + selection.columns.capacity()
+                                * size_of::<ryo_values::domain::plan_parts::types::ColumnIndex>()
+                            + selection.kinds.capacity() * size_of::<CellKind>(),
+                    ),
                 });
                 output.push(Self::rows_backing(&selection.rows));
             }
         }
         output.push(Backing {
-            key: (7, Arc::as_ptr(record) as usize),
-            retention_units: 0,
-            bytes: metadata,
+            key: BackingKey {
+                tag: BackingTag(7),
+                address: BackingAddress(Arc::as_ptr(record) as usize),
+            },
+            retention_units: UnitCount(0),
+            bytes: ByteCount(metadata),
         });
         if let Some(table) = record.normalized.get() {
             output.push(Self::table_backing(table));
@@ -86,18 +121,22 @@ impl RelationOwner {
     }
     pub(super) fn rows_backing(rows: &Arc<Vec<u32>>) -> Backing {
         Backing {
-            key: (1, Arc::as_ptr(rows) as usize),
-            retention_units: rows.capacity(),
-            bytes: size_of::<Vec<u32>>()
-                + 2 * size_of::<usize>()
-                + rows.capacity() * size_of::<u32>(),
+            key: BackingKey {
+                tag: BackingTag(1),
+                address: BackingAddress(Arc::as_ptr(rows) as usize),
+            },
+            retention_units: UnitCount(rows.capacity()),
+            bytes: crate::application::file_dag::derived::ledger::capacity::shared_vector(rows),
         }
     }
     pub(super) fn table_backing(table: &Arc<Table>) -> Backing {
         Backing {
-            key: (0, Arc::as_ptr(table) as usize),
-            retention_units: 0,
-            bytes: table_bytes(table),
+            key: BackingKey {
+                tag: BackingTag(0),
+                address: BackingAddress(Arc::as_ptr(table) as usize),
+            },
+            retention_units: UnitCount(0),
+            bytes: ByteCount(table_bytes(table)),
         }
     }
     fn resource_backings(
@@ -110,9 +149,12 @@ impl RelationOwner {
             return;
         };
         output.push(Backing {
-            key: (17, resources.as_ptr() as usize),
-            retention_units: 0,
-            bytes: 2 * size_of::<usize>() + std::mem::size_of_val(resources.as_ref()),
+            key: BackingKey {
+                tag: BackingTag(17),
+                address: BackingAddress(resources.as_ptr() as usize),
+            },
+            retention_units: UnitCount(0),
+            bytes: ByteCount(2 * size_of::<usize>() + std::mem::size_of_val(resources.as_ref())),
         });
         for resource in resources.iter() {
             output.extend(resource.backings().iter().copied());

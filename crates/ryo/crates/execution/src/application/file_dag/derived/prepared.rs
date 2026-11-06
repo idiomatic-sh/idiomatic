@@ -10,17 +10,22 @@ use crate::domain::{
 use ryo_relations::domain::relations::types::Relation;
 use std::sync::Arc;
 
+use crate::application::file_dag::derived::owner::cache::types::GraphAdmission;
+use types::{SelectorOffset, SelectorSpan};
+
+mod types;
+
 pub(in crate::application::file_dag) struct SelectorUse {
     pub selector: Arc<Selector>,
 }
-pub(in crate::application::file_dag) struct PreparedDerived {
+pub(in crate::application::file_dag) struct RequestDerived {
     selectors: Box<[SelectorUse]>,
-    selector_ranges: Box<[std::ops::Range<usize>]>,
+    selector_ranges: Box<[SelectorSpan]>,
     views: Arc<PreparedSelectionViews>,
     relations: Box<[Box<[Relation]>]>,
     graph_rules: std::collections::HashSet<RuleIndex>,
 }
-impl PreparedDerived {
+impl RequestDerived {
     pub(in crate::application::file_dag) fn compile(
         program: &ExecutableProgram,
         prepared: &RequestOperators,
@@ -41,7 +46,7 @@ impl PreparedDerived {
             if selected.steps.len() != mapping.original_steps.len() {
                 return Err(OperatingError::NotRun);
             }
-            let first_selector = selectors.len();
+            let first_selector = SelectorOffset(selectors.len());
             let mut reads = Vec::new();
             let mut graph = false;
             for (at, origin) in mapping.original_steps.iter().enumerate() {
@@ -62,9 +67,7 @@ impl PreparedDerived {
 
                 for source in region.inputs.iter() {
                     if let InputSource::Relation(relation) = source {
-                        if !reads.contains(relation) {
-                            reads.push(*relation);
-                        }
+                        note_read(&mut reads, *relation);
                     }
                 }
                 let instruction = region
@@ -75,9 +78,7 @@ impl PreparedDerived {
                 for group in instruction.contract.derived.slots.iter().flatten() {
                     for use_ in std::iter::once(&group.primary).chain(group.secondary.iter()) {
                         for relation in use_.relations.iter().flatten() {
-                            if !reads.contains(relation) {
-                                reads.push(*relation);
-                            }
+                            note_read(&mut reads, *relation);
                         }
                     }
                 }
@@ -92,7 +93,10 @@ impl PreparedDerived {
                     });
                 }
             }
-            selector_ranges.push(first_selector..selectors.len());
+            selector_ranges.push(SelectorSpan {
+                first: first_selector,
+                end: SelectorOffset(selectors.len()),
+            });
             relations.push(reads.into_boxed_slice());
             if graph {
                 graph_rules.insert(RuleIndex(rule));
@@ -126,13 +130,13 @@ impl PreparedDerived {
             .get(rule.0)
             .ok_or(OperatingError::NotRun)?;
         self.selectors
-            .get(range.clone())
+            .get(range.first.0..range.end.0)
             .ok_or(OperatingError::NotRun)
     }
     pub(in crate::application::file_dag) fn graph_for(
         &self,
         rule: RuleIndex,
-    ) -> Result<bool, OperatingError> {
+    ) -> Result<GraphAdmission, OperatingError> {
         tracing::trace!(target: activation::TARGET, event = activation::GRAPH_RULE, rule = rule.0);
         let eligible = self.graph_rules.contains(&rule);
         if eligible {
@@ -141,10 +145,21 @@ impl PreparedDerived {
         if rule.0 >= self.relations.len() {
             return Err(OperatingError::NotRun);
         }
-        Ok(eligible)
+        Ok(if eligible {
+            GraphAdmission::Enabled
+        } else {
+            GraphAdmission::Disabled
+        })
     }
     /// Immutable request descriptors; the owner alone installs them in its backend.
     pub(in crate::application::file_dag) fn views(&self) -> Arc<PreparedSelectionViews> {
         Arc::clone(&self.views)
+    }
+}
+
+/// A relation a rule reads is recorded once, in the order it is first read.
+fn note_read(reads: &mut Vec<Relation>, relation: Relation) {
+    if !reads.contains(&relation) {
+        reads.push(relation);
     }
 }

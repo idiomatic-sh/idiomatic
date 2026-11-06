@@ -1,4 +1,5 @@
 use super::*;
+use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
 use ryo_derived::domain::contract::types::DerivedView;
 fn capture(run: impl FnOnce()) -> State {
     STATE.with_borrow_mut(|state| {
@@ -200,7 +201,7 @@ fn owner_routes_count_each_physical_equality_build_once() {
                 None,
             )
             .unwrap();
-        assert!(first.was_built());
+        assert_eq!(first.construction(), Construction::Built);
         let second = selector_owner
             .derived
             .acquire_stored_with_route(
@@ -213,7 +214,7 @@ fn owner_routes_count_each_physical_equality_build_once() {
                 None,
             )
             .unwrap();
-        assert!(!second.was_built());
+        assert_eq!(second.construction(), Construction::Reused);
     });
     let builds = state
         .counts

@@ -10,7 +10,7 @@ impl DerivedOwner {
         &self,
     ) -> (usize, Weak<DerivedStorage>) {
         (
-            self.next_scope.get(),
+            self.next_scope.get().0,
             self.last_scoped_storage.borrow().clone(),
         )
     }
@@ -75,16 +75,19 @@ impl DerivedOwner {
         })
     }
     pub(in crate::application::file_dag) fn shared_index_backings(&self) -> usize {
-        self.ledger.borrow().backing_count(11)
+        self.ledger
+            .borrow()
+            .backing_count(crate::application::file_dag::derived::ledger::types::BackingTag(11))
+            .0
     }
     pub(in crate::application::file_dag) fn publication_ownership_bytes(
         &self,
     ) -> (usize, usize, usize) {
         let state = self.ledger.borrow().snapshot();
         (
-            state.required_bytes,
-            state.optional_bytes,
-            state.unique_bytes,
+            state.required_bytes.0,
+            state.optional_bytes.0,
+            state.unique_bytes.0,
         )
     }
     /// The observation follows one qualified producer's admitted populations.
@@ -100,7 +103,7 @@ impl DerivedOwner {
         let state = self.state.borrow();
         let mut matching = state.entries.iter().filter(|(key, entry)| {
             entry._plan.kind == kind
-                && key.populations[..usize::from(key.len)]
+                && key.populations[..usize::from(key.len.0)]
                     .iter()
                     .any(|population| populations.contains(population))
         });
@@ -229,18 +232,18 @@ impl DerivedOwner {
         SelectionSnapshot {
             bytes: cache.bytes,
             limit: cache.limit,
-            index_builds: cache.builds,
+            index_builds: cache.builds.0,
             entries: self.retained_index_count(),
             selections: predicates.len(),
             selections_capacity: state.entries.capacity(),
-            owner_metadata_bytes: self.metadata_bytes(),
-            optional_bytes: optional.view_optional_bytes,
-            retained_positions: optional.optional_units,
+            owner_metadata_bytes: self.metadata_bytes().0,
+            optional_bytes: optional.view_optional_bytes.0,
+            retained_positions: optional.optional_units.0,
             first_retained_rows_address: predicates.first().copied(),
             retained_positions_capacity: capacity,
             fanouts: fanouts.len(),
             fanout_payload_bytes: fanouts.iter().map(|entry| entry.bytes).sum(),
-            descriptor_address: cache.selector_descriptor,
+            descriptor_address: cache.selector_descriptor.map(|address| address.0),
             prepared_descriptor_address: descriptor
                 .and_then(|program| {
                     cache

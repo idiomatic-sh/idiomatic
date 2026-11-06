@@ -48,6 +48,8 @@ pub(in crate::application::file_dag) const NEAREST_MEMO_HIT: &str = "nearest_mem
 pub(in crate::application::file_dag) const OWNER_REQUEST: &str = "owner_request";
 pub(in crate::application::file_dag) const OWNER_HIT: &str = "owner_hit";
 pub(in crate::application::file_dag) const EXPECT_REVERSE_LIST: &str = "installed reverse list";
+pub(in crate::application::file_dag) const EXPECT_KNOWN_POPULATION: &str = "known population";
+pub(in crate::application::file_dag) const RAW_SCOPE_NAME: &str = "RawScope";
 pub(in crate::application::file_dag) const EXPECT_EXISTING_VIEW: &str = "existing view";
 #[cfg(test)]
 pub(in crate::application::file_dag) const EXPECT_GRAPH_LEASE: &str =
@@ -59,3 +61,10 @@ pub(in crate::application::file_dag) const EXPECT_QUALIFYING_ENCOUNTER: &str =
     "a qualifying encounter";
 pub(in crate::application::file_dag) const EXPECT_FILTERED_RETAINED: &str =
     "filtered retained entry";
+
+/// Names of the admitted acquisition origin in its debug form.
+pub(super) const ORIGIN_TYPE: &str = "AcquisitionOrigin";
+pub(super) const ORIGIN_LIFETIME: &str = "lifetime";
+pub(super) const ORIGIN_KIND: &str = "kind";
+pub(in crate::application::file_dag) const EVENT_SELECTOR_EQUALITY_REFUSED: &str =
+    "selector_equality_admission_refused";

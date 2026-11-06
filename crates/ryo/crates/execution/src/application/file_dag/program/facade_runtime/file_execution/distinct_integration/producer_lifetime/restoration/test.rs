@@ -4,7 +4,9 @@ use super::fixtures::{BoundSupply, CapturedProject, Exit};
 use crate::application::file_dag::derived::owner::witness::service::{
     BackingIdentity, BackingLiveness,
 };
-use crate::application::file_dag::program::facade_runtime::project_execution::{ProjectRoot, evaluate_roots};
+use crate::application::file_dag::program::facade_runtime::project_execution::{
+    ProjectRoot, evaluate_roots,
+};
 use crate::application::file_dag::program::protocol::types::ProjectBatch;
 use crate::application::file_dag::program::runtime::types::{
     AttemptCheckpoint, ConsumerReleasePoint,

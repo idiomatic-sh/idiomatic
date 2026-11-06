@@ -50,20 +50,20 @@ mod future_consumer {
 const ACQUIRED_ALIAS: &str = r#"
 mod acquired_alias {
     use super::admission::service::AcquiredView as Authority;
-    fn forge(value: Authority) -> Authority { Authority { built: false, ..value } }
+    fn forge(value: Authority) -> Authority { Authority { construction: crate::application::file_dag::derived::owner::acquisition::population::types::Construction::Reused, ..value } }
     const _: fn(Authority) -> Authority = forge;
 }
 "#;
 const ACQUIRED_SELF: &str = r#"
 mod acquired_self {
     use super::admission::service::AcquiredView as Authority;
-    impl Authority { fn denied_record_update(value: Self) -> Self { Self { built: false, ..value } } }
+    impl Authority { fn denied_record_update(value: Self) -> Self { Self { construction: crate::application::file_dag::derived::owner::acquisition::population::types::Construction::Reused, ..value } } }
     const _: fn(Authority) -> Authority = Authority::denied_record_update;
 }
 "#;
 const STORAGE_CONSTRUCTOR: &str = r#"
 mod storage_constructor {
-    use super::semantics::service::DerivedStorage as Authority;
+    use super::semantics::storage::DerivedStorage as Authority;
     use crate::outbound::derived::interface::DerivedPort;
     use ryo_derived::domain::contract::types::{PreparedDerived, DerivedPayload};
     use std::sync::Arc;
@@ -109,10 +109,10 @@ const OWNED_STORAGE_ESCAPE: &str = r#"
 mod owned_storage_escape { use crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView; fn escape(view: &AcquiredView) { let _ = std::sync::Arc::clone(view.storage()); } const _: fn(&AcquiredView) = escape; }
 "#;
 const RAW_PAYLOAD_ESCAPE: &str = r#"
-mod raw_payload_escape { use crate::application::file_dag::derived::owner::acquisition::semantics::service::DerivedStorage; fn escape(storage: &DerivedStorage) { let _ = storage.payload(); } const _: fn(&DerivedStorage) = escape; }
+mod raw_payload_escape { use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage; fn escape(storage: &DerivedStorage) { let _ = storage.payload(); } const _: fn(&DerivedStorage) = escape; }
 "#;
 const RAW_VIEW_ESCAPE: &str = r#"
-mod raw_view_escape { use crate::application::file_dag::derived::owner::acquisition::semantics::service::DerivedStorage; fn escape(storage: &DerivedStorage) { let _ = storage.view(); } const _: fn(&DerivedStorage) = escape; }
+mod raw_view_escape { use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage; fn escape(storage: &DerivedStorage) { let _ = storage.view(); } const _: fn(&DerivedStorage) = escape; }
 "#;
 const GRAPH_ALLOCATION_ESCAPE: &str = r#"
 mod graph_allocation_escape { use crate::application::file_dag::derived::owner::graphs::types::handles::service::GraphHandle; use ryo_derived::domain::contract::types::CompactGraph; fn escape(value: &GraphHandle) { let _: std::sync::Arc<CompactGraph> = std::sync::Arc::clone(value.graph()); } const _: fn(&GraphHandle) = escape; }
@@ -316,7 +316,7 @@ pub(super) fn controls() -> Vec<Probe> {
             source: ACQUIRED_ALIAS.into(),
             expected: Expectation::Refuse {
                 code: "E0451",
-                first: "built",
+                first: "construction",
                 second: "private",
             },
         },
@@ -326,7 +326,7 @@ pub(super) fn controls() -> Vec<Probe> {
             source: ACQUIRED_SELF.into(),
             expected: Expectation::Refuse {
                 code: "E0451",
-                first: "built",
+                first: "construction",
                 second: "private",
             },
         },

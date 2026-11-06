@@ -1,7 +1,13 @@
 //! Invocation-lifetime builds and acquisitions that no population pin retains.
-use crate::application::file_dag::derived::ledger::Backing;
+use crate::application::file_dag::derived::ledger::types::Backing;
+use crate::application::file_dag::derived::ledger::types::{
+    BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount,
+};
 use crate::application::file_dag::derived::owner::acquisition::admission::service::{
     AcquiredView, AcquisitionLifetime, AdmittedViewInputs,
+};
+use crate::application::file_dag::derived::owner::acquisition::population::types::{
+    Construction, InvocationStorage,
 };
 use crate::application::file_dag::derived::owner::*;
 
@@ -31,22 +37,30 @@ impl DerivedOwner {
         #[cfg(test)]
         self.last_scoped_storage.replace(Arc::downgrade(&storage));
         let mut backings = DerivedStorage::backings(&storage)?.to_vec();
-        let id = self.next_scope.get();
-        self.next_scope
-            .set(id.checked_add(1).ok_or(OperatingError::ShapeMismatch)?);
+        let id = self.next_scope.get().0;
+        self.next_scope.set(
+            crate::application::file_dag::derived::owner::types::ScopeId(
+                id.checked_add(1).ok_or(OperatingError::ShapeMismatch)?,
+            ),
+        );
         let semantic_bytes = scratch
             .semantic
             .working_bytes()
             .map_err(crate::domain::operator::contract::derived::portable_fault)?;
         let scratch_bytes = crate::application::file_dag::derived::ledger::capacity::checked::<
             ryo_relations::domain::relations::types::Value,
-        >(scratch.row.capacity())
-        .and_then(|bytes| bytes.checked_add(semantic_bytes))
-            .ok_or(OperatingError::ShapeMismatch)?;
+        >(
+            crate::application::file_dag::derived::ledger::types::SlotCount(scratch.row.capacity()),
+        )
+        .and_then(|bytes| bytes.0.checked_add(semantic_bytes))
+        .ok_or(OperatingError::ShapeMismatch)?;
         backings.push(Backing {
-            key: (16, id),
-            bytes: scratch_bytes,
-            retention_units: 0,
+            key: BackingKey {
+                tag: BackingTag(16),
+                address: BackingAddress(id),
+            },
+            bytes: ByteCount(scratch_bytes),
+            retention_units: UnitCount(0),
         });
         let backings: Arc<[Backing]> = backings.into();
         self.complete_view(
@@ -55,7 +69,7 @@ impl DerivedOwner {
             self.required_lease(&backings)?,
             backings,
             admitted,
-            true,
+            Construction::Built,
         )
     }
 
@@ -64,17 +78,23 @@ impl DerivedOwner {
         plan: &Arc<DerivedContract>,
         admitted: &AdmittedViewInputs<'_>,
         backings: &[Backing],
-        build: impl FnOnce() -> Result<(Arc<DerivedStorage>, bool), OperatingError>,
+        build: impl FnOnce() -> Result<InvocationStorage, OperatingError>,
     ) -> Result<AcquiredView, OperatingError> {
         admitted.validate_origin(self, plan)?;
         if admitted.lifetime() != AcquisitionLifetime::Invocation {
             return Err(OperatingError::WrongOperation);
         }
-        let (storage, built) = build()?;
+        let InvocationStorage {
+            storage,
+            construction,
+        } = build()?;
         let mut required =
             crate::application::file_dag::derived::owner::backings::view(&storage)?.to_vec();
         for backing in backings {
-            crate::application::file_dag::derived::ledger::append_backing(&mut required, *backing)?;
+            crate::application::file_dag::derived::ledger::lease::append_backing(
+                &mut required,
+                *backing,
+            )?;
         }
         let required: Arc<[Backing]> = required.into();
         self.complete_view(
@@ -83,7 +103,7 @@ impl DerivedOwner {
             self.required_lease(&required)?,
             required,
             admitted,
-            built,
+            construction,
         )
     }
 }

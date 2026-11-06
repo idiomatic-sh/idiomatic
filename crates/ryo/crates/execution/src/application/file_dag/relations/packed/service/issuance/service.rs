@@ -1,5 +1,8 @@
 //! Owner-dependent admission logic lives below its private data representation.
 use super::super::*;
+use crate::application::file_dag::derived::ledger::types::{
+    BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount,
+};
 use crate::application::file_dag::relations::publication::types::*;
 use crate::application::file_dag::relations::*;
 use crate::domain::table_model::collections::representations::publication::PublishedRelation;
@@ -14,16 +17,24 @@ impl RelationOwner {
         let words = Arc::new(words);
         let mut backings = Vec::with_capacity(arenas.len() + 1);
         backings.push(Backing {
-            key: (22, Arc::as_ptr(&words) as usize),
-            retention_units: 0,
-            bytes: size_of::<KeptWords>() + 2 * size_of::<usize>() + words.0.0.capacity(),
+            key: BackingKey {
+                tag: BackingTag(22),
+                address: BackingAddress(Arc::as_ptr(&words) as usize),
+            },
+            retention_units: UnitCount(0),
+            bytes: ByteCount(
+                size_of::<KeptWords>() + 2 * size_of::<usize>() + words.0.0.capacity(),
+            ),
         });
         for arena in arenas {
             if arena.0.capacity() != 0 {
                 backings.push(Backing {
-                    key: (23, arena.0.as_ptr() as usize),
-                    bytes: arena.0.capacity(),
-                    retention_units: 0,
+                    key: BackingKey {
+                        tag: BackingTag(23),
+                        address: BackingAddress(arena.0.as_ptr() as usize),
+                    },
+                    bytes: ByteCount(arena.0.capacity()),
+                    retention_units: UnitCount(0),
                 });
             }
         }

@@ -1,5 +1,6 @@
 //! Generation-local sharing, exact identity and bounded admission through the real owner.
 
+use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
 use crate::application::file_dag::derived::owner::{
     fixtures::graph::GraphFixture, index::service::LIMIT,
 };
@@ -11,10 +12,10 @@ use ryo_relations::domain::relations::types::{
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
 use std::sync::Arc;
 
-const SOURCE: Input = Input::Relation(Relation::Function);
-const ENDPOINTS: [ColumnIndex; 2] = [ColumnIndex(0), ColumnIndex(1)];
+pub(super) const SOURCE: Input = Input::Relation(Relation::Function);
+pub(super) const ENDPOINTS: [ColumnIndex; 2] = [ColumnIndex(0), ColumnIndex(1)];
 
-fn rows(columns: &[FactColumn]) -> Rows<'_> {
+pub(super) fn rows(columns: &[FactColumn]) -> Rows<'_> {
     Rows::Stored(ColumnsView {
         kinds: &[CellKind::Number; 2],
         columns,
@@ -61,7 +62,7 @@ fn shared_adjacency_builds_once_and_sparse_root_memo_avoids_retraversal() {
         .reach(&second, &[], Value::Number(Integer(1)), &mut walk)
         .unwrap()
         .expect("memo hit");
-    assert!(actual.same_data(&again));
+    assert_eq!(actual.data_identity(), again.data_identity());
     let shared = fixture.snapshot();
     assert_eq!(
         (
@@ -153,7 +154,7 @@ fn budget_refusal_keeps_complete_local_graph_without_retaining_handles() {
         .acquire(SOURCE, &rows, ENDPOINTS, &[])
         .unwrap()
         .unwrap();
-    assert!(!graph.shared());
+    assert_eq!(graph.sharing(), GraphSharing::Local);
     let refused = fixture.snapshot();
     assert_eq!(refused.graphs, 0);
     assert_eq!(refused.optional_bytes, before.optional_bytes);
@@ -180,111 +181,6 @@ fn budget_refusal_keeps_complete_local_graph_without_retaining_handles() {
             .is_none()
     );
     assert_eq!(absent.snapshot().graphs, 0);
-}
-
-#[test]
-fn nearest_memo_is_shared_only_for_exact_domain_and_generation() {
-    let columns = [FactColumn(vec![1, 2, 8]), FactColumn(vec![2, 3, 2])];
-    let rows = rows(&columns);
-    let fixture = GraphFixture::new(&[Relation::Function, Relation::Identifier], &[], LIMIT);
-    let graph = fixture
-        .acquire(SOURCE, &rows, ENDPOINTS, &[])
-        .unwrap()
-        .unwrap();
-    let domain_columns = [FactColumn(vec![3, 3]), FactColumn(vec![0, 0])];
-    let domain_rows = self::rows(&domain_columns);
-    let membership = fixture
-        .domain(
-            &graph,
-            Input::Relation(Relation::Identifier),
-            &domain_rows,
-            ColumnIndex(0),
-        )
-        .unwrap()
-        .unwrap();
-    let again = fixture
-        .domain(
-            &graph,
-            Input::Relation(Relation::Identifier),
-            &domain_rows,
-            ColumnIndex(0),
-        )
-        .unwrap()
-        .unwrap();
-    assert!(Arc::ptr_eq(membership.raw_domain(), again.raw_domain()));
-    assert_eq!(
-        fixture.snapshot().domains,
-        1,
-        "exact membership shares one domain"
-    );
-    let root = graph
-        .graph()
-        .vertex(0, Value::Number(Integer(1)))
-        .expect("stored vertex");
-    let mut walk = GraphWalk::default();
-    let mut local = Vec::new();
-    let first = fixture
-        .nearest(
-            &graph,
-            &membership,
-            root,
-            Orientation::Forward,
-            &mut local,
-            &mut walk,
-        )
-        .unwrap();
-    assert_eq!(
-        first.map(|vertex| graph.graph().vertices()[vertex as usize]),
-        Some(Value::Number(Integer(3)))
-    );
-    assert_eq!(fixture.snapshot().nearest, 1);
-    assert_eq!(
-        fixture
-            .nearest(
-                &graph,
-                &again,
-                root,
-                Orientation::Forward,
-                &mut local,
-                &mut walk
-            )
-            .unwrap(),
-        first
-    );
-    assert_eq!(fixture.snapshot().counts.forest_hits, 1);
-    // A computed domain cannot borrow stable relation membership identity.
-    let table = ryo_values::domain::rows::types::Table {
-        kinds: vec![CellKind::Number],
-        cells: vec![Value::Number(Integer(2))],
-        count: ryo_values::domain::rows::types::RowCount(1),
-    };
-    let different = fixture
-        .domain(
-            &graph,
-            Input::Relation(Relation::Identifier),
-            &Rows::Computed(&table),
-            ColumnIndex(0),
-        )
-        .unwrap()
-        .unwrap();
-    local.clear();
-    let changed = fixture
-        .nearest(
-            &graph,
-            &different,
-            root,
-            Orientation::Forward,
-            &mut local,
-            &mut walk,
-        )
-        .unwrap();
-    assert_eq!(
-        changed.map(|vertex| graph.graph().vertices()[vertex as usize]),
-        Some(Value::Number(Integer(2)))
-    );
-    assert_eq!(fixture.snapshot().nearest, 1);
-    assert!(fixture.snapshot().memo_bytes <= super::service::MEMO_LIMIT);
-    assert!(fixture.snapshot().bytes <= LIMIT);
 }
 
 #[test]
@@ -356,7 +252,7 @@ fn adjacency_admission_reclaims_dormant_payload_but_falls_back_while_the_index_i
         .acquire(SOURCE, &rows, ENDPOINTS, &[])
         .unwrap()
         .unwrap();
-    assert!(!local.shared());
+    assert_eq!(local.sharing(), GraphSharing::Local);
     let refused = fixture.snapshot();
     assert_eq!(refused.indexes, 1);
     assert_eq!(refused.counts.pinned_refusals, 1);
@@ -366,7 +262,7 @@ fn adjacency_admission_reclaims_dormant_payload_but_falls_back_while_the_index_i
         .acquire(SOURCE, &rows, ENDPOINTS, &[])
         .unwrap()
         .unwrap();
-    assert!(shared.shared());
+    assert_eq!(shared.sharing(), GraphSharing::Shared);
     let admitted = fixture.snapshot();
     assert_eq!(admitted.indexes, 0);
     assert_eq!(
@@ -384,50 +280,6 @@ fn adjacency_admission_reclaims_dormant_payload_but_falls_back_while_the_index_i
     assert_eq!(local.graph().vertices(), shared.graph().vertices());
     assert_eq!(local.graph().neighbors(), shared.graph().neighbors());
     assert_eq!(admitted.counts.builds, 1);
-}
-
-#[test]
-fn nearest_handles_absent_parent_and_normal_parent_through_derived_forest() {
-    let columns = [FactColumn(vec![1, 2]), FactColumn(vec![2, 3])];
-    let rows = rows(&columns);
-    let fixture = GraphFixture::new(&[Relation::Function, Relation::Identifier], &[], LIMIT);
-    let graph = fixture
-        .acquire(SOURCE, &rows, ENDPOINTS, &[])
-        .unwrap()
-        .unwrap();
-    let domain_columns = [FactColumn(vec![2]), FactColumn(vec![0])];
-    let domain_rows = self::rows(&domain_columns);
-    let membership = fixture
-        .domain(
-            &graph,
-            Input::Relation(Relation::Identifier),
-            &domain_rows,
-            ColumnIndex(0),
-        )
-        .unwrap()
-        .unwrap();
-    let mut walk = GraphWalk::default();
-    let mut local = Vec::new();
-    for (root, expected) in [(3, None), (1, Some(2))] {
-        let root = graph
-            .graph()
-            .vertex(0, Value::Number(Integer(root)))
-            .unwrap();
-        let answer = fixture
-            .nearest(
-                &graph,
-                &membership,
-                root,
-                Orientation::Forward,
-                &mut local,
-                &mut walk,
-            )
-            .unwrap();
-        assert_eq!(
-            answer.map(|id| graph.graph().vertices()[id as usize]),
-            expected.map(|n| Value::Number(Integer(n)))
-        );
-    }
 }
 
 #[test]

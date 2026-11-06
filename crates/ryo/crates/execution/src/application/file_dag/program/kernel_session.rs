@@ -973,7 +973,7 @@ fn evaluate_native(
             .map(Some);
     };
     let mut positions = None;
-    let ordered = scope.with_raw_order(&raw.keys.0, raw.stride, &mut |order| {
+    let ordered = scope.with_raw_order(&raw.keys, raw.stride, &mut |order| {
         positions = Some(staged.evaluate(
             semantics,
             Some(order),

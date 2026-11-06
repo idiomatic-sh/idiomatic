@@ -1,6 +1,8 @@
 //! Budgeted acquisition of complete typed indexes, with invocation-local fallback.
+use super::types::{ByteLimit, IndexBytes, IndexRowCount, KeyColumns};
 use crate::application::file_dag::derived::constants as activation;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
+use crate::application::file_dag::derived::owner::selection::types::Retainability;
 use crate::domain::coverage::types::Partial;
 
 use ryo_derived::domain::contract::types::{ChainLink, HashedRow, KeyCellsHash, KeyIndex};
@@ -18,17 +20,19 @@ const ARC_BYTES: usize =
 pub(in crate::application::file_dag::derived::owner) fn new(
     wanted: &[Relation],
     partials: &[Partial],
-    limit: usize,
+    limit: ByteLimit,
 ) -> Option<CacheBackend> {
     let requested = wanted
         .len()
         .checked_mul(size_of::<Relation>())?
         .checked_add(size_of::<CacheBackend>())?;
-    if requested > limit {
+    if requested > limit.0 {
         return None;
     }
     let mut eligible = Vec::new();
-    eligible.try_reserve_exact(wanted.len()).ok()?;
+    if eligible.try_reserve_exact(wanted.len()).is_err() {
+        return None;
+    }
     for relation in wanted {
         if !partials.iter().any(|partial| partial.relation == *relation)
             && !eligible.contains(relation)
@@ -36,17 +40,20 @@ pub(in crate::application::file_dag::derived::owner) fn new(
             eligible.push(*relation);
         }
     }
-    let bytes = crate::application::file_dag::derived::ledger::capacity::headed::<
-        CacheBackend,
-        Relation,
-    >(eligible.capacity())?;
-    (bytes <= limit).then_some(CacheBackend {
+    let bytes =
+        crate::application::file_dag::derived::ledger::capacity::headed::<CacheBackend, Relation>(
+            crate::application::file_dag::derived::ledger::types::SlotCount(eligible.capacity()),
+        )?
+        .0;
+    (bytes <= limit.0).then_some(CacheBackend {
         #[cfg(test)]
         selector_descriptor: None,
         selector_repetition: std::collections::HashMap::new(),
-        selector_repetition_failed: false,
+        selector_repetition_failed:
+            crate::application::file_dag::derived::owner::cache::types::RepetitionTracking::Tracked,
         selection_views: None,
-        graph_enabled: false,
+        graph_enabled:
+            crate::application::file_dag::derived::owner::cache::types::GraphAdmission::Disabled,
         graph_bytes: 0,
         memo_bytes: 0,
         graphs: Vec::new(),
@@ -65,18 +72,18 @@ pub(in crate::application::file_dag::derived::owner) fn new(
                 .then(Vec::new),
         eligible,
         bytes,
-        limit,
-        builds: 0,
-        reuses: 0,
-        refusals: 0,
+        limit: limit.0,
+        builds: Default::default(),
+        reuses: Default::default(),
+        refusals: Default::default(),
     })
 }
 
 /// Every admitted payload competes under the same actual-use per-file cap; no allowance is stranded.
 pub(in crate::application::file_dag::derived::owner) fn non_graph_limit(
     cache: &CacheBackend,
-) -> usize {
-    cache.limit
+) -> ByteLimit {
+    ByteLimit(cache.limit)
 }
 
 /// Prepare bounded equality demand; duplicate projections alone cannot justify a new index.
@@ -108,11 +115,12 @@ pub(in crate::application::file_dag::derived::owner) fn candidate_columns(
         }
     }
     let columns: Vec<_> = columns.into_values().collect();
-    if let Some(bytes) = crate::application::file_dag::derived::ledger::capacity::checked::<
-        CandidateColumn,
-    >(columns.capacity())
-    .and_then(|bytes| cache.bytes.checked_add(bytes))
-        .filter(|bytes| *bytes <= non_graph_limit(cache))
+    if let Some(bytes) =
+        crate::application::file_dag::derived::ledger::capacity::checked::<CandidateColumn>(
+            crate::application::file_dag::derived::ledger::types::SlotCount(columns.capacity()),
+        )
+        .and_then(|bytes| cache.bytes.checked_add(bytes.0))
+        .filter(|bytes| *bytes <= non_graph_limit(cache).0)
     {
         cache.bytes = bytes;
         cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
@@ -122,16 +130,18 @@ pub(in crate::application::file_dag::derived::owner) fn candidate_columns(
 
 /// A lower bound avoids building a second, unretainable index when the budget clearly cannot fit it.
 pub(in crate::application::file_dag::derived::owner) fn minimum_bytes(
-    rows: usize,
-    columns: usize,
-) -> Option<usize> {
+    rows: IndexRowCount,
+    columns: KeyColumns,
+) -> Option<IndexBytes> {
+    let rows = rows.0;
     let buckets = rows.checked_next_power_of_two()?.max(1);
     ARC_BYTES
         .checked_add(rows.checked_mul(
             size_of::<RowIndex>() + size_of::<KeyCellsHash>() + size_of::<ChainLink>(),
         )?)?
         .checked_add(buckets.checked_mul(size_of::<ChainLink>())?)?
-        .checked_add(columns.checked_mul(size_of::<ColumnIndex>())?)
+        .checked_add(columns.0.checked_mul(size_of::<ColumnIndex>())?)
+        .map(IndexBytes)
 }
 
 /// A selector should scan instead of building an index that cannot possibly be shared.
@@ -140,11 +150,16 @@ pub(in crate::application::file_dag::derived::owner) fn can_retain(
     relation: Relation,
     view: ColumnsView<'_>,
     columns: &[ColumnIndex],
-) -> bool {
+) -> Retainability {
     let rows = view.columns.first().map_or(0, |column| column.0.len());
-    minimum_bytes(rows, columns.len())
-        .and_then(|bytes| cache.bytes.checked_add(bytes))
-        .is_some_and(|bytes| bytes <= non_graph_limit(cache))
+    let fits = minimum_bytes(IndexRowCount(rows), KeyColumns(columns.len()))
+        .and_then(|bytes| cache.bytes.checked_add(bytes.0))
+        .is_some_and(|bytes| bytes <= non_graph_limit(cache).0);
+    if fits {
+        Retainability::Retainable
+    } else {
+        Retainability::Unretainable
+    }
 }
 
 use ryo_values::domain::rows::types::RowIndex;

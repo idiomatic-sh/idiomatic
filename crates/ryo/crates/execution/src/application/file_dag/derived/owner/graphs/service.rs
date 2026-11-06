@@ -1,23 +1,34 @@
 //! Complete compact graph/domain acquisition under one unchanged per-file byte allowance.
 
+use super::types::reserve::types::Reserve;
+use crate::application::file_dag::derived::ledger::types::{ByteCount, SlotCount};
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 
 /// Root and nearest answers cannot silently grow into a retained all-pairs closure.
 pub(crate) const MEMO_LIMIT: usize = 2 * 1024 * 1024;
 
 /// Replacement metadata is allocated separately, so refusal never grows retained capacity.
-pub(crate) fn slot<T>(entries: &Vec<T>) -> Option<(Option<Vec<T>>, usize)> {
+pub(crate) fn slot<T>(entries: &Vec<T>) -> Option<Reserve<T>> {
     if entries.len() < entries.capacity() {
-        return Some((None, 0));
+        return Some(Reserve {
+            replacement: None,
+            metadata: ByteCount(0),
+        });
     }
     let mut replacement = Vec::new();
-    replacement
+    if replacement
         .try_reserve_exact(entries.len().checked_add(1)?)
-        .ok()?;
-    let more = crate::application::file_dag::derived::ledger::capacity::checked::<T>(
-        replacement.capacity().checked_sub(entries.capacity())?,
+        .is_err()
+    {
+        return None;
+    }
+    let metadata = crate::application::file_dag::derived::ledger::capacity::checked::<T>(
+        SlotCount(replacement.capacity().checked_sub(entries.capacity())?),
     )?;
-    Some((Some(replacement), more))
+    Some(Reserve {
+        replacement: Some(replacement),
+        metadata,
+    })
 }
 
 /// Move existing entries only after complete admission and byte accounting succeeds.
@@ -31,8 +42,8 @@ pub(crate) fn replace<T>(entries: &mut Vec<T>, replacement: Option<Vec<T>>) {
 /// Account all retained payload under the original total; no fixed allowance is stranded.
 pub(in crate::application::file_dag::derived::owner) fn room(
     cache: &CacheBackend,
-    cost: usize,
-) -> Option<usize> {
-    let total = cache.bytes.checked_add(cost)?;
-    (total <= cache.limit).then_some(total)
+    cost: ByteCount,
+) -> Option<ByteCount> {
+    let total = cache.bytes.checked_add(cost.0)?;
+    (total <= cache.limit).then_some(ByteCount(total))
 }

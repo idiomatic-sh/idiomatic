@@ -11,7 +11,7 @@ use std::sync::Arc;
 pub(crate) fn prepared_sources(
     plans: &[Plan],
     semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
-) -> super::super::prepared::PreparedDerived {
+) -> super::super::prepared::RequestDerived {
     use crate::domain::{
         operator::contract::types::RequestOperators,
         source_partitions::types::source_partitions::value::SourcePartitions,
@@ -60,7 +60,7 @@ pub(crate) fn prepared_sources(
     let program =
         crate::domain::executable_program::service::compile(plans, graph, &partitions, &request)
             .unwrap();
-    super::super::prepared::PreparedDerived::compile(&program, &request).unwrap()
+    super::super::prepared::RequestDerived::compile(&program, &request).unwrap()
 }
 pub(crate) fn source_plan(relation: Relation) -> Plan {
     use ryo_values::domain::{
@@ -109,5 +109,6 @@ pub(in crate::application::file_dag) fn prepare_view(
 }
 
 pub(in crate::application::file_dag) mod graph;
+mod graph_snapshot;
 mod observations;
 pub(in crate::application::file_dag) mod resources;

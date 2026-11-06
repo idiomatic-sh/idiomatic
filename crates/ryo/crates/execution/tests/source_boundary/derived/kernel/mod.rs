@@ -21,10 +21,11 @@ const OWNER_ORDERS: &str = r#"
 mod owner_orders {
     use super::RawScope;
     use crate::domain::operating::errors::OperatingError;
-    fn order(scope: &mut RawScope, keys: &[u64]) -> Result<(), OperatingError> {
-        scope.with_raw_order(keys, 1, &mut |_order| Ok(()))
+    use crate::domain::positions::types::{Keys, Stride};
+    fn order(scope: &mut RawScope, keys: &Keys) -> Result<(), OperatingError> {
+        scope.with_raw_order(keys, Stride(1), &mut |_order| Ok(()))
     }
-    const _: fn(&mut RawScope, &[u64]) -> Result<(), OperatingError> = order;
+    const _: fn(&mut RawScope, &Keys) -> Result<(), OperatingError> = order;
 }
 "#;
 

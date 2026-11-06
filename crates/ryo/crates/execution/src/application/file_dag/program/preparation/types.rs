@@ -71,7 +71,7 @@ pub(crate) struct PreparedProgram {
     pub(super) semantic_metadata: Vec<ryo_values::domain::run_metadata::types::RuleMetadata>,
     pub(super) hosted: Box<[HostRelation]>,
     pub(super) matchers: Arc<crate::domain::matching::types::prepared::value::PreparedMatchers>,
-    pub(super) derived: crate::application::file_dag::derived::prepared::PreparedDerived,
+    pub(super) derived: crate::application::file_dag::derived::prepared::RequestDerived,
     pub(super) native_orders:
         Box<[Option<Arc<crate::domain::derived_views::types::DerivedContract>>]>,
     pub(super) walk: crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk,

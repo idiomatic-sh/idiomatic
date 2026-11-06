@@ -1,12 +1,9 @@
-//! Request hash behind `DerivedContract::identity_hash`; it must follow `request::identity::same_request`.
+//! Request hash behind `DerivedContract::identity_hash`; it must follow `request::identity::types::StaticRequest`.
 use crate::domain::derived_views::types::ViewRequest;
 
 /// The hash follows semantic equality, including ordered operands and referenced bindings.
 /// Diagnostic comparison origins deliberately do not affect either equality or hashing.
-pub(super) fn hash_request<H: std::hash::Hasher>(
-    request: &ViewRequest,
-    state: &mut H,
-) {
+pub(super) fn hash_request<H: std::hash::Hasher>(request: &ViewRequest, state: &mut H) {
     use ryo_values::domain::plan_parts::types::{Operand, QueryLiteral};
     use std::hash::Hash;
     fn operand<H: std::hash::Hasher>(value: &Operand, state: &mut H) {

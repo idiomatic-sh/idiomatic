@@ -1,5 +1,6 @@
 //! Real publication admissions bind owner, generation, descriptor and semantic source.
 use super::service::AcquiredView;
+use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
 use crate::application::file_dag::{relations::RelationOwner, testing::program_derived_port};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
@@ -240,8 +241,8 @@ fn subject(input: Input) -> Result<(), Failure> {
                 &mut scratch,
                 None,
             )?;
-            assert!(first.same_storage(&second));
-            assert!(!second.was_built());
+            assert_eq!(first.storage_identity(), second.storage_identity());
+            assert_eq!(second.construction(), Construction::Reused);
             let ryo_derived::domain::contract::types::DerivedView::PartitionOrder(order) =
                 first.view()?
             else {

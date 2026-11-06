@@ -1,8 +1,13 @@
 //! Physical graph kernels publish completed immutable storage to the common owner.
 use super::types::{BuiltDomain, BuiltGraph};
 use crate::application::file_dag::derived::constants;
-use crate::application::file_dag::derived::ledger::append_backing;
+use crate::application::file_dag::derived::ledger::lease::append_backing;
+use crate::application::file_dag::derived::ledger::types::{
+    BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount,
+};
 use crate::application::file_dag::derived::owner::acquisition::admission::service::AdmittedViewInputs;
+use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
+use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
 use crate::application::file_dag::derived::{
     owner::DerivedOwner, owner::cache::types::CacheBackend,
     owner::graphs::types::handles::service::GraphHandle, population::types::PopulationId,
@@ -39,7 +44,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adja
         cache.graph_counts.reuses += 1;
         return Ok(Some(BuiltGraph {
             storage: Arc::clone(&entry.storage),
-            built: false,
+            construction: Construction::Reused,
         }));
     }
     let expected_identity = source.identity.clone();
@@ -72,13 +77,14 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adja
     let storage = Arc::new(storage);
     let backings = owner.graph_backings(&storage)?;
     cache.graph_counts.builds += 1;
-    let shared = owner.retain_graph(cache, population, &storage, &backings, &graph)?;
+    let shared =
+        owner.retain_graph(cache, population, &storage, &backings, &graph)? == GraphSharing::Shared;
     tracing::trace!(target: constants::TARGET_GRAPH, event = constants::EVENT_ADJACENCY, reused = false, shared,
         relation = ?expected_identity.population.relation, vertices = graph.vertices().len(), edges = graph.neighbors()[0].len(),
-        graph_bytes = cache.graph_bytes, cache_bytes = cache.bytes, graph_enabled = cache.graph_enabled);
+        graph_bytes = cache.graph_bytes, cache_bytes = cache.bytes, graph_enabled = ?cache.graph_enabled);
     Ok(Some(BuiltGraph {
         storage,
-        built: true,
+        construction: Construction::Built,
     }))
 }
 
@@ -98,7 +104,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
     };
     let column = *column;
     check_columns(kinds_of(rows), &[column])?;
-    if access.shared()
+    if access.sharing() == GraphSharing::Shared
         && let (Some(cache), Some(identity)) = (cache.as_ref(), identity.as_ref())
         && let Some(entry) = cache.graph_domains.iter().find(|entry| {
             entry.population == population
@@ -108,7 +114,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
     {
         return Ok(BuiltDomain {
             storage: Arc::clone(&entry.storage),
-            built: false,
+            construction: Construction::Reused,
         });
     }
     let storage = crate::application::file_dag::route_counts::observe(
@@ -154,18 +160,26 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
     {
         append_backing(
             &mut dependencies,
-            crate::application::file_dag::derived::ledger::Backing {
-                key: (1, Arc::as_ptr(rows) as usize),
-                bytes: crate::application::file_dag::derived::ledger::capacity::positions(rows),
-                retention_units: rows.capacity(),
+            crate::application::file_dag::derived::ledger::types::Backing {
+                key: BackingKey {
+                    tag: BackingTag(1),
+                    address: BackingAddress(Arc::as_ptr(rows) as usize),
+                },
+                bytes: crate::application::file_dag::derived::ledger::capacity::shared_vector(rows),
+                retention_units: UnitCount(rows.capacity()),
             },
         )?;
     }
-    dependencies.push(crate::application::file_dag::derived::ledger::Backing {
-        key: (19, Arc::as_ptr(&domain) as usize),
-        bytes: size_of::<GraphDomain>() + 2 * size_of::<usize>(),
-        retention_units: 0,
-    });
+    dependencies.push(
+        crate::application::file_dag::derived::ledger::types::Backing {
+            key: BackingKey {
+                tag: BackingTag(19),
+                address: BackingAddress(Arc::as_ptr(&domain) as usize),
+            },
+            bytes: ByteCount(size_of::<GraphDomain>() + 2 * size_of::<usize>()),
+            retention_units: UnitCount(0),
+        },
+    );
     backings = dependencies.into();
     if let Some(cache) = cache.as_mut() {
         owner.retain_domain(cache, population, access, &domain, &storage, &backings)?;
@@ -173,6 +187,6 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
     tracing::trace!(target: constants::TARGET_GRAPH, event = constants::EVENT_DOMAIN, vertices = domain.members.len(), source_rows = count_of(rows).0, stable = domain.identity.is_some());
     Ok(BuiltDomain {
         storage,
-        built: true,
+        construction: Construction::Built,
     })
 }

@@ -1,5 +1,7 @@
 //! Shared lookup, lazy physical construction, ownership and retention decision for a population-scoped view.
+use super::types::{Acquisition, Construction, OptionalRetention, StoredObservation};
 use crate::application::file_dag::derived::constants;
+use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::{
     AcquiredView, AcquisitionLifetime, AdmittedViewInputs,
 };
@@ -13,11 +15,9 @@ impl DerivedOwner {
         plan: &Arc<DerivedContract>,
         admitted: &AdmittedViewInputs<'_>,
         context: ViewContext,
-        stored_observation: bool,
+        stored_observation: StoredObservation,
         mut cache: Option<&mut CacheBackend>,
-        build: impl FnOnce(
-            Option<&mut CacheBackend>,
-        ) -> Result<(DerivedStorage, bool, bool, bool), OperatingError>,
+        build: impl FnOnce(Option<&mut CacheBackend>) -> Result<Acquisition, OperatingError>,
     ) -> Result<AcquiredView, OperatingError> {
         self.acquire_with_requirement(
             RequirementIdentity::prepared(plan),
@@ -35,11 +35,9 @@ impl DerivedOwner {
         plan: &Arc<DerivedContract>,
         admitted: &AdmittedViewInputs<'_>,
         context: ViewContext,
-        stored_observation: bool,
+        stored_observation: StoredObservation,
         mut cache: Option<&mut CacheBackend>,
-        build: impl FnOnce(
-            Option<&mut CacheBackend>,
-        ) -> Result<(DerivedStorage, bool, bool, bool), OperatingError>,
+        build: impl FnOnce(Option<&mut CacheBackend>) -> Result<Acquisition, OperatingError>,
     ) -> Result<AcquiredView, OperatingError> {
         self.acquire_shared_with_requirement(
             requirement,
@@ -49,8 +47,11 @@ impl DerivedOwner {
             stored_observation,
             cache,
             |cache| {
-                build(cache).map(|(storage, built, backend, optional)| {
-                    (Arc::new(storage), built, backend, optional)
+                build(cache).map(|made| Acquisition {
+                    storage: Arc::new(made.storage),
+                    construction: made.construction,
+                    backend: made.backend,
+                    optional: made.optional,
                 })
             },
         )
@@ -61,11 +62,11 @@ impl DerivedOwner {
         plan: &Arc<DerivedContract>,
         admitted: &AdmittedViewInputs<'_>,
         context: ViewContext,
-        stored_observation: bool,
+        stored_observation: StoredObservation,
         mut cache: Option<&mut CacheBackend>,
         build: impl FnOnce(
             Option<&mut CacheBackend>,
-        ) -> Result<(Arc<DerivedStorage>, bool, bool, bool), OperatingError>,
+        ) -> Result<Acquisition<Arc<DerivedStorage>>, OperatingError>,
     ) -> Result<AcquiredView, OperatingError> {
         self.try_acquire_shared_with_requirement(
             requirement,
@@ -84,12 +85,11 @@ impl DerivedOwner {
         plan: &Arc<DerivedContract>,
         admitted: &AdmittedViewInputs<'_>,
         context: ViewContext,
-        stored_observation: bool,
+        stored_observation: StoredObservation,
         mut cache: Option<&mut CacheBackend>,
         build: impl FnOnce(
             Option<&mut CacheBackend>,
-        )
-            -> Result<Option<(Arc<DerivedStorage>, bool, bool, bool)>, OperatingError>,
+        ) -> Result<Option<Acquisition<Arc<DerivedStorage>>>, OperatingError>,
     ) -> Result<Option<AcquiredView>, OperatingError> {
         admitted.validate_origin(self, plan)?;
         if admitted.lifetime() != AcquisitionLifetime::Population {
@@ -104,7 +104,7 @@ impl DerivedOwner {
         let key = Key {
             plan: requirement,
             populations: ids,
-            len: populations.len() as u8,
+            len: types::PopulationCount(populations.len() as u8),
             context,
         };
         let _owner = route_counts::owner(self as *const _ as usize);
@@ -117,7 +117,7 @@ impl DerivedOwner {
             let mut state = self.state.borrow_mut();
             let required = populations
                 .iter()
-                .any(|id| state.pins.get(id).is_some_and(|n| *n > 0));
+                .any(|id| state.pins.get(id).is_some_and(|n| n.0 > 0));
             if let Some(storage) = state
                 .entries
                 .get(&key)
@@ -132,7 +132,14 @@ impl DerivedOwner {
                     Some(lease) => lease,
                     None => self.required_lease(&backings)?,
                 };
-                let handle = self.complete_view(plan, storage, lease, backings, admitted, false)?;
+                let handle = self.complete_view(
+                    plan,
+                    storage,
+                    lease,
+                    backings,
+                    admitted,
+                    Construction::Reused,
+                )?;
                 let promote = required && entry.required.is_none();
                 if promote {
                     let entry = state
@@ -146,7 +153,11 @@ impl DerivedOwner {
                     let (bytes, backend, overlap) = (
                         entry.working,
                         entry.backend,
-                        usize::from(entry.retained.is_some()) * entry.bytes,
+                        if entry.retained.is_some() {
+                            entry.bytes
+                        } else {
+                            ByteCount(0)
+                        },
                     );
                     state.required_bytes += bytes;
                     state.required_backend_bytes += backend;
@@ -163,8 +174,10 @@ impl DerivedOwner {
                 state.hits += 1;
                 route_counts::event(constants::OWNER_HIT, route_counts::derived(plan.kind));
                 if let Some(cache) = cache.as_deref_mut() {
-                    if stored_observation && plan.kind == DerivedKind::Equality {
-                        cache.reuses = cache.reuses.saturating_add(1);
+                    if stored_observation == StoredObservation::Observed
+                        && plan.kind == DerivedKind::Equality
+                    {
+                        cache.reuses += 1_u64;
                     }
                     if plan.kind == DerivedKind::PredicateMatches {
                         cache.selection_counts.reuses += 1;
@@ -173,17 +186,25 @@ impl DerivedOwner {
                 return Ok(Some(handle));
             }
         }
-        let Some((storage, built, backend, allow_optional)) = build(cache.as_deref_mut())? else {
+        let Some(made) = build(cache.as_deref_mut())? else {
             return Ok(None);
         };
-        if stored_observation && plan.kind == DerivedKind::Equality {
+        let Acquisition {
+            storage,
+            construction,
+            backend: _,
+            optional,
+        } = made;
+        let built = construction == Construction::Built;
+        let allow_optional = optional == OptionalRetention::Allowed;
+        if stored_observation == StoredObservation::Observed && plan.kind == DerivedKind::Equality {
             if let Some(cache) = cache.as_deref_mut() {
-                cache.builds = cache.builds.saturating_add(u64::from(built));
+                cache.builds += u64::from(built);
             }
         }
         let _checked = storage.view()?;
         let bytes = storage_bytes(&storage)?;
-        let backend_bytes = 0;
+        let backend_bytes = ByteCount(0);
         let working = bytes.saturating_add(backend_bytes);
         let backings = backings::view(&storage)?;
         let handle = self.complete_view(
@@ -192,14 +213,18 @@ impl DerivedOwner {
             self.required_lease(&backings)?,
             Arc::clone(&backings),
             admitted,
-            built,
+            construction,
         )?;
         let optional = self.ledger.borrow();
-        let additional_bytes = optional.incremental_optional_bytes(&backings)?;
-        let optional_bytes = optional.snapshot().view_optional_bytes;
+        let additional_bytes = optional.incremental_optional_bytes(&backings)?.0;
+        let optional_bytes = optional.snapshot().view_optional_bytes.0;
         drop(optional);
-        let additional_positions = self.ledger.borrow().incremental_optional_units(&backings)?;
-        let positions = self.ledger.borrow().snapshot().optional_units;
+        let additional_positions = self
+            .ledger
+            .borrow()
+            .incremental_optional_units(&backings)?
+            .0;
+        let positions = self.ledger.borrow().snapshot().optional_units.0;
         let positions_within_bound = positions
             .checked_add(additional_positions)
             .is_some_and(|n| n <= selection::types::MAX_RETAINED_POSITION_CAPACITY);
@@ -208,15 +233,15 @@ impl DerivedOwner {
         state.hits += u64::from(!built);
         let required = populations
             .iter()
-            .any(|id| state.pins.get(id).is_some_and(|n| *n > 0));
+            .any(|id| state.pins.get(id).is_some_and(|n| n.0 > 0));
         let known = state.entries.contains_key(&key);
-        let optional_room = known || state.entries.len() < self.max_entries;
+        let optional_room = known || state.entries.len() < self.max_entries.0;
         if !required && !optional_room {
-            state.refusals += 1;
+            state.refusals += 1_u64;
             return Ok(Some(handle));
         }
         let predicate_room = plan.kind != DerivedKind::PredicateMatches
-            || state.retained_predicates < selection::types::MAX_RETAINED_SELECTIONS;
+            || state.retained_predicates.0 < selection::types::MAX_RETAINED_SELECTIONS;
         let retained = if let Some(cache) = cache.as_deref_mut().filter(|cache| {
             optional_room
                 && predicate_room
@@ -241,17 +266,17 @@ impl DerivedOwner {
             })
         } else {
             if allow_optional {
-                state.refusals += 1;
+                state.refusals += 1_u64;
             }
             None
         };
         if let Some(cache) = cache.as_deref_mut() {
-            if stored_observation
+            if stored_observation == StoredObservation::Observed
                 && plan.kind == DerivedKind::Equality
                 && allow_optional
                 && retained.is_none()
             {
-                cache.refusals = cache.refusals.saturating_add(1);
+                cache.refusals += 1_u64;
             }
             if plan.kind == DerivedKind::PredicateMatches {
                 cache.selection_counts.builds += u64::from(built);
@@ -260,7 +285,9 @@ impl DerivedOwner {
             }
         }
         if required {
-            state.overlap_bytes += usize::from(retained.is_some()) * bytes;
+            if retained.is_some() {
+                state.overlap_bytes += bytes;
+            }
             state.required_views += 1;
             state.peak_required_views = state.peak_required_views.max(state.required_views);
             state.required_backend_bytes += backend_bytes;
@@ -268,10 +295,13 @@ impl DerivedOwner {
             state.peak_required_bytes = state.peak_required_bytes.max(state.required_bytes);
         }
         let admission = state.next_admission;
-        state.next_admission = state
-            .next_admission
-            .checked_add(1)
-            .ok_or(OperatingError::ShapeMismatch)?;
+        state.next_admission = types::AdmissionOrder(
+            state
+                .next_admission
+                .0
+                .checked_add(1)
+                .ok_or(OperatingError::ShapeMismatch)?,
+        );
         if !known {
             link(&mut state, key.clone(), populations);
         }

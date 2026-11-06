@@ -45,7 +45,12 @@ impl ResourceFixture {
         if !owner.derived.index_observation().available {
             return None;
         }
-        owner.derived.set_optional_limit(limit).unwrap();
+        owner
+            .derived
+            .set_optional_limit(
+                crate::application::file_dag::derived::owner::index::types::ByteLimit(limit),
+            )
+            .unwrap();
         Some(Self { owner })
     }
     pub(crate) fn owner(&self) -> &Rc<RelationOwner> {
@@ -83,7 +88,10 @@ impl ResourceFixture {
             ViewContext::default(),
             DerivedInputs::Rows(&[proof.rows()]),
             &mut DerivedScratch::default(),
-            Some((relation, *source)),
+            Some(crate::application::file_dag::derived::owner::acquisition::selection::types::StoredColumns {
+                relation,
+                columns: *source,
+            }),
         )
     }
     pub(crate) fn no_invocation_index_handles(&self) -> bool {
@@ -100,7 +108,7 @@ impl ResourceFixture {
 pub(crate) fn weak_storage(
     view: &crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
 ) -> Weak<
-    crate::application::file_dag::derived::owner::acquisition::semantics::service::DerivedStorage,
+    crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage,
 > {
     Arc::downgrade(view.storage())
 }

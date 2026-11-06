@@ -2,7 +2,7 @@
 
 use crate::domain::{
     lowering::types::LoweredShape,
-    positions::types::{FoundPositions, Keeps, Keys, Positions, Slots},
+    positions::types::{FoundPositions, Keeps, Keys, Positions, Slots, Stride},
 };
 use ryo_relations::domain::relations::types::Value;
 
@@ -28,5 +28,5 @@ pub(crate) struct PositionWork {
 /// Row keys the owner orders into a raw order before evaluation, with their column count.
 pub(crate) struct RawKeys {
     pub keys: Keys,
-    pub stride: usize,
+    pub stride: Stride,
 }

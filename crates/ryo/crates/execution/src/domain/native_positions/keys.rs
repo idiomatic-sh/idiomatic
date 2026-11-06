@@ -10,7 +10,7 @@ use crate::domain::{
     operator::contract::types::WorkCounters,
     positions::{
         service::{count, key_into, row},
-        types::Keys,
+        types::{Keys, Stride},
     },
     table_cells::types::TreeRows,
 };
@@ -56,7 +56,7 @@ pub(crate) fn raw_keys(
             }
             Ok(Some(RawKeys {
                 keys: keyed,
-                stride: columns.len().max(1),
+                stride: Stride(columns.len().max(1)),
             }))
         }
         Operation::Join {
@@ -80,7 +80,7 @@ pub(crate) fn raw_keys(
             }
             Ok(Some(RawKeys {
                 keys: keyed,
-                stride: right_on.len(),
+                stride: Stride(right_on.len()),
             }))
         }
         Operation::Antijoin { right_on, .. } => {
@@ -101,7 +101,7 @@ pub(crate) fn raw_keys(
             }
             Ok(Some(RawKeys {
                 keys: keyed,
-                stride: right_on.len(),
+                stride: Stride(right_on.len()),
             }))
         }
         Operation::Union { .. } => {
@@ -110,7 +110,7 @@ pub(crate) fn raw_keys(
             sets::union_keys(tree, output, &work.staged, &mut keyed);
             Ok(Some(RawKeys {
                 keys: keyed,
-                stride: output.columns.len().max(1),
+                stride: Stride(output.columns.len().max(1)),
             }))
         }
         _ => Ok(None),

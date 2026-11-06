@@ -1,19 +1,19 @@
 //! Admission and once-charged cache policy are exercised under their application owner.
 use crate::application::file_dag::derived::owner::selection::fixtures::SelectionFixture;
+use crate::domain::operating::errors::OperatingError;
+use crate::domain::operating::types::OperatorContext;
+use crate::domain::stored_selection::fixtures::program;
+use crate::domain::table_scratch::types::OperatorScratch;
+use ryo_derived::domain::contract::types::DerivedKind;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::{
-    service::to_bits,
-    types::{CellKind, ColumnsView, FactColumn, Integer, Relation, Value as Cell},
+use ryo_relations::domain::relations::service::to_bits;
+use ryo_relations::domain::relations::types::{
+    CellKind, ColumnsView, FactColumn, Integer, Relation, Value as Cell,
 };
+use ryo_values::domain::files::types::SourceView;
+use ryo_values::domain::rows::types::{RowCount, Table};
 use std::sync::Arc;
-use {
-    crate::domain::operating::errors::OperatingError,
-    crate::domain::operating::types::OperatorContext,
-    crate::domain::stored_selection::fixtures::program,
-    crate::domain::table_scratch::types::OperatorScratch,
-    ryo_values::domain::files::types::SourceView,
-};
 type Failure = OperatingError;
 /// Entries append into spare owned capacity instead of moving every retained entry.
 #[test]
@@ -309,229 +309,5 @@ fn every_possible_discriminator_column_is_prepared_once() -> Result<(), Failure>
         assert_eq!(columns, &vec![column]);
         assert!(plan.metadata.is_ok());
     }
-    Ok(())
-}
-
-#[test]
-fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> Result<(), Failure> {
-    use crate::application::file_dag::{derived::owner::ViewContext, relations::RelationOwner};
-    use ryo_values::domain::plan_parts::types::ColumnIndex;
-    use {
-        crate::domain::derived_views::types::*, crate::domain::operation_schema::types::InputShape,
-        crate::domain::operator::contract::views::BorrowedRows,
-        ryo_values::domain::rows::service::push_row,
-    };
-
-    let mut table = Table {
-        kinds: vec![CellKind::Number],
-        ..Table::default()
-    };
-    for value in [1, 1, 2] {
-        push_row(&mut table, &[Cell::Number(Integer(value))]);
-    }
-    let schema = [InputShape {
-        kinds: &table.kinds,
-        tree: None,
-    }];
-    let distinct = Arc::new(crate::application::file_dag::derived::prepare::view(
-        (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
-        &ViewRequest::DistinctRepresentatives {
-            columns: vec![ColumnIndex(0)],
-        },
-        &schema,
-    )?);
-    let order = Arc::new(crate::application::file_dag::derived::prepare::view(
-        (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
-        &ViewRequest::PartitionOrder {
-            keys: vec![ColumnIndex(0)],
-        },
-        &schema,
-    )?);
-    let owner = RelationOwner::new(
-        true,
-        (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
-    );
-    let publication = owner.computed(table.clone())?;
-    let held = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
-    let rows = BorrowedRows::from(&held);
-    let proof = owner.admit(publication.as_ref(), rows)?;
-    let acquired = owner.derived.acquire_stored(
-        &distinct,
-        &owner
-            .derived
-            .admit_view(&distinct, &owner, &[&proof])
-            .unwrap(),
-        ViewContext::default(),
-        DerivedInputs::Distinct {
-            rows: proof.rows(),
-            positions: &[0, 1, 2],
-        },
-        &mut DerivedScratch::default(),
-        None,
-    )?;
-    let DerivedView::RowIds(actual) = acquired.view()? else {
-        panic!("registered distinct view")
-    };
-    let original_buffer = actual.as_ptr();
-    let shared = super::super::shared_positions(&acquired, 3, 3)?;
-    assert_eq!(shared.as_slice(), &[0, 2]);
-    assert_eq!(shared.as_ptr(), original_buffer, "no row-ID buffer copy");
-    assert!(matches!(
-        super::super::shared_positions(&acquired, 2, 3),
-        Err(OperatingError::ShapeMismatch)
-    ));
-    assert!(matches!(
-        super::super::shared_positions(&acquired, 3, 1),
-        Err(OperatingError::ShapeMismatch)
-    ));
-    let wrong = owner.derived.acquire_stored(
-        &order,
-        &owner.derived.admit_view(&order, &owner, &[&proof]).unwrap(),
-        ViewContext::default(),
-        DerivedInputs::Rows(&[proof.rows()]),
-        &mut DerivedScratch::default(),
-        None,
-    )?;
-    assert!(matches!(
-        super::super::shared_positions(&wrong, 3, 3),
-        Err(OperatingError::WrongOperation)
-    ));
-    Ok(())
-}
-
-#[test]
-fn empty_retention_counts_no_position_slots_and_invalid_group_is_not_allocation_failure()
--> Result<(), Failure> {
-    let selector = program(2);
-    let active = vec![selector.clone(), selector.clone()];
-    let fixture = SelectionFixture::new(
-        &[Relation::Function],
-        &[],
-        active.clone(),
-        [selector.clone()],
-        &[CellKind::Number; 3],
-    )?;
-    let columns = [
-        FactColumn::default(),
-        FactColumn::default(),
-        FactColumn::default(),
-    ];
-    let source = ColumnsView {
-        kinds: &[CellKind::Number; 3],
-        columns: &columns,
-    };
-    let mut symbols = Symbols::default();
-    let mut memo = Vec::new();
-    let mut scratch = OperatorScratch::default();
-    let mut context = OperatorContext {
-        phase: crate::domain::operating::types::AfterTheFiles::Before,
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: None,
-        bindings: &[],
-        symbols: (&mut symbols).into(),
-        source: SourceView(b""),
-        paths: &[],
-        arenas: &[],
-        memo: &mut memo,
-        scratch: &mut scratch,
-    };
-    let before = fixture.snapshot(None);
-    let selected = fixture
-        .select(&selector, source, &mut context)?
-        .expect("complete empty result");
-    assert!(selected.selection.rows.is_empty());
-    let after = fixture.snapshot(None);
-    assert_eq!(after.selections, 1);
-    assert_eq!(after.retained_positions, 0);
-    assert!(after.bytes > before.bytes && after.bytes <= after.limit);
-    let fresh = SelectionFixture::new(
-        &[Relation::Function],
-        &[],
-        active,
-        [selector.clone()],
-        source.kinds,
-    )?;
-    assert_eq!(fresh.snapshot(None).retained_positions, 0);
-    fresh.corrupt_prepared_group_count();
-    assert!(matches!(
-        fresh.select(&selector, source, &mut context),
-        Err(OperatingError::NotRun)
-    ));
-    assert_eq!(
-        fresh.snapshot(None).counts.refusals,
-        0,
-        "invalid preparation is not an allocation or payload-budget refusal"
-    );
-    Ok(())
-}
-
-use ryo_values::domain::rows::types::{RowCount, Table};
-
-use ryo_derived::domain::contract::types::DerivedKind;
-
-#[test]
-fn request_selector_inventory_allocates_repetition_only_for_active_groups() -> Result<(), Failure> {
-    let authored = (0..1024).map(program).collect::<Vec<_>>();
-    let active = authored[2].clone();
-    let known_inactive = authored[3].clone();
-    let fixture = SelectionFixture::new(
-        &[Relation::Function],
-        &[],
-        vec![active.clone(), active.clone()],
-        authored,
-        &[CellKind::Number; 3],
-    )?;
-    let snapshot = fixture.snapshot(None);
-    assert_eq!(snapshot.prepared_selectors, 1024);
-    assert_eq!(snapshot.active_repetition_groups, 1);
-    assert!(
-        snapshot.repetition_capacity < 256,
-        "inactive request groups allocate no file counter slots"
-    );
-    let columns = (0..3)
-        .map(|column| {
-            FactColumn(
-                (0..4)
-                    .map(|row| to_bits(Cell::Number(Integer(row + column))).0)
-                    .collect(),
-            )
-        })
-        .collect::<Vec<_>>();
-    let source = ColumnsView {
-        kinds: &[CellKind::Number; 3],
-        columns: &columns,
-    };
-    let mut symbols = Symbols::default();
-    let mut memo = Vec::new();
-    let mut scratch = OperatorScratch::default();
-    let mut context = OperatorContext {
-        phase: crate::domain::operating::types::AfterTheFiles::Before,
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: None,
-        bindings: &[],
-        symbols: (&mut symbols).into(),
-        source: SourceView(b""),
-        paths: &[],
-        arenas: &[],
-        memo: &mut memo,
-        scratch: &mut scratch,
-    };
-    let selected = fixture
-        .select(&active, source, &mut context)?
-        .expect("active prepared selector");
-    assert_eq!(selected.selection.rows.as_slice(), &[2]);
-    let inactive = fixture
-        .select(&known_inactive, source, &mut context)?
-        .expect("known descriptor remains legal without a repetition slot");
-    assert_eq!(inactive.selection.rows.as_slice(), &[3]);
-    assert_eq!(fixture.snapshot(None).active_repetition_groups, 1);
     Ok(())
 }

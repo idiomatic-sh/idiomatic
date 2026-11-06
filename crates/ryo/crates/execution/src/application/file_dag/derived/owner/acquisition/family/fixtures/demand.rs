@@ -96,7 +96,12 @@ pub(super) fn demand(
         DerivedKind::RawKeyOrder => DerivedInputs::RawWords(&[2, 1, 2]),
         _ => DerivedInputs::Rows(&rows[..if pair { 2 } else { 1 }]),
     };
-    owner
-        .derived
-        .acquire_stored(plan, admitted, Default::default(), inputs, &mut scratch, None)
+    owner.derived.acquire_stored(
+        plan,
+        admitted,
+        Default::default(),
+        inputs,
+        &mut scratch,
+        None,
+    )
 }

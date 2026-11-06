@@ -17,6 +17,7 @@ impl DerivedOwner {
                 let value = entry.retained.as_ref()?;
                 (entry.required.is_none()
                     && ledger.optional_payload_only(&entry.backings)
+                        == crate::application::file_dag::derived::ledger::types::Dormancy::Dormant
                     && Arc::strong_count(&value.storage) == 1)
                     .then_some(&value._lease)
             })
@@ -31,10 +32,10 @@ impl DerivedOwner {
                 .retained
                 .as_ref()
                 .expect(constants::EXPECT_FILTERED_RETAINED);
-            let populations = &key.populations[..usize::from(key.len)];
+            let populations = &key.populations[..usize::from(key.len.0)];
             let pins = populations
                 .iter()
-                .map(|id| (*id, state.pins.get(id).copied().unwrap_or(0)))
+                .map(|id| (*id, state.pins.get(id).copied().unwrap_or_default()))
                 .collect::<Vec<_>>();
             let mut request = format!("{:?}", entry._plan.request);
             request.truncate(
@@ -44,20 +45,20 @@ impl DerivedOwner {
                     .map_or(request.len(), |(at, _)| at),
             );
             tracing::trace!(target: constants::TARGET_SELECTION_DETAIL, event = constants::EVENT_SELECTOR_OCCUPANCY_ENTRY,
-                requesting = ?requesting, kind = ?entry._plan.kind, admission = entry.admission,
-                populations = ?populations, population_pins = ?pins, logical_payload_bytes = entry.bytes,
+                requesting = ?requesting, kind = ?entry._plan.kind, admission = ?entry.admission,
+                populations = ?populations, population_pins = ?pins, logical_payload_bytes = entry.bytes.0,
                 required_entry = entry.required.is_some(), storage_strong = Arc::strong_count(&value.storage),
-                optional_payload_only = ledger.optional_payload_only(&entry.backings), backings = ?entry.backings,
+                optional_payload_only = ?ledger.optional_payload_only(&entry.backings), backings = ?entry.backings,
                 request = request);
         }
     }
 
     pub(in crate::application::file_dag) fn report(&self, file: FileId) {
         tracing::trace!(target: constants::TARGET_RESOURCE_ROUTES, event = constants::EVENT_OWNER_FOOTPRINT, file = file.0,
-            required_bytes = self.working_bytes(), peak_required_bytes = self.peak_working_bytes(),
-            retained_bytes = self.retained_bytes(), required_backend_bytes = self.required_backend_overlap(),
-            peak_required_views = self.peak_required_views(), owned_bytes = self.owned_bytes(),
-            metadata_bytes = self.metadata_bytes(), released_entries = self.state.borrow().released_entries);
+            required_bytes = self.working_bytes().0, peak_required_bytes = self.peak_working_bytes().0,
+            retained_bytes = self.retained_bytes().0, required_backend_bytes = self.required_backend_overlap().0,
+            peak_required_views = ?self.peak_required_views(), owned_bytes = self.owned_bytes().0,
+            metadata_bytes = self.metadata_bytes().0, released_entries = ?self.state.borrow().released_entries);
 
         if let Some(indexes) = self.backend.borrow().as_ref() {
             let state = self.state.borrow();
@@ -66,10 +67,10 @@ impl DerivedOwner {
                 roots = indexes.graph_counts.roots, traversals = indexes.graph_counts.traversals, memo_hits = indexes.graph_counts.memo_hits,
                 vertices_expanded = indexes.graph_counts.expanded, edges_examined = indexes.graph_counts.examined,
                 nearest_early_stops = indexes.graph_counts.early_stops, forest_hits = indexes.graph_counts.forest_hits,
-                graph_bytes = indexes.graph_bytes, memo_bytes = indexes.memo_bytes, graph_enabled = indexes.graph_enabled,
+                graph_bytes = indexes.graph_bytes, memo_bytes = indexes.memo_bytes, graph_enabled = ?indexes.graph_enabled,
                 cache_bytes = indexes.bytes, cache_limit = indexes.limit, cache_peak_bytes = indexes.graph_counts.peak_bytes,
                 reclaimed_indexes = indexes.graph_counts.reclaimed_indexes, reclaimed_selections = indexes.graph_counts.reclaimed_selections,
-                reclaimed_bytes = indexes.graph_counts.reclaimed_bytes, pinned_refusals = indexes.graph_counts.pinned_refusals, index_refusals = indexes.refusals,
+                reclaimed_bytes = indexes.graph_counts.reclaimed_bytes, pinned_refusals = indexes.graph_counts.pinned_refusals, index_refusals = ?indexes.refusals,
                 selector_refusals = indexes.selection_counts.refusals);
             tracing::trace!(target: constants::TARGET_SELECTION, event = constants::EVENT_FILE_SELECTIONS, file = file.0,
                 source_rows_scanned = indexes.selection_counts.scanned, indexed_candidates = indexes.selection_counts.candidates,
@@ -77,11 +78,11 @@ impl DerivedOwner {
                 selections_built = indexes.selection_counts.builds, selections_reused = indexes.selection_counts.reuses,
                 selections_refused = indexes.selection_counts.refusals, cache_bytes = indexes.bytes,
                 collected_cell_bytes = indexes.selection_counts.collected_cells.saturating_mul(size_of::<ryo_relations::domain::relations::types::Value>() as u64),
-                compact_id_bytes = self.ledger.borrow().snapshot().optional_units.saturating_mul(size_of::<u32>()));
+                compact_id_bytes = self.ledger.borrow().snapshot().optional_units.0.saturating_mul(size_of::<u32>()));
             tracing::trace!(target: constants::TARGET_STORED_JOIN, event = constants::EVENT_FILE_INDEXES, file = file.0,
                 entries = state.entries.values().filter(|entry| entry._plan.kind == DerivedKind::Equality && entry.retained.is_some()).count(), eligible_relations = indexes.eligible.len(),
-                retained_bytes = indexes.bytes, physical_builds = indexes.builds,
-                reuses = indexes.reuses, refusals = indexes.refusals);
+                retained_bytes = indexes.bytes, physical_builds = ?indexes.builds,
+                reuses = ?indexes.reuses, refusals = ?indexes.refusals);
             if let Some(entries) = &indexes.selection_histogram {
                 for entry in entries {
                     let retained = state.entries.values().find_map(|candidate| {
@@ -89,8 +90,9 @@ impl DerivedOwner {
                         else {
                             return None;
                         };
-                        if !super::super::request::identity::same_request(
+                        if super::super::request::identity::types::StaticRequest(
                             &candidate._plan.request,
+                        ) != super::super::request::identity::types::StaticRequest(
                             &ViewRequest::PredicateMatches(Arc::clone(&entry.selector)),
                         ) {
                             return None;

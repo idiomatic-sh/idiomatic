@@ -1,5 +1,6 @@
 //! Graph admission reclaims only dormant resources owned by the real file owner.
 
+use super::constants;
 use crate::application::file_dag::derived::owner::selection::fixtures::SelectionFixture;
 use crate::application::file_dag::derived::owner::{
     fixtures::graph::GraphFixture, index::service::LIMIT,
@@ -32,7 +33,7 @@ fn a_live_index_blocks_credit_until_its_consumer_releases_the_handle() {
     let mut fixture = GraphFixture::new(&[Relation::Function], &[], LIMIT);
     let handle = fixture
         .index(Relation::Function, &rows, &[ColumnIndex(0)])
-        .expect("owner acquired index");
+        .expect(constants::OWNER_ACQUIRED_INDEX);
     let before = fixture.snapshot();
     assert_eq!(before.indexes, 1);
     let payload = before.index_payloads[0];
@@ -68,7 +69,7 @@ fn impossible_admission_does_not_mutate_even_dormant_payload_or_capacity() {
     let mut fixture = GraphFixture::new(&[Relation::Function], &[], LIMIT);
     let handle = fixture
         .index(Relation::Function, &rows, &[ColumnIndex(0)])
-        .expect("owner acquired index");
+        .expect(constants::OWNER_ACQUIRED_INDEX);
     drop(handle);
     let before = fixture.snapshot();
     let payload = before.index_payloads[0];
@@ -90,12 +91,12 @@ fn fifo_reclaims_only_enough_dormant_entries_and_preserves_survivor_order() {
     drop(
         fixture
             .index(Relation::Function, &rows, &[ColumnIndex(0)])
-            .expect("first owner acquired index"),
+            .expect(constants::FIRST_OWNER_ACQUIRED_INDEX),
     );
     drop(
         fixture
             .index(Relation::Function, &rows, &[ColumnIndex(1)])
-            .expect("second owner acquired index"),
+            .expect(constants::SECOND_OWNER_ACQUIRED_INDEX),
     );
     let before = fixture.snapshot();
     assert_eq!(before.indexes, 2);
@@ -117,7 +118,7 @@ fn owner_reclaims_the_oldest_complete_index_before_newer_indexes() {
     let mut fixture = GraphFixture::new(&[Relation::Function], &[], LIMIT);
     let first = fixture
         .index(Relation::Function, &rows, &[ColumnIndex(0)])
-        .expect("first owner view");
+        .expect(constants::FIRST_OWNER_VIEW);
     let first_storage = Arc::downgrade(first.storage());
     let first_view_bytes = fixture.snapshot().retained_view_bytes;
     assert!(first_view_bytes > 0);
@@ -125,7 +126,7 @@ fn owner_reclaims_the_oldest_complete_index_before_newer_indexes() {
 
     let second = fixture
         .index(Relation::Function, &rows, &[ColumnIndex(1)])
-        .expect("second owner view");
+        .expect(constants::SECOND_OWNER_VIEW);
     let second_storage = Arc::downgrade(second.storage());
     drop(second);
     let before = fixture.snapshot();
@@ -169,7 +170,7 @@ fn selected_row_ids_pinned_by_a_graph_or_view_cannot_be_reclaimed() {
         [selector.clone()],
         source.kinds,
     )
-    .expect("real selection owner");
+    .expect(constants::REAL_SELECTION_OWNER);
     let (mut symbols, mut memo, mut scratch) =
         (Symbols::default(), Vec::new(), OperatorScratch::default());
     let mut context = OperatorContext {
@@ -179,7 +180,7 @@ fn selected_row_ids_pinned_by_a_graph_or_view_cannot_be_reclaimed() {
         prepared_matchers: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
-        source: SourceView(b""),
+        source: SourceView(constants::NO_SOURCE),
         paths: &[],
         arenas: &[],
         memo: &mut memo,
@@ -187,8 +188,8 @@ fn selected_row_ids_pinned_by_a_graph_or_view_cannot_be_reclaimed() {
     };
     let selected = selection
         .select(&selector, source, &mut context)
-        .expect("actual selector execution")
-        .expect("retained selection");
+        .expect(constants::ACTUAL_SELECTOR_EXECUTION)
+        .expect(constants::RETAINED_SELECTION);
     assert_eq!(selected.selection.rows.as_slice(), &[1, 2]);
     let mut fixture = GraphFixture::attach(Rc::clone(selection.owner()), &[Relation::Function]);
     let before = fixture.snapshot();
@@ -219,7 +220,7 @@ fn enabling_graph_demand_does_not_reserve_unused_ordinary_capacity() {
     drop(
         fixture
             .index(Relation::Function, &rows, &[ColumnIndex(0)])
-            .expect("owner acquired index"),
+            .expect(constants::OWNER_ACQUIRED_INDEX),
     );
     let before = fixture.snapshot();
     assert_eq!(before.limit, LIMIT);

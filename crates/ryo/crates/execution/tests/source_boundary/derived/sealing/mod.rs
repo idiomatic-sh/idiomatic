@@ -59,8 +59,23 @@ mod selection_build {
 }
 "#;
 
-fn refuse(owner: &'static str, source: String, code: &'static str, first: &'static str, second: &'static str) -> Probe {
-    Probe { compilation: Compilation::Library, owner, source, expected: Expectation::Refuse { code, first, second } }
+fn refuse(
+    owner: &'static str,
+    source: String,
+    code: &'static str,
+    first: &'static str,
+    second: &'static str,
+) -> Probe {
+    Probe {
+        compilation: Compilation::Library,
+        owner,
+        source,
+        expected: Expectation::Refuse {
+            code,
+            first,
+            second,
+        },
+    }
 }
 
 pub(super) fn controls(root: &'static str, module: &'static str) -> Vec<Probe> {

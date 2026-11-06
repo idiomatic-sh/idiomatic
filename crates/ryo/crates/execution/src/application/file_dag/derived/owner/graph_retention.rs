@@ -1,10 +1,10 @@
 //! The common owner alone installs retained graph and domain storage.
 use super::super::{
-    ledger::Backing,
+    ledger::types::{Backing, ByteCount},
     owner::graphs::{
         service::{replace, room, slot},
         types::{
-            handles::service::GraphHandle,
+            handles::{service::GraphHandle, types::GraphSharing},
             retained::types::{DomainEntry, GraphEntry},
         },
     },
@@ -20,19 +20,21 @@ impl DerivedOwner {
         storage: &Arc<DerivedStorage>,
         backings: &Arc<[Backing]>,
         graph: &Arc<CompactGraph>,
-    ) -> Result<bool, OperatingError> {
+    ) -> Result<GraphSharing, OperatingError> {
         if cache
             .graphs
             .iter()
             .any(|entry| Arc::ptr_eq(&entry.graph, graph))
         {
-            return Ok(true);
+            return Ok(GraphSharing::Shared);
         }
-        if let Some((replacement, metadata)) = slot(&cache.graphs) {
-            let cost = self.graph_retention_cost(backings, metadata)?;
-            if self.prepare_graph_room(cache, cost, backings)?
-                && let Some(bytes) = room(cache, cost)
-                && let Some(lease) = self.try_graph_lease(cache, backings, cost, false)?
+        if let Some(reserve) = slot(&cache.graphs) {
+            let replacement = reserve.replacement;
+            let cost = self.graph_retention_cost(backings, reserve.metadata)?;
+            if self.prepare_graph_room(cache, cost, backings)? == Room::Fits
+                && let Some(bytes) = room(cache, cost).map(|total| total.0)
+                && let Some(lease) =
+                    self.try_graph_lease(cache, backings, cost, MemoBudget::Exempt)?
             {
                 replace(&mut cache.graphs, replacement);
                 cache.graphs.push(GraphEntry {
@@ -46,11 +48,11 @@ impl DerivedOwner {
                 cache.graph_bytes += bytes - cache.bytes;
                 cache.bytes = bytes;
                 cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
-                return Ok(true);
+                return Ok(GraphSharing::Shared);
             }
         }
         cache.graph_counts.refusals += 1;
-        Ok(false)
+        Ok(GraphSharing::Local)
     }
     pub(in crate::application::file_dag::derived::owner) fn retain_domain(
         &self,
@@ -60,19 +62,21 @@ impl DerivedOwner {
         domain: &Arc<GraphDomain>,
         storage: &Arc<DerivedStorage>,
         backings: &Arc<[Backing]>,
-    ) -> Result<bool, OperatingError> {
-        if !graph.shared() || domain.identity.is_none() {
-            return Ok(false);
+    ) -> Result<GraphSharing, OperatingError> {
+        if graph.sharing() == GraphSharing::Local || domain.identity.is_none() {
+            return Ok(GraphSharing::Local);
         }
         if cache.graph_domains.iter().any(|entry| {
             Arc::ptr_eq(&entry.graph, graph.raw_graph()) && Arc::ptr_eq(&entry.domain, domain)
         }) {
-            return Ok(true);
+            return Ok(GraphSharing::Shared);
         }
-        if let Some((replacement, metadata)) = slot(&cache.graph_domains) {
-            let cost = self.graph_retention_cost(backings, metadata)?;
-            if let Some(bytes) = room(cache, cost)
-                && let Some(lease) = self.try_graph_lease(cache, backings, cost, false)?
+        if let Some(reserve) = slot(&cache.graph_domains) {
+            let replacement = reserve.replacement;
+            let cost = self.graph_retention_cost(backings, reserve.metadata)?;
+            if let Some(bytes) = room(cache, cost).map(|total| total.0)
+                && let Some(lease) =
+                    self.try_graph_lease(cache, backings, cost, MemoBudget::Exempt)?
             {
                 replace(&mut cache.graph_domains, replacement);
                 cache.graph_domains.push(DomainEntry {
@@ -87,9 +91,9 @@ impl DerivedOwner {
                 cache.graph_bytes += bytes - cache.bytes;
                 cache.bytes = bytes;
                 cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
-                return Ok(true);
+                return Ok(GraphSharing::Shared);
             }
         }
-        Ok(false)
+        Ok(GraphSharing::Local)
     }
 }

@@ -1,6 +1,7 @@
 //! Only this private issuer binds actual source proofs and owner admission.
 use super::super::*;
 use crate::application::file_dag::derived::owner::DerivedOwner;
+use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
 impl AcquisitionOrigin {
     pub(in crate::application::file_dag::derived::owner::acquisition) fn validate(
         &self,
@@ -227,7 +228,7 @@ impl DerivedOwner {
         lease: Arc<ResourceLease>,
         backings: Arc<[Backing]>,
         admitted: &AdmittedViewInputs<'_>,
-        built: bool,
+        built: Construction,
     ) -> Result<AcquiredView, OperatingError> {
         admitted.origin.validate(self, plan)?;
         storage.view()?;

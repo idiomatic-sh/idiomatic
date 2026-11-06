@@ -1,15 +1,22 @@
 //! Central acquisition, mandatory working ownership and optional retained capacity.
 use crate::application::file_dag::derived::constants;
+use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::application::file_dag::route_counts::BuildRoute;
 use crate::domain::{derived_views::types::*, operating::errors::OperatingError};
-use acquisition::semantics::service::DerivedStorage;
+use acquisition::semantics::storage::DerivedStorage;
 use footprint::service::storage_bytes;
 use std::{
     cell::RefCell,
     collections::HashMap,
     sync::{Arc, Weak},
+};
+use types::{
+    AdmissionOrder, BuildCount, BuildCounts, EntryLimit, EqualityLiveness, FilePreparation,
+    HitCount, IdentityCompatibility, MembershipOrder, MemoBudget, PinCount, PinState,
+    PopulationCount, PredicateCount, ReclaimOutlook, RefusalCount, ReleasedEntries, Room, ScopeId,
+    ViewCount,
 };
 
 pub(in crate::application::file_dag) mod acquisition;
@@ -23,13 +30,14 @@ mod leases;
 mod lifetime;
 mod observations;
 mod setup;
+pub(in crate::application::file_dag) mod types;
 
 /// Runtime semantic dependencies that are not columns: candidate filter and exact dense ordering.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub(in crate::application::file_dag) struct ViewContext {
     pub candidate: Option<graph_key::PreparedIdentity>,
     pub literals: Option<Arc<[ryo_values::domain::plan_parts::types::LiteralText]>>,
-    pub membership_order: Option<usize>,
+    pub membership_order: Option<MembershipOrder>,
 }
 impl ViewContext {
     pub(in crate::application::file_dag) fn for_predicate(plan: &Arc<DerivedContract>) -> Self {
@@ -45,56 +53,56 @@ use graph_key::{GraphRequirement, GraphSelection, GraphViewIdentity, Requirement
 struct Key {
     plan: RequirementIdentity,
     populations: [PopulationId; 2],
-    len: u8,
+    len: PopulationCount,
     context: ViewContext,
 }
 struct OwnedView {
     storage: Arc<DerivedStorage>,
-    _lease: Arc<super::ledger::ResourceLease>,
+    _lease: Arc<super::ledger::types::ResourceLease>,
 }
 struct Entry {
-    admission: usize,
+    admission: AdmissionOrder,
     _plan: Arc<DerivedContract>,
     weak: Weak<DerivedStorage>,
     required: Option<OwnedView>,
     retained: Option<OwnedView>,
-    backings: Arc<[super::ledger::Backing]>,
-    lease: Weak<super::ledger::ResourceLease>,
-    bytes: usize,
-    working: usize,
-    backend: usize,
+    backings: Arc<[super::ledger::types::Backing]>,
+    lease: Weak<super::ledger::types::ResourceLease>,
+    bytes: ByteCount,
+    working: ByteCount,
+    backend: ByteCount,
 }
 #[derive(Default)]
 struct State {
-    next_admission: usize,
+    next_admission: AdmissionOrder,
     entries: hashbrown::HashMap<Key, Entry>,
-    pins: HashMap<PopulationId, usize>,
+    pins: HashMap<PopulationId, PinCount>,
     dependents: HashMap<PopulationId, Vec<Key>>,
     spare_dependencies: Vec<Vec<Key>>,
-    released_entries: u64,
-    builds: u64,
-    hits: u64,
-    refusals: u64,
-    required_bytes: usize,
-    peak_required_bytes: usize,
-    retained_bytes: usize,
-    retained_predicates: usize,
-    overlap_bytes: usize,
-    required_views: usize,
-    peak_required_views: usize,
-    required_backend_bytes: usize,
+    released_entries: ReleasedEntries,
+    builds: BuildCount,
+    hits: HitCount,
+    refusals: RefusalCount,
+    required_bytes: ByteCount,
+    peak_required_bytes: ByteCount,
+    retained_bytes: ByteCount,
+    retained_predicates: PredicateCount,
+    overlap_bytes: ByteCount,
+    required_views: ViewCount,
+    peak_required_views: ViewCount,
+    required_backend_bytes: ByteCount,
 }
 pub(crate) struct DerivedOwner {
     identity: Arc<()>,
     semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
-    next_scope: std::cell::Cell<usize>,
+    next_scope: std::cell::Cell<ScopeId>,
     #[cfg(test)]
     last_scoped_storage: RefCell<Weak<DerivedStorage>>,
-    ledger: std::rc::Rc<RefCell<super::ledger::Ledger>>,
+    ledger: std::rc::Rc<RefCell<super::ledger::types::Ledger>>,
     backend: RefCell<Option<CacheBackend>>,
-    file_prepared: std::cell::Cell<bool>,
+    file_prepared: std::cell::Cell<FilePreparation>,
     state: RefCell<State>,
-    max_entries: usize,
+    max_entries: EntryLimit,
 }
 impl DerivedOwner {
     #[cfg(test)]
@@ -107,79 +115,93 @@ impl DerivedOwner {
     }
 
     pub(in crate::application::file_dag) fn new(
-        max_entries: usize,
+        max_entries: EntryLimit,
         semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
     ) -> Self {
         Self {
             identity: Arc::new(()),
             semantic,
-            next_scope: std::cell::Cell::new(0),
+            next_scope: std::cell::Cell::new(ScopeId(0)),
             #[cfg(test)]
             last_scoped_storage: RefCell::new(Weak::new()),
-            ledger: std::rc::Rc::new(RefCell::new(super::ledger::Ledger::default())),
+            ledger: std::rc::Rc::new(RefCell::new(super::ledger::types::Ledger::default())),
             state: RefCell::new(State::default()),
             backend: RefCell::new(None),
-            file_prepared: std::cell::Cell::new(false),
+            file_prepared: std::cell::Cell::new(FilePreparation::Unprepared),
             max_entries,
         }
     }
-    pub(in crate::application::file_dag) fn counts(&self) -> (u64, u64, u64) {
+    pub(in crate::application::file_dag) fn counts(&self) -> BuildCounts {
         let state = self.state.borrow();
-        (state.builds, state.hits, state.refusals)
+        BuildCounts(state.builds, state.hits, state.refusals)
     }
-    pub(in crate::application::file_dag) fn working_bytes(&self) -> usize {
+    pub(in crate::application::file_dag) fn working_bytes(&self) -> ByteCount {
         self.state.borrow().required_bytes
     }
-    pub(in crate::application::file_dag) fn peak_working_bytes(&self) -> usize {
+    pub(in crate::application::file_dag) fn peak_working_bytes(&self) -> ByteCount {
         self.state.borrow().peak_required_bytes
     }
-    pub(in crate::application::file_dag) fn retained_bytes(&self) -> usize {
+    pub(in crate::application::file_dag) fn retained_bytes(&self) -> ByteCount {
         self.state.borrow().retained_bytes
     }
-    pub(in crate::application::file_dag) fn required_backend_overlap(&self) -> usize {
+    pub(in crate::application::file_dag) fn required_backend_overlap(&self) -> ByteCount {
         self.state.borrow().required_backend_bytes
     }
-    pub(in crate::application::file_dag) fn peak_required_views(&self) -> usize {
+    pub(in crate::application::file_dag) fn peak_required_views(&self) -> ViewCount {
         self.state.borrow().peak_required_views
     }
-    pub(in crate::application::file_dag) fn owned_bytes(&self) -> usize {
+    pub(in crate::application::file_dag) fn owned_bytes(&self) -> ByteCount {
         let state = self.state.borrow();
-        state
-            .required_bytes
-            .saturating_add(state.retained_bytes)
-            .saturating_sub(state.overlap_bytes)
+        ByteCount(
+            state
+                .required_bytes
+                .saturating_add(state.retained_bytes)
+                .0
+                .saturating_sub(state.overlap_bytes.0),
+        )
     }
-    pub(in crate::application::file_dag) fn metadata_bytes(&self) -> usize {
-        use crate::application::file_dag::derived::ledger::capacity::{saturating, table};
+    pub(in crate::application::file_dag) fn metadata_bytes(&self) -> ByteCount {
+        use crate::application::file_dag::derived::ledger::{
+            capacity::{saturating, table},
+            types::SlotCount,
+        };
         let state = self.state.borrow();
         let plans = state
             .entries
             .keys()
-            .map(|key| key.plan.metadata_bytes())
+            .map(|key| key.plan.metadata_bytes().0)
             .sum::<usize>();
         let spare = state
             .spare_dependencies
             .iter()
-            .map(|keys| saturating::<Key>(keys.capacity()))
+            .map(|keys| saturating::<Key>(SlotCount(keys.capacity())).0)
             .sum::<usize>();
         let dependent_keys = state
             .dependents
             .values()
-            .map(|keys| saturating::<Key>(keys.capacity()))
+            .map(|keys| saturating::<Key>(SlotCount(keys.capacity())).0)
             .sum::<usize>();
-        plans
-            + table::<(Key, Entry)>(state.entries.capacity()).saturating_mul(2)
-            + table::<(PopulationId, usize)>(state.pins.capacity()).saturating_mul(2)
-            + table::<(PopulationId, Vec<Key>)>(state.dependents.capacity()).saturating_mul(2)
-            + dependent_keys
-            + saturating::<Vec<Key>>(state.spare_dependencies.capacity())
-            + spare
+        ByteCount(
+            plans
+                + table::<(Key, Entry)>(SlotCount(state.entries.capacity()))
+                    .0
+                    .saturating_mul(2)
+                + table::<(PopulationId, PinCount)>(SlotCount(state.pins.capacity()))
+                    .0
+                    .saturating_mul(2)
+                + table::<(PopulationId, Vec<Key>)>(SlotCount(state.dependents.capacity()))
+                    .0
+                    .saturating_mul(2)
+                + dependent_keys
+                + saturating::<Vec<Key>>(SlotCount(state.spare_dependencies.capacity())).0
+                + spare,
+        )
     }
 }
 
 #[cfg(test)]
 impl DerivedOwner {
-    pub(in crate::application::file_dag) fn released_entries(&self) -> u64 {
+    pub(in crate::application::file_dag) fn released_entries(&self) -> ReleasedEntries {
         self.state.borrow().released_entries
     }
 }
