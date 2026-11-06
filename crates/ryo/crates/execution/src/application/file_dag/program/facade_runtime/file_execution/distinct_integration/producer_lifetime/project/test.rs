@@ -304,7 +304,7 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
                 assert_eq!(owner.derived.counts(), builds);
                 assert_eq!(owner.derived.working_bytes(), live);
                 assert!(
-                    backing.as_ref().unwrap().upgrade().is_some(),
+                    backing.as_ref().unwrap().is_alive(),
                     "duplicate outer deliveries retain the same phase lease"
                 );
             }
