@@ -8,7 +8,7 @@ use super::constants::{
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 #[path = "../composition/constants.rs"]
-mod constants;
+pub mod constants;
 #[path = "../composition/diagnostic_protocol.rs"]
 mod diagnostic_protocol;
 #[path = "../composition/request_input.rs"]

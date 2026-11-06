@@ -1362,7 +1362,7 @@ mod project_inputs_test;
 
 mod i001_observation_test;
 
-mod worker_request_input_test;
+pub mod worker_request_input_test;
 
 fn selected_consumer_keeps_unselected_producer_without_its_diagnostics() -> Result<(), Error> {
     use ryo::linter::{
