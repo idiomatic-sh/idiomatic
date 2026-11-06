@@ -1,6 +1,11 @@
 //! Cross-language source identities remain portable across native platforms.
 use super::*;
-#[test]
+use crate::cases::{Case, CaseName, Expect, Word, run};
+
+/// Whether the artifacts were refused as not matching their declared identity.
+fn invalid(result: Result<(), ArtifactError>) -> bool {
+    matches!(result, Err(ArtifactError::Invalid(_)))
+}
 fn source_identity_uses_utf8_name_order_on_every_platform() {
     let fixture: serde_json::Value = serde_json::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -32,7 +37,6 @@ fn source_identity_uses_utf8_name_order_on_every_platform() {
 }
 
 #[cfg(unix)]
-#[test]
 fn artifact_binding_recomputes_actual_metadata_in_both_directions() {
     use std::os::unix::fs::PermissionsExt as _;
     for expected in [false, true] {
@@ -65,14 +69,13 @@ fn artifact_binding_recomputes_actual_metadata_in_both_directions() {
             std::fs::Permissions::from_mode(if expected { 0o644 } else { 0o744 }),
         )
         .unwrap();
-        assert!(check().is_err());
+        assert!(invalid(check()));
         std::fs::set_permissions(&file, std::fs::Permissions::from_mode(mode)).unwrap();
         check().unwrap();
     }
 }
 
 #[cfg(unix)]
-#[test]
 fn optional_partial_observation_scope_tracks_only_declared_files_without_losing_source_identity() {
     use std::os::unix::fs::PermissionsExt as _;
     for before in [false, true] {
@@ -122,19 +125,19 @@ fn optional_partial_observation_scope_tracks_only_declared_files_without_losing_
             std::fs::Permissions::from_mode(if before { 0o644 } else { 0o744 }),
         )
         .unwrap();
-        assert!(check(&scope).is_err());
+        assert!(invalid(check(&scope)));
         std::fs::set_permissions(
             root.path().join(&files[0]),
             std::fs::Permissions::from_mode(mode),
         )
         .unwrap();
         check(&scope).unwrap();
-        assert!(check(&[]).is_err(), "the declared subset cannot disappear");
-        assert!(check(&[files[0].clone(), files[0].clone()]).is_err());
-        assert!(check(&[std::path::PathBuf::from("undeclared.py")]).is_err());
+        assert!(invalid(check(&[])), "the declared subset cannot disappear");
+        assert!(invalid(check(&[files[0].clone(), files[0].clone()])));
+        assert!(invalid(check(&[std::path::PathBuf::from("undeclared.py")])));
         std::fs::write(root.path().join(&files[1]), b"changed bytes").unwrap();
         assert!(
-            check(&scope).is_err(),
+            invalid(check(&scope)),
             "source identity still covers unobserved file bytes"
         );
     }
@@ -191,7 +194,6 @@ fn toy_prior_control() -> (serde_json::Value, EvidenceRequirement) {
     (evidence, requirement)
 }
 
-#[test]
 fn prior_control_requires_exact_execution_identity_and_completed_positive_witness() {
     let (evidence, requirement) = toy_prior_control();
     let check = |evidence: &serde_json::Value, requirement: &EvidenceRequirement| {
@@ -218,7 +220,7 @@ fn prior_control_requires_exact_execution_identity_and_completed_positive_witnes
             } = "b".repeat(64);
         }
         assert!(
-            check(&evidence, &requirement).is_err(),
+            invalid(check(&evidence, &requirement)),
             "metadata-only {changed} mutation"
         );
     }
@@ -231,7 +233,7 @@ fn prior_control_requires_exact_execution_identity_and_completed_positive_witnes
     changed["execution_manifest_sha256"] =
         serde_json::json!(format!("{:x}", Sha256::digest(execution.as_bytes())));
     assert!(
-        check(&changed, &requirement).is_err(),
+        invalid(check(&changed, &requirement)),
         "failed prior execution"
     );
 
@@ -248,12 +250,11 @@ fn prior_control_requires_exact_execution_identity_and_completed_positive_witnes
     changed["execution_manifest_sha256"] =
         serde_json::json!(format!("{:x}", Sha256::digest(execution.as_bytes())));
     assert!(
-        check(&changed, &requirement).is_err(),
+        invalid(check(&changed, &requirement)),
         "one-sided control lacks candidate witness"
     );
 }
 
-#[test]
 fn public_contract_requires_pinned_source_and_declared_assertion() {
     let source = "/// Explicit provider selects requested source.\n";
     let source_sha = format!("{:x}", Sha256::digest(source.as_bytes()));
@@ -273,8 +274,55 @@ fn public_contract_requires_pinned_source_and_declared_assertion() {
     check(&evidence).expect("neutral pinned source");
     let mut changed = evidence.clone();
     changed["source_path"] = serde_json::json!("crates/other.rs");
-    assert!(check(&changed).is_err());
+    assert!(invalid(check(&changed)));
     let mut changed = evidence;
     changed["contract_assertion"] = serde_json::json!("unpublished policy");
-    assert!(check(&changed).is_err());
+    assert!(invalid(check(&changed)));
+}
+
+type Scenario = fn();
+type Input = Scenario;
+type Value = ();
+type Failure = std::convert::Infallible;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("source_identity_uses_utf8_name_order_on_every_platform"),
+        word: Word::Succeeds,
+        input: || source_identity_uses_utf8_name_order_on_every_platform as fn(),
+        expect: Expect::Value(()),
+    },
+    #[cfg(unix)]
+    Case {
+        name: CaseName("artifact_binding_recomputes_actual_metadata_in_both_directions"),
+        word: Word::Succeeds,
+        input: || artifact_binding_recomputes_actual_metadata_in_both_directions as fn(),
+        expect: Expect::Value(()),
+    },
+    #[cfg(unix)]
+    Case {
+        name: CaseName("optional_partial_observation_scope_tracks_only_declared_files_without_losing_source_identity"),
+        word: Word::Succeeds,
+        input: || optional_partial_observation_scope_tracks_only_declared_files_without_losing_source_identity as fn(),
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("prior_control_requires_exact_execution_identity_and_completed_positive_witness"),
+        word: Word::Succeeds,
+        input: || prior_control_requires_exact_execution_identity_and_completed_positive_witness as fn(),
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("public_contract_requires_pinned_source_and_declared_assertion"),
+        word: Word::Succeeds,
+        input: || public_contract_requires_pinned_source_and_declared_assertion as fn(),
+        expect: Expect::Value(()),
+    },
+];
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    scenario();
+    Ok(())
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

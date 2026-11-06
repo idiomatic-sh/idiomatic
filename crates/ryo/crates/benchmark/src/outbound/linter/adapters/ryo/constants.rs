@@ -7,3 +7,11 @@ pub(super) const WORKER: &str = "run-ryo";
 pub(super) const REQUEST_FILE: &str = "--request-file";
 /// Stable request filename inside the owned worker state directory.
 pub(super) const REQUEST_FILENAME: &str = "request.json";
+/// Text of the accepted syntax in this part.
+pub(super) const ACCEPTED_SYNTAX: &str = "accepted-syntax";
+/// Text of the candidate skipped an undeclared or always in this part.
+pub(super) const CANDIDATE_SKIPPED_AN_UNDECLARED_OR_ALWAYS: &str =
+    "candidate skipped an undeclared or always-applicable rule";
+/// Text of the candidate context mode manifest and receipt in this part.
+pub(super) const CANDIDATE_CONTEXT_MODE_MANIFEST_AND_RECEIPT: &str =
+    "candidate context mode, manifest and receipt disagree";

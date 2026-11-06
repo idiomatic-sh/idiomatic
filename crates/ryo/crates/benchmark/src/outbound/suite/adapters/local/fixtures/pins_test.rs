@@ -94,13 +94,21 @@ fn verify_pin((sha256, version, fixture): (&[&str], &str, PinFixture)) -> Result
     // Parallel process tests can fork while a temporary executable is still open for writing.
     // Execute immutable repository bytes; only non-executable refusal cases need a new file.
     let path = match fixture {
-        PinFixture::Original => std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("src/outbound/suite/adapters/local/fixtures/pins.sh"),
+        PinFixture::Original => {
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/pins/pins.sh")
+        }
         PinFixture::Alternate => std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("src/outbound/suite/adapters/local/fixtures/pins-alternate.sh"),
+            .join("tests/fixtures/pins/pins-alternate.sh"),
         PinFixture::NonExecutable => {
             let path = directory.path().join("fixture");
-            std::fs::write(&path, include_bytes!("pins.sh")).expect("non-executable fixture bytes");
+            std::fs::write(
+                &path,
+                include_bytes!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/tests/fixtures/pins/pins.sh"
+                )),
+            )
+            .expect("non-executable fixture bytes");
             permissions(&path, false).expect("fixture mode");
             path
         }

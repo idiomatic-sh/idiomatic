@@ -3,7 +3,74 @@ use super::decode_report;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
-type Input = &'static [u8];
+use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
+use std::borrow::Cow;
+/// What a row feeds the schemas: a report to decode, or a request to encode and inspect.
+enum Wire {
+    Report(Cow<'static, [u8]>),
+    Request(fn() -> WorkerRequest, fn(&serde_json::Value) -> bool),
+}
+type Input = Wire;
+fn report(bytes: &'static [u8]) -> Input {
+    Wire::Report(Cow::Borrowed(bytes))
+}
+/// A decoded-report wire missing a required key, or with a coverage counter that cannot be zero.
+fn invalid_report(removed: Option<&str>, counter: Option<&str>) -> Input {
+    let mut report = serde_json::json!({
+        "execution_metadata": {"availability": "complete"},
+        "diagnostics": [], "files": ["bad.py"], "skipped": [],
+        "coverage": {"selected": 1, "evaluated": 1, "skipped": 0, "unknown_or_unread": 0},
+    });
+    if let Some(path) = removed {
+        let _removed = report.as_object_mut().expect("fixture object").remove(path);
+    }
+    if let Some(field) = counter {
+        report["coverage"][field] = 1.into();
+    }
+    Wire::Report(Cow::Owned(
+        serde_json::to_vec(&report).expect("fixture JSON"),
+    ))
+}
+fn module_registry_request() -> WorkerRequest {
+    let mut request = crate::outbound::worker::fixtures::data::request();
+    assert!(
+        request
+            .query_modules
+            .insert(
+                "python/ruff/suppress".into(),
+                "fragments/suppress.ryoql".into(),
+            )
+            .is_none()
+    );
+    let _previous = request
+        .rule_applicability
+        .insert("F401".into(), "accepted-syntax".into());
+    request
+}
+fn module_registry_is_transported(value: &serde_json::Value) -> bool {
+    value["query_modules"]["python/ruff/suppress"] == "fragments/suppress.ryoql"
+        && value["rule_applicability"]["F401"] == "accepted-syntax"
+}
+fn absent_cohort_request() -> WorkerRequest {
+    // The external wire can omit selection; worker preparation still requires resolution.
+    let mut request = crate::outbound::worker::fixtures::data::request();
+    request.selected_rules = None;
+    request
+}
+fn legacy_wire_shape(value: &serde_json::Value) -> bool {
+    value.get("selected_rules").is_none()
+}
+fn explicit_cohort_request() -> WorkerRequest {
+    let mut request = crate::outbound::worker::fixtures::data::request();
+    request.selected_rules = Some(vec![
+        ryo::linter::RuleId::try_from("F401").expect("fixture rule"),
+        ryo::linter::RuleId::try_from("RUF100").expect("fixture rule"),
+    ]);
+    request
+}
+fn explicit_cohort_is_serialized(value: &serde_json::Value) -> bool {
+    value["selected_rules"] == serde_json::json!(["F401", "RUF100"])
+}
 type Value = bool;
 type Failure = ();
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -11,7 +78,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("blank rule identity is refused"),
         word: Word::Refuses,
         input: || {
-            br#"{"diagnostics":[{"rule":"","file":"input","start":0,"end":1}],"files":["input"]}"#
+            report(br#"{"diagnostics":[{"rule":"","file":"input","start":0,"end":1}],"files":["input"]}"#)
         },
         expect: Expect::Error(()),
     },
@@ -19,7 +86,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("all canonical fields survive"),
         word: Word::Succeeds,
         input: || {
-            br#"{"diagnostics":[{"rule":"R1","file":"input","start":2,"end":7}],"files":["input","clean"],"execution_metadata":{"availability":"complete"},"coverage":{"selected":2,"evaluated":2,"skipped":0,"unknown_or_unread":0}}"#
+            report(br#"{"diagnostics":[{"rule":"R1","file":"input","start":2,"end":7}],"files":["input","clean"],"execution_metadata":{"availability":"complete"},"coverage":{"selected":2,"evaluated":2,"skipped":0,"unknown_or_unread":0}}"#)
         },
         expect: Expect::Value(true),
     },
@@ -27,7 +94,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("typed syntax rejection remains distinct from an empty result"),
         word: Word::Succeeds,
         input: || {
-            br#"{"diagnostics":[],"files":["bad.py"],"skipped":[{"rule":"F401","path":"bad.py","reason":"syntax-rejected"}],"execution_metadata":{"availability":"complete"},"coverage":{"selected":1,"evaluated":0,"skipped":1,"unknown_or_unread":0}}"#
+            report(br#"{"diagnostics":[],"files":["bad.py"],"skipped":[{"rule":"F401","path":"bad.py","reason":"syntax-rejected"}],"execution_metadata":{"availability":"complete"},"coverage":{"selected":1,"evaluated":0,"skipped":1,"unknown_or_unread":0}}"#)
         },
         expect: Expect::Value(true),
     },
@@ -35,25 +102,76 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("unknown skip reasons are refused"),
         word: Word::Refuses,
         input: || {
-            br#"{"diagnostics":[],"files":["bad.py"],"skipped":[{"rule":"F401","path":"bad.py","reason":"unknown"}]}"#
+            report(br#"{"diagnostics":[],"files":["bad.py"],"skipped":[{"rule":"F401","path":"bad.py","reason":"unknown"}]}"#)
         },
         expect: Expect::Error(()),
     },
     Case {
         name: CaseName("unknown fields are refused"),
         word: Word::Refuses,
-        input: || br#"{"diagnostics":[],"files":[],"extra":true}"#,
+        input: || report(br#"{"diagnostics":[],"files":[],"extra":true}"#),
         expect: Expect::Error(()),
     },
     Case {
         name: CaseName("invalid json is refused"),
         word: Word::Refuses,
-        input: || b"not-json",
+        input: || report(b"not-json"),
         expect: Expect::Error(()),
     },
+    Case {
+        name: CaseName("complete metadata removed is refused"),
+        word: Word::Refuses,
+        input: || invalid_report(Some("execution_metadata"), None),
+        expect: Expect::Error(()),
+    },
+    Case {
+        name: CaseName("coverage removed is refused"),
+        word: Word::Refuses,
+        input: || invalid_report(Some("coverage"), None),
+        expect: Expect::Error(()),
+    },
+    Case {
+        name: CaseName("unknown or unread coverage cannot be known zero"),
+        word: Word::Refuses,
+        input: || invalid_report(None, Some("unknown_or_unread")),
+        expect: Expect::Error(()),
+    },
+    Case {
+        name: CaseName("skipped coverage without skipped entries is refused"),
+        word: Word::Refuses,
+        input: || invalid_report(None, Some("skipped")),
+        expect: Expect::Error(()),
+    },
+    Case {
+        name: CaseName("request transports the explicit module registry"),
+        word: Word::Succeeds,
+        input: || Wire::Request(module_registry_request, module_registry_is_transported),
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("absent cohort keeps the legacy wire shape"),
+        word: Word::Succeeds,
+        input: || Wire::Request(absent_cohort_request, legacy_wire_shape),
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("explicit cohort is serialized"),
+        word: Word::Succeeds,
+        input: || Wire::Request(explicit_cohort_request, explicit_cohort_is_serialized),
+        expect: Expect::Value(true),
+    },
 ];
-fn subject(bytes: Input) -> Result<Value, Failure> {
-    decode_report(bytes)
+fn subject(wire: Input) -> Result<Value, Failure> {
+    let bytes = match wire {
+        Wire::Report(bytes) => bytes,
+        Wire::Request(build, check) => {
+            let encoded = super::encode_request(build()).map_err(|_rejected_request| ())?;
+            let value: serde_json::Value =
+                serde_json::from_str(&encoded).map_err(|_invalid_json| ())?;
+            return Ok(check(&value));
+        }
+    };
+    decode_report(&bytes)
         .map(|report| {
             if !report.skipped.is_empty() {
                 return report.diagnostics.is_empty()
@@ -95,70 +213,4 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
-}
-
-#[test]
-fn legacy_or_incomplete_candidate_metadata_never_becomes_known_zero() {
-    let report = serde_json::json!({
-        "execution_metadata": {"availability": "complete"},
-        "diagnostics": [], "files": ["bad.py"], "skipped": [],
-        "coverage": {"selected": 1, "evaluated": 1, "skipped": 0, "unknown_or_unread": 0},
-    });
-    for path in ["execution_metadata", "coverage"] {
-        let mut invalid = report.clone();
-        let _removed = invalid
-            .as_object_mut()
-            .expect("fixture object")
-            .remove(path);
-        assert!(decode_report(&serde_json::to_vec(&invalid).expect("fixture JSON")).is_err());
-    }
-    for field in ["unknown_or_unread", "skipped"] {
-        let mut invalid = report.clone();
-        invalid["coverage"][field] = 1.into();
-        assert!(decode_report(&serde_json::to_vec(&invalid).expect("fixture JSON")).is_err());
-    }
-}
-
-#[test]
-fn request_transports_the_explicit_module_registry() {
-    let mut request = crate::outbound::worker::fixtures::data::request();
-    assert!(
-        request
-            .query_modules
-            .insert(
-                "python/ruff/suppress".into(),
-                "fragments/suppress.ryoql".into(),
-            )
-            .is_none()
-    );
-    let _previous = request
-        .rule_applicability
-        .insert("F401".into(), "accepted-syntax".into());
-    let encoded = super::encode_request(request).expect("request JSON");
-    let value: serde_json::Value = serde_json::from_str(&encoded).expect("valid request JSON");
-    assert_eq!(
-        value["query_modules"]["python/ruff/suppress"],
-        "fragments/suppress.ryoql"
-    );
-    assert_eq!(value["rule_applicability"]["F401"], "accepted-syntax");
-}
-
-#[test]
-fn explicit_cohort_is_serialized_but_absent_cohort_keeps_the_legacy_wire_shape() {
-    let mut request = crate::outbound::worker::fixtures::data::request();
-    // The external wire can omit selection; worker preparation still requires resolution.
-    request.selected_rules = None;
-    let encoded = super::encode_request(request.clone()).unwrap();
-    let legacy: serde_json::Value = serde_json::from_str(&encoded).unwrap();
-    assert!(legacy.get("selected_rules").is_none());
-    request.selected_rules = Some(vec![
-        ryo::linter::RuleId::try_from("F401").unwrap(),
-        ryo::linter::RuleId::try_from("RUF100").unwrap(),
-    ]);
-    let encoded = super::encode_request(request).unwrap();
-    let explicit: serde_json::Value = serde_json::from_str(&encoded).unwrap();
-    assert_eq!(
-        explicit["selected_rules"],
-        serde_json::json!(["F401", "RUF100"])
-    );
 }

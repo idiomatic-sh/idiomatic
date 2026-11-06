@@ -33,6 +33,7 @@ pub(super) struct MeasurePaths {
 /// Read the reference executable, the cache directory and the collector from the arguments.
 pub(super) fn paths(
     args: &mut dyn Iterator<Item = BenchmarkArgument>,
+    suite_source: &Arc<dyn SuitePort>,
 ) -> Result<MeasurePaths, Error> {
     let executable = PathBuf::from(
         args.next()
@@ -51,8 +52,7 @@ pub(super) fn paths(
             .ok_or_else(|| Error::Invalid(constants::EXPECTED_COLLECTOR.into()))?,
     )
     .canonicalize()?;
-    std::fs::create_dir_all(&cache)?;
-    let cache = cache.canonicalize()?;
+    let cache = suite_source.ensure_directory(ArtifactPath(&cache))?;
     Ok(MeasurePaths {
         executable,
         cache,
@@ -64,6 +64,7 @@ pub(super) fn paths(
 fn registered_cases(
     selection_or_inventory: Option<Selection<'_>>,
     cache: &Path,
+    suite_source: &Arc<dyn SuitePort>,
 ) -> Result<CertificationCases, Error> {
     let input = selection_or_inventory
         .and_then(|s| s.0.strip_prefix(CASE_INVENTORY))
@@ -71,10 +72,7 @@ fn registered_cases(
         .ok_or_else(|| Error::Invalid(CANONICAL_BENCHMARK_REQUIRES_EXPLI.into()))?;
     Ok(CertificationCases::Registered {
         registration: PathBuf::from(input).canonicalize()?,
-        output: tempfile::Builder::new()
-            .prefix(REGISTERED_CASE_RESULTS)
-            .tempdir_in(cache)?
-            .keep(),
+        output: suite_source.scratch(ArtifactPath(cache), REGISTERED_CASE_RESULTS)?,
     })
 }
 
@@ -91,10 +89,7 @@ pub(super) fn stage(
     cache: &Path,
     authored: &[ryo::linter::RuleId],
 ) -> Result<StagedSuite, Error> {
-    let scratch = tempfile::Builder::new()
-        .prefix(constants::CERTIFICATION_PREFIX)
-        .tempdir_in(cache)?
-        .keep();
+    let scratch = suite_source.scratch(ArtifactPath(cache), constants::CERTIFICATION_PREFIX)?;
     let profile = scratch.join(constants::PROFILE_DIRECTORY);
     StageSuiteUseCaseImpl::new(suite_source.as_ref()).stage_suite(
         &commands::directory(),
@@ -275,11 +270,12 @@ pub(super) fn cases_for(
     audit: Audit,
     selection_or_inventory: Option<Selection<'_>>,
     cache: &Path,
+    suite_source: &Arc<dyn SuitePort>,
 ) -> Result<Certifying, Error> {
     if scope == BenchmarkCoverage::Accounted {
         Ok(Certifying {
             audit,
-            cases: registered_cases(selection_or_inventory, cache)?,
+            cases: registered_cases(selection_or_inventory, cache, suite_source)?,
         })
     } else {
         profile_cases(audit, selection_or_inventory)

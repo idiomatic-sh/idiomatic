@@ -4,12 +4,15 @@ use crate::outbound::{
     execution::interface::ExecutionPort, inventory::interface::InventoryPort as _,
     suite::interface::SuitePort as _,
 };
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::measurements::types::*;
 use ryo_benchmark_contracts::domain::reports::types::*;
 use ryo_benchmark_contracts::domain::workloads::types::*;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
+#[cfg(test)]
 mod fixtures;
+#[cfg(test)]
 mod orchestration;
 
 /// Explicit no-deadline capability; the underlying fixture retains actual invocation history.
@@ -29,6 +32,24 @@ impl ExecutionPort for Observer {
     }
 }
 
+/// The captured reference process matched against the fixture's declared failure and its proof.
+fn matches_capture(
+    fixture: &fixtures::Fixture,
+    capture: &case_execution::Capture,
+) -> Result<(), crate::application::process_discrepancy::errors::ProcessDiscrepancyError> {
+    let document = crate::outbound::inventory::factory::local()
+        .decode_invocation(&serde_json::to_vec(&capture.invocation).unwrap())
+        .unwrap();
+    crate::application::process_discrepancy::service::matches(
+        &fixture.prepared,
+        &document,
+        &capture.output,
+        &fixture.proof,
+        &fixture.suite,
+        &fixture.rules,
+    )
+}
+
 #[test]
 fn two_tool_neutral_providers_capture_archive_and_validate_without_a_report() {
     for provider in ["provider-one", "provider-two"] {
@@ -41,9 +62,12 @@ fn two_tool_neutral_providers_capture_archive_and_validate_without_a_report() {
         assert_eq!(captured.records.len(), 2);
         assert_eq!(captured.artifacts.len(), 3);
         if provider == "provider-two" {
-            let pointers = &captured.records[0]["process_observation"]["artifacts"];
-            let stdout = &captured.artifacts
-                [std::path::Path::new(pointers["stdout"]["path"].as_str().unwrap())];
+            let pointers = captured.records[0]
+                .process_observation
+                .as_ref()
+                .and_then(|process| process.artifacts.as_ref())
+                .unwrap();
+            let stdout = &captured.artifacts[std::path::Path::new(&pointers.stdout.path.0)];
             let decoded: Value = serde_json::from_slice(stdout).unwrap();
             assert_eq!(
                 decoded["file"],
@@ -66,8 +90,7 @@ fn two_tool_neutral_providers_capture_archive_and_validate_without_a_report() {
                     "JSON encoding must escape a real quote in the root"
                 );
             }
-            let stderr = &captured.artifacts
-                [std::path::Path::new(pointers["stderr"]["path"].as_str().unwrap())];
+            let stderr = &captured.artifacts[std::path::Path::new(&pointers.stderr.path.0)];
             assert_eq!(
                 stderr,
                 format!(
@@ -77,15 +100,25 @@ fn two_tool_neutral_providers_capture_archive_and_validate_without_a_report() {
                 .as_bytes()
             );
         }
-        assert!(captured.records[0]["diagnostics"].is_null());
-        assert_eq!(captured.records[0]["raw_parity_matches_intended"], false);
+        assert!(captured.records[0].diagnostics.is_none());
         assert_eq!(
-            inventory_receipts::validate_with_artifacts(
-                &[fixture.case.clone()],
+            captured.records[0].raw_parity_matches_intended,
+            Some(crate::outbound::suite::types::text::YesNo::No)
+        );
+        assert_eq!(
+            crate::application::inventory_receipts::service::validate_with_artifacts(
+                &[fixture.document.clone()],
                 &captured.records,
-                &captured.artifacts
+                &captured.artifacts,
+                &captured.invocations
             ),
-            Ok((0, 1, 0))
+            Ok(
+                crate::application::inventory_receipts::types::ReceiptCounts {
+                    raw_exact: crate::application::inventory_receipts::types::Tally(0),
+                    documented: crate::application::inventory_receipts::types::Tally(1),
+                    contract_only: crate::application::inventory_receipts::types::Tally(0)
+                }
+            )
         );
         let audit = receipt_validation::validate(&fixture.registration(), &captured).unwrap();
         assert!(audit.errors.is_empty());
@@ -123,17 +156,16 @@ fn offline_replay_rejects_every_identity_and_candidate_completeness_mutation() {
         ),
         ("/diagnostics", json!([])),
     ] {
-        let mut captured = fixture.load();
-        *captured.records[0].pointer_mut(pointer).unwrap() = value;
-        assert!(
-            inventory_receipts::validate_with_artifacts(
-                &[fixture.case.clone()],
+        let refused = fixture.tampered(0, pointer, value).is_none_or(|captured| {
+            crate::application::inventory_receipts::service::validate_with_artifacts(
+                &[fixture.document.clone()],
                 &captured.records,
-                &captured.artifacts
+                &captured.artifacts,
+                &captured.invocations,
             )
-            .is_err(),
-            "accepted {pointer}"
-        );
+            .is_err()
+        });
+        assert!(refused, "accepted {pointer}");
     }
     for (pointer, value) in [
         (
@@ -144,25 +176,25 @@ fn offline_replay_rejects_every_identity_and_candidate_completeness_mutation() {
         ("/coverage/unknown_or_unread_rule_file_pairs", json!(1)),
         ("/case_passed", json!(false)),
     ] {
-        let mut captured = fixture.load();
-        *captured.records[1].pointer_mut(pointer).unwrap() = value;
-        assert!(
-            inventory_receipts::validate_with_artifacts(
-                &[fixture.case.clone()],
+        let refused = fixture.tampered(1, pointer, value).is_none_or(|captured| {
+            crate::application::inventory_receipts::service::validate_with_artifacts(
+                &[fixture.document.clone()],
                 &captured.records,
-                &captured.artifacts
+                &captured.artifacts,
+                &captured.invocations,
             )
-            .is_err(),
-            "accepted candidate {pointer}"
-        );
+            .is_err()
+        });
+        assert!(refused, "accepted candidate {pointer}");
     }
-    let mut case = fixture.case.clone();
-    case["expectation_contract"] = json!("complete-report");
+    let case =
+        fixture.document_with(|case| case["expectation_contract"] = json!("complete-report"));
     assert!(
-        inventory_receipts::validate_with_artifacts(
+        crate::application::inventory_receipts::service::validate_with_artifacts(
             &[case],
             &fixture.load().records,
-            &fixture.load().artifacts
+            &fixture.load().artifacts,
+            &fixture.load().invocations
         )
         .is_err()
     );
@@ -171,29 +203,63 @@ fn offline_replay_rejects_every_identity_and_candidate_completeness_mutation() {
 #[test]
 fn archived_pairs_are_required_for_each_actual_binary_and_raw_bytes_are_recomputed() {
     let fixture = fixtures::Fixture::new("identity");
-    let mut process = process_discrepancy::convert(
-        serde_json::from_value(fixture.case["reference_discrepancy"]["process"].clone()).unwrap(),
+    let mut process = ryo_benchmark_contracts::domain::process::types::ProcessFailure::try_from(
+        serde_json::from_value::<crate::outbound::suite::types::process::ProcessFailureWire>(
+            fixture.case["reference_discrepancy"]["process"].clone(),
+        )
+        .unwrap(),
     )
     .unwrap();
-    assert!(process_discrepancy::group_digest(&process, &"a".repeat(64)).is_ok());
-    assert!(process_discrepancy::group_digest(&process, &"b".repeat(64)).is_err());
+    assert!(
+        crate::domain::process_failure::service::group_digest(
+            &process,
+            &ArtifactDigest("a".repeat(64))
+        )
+        .is_ok()
+    );
+    assert!(
+        crate::domain::process_failure::service::group_digest(
+            &process,
+            &ArtifactDigest("b".repeat(64))
+        )
+        .is_err()
+    );
     let original = process.observations[1].clone();
     process.observations[1] = process.observations[0].clone();
-    assert!(process_discrepancy::group_digest(&process, &"a".repeat(64)).is_err());
+    assert!(
+        crate::domain::process_failure::service::group_digest(
+            &process,
+            &ArtifactDigest("a".repeat(64))
+        )
+        .is_err()
+    );
     process.observations[1] = original;
     process.observations.pop();
-    assert!(process_discrepancy::group_digest(&process, &"a".repeat(64)).is_err());
+    assert!(
+        crate::domain::process_failure::service::group_digest(
+            &process,
+            &ArtifactDigest("a".repeat(64))
+        )
+        .is_err()
+    );
     let mut captured = fixture.load();
-    let path = captured.records[0]["process_observation"]["artifacts"]["stdout"]["path"]
-        .as_str()
-        .unwrap()
-        .into();
+    let path = std::path::PathBuf::from(
+        &captured.records[0]
+            .process_observation
+            .as_ref()
+            .and_then(|process| process.artifacts.as_ref())
+            .unwrap()
+            .stdout
+            .path
+            .0,
+    );
     captured.artifacts.insert(path, b"forged".to_vec());
     assert!(
-        inventory_receipts::validate_with_artifacts(
-            &[fixture.case.clone()],
+        crate::application::inventory_receipts::service::validate_with_artifacts(
+            &[fixture.document.clone()],
             &captured.records,
-            &captured.artifacts
+            &captured.artifacts,
+            &captured.invocations
         )
         .is_err()
     );
@@ -237,15 +303,17 @@ fn metadata_failure_preserves_process_bytes_and_cannot_be_admitted() {
         .observations(&receipt)
         .unwrap();
     assert_eq!(loaded.artifacts.len(), 3);
-    assert_eq!(loaded.records[0]["case_passed"], false);
-    assert!(loaded.records[0]["error"].is_string());
+    assert_eq!(
+        loaded.records[0].case_passed,
+        crate::outbound::suite::types::text::YesNo::No
+    );
+    assert!(loaded.records[0].error.is_some());
 }
 
 #[test]
 fn decoded_success_deadline_observer_signals_and_extra_backtrace_are_not_expected_failures() {
     let fixture = fixtures::Fixture::new("termination");
     let linter = crate::outbound::linter::fixtures::fake::LinterFake::default();
-    let proof = fixture.load().records[0]["discrepancy_validation"].clone();
     for status in [0, 1] {
         let execution = Observer(crate::outbound::execution::fixtures::fake::ExecutionFake {
             status,
@@ -277,54 +345,18 @@ fn decoded_success_deadline_observer_signals_and_extra_backtrace_are_not_expecte
     )
     .capture
     .unwrap();
-    assert!(
-        process_discrepancy::matches(
-            &fixture.prepared,
-            &capture,
-            &proof,
-            &fixture.suite,
-            &fixture.rules
-        )
-        .is_err()
-    );
+    assert!(matches_capture(&fixture, &capture).is_err());
     capture.invocation["observer_no_deadline"] = json!(true);
-    assert!(
-        process_discrepancy::matches(
-            &fixture.prepared,
-            &capture,
-            &proof,
-            &fixture.suite,
-            &fixture.rules
-        )
-        .is_ok()
-    );
+    assert!(matches_capture(&fixture, &capture).is_ok());
     capture.output.signal = Some(15);
-    assert!(
-        process_discrepancy::matches(
-            &fixture.prepared,
-            &capture,
-            &proof,
-            &fixture.suite,
-            &fixture.rules
-        )
-        .is_err()
-    );
+    assert!(matches_capture(&fixture, &capture).is_err());
     capture.output.signal = None;
     capture
         .output
         .stderr
         .0
         .extend_from_slice(b"\nstack backtrace\n");
-    assert!(
-        process_discrepancy::matches(
-            &fixture.prepared,
-            &capture,
-            &proof,
-            &fixture.suite,
-            &fixture.rules
-        )
-        .is_err()
-    );
+    assert!(matches_capture(&fixture, &capture).is_err());
 }
 
 #[test]
@@ -332,24 +364,89 @@ fn changing_raw_invocation_and_its_digest_does_not_establish_pinned_settings() {
     use sha2::Digest as _;
     let fixture = fixtures::Fixture::new("argv");
     let mut captured = fixture.load();
-    let path = std::path::PathBuf::from(
-        captured.records[0]["process_observation"]["artifacts"]["invocation"]["path"]
-            .as_str()
-            .unwrap(),
-    );
+    let pointer = captured.records[0]
+        .process_observation
+        .as_mut()
+        .and_then(|process| process.artifacts.as_mut())
+        .map(|artifacts| &mut artifacts.invocation)
+        .unwrap();
+    let path = std::path::PathBuf::from(&pointer.path.0);
     let mut invocation: Value = serde_json::from_slice(&captured.artifacts[&path]).unwrap();
     invocation["arguments"] = json!(["--changed-flag"]);
     let bytes = serde_json::to_vec(&invocation).unwrap();
-    captured.records[0]["process_observation"]["artifacts"]["invocation"]["sha256"] =
-        json!(format!("{:x}", sha2::Sha256::digest(&bytes)));
+    pointer.sha256 = crate::outbound::suite::types::text::Sha256Text(format!(
+        "{:x}",
+        sha2::Sha256::digest(&bytes)
+    ));
+    captured.invocations.insert(
+        path.clone(),
+        crate::outbound::inventory::factory::local()
+            .decode_invocation(&bytes)
+            .unwrap(),
+    );
     captured.artifacts.insert(path, bytes);
     assert!(
-        inventory_receipts::validate_with_artifacts(
-            &[fixture.case.clone()],
+        crate::application::inventory_receipts::service::validate_with_artifacts(
+            &[fixture.document.clone()],
             &captured.records,
-            &captured.artifacts
+            &captured.artifacts,
+            &captured.invocations
         )
         .unwrap_err()
+        .to_string()
         .contains("argv/environment")
+    );
+}
+
+#[test]
+fn unselected_context_source_remains_bound_to_discrepancy_identity() {
+    use crate::outbound::suite::{
+        interface::SuitePort as _,
+        types::{ArtifactPath, discrepancy::CaseArtifacts},
+    };
+    let root = tempfile::tempdir().unwrap();
+    std::fs::write(root.path().join("case.py"), "import local\n").unwrap();
+    std::fs::write(root.path().join("local.py"), "value = 1\n").unwrap();
+    let mut prepared = crate::domain::discrepancy::fixtures::case();
+    prepared.request.root = root.path().into();
+    prepared.request.staged_sources = Some(
+        vec!["case.py", "local.py"]
+            .into_iter()
+            .map(|path| ryo::linter::RelativePath(path.into()))
+            .collect(),
+    );
+    let files = crate::domain::suite::service::materialized_sources(&prepared.request);
+    assert_eq!(
+        prepared.request.files.len(),
+        1,
+        "diagnostic selection remains independent"
+    );
+    let suite = crate::outbound::suite::factory::local();
+    let digest = suite
+        .case_source_digest(ArtifactPath(root.path()), &files)
+        .unwrap();
+    let check = || {
+        suite.verify_discrepancy_artifacts(CaseArtifacts {
+            profile: root.path(),
+            root: root.path(),
+            files: &files,
+            source_sha256: &digest,
+            file_metadata_files: &[],
+            file_metadata_sha256: None,
+            evidence: &[],
+        })
+    };
+    check().unwrap();
+    std::fs::write(root.path().join("local.py"), "value = 2\n").unwrap();
+    assert!(
+        check().is_err(),
+        "unselected context mutation must invalidate evidence"
+    );
+    std::fs::write(root.path().join("local.py"), "value = 1\n").unwrap();
+    check().unwrap();
+    prepared.request.staged_sources = None;
+    assert_eq!(
+        crate::domain::suite::service::materialized_sources(&prepared.request),
+        vec![std::path::PathBuf::from("case.py")]
     );
 }

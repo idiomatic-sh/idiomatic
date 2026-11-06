@@ -24,7 +24,7 @@ fn validate_query_modules(
 ) -> Result<(), Error> {
     let root = directory.canonicalize()?;
     for (id, relative) in modules {
-        let _module = ryo::query::QueryModuleSource::try_new(id, "module source")
+        let _module = ryo::query::QueryModuleSource::try_new(id, constants::MODULE_SOURCE)
             .map_err(|error| Error::Invalid(error.to_string()))?;
         let relative = RelativeArtifactPath::try_from(relative.as_path())?;
         let mut current = root.clone();
@@ -123,10 +123,19 @@ impl SuitePort for SuiteLocalAdapter {
     fn record_case(
         &self,
         receipt: ArtifactPath<'_>,
-        record: serde_json::Value,
+        record: crate::outbound::suite::types::observation_document::ObservationDocument,
         process: Option<crate::outbound::suite::types::process::CapturedProcess<'_>>,
     ) -> Result<(), crate::outbound::suite::types::discrepancy::ArtifactError> {
         super::case_observations::record(receipt.0, record, process)
+    }
+    fn case_observations(
+        &self,
+        receipt: ArtifactPath<'_>,
+    ) -> Result<
+        Vec<crate::outbound::suite::types::observation_document::ObservationDocument>,
+        crate::outbound::suite::types::discrepancy::ArtifactError,
+    > {
+        super::case_observations::read(receipt.0)
     }
 
     fn case_reference_wires(
@@ -145,6 +154,39 @@ impl SuitePort for SuiteLocalAdapter {
     ) -> Result<(), crate::outbound::suite::types::discrepancy::ArtifactError> {
         super::discrepancy_artifacts::verify(artifacts)
     }
+    fn scratch(&self, ArtifactPath(parent): ArtifactPath<'_>, prefix: &str) -> Result<std::path::PathBuf, Error> {
+        let mut builder = tempfile::Builder::new();
+        let _prefixed = builder.prefix(prefix);
+        let directory = if parent.as_os_str().is_empty() {
+            builder.tempdir()?
+        } else {
+            builder.tempdir_in(parent)?
+        };
+        Ok(directory.keep())
+    }
+    fn discard(&self, ArtifactPath(directory): ArtifactPath<'_>) -> Result<(), Error> {
+        std::fs::remove_dir_all(directory).map_err(Into::into)
+    }
+    fn copy_file(&self, ArtifactPath(from): ArtifactPath<'_>, ArtifactPath(to): ArtifactPath<'_>) -> Result<(), Error> {
+        std::fs::copy(from, to).map(|_bytes| ()).map_err(Into::into)
+    }
+    fn ensure_directory(&self, ArtifactPath(directory): ArtifactPath<'_>) -> Result<std::path::PathBuf, Error> {
+        std::fs::create_dir_all(directory)?;
+        directory.canonicalize().map_err(Into::into)
+    }
+    fn write_text(&self, ArtifactPath(file): ArtifactPath<'_>, text: &str) -> Result<(), Error> {
+        std::fs::write(file, text).map_err(Into::into)
+    }
+    fn selection(&self, ArtifactPath(file): ArtifactPath<'_>) -> Result<Vec<String>, Error> {
+        serde_json::from_slice(&std::fs::read(file)?).map_err(|error| Error::Invalid(error.to_string()))
+    }
+    fn total_size(&self, files: &[std::path::PathBuf]) -> Result<u64, Error> {
+        files
+            .iter()
+            .map(|file| std::fs::metadata(file).map(|metadata| metadata.len()))
+            .sum::<Result<u64, _>>()
+            .map_err(Into::into)
+    }
     fn digest(&self, ArtifactPath(path): ArtifactPath<'_>) -> Result<ArtifactDigest, Error> {
         digest(path)
     }
@@ -158,7 +200,7 @@ impl SuitePort for SuiteLocalAdapter {
                     .file_name()
                     .into_string()
                     .map_err(|_| Error::Invalid(constants::INVALID_RULE_ID.into()))?;
-                super::schemas::rule(&name)
+                super::cases::schemas::rule(&name)
             })
             .collect()
     }
@@ -178,7 +220,7 @@ impl SuitePort for SuiteLocalAdapter {
         ArtifactPath(profile): ArtifactPath<'_>,
         rule: &ryo::linter::RuleId,
     ) -> Result<Cases, Error> {
-        super::schemas::cases(&std::fs::read_to_string(
+        super::cases::schemas::cases(&std::fs::read_to_string(
             rule_directory(profile, rule)?.join(constants::CASES),
         )?)
     }
@@ -222,7 +264,7 @@ impl SuitePort for SuiteLocalAdapter {
     ) -> Result<(), Error> {
         let source = source.canonicalize()?;
         let bytes = std::fs::read(source.join(constants::MANIFEST))?;
-        let manifest = super::schemas::suite(
+        let manifest = super::corpus::schemas::suite(
             std::str::from_utf8(&bytes).map_err(|error| Error::Invalid(error.to_string()))?,
         )?;
         std::fs::create_dir(destination)?;
@@ -253,7 +295,7 @@ impl SuitePort for SuiteLocalAdapter {
         definitions: &BTreeSet<ryo::linter::RuleId>,
         purpose: ryo_benchmark_contracts::domain::workloads::types::StagePurpose,
     ) -> Result<(), Error> {
-        let tool = super::schemas::tool(&std::fs::read_to_string(
+        let tool = super::tool::schemas::tool(&std::fs::read_to_string(
             directory.join(constants::MANIFEST),
         )?)?;
         validate_query_modules(directory, &tool.query_modules)?;
@@ -267,9 +309,9 @@ impl SuitePort for SuiteLocalAdapter {
             let mut value: toml::Value = toml::from_str(&original)?;
             let table = value
                 .as_table_mut()
-                .ok_or_else(|| Error::Invalid("profile must be a table".into()))?;
+                .ok_or_else(|| Error::Invalid(constants::PROFILE_MUST_BE_A_TABLE.into()))?;
             table.insert(
-                "defaults".into(),
+                constants::DEFAULTS.into(),
                 toml::Value::Array(
                     authored
                         .iter()
@@ -278,7 +320,7 @@ impl SuitePort for SuiteLocalAdapter {
                 ),
             );
             table.insert(
-                "supporting-rules".into(),
+                constants::SUPPORTING_RULES.into(),
                 toml::Value::Array(
                     definitions
                         .iter()
@@ -287,9 +329,9 @@ impl SuitePort for SuiteLocalAdapter {
                         .collect(),
                 ),
             );
-            table.remove("pending");
-            table.remove("deferred");
-            for key in ["rule-observations", "rule-applicability"] {
+            table.remove(constants::PENDING);
+            table.remove(constants::DEFERRED);
+            for key in [constants::RULE_OBSERVATIONS, constants::RULE_APPLICABILITY] {
                 if let Some(entries) = table.get_mut(key).and_then(toml::Value::as_table_mut) {
                     entries.retain(|id, _| definitions.iter().any(|rule| rule.as_ref() == id));
                 }
@@ -362,7 +404,7 @@ impl SuitePort for SuiteLocalAdapter {
         Ok(ArtifactDigest(format!("{:x}", hasher.finalize())))
     }
     fn profile(&self, ArtifactPath(directory): ArtifactPath<'_>) -> Result<Tool, Error> {
-        super::schemas::tool(&std::fs::read_to_string(
+        super::tool::schemas::tool(&std::fs::read_to_string(
             directory.join(constants::MANIFEST),
         )?)
     }
@@ -370,7 +412,7 @@ impl SuitePort for SuiteLocalAdapter {
         &self,
         ArtifactPath(directory): ArtifactPath<'_>,
     ) -> Result<ryo_benchmark_contracts::domain::workloads::types::Suite, Error> {
-        super::schemas::suite(&std::fs::read_to_string(
+        super::corpus::schemas::suite(&std::fs::read_to_string(
             directory.join(constants::MANIFEST),
         )?)
     }

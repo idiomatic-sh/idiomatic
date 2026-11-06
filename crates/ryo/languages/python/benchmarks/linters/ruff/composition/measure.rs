@@ -46,7 +46,7 @@ pub(super) fn measure(
         executable,
         cache,
         collector_path,
-    } = paths(args)?;
+    } = paths(args, suite_source)?;
     let mut tool = suite_source.profile(ArtifactPath(&commands::directory()))?;
     suite_source.verify_tool(ArtifactPath(&executable), &tool)?;
     let declared_inventory = tool.defaults.clone();
@@ -65,6 +65,7 @@ pub(super) fn measure(
         audit,
         selection_or_inventory.as_deref().map(Selection),
         &cache,
+        suite_source,
     )?;
     if args.next().is_some() {
         return Err(Error::Invalid(UNEXPECTED_MEASUREMENT_ARGUMENT.into()));
@@ -83,13 +84,16 @@ pub(super) fn measure(
     } = stage(suite_source, &cache, audit.authored())?;
     let selected_rules = selected_profile.join(crate::constants::RULES_DIRECTORY);
     let candidate_executable = selected_scratch.join(constants::CANDIDATE_EXECUTABLE);
-    let _bytes = std::fs::copy(std::env::current_exe()?, &candidate_executable)?;
+    suite_source.copy_file(
+        ArtifactPath(&std::env::current_exe()?),
+        ArtifactPath(&candidate_executable),
+    )?;
     let candidate = candidate_linter(&tool, candidate_executable.clone(), selected_rules.clone());
     let reference = Arc::new(commands::reference(executable.clone(), tool)?);
     let collector_settings =
         commands::collector(suite_source.as_ref(), &collector_path, &frozen_workload)?;
     let execution = commands::timed(collector_settings, observations)?;
-    let case_scratch = tempfile::tempdir()?;
+    let case_scratch = suite_source.scratch(ArtifactPath(std::path::Path::new("")), "case-scratch-")?;
     let certificate = CertifyUseCaseImpl::new(
         Arc::<_>::clone(&suite_source),
         Arc::<super::super::adapter::LinterRuffAdapter>::clone(&reference),
@@ -103,10 +107,11 @@ pub(super) fn measure(
         &executable,
         &candidate_executable,
         &selected_rules,
-        case_scratch.path(),
+        &case_scratch,
         scope,
         &case_source,
     )?;
+    suite_source.discard(ArtifactPath(&case_scratch))?;
     announce(
         observations,
         scope,

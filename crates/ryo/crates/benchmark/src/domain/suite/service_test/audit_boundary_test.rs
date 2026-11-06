@@ -1,7 +1,69 @@
 //! Raw artifact data cannot issue an audit for a different or incomplete inventory partition.
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::suite::constants;
 use crate::domain::suite::service::audited;
 use ryo_benchmark_contracts::domain::reports::types::AuthoredInventory;
 use ryo_benchmark_contracts::domain::workloads::types::Tool;
+use std::borrow::Cow;
+
+type Input = AuthoredInventory;
+type Value = (Cow<'static, str>, Cow<'static, str>);
+type Failure = Cow<'static, str>;
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("an exact disjoint inventory is bound before an audit is issued"),
+        word: Word::Succeeds,
+        input: || inventory(&["A001"], &["B001"]),
+        expect: Expect::Value((Cow::Borrowed("A001"), Cow::Borrowed("B001"))),
+    },
+    Case {
+        name: CaseName("a duplicated implemented default is refused"),
+        word: Word::Refuses,
+        input: || inventory(&["A001", "A001"], &["B001"]),
+        expect: Expect::Error(Cow::Borrowed(
+            constants::ARTIFACT_OBSERVATIONS_DO_NOT_PARTITION_THE,
+        )),
+    },
+    Case {
+        name: CaseName("a default both implemented and missing is refused"),
+        word: Word::Refuses,
+        input: || inventory(&["A001"], &["A001", "B001"]),
+        expect: Expect::Error(Cow::Borrowed(
+            constants::ARTIFACT_OBSERVATIONS_DO_NOT_PARTITION_THE,
+        )),
+    },
+    Case {
+        name: CaseName("an unreported default is refused"),
+        word: Word::Refuses,
+        input: || inventory(&["A001"], &[]),
+        expect: Expect::Error(Cow::Borrowed(
+            constants::ARTIFACT_OBSERVATIONS_DO_NOT_PARTITION_THE,
+        )),
+    },
+    Case {
+        name: CaseName("an undeclared default is refused"),
+        word: Word::Refuses,
+        input: || inventory(&["A001", "B001"], &["X001"]),
+        expect: Expect::Error(Cow::Borrowed(
+            constants::ARTIFACT_OBSERVATIONS_DO_NOT_PARTITION_THE,
+        )),
+    },
+];
+
+fn inventory(implemented: &[&str], missing: &[&str]) -> Input {
+    let rules = |names: &[&str]| {
+        names
+            .iter()
+            .map(|name| ryo::linter::RuleId::try_from(*name).unwrap())
+            .collect()
+    };
+    AuthoredInventory {
+        implemented: rules(implemented),
+        missing: rules(missing),
+    }
+}
+
 fn tool() -> Tool {
     Tool {
         rule_observation_selection:
@@ -24,41 +86,26 @@ fn tool() -> Tool {
         defaults: vec!["A001".try_into().unwrap(), "B001".try_into().unwrap()],
     }
 }
-#[test]
-fn exact_disjoint_inventory_is_bound_before_an_audit_is_issued() {
-    let a = ryo::linter::RuleId::try_from("A001").unwrap();
-    let b = ryo::linter::RuleId::try_from("B001").unwrap();
-    let issued = audited(
-        &tool(),
-        AuthoredInventory {
-            implemented: vec![a.clone()],
-            missing: vec![b.clone()],
-        },
-    )
-    .unwrap();
-    assert_eq!(issued.authored(), &[a]);
-    assert_eq!(issued.missing, vec![b]);
+fn subject(observed: Input) -> Result<Value, Failure> {
+    let issued = audited(&tool(), observed).map_err(|error| error.to_string())?;
+    let names = |rules: &[ryo::linter::RuleId]| {
+        Cow::Owned(
+            rules
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(","),
+        )
+    };
+    Ok((names(issued.authored()), names(&issued.missing)))
 }
+
 #[test]
-fn duplicate_overlap_undeclared_and_unreported_defaults_refuse_raw_observations() {
-    let a = ryo::linter::RuleId::try_from("A001").unwrap();
-    let b = ryo::linter::RuleId::try_from("B001").unwrap();
-    let foreign = ryo::linter::RuleId::try_from("X001").unwrap();
-    for (implemented, missing) in [
-        (vec![a.clone(), a.clone()], vec![b.clone()]),
-        (vec![a.clone()], vec![a.clone(), b.clone()]),
-        (vec![a.clone()], vec![]),
-        (vec![a, b], vec![foreign]),
-    ] {
-        assert!(
-            audited(
-                &tool(),
-                AuthoredInventory {
-                    implemented,
-                    missing
-                }
-            )
-            .is_err()
-        );
-    }
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }

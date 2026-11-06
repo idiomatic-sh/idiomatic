@@ -1,0 +1,66 @@
+description = "Selects each library root that declares its domain public (`pub mod domain;`) and declares no `inbound` module: a kernel crate with no use case."
+why = "Lets the spec tell a kernel crate with no use case from every other core without a param a count cannot read (the language crate is a kernel crate too, but has use cases): the kernel crate's `src/lib.rs` renders `pub mod domain;` where every other crate renders the private `mod domain;`. It answers the `domain-only` condition that frees such a crate from the use-case surface (`src/inbound.rs`) an ordinary core must have, and is never placed as a check, so its rows are never findings; its scenarios show them. Read as written: a `mod domain;` of the file whose visibility is a bare `pub` (`pub(crate)`, `pub(super)` and no visibility are not), in a file with no `mod inbound;` of any visibility."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let modules = select * from tree-nodes where kind = "module";
+let name-nodes = select * from tree-nodes where kind = "name";
+let idents = select * from tree-tokens where kind = "ident";
+let visibilities = select * from tree-nodes where kind = "visibility";
+let inners = select * from tree-nodes where kind = "visibility-inner";
+let kids = select l."id" as "id", r."child" as "child" from modules as l join "syntax-child" as r on l."id" = r."parent";
+let named = select l."id" as "id", r."id" as "name-node" from kids as l join name-nodes as r on l."child" = r."id";
+let name-kids = select l."id" as "id", r."child" as "token" from named as l join "syntax-child" as r on l."name-node" = r."parent";
+let name-texts = select l."id" as "id", r."text" as "text", r."file" as "file" from name-kids as l join idents as r on l."token" = r."id";
+let domain = select * from name-texts where text = "domain";
+let inbound = select * from name-texts where text = "inbound";
+let vis = select l."id" as "id", r."id" as "vis" from kids as l join visibilities as r on l."child" = r."id";
+let vis-kids = select l."id" as "id", l."vis" as "vis", r."child" as "child" from vis as l join "syntax-child" as r on l."vis" = r."parent";
+let restricted = select l."id" as "id" from vis-kids as l join inners as r on l."child" = r."id";
+let public = antijoin(left=vis, right=restricted, left-on=["id"], right-on=["id"]);
+let hits = select l."id" as "id" from domain as l join public as r on l."id" = r."id";
+let hit-mods = select l."file" as "file", l."span" as "span" from modules as l join hits as r on l."id" = r."id";
+let found = antijoin(left=hit-mods, right=inbound, left-on=["file"], right-on=["file"]);
+emit found subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "file"
+message = "`{file}` declares its domain public and no inbound module"
+help = "Nothing to fix: this rule only answers a condition, and its rows are never reported as findings."
+
+[given]
+include = ['app/src/lib.rs']
+
+[[scenarios]]
+id = 'root-pub-mod-domain-answers-yes'
+scenario = 'A root with `pub mod domain;` answers yes.'
+given.files.'app/src/lib.rs' = '''
+pub mod domain;
+'''
+then.findings = [
+  { path = 'app/src/lib.rs' },
+]
+
+[[scenarios]]
+id = 'with-inbound'
+scenario = 'A root that also declares an inbound module answers no.'
+given.files.'app/src/lib.rs' = '''
+pub mod domain;
+pub mod inbound;
+'''
+
+[[scenarios]]
+id = 'root-private-mod-domain-answers-no'
+scenario = 'A root with a private `mod domain;` answers no.'
+given.files.'app/src/lib.rs' = '''
+mod domain;
+'''
+
+[[scenarios]]
+id = 'root-pub-crate-mod-domain-answers-no'
+scenario = 'A root with `pub(crate) mod domain;` answers no.'
+given.files.'app/src/lib.rs' = '''
+pub(crate) mod domain;
+'''

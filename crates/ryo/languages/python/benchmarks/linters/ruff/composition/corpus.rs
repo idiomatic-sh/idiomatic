@@ -15,7 +15,7 @@ use ryo_benchmark::inbound::use_cases::measure::{
 use ryo_benchmark::outbound::execution::interface::ExecutionPort;
 use ryo_benchmark::outbound::linter::interface::LinterPort;
 use ryo_benchmark::outbound::suite::interface::SuitePort;
-use ryo_benchmark::outbound::suite::types::ArtifactSet;
+use ryo_benchmark::outbound::suite::types::{ArtifactPath, ArtifactSet};
 use ryo_benchmark::outbound::workspace::interface::WorkspacePort as _;
 use ryo_benchmark_contracts::domain::context::types::RuleContextDeclaration;
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
@@ -161,12 +161,7 @@ impl Corpus<'_> {
             .iter()
             .map(|file| workspace.root().join(file.0.as_ref()))
             .collect();
-        let bytes = paths
-            .iter()
-            .map(|path| std::fs::metadata(path).map(|metadata| metadata.len()))
-            .collect::<Result<Vec<_>, _>>()?
-            .into_iter()
-            .sum::<u64>();
+        let bytes = self.suite_source.total_size(&paths)?;
         writeln!(
             observations,
             "{}: measured source files={} bytes={bytes} digest={} input-profile={}",
@@ -186,10 +181,9 @@ impl Corpus<'_> {
         {
             // A new owned directory makes both retained and clean baselines fresh,
             // even if an earlier trial left caches behind in the caller's root.
-            let trial = tempfile::Builder::new()
-                .prefix(constants::TRIAL_PREFIX)
-                .tempdir_in(self.cache)?
-                .keep();
+            let trial = self
+                .suite_source
+                .scratch(ArtifactPath(self.cache), constants::TRIAL_PREFIX)?;
             let request = RunRequest {
                 performance: Default::default(),
                 selected_rules: self.configured_cohort.clone(),

@@ -18,7 +18,7 @@ pub fn run(
 ) -> Result<Measurement, Error> {
     if request.file_metadata.is_some() {
         return Err(Error::Invalid(
-            "declared file observations require verification preparation".into(),
+            crate::application::run::constants::DECLARED_FILE_OBSERVATIONS_REQUIRE_VERIFICAT.into(),
         ));
     }
     if let Some(context) = &request.context_manifest {
@@ -76,6 +76,8 @@ pub(super) fn validate_report(request: &RunRequest, report: &RunReport) -> Resul
 }
 
 use crate::domain::diagnostics::service::compare_diagnostics as compare;
+use crate::domain::discrepancy::types::{Contestant, ReferenceProof};
+use crate::outbound::inventory::interface::InventoryPort;
 use crate::outbound::suite::interface::SuitePort;
 use ryo_benchmark_contracts::domain::requests::types::CaseSelection;
 use std::path::Path;
@@ -109,7 +111,7 @@ fn select_cases(
     let selected_cases = match selection.ids {
         Some(selected) if selected.is_empty() || !selected.is_subset(&assigned_ids) => {
             return Err(Error::Invalid(
-                "case selection is empty or outside this shard".into(),
+                crate::application::run::constants::CASE_SELECTION_IS_EMPTY_OR_OUTSIDE.into(),
             ));
         }
         Some(selected) => assigned
@@ -130,6 +132,7 @@ pub(crate) fn verify_prepared_shard(
     reference: &dyn LinterPort,
     candidate: &dyn LinterPort,
     execution: &dyn ExecutionPort,
+    inventory: &dyn InventoryPort,
     rules: &Path,
     mut cases: Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>,
     selection: CaseSelection<'_>,
@@ -139,7 +142,7 @@ pub(crate) fn verify_prepared_shard(
         return Err(Error::Invalid(super::constants::NO_CASES.into()));
     }
     super::input_metadata::admit(suite, rules, &cases)?;
-    super::discrepancy::attach(suite, rules, &mut cases)?;
+    crate::application::discrepancy_attachment::service::attach(suite, rules, &mut cases)?;
     let Selection {
         global_count,
         selected_cases,
@@ -148,16 +151,26 @@ pub(crate) fn verify_prepared_shard(
     let first = selected_cases
         .first()
         .ok_or_else(|| Error::Invalid(super::constants::NO_CASES.into()))?;
-    let validations = super::discrepancy::validate_all(suite, reference, rules, &selected_cases)?;
+    let proofs = crate::application::discrepancy_validation::service::validate_all(
+        suite,
+        inventory,
+        reference,
+        rules,
+        &selected_cases,
+    )?;
+    let validations = proofs
+        .iter()
+        .map(|proof| proof.as_ref().map(proof_value))
+        .collect::<Vec<_>>();
     // The normal candidate path loads and compiles the whole selected profile.
     // Reuse its first result; a startup failure must not repeat for every fixture.
     if selected_cases
         .iter()
-        .any(|case| super::process_discrepancy::expected(case).is_some())
+        .any(|case| crate::domain::process_failure::service::expected(case).is_some())
         && !execution.observes_completed_processes_without_deadline()
     {
         return Err(Error::Invalid(
-            "process-failure verification requires a direct no-deadline observer".into(),
+            crate::application::run::constants::PROCESS_FAILURE_VERIFICATION_REQUIRES_A_DIRE.into(),
         ));
     }
     let mut initial = Some(super::case_execution::candidate(
@@ -167,7 +180,7 @@ pub(crate) fn verify_prepared_shard(
         &first.request,
     )?);
     let mut failures = Vec::new();
-    for (case, validation) in selected_cases.into_iter().zip(validations) {
+    for ((case, validation), proof) in selected_cases.into_iter().zip(validations).zip(proofs) {
         for (name, tool) in [
             (super::constants::REFERENCE, reference),
             (super::constants::CANDIDATE, candidate),
@@ -192,9 +205,9 @@ pub(crate) fn verify_prepared_shard(
             match result {
                 Ok(mut result) => {
                     if name == super::constants::REFERENCE
-                        && super::process_discrepancy::expected(&case).is_some()
+                        && crate::domain::process_failure::service::expected(&case).is_some()
                     {
-                        let message = "reference returned a decoded report instead of the declared process failure";
+                        let message = crate::application::run::constants::REFERENCE_RETURNED_A_DECODED_REPORT_INSTEAD;
                         super::case_observations::write(
                             suite,
                             &case,
@@ -223,14 +236,18 @@ pub(crate) fn verify_prepared_shard(
                         });
                     }
                     let expected = if name == super::constants::REFERENCE {
-                        super::discrepancy::reference_expected(&case)?
+                        crate::domain::discrepancy::service::reference_expected(&case)?
                     } else {
                         &case.expected
                     };
-                    super::discrepancy::complete(
+                    crate::domain::discrepancy::service::complete(
                         &case,
                         &result.report,
-                        name == super::constants::CANDIDATE,
+                        if name == super::constants::CANDIDATE {
+                            Contestant::Candidate
+                        } else {
+                            Contestant::Reference
+                        },
                     )?;
                     let comparison = compare(expected, &result.report);
                     super::case_observations::write(
@@ -258,9 +275,9 @@ pub(crate) fn verify_prepared_shard(
                 Err(error) => {
                     let assessment = (name == super::constants::REFERENCE)
                         .then_some(())
-                        .and(capture.as_ref().zip(validation.as_ref()))
+                        .and(capture.as_ref().zip(proof.as_ref()))
                         .map(|(capture, proof)| {
-                            super::process_discrepancy::matches(&case, capture, proof, suite, rules)
+                            process_matches(&case, capture, proof, suite, inventory, rules)
                         });
                     let accepted = matches!(assessment, Some(Ok(())));
                     let message = match assessment {
@@ -301,36 +318,42 @@ pub(crate) fn verify_prepared_shard(
 /// Execute admitted cases through the actual reference-only verification workflow.
 pub(crate) fn verify_prepared_reference_cases(
     suite: &dyn SuitePort, reference: &dyn LinterPort, execution: &dyn ExecutionPort,
-    rules: &Path, mut cases: Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>,
+    inventory: &dyn InventoryPort, rules: &Path, mut cases: Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>,
 ) -> Result<ryo_benchmark_contracts::domain::workloads::types::reference_case_count::value::ReferenceCaseCount, Error>{
     if cases.is_empty() {
         return Err(Error::Invalid(super::constants::NO_CASES.into()));
     }
     super::input_metadata::admit(suite, rules, &cases)?;
-    super::discrepancy::attach(suite, rules, &mut cases)?;
+    crate::application::discrepancy_attachment::service::attach(suite, rules, &mut cases)?;
     let count = cases.len();
     if cases.is_empty() {
         return Err(Error::Invalid(super::constants::NO_CASES.into()));
     }
     let mut failures = Vec::new();
-    let validations = super::discrepancy::validate_all(suite, reference, rules, &cases)?;
+    let proofs = crate::application::discrepancy_validation::service::validate_all(
+        suite, inventory, reference, rules, &cases,
+    )?;
+    let validations = proofs
+        .iter()
+        .map(|proof| proof.as_ref().map(proof_value))
+        .collect::<Vec<_>>();
     if cases
         .iter()
-        .any(|case| super::process_discrepancy::expected(case).is_some())
+        .any(|case| crate::domain::process_failure::service::expected(case).is_some())
         && !execution.observes_completed_processes_without_deadline()
     {
         return Err(Error::Invalid(
-            "process-failure verification requires a direct no-deadline observer".into(),
+            crate::application::run::constants::PROCESS_FAILURE_VERIFICATION_REQUIRES_A_DIRE.into(),
         ));
     }
-    for (case, validation) in cases.into_iter().zip(validations) {
+    for ((case, validation), proof) in cases.into_iter().zip(validations).zip(proofs) {
         let super::case_execution::Outcome { result, capture } =
             super::case_execution::run(suite, reference, execution, &case, rules);
         match result {
             Ok(mut result) => {
                 let full_report = result.report.clone();
-                if super::process_discrepancy::expected(&case).is_some() {
-                    let message = "reference returned a decoded report instead of the declared process failure";
+                if crate::domain::process_failure::service::expected(&case).is_some() {
+                    let message = crate::application::run::constants::REFERENCE_RETURNED_A_DECODED_REPORT_INSTEAD;
                     super::case_observations::write(
                         suite,
                         &case,
@@ -353,9 +376,13 @@ pub(crate) fn verify_prepared_reference_cases(
                                 == crate::domain::diagnostics::constants::FRONTEND_SYNTAX
                     });
                 }
-                super::discrepancy::complete(&case, &result.report, false)?;
+                crate::domain::discrepancy::service::complete(
+                    &case,
+                    &result.report,
+                    Contestant::Reference,
+                )?;
                 let comparison = compare(
-                    super::discrepancy::reference_expected(&case)?,
+                    crate::domain::discrepancy::service::reference_expected(&case)?,
                     &result.report,
                 );
                 super::case_observations::write(
@@ -376,13 +403,10 @@ pub(crate) fn verify_prepared_reference_cases(
                 }
             }
             Err(error) => {
-                let assessment =
-                    capture
-                        .as_ref()
-                        .zip(validation.as_ref())
-                        .map(|(capture, proof)| {
-                            super::process_discrepancy::matches(&case, capture, proof, suite, rules)
-                        });
+                let assessment = capture
+                    .as_ref()
+                    .zip(proof.as_ref())
+                    .map(|(capture, proof)| process_matches(&case, capture, proof, suite, inventory, rules));
                 let accepted = matches!(assessment, Some(Ok(())));
                 let message = match assessment {
                     Some(Err(mismatch)) => format!("{error}; {mismatch}"),
@@ -414,17 +438,58 @@ pub(crate) fn verify_prepared_reference_cases(
     }
 }
 
-/// Serialize an exact diagnostic multiset without changing order or dropping duplicates.
-pub(super) fn finding_values(
-    findings: &[ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding],
-) -> Vec<serde_json::Value> {
-    findings
-        .iter()
-        .map(|finding| {
-            serde_json::json!({
-                "rule": finding.rule.as_ref(), "file": finding.file.0.as_ref(),
-                "start": finding.start.0, "end": finding.end.0,
-            })
-        })
-        .collect()
+/// The proof document the receipt writer records, until the writer takes the typed proof.
+fn proof_value(proof: &ReferenceProof) -> serde_json::Value {
+    use crate::domain::discrepancy::types::{OptionalDigest, ReferenceKind};
+    use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
+    let pinned = |digest: &OptionalDigest| match digest {
+        OptionalDigest::Absent => serde_json::Value::Null,
+        OptionalDigest::Pinned(digest) => serde_json::json!(digest.0),
+    };
+    let mut value = serde_json::json!({
+        super::constants::DISCREPANCY_BASIS: match proof.basis {
+            DiscrepancyBasis::LanguageDefect => super::constants::LANGUAGE_DEFECT,
+            DiscrepancyBasis::ToolContract => super::constants::TOOL_CONTRACT_DIFFERENCE,
+        },
+        super::constants::PROCESS_OBSERVATION_GROUP_SHA256: pinned(&proof.process_group),
+        super::constants::REFERENCE_EXPECTATION_KIND: match proof.kind {
+            ReferenceKind::ProcessFailure => super::constants::PROCESS_FAILURE,
+            ReferenceKind::Diagnostics => super::constants::DIAGNOSTICS,
+        },
+        super::constants::SETTINGS_SHA256: proof.settings.0,
+        super::constants::ACTUAL_EXECUTABLE_SHA256: proof.executable.0,
+        super::constants::PROFILE_SHA256: proof.profile.0,
+        super::constants::SOURCE_SHA256: proof.source.0,
+        super::constants::REFERENCE_OUTPUT_SHA256: proof.reference_output.0,
+        super::constants::INTENDED_OUTPUT_SHA256: proof.intended_output.0,
+    });
+    if let OptionalDigest::Pinned(digest) = &proof.file_metadata {
+        value[super::constants::FILE_METADATA_SHA256] = serde_json::json!(digest.0);
+    }
+    value
+}
+
+/// Match the actual reference process against its declared failure, decoding the captured record first.
+fn process_matches(
+    case: &ryo_benchmark_contracts::domain::workloads::types::PreparedCase,
+    capture: &super::case_execution::Capture,
+    proof: &ReferenceProof,
+    suite: &dyn SuitePort,
+    inventory: &dyn InventoryPort,
+    rules: &Path,
+) -> Result<(), Error> {
+    let record =
+        serde_json::to_vec(&capture.invocation).map_err(|error| Error::Json(Box::new(error)))?;
+    let document = inventory
+        .decode_invocation(&record)
+        .map_err(Error::Invalid)?;
+    crate::application::process_discrepancy::service::matches(
+        case,
+        &document,
+        &capture.output,
+        proof,
+        suite,
+        rules,
+    )?;
+    Ok(())
 }

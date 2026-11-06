@@ -1,4 +1,5 @@
 //! Pure validation shared by artifact auditing and case execution.
+use crate::domain::suite::constants;
 use crate::domain::suite::types::audit::value::Audit;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::Cases;
@@ -135,13 +136,13 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
             let selected: std::collections::BTreeSet<_> = requested.iter().collect();
             if requested.is_empty() || selected.len() != requested.len() {
                 return Err(Error::Invalid(
-                    "explicit source inventory must name each selected source exactly once".into(),
+                    constants::EXPLICIT_SOURCE_INVENTORY_MUST_NAME_EACH.into(),
                 ));
             }
             if let Some(context) = &case.context {
                 if case.files.keys().any(|path| !selected.contains(path)) {
                     return Err(Error::Invalid(
-                        "sealed disk context must select every staged readable source".into(),
+                        constants::SEALED_DISK_CONTEXT_MUST_SELECT_EVERY.into(),
                     ));
                 }
                 for path in requested {
@@ -150,27 +151,27 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
                         && !context_missing(&context.logical_root, &context.missing, path)
                     {
                         return Err(Error::Invalid(
-                            "requested unavailable source lacks a context absence seal".into(),
+                            constants::REQUESTED_UNAVAILABLE_SOURCE_LACKS_A_CONTEXT.into(),
                         ));
                     }
                 }
             } else {
                 if requested.iter().any(|path| !case.files.contains_key(path)) {
                     return Err(Error::Invalid(
-                        "Given source selection lacks a staged file".into(),
+                        constants::GIVEN_SOURCE_SELECTION_LACKS_A_STAGED.into(),
                     ));
                 }
                 for path in case.files.keys().filter(|path| !selected.contains(path)) {
                     let inventory = case.given_project_inventory.as_ref().ok_or_else(|| {
                         Error::Invalid(
-                            "unselected Given source requires an explicit project inventory".into(),
+                            constants::UNSELECTED_GIVEN_SOURCE_REQUIRES_AN_EXPLICIT.into(),
                         )
                     })?;
                     if !inventory.entries.iter().any(|entry| {
                         entry.path == *path && entry.state == ryo::linter::ProjectEntryState::File
                     }) {
                         return Err(Error::Invalid(
-                            "unselected Given source lacks a matching file observation".into(),
+                            constants::UNSELECTED_GIVEN_SOURCE_LACKS_A_MATCHING.into(),
                         ));
                     }
                 }
@@ -181,7 +182,7 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
                 ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(Path::new(name.0.as_ref()))?;
                 if !case.files.contains_key(name) {
                     return Err(Error::Invalid(
-                        "file metadata names an undeclared source".into(),
+                        constants::FILE_METADATA_NAMES_AN_UNDECLARED_SOURCE.into(),
                     ));
                 }
             }
@@ -191,7 +192,7 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
                 != ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full
         {
             return Err(Error::Invalid(
-                "reference discrepancies require full comparison".into(),
+                constants::REFERENCE_DISCREPANCIES_REQUIRE_FULL_COMPARI.into(),
             ));
         }
         for expected in case.expected.iter().chain(
@@ -277,7 +278,7 @@ pub fn validate_selected_rules(rules: Option<&[ryo::linter::RuleId]>) -> Result<
         let unique: std::collections::BTreeSet<_> = rules.iter().collect();
         if rules.is_empty() || unique.len() != rules.len() {
             return Err(Error::Invalid(
-                "selected-rules must be nonempty and contain each rule once".into(),
+                constants::SELECTED_RULES_MUST_BE_NONEMPTY_AND.into(),
             ));
         }
     }
@@ -315,7 +316,7 @@ pub(crate) fn audited(
             != defaults
     {
         return Err(Error::Invalid(
-            "artifact observations do not partition the declared default inventory".into(),
+            constants::ARTIFACT_OBSERVATIONS_DO_NOT_PARTITION_THE.into(),
         ));
     }
     Ok(crate::domain::suite::types::audit::value::Audit {

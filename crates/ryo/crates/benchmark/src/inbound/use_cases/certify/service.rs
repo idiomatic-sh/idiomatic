@@ -113,6 +113,7 @@ pub(super) fn certify(
                 reference,
                 candidate,
                 execution,
+                inventory_store,
                 &rules,
                 prepared,
                 ryo_benchmark_contracts::domain::requests::types::CaseSelection::default(),

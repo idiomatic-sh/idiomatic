@@ -76,7 +76,7 @@ impl From<ObservationColumn> for ryo_values::domain::observations::types::Observ
     }
 }
 
-impl From<ObservationScope> for ryo_values::domain::plans::types::StepScope {
+impl From<ObservationScope> for ryo_values::domain::plan_parts::types::StepScope {
     /// The planner's step scope of the phase a declared input is established in.
     fn from(scope: ObservationScope) -> Self {
         match scope {

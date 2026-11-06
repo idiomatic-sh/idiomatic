@@ -1,4 +1,5 @@
 //! Canonical identity for optional project namespace inputs used by both contestants.
+use crate::domain::suite::constants;
 use ryo::linter::{
     GivenProjectInventory, ProjectEntryState, ProjectInventoryCompleteness, RelativePath,
 };
@@ -22,23 +23,23 @@ pub fn value(
         .iter()
         .map(|entry| {
             let state = match entry.state {
-                ProjectEntryState::File => "file",
-                ProjectEntryState::Directory => "directory",
-                ProjectEntryState::Other => "other",
-                ProjectEntryState::Missing => "missing",
-                ProjectEntryState::Unknown => "unknown",
+                ProjectEntryState::File => constants::FILE,
+                ProjectEntryState::Directory => constants::DIRECTORY,
+                ProjectEntryState::Other => constants::OTHER,
+                ProjectEntryState::Missing => constants::MISSING,
+                ProjectEntryState::Unknown => constants::UNKNOWN,
             };
-            serde_json::json!({"path": entry.path.0.as_ref(), "state": state})
+            serde_json::json!({constants::PATH: entry.path.0.as_ref(), constants::STATE: state})
         })
         .collect::<Vec<_>>();
     Some(serde_json::json!({
-        "project_search_roots": roots.map(|roots| roots.iter().map(|root| root.0.as_ref()).collect::<Vec<_>>()),
-        "given_project_inventory": {
-            "completeness": match inventory.completeness {
-                ProjectInventoryCompleteness::Partial => "partial",
-                ProjectInventoryCompleteness::CompleteWithinDeclaredScope => "complete-within-declared-scope",
+        constants::PROJECT_SEARCH_ROOTS: roots.map(|roots| roots.iter().map(|root| root.0.as_ref()).collect::<Vec<_>>()),
+        constants::GIVEN_PROJECT_INVENTORY: {
+            constants::COMPLETENESS: match inventory.completeness {
+                ProjectInventoryCompleteness::Partial => constants::PARTIAL,
+                ProjectInventoryCompleteness::CompleteWithinDeclaredScope => constants::COMPLETE_WITHIN_DECLARED_SCOPE,
             },
-            "entries": entries,
+            constants::ENTRIES: entries,
         }
     }))
 }
@@ -57,34 +58,5 @@ pub fn digest(
 }
 
 #[cfg(test)]
-#[test]
-fn ordered_scope_and_entry_kinds_have_a_stable_cross_language_digest() {
-    let roots = [RelativePath("src".into()), RelativePath("vendor".into())];
-    let inventory = GivenProjectInventory {
-        entries: vec![
-            ryo::linter::ProjectEntryObservation {
-                path: RelativePath("src/pkg".into()),
-                state: ProjectEntryState::Directory,
-            },
-            ryo::linter::ProjectEntryObservation {
-                path: RelativePath("vendor/pkg.py".into()),
-                state: ProjectEntryState::Missing,
-            },
-        ],
-        completeness: ProjectInventoryCompleteness::CompleteWithinDeclaredScope,
-    };
-    assert_eq!(
-        digest(Some(&roots), &inventory)
-            .expect("digest")
-            .map(|value| value.0),
-        Some("ff9b78535b775babaadae518c198876aa1c27ef21d0abb75e04588c25638df7d".into())
-    );
-    assert_eq!(
-        digest(None, &GivenProjectInventory::default()).expect("legacy"),
-        None
-    );
-    assert_ne!(
-        digest(Some(&roots), &inventory).expect("original"),
-        digest(Some(&roots[..1]), &inventory).expect("changed root authority")
-    );
-}
+#[path = "project_inputs_test.rs"]
+mod tests;

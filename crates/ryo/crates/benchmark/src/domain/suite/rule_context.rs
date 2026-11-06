@@ -1,4 +1,5 @@
 //! Declared linter configuration data; matching remains with the tool/query and ordinary SDK scope rules.
+use crate::domain::suite::constants;
 use ryo_benchmark_contracts::domain::context::types::PreparedRuleContext;
 use ryo_benchmark_contracts::domain::context::types::RuleConfiguration;
 use ryo_benchmark_contracts::domain::context::types::RuleContextDeclaration;
@@ -12,7 +13,7 @@ pub fn resolve(
     match (profile, requested) {
         (None, None) => Ok(None),
         (None, Some(_)) => Err(Error::Invalid(
-            "case rule configuration requires the profile's explicit context declaration".into(),
+            constants::CASE_RULE_CONFIGURATION_REQUIRES_THE_PROFILE.into(),
         )),
         (Some(profile), requested) => {
             let names = [
@@ -28,7 +29,7 @@ pub fn resolve(
                     != names.len()
             {
                 return Err(Error::Invalid(
-                    "rule configuration tables must be distinct nonblank declared names".into(),
+                    constants::RULE_CONFIGURATION_TABLES_MUST_BE_DISTINCT.into(),
                 ));
             }
             Ok(Some(PreparedRuleContext {
@@ -57,7 +58,7 @@ pub fn check(
             != names.len()
     {
         return Err(Error::Invalid(
-            "rule configuration tables must be distinct nonblank declared names".into(),
+            constants::RULE_CONFIGURATION_TABLES_MUST_BE_DISTINCT.into(),
         ));
     }
     for (file, rules) in &prepared.configuration.disabled_rules {
@@ -75,7 +76,7 @@ pub fn check(
             != rules.len()
         {
             return Err(Error::Invalid(
-                "disabled-rule lists contain each rule once".into(),
+                constants::DISABLED_RULE_LISTS_CONTAIN_EACH_RULE.into(),
             ));
         }
     }
@@ -88,7 +89,7 @@ pub fn check_selection(
     selected: Option<&[ryo::linter::RuleId]>,
 ) -> Result<(), Error> {
     let selected = selected.ok_or_else(|| {
-        Error::Invalid("rule context requires an explicit selected-rule cohort".into())
+        Error::Invalid(constants::RULE_CONTEXT_REQUIRES_AN_EXPLICIT_SELECTED.into())
     })?;
     if prepared
         .configuration
@@ -98,7 +99,7 @@ pub fn check_selection(
         .any(|rule| !selected.contains(rule))
     {
         return Err(Error::Invalid(
-            "disabled rules must belong to the configured selected cohort".into(),
+            constants::DISABLED_RULES_MUST_BELONG_TO_THE.into(),
         ));
     }
     Ok(())
@@ -122,17 +123,17 @@ pub fn selected_pairs(
     let all = selected
         .len()
         .checked_mul(files.len())
-        .ok_or_else(|| Error::Invalid("configured pair count overflows".into()))?;
+        .ok_or_else(|| Error::Invalid(constants::CONFIGURED_PAIR_COUNT_OVERFLOWS.into()))?;
     let disabled =
         prepared
             .configuration
             .disabled_rules
             .values()
             .try_fold(0_usize, |count, rules| {
-                count
-                    .checked_add(rules.len())
-                    .ok_or_else(|| Error::Invalid("configured pair count overflows".into()))
+                count.checked_add(rules.len()).ok_or_else(|| {
+                    Error::Invalid(constants::CONFIGURED_PAIR_COUNT_OVERFLOWS.into())
+                })
             })?;
     all.checked_sub(disabled)
-        .ok_or_else(|| Error::Invalid("disabled pairs exceed the selected cohort".into()))
+        .ok_or_else(|| Error::Invalid(constants::DISABLED_PAIRS_EXCEED_THE_SELECTED_COHORT.into()))
 }

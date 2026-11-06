@@ -1,4 +1,5 @@
 //! Verification-only raw capture; measured runs keep their existing allocation path.
+use crate::application::run::constants;
 use crate::outbound::{
     execution::interface::ExecutionPort,
     linter::interface::LinterPort,
@@ -82,36 +83,48 @@ pub(super) fn run(
         },
         Err(error) => {
             let metadata = || {
-                let request_root = case
-                    .request
-                    .root
-                    .to_str()
-                    .ok_or_else(|| Error::Invalid("process root is not UTF8".into()))?;
-                let state = case
-                    .request
-                    .state
-                    .to_str()
-                    .ok_or_else(|| Error::Invalid("process state is not UTF8".into()))?;
+                let request_root =
+                    case.request.root.to_str().ok_or_else(|| {
+                        Error::Invalid(constants::PROCESS_ROOT_IS_NOT_UTF8.into())
+                    })?;
+                let state =
+                    case.request.state.to_str().ok_or_else(|| {
+                        Error::Invalid(constants::PROCESS_STATE_IS_NOT_UTF8.into())
+                    })?;
                 let profile_root = rules
                     .parent()
-                    .ok_or_else(|| Error::Invalid("missing profile boundary".into()))?;
+                    .ok_or_else(|| Error::Invalid(constants::MISSING_PROFILE_BOUNDARY.into()))?;
                 let profile = suite.profile(ArtifactPath(profile_root))?;
                 let executable = suite.digest(ArtifactPath(&invocation.executable))?;
-                let settings =
-                    super::invocation_identity::invocation_settings(&invocation, case, &profile)?;
+                let normalized =
+                    crate::domain::invocation_identity::service::normalize(&invocation, case)
+                        .map_err(|error| Error::Invalid(error.to_string()))?;
+                let observations =
+                    crate::domain::invocation_identity::service::effective_observations(
+                        case, &profile,
+                    );
+                let settings_text = crate::outbound::worker::schemas::invocation_settings_text(
+                    &normalized,
+                    case,
+                    &profile,
+                    observations.as_ref(),
+                )?;
+                let settings = crate::domain::canonical_text::service::text_digest(
+                    &crate::domain::canonical_text::types::Document(settings_text.clone()),
+                );
                 let mut captured = serde_json::json!({
-                    "actual_request_root":request_root, "files":case.request.files.iter().map(|file|file.0.as_ref()).collect::<Vec<_>>(),
-                    "executable_sha256":executable.0, "settings_sha256":settings.0,
-                    "normalized_settings":super::invocation_identity::normalized_invocation(&invocation,case,&profile)?,
-                    "profile_sha256":suite.digest(ArtifactPath(&profile_root.join("benchmark.toml")))?.0,
-                    "tool":profile.tool.0, "version":profile.version.0, "state":state,
-                    "arguments":invocation.arguments.iter().map(|argument|argument.to_string_lossy()).collect::<Vec<_>>(),
-                    "environment":invocation.environment.iter().map(|(key,value)|(key.to_string_lossy(),value.to_string_lossy())).collect::<std::collections::BTreeMap<_,_>>(),
-                    "directory":invocation.directory.to_string_lossy(), "exit":raw.status.0, "signal":raw.signal,
-                    "observer_no_deadline":execution.observes_completed_processes_without_deadline(),
+                    constants::ACTUAL_REQUEST_ROOT:request_root, constants::FILES:case.request.files.iter().map(|file|file.0.as_ref()).collect::<Vec<_>>(),
+                    constants::EXECUTABLE_SHA256:executable.0, constants::SETTINGS_SHA256:settings.0,
+                    constants::NORMALIZED_SETTINGS:serde_json::from_str::<serde_json::Value>(&settings_text).map_err(|error| Error::Json(Box::new(error)))?,
+                    constants::PROFILE_SHA256:suite.digest(ArtifactPath(&profile_root.join(constants::BENCHMARK_TOML)))?.0,
+                    constants::TOOL:profile.tool.0, constants::VERSION:profile.version.0, constants::STATE:state,
+                    constants::ARGUMENTS:invocation.arguments.iter().map(|argument|argument.to_string_lossy()).collect::<Vec<_>>(),
+                    constants::ENVIRONMENT:invocation.environment.iter().map(|(key,value)|(key.to_string_lossy(),value.to_string_lossy())).collect::<std::collections::BTreeMap<_,_>>(),
+                    constants::DIRECTORY:invocation.directory.to_string_lossy(), constants::EXIT:raw.status.0, constants::SIGNAL:raw.signal,
+                    constants::OBSERVER_NO_DEADLINE:execution.observes_completed_processes_without_deadline(),
                 });
                 if let Some(digest) = ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest::file_metadata((case.request.file_metadata.as_ref()).map(|values| values.iter().map(|(path, executable)| FileMetadataEntry { path, executable: if *executable { FileExecutable::Set } else { FileExecutable::Unset } })))? {
-                    captured["file_metadata_sha256"] = serde_json::json!(digest.0);
+                    captured[constants::FILE_METADATA_SHA256] = serde_json::json!(digest.0);
                 }
                 Ok::<_, Error>(captured)
             };
@@ -125,13 +138,13 @@ pub(super) fn run(
                 },
                 Err(capture_error) => {
                     let invocation = serde_json::json!({
-                        "actual_request_root":case.request.root.to_string_lossy(),
-                        "files":case.request.files.iter().map(|file|file.0.as_ref()).collect::<Vec<_>>(),
-                        "arguments":invocation.arguments.iter().map(|argument|argument.to_string_lossy()).collect::<Vec<_>>(),
-                        "environment":invocation.environment.iter().map(|(key,value)|(key.to_string_lossy(),value.to_string_lossy())).collect::<std::collections::BTreeMap<_,_>>(),
-                        "directory":invocation.directory.to_string_lossy(), "exit":raw.status.0, "signal":raw.signal,
-                        "observer_no_deadline":execution.observes_completed_processes_without_deadline(),
-                        "metadata_error":capture_error.to_string(),
+                        constants::ACTUAL_REQUEST_ROOT:case.request.root.to_string_lossy(),
+                        constants::FILES:case.request.files.iter().map(|file|file.0.as_ref()).collect::<Vec<_>>(),
+                        constants::ARGUMENTS:invocation.arguments.iter().map(|argument|argument.to_string_lossy()).collect::<Vec<_>>(),
+                        constants::ENVIRONMENT:invocation.environment.iter().map(|(key,value)|(key.to_string_lossy(),value.to_string_lossy())).collect::<std::collections::BTreeMap<_,_>>(),
+                        constants::DIRECTORY:invocation.directory.to_string_lossy(), constants::EXIT:raw.status.0, constants::SIGNAL:raw.signal,
+                        constants::OBSERVER_NO_DEADLINE:execution.observes_completed_processes_without_deadline(),
+                        constants::METADATA_ERROR:capture_error.to_string(),
                     });
                     Outcome {
                         result: Err(Error::Invalid(format!(
@@ -166,7 +179,7 @@ pub(super) fn configuration(
             != ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Explicit
         {
             return Err(Error::Invalid(
-                "contestant does not implement the declared rule configuration contract".into(),
+                constants::CONTESTANT_DOES_NOT_IMPLEMENT_THE_DECLARED.into(),
             ));
         }
     }

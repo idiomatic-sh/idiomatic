@@ -1,4 +1,5 @@
 //! Read and verify explicit artifacts without application or domain dependencies.
+use crate::outbound::suite::adapters::local::constants;
 use crate::outbound::suite::types::discrepancy::{
     ArtifactError, CaseArtifacts, CaseReferenceWire, EvidenceRequirement,
 };
@@ -9,7 +10,7 @@ use std::path::{Component, Path};
 fn relative(path: &Path) -> Result<(), ArtifactError> {
     let text = path
         .to_str()
-        .ok_or_else(|| ArtifactError::Invalid("non-UTF8 artifact path".into()))?;
+        .ok_or_else(|| ArtifactError::Invalid(constants::NON_UTF8_ARTIFACT_PATH.into()))?;
     if text.is_empty()
         || text.contains(['\\', ':'])
         || !path
@@ -17,7 +18,7 @@ fn relative(path: &Path) -> Result<(), ArtifactError> {
             .all(|item| matches!(item, Component::Normal(_)))
     {
         return Err(ArtifactError::Invalid(
-            "unsafe artifact-relative path".into(),
+            constants::UNSAFE_ARTIFACT_RELATIVE_PATH.into(),
         ));
     }
     Ok(())
@@ -29,22 +30,22 @@ pub(super) fn case_reference_wires(
     owners: &[ryo::linter::RuleId],
 ) -> Result<Vec<CaseReferenceWire>, ArtifactError> {
     let mut result = Vec::new();
-    for entry in std::fs::read_dir(profile.join("rules"))? {
+    for entry in std::fs::read_dir(profile.join(constants::RULES))? {
         let entry = entry?;
-        if !entry.path().join("query.ryoql").is_file() {
+        if !entry.path().join(constants::QUERY).is_file() {
             continue;
         }
         let rule = entry
             .file_name()
             .into_string()
-            .map_err(|_bytes| ArtifactError::Invalid("non-UTF8 rule directory".into()))?;
-        let rule = super::schemas::rule(&rule)
+            .map_err(|_bytes| ArtifactError::Invalid(constants::NON_UTF8_RULE_DIRECTORY.into()))?;
+        let rule = super::cases::schemas::rule(&rule)
             .map_err(|error| ArtifactError::Invalid(error.to_string()))?;
         if !owners.contains(&rule) {
             continue;
         }
-        let text = std::fs::read_to_string(entry.path().join("cases.toml"))?;
-        for (name, discrepancy, basis) in super::schemas::case_reference_wires(&text)? {
+        let text = std::fs::read_to_string(entry.path().join(constants::CASES))?;
+        for (name, discrepancy, basis) in super::cases::schemas::case_reference_wires(&text)? {
             result.push(CaseReferenceWire {
                 rule: rule.to_string(),
                 name,
@@ -60,7 +61,7 @@ pub(super) fn case_reference_wires(
 pub(super) fn verify(artifacts: CaseArtifacts<'_>) -> Result<(), ArtifactError> {
     if source_digest(artifacts.root, artifacts.files)? != artifacts.source_sha256 {
         return Err(ArtifactError::Invalid(
-            "stale reference discrepancy source identity".into(),
+            constants::STALE_REFERENCE_DISCREPANCY_SOURCE_IDENTITY.into(),
         ));
     }
     if artifacts
@@ -70,7 +71,7 @@ pub(super) fn verify(artifacts: CaseArtifacts<'_>) -> Result<(), ArtifactError> 
         || (artifacts.file_metadata_sha256.is_none() && !artifacts.file_metadata_files.is_empty())
     {
         return Err(ArtifactError::Invalid(
-            "undeclared reference discrepancy observation scope".into(),
+            constants::UNDECLARED_REFERENCE_DISCREPANCY_OBSERVATION.into(),
         ));
     }
     if let Some(expected) = artifacts.file_metadata_sha256 {
@@ -79,7 +80,7 @@ pub(super) fn verify(artifacts: CaseArtifacts<'_>) -> Result<(), ArtifactError> 
                 .map_err(|error| ArtifactError::Invalid(error.to_string()))?;
         if actual != expected {
             return Err(ArtifactError::Invalid(
-                "stale reference discrepancy file metadata identity".into(),
+                constants::STALE_REFERENCE_DISCREPANCY_FILE_METADATA_ID.into(),
             ));
         }
     }
@@ -89,13 +90,13 @@ pub(super) fn verify(artifacts: CaseArtifacts<'_>) -> Result<(), ArtifactError> 
         let path = boundary.join(&evidence.path).canonicalize()?;
         if !path.starts_with(&boundary) {
             return Err(ArtifactError::Invalid(
-                "stale or external discrepancy evidence".into(),
+                constants::STALE_OR_EXTERNAL_DISCREPANCY_EVIDENCE.into(),
             ));
         }
         let bytes = std::fs::read(path)?;
         if format!("{:x}", Sha256::digest(&bytes)) != evidence.sha256 {
             return Err(ArtifactError::Invalid(
-                "stale discrepancy evidence bytes".into(),
+                constants::STALE_DISCREPANCY_EVIDENCE_BYTES.into(),
             ));
         }
         verify_requirement(&bytes, &evidence.requirement)?;
@@ -109,11 +110,8 @@ pub(super) fn verify_requirement(
     requirement: &EvidenceRequirement,
 ) -> Result<(), ArtifactError> {
     use serde_json::Value;
-    let fail = || {
-        ArtifactError::Invalid(
-            "tool-contract evidence does not establish its declared authority".into(),
-        )
-    };
+    let fail =
+        || ArtifactError::Invalid(constants::TOOL_CONTRACT_EVIDENCE_DOES_NOT_ESTABLISH.into());
     let value = match requirement {
         EvidenceRequirement::Language => return Ok(()),
         _ => serde_json::from_slice::<Value>(bytes).map_err(|_| fail())?,
@@ -125,17 +123,18 @@ pub(super) fn verify_requirement(
             source_revision,
             source_path,
         } => {
-            if field("schema")? != "public-tool-contract/v1"
-                || field("source_revision")? != source_revision
-                || field("source_path")? != source_path
+            if field(constants::SCHEMA)? != constants::PUBLIC_TOOL_CONTRACT_V1
+                || field(constants::SOURCE_REVISION)? != source_revision
+                || field(constants::SOURCE_PATH)? != source_path
             {
                 return Err(fail());
             }
-            let source = field("source_text")?;
-            let assertion = field("contract_assertion")?;
+            let source = field(constants::SOURCE_TEXT)?;
+            let assertion = field(constants::CONTRACT_ASSERTION)?;
             if assertion.is_empty()
                 || !source.contains(assertion)
-                || field("source_sha256")? != format!("{:x}", Sha256::digest(source.as_bytes()))
+                || field(constants::SOURCE_SHA256)?
+                    != format!("{:x}", Sha256::digest(source.as_bytes()))
             {
                 return Err(fail());
             }
@@ -148,24 +147,24 @@ pub(super) fn verify_requirement(
             control_profile_sha256,
             witness_case,
         } => {
-            if field("schema")? != "prior-worker-control/v1"
-                || field("worker_sha256")? != worker_sha256
-                || field("control_source_sha256")? != control_source_sha256
-                || field("control_query_sha256")? != control_query_sha256
-                || field("control_profile_sha256")? != control_profile_sha256
-                || field("witness_case")? != witness_case
+            if field(constants::SCHEMA)? != constants::PRIOR_WORKER_CONTROL_V1
+                || field(constants::WORKER_SHA256)? != worker_sha256
+                || field(constants::CONTROL_SOURCE_SHA256)? != control_source_sha256
+                || field(constants::CONTROL_QUERY_SHA256)? != control_query_sha256
+                || field(constants::CONTROL_PROFILE_SHA256)? != control_profile_sha256
+                || field(constants::WITNESS_CASE)? != witness_case
             {
                 return Err(fail());
             }
-            let query = field("control_query")?;
-            let profile = field("control_profile")?;
+            let query = field(constants::CONTROL_QUERY)?;
+            let profile = field(constants::CONTROL_PROFILE)?;
             if format!("{:x}", Sha256::digest(query.as_bytes())) != *control_query_sha256
                 || format!("{:x}", Sha256::digest(profile.as_bytes())) != *control_profile_sha256
             {
                 return Err(fail());
             }
             let sources = value
-                .get("control_sources")
+                .get(constants::CONTROL_SOURCES)
                 .and_then(Value::as_object)
                 .ok_or_else(fail)?;
             let mut digest = Sha256::new();
@@ -180,33 +179,35 @@ pub(super) fn verify_requirement(
             if format!("{:x}", digest.finalize()) != *control_source_sha256 {
                 return Err(fail());
             }
-            let receipt = field("raw_receipt")?;
-            if field("raw_receipt_sha256")? != format!("{:x}", Sha256::digest(receipt.as_bytes())) {
+            let receipt = field(constants::RAW_RECEIPT)?;
+            if field(constants::RAW_RECEIPT_SHA256)?
+                != format!("{:x}", Sha256::digest(receipt.as_bytes()))
+            {
                 return Err(fail());
             }
             // The control receipt alone does not name the executable or staged query.
             // Require the captured execution manifest from that run to bind all inputs.
-            let execution = field("execution_manifest")?;
-            if field("execution_manifest_sha256")?
+            let execution = field(constants::EXECUTION_MANIFEST)?;
+            if field(constants::EXECUTION_MANIFEST_SHA256)?
                 != format!("{:x}", Sha256::digest(execution.as_bytes()))
             {
                 return Err(fail());
             }
             let run: Value = serde_json::from_str(execution).map_err(|_| fail())?;
-            if run["schema"] != "prior-worker-execution/v1"
-                || run["worker_sha256"] != *worker_sha256
-                || run["control_source_sha256"] != *control_source_sha256
-                || run["control_query_sha256"] != *control_query_sha256
-                || run["control_profile_sha256"] != *control_profile_sha256
-                || run["raw_receipt_sha256"] != field("raw_receipt_sha256")?
-                || run["witness_case"] != *witness_case
-                || !matches!(run["status"].as_i64(), Some(0 | 1))
-                || run["command"][1] != "verify-cases"
-                || run["command"]
+            if run[constants::SCHEMA] != constants::PRIOR_WORKER_EXECUTION_V1
+                || run[constants::WORKER_SHA256] != *worker_sha256
+                || run[constants::CONTROL_SOURCE_SHA256] != *control_source_sha256
+                || run[constants::CONTROL_QUERY_SHA256] != *control_query_sha256
+                || run[constants::CONTROL_PROFILE_SHA256] != *control_profile_sha256
+                || run[constants::RAW_RECEIPT_SHA256] != field(constants::RAW_RECEIPT_SHA256)?
+                || run[constants::WITNESS_CASE] != *witness_case
+                || !matches!(run[constants::STATUS].as_i64(), Some(0 | 1))
+                || run[constants::COMMAND][1] != constants::VERIFY_CASES
+                || run[constants::COMMAND]
                     .as_array()
                     .is_none_or(|parts| parts.len() != 4)
-                || run["command"][3] != run["stage_root"]
-                || run["command"][0]
+                || run[constants::COMMAND][3] != run[constants::STAGE_ROOT]
+                || run[constants::COMMAND][0]
                     .as_str()
                     .is_none_or(|path| !path.ends_with(worker_sha256))
             {
@@ -215,24 +216,31 @@ pub(super) fn verify_requirement(
             let mut witnessed = false;
             for line in receipt.lines() {
                 let row: Value = serde_json::from_str(line).map_err(|_| fail())?;
-                if row["side"] == "candidate" && row["name"] == *witness_case {
+                if row[constants::SIDE] == constants::CANDIDATE
+                    && row[constants::NAME] == *witness_case
+                {
                     if witnessed
-                        || row["complete"] != true
-                        || row["error"] != Value::Null
-                        || row["case_passed"] != true
-                        || row["source_sha256"] != *control_source_sha256
-                        || row["skipped"] != serde_json::json!([])
-                        || row["diagnostics"] != row["expected"]
-                        || row["diagnostics"].as_array().is_none_or(Vec::is_empty)
-                        || row["coverage"]["selected_rule_file_pairs"]
+                        || row[constants::COMPLETE] != true
+                        || row[constants::ERROR_2] != Value::Null
+                        || row[constants::CASE_PASSED] != true
+                        || row[constants::SOURCE_SHA256] != *control_source_sha256
+                        || row[constants::SKIPPED] != serde_json::json!([])
+                        || row[constants::DIAGNOSTICS] != row[constants::EXPECTED]
+                        || row[constants::DIAGNOSTICS]
+                            .as_array()
+                            .is_none_or(Vec::is_empty)
+                        || row[constants::COVERAGE][constants::SELECTED_RULE_FILE_PAIRS]
                             .as_u64()
                             .is_none_or(|number| {
                                 number == 0
-                                    || row["coverage"]["evaluated_rule_file_pairs"].as_u64()
+                                    || row[constants::COVERAGE]
+                                        [constants::EVALUATED_RULE_FILE_PAIRS]
+                                        .as_u64()
                                         != Some(number)
                             })
-                        || row["coverage"]["unknown_or_unread_rule_file_pairs"] != 0
-                        || row["coverage"]["skipped_rule_file_pairs"] != 0
+                        || row[constants::COVERAGE][constants::UNKNOWN_OR_UNREAD_RULE_FILE_PAIRS]
+                            != 0
+                        || row[constants::COVERAGE][constants::SKIPPED_RULE_FILE_PAIRS] != 0
                     {
                         return Err(fail());
                     }
@@ -253,7 +261,7 @@ pub(super) fn copy_evidence(
     destination: &Path,
     cases: &Path,
 ) -> std::io::Result<()> {
-    let wires = super::schemas::case_reference_wires(&std::fs::read_to_string(cases)?)
+    let wires = super::cases::schemas::case_reference_wires(&std::fs::read_to_string(cases)?)
         .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
     let boundary = profile.canonicalize()?;
     for (_, wire, _) in wires {
@@ -306,7 +314,7 @@ pub(super) fn copy_evidence(
             {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::InvalidData,
-                    "stale or external discrepancy evidence",
+                    constants::STALE_OR_EXTERNAL_DISCREPANCY_EVIDENCE,
                 ));
             }
             let target = destination.join(&evidence.path);
@@ -335,17 +343,19 @@ pub(super) fn read(
         let path = boundary.join(&artifact.path).canonicalize()?;
         if !path.starts_with(&boundary) || !path.is_file() {
             return Err(ArtifactError::Invalid(
-                "raw artifact escapes its profile".into(),
+                constants::RAW_ARTIFACT_ESCAPES_ITS_PROFILE.into(),
             ));
         }
         let bytes = std::fs::read(path)?;
         if format!("{:x}", Sha256::digest(&bytes)) != artifact.sha256 {
             return Err(ArtifactError::Invalid(
-                "raw artifact byte identity differs".into(),
+                constants::RAW_ARTIFACT_BYTE_IDENTITY_DIFFERS.into(),
             ));
         }
         if result.insert(artifact.path.clone(), bytes).is_some() {
-            return Err(ArtifactError::Invalid("duplicate raw artifact path".into()));
+            return Err(ArtifactError::Invalid(
+                constants::DUPLICATE_RAW_ARTIFACT_PATH.into(),
+            ));
         }
     }
     Ok(result)
@@ -365,12 +375,12 @@ pub(super) fn source_digest(
         let path = root.join(&file).canonicalize()?;
         if !path.starts_with(&root) {
             return Err(ArtifactError::Invalid(
-                "source artifact escapes its boundary".into(),
+                constants::SOURCE_ARTIFACT_ESCAPES_ITS_BOUNDARY.into(),
             ));
         }
         source.update(
             file.to_str()
-                .ok_or_else(|| ArtifactError::Invalid("nonUTF8 source path".into()))?
+                .ok_or_else(|| ArtifactError::Invalid(constants::NONUTF8_SOURCE_PATH.into()))?
                 .as_bytes(),
         );
         source.update([0]);

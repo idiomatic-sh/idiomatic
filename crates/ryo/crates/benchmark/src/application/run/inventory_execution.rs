@@ -1,82 +1,52 @@
 //! Decode native execution evidence into the existing typed comparison contract.
-use serde_json::Value;
+use crate::application::run::constants;
+use crate::outbound::suite::types::observation_document::ObservationDocument;
 
 use crate::domain::diagnostics::service::compare_with_contract;
 use ryo_benchmark_contracts::domain::reports::types::Comparison;
 use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
 use ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata;
-use ryo_benchmark_contracts::domain::reports::types::RuleCoverage;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
 
-pub(super) fn contract(value: &Value) -> Result<ComparisonContract, String> {
-    match value.as_str() {
-        Some("diagnostics") => Ok(ComparisonContract::Diagnostics),
-        Some("complete-report") => Ok(ComparisonContract::CompleteReport),
-        _ => Err("missing or invalid expectation contract".into()),
-    }
-}
-
-fn report(row: &Value) -> Result<RunReport, String> {
-    let metadata: crate::outbound::worker::schemas::ExecutionMetadataSchema =
-        serde_json::from_value(row["execution_metadata"].clone())
-            .map_err(|_| "missing or malformed execution capability")?;
-    let metadata: ExecutionMetadata = metadata.into();
+fn report(row: &ObservationDocument) -> Result<RunReport, String> {
+    let metadata = row
+        .execution_metadata
+        .clone()
+        .ok_or(constants::MISSING_OR_MALFORMED_EXECUTION_CAPABILITY)?;
     if matches!(metadata, ExecutionMetadata::Unknown)
         || matches!(&metadata, ExecutionMetadata::Unavailable { reason } if reason.trim().is_empty())
     {
-        return Err("execution capability is not explicitly declared".into());
+        return Err(constants::EXECUTION_CAPABILITY_IS_NOT_EXPLICITLY_DECLA.into());
     }
-    let files = row["files"]
-        .as_array()
-        .ok_or("missing execution files")?
+    let files = row
+        .files
         .iter()
         .map(|file| {
-            file.as_str()
-                .filter(|file| !file.is_empty())
-                .map(|file| ryo::linter::RelativePath(file.into()))
-                .ok_or_else(|| "invalid execution file".to_owned())
+            Some(file)
+                .filter(|file| !file.0.is_empty())
+                .map(|file| ryo::linter::RelativePath(file.0.as_str().into()))
+                .ok_or_else(|| constants::INVALID_EXECUTION_FILE.to_owned())
         })
         .collect::<Result<Vec<_>, _>>()?;
-    let skipped = row["skipped"]
-        .as_array()
-        .ok_or("missing execution skips")?
+    let skipped = row
+        .skipped
+        .as_ref()
+        .ok_or(constants::MISSING_EXECUTION_SKIPS)?
         .iter()
         .map(|skip| {
-            if skip["reason"] != "syntax-rejected" {
-                return Err("invalid execution skip reason".to_owned());
-            }
             Ok(ryo::linter::Skipped {
-                rule: ryo::linter::RuleId::try_from(
-                    skip["rule"].as_str().ok_or("missing skipped rule")?,
-                )
-                .map_err(|_| "invalid skipped rule")?,
-                path: ryo::linter::RelativePath(
-                    skip["path"].as_str().ok_or("missing skipped path")?.into(),
-                ),
+                rule: ryo::linter::RuleId::try_from(skip.rule.0.as_str())
+                    .map_err(|_| constants::INVALID_SKIPPED_RULE)?,
+                path: ryo::linter::RelativePath(skip.path.0.as_str().into()),
                 reason: ryo::linter::SkipReason::SyntaxRejected,
             })
         })
         .collect::<Result<Vec<_>, String>>()?;
-    let coverage = if row["coverage"].is_null() {
-        None
-    } else {
-        let count = |key| {
-            row["coverage"][key]
-                .as_u64()
-                .and_then(|count| usize::try_from(count).ok())
-                .ok_or_else(|| "malformed execution coverage".to_owned())
-        };
-        Some(RuleCoverage {
-            selected: count("selected_rule_file_pairs")?,
-            evaluated: count("evaluated_rule_file_pairs")?,
-            skipped: count("skipped_rule_file_pairs")?,
-            unknown_or_unread: count("unknown_or_unread_rule_file_pairs")?,
-        })
-    };
+    let coverage = row.coverage;
     if matches!(metadata, ExecutionMetadata::Unavailable { .. })
         && (coverage.is_some() || !skipped.is_empty())
     {
-        return Err("unavailable execution capability contains asserted accounting".into());
+        return Err(constants::UNAVAILABLE_EXECUTION_CAPABILITY_CONTAINS_AS.into());
     }
     Ok(RunReport {
         execution_metadata: metadata,
@@ -88,14 +58,14 @@ fn report(row: &Value) -> Result<RunReport, String> {
     })
 }
 
-pub(super) fn compare(
-    reference: &Value,
-    candidate: &Value,
+pub(crate) fn compare(
+    reference: &ObservationDocument,
+    candidate: &ObservationDocument,
     contract: ComparisonContract,
 ) -> Result<Comparison, String> {
-    if reference["process_observation"].is_object() {
+    if reference.process_observation.is_some() {
         if contract != ComparisonContract::Diagnostics {
-            return Err("process failure has no complete-report execution accounting".into());
+            return Err(constants::PROCESS_FAILURE_HAS_NO_COMPLETE_REPORT.into());
         }
         let candidate = report(candidate)?;
         ryo_benchmark_contracts::domain::reports::service::require_complete_execution(&candidate)
@@ -106,7 +76,7 @@ pub(super) fn compare(
     let candidate = report(candidate)?;
     compare_with_contract(&reference, &candidate, contract)
         .map(|comparison| comparison.execution_metadata)
-        .map_err(|_| "execution evidence does not satisfy the declared contract".into())
+        .map_err(|_| constants::EXECUTION_EVIDENCE_DOES_NOT_SATISFY_THE.into())
 }
 
 #[cfg(test)]

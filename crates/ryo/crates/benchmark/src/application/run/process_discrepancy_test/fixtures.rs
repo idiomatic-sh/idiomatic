@@ -1,7 +1,8 @@
 //! Small real-file fixtures; only child execution is substituted, not artifact or comparison policy.
 use super::*;
+use crate::domain::discrepancy::types::{OptionalDigest, ReferenceKind, ReferenceProof};
 use crate::outbound::{
-    inventory::types::{CapturedObservation, Registration},
+    inventory::types::{CapturedObservation, Registration, case_document::CaseDocument},
     suite::{fixtures::fake::SuiteFake, types::ArtifactPath},
 };
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
@@ -17,6 +18,8 @@ pub(super) struct Fixture {
     pub prepared: PreparedCase,
     pub rules: PathBuf,
     pub case: Value,
+    pub document: CaseDocument,
+    pub proof: ReferenceProof,
     receipt: PathBuf,
 }
 fn pin(bytes: &[u8]) -> String {
@@ -160,8 +163,13 @@ impl Fixture {
             observations.push(row);
         }
         let wire = json!({"kind":"process-failure","exit":2,"stdout":stdout_parts,"stderr":stderr_parts,"observations":observations});
-        let process =
-            process_discrepancy::convert(serde_json::from_value(wire.clone()).unwrap()).unwrap();
+        let process = ryo_benchmark_contracts::domain::process::types::ProcessFailure::try_from(
+            serde_json::from_value::<crate::outbound::suite::types::process::ProcessFailureWire>(
+                wire.clone(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
         let identity = ReferenceDiscrepancyIdentity {
             file_metadata_sha256: None,
             tool: profile.tool.clone(),
@@ -170,13 +178,17 @@ impl Fixture {
             profile_sha256: ArtifactDigest("c".repeat(64)),
             settings_sha256: ArtifactDigest(settings.clone()),
             source_sha256: ArtifactDigest(source_digest.clone()),
-            reference_output_sha256: process_discrepancy::output_digest(&process),
-            intended_output_sha256: discrepancy::output_digest(&prepared.expected),
+            reference_output_sha256: crate::domain::process_failure::service::output_digest(
+                &process,
+            ),
+            intended_output_sha256: crate::domain::discrepancy::service::output_digest(
+                &prepared.expected,
+            ),
         };
         let proof = json!({
             "actual_executable_sha256":"a".repeat(64),"settings_sha256":settings,"profile_sha256":identity.profile_sha256.0,
             "source_sha256":source_digest,"reference_output_sha256":identity.reference_output_sha256.0,"intended_output_sha256":identity.intended_output_sha256.0,
-            "reference_expectation_kind":"process-failure","process_observation_group_sha256":process_discrepancy::group_digest(&process,&"a".repeat(64)).unwrap().0,
+            "reference_expectation_kind":"process-failure","process_observation_group_sha256":crate::domain::process_failure::service::group_digest(&process,&ArtifactDigest("a".repeat(64))).unwrap().0,
         });
         prepared.reference_discrepancy = Some(PreparedReferenceDiscrepancy {
             basis:
@@ -186,16 +198,52 @@ impl Fixture {
             evidence: vec![],
             reason: "independent toy language expectation".into(),
         });
-        process_discrepancy::validate_archives(
+        crate::application::discrepancy_validation::service::validate_archives(
             &suite,
+            &crate::outbound::inventory::factory::local(),
             &source,
             &profile,
             &prepared,
-            &identity,
+            match &prepared.reference_discrepancy.as_ref().unwrap().expected {
+                ReferenceExpectation::ProcessFailure(process) => process,
+                ReferenceExpectation::Diagnostics(_) => unreachable!("registered process"),
+            },
             &ArtifactDigest("a".repeat(64)),
         )
         .unwrap();
-        process_discrepancy::matches(&prepared, &capture, &proof, &suite, &rules).unwrap();
+        let typed_proof = ReferenceProof {
+            basis:
+                ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect,
+            process_group: OptionalDigest::Pinned(
+                crate::domain::process_failure::service::group_digest(
+                    match &prepared.reference_discrepancy.as_ref().unwrap().expected {
+                        ReferenceExpectation::ProcessFailure(process) => process,
+                        ReferenceExpectation::Diagnostics(_) => unreachable!("registered process"),
+                    },
+                    &ArtifactDigest("a".repeat(64)),
+                )
+                .unwrap(),
+            ),
+            kind: ReferenceKind::ProcessFailure,
+            settings: identity.settings_sha256.clone(),
+            executable: ArtifactDigest("a".repeat(64)),
+            profile: identity.profile_sha256.clone(),
+            source: identity.source_sha256.clone(),
+            reference_output: identity.reference_output_sha256.clone(),
+            intended_output: identity.intended_output_sha256.clone(),
+            file_metadata: OptionalDigest::Absent,
+        };
+        crate::application::process_discrepancy::service::matches(
+            &prepared,
+            &crate::outbound::inventory::factory::local()
+                .decode_invocation(&serde_json::to_vec(&capture.invocation).unwrap())
+                .unwrap(),
+            &capture.output,
+            &typed_proof,
+            &suite,
+            &rules,
+        )
+        .unwrap();
         case_observations::write(
             &suite,
             &prepared,
@@ -227,18 +275,21 @@ impl Fixture {
         )
         .unwrap();
         let case = json!({
-            "rule":"A001","name":name,"files":["case.py"],"expected":[],"comparison":"full","expectation_contract":"diagnostics","project_context_mode":"isolated","source_sha256":source_digest,
+            "rule":"A001","name":name,"case_sha256":"case-pin","files":["case.py"],"expected":[],"comparison":"full","expectation_contract":"diagnostics","project_context_mode":"isolated","source_sha256":source_digest,
             "reference_discrepancy":{
-                "intended_expected":[],"process":wire,"approved_executable_sha256":["a".repeat(64)],
+                "intended_expected":[],"reason":"independent toy language expectation","process":wire,"approved_executable_sha256":["a".repeat(64)],
                 "identity":{"tool":name,"version":"1","settings-sha256":identity.settings_sha256.0,"profile-sha256":identity.profile_sha256.0,"source-sha256":source_digest,"reference-output-sha256":identity.reference_output_sha256.0,"intended-output-sha256":identity.intended_output_sha256.0},
             }
         });
+        let document = document_of(&case);
         Self {
             root,
             suite,
             prepared,
             rules,
             case,
+            document,
+            proof: typed_proof,
             receipt,
         }
     }
@@ -248,8 +299,53 @@ impl Fixture {
             .unwrap()
     }
     pub fn registration(&self) -> Registration {
-        serde_json::from_value(json!({"authority":{"kind":"receipt-only"},"provider":"toy","defaults":["A001"],"rules":[{"rule_id":"A001","definition":null,"modules":{},"artifacts":{},"command":null,"reason":null,"cases":[self.case],"instance":null}]})).unwrap()
+        registration_of(&self.case)
     }
+    /// The registered document with one edit, read through the adapter's schema.
+    pub fn document_with(&self, edit: impl FnOnce(&mut Value)) -> CaseDocument {
+        let mut case = self.case.clone();
+        edit(&mut case);
+        document_of(&case)
+    }
+    /// The observations with one JSON pointer replaced on one row, or none when the schema refuses them.
+    pub fn tampered(&self, row: usize, pointer: &str, value: Value) -> Option<CapturedObservation> {
+        let original = std::fs::read_to_string(&self.receipt).unwrap();
+        let mut lines: Vec<Value> = original
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        *lines[row].pointer_mut(pointer).unwrap() = value;
+        let edited = lines
+            .iter()
+            .map(Value::to_string)
+            .collect::<Vec<_>>()
+            .join("\n");
+        std::fs::write(&self.receipt, edited + "\n").unwrap();
+        let loaded = crate::outbound::inventory::factory::local()
+            .observations(&self.receipt)
+            .ok();
+        std::fs::write(&self.receipt, original).unwrap();
+        loaded
+    }
+}
+
+/// Read a registration the way the offline command does: through the adapter's schema.
+pub(super) fn registration_of(case: &Value) -> Registration {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("registration.json");
+    std::fs::write(
+        &path,
+        json!({"authority":{"kind":"receipt-only"},"provider":"toy","defaults":["A001"],"rules":[{"rule_id":"A001","definition":null,"modules":{},"artifacts":{},"command":null,"reason":null,"cases":[case],"instance":null}]}).to_string(),
+    )
+    .unwrap();
+    crate::outbound::inventory::factory::local()
+        .load(&path)
+        .unwrap()
+}
+
+/// One registered case read through the adapter's schema.
+pub(super) fn document_of(case: &Value) -> CaseDocument {
+    registration_of(case).rules.remove(0).cases.remove(0)
 }
 
 /// Different observed byte streams, independent of any certificate matching implementation.

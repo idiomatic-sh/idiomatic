@@ -1,7 +1,12 @@
 //! Local boundary implementation.
 pub(crate) mod adapter;
 mod constants;
-mod schemas;
+mod cases;
+mod corpus;
+mod declarations;
+mod observation;
+mod process;
+mod tool;
 
 #[cfg(test)]
 mod adapter_test;

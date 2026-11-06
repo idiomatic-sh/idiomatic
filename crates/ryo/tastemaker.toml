@@ -85,6 +85,7 @@ templates = [
   { template = "idiomatic.arch/asymptote-config", file = "asymptote.toml", description = "The tools whose findings the product's asymptote lock ratchets." },
   { template = "idiomatic.arch/asymptote-lock", file = ".asymptote/operations/{operation}.lock", count = { min = 0 }, description = "One of the lock files asymptote writes: the findings accepted for one operation." },
   { template = "idiomatic.arch/doc-page", file = "docs/{*page}" },
+  { alias = "benchmark-doc-page", template = "idiomatic.arch/doc-page", file = "crates/benchmark/docs/{*page}", count = { min = 0 }, description = "The measured per-rule Django bottleneck tables of the benchmark crate." },
   { template = "idiomatic.ryo/application-part", file = "crates/core/src/application/cross_file/publication.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { template = "idiomatic.ryo/application-part", file = "crates/core/src/application/cross_file/publication_test.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { template = "idiomatic.ryo/application-part", file = "crates/core/src/application/run_coordination/cross_execution.rs", description = "One explicitly placed nested part of a cohesive application operation." },

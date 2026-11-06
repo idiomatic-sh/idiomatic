@@ -19,3 +19,15 @@ pub mod discrepancy;
 
 /// Byte-exact expected process failure artifacts and templates.
 pub mod process;
+
+/// Named text and yes/no values of the receipt documents.
+pub mod text;
+
+/// One diagnostic as a document records it.
+pub mod finding;
+
+/// A documented difference from the reference tool.
+pub mod reference_discrepancy;
+
+/// One native side's observation row.
+pub mod observation_document;

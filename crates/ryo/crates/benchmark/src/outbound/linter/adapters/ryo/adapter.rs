@@ -1,4 +1,5 @@
 //! Serialized request files avoid shell interpretation and OS argument-size limits.
+use crate::outbound::linter::adapters::ryo::constants;
 use crate::outbound::linter::interface::LinterPort;
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
@@ -104,10 +105,10 @@ impl LinterPort for LinterRyoAdapter {
                 .rule_applicability
                 .get(skip.rule.as_ref())
                 .map(String::as_str)
-                != Some("accepted-syntax")
+                != Some(constants::ACCEPTED_SYNTAX)
             {
                 return Err(Error::Invalid(
-                    "candidate skipped an undeclared or always-applicable rule".into(),
+                    constants::CANDIDATE_SKIPPED_AN_UNDECLARED_OR_ALWAYS.into(),
                 ));
             }
         }
@@ -132,7 +133,7 @@ impl LinterPort for LinterRyoAdapter {
             )?,
             _ => {
                 return Err(Error::Invalid(
-                    "candidate context mode, manifest and receipt disagree".into(),
+                    constants::CANDIDATE_CONTEXT_MODE_MANIFEST_AND_RECEIPT.into(),
                 ));
             }
         }

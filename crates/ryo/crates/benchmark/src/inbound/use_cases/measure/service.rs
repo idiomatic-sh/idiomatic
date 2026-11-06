@@ -39,7 +39,7 @@ pub(super) fn measure(
             "diagnostic benchmark contract failed: {difference:?}"
         ))
     })?;
-    crate::outbound::evidence::adapters::comparison::write(
+    crate::outbound::evidence::adapters::comparison::adapter::write(
         &reference.report,
         &candidate.report,
         comparison,

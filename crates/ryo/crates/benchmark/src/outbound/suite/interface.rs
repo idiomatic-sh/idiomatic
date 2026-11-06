@@ -1,6 +1,7 @@
 //! Load and validate the suite's external artifacts.
 use super::types::ArtifactPath;
 use super::types::ArtifactSet;
+use crate::outbound::suite::constants;
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::Suite;
@@ -15,7 +16,7 @@ pub trait SuitePort {
     ) -> Result<(), Error> {
         if request.file_metadata.is_some() {
             Err(Error::Invalid(
-                "file metadata verification is unavailable".into(),
+                constants::FILE_METADATA_VERIFICATION_IS_UNAVAILABLE.into(),
             ))
         } else {
             Ok(())
@@ -37,7 +38,7 @@ pub trait SuitePort {
         _files: &[std::path::PathBuf],
     ) -> Result<String, super::types::discrepancy::ArtifactError> {
         Err(super::types::discrepancy::ArtifactError::Invalid(
-            "case source reader is unavailable".into(),
+            constants::CASE_SOURCE_READER_IS_UNAVAILABLE.into(),
         ))
     }
 
@@ -54,7 +55,7 @@ pub trait SuitePort {
         super::types::discrepancy::ArtifactError,
     > {
         Err(super::types::discrepancy::ArtifactError::Invalid(
-            "artifact reader is unavailable".into(),
+            constants::ARTIFACT_READER_IS_UNAVAILABLE.into(),
         ))
     }
     /// Append an application-owned observation and preserve optional raw process bytes.
@@ -64,11 +65,27 @@ pub trait SuitePort {
     fn record_case(
         &self,
         _receipt: ArtifactPath<'_>,
-        _record: serde_json::Value,
+        _record: super::types::observation_document::ObservationDocument,
         _process: Option<super::types::process::CapturedProcess<'_>>,
     ) -> Result<(), super::types::discrepancy::ArtifactError> {
         Err(super::types::discrepancy::ArtifactError::Invalid(
-            "case observation store is unavailable".into(),
+            constants::CASE_OBSERVATION_STORE_IS_UNAVAILABLE.into(),
+        ))
+    }
+
+    /// Read every observation row of one receipt file.
+    ///
+    /// # Errors
+    /// Refuses unreadable receipts, malformed rows and fields the schema does not name.
+    fn case_observations(
+        &self,
+        _receipt: ArtifactPath<'_>,
+    ) -> Result<
+        Vec<super::types::observation_document::ObservationDocument>,
+        super::types::discrepancy::ArtifactError,
+    > {
+        Err(super::types::discrepancy::ArtifactError::Invalid(
+            constants::CASE_OBSERVATION_STORE_IS_UNAVAILABLE.into(),
         ))
     }
 
@@ -132,6 +149,46 @@ pub trait SuitePort {
         source: ArtifactPath<'_>,
         destination: ArtifactPath<'_>,
     ) -> Result<(), Error>;
+    /// Create a fresh directory beneath `parent`, or beneath the system temporary directory when
+    /// the parent is the empty path, and keep it until `discard`.
+    ///
+    /// # Errors
+    /// Refuses a parent that cannot hold a new directory.
+    fn scratch(
+        &self,
+        parent: ArtifactPath<'_>,
+        prefix: &str,
+    ) -> Result<std::path::PathBuf, Error>;
+    /// Remove a directory made by `scratch` with everything beneath it.
+    ///
+    /// # Errors
+    /// Refuses a directory that cannot be removed.
+    fn discard(&self, directory: ArtifactPath<'_>) -> Result<(), Error>;
+    /// Copy one executable's exact bytes to another path.
+    ///
+    /// # Errors
+    /// Refuses a missing source or an unwritable destination.
+    fn copy_file(&self, from: ArtifactPath<'_>, to: ArtifactPath<'_>) -> Result<(), Error>;
+    /// Create the directory and its parents, and answer its canonical path.
+    ///
+    /// # Errors
+    /// Refuses a path that cannot be created or resolved.
+    fn ensure_directory(&self, directory: ArtifactPath<'_>) -> Result<std::path::PathBuf, Error>;
+    /// Write one text file.
+    ///
+    /// # Errors
+    /// Refuses an unwritable path.
+    fn write_text(&self, file: ArtifactPath<'_>, text: &str) -> Result<(), Error>;
+    /// The names a selection file lists.
+    ///
+    /// # Errors
+    /// Refuses a missing file or one that is not a list of names.
+    fn selection(&self, file: ArtifactPath<'_>) -> Result<Vec<String>, Error>;
+    /// The total size in bytes of these files.
+    ///
+    /// # Errors
+    /// Refuses a file that cannot be inspected.
+    fn total_size(&self, files: &[std::path::PathBuf]) -> Result<u64, Error>;
     /// Seal the actual requested/auxiliary corpus bytes before both disk contestants.
     /// # Errors
     /// Refuses missing, escaping, symlinked or changed inputs without inventing metadata.

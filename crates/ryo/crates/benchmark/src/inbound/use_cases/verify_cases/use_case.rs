@@ -1,5 +1,6 @@
 //! Readable suite orchestration, borrowing the actual injected port owners.
 use super::interface::VerifyCasesUseCase;
+use crate::inbound::use_cases::verify_cases::constants;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use std::path::Path;
 /// verify_cases with required borrowed boundaries.
@@ -8,6 +9,7 @@ pub struct VerifyCasesUseCaseImpl<'a> {
     reference: &'a dyn crate::outbound::linter::interface::LinterPort,
     candidate: &'a dyn crate::outbound::linter::interface::LinterPort,
     execution: &'a dyn crate::outbound::execution::interface::ExecutionPort,
+    inventory: &'a dyn crate::outbound::inventory::interface::InventoryPort,
 }
 impl<'a> VerifyCasesUseCaseImpl<'a> {
     /// Borrow the boundaries already composed by the caller.
@@ -17,12 +19,14 @@ impl<'a> VerifyCasesUseCaseImpl<'a> {
         reference: &'a dyn crate::outbound::linter::interface::LinterPort,
         candidate: &'a dyn crate::outbound::linter::interface::LinterPort,
         execution: &'a dyn crate::outbound::execution::interface::ExecutionPort,
+        inventory: &'a dyn crate::outbound::inventory::interface::InventoryPort,
     ) -> Self {
         Self {
             suite,
             reference,
             candidate,
             execution,
+            inventory,
         }
     }
 }
@@ -40,9 +44,9 @@ impl VerifyCasesUseCase for VerifyCasesUseCaseImpl<'_> {
         if coverage
             == ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage::Accounted
         {
-            let profile = rules
-                .parent()
-                .ok_or_else(|| ReportsError::Invalid("missing case profile boundary".into()))?;
+            let profile = rules.parent().ok_or_else(|| {
+                ReportsError::Invalid(constants::MISSING_CASE_PROFILE_BOUNDARY.into())
+            })?;
             let tool = self
                 .suite
                 .profile(crate::outbound::suite::types::ArtifactPath(profile))?;
@@ -57,6 +61,7 @@ impl VerifyCasesUseCase for VerifyCasesUseCaseImpl<'_> {
             self.reference,
             self.candidate,
             self.execution,
+            self.inventory,
             rules,
             cases,
             selection,

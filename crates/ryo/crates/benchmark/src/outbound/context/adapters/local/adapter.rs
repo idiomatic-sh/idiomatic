@@ -1,4 +1,5 @@
 //! Materialize and validate explicitly sealed project context at the filesystem boundary.
+use crate::outbound::context::adapters::local::constants;
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::context::types::CaseContext;
 use ryo_benchmark_contracts::domain::context::types::ContextManifest;
@@ -14,14 +15,21 @@ pub(crate) fn artifact(bytes: &[u8]) -> ArtifactDigest {
     ArtifactDigest(format!("{:x}", Sha256::digest(bytes)))
 }
 
+/// Whether a validated path names the logical root or a member beneath it.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PathScope {
+    Root,
+    Member,
+}
+
 /// Validate a path wholly inside a snapshot; `.` is allowed only for the logical root.
-fn relative(path: &Path, root: bool) -> Result<(), Error> {
+fn relative(path: &Path, scope: PathScope) -> Result<(), Error> {
     if path.as_os_str().is_empty()
         || path.is_absolute()
         || path
             .components()
             .any(|part| !matches!(part, Component::Normal(_) | Component::CurDir))
-        || !root && path.components().all(|part| part == Component::CurDir)
+        || scope == PathScope::Member && path.components().all(|part| part == Component::CurDir)
     {
         return Err(Error::Invalid(format!(
             "unsafe context path: {}",
@@ -34,7 +42,9 @@ fn relative(path: &Path, root: bool) -> Result<(), Error> {
 /// Resolve a root-relative dependency lexically, without allowing it to escape its snapshot.
 fn resolve(manifest: &ContextManifest, path: &Path) -> Result<PathBuf, Error> {
     if path.is_absolute() {
-        return Err(Error::Invalid("absolute context dependency".into()));
+        return Err(Error::Invalid(
+            constants::ABSOLUTE_CONTEXT_DEPENDENCY.into(),
+        ));
     }
     let mut resolved = PathBuf::new();
     for part in manifest.logical_root.components() {
@@ -55,7 +65,7 @@ fn resolve(manifest: &ContextManifest, path: &Path) -> Result<PathBuf, Error> {
             }
         }
     }
-    relative(&resolved, false)?;
+    relative(&resolved, PathScope::Member)?;
     Ok(resolved)
 }
 
@@ -127,14 +137,14 @@ fn no_symlinks(boundary: &Path, relative: &Path) -> Result<(), Error> {
 /// Content seal includes declared absences and stable logical location, never temporary physical directories.
 pub(crate) fn fingerprint(manifest: &ContextManifest) -> ArtifactDigest {
     let mut hash = Sha256::new();
-    frame(&mut hash, b"listed-disk-context-v1");
+    frame(&mut hash, constants::LISTED_DISK_CONTEXT_V1);
     frame(
         &mut hash,
         manifest.logical_root.as_os_str().as_encoded_bytes(),
     );
     for (kind, files) in [
-        (b"source".as_slice(), &manifest.source_files),
-        (b"auxiliary".as_slice(), &manifest.auxiliary_files),
+        (constants::SOURCE, &manifest.source_files),
+        (constants::AUXILIARY, &manifest.auxiliary_files),
     ] {
         frame(&mut hash, kind);
         for (path, digest) in files {
@@ -145,7 +155,7 @@ pub(crate) fn fingerprint(manifest: &ContextManifest) -> ArtifactDigest {
     let mut missing = manifest.missing.clone();
     missing.sort();
     for path in missing {
-        frame(&mut hash, b"missing");
+        frame(&mut hash, constants::MISSING);
         frame(&mut hash, path.as_os_str().as_encoded_bytes());
     }
     ArtifactDigest(format!("{:x}", hash.finalize()))
@@ -153,12 +163,12 @@ pub(crate) fn fingerprint(manifest: &ContextManifest) -> ArtifactDigest {
 
 /// Validate found and missing dependencies without treating unreadable files as missing.
 pub(crate) fn validate(manifest: &ContextManifest, actual_root: &Path) -> Result<(), Error> {
-    relative(&manifest.logical_root, true)?;
+    relative(&manifest.logical_root, PathScope::Root)?;
     if !manifest.boundary.is_absolute()
         || actual_root != manifest.boundary.join(&manifest.logical_root)
     {
         return Err(Error::Invalid(
-            "context logical and physical roots disagree".into(),
+            constants::CONTEXT_LOGICAL_AND_PHYSICAL_ROOTS_DISAGREE.into(),
         ));
     }
     let mut missing = manifest.missing.clone();
@@ -167,19 +177,23 @@ pub(crate) fn validate(manifest: &ContextManifest, actual_root: &Path) -> Result
         .windows(2)
         .any(|pair| matches!(pair, [first, second] if first == second))
     {
-        return Err(Error::Invalid("duplicate missing context path".into()));
+        return Err(Error::Invalid(
+            constants::DUPLICATE_MISSING_CONTEXT_PATH.into(),
+        ));
     }
     for (path, expected) in manifest
         .source_files
         .iter()
         .chain(&manifest.auxiliary_files)
     {
-        relative(path, false)?;
+        relative(path, PathScope::Member)?;
         no_symlinks(&manifest.boundary, path)?;
         if manifest.source_files.contains_key(path) && manifest.auxiliary_files.contains_key(path)
             || missing.contains(path)
         {
-            return Err(Error::Invalid("context path has conflicting roles".into()));
+            return Err(Error::Invalid(
+                constants::CONTEXT_PATH_HAS_CONFLICTING_ROLES.into(),
+            ));
         }
         let bytes = std::fs::read(manifest.boundary.join(path))?;
         if artifact(&bytes) != *expected {
@@ -190,7 +204,7 @@ pub(crate) fn validate(manifest: &ContextManifest, actual_root: &Path) -> Result
         }
     }
     for path in &missing {
-        relative(path, false)?;
+        relative(path, PathScope::Member)?;
         no_symlinks(&manifest.boundary, path)?;
         match std::fs::symlink_metadata(manifest.boundary.join(path)) {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
@@ -223,19 +237,18 @@ pub(crate) fn seal_existing(
         || !source_set.is_subset(&tracked_set)
     {
         return Err(Error::Invalid(
-            "sealed corpus requires unique actual tracked paths covering every requested source"
-                .into(),
+            constants::SEALED_CORPUS_REQUIRES_UNIQUE_ACTUAL_TRACKED.into(),
         ));
     }
     let mut manifest = ContextManifest {
         boundary,
-        logical_root: PathBuf::from("."),
+        logical_root: PathBuf::from(constants::DOT),
         source_files: BTreeMap::new(),
         auxiliary_files: BTreeMap::new(),
         missing: Vec::new(),
     };
     for path in tracked {
-        relative(path, false)?;
+        relative(path, PathScope::Member)?;
         no_symlinks(&manifest.boundary, path)?;
         let actual = manifest.boundary.join(path);
         let bytes = std::fs::read(&actual).map_err(|error| {
@@ -261,7 +274,7 @@ pub(crate) fn materialize(
     context: &CaseContext,
     sources: &BTreeMap<ryo::linter::RelativePath, ryo::linter::SourceText>,
 ) -> Result<ContextManifest, Error> {
-    relative(&context.logical_root, true)?;
+    relative(&context.logical_root, PathScope::Root)?;
     let mut manifest = ContextManifest {
         boundary: std::path::absolute(boundary)?,
         logical_root: context.logical_root.clone(),
@@ -274,12 +287,12 @@ pub(crate) fn materialize(
     }
     std::fs::create_dir_all(manifest.boundary.join(&manifest.logical_root))?;
     for (path, bytes) in &context.auxiliary_files {
-        relative(path, false)?;
+        relative(path, PathScope::Member)?;
         let actual = manifest.boundary.join(path);
         std::fs::create_dir_all(
             actual
                 .parent()
-                .ok_or_else(|| Error::Invalid("missing context parent".into()))?,
+                .ok_or_else(|| Error::Invalid(constants::MISSING_CONTEXT_PARENT.into()))?,
         )?;
         std::fs::write(actual, bytes)?;
         let _previous = manifest
@@ -290,14 +303,14 @@ pub(crate) fn materialize(
         let path = resolve(&manifest, Path::new(path.0.as_ref()))?;
         if manifest.auxiliary_files.contains_key(&path) {
             return Err(Error::Invalid(
-                "auxiliary file also requested for lint".into(),
+                constants::AUXILIARY_FILE_ALSO_REQUESTED_FOR_LINT.into(),
             ));
         }
         let actual = manifest.boundary.join(&path);
         std::fs::create_dir_all(
             actual
                 .parent()
-                .ok_or_else(|| Error::Invalid("missing source parent".into()))?,
+                .ok_or_else(|| Error::Invalid(constants::MISSING_SOURCE_PARENT.into()))?,
         )?;
         std::fs::write(actual, source.0.as_bytes())?;
         let _previous = manifest
@@ -335,7 +348,7 @@ pub(crate) fn receipt(
                 let bytes = std::fs::read(manifest.boundary.join(&declared))?;
                 if ryo::linter::dependency_fingerprint(&bytes) != fingerprint {
                     return Err(Error::Invalid(
-                        "project dependency fingerprint disagrees".into(),
+                        constants::PROJECT_DEPENDENCY_FINGERPRINT_DISAGREES.into(),
                     ));
                 }
                 Some(fingerprint)
@@ -401,7 +414,9 @@ pub(crate) fn verify_receipt(
         })
         .collect();
     if receipt(manifest, actual_root, dependencies)? != *observed {
-        return Err(Error::Invalid("context receipt identity disagrees".into()));
+        return Err(Error::Invalid(
+            constants::CONTEXT_RECEIPT_IDENTITY_DISAGREES.into(),
+        ));
     }
     Ok(())
 }
