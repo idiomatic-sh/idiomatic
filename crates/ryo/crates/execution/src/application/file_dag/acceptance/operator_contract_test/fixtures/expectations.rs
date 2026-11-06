@@ -1,5 +1,4 @@
 //! Independent typed, textual and set-digest expectations for the conformance fixtures.
-use super::SOURCE;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plans::types::Operation;
@@ -8,6 +7,8 @@ use {
     crate::domain::table_texts::service::datum, crate::domain::table_texts::types::Datum,
     crate::domain::table_texts::types::Texts, ryo_values::domain::files::types::SourceView,
 };
+/// The source text every conformance fixture reads its names from.
+pub(crate) const SOURCE: &[u8] = b"a a";
 #[derive(Clone)]
 pub(crate) enum Expected {
     Cell(Value),

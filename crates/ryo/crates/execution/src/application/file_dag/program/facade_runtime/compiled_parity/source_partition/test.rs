@@ -1,15 +1,12 @@
 //! Producer declarations and actual source scope govern ordinary admission.
 use super::super::*;
-use crate::application::file_dag::program::admission::FileGeneration;
-use crate::application::file_dag::program::admission::Inputs;
-use crate::application::file_dag::program::admission::Partition;
-use crate::application::file_dag::program::admission::ProducerRoot;
-use crate::application::file_dag::program::admission::contributor_readiness;
+use crate::application::file_dag::program::admission::{
+    FileGeneration, Inputs, Partition, ProducerRoot, contributor_readiness,
+};
 use crate::application::file_dag::program::context::RunContext;
 use ryo_values::domain::files::types::SourceView;
 use crate::application::file_dag::program::kernel_session::KernelSession;
-use crate::application::file_dag::program::runtime::service::InvocationOutcome;
-use crate::application::file_dag::program::runtime::service::ProgramExecution;
+use crate::application::file_dag::program::runtime::service::{InvocationOutcome, ProgramExecution};
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
 use crate::domain::coverage::types::{Lacking, Partial, Partials, RuleIndex};
 use ryo_values::domain::{
@@ -46,18 +43,16 @@ fn subject(case: Input) -> Result<Value, Failure> {
     let mut source_plan = plan(Scenario::Words);
     let mut bindings = vec![];
     let mut hosted = vec![];
-    let relation = if matches!(
+    let project_case = matches!(
         case,
         SourceCase::Project | SourceCase::ProjectAsFile | SourceCase::ProjectInvocation
-    ) {
+    );
+    let relation = if project_case {
         Relation::ManifestDiagnostic
     } else {
         Relation::SyntaxTree
     };
-    if matches!(
-        case,
-        SourceCase::Project | SourceCase::ProjectAsFile | SourceCase::ProjectInvocation
-    ) {
+    if project_case {
         source_plan.steps[0].scope = StepScope::CrossFile;
         source_plan.steps[0].operation = Operation::Select {
             from: PlanInput::Relation(relation),
@@ -159,10 +154,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
     }
     let owner = open_program_owner(prepared.program(), Arc::clone(&derived), true);
     let project = Partition::Project(required);
-    let scope = if matches!(
-        case,
-        SourceCase::Project | SourceCase::ProjectAsFile | SourceCase::ProjectInvocation
-    ) {
+    let scope = if project_case {
         project.clone()
     } else {
         Partition::File(FileGeneration::from_owner(FileId(0), &owner))
@@ -179,10 +171,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
         at: Some(FileId(0)),
     }];
     let project_partials = Partials::default();
-    let completion = if matches!(
-        case,
-        SourceCase::Project | SourceCase::ProjectAsFile | SourceCase::ProjectInvocation
-    ) {
+    let completion = if project_case {
         CompletionPolicy::project_inputs(RuleIndex(0), &project_partials, &project_partials)
     } else {
         CompletionPolicy::file_inputs(
