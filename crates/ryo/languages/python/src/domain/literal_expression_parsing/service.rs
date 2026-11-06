@@ -17,10 +17,11 @@ use crate::domain::{
 use ryo::languages::{self, Position, Symbols, Tree};
 use std::cell::{Ref, RefCell};
 use std::collections::HashSet;
+use super::constants;
 
 /// Missing logical carriers must remain observable through a partial relation read.
 pub(crate) const INCOMPLETE: &str =
-    "literal-expression parsing requires complete logical string carriers";
+    constants::INCOMPLETE;
 
 /// Drop source identities and admit budgeted grammar outcomes for the next demand.
 pub(crate) fn clear(index: &mut LiteralParseIndex) {
@@ -51,7 +52,7 @@ pub(crate) fn clear(index: &mut LiteralParseIndex) {
 fn carrier(tree: &Tree<'_>, node: Position, symbols: &Symbols, source: &mut String) -> Option<()> {
     source.clear();
     source.try_reserve(3).ok()?;
-    source.push_str("(\n");
+    source.push_str(constants::CARRIER_OPEN);
     let mut tokens = 0_usize;
     for token in below(tree, node).filter(|at| kind(tree, *at) == Kind::Token(Token::String)) {
         let spelling = languages::text_of(
@@ -193,8 +194,8 @@ where
 /// Translate an application-owned outcome into the stable relation vocabulary.
 pub(crate) const fn outcome_name(outcome: LiteralParseOutcome) -> &'static str {
     match outcome {
-        LiteralParseOutcome::Parsed => "parsed",
-        LiteralParseOutcome::Malformed => "malformed",
-        LiteralParseOutcome::Unavailable => "unavailable",
+        LiteralParseOutcome::Parsed => constants::PARSED,
+        LiteralParseOutcome::Malformed => constants::MALFORMED,
+        LiteralParseOutcome::Unavailable => constants::UNAVAILABLE,
     }
 }

@@ -10,9 +10,8 @@ use crate::domain::{
     },
 };
 use ryo::languages;
+use super::constants::INCOMPLETE;
 
-/// The reason recovered syntax cannot certify terminal control flow.
-const INCOMPLETE: &str = "function terminal outcomes require a complete syntax tree";
 /// Reads one terminal outcome for each visible function.
 pub(crate) struct FunctionTerminalItem;
 

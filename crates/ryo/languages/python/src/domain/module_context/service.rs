@@ -4,6 +4,7 @@ use std::{
     collections::BTreeSet,
     path::{Component, Path, PathBuf},
 };
+use super::constants;
 
 /// Derive a dotted identity only within a fully observed package ancestry.
 fn module_path(file: &Path, package: Option<&Path>) -> ModuleDecision {
@@ -34,7 +35,7 @@ fn module_path(file: &Path, package: Option<&Path>) -> ModuleDecision {
         return ModuleDecision::Unknown;
     };
     ModuleDecision::Known(Some(PackageModule {
-        path: parts.join("."),
+        path: parts.join(constants::DOT),
         package_root_name: root_name.to_owned(),
     }))
 }
@@ -43,8 +44,8 @@ fn module_path(file: &Path, package: Option<&Path>) -> ModuleDecision {
 pub(crate) fn basenames(file: &Path) -> Option<(&str, &str)> {
     let name = file.file_name()?.to_str()?;
     let module = name
-        .strip_suffix(".pyi")
-        .or_else(|| name.strip_suffix(".py"))?;
+        .strip_suffix(constants::STUB_SUFFIX)
+        .or_else(|| name.strip_suffix(constants::MODULE_SUFFIX))?;
     let package = file.parent()?.file_name()?.to_str()?;
     Some((module, package))
 }
@@ -56,7 +57,7 @@ pub(crate) fn disk(file: &Path, markers: &Markers) -> ModuleDecision {
     };
     let mut package = None;
     loop {
-        let marker = directory.join("__init__.py");
+        let marker = directory.join(constants::INIT_FILE);
         match markers.0.get(&marker) {
             None => return ModuleDecision::Need(marker),
             Some(false) => return module_path(file, package),
@@ -76,7 +77,7 @@ pub(crate) fn given(file: &Path, files: &BTreeSet<PathBuf>) -> ModuleDecision {
     };
     let mut package = None;
     loop {
-        if !files.contains(&directory.join("__init__.py")) {
+        if !files.contains(&directory.join(constants::INIT_FILE)) {
             return module_path(file, package);
         }
         if directory.as_os_str().is_empty() {
@@ -108,7 +109,7 @@ pub(crate) fn relative_to(root: &Path, path: &Path) -> Option<PathBuf> {
         .count();
     let mut result = PathBuf::new();
     for _ in common..root.len() {
-        result.push("..");
+        result.push(constants::PARENT_DIRECTORY);
     }
     for part in path.iter().skip(common) {
         result.push(part.as_os_str());

@@ -27,12 +27,12 @@ ryo::reads! {
     CompilerFeatureItem => languages::CompilerFeature, model(Declarations) |tree, _model, at, symbols| {
         kinds: [Kind::Node(Node::Module)] as kind_bits,
         given mode = languages::property_at(tree.elements, at, MODULE_FUTURE_ANNOTATIONS);
-        given feature = languages::intern_derived(symbols, tree.source, languages::NameText("python.future-annotations"));
+        given feature = languages::intern_derived(symbols, tree.source, languages::NameText(super::constants::FUTURE_ANNOTATIONS));
         when feature_flag(mode) {
             Some(enabled) => {
                 row { file: file, feature: value(feature), enabled: value(enabled), }
             }
-            None => { partial "compiler feature requires a canonical native module mode" => languages::Missing::Any; }
+            None => { partial super::constants::INCOMPLETE => languages::Missing::Any; }
         }
     }
 }

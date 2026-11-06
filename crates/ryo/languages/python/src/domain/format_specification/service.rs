@@ -19,6 +19,7 @@ use crate::domain::{
     },
 };
 use ryo::languages::{self, Position, Tree};
+use super::constants;
 /// The actual f-string owner, excluding synthetic format-spec JoinedStr nodes.
 fn fstring_owner(tree: &Tree<'_>, at: Position) -> Option<Position> {
     let mut above = parent(tree, at);
@@ -69,7 +70,7 @@ pub(crate) fn observe(
                     BraceFieldContext::FormatSpec { parent_ordinal } => Some(parent_ordinal.0),
                 },
                 origin: occurrence.node,
-                source_kind: "brace-string",
+                source_kind: constants::BRACE_STRING,
                 value: Some(spec.0.clone()),
                 outcome: recognize(FormatSpecText(&spec.0), nested.into(), target.into()),
                 selector: field.selector_text.0.clone(),
@@ -126,7 +127,7 @@ pub(crate) fn observe(
                 ordinal,
                 parent: parent_ordinal,
                 origin: spec,
-                source_kind: "fstring",
+                source_kind: constants::FSTRING,
                 value,
                 outcome,
                 selector: String::new(),

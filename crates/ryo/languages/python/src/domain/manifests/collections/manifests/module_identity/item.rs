@@ -6,7 +6,7 @@ pub(crate) struct ModuleIdentityItem;
 ryo::reads! {
     ModuleIdentityItem => languages::ModuleIdentity, manifests(Linked) |input, symbols|
     model contexts: ModuleContexts = (Some(input.derived.module_context.clone())) {
-        each (contexts.partial.then_some("module identity requires a named root or external package context")) as reason {
+        each (contexts.partial.then_some(super::constants::INCOMPLETE)) as reason {
             partial reason => languages::Missing::Any;
         }
         each (&contexts.rows) as module {

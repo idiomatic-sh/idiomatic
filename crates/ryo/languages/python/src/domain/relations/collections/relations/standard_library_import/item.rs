@@ -30,7 +30,7 @@ ryo::reads! {
             }
             StandardLibraryMembership::Other => {}
             StandardLibraryMembership::UnverifiedRelease => {
-                partial "Python standard-library module catalog is unverified for this target release" => languages::Missing::Any;
+                partial super::constants::UNVERIFIED_CATALOG => languages::Missing::Any;
             }
         }
     }

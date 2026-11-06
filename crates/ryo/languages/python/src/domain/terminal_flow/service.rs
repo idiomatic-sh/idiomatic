@@ -12,6 +12,7 @@ use crate::domain::{
 };
 use ryo::languages::{self, Position, Tree};
 use std::cell::{Ref, RefCell};
+use super::constants;
 
 /// Reset the retained terminal summaries before processing a fresh tree.
 pub(crate) fn clear(index: &mut TerminalIndex) {
@@ -370,9 +371,9 @@ pub(crate) fn outcome(index: &TerminalIndex, at: Position) -> Option<&'static st
         .get(usize::try_from(at.0).ok()?)?
         .function_terminal;
     Some(match value {
-        TerminalOutcome::None | TerminalOutcome::Implicit => "implicit",
-        TerminalOutcome::Raise => "raise",
-        TerminalOutcome::Return | TerminalOutcome::RaiseOrReturn => "return-or-raise",
-        TerminalOutcome::ConditionalReturn => "conditional-return",
+        TerminalOutcome::None | TerminalOutcome::Implicit => constants::IMPLICIT,
+        TerminalOutcome::Raise => constants::RAISE,
+        TerminalOutcome::Return | TerminalOutcome::RaiseOrReturn => constants::RETURN_OR_RAISE,
+        TerminalOutcome::ConditionalReturn => constants::CONDITIONAL_RETURN,
     })
 }

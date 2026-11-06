@@ -5,6 +5,7 @@ use crate::domain::{
     tokens::types::Token,
 };
 use ryo::languages::{self, Position, Tree};
+use super::constants;
 
 /// Native root extent excludes separately adopted embedded expressions.
 pub(crate) fn scan<'tree, 'source>(
@@ -32,9 +33,9 @@ pub(crate) fn scan<'tree, 'source>(
 /// Public vocabulary belongs to the structural fact, not a linter.
 pub(crate) const fn link_kind(kind: LinkKind) -> &'static str {
     match kind {
-        LinkKind::Next => "next-token",
-        LinkKind::Matching => "matching-delimiter",
-        LinkKind::Enclosing => "enclosing-delimiter",
+        LinkKind::Next => constants::NEXT_TOKEN,
+        LinkKind::Matching => constants::MATCHING_DELIMITER,
+        LinkKind::Enclosing => constants::ENCLOSING_DELIMITER,
     }
 }
 

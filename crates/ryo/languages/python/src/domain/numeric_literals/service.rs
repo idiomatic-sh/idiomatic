@@ -12,6 +12,7 @@ use crate::domain::{
 };
 use ryo::languages::{self, ByteSlice, NameText, Position, Symbol, Symbols, Tree};
 use std::io::Write as _;
+use super::constants;
 
 /// Intern an occurrence without allocating temporary decimal text on each file read.
 pub(crate) fn intern_value(
@@ -45,12 +46,12 @@ fn write_float(bits: u64, buffer: &mut [u8; FLOAT_TEXT_BYTES]) -> &str {
     {
         let mut rest: &mut [u8] = &mut buffer[written..];
         assert!(
-            rest.write_all(b".0").is_ok(),
+            rest.write_all(constants::FLOAT_SUFFIX).is_ok(),
             "binary64 suffix fits the fixed buffer"
         );
         written = FLOAT_TEXT_BYTES - rest.len();
     }
-    std::str::from_utf8(&buffer[..written]).expect("numeric Display only writes ASCII")
+    std::str::from_utf8(&buffer[..written]).expect(constants::ASCII_ONLY)
 }
 
 /// The same stack formatter is observed by the payload tests.
@@ -78,14 +79,14 @@ pub(crate) fn classify<'a>(tree: &'a Tree<'_>, at: Position) -> NumericClassific
     match scalar_kind {
         Some(INTEGER_SCALAR) => match value.filter(|value| canonical_integer(value)) {
             Some(value) => NumericClassification::Known(NumericLiteral {
-                kind: "integer",
+                kind: crate::domain::syntax::constants::INTEGER_SCALAR,
                 value: NumericValue::Integer(value),
             }),
             None => NumericClassification::MissingPayload,
         },
         Some(FLOAT_SCALAR) => match value.and_then(|value| value.parse::<u64>().ok()) {
             Some(bits) => NumericClassification::Known(NumericLiteral {
-                kind: "float",
+                kind: crate::domain::syntax::constants::FLOAT_SCALAR,
                 value: NumericValue::Float(bits),
             }),
             None => NumericClassification::MissingPayload,

@@ -14,6 +14,7 @@ use crate::domain::{
     tokens::types::Token,
 };
 use ryo::languages::{self, Position, Tree};
+use super::constants;
 
 /// Whether the parser's `Constant` node is a synthetic piece of an interpolated string.
 fn interpolation_fragment(tree: &Tree<'_>, at: Position) -> bool {
@@ -75,13 +76,13 @@ pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> LiteralClassification {
     let scalar_kind = payload(tree, at, SCALAR_KIND);
     if scalar_kind == Some(BYTES_SCALAR) {
         return payload(tree, at, SCALAR_VALUE).map_or(LiteralClassification::MissingPayload, |value| {
-            flag("bytes", false, value.is_empty(), false)
+            flag(crate::domain::syntax::constants::BYTES_SCALAR, false, value.is_empty(), false)
         });
     }
 
     if literal(tree, at) == Literal::String {
         return decoded_string_empty(tree, at).map_or(LiteralClassification::MissingPayload, |empty| {
-            flag("string", false, empty, false)
+            flag(constants::STRING, false, empty, false)
         });
     }
 
@@ -91,12 +92,12 @@ pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> LiteralClassification {
     match scalar_kind {
         INTEGER_SCALAR => payload(tree, at, SCALAR_VALUE)
             .map_or(LiteralClassification::MissingPayload, |value| {
-                flag("integer", value == "0", false, false)
+                flag(crate::domain::syntax::constants::INTEGER_SCALAR, value == constants::ZERO_PAYLOAD, false, false)
             }),
         FLOAT_SCALAR => payload(tree, at, SCALAR_VALUE)
             .and_then(|bits| bits.parse::<u64>().ok())
             .map_or(LiteralClassification::MissingPayload, |bits| {
-                flag("float", f64::from_bits(bits) == 0.0_f64, false, false)
+                flag(crate::domain::syntax::constants::FLOAT_SCALAR, f64::from_bits(bits) == 0.0_f64, false, false)
             }),
         COMPLEX_SCALAR => payload(tree, at, SCALAR_VALUE)
             .and_then(|real| real.parse::<u64>().ok())
@@ -106,7 +107,7 @@ pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> LiteralClassification {
             )
             .map_or(LiteralClassification::MissingPayload, |(real, imaginary)| {
                 flag(
-                    "complex",
+                    crate::domain::syntax::constants::COMPLEX_SCALAR,
                     f64::from_bits(real) == 0.0_f64 && f64::from_bits(imaginary) == 0.0_f64,
                     false,
                     false,
@@ -115,10 +116,10 @@ pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> LiteralClassification {
         BOOLEAN_SCALAR => payload(tree, at, SCALAR_VALUE)
             .and_then(|value| value.parse::<bool>().ok())
             .map_or(LiteralClassification::MissingPayload, |boolean| {
-                flag("boolean", false, false, boolean)
+                flag(crate::domain::syntax::constants::BOOLEAN_SCALAR, false, false, boolean)
             }),
-        NONE_SCALAR => flag("null", false, false, false),
-        ELLIPSIS_SCALAR => flag("ellipsis", false, false, false),
+        NONE_SCALAR => flag(constants::NULL, false, false, false),
+        ELLIPSIS_SCALAR => flag(crate::domain::syntax::constants::ELLIPSIS_SCALAR, false, false, false),
         _ => LiteralClassification::MissingPayload,
     }
 }

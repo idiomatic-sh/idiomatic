@@ -8,9 +8,8 @@ use crate::domain::{
     syntax::{service::kind_bits, types::Kind},
 };
 use ryo::languages;
+use super::constants::INCOMPLETE;
 
-/// Missing parser data makes primitive literal classification incomplete.
-const INCOMPLETE: &str = "primitive literal properties require their parser-decoded payload";
 
 /// The optional Python primitive-literal reader.
 pub(crate) struct LiteralPropertiesItem;

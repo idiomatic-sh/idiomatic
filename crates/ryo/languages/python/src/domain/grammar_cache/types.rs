@@ -1,5 +1,6 @@
 //! Content-only results that may survive one source revision.
 use std::collections::HashMap;
+use super::constants;
 /// One result and the capacity of its owned child buffers.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Entry<V> {
@@ -25,7 +26,7 @@ impl<V> Default for GrammarMemo<V> {
         Self {
             entries: HashMap::new(),
             bytes: 0,
-            grammar: ("", ""),
+            grammar: (constants::EMPTY, constants::EMPTY),
             scratch: String::new(),
         }
     }

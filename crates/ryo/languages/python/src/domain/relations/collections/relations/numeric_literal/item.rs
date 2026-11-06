@@ -11,9 +11,8 @@ use crate::domain::{
     syntax::{service::kind_bits, types::Kind},
 };
 use ryo::languages;
+use super::constants::INCOMPLETE;
 
-/// Missing or malformed parser-owned numeric payload is explicit incompleteness.
-const INCOMPLETE: &str = "numeric literals require their complete parser-decoded payload";
 
 /// Optional numeric literal reader; no projection runs until this relation is requested.
 pub(crate) struct NumericLiteralItem;
