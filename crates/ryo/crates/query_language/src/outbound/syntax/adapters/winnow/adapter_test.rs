@@ -4,12 +4,16 @@
 use super::adapter::SyntaxWinnowAdapter;
 use super::constants::{GRAMMAR, Keyword, Mark, keyword_text, mark_text};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::selects;
 use crate::outbound::syntax::errors::SyntaxError;
 use crate::outbound::syntax::fixtures::contract::check;
 use crate::outbound::syntax::interface::SyntaxPort as _;
-use ryo_values::domain::program::types::{ArgumentValue as Argument, Columns, Condition, Expression, Filter, Joining, WrittenProgram, QueryView, SourceReference, WordText, WrittenFunction, WrittenLiteral, WrittenOperand, WrittenParameter, WrittenRelation, WrittenTest};
+use crate::selects;
 use ryo_values::domain::descriptions::types::ColumnName;
+use ryo_values::domain::program::types::{
+    ArgumentValue as Argument, Columns, Condition, Expression, Filter, Joining, QueryView,
+    SourceReference, WordText, WrittenFunction, WrittenLiteral, WrittenOperand, WrittenParameter,
+    WrittenProgram, WrittenRelation, WrittenTest,
+};
 use winnow::Parser as _;
 
 const FRAGMENT_DOCUMENT: &str = "import nested from \"shared/predicate\";\ninput candidates: relation<id: node, file: file, span: span, line: number>;\nparam inline-pattern: string;\nparam range-pattern: string;\noutput relation<id: node, file: file, span: span>;\nlet violations = select id, file, span from candidates;\nreturn violations;";
@@ -38,7 +42,6 @@ const LIST_AFTER_IN: &str = "let found = select * from \"function\" where name i
 const LIST_AT: usize = 51;
 
 const DANGLING_OR: &str = "let a = select * from \"syntax-tree\" where kind = \"a\" or;\nemit a subject \"file\" key(\"span\");";
-
 
 /// What a row of the cases asks of the adapter.
 #[derive(Clone, Copy)]
@@ -414,13 +417,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("source_names_keep_written_spelling_separate_from_definition_identity"),
         word: Word::Succeeds,
-        input: || Scenario::Check(source_names_keep_written_spelling_separate_from_definition_identity),
+        input: || {
+            Scenario::Check(source_names_keep_written_spelling_separate_from_definition_identity)
+        },
         expect: Expect::Value(0),
     },
     Case {
         name: CaseName("numeric_gte_reads_literal_and_parameter_operands_in_both_positions"),
         word: Word::Succeeds,
-        input: || Scenario::Check(numeric_gte_reads_literal_and_parameter_operands_in_both_positions),
+        input: || {
+            Scenario::Check(numeric_gte_reads_literal_and_parameter_operands_in_both_positions)
+        },
         expect: Expect::Value(0),
     },
     Case {
@@ -649,8 +656,10 @@ fn source_names_keep_written_spelling_separate_from_definition_identity() {
             "let rows = select * from \"function\"; let copy = select * from rows; emit copy subject file key(span);",
         ))
         .expect("the query parses");
-    let first = parsed.steps[0].name.1.expect("definition has identity");
-    let second = parsed.steps[1].name.1.expect("definition has identity");
+    let first = ryo_values::domain::program::service::identity_of(parsed.steps[0].name.1)
+        .expect("definition has identity");
+    let second = ryo_values::domain::program::service::identity_of(parsed.steps[1].name.1)
+        .expect("definition has identity");
     assert_ne!(first, second);
     assert_eq!(parsed.steps[0].name.0.as_ref(), "rows");
     let Expression::Select(select) = &parsed.steps[1].expression else {
@@ -660,8 +669,14 @@ fn source_names_keep_written_spelling_separate_from_definition_identity() {
         panic!("the second step reads the first step");
     };
     assert_eq!(reference.0.as_ref(), "rows");
-    assert_eq!(reference.1, Some(first));
-    assert_eq!(parsed.emit.step.1, Some(second));
+    assert_eq!(
+        ryo_values::domain::program::service::identity_of(reference.1),
+        Some(first)
+    );
+    assert_eq!(
+        ryo_values::domain::program::service::identity_of(parsed.emit.step.1),
+        Some(second)
+    );
 }
 
 fn numeric_gte_reads_literal_and_parameter_operands_in_both_positions() {

@@ -101,11 +101,9 @@ pub(crate) fn lower_with_observations(
         });
     }
     for step in &program.steps {
-        for contract in program
-            .fragment_contracts
-            .iter()
-            .filter(|contract| Some(contract.first) == step.name.1)
-        {
+        for contract in program.fragment_contracts.iter().filter(|contract| {
+            Some(contract.first) == ryo_values::domain::program::service::identity_of(step.name.1)
+        }) {
             check_fragment_inputs(&builder, contract)?;
         }
         builder.span = step.span;
@@ -117,12 +115,16 @@ pub(crate) fn lower_with_observations(
             syntax::Expression::Select(select) => lower_select(&mut builder, &step.name, select),
             syntax::Expression::Call(call) => lower_call(&mut builder, &step.name, call),
         };
-        lowered.map_err(|error| locate_step_error(program, step.name.1, error))?;
-        for contract in program
-            .fragment_contracts
-            .iter()
-            .filter(|contract| Some(contract.result) == step.name.1)
-        {
+        lowered.map_err(|error| {
+            locate_step_error(
+                program,
+                ryo_values::domain::program::service::identity_of(step.name.1),
+                error,
+            )
+        })?;
+        for contract in program.fragment_contracts.iter().filter(|contract| {
+            Some(contract.result) == ryo_values::domain::program::service::identity_of(step.name.1)
+        }) {
             check_fragment_output(&builder, contract)?;
         }
     }
@@ -321,7 +323,12 @@ fn check_fragment_output(
         .lowered
         .iter()
         .find_map(|step| match &step.name {
-            StepLabel::Named(name) if name.1 == Some(contract.result) => Some(&step.fields),
+            StepLabel::Named(name)
+                if ryo_values::domain::program::service::identity_of(name.1)
+                    == Some(contract.result) =>
+            {
+                Some(&step.fields)
+            }
             StepLabel::Named(_) | StepLabel::Unnamed => None,
         })
         .ok_or_else(|| LoweringError::FragmentContract {

@@ -4,14 +4,15 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use ryo_values::domain::program::types::{
     Argument, ArgumentValue, Call, Condition, Expression, Filter, FragmentContract,
-    FragmentContractInput, FragmentProgram, ImportDeclaration, LetStep, WrittenProgram, QueryBundle,
-    QueryOrigin, QuerySourceId, QuerySpan, QueryTraceSite, Select, SourceReference, StepIdentity,
-    StepName, WrittenApplied, WrittenOperand,
+    FragmentContractInput, FragmentProgram, ImportDeclaration, LetStep, QueryBundle, QueryOrigin,
+    QuerySourceId, QuerySpan, QueryTraceSite, Select, SourceReference, StepIdentity, StepName,
+    WrittenApplied, WrittenOperand, WrittenProgram,
 };
 
 use super::errors::LinkingError;
 use super::types::{
-    FragmentBindingKey, Bindings, BoundArguments, ImportAlias, ImportIndex, ParameterCheck, ScalarMatch,
+    Bindings, BoundArguments, FragmentBindingKey, ImportAlias, ImportIndex, ParameterCheck,
+    ScalarMatch,
 };
 use crate::domain::syntax::constants::{
     BOOLEAN_WORDS, fragment_scalar_kind_named, relation_cell_kind_named,
@@ -62,7 +63,10 @@ pub(crate) fn link_with_observations(
     let mut next = StepIdentity(
         root.steps
             .iter()
-            .filter_map(|step| step.name.1.map(|identity| identity.0))
+            .filter_map(|step| {
+                ryo_values::domain::program::service::identity_of(step.name.1)
+                    .map(|identity| identity.0)
+            })
             .max()
             .unwrap_or(0)
             .saturating_add(1),
@@ -125,13 +129,17 @@ fn assign_root_identities(program: &mut WrittenProgram) {
     let mut next = program
         .steps
         .iter()
-        .filter_map(|step| step.name.1.map(|identity| identity.0))
+        .filter_map(|step| {
+            ryo_values::domain::program::service::identity_of(step.name.1)
+                .map(|identity| identity.0)
+        })
         .max()
         .unwrap_or(0)
         .saturating_add(1);
     for step in &mut program.steps {
-        if step.name.1.is_none() {
-            step.name.1 = Some(StepIdentity(next));
+        if ryo_values::domain::program::service::identity_of(step.name.1).is_none() {
+            step.name.1 =
+                ryo_values::domain::program::service::identified(Some(StepIdentity(next)));
             next = next.saturating_add(1);
         }
     }
@@ -146,34 +154,44 @@ fn assign_root_identities(program: &mut WrittenProgram) {
             });
             for source in sources {
                 if let SourceReference::Step(reference) = &mut source.reference
-                    && reference.1.is_none()
+                    && ryo_values::domain::program::service::identity_of(reference.1).is_none()
                 {
-                    reference.1 = preceding
-                        .iter()
-                        .rev()
-                        .find(|candidate| candidate.name.0 == reference.0)
-                        .and_then(|candidate| candidate.name.1);
+                    reference.1 = ryo_values::domain::program::service::identified(
+                        preceding
+                            .iter()
+                            .rev()
+                            .find(|candidate| candidate.name.0 == reference.0)
+                            .and_then(|candidate| {
+                                ryo_values::domain::program::service::identity_of(candidate.name.1)
+                            }),
+                    );
                 }
             }
         }
     }
     for output in &mut program.observations {
-        if output.step.1.is_none() {
-            output.step.1 = program
+        if ryo_values::domain::program::service::identity_of(output.step.1).is_none() {
+            output.step.1 = ryo_values::domain::program::service::identified(
+                program
+                    .steps
+                    .iter()
+                    .rev()
+                    .find(|step| step.name.0 == output.step.0)
+                    .and_then(|step| {
+                        ryo_values::domain::program::service::identity_of(step.name.1)
+                    }),
+            );
+        }
+    }
+    if ryo_values::domain::program::service::identity_of(program.emit.step.1).is_none() {
+        program.emit.step.1 = ryo_values::domain::program::service::identified(
+            program
                 .steps
                 .iter()
                 .rev()
-                .find(|step| step.name.0 == output.step.0)
-                .and_then(|step| step.name.1);
-        }
-    }
-    if program.emit.step.1.is_none() {
-        program.emit.step.1 = program
-            .steps
-            .iter()
-            .rev()
-            .find(|step| step.name.0 == program.emit.step.0)
-            .and_then(|step| step.name.1);
+                .find(|step| step.name.0 == program.emit.step.0)
+                .and_then(|step| ryo_values::domain::program::service::identity_of(step.name.1)),
+        );
     }
 }
 
@@ -327,7 +345,11 @@ fn reject_cycles(
         path: &mut Vec<QueryTraceSite>,
     ) -> Result<(), LinkingError> {
         let _new_color = colors.insert(source.clone());
-        for import in imports.get(source).into_iter().flat_map(|index| index.0.values()) {
+        for import in imports
+            .get(source)
+            .into_iter()
+            .flat_map(|index| index.0.values())
+        {
             let target = source_id(source, import)?;
             let edge = trace_site(source, &target, import.span);
             if colors.contains(&target) {
@@ -400,26 +422,28 @@ fn expand(
         root_parameters,
         trace,
     )?;
-    let result_identity = fragment.result.step.1.ok_or_else(|| {
-        located(
-            source,
-            fragment.result.span,
-            trace.to_vec(),
-            super::constants::UNDECLARED_RETURNED_STEP,
-        )
-    })?;
-    let mut identities = BTreeMap::new();
-    for step in &fragment.steps {
-        let identity = step.name.1.ok_or_else(|| {
+    let result_identity = ryo_values::domain::program::service::identity_of(fragment.result.step.1)
+        .ok_or_else(|| {
             located(
                 source,
-                step.span,
+                fragment.result.span,
                 trace.to_vec(),
-                super::constants::MISSING_STEP_IDENTITY,
+                super::constants::UNDECLARED_RETURNED_STEP,
             )
         })?;
+    let mut identities = BTreeMap::new();
+    for step in &fragment.steps {
+        let identity =
+            ryo_values::domain::program::service::identity_of(step.name.1).ok_or_else(|| {
+                located(
+                    source,
+                    step.span,
+                    trace.to_vec(),
+                    super::constants::MISSING_STEP_IDENTITY,
+                )
+            })?;
         let replacement = if identity == result_identity {
-            result_name.1.ok_or_else(|| {
+            ryo_values::domain::program::service::identity_of(result_name.1).ok_or_else(|| {
                 located(
                     source,
                     call.span,
@@ -450,7 +474,9 @@ fn expand(
             &visible,
             trace,
         )?;
-        if step.name.1 == result_name.1 {
+        if ryo_values::domain::program::service::identity_of(step.name.1)
+            == ryo_values::domain::program::service::identity_of(result_name.1)
+        {
             step.name.0 = result_name.0.clone();
         }
         let mut step_trace = trace.to_vec();
@@ -460,7 +486,7 @@ fn expand(
             trace: step_trace.clone(),
         };
         origins.push(step_origin.clone());
-        if let Some(identity) = step.name.1 {
+        if let Some(identity) = ryo_values::domain::program::service::identity_of(step.name.1) {
             let _previous_step_origin = step_origins.insert(identity, step_origin);
         }
         if let Expression::Call(inner) = &step.expression
@@ -491,12 +517,14 @@ fn expand(
             expanded.push(step.clone());
         }
         let mut visible_step = original.clone();
-        visible_step.name.1 = step.name.1;
+        visible_step.name.1 = ryo_values::domain::program::service::identified(
+            ryo_values::domain::program::service::identity_of(step.name.1),
+        );
         visible.push(visible_step);
     }
     let first = expanded
         .first()
-        .and_then(|step| step.name.1)
+        .and_then(|step| ryo_values::domain::program::service::identity_of(step.name.1))
         .ok_or_else(|| {
             located(
                 source,
@@ -505,14 +533,15 @@ fn expand(
                 super::constants::EMPTY_FRAGMENT,
             )
         })?;
-    let result = result_name.1.ok_or_else(|| {
-        located(
-            source,
-            fragment.result.span,
-            trace.to_vec(),
-            super::constants::MISSING_RESULT_IDENTITY,
-        )
-    })?;
+    let result =
+        ryo_values::domain::program::service::identity_of(result_name.1).ok_or_else(|| {
+            located(
+                source,
+                fragment.result.span,
+                trace.to_vec(),
+                super::constants::MISSING_RESULT_IDENTITY,
+            )
+        })?;
     let input_contracts = fragment
         .inputs
         .iter()
@@ -621,7 +650,9 @@ fn bind_arguments(
                 ),
             ));
         }
-        let _previous_input = inputs.0.insert(FragmentBindingKey(input.name.0.clone()), value);
+        let _previous_input = inputs
+            .0
+            .insert(FragmentBindingKey(input.name.0.clone()), value);
     }
     let mut parameters = Bindings::default();
     for parameter in &fragment.parameters {
@@ -645,7 +676,9 @@ fn bind_arguments(
                 ),
             ));
         }
-        let _previous_parameter = parameters.0.insert(FragmentBindingKey(parameter.name.0.clone()), value);
+        let _previous_parameter = parameters
+            .0
+            .insert(FragmentBindingKey(parameter.name.0.clone()), value);
     }
     Ok(BoundArguments { inputs, parameters })
 }
@@ -717,8 +750,9 @@ fn remap_step(
     preceding: &[LetStep],
     trace: &[QueryTraceSite],
 ) -> Result<(), LinkingError> {
-    if let Some(identity) = step.name.1 {
-        step.name.1 = identities.get(&identity).copied();
+    if let Some(identity) = ryo_values::domain::program::service::identity_of(step.name.1) {
+        step.name.1 =
+            ryo_values::domain::program::service::identified(identities.get(&identity).copied());
     }
     match &mut step.expression {
         Expression::Select(select) => {
@@ -755,9 +789,14 @@ fn remap_select(
         let SourceReference::Step(reference) = &query_source.reference else {
             continue;
         };
-        let replacement = if let Some(identity) = reference.1 {
+        let replacement = if let Some(identity) =
+            ryo_values::domain::program::service::identity_of(reference.1)
+        {
             identities.get(&identity).copied().map(|identity| {
-                SourceReference::Step(StepName(reference.0.clone(), Some(identity)))
+                SourceReference::Step(StepName(
+                    reference.0.clone().into(),
+                    ryo_values::domain::program::types::StepIdentified::Assigned(identity),
+                ))
             })
         } else {
             inputs
@@ -767,9 +806,10 @@ fn remap_select(
                         ryo_values::domain::program::types::WrittenRelation(name.0.clone()),
                     )),
                     ArgumentValue::Step(step) => Some(SourceReference::Step(step.clone())),
-                    ArgumentValue::Word(word) => {
-                        Some(SourceReference::Step(StepName(word.0.clone(), None)))
-                    }
+                    ArgumentValue::Word(word) => Some(SourceReference::Step(StepName(
+                        word.0.clone().into(),
+                        ryo_values::domain::program::types::StepIdentified::Unassigned,
+                    ))),
                     ArgumentValue::Number(_)
                     | ArgumentValue::Parameter(_)
                     | ArgumentValue::List(_)
@@ -988,7 +1028,10 @@ fn source_id(
     source: &QuerySourceId,
     import: &ImportDeclaration,
 ) -> Result<QuerySourceId, LinkingError> {
-    ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling(&import.module.0)).map_err(|error| {
+    ryo_values::domain::program::service::source_id(
+        ryo_values::domain::program::types::QuerySpelling(&import.module.0),
+    )
+    .map_err(|error| {
         located(
             source,
             import.span,
@@ -1034,7 +1077,7 @@ fn attribute_root(program: &mut WrittenProgram, root: &QuerySourceId) {
         });
     }
     for step in &program.steps {
-        if let Some(identity) = step.name.1 {
+        if let Some(identity) = ryo_values::domain::program::service::identity_of(step.name.1) {
             let _root_step_origin =
                 program
                     .step_origins
@@ -1122,7 +1165,7 @@ fn bind_declared_sources(
                 };
                 for input in std::iter::once(&mut select.from).chain(joined) {
                     if let SourceReference::Step(name) = &input.reference
-                        && name.1.is_none()
+                        && ryo_values::domain::program::service::identity_of(name.1).is_none()
                         && names.contains(name.0.as_ref())
                     {
                         input.reference = SourceReference::Relation(
@@ -1157,7 +1200,9 @@ fn bind_declared_sources(
                             Some(name.0.clone())
                         }
                         ArgumentValue::Step(name)
-                            if name.1.is_none() && names.contains(name.0.as_ref()) =>
+                            if ryo_values::domain::program::service::identity_of(name.1)
+                                .is_none()
+                                && names.contains(name.0.as_ref()) =>
                         {
                             Some(name.0.clone())
                         }

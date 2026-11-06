@@ -26,7 +26,10 @@ fn text(value: &str) -> syntax::ArgumentValue {
     syntax::ArgumentValue::Text(syntax::WrittenLiteral(value.into()))
 }
 fn name() -> syntax::StepName {
-    syntax::StepName("result".into(), None)
+    syntax::StepName(
+        "result".into(),
+        ryo_values::domain::program::types::StepIdentified::Unassigned,
+    )
 }
 
 fn all_set_operations_keep_both_typed_inputs() {

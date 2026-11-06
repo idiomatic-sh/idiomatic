@@ -3,7 +3,7 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
-use ryo_values::domain::program::types::{WrittenProgram, QueryBundle};
+use ryo_values::domain::program::types::{QueryBundle, WrittenProgram};
 
 type Input = fn();
 type Value = ();
@@ -60,16 +60,25 @@ fn a_fragment_cannot_forward_an_undeclared_caller_parameter() {
     let inner = "param secret: string;\noutput relation<id: node>;\nlet rows = select id from \"syntax-tree\";\nreturn rows;";
     let bundle = ryo_values::domain::program::service::query_bundle(
         ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap(),
+            ryo_values::domain::program::service::source_id(
+                ryo_values::domain::program::types::QuerySpelling("root"),
+            )
+            .unwrap(),
             root,
         ),
         [
             ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("outer")).unwrap(),
+                ryo_values::domain::program::service::source_id(
+                    ryo_values::domain::program::types::QuerySpelling("outer"),
+                )
+                .unwrap(),
                 outer,
             ),
             ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("inner")).unwrap(),
+                ryo_values::domain::program::service::source_id(
+                    ryo_values::domain::program::types::QuerySpelling("inner"),
+                )
+                .unwrap(),
                 inner,
             ),
         ],
@@ -110,11 +119,17 @@ fn duplicate_fragment_aliases_and_invalid_signatures_are_refused() {
     for (expected, module) in cases {
         let bundle = ryo_values::domain::program::service::query_bundle(
             ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap(),
+                ryo_values::domain::program::service::source_id(
+                    ryo_values::domain::program::types::QuerySpelling("root"),
+                )
+                .unwrap(),
                 root,
             ),
             [ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("query")).unwrap(),
+                ryo_values::domain::program::service::source_id(
+                    ryo_values::domain::program::types::QuerySpelling("query"),
+                )
+                .unwrap(),
                 module,
             )],
         )

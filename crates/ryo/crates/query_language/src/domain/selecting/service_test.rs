@@ -34,7 +34,10 @@ fn projection_is_typed_and_file_scoped() {
     let mut builder = lowering_builder();
     super::service::lower_select(
         &mut builder,
-        &syntax::StepName("result".into(), None),
+        &syntax::StepName(
+            "result".into(),
+            ryo_values::domain::program::types::StepIdentified::Unassigned,
+        ),
         &select("file"),
     )
     .unwrap();
@@ -56,7 +59,10 @@ fn invalid_projection_keeps_exact_column_error() {
     assert_eq!(
         super::service::lower_select(
             &mut builder,
-            &syntax::StepName("result".into(), None),
+            &syntax::StepName(
+                "result".into(),
+                ryo_values::domain::program::types::StepIdentified::Unassigned
+            ),
             &select("missing")
         ),
         Err(LoweringError::UnknownColumn {

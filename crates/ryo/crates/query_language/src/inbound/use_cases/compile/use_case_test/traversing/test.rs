@@ -3,7 +3,6 @@
 use ryo_relations::domain::relations::types::Relation;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::selects;
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::ArgumentFault;
 use crate::domain::lowering::types::Builder;
@@ -12,9 +11,10 @@ use crate::domain::syntax::constants::operator_named;
 use crate::domain::traversing::service::{call_axis, call_closure, call_ordered_dfs};
 use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
+use crate::selects;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
-use ryo_values::domain::plans::types::{Operation, PlanStep, QueryOperator};
 use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::plans::types::{Operation, PlanStep, QueryOperator};
 use ryo_values::domain::program::types::{Expression, QueryView};
 
 /// The query text a row gives.
@@ -23,7 +23,6 @@ type Input = &'static str;
 type Value = &'static str;
 /// What the lowering refuses a row with.
 type Failure = LoweringError;
-
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[

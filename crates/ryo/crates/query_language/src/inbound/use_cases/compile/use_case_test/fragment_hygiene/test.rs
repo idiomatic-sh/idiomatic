@@ -4,7 +4,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use ryo_values::domain::program::types::{Expression, WordText, WrittenLiteral};
-use ryo_values::domain::program::types::{WrittenProgram, QueryBundle};
+use ryo_values::domain::program::types::{QueryBundle, WrittenProgram};
 
 type Input = fn();
 type Value = ();
@@ -53,8 +53,14 @@ fn fragment_calls_are_hygienic_and_only_relation_slots_are_linked() {
     use crate::outbound::syntax::interface::SyntaxPort as _;
     use ryo_values::domain::program::types::ArgumentValue;
 
-    let root_id = ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap();
-    let module_id = ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("library/summarize")).unwrap();
+    let root_id = ryo_values::domain::program::service::source_id(
+        ryo_values::domain::program::types::QuerySpelling("root"),
+    )
+    .unwrap();
+    let module_id = ryo_values::domain::program::service::source_id(
+        ryo_values::domain::program::types::QuerySpelling("library/summarize"),
+    )
+    .unwrap();
     let root = "import summarize from \"library/summarize\";\nlet id = select id from \"syntax-tree\";\nlet first = summarize(id=id, label=\"first\");\nlet second = summarize(id=id, label=\"second\");\nemit second subject id key(id);";
     let module = "input id: relation<id: node>;\nparam label: string;\noutput relation<id: node>;\nlet grouped = group-count(from=id, keys=[\"id\"], count=\"n\");\nlet linked = closure(edges=grouped, source=id, destination=grouped, keys=[id]);\nlet matched = capture(from=linked, path=\"path\", pattern=$label, captures=[\"group\"]);\nreturn matched;";
     let bundle = ryo_values::domain::program::service::query_bundle(
@@ -83,7 +89,7 @@ fn fragment_calls_are_hygienic_and_only_relation_slots_are_linked() {
             .find(|argument| argument.name.0.as_ref() == "from")
             .unwrap();
         assert!(
-            matches!(&from.value, ArgumentValue::Step(name) if name.1 == Some(program.steps[0].name.1.unwrap()))
+            matches!(&from.value, ArgumentValue::Step(name) if ryo_values::domain::program::service::identity_of(name.1) == Some(ryo_values::domain::program::service::identity_of(program.steps[0].name.1).unwrap()))
         );
         let keys = call
             .arguments
@@ -94,7 +100,7 @@ fn fragment_calls_are_hygienic_and_only_relation_slots_are_linked() {
             keys.value,
             ArgumentValue::List(vec![ArgumentValue::Text(WrittenLiteral("id".into()))])
         );
-        group_ids.push(step.name.1.unwrap());
+        group_ids.push(ryo_values::domain::program::service::identity_of(step.name.1).unwrap());
     }
     assert_ne!(group_ids[0], group_ids[1]);
 
@@ -112,7 +118,7 @@ fn fragment_calls_are_hygienic_and_only_relation_slots_are_linked() {
             argument("edges").value,
             ArgumentValue::Step(ryo_values::domain::program::types::StepName(
                 "grouped".into(),
-                Some(group_ids[place])
+                ryo_values::domain::program::types::StepIdentified::Assigned(group_ids[place])
             ))
         );
         assert_eq!(
@@ -167,11 +173,15 @@ fn fragment_calls_are_hygienic_and_only_relation_slots_are_linked() {
         [
             ArgumentValue::Step(ryo_values::domain::program::types::StepName(
                 "linked".into(),
-                Some(linked[0].name.1.unwrap())
+                ryo_values::domain::program::types::StepIdentified::Assigned(
+                    ryo_values::domain::program::service::identity_of(linked[0].name.1).unwrap()
+                )
             )),
             ArgumentValue::Step(ryo_values::domain::program::types::StepName(
                 "linked".into(),
-                Some(linked[1].name.1.unwrap())
+                ryo_values::domain::program::types::StepIdentified::Assigned(
+                    ryo_values::domain::program::service::identity_of(linked[1].name.1).unwrap()
+                )
             )),
         ]
     );
@@ -181,9 +191,18 @@ fn nested_fragments_forward_relation_and_scalar_inputs() {
     use crate::outbound::syntax::interface::SyntaxPort as _;
     use ryo_values::domain::program::types::{ArgumentValue, ParsedQueryBundle};
 
-    let root_id = ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap();
-    let outer_id = ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("outer")).unwrap();
-    let inner_id = ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("inner")).unwrap();
+    let root_id = ryo_values::domain::program::service::source_id(
+        ryo_values::domain::program::types::QuerySpelling("root"),
+    )
+    .unwrap();
+    let outer_id = ryo_values::domain::program::service::source_id(
+        ryo_values::domain::program::types::QuerySpelling("outer"),
+    )
+    .unwrap();
+    let inner_id = ryo_values::domain::program::service::source_id(
+        ryo_values::domain::program::types::QuerySpelling("inner"),
+    )
+    .unwrap();
     let root_source = "import outer from \"outer\";\nlet source = select id from \"syntax-tree\";\nlet first = outer(source=source, label=\"a\");\nlet second = outer(source=source, label=\"b\");\nemit second subject id key(id);";
     let outer = "import inner from \"inner\";\ninput source: relation<id: node>;\nparam label: string;\noutput relation<id: node>;\nlet found = inner(rows=source, label=$label);\nreturn found;";
     let inner = "input rows: relation<id: node>;\nparam label: string;\noutput relation<id: node>;\nlet found = capture(from=rows, path=\"id\", pattern=$label, captures=[\"hit\"]);\nreturn found;";
@@ -211,7 +230,7 @@ fn nested_fragments_forward_relation_and_scalar_inputs() {
             .find(|argument| argument.name.0.as_ref() == "from")
             .unwrap();
         assert!(
-            matches!(&source.value, ArgumentValue::Step(name) if name.1 == Some(program.steps[0].name.1.unwrap()))
+            matches!(&source.value, ArgumentValue::Step(name) if ryo_values::domain::program::service::identity_of(name.1) == Some(ryo_values::domain::program::service::identity_of(program.steps[0].name.1).unwrap()))
         );
         let value = call
             .arguments
@@ -235,20 +254,32 @@ fn fragment_scope_does_not_capture_caller_steps_or_import_aliases() {
         "output relation<id: node>;\nlet rows = select id from \"syntax-tree\";\nreturn rows;";
     let bundle = ryo_values::domain::program::service::query_bundle(
         ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap(),
+            ryo_values::domain::program::service::source_id(
+                ryo_values::domain::program::types::QuerySpelling("root"),
+            )
+            .unwrap(),
             root,
         ),
         [
             ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("outer")).unwrap(),
+                ryo_values::domain::program::service::source_id(
+                    ryo_values::domain::program::types::QuerySpelling("outer"),
+                )
+                .unwrap(),
                 outer,
             ),
             ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("outer/nested")).unwrap(),
+                ryo_values::domain::program::service::source_id(
+                    ryo_values::domain::program::types::QuerySpelling("outer/nested"),
+                )
+                .unwrap(),
                 outer_identity,
             ),
             ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root/nested")).unwrap(),
+                ryo_values::domain::program::service::source_id(
+                    ryo_values::domain::program::types::QuerySpelling("root/nested"),
+                )
+                .unwrap(),
                 root_identity,
             ),
         ],
@@ -269,7 +300,7 @@ fn fragment_scope_does_not_capture_caller_steps_or_import_aliases() {
             ArgumentValue::Word(WordText(reference.into()))
         );
     }
-    let result = program.emit.step.1.unwrap();
+    let result = ryo_values::domain::program::service::identity_of(program.emit.step.1).unwrap();
     assert_eq!(
         program.step_origins[&result].source_id.0.as_ref(),
         "outer/nested"

@@ -3,7 +3,6 @@
 use ryo_relations::domain::relations::types::Relation;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::selects;
 use crate::domain::comparing::service::comparison_of;
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{Addressable, Builder, Sourced};
@@ -11,6 +10,7 @@ use crate::domain::resolving::service::read_source;
 use crate::domain::syntax::constants::parameter_kind_named;
 use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
+use crate::selects;
 use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::program::types::{Condition, Expression, QueryView};
 

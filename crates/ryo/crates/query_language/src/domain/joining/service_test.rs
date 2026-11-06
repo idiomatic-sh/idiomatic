@@ -43,7 +43,10 @@ fn lower(key: &str) -> Result<plans::Operation, LoweringError> {
     let input = crate::domain::resolving::service::read_source(&mut builder, &select.from)?;
     super::service::select_join(
         &mut builder,
-        &syntax::StepName("result".into(), None),
+        &syntax::StepName(
+            "result".into(),
+            ryo_values::domain::program::types::StepIdentified::Unassigned,
+        ),
         &select,
         &join,
         input,
@@ -108,7 +111,10 @@ fn refusal_of(key: syntax::JoinKey, filters: Vec<syntax::Condition>) -> Lowering
         .expect("the source is read");
     super::service::select_join(
         &mut builder,
-        &syntax::StepName("result".into(), None),
+        &syntax::StepName(
+            "result".into(),
+            ryo_values::domain::program::types::StepIdentified::Unassigned,
+        ),
         &select,
         &join,
         input,

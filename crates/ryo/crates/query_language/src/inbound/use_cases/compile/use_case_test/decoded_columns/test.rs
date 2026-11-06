@@ -13,9 +13,9 @@ use ryo_values::domain::program::types::Condition;
 use ryo_values::domain::program::types::Expression;
 use ryo_values::domain::program::types::QueryView;
 
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::lowering::errors::LoweringError;
 use crate::outbound::syntax::interface::SyntaxPort as _;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::selects;
 
 const UNKNOWN_KIND: &str =

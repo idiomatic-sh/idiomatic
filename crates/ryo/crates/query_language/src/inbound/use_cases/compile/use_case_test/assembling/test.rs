@@ -3,18 +3,18 @@
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::selects;
 use crate::domain::assembling::service::lower;
 use crate::domain::lowering::errors::LoweringError;
 use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
+use crate::selects;
 use ryo_values::domain::hosted::types::ColumnLabel;
 use ryo_values::domain::hosted::types::HostedColumn;
 use ryo_values::domain::hosted::types::HostedName;
 use ryo_values::domain::hosted::types::HostedRelation;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
-use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::program::types::QueryView;
 
 /// The query text a row gives.
@@ -128,15 +128,27 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
     Case {
-        name: CaseName("actual_compilation_removes_global_closure_for_partition_and_source_keyed_lookups"),
+        name: CaseName(
+            "actual_compilation_removes_global_closure_for_partition_and_source_keyed_lookups",
+        ),
         word: Word::Succeeds,
-        input: || Scenario::Check(actual_compilation_removes_global_closure_for_partition_and_source_keyed_lookups),
+        input: || {
+            Scenario::Check(
+                actual_compilation_removes_global_closure_for_partition_and_source_keyed_lookups,
+            )
+        },
         expect: Expect::Value(Answer::Checked),
     },
     Case {
-        name: CaseName("authored_projected_edge_and_shared_consumers_lower_to_demand_in_the_real_pipeline"),
+        name: CaseName(
+            "authored_projected_edge_and_shared_consumers_lower_to_demand_in_the_real_pipeline",
+        ),
         word: Word::Succeeds,
-        input: || Scenario::Check(authored_projected_edge_and_shared_consumers_lower_to_demand_in_the_real_pipeline),
+        input: || {
+            Scenario::Check(
+                authored_projected_edge_and_shared_consumers_lower_to_demand_in_the_real_pipeline,
+            )
+        },
         expect: Expect::Value(Answer::Checked),
     },
 ];

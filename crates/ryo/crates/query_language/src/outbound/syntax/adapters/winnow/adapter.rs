@@ -183,11 +183,15 @@ pub(super) fn program(input: &mut Input<'_>) -> ModalResult<WrittenProgram> {
         Some(mut emit) => {
             assign_step_identities(&mut steps, &mut emit.step);
             for output in &mut observations {
-                output.step.1 = steps
-                    .iter()
-                    .rev()
-                    .find(|step| step.name.0 == output.step.0)
-                    .and_then(|step| step.name.1);
+                output.step.1 = ryo_values::domain::program::service::identified(
+                    steps
+                        .iter()
+                        .rev()
+                        .find(|step| step.name.0 == output.step.0)
+                        .and_then(|step| {
+                            ryo_values::domain::program::service::identity_of(step.name.1)
+                        }),
+                );
             }
             Ok(WrittenProgram {
                 linked: false,
@@ -270,7 +274,9 @@ pub(super) fn fragment_program(input: &mut Input<'_>) -> ModalResult<FragmentPro
 /// Assigns each local step an identity and resolves only preceding local references.
 fn assign_step_identities(steps: &mut [LetStep], result: &mut StepName) {
     for (place, step) in steps.iter_mut().enumerate() {
-        step.name.1 = Some(StepIdentity(u64::try_from(place).unwrap_or(u64::MAX)));
+        step.name.1 = ryo_values::domain::program::service::identified(Some(StepIdentity(
+            u64::try_from(place).unwrap_or(u64::MAX),
+        )));
     }
     for place in 0..steps.len() {
         let (preceding, current) = steps.split_at_mut(place);
@@ -286,21 +292,29 @@ fn assign_step_identities(steps: &mut [LetStep], result: &mut StepName) {
             }
         }
     }
-    result.1 = steps
-        .iter()
-        .rev()
-        .find(|candidate| candidate.name.0 == result.0)
-        .and_then(|candidate| candidate.name.1);
+    result.1 = ryo_values::domain::program::service::identified(
+        steps
+            .iter()
+            .rev()
+            .find(|candidate| candidate.name.0 == result.0)
+            .and_then(|candidate| {
+                ryo_values::domain::program::service::identity_of(candidate.name.1)
+            }),
+    );
 }
 
 /// Resolves a step source only when an earlier definition with that name exists.
 fn resolve_source_step(source: &mut QuerySource, preceding: &[LetStep]) {
     if let SourceReference::Step(reference) = &mut source.reference {
-        reference.1 = preceding
-            .iter()
-            .rev()
-            .find(|candidate| candidate.name.0 == reference.0)
-            .and_then(|candidate| candidate.name.1);
+        reference.1 = ryo_values::domain::program::service::identified(
+            preceding
+                .iter()
+                .rev()
+                .find(|candidate| candidate.name.0 == reference.0)
+                .and_then(|candidate| {
+                    ryo_values::domain::program::service::identity_of(candidate.name.1)
+                }),
+        );
     }
 }
 
@@ -392,7 +406,12 @@ pub(super) fn relation_signature(input: &mut Input<'_>) -> ModalResult<RelationS
 pub(super) fn fragment_return_line(input: &mut Input<'_>) -> ModalResult<FragmentReturn> {
     let (step, span) = delimited(
         (keyword(Keyword::Return), multispace1),
-        word.map(|name| StepName(Box::from(name.0), None)),
+        word.map(|name| {
+            StepName(
+                ryo_values::domain::program::types::StepSpelling::from(name.0),
+                ryo_values::domain::program::types::StepIdentified::Unassigned,
+            )
+        }),
         (multispace0, ';'),
     )
     .with_span()
@@ -431,7 +450,10 @@ pub(super) fn observe_line(input: &mut Input<'_>) -> ModalResult<WrittenObservat
     .with_span()
     .parse_next(input)?;
     Ok(WrittenObservation {
-        step: StepName(step.0.into(), None),
+        step: StepName(
+            step.0.into(),
+            ryo_values::domain::program::types::StepIdentified::Unassigned,
+        ),
         name: ryo_values::domain::observations::types::ObservationName(name.0.into()),
         span: QuerySpan {
             start: ByteOffset(span.start),
@@ -498,7 +520,10 @@ pub(super) fn step_line(input: &mut Input<'_>) -> ModalResult<LetStep> {
     .with_span()
     .parse_next(input)?;
     Ok(LetStep {
-        name: StepName(Box::from(name.0), None),
+        name: StepName(
+            ryo_values::domain::program::types::StepSpelling::from(name.0),
+            ryo_values::domain::program::types::StepIdentified::Unassigned,
+        ),
         expression,
         span: QuerySpan {
             start: ByteOffset(span.start),
@@ -533,7 +558,10 @@ pub(super) fn emit_line(input: &mut Input<'_>) -> ModalResult<WrittenEmit> {
     .parse_next(input)?;
     let key: Vec<ColumnName> = key;
     Ok(WrittenEmit {
-        step: StepName(Box::from(step.0), None),
+        step: StepName(
+            ryo_values::domain::program::types::StepSpelling::from(step.0),
+            ryo_values::domain::program::types::StepIdentified::Unassigned,
+        ),
         subject,
         key,
         span: QuerySpan {
@@ -591,7 +619,12 @@ pub(super) fn source(input: &mut Input<'_>) -> ModalResult<QuerySource> {
     let ((reference, alias), span) = (
         alt((
             string.map(|name| SourceReference::Relation(WrittenRelation(name.0))),
-            word.map(|name| SourceReference::Step(StepName(Box::from(name.0), None))),
+            word.map(|name| {
+                SourceReference::Step(StepName(
+                    ryo_values::domain::program::types::StepSpelling::from(name.0),
+                    ryo_values::domain::program::types::StepIdentified::Unassigned,
+                ))
+            }),
         )),
         opt(preceded(
             (multispace1, keyword(Keyword::As), multispace1),

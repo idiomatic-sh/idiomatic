@@ -1,55 +1,13 @@
 //! Conservatively fuse exclusively source-keyed closure consumers into physical demand joins.
 
+use crate::domain::fusing::types::{EmptyColumns, GraphInput, GraphSource, Purity, RootStep};
 use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input, Operand, ReachLookup, RepeatedRows, StepId, Test,
 };
 use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::{Operation, PlanStep};
-use ryo_values::domain::plan_parts::types::StepScope;
-
-/// Which step of the plan a closure sits at.
-#[derive(Clone, Copy, PartialEq, Eq)]
-struct RootStep(usize);
-
-/// What an empty list of columns means to the step that holds it.
-#[derive(Clone, Copy)]
-enum EmptyColumns {
-    /// An empty select keeps every column.
-    KeepsEvery,
-    /// An empty project keeps no column.
-    KeepsNone,
-}
-
-/// Whether a chain of steps ends at a stored relation the closure can be pulled to.
-#[derive(Clone, Copy)]
-enum GraphInput {
-    /// A stored relation, or a pure chain over one.
-    Stored,
-    /// Anything else.
-    Unsupported,
-}
-
-/// Whether a comparison is safe to evaluate in another place.
-#[derive(Clone, Copy)]
-enum Purity {
-    /// Plain values and plain tests.
-    Pure,
-    /// A function or pattern that can fail.
-    ErrorSensitive,
-}
-
-/// The graph a closure reads, with its endpoints and partition keys, after pulling through views.
-struct GraphSource {
-    /// The pulled-through input.
-    input: Input,
-    /// The source endpoint column.
-    source: ColumnIndex,
-    /// The destination endpoint column.
-    destination: ColumnIndex,
-    /// The partition keys.
-    keys: Vec<ColumnIndex>,
-}
 
 /// One closure and the pure projection map through which a consumer sees its logical RHS.
 #[derive(Clone)]
@@ -89,7 +47,10 @@ impl<'a> DemandClosure<'a> {
             .collect();
         let mut safe = vec![true; self.steps.len()];
         for protected in self.protected {
-            if let Some(root) = rooted.get(usize::try_from(protected.0).unwrap_or(usize::MAX)).and_then(Option::as_ref) {
+            if let Some(root) = rooted
+                .get(usize::try_from(protected.0).unwrap_or(usize::MAX))
+                .and_then(Option::as_ref)
+            {
                 safe[root.root.0] = false;
             }
         }
@@ -98,7 +59,10 @@ impl<'a> DemandClosure<'a> {
                 let Input::Step(id) = input else {
                     continue;
                 };
-                let Some(root) = rooted.get(usize::try_from(id.0).unwrap_or(usize::MAX)).and_then(Option::as_ref) else {
+                let Some(root) = rooted
+                    .get(usize::try_from(id.0).unwrap_or(usize::MAX))
+                    .and_then(Option::as_ref)
+                else {
                     continue;
                 };
                 let wrapper = rooted[index]
@@ -186,12 +150,24 @@ impl<'a> DemandClosure<'a> {
                 from: Input::Step(id),
                 columns,
                 distinct: RepeatedRows::Kept,
-            } => project(before.get(usize::try_from(id.0).unwrap_or(usize::MAX))?.as_ref()?, columns, EmptyColumns::KeepsNone),
+            } => project(
+                before
+                    .get(usize::try_from(id.0).unwrap_or(usize::MAX))?
+                    .as_ref()?,
+                columns,
+                EmptyColumns::KeepsNone,
+            ),
             Operation::Select {
                 from: Input::Step(id),
                 comparisons,
                 kept,
-            } if comparisons.is_empty() => project(before.get(usize::try_from(id.0).unwrap_or(usize::MAX))?.as_ref()?, kept, EmptyColumns::KeepsEvery),
+            } if comparisons.is_empty() => project(
+                before
+                    .get(usize::try_from(id.0).unwrap_or(usize::MAX))?
+                    .as_ref()?,
+                kept,
+                EmptyColumns::KeepsEvery,
+            ),
             Operation::Select { .. }
             | Operation::Project { .. }
             | Operation::Extend { .. }
@@ -238,7 +214,9 @@ fn candidate(step: &PlanStep, rooted: &[Option<Rooted>]) -> Option<Rooted> {
     if step.scope != StepScope::PerFile || !filter.is_empty() || !view.is_empty() {
         return None;
     }
-    let root = rooted.get(usize::try_from(id.0).unwrap_or(usize::MAX))?.as_ref()?;
+    let root = rooted
+        .get(usize::try_from(id.0).unwrap_or(usize::MAX))?
+        .as_ref()?;
     if let Input::Step(left) = left
         && rooted
             .get(usize::try_from(left.0).unwrap_or(usize::MAX))
@@ -249,7 +227,12 @@ fn candidate(step: &PlanStep, rooted: &[Option<Rooted>]) -> Option<Rooted> {
     }
     let bound: Vec<_> = right_on
         .iter()
-        .map(|column| root.reach.columns.get(usize::try_from(column.0).unwrap_or(usize::MAX)).copied())
+        .map(|column| {
+            root.reach
+                .columns
+                .get(usize::try_from(column.0).unwrap_or(usize::MAX))
+                .copied()
+        })
         .collect::<Option<_>>()?;
     (0..=root.reach.keys.len())
         .all(|column| bound.contains(&ColumnIndex(u32::try_from(column).unwrap_or(u32::MAX))))
@@ -262,7 +245,12 @@ fn project(root: &Rooted, columns: &[ColumnIndex], empty: EmptyColumns) -> Optio
     if matches!(empty, EmptyColumns::KeepsNone) || !columns.is_empty() {
         result.reach.columns = columns
             .iter()
-            .map(|column| root.reach.columns.get(usize::try_from(column.0).unwrap_or(usize::MAX)).copied())
+            .map(|column| {
+                root.reach
+                    .columns
+                    .get(usize::try_from(column.0).unwrap_or(usize::MAX))
+                    .copied()
+            })
             .collect::<Option<_>>()?;
     }
     Some(result)
@@ -330,7 +318,11 @@ fn graph_source(
         }
         let mapped = used
             .iter()
-            .map(|column| columns.get(usize::try_from(column.0).unwrap_or(usize::MAX)).copied())
+            .map(|column| {
+                columns
+                    .get(usize::try_from(column.0).unwrap_or(usize::MAX))
+                    .copied()
+            })
             .collect::<Option<Vec<_>>>()?;
         if columns.iter().any(|column| !mapped.contains(column)) {
             break;
@@ -373,7 +365,12 @@ fn graph_input(mut input: Input, steps: &[PlanStep]) -> GraphInput {
                     } => *from,
                     Operation::Select {
                         from, comparisons, ..
-                    } if comparisons.iter().all(|comparison| matches!(purity(comparison), Purity::Pure)) => *from,
+                    } if comparisons
+                        .iter()
+                        .all(|comparison| matches!(purity(comparison), Purity::Pure)) =>
+                    {
+                        *from
+                    }
                     Operation::Select { .. }
                     | Operation::Project { .. }
                     | Operation::Extend { .. }

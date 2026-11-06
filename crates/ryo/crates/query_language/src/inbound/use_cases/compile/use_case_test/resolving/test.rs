@@ -3,12 +3,12 @@
 use ryo_relations::domain::relations::types::Relation;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::selects;
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{Builder, Sourced};
 use crate::domain::resolving::service::{column_of, position, read_source};
 use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
+use crate::selects;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::program::types::{
     Condition, Expression, QuerySpelling, QueryView, WrittenOperand,

@@ -47,7 +47,13 @@ fn a_relation_the_catalog_lacks_is_refused() {
 fn a_step_nobody_defined_is_refused() {
     let builder = lowering_builder();
     assert!(matches!(
-        super::service::step_named(&builder, &syntax::StepName("missing".into(), None)),
+        super::service::step_named(
+            &builder,
+            &syntax::StepName(
+                "missing".into(),
+                ryo_values::domain::program::types::StepIdentified::Unassigned
+            )
+        ),
         Err(LoweringError::UnknownStep { .. })
     ));
 }

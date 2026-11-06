@@ -1,8 +1,11 @@
 //! A word compared with the kind column of `defines`, from the compile inbound API.
 
 use super::super::{Given, NOWHERE, compile_twice, program_with, read_function};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::inbound::use_cases::compile::errors::CompileError;
 use crate::outbound::catalog::fixtures::fake::CatalogFake;
 use crate::outbound::syntax::fixtures::fake::SyntaxFake;
+use crate::selects;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::program::types::Alias;
@@ -15,9 +18,6 @@ use ryo_values::domain::program::types::WrittenOperand;
 use ryo_values::domain::program::types::WrittenProgram;
 use ryo_values::domain::program::types::WrittenRelation;
 use ryo_values::domain::program::types::WrittenTest;
-use crate::inbound::use_cases::compile::errors::CompileError;
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::selects;
 
 /// What a row gives the use case.
 type Input = fn() -> Given;

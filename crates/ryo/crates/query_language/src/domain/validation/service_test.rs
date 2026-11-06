@@ -1,13 +1,18 @@
 //! Validation consumes typed syntax and catalog values without calling a parser or port.
 
 use super::errors::ValidationError;
-use super::service::validate;
+use super::service::validate_with_observations;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::selects;
 use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::observations::types::ObservationName;
-use ryo_values::domain::program::types::{Alias, ByteOffset, Call, Columns, Condition, Expression, Filter, Join, Joining, LetStep, OperationName, WrittenProgram, QueryOrigin, QuerySource, QuerySourceId, QuerySpan, Select, SourceReference, StepIdentity, StepName, WrittenEmit, WrittenLiteral, WrittenObservation, WrittenOperand, WrittenParameter, WrittenRelation, WrittenTest};
 use ryo_values::domain::descriptions::types::ColumnName;
+use ryo_values::domain::observations::types::ObservationName;
+use ryo_values::domain::program::types::{
+    Alias, ByteOffset, Call, Columns, Condition, Expression, Filter, Join, Joining, LetStep,
+    OperationName, QueryOrigin, QuerySource, QuerySourceId, QuerySpan, Select, SourceReference,
+    StepIdentity, StepName, WrittenEmit, WrittenLiteral, WrittenObservation, WrittenOperand,
+    WrittenParameter, WrittenProgram, WrittenRelation, WrittenTest,
+};
 
 #[derive(Clone, Copy)]
 enum Scenario {
@@ -91,7 +96,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::UndeclaredParameter,
         expect: Expect::Refusal(|error| {
-            selects!(matches!(error, ValidationError::UnknownParameter { span, .. } if *span == SPAN))
+            selects!(
+                matches!(error, ValidationError::UnknownParameter { span, .. } if *span == SPAN)
+            )
         }),
     },
     Case {
@@ -99,7 +106,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::UnknownOperation,
         expect: Expect::Refusal(|error| {
-            selects!(matches!(error, ValidationError::UnknownOperation { span, .. } if *span == SPAN))
+            selects!(
+                matches!(error, ValidationError::UnknownOperation { span, .. } if *span == SPAN)
+            )
         }),
     },
     Case {
@@ -122,15 +131,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("step_error_names_the_origin_of_its_fragment"),
         word: Word::Refuses,
         input: || Scenario::LocatedStep,
-        expect: Expect::Refusal(|error| {
-            selects!(matches!(error, ValidationError::Located { .. }))
-        }),
+        expect: Expect::Refusal(|error| selects!(matches!(error, ValidationError::Located { .. }))),
     },
 ];
 
 fn source(relation: &str) -> LetStep {
     LetStep {
-        name: StepName("rows".into(), None),
+        name: StepName(
+            "rows".into(),
+            ryo_values::domain::program::types::StepIdentified::Unassigned,
+        ),
         expression: Expression::Select(Select {
             columns: Columns::Every,
             from: QuerySource {
@@ -157,7 +167,10 @@ fn filtered(filter: Filter) -> LetStep {
 /// A step that is the call of the operation `name`, given no arguments.
 fn called(name: &str) -> LetStep {
     LetStep {
-        name: StepName("rows".into(), None),
+        name: StepName(
+            "rows".into(),
+            ryo_values::domain::program::types::StepIdentified::Unassigned,
+        ),
         expression: Expression::Call(Call {
             name: OperationName(name.into()),
             arguments: Vec::new(),
@@ -169,7 +182,10 @@ fn called(name: &str) -> LetStep {
 
 fn observation(name: &str) -> WrittenObservation {
     WrittenObservation {
-        step: StepName("rows".into(), None),
+        step: StepName(
+            "rows".into(),
+            ryo_values::domain::program::types::StepIdentified::Unassigned,
+        ),
         name: ObservationName(name.into()),
         span: SPAN,
         origin: None,
@@ -188,7 +204,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         parameters: Vec::new(),
         steps: vec![source("function")],
         emit: WrittenEmit {
-            step: StepName("rows".into(), None),
+            step: StepName(
+                "rows".into(),
+                ryo_values::domain::program::types::StepIdentified::Unassigned,
+            ),
             subject: ColumnName("file".into()),
             key: vec![ColumnName("span".into())],
             span: SPAN,
@@ -197,7 +216,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
         Scenario::Valid => {}
         Scenario::UnknownRelation => program.steps = vec![source("nothing")],
-        Scenario::MissingEmitStep => program.emit.step = StepName("missing".into(), None),
+        Scenario::MissingEmitStep => {
+            program.emit.step = StepName(
+                "missing".into(),
+                ryo_values::domain::program::types::StepIdentified::Unassigned,
+            )
+        }
         Scenario::UndeclaredParameter => {
             program.steps = vec![filtered(Filter {
                 left: WrittenOperand::Parameter(WrittenParameter("limit".into())),
@@ -221,7 +245,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::LocatedStep => {
             let identity = StepIdentity(1);
             let mut unknown = source("nothing");
-            unknown.name = StepName("rows".into(), Some(identity));
+            unknown.name = StepName(
+                "rows".into(),
+                ryo_values::domain::program::types::StepIdentified::Assigned(identity),
+            );
             program.steps = vec![unknown];
             program.step_origins.insert(
                 identity,
@@ -238,7 +265,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             program.observations = vec![observation("exported"), observation("exported")]
         }
     }
-    validate(&program, &[Relation::Function], &[])
+    validate_with_observations(&program, &[Relation::Function], &[], &[])
 }
 
 #[test]

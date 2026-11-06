@@ -2,11 +2,11 @@
 
 use super::value::DemandClosure;
 use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, PlanComparison, Input, JoinColumn, Operand, RepeatedRows, Side, StepId, Test,
+    ColumnIndex, Input, JoinColumn, Operand, PlanComparison, RepeatedRows, Side, StepId, Test,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep};
-use ryo_values::domain::plan_parts::types::StepScope;
 
 fn step(operation: Operation) -> PlanStep {
     PlanStep {

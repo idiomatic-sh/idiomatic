@@ -1,30 +1,46 @@
 //! The `calling` service: the calls that shape rows (`project`, `extend`, `join` and `antijoin`) and the dispatch of every call to its lowering.
 
-use ryo_relations::domain::relations::types::CellKind;
-use ryo_relations::domain::terms::types::Vocabulary;
-
 use crate::domain::combining::service::call_set;
 use crate::domain::idioms::service::push_same_sets;
+use crate::domain::joining::service::join_output;
 use crate::domain::lowering::errors::LoweringError;
-use crate::domain::lowering::types::{
-    ArgumentFault, Builder, PlannedColumn, SearchMatch, Sourced, Uniqueness, Widened,
-};
+use crate::domain::lowering::types::ArgumentFault;
+use crate::domain::lowering::types::Builder;
+use crate::domain::lowering::types::PlannedColumn;
+use crate::domain::lowering::types::SearchMatch;
+use crate::domain::lowering::types::Sourced;
+use crate::domain::lowering::types::Uniqueness;
+use crate::domain::lowering::types::Widened;
 use crate::domain::planning::service::push;
-use crate::domain::reshaping::service::{
-    call_capture, call_group_count, call_group_digest, call_rank, call_rows, call_words,
-};
-use crate::domain::resolving::service::{
-    argument_named, bad_argument, column_of, find_parameter, input_argument, parameter_of,
-    position, positions_of, repeated_rows, words_of,
-};
+use crate::domain::reshaping::service::call_capture;
+use crate::domain::reshaping::service::call_group_count;
+use crate::domain::reshaping::service::call_group_digest;
+use crate::domain::reshaping::service::call_rank;
+use crate::domain::reshaping::service::call_rows;
+use crate::domain::reshaping::service::call_words;
+use crate::domain::resolving::service::argument_named;
+use crate::domain::resolving::service::bad_argument;
+use crate::domain::resolving::service::column_of;
+use crate::domain::resolving::service::find_parameter;
+use crate::domain::resolving::service::input_argument;
+use crate::domain::resolving::service::parameter_of;
+use crate::domain::resolving::service::position;
+use crate::domain::resolving::service::positions_of;
+use crate::domain::resolving::service::repeated_rows;
+use crate::domain::resolving::service::words_of;
 use crate::domain::rewriting::service::same_sets;
-use crate::domain::syntax::constants::{operator_named, side_named};
+use crate::domain::syntax::constants::operator_named;
 use crate::domain::syntax::types::ArgumentSlot;
-use crate::domain::traversing::service::{call_axis, call_closure, call_ordered_dfs};
+use crate::domain::traversing::service::call_axis;
+use crate::domain::traversing::service::call_closure;
+use crate::domain::traversing::service::call_ordered_dfs;
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::terms::types::Vocabulary;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
 use ryo_values::domain::plans::types::QueryOperator;
-use ryo_values::domain::program::types::{self as syntax, QuerySpelling};
+use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::program::types::QuerySpelling;
 
 /// `name(argument=value, ...)`: one step of the operation the call names.
 pub(crate) fn lower_call(
@@ -40,19 +56,19 @@ pub(crate) fn lower_call(
         QueryOperator::Project => call_project(builder, name, call)?,
         QueryOperator::Extend => call_extend(builder, name, call)?,
         QueryOperator::SpanBetween => {
-            crate::domain::substituting::service::call_span_between(builder, name, call)?;
+            crate::domain::spanning::service::call_span_between(builder, name, call)?;
         }
         QueryOperator::SourceMatches => {
             crate::domain::substituting::service::call_source_matches(builder, name, call)?;
         }
         QueryOperator::RenderSyntax => {
-            crate::domain::substituting::service::call_render_syntax(builder, name, call)?;
+            crate::domain::rendering::service::call_render_syntax(builder, name, call)?;
         }
         QueryOperator::FitsRendered => {
-            crate::domain::substituting::service::call_fits_rendered(builder, name, call)?;
+            crate::domain::rendering::service::call_fits_rendered(builder, name, call)?;
         }
         QueryOperator::SpanBounds => {
-            crate::domain::substituting::service::call_span_bounds(builder, name, call)?;
+            crate::domain::spanning::service::call_span_bounds(builder, name, call)?;
         }
         QueryOperator::Join | QueryOperator::OrderedMatch => call_join(builder, name, call)?,
         QueryOperator::Replace => {
@@ -196,80 +212,6 @@ pub(crate) fn call_extend(
         fields,
     );
     Ok(())
-}
-
-/// Resolve each explicit join projection against its selected input side.
-fn join_output(
-    call: &syntax::Call,
-    left_fields: &[PlannedColumn],
-    right_fields: &[PlannedColumn],
-) -> Result<Widened, LoweringError> {
-    let syntax::ArgumentValue::Map(entries) = argument_named(call, ArgumentSlot::Output)? else {
-        return Err(bad_argument(
-            call,
-            Some(ArgumentSlot::Output),
-            ArgumentFault::ExpectedMap,
-        ));
-    };
-    let mut output = Vec::new();
-    let mut kept = Vec::new();
-    for entry in entries {
-        let syntax::ArgumentValue::List(source) = &entry.value else {
-            return Err(bad_argument(
-                call,
-                Some(ArgumentSlot::Output),
-                ArgumentFault::ExpectedSideAndColumn,
-            ));
-        };
-        let [syntax::ArgumentValue::Word(side), column] = source.as_slice() else {
-            return Err(bad_argument(
-                call,
-                Some(ArgumentSlot::Output),
-                ArgumentFault::ExpectedSideAndColumn,
-            ));
-        };
-        let column: &str = match column {
-            syntax::ArgumentValue::Text(text) => &text.0,
-            syntax::ArgumentValue::Word(word) => &word.0,
-            syntax::ArgumentValue::Number(_)
-            | syntax::ArgumentValue::Parameter(_)
-            | syntax::ArgumentValue::Step(_)
-            | syntax::ArgumentValue::List(_)
-            | syntax::ArgumentValue::Map(_) => {
-                return Err(bad_argument(
-                    call,
-                    Some(ArgumentSlot::Output),
-                    ArgumentFault::ExpectedSideAndColumn,
-                ));
-            }
-        };
-        let side = side_named(&side.0).ok_or_else(|| {
-            bad_argument(
-                call,
-                Some(ArgumentSlot::Output),
-                ArgumentFault::ExpectedSide,
-            )
-        })?;
-        let side_fields = match side {
-            parts::Side::Left => left_fields,
-            parts::Side::Right => right_fields,
-        };
-        let index = position(side_fields, QuerySpelling(column), call.span)?;
-        output.push(parts::JoinColumn {
-            side,
-            column: index,
-        });
-        kept.push(PlannedColumn {
-            name: syntax::ColumnName(entry.name.0.clone()),
-            kind: column_of(side_fields, index).kind,
-            unique: Uniqueness::Shared,
-            words: column_of(side_fields, index).words,
-        });
-    }
-    Ok(Widened {
-        output,
-        fields: kept,
-    })
 }
 
 /// Lowers a `join` call: the rows of its left input matched to those of its right on the named columns, as the step `name`.

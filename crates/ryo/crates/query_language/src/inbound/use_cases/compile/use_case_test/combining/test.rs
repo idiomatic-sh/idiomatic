@@ -3,7 +3,6 @@
 use ryo_relations::domain::relations::types::Relation;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::selects;
 use crate::domain::combining::service::call_set;
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::Builder;
@@ -11,9 +10,10 @@ use crate::domain::selecting::service::lower_select;
 use crate::domain::syntax::constants::operator_named;
 use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
+use crate::selects;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
-use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::program::types::{Expression, QueryView};
 
 /// The query text a row gives.

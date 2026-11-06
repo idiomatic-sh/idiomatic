@@ -4,18 +4,20 @@
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_relations::domain::terms::types::Vocabulary;
 
+use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::hosted::types as hosted;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::plan_parts::types::Operand;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plans::types as plans;
 use ryo_values::domain::plans::types::ParameterType;
-use ryo_values::domain::plan_parts::types::StepScope;
-use ryo_values::domain::program::types::{AliasName, ParameterDeclaration, QueryOrigin, QuerySpan, StepName};
-use ryo_values::domain::descriptions::types::ColumnName;
+use ryo_values::domain::program::types::{
+    AliasName, ParameterDeclaration, QueryOrigin, QuerySpan, StepName,
+};
 
 /// A column of a step's answer while the plan is built: the name the query gives it and what it holds.
 #[derive(Clone, Debug, PartialEq, Eq)]

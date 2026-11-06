@@ -29,7 +29,10 @@ fn word(value: &str) -> syntax::ArgumentValue {
     syntax::ArgumentValue::Word(syntax::WordText(value.into()))
 }
 fn name() -> syntax::StepName {
-    syntax::StepName("result".into(), None)
+    syntax::StepName(
+        "result".into(),
+        ryo_values::domain::program::types::StepIdentified::Unassigned,
+    )
 }
 
 fn group_count_keeps_key_and_count_column() {

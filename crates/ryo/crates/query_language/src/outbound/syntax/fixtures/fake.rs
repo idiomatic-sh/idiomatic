@@ -2,11 +2,14 @@
 
 use super::super::errors::SyntaxError;
 use super::super::interface::SyntaxPort;
+use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::descriptions::types::{
     Example, Grammar, Production, ProductionForm, ProductionName,
 };
-use ryo_values::domain::program::types::{ByteOffset, Call, Expression, LetStep, OperationName, ParsedQueryBundle, WrittenProgram, QueryBundle, QueryOrigin, QuerySpan, QueryView, StepName, WrittenEmit};
-use ryo_values::domain::descriptions::types::ColumnName;
+use ryo_values::domain::program::types::{
+    ByteOffset, Call, Expression, LetStep, OperationName, ParsedQueryBundle, QueryBundle,
+    QueryOrigin, QuerySpan, QueryView, StepName, WrittenEmit, WrittenProgram,
+};
 
 /// What the core's tests stand in for `syntax` with: it reads any text that contains `emit` as the
 /// program it was given, and refuses the rest.
@@ -30,7 +33,10 @@ impl Default for SyntaxFake {
                 emit_origin: ryo_values::domain::program::types::EmitOrigin::Unlocated,
                 parameters: Vec::new(),
                 steps: vec![LetStep {
-                    name: StepName("functions".into(), None),
+                    name: StepName(
+                        "functions".into(),
+                        ryo_values::domain::program::types::StepIdentified::Unassigned,
+                    ),
                     expression: Expression::Call(Call {
                         name: OperationName("union".into()),
                         arguments: Vec::new(),
@@ -45,7 +51,10 @@ impl Default for SyntaxFake {
                     },
                 }],
                 emit: WrittenEmit {
-                    step: StepName("".into(), None),
+                    step: StepName(
+                        "".into(),
+                        ryo_values::domain::program::types::StepIdentified::Unassigned,
+                    ),
                     subject: ColumnName("".into()),
                     key: Vec::new(),
                     span: QuerySpan {

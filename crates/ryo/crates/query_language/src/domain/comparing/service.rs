@@ -9,7 +9,8 @@ use ryo_relations::domain::terms::types::Vocabulary;
 use super::constants::{ENDS_WITH, MATCHES, STARTS_WITH, WORD_SEPARATOR, arity, function_name};
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{
-    Addressable, Builder, Compatibility, OriginCount, PlannedColumn, ResolvedOperand, SearchMatch, Typed,
+    Addressable, Builder, Compatibility, OriginCount, PlannedColumn, ResolvedOperand, SearchMatch,
+    Typed,
 };
 use crate::domain::resolving::service::{column_of, find_parameter, parameter_of, position};
 use ryo_values::domain::plan_parts::types as parts;
@@ -305,10 +306,7 @@ pub(crate) fn comparison_of(
     }
     let origin = if let Some(mut origin) = builder.origin.clone() {
         origin.span = filter.span;
-        let id = comparison_origin_id(
-            OriginCount(builder.comparison_origins.len()),
-            filter.span,
-        )?;
+        let id = comparison_origin_id(OriginCount(builder.comparison_origins.len()), filter.span)?;
         builder.comparison_origins.push(origin);
         parts::ComparisonOrigin::Recorded(id)
     } else {

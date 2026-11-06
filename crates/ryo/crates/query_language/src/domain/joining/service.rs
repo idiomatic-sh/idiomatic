@@ -3,12 +3,19 @@
 
 use super::constants::SIDE_SEPARATOR;
 use crate::domain::lowering::errors::LoweringError;
+use crate::domain::lowering::types::ArgumentFault;
+use crate::domain::lowering::types::Widened;
 use crate::domain::lowering::types::{
     Builder, Joined, LastStep, PlannedColumn, SearchMatch, ShownColumns, SideColumn, Sourced,
     Uniqueness,
 };
+use crate::domain::planning::service::push;
 use crate::domain::planning::service::pushed;
+use crate::domain::resolving::service::argument_named;
+use crate::domain::resolving::service::bad_argument;
 use crate::domain::resolving::service::{column_of, find_column, position, read_source};
+use crate::domain::syntax::constants::side_named;
+use crate::domain::syntax::types::ArgumentSlot;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
 use ryo_values::domain::program::types::{self as syntax, QuerySpelling};
@@ -258,5 +265,79 @@ pub(crate) fn shown_of(columns: &syntax::Columns) -> ShownColumns {
     ShownColumns(match columns {
         syntax::Columns::Listed(listed) => listed.len(),
         syntax::Columns::Every => 0,
+    })
+}
+
+/// Resolve each explicit join projection against its selected input side.
+pub(crate) fn join_output(
+    call: &syntax::Call,
+    left_fields: &[PlannedColumn],
+    right_fields: &[PlannedColumn],
+) -> Result<Widened, LoweringError> {
+    let syntax::ArgumentValue::Map(entries) = argument_named(call, ArgumentSlot::Output)? else {
+        return Err(bad_argument(
+            call,
+            Some(ArgumentSlot::Output),
+            ArgumentFault::ExpectedMap,
+        ));
+    };
+    let mut output = Vec::new();
+    let mut kept = Vec::new();
+    for entry in entries {
+        let syntax::ArgumentValue::List(source) = &entry.value else {
+            return Err(bad_argument(
+                call,
+                Some(ArgumentSlot::Output),
+                ArgumentFault::ExpectedSideAndColumn,
+            ));
+        };
+        let [syntax::ArgumentValue::Word(side), column] = source.as_slice() else {
+            return Err(bad_argument(
+                call,
+                Some(ArgumentSlot::Output),
+                ArgumentFault::ExpectedSideAndColumn,
+            ));
+        };
+        let column: &str = match column {
+            syntax::ArgumentValue::Text(text) => &text.0,
+            syntax::ArgumentValue::Word(word) => &word.0,
+            syntax::ArgumentValue::Number(_)
+            | syntax::ArgumentValue::Parameter(_)
+            | syntax::ArgumentValue::Step(_)
+            | syntax::ArgumentValue::List(_)
+            | syntax::ArgumentValue::Map(_) => {
+                return Err(bad_argument(
+                    call,
+                    Some(ArgumentSlot::Output),
+                    ArgumentFault::ExpectedSideAndColumn,
+                ));
+            }
+        };
+        let side = side_named(&side.0).ok_or_else(|| {
+            bad_argument(
+                call,
+                Some(ArgumentSlot::Output),
+                ArgumentFault::ExpectedSide,
+            )
+        })?;
+        let side_fields = match side {
+            parts::Side::Left => left_fields,
+            parts::Side::Right => right_fields,
+        };
+        let index = position(side_fields, QuerySpelling(column), call.span)?;
+        output.push(parts::JoinColumn {
+            side,
+            column: index,
+        });
+        kept.push(PlannedColumn {
+            name: syntax::ColumnName(entry.name.0.clone()),
+            kind: column_of(side_fields, index).kind,
+            unique: Uniqueness::Shared,
+            words: column_of(side_fields, index).words,
+        });
+    }
+    Ok(Widened {
+        output,
+        fields: kept,
     })
 }

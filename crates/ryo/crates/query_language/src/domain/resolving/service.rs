@@ -127,7 +127,7 @@ pub(crate) fn step_named(
     name: &syntax::StepName,
 ) -> Result<parts::StepId, LoweringError> {
     find_step(&builder.lowered, |lowered| {
-        if matches!(&lowered.name, StepLabel::Named(named) if match (named.1, name.1) {
+        if matches!(&lowered.name, StepLabel::Named(named) if match (ryo_values::domain::program::service::identity_of(named.1), ryo_values::domain::program::service::identity_of(name.1)) {
             (Some(left), Some(right)) => left == right,
             _ => named.0 == name.0,
         }) {
@@ -149,7 +149,11 @@ pub(crate) fn read_source(
 ) -> Result<Sourced, LoweringError> {
     let external = match &source.reference {
         syntax::SourceReference::Relation(text) => Some(text.0.as_ref()),
-        syntax::SourceReference::Step(text) if text.1.is_none() => Some(text.0.as_ref()),
+        syntax::SourceReference::Step(text)
+            if ryo_values::domain::program::service::identity_of(text.1).is_none() =>
+        {
+            Some(text.0.as_ref())
+        }
         syntax::SourceReference::Step(_) => None,
     };
     if let Some((index, bound)) = builder
@@ -223,9 +227,10 @@ pub(crate) fn input_argument(
         syntax::ArgumentValue::Text(name) => {
             syntax::SourceReference::Relation(syntax::WrittenRelation(name.0.clone()))
         }
-        syntax::ArgumentValue::Word(name) => {
-            syntax::SourceReference::Step(syntax::StepName(name.0.clone(), None))
-        }
+        syntax::ArgumentValue::Word(name) => syntax::SourceReference::Step(syntax::StepName(
+            name.0.clone().into(),
+            ryo_values::domain::program::types::StepIdentified::Unassigned,
+        )),
         syntax::ArgumentValue::Step(step) => syntax::SourceReference::Step(step.clone()),
         syntax::ArgumentValue::Number(_)
         | syntax::ArgumentValue::Parameter(_)

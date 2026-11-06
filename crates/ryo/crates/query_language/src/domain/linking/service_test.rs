@@ -6,9 +6,12 @@ use super::errors::LinkingError;
 use super::service::link;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::selects;
-use ryo_values::domain::program::service::{document_source, query_bundle, source_id};
-use ryo_values::domain::program::types::{ByteOffset, ImportDeclaration, WrittenProgram, QuerySpan, StepName, WrittenEmit, WrittenLiteral, WrittenName};
 use ryo_values::domain::descriptions::types::ColumnName;
+use ryo_values::domain::program::service::{document_source, query_bundle, source_id};
+use ryo_values::domain::program::types::{
+    ByteOffset, ImportDeclaration, QuerySpan, StepName, WrittenEmit, WrittenLiteral, WrittenName,
+    WrittenProgram,
+};
 
 /// What a row asks of the service.
 #[derive(Clone, Copy)]
@@ -76,7 +79,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         parameters: Vec::new(),
         steps: Vec::new(),
         emit: WrittenEmit {
-            step: StepName("rows".into(), None),
+            step: StepName(
+                "rows".into(),
+                ryo_values::domain::program::types::StepIdentified::Unassigned,
+            ),
             subject: ColumnName("file".into()),
             key: vec![ColumnName("span".into())],
             span: SPAN,
@@ -89,7 +95,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             program.imports = vec![import("same", "one"), import("same", "two")];
         }
     }
-    let root = document_source(source_id(ryo_values::domain::program::types::QuerySpelling("root")).expect("a named source"), "");
+    let root = document_source(
+        source_id(ryo_values::domain::program::types::QuerySpelling("root"))
+            .expect("a named source"),
+        "",
+    );
     let bundle = query_bundle(root, []).expect("a bundle of one source");
     link(&bundle, program, &BTreeMap::new())
         .map(|linked| linked.linked == ryo_values::domain::program::types::Linking::Linked)

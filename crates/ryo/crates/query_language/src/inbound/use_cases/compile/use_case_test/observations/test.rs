@@ -1,6 +1,9 @@
 //! The names, columns and schemas of observation inputs, from the compile inbound API.
 
 use super::super::{Given, compile_twice, observed, text_the_fake_reads};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::inbound::use_cases::compile::errors::CompileError;
+use crate::selects;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::hosted::types::ColumnLabel;
 use ryo_values::domain::hosted::types::HostedColumn;
@@ -11,10 +14,6 @@ use ryo_values::domain::observations::types::ObservationBindingName;
 use ryo_values::domain::observations::types::ObservationColumn;
 use ryo_values::domain::observations::types::ObservationColumnName;
 use ryo_values::domain::plan_parts::types::StepScope;
-use crate::inbound::use_cases::compile::errors::CompileError;
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::selects;
-
 
 /// What a row gives the use case.
 type Input = fn() -> Given;

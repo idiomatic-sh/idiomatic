@@ -29,7 +29,10 @@ fn word(value: &str) -> syntax::ArgumentValue {
     syntax::ArgumentValue::Word(syntax::WordText(value.into()))
 }
 fn name() -> syntax::StepName {
-    syntax::StepName("result".into(), None)
+    syntax::StepName(
+        "result".into(),
+        ryo_values::domain::program::types::StepIdentified::Unassigned,
+    )
 }
 
 fn project_keeps_exact_file_column() {

@@ -1,5 +1,9 @@
 //! What the `compile` use case promises, against the fakes of the ports it calls.
 
+use super::errors::CompileError;
+use super::interface::CompileUseCase;
+use super::types::CompileRequest;
+use super::use_case::CompileUseCaseImpl;
 use crate::cases::Case;
 use crate::cases::CaseName;
 use crate::cases::Expect;
@@ -35,10 +39,6 @@ use ryo_values::domain::program::types::WrittenProgram;
 use ryo_values::domain::program::types::WrittenRelation;
 use ryo_values::domain::program::types::WrittenTest;
 use std::sync::Arc;
-use super::errors::CompileError;
-use super::interface::CompileUseCase;
-use super::types::CompileRequest;
-use super::use_case::CompileUseCaseImpl;
 
 /// What a row gives the use case.
 type Input = fn() -> Given;
@@ -62,7 +62,10 @@ struct Given {
 
 fn read_function(filters: Vec<Filter>) -> LetStep {
     LetStep {
-        name: StepName("functions".into(), None),
+        name: StepName(
+            "functions".into(),
+            ryo_values::domain::program::types::StepIdentified::Unassigned,
+        ),
         expression: Expression::Select(Select {
             columns: Columns::Every,
             from: QuerySource {
@@ -89,7 +92,10 @@ fn program_with(filters: Vec<Filter>) -> WrittenProgram {
         parameters: Vec::new(),
         steps: vec![read_function(filters)],
         emit: WrittenEmit {
-            step: StepName("functions".into(), None),
+            step: StepName(
+                "functions".into(),
+                ryo_values::domain::program::types::StepIdentified::Unassigned,
+            ),
             subject: ColumnName("file".into()),
             key: vec![ColumnName("span".into())],
             span: NOWHERE,
@@ -156,7 +162,10 @@ fn comparing_text_with_a_number() -> Given {
 
 fn emitting_a_step_nobody_defined() -> Given {
     let mut program = program_with(Vec::new());
-    program.emit.step = StepName("later".into(), None);
+    program.emit.step = StepName(
+        "later".into(),
+        ryo_values::domain::program::types::StepIdentified::Unassigned,
+    );
     Given {
         syntax: SyntaxFake { program },
         ..text_the_fake_reads()

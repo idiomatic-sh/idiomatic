@@ -1,11 +1,11 @@
 //! Fragment relation contracts compiled through the real parser, from the compile inbound API.
 
+use super::super::compiler_over;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_relations::domain::relations::types::Relation;
 use crate::inbound::use_cases::compile::errors::CompileError;
 use crate::inbound::use_cases::compile::interface::CompileUseCase as _;
-use super::super::compiler_over;
 use crate::inbound::use_cases::compile::types::CompileRequest;
+use ryo_relations::domain::relations::types::Relation;
 
 type Input = fn();
 type Value = ();
@@ -55,7 +55,7 @@ fn succeeds() {
 }
 
 fn fragment_contract_compiles_against_real_relation_columns() {
-        let root = ryo_values::domain::program::service::query_bundle(
+    let root = ryo_values::domain::program::service::query_bundle(
         ryo_values::domain::program::service::document_source(
             ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap(),
             "import identity from \"query/identity\";\nlet nodes = select id from \"syntax-tree\";\nlet result = identity(source=nodes);\nemit result subject id key(id);",
@@ -78,7 +78,6 @@ fn fragment_contract_compiles_against_real_relation_columns() {
 }
 
 fn fragment_relation_contracts_reject_input_and_output_shape_mismatches() {
-    
     let use_case = compiler_over(vec![Relation::SyntaxTree]);
     let root_text = "import identity from \"query/identity\";\nlet nodes = select id from \"syntax-tree\";\nlet result = identity(source=nodes);\nemit result subject id key(id);";
     for module_text in [
@@ -87,11 +86,17 @@ fn fragment_relation_contracts_reject_input_and_output_shape_mismatches() {
     ] {
         let bundle = ryo_values::domain::program::service::query_bundle(
             ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap(),
+                ryo_values::domain::program::service::source_id(
+                    ryo_values::domain::program::types::QuerySpelling("root"),
+                )
+                .unwrap(),
                 root_text,
             ),
             [ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("query/identity")).unwrap(),
+                ryo_values::domain::program::service::source_id(
+                    ryo_values::domain::program::types::QuerySpelling("query/identity"),
+                )
+                .unwrap(),
                 module_text,
             )],
         )
@@ -131,7 +136,6 @@ fn fragment_relation_contracts_reject_input_and_output_shape_mismatches() {
 }
 
 fn nested_fragment_validation_error_keeps_the_inner_source_and_import_trace() {
-    
     let bundle = ryo_values::domain::program::service::query_bundle(
         ryo_values::domain::program::service::document_source(
             ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap(),
@@ -165,7 +169,6 @@ fn nested_fragment_validation_error_keeps_the_inner_source_and_import_trace() {
 }
 
 fn fragment_calls_cannot_capture_caller_or_nested_private_steps() {
-    
     let root_with_caller = "import query from \"query\";\nlet secret = select id from \"syntax-tree\";\nlet result = query();\nemit result subject id key(id);";
     let caller_capture = "output relation<id: node, n: number>;\nlet counted = group-count(from=secret, keys=[\"id\"], count=\"n\");\nreturn counted;";
     let root_with_nested =
@@ -177,11 +180,17 @@ fn fragment_calls_cannot_capture_caller_or_nested_private_steps() {
         (
             ryo_values::domain::program::service::query_bundle(
                 ryo_values::domain::program::service::document_source(
-                    ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap(),
+                    ryo_values::domain::program::service::source_id(
+                        ryo_values::domain::program::types::QuerySpelling("root"),
+                    )
+                    .unwrap(),
                     root_with_caller,
                 ),
                 [ryo_values::domain::program::service::document_source(
-                    ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("query")).unwrap(),
+                    ryo_values::domain::program::service::source_id(
+                        ryo_values::domain::program::types::QuerySpelling("query"),
+                    )
+                    .unwrap(),
                     caller_capture,
                 )],
             )
@@ -191,16 +200,25 @@ fn fragment_calls_cannot_capture_caller_or_nested_private_steps() {
         (
             ryo_values::domain::program::service::query_bundle(
                 ryo_values::domain::program::service::document_source(
-                    ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap(),
+                    ryo_values::domain::program::service::source_id(
+                        ryo_values::domain::program::types::QuerySpelling("root"),
+                    )
+                    .unwrap(),
                     root_with_nested,
                 ),
                 [
                     ryo_values::domain::program::service::document_source(
-                        ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("outer")).unwrap(),
+                        ryo_values::domain::program::service::source_id(
+                            ryo_values::domain::program::types::QuerySpelling("outer"),
+                        )
+                        .unwrap(),
                         outer,
                     ),
                     ryo_values::domain::program::service::document_source(
-                        ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("inner")).unwrap(),
+                        ryo_values::domain::program::service::source_id(
+                            ryo_values::domain::program::types::QuerySpelling("inner"),
+                        )
+                        .unwrap(),
                         inner,
                     ),
                 ],
@@ -225,7 +243,7 @@ fn fragment_calls_cannot_capture_caller_or_nested_private_steps() {
 }
 
 fn a_fused_fragment_comparison_keeps_its_original_source_span() {
-        use ryo_values::domain::plans::types::Operation;
+    use ryo_values::domain::plans::types::Operation;
 
     let module = "input nodes: relation<id: node, kind: symbol>;\noutput relation<id: node, kind: symbol>;\nlet selected = select id, kind from nodes where kind = \"totally-unknown\";\nlet projected = select id, kind from selected;\nreturn projected;";
     let bundle = ryo_values::domain::program::service::query_bundle(

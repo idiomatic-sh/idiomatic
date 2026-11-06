@@ -42,12 +42,18 @@ fn program() -> syntax::WrittenProgram {
         parameters: vec![],
         observations: vec![],
         steps: vec![syntax::LetStep {
-            name: syntax::StepName("result".into(), None),
+            name: syntax::StepName(
+                "result".into(),
+                ryo_values::domain::program::types::StepIdentified::Unassigned,
+            ),
             expression: syntax::Expression::Select(select("file")),
             span,
         }],
         emit: syntax::WrittenEmit {
-            step: syntax::StepName("result".into(), None),
+            step: syntax::StepName(
+                "result".into(),
+                ryo_values::domain::program::types::StepIdentified::Unassigned,
+            ),
             subject: syntax::ColumnName("file".into()),
             key: vec![syntax::ColumnName("file".into())],
             span,
@@ -96,7 +102,10 @@ fn origin_of(span: syntax::QuerySpan) -> syntax::QueryOrigin {
 fn a_refusal_of_an_expanded_fragment_names_its_origin() {
     let mut program = program();
     let span = program.emit.span;
-    program.emit.step = syntax::StepName("missing".into(), None);
+    program.emit.step = syntax::StepName(
+        "missing".into(),
+        ryo_values::domain::program::types::StepIdentified::Unassigned,
+    );
     program.emit_origin = ryo_values::domain::program::types::EmitOrigin::Located(origin_of(span));
     assert!(matches!(
         super::service::lower(&program, &[Relation::Function], &[]),
@@ -107,13 +116,18 @@ fn a_fragment_input_that_is_not_a_relation_is_refused() {
     let mut program = program();
     let span = program.emit.span;
     let first = syntax::StepIdentity(1);
-    program.steps[0].name = syntax::StepName("result".into(), Some(first));
+    program.steps[0].name = syntax::StepName(
+        "result".into(),
+        ryo_values::domain::program::types::StepIdentified::Assigned(first),
+    );
     program.fragment_contracts.push(syntax::FragmentContract {
         first,
         result: first,
         inputs: vec![syntax::FragmentContractInput {
             name: syntax::WrittenName("rows".into()),
-            value: syntax::ArgumentValue::Number(ryo_relations::domain::relations::types::Integer(1)),
+            value: syntax::ArgumentValue::Number(ryo_relations::domain::relations::types::Integer(
+                1,
+            )),
             relation: syntax::RelationSignature {
                 columns: vec![],
                 span,

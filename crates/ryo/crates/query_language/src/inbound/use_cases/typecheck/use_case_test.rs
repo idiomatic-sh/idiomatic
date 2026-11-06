@@ -13,13 +13,17 @@ use super::interface::TypecheckUseCase as _;
 use super::types::TypecheckRequest;
 use super::use_case::TypecheckUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::selects;
 use crate::outbound::catalog::fixtures::fake::CatalogFake;
 use crate::outbound::syntax::fixtures::fake::SyntaxFake;
+use crate::selects;
 use ryo_relations::domain::relations::types::Integer;
-use ryo_values::domain::plan_parts::types::QueryText;
-use ryo_values::domain::program::types::{Alias, ByteOffset, Columns, Condition, Expression, Filter, Joining, LetStep, WrittenProgram, QuerySource, QuerySpan, Select, SourceReference, StepName, WrittenEmit, WrittenLiteral, WrittenOperand, WrittenRelation, WrittenTest};
 use ryo_values::domain::descriptions::types::ColumnName;
+use ryo_values::domain::plan_parts::types::QueryText;
+use ryo_values::domain::program::types::{
+    Alias, ByteOffset, Columns, Condition, Expression, Filter, Joining, LetStep, QuerySource,
+    QuerySpan, Select, SourceReference, StepName, WrittenEmit, WrittenLiteral, WrittenOperand,
+    WrittenProgram, WrittenRelation, WrittenTest,
+};
 
 /// What a row gives the use case.
 type Input = fn() -> Given;
@@ -43,7 +47,10 @@ struct Given {
 
 fn read_function(filters: Vec<Filter>) -> LetStep {
     LetStep {
-        name: StepName("functions".into(), None),
+        name: StepName(
+            "functions".into(),
+            ryo_values::domain::program::types::StepIdentified::Unassigned,
+        ),
         expression: Expression::Select(Select {
             columns: Columns::Every,
             from: QuerySource {
@@ -70,7 +77,10 @@ fn program_with(filters: Vec<Filter>) -> WrittenProgram {
         parameters: Vec::new(),
         steps: vec![read_function(filters)],
         emit: WrittenEmit {
-            step: StepName("functions".into(), None),
+            step: StepName(
+                "functions".into(),
+                ryo_values::domain::program::types::StepIdentified::Unassigned,
+            ),
             subject: ColumnName("file".into()),
             key: vec![ColumnName("span".into())],
             span: NOWHERE,
@@ -137,7 +147,10 @@ fn comparing_text_with_a_number() -> Given {
 
 fn emitting_a_step_nobody_defined() -> Given {
     let mut program = program_with(Vec::new());
-    program.emit.step = StepName("later".into(), None);
+    program.emit.step = StepName(
+        "later".into(),
+        ryo_values::domain::program::types::StepIdentified::Unassigned,
+    );
     Given {
         syntax: SyntaxFake { program },
         ..text_the_fake_reads()

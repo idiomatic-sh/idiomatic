@@ -29,7 +29,10 @@ fn word(value: &str) -> syntax::ArgumentValue {
     syntax::ArgumentValue::Word(syntax::WordText(value.into()))
 }
 fn name() -> syntax::StepName {
-    syntax::StepName("result".into(), None)
+    syntax::StepName(
+        "result".into(),
+        ryo_values::domain::program::types::StepIdentified::Unassigned,
+    )
 }
 
 fn closure_keeps_endpoint_columns() {
@@ -38,7 +41,10 @@ fn closure_keeps_endpoint_columns() {
         "closure",
         vec![
             ("edges", text("semantic-child")),
-            (ryo_relations::domain::relations::constants::SOURCE, word("parent")),
+            (
+                ryo_relations::domain::relations::constants::SOURCE,
+                word("parent"),
+            ),
             (crate::domain::syntax::constants::DESTINATION, word("child")),
         ],
     );
@@ -60,7 +66,10 @@ fn endpoint_cannot_also_be_a_partition_key() {
         "closure",
         vec![
             ("edges", text("semantic-child")),
-            (ryo_relations::domain::relations::constants::SOURCE, word("parent")),
+            (
+                ryo_relations::domain::relations::constants::SOURCE,
+                word("parent"),
+            ),
             (crate::domain::syntax::constants::DESTINATION, word("child")),
             ("keys", syntax::ArgumentValue::List(vec![word("parent")])),
         ],

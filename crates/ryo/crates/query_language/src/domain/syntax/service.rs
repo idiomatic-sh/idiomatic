@@ -9,7 +9,8 @@ use super::constants::operator_named;
 use super::types::{ArgumentRole, ArgumentSlot, OperationShape};
 use ryo_values::domain::plans::types::QueryOperator;
 use ryo_values::domain::program::types::{
-    ArgumentName, ArgumentValue, Expression, Joining, OperationName, WrittenProgram, SourceReference,
+    ArgumentName, ArgumentValue, Expression, Joining, OperationName, SourceReference,
+    WrittenProgram,
 };
 
 /// The operations a query can call, besides `select`.
@@ -17,7 +18,11 @@ const SHAPES: [OperationShape; 24] = [
     OperationShape {
         operator: QueryOperator::RenderSyntax,
         inputs: &[ArgumentSlot::From],
-        required: &[ArgumentSlot::Node, ArgumentSlot::Context, ArgumentSlot::Output],
+        required: &[
+            ArgumentSlot::Node,
+            ArgumentSlot::Context,
+            ArgumentSlot::Output,
+        ],
     },
     OperationShape {
         operator: QueryOperator::FitsRendered,

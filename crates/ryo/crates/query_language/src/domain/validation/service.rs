@@ -15,26 +15,13 @@ use crate::domain::syntax::service::{is_input, shape_named};
 use crate::domain::syntax::types::ArgumentRole;
 use ryo_values::domain::program::types::{
     ArgumentValue, Call, Columns, Condition, Expression, Filter, Joining, ParameterDeclaration,
-    WrittenProgram, QuerySource, QuerySpan, QuerySpelling, Select, SourceReference, WrittenOperand,
+    QuerySource, QuerySpan, QuerySpelling, Select, SourceReference, WrittenOperand, WrittenProgram,
 };
 use std::collections::BTreeSet;
 
-/// Checks that every relation, step, parameter and operation a program names exists, and that
-/// every call has its required arguments.
-///
-/// # Errors
-///
-/// The first thing wrong, with the place it is written.
-#[cfg(test)]
-pub(crate) fn validate(
-    program: &WrittenProgram,
-    catalog: &[Relation],
-    hosted: &[HostedName],
-) -> Result<(), ValidationError> {
-    validate_with_observations(program, catalog, hosted, &[])
-}
-
-/// Validate declared typed named inputs without admitting arbitrary unknown step names.
+/// Checks that every relation, step, parameter and operation a program names exists, and that every call has its
+/// required arguments, admitting the declared typed named inputs and no other unknown step names. The first thing
+/// wrong is answered, with the place it is written.
 pub(crate) fn validate_with_observations(
     program: &WrittenProgram,
     catalog: &[Relation],
@@ -44,7 +31,8 @@ pub(crate) fn validate_with_observations(
     if program.linked == ryo_values::domain::program::types::Linking::Linked {
         let mut identities = BTreeSet::new();
         for step in &program.steps {
-            let Some(identity) = step.name.1 else {
+            let Some(identity) = ryo_values::domain::program::service::identity_of(step.name.1)
+            else {
                 return Err(ValidationError::UnknownStep {
                     name: step.name.0.to_string(),
                     span: step.span,
@@ -190,8 +178,10 @@ fn check_source(
             check_relation(QuerySpelling(&text.0), source.span, catalog, known)
         }
         SourceReference::Step(text) => {
-            let exists = match text.1 {
-                Some(identity) => known.steps.iter().any(|step| step.1 == Some(identity)),
+            let exists = match ryo_values::domain::program::service::identity_of(text.1) {
+                Some(identity) => known.steps.iter().any(|step| {
+                    ryo_values::domain::program::service::identity_of(step.1) == Some(identity)
+                }),
                 None if known
                     .observations
                     .iter()
@@ -313,15 +303,16 @@ fn check_call(
                     });
                 }
                 ArgumentValue::Step(step) => {
-                    if !(step.1.is_none()
+                    if !(ryo_values::domain::program::service::identity_of(step.1).is_none()
                         && known
                             .observations
                             .iter()
                             .any(|bound| bound.name.0 == step.0))
-                        && !known
-                            .steps
-                            .iter()
-                            .any(|known| known.1 == step.1 && step.1.is_some())
+                        && !known.steps.iter().any(|known| {
+                            known.1 == step.1
+                                && ryo_values::domain::program::service::identity_of(step.1)
+                                    .is_some()
+                        })
                     {
                         return Err(ValidationError::UnknownStep {
                             name: step.0.to_string(),

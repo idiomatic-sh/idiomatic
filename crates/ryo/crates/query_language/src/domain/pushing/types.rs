@@ -2,8 +2,8 @@
 //! constructor and no inherent impl.
 
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Input;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plans::types::Operation;
 
 /// How many steps of a chain of filters are passed over.

@@ -2,82 +2,10 @@
 use crate::cases::{Case, CaseName, Expect, Word, lowering_builder, run};
 use crate::domain::lowering::errors::LoweringError;
 use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::plan_parts::types as parts;
-use ryo_values::domain::plans::types as plans;
 use ryo_values::domain::program::types as syntax;
 type Input = fn();
 type Value = ();
 type Failure = std::convert::Infallible;
-
-fn call(name: &str, arguments: Vec<(&str, syntax::ArgumentValue)>) -> syntax::Call {
-    syntax::Call {
-        name: syntax::OperationName(name.into()),
-        span: lowering_builder().span,
-        arguments: arguments
-            .into_iter()
-            .map(|(name, value)| syntax::Argument {
-                name: syntax::ArgumentName(name.into()),
-                value,
-            })
-            .collect(),
-    }
-}
-fn text(value: &str) -> syntax::ArgumentValue {
-    syntax::ArgumentValue::Text(syntax::WrittenLiteral(value.into()))
-}
-fn word(value: &str) -> syntax::ArgumentValue {
-    syntax::ArgumentValue::Word(syntax::WordText(value.into()))
-}
-fn name() -> syntax::StepName {
-    syntax::StepName("result".into(), None)
-}
-
-fn span_bounds_preserves_operand_and_appends_numbers() {
-    let mut builder = lowering_builder();
-    let call = call(
-        "span-bounds",
-        vec![
-            ("from", text("function")),
-            ("span", word("span")),
-            ("start-output", word("start")),
-            ("end-output", word("end")),
-        ],
-    );
-    super::service::call_span_bounds(&mut builder, &name(), &call).unwrap();
-    assert_eq!(
-        builder.steps[0].operation,
-        plans::Operation::SpanBounds {
-            from: parts::Input::Relation(Relation::Function),
-            span: parts::ColumnIndex(3)
-        }
-    );
-    let fields = &builder.lowered[0].fields;
-    assert_eq!(
-        fields[fields.len() - 2].name,
-        syntax::ColumnName("start".into())
-    );
-    assert_eq!(
-        fields[fields.len() - 1].name,
-        syntax::ColumnName("end".into())
-    );
-}
-fn non_span_operand_preserves_refusal_location() {
-    let mut builder = lowering_builder();
-    let call = call(
-        "span-bounds",
-        vec![
-            ("from", text("function")),
-            ("span", word("name")),
-            ("start-output", word("start")),
-            ("end-output", word("end")),
-        ],
-    );
-    assert_eq!(
-        super::service::call_span_bounds(&mut builder, &name(), &call),
-        Err(LoweringError::KindMismatch { span: call.span })
-    );
-    assert!(builder.steps.is_empty());
-}
 
 type Lowering = fn(
     &mut crate::domain::lowering::types::Builder<'_>,
@@ -97,67 +25,27 @@ fn refusal_of(lower: Lowering, call: &syntax::Call) -> LoweringError {
     lower(&mut builder, &name(), call).expect_err("the call is refused")
 }
 
-fn semantic_call_rejects_extra_arguments() {
-    let call = call(
-        "render-syntax",
-        vec![
-            ("from", text("function")),
-            ("node", text("id")),
-            ("context", text("assignment-target")),
-            ("output", text("rendered")),
-            ("extra", text("id")),
-        ],
-    );
-    assert!(matches!(
-        refusal_of(super::service::call_render_syntax, &call),
-        LoweringError::SemanticArgument { .. }
-    ));
+fn call(name: &str, arguments: Vec<(&str, syntax::ArgumentValue)>) -> syntax::Call {
+    syntax::Call {
+        name: syntax::OperationName(name.into()),
+        span: lowering_builder().span,
+        arguments: arguments
+            .into_iter()
+            .map(|(name, value)| syntax::Argument {
+                name: syntax::ArgumentName(name.into()),
+                value,
+            })
+            .collect(),
+    }
 }
-fn semantic_call_rejects_project_input() {
-    let call = call(
-        "render-syntax",
-        vec![
-            ("from", text("package-dependency")),
-            ("node", text("id")),
-            ("context", text("assignment-target")),
-            ("output", text("rendered")),
-        ],
-    );
-    assert!(matches!(
-        refusal_of(super::service::call_render_syntax, &call),
-        LoweringError::CrossFileSemantic { .. }
-    ));
+fn text(value: &str) -> syntax::ArgumentValue {
+    syntax::ArgumentValue::Text(syntax::WrittenLiteral(value.into()))
 }
-fn semantic_call_rejects_unknown_context() {
-    let call = call(
-        "render-syntax",
-        vec![
-            ("from", text("function")),
-            ("node", text("id")),
-            ("context", text("not-a-context")),
-            ("output", text("rendered")),
-        ],
-    );
-    assert!(matches!(
-        refusal_of(super::service::call_render_syntax, &call),
-        LoweringError::InvalidSemanticLiteral { .. }
-    ));
-}
-fn span_bounds_rejects_extra_arguments() {
-    let call = call(
-        "span-bounds",
-        vec![
-            ("from", text("function")),
-            ("span", text("span")),
-            ("start-output", text("begin")),
-            ("end-output", text("finish")),
-            ("extra", text("span")),
-        ],
-    );
-    assert!(matches!(
-        refusal_of(super::service::call_span_bounds, &call),
-        LoweringError::SpanBoundsArgument { .. }
-    ));
+fn name() -> syntax::StepName {
+    syntax::StepName(
+        "result".into(),
+        ryo_values::domain::program::types::StepIdentified::Unassigned,
+    )
 }
 fn source_matches_call(extra: Vec<(&str, syntax::ArgumentValue)>, from: &str) -> syntax::Call {
     let mut arguments = vec![
@@ -210,37 +98,6 @@ fn source_matches_capture_must_be_named_by_the_pattern() {
         LoweringError::SourceMatchesCaptureMissing { .. }
     ));
 }
-fn span_between_rejects_extra_arguments() {
-    let call = call(
-        "span-between",
-        vec![
-            ("from", text("function")),
-            ("start", text("span")),
-            ("end", text("span")),
-            ("output", text("hit")),
-            ("extra", text("span")),
-        ],
-    );
-    assert!(matches!(
-        refusal_of(super::service::call_span_between, &call),
-        LoweringError::SpanArgument { .. }
-    ));
-}
-fn span_between_rejects_project_input() {
-    let call = call(
-        "span-between",
-        vec![
-            ("from", text("package-dependency")),
-            ("start", text("span")),
-            ("end", text("span")),
-            ("output", text("hit")),
-        ],
-    );
-    assert!(matches!(
-        refusal_of(super::service::call_span_between, &call),
-        LoweringError::CrossFileSpan { .. }
-    ));
-}
 fn replace_rejects_a_pattern_that_is_not_a_regex() {
     let call = call(
         "replace",
@@ -259,42 +116,6 @@ fn replace_rejects_a_pattern_that_is_not_a_regex() {
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("span_bounds_preserves_operand_and_appends_numbers"),
-        word: Word::Succeeds,
-        input: || span_bounds_preserves_operand_and_appends_numbers,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("non_span_operand_preserves_refusal_location"),
-        word: Word::Succeeds,
-        input: || non_span_operand_preserves_refusal_location,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("semantic_call_rejects_extra_arguments"),
-        word: Word::Succeeds,
-        input: || semantic_call_rejects_extra_arguments,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("semantic_call_rejects_project_input"),
-        word: Word::Succeeds,
-        input: || semantic_call_rejects_project_input,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("semantic_call_rejects_unknown_context"),
-        word: Word::Succeeds,
-        input: || semantic_call_rejects_unknown_context,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("span_bounds_rejects_extra_arguments"),
-        word: Word::Succeeds,
-        input: || span_bounds_rejects_extra_arguments,
-        expect: Expect::Value(()),
-    },
     Case {
         name: CaseName("source_matches_rejects_extra_arguments"),
         word: Word::Succeeds,
@@ -323,18 +144,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("source_matches_capture_must_be_named_by_the_pattern"),
         word: Word::Succeeds,
         input: || source_matches_capture_must_be_named_by_the_pattern,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("span_between_rejects_extra_arguments"),
-        word: Word::Succeeds,
-        input: || span_between_rejects_extra_arguments,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("span_between_rejects_project_input"),
-        word: Word::Succeeds,
-        input: || span_between_rejects_project_input,
         expect: Expect::Value(()),
     },
     Case {

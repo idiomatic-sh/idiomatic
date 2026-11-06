@@ -1,10 +1,10 @@
 //! The compiler checks types and constants before either operator reads any rows.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::selects;
 use crate::domain::lowering::errors::LoweringError;
 use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
+use crate::selects;
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::domain::hosted::types::{ColumnLabel, HostedColumn, HostedName, HostedRelation};
 use ryo_values::domain::plans::types::Operation;

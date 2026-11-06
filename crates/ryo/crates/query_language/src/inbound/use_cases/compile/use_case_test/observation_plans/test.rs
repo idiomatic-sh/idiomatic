@@ -1,6 +1,9 @@
 //! The plans of joins over the raw tree and of authored and bound observations, from the compile inbound API.
 
+use super::super::compiler_over_the_language;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::inbound::use_cases::compile::interface::CompileUseCase as _;
+use crate::inbound::use_cases::compile::types::CompileRequest;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::observations::types::BoundObservationInput;
@@ -9,9 +12,6 @@ use ryo_values::domain::observations::types::ObservationColumn;
 use ryo_values::domain::observations::types::ObservationColumnName;
 use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::plan_parts::types::StepScope;
-use crate::inbound::use_cases::compile::interface::CompileUseCase as _;
-use super::super::compiler_over_the_language;
-use crate::inbound::use_cases::compile::types::CompileRequest;
 
 type Input = fn();
 type Value = ();

@@ -1,13 +1,13 @@
 //! The `validation` service's cases, on query text read by the real syntax adapter.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::selects;
 use crate::domain::validation::errors::ValidationError;
-use crate::domain::validation::service::validate;
+use crate::domain::validation::service::validate_with_observations;
 use crate::outbound::catalog::fixtures::fake::CatalogFake;
 use crate::outbound::catalog::interface::CatalogPort as _;
 use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
+use crate::selects;
 use ryo_values::domain::program::types::QueryView;
 
 /// The query text a row gives.
@@ -98,7 +98,7 @@ fn subject(text: Input) -> Result<Value, Failure> {
         .read(QueryView(text))
         .expect("the row's text is readable");
     let catalog = CatalogFake::default().relations().expect("the fake lists");
-    validate(&program, &catalog.0, &[]).map(|()| true)
+    validate_with_observations(&program, &catalog.0, &[], &[]).map(|()| true)
 }
 
 #[test]

@@ -92,8 +92,13 @@ fn span_plan(
         .iter()
         .map(|relation| relation.name.clone())
         .collect::<Vec<_>>();
-    crate::domain::validation::service::validate(&program, &[Relation::Function], &names)
-        .map_err(|error| error.to_string())?;
+    crate::domain::validation::service::validate_with_observations(
+        &program,
+        &[Relation::Function],
+        &names,
+        &[],
+    )
+    .map_err(|error| error.to_string())?;
     crate::domain::assembling::service::lower(&program, &[Relation::Function], hosted)
         .map_err(|error| error.to_string())
 }

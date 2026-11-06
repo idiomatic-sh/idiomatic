@@ -2,8 +2,11 @@
 
 use super::service::{operators_used, relations_read, shape_named};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::program::types::{Alias, ByteOffset, Call, Columns, Expression, Joining, LetStep, OperationName, WrittenProgram, QuerySource, QuerySpan, Select, SourceReference, StepName, WrittenEmit, WrittenRelation};
 use ryo_values::domain::descriptions::types::ColumnName;
+use ryo_values::domain::program::types::{
+    Alias, ByteOffset, Call, Columns, Expression, Joining, LetStep, OperationName, QuerySource,
+    QuerySpan, Select, SourceReference, StepName, WrittenEmit, WrittenProgram, WrittenRelation,
+};
 
 /// A scenario: what a row asks of a program that reads one relation and calls `project`.
 type Input = fn(&WrittenProgram) -> usize;
@@ -20,7 +23,10 @@ fn nowhere() -> QuerySpan {
 
 fn program() -> WrittenProgram {
     let read_function = LetStep {
-        name: StepName("functions".into(), None),
+        name: StepName(
+            "functions".into(),
+            ryo_values::domain::program::types::StepIdentified::Unassigned,
+        ),
         expression: Expression::Select(Select {
             columns: Columns::Every,
             from: QuerySource {
@@ -34,7 +40,10 @@ fn program() -> WrittenProgram {
         span: nowhere(),
     };
     let project = LetStep {
-        name: StepName("paths".into(), None),
+        name: StepName(
+            "paths".into(),
+            ryo_values::domain::program::types::StepIdentified::Unassigned,
+        ),
         expression: Expression::Call(Call {
             name: OperationName("project".into()),
             arguments: Vec::new(),
@@ -53,7 +62,10 @@ fn program() -> WrittenProgram {
         parameters: Vec::new(),
         steps: vec![read_function, project],
         emit: WrittenEmit {
-            step: StepName("paths".into(), None),
+            step: StepName(
+                "paths".into(),
+                ryo_values::domain::program::types::StepIdentified::Unassigned,
+            ),
             subject: ColumnName("path".into()),
             key: Vec::new(),
             span: nowhere(),

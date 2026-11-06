@@ -230,7 +230,9 @@ pub(crate) fn parameter_kind_named(declared: &str) -> Option<ParameterType> {
 pub(crate) fn fragment_scalar_kind_named(declared: &str) -> Option<ParameterType> {
     match declared {
         "string" | "text" => Some(ParameterType::Text),
-        "integer" | ryo_relations::domain::relations::constants::NUMBER => Some(ParameterType::Number),
+        "integer" | ryo_relations::domain::relations::constants::NUMBER => {
+            Some(ParameterType::Number)
+        }
         BOOLEAN => Some(ParameterType::Flag),
         _ => None,
     }
