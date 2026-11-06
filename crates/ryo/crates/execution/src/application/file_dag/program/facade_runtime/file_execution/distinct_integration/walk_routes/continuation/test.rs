@@ -96,7 +96,7 @@ fn exercise(residency: Residency) -> Result<(), OperatingError> {
     );
     assert_eq!(work.source_rows.0, 3 * populations);
     assert_eq!(work.predicate_tests.0, 3 * populations);
-    assert_eq!(work.result_slots.0, populations as usize);
+    assert_eq!(work.result_slots.0, populations);
     let reads = program.reads();
     let builds = derived.snapshot();
     let mut prefix = vec![];
