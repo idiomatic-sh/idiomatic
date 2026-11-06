@@ -73,8 +73,13 @@ pub(in crate::application::file_dag::program) enum Emptiness {
 #[derive(Clone)]
 pub(super) enum Readiness {
     Complete,
-    Partial { files: Vec<Option<FileId>> },
-    Inapplicable { files: Vec<FileId> },
+    Partial {
+        files: Vec<Option<FileId>>,
+        lacks: Vec<crate::domain::completion::types::FileLacks>,
+    },
+    Inapplicable {
+        files: Vec<FileId>,
+    },
 }
 /// Root provenance remains attached even when no rows can be supplied.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -135,7 +140,9 @@ pub(super) struct AliasMember(pub usize);
 
 /// Private to the common invocation. A semantic kernel cannot import this trait.
 pub(super) trait Inputs {
-    fn population_scope(&self) -> crate::application::file_dag::relations::publication::types::ProducerScope;
+    fn population_scope(
+        &self,
+    ) -> crate::application::file_dag::relations::publication::types::ProducerScope;
     /// A dependency is polled without entering another invocation. The owner
     /// resumes this same admission action after its producer reaches a terminal state.
     fn dependency(
@@ -242,12 +249,8 @@ pub(super) fn contributor_readiness(
         }
         match &input.readiness {
             Readiness::Complete => {}
-            Readiness::Partial { files } => {
-                for file in files {
-                    if !affected.contains(file) {
-                        affected.push(*file);
-                    }
-                }
+            Readiness::Partial { files, lacks } => {
+                affected.extend(crate::domain::completion::service::lacks_of(files, lacks));
             }
             Readiness::Inapplicable { files } => {
                 for file in files {
@@ -262,12 +265,18 @@ pub(super) fn contributor_readiness(
         .iter()
         .any(|input| matches!(input.readiness, Readiness::Partial { .. }))
     {
-        for file in inapplicable {
-            if !affected.contains(&Some(file)) {
-                affected.push(Some(file));
+        affected.extend(inapplicable.into_iter().map(|file| {
+            crate::domain::completion::types::FileLacks {
+                file: Some(file),
+                missing: crate::domain::completion::types::MissingRows::Any,
             }
+        }));
+        match crate::domain::completion::service::partial_of_lacks(affected) {
+            crate::domain::completion::types::CoverageState::Partial { files, lacks } => {
+                Ok(Readiness::Partial { files, lacks })
+            }
+            _ => Err(OperatingError::NotRun),
         }
-        Ok(Readiness::Partial { files: affected })
     } else if inapplicable.is_empty() {
         Ok(Readiness::Complete)
     } else {
@@ -357,4 +366,3 @@ pub(super) fn alias_observation(
     alias.root = ProducerRoot::Input(InputSource::Observation(slot.0));
     Ok(alias)
 }
-

@@ -326,7 +326,7 @@ pub(crate) fn validate_bucket(
         affected.extend(skipped.iter().copied().map(Some));
         affected.sort_unstable();
         affected.dedup();
-        crate::domain::completion::types::CoverageState::Partial { files: affected }
+        crate::domain::completion::service::partial_any(affected)
     } else if skipped.is_empty() {
         crate::domain::completion::types::CoverageState::Complete
     } else {

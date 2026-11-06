@@ -63,9 +63,10 @@ impl AdmittedInput {
     ) -> Result<crate::domain::completion::types::CoverageState, OperatingError> {
         match &self.readiness {
             Readiness::Complete => Ok(crate::domain::completion::types::CoverageState::Complete),
-            Readiness::Partial { files } => {
+            Readiness::Partial { files, lacks } => {
                 Ok(crate::domain::completion::types::CoverageState::Partial {
                     files: files.clone(),
+                    lacks: lacks.clone(),
                 })
             }
             Readiness::Inapplicable { files } => Ok(
@@ -82,26 +83,35 @@ impl AdmittedInput {
         use crate::domain::completion::types::CoverageState;
         match coverage {
             CoverageState::Complete => {}
-            CoverageState::Partial { mut files } => match &mut self.readiness {
-                Readiness::Complete => self.readiness = Readiness::Partial { files },
-                Readiness::Partial { files: existing } => {
-                    for file in files.drain(..) {
-                        if !existing.contains(&file) {
-                            existing.push(file);
-                        }
+            CoverageState::Partial { files, lacks } => {
+                use crate::domain::completion::service::{lacks_of, partial_of_lacks};
+                let mut all = lacks_of(&files, &lacks);
+                match &self.readiness {
+                    Readiness::Complete => {}
+                    Readiness::Partial {
+                        files: existing,
+                        lacks: existing_lacks,
+                    } => all.extend(lacks_of(existing, existing_lacks)),
+                    Readiness::Inapplicable { files: existing } => {
+                        all.extend(lacks_of(
+                            &existing.iter().copied().map(Some).collect::<Vec<_>>(),
+                            &[],
+                        ));
                     }
                 }
-                Readiness::Inapplicable { files: existing } => {
-                    files.extend(existing.iter().copied().map(Some));
-                    files.sort_unstable();
-                    files.dedup();
-                    self.readiness = Readiness::Partial { files };
+                if let CoverageState::Partial { files, lacks } = partial_of_lacks(all) {
+                    self.readiness = Readiness::Partial { files, lacks };
                 }
-            },
+            }
             CoverageState::Inapplicable { files } => match &mut self.readiness {
                 Readiness::Complete => self.readiness = Readiness::Inapplicable { files },
-                Readiness::Partial { files: existing } => {
+                Readiness::Partial {
+                    files: existing,
+                    lacks,
+                } => {
+                    // A file that is out of scope lacks any row of itself.
                     for file in files {
+                        lacks.retain(|each| each.file != Some(file));
                         if !existing.contains(&Some(file)) {
                             existing.push(Some(file));
                         }

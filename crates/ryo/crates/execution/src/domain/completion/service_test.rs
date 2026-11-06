@@ -582,7 +582,7 @@ fn a_kind_partial_is_cleared_by_a_select_that_stops_the_kind_and_by_nothing_else
     use ryo_relations::domain::relations::types::{CellKind, Relation};
     use ryo_values::domain::{
         plan_parts::types::{
-            ColumnIndex, Comparison, Input, JoinColumn, LiteralText, Operand, QueryLiteral,
+            ColumnIndex, ComparisonOrigin, Input, PlanComparison, JoinColumn, LiteralText, Operand, QueryLiteral,
             RepeatedRows, Side,
             StepId, Test,
         },
@@ -600,11 +600,11 @@ fn a_kind_partial_is_cleared_by_a_select_that_stops_the_kind_and_by_nothing_else
     let partial = |lacks: Vec<FileLacks>| super::service::partial_of_lacks(lacks);
     let select = |test: Test, text: &str, column: ColumnIndex| Operation::Select {
         from: Input::Step(StepId(0)),
-        comparisons: vec![Comparison {
+        comparisons: vec![PlanComparison {
             test,
             left: Operand::Column(column),
             right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
-            origin: None,
+            origin: ComparisonOrigin::Unrecorded,
         }],
         kept: Vec::new(),
     };
