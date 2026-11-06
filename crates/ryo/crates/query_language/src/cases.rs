@@ -26,6 +26,7 @@ pub enum Selection {
 
 /// Whether an error is the one a row picks, as a selector answers it: the row gives the result of a
 /// `matches!` over the error.
+#[macro_export]
 macro_rules! selects {
     ($matched:expr) => {
         if $matched {
@@ -35,8 +36,6 @@ macro_rules! selects {
         }
     };
 }
-pub(crate) use selects;
-
 /// What a row expects: a value, an error variant, or an error picked by a selector.
 #[derive(Debug)]
 pub enum Expect<V, E> {

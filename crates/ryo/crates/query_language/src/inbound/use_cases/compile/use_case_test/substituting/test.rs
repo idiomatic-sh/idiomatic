@@ -1,6 +1,7 @@
 //! The compiler checks types and constants before either operator reads any rows.
 
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 use crate::domain::lowering::errors::LoweringError;
 use crate::outbound::syntax::factory::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;

@@ -3,7 +3,8 @@
 
 use ryo_relations::domain::relations::types::Relation;
 
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 use crate::domain::joining::service::{select_join, shown_of};
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{Builder, LastStep};

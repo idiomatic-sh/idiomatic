@@ -3,7 +3,8 @@
 
 use super::adapter::SyntaxWinnowAdapter;
 use super::constants::{GRAMMAR, Keyword, Mark, keyword_text, mark_text};
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 use crate::outbound::syntax::errors::SyntaxError;
 use crate::outbound::syntax::fixtures::contract::check;
 use crate::outbound::syntax::interface::SyntaxPort as _;
@@ -518,7 +519,7 @@ fn misread(name: &str, text: &str) -> usize {
         "argument" => whole(parsers::argument, text),
         "value" => whole(parsers::value, text),
         "parameter" => whole(parsers::parameter, text),
-        crate::domain::syntax::constants::NUMBER => whole(parsers::number, text),
+        "number" => whole(parsers::number, text),
         "name_or_string" => whole(parsers::name_or_string, text),
         "string" => whole(parsers::string, text),
         "word" => whole(parsers::word, text),

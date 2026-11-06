@@ -4,7 +4,8 @@ use std::collections::BTreeMap;
 
 use super::errors::LinkingError;
 use super::service::link;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 use ryo_values::domain::program::service::{document_source, query_bundle, source_id};
 use ryo_values::domain::program::types::{
     ByteOffset, ColumnName, ImportDeclaration, Program, QuerySpan, StepName, WrittenEmit,

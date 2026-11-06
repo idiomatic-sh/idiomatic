@@ -1,3 +1,3 @@
 //! The syntax port's implementations, one module each.
 
-pub(crate) mod winnow;
+pub(super) mod winnow;

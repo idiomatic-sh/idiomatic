@@ -1,7 +1,7 @@
 //! Real syntax parsing and fragment linking composed at the inbound boundary.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::syntax::adapters::winnow::adapter::SyntaxWinnowAdapter;
+use crate::outbound::syntax::factory::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use ryo_values::domain::program::types::{Expression, WordText, WrittenLiteral};
 use ryo_values::domain::program::types::{Program, QueryBundle};
@@ -42,7 +42,7 @@ fn succeeds() {
 }
 
 fn parse_and_link(bundle: &QueryBundle) -> Result<Program, String> {
-    let parsed = SyntaxWinnowAdapter
+    let parsed = winnow()
         .read_bundle(bundle)
         .map_err(|error| error.to_string())?;
     crate::domain::linking::service::link(bundle, parsed.root, &parsed.fragments)
@@ -64,7 +64,7 @@ fn fragment_calls_are_hygienic_and_only_relation_slots_are_linked() {
         )],
     )
     .unwrap();
-    let parsed = SyntaxWinnowAdapter.read_bundle(&bundle).unwrap();
+    let parsed = winnow().read_bundle(&bundle).unwrap();
     let program =
         crate::domain::linking::service::link(&bundle, parsed.root, &parsed.fragments).unwrap();
 
@@ -198,7 +198,7 @@ fn nested_fragments_forward_relation_and_scalar_inputs() {
     let ParsedQueryBundle {
         root: linked_root,
         fragments,
-    } = SyntaxWinnowAdapter.read_bundle(&bundle).unwrap();
+    } = winnow().read_bundle(&bundle).unwrap();
     let program = crate::domain::linking::service::link(&bundle, linked_root, &fragments).unwrap();
     assert_eq!(program.steps.len(), 3);
     for (step, pattern) in program.steps[1..].iter().zip(["a", "b"]) {

@@ -79,7 +79,7 @@ impl<'a> DemandClosure<'a> {
     pub(crate) fn rewrite(&self) -> Vec<PlanStep> {
         let mut rooted: Vec<Option<Rooted>> = Vec::with_capacity(self.steps.len());
         for (index, step) in self.steps.iter().enumerate() {
-            rooted.push(self.root(index, step, &rooted));
+            rooted.push(self.root(RootStep(index), step, &rooted));
         }
         let candidates: Vec<_> = self
             .steps
@@ -149,7 +149,7 @@ impl<'a> DemandClosure<'a> {
     }
 
     /// Resolve only ordinary closure and non-distinct, predicate-free column wrappers.
-    fn root(&self, index: usize, step: &PlanStep, before: &[Option<Rooted>]) -> Option<Rooted> {
+    fn root(&self, index: RootStep, step: &PlanStep, before: &[Option<Rooted>]) -> Option<Rooted> {
         if step.scope != StepScope::PerFile {
             return None;
         }
@@ -167,7 +167,7 @@ impl<'a> DemandClosure<'a> {
                     keys,
                 } = graph_source(*edges, *source, *destination, keys, self.steps)?;
                 Some(Rooted {
-                    root: RootStep(index),
+                    root: index,
                     edges,
                     reach: ReachLookup {
                         source,

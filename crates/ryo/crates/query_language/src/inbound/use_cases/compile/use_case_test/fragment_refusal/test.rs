@@ -1,7 +1,7 @@
 //! Real syntax parsing and fragment linking composed at the inbound boundary.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::syntax::adapters::winnow::adapter::SyntaxWinnowAdapter;
+use crate::outbound::syntax::factory::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use ryo_values::domain::program::types::{Program, QueryBundle};
 
@@ -47,7 +47,7 @@ fn succeeds() {
 }
 
 fn parse_and_link(bundle: &QueryBundle) -> Result<Program, String> {
-    let parsed = SyntaxWinnowAdapter
+    let parsed = winnow()
         .read_bundle(bundle)
         .map_err(|error| error.to_string())?;
     crate::domain::linking::service::link(bundle, parsed.root, &parsed.fragments)

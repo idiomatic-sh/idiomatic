@@ -10,7 +10,9 @@ use ryo_values::domain::program::types::{
 };
 
 use super::errors::LinkingError;
-use super::types::{Bindings, BoundArguments, Imported, ParameterCheck, Refusal, ScalarMatch};
+use super::types::{
+    FragmentBindingKey, Bindings, BoundArguments, ImportAlias, ImportIndex, ParameterCheck, ScalarMatch,
+};
 use crate::domain::syntax::constants::{
     BOOLEAN_WORDS, fragment_scalar_kind_named, relation_cell_kind_named,
 };
@@ -72,7 +74,7 @@ pub(crate) fn link_with_observations(
     bind_declared_sources(&mut root, observations, &root_imports, fragments, &root_id)?;
     for original in root.steps.clone() {
         if let Expression::Call(call) = &original.expression
-            && let Some(import) = root_imports.get(call.name.0.as_ref())
+            && let Some(import) = root_imports.0.get(&*call.name.0)
         {
             let target = source_id(&root_id, import)?;
             let mut trace = vec![trace_site(&root_id, &target, import.span)];
@@ -84,8 +86,8 @@ pub(crate) fn link_with_observations(
                 call,
                 &original.name,
                 &root_visible,
-                &Bindings::new(),
-                &Bindings::new(),
+                &Bindings::default(),
+                &Bindings::default(),
                 &root.parameters,
                 &mut next,
                 &trace,
@@ -99,8 +101,8 @@ pub(crate) fn link_with_observations(
             if let Expression::Call(call) = &mut remapped_step.expression {
                 remap_call(
                     call,
-                    &Bindings::new(),
-                    &Bindings::new(),
+                    &Bindings::default(),
+                    &Bindings::default(),
                     &root_visible,
                     &root_id,
                     &[],
@@ -272,11 +274,12 @@ fn validate_relation_signature(
 fn imports_for(
     source: &QuerySourceId,
     imports: &[ImportDeclaration],
-) -> Result<Imported, LinkingError> {
-    let mut indexed = Imported::default();
+) -> Result<ImportIndex, LinkingError> {
+    let mut indexed = ImportIndex::default();
     for import in imports {
         if indexed
-            .insert(import.alias.0.clone(), import.clone())
+            .0
+            .insert(ImportAlias(import.alias.0.clone()), import.clone())
             .is_some()
         {
             return Err(located(
@@ -293,10 +296,10 @@ fn imports_for(
 /// Rejects imports whose target module is absent from the immutable bundle.
 fn validate_import_targets(
     bundle: &QueryBundle,
-    imports: &BTreeMap<QuerySourceId, Imported>,
+    imports: &BTreeMap<QuerySourceId, ImportIndex>,
 ) -> Result<(), LinkingError> {
     for (source, aliases) in imports {
-        for import in aliases.values() {
+        for import in aliases.0.values() {
             let target = source_id(source, import)?;
             if !bundle.modules.contains_key(&target) {
                 return Err(located(
@@ -314,17 +317,17 @@ fn validate_import_targets(
 /// Rejects cyclic imports before expansion begins.
 fn reject_cycles(
     root: &QuerySourceId,
-    imports: &BTreeMap<QuerySourceId, Imported>,
+    imports: &BTreeMap<QuerySourceId, ImportIndex>,
     fragments: &BTreeMap<QuerySourceId, FragmentProgram>,
 ) -> Result<(), LinkingError> {
     fn visit(
         source: &QuerySourceId,
-        imports: &BTreeMap<QuerySourceId, Imported>,
+        imports: &BTreeMap<QuerySourceId, ImportIndex>,
         colors: &mut BTreeSet<QuerySourceId>,
         path: &mut Vec<QueryTraceSite>,
     ) -> Result<(), LinkingError> {
         let _new_color = colors.insert(source.clone());
-        for import in imports.get(source).into_iter().flat_map(Imported::values) {
+        for import in imports.get(source).into_iter().flat_map(|index| index.0.values()) {
             let target = source_id(source, import)?;
             let edge = trace_site(source, &target, import.span);
             if colors.contains(&target) {
@@ -365,7 +368,7 @@ fn reject_cycles(
 )]
 fn expand(
     fragments: &BTreeMap<QuerySourceId, FragmentProgram>,
-    imports: &BTreeMap<QuerySourceId, Imported>,
+    imports: &BTreeMap<QuerySourceId, ImportIndex>,
     source: &QuerySourceId,
     call: &Call,
     result_name: &StepName,
@@ -463,7 +466,7 @@ fn expand(
         if let Expression::Call(inner) = &step.expression
             && let Some(import) = imports
                 .get(source)
-                .and_then(|found| found.get(inner.name.0.as_ref()))
+                .and_then(|found| found.0.get(&*inner.name.0))
         {
             let target = source_id(source, import)?;
             step_trace.push(trace_site(source, &target, import.span));
@@ -514,7 +517,7 @@ fn expand(
         .inputs
         .iter()
         .map(|input| {
-            let value = inputs.get(&input.name.0).cloned().ok_or_else(|| {
+            let value = inputs.0.get(&*input.name.0).cloned().ok_or_else(|| {
                 located(
                     source,
                     input.span,
@@ -593,7 +596,7 @@ fn bind_arguments(
             format!("fragment has no input or parameter named `{unexpected}`"),
         ));
     }
-    let mut inputs = Bindings::new();
+    let mut inputs = Bindings::default();
     for input in &fragment.inputs {
         let value = given.get(input.name.0.as_ref()).ok_or_else(|| {
             located(
@@ -618,9 +621,9 @@ fn bind_arguments(
                 ),
             ));
         }
-        let _previous_input = inputs.insert(input.name.0.clone(), value);
+        let _previous_input = inputs.0.insert(FragmentBindingKey(input.name.0.clone()), value);
     }
-    let mut parameters = Bindings::new();
+    let mut parameters = Bindings::default();
     for parameter in &fragment.parameters {
         let value = given.get(parameter.name.0.as_ref()).ok_or_else(|| {
             located(
@@ -642,7 +645,7 @@ fn bind_arguments(
                 ),
             ));
         }
-        let _previous_parameter = parameters.insert(parameter.name.0.clone(), value);
+        let _previous_parameter = parameters.0.insert(FragmentBindingKey(parameter.name.0.clone()), value);
     }
     Ok(BoundArguments { inputs, parameters })
 }
@@ -654,7 +657,7 @@ fn bind_relation_argument(
     preceding: &[LetStep],
 ) -> ArgumentValue {
     match value {
-        ArgumentValue::Word(word) => inherited.get(&word.0).cloned().unwrap_or_else(|| {
+        ArgumentValue::Word(word) => inherited.0.get(&*word.0).cloned().unwrap_or_else(|| {
             preceding
                 .iter()
                 .rev()
@@ -824,7 +827,7 @@ fn remap_operand(
 ) -> Result<(), LinkingError> {
     match operand {
         WrittenOperand::Parameter(parameter) => {
-            let value = parameters.get(&parameter.0).ok_or_else(|| {
+            let value = parameters.0.get(&*parameter.0).ok_or_else(|| {
                 located(
                     source,
                     span,
@@ -893,7 +896,7 @@ fn remap_call(
             continue;
         }
         if let ArgumentValue::Word(word) = &argument.value {
-            argument.value = inputs.get(&word.0).cloned().unwrap_or_else(|| {
+            argument.value = inputs.0.get(&*word.0).cloned().unwrap_or_else(|| {
                 preceding
                     .iter()
                     .rev()
@@ -930,7 +933,7 @@ fn unbound_parameter<'a>(
 ) -> Option<&'a ryo_values::domain::program::types::WrittenParameter> {
     match value {
         ArgumentValue::Parameter(parameter) => {
-            (!bindings.contains_key(&parameter.0)).then_some(parameter)
+            (!bindings.0.contains_key(&*parameter.0)).then_some(parameter)
         }
         ArgumentValue::List(values) => values
             .iter()
@@ -949,7 +952,8 @@ fn unbound_parameter<'a>(
 fn substitute_value(value: &ArgumentValue, bindings: &Bindings) -> ArgumentValue {
     match value {
         ArgumentValue::Parameter(parameter) => bindings
-            .get(&parameter.0)
+            .0
+            .get(&*parameter.0)
             .cloned()
             .unwrap_or_else(|| value.clone()),
         ArgumentValue::List(values) => ArgumentValue::List(
@@ -1008,7 +1012,7 @@ fn located(
     source_id: &QuerySourceId,
     span: QuerySpan,
     trace: Vec<QueryTraceSite>,
-    message: impl Into<Refusal>,
+    message: impl std::fmt::Display,
 ) -> LinkingError {
     LinkingError::Located {
         origin: QueryOrigin {
@@ -1016,7 +1020,7 @@ fn located(
             span,
             trace,
         },
-        message: message.into().0,
+        message: message.to_string(),
     }
 }
 
@@ -1083,7 +1087,7 @@ fn attribute_root(program: &mut Program, root: &QuerySourceId) {
 fn bind_declared_sources(
     root: &mut Program,
     observations: &[ryo_values::domain::observations::types::BoundObservationInput],
-    imports: &Imported,
+    imports: &ImportIndex,
     fragments: &BTreeMap<QuerySourceId, FragmentProgram>,
     source: &QuerySourceId,
 ) -> Result<(), LinkingError> {
@@ -1130,7 +1134,8 @@ fn bind_declared_sources(
             Expression::Call(call) => {
                 let shape = shape_named(&call.name);
                 let fragment = imports
-                    .get(call.name.0.as_ref())
+                    .0
+                    .get(&*call.name.0)
                     .map(|import| source_id(source, import))
                     .transpose()?
                     .and_then(|id| fragments.get(&id));

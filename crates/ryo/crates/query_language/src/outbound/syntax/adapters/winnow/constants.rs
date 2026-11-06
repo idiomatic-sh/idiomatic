@@ -96,7 +96,7 @@ pub(crate) fn keyword_text(keyword: Keyword) -> &'static str {
         Keyword::Input => "input",
         Keyword::Output => ryo_values::domain::descriptions::constants::OUTPUT,
         Keyword::Return => "return",
-        Keyword::Relation => crate::domain::syntax::constants::RELATION,
+        Keyword::Relation => "relation",
         Keyword::Let => "let",
         Keyword::Emit => "emit",
         Keyword::Observe => "observe",
@@ -349,7 +349,7 @@ pub(crate) const GRAMMAR: &[GrammarLine] = &[
         example: "$max-lines",
     },
     GrammarLine {
-        name: crate::domain::syntax::constants::NUMBER,
+        name: "number",
         form: "digit { digit }",
         example: "400",
     },

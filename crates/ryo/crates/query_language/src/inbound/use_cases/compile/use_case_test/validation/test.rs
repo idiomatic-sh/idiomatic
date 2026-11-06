@@ -1,6 +1,7 @@
 //! The `validation` service's cases, on query text read by the real syntax adapter.
 
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 use crate::domain::validation::errors::ValidationError;
 use crate::domain::validation::service::validate;
 use crate::outbound::catalog::fixtures::fake::CatalogFake;

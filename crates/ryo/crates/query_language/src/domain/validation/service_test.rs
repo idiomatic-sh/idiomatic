@@ -2,7 +2,8 @@
 
 use super::errors::ValidationError;
 use super::service::validate;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::observations::types::ObservationName;
 use ryo_values::domain::program::types::{

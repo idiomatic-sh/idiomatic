@@ -2,7 +2,8 @@
 
 use super::errors::ObservationInputsError;
 use super::service::validate_inputs;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::domain::hosted::types::{HostedName, HostedRelation};
 use ryo_values::domain::observations::types::{

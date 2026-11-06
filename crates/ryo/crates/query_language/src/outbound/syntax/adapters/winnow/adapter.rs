@@ -56,7 +56,12 @@ pub(super) enum FragmentLine {
     /// A scalar parameter declaration.
     Parameter(ParameterDeclaration),
     /// The module output signature and its source span.
-    Output(RelationSignature, QuerySpan),
+    Output {
+        /// The declared columns.
+        signature: RelationSignature,
+        /// Where the declaration is written.
+        span: QuerySpan,
+    },
     /// A module-local step definition.
     Step(LetStep),
     /// The returned module step.
@@ -221,7 +226,10 @@ pub(super) fn fragment_program(input: &mut Input<'_>) -> ModalResult<FragmentPro
             FragmentLine::Import(value) => imports.push(value),
             FragmentLine::Input(value) => inputs.push(value),
             FragmentLine::Parameter(value) => parameters.push(value),
-            FragmentLine::Output(value, span) => {
+            FragmentLine::Output {
+                signature: value,
+                span,
+            } => {
                 if output.replace(value).is_some() || output_span.replace(span).is_some() {
                     return Err(winnow::error::ErrMode::Cut(
                         winnow::error::ContextError::new(),
@@ -251,9 +259,9 @@ pub(super) fn fragment_program(input: &mut Input<'_>) -> ModalResult<FragmentPro
                 result,
             })
         }
-        _ => Err(winnow::error::ErrMode::Cut(
-            winnow::error::ContextError::new(),
-        )),
+        (None, _, _) | (Some(_), None, _) | (Some(_), Some(_), None) => Err(
+            winnow::error::ErrMode::Cut(winnow::error::ContextError::new()),
+        ),
     }
 }
 
@@ -302,7 +310,7 @@ pub(super) fn fragment_line(input: &mut Input<'_>) -> ModalResult<FragmentLine> 
         import_line.map(FragmentLine::Import),
         fragment_input_line.map(FragmentLine::Input),
         parameter_line.map(FragmentLine::Parameter),
-        fragment_output_line.map(|(signature, span)| FragmentLine::Output(signature, span)),
+        fragment_output_line,
         step_line.map(FragmentLine::Step),
         fragment_return_line.map(FragmentLine::Return),
     ))
@@ -334,21 +342,19 @@ pub(super) fn fragment_input_line(input: &mut Input<'_>) -> ModalResult<Fragment
 /// `output relation<id: node, file: file, span: span>;`.
 pub(super) fn fragment_output_line(
     input: &mut Input<'_>,
-) -> ModalResult<(RelationSignature, QuerySpan)> {
+) -> ModalResult<FragmentLine> {
     delimited(
         (keyword(Keyword::Output), multispace1),
         relation_signature,
         (multispace0, ';'),
     )
     .with_span()
-    .map(|(signature, span)| {
-        (
-            signature,
-            QuerySpan {
-                start: ByteOffset(span.start),
-                end: ByteOffset(span.end),
-            },
-        )
+    .map(|(signature, span)| FragmentLine::Output {
+        signature,
+        span: QuerySpan {
+            start: ByteOffset(span.start),
+            end: ByteOffset(span.end),
+        },
     })
     .parse_next(input)
 }

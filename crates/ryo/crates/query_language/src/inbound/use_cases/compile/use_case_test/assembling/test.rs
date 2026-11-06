@@ -2,7 +2,8 @@
 
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 use crate::domain::assembling::service::lower;
 use crate::domain::lowering::errors::LoweringError;
 use crate::outbound::syntax::factory::winnow;

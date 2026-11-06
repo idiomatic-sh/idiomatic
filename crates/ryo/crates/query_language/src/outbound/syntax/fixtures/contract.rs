@@ -2,7 +2,8 @@
 
 use super::super::errors::SyntaxError;
 use super::super::interface::SyntaxPort;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 use ryo_values::domain::program::types::{
     QueryBundle, QueryDocumentSource, QuerySourceId, QueryView,
 };
