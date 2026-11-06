@@ -1,20 +1,29 @@
 //! The witness that implements every method of each entry trait.
 use ryo_execution::inbound::use_cases::execution::{
     interface::{
-        ExecutionRequest, InvocationStateCounts, ObservationExecution, ProjectRootExecution,
+        ExecutionRequest, FileExecution, InvocationStateCounts, WalkCounts, ObservationExecution, ProjectRootExecution,
         ProjectStage, ReadinessCounts,
     },
     types::*,
 };
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::{
-    files::types::CorpusInput, observations::types::ObservationBindingId, runs::types::Skipped,
-    stored_facts::types::ArenaBytes,
+    files::types::CorpusInput, observations::types::ObservationBindingId,
+    plan_parts::types::InputNumber, runs::types::Skipped,
+    stored_facts::types::{ArenaBytes, Bucket},
 };
 
-/// One variant per method of every entry trait. `witness` below maps each trait method here.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(super) enum Method {
+/// One variant per method of every entry trait, generated with its inventory so a variant cannot
+/// be missing from `ALL`. `witness` below maps each trait method here, and the exhaustive `match`
+/// in `controls::control` refuses to compile for a variant without a control.
+macro_rules! methods {
+    ($($method:ident),+ $(,)?) => {
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+        pub(super) enum Method { $($method),+ }
+        pub(super) const ALL: &[Method] = &[$(Method::$method),+];
+    };
+}
+methods!(
     RequestObservations,
     RequestPrepareFrontiers,
     RequestFinish,
@@ -32,30 +41,19 @@ pub(super) enum Method {
     ObservedProjectScope,
     ObservedFinish,
     ObservedFinishStage,
-}
-pub(super) const ALL: [Method; 17] = [
-    Method::RequestObservations,
-    Method::RequestPrepareFrontiers,
-    Method::RequestFinish,
-    Method::RequestOpenFile,
-    Method::RequestProjectPhase,
-    Method::RootsEvaluate,
-    Method::RootsReadinessCounts,
-    Method::StageStateCounts,
-    Method::StageProjectScope,
-    Method::StageFinish,
-    Method::ObservedReserve,
-    Method::ObservedBindings,
-    Method::ObservedBindingReadiness,
-    Method::ObservedArenas,
-    Method::ObservedProjectScope,
-    Method::ObservedFinish,
-    Method::ObservedFinishStage,
-];
+    FileReadinessCounts,
+    FileWalkCounts,
+    FileEmitRows,
+    FileFinish,
+    FileRule,
+    FileCaptureFrontiers,
+    FileCommitFrontier,
+    FileCounts,
+);
 /// Its methods never run: implementing every method of each entry trait is what the compiler checks.
 pub(super) struct Witness;
 pub(super) fn implements_every_entry_trait<
-    W: ExecutionRequest + ProjectRootExecution + ProjectStage + ObservationExecution,
+    W: ExecutionRequest + FileExecution + ProjectRootExecution + ProjectStage + ObservationExecution,
 >(
     _: &W,
 ) {
@@ -151,5 +149,47 @@ impl ObservationExecution for Witness {
     }
     fn finish_stage(self) -> Result<(), OperatingError> {
         witness(Method::ObservedFinishStage)
+    }
+}
+impl FileExecution for Witness {
+    fn readiness_counts(&self) -> ReadinessCounts {
+        witness(Method::FileReadinessCounts)
+    }
+    fn walk_counts(&self) -> WalkCounts {
+        witness(Method::FileWalkCounts)
+    }
+    fn emit_rows(
+        &mut self,
+        _: RuleIndex,
+        _: &mut Symbols,
+        _: &mut dyn FnMut(&[ryo_relations::domain::relations::types::Value]) -> Result<(), OperatingError>,
+    ) -> Result<RowEmission, OperatingError> {
+        witness(Method::FileEmitRows)
+    }
+    fn finish(self) -> Result<FileFinished, OperatingError> {
+        witness(Method::FileFinish)
+    }
+    fn rule(
+        &mut self,
+        _: RuleIndex,
+        _: RuleDemand,
+        _: &mut Symbols,
+    ) -> Result<RuleOutcome, OperatingError> {
+        witness(Method::FileRule)
+    }
+    fn capture_frontiers(
+        &mut self,
+        _: RuleIndex,
+        _: Bucket,
+        _: &mut Symbols,
+        _: CaptureContext<'_>,
+    ) -> Result<Vec<FrontierCapture>, OperatingError> {
+        witness(Method::FileCaptureFrontiers)
+    }
+    fn commit_frontier(&mut self, _: RuleIndex, _: InputNumber) -> Result<(), OperatingError> {
+        witness(Method::FileCommitFrontier)
+    }
+    fn counts(&self, _: RuleIndex) -> Result<LogicalCounts, OperatingError> {
+        witness(Method::FileCounts)
     }
 }
