@@ -11,17 +11,13 @@ use crate::domain::operator::contract::{
 use crate::domain::operator::types::PlanLayout;
 
 use ryo_operators::inbound::use_cases::operators::interface::{JoinInput, JoinRow, OperatorCall};
-use {
-    crate::domain::table_model::service::cell_at, ryo_values::domain::rows::service::column_in,
-    ryo_values::domain::rows::service::reset,
-};
+use {ryo_values::domain::rows::service::column_in, ryo_values::domain::rows::service::reset};
 mod driver;
 use crate::domain::table_model::types::Rows;
 use ryo_derived::domain::contract::types::KeyIndex;
-use ryo_language::domain::symbols::service::{hash_in, hash_of, text_of};
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::service::kinds;
-use ryo_relations::domain::relations::types::{CellKind, ColumnsView, Value};
+use ryo_relations::domain::relations::types::{CellKind, ColumnsView};
 use ryo_values::domain::plan_parts::types::{
     Comparison, Input, JoinColumn, Operand, QueryLiteral, Side, Test,
 };
@@ -168,40 +164,6 @@ pub(crate) fn compile(plan: &Plan, layout: &PlanLayout) -> KernelPlan {
         });
     }
     KernelPlan(chains)
-}
-
-/// Resolve one physical cell, counting only actual explicit decodes.
-fn cell(
-    left: &Rows<'_>,
-    right: &Rows<'_>,
-    left_row: RowIndex,
-    right_row: RowIndex,
-    source: JoinColumn,
-    decoded: &std::cell::Cell<u64>,
-) -> Option<Value> {
-    let value = match source.side {
-        Side::Left => cell_at(left, left_row, source.column),
-        Side::Right => cell_at(right, right_row, source.column),
-    }?;
-    decoded.set(decoded.get().saturating_add(1));
-    Some(value)
-}
-
-/// Match the ordinary literal-Text fast path, including exact hash/text checks.
-fn symbol_holds(value: Value, literal: &str, symbols: &Symbols, source: ByteSlice<'_>) -> bool {
-    let Value::Symbol(symbol) = value else {
-        return false;
-    };
-    let found = text_of(symbols, source, symbol);
-    match hash_in(symbols, symbol) {
-        Some(hash) => {
-            hash == hash_of(ByteSlice(literal.as_bytes()))
-                && found.is_some_and(|text| text.0 == literal)
-        }
-        // The ordinary evaluator falls through to its Datum text path when
-        // a Symbol has no hash. Keep that behavior for malformed registrations.
-        None => found.is_some_and(|text| text.0 == literal),
-    }
 }
 
 /// A row-ID cursor is the whole intermediate representation: no joined pair

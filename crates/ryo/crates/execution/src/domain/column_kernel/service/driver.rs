@@ -1,10 +1,18 @@
 //! Pre-acquired matching rows and the already-proven total filter of a fused chain.
-use super::*;
-use crate::domain::operator::contract::views::KeyProbe;
+use crate::domain::column_kernel::types::Chain;
+use crate::domain::operating::errors::OperatingError;
+use crate::domain::operator::contract::views::{IndexedRows, KeyProbe};
+use crate::domain::table_model::service::cell_at;
+use crate::domain::table_model::types::Rows;
+use ryo_language::domain::symbols::service::{hash_in, hash_of, text_of};
+use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_operators::inbound::use_cases::operators::interface::{
     JoinCells, JoinDriver, JoinInterrupted,
 };
+use ryo_relations::domain::relations::types::Value;
+use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
 use ryo_values::domain::rows::service::push_row;
+use ryo_values::domain::rows::types::{RowIndex, Table};
 pub(super) struct Left<'a, 'f> {
     pub(super) rows: &'a Rows<'f>,
     pub(super) row: RowIndex,
@@ -95,5 +103,44 @@ impl JoinDriver for Driver<'_, '_> {
         push_row(self.target, row);
         self.emitted.set(self.emitted.get().saturating_add(1));
         Ok(())
+    }
+}
+
+/// Resolve one physical cell, counting only actual explicit decodes.
+pub(super) fn cell(
+    left: &Rows<'_>,
+    right: &Rows<'_>,
+    left_row: RowIndex,
+    right_row: RowIndex,
+    source: JoinColumn,
+    decoded: &std::cell::Cell<u64>,
+) -> Option<Value> {
+    let value = match source.side {
+        Side::Left => cell_at(left, left_row, source.column),
+        Side::Right => cell_at(right, right_row, source.column),
+    }?;
+    decoded.set(decoded.get().saturating_add(1));
+    Some(value)
+}
+
+/// Match the ordinary literal-Text fast path, including exact hash/text checks.
+pub(super) fn symbol_holds(
+    value: Value,
+    literal: &str,
+    symbols: &Symbols,
+    source: ByteSlice<'_>,
+) -> bool {
+    let Value::Symbol(symbol) = value else {
+        return false;
+    };
+    let found = text_of(symbols, source, symbol);
+    match hash_in(symbols, symbol) {
+        Some(hash) => {
+            hash == hash_of(ByteSlice(literal.as_bytes()))
+                && found.is_some_and(|text| text.0 == literal)
+        }
+        // The ordinary evaluator falls through to its Datum text path when
+        // a Symbol has no hash. Keep that behavior for malformed registrations.
+        None => found.is_some_and(|text| text.0 == literal),
     }
 }
