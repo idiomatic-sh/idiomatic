@@ -1,38 +1,30 @@
 //! The `tree_join` service: how a join finds the elements of a tree for each row of its left input, with no IO and no ports.
 
-use ryo_language::domain::elements::service::{field_name_at, kind_names};
+use ryo_language::domain::elements::service::kind_names;
 use ryo_language::domain::symbols::service::name_count;
-use ryo_relations::domain::relations::service::node_id;
-use ryo_relations::domain::relations::types::{Flag, Position, Value};
+use ryo_relations::domain::relations::types::{Flag, Value};
 
 use super::types::{ColumnLack, TreeState};
-use crate::domain::comparing::service::holds_some;
-use crate::domain::kind_sets::service::{candidates_of, kind_tests, passes};
+use crate::domain::kind_sets::service::{candidates_of, kind_tests};
 use crate::domain::kind_sets::types::KindScratch;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Emit, Memo, NameCount, OperatorContext, TreeShape};
 use crate::domain::operating::types::{KindNarrowing, MissingColumn};
 use crate::domain::operator::contract::types::{PrimitiveSemantics, join_result};
-use crate::domain::table_cells::service::{
-    kind_name_at, ordinal_number_at, read_tree_cells, span_at,
-};
-use crate::domain::table_cells::types::{CellsRead, TreeForm, TreeRows};
+use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::service::{count_of, kinds_of, read_row};
-use crate::domain::table_model::types::{Rows, Verdict};
-use crate::domain::table_scratch::types::{ElementIndex, KindsBy};
-use crate::domain::text_gate::service::{
-    needed_of, needed_of_rest, text_admitted, text_gate, undecided,
-};
+use crate::domain::table_model::types::Rows;
+use crate::domain::table_scratch::types::KindsBy;
+use crate::domain::text_gate::service::{needed_of, needed_of_rest, text_gate, undecided};
 use crate::domain::tree_join::collections::strategies::entity_vector::item::EntityVectorItem;
 use crate::domain::tree_join::collections::strategies::interface::StrategiesItem as _;
 use crate::domain::tree_join::collections::strategies::span_index::item::SpanIndexItem;
 use crate::domain::tree_join::collections::strategies::types::{Fitting, NodeColumns};
 use ryo_derived::domain::contract::types::Finding;
-use ryo_language::domain::elements::service::{kind_at, parent_at, text_at};
 use ryo_operators::inbound::use_cases::operators::interface::OperatorCall;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Comparison};
 use ryo_values::domain::rows::errors::TableModelError;
-mod driver;
+pub(crate) mod driver;
 
 /// The column of the elements of a tree that the column `column` of the view of them is.
 pub(crate) fn source_column(view: &[ColumnIndex], column: ColumnIndex) -> ColumnIndex {
@@ -40,29 +32,6 @@ pub(crate) fn source_column(view: &[ColumnIndex], column: ColumnIndex) -> Column
         Some(moved) => *moved,
         // A view names only the columns it moves: a column it does not name is the tree's own.
         None => column,
-    }
-}
-
-/// One cell of the row of the tree at `at`: of the edge to the element, or of the element.
-pub(crate) fn tree_value(tree: &TreeRows<'_>, at: Position, column: ColumnIndex) -> Value {
-    let elements = tree.elements;
-    if tree.form == TreeForm::Edges {
-        return match column.0 {
-            0 => Value::Node(node_id(tree.file, parent_at(elements, at))),
-            1 => Value::Node(node_id(tree.file, at)),
-            2 => Value::Number(ordinal_number_at(elements, at)),
-            3 => Value::Symbol(field_name_at(elements, at)),
-            4 => Value::File(tree.file),
-            _ => Value::Flag(Flag::Lowered),
-        };
-    }
-    match column.0 {
-        0 => Value::Node(node_id(tree.file, at)),
-        1 => Value::Symbol(kind_name_at(elements, at)),
-        2 => Value::Symbol(text_at(elements, at)),
-        3 => Value::File(tree.file),
-        4 => Value::Span(span_at(elements, at)),
-        _ => Value::Flag(Flag::Lowered),
     }
 }
 
