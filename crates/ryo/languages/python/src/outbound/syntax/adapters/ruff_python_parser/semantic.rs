@@ -12,7 +12,7 @@ use ryo::languages::{
 };
 
 use super::schemas::concrete_node_kind;
-use super::types::{RenderedText, Strings};
+use super::types::{RenderedSyntax, Strings};
 use crate::domain::syntax::service::kind_bits;
 use crate::outbound::syntax::types::PythonSourceKind;
 use crate::settings::PythonParserSettings;
@@ -86,15 +86,15 @@ fn render(
     expr: &Expr,
     context: RenderContext,
     source: languages::NameText<'_>,
-) -> Option<RenderedText> {
+) -> Option<RenderedSyntax> {
     match expr {
-        Expr::Name(name) => Some(RenderedText(name.id.to_string())),
-        Expr::Attribute(attribute) => Some(RenderedText(format!(
+        Expr::Name(name) => Some(RenderedSyntax(name.id.to_string())),
+        Expr::Attribute(attribute) => Some(RenderedSyntax(format!(
             "{}.{}",
             render(&attribute.value, RenderContext::AttributeReceiver, source)?.0,
             attribute.attr
         ))),
-        Expr::Subscript(subscript) => Some(RenderedText(format!(
+        Expr::Subscript(subscript) => Some(RenderedSyntax(format!(
             "{}[{}]",
             render(&subscript.value, RenderContext::AttributeReceiver, source)?.0,
             render(&subscript.slice, RenderContext::PositionalArgument, source)?.0
@@ -111,9 +111,9 @@ fn render(
             if context == RenderContext::AttributeReceiver
                 || context == RenderContext::PositionalArgument
             {
-                Some(RenderedText(format!("({text})")))
+                Some(RenderedSyntax(format!("({text})")))
             } else {
-                Some(RenderedText(text))
+                Some(RenderedSyntax(text))
             }
         }
         Expr::List(list) => {
@@ -121,9 +121,9 @@ fn render(
             for item in &list.elts {
                 items.push(render(item, RenderContext::PositionalArgument, source)?.0);
             }
-            Some(RenderedText(format!("[{}]", items.join(LIST_SEPARATOR))))
+            Some(RenderedSyntax(format!("[{}]", items.join(LIST_SEPARATOR))))
         }
-        Expr::Starred(starred) if context == RenderContext::AssignmentTarget => Some(RenderedText(
+        Expr::Starred(starred) if context == RenderContext::AssignmentTarget => Some(RenderedSyntax(
             format!("*{}", render(&starred.value, context, source)?.0),
         )),
         Expr::StringLiteral(_)
@@ -138,7 +138,7 @@ fn render(
             if context == RenderContext::AttributeReceiver {
                 return None;
             }
-            source_slice(expr, source).map(|slice| RenderedText(slice.0.to_owned()))
+            source_slice(expr, source).map(|slice| RenderedSyntax(slice.0.to_owned()))
         }
         _ => None,
     }

@@ -31,7 +31,7 @@ pub(crate) fn imported_roots(notes: &[Option<Note>]) -> Vec<ImportedRoot> {
             roots.insert(ImportedRoot {
                 file: FileId(u32::try_from(number).unwrap_or(u32::MAX)),
                 root: root.into(),
-                path: ImportPath::from(import.path.0.clone()),
+                path: ImportPath(import.path.0.clone()),
             });
         }
     }
