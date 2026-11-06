@@ -5,7 +5,9 @@ use super::constants::{
     FUTURE_IMPORT_NOT_FIRST_MESSAGE, LAZY_FUTURE_IMPORT_MESSAGE, NOT_A_CHANCE, NOT_DEFINED,
     UNKNOWN_FEATURE,
 };
-use super::types::{ParserRefusal, Said, SemanticSyntaxDiagnostic};
+use super::types::{
+    FutureAnnotations, FutureValidity, ParserRefusal, Said, SemanticSyntaxDiagnostic,
+};
 use ruff_python_ast::Stmt;
 use ruff_python_ast::token::{TokenKind, Tokens};
 use ruff_python_ast::visitor::{Visitor, walk_stmt};
@@ -16,14 +18,14 @@ use std::collections::HashSet;
 
 struct FutureImports<'a> {
     permitted: &'a HashSet<ruff_text_size::TextRange>,
-    enabled: bool,
-    valid: bool,
+    enabled: FutureAnnotations,
+    valid: FutureValidity,
     errors: &'a mut Vec<SemanticSyntaxDiagnostic>,
 }
 
 impl FutureImports<'_> {
     fn report(&mut self, code: DiagnosticCode, range: ruff_text_size::TextRange, message: String) {
-        self.valid = false;
+        self.valid = FutureValidity(false);
         self.errors.push(SemanticSyntaxDiagnostic {
             message,
             range,
@@ -61,8 +63,8 @@ impl<'a> Visitor<'a> for FutureImports<'_> {
                 .names
                 .iter()
                 .all(|alias| super::constants::FUTURE_FEATURES.contains(&alias.name.as_str()));
-            self.valid &= known;
-            self.enabled |= valid_position
+            self.valid.0 &= known;
+            self.enabled.0 |= valid_position
                 && !import.is_lazy
                 && known
                 && import
@@ -79,7 +81,7 @@ impl<'a> Visitor<'a> for FutureImports<'_> {
 pub(super) fn module_future_annotations(
     module: &ruff_python_ast::ModModule,
     errors: &mut Vec<SemanticSyntaxDiagnostic>,
-) -> bool {
+) -> FutureAnnotations {
     let mut permitted = HashSet::new();
     for (index, statement) in module.body.iter().enumerate() {
         if index == 0
@@ -98,14 +100,14 @@ pub(super) fn module_future_annotations(
     }
     let mut visitor = FutureImports {
         permitted: &permitted,
-        enabled: false,
-        valid: true,
+        enabled: FutureAnnotations(false),
+        valid: FutureValidity(true),
         errors,
     };
     for statement in &module.body {
         visitor.visit_stmt(statement);
     }
-    visitor.enabled && visitor.valid
+    FutureAnnotations(visitor.enabled.0 && visitor.valid.0)
 }
 
 /// Where `CPython`'s parser refuses a `try` the library reads without an error: an `else` with no `except` before it (`CPython`: "expected

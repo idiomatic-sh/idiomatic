@@ -108,7 +108,11 @@ fn a_module_without_annotations_reports_no_named_expression_error() {
     let parsed =
         ruff_python_parser::parse_module("value = 1\n").expect("a plain assignment parses");
     assert!(
-        annotation_named_expression_syntax_errors(parsed.syntax(), PythonVersion::PY314, false)
+        annotation_named_expression_syntax_errors(
+            parsed.syntax(),
+            PythonVersion::PY314,
+            super::types::FutureAnnotations(false),
+        )
             .is_empty()
     );
 }

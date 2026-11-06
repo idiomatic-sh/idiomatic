@@ -1,7 +1,9 @@
 //! Annotation scopes: named expressions are restricted in deferred and generic annotations.
 
 use super::constants::{NAMED_EXPRESSION_IN_ANNOTATION_MESSAGE, PARSER_ERROR};
-use super::types::SemanticSyntaxDiagnostic;
+use super::types::{
+    DeferredAnnotations, Depth, FutureAnnotations, GenericScope, SemanticSyntaxDiagnostic,
+};
 use ruff_python_ast::visitor::{Visitor, walk_expr, walk_stmt};
 use ruff_python_ast::{Expr, PythonVersion, Stmt};
 use ruff_text_size::Ranged as _;
@@ -11,19 +13,19 @@ use ryo::languages::{DiagnosticPhase, TreeImpact};
 #[derive(Default)]
 struct AnnotationVisitor {
     /// Nesting within an expression whose annotation grammar restricts named expressions.
-    annotation_depth: usize,
+    annotation_depth: Depth,
     /// Whether a valid module-prefix future statement enables postponed annotations.
-    future_annotations: bool,
+    future_annotations: FutureAnnotations,
     /// Whether the configured language version uses native deferred annotations.
-    deferred_runtime_annotations: bool,
+    deferred_runtime_annotations: DeferredAnnotations,
     /// Language validity diagnostics accumulated without discarding the parsed tree.
     errors: Vec<SemanticSyntaxDiagnostic>,
 }
 
 impl AnnotationVisitor {
     /// Check an annotation when its language scope imposes the restricted grammar.
-    fn annotation(&mut self, expression: &Expr, generic: bool) {
-        if !(self.future_annotations || self.deferred_runtime_annotations || generic) {
+    fn annotation(&mut self, expression: &Expr, generic: GenericScope) {
+        if !(self.future_annotations.0 || self.deferred_runtime_annotations.0 || generic.0) {
             return;
         }
         self.invalid_expression(expression);
@@ -31,9 +33,9 @@ impl AnnotationVisitor {
 
     /// Enter a restricted expression, then restore the surrounding annotation depth.
     fn invalid_expression(&mut self, expression: &Expr) {
-        self.annotation_depth += 1;
+        self.annotation_depth.0 += 1;
         self.visit_expr(expression);
-        self.annotation_depth -= 1;
+        self.annotation_depth.0 -= 1;
     }
 }
 
@@ -43,7 +45,7 @@ impl<'a> Visitor<'a> for AnnotationVisitor {
             Stmt::FunctionDef(function) => {
                 for parameter in function.parameters.iter_non_variadic_params() {
                     if let Some(annotation) = parameter.annotation() {
-                        self.annotation(annotation, function.type_params.is_some());
+                        self.annotation(annotation, GenericScope(function.type_params.is_some()));
                     }
                 }
                 for parameter in [&function.parameters.vararg, &function.parameters.kwarg]
@@ -51,11 +53,11 @@ impl<'a> Visitor<'a> for AnnotationVisitor {
                     .flatten()
                 {
                     if let Some(annotation) = parameter.annotation() {
-                        self.annotation(annotation, function.type_params.is_some());
+                        self.annotation(annotation, GenericScope(function.type_params.is_some()));
                     }
                 }
                 if let Some(returns) = function.returns.as_deref() {
-                    self.annotation(returns, function.type_params.is_some());
+                    self.annotation(returns, GenericScope(function.type_params.is_some()));
                 }
                 walk_stmt(self, stmt);
             }
@@ -73,7 +75,7 @@ impl<'a> Visitor<'a> for AnnotationVisitor {
                 walk_stmt(self, stmt);
             }
             Stmt::AnnAssign(assignment) => {
-                if self.future_annotations || self.deferred_runtime_annotations {
+                if self.future_annotations.0 || self.deferred_runtime_annotations.0 {
                     self.invalid_expression(&assignment.annotation);
                 }
                 walk_stmt(self, stmt);
@@ -129,12 +131,12 @@ impl<'a> Visitor<'a> for AnnotationVisitor {
             }
             // A lambda body introduces a nested scope; its defaults stay in the annotation scope.
             let enclosing_depth = self.annotation_depth;
-            self.annotation_depth = 0;
+            self.annotation_depth = Depth(0);
             self.visit_expr(&lambda.body);
             self.annotation_depth = enclosing_depth;
             return;
         }
-        if self.annotation_depth > 0
+        if self.annotation_depth.0 > 0
             && let Expr::Named(named) = expr
         {
             self.errors.push(SemanticSyntaxDiagnostic {
@@ -155,11 +157,11 @@ impl<'a> Visitor<'a> for AnnotationVisitor {
 pub(super) fn annotation_named_expression_syntax_errors(
     module: &ruff_python_ast::ModModule,
     target_version: PythonVersion,
-    future_annotations: bool,
+    future_annotations: FutureAnnotations,
 ) -> Vec<SemanticSyntaxDiagnostic> {
     let mut visitor = AnnotationVisitor {
         future_annotations,
-        deferred_runtime_annotations: target_version > PythonVersion::PY313,
+        deferred_runtime_annotations: DeferredAnnotations(target_version > PythonVersion::PY313),
         ..AnnotationVisitor::default()
     };
     for statement in &module.body {

@@ -6,7 +6,8 @@ use super::future::module_future_annotations;
 use super::lexical::{offset, readable};
 use super::options::options;
 use super::types::{
-    AnnotationCandidate, AnnotationContext, ByteIndex, Readable, SemanticSyntaxDiagnostic, Writer,
+    AnnotationCandidate, AnnotationContext, ByteIndex, FutureAnnotations, LexicallyComplete,
+    Readable, SemanticSyntaxDiagnostic, Writer,
 };
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::{PythonSourceKind, SourceText};
@@ -95,8 +96,10 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
                 languages::SyntaxAcceptance::Rejected
             },
         );
-        let lexical_complete =
-            matches!(&source, Cow::Borrowed(_)) && super::lexical::complete(&parsed, text.0);
+        let lexical_complete = LexicallyComplete(
+            matches!(&source, Cow::Borrowed(_))
+                && super::lexical::complete(&parsed, languages::ByteSlice(text.0)).0,
+        );
         let length = offset(ByteIndex(text.0.len()));
         let mut future_errors = Vec::new();
         let future_annotations = if parsed.errors().is_empty()
@@ -104,7 +107,7 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
         {
             module_future_annotations(module, &mut future_errors)
         } else {
-            false
+            FutureAnnotations(false)
         };
         let mut writer = Writer::new(
             builder,
@@ -133,7 +136,7 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
         diagnose_semantic_errors(writer.tree.builder, semantic_errors);
         let refused = std::mem::take(&mut writer.refused);
         for refusal in refused {
-            let metadata = if lexical_complete
+            let metadata = if lexical_complete.0
                 && refusal.metadata.impact == TreeImpact::Incomplete
                 && refusal.metadata.phase == DiagnosticPhase::Parse
             {
@@ -169,7 +172,7 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
 fn diagnose_parser_errors(
     builder: &mut languages::TableBuilder<'_>,
     parsed: &ruff_python_parser::Parsed<Mod>,
-    lexical_complete: bool,
+    lexical_complete: LexicallyComplete,
 ) {
     for error in parsed.errors() {
         // The error's own message: the library's `Display` of the whole error adds the byte range the row already holds.
@@ -177,7 +180,7 @@ fn diagnose_parser_errors(
             builder,
             DiagnosticMetadata::new(
                 DiagnosticPhase::Parse,
-                if lexical_complete {
+                if lexical_complete.0 {
                     TreeImpact::LexicallyComplete
                 } else {
                     TreeImpact::Incomplete

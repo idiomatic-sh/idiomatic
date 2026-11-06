@@ -1,13 +1,15 @@
 //! Certify lexical facts from the parser's consumed token stream and lexer state errors.
 use super::constants::UNREADABLE;
-use super::types::{ByteIndex, Decoded, Readable, Strings};
+use super::types::{
+    ByteIndex, Decoded, DelimiterEof, LexicallyComplete, Readable, Strings, UnclosedDelimiter,
+};
 use crate::outbound::syntax::types::SourceText;
 use ruff_python_ast::Mod;
 use ruff_python_ast::token::{Token, TokenKind};
 use ruff_python_ast::{AnyNodeRef, NodeKind as RuffNode};
 use ruff_python_parser::{LexicalErrorType, ParseErrorType, Parsed};
 use ruff_text_size::Ranged as _;
-use ryo::languages::Offset;
+use ryo::languages::{self, Offset};
 use std::borrow::Cow;
 
 /// Parser recovery does not by itself make comment or indentation facts incomplete.
@@ -15,30 +17,30 @@ use std::borrow::Cow;
 /// a synthetic zero-width lexer error there, after all source tokens were read.
 /// Other lexer failures can lose string, interpolation or continuation state and
 /// remain incomplete even when their token ranges happen to cover every byte.
-pub(super) fn complete(parsed: &Parsed<Mod>, source: &[u8]) -> bool {
-    let mut delimiter_eof = false;
+pub(super) fn complete(parsed: &Parsed<Mod>, source: languages::ByteSlice<'_>) -> LexicallyComplete {
+    let mut delimiter_eof = DelimiterEof(false);
     for error in parsed.errors() {
         match &error.error {
             ParseErrorType::Lexical(LexicalErrorType::Eof)
-                if error.location.is_empty() && error.location.end().to_usize() == source.len() =>
+                if error.location.is_empty() && error.location.end().to_usize() == source.0.len() =>
             {
-                delimiter_eof = true;
+                delimiter_eof = DelimiterEof(true);
             }
             ParseErrorType::Lexical(_)
             | ParseErrorType::FStringError(_)
-            | ParseErrorType::TStringError(_) => return false,
+            | ParseErrorType::TStringError(_) => return LexicallyComplete(false),
             _ => {}
         }
     }
-    if delimiter_eof && !has_unclosed_delimiter(parsed.tokens()) {
-        return false;
+    if delimiter_eof.0 && !has_unclosed_delimiter(parsed.tokens()).0 {
+        return LexicallyComplete(false);
     }
     covered(parsed.tokens(), source, delimiter_eof)
 }
 
 /// A delimiter witness distinguishes the EOF marker from failed continuations.
 /// Mismatched delimiters do not certify the lexer's nesting state.
-fn has_unclosed_delimiter(tokens: &[Token]) -> bool {
+fn has_unclosed_delimiter(tokens: &[Token]) -> UnclosedDelimiter {
     let mut expected = Vec::new();
     for token in tokens {
         match token.kind() {
@@ -47,20 +49,20 @@ fn has_unclosed_delimiter(tokens: &[Token]) -> bool {
             TokenKind::Lbrace => expected.push(TokenKind::Rbrace),
             closing @ (TokenKind::Rpar | TokenKind::Rsqb | TokenKind::Rbrace) => {
                 if expected.pop() != Some(closing) {
-                    return false;
+                    return UnclosedDelimiter(false);
                 }
             }
             _ => {}
         }
     }
-    !expected.is_empty()
+    UnclosedDelimiter(!expected.is_empty())
 }
 
 /// Ordered, bounded tokens must cover every non-whitespace source byte.
 /// Only a separately certified synthetic EOF error token may be ignored.
-pub(super) fn covered(tokens: &[Token], source: &[u8], delimiter_eof: bool) -> bool {
-    if u32::try_from(source.len()).is_err() {
-        return false;
+pub(super) fn covered(tokens: &[Token], source: languages::ByteSlice<'_>, delimiter_eof: DelimiterEof) -> LexicallyComplete {
+    if u32::try_from(source.0.len()).is_err() {
+        return LexicallyComplete(false);
     }
     let mut previous_end = 0_u32;
     for (index, token) in tokens.iter().enumerate() {
@@ -70,35 +72,39 @@ pub(super) fn covered(tokens: &[Token], source: &[u8], delimiter_eof: bool) -> b
         let end_index = usize::try_from(end).unwrap_or(usize::MAX);
         if start < previous_end
             || start > end
-            || end_index > source.len()
+            || end_index > source.0.len()
             || !source
+                .0
                 .get(usize::try_from(previous_end).unwrap_or(usize::MAX)..start_index)
                 .is_some_and(|gap| gap.iter().all(u8::is_ascii_whitespace))
         {
-            return false;
+            return LexicallyComplete(false);
         }
         let kind = super::schemas::token_kind(token.kind());
         if kind
             == crate::domain::syntax::types::Kind::Token(
                 crate::domain::tokens::types::Token::Errortoken,
             )
-            && !(delimiter_eof
+            && !(delimiter_eof.0
                 && token.kind() == TokenKind::Unknown
                 && start == end
-                && end_index == source.len())
+                && end_index == source.0.len())
         {
-            return false;
+            return LexicallyComplete(false);
         }
         if token.kind() == TokenKind::EndOfFile
-            && (index + 1 != tokens.len() || end_index != source.len())
+            && (index + 1 != tokens.len() || end_index != source.0.len())
         {
-            return false;
+            return LexicallyComplete(false);
         }
         previous_end = end;
     }
-    source
-        .get(usize::try_from(previous_end).unwrap_or(usize::MAX)..)
-        .is_some_and(|gap| gap.iter().all(u8::is_ascii_whitespace))
+    LexicallyComplete(
+        source
+            .0
+            .get(usize::try_from(previous_end).unwrap_or(usize::MAX)..)
+            .is_some_and(|gap| gap.iter().all(u8::is_ascii_whitespace)),
+    )
 }
 
 /// The text the library reads for `bytes`: the bytes themselves when they are UTF-8, or else each byte that is not part of a

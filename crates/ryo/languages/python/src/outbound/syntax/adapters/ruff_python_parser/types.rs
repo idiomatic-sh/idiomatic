@@ -70,7 +70,7 @@ pub(crate) struct ParserRefusal {
 /// The writer of the table: it walks the library's tree in the order of the file and writes its tokens between the nodes.
 pub(super) struct Writer<'b, 'w, 't> {
     /// Valid compiler activation computed from the module’s legal future-statement prefix.
-    pub future_annotations: bool,
+    pub future_annotations: FutureAnnotations,
     /// Annotation candidates are collected only in explicit annotation contexts.
     pub annotations: Vec<AnnotationCandidate>,
     /// Current syntactic context, refined by semantic binding before projection.
@@ -146,3 +146,31 @@ pub(super) struct SemanticSyntaxDiagnostic {
     /// Whether the diagnostic preserves usable syntax facts.
     pub impact: TreeImpact,
 }
+
+/// Whether a valid module-prefix future statement enables postponed annotations.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct FutureAnnotations(pub bool);
+
+/// Whether the configured language version uses native deferred annotations.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct DeferredAnnotations(pub bool);
+
+/// Whether an annotation sits under generic type parameters.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct GenericScope(pub bool);
+
+/// Whether the lexer's token ranges cover the source completely.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct LexicallyComplete(pub bool);
+
+/// Whether a certified synthetic end-of-file error marks an unclosed delimiter.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct DelimiterEof(pub bool);
+
+/// Whether every future directive seen so far is known.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct FutureValidity(pub bool);
+
+/// Whether a token stream ends inside an open delimiter.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct UnclosedDelimiter(pub bool);

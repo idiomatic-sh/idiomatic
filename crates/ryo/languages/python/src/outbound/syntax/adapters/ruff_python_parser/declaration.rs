@@ -7,7 +7,7 @@ use super::constants::{
     NONLOCAL_GLOBAL_CONFLICT, NONLOCAL_PARAMETER, PATTERN_BINDINGS_MISMATCH,
 };
 use super::scopes::{ScopeKind, ScopeState, VisitorState};
-use super::types::SemanticSyntaxDiagnostic;
+use super::types::{FutureAnnotations, SemanticSyntaxDiagnostic};
 use ruff_python_ast::visitor::{Visitor, walk_expr, walk_pattern, walk_stmt};
 use ruff_python_ast::{Expr, Mod, Pattern, PythonVersion, Stmt};
 use ruff_text_size::Ranged as _;
@@ -346,7 +346,7 @@ impl<'a> Visitor<'a> for ComprehensionTargets {
 pub(super) fn semantic_syntax_errors(
     module: &Mod,
     target_version: PythonVersion,
-    future_annotations: bool,
+    future_annotations: FutureAnnotations,
 ) -> Vec<SemanticSyntaxDiagnostic> {
     let Mod::Module(module) = module else {
         return Vec::new();

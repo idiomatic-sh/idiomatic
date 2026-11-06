@@ -4,8 +4,8 @@ use super::future::{else_without_except, unknown_futures};
 use super::lexical::{decoded_of, opens};
 use super::schemas::{concrete_node_kind, token_kind};
 use super::types::{
-    AnnotationCandidate, AnnotationContext, Decoded, Depth, ParserRefusal, Said, Strings,
-    TokenIndex, Writer,
+    AnnotationCandidate, AnnotationContext, Decoded, Depth, FutureAnnotations, ParserRefusal,
+    Said, Strings, TokenIndex, Writer,
 };
 use crate::domain::extras::types::Extra;
 use crate::domain::syntax::constants::{
@@ -67,7 +67,7 @@ impl<'b, 'w, 't> Writer<'b, 'w, 't> {
         context: AnnotationContext,
     ) -> Self {
         Self {
-            future_annotations: false,
+            future_annotations: FutureAnnotations(false),
             annotations: Vec::new(),
             annotation: context,
             start,
@@ -239,7 +239,7 @@ impl<'a> SourceOrderVisitor<'a> for Writer<'_, '_, '_> {
             languages::node_property(
                 self.tree.builder,
                 MODULE_FUTURE_ANNOTATIONS,
-                languages::NameText(if self.future_annotations {
+                languages::NameText(if self.future_annotations.0 {
                     crate::domain::syntax::constants::MODULE_FUTURE_ANNOTATIONS_ENABLED
                 } else {
                     crate::domain::syntax::constants::MODULE_FUTURE_ANNOTATIONS_DISABLED

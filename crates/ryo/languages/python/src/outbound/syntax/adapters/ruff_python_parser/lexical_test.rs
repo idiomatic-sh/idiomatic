@@ -2,6 +2,7 @@
 
 use super::adapter::SyntaxRuffPythonParserAdapter;
 use super::lexical::{complete, covered};
+use super::types::DelimiterEof;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -26,7 +27,7 @@ fn unclosed_delimiters_preserve_fully_read_comments() {
         let parsed = parse_unchecked(source, ParseOptions::from(PySourceType::Python));
         assert!(!parsed.errors().is_empty(), "{source:?}");
         assert!(
-            complete(&parsed, source.as_bytes()),
+            complete(&parsed, ByteSlice(source.as_bytes())).0,
             "{source:?}: {:?}",
             parsed.errors()
         );
@@ -46,7 +47,7 @@ fn complete_byte_coverage_does_not_override_lost_lexer_state() {
         let parsed = parse_unchecked(source, ParseOptions::from(PySourceType::Python));
         assert!(!parsed.errors().is_empty(), "{source:?}");
         assert!(
-            !complete(&parsed, source.as_bytes()),
+            !complete(&parsed, ByteSlice(source.as_bytes())).0,
             "{source:?}: {:?}",
             parsed.errors()
         );
@@ -56,24 +57,24 @@ fn complete_byte_coverage_does_not_override_lost_lexer_state() {
 fn truncated_or_invalid_token_stream_cannot_certify_absence() {
     let source = "first = 1\n# retained\nsecond = 2\n";
     let parsed = parse_unchecked(source, ParseOptions::from(PySourceType::Python));
-    assert!(complete(&parsed, source.as_bytes()));
+    assert!(complete(&parsed, ByteSlice(source.as_bytes())).0);
     let stop = parsed
         .tokens()
         .iter()
         .position(|token| token.kind() == TokenKind::Comment)
         .unwrap();
-    assert!(!covered(&parsed.tokens()[..stop], source.as_bytes(), false));
+    assert!(!covered(&parsed.tokens()[..stop], ByteSlice(source.as_bytes()), DelimiterEof(false)).0);
     let invalid = RuffToken::new(
         TokenKind::Unknown,
         TextRange::empty(TextSize::new(0)),
         TokenFlags::empty(),
     );
     assert!(
-        !covered(&[invalid], b"", false),
+        !covered(&[invalid], ByteSlice(b""), DelimiterEof(false)).0,
         "a zero-width error still needs end-state evidence"
     );
     assert!(
-        !covered(&[invalid], source.as_bytes(), true),
+        !covered(&[invalid], ByteSlice(source.as_bytes()), DelimiterEof(true)).0,
         "an interior error cannot be an EOF marker"
     );
 }

@@ -151,7 +151,7 @@ fn a_module_without_declarations_reports_no_semantic_syntax_error() {
         semantic_syntax_errors(
             parsed.syntax(),
             ruff_python_ast::PythonVersion::PY314,
-            false
+            super::types::FutureAnnotations(false)
         )
         .is_empty()
     );
