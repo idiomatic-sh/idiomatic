@@ -106,26 +106,30 @@ impl KernelInvocation for ReadyAdapter<'_> {
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
     ) -> Result<
-        crate::application::file_dag::program::runtime::types::Attempt<crate::application::file_dag::relations::handle::service::PublishedInput>,
+        crate::application::file_dag::program::runtime::types::Attempt<
+            crate::application::file_dag::relations::handle::service::PublishedInput,
+        >,
         InvocationFailure,
     > {
         self.actual.positions(permit, context, scratch)
     }
     fn selected(
         &self,
-        shape: &crate::domain::executable_program::selection::SelectionAlternative,
+        shape: &crate::domain::executable_program::types::SelectionAlternative,
         permit: &KernelPermit<'_>,
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
     ) -> Result<
-        crate::application::file_dag::program::runtime::types::Attempt<crate::application::file_dag::relations::handle::service::PublishedInput>,
+        crate::application::file_dag::program::runtime::types::Attempt<
+            crate::application::file_dag::relations::handle::service::PublishedInput,
+        >,
         InvocationFailure,
     > {
         self.actual.selected(shape, permit, context, scratch)
     }
     fn column(
         &self,
-        shape: &crate::domain::executable_program::column::ColumnAlternative,
+        shape: &crate::domain::executable_program::types::ColumnAlternative,
         permit: &KernelPermit<'_>,
         left: &AdmittedInput,
         right: &AdmittedInput,

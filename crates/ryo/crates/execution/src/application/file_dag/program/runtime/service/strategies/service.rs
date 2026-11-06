@@ -36,8 +36,10 @@ impl ProgramExecution {
                     crate::application::file_dag::program::admission::ProducerRoot::Region(id),
                     &self.partition,
                     &[],
-                    crate::application::file_dag::program::admission::Representation::empty(last.contract.output_kinds.clone())
-                        .map_err(InvocationFailure::Semantic)?,
+                    crate::application::file_dag::program::admission::Representation::empty(
+                        last.contract.output_kinds.clone(),
+                    )
+                    .map_err(InvocationFailure::Semantic)?,
                 )
                 .map_err(InvocationFailure::Semantic)?;
             return Ok(Some(InvocationOutcome::Published(
@@ -61,8 +63,9 @@ impl ProgramExecution {
             .needs
             .as_ref()
             .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
-        if let Some(shape) = crate::domain::executable_program::service::ordered_existence(&region.route)
-            .filter(|_| progress.ordered_done == StageProgress::Pending)
+        if let Some(shape) =
+            crate::domain::executable_program::service::ordered_existence(&region.route)
+                .filter(|_| progress.ordered_done == StageProgress::Pending)
         {
             progress
                 .supply(
@@ -132,7 +135,9 @@ impl ProgramExecution {
                         crate::application::file_dag::program::admission::ProducerRoot::Region(id),
                         &self.partition,
                         &[source],
-                        crate::application::file_dag::program::admission::Representation::Computed(rows),
+                        crate::application::file_dag::program::admission::Representation::Computed(
+                            rows,
+                        ),
                     )
                     .map_err(InvocationFailure::Semantic)?
                     .with_coverage(coverage)
@@ -235,7 +240,9 @@ impl ProgramExecution {
                         crate::application::file_dag::program::admission::ProducerRoot::Region(id),
                         &self.partition,
                         &[left, right],
-                        crate::application::file_dag::program::admission::Representation::Computed(rows),
+                        crate::application::file_dag::program::admission::Representation::Computed(
+                            rows,
+                        ),
                     )
                     .map_err(InvocationFailure::Semantic)?
                     .with_coverage(completion.coverage(needs));

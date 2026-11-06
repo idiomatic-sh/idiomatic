@@ -201,7 +201,7 @@ pub(crate) fn classify(
         }
     }
     for alternative in graph.ordered_existence.iter().flatten() {
-        if let crate::domain::ordered_existence::types::ResolvedAlternative::Eligible(resolved) =
+        if let crate::domain::file_program::types::ResolvedAlternative::Eligible(resolved) =
             alternative
         {
             hold(&mut held, resolved.join, Barrier::Lifetime);

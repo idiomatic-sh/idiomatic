@@ -5,7 +5,7 @@ use crate::domain::{
     column_kernel::types::Chain,
     coverage::types::RuleIndex,
     derived_views::types::ViewRequest,
-    executable_program::types::RegionId,
+    executable_program::types::{ColumnAlternative, RegionId},
     file_program::types::{NodeId, RequestGraph},
 };
 use ryo_derived::domain::contract::types::DerivedKind;
@@ -26,38 +26,6 @@ struct OriginalColumn {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct ColumnCandidates {
     candidates: Vec<OriginalColumn>,
-}
-
-/// The typed semantic shape required by the shared physical invocation.
-#[derive(Clone, Debug)]
-pub(crate) struct ColumnAlternative {
-    target: RegionId,
-    left: RegionId,
-    join: RegionId,
-    filter: RegionId,
-    chain: Chain,
-}
-
-impl ColumnAlternative {
-    pub(crate) fn target(&self) -> RegionId {
-        self.target
-    }
-
-    pub(crate) fn left(&self) -> RegionId {
-        self.left
-    }
-
-    pub(crate) fn join(&self) -> RegionId {
-        self.join
-    }
-
-    pub(crate) fn filter(&self) -> RegionId {
-        self.filter
-    }
-
-    pub(crate) fn chain(&self) -> &Chain {
-        &self.chain
-    }
 }
 
 fn original(graph: &RequestGraph, rule: RuleIndex, step: StepId) -> Option<NodeId> {

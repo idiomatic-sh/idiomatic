@@ -7,7 +7,7 @@ impl ProgramExecution {
     pub(in crate::application::file_dag::program::runtime::service) fn record_column(
         &self,
         state: &RuntimeState,
-        shape: &crate::domain::executable_program::column::ColumnAlternative,
+        shape: &crate::domain::executable_program::types::ColumnAlternative,
         counts: &ColumnCounters,
     ) -> Result<(), OperatingError> {
         let mut slots = state.slots.borrow_mut();

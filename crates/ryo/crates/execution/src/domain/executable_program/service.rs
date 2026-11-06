@@ -258,7 +258,7 @@ pub(crate) fn compile(
         candidates[target.0].column = Some(column);
     }
     for alternative in ordered_alternatives.into_iter().flatten() {
-        let crate::domain::ordered_existence::types::ResolvedAlternative::Eligible(resolved) =
+        let crate::domain::file_program::types::ResolvedAlternative::Eligible(resolved) =
             alternative
         else {
             continue;
@@ -526,7 +526,7 @@ pub(crate) fn ordered_existence(route: &super::types::Route) -> Option<&OrderedE
         _ => None,
     }
 }
-pub(crate) fn column(route: &super::types::Route) -> Option<&super::column::ColumnAlternative> {
+pub(crate) fn column(route: &super::types::Route) -> Option<&super::types::ColumnAlternative> {
     match route {
         super::types::Route::Column(shape) => Some(shape),
         _ => None,
@@ -534,7 +534,7 @@ pub(crate) fn column(route: &super::types::Route) -> Option<&super::column::Colu
 }
 pub(crate) fn selection(
     route: &super::types::Route,
-) -> Option<&super::selection::SelectionAlternative> {
+) -> Option<&super::types::SelectionAlternative> {
     match route {
         super::types::Route::Selection(shape) => Some(shape),
         _ => None,

@@ -28,16 +28,22 @@ impl<'scope> SemanticPermit<'scope> {
         let route = match self.strategy {
             RouteKind::Generic => PhysicalRoute::Registered,
             RouteKind::NativePositions => PhysicalRoute::Positions(
-                crate::domain::executable_program::service::native_positions(&self.program.regions()[self.region.0].route)
-                    .ok_or(OperatingError::WrongOperation)?,
+                crate::domain::executable_program::service::native_positions(
+                    &self.program.regions()[self.region.0].route,
+                )
+                .ok_or(OperatingError::WrongOperation)?,
             ),
             RouteKind::OrderedExistence => PhysicalRoute::Ordered(
-                crate::domain::executable_program::service::ordered_existence(&self.program.regions()[self.region.0].route)
-                    .ok_or(OperatingError::WrongOperation)?,
+                crate::domain::executable_program::service::ordered_existence(
+                    &self.program.regions()[self.region.0].route,
+                )
+                .ok_or(OperatingError::WrongOperation)?,
             ),
             RouteKind::Column => PhysicalRoute::Column(
-                crate::domain::executable_program::service::column(&self.program.regions()[self.region.0].route)
-                    .ok_or(OperatingError::WrongOperation)?,
+                crate::domain::executable_program::service::column(
+                    &self.program.regions()[self.region.0].route,
+                )
+                .ok_or(OperatingError::WrongOperation)?,
             ),
         };
         let authority = physical::authorize(self.operation(), route, binding, &meaning)?;

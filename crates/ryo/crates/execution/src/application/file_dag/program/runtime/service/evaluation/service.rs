@@ -1,14 +1,13 @@
 //! Ordinary region evaluation: demand admission, preflight gates, readiness and the kernel continuation.
-use crate::application::file_dag::program::admission::Emptiness;
 use super::super::admission::service::{empty_output_kinds, first_preflight};
 use super::super::invocation::service::continuation;
 use super::super::{InvocationOutcome, Poll, ProgramExecution};
 use super::super::{KernelAdmission, KernelPermit, ReadySelection};
 use crate::application::file_dag::program::admission::AdmittedInput;
+use crate::application::file_dag::program::admission::Emptiness;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::admission::Representation;
 use crate::application::file_dag::program::runtime::types::Attempt;
-use crate::domain::executable_program::types::Route;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;
 use crate::application::file_dag::program::runtime::types::{
@@ -16,6 +15,7 @@ use crate::application::file_dag::program::runtime::types::{
 };
 use crate::domain::executable_program::types::DemandAction;
 use crate::domain::executable_program::types::InputId;
+use crate::domain::executable_program::types::Route;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::types::PreflightOrder;
 use std::sync::Arc;
@@ -236,7 +236,9 @@ impl ProgramExecution {
                 let frame = frames
                     .first_mut()
                     .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?;
-                if let Attempt::Produced(produced) = kernels.selected(shape, &permit, context, frame)? {
+                if let Attempt::Produced(produced) =
+                    kernels.selected(shape, &permit, context, frame)?
+                {
                     let publication = inputs
                         .publish(
                             crate::application::file_dag::program::admission::ProducerRoot::Region(

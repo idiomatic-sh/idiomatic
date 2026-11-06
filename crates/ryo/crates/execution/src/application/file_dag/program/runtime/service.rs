@@ -1,21 +1,21 @@
 //! The sole admitted-program interpreter, authority issuance and physical dispatch.
-use crate::application::file_dag::program::admission::Emptiness;
 use super::types::{
-    ActionCursor, ColumnCounters, Dependencies, InstructionIndex, InvocationFailure,
-    KernelInput, KernelScratch, PollMode, ReaderCount, StageProgress, StrategyOutcome,
+    ActionCursor, ColumnCounters, Dependencies, InstructionIndex, InvocationFailure, KernelInput,
+    KernelScratch, PollMode, ReaderCount, StageProgress, StrategyOutcome,
 };
 #[cfg(test)]
 use super::types::{CallCount, ProducerLeaseEvent, ReaderInitializations};
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::AvailableInput;
+use crate::application::file_dag::program::admission::Emptiness;
 use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::relations::RelationOwner;
-use crate::domain::executable_program::types::RouteKind;
 use crate::domain::executable_program::types::ExecutableProgram;
 use crate::domain::executable_program::types::Instruction;
 use crate::domain::executable_program::types::Region;
 use crate::domain::executable_program::types::RegionId;
+use crate::domain::executable_program::types::RouteKind;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::Emit;
 use crate::domain::operating::types::OperatorContext;
@@ -56,22 +56,26 @@ pub(in crate::application::file_dag::program) trait KernelInvocation {
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
     ) -> Result<
-        crate::application::file_dag::program::runtime::types::Attempt<crate::application::file_dag::relations::handle::service::PublishedInput>,
+        crate::application::file_dag::program::runtime::types::Attempt<
+            crate::application::file_dag::relations::handle::service::PublishedInput,
+        >,
         InvocationFailure,
     >;
     fn selected(
         &self,
-        shape: &crate::domain::executable_program::selection::SelectionAlternative,
+        shape: &crate::domain::executable_program::types::SelectionAlternative,
         permit: &KernelPermit<'_>,
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
     ) -> Result<
-        crate::application::file_dag::program::runtime::types::Attempt<crate::application::file_dag::relations::handle::service::PublishedInput>,
+        crate::application::file_dag::program::runtime::types::Attempt<
+            crate::application::file_dag::relations::handle::service::PublishedInput,
+        >,
         InvocationFailure,
     >;
     fn column(
         &self,
-        shape: &crate::domain::executable_program::column::ColumnAlternative,
+        shape: &crate::domain::executable_program::types::ColumnAlternative,
         permit: &KernelPermit<'_>,
         left: &AdmittedInput,
         right: &AdmittedInput,
