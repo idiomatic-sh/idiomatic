@@ -97,7 +97,7 @@ pub(crate) struct KeyClass {
 
 /// Capacity-retaining file-local full keys. Hashes choose candidates; complete word slices decide equality.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct RetainedKeyIndex<Class, Word, Hash, State> {
+pub(crate) struct RetainedKeyIndex<Class, Word, Digest: std::hash::Hash + Eq, State> {
     /// One supported canonical class per source element position.
     pub classes: Vec<Option<Class>>,
     /// Full keys retained once per distinct value class.
@@ -105,14 +105,15 @@ pub(crate) struct RetainedKeyIndex<Class, Word, Hash, State> {
     /// Canonical representatives and collision chains.
     pub records: Vec<KeyRecord>,
     /// Hash bucket heads; equality never relies on a hash alone.
-    pub buckets: std::collections::HashMap<Hash, KeyRecordIndex>,
+    pub buckets: std::collections::HashMap<Digest, KeyRecordIndex>,
     /// Reusable full-key construction buffer.
     pub scratch: Vec<Word>,
     /// Whether this index belongs to the current source revision.
     pub state: State,
 }
 
-impl<Class, Word, Hash, State: Default> Default for RetainedKeyIndex<Class, Word, Hash, State> {
+impl<Class, Word, Digest: std::hash::Hash + Eq, State: Default> Default
+    for RetainedKeyIndex<Class, Word, Digest, State> {
     fn default() -> Self {
         Self {
             classes: Vec::new(),

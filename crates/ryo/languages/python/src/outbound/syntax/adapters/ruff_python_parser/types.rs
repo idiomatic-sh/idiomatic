@@ -3,7 +3,7 @@ use ruff_python_ast::token::{Token as RuffToken, Tokens};
 use ryo::languages::{self, DiagnosticCode, DiagnosticPhase, Offset, TreeImpact};
 
 /// How many nodes are open: zero outside the root.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(super) struct Depth(pub usize);
 
 /// Whether the source-order visitor is traversing a type annotation.
