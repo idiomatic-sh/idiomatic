@@ -110,7 +110,7 @@ fn retained_storage_is_outcomes_occurrences_and_complete_carrier_keys() {
         large_index
             .by_carrier
             .keys()
-            .all(|(_, carrier)| carrier.len() <= large.len() + 8)
+            .all(|key| key.input.0.len() <= large.len() + 8)
     );
     CALLS.with(|count| assert_eq!(count.get(), 257));
 }
