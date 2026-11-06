@@ -117,18 +117,25 @@ pub(crate) const PY315: &str = "py315";
 pub(crate) const UNSUPPORTED_OR_MISSING_RUFF_PARSER: &str =
     "unsupported or missing Ruff parser configuration";
 /// Text `explicit legacy target`.
+#[cfg(test)]
 pub(crate) const EXPLICIT_LEGACY_TARGET: &str = "explicit legacy target";
 /// Text `explicit native annotation target`.
+#[cfg(test)]
 pub(crate) const EXPLICIT_NATIVE_ANNOTATION_TARGET: &str = "explicit native annotation target";
 /// Text `python-target=latest`.
+#[cfg(test)]
 pub(crate) const PYTHON_TARGET_LATEST: &str = "python-target=latest";
 /// Text `python-target=3.6`.
+#[cfg(test)]
 pub(crate) const PYTHON_TARGET_3_6: &str = "python-target=3.6";
 /// Text `python-target=3.16`.
+#[cfg(test)]
 pub(crate) const PYTHON_TARGET_3_16: &str = "python-target=3.16";
 /// Text `python-target=3.09`.
+#[cfg(test)]
 pub(crate) const PYTHON_TARGET_3_09: &str = "python-target=3.09";
 /// Text `python-target=3.10 `.
+#[cfg(test)]
 pub(crate) const PYTHON_TARGET_3_10_2: &str = "python-target=3.10 ";
 /// The phases of the pinned Ruff rules, as pinned beside the profiles.
 pub(crate) const PINNED_RULE_PHASES: &str = include_str!("profiles/pinned-rule-phases.json");
