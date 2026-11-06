@@ -5,7 +5,7 @@ use crate::domain::operation_schema::types::bindings::value::BindingShape;
 use ryo_relations::domain::relations::types::{CellKind, Integer};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, FlagState, LiteralText, Operand, ParameterId, QueryLiteral, TableKey,
+    ColumnIndex, PlanComparison, FlagState, LiteralText, Operand, ParameterId, QueryLiteral, TableKey,
     Test, WholeNumber,
 };
 
@@ -108,11 +108,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 Scenario::PredicateBinding => Operand::Parameter(ParameterId(9)),
                 _ => Operand::Parameter(ParameterId(0)),
             };
-            let comparison = Comparison {
+            let comparison = PlanComparison {
                 test: Test::Matches,
                 left: Operand::Column(ColumnIndex(0)),
                 right,
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             };
             BindingShape::new(&bindings).predicates(&[comparison], &[CellKind::Symbol])?;
             Ok(1)

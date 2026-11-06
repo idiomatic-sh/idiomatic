@@ -3,7 +3,7 @@
 use crate::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
-use ryo_values::domain::rows::errors::TableModelError;
+use ryo_values::domain::rows::errors::RowsError;
 use ryo_values::domain::rows::types::Table;
 use {ryo_values::domain::rows::service::column_in, ryo_values::domain::rows::service::reset};
 
@@ -30,7 +30,7 @@ pub(crate) fn walk_kinds(
             Side::Right => reached,
         };
         out.kinds.push(
-            *column_in(kinds, column.column).ok_or(TableModelError::NoSuchColumn {
+            *column_in(kinds, column.column).ok_or(RowsError::NoSuchColumn {
                 index: column.column.0,
             })?,
         );

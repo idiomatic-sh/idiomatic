@@ -5,8 +5,9 @@ use ryo_core::inbound::use_cases::validate::types::ValidateRequest as CoreReques
 use ryo_relations::domain::relations::types::{CellKind, Offset, Span as CoreSpan};
 use ryo_values::domain::hosted::types::{ColumnLabel, HostedColumn, HostedName, HostedRelation};
 use ryo_values::domain::{
-    plan_parts::types::{QueryText, RefusalMessage, RefusedKind, RefusedQuery},
-    program::types::{
+    plan_parts::types::QueryText,
+    program::types::{RefusalMessage, RefusedKind, RefusedQuery},
+    query_tokens::types::{
         ByteOffset as CoreByteOffset, QueryOrigin as CoreQueryOrigin, QuerySourceId,
         QuerySpan as CoreQuerySpan,
     },
@@ -42,7 +43,7 @@ fn refused(kind: RefusedKind, start: u32, end: u32) -> RefusedQuery {
             start: Offset(start),
             end: Offset(end),
         },
-        origin: None,
+        origin: ryo_values::domain::query_tokens::types::Attribution::Unlocated,
     }
 }
 
@@ -146,7 +147,7 @@ fn an_uncompilable_fragment_error_keeps_its_module_location() {
         trace: Vec::new(),
     };
     let mut core_error = refused(RefusedKind::Invalid, 7, 12);
-    core_error.origin = Some(core_origin);
+    core_error.origin = ryo_values::domain::query_tokens::types::Attribution::Located(core_origin);
     let converted = error(TEXT, CoreError::Uncompilable { error: core_error });
     assert!(matches!(
         converted,
@@ -246,7 +247,7 @@ fn requested((declared, expected): Declared) -> bool {
         hosted: declared,
     }) == CoreRequest {
         observations: Vec::new(),
-        text: ryo_values::domain::program::types::QueryBundle::from(QueryText(TEXT.into())),
+        text: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(TEXT.into())),
         hosted: expected,
     }
 }
@@ -310,7 +311,7 @@ fn query_bundle_retains_module_identity_and_exact_source() {
         .into_bundle();
     assert!(empty_root.modules.is_empty());
     assert_eq!(empty_root.root.id.0.as_ref(), "root/empty");
-    assert_eq!(empty_root.root.text.as_ref(), "root query\n");
+    assert_eq!(&*empty_root.root.text, "root query\n");
     assert_eq!(first, same);
     assert_ne!(first, changed_source);
     assert_eq!(first.root_text(), "root query\n");
@@ -320,27 +321,24 @@ fn query_bundle_retains_module_identity_and_exact_source() {
     drop(modules);
     drop(same_catalog);
     assert!(Arc::ptr_eq(&original.modules, &cloned.modules));
-    assert!(Arc::ptr_eq(&original.root.text, &cloned.root.text));
+    assert!(Arc::ptr_eq(&original.root.text.0, &cloned.root.text.0));
     assert!(Arc::ptr_eq(&original.modules, &other_root.modules));
-    let id = ryo_values::domain::program::service::source_id(module.id()).unwrap();
+    let id = ryo_values::domain::program::service::source_id(
+        ryo_values::domain::query_tokens::types::QuerySpelling(module.id()),
+    )
+    .unwrap();
     assert!(Arc::ptr_eq(
-        &original.modules[&id].text,
-        &cloned.modules[&id].text
+        &original.modules[&id].text.0,
+        &cloned.modules[&id].text.0
     ));
-    assert!(std::ptr::eq(
-        module.text(),
-        original.modules[&id].text.as_ref()
-    ));
+    assert!(std::ptr::eq(module.text(), &*original.modules[&id].text));
     let mut edited = original.clone();
     Arc::make_mut(&mut edited.modules)
         .get_mut(&id)
         .unwrap()
-        .text = Arc::from("edited module");
-    assert_eq!(original.modules[&id].text.as_ref(), "fragment body\nλ🦀\n");
-    assert_eq!(
-        other_root.modules[&id].text.as_ref(),
-        "fragment body\nλ🦀\n"
-    );
+        .text = "edited module".into();
+    assert_eq!(&*original.modules[&id].text, "fragment body\nλ🦀\n");
+    assert_eq!(&*other_root.modules[&id].text, "fragment body\nλ🦀\n");
     assert_ne!(original, edited);
     assert!(!Arc::ptr_eq(&original.modules, &edited.modules));
     let _blank_module_error =

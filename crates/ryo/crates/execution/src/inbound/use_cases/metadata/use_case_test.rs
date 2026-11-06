@@ -9,19 +9,22 @@ use crate::domain::kind_check::types::KindRefusal;
 use crate::domain::operating::errors::OperatingError;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::{FileId, Relation};
-use ryo_values::cases::{Case, CaseName, Expect, Word, run, selects};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::descriptions::types::{
     KindVocabularies, KindVocabulary, KindWord, LanguageName,
 };
 use ryo_values::domain::files::types::{Glob, GlobsMatcher, Hits, MatchCandidate};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, Input as PlanInput, LiteralText, Operand, QueryLiteral, StepId, Test,
+    ColumnIndex, Input as PlanInput, LiteralText, Operand, PlanComparison, QueryLiteral, StepId,
+    Test,
 };
-use ryo_values::domain::plans::types::{
-    Emit, Feature, Operation, OperationKind, Plan, PlanStep, StepScope,
-};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::query_operators::types::OperationKind;
+use ryo_values::domain::run_metadata::types::Feature;
 use ryo_values::domain::runs::types::{RuleId, RuleNumber};
 use ryo_values::domain::stored_facts::types::PartialCause;
+use ryo_values::selects;
 use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug)]
@@ -40,7 +43,7 @@ enum Scenario {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Expected {
-    Catalog(std::borrow::Cow<'static, [ryo_values::domain::plans::types::QueryOperator]>),
+    Catalog(std::borrow::Cow<'static, [ryo_values::domain::query_operators::types::QueryOperator]>),
     KnownKind(usize),
     Placement {
         before: usize,
@@ -74,31 +77,31 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::Catalog,
         expect: Expect::Value(Expected::Catalog(std::borrow::Cow::Borrowed(&[
-            ryo_values::domain::plans::types::QueryOperator::SpanBetween,
-            ryo_values::domain::plans::types::QueryOperator::SpanBounds,
-            ryo_values::domain::plans::types::QueryOperator::SourceMatches,
-            ryo_values::domain::plans::types::QueryOperator::RenderSyntax,
-            ryo_values::domain::plans::types::QueryOperator::FitsRendered,
-            ryo_values::domain::plans::types::QueryOperator::Replace,
-            ryo_values::domain::plans::types::QueryOperator::OrderedMatch,
-            ryo_values::domain::plans::types::QueryOperator::OrderedDfs,
-            ryo_values::domain::plans::types::QueryOperator::Select,
-            ryo_values::domain::plans::types::QueryOperator::Project,
-            ryo_values::domain::plans::types::QueryOperator::Extend,
-            ryo_values::domain::plans::types::QueryOperator::Join,
-            ryo_values::domain::plans::types::QueryOperator::Union,
-            ryo_values::domain::plans::types::QueryOperator::Intersection,
-            ryo_values::domain::plans::types::QueryOperator::Difference,
-            ryo_values::domain::plans::types::QueryOperator::Antijoin,
-            ryo_values::domain::plans::types::QueryOperator::GroupCount,
-            ryo_values::domain::plans::types::QueryOperator::GroupDigest,
-            ryo_values::domain::plans::types::QueryOperator::Capture,
-            ryo_values::domain::plans::types::QueryOperator::Words,
-            ryo_values::domain::plans::types::QueryOperator::Rank,
-            ryo_values::domain::plans::types::QueryOperator::Axis,
-            ryo_values::domain::plans::types::QueryOperator::Rows,
-            ryo_values::domain::plans::types::QueryOperator::Closure,
-            ryo_values::domain::plans::types::QueryOperator::Cycles,
+            ryo_values::domain::query_operators::types::QueryOperator::SpanBetween,
+            ryo_values::domain::query_operators::types::QueryOperator::SpanBounds,
+            ryo_values::domain::query_operators::types::QueryOperator::SourceMatches,
+            ryo_values::domain::query_operators::types::QueryOperator::RenderSyntax,
+            ryo_values::domain::query_operators::types::QueryOperator::FitsRendered,
+            ryo_values::domain::query_operators::types::QueryOperator::Replace,
+            ryo_values::domain::query_operators::types::QueryOperator::OrderedMatch,
+            ryo_values::domain::query_operators::types::QueryOperator::OrderedDfs,
+            ryo_values::domain::query_operators::types::QueryOperator::Select,
+            ryo_values::domain::query_operators::types::QueryOperator::Project,
+            ryo_values::domain::query_operators::types::QueryOperator::Extend,
+            ryo_values::domain::query_operators::types::QueryOperator::Join,
+            ryo_values::domain::query_operators::types::QueryOperator::Union,
+            ryo_values::domain::query_operators::types::QueryOperator::Intersection,
+            ryo_values::domain::query_operators::types::QueryOperator::Difference,
+            ryo_values::domain::query_operators::types::QueryOperator::Antijoin,
+            ryo_values::domain::query_operators::types::QueryOperator::GroupCount,
+            ryo_values::domain::query_operators::types::QueryOperator::GroupDigest,
+            ryo_values::domain::query_operators::types::QueryOperator::Capture,
+            ryo_values::domain::query_operators::types::QueryOperator::Words,
+            ryo_values::domain::query_operators::types::QueryOperator::Rank,
+            ryo_values::domain::query_operators::types::QueryOperator::Axis,
+            ryo_values::domain::query_operators::types::QueryOperator::Rows,
+            ryo_values::domain::query_operators::types::QueryOperator::Closure,
+            ryo_values::domain::query_operators::types::QueryOperator::Cycles,
         ]))),
     },
     Case {
@@ -112,7 +115,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::UnknownKind,
         expect: Expect::Refusal(|failure| {
-            selects(
+            selects!(
                 matches!(failure, Refusal::Kind(KindRefusal(message, None)) if message.contains("ghost") && message.contains("rust")),
             )
         }),
@@ -168,7 +171,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::ForeignAffected,
         expect: Expect::Refusal(|failure| {
-            selects(matches!(
+            selects!(matches!(
                 failure,
                 Refusal::Coverage(OperatingError::ObservationIncomplete { .. })
             ))
@@ -178,11 +181,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn plan(relation: Relation, word: Option<&str>) -> Plan {
     let comparisons = word
-        .map(|text| Comparison {
+        .map(|text| PlanComparison {
             test: Test::Equal,
             left: Operand::Column(ColumnIndex(1)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         })
         .into_iter()
         .collect();

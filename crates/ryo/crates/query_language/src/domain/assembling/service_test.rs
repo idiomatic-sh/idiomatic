@@ -5,51 +5,59 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
 use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::query_syntax::types as ast;
+use ryo_values::domain::query_tokens::types as tokens;
 type Input = fn();
 type Value = ();
 type Failure = std::convert::Infallible;
 
-fn select(column: &str) -> syntax::Select {
-    syntax::Select {
-        columns: syntax::Columns::Listed(vec![syntax::SelectColumn {
-            column: syntax::ColumnReference {
-                alias: syntax::Alias::Unwritten,
-                column: syntax::ColumnName(column.into()),
+fn select(column: &str) -> ast::Select {
+    ast::Select {
+        columns: ast::Columns::Listed(vec![ast::SelectColumn {
+            column: ast::ColumnReference {
+                alias: ast::Alias::Unwritten,
+                column: ryo_values::domain::descriptions::types::ColumnName(column.into()),
             },
-            rename: syntax::Renaming::Unchanged,
+            rename: ast::Renaming::Unchanged,
         }]),
-        from: syntax::QuerySource {
-            reference: syntax::SourceReference::Relation(syntax::WrittenRelation(
-                "function".into(),
-            )),
-            alias: syntax::Alias::Unwritten,
+        from: ast::QuerySource {
+            reference: ast::SourceReference::Relation(tokens::WrittenRelation("function".into())),
+            alias: ast::Alias::Unwritten,
             span: lowering_builder().span,
         },
-        join: syntax::Joining::Alone,
+        join: ast::Joining::Alone,
         filters: vec![],
     }
 }
 
-fn program() -> syntax::Program {
+fn program() -> syntax::WrittenProgram {
     let span = lowering_builder().span;
-    syntax::Program {
-        linked: false,
+    syntax::WrittenProgram {
+        linked: ryo_values::domain::query_tokens::types::Linking::Unlinked,
         imports: vec![],
         origins: vec![],
         fragment_contracts: vec![],
         step_origins: Default::default(),
-        emit_origin: None,
+        emit_origin: ryo_values::domain::query_tokens::types::Attribution::Unlocated,
         parameters: vec![],
         observations: vec![],
         steps: vec![syntax::LetStep {
-            name: syntax::StepName("result".into(), None),
-            expression: syntax::Expression::Select(select("file")),
+            name: tokens::StepName(
+                "result".into(),
+                ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
+            ),
+            expression: ast::Expression::Select(select("file")),
             span,
         }],
         emit: syntax::WrittenEmit {
-            step: syntax::StepName("result".into(), None),
-            subject: syntax::ColumnName("file".into()),
-            key: vec![syntax::ColumnName("file".into())],
+            step: tokens::StepName(
+                "result".into(),
+                ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
+            ),
+            subject: ryo_values::domain::descriptions::types::ColumnName("file".into()),
+            key: vec![ryo_values::domain::descriptions::types::ColumnName(
+                "file".into(),
+            )],
             span,
         },
     }
@@ -60,7 +68,7 @@ fn typed_program_keeps_emitted_projection() {
     assert_eq!(
         plan.steps,
         vec![plans::PlanStep {
-            scope: plans::StepScope::PerFile,
+            scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
             operation: plans::Operation::Project {
                 from: parts::Input::Relation(Relation::Function),
                 columns: vec![parts::ColumnIndex(2)],
@@ -73,8 +81,8 @@ fn unknown_parameter_kind_keeps_its_location() {
     let mut program = program();
     let span = program.emit.span;
     program.parameters.push(syntax::ParameterDeclaration {
-        name: syntax::WrittenParameter("limit".into()),
-        kind: syntax::TypeName("nothing".into()),
+        name: tokens::WrittenParameter("limit".into()),
+        kind: tokens::TypeName("nothing".into()),
         span,
     });
     assert_eq!(
@@ -84,6 +92,60 @@ fn unknown_parameter_kind_keeps_its_location() {
             span
         })
     );
+}
+
+fn origin_of(span: tokens::QuerySpan) -> tokens::QueryOrigin {
+    tokens::QueryOrigin {
+        source_id: tokens::QuerySourceId("module".into()),
+        span,
+        trace: vec![],
+    }
+}
+fn a_refusal_of_an_expanded_fragment_names_its_origin() {
+    let mut program = program();
+    let span = program.emit.span;
+    program.emit.step = tokens::StepName(
+        "missing".into(),
+        ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
+    );
+    program.emit_origin =
+        ryo_values::domain::query_tokens::types::Attribution::Located(origin_of(span));
+    assert!(matches!(
+        super::service::lower(&program, &[Relation::Function], &[]),
+        Err(LoweringError::Located { .. })
+    ));
+}
+fn a_fragment_input_that_is_not_a_relation_is_refused() {
+    let mut program = program();
+    let span = program.emit.span;
+    let first = tokens::StepIdentity(1);
+    program.steps[0].name = tokens::StepName(
+        "result".into(),
+        ryo_values::domain::query_tokens::types::StepIdentified::Assigned(first),
+    );
+    program.fragment_contracts.push(syntax::FragmentContract {
+        first,
+        result: first,
+        inputs: vec![syntax::FragmentContractInput {
+            name: tokens::WrittenName("rows".into()),
+            value: ast::ArgumentValue::Number(ryo_relations::domain::relations::types::Integer(1)),
+            relation: syntax::RelationSignature {
+                columns: vec![],
+                span,
+            },
+            span,
+        }],
+        output: syntax::RelationSignature {
+            columns: vec![],
+            span,
+        },
+        output_span: span,
+        origin: origin_of(span),
+    });
+    assert!(matches!(
+        super::service::lower(&program, &[Relation::Function], &[]),
+        Err(LoweringError::FragmentContract { .. })
+    ));
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -97,6 +159,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("unknown_parameter_kind_keeps_its_location"),
         word: Word::Succeeds,
         input: || unknown_parameter_kind_keeps_its_location,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_refusal_of_an_expanded_fragment_names_its_origin"),
+        word: Word::Succeeds,
+        input: || a_refusal_of_an_expanded_fragment_names_its_origin,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_fragment_input_that_is_not_a_relation_is_refused"),
+        word: Word::Succeeds,
+        input: || a_fragment_input_that_is_not_a_relation_is_refused,
         expect: Expect::Value(()),
     },
 ];

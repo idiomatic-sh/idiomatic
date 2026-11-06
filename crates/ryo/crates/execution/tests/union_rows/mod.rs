@@ -3,7 +3,7 @@ use super::*;
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
     plan_parts::types::HostedNumber,
-    records::types::Cell as HostCell,
+    row_texts::types::Cell as HostCell,
 };
 
 fn program(engine: &ExecutionUseCaseImpl, left: &[i64], right: &[i64]) -> PreparedExecutionProgram {

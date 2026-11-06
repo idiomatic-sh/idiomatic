@@ -3,8 +3,8 @@ use super::super::*;
 use crate::domain::operating::types::ExecutionObservation;
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
-    plan_parts::types::{Comparison, HostedNumber, Operand, Test},
-    records::types::Cell as HostedCell,
+    plan_parts::types::{HostedNumber, Operand, PlanComparison, Test},
+    row_texts::types::Cell as HostedCell,
 };
 pub(in super::super) fn hosted(kinds: &[HostKind], rows: Vec<Vec<HostedCell>>) -> HostRelation {
     HostRelation {
@@ -74,7 +74,8 @@ pub(in super::super) fn execute(
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         symbols,
         None,
-        None)
+        None,
+    )
     .unwrap();
     let read = |_| Err::<Rows<'_>, _>(OperatingError::NotRead);
     let outcome = file
@@ -157,11 +158,11 @@ fn dynamic_regex_initialization_is_execution_local_and_lazy() {
         let (result, observed) = execute(
             Operation::Select {
                 from: PlanInput::Step(StepId(0)),
-                comparisons: vec![Comparison {
+                comparisons: vec![PlanComparison {
                     test: Test::Matches,
                     left: Operand::Column(ColumnIndex(0)),
                     right: Operand::Column(ColumnIndex(0)),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
                 kept: vec![ColumnIndex(0)],
             },
@@ -184,7 +185,7 @@ fn aggregation_resources_are_engine_owned_and_released() {
     use crate::application::file_dag::acceptance::operator_contract_test::fixtures::{
         assert_expected, fixture,
     };
-    use ryo_values::domain::plans::types::OperationKind;
+    use ryo_values::domain::query_operators::types::OperationKind;
     for kind in [OperationKind::GroupCount, OperationKind::GroupDigest] {
         let mut case = fixture(kind);
         let input = &case.inputs[0];

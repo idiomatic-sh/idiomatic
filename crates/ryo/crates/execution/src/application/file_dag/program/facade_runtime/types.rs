@@ -38,14 +38,16 @@ pub(super) enum NamedReadiness {
 #[derive(Clone, Copy, Debug)]
 pub(super) struct PreparedNamed {
     pub(super) rule: crate::domain::coverage::types::RuleIndex,
-    pub(super) output: ryo_values::domain::observations::types::ObservationIndex,
+    pub(super) output: ryo_values::domain::records::types::ObservationIndex,
     pub(super) readiness: NamedReadiness,
 }
 /// The delivery, observation and capture a file declared for one rule.
 #[derive(Clone, Copy, Debug)]
 pub(super) struct DeclaredIntent {
-    pub(super) diagnostic: crate::application::file_dag::program::protocol::types::DiagnosticDelivery,
-    pub(super) observations: crate::application::file_dag::program::protocol::types::ObservationDemand,
+    pub(super) diagnostic:
+        crate::application::file_dag::program::protocol::types::DiagnosticDelivery,
+    pub(super) observations:
+        crate::application::file_dag::program::protocol::types::ObservationDemand,
     pub(super) capture: crate::application::file_dag::program::protocol::types::CaptureIntent,
 }
 /// The slot of a bound observation among the observation regions of a program.
@@ -67,7 +69,7 @@ pub(super) struct CachedInput {
 }
 
 pub(super) struct FileRoot {
-    pub(super) readiness: Option<ryo_values::domain::observations::types::ProducerReadiness>,
+    pub(super) readiness: Option<ryo_values::domain::records::types::ProducerReadiness>,
     pub(super) commit: FrontierCommit,
     pub(super) publication: Option<AdmittedInput>,
     pub(super) skipped: Option<ApplicabilityProof>,
@@ -96,7 +98,9 @@ impl ProgramServices {
     pub(in crate::application::file_dag::program) fn kernels(&self) -> &dyn PrimitiveExecutor {
         self.kernels.as_ref()
     }
-    pub(in crate::application::file_dag::program) fn derived(&self) -> &crate::application::file_dag::derived::owner::types::DerivedAccess {
+    pub(in crate::application::file_dag::program) fn derived(
+        &self,
+    ) -> &crate::application::file_dag::derived::owner::types::DerivedAccess {
         &self.derived
     }
 }

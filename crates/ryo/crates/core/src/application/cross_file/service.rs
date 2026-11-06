@@ -13,7 +13,6 @@ use crate::domain::render::types::{
     AnswerCell, AnswerColumns, Answering, KeyCount, Rendered, RowNumber, RowOrder,
 };
 use crate::domain::reporting::service::order_found;
-use crate::domain::rules::service::failed;
 use crate::outbound::corpus::interface::CorpusPort;
 use crate::outbound::publication::interface::PublicationPort;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
@@ -28,11 +27,12 @@ use ryo_values::domain::files::types::Hits;
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::files::types::{CorpusInput, FileBytes};
 use ryo_values::domain::records::service::keep;
-use ryo_values::domain::records::types::RenderedText;
-use ryo_values::domain::records::types::RowTotal;
-use ryo_values::domain::records::types::{Cell, CellText, TextRange};
+use ryo_values::domain::row_texts::types::RenderedText;
+use ryo_values::domain::row_texts::types::RowTotal;
+use ryo_values::domain::row_texts::types::{Cell, CellText, TextRange};
 use ryo_values::domain::rows::service::cell;
-use ryo_values::domain::rule_requests::errors::RulesError;
+use ryo_values::domain::rule_requests::errors::RuleRequestsError;
+use ryo_values::domain::rule_requests::service::failed;
 use {
     crate::domain::finish::types::Arenas, crate::domain::finish::types::FoundRow,
     crate::domain::finish::types::HeldFile, crate::domain::finish::types::Loaded,
@@ -208,7 +208,7 @@ impl CrossFile {
         evaluated: crate::application::run_coordination::cross_execution::ProgramEvaluated,
         cross: &mut Symbols,
         publication: PublicationSlot,
-    ) -> Result<super::types::CrossedWithPublications, RulesError> {
+    ) -> Result<super::types::CrossedWithPublications, RuleRequestsError> {
         let emit = crossing
             .program
             .emit(todo.rule)
@@ -313,10 +313,13 @@ impl CrossFile {
         let mut publications = evaluated.publications;
         if let Some(packed) = &observations {
             publications.retain(|(output, _)| {
-                packed
-                    .roots
-                    .iter()
-                    .any(|root| root.output == *output && root.words.is_some())
+                packed.roots.iter().any(|root| {
+                    root.output == *output
+                        && matches!(
+                            root.words,
+                            ryo_values::domain::records::types::RootWords::Published(_)
+                        )
+                })
             });
         } else {
             publications.clear();
@@ -340,7 +343,7 @@ impl CrossFile {
         emit: &ryo_values::domain::plans::types::Emit,
         table: Option<ryo_values::domain::rows::types::Table>,
         cross: &mut Symbols,
-    ) -> Result<Option<Rendered>, RulesError> {
+    ) -> Result<Option<Rendered>, RuleRequestsError> {
         let refuse = |reason: &dyn std::fmt::Display| failed(&todo.id, reason);
         let rule_number = RuleNumber(u32::try_from(todo.rule.0).unwrap_or(u32::MAX));
         Ok(if let Some(table) = table {

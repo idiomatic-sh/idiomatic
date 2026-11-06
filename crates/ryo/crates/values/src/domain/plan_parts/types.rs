@@ -68,7 +68,7 @@ pub enum Input {
     /// An earlier step.
     Step(StepId),
     /// An explicit typed producer binding, resolved by the request graph rather than the relation catalog.
-    BoundObservation(crate::domain::observations::types::ObservationBindingId),
+    BoundObservation(ObservationBindingId),
 }
 
 /// Which side of a join a column comes from.
@@ -169,7 +169,7 @@ pub enum Test {
 
 /// One condition of a `select` step.
 #[derive(Clone, Debug)]
-pub struct Comparison {
+pub struct PlanComparison {
     /// How the sides compare.
     pub test: Test,
     /// The left side.
@@ -177,7 +177,16 @@ pub struct Comparison {
     /// The right side.
     pub right: Operand,
     /// The optional index into the owning plan's source-origin table; diagnostic only.
-    pub origin: Option<ComparisonOriginId>,
+    pub origin: ComparisonOrigin,
+}
+
+/// Whether a comparison carries a source-origin table index.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ComparisonOrigin {
+    /// The comparison has an entry in the owning plan's source-origin table.
+    Recorded(ComparisonOriginId),
+    /// The comparison has none.
+    Unrecorded,
 }
 
 /// A source-origin table index attached to a comparison for diagnostics; meaningful only with its owning plan.
@@ -236,50 +245,6 @@ pub enum QueryLiteral {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Heading(pub Box<str>);
 
-/// Which fault a query text was refused for.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum RefusedKind {
-    /// The text is not RyoQL.
-    Syntax,
-    /// The query reads a relation ryo does not own.
-    UnknownRelation,
-    /// A comparison puts unlike types side by side.
-    Type,
-    /// The query is wrong in another way.
-    Invalid,
-    /// The catalog of relations could not be read.
-    Catalog,
-}
-
-/// What a refusal says: the relation a query named that is not one, or the reason, as the compiler worded it.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct RefusalMessage(pub String);
-
-/// A query text that was refused: which fault, what it says, and where in the text.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RefusedQuery {
-    /// Which fault.
-    pub kind: RefusedKind,
-    /// What it says.
-    pub message: RefusalMessage,
-    /// Where in the text; empty for a fault that is not in the text.
-    pub span: Span,
-    /// The original query-module source and import/call path, when the refusal came from a fragment.
-    pub origin: Option<crate::domain::program::types::QueryOrigin>,
-}
-
-impl std::fmt::Display for RefusedQuery {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let message = &self.message.0;
-        match self.kind {
-            RefusedKind::Syntax => write!(f, "{message} at byte {}", self.span.start.0),
-            RefusedKind::UnknownRelation => write!(f, "no relation named `{message}`"),
-            RefusedKind::Type | RefusedKind::Invalid => write!(f, "{message}"),
-            RefusedKind::Catalog => write!(f, "the relation catalog failed: {message}"),
-        }
-    }
-}
-
 /// What an operation reads: up to three inputs, as many as the operation names.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Inputs {
@@ -292,3 +257,23 @@ pub struct Inputs {
 /// How many inputs an operation reads.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct InputCount(pub usize);
+
+impl PartialEq for PlanComparison {
+    fn eq(&self, other: &Self) -> bool {
+        self.test == other.test && self.left == other.left && self.right == other.right
+    }
+}
+
+/// A bound input's stable local position within one compiled consumer plan.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ObservationBindingId(pub u32);
+
+/// Where a step runs: in the worker that has the file, or once after the workers on the rows they
+/// handed over.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StepScope {
+    /// On one file's rows, in the worker.
+    PerFile,
+    /// On the frontier rows of every file.
+    CrossFile,
+}

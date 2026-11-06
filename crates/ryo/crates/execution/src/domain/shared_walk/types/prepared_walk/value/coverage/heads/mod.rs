@@ -8,8 +8,8 @@ use ryo_relations::domain::relations::{
     types::{Column, Relation},
 };
 use ryo_values::domain::{
-    plan_parts::types::{Input as Source, Operand, RepeatedRows},
-    plans::types::{Operation, StepScope},
+    plan_parts::types::{Input as Source, Operand, RepeatedRows, StepScope},
+    plans::types::Operation,
 };
 use std::collections::HashSet;
 

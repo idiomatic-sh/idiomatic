@@ -17,10 +17,10 @@ use ryo_values::domain::{
         ObservationColumn, ObservationColumnName, ObservationName, PlanObservation,
     },
     plan_parts::types::{
-        ColumnIndex, Comparison, HostedNumber, Input as PlanInput, JoinColumn, LiteralText,
-        Operand, ParameterId, QueryLiteral, RepeatedRows, Side, StepId, Test,
+        ColumnIndex, PlanComparison, HostedNumber, Input as PlanInput, JoinColumn, LiteralText,
+        Operand, ParameterId, QueryLiteral, RepeatedRows, Side, StepId, StepScope, Test,
     },
-    plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
+    plans::types::{Emit, Operation, Plan, PlanStep},
 };
 
 struct FileProducers;
@@ -48,7 +48,7 @@ impl ProducerPartitions for FileProducers {
     fn observation(
         &self,
         _: RuleIndex,
-        _: ryo_values::domain::observations::types::ObservationBindingId,
+        _: ryo_values::domain::plan_parts::types::ObservationBindingId,
     ) -> Result<PartitionRequirement, OperatingError> {
         Err(OperatingError::NotRead)
     }
@@ -108,11 +108,11 @@ fn plan(projected: Vec<ColumnIndex>) -> Plan {
                 scope: StepScope::PerFile,
                 operation: Operation::Select {
                     from: PlanInput::Step(StepId(1)),
-                    comparisons: vec![Comparison {
+                    comparisons: vec![PlanComparison {
                         test: Test::Equal,
                         left: Operand::Column(column(3)),
                         right: Operand::Literal(QueryLiteral::Text(LiteralText("body".into()))),
-                        origin: None,
+                        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                     }],
                     kept: Vec::new(),
                 },
@@ -224,10 +224,8 @@ fn exclusive_chain_lowers_once_and_duplicate_rule_shares_one_physical_owner() ->
     let compiled = program(&single, &operators, request);
     assert_eq!(column_count(&compiled), 1);
     assert!(
-        service::column(
-            &compiled.regions()[compiled.rules()[0].emit.as_ref().unwrap().0].route
-        )
-        .is_some()
+        service::column(&compiled.regions()[compiled.rules()[0].emit.as_ref().unwrap().0].route)
+            .is_some()
     );
 
     let duplicate = vec![ordinary_plan(), ordinary_plan()];

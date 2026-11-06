@@ -3,7 +3,7 @@ pub(crate) struct CrossedWithPublications {
     pub slot: ryo_execution::inbound::use_cases::execution::types::PublicationSlot,
     pub crossed: crate::domain::answering::types::Crossed,
     pub publications: Vec<(
-        ryo_values::domain::observations::types::ObservationIndex,
+        ryo_values::domain::records::types::ObservationIndex,
         ryo_execution::inbound::use_cases::execution::types::ObservedPublication,
     )>,
 }

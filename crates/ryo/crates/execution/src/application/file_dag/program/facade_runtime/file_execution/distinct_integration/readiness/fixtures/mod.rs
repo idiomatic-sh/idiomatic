@@ -161,11 +161,12 @@ pub(crate) fn observe(omit: bool) -> Coverage {
                     from: PlanInput::Relation(relation),
                     kept: vec![ColumnIndex(0)],
                     comparisons: if index == 1 || index == 2 {
-                        vec![Comparison {
+                        vec![PlanComparison {
                             test: Test::Equal,
                             left: Operand::Literal(QueryLiteral::Number(Integer(index))),
                             right: Operand::Literal(QueryLiteral::Number(Integer(index))),
-                            origin: None,
+                            origin:
+                                ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                         }]
                     } else {
                         vec![]

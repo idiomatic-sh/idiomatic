@@ -27,11 +27,12 @@ use ryo_relations::domain::relations::types::{
     Value as Cell, Words, WorkerNumber,
 };
 use ryo_values::domain::files::types::{CorpusEntry, FileBytes};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as PlanInput, RepeatedRows, StepId,
 };
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
-use ryo_values::domain::rule_requests::errors::RulesError;
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 use ryo_values::domain::stored_facts::types::PartialCause;
@@ -62,7 +63,7 @@ enum Scenario {
 type Input = Scenario;
 /// Up to three numbers a row answers; a place a row has no number for holds zero.
 type Value = [usize; 3];
-type Failure = RulesError;
+type Failure = RuleRequestsError;
 
 /// What the cross-file steps of every rule read, owned.
 pub(super) struct World {
@@ -139,7 +140,7 @@ fn world_with_applicability(
     use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort as _;
     use ryo_values::domain::{
         files::types::{CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
-        program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+        query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
         rule_requests::types::{RuleParameters, RuleSpec},
         stored_facts::types::Digest,
     };
@@ -261,7 +262,7 @@ fn prepared<'a>(
     world: &'a World,
     rows: &[(FileId, ryo_values::domain::rows::types::Table)],
     symbols: &mut Symbols,
-) -> Result<(ProjectPhase<'a>, ProjectScope, PreparedFrontiers), RulesError> {
+) -> Result<(ProjectPhase<'a>, ProjectScope, PreparedFrontiers), RuleRequestsError> {
     let phase = world.request.project_phase().expect("one project phase");
     let (scope, frontiers) =
         prepared_in(world, &phase, RuleIndex(0), &world.covered, rows, symbols)?;
@@ -274,7 +275,7 @@ pub(super) fn prepared_in(
     covered: &[Covered],
     rows: &[(FileId, Table)],
     symbols: &mut Symbols,
-) -> Result<(ProjectScope, PreparedFrontiers), RulesError> {
+) -> Result<(ProjectScope, PreparedFrontiers), RuleRequestsError> {
     use ryo_execution::inbound::use_cases::execution::types::facts::{FactsPort as _, WordsToKeep};
     use ryo_values::domain::{
         records::types::{FrontierCoverage, FrontierProof},
@@ -283,9 +284,8 @@ pub(super) fn prepared_in(
     let facts_port = crate::outbound::facts::fixtures::fake::FactsFake::default();
     let mut workers = Vec::new();
     let proof = FrontierProof {
-        version: 1,
-        rule: rule.0 as u32,
-        input: 0,
+        rule: ryo_values::domain::records::types::ProducerRule(rule.0 as u32),
+        input: ryo_values::domain::records::types::FrontierOrdinal(0),
         rule_digest: world.program.rule_digest(rule).expect("rule digest"),
         coverage: FrontierCoverage::Complete,
     };
@@ -333,7 +333,9 @@ pub(super) fn prepared_in(
             },
             symbols,
         )
-        .map_err(|error| crate::domain::rules::service::failed(&world.ids[rule.0], &error))?;
+        .map_err(|error| {
+            ryo_values::domain::rule_requests::service::failed(&world.ids[rule.0], &error)
+        })?;
     Ok((scope, frontiers))
 }
 
@@ -552,7 +554,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::CrossNoRule,
         expect: Expect::Refusal(|error| {
-            if matches!(error, RulesError::Failed { .. }) {
+            if matches!(error, RuleRequestsError::Failed { .. }) {
                 Selection::Matches
             } else {
                 Selection::Differs
@@ -564,7 +566,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::CrossNothingHanded,
         expect: Expect::Refusal(|error| {
-            if matches!(error, RulesError::Failed { .. }) {
+            if matches!(error, RuleRequestsError::Failed { .. }) {
                 Selection::Matches
             } else {
                 Selection::Differs
@@ -627,7 +629,7 @@ fn source_text(bytes: &[u8], fails: bool) -> String {
         arenas: crate::domain::finish::types::Arenas(&[]),
         cross: &symbols,
     };
-    let mut text = ryo_values::domain::records::types::RenderedText::default();
+    let mut text = ryo_values::domain::row_texts::types::RenderedText::default();
     let shown = service.show_value(
         &mut text,
         name(1, 0),
@@ -637,15 +639,15 @@ fn source_text(bytes: &[u8], fails: bool) -> String {
     );
     match shown.map(|kept| {
         ryo_values::domain::records::service::lent(
-            ryo_values::domain::records::types::RowsTextView(&text),
+            ryo_values::domain::row_texts::types::RowsTextView(&text),
             kept,
         )
     }) {
-        Some(ryo_values::domain::records::types::Cell::Text(piece)) => piece.0.to_owned(),
+        Some(ryo_values::domain::row_texts::types::Cell::Text(piece)) => piece.0.to_owned(),
         Some(
-            ryo_values::domain::records::types::Cell::File(_)
-            | ryo_values::domain::records::types::Cell::Number(_)
-            | ryo_values::domain::records::types::Cell::Span(_),
+            ryo_values::domain::row_texts::types::Cell::File(_)
+            | ryo_values::domain::row_texts::types::Cell::Number(_)
+            | ryo_values::domain::row_texts::types::Cell::Span(_),
         )
         | None => String::new(),
     }
@@ -763,7 +765,10 @@ fn project_evaluation_rejects_frontiers_from_another_request() {
     match result {
         Err(error) => assert_eq!(
             error,
-            crate::domain::rules::service::failed(&rules.ids[0], &OperatingError::NotRead)
+            ryo_values::domain::rule_requests::service::failed(
+                &rules.ids[0],
+                &OperatingError::NotRead
+            )
         ),
         Ok(_) => panic!("an unrelated request scope cannot admit the original frontiers"),
     }
@@ -900,7 +905,7 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
             &phase,
         );
         assert!(
-            matches!(result, Err(error) if error == crate::domain::rules::service::failed(&rules.ids[1], &OperatingError::NotRead))
+            matches!(result, Err(error) if error == ryo_values::domain::rule_requests::service::failed(&rules.ids[1], &OperatingError::NotRead))
         );
         let (changed_scope, changed_frontier) = prepared_in(
             &rules,
@@ -923,7 +928,7 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
             &phase,
         );
         assert!(
-            matches!(result, Err(error) if error == crate::domain::rules::service::failed(
+            matches!(result, Err(error) if error == ryo_values::domain::rule_requests::service::failed(
                 &rules.ids[1], &OperatingError::WrongOperation,
             )),
             "one interpreter cannot replay a different declared physical partition"
@@ -965,7 +970,7 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() 
             &phase,
         );
         assert!(
-            matches!(failed, Err(error) if error == crate::domain::rules::service::failed(&rules.ids[0], &OperatingError::NotRead))
+            matches!(failed, Err(error) if error == ryo_values::domain::rule_requests::service::failed(&rules.ids[0], &OperatingError::NotRead))
         );
         assert_eq!(calls.reductions.load(Ordering::SeqCst), 1);
         let (scope, frontier) = prepared_in(
@@ -1209,7 +1214,7 @@ fn equal_policies_do_not_alias_distinct_admitted_frontier_payloads() {
 
 #[test]
 fn many_distinct_project_populations_allocate_only_reached_region_state() {
-    use ryo_values::domain::plan_parts::types::{Comparison, Operand, QueryLiteral, Test};
+    use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
     use std::sync::atomic::Ordering;
     const POPULATIONS: usize = 8;
     let calls = Arc::new(ProjectCalls::default());
@@ -1222,13 +1227,13 @@ fn many_distinct_project_populations_allocate_only_reached_region_state() {
                 scope: StepScope::CrossFile,
                 operation: Operation::Select {
                     from: PlanInput::Step(StepId(1)),
-                    comparisons: vec![Comparison {
+                    comparisons: vec![PlanComparison {
                         test: Test::Equal,
                         left: Operand::Column(ColumnIndex(1)),
                         right: Operand::Literal(QueryLiteral::Number(
                             ryo_relations::domain::relations::types::Integer(seed),
                         )),
-                        origin: None,
+                        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                     }],
                     kept: vec![],
                 },
@@ -1716,7 +1721,7 @@ fn evaluate_fixture(
     symbols: &mut Symbols,
     scope: ProjectScope,
     phase: &impl ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution,
-) -> Result<crate::domain::answering::types::Crossed, RulesError> {
+) -> Result<crate::domain::answering::types::Crossed, RuleRequestsError> {
     let batch = sealed_fixture_batch(std::slice::from_ref(todo), vec![scope], vec![frontier]);
     let ProjectBatch::Complete(mut results) =
         service().evaluate_batch(crossing, batch, phase, symbols, |_| Ok(()))
@@ -1731,7 +1736,7 @@ fn evaluate_fixture(
         .map(|result| result.crossed)
         .map_err(|error| match error {
             super::errors::CrossError::Rules(error) => error,
-            error => crate::domain::rules::service::failed(&todo.id, &error),
+            error => ryo_values::domain::rule_requests::service::failed(&todo.id, &error),
         })
 }
 
@@ -1746,10 +1751,8 @@ fn assert_count_findings(
     presentation: &[u32],
 ) -> Vec<i64> {
     use ryo_relations::domain::relations::types::Integer;
-    use ryo_values::domain::records::{
-        service::lent,
-        types::{Cell as RecordCell, CellText, RowsTextView},
-    };
+    use ryo_values::domain::records::service::lent;
+    use ryo_values::domain::row_texts::types::{Cell as RecordCell, CellText, RowsTextView};
     let observed = rendered
         .cells
         .iter()

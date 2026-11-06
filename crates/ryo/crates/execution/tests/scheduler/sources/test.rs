@@ -5,8 +5,9 @@ use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::{service::node_id, types::*};
 use ryo_values::domain::{
     observations::types::*,
-    plan_parts::types::{Input, StepId},
-    plans::types::{Operation, PlanStep, StepScope},
+    plan_parts::types::{Input, ObservationBindingId, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
+    records::types::ObservationReadinessLayout,
     rows::types::RowCount,
     stored_facts::types::{Bucket, Digest},
     table_words::service::decode_complete,

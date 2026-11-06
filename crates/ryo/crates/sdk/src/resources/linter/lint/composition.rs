@@ -8,7 +8,8 @@ use ryo_core::inbound::use_cases::open::interface::OpenUseCase;
 use ryo_core::outbound::lint_store::interface::LintStorePort;
 use ryo_core::outbound::lint_store::types::BuildIdentity;
 use ryo_core::outbound::{
-    corpus, digest, facts, language, lint_store, matching, memory, query_language, rows, scheduler,
+    corpus, digest, facts, language, lint_store, matching, memory, query_language, row_sink,
+    scheduler,
 };
 use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort;
 use ryo_language::domain::files::types::FilePath;
@@ -36,8 +37,8 @@ where
 }
 
 /// The production place the rows of a run are kept in, which the caller takes them from after the run.
-pub(crate) fn build_rows() -> rows::types::Collector {
-    rows::types::Collector::default()
+pub(crate) fn build_rows() -> row_sink::types::Collector {
+    row_sink::types::Collector::default()
 }
 
 /// What the caller set for one run's adapters: the repository the corpus reads and the memory the run may use. The pool
@@ -100,7 +101,7 @@ pub(crate) fn build_engine(
 /// them: the store in the cache directory the connections name, or one in memory for a run that keeps nothing.
 pub(crate) fn build(
     engine: &LinterLintEngine,
-    collector: rows::types::Collector,
+    collector: row_sink::types::Collector,
     reading: Reading,
     connections: &LinterLintConnections,
     settings: LinterLintSettings,
@@ -173,7 +174,7 @@ pub(crate) fn build(
 std::sync::Arc::new(ryo_core::outbound::derived::factory::use_case(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new())),
                 pool,
                 workers,
-                Arc::new(rows::factory::collect(collector)),
+                Arc::new(row_sink::factory::collect(collector)),
                 analysis_digest,
                 store,
             )

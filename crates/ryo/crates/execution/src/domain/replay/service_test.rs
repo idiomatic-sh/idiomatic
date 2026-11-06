@@ -16,7 +16,7 @@ use ryo_relations::domain::{
     terms::types::NameText,
 };
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Comparison, LiteralText, Operand, QueryLiteral, Test},
+    plan_parts::types::{ColumnIndex, PlanComparison, LiteralText, Operand, QueryLiteral, Test},
     rows::types::RowCount,
 };
 
@@ -35,11 +35,11 @@ impl crate::domain::operating::types::Emit for Collected {
 
 #[test]
 fn generic_late_error_replays_exact_accepted_prefix_and_sink_refusal() {
-    let comparison = Comparison {
+    let comparison = PlanComparison {
         test: Test::Matches,
         left: Operand::Literal(QueryLiteral::Text(LiteralText("x".into()))),
         right: Operand::Column(ColumnIndex(2)),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let plans = [relation_plan(Relation::SemanticSyntax, vec![comparison])];
     let prepared = PreparedWalk::compile(&plans, &[vec![]]);

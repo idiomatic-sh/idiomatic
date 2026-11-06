@@ -3,11 +3,12 @@
 use crate::domain::stored_selection::fixtures::plan;
 use crate::domain::stored_selection::types::program::value::SelectionProgram;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, Input as Source, Operand, ParameterId, RepeatedRows, StepId, Test,
+    ColumnIndex, PlanComparison, Input as Source, Operand, ParameterId, RepeatedRows, StepId, Test,
     WholeNumber,
 };
-use ryo_values::domain::plans::types::{Operation, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 #[test]
@@ -70,7 +71,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             operation: Operation::Select {
                 from: Source::Step(StepId(1)),
                 kept: vec![ColumnIndex(1), ColumnIndex(0)],
-                comparisons: vec![Comparison {
+                comparisons: vec![PlanComparison {
                     test: if matches!(scenario, Scenario::Regex) {
                         Test::Matches
                     } else {
@@ -78,7 +79,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     },
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Parameter(ParameterId(1)),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
             },
         });

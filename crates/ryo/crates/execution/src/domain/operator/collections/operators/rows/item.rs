@@ -9,7 +9,8 @@ use ryo_language::domain::symbols::{service::query_intern_derived, types::ByteSl
 use ryo_relations::domain::relations::types::Value;
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::service::parameter_in;
-use ryo_values::domain::plans::types::{Operation, OperationKind};
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 pub(crate) struct RowsItem;
 fn tables_rows(

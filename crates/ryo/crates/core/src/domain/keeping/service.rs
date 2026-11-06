@@ -13,17 +13,17 @@ use super::types::{Configuration, DigestInput, DigestPart, Remap};
 use crate::domain::finish::service::{column_cell, line_cell};
 use crate::domain::render::service::{finding_parts, key_count, row_cells};
 use crate::domain::render::types::{KeyCount, Rendered, RowNumber, RowOrder};
-use ryo_values::domain::program::types::ColumnName;
+use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::records::service::{keep, lent, owned};
-use ryo_values::domain::records::types::RenderedText;
-use ryo_values::domain::records::types::{
+use ryo_values::domain::row_texts::types::RenderedText;
+use ryo_values::domain::row_texts::types::{
     Cell, CellText, PlacedColumn, PlacedLine, PlacedRow, PlacedRule, RowEnds, RowsText,
     RowsTextView, TextRange,
 };
-use ryo_values::domain::records::types::{FindingRows, RowPlacing, RowTotal};
+use ryo_values::domain::row_texts::types::{FindingRows, RowPlacing, RowTotal};
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stored_facts::types::PackedWords;
-use ryo_values::domain::stores::types::{
+use ryo_values::domain::stored_findings::types::{
     FindingMade, FindingPlace, StoredCell, StoredFinding, StoredPlace, StoredValue,
 };
 use ryo_values::domain::table_words::service::unpacked;

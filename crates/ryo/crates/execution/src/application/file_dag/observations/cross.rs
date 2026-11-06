@@ -5,7 +5,7 @@ use crate::application::file_dag::program::preparation::types::OutputRoot;
 use crate::domain::completion::types::CoverageState;
 use ryo_relations::domain::relations::types::{CROSS_FILE, WorkerNumber};
 use ryo_values::domain::{
-    observations::types::{ObservationIndex, ProducerReadiness},
+    records::types::{ObservationIndex, ProducerReadiness},
     stored_facts::types::ArenaBytes,
 };
 use std::rc::Rc;
@@ -103,8 +103,10 @@ impl<'a> CrossPublications<'a> {
     ) -> Result<PreparedFrontier, OperatingError> {
         let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
         let backing = std::sync::Arc::new(token.words().clone());
-        let (metadata, _spelling) = ryo_values::domain::table_words::service::admit_compact(
-            std::sync::Arc::clone(&backing),
+        let ryo_values::domain::table_words::types::Admitted {
+            table: metadata, ..
+        } = ryo_values::domain::compact_table::service::admit_compact(
+            ryo_values::domain::table_words::types::CompactBacking(std::sync::Arc::clone(&backing)),
             ryo_language::domain::symbols::service::places_mut(&mut symbols),
             ryo_values::domain::table_words::types::DecodeMode::Complete,
         )
@@ -185,7 +187,7 @@ impl<'a> CrossPublications<'a> {
         rule: RuleIndex,
     ) -> Result<
         std::collections::BTreeMap<
-            ryo_values::domain::observations::types::ObservationBindingId,
+            ryo_values::domain::plan_parts::types::ObservationBindingId,
             bool,
         >,
         OperatingError,
@@ -237,7 +239,7 @@ impl<'a> CrossPublications<'a> {
     /// Workers receive immutable words only; the coordinator retains the physical leases.
     pub(crate) fn bindings(&self, rule: RuleIndex) -> Result<Vec<BoundInput>, OperatingError> {
         let bindings = self.metadata.bindings.get(rule.0).ok_or_else(incomplete)?;
-        Ok(bindings.iter().filter(|binding| binding.schema.scope == ryo_values::domain::plans::types::StepScope::CrossFile).map(|binding| {
+        Ok(bindings.iter().filter(|binding| binding.schema.scope == ryo_values::domain::plan_parts::types::StepScope::CrossFile).map(|binding| {
             let members = binding.producers.iter().map(|producer| match producer {
                 crate::domain::file_program::types::ResolvedObservationProducer::Output { rule, output } => self.member(*rule, *output),
                 crate::domain::file_program::types::ResolvedObservationProducer::NoQuery { .. } => Err(incomplete()),
@@ -272,7 +274,12 @@ impl<'a> CrossPublications<'a> {
             != transfer
                 .roots
                 .iter()
-                .filter(|root| root.words.is_some())
+                .filter(|root| {
+                    matches!(
+                        root.words,
+                        ryo_values::domain::records::types::RootWords::Published(_)
+                    )
+                })
                 .count()
         {
             return Err(incomplete());
@@ -311,7 +318,11 @@ impl<'a> CrossPublications<'a> {
             } else if root.readiness == ProducerReadiness::Complete {
                 return Err(incomplete());
             }
-            if root.words.is_some() != admitted.contains_key(&root.output.0) {
+            if matches!(
+                root.words,
+                ryo_values::domain::records::types::RootWords::Published(_)
+            ) != admitted.contains_key(&root.output.0)
+            {
                 return Err(incomplete());
             }
             for arena in &root.arenas {
@@ -327,7 +338,7 @@ impl<'a> CrossPublications<'a> {
         let mut prepared = Vec::with_capacity(transfer.roots.len());
         for root in transfer.roots {
             let output = root.output.0 as usize;
-            if let Some(words) = root.words {
+            if let ryo_values::domain::records::types::RootWords::Published(words) = root.words {
                 // The pack boundary listed each referenced arena once. Validate uniqueness
                 // rather than silently over-counting a malformed transfer's lease.
                 let mut referenced = Vec::with_capacity(root.arenas.len());
@@ -477,9 +488,8 @@ pub(crate) fn frontier_readiness<'a>(
     files: &[ryo_relations::domain::relations::types::FileId],
     frames: &'a [crate::domain::coverage::types::FileObservationReadiness],
 ) -> Result<FrontierPopulation<'a>, OperatingError> {
-    use ryo_values::domain::observations::{
-        service::validate_frontiers, types::ObservationReadinessCount,
-    };
+    use ryo_values::domain::observations::service::validate_frontiers;
+    use ryo_values::domain::records::types::ObservationReadinessCount;
     let count = ObservationReadinessCount(
         u32::try_from(metadata.frontiers.len()).map_err(|_| incomplete())?,
     );
@@ -507,9 +517,8 @@ fn frontier_compatible(
     readiness: &FrontierPopulation<'_>,
     physical: &CoverageState,
 ) -> Result<bool, OperatingError> {
-    use ryo_values::domain::observations::{
-        service::frontier_state, types::ObservationReadinessSlot,
-    };
+    use ryo_values::domain::observations::service::frontier_state;
+    use ryo_values::domain::records::types::ObservationReadinessSlot;
     let slot = ObservationReadinessSlot(u32::try_from(slot).map_err(|_| incomplete())?);
     for (file, frame) in &readiness.frames {
         if frontier_state(*frame, slot).map_err(|_| incomplete())? != ProducerReadiness::Complete {

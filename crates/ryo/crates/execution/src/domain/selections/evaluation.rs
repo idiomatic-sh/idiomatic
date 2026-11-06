@@ -18,9 +18,9 @@ use crate::domain::table_scratch::types::{ElementIndex, KindsBy};
 use crate::domain::text_gate::service::{
     needed_of, needed_of_rest, text_admitted, text_candidates, text_gate, undecided,
 };
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Comparison};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison};
 use ryo_values::domain::plans::types::Operation;
-use ryo_values::domain::rows::errors::TableModelError;
+use ryo_values::domain::rows::errors::RowsError;
 use {
     crate::domain::table_model::service::cell_at, crate::domain::table_model::service::count_of,
     crate::domain::table_model::service::kinds_of, crate::domain::table_model::service::read_row,
@@ -38,7 +38,7 @@ type EachElement<'e> = dyn FnMut(RowIndex, &mut Vec<Value>, &mut OperatorContext
 /// Whether every column `needed` names is one of the columns `kinds` has: the first that is not is the error.
 fn columns_present(needed: &ColumnPlaces, kinds: &[CellKind]) -> Result<(), OperatingError> {
     match needed.0.iter().find(|place| **place >= kinds.len()) {
-        Some(missing) => Err(OperatingError::Table(TableModelError::NoSuchColumn {
+        Some(missing) => Err(OperatingError::Table(RowsError::NoSuchColumn {
             index: u32::try_from(*missing).unwrap_or(u32::MAX),
         })),
         None => Ok(()),
@@ -68,7 +68,7 @@ fn kind_verdict(kinds: &KindScratch, tree: &TreeRows<'_>, index: RowIndex) -> Ve
 /// As `tree_each`, with one event for each candidate visited in source order, before its
 /// comparisons can refuse. The owner uses these events for actual logical work accounting.
 pub(crate) fn tree_each_with_visits(
-    comparisons: &[Comparison],
+    comparisons: &[PlanComparison],
     tree: &TreeRows<'_>,
     buffer: &mut Vec<Value>,
     context: &mut OperatorContext<'_>,

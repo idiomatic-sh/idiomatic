@@ -32,7 +32,7 @@ pub(crate) fn with_producers(
                 .observations
                 .iter()
                 .filter(|output| {
-                    output.scope == ryo_values::domain::plans::types::StepScope::PerFile
+                    output.scope == ryo_values::domain::plan_parts::types::StepScope::PerFile
                         && plan.frontier.contains(&output.source)
                 })
                 .cloned()
@@ -80,7 +80,7 @@ pub(crate) fn with_producers(
         ];
         let mut across = own.crossing == Crossing::Across;
         for input in inputs {
-            across |= input.schema.scope == ryo_values::domain::plans::types::StepScope::CrossFile;
+            across |= input.schema.scope == ryo_values::domain::plan_parts::types::StepScope::CrossFile;
             for producer in &input.producers {
                 match producer {
                     ResolvedObservationProducer::Output { rule, .. } => {
@@ -107,7 +107,7 @@ pub(crate) fn with_producers(
     Ok(super::types::PreparedRuleIdentities {
         rules,
         observations: super::types::ObservationIdentity::Named(
-            ryo_values::domain::observations::types::ObservationReadinessLayout(layout),
+            ryo_values::domain::records::types::ObservationReadinessLayout(layout),
         ),
     })
 }

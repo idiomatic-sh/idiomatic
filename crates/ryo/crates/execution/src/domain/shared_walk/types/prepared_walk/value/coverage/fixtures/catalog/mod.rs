@@ -7,10 +7,11 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::types::RequestOperators;
 use ryo_relations::domain::relations::service::ALL;
 use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, HostedNumber, Input, Operand, ParameterId, RepeatedRows, StepId, Test,
+    ColumnIndex, PlanComparison, HostedNumber, Input, Operand, ParameterId, RepeatedRows, StepId, Test,
 };
-use ryo_values::domain::plans::types::{Operation, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
 
 use super::plan;
 
@@ -36,7 +37,7 @@ impl ProducerPartitions for FileSources {
     fn observation(
         &self,
         _: RuleIndex,
-        _: ryo_values::domain::observations::types::ObservationBindingId,
+        _: ryo_values::domain::plan_parts::types::ObservationBindingId,
     ) -> Result<PartitionRequirement, OperatingError> {
         Err(OperatingError::NotRead)
     }
@@ -100,11 +101,11 @@ pub(in super::super) fn compiled() -> CompiledCorpus {
             StepScope::PerFile,
         );
         if let Operation::Select { comparisons, .. } = &mut continuation.steps[0].operation {
-            comparisons.push(Comparison {
+            comparisons.push(PlanComparison {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(0)),
                 right: Operand::Column(ColumnIndex(0)),
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             });
         }
         continuation.steps.push(PlanStep {
@@ -132,11 +133,11 @@ pub(in super::super) fn compiled() -> CompiledCorpus {
         plans.push(plan(
             Operation::Select {
                 from: source,
-                comparisons: vec![Comparison {
+                comparisons: vec![PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(invalid),
                     right: Operand::Column(ColumnIndex(0)),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
                 kept: vec![],
             },

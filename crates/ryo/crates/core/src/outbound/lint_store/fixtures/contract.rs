@@ -9,8 +9,9 @@ use super::fake::{
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::PackedWords;
+use ryo_values::domain::stored_findings::types::StoredFileNumber;
 use ryo_values::domain::stores::types::{
-    BucketsWanted, FileAgain, KeptRows, Stored, StoredFileNumber, StoredHanded, StoredWords,
+    BucketsWanted, FileAgain, KeptRows, Stored, StoredHanded, StoredWords,
 };
 
 /// Explicitly resolve the read representation only in contract result oracles.
@@ -19,7 +20,7 @@ pub fn materialized_handed(
     read: &dyn ReadStore,
     wanted: &BucketsWanted,
 ) -> Result<StoredHanded, LintStoreError> {
-    let handed = read.handed(wanted)?;
+    let handed = read.handed(wanted)?.0;
     let mut rows = Vec::with_capacity(handed.frontier.len());
     for row in handed.frontier {
         let words = match row.words {
@@ -37,14 +38,16 @@ pub fn materialized_handed(
             words,
         });
     }
-    Ok(StoredHanded {
-        observations: handed.observations,
-        proofs: handed.proofs,
-        frontier: rows,
-        texts: handed.texts,
-        notes: handed.notes,
-        covered: handed.covered,
-    })
+    Ok(StoredHanded(
+        ryo_values::domain::stores::types::HandedRows {
+            observations: handed.observations,
+            proofs: handed.proofs,
+            frontier: rows,
+            texts: handed.texts,
+            notes: handed.notes,
+            covered: handed.covered,
+        },
+    ))
 }
 
 /// What a row of the contract asks of a store.
@@ -196,7 +199,7 @@ fn answer(
                 proof: super::proof(),
                 words: PackedWords(vec![5]),
             };
-            let was = stored(1).handed.frontier;
+            let was = stored(1).handed.0.frontier;
             kept(stored(1), &KeptRows::default())?;
             let mut again = stored(2);
             again.handed.frontier = vec![read_now.clone()];
@@ -212,9 +215,13 @@ fn answer(
                     }],
                 },
             )?;
-            let moved = materialized_handed(&*store.stored()?, &BucketsWanted::All)?.frontier;
+            let moved = materialized_handed(&*store.stored()?, &BucketsWanted::All)?
+                .0
+                .frontier;
             kept(again, &KeptRows::default())?;
-            let gone = materialized_handed(&*store.stored()?, &BucketsWanted::All)?.frontier;
+            let gone = materialized_handed(&*store.stored()?, &BucketsWanted::All)?
+                .0
+                .frontier;
             moved
                 == [read_now.clone()]
                     .into_iter()

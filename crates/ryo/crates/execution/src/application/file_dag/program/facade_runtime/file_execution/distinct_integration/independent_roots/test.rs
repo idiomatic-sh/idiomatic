@@ -5,10 +5,13 @@ use ryo_operators::inbound::use_cases::operators::{
     use_case::OperatorsUseCaseImpl,
 };
 use ryo_values::domain::observations::types::{
-    BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName,
-    ObservationColumn, ObservationColumnName, ObservationIndex, ObservationName,
-    ObservationProducer, ObservationReadinessLayout, PlanObservation, ProducerReadiness,
+    BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
+    ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
 };
+use ryo_values::domain::plan_parts::types::ObservationBindingId;
+use ryo_values::domain::records::types::ObservationIndex;
+use ryo_values::domain::records::types::ObservationReadinessLayout;
+use ryo_values::domain::records::types::ProducerReadiness;
 #[derive(Debug)]
 struct RefuseCount;
 impl OperatorsUseCase for RefuseCount {

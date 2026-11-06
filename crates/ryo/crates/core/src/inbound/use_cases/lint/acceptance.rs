@@ -21,15 +21,16 @@ use ryo_core::outbound::language::fixtures::fake::LanguageFake;
 use ryo_core::outbound::matching::fixtures::fake::MatchingFake;
 use ryo_core::outbound::memory::fixtures::fake::MemoryFake;
 use ryo_core::outbound::query_language::fixtures::fake::QueryLanguageFake;
-use ryo_core::outbound::rows;
-use ryo_core::outbound::rows::interface::RowsPort;
+use ryo_core::outbound::row_sink;
+use ryo_core::outbound::row_sink::interface::RowSinkPort;
 use ryo_core::outbound::scheduler::fixtures::fake::SchedulerFake;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::plan_parts::types::StepId;
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 
 /// A file of the corpus at `path`, holding one function.
 fn file(path: &str) -> CorpusFile {
@@ -90,8 +91,8 @@ fn runs(world: &mut Behavior) {
         plan: every_function(),
         ..QueryLanguageFake::default()
     };
-    let collected = rows::types::Collector::default();
-    let kept: Arc<dyn RowsPort> = Arc::new(rows::factory::collect(collected.clone()));
+    let collected = row_sink::types::Collector::default();
+    let kept: Arc<dyn RowSinkPort> = Arc::new(row_sink::factory::collect(collected.clone()));
     let use_case = {
         let analysis_corpus: Arc<dyn ryo_core::outbound::corpus::interface::CorpusPort> =
             Arc::new(corpus);
@@ -99,8 +100,9 @@ fn runs(world: &mut Behavior) {
             Arc::new(LanguageFake::default());
         let analysis_memory: Arc<dyn ryo_core::outbound::memory::interface::MemoryPort> =
             Arc::new(MemoryFake::default());
-        let analysis_digest: Arc<dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort> =
-            Arc::new(DigestFake);
+        let analysis_digest: Arc<
+            dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
+        > = Arc::new(DigestFake);
         LintUseCaseImpl::new(
             ryo_core::application::file_analysis::service::FileAnalysis::new(
                 Arc::clone(&analysis_corpus),
@@ -149,7 +151,9 @@ fn runs(world: &mut Behavior) {
         rules: vec![Rule {
             observations: Vec::new(),
             id: RuleId("rule".into()),
-            query: ryo_values::domain::program::types::QueryBundle::from(QueryText(query.into())),
+            query: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(
+                query.into(),
+            )),
             applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
             parameters: Vec::new(),
             include: Vec::new(),

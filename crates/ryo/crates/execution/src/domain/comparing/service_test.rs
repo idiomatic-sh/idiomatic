@@ -17,7 +17,7 @@ use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::Applied;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Comparison;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Function;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
 use ryo_values::domain::plan_parts::types::LiteralText;
@@ -63,11 +63,11 @@ fn tells_a_name_equal_to_a_text_by_its_hash() -> Result<Value, OperatingError> {
         push_row(&mut table, &[name]);
     }
     let mut count = |test: Test| -> Result<usize, OperatingError> {
-        let comparison = Comparison {
+        let comparison = PlanComparison {
             test,
             left: Operand::Column(column(0)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText("main".into()))),
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         };
         let operation = Operation::Select {
             from: FROM,
@@ -129,11 +129,11 @@ fn decides_once_for_each_name() -> Result<Value, OperatingError> {
     for name in names {
         push_row(&mut table, &[name]);
     }
-    let comparison = Comparison {
+    let comparison = PlanComparison {
         test: Test::GlobAny,
         left: Operand::Column(column(0)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText("{main}".into()))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let operation = Operation::Select {
         from: FROM,
@@ -182,11 +182,11 @@ fn decides_once_for_each_name() -> Result<Value, OperatingError> {
 /// A name a comparison decided for one file is decided for the next file by its text: the verdict is
 /// found by what the name says, not decided again, though the next file numbers its names otherwise.
 fn remembers_what_a_text_was_decided_in_another_file() -> Result<Value, OperatingError> {
-    let comparison = Comparison {
+    let comparison = PlanComparison {
         test: Test::GlobAny,
         left: Operand::Column(column(0)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText("{main,other}".into()))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let operation = Operation::Select {
         from: FROM,
@@ -265,11 +265,11 @@ fn reads_each_rows_pattern() -> Result<Value, OperatingError> {
             Offset(end),
         ))
     });
-    let comparisons = [Comparison {
+    let comparisons = [PlanComparison {
         test: Test::GlobAny,
         left: Operand::Column(column(0)),
         right: Operand::Column(column(1)),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }];
     let mut context = OperatorContext {
         phase: crate::domain::operating::types::AfterTheFiles::Before,
@@ -301,11 +301,11 @@ fn reads_each_rows_pattern() -> Result<Value, OperatingError> {
 
 /// A comparison with a parameter nobody bound is refused, not decided.
 fn refuses_an_unbound_parameter() -> Result<Value, OperatingError> {
-    let comparison = Comparison {
+    let comparison = PlanComparison {
         test: Test::Equal,
         left: Operand::Column(column(0)),
         right: Operand::Parameter(ParameterId(0)),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
@@ -362,14 +362,14 @@ fn a_function_of_an_unknown_name_is_unlocated() -> Result<Value, OperatingError>
     .into_iter()
     .enumerate()
     {
-        let comparison = Comparison {
+        let comparison = PlanComparison {
             test,
             left: Operand::Function(Applied {
                 function: Function::Snake,
                 arguments: vec![Operand::Column(column(0))],
             }),
             right: Operand::Literal(QueryLiteral::Text(LiteralText(String::new().into()))),
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         };
         if holds_all(
             &[comparison],

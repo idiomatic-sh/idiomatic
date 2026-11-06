@@ -5,48 +5,53 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
 use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::query_syntax::types as ast;
+use ryo_values::domain::query_tokens::types as tokens;
 type Input = fn();
 type Value = ();
 type Failure = std::convert::Infallible;
 
-fn call(name: &str, arguments: Vec<(&str, syntax::ArgumentValue)>) -> syntax::Call {
-    syntax::Call {
-        name: syntax::OperationName(name.into()),
+fn call(name: &str, arguments: Vec<(&str, ast::ArgumentValue)>) -> ast::Call {
+    ast::Call {
+        name: tokens::OperationName(name.into()),
         span: lowering_builder().span,
         arguments: arguments
             .into_iter()
-            .map(|(name, value)| syntax::Argument {
-                name: syntax::ArgumentName(name.into()),
+            .map(|(name, value)| ast::Argument {
+                name: tokens::ArgumentName(name.into()),
                 value,
             })
             .collect(),
     }
 }
-fn text(value: &str) -> syntax::ArgumentValue {
-    syntax::ArgumentValue::Text(syntax::WrittenLiteral(value.into()))
+fn text(value: &str) -> ast::ArgumentValue {
+    ast::ArgumentValue::Text(tokens::WrittenLiteral(value.into()))
 }
-fn name() -> syntax::StepName {
-    syntax::StepName("result".into(), None)
+fn name() -> tokens::StepName {
+    tokens::StepName(
+        "result".into(),
+        ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
+    )
 }
 
 fn all_set_operations_keep_both_typed_inputs() {
     for (operator, expected) in [
         (
-            plans::QueryOperator::Union,
+            ryo_values::domain::query_operators::types::QueryOperator::Union,
             plans::Operation::Union {
                 left: parts::Input::Relation(Relation::Function),
                 right: parts::Input::Relation(Relation::Function),
             },
         ),
         (
-            plans::QueryOperator::Intersection,
+            ryo_values::domain::query_operators::types::QueryOperator::Intersection,
             plans::Operation::Intersection {
                 left: parts::Input::Relation(Relation::Function),
                 right: parts::Input::Relation(Relation::Function),
             },
         ),
         (
-            plans::QueryOperator::Difference,
+            ryo_values::domain::query_operators::types::QueryOperator::Difference,
             plans::Operation::Difference {
                 left: parts::Input::Relation(Relation::Function),
                 right: parts::Input::Relation(Relation::Function),
@@ -69,7 +74,12 @@ fn incompatible_inputs_keep_typed_refusal() {
         vec![("left", text("function")), ("right", text("syntax-child"))],
     );
     assert_eq!(
-        super::service::call_set(&mut builder, &name(), &call, plans::QueryOperator::Union),
+        super::service::call_set(
+            &mut builder,
+            &name(),
+            &call,
+            ryo_values::domain::query_operators::types::QueryOperator::Union
+        ),
         Err(LoweringError::BadArgument {
             operation: "union".into(),
             argument: "right".into(),

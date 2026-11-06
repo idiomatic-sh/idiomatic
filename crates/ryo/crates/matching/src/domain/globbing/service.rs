@@ -6,7 +6,7 @@
 use super::constants::DIRECTORY_STARS;
 use super::types::{
     Alternated, Byte, ClassBounds, ClassClose, ClassMembership, GlobIndex, GlobMatch, GlobPiece,
-    GlobText, Letter, Negation, Ruling, Subject, TextGlobProgram,
+    GlobText, Letter, Negation, OwnedGlobText, Ruling, Subject, TextGlobProgram,
 };
 
 /// How long the three pieces of a pattern are together.
@@ -31,7 +31,6 @@ fn byte_at(pattern: Alternated<'_>, at: GlobIndex) -> Byte {
 /// Whether the first or the last byte of the pattern, when it is a plain byte and not a wildcard, already rules the text out:
 /// most alternatives of a long list are refused by their first byte alone.
 fn refused_at_the_ends(pattern: Alternated<'_>, text: Subject<'_>) -> Ruling {
-    let text = text.0;
     let (Some(first), Some(last)) = (
         [pattern.before, pattern.alternative, pattern.after]
             .iter()
@@ -40,13 +39,13 @@ fn refused_at_the_ends(pattern: Alternated<'_>, text: Subject<'_>) -> Ruling {
             .iter()
             .find_map(|part| part.0.as_bytes().last().copied()),
     ) else {
-        return if text.is_empty() {
+        return if text.0.is_empty() {
             Ruling::Leaves
         } else {
             Ruling::RulesOut
         };
     };
-    let bytes = text.as_bytes();
+    let bytes = text.0.as_bytes();
     let plain = |byte: Byte| !matches!(byte.0, b'*' | b'?' | b'{' | b'[' | b']' | b'\\');
     if (plain(Byte(first)) && bytes.first() != Some(&first))
         || (plain(Byte(last)) && bytes.last() != Some(&last))
@@ -282,9 +281,8 @@ fn any_alternative(
             b'}' => depth = depth.saturating_sub(1),
             b'\\' => index += 1,
             b',' if depth == 0 => {
-                if holds(GlobPiece(text.get(start..index).unwrap_or_default()))
-                    == GlobMatch::Matches
-                {
+                let piece = GlobPiece(text.get(start..index).unwrap_or_default());
+                if holds(piece) == GlobMatch::Matches {
                     return GlobMatch::Matches;
                 }
                 start = index + 1;
@@ -318,10 +316,8 @@ pub(crate) fn matches(pattern: GlobText<'_>, text: Subject<'_>) -> GlobMatch {
     };
     let glob = pattern.0;
     // The braces are ASCII, so the places beside them are the boundaries of characters.
-    let (before, after) = (
-        glob.get(..open.0).unwrap_or_default(),
-        glob.get(close.0 + 1..).unwrap_or_default(),
-    );
+    let before = glob.get(..open.0).unwrap_or_default();
+    let after = glob.get(close.0 + 1..).unwrap_or_default();
     let inside = glob.get(open.0 + 1..close.0).unwrap_or_default();
     any_alternative(GlobText(inside), |alternative| {
         // The common case, one group of plain alternatives, is matched in place; any other is expanded one group at a time.
@@ -382,7 +378,7 @@ fn interpreted(patterns: &[GlobText<'_>]) -> TextGlobProgram {
     TextGlobProgram::Interpreted(
         patterns
             .iter()
-            .map(|pattern| Box::from(pattern.0))
+            .map(|pattern| OwnedGlobText(Box::from(pattern.0)))
             .collect(),
     )
 }
@@ -394,7 +390,7 @@ pub(crate) fn matches_compiled(compiled: &TextGlobProgram, text: Subject<'_>) ->
         TextGlobProgram::Ready(matcher) => matcher.is_match(text.0.as_bytes()),
         TextGlobProgram::Interpreted(patterns) => patterns
             .iter()
-            .any(|pattern| matches(GlobText(pattern), text) == GlobMatch::Matches),
+            .any(|pattern| matches(GlobText(&pattern.0), text) == GlobMatch::Matches),
     };
     if matched {
         GlobMatch::Matches

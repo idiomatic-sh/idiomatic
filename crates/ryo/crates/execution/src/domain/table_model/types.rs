@@ -90,7 +90,7 @@ pub(crate) struct StoredSelection {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct SelectionIdentity {
     /// Ordered predicates over physical provider columns.
-    pub comparisons: Vec<ryo_values::domain::plan_parts::types::Comparison>,
+    pub comparisons: Vec<ryo_values::domain::plan_parts::types::PlanComparison>,
     /// Only the binding values referenced by these predicates.
     pub bindings: Vec<ParameterBinding>,
 }

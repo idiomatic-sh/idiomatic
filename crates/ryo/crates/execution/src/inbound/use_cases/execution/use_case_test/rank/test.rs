@@ -37,9 +37,9 @@ fn subject((names, binding): Input) -> Result<Value, Failure> {
         },
     ]);
     plan.parameters
-        .push(ryo_values::domain::plans::types::PlanParameter {
+        .push(ryo_values::domain::query_bindings::types::PlanParameter {
             name: ryo_values::domain::plan_parts::types::ParameterName("input".into()),
-            kind: ryo_values::domain::plans::types::ParameterType::TextSets,
+            kind: ryo_values::domain::query_bindings::types::ParameterType::TextSets,
         });
     let mut symbols = Symbols::default();
     let output = fixtures::published(

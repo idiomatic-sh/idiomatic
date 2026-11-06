@@ -13,11 +13,12 @@ use ryo_relations::domain::relations::types::{CellKind, FileId};
 use ryo_values::domain::{
     files::types::CorpusInput,
     observations::types::{
-        BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName, ObservationColumn,
-        ObservationColumnName, ObservationReadinessLayout,
+        BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
+        ObservationColumnName,
     },
-    plan_parts::types::Input,
-    plans::types::{Operation, PlanStep, StepScope},
+    plan_parts::types::{Input, ObservationBindingId, StepScope},
+    plans::types::{Operation, PlanStep},
+    records::types::ObservationReadinessLayout,
     stored_facts::types::{Bucket, Digest},
 };
 
@@ -111,7 +112,11 @@ impl Held<'_> {
 }
 
 /// The prepared program of `rule_count` rules; the stage entry declares one closed named binding.
-fn program(engine: &ExecutionUseCaseImpl, entry: Entry, rule_count: usize) -> PreparedExecutionProgram {
+fn program(
+    engine: &ExecutionUseCaseImpl,
+    entry: Entry,
+    rule_count: usize,
+) -> PreparedExecutionProgram {
     let mut authored = crate::boundary_fixture::authored_request(rule_count);
     if matches!(entry, Entry::Stage) {
         // A named request needs a dependency schedule: rule 0 declares one closed empty binding.
@@ -140,7 +145,8 @@ fn program(engine: &ExecutionUseCaseImpl, entry: Entry, rule_count: usize) -> Pr
             },
         }];
         authored.plans[0].frontier = vec![Input::BoundObservation(ObservationBindingId(0))];
-        authored.observations = ObservationIdentity::Named(ObservationReadinessLayout(Digest([7; 16])));
+        authored.observations =
+            ObservationIdentity::Named(ObservationReadinessLayout(Digest([7; 16])));
     }
     engine.prepare(authored).expect("valid public request")
 }

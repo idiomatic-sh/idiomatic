@@ -9,7 +9,8 @@ use ryo_relations::domain::relations::{
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input as PlanInput, JoinColumn, Side, StepId},
-    plans::types::{Operation, QueryOperator},
+    plans::types::Operation,
+    query_operators::types::QueryOperator,
 };
 type Input = (Span, Span, &'static [u8]);
 type Failure = OperatingError;

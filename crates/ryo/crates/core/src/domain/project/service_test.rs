@@ -1,13 +1,15 @@
 //! The `project` service's cases, on values alone.
 
 use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput, StepId};
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 
 use super::service::{reads_any, reads_project, with_consulted};
 use super::types::PlanReads;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::records::types::{Freshness, PlacedRule};
+use ryo_values::domain::records::types::Freshness;
+use ryo_values::domain::row_texts::types::PlacedRule;
 use ryo_values::domain::stores::types::MadeAgain;
 
 /// What a row of the cases does; a number packs the answers of the calls it names, first call in the highest digit.

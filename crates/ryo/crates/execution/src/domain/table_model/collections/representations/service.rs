@@ -60,7 +60,9 @@ impl<'f> RepresentationInput<'f> {
                 tree.form == crate::domain::table_cells::types::TreeForm::Edges,
             )),
             Self::Computed(table) => table.count.0,
-            Self::Compact(table) => ryo_values::domain::table_words::service::compact_rows(table),
+            Self::Compact(table) => {
+                ryo_values::domain::compact_table::service::compact_rows(table).0
+            }
             Self::Positioned(view) => view
                 .positions
                 .slots
@@ -76,7 +78,9 @@ impl<'f> RepresentationInput<'f> {
             Self::Selected { kinds, .. } => kinds,
             Self::Positioned(view) => view.kinds,
             Self::Computed(table) => &table.kinds,
-            Self::Compact(table) => ryo_values::domain::table_words::service::compact_kinds(table),
+            Self::Compact(table) => {
+                ryo_values::domain::compact_table::service::compact_kinds(table)
+            }
             Self::Tree(tree) => ryo_relations::domain::relations::service::kinds(match tree.form {
                 crate::domain::table_cells::types::TreeForm::Elements => {
                     ryo_relations::domain::relations::types::Relation::SyntaxTree

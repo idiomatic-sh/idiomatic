@@ -500,7 +500,9 @@ fn normalized_staging_preserves_store_bytes_and_snapshot_lifetime() {
         kept.staged.push(StagedRow {
             file: row.file,
             bucket: row.bucket,
-            ordinal: u64::try_from(ordinal).expect("ordinal"),
+            ordinal: ryo_values::domain::records::types::StagedOrdinal(
+                u64::try_from(ordinal).expect("ordinal"),
+            ),
             words,
         });
     }
@@ -531,7 +533,7 @@ fn normalized_staging_preserves_store_bytes_and_snapshot_lifetime() {
         before
     );
     let mut malformed = kept.clone();
-    malformed.staged[0].words.offset = u64::MAX;
+    malformed.staged[0].words.offset = ryo_values::domain::records::types::PayloadOffset(u64::MAX);
     assert!(read.keep(original, &malformed).is_err());
     assert_eq!(
         std::fs::read(staged_path.join("lint.store")).expect("old cache"),
@@ -565,6 +567,7 @@ fn warm_partial_frontier_keeps_exact_proof_through_facts_handover() {
     let row = warm
         .handed(&BucketsWanted::All)
         .expect("warm frontier")
+        .0
         .frontier
         .into_iter()
         .next()
@@ -636,7 +639,9 @@ fn staged_fresh_and_selected_old_rows_match_inline_edit_add_remove_and_reorder()
                 reused.staged.push(StagedRow {
                     file: row.file,
                     bucket: row.bucket,
-                    ordinal: u64::try_from(ordinal).expect("ordinal"),
+                    ordinal: ryo_values::domain::records::types::StagedOrdinal(
+                        u64::try_from(ordinal).expect("ordinal"),
+                    ),
                     words,
                 });
             } else {
@@ -696,10 +701,8 @@ fn old_read_descriptors_survive_replacement_and_reject_other_snapshots() {
     let root = tempfile::tempdir().expect("directory");
     let store = store_in(root.path(), "old-descriptors");
     let mut original = stored(1);
-    original
-        .handed
-        .frontier
-        .push(original.handed.frontier[0].clone());
+    let first = original.handed.frontier[0].clone();
+    original.handed.frontier.push(first);
     store
         .stored()
         .unwrap()
@@ -777,12 +780,12 @@ fn an_open_snapshot_refuses_external_payload_truncation() {
         ReadWordPayload::Old(words) => words,
         ReadWordPayload::Inline(_) => panic!("postcard retains descriptors"),
     };
-    assert!(descriptor.length > 0);
+    assert!(descriptor.length.0 > 0);
     std::fs::OpenOptions::new()
         .write(true)
         .open(root.path().join("lint.store"))
         .expect("external writer")
-        .set_len(descriptor.offset + descriptor.length - 1)
+        .set_len(descriptor.offset.0 + descriptor.length.0 - 1)
         .expect("truncate payload after snapshot creation");
     let mut loaded = PackedWords::default();
     assert!(
@@ -802,17 +805,19 @@ fn bucket_reader_observes_each_row_at_its_buffer_acquisition() {
         let root = tempfile::tempdir().expect("directory");
         let store = store_in(root.path(), "bucket-window");
         let mut source = stored(1);
-        source
-            .handed
-            .frontier
-            .push(source.handed.frontier[0].clone());
+        let first = source.handed.frontier[0].clone();
+        source.handed.frontier.push(first);
         store
             .stored()
             .unwrap()
             .keep(source.clone(), &KeptRows::default())
             .unwrap();
         let snapshot = store.stored().expect("snapshot");
-        let rows = snapshot.handed(&BucketsWanted::All).expect("rows").frontier;
+        let rows = snapshot
+            .handed(&BucketsWanted::All)
+            .expect("rows")
+            .0
+            .frontier;
         let first = match &rows[0].words {
             ReadWordPayload::Old(words) => *words,
             ReadWordPayload::Inline(_) => panic!("old row"),
@@ -834,9 +839,9 @@ fn bucket_reader_observes_each_row_at_its_buffer_acquisition() {
             .expect("same inode");
         let _position = file
             .seek(SeekFrom::Start(if change_header {
-                second.header
+                second.header.0
             } else {
-                second.offset
+                second.offset.0
             }))
             .expect("second row");
         file.write_all(&[0x7f]).expect("equal-length edit");
@@ -879,7 +884,11 @@ fn bucket_reader_acquires_other_bucket_after_mutation_or_truncation() {
             .keep(source, &KeptRows::default())
             .unwrap();
         let snapshot = store.stored().expect("snapshot");
-        let rows = snapshot.handed(&BucketsWanted::All).expect("rows").frontier;
+        let rows = snapshot
+            .handed(&BucketsWanted::All)
+            .expect("rows")
+            .0
+            .frontier;
         let first = match &rows[0].words {
             ReadWordPayload::Old(words) => *words,
             ReadWordPayload::Inline(_) => panic!("old row"),
@@ -901,11 +910,11 @@ fn bucket_reader_acquires_other_bucket_after_mutation_or_truncation() {
                 .write(true)
                 .open(path)
                 .unwrap()
-                .set_len(second.offset + second.length - 1)
+                .set_len(second.offset.0 + second.length.0 - 1)
                 .expect("truncate second bucket");
         } else {
             let mut file = std::fs::OpenOptions::new().write(true).open(path).unwrap();
-            let _position = file.seek(SeekFrom::Start(second.header)).unwrap();
+            let _position = file.seek(SeekFrom::Start(second.header.0)).unwrap();
             file.write_all(&[0x7f]).expect("corrupt second header");
         }
         assert!(batch.read(&second, &mut PackedWords::default()).is_err());
@@ -927,7 +936,11 @@ fn bucket_readers_keep_snapshot_identity_across_concurrent_consumers() {
         .keep(original.clone(), &KeptRows::default())
         .unwrap();
     let snapshot = store.stored().expect("snapshot");
-    let rows = snapshot.handed(&BucketsWanted::All).expect("rows").frontier;
+    let rows = snapshot
+        .handed(&BucketsWanted::All)
+        .expect("rows")
+        .0
+        .frontier;
     let descriptor = match &rows[0].words {
         ReadWordPayload::Old(words) => *words,
         ReadWordPayload::Inline(_) => panic!("old row"),
@@ -936,6 +949,7 @@ fn bucket_readers_keep_snapshot_identity_across_concurrent_consumers() {
     let foreign_rows = foreign
         .handed(&BucketsWanted::All)
         .expect("foreign rows")
+        .0
         .frontier;
     let foreign_descriptor = match &foreign_rows[0].words {
         ReadWordPayload::Old(words) => *words,

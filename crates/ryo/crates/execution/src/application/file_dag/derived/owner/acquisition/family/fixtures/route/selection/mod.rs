@@ -1,5 +1,7 @@
 //! The selection entry: predicate, candidate and distinct selectors acquired through the owner.
-use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{Exit, released};
+use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{
+    Exit, released,
+};
 use crate::application::file_dag::derived::owner::selection::fixtures::SelectionFixture;
 use crate::domain::{
     operating::{
@@ -28,14 +30,18 @@ use ryo_relations::domain::{
 use ryo_values::domain::{
     files::types::SourceView,
     plan_parts::types::{
-        ColumnIndex, Comparison, LiteralText, Operand, ParameterId, QueryLiteral, Test,
+        ColumnIndex, PlanComparison, LiteralText, Operand, ParameterId, QueryLiteral, Test,
     },
     query_bindings::types::ParameterBinding,
 };
 use std::sync::Arc;
 
 /// A fixed set of integer rows for the distinct and predicate selectors.
-const DISTINCT: [&[u64]; 3] = [&[7, 7, 7, 7, 7, 8], &[1, 2, 0, 7, 0, 1], &[10, 10, 20, 11, 20, 10]];
+const DISTINCT: [&[u64]; 3] = [
+    &[7, 7, 7, 7, 7, 8],
+    &[1, 2, 0, 7, 0, 1],
+    &[10, 10, 20, 11, 20, 10],
+];
 pub(super) fn selection(kind: DerivedKind, exit: Exit) -> Result<DerivedKind, OperatingError> {
     if kind == DerivedKind::CandidatePostings {
         return fanout(exit);
@@ -97,11 +103,11 @@ fn fanout(exit: Exit) -> Result<DerivedKind, OperatingError> {
         Arc::new(Selector {
             relation: Relation::Defines,
             identity: Arc::new(SelectionIdentity {
-                comparisons: vec![Comparison {
+                comparisons: vec![PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(0)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
                 bindings: Vec::new(),
             }),
@@ -130,11 +136,11 @@ fn fanout(exit: Exit) -> Result<DerivedKind, OperatingError> {
 /// A selector whose parameter is bound to a table: the comparison refuses with `WrongBinding`.
 fn refusing(base: &Selector) -> Arc<Selector> {
     let mut bad = base.clone();
-    let bind = Comparison {
+    let bind = PlanComparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(0)),
         right: Operand::Parameter(ParameterId(0)),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     bad.identity = Arc::new(SelectionIdentity {
         comparisons: vec![base.identity.comparisons[0].clone(), bind],
@@ -208,9 +214,7 @@ fn run_with(
                 }
                 Ok(kind)
             }
-            Exit::Errors => fixture
-                .select(&error, source, &mut context)
-                .map(|_| kind),
+            Exit::Errors => fixture.select(&error, source, &mut context).map(|_| kind),
         }
     };
     fixture.owner().release_population();
@@ -221,4 +225,3 @@ fn run_with(
     );
     result
 }
-

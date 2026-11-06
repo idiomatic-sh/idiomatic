@@ -11,8 +11,18 @@ use crate::domain::{
     terms::types::Symbol,
 };
 
+/// What the row words and the relation schema answer.
+#[derive(Debug, PartialEq, Eq)]
+struct Observed {
+    words: [Bits; 5],
+    class: Class,
+    relation: Relation,
+    columns: [&'static str; 5],
+    kinds: &'static [CellKind],
+}
+
 type Input = ();
-type Value = [Bits; 5];
+type Value = Observed;
 type Failure = ();
 
 fn row() -> ProjectNamespaceMembershipRow {
@@ -29,40 +39,37 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("file_root_path_membership_kind_keep_five_distinct_cells"),
     word: Word::Succeeds,
     input: || (),
-    expect: Expect::Value([Bits(3), Bits(5), Bits(7), Bits(11), Bits(13)]),
-}];
-
-fn subject(_input: Input) -> Result<Value, Failure> {
-    Ok(ProjectNamespaceMembership::words(row()))
-}
-
-#[test]
-fn row_words_keep_typed_column_order() {
-    run(CASES, Word::Succeeds, subject);
-}
-
-#[test]
-fn relation_schema_exposes_all_observed_path_columns() {
-    assert_eq!(ProjectNamespaceMembership::CLASS, Class::Manifest);
-    assert_eq!(
-        ProjectNamespaceMembership::relation(),
-        Relation::ProjectNamespaceMembership
-    );
-    assert_eq!(
-        ProjectNamespaceMembership::columns()
-            .into_iter()
-            .map(constants::column_name)
-            .collect::<Vec<_>>(),
-        ["file", "root", "path", "membership", "kind"]
-    );
-    assert_eq!(
-        ProjectNamespaceMembership::kinds(),
-        &[
+    expect: Expect::Value(Observed {
+        words: [Bits(3), Bits(5), Bits(7), Bits(11), Bits(13)],
+        class: Class::Manifest,
+        relation: Relation::ProjectNamespaceMembership,
+        columns: ["file", "root", "path", "membership", "kind"],
+        kinds: &[
             CellKind::File,
             CellKind::Symbol,
             CellKind::Symbol,
             CellKind::Symbol,
             CellKind::Symbol,
-        ]
-    );
+        ],
+    }),
+}];
+
+fn subject(_input: Input) -> Result<Value, Failure> {
+    Ok(Observed {
+        words: ProjectNamespaceMembership::words(row()),
+        class: ProjectNamespaceMembership::CLASS,
+        relation: ProjectNamespaceMembership::relation(),
+        columns: ProjectNamespaceMembership::columns()
+            .into_iter()
+            .map(constants::column_name)
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap_or_default(),
+        kinds: ProjectNamespaceMembership::kinds(),
+    })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

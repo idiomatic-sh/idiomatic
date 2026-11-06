@@ -357,9 +357,11 @@ fn executable(
     metadata: &std::fs::Metadata,
 ) -> ryo_values::domain::files::types::ExecutablePermission {
     use std::os::unix::fs::PermissionsExt as _;
-    ryo_values::domain::files::types::ExecutablePermission::Posix(
-        metadata.permissions().mode() & 0o111 != 0,
-    )
+    if metadata.permissions().mode() & 0o111 != 0 {
+        ryo_values::domain::files::types::ExecutablePermission::PosixExecutable
+    } else {
+        ryo_values::domain::files::types::ExecutablePermission::PosixNotExecutable
+    }
 }
 #[cfg(not(unix))]
 fn executable(_: &std::fs::Metadata) -> ryo_values::domain::files::types::ExecutablePermission {

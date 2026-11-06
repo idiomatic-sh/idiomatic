@@ -7,11 +7,11 @@ use super::types::{ElementDemand, InputWidth, StartingRow};
 use crate::domain::fusing::service::source_column;
 use crate::domain::rewriting::types::StepIndex;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::plan_parts::types::Direction as AxisDirection;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::plan_parts::types::Operand;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::QueryLiteral;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::Test;
@@ -76,10 +76,10 @@ pub(crate) fn width_of(steps: &[PlanStep], input: Input) -> Option<InputWidth> {
 }
 
 /// Whether the comparisons ask only that an element of the syntax tree be a node: a node has no text.
-fn only_nodes(comparisons: &[Comparison]) -> ElementDemand {
+fn only_nodes(comparisons: &[PlanComparison]) -> ElementDemand {
     if matches!(
         comparisons,
-        [Comparison {
+        [PlanComparison {
             test: Test::Equal,
             left: Operand::Column(ColumnIndex(2)),
             right: Operand::Literal(QueryLiteral::Text(text)),

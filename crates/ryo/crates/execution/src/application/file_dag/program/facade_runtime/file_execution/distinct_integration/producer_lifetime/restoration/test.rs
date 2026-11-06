@@ -13,7 +13,7 @@ use crate::application::file_dag::program::runtime::types::{
     AttemptCheckpoint, ConsumerReleasePoint,
 };
 use crate::domain::coverage::types::Partials;
-use ryo_values::domain::rows::errors::TableModelError;
+use ryo_values::domain::rows::errors::RowsError;
 
 fn exercise(exit: Exit) -> Result<(), OperatingError> {
     let mut symbols = Symbols::default();
@@ -151,9 +151,7 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
         let outcome = outcome?;
         match outcome.emit {
             RootOutcome::Complete(table) => transferred.push(table),
-            RootOutcome::Failed(OperatingError::Table(TableModelError::NoSuchColumn {
-                index: 99,
-            })) => {
+            RootOutcome::Failed(OperatingError::Table(RowsError::NoSuchColumn { index: 99 })) => {
                 assert_eq!(at, 3);
                 assert!(matches!(exit, Exit::SemanticFailure));
             }
@@ -258,7 +256,7 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
                 (
                     4,
                     Exit::SemanticFailure,
-                    RootOutcome::Failed(OperatingError::Table(TableModelError::NoSuchColumn {
+                    RootOutcome::Failed(OperatingError::Table(RowsError::NoSuchColumn {
                         index: 99,
                     })),
                 )

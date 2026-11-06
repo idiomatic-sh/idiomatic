@@ -4,9 +4,9 @@
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::records::types::{Handed, HandedNotes, RecordWords};
 use ryo_values::domain::stored_facts::types::Bucket;
+use ryo_values::domain::stored_findings::types::StoredFileNumber;
 use ryo_values::domain::stores::types::{
-    BucketsWanted, Stored, StoredCovered, StoredFileNumber, StoredHanded, StoredNotes, StoredText,
-    StoredWords,
+    BucketsWanted, Stored, StoredCovered, StoredHanded, StoredNotes, StoredText, StoredWords,
 };
 
 /// The rows of `rows` of the stored file `file`: the tables keep each file's rows together, in the order of the files.
@@ -35,8 +35,10 @@ pub(crate) fn handed_in<W>(
     let covered = rows_of_file(&handed.covered, file, |each| each.file).first();
     Handed {
         observations: match rows_of_file(&handed.observations, file, |each| each.file) {
-            [one] => Some(std::sync::Arc::clone(&one.root)),
-            _ => None, // missing/ambiguous readiness remains unavailable to demanded roots
+            [one] => ryo_values::domain::records::types::HandedReadiness::Recorded(
+                std::sync::Arc::clone(&one.root),
+            ),
+            _ => ryo_values::domain::records::types::HandedReadiness::Unrecorded, // missing/ambiguous readiness remains unavailable to demanded roots
         },
         buckets: Vec::new(),
         text: rows_of_file(&handed.texts, file, |each| each.file)
@@ -100,13 +102,14 @@ pub(crate) fn hand_into(
                 staged.push(ryo_values::domain::stores::types::StagedRow {
                     file,
                     bucket: each.bucket,
-                    ordinal,
+                    ordinal: ryo_values::domain::records::types::StagedOrdinal(ordinal),
                     words,
                 })
             }
         }
     }
-    if let Some(root) = handed.observations {
+    if let ryo_values::domain::records::types::HandedReadiness::Recorded(root) = handed.observations
+    {
         stored
             .observations
             .push(ryo_values::domain::stores::types::StoredFrontierReadiness { file, root });

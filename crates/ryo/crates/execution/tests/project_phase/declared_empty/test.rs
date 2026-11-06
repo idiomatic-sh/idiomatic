@@ -3,9 +3,10 @@ use super::super::*;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
 use ryo_values::domain::{
     observations::types::{
-        BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName,
-        ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer,
+        BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
+        ObservationColumnName, ObservationName, ObservationProducer,
     },
+    plan_parts::types::ObservationBindingId,
     runs::types::RuleId,
     stored_facts::types::Digest,
 };
@@ -38,7 +39,7 @@ fn declared() -> PreparedRequest {
     }];
     input.plans[0].frontier = vec![Input::BoundObservation(ObservationBindingId(0))];
     input.observations = ObservationIdentity::Named(
-        ryo_values::domain::observations::types::ObservationReadinessLayout(Digest([9; 16])),
+        ryo_values::domain::records::types::ObservationReadinessLayout(Digest([9; 16])),
     );
     input
 }
@@ -167,7 +168,8 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
             arenas: stage.arenas(),
         })
         .collect();
-    for outcome in crate::boundary_fixture::project_roots(&stage, RuleIndex(0), demand(), inputs, &mut symbols)
+    for outcome in
+        crate::boundary_fixture::project_roots(&stage, RuleIndex(0), demand(), inputs, &mut symbols)
     {
         let RootOutcome::Complete(table) = outcome.unwrap().emit else {
             panic!("authoritatively empty union must complete in its declared phase")
@@ -257,11 +259,9 @@ fn project_refuses(input: PreparedRequest, expected: &str, ready: bool) {
         },
         &mut symbols,
     );
-    assert!(
-        matches!(outcome.unwrap().emit,
+    assert!(matches!(outcome.unwrap().emit,
         RootOutcome::Unknown(OperatingError::ObservationIncomplete { ref reason })
-        if reason == expected)
-    );
+        if reason == expected));
     assert_eq!(stored.reads.load(Ordering::SeqCst), 0);
     assert_eq!(project.reads.load(Ordering::SeqCst), 0);
 }

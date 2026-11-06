@@ -1,8 +1,9 @@
 //! Literal replacement and regex preparation errors use the real owner and matching contract.
 use super::super::super::{fixtures, types::OperatingError};
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_values::selects;
 use ryo_values::{
-    cases::{Case, CaseName, Expect, Word, run, selects},
+    cases::{Case, CaseName, Expect, Word, run},
     domain::{
         plan_parts::types::{ColumnIndex, HostedNumber, Input as PlanInput, LiteralText, StepId},
         plans::types::Operation,
@@ -118,7 +119,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             expected: "",
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, OperatingError::InvalidRegex { .. }))
+            selects!(matches!(error, OperatingError::InvalidRegex { .. }))
         }),
     },
 ];

@@ -42,7 +42,7 @@ fn prepared_test_program(
     ryo_execution::inbound::use_cases::execution::types::RequestExecution,
 ) {
     use ryo_values::domain::{
-        program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+        query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
         rule_requests::types::{RuleParameters, RuleSpec},
         stored_facts::types::Digest,
     };
@@ -93,7 +93,7 @@ fn one_capture_plan() -> Plan {
         observations: Vec::new(),
         parameters: vec![],
         steps: vec![ryo_values::domain::plans::types::PlanStep {
-            scope: ryo_values::domain::plans::types::StepScope::PerFile,
+            scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
             operation: ryo_values::domain::plans::types::Operation::Select {
                 from: ryo_values::domain::plan_parts::types::Input::Relation(Relation::Function),
                 comparisons: Vec::new(),
@@ -107,7 +107,9 @@ fn one_capture_plan() -> Plan {
             key: vec![],
             headings: vec![],
         },
-        frontier: vec![ryo_values::domain::plan_parts::types::Input::Step(StepId(0))],
+        frontier: vec![ryo_values::domain::plan_parts::types::Input::Step(StepId(
+            0,
+        ))],
     }
 }
 
@@ -133,8 +135,9 @@ fn replay_under_capture(
     use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Value, Words};
     use ryo_values::domain::files::types::{FileNumber, FileSize, Nanoseconds};
     use ryo_values::domain::records::types::{
-        FileOutcome, FindingRows, Handed, HandedWords, Handing, Ran, Record,
+        FileOutcome, Handed, HandedWords, Handing, Ran, Record,
     };
+    use ryo_values::domain::row_texts::types::FindingRows;
     use ryo_values::domain::stored_facts::types::{ArenaBytes, Bucket, Digest};
     use ryo_values::domain::table_words::service::{encode_table, pack};
     use ryo_values::domain::table_words::types::WordSlice;
@@ -176,7 +179,11 @@ fn replay_under_capture(
     let ids = [RuleId("capture".into())];
     let mut metadata = ryo_values::domain::run_metadata::service::from_plans(&plans);
     for rule in &mut metadata {
-        rule.frontier_capture.fill(captured);
+        rule.frontier_capture.fill(if captured {
+            ryo_values::domain::run_metadata::types::FrontierFeed::Captured
+        } else {
+            ryo_values::domain::run_metadata::types::FrontierFeed::CrossFile
+        });
     }
     let (program, request) = prepared_test_program(&plans, &ids, &[]);
     let placed = PlacedScopes {
@@ -201,7 +208,9 @@ fn replay_under_capture(
                 applicability_can_gate: true,
                 placed: &placed,
                 records: &[],
-                reuse: &ryo_values::domain::stores::types::Reuse::Cross(ryo_values::domain::stores::types::MadeAgain::All),
+                reuse: &ryo_values::domain::stores::types::Reuse::Cross(
+                    ryo_values::domain::stores::types::MadeAgain::All,
+                ),
                 stored: &NOTHING_STORED,
                 handed: &NOTHING_HANDED,
                 wanted_buckets: wanted,
@@ -234,7 +243,7 @@ fn a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not
     let mut wrong_digest = good.clone();
     wrong_digest.rule_digest = Digest([9; 16]);
     let mut wrong_ordinal = good.clone();
-    wrong_ordinal.input = 1;
+    wrong_ordinal.input = ryo_values::domain::records::types::FrontierOrdinal(1);
     let mut wrong_coverage = good.clone();
     wrong_coverage.coverage = FrontierCoverage::Partial(Vec::new());
     let refused = |result: Result<(), FileAnalysisError>| {
@@ -273,7 +282,7 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
         observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![ryo_values::domain::plans::types::PlanStep {
-            scope: ryo_values::domain::plans::types::StepScope::PerFile,
+            scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
             operation: ryo_values::domain::plans::types::Operation::Select {
                 from: ryo_values::domain::plan_parts::types::Input::Relation(Relation::Function),
                 comparisons: Vec::new(),
@@ -647,7 +656,7 @@ fn visited(
 ) -> Result<(super::types::Worker, Arc<LanguageFake>), Failure> {
     let answering =
         crate::domain::render::types::Answering::Rows(crate::domain::render::types::RowsAnswer {
-            limit: ryo_values::domain::records::types::RowTotal(0),
+            limit: ryo_values::domain::row_texts::types::RowTotal(0),
             headings: Vec::new(),
             columns: crate::domain::render::types::AnswerColumns::One,
         });
@@ -787,7 +796,7 @@ fn visited_inputs_with_rule_demands(
             observations: Vec::new(),
             parameters: Vec::new(),
             steps: vec![ryo_values::domain::plans::types::PlanStep {
-                scope: ryo_values::domain::plans::types::StepScope::PerFile,
+                scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
                 operation: ryo_values::domain::plans::types::Operation::Select {
                     from: ryo_values::domain::plan_parts::types::Input::Relation(
                         Relation::Function,
@@ -1220,7 +1229,7 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
         observations: Vec::new(),
         parameters: vec![],
         steps: vec![ryo_values::domain::plans::types::PlanStep {
-            scope: ryo_values::domain::plans::types::StepScope::PerFile,
+            scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
             operation: ryo_values::domain::plans::types::Operation::Select {
                 from: ryo_values::domain::plan_parts::types::Input::Relation(Relation::Function),
                 comparisons: Vec::new(),
@@ -1313,9 +1322,8 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
         KeptWords(pack(WordSlice(&words.0)))
     };
     let proof = |input| ryo_values::domain::records::types::FrontierProof {
-        version: 1,
-        rule: 0,
-        input,
+        rule: ryo_values::domain::records::types::ProducerRule(0),
+        input: ryo_values::domain::records::types::FrontierOrdinal(input),
         rule_digest: ryo_values::domain::stored_facts::types::Digest([0; 16]),
         coverage: ryo_values::domain::records::types::FrontierCoverage::Complete,
     };
@@ -1390,9 +1398,9 @@ fn successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads() 
     use crate::outbound::lint_store::interface::ReadStore;
     use ryo_values::domain::files::types::FileNumber;
     use ryo_values::domain::records::types::{
-        FileOutcome, FindingRows, Handed, HandedWords, Handing, Ran, RecordWords, StagedWords,
-        StagingSession,
+        FileOutcome, Handed, HandedWords, Handing, Ran, RecordWords, StagedWords, StagingSession,
     };
+    use ryo_values::domain::row_texts::types::FindingRows;
     use ryo_values::domain::stored_facts::types::{Bucket, Digest, PackedWords};
     use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, Stored};
     use std::sync::atomic::AtomicUsize;
@@ -1422,8 +1430,12 @@ fn successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads() 
             }
             Ok(RecordWords::Staged(StagedWords {
                 session: StagingSession(1),
-                offset: u64::try_from(offset).expect("small count"),
-                length: u64::try_from(words.0.len()).expect("size"),
+                offset: ryo_values::domain::records::types::PayloadOffset(
+                    u64::try_from(offset).expect("small count"),
+                ),
+                length: ryo_values::domain::records::types::PayloadLength(
+                    u64::try_from(words.0.len()).expect("size"),
+                ),
             }))
         }
     }
@@ -1468,7 +1480,10 @@ fn successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads() 
     assert_eq!(read.calls.load(Ordering::Relaxed), 64);
     assert!(handed.buckets.iter().all(|row| matches!(
         row.words,
-        RecordWords::Staged(StagedWords { length: 4096, .. })
+        RecordWords::Staged(StagedWords {
+            length: ryo_values::domain::records::types::PayloadLength(4096),
+            ..
+        })
     )));
     let failing = StagingRead {
         fail: true,
@@ -1492,9 +1507,10 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Value, Words};
     use ryo_values::domain::files::types::{FileNumber, FileSize, Nanoseconds};
     use ryo_values::domain::records::types::{
-        FileOutcome, FindingRows, Handed, HandedWords, Handing, Ran, Record, RecordWords,
-        StagedWords, StagingSession,
+        FileOutcome, Handed, HandedWords, Handing, Ran, Record, RecordWords, StagedWords,
+        StagingSession,
     };
+    use ryo_values::domain::row_texts::types::FindingRows;
     use ryo_values::domain::stored_facts::types::{ArenaBytes, Bucket, Digest};
     use ryo_values::domain::stores::types::BucketsWanted;
     use ryo_values::domain::table_words::service::{encode_table, pack};
@@ -1565,8 +1581,8 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
         proof: crate::outbound::lint_store::fixtures::proof(),
         words: RecordWords::Staged(StagedWords {
             session: StagingSession(u64::MAX),
-            offset: u64::MAX,
-            length: 9,
+            offset: ryo_values::domain::records::types::PayloadOffset(u64::MAX),
+            length: ryo_values::domain::records::types::PayloadLength(9),
         }),
     });
     let placed = PlacedScopes {
@@ -1598,7 +1614,9 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
                 applicability_can_gate: true,
                 placed: &placed,
                 records: &[],
-                reuse: &ryo_values::domain::stores::types::Reuse::Cross(ryo_values::domain::stores::types::MadeAgain::All),
+                reuse: &ryo_values::domain::stores::types::Reuse::Cross(
+                    ryo_values::domain::stores::types::MadeAgain::All,
+                ),
                 stored: &NOTHING_STORED,
                 handed: &NOTHING_HANDED,
                 wanted_buckets: &wanted,
@@ -1631,8 +1649,9 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     );
 
     // The persistent old-row path uses the same filter-before-resolution contract.
+    use ryo_values::domain::stored_findings::types::StoredFileNumber;
     use ryo_values::domain::stores::types::{
-        KeptRows, OldWords, ReadWordPayload, ReadWords, StoreSnapshot, StoredFileNumber,
+        KeptRows, OldWords, ReadWordPayload, ReadWords, StoreSnapshot,
     };
     let mut valid = ryo_values::domain::stored_facts::types::PackedWords::default();
     let FileOutcome::Read(ran) = &record.outcome else {
@@ -1661,9 +1680,9 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
         snapshot: StoreSnapshot(u64::MAX),
         bucket: Bucket(1),
         file: StoredFileNumber(0),
-        header: u64::MAX,
-        offset: u64::MAX,
-        length: 9,
+        header: ryo_values::domain::records::types::HeaderOffset(u64::MAX),
+        offset: ryo_values::domain::records::types::PayloadOffset(u64::MAX),
+        length: ryo_values::domain::records::types::PayloadLength(9),
     };
     old_handed.frontier.push(ReadWords {
         file: StoredFileNumber(0),

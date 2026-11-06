@@ -42,7 +42,7 @@ fn subject(line: Input) -> Result<Value, Failure> {
     let text = parsed.arguments.text;
     let expected = ValidateRequest {
         observations: Vec::new(),
-        text: ryo_values::domain::program::types::QueryBundle::from(QueryText(
+        text: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(
             text.as_str().into(),
         )),
         hosted: Vec::new(),

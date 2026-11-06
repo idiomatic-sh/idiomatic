@@ -9,8 +9,8 @@ use crate::domain::{
     operator::contract::types::{DemandOrder, SemanticContract},
 };
 use ryo_values::domain::{
-    plan_parts::types::{Input, StepId},
-    plans::types::{Operation, Plan, StepScope},
+    plan_parts::types::{Input, StepId, StepScope},
+    plans::types::{Operation, Plan},
 };
 
 /// Explicit validation and fault points remain code, not implicit runtime defaults.

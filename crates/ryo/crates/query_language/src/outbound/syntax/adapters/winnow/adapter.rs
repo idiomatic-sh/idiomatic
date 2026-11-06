@@ -12,18 +12,24 @@ use super::constants::{GRAMMAR, Keyword, Mark, expectation, keyword_text, mark_t
 use crate::outbound::syntax::errors::SyntaxError;
 use crate::outbound::syntax::interface::SyntaxPort;
 use ryo_relations::domain::relations::types::Integer;
+use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::descriptions::types::{
     Example, Grammar, Production, ProductionForm, ProductionName,
 };
 use ryo_values::domain::program::types::{
-    Alias, AliasName, Argument, ArgumentName, ArgumentValue, BareWord, ByteOffset, Call,
-    ColumnName, ColumnReference, Columns, Condition, Expression, Filter, FragmentInput,
-    FragmentProgram, FragmentReturn, ImportDeclaration, Join, JoinKey, Joining, LetStep,
-    OperationName, ParameterDeclaration, Program, QuerySource, QuerySpan, QueryView,
-    RelationSignature, Renaming, Select, SelectColumn, SignatureColumn, SourceReference,
-    StepIdentity, StepName, TypeName, WordText, WrittenApplied, WrittenEmit, WrittenFunction,
-    WrittenLiteral, WrittenName, WrittenObservation, WrittenOperand, WrittenParameter,
-    WrittenRelation, WrittenTest,
+    FragmentInput, FragmentProgram, FragmentReturn, ImportDeclaration, LetStep,
+    ParameterDeclaration, RelationSignature, SignatureColumn, WrittenEmit, WrittenObservation,
+    WrittenProgram,
+};
+use ryo_values::domain::query_syntax::types::{
+    Alias, Argument, ArgumentValue, Call, ColumnReference, Columns, Condition, Expression, Filter,
+    Join, JoinKey, Joining, QuerySource, Renaming, Select, SelectColumn, SourceReference,
+    WrittenApplied, WrittenFunction, WrittenOperand, WrittenTest,
+};
+use ryo_values::domain::query_tokens::types::{
+    AliasName, ArgumentName, BareWord, ByteOffset, OperationName, QuerySpan, QueryView,
+    StepIdentity, StepName, TypeName, WordText, WrittenLiteral, WrittenName, WrittenParameter,
+    WrittenRelation,
 };
 
 /// The winnow syntax adapter.
@@ -56,7 +62,12 @@ pub(super) enum FragmentLine {
     /// A scalar parameter declaration.
     Parameter(ParameterDeclaration),
     /// The module output signature and its source span.
-    Output(RelationSignature, QuerySpan),
+    Output {
+        /// The declared columns.
+        signature: RelationSignature,
+        /// Where the declaration is written.
+        span: QuerySpan,
+    },
     /// A module-local step definition.
     Step(LetStep),
     /// The returned module step.
@@ -64,7 +75,7 @@ pub(super) enum FragmentLine {
 }
 
 impl SyntaxPort for SyntaxWinnowAdapter {
-    fn read(&self, text: QueryView<'_>) -> Result<Program, SyntaxError> {
+    fn read(&self, text: QueryView<'_>) -> Result<WrittenProgram, SyntaxError> {
         program
             .parse(LocatingSlice::new(text.0))
             .map_err(|error| unreadable(&error))
@@ -72,9 +83,10 @@ impl SyntaxPort for SyntaxWinnowAdapter {
 
     fn read_bundle(
         &self,
-        bundle: &ryo_values::domain::program::types::QueryBundle,
+        bundle: &ryo_values::domain::query_tokens::types::QueryBundle,
     ) -> Result<ryo_values::domain::program::types::ParsedQueryBundle, SyntaxError> {
-        use ryo_values::domain::program::types::{ParsedQueryBundle, QueryOrigin};
+        use ryo_values::domain::program::types::ParsedQueryBundle;
+        use ryo_values::domain::query_tokens::types::QueryOrigin;
         let root_id = bundle.root.id.clone();
         let root = self
             .read(QueryView(&bundle.root.text))
@@ -92,7 +104,7 @@ impl SyntaxPort for SyntaxWinnowAdapter {
         let mut fragments = std::collections::BTreeMap::new();
         for (source_id, source) in bundle.modules.iter() {
             let fragment = fragment_program
-                .parse(LocatingSlice::new(&source.text))
+                .parse(LocatingSlice::new(&*source.text))
                 .map_err(|error| {
                     let said = error.inner().to_string();
                     SyntaxError::Located {
@@ -149,7 +161,7 @@ fn unreadable(
 }
 
 /// The whole text: lines until the end, put together as parameters, steps and the one `emit`.
-pub(super) fn program(input: &mut Input<'_>) -> ModalResult<Program> {
+pub(super) fn program(input: &mut Input<'_>) -> ModalResult<WrittenProgram> {
     let mut parameters = Vec::new();
     let mut imports = Vec::new();
     let mut steps = Vec::new();
@@ -178,20 +190,24 @@ pub(super) fn program(input: &mut Input<'_>) -> ModalResult<Program> {
         Some(mut emit) => {
             assign_step_identities(&mut steps, &mut emit.step);
             for output in &mut observations {
-                output.step.1 = steps
-                    .iter()
-                    .rev()
-                    .find(|step| step.name.0 == output.step.0)
-                    .and_then(|step| step.name.1);
+                output.step.1 = ryo_values::domain::program::service::identified(
+                    steps
+                        .iter()
+                        .rev()
+                        .find(|step| step.name.0 == output.step.0)
+                        .and_then(|step| {
+                            ryo_values::domain::program::service::identity_of(step.name.1)
+                        }),
+                );
             }
-            Ok(Program {
-                linked: false,
+            Ok(WrittenProgram {
+                linked: ryo_values::domain::query_tokens::types::Linking::Unlinked,
                 imports,
                 origins: Vec::new(),
                 fragment_contracts: Vec::new(),
                 step_origins: std::collections::BTreeMap::new(),
                 observations,
-                emit_origin: None,
+                emit_origin: ryo_values::domain::query_tokens::types::Attribution::Unlocated,
                 parameters,
                 steps,
                 emit,
@@ -221,7 +237,10 @@ pub(super) fn fragment_program(input: &mut Input<'_>) -> ModalResult<FragmentPro
             FragmentLine::Import(value) => imports.push(value),
             FragmentLine::Input(value) => inputs.push(value),
             FragmentLine::Parameter(value) => parameters.push(value),
-            FragmentLine::Output(value, span) => {
+            FragmentLine::Output {
+                signature: value,
+                span,
+            } => {
                 if output.replace(value).is_some() || output_span.replace(span).is_some() {
                     return Err(winnow::error::ErrMode::Cut(
                         winnow::error::ContextError::new(),
@@ -251,9 +270,9 @@ pub(super) fn fragment_program(input: &mut Input<'_>) -> ModalResult<FragmentPro
                 result,
             })
         }
-        _ => Err(winnow::error::ErrMode::Cut(
-            winnow::error::ContextError::new(),
-        )),
+        (None, _, _) | (Some(_), None, _) | (Some(_), Some(_), None) => Err(
+            winnow::error::ErrMode::Cut(winnow::error::ContextError::new()),
+        ),
     }
 }
 
@@ -262,7 +281,9 @@ pub(super) fn fragment_program(input: &mut Input<'_>) -> ModalResult<FragmentPro
 /// Assigns each local step an identity and resolves only preceding local references.
 fn assign_step_identities(steps: &mut [LetStep], result: &mut StepName) {
     for (place, step) in steps.iter_mut().enumerate() {
-        step.name.1 = Some(StepIdentity(u64::try_from(place).unwrap_or(u64::MAX)));
+        step.name.1 = ryo_values::domain::program::service::identified(Some(StepIdentity(
+            u64::try_from(place).unwrap_or(u64::MAX),
+        )));
     }
     for place in 0..steps.len() {
         let (preceding, current) = steps.split_at_mut(place);
@@ -278,21 +299,29 @@ fn assign_step_identities(steps: &mut [LetStep], result: &mut StepName) {
             }
         }
     }
-    result.1 = steps
-        .iter()
-        .rev()
-        .find(|candidate| candidate.name.0 == result.0)
-        .and_then(|candidate| candidate.name.1);
+    result.1 = ryo_values::domain::program::service::identified(
+        steps
+            .iter()
+            .rev()
+            .find(|candidate| candidate.name.0 == result.0)
+            .and_then(|candidate| {
+                ryo_values::domain::program::service::identity_of(candidate.name.1)
+            }),
+    );
 }
 
 /// Resolves a step source only when an earlier definition with that name exists.
 fn resolve_source_step(source: &mut QuerySource, preceding: &[LetStep]) {
     if let SourceReference::Step(reference) = &mut source.reference {
-        reference.1 = preceding
-            .iter()
-            .rev()
-            .find(|candidate| candidate.name.0 == reference.0)
-            .and_then(|candidate| candidate.name.1);
+        reference.1 = ryo_values::domain::program::service::identified(
+            preceding
+                .iter()
+                .rev()
+                .find(|candidate| candidate.name.0 == reference.0)
+                .and_then(|candidate| {
+                    ryo_values::domain::program::service::identity_of(candidate.name.1)
+                }),
+        );
     }
 }
 
@@ -302,7 +331,7 @@ pub(super) fn fragment_line(input: &mut Input<'_>) -> ModalResult<FragmentLine> 
         import_line.map(FragmentLine::Import),
         fragment_input_line.map(FragmentLine::Input),
         parameter_line.map(FragmentLine::Parameter),
-        fragment_output_line.map(|(signature, span)| FragmentLine::Output(signature, span)),
+        fragment_output_line,
         step_line.map(FragmentLine::Step),
         fragment_return_line.map(FragmentLine::Return),
     ))
@@ -332,23 +361,19 @@ pub(super) fn fragment_input_line(input: &mut Input<'_>) -> ModalResult<Fragment
 }
 
 /// `output relation<id: node, file: file, span: span>;`.
-pub(super) fn fragment_output_line(
-    input: &mut Input<'_>,
-) -> ModalResult<(RelationSignature, QuerySpan)> {
+pub(super) fn fragment_output_line(input: &mut Input<'_>) -> ModalResult<FragmentLine> {
     delimited(
         (keyword(Keyword::Output), multispace1),
         relation_signature,
         (multispace0, ';'),
     )
     .with_span()
-    .map(|(signature, span)| {
-        (
-            signature,
-            QuerySpan {
-                start: ByteOffset(span.start),
-                end: ByteOffset(span.end),
-            },
-        )
+    .map(|(signature, span)| FragmentLine::Output {
+        signature,
+        span: QuerySpan {
+            start: ByteOffset(span.start),
+            end: ByteOffset(span.end),
+        },
     })
     .parse_next(input)
 }
@@ -388,7 +413,12 @@ pub(super) fn relation_signature(input: &mut Input<'_>) -> ModalResult<RelationS
 pub(super) fn fragment_return_line(input: &mut Input<'_>) -> ModalResult<FragmentReturn> {
     let (step, span) = delimited(
         (keyword(Keyword::Return), multispace1),
-        word.map(|name| StepName(Box::from(name.0), None)),
+        word.map(|name| {
+            StepName(
+                ryo_values::domain::query_tokens::types::StepSpelling::from(name.0),
+                ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
+            )
+        }),
         (multispace0, ';'),
     )
     .with_span()
@@ -427,13 +457,16 @@ pub(super) fn observe_line(input: &mut Input<'_>) -> ModalResult<WrittenObservat
     .with_span()
     .parse_next(input)?;
     Ok(WrittenObservation {
-        step: StepName(step.0.into(), None),
+        step: StepName(
+            step.0.into(),
+            ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
+        ),
         name: ryo_values::domain::observations::types::ObservationName(name.0.into()),
         span: QuerySpan {
             start: ByteOffset(span.start),
             end: ByteOffset(span.end),
         },
-        origin: None,
+        origin: ryo_values::domain::query_tokens::types::Attribution::Unlocated,
     })
 }
 
@@ -494,7 +527,10 @@ pub(super) fn step_line(input: &mut Input<'_>) -> ModalResult<LetStep> {
     .with_span()
     .parse_next(input)?;
     Ok(LetStep {
-        name: StepName(Box::from(name.0), None),
+        name: StepName(
+            ryo_values::domain::query_tokens::types::StepSpelling::from(name.0),
+            ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
+        ),
         expression,
         span: QuerySpan {
             start: ByteOffset(span.start),
@@ -529,7 +565,10 @@ pub(super) fn emit_line(input: &mut Input<'_>) -> ModalResult<WrittenEmit> {
     .parse_next(input)?;
     let key: Vec<ColumnName> = key;
     Ok(WrittenEmit {
-        step: StepName(Box::from(step.0), None),
+        step: StepName(
+            ryo_values::domain::query_tokens::types::StepSpelling::from(step.0),
+            ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
+        ),
         subject,
         key,
         span: QuerySpan {
@@ -587,7 +626,12 @@ pub(super) fn source(input: &mut Input<'_>) -> ModalResult<QuerySource> {
     let ((reference, alias), span) = (
         alt((
             string.map(|name| SourceReference::Relation(WrittenRelation(name.0))),
-            word.map(|name| SourceReference::Step(StepName(Box::from(name.0), None))),
+            word.map(|name| {
+                SourceReference::Step(StepName(
+                    ryo_values::domain::query_tokens::types::StepSpelling::from(name.0),
+                    ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
+                ))
+            }),
         )),
         opt(preceded(
             (multispace1, keyword(Keyword::As), multispace1),

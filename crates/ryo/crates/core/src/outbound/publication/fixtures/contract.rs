@@ -6,7 +6,7 @@ use ryo_relations::domain::relations::types::{
     CROSS_FILE, CellKind, Integer, Value as Cell, WorkerNumber,
 };
 use ryo_values::domain::{
-    observations::types::ObservationReason,
+    records::types::ObservationReason,
     rows::types::{RowCount, Table},
     stored_facts::types::ArenaBytes,
 };

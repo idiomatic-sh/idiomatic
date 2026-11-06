@@ -6,11 +6,12 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::descriptions::types::LanguageName;
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary, KindWord};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    Applied, ColumnIndex, Comparison, Function, LiteralText, Operand, ParameterId, QueryLiteral,
-    StepId, Test,
+    Applied, ColumnIndex, Function, LiteralText, Operand, ParameterId, PlanComparison,
+    QueryLiteral, StepId, Test,
 };
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 /// What a row gives the check: how the kind is compared, with what, and the texts bound to the parameters.
@@ -51,11 +52,11 @@ fn numeric_text_is_not_mistaken_for_a_declared_syntax_kind() {
 
 fn plan_comparing_kind(test: Test, right: Operand, relation: Relation, site: KindSite) -> Plan {
     let source = ryo_values::domain::plan_parts::types::Input::Relation(relation);
-    let comparisons = vec![Comparison {
+    let comparisons = vec![PlanComparison {
         test,
         left: Operand::Column(ColumnIndex(1)),
         right,
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }];
     let operation = match site {
         KindSite::Select => Operation::Select {
@@ -97,7 +98,9 @@ fn plan_comparing_kind(test: Test, right: Operand, relation: Relation, site: Kin
 #[test]
 fn an_unknown_kind_keeps_the_origin_from_its_own_plan_table() {
     use ryo_values::domain::plan_parts::types::ComparisonOriginId;
-    use ryo_values::domain::program::types::{ByteOffset, QueryOrigin, QuerySourceId, QuerySpan};
+    use ryo_values::domain::query_tokens::types::{
+        ByteOffset, QueryOrigin, QuerySourceId, QuerySpan,
+    };
 
     let origin = QueryOrigin {
         source_id: QuerySourceId("fragment/filter".into()),
@@ -117,7 +120,9 @@ fn an_unknown_kind_keeps_the_origin_from_its_own_plan_table() {
     let Operation::Select { comparisons, .. } = &mut plan.steps[0].operation else {
         panic!("the test plan uses a select");
     };
-    comparisons[0].origin = Some(ComparisonOriginId(0));
+    comparisons[0].origin = ryo_values::domain::plan_parts::types::ComparisonOrigin::Recorded(
+        ryo_values::domain::plan_parts::types::ComparisonOriginId(0),
+    );
 
     let mut other_origin = origin.clone();
     other_origin.source_id = QuerySourceId("other/filter".into());
@@ -135,7 +140,9 @@ fn an_unknown_kind_keeps_the_origin_from_its_own_plan_table() {
     else {
         panic!("the test plan uses a select");
     };
-    other_comparisons[0].origin = Some(ComparisonOriginId(0));
+    other_comparisons[0].origin = ryo_values::domain::plan_parts::types::ComparisonOrigin::Recorded(
+        ryo_values::domain::plan_parts::types::ComparisonOriginId(0),
+    );
 
     assert_eq!(
         refusal(&plan, &KindVocabularies(Vec::new())).unwrap().1,

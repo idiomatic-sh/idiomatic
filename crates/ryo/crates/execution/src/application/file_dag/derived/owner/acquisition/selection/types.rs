@@ -13,7 +13,7 @@ use crate::domain::{
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::{CellKind, Relation, Value};
 use ryo_values::domain::{
-    files::types::SourceView, plan_parts::types::Comparison,
+    files::types::SourceView, plan_parts::types::PlanComparison,
     query_bindings::types::ParameterBinding, stored_facts::types::ArenaBytes,
 };
 
@@ -36,7 +36,7 @@ pub(in crate::application::file_dag) struct StoredColumns {
 
 /// Borrowed comparison state that counts actual visits around the mandatory predicate item.
 pub(in crate::application::file_dag::derived::owner) struct PredicateDecision<'a> {
-    pub comparisons: &'a [Comparison],
+    pub comparisons: &'a [PlanComparison],
     pub kinds: &'a [CellKind],
     pub names: NameCount,
     pub source: SourceView<'a>,

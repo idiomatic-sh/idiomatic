@@ -37,8 +37,7 @@ fn baseline_with_symbols(
     };
     use ryo_values::domain::{
         plan_parts::types::{ParameterName, StepId},
-        plans::types::{ParameterType, PlanParameter},
-        query_bindings::types::ParameterBinding,
+        query_bindings::types::{ParameterBinding, ParameterType, PlanParameter},
     };
     let mut logical = Table::default();
     materialize(&Rows::Stored(source), &mut logical, &mut Vec::new());
@@ -106,7 +105,7 @@ fn baseline_with_symbols(
     // authored result requires the actual Project operation.
     if program.distinct || program.columns.is_empty() {
         plan.steps.push(ryo_values::domain::plans::types::PlanStep {
-            scope: ryo_values::domain::plans::types::StepScope::PerFile,
+            scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
             operation: Operation::Project {
                 from: Source::Step(plan.emit.step),
                 columns: program.columns.clone(),
@@ -256,17 +255,17 @@ fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<()
 
 fn literal(text: &str, columns: Vec<ColumnIndex>) -> Selector {
     use ryo_values::domain::{
-        plan_parts::types::{Comparison, LiteralText, Operand, QueryLiteral, Test},
+        plan_parts::types::{LiteralText, Operand, PlanComparison, QueryLiteral, Test},
         query_bindings::types::ParameterBinding,
     };
     Selector {
         relation: Relation::Defines,
         identity: Arc::new(crate::domain::table_model::types::SelectionIdentity {
-            comparisons: vec![Comparison {
+            comparisons: vec![PlanComparison {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(0)),
                 right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             }],
             bindings: Vec::<ParameterBinding>::new(),
         }),

@@ -37,53 +37,66 @@ pub fn declarations(relations: &[HostRelation]) -> Vec<HostedRelation> {
 #[must_use]
 pub fn identity(relations: &[HostRelation]) -> super::types::HostIdentity {
     use crate::domain::hosted::types::HostKind;
-    fn count(out: &mut Vec<u8>, value: usize) {
-        out.extend_from_slice(&u64::try_from(value).unwrap_or(u64::MAX).to_le_bytes());
+    fn tally<I: IntoIterator>(out: &mut super::types::HostIdentity, items: I)
+    where
+        I::IntoIter: ExactSizeIterator,
+    {
+        out.0.extend_from_slice(
+            &u64::try_from(items.into_iter().len())
+                .unwrap_or(u64::MAX)
+                .to_le_bytes(),
+        );
     }
-    fn text(out: &mut Vec<u8>, value: &str) {
-        count(out, value.len());
-        out.extend_from_slice(value.as_bytes());
+    fn text(out: &mut super::types::HostIdentity, value: super::types::HostIdentityText<'_>) {
+        tally(out, value.0);
+        out.0.extend_from_slice(value.0);
     }
-    let mut out = b"ryo-hosted-facts-v1".to_vec();
-    count(&mut out, relations.len());
+    let mut out = super::types::HostIdentity(super::constants::IDENTITY_TAG.to_vec());
+    tally(&mut out, relations);
     for relation in relations {
-        text(&mut out, &relation.name.0);
-        count(&mut out, relation.columns.len());
+        text(
+            &mut out,
+            super::types::HostIdentityText(relation.name.0.as_bytes()),
+        );
+        tally(&mut out, &relation.columns);
         for column in &relation.columns {
-            text(&mut out, &column.name.0);
-            out.push(match column.kind {
+            text(
+                &mut out,
+                super::types::HostIdentityText(column.name.0.as_bytes()),
+            );
+            out.0.push(match column.kind {
                 HostKind::File => 0,
                 HostKind::Text => 1,
                 HostKind::Number => 2,
             });
         }
-        count(&mut out, relation.rows.len());
+        tally(&mut out, &relation.rows);
         for row in &relation.rows {
-            count(&mut out, row.0.len());
+            tally(&mut out, &row.0);
             for cell in &row.0 {
                 match cell {
                     Cell::File(path) => {
-                        out.push(0);
-                        text(&mut out, path);
+                        out.0.push(0);
+                        text(&mut out, super::types::HostIdentityText(path.as_bytes()));
                     }
                     Cell::Text(value) => {
-                        out.push(1);
-                        text(&mut out, value);
+                        out.0.push(1);
+                        text(&mut out, super::types::HostIdentityText(value.as_bytes()));
                     }
                     Cell::Number(value) => {
-                        out.push(2);
-                        out.extend_from_slice(&value.0.to_le_bytes());
+                        out.0.push(2);
+                        out.0.extend_from_slice(&value.0.to_le_bytes());
                     }
                     Cell::Span(value) => {
-                        out.push(3);
-                        out.extend_from_slice(&value.start.0.to_le_bytes());
-                        out.extend_from_slice(&value.end.0.to_le_bytes());
+                        out.0.push(3);
+                        out.0.extend_from_slice(&value.start.0.to_le_bytes());
+                        out.0.extend_from_slice(&value.end.0.to_le_bytes());
                     }
                 }
             }
         }
     }
-    super::types::HostIdentity(out)
+    out
 }
 
-use crate::domain::records::types::Cell;
+use crate::domain::row_texts::types::Cell;

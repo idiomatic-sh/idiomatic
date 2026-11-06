@@ -8,6 +8,7 @@ use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::*;
 use ryo_values::domain::plans::types::*;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::query_bindings::types::{ParameterType, PlanParameter};
 use std::sync::Arc;
 
 #[derive(Clone, Copy)]
@@ -66,11 +67,11 @@ fn plan() -> Plan {
                 operation: Operation::Select {
                     from: InputSource::Relation(Relation::Function),
                     kept: vec![ColumnIndex(0), ColumnIndex(2)],
-                    comparisons: vec![Comparison {
+                    comparisons: vec![PlanComparison {
                         test: Test::Equal,
                         left: Operand::Column(ColumnIndex(1)),
                         right: Operand::Literal(QueryLiteral::Text(LiteralText("main".into()))),
-                        origin: None,
+                        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                     }],
                 },
             },
@@ -111,7 +112,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::Origins => {
             let mut second = first.clone();
             if let Operation::Select { comparisons, .. } = &mut second.steps[0].operation {
-                comparisons[0].origin = Some(ComparisonOriginId(7));
+                comparisons[0].origin =
+                    ryo_values::domain::plan_parts::types::ComparisonOrigin::Recorded(
+                        ryo_values::domain::plan_parts::types::ComparisonOriginId(7),
+                    );
             }
             let graph = graph(&[first, second], &[vec![], vec![]])?;
             let first = graph.program_nodes[0][0]

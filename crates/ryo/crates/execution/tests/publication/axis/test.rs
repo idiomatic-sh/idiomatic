@@ -6,7 +6,9 @@ use ryo_language::domain::{
     symbols::types::ByteSlice,
 };
 use ryo_relations::{domain::relations::types::KindBits, domain::terms::types::NameText};
-use ryo_values::domain::plan_parts::types::{Comparison, Direction, Operand, QueryLiteral, Test};
+use ryo_values::domain::plan_parts::types::{
+    Direction, Operand, PlanComparison, QueryLiteral, Test,
+};
 
 fn native_tree(bytes: &[u8]) -> (Elements, Symbols, Position, [Position; 2]) {
     let mut elements = Elements::default();
@@ -33,12 +35,12 @@ fn native_tree(bytes: &[u8]) -> (Elements, Symbols, Position, [Position; 2]) {
     completion::name_kind(&mut completion, KindBits(1), NameText("token"));
     (elements, symbols, root, [first, second])
 }
-fn filter() -> Comparison {
-    Comparison {
+fn filter() -> PlanComparison {
+    PlanComparison {
         test: Test::Matches,
         left: Operand::Literal(QueryLiteral::Text(LiteralText("x".into()))),
         right: Operand::Column(ColumnIndex(2)),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }
 }
 
@@ -148,11 +150,11 @@ fn ordinary_select_does_not_publish_a_prefix_before_late_predicate_failure() {
         operation: Operation::Select {
             from: Input::Relation(Relation::SyntaxTree),
             comparisons: vec![
-                Comparison {
+                PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText("token".into()))),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 },
                 filter(),
             ],

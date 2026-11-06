@@ -1,12 +1,13 @@
 //! Move inline handover values into the snapshot read representation, without IO.
 
-use super::types::{KeptRows, ReadHanded, ReadWordPayload, ReadWords, StoredHanded};
+use super::types::{HandedRows, KeptRows, ReadHanded, ReadWordPayload, ReadWords, StoredHanded};
 use crate::domain::stored_facts::types::Bucket;
 
 /// Custom and memory stores retain inline payloads while sharing all rest-table types.
 #[must_use]
 pub fn read_handed(stored: StoredHanded) -> ReadHanded {
-    ReadHanded {
+    let stored = stored.0;
+    ReadHanded(HandedRows {
         observations: stored.observations,
         proofs: stored.proofs,
         frontier: stored
@@ -22,7 +23,7 @@ pub fn read_handed(stored: StoredHanded) -> ReadHanded {
         texts: stored.texts,
         notes: stored.notes,
         covered: stored.covered,
-    }
+    })
 }
 
 /// Keep metadata for exactly the payload buckets copied from the prior store.
@@ -33,14 +34,17 @@ pub fn carry_proofs(current: &mut StoredHanded, old: &StoredHanded, kept: &KeptR
         if kept.unchanged.binary_search(&row.bucket).is_ok() {
             return (!made.contains(&row.bucket)).then(|| row.clone());
         }
-        kept.file_again
+        match kept
+            .file_again
             .binary_search_by_key(&row.file, |again| again.was)
-            .ok()
-            .and_then(|place| kept.file_again.get(place))
-            .map(|again| super::types::StoredFrontierProof {
-                file: again.now,
-                ..row.clone()
-            })
+        {
+            Ok(place) => kept.file_again.get(place),
+            Err(_) => None,
+        }
+        .map(|again| super::types::StoredFrontierProof {
+            file: again.now,
+            ..row.clone()
+        })
     }));
     current.proofs.sort_by_key(|row| (row.file.0, row.bucket.0));
 }

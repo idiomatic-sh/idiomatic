@@ -130,7 +130,11 @@ fn a_rule_owing_rows_and_capture_keeps_the_batch_until_its_capture_is_delivered(
         RetainedBatches(0),
         "the last capture released the batch"
     );
-    assert_eq!(file.walk_counts().passes.0, 1, "one pass served both deliveries");
+    assert_eq!(
+        file.walk_counts().passes.0,
+        1,
+        "one pass served both deliveries"
+    );
     file.finish().unwrap();
 }
 
@@ -148,7 +152,9 @@ fn a_refused_entry_point_call_does_not_consume_the_delivery_it_would_have_been()
     );
     assert!(matches!(wrong, Err(OperatingError::NotRun)));
     // Rule 3 is collected without capture: rows and capture are the wrong entry points.
-    let rows_wrong = rows(&mut file, &program, RuleIndex(3), &mut symbols, &mut |_| Ok(()));
+    let rows_wrong = rows(&mut file, &program, RuleIndex(3), &mut symbols, &mut |_| {
+        Ok(())
+    });
     assert!(matches!(rows_wrong, Err(OperatingError::NotRun)));
     let capture_wrong = capture(&mut file, &program, RuleIndex(3), &mut symbols);
     assert!(matches!(capture_wrong, Err(OperatingError::NotRun)));
@@ -252,10 +258,7 @@ fn a_batch_stays_while_a_rule_of_another_class_on_its_relation_still_owes() {
     // `> 1` of the first relation has no consumer left after rule 0, but rule 1
     // reads the same relation through class `> 2`, so only the second relation's
     // owners and rule 1 decide what stays.
-    for order in [
-        [RuleIndex(0), RuleIndex(1)],
-        [RuleIndex(1), RuleIndex(0)],
-    ] {
+    for order in [[RuleIndex(0), RuleIndex(1)], [RuleIndex(1), RuleIndex(0)]] {
         let mut symbols = Symbols::default();
         let mut file = program.open(&mut symbols).unwrap();
         deliver(&mut file, &program, order[0], &mut symbols);

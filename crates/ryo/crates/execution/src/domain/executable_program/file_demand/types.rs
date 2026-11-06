@@ -1,7 +1,10 @@
 //! Immutable request-wide file root activation metadata.
 use super::super::types::{InputSource, RegionId};
 use crate::domain::operating::errors::OperatingError;
-use ryo_values::domain::{observations::types::ObservationIndex, plans::types::StepScope};
+use ryo_values::domain::{
+    plan_parts::types::StepScope,
+    records::types::ObservationIndex,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum RootSelection {

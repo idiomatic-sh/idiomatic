@@ -13,8 +13,8 @@ use ryo_relations::domain::relations::{
     types::{CellKind, FileId, Relation, Value},
 };
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Input, StepId},
-    plans::types::{Operation, PlanStep, StepScope},
+    plan_parts::types::{ColumnIndex, Input, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
     rows::types::RowCount,
 };
 use ryo_values::domain::{
@@ -272,7 +272,12 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
         assert_eq!(stored.reads.load(Ordering::SeqCst), 1);
         assert_eq!(project.reads.load(Ordering::SeqCst), 1);
         // Negative control: a different population (observed demand) is a separate acquisition.
-        let _other = prepare(&mut symbols, FrontierDemand::Observations { ready: &[true, true] });
+        let _other = prepare(
+            &mut symbols,
+            FrontierDemand::Observations {
+                ready: &[true, true],
+            },
+        );
         assert_eq!(
             stored.reads.load(Ordering::SeqCst),
             2,
@@ -549,7 +554,7 @@ fn project_grouping_reads_only_actual_captured_function_names() {
 fn named_function_selection_replays_without_running_project_steps_or_hiding_absence() {
     use ryo_relations::domain::relations::{service::node_id, types::Position};
     use ryo_values::domain::plan_parts::types::{
-        Comparison, LiteralText, Operand, QueryLiteral, Test,
+        LiteralText, Operand, PlanComparison, QueryLiteral, Test,
     };
     for absent in [false, true] {
         let engine = engine();
@@ -558,11 +563,11 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Relation(Relation::Function),
-                comparisons: vec![Comparison {
+                comparisons: vec![PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText("main".into()))),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
                 kept: vec![
                     ColumnIndex(0),
@@ -739,10 +744,13 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
         ObservationExecution, ObservationPublication, PreparedExecution,
     };
     use ryo_values::domain::observations::types::{
-        BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName,
-        ObservationColumn, ObservationColumnName, ObservationIndex, ObservationName,
-        ObservationProducer, ObservationReadinessLayout, PlanObservation, ProducerReadiness,
+        BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
+        ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
     };
+    use ryo_values::domain::plan_parts::types::ObservationBindingId;
+    use ryo_values::domain::records::types::ObservationIndex;
+    use ryo_values::domain::records::types::ObservationReadinessLayout;
+    use ryo_values::domain::records::types::ProducerReadiness;
     use ryo_values::domain::records::types::{CrossPublicationTransfer, PackedObservedRoot};
     use ryo_values::domain::stored_facts::types::{ArenaBytes, Digest, KeptWords};
     use ryo_values::domain::table_words::{
@@ -856,7 +864,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
                 kind: HostKind::Text,
             }],
             rows: vec![HostRow(vec![
-                ryo_values::domain::records::types::Cell::Text(selected.into()),
+                ryo_values::domain::row_texts::types::Cell::Text(selected.into()),
             ])],
         });
         authored.plans[1].steps.extend([
@@ -1021,7 +1029,9 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
                 arena,
                 roots: vec![PackedObservedRoot {
                     output,
-                    words: Some(KeptWords(pack(WordSlice(&words.0)))),
+                    words: ryo_values::domain::records::types::RootWords::Published(KeptWords(
+                        pack(WordSlice(&words.0)),
+                    )),
                     readiness: ProducerReadiness::Complete,
                     arenas: if selected_text.is_some() {
                         vec![worker]
@@ -1147,7 +1157,7 @@ fn project_text_identity_does_not_depend_on_inherited_arenas() {
         HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
     };
     use ryo_values::domain::plan_parts::types::{HostedNumber, LiteralText, Operand, QueryLiteral};
-    use ryo_values::domain::records::types::Cell;
+    use ryo_values::domain::row_texts::types::Cell;
     use ryo_values::domain::stored_facts::types::ArenaBytes;
 
     for use_parameter_rows in [false, true] {
@@ -1208,7 +1218,8 @@ fn project_text_identity_does_not_depend_on_inherited_arenas() {
                     use ryo_values::domain::plan_parts::types::{
                         ParameterId, ParameterName, TableKey,
                     };
-                    use ryo_values::domain::plans::types::{ParameterType, PlanParameter};
+                    use ryo_values::domain::query_bindings::types::ParameterType;
+                    use ryo_values::domain::query_bindings::types::PlanParameter;
                     use ryo_values::domain::query_bindings::types::{
                         BindingCell, BindingTable, ParameterBinding,
                     };

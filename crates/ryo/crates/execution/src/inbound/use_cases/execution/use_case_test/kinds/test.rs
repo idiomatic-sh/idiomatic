@@ -19,7 +19,7 @@ use crate::domain::operating::types::KindNaming;
 use crate::domain::table_model::types::{Rows, Verdict};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Comparison;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
 use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plan_parts::types::Operand;
@@ -37,12 +37,12 @@ type Failure = OperatingError;
 const FROM: PlanInput = PlanInput::Relation(Relation::SyntaxTree);
 
 /// The comparison of the column at `place` with the text `text` by `test`.
-fn compared(test: Test, place: u32, literal: &str) -> Comparison {
-    Comparison {
+fn compared(test: Test, place: u32, literal: &str) -> PlanComparison {
+    PlanComparison {
         test,
         left: Operand::Column(column(place)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(literal.into()))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }
 }
 
@@ -72,7 +72,7 @@ fn finds_the_elements_of_a_named_kind() -> Result<Value, OperatingError> {
     let kind_is_not = |name: &str| compared(Test::NotEqual, 1, name);
     let kind_glob = |test: Test, pattern: &str| compared(test, 1, pattern);
     let text_is = |text: &str| compared(Test::Equal, 2, text);
-    let mut found = |comparisons: Vec<Comparison>| -> Result<Vec<Cell>, OperatingError> {
+    let mut found = |comparisons: Vec<PlanComparison>| -> Result<Vec<Cell>, OperatingError> {
         let plan = fixtures::plan(vec![Operation::Select {
             from: FROM,
             comparisons,
@@ -161,11 +161,11 @@ fn tree_of(names: &[(u16, &str)], token_kind: u16) -> (Elements, Symbols) {
 fn another_language_does_not_inherit_the_sets_of_the_first() -> Result<Value, OperatingError> {
     let operation = Operation::Select {
         from: FROM,
-        comparisons: vec![Comparison {
+        comparisons: vec![PlanComparison {
             test: Test::Equal,
             left: Operand::Column(column(1)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText("word".into()))),
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         }],
         kept: vec![column(0)],
     };

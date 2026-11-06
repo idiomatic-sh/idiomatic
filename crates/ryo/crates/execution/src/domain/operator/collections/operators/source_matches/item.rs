@@ -12,7 +12,8 @@ use ryo_operators::inbound::use_cases::operators::interface::{
 };
 use ryo_relations::domain::relations::types::Value;
 use ryo_relations::domain::terms::types::NameText;
-use ryo_values::domain::plans::types::{Operation, OperationKind};
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 struct Delivery<'a, 'engine> {
@@ -91,8 +92,10 @@ impl OperatorsItem for SourceMatchesItem {
                 line: checked.line,
                 regex,
                 capture: capture.as_ref().map(|name| name.0.as_ref()),
-                capture_text: *capture_text,
-                capture_line: *capture_line,
+                capture_text: *capture_text
+                    == ryo_values::domain::query_operators::types::TextOutput::Appended,
+                capture_line: *capture_line
+                    == ryo_values::domain::query_operators::types::LineOutput::Appended,
             },
             driver: &mut driver,
             target: &mut joined,

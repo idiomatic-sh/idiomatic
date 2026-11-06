@@ -5,31 +5,36 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
 use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::query_syntax::types as ast;
+use ryo_values::domain::query_tokens::types as tokens;
 type Input = fn();
 type Value = ();
 type Failure = std::convert::Infallible;
 
-fn call(name: &str, arguments: Vec<(&str, syntax::ArgumentValue)>) -> syntax::Call {
-    syntax::Call {
-        name: syntax::OperationName(name.into()),
+fn call(name: &str, arguments: Vec<(&str, ast::ArgumentValue)>) -> ast::Call {
+    ast::Call {
+        name: tokens::OperationName(name.into()),
         span: lowering_builder().span,
         arguments: arguments
             .into_iter()
-            .map(|(name, value)| syntax::Argument {
-                name: syntax::ArgumentName(name.into()),
+            .map(|(name, value)| ast::Argument {
+                name: tokens::ArgumentName(name.into()),
                 value,
             })
             .collect(),
     }
 }
-fn text(value: &str) -> syntax::ArgumentValue {
-    syntax::ArgumentValue::Text(syntax::WrittenLiteral(value.into()))
+fn text(value: &str) -> ast::ArgumentValue {
+    ast::ArgumentValue::Text(tokens::WrittenLiteral(value.into()))
 }
-fn word(value: &str) -> syntax::ArgumentValue {
-    syntax::ArgumentValue::Word(syntax::WordText(value.into()))
+fn word(value: &str) -> ast::ArgumentValue {
+    ast::ArgumentValue::Word(tokens::WordText(value.into()))
 }
-fn name() -> syntax::StepName {
-    syntax::StepName("result".into(), None)
+fn name() -> tokens::StepName {
+    tokens::StepName(
+        "result".into(),
+        ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
+    )
 }
 
 fn closure_keeps_endpoint_columns() {
@@ -38,12 +43,20 @@ fn closure_keeps_endpoint_columns() {
         "closure",
         vec![
             ("edges", text("semantic-child")),
-            ("source", word("parent")),
-            ("destination", word("child")),
+            (
+                ryo_relations::domain::relations::constants::SOURCE,
+                word("parent"),
+            ),
+            (crate::domain::syntax::constants::DESTINATION, word("child")),
         ],
     );
-    super::service::call_closure(&mut builder, &name(), &call, plans::QueryOperator::Closure)
-        .unwrap();
+    super::service::call_closure(
+        &mut builder,
+        &name(),
+        &call,
+        ryo_values::domain::query_operators::types::QueryOperator::Closure,
+    )
+    .unwrap();
     assert_eq!(
         builder.steps[0].operation,
         plans::Operation::Closure {
@@ -60,13 +73,21 @@ fn endpoint_cannot_also_be_a_partition_key() {
         "closure",
         vec![
             ("edges", text("semantic-child")),
-            ("source", word("parent")),
-            ("destination", word("child")),
-            ("keys", syntax::ArgumentValue::List(vec![word("parent")])),
+            (
+                ryo_relations::domain::relations::constants::SOURCE,
+                word("parent"),
+            ),
+            (crate::domain::syntax::constants::DESTINATION, word("child")),
+            ("keys", ast::ArgumentValue::List(vec![word("parent")])),
         ],
     );
     assert_eq!(
-        super::service::call_closure(&mut builder, &name(), &call, plans::QueryOperator::Closure),
+        super::service::call_closure(
+            &mut builder,
+            &name(),
+            &call,
+            ryo_values::domain::query_operators::types::QueryOperator::Closure
+        ),
         Err(LoweringError::DuplicateOutput {
             name: "parent".into(),
             span: call.span

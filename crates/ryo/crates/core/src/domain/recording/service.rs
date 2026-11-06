@@ -143,9 +143,9 @@ pub(crate) fn frontier_flat(
         let start = slots.partition_point(|slot| slot.producer.0 < rule.0);
         let end = slots.partition_point(|slot| slot.producer.0 <= rule.0);
         if start != end {
-            use ryo_values::domain::observations::types::{
-                ObservationReadinessCount, ObservationReadinessRange, ObservationReadinessSlot,
-            };
+            use ryo_values::domain::observations::types::ObservationReadinessRange;
+            use ryo_values::domain::records::types::ObservationReadinessCount;
+            use ryo_values::domain::records::types::ObservationReadinessSlot;
             let bytes = ryo_values::domain::observations::service::frontier_identity(
                 observations,
                 ObservationReadinessRange {
@@ -189,7 +189,10 @@ pub(crate) fn made_ran(
         frontier: Vec::new(),
         noted: Digest([0; 16]),
         handed: Handing::Made(Handed {
-            observations: tables.current_observations.clone(),
+            observations: match tables.current_observations.clone() {
+                Some(root) => ryo_values::domain::records::types::HandedReadiness::Recorded(root),
+                None => ryo_values::domain::records::types::HandedReadiness::Unrecorded,
+            },
             buckets: moved
                 .into_iter()
                 .map(|each| HandedWords {

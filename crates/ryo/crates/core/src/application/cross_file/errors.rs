@@ -10,7 +10,7 @@ pub(crate) enum CrossError {
     #[error(transparent)]
     Operating(#[from] ryo_execution::inbound::use_cases::execution::types::OperatingError),
     #[error(transparent)]
-    Rules(#[from] ryo_values::domain::rule_requests::errors::RulesError),
+    Rules(#[from] ryo_values::domain::rule_requests::errors::RuleRequestsError),
     #[error(transparent)]
     Facts(#[from] ryo_execution::inbound::use_cases::execution::types::facts::FactsError),
     #[error(transparent)]

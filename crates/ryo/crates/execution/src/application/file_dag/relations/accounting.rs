@@ -64,17 +64,17 @@ impl RelationOwner {
             }
             RelationBody::Computed(table) => output.push(Self::table_backing(table)),
             RelationBody::Compact(table) => {
-                let words = ryo_values::domain::table_words::service::compact_backing(table);
+                let words = ryo_values::domain::compact_table::service::compact_backing(table);
                 output.push(Backing {
                     key: BackingKey {
                         tag: BackingTag(22),
-                        address: BackingAddress(Arc::as_ptr(words) as usize),
+                        address: BackingAddress(Arc::as_ptr(&words.0) as usize),
                     },
                     retention_units: UnitCount(0),
                     bytes: ByteCount(
                         size_of::<ryo_values::domain::stored_facts::types::KeptWords>()
                             + 2 * size_of::<usize>()
-                            + words.0.0.capacity(),
+                            + words.0.0.0.capacity(),
                     ),
                 });
                 output.push(Backing {
@@ -83,8 +83,8 @@ impl RelationOwner {
                         address: BackingAddress(Arc::as_ptr(table) as usize),
                     },
                     retention_units: UnitCount(0),
-                    bytes: ByteCount(
-                        ryo_values::domain::table_words::service::compact_metadata_bytes(table),
+                    bytes: crate::application::file_dag::derived::ledger::capacity::compact_table(
+                        table,
                     ),
                 });
             }

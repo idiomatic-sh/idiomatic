@@ -4,19 +4,19 @@
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_relations::domain::terms::types::Vocabulary;
 
+use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::hosted::types as hosted;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::plan_parts::types::Operand;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plans::types as plans;
-use ryo_values::domain::plans::types::ParameterType;
-use ryo_values::domain::plans::types::StepScope;
-use ryo_values::domain::program::types::{
-    AliasName, ColumnName, ParameterDeclaration, QueryOrigin, QuerySpan, StepName,
-};
+use ryo_values::domain::program::types::ParameterDeclaration;
+use ryo_values::domain::query_bindings::types::ParameterType;
+use ryo_values::domain::query_tokens::types::{AliasName, QueryOrigin, QuerySpan, StepName};
 
 /// A column of a step's answer while the plan is built: the name the query gives it and what it holds.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -79,6 +79,10 @@ pub(crate) struct ScopedInput {
     /// Their columns, in order.
     pub fields: Vec<PlannedColumn>,
 }
+
+/// How many comparison origins a plan has interned.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct OriginCount(pub usize);
 
 /// What a source reads, and the columns it has.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -246,7 +250,7 @@ pub(crate) enum PairFiltering {
     /// The pairs are the join's rows.
     Unfiltered,
     /// A filter keeps some of the join's rows.
-    Filtered(Vec<Comparison>),
+    Filtered(Vec<PlanComparison>),
 }
 
 /// Why an argument cannot be used.

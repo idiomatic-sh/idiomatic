@@ -12,10 +12,12 @@ use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostedRelation,
 };
 use ryo_values::domain::plan_parts::types::{ParameterName, QueryText, WholeNumber};
-use ryo_values::domain::plans::types::{ParameterType, Plan, PlanParameter};
-use ryo_values::domain::program::types::QueryBundle;
+use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
-use ryo_values::domain::rule_requests::errors::RulesError;
+use ryo_values::domain::query_bindings::types::ParameterType;
+use ryo_values::domain::query_bindings::types::PlanParameter;
+use ryo_values::domain::query_tokens::types::QueryBundle;
+use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
 use std::sync::{Arc, PoisonError, atomic::Ordering};
 
@@ -88,7 +90,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("blank_rule_is_refused_before_any_compile"),
         word: Word::Refuses,
         input: || blank_id,
-        expect: Expect::Error(RuleCompilationError::Rules(RulesError::BlankRuleId)),
+        expect: Expect::Error(RuleCompilationError::Rules(RuleRequestsError::BlankRuleId)),
     },
 ];
 
@@ -230,7 +232,7 @@ fn request_bindings() -> Result<Value, Failure> {
         .expect_err("a missing binding is refused");
     assert!(matches!(
         refused,
-        RuleCompilationError::Rules(RulesError::MissingParameter { .. })
+        RuleCompilationError::Rules(RuleRequestsError::MissingParameter { .. })
     ));
     asked.given.push(Given {
         name: ParameterName("limit".into()),
@@ -279,7 +281,10 @@ fn module_catalog_identity() -> Result<Value, Failure> {
     let plans = CompiledPlans::default();
     let service = RuleCompilation::new(Arc::<QueryLanguageFake>::clone(&compiler))
         .compiling_into(plans.clone());
-    let module = source_id("shared/module").expect("nonblank module id");
+    let module = source_id(ryo_values::domain::query_tokens::types::QuerySpelling(
+        "shared/module",
+    ))
+    .expect("nonblank module id");
     let mut asked = rule("catalog", "select");
     asked.query = query_bundle(
         asked.query.root,
@@ -288,7 +293,7 @@ fn module_catalog_identity() -> Result<Value, Failure> {
     .expect("unique module identity");
     let snapshot = asked.query.clone();
     assert!(Arc::ptr_eq(&snapshot.modules, &asked.query.modules));
-    assert!(Arc::ptr_eq(&snapshot.root.text, &asked.query.root.text));
+    assert!(Arc::ptr_eq(&snapshot.root.text.0, &asked.query.root.text.0));
     let _first = service.compile(&[asked.clone()], &[])?;
     let mut equal_contents = asked.clone();
     equal_contents.query.modules = Arc::new((*asked.query.modules).clone());
@@ -301,11 +306,14 @@ fn module_catalog_identity() -> Result<Value, Failure> {
     Arc::make_mut(&mut asked.query.modules)
         .get_mut(&module)
         .unwrap()
-        .text = Arc::from("changed bytes");
-    assert_eq!(snapshot.modules[&module].text.as_ref(), "original bytes\nλ");
+        .text = "changed bytes".into();
+    assert_eq!(&*snapshot.modules[&module].text, "original bytes\nλ");
     let _changed_bytes_miss = service.compile(&[asked.clone()], &[])?;
     assert_eq!(compiler.calls.load(Ordering::SeqCst), 2);
-    let renamed_id = source_id("shared/renamed").expect("nonblank renamed id");
+    let renamed_id = source_id(ryo_values::domain::query_tokens::types::QuerySpelling(
+        "shared/renamed",
+    ))
+    .expect("nonblank renamed id");
     Arc::make_mut(&mut asked.query.modules)
         .get_mut(&module)
         .unwrap()
@@ -321,7 +329,7 @@ fn module_catalog_identity() -> Result<Value, Failure> {
     let kept = plans.0.lock().unwrap_or_else(PoisonError::into_inner);
     let cached = &kept.plans[&asked.id].query;
     assert!(Arc::ptr_eq(&cached.modules, &asked.query.modules));
-    assert!(Arc::ptr_eq(&cached.root.text, &asked.query.root.text));
+    assert!(Arc::ptr_eq(&cached.root.text.0, &asked.query.root.text.0));
     Ok([kept.plans.len(), compiler.calls.load(Ordering::SeqCst), 1])
 }
 

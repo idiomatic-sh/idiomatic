@@ -1,5 +1,6 @@
 //! Public vocabulary of standard format-specification observations.
 use super::item::FormatSpecificationColumn;
+use crate::domain::relations::constants::{CONVERSION, ORDINAL, ORIGIN, OUTCOME};
 /// Public relation name.
 #[must_use]
 pub fn name() -> &'static str {
@@ -15,15 +16,15 @@ pub fn summary() -> &'static str {
 pub fn column_name(column: FormatSpecificationColumn) -> &'static str {
     match column {
         FormatSpecificationColumn::Id => "id",
-        FormatSpecificationColumn::Ordinal => "ordinal",
+        FormatSpecificationColumn::Ordinal => ORDINAL,
         FormatSpecificationColumn::ParentOrdinal => "parent-ordinal",
-        FormatSpecificationColumn::Origin => "origin",
+        FormatSpecificationColumn::Origin => ORIGIN,
         FormatSpecificationColumn::SourceKind => "source-kind",
         FormatSpecificationColumn::Value => "value",
-        FormatSpecificationColumn::Outcome => "outcome",
+        FormatSpecificationColumn::Outcome => OUTCOME,
         FormatSpecificationColumn::InvalidType => "invalid-type",
         FormatSpecificationColumn::Selector => "selector",
-        FormatSpecificationColumn::Conversion => "conversion",
+        FormatSpecificationColumn::Conversion => CONVERSION,
         FormatSpecificationColumn::File => "file",
         FormatSpecificationColumn::Span => "span",
     }

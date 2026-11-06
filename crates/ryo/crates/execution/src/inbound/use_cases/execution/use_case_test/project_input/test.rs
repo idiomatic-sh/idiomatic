@@ -4,8 +4,8 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{ColumnsView, FileId, Relation};
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
-    plan_parts::types::{ColumnIndex, Input as Source, StepId},
-    plans::types::{Operation, StepScope},
+    plan_parts::types::{ColumnIndex, Input as Source, StepId, StepScope},
+    plans::types::Operation,
     stored_facts::types::Bucket,
 };
 use std::sync::atomic::{AtomicUsize, Ordering};

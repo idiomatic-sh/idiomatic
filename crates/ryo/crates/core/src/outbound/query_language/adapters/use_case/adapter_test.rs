@@ -13,7 +13,7 @@ use crate::outbound::query_language::fixtures::contract::CASES as CONTRACT;
 use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguageError;
 use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort as _;
 use ryo_values::domain::plan_parts::types::QueryText;
-use ryo_values::domain::program::types::QueryBundle;
+use ryo_values::domain::query_tokens::types::QueryBundle;
 
 type Input = QueryText;
 type Value = bool;

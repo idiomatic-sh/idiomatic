@@ -9,9 +9,11 @@ use ryo_values::domain::plan_parts::types::{
     CapturePattern, HostedNumber, JoinColumn, LiteralText, Operand, ParameterId, ParameterName,
     QueryLiteral, Side, TableKey, Test,
 };
-use ryo_values::domain::plans::types::{OperationKind, ParameterType, PlanParameter};
+use ryo_values::domain::query_bindings::types::ParameterType;
+use ryo_values::domain::query_bindings::types::PlanParameter;
 use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable, ParameterBinding};
-use ryo_values::domain::records::types::Cell as HostedCell;
+use ryo_values::domain::query_operators::types::OperationKind;
+use ryo_values::domain::row_texts::types::Cell as HostedCell;
 
 /// A request-owned or per-row operation read beside a shared head.
 #[derive(Clone, Copy, Debug)]
@@ -105,8 +107,8 @@ impl Authored {
                 base_line: None,
                 pattern: LiteralText("a".into()),
                 capture: None,
-                capture_text: false,
-                capture_line: false,
+                capture_text: ryo_values::domain::query_operators::types::TextOutput::Omitted,
+                capture_line: ryo_values::domain::query_operators::types::LineOutput::Omitted,
             },
             RowRoute::RenderSyntax => Operation::RenderSyntax {
                 from,
@@ -118,8 +120,8 @@ impl Authored {
                 texts: vec![TEXT],
                 literals: vec![LiteralText("".into()), LiteralText("".into())],
                 span: SPAN,
-                max_line: 88,
-                tab_width: 4,
+                max_line: ryo_values::domain::query_operators::types::MaxLine(88),
+                tab_width: ryo_values::domain::query_operators::types::TabWidth(4),
             },
             RowRoute::SpanBounds => Operation::SpanBounds { from, span: SPAN },
             RowRoute::Rows => {

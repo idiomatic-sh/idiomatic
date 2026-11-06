@@ -2,7 +2,8 @@
 use crate::domain::executable_program::types::{ExecutableProgram, InputSource};
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plans::service::kind_of;
-use ryo_values::domain::plans::types::{Operation, OperationKind};
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_operators::types::OperationKind;
 
 /// Where an instruction's first row comes from, as the walk may route it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

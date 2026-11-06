@@ -78,9 +78,12 @@ fn is_test_path(path: &str, gated: &BTreeSet<String>) -> bool {
         .any(|gate| path == gate || path.starts_with(&format!("{gate}/")))
         || path.ends_with("test.rs")
         || path.ends_with("tests.rs")
-        || segments
-            .iter()
-            .any(|segment| matches!(*segment, "fixtures" | "testing" | "family" | "test" | "tests"))
+        || segments.iter().any(|segment| {
+            matches!(
+                *segment,
+                "fixtures" | "testing" | "family" | "test" | "tests"
+            )
+        })
 }
 /// Every non-test source file, relative to `src`.
 pub(super) fn production(src: &Path) -> Vec<String> {
@@ -134,7 +137,12 @@ pub(super) fn owner_surface(src: &Path, production: &[String]) -> BTreeSet<(Stri
     found
 }
 /// Production files outside the owner that contain `call` and, when given, `with`.
-pub(super) fn callers(src: &Path, production: &[String], call: &str, with: &str) -> BTreeSet<String> {
+pub(super) fn callers(
+    src: &Path,
+    production: &[String],
+    call: &str,
+    with: &str,
+) -> BTreeSet<String> {
     production
         .iter()
         .filter(|file| *file != OWNER_FILE && !file.starts_with(&format!("{OWNER_TREE}/")))
@@ -147,6 +155,5 @@ pub(super) fn callers(src: &Path, production: &[String], call: &str, with: &str)
 }
 /// The pubs with an existing `fn <name>` in `file`.
 pub(super) fn declares(src: &Path, file: &str, name: &str) -> bool {
-    fs::read_to_string(src.join(file))
-        .is_ok_and(|text| text.contains(&format!("fn {name}(")))
+    fs::read_to_string(src.join(file)).is_ok_and(|text| text.contains(&format!("fn {name}(")))
 }

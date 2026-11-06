@@ -10,7 +10,7 @@ use crate::domain::table_scratch::types::{ComparisonNumbers, KindsBy};
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, LiteralText, Operand, ParameterId, QueryLiteral, Test,
+    ColumnIndex, PlanComparison, LiteralText, Operand, ParameterId, QueryLiteral, Test,
 };
 
 /// What a row of the cases does.
@@ -36,31 +36,31 @@ type Input = Scenario;
 type Value = usize;
 type Failure = ();
 
-fn named(column: u32, test: Test, literal: &str) -> Comparison {
-    Comparison {
+fn named(column: u32, test: Test, literal: &str) -> PlanComparison {
+    PlanComparison {
         test,
         left: Operand::Column(ColumnIndex(column)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(literal.into()))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }
 }
 
 /// Four comparisons: a number of column 0, the kind named `word`, the text `a`, and the text `b` written the other way round.
-fn comparisons() -> Vec<Comparison> {
+fn comparisons() -> Vec<PlanComparison> {
     vec![
-        Comparison {
+        PlanComparison {
             test: Test::GreaterThan,
             left: Operand::Column(ColumnIndex(0)),
             right: Operand::Literal(QueryLiteral::Number(Integer(1))),
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         },
         named(1, Test::Equal, "word"),
         named(2, Test::Equal, "a"),
-        Comparison {
+        PlanComparison {
             test: Test::Equal,
             left: Operand::Literal(QueryLiteral::Text(LiteralText("b".into()))),
             right: Operand::Column(ColumnIndex(2)),
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         },
     ]
 }
@@ -97,11 +97,11 @@ fn left_after(gate: &[usize], kinds_by: KindsBy) -> Value {
 
 fn columns(which: Option<&[usize]>) -> Value {
     let mut comparisons = comparisons();
-    comparisons.push(Comparison {
+    comparisons.push(PlanComparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(2)),
         right: Operand::Parameter(ParameterId(0)),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     });
     let mut needed = ColumnPlaces(vec![9]);
     match which {

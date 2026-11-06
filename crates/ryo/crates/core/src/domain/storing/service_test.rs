@@ -3,20 +3,23 @@
 
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::reasons::types::ToolMessage;
+use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::descriptions::types::LanguageName;
 use ryo_values::domain::files::types::{CorpusEntry, FileNumber, FileSize, Nanoseconds};
-use ryo_values::domain::program::types::ColumnName;
-use ryo_values::domain::records::types::Cell;
 use ryo_values::domain::records::types::{
-    FileOutcome, FindingRows, Handing, PlacedColumn, PlacedLine, PlacedRule, Ran, Record,
-    RuleFrontier, Unreadable,
+    FileOutcome, Handing, Ran, Record, RuleFrontier, Unreadable,
 };
+use ryo_values::domain::row_texts::types::Cell;
+use ryo_values::domain::row_texts::types::{FindingRows, PlacedColumn, PlacedLine, PlacedRule};
 use ryo_values::domain::runs::types::{ManifestRefused, RuleId, SkipReason, Skipped};
 use ryo_values::domain::stored_facts::types::{Digest, ReadFailure};
+use ryo_values::domain::stored_findings::types::{
+    FindingMade, FindingPlace, StoredFileNumber, StoredFinding, StoredPlace, StoredUnknown,
+    StoredUnread, StoredValue, UnknownText,
+};
 use ryo_values::domain::stores::types::{
-    BucketsWanted, Crossing, FileAgain, FindingMade, FindingPlace, Stored, StoredFile,
-    StoredFileNumber, StoredFinding, StoredFrontier, StoredHanded, StoredPlace, StoredRule,
-    StoredUnknown, StoredUnread, StoredValue, UnknownText,
+    BucketsWanted, Crossing, FileAgain, Stored, StoredFile, StoredFrontier, StoredHanded,
+    StoredRule,
 };
 
 use super::service::{
@@ -265,8 +268,10 @@ fn held_changed() -> Value {
 /// Round-trip all stored metadata and retain each file's original word number.
 fn stored_round_trip() -> Value {
     let mut kept = stored();
-    kept.files[0].executable = ryo_values::domain::files::types::ExecutablePermission::Posix(false);
-    kept.files[1].executable = ryo_values::domain::files::types::ExecutablePermission::Posix(true);
+    kept.files[0].executable =
+        ryo_values::domain::files::types::ExecutablePermission::PosixNotExecutable;
+    kept.files[1].executable =
+        ryo_values::domain::files::types::ExecutablePermission::PosixExecutable;
     let records = records_from(&kept, &ids()).unwrap_or_default();
     let later = later_from(&kept, &ids(), &[]).unwrap_or_default();
     let unknowns = unknowns_from(&kept, &[]);
@@ -463,12 +468,19 @@ fn succeeds() {
 
 #[test]
 fn executable_changes_invalidate_early_store_and_equal_digest_routes_in_both_directions() {
-    use ryo_values::domain::files::types::ExecutablePermission::Posix;
+    use ryo_values::domain::files::types::ExecutablePermission;
+    let posix = |executable: bool| {
+        if executable {
+            ExecutablePermission::PosixExecutable
+        } else {
+            ExecutablePermission::PosixNotExecutable
+        }
+    };
     for (before, after) in [(false, true), (true, false)] {
         let mut kept = stored();
         let mut files = listed();
-        kept.files[0].executable = Posix(before);
-        files[0].executable = Posix(before);
+        kept.files[0].executable = posix(before);
+        files[0].executable = posix(before);
         assert_eq!(
             super::service::as_kept(&kept.files[0], &files[0]),
             ryo_values::domain::records::types::Freshness::AsItWas
@@ -477,13 +489,13 @@ fn executable_changes_invalidate_early_store_and_equal_digest_routes_in_both_dir
         let mut fresh = record("a.rs", 10, 11, 12, 5);
         fresh.size = files[0].size;
         fresh.modified = files[0].modified;
-        fresh.executable = Posix(before);
+        fresh.executable = posix(before);
         assert_eq!(
             made_again(&kept, &[fresh.clone()], &[], &[], &[]),
             MadeAgain::Nothing
         );
-        files[0].executable = Posix(after);
-        fresh.executable = Posix(after);
+        files[0].executable = posix(after);
+        fresh.executable = posix(after);
         assert_eq!(
             super::service::as_kept(&kept.files[0], &files[0]),
             ryo_values::domain::records::types::Freshness::Changed

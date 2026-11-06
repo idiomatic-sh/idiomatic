@@ -11,9 +11,9 @@ use ryo_relations::domain::relations::{
 };
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
-    plan_parts::types::{ColumnIndex, Input, StepId},
-    plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
-    program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+    plan_parts::types::{ColumnIndex, Input, StepId, StepScope},
+    plans::types::{Emit, Operation, Plan, PlanStep},
+    query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
     rows::types::{RowCount, Table},
     rule_requests::types::{RuleParameters, RuleSpec},
     runs::types::{RuleApplicability, RuleId},
@@ -81,7 +81,10 @@ pub(crate) fn authored_request(count: usize) -> PreparedRequest {
         observations: ObservationIdentity::Independent,
     }
 }
-pub(crate) fn prepared_rules(engine: &ExecutionUseCaseImpl, count: usize) -> PreparedExecutionProgram {
+pub(crate) fn prepared_rules(
+    engine: &ExecutionUseCaseImpl,
+    count: usize,
+) -> PreparedExecutionProgram {
     engine
         .prepare(authored_request(count))
         .expect("valid public request")

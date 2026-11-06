@@ -18,7 +18,7 @@ pub(crate) enum BoundMember {
 /// the member list retains the matching owner evidence in the same payload.
 #[derive(Clone)]
 pub struct BoundInput {
-    pub(crate) input: ryo_values::domain::observations::types::ObservationBindingId,
+    pub(crate) input: ryo_values::domain::plan_parts::types::ObservationBindingId,
     pub(crate) members: Result<Vec<BoundMember>, crate::domain::operating::errors::OperatingError>,
 }
 

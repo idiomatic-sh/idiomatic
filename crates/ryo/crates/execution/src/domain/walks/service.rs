@@ -18,7 +18,7 @@ use crate::domain::table_model::types::{Rows, Verdict};
 use crate::domain::table_scratch::types::{ElementIndex, KindsBy};
 use crate::domain::text_gate::service::{needed_of_rest, text_admitted, text_gate, undecided};
 use ryo_language::domain::elements::service::kind_at;
-use ryo_values::domain::plan_parts::types::Comparison;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 
 /// Takes filter scratch out of `context`, with nothing made ready yet.
 pub(crate) fn filter_of(context: &mut OperatorContext<'_>) -> FilterScratch {
@@ -41,7 +41,7 @@ pub(crate) fn filter_of(context: &mut OperatorContext<'_>) -> FilterScratch {
 /// comparisons decide.
 pub(crate) fn take_filter(
     tree: &TreeRows<'_>,
-    comparisons: &[Comparison],
+    comparisons: &[PlanComparison],
     context: &mut OperatorContext<'_>,
 ) -> FilterScratch {
     let mut filter = filter_of(context);

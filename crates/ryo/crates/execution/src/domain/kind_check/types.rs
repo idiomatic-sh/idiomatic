@@ -2,7 +2,7 @@
 
 use ryo_values::domain::descriptions::types::KindWord;
 use ryo_values::domain::plan_parts::types::Test;
-use ryo_values::domain::program::types::QueryOrigin;
+use ryo_values::domain::query_tokens::types::QueryOrigin;
 
 /// A word a rule writes for a kind: what it is compared with, and how.
 #[derive(Clone, Debug, PartialEq, Eq)]

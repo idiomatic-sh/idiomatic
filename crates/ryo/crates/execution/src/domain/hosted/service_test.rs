@@ -9,7 +9,7 @@ use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
 };
-use ryo_values::domain::records::types::Cell;
+use ryo_values::domain::row_texts::types::Cell;
 
 /// What a row of the cases asks of the relation.
 #[derive(Clone, Copy)]

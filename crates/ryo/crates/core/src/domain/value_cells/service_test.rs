@@ -20,8 +20,8 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::value_cells::types::Scene;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::records::service::lent;
-use ryo_values::domain::records::types::RenderedText;
-use ryo_values::domain::records::types::{Cell, CellText, RowsTextView};
+use ryo_values::domain::row_texts::types::RenderedText;
+use ryo_values::domain::row_texts::types::{Cell, CellText, RowsTextView};
 
 /// What a row of the cases makes a cell of.
 #[derive(Clone, Copy)]

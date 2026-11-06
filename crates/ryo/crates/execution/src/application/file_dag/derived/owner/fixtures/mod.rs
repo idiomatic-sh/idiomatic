@@ -17,7 +17,7 @@ pub(crate) fn prepared_sources(
         source_partitions::types::source_partitions::value::SourcePartitions,
     };
     use ryo_values::domain::{
-        program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+        query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
         rule_requests::types::{RuleParameters, RuleSpec},
         runs::types::{RuleApplicability, RuleId},
     };
@@ -64,8 +64,8 @@ pub(crate) fn prepared_sources(
 }
 pub(crate) fn source_plan(relation: Relation) -> Plan {
     use ryo_values::domain::{
-        plan_parts::types::{Input, StepId},
-        plans::types::{Emit, Operation, PlanStep, StepScope},
+        plan_parts::types::{Input, StepId, StepScope},
+        plans::types::{Emit, Operation, PlanStep},
     };
     Plan {
         parameters: vec![],

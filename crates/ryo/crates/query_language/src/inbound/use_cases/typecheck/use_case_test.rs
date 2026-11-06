@@ -5,22 +5,27 @@ use ryo_values::domain::hosted::types::{ColumnLabel, HostedColumn, HostedName, H
 use ryo_values::domain::observations::types::{
     BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
 };
-use ryo_values::domain::plans::types::StepScope;
+use ryo_values::domain::plan_parts::types::StepScope;
 use std::sync::Arc;
 
 use super::errors::TypecheckError;
 use super::interface::TypecheckUseCase as _;
 use super::types::TypecheckRequest;
 use super::use_case::TypecheckUseCaseImpl;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::catalog::fixtures::fake::CatalogFake;
 use crate::outbound::syntax::fixtures::fake::SyntaxFake;
+use crate::selects;
 use ryo_relations::domain::relations::types::Integer;
+use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::plan_parts::types::QueryText;
-use ryo_values::domain::program::types::{
-    Alias, ByteOffset, ColumnName, Columns, Condition, Expression, Filter, Joining, LetStep,
-    Program, QuerySource, QuerySpan, Select, SourceReference, StepName, WrittenEmit,
-    WrittenLiteral, WrittenOperand, WrittenRelation, WrittenTest,
+use ryo_values::domain::program::types::{LetStep, WrittenEmit, WrittenProgram};
+use ryo_values::domain::query_syntax::types::{
+    Alias, Columns, Condition, Expression, Filter, Joining, QuerySource, Select, SourceReference,
+    WrittenOperand, WrittenTest,
+};
+use ryo_values::domain::query_tokens::types::{
+    ByteOffset, QuerySpan, StepName, WrittenLiteral, WrittenRelation,
 };
 
 /// What a row gives the use case.
@@ -45,7 +50,10 @@ struct Given {
 
 fn read_function(filters: Vec<Filter>) -> LetStep {
     LetStep {
-        name: StepName("functions".into(), None),
+        name: StepName(
+            "functions".into(),
+            ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
+        ),
         expression: Expression::Select(Select {
             columns: Columns::Every,
             from: QuerySource {
@@ -60,19 +68,22 @@ fn read_function(filters: Vec<Filter>) -> LetStep {
     }
 }
 
-fn program_with(filters: Vec<Filter>) -> Program {
-    Program {
-        linked: false,
+fn program_with(filters: Vec<Filter>) -> WrittenProgram {
+    WrittenProgram {
+        linked: ryo_values::domain::query_tokens::types::Linking::Unlinked,
         imports: Vec::new(),
         origins: Vec::new(),
         fragment_contracts: Vec::new(),
         step_origins: std::collections::BTreeMap::new(),
         observations: Vec::new(),
-        emit_origin: None,
+        emit_origin: ryo_values::domain::query_tokens::types::Attribution::Unlocated,
         parameters: Vec::new(),
         steps: vec![read_function(filters)],
         emit: WrittenEmit {
-            step: StepName("functions".into(), None),
+            step: StepName(
+                "functions".into(),
+                ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
+            ),
             subject: ColumnName("file".into()),
             key: vec![ColumnName("span".into())],
             span: NOWHERE,
@@ -139,7 +150,10 @@ fn comparing_text_with_a_number() -> Given {
 
 fn emitting_a_step_nobody_defined() -> Given {
     let mut program = program_with(Vec::new());
-    program.emit.step = StepName("later".into(), None);
+    program.emit.step = StepName(
+        "later".into(),
+        ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
+    );
     Given {
         syntax: SyntaxFake { program },
         ..text_the_fake_reads()
@@ -186,7 +200,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             }
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, TypecheckError::ObservationInputs { .. }))
+            selects!(matches!(error, TypecheckError::ObservationInputs { .. }))
         }),
     },
     Case {
@@ -200,7 +214,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             }
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, TypecheckError::ObservationInputs { .. }))
+            selects!(matches!(error, TypecheckError::ObservationInputs { .. }))
         }),
     },
     Case {
@@ -217,7 +231,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             }
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, TypecheckError::ObservationInputs { .. }))
+            selects!(matches!(error, TypecheckError::ObservationInputs { .. }))
         }),
     },
     Case {
@@ -231,7 +245,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             }
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, TypecheckError::ObservationInputs { .. }))
+            selects!(matches!(error, TypecheckError::ObservationInputs { .. }))
         }),
     },
     Case {
@@ -245,7 +259,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             }
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, TypecheckError::ObservationInputs { .. }))
+            selects!(matches!(error, TypecheckError::ObservationInputs { .. }))
         }),
     },
     Case {
@@ -265,7 +279,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             }
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, TypecheckError::ObservationInputs { .. }))
+            selects!(matches!(error, TypecheckError::ObservationInputs { .. }))
         }),
     },
     Case {
@@ -285,7 +299,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || text_the_fake_refuses,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, TypecheckError::Located { origin, error }
+            selects!(matches!(error, TypecheckError::Located { origin, error }
                 if !origin.source_id.0.is_empty()
                     && origin.trace.is_empty()
                     && matches!(error.as_ref(), TypecheckError::Syntax { span, .. } if *span == origin.span)))
@@ -296,7 +310,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || catalog_without_relations,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, TypecheckError::UnknownRelation { .. })
                     || matches!(error, TypecheckError::Located { error, .. } if matches!(error.as_ref(), TypecheckError::UnknownRelation { .. })),
             )
@@ -307,7 +321,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || comparing_text_with_a_number,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, TypecheckError::Type { .. })
                     || matches!(error, TypecheckError::Located { error, .. } if matches!(error.as_ref(), TypecheckError::Type { .. })),
             )
@@ -318,7 +332,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || emitting_a_step_nobody_defined,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, TypecheckError::Invalid { .. })
                     || matches!(error, TypecheckError::Located { error, .. } if matches!(error.as_ref(), TypecheckError::Invalid { .. })),
             )
@@ -328,7 +342,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("fails_when_catalog_port_fails"),
         word: Word::Fails,
         input: || failing_catalog,
-        expect: Expect::Refusal(|error| selects(matches!(error, TypecheckError::Catalog { .. }))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, TypecheckError::Catalog { .. }))),
     },
 ];
 
@@ -338,7 +352,7 @@ fn subject(given: fn() -> Given) -> Result<Value, Failure> {
     use_case
         .typecheck(TypecheckRequest {
             observations: given.observations,
-            text: ryo_values::domain::program::types::QueryBundle::from(QueryText(
+            text: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(
                 given.text.into(),
             )),
             hosted: given.hosted,

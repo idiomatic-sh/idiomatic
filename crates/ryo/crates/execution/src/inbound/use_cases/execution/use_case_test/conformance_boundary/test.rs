@@ -4,7 +4,8 @@ use super::super::conformance::test::{compare_delivery, repeated, same_rows};
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::*;
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
-    plans::types::{Operation, OperationKind},
+    plans::types::Operation,
+    query_operators::types::OperationKind,
 };
 #[test]
 fn select_join_and_union_keep_independent_ordered_bags() {
@@ -162,10 +163,11 @@ fn positive_row_contracts_keep_partial_input_distinction() {
         service::{blocked, needs_of, scoped_needs},
         types::Blocking,
     };
+    use ryo_values::domain::plan_parts::types::StepScope;
     use ryo_values::domain::plan_parts::types::{Input, StepId};
     use ryo_values::domain::plans::{
         service::{inputs_of, named},
-        types::{Emit, Plan, PlanStep, StepScope},
+        types::{Emit, Plan, PlanStep},
     };
     use ryo_values::domain::stored_facts::types::PartialCause;
     for kind in [

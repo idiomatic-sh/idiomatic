@@ -9,9 +9,8 @@ use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_facts::types::{
     ArenaBytes, Bucket, Digest, FileNotes, LanguageNumber, NoteBytes,
 };
-use ryo_values::domain::stores::types::{
-    BucketsWanted, Stored, StoredFile, StoredFileNumber, StoredHanded,
-};
+use ryo_values::domain::stored_findings::types::StoredFileNumber;
+use ryo_values::domain::stores::types::{BucketsWanted, Stored, StoredFile, StoredHanded};
 
 use super::service::{hand_into, handed_in, rows_of_file};
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -47,7 +46,7 @@ fn stored() -> Stored {
 /// What a file hands: words in the buckets 1 and 2, a text, notes and the rules that govern it.
 fn handed() -> Handed {
     Handed {
-        observations: None,
+        observations: ryo_values::domain::records::types::HandedReadiness::Unrecorded,
         buckets: vec![
             HandedWords {
                 bucket: Bucket(1),
@@ -160,8 +159,8 @@ fn staged_descriptors_move_without_reading_unwanted_payloads_and_keep_fresh_orde
     use ryo_values::domain::records::types::{RecordWords, StagedWords, StagingSession};
     let span = StagedWords {
         session: StagingSession(7),
-        offset: 0,
-        length: 1024 * 1024,
+        offset: ryo_values::domain::records::types::PayloadOffset(0),
+        length: ryo_values::domain::records::types::PayloadLength(1024 * 1024),
     };
     let handed = Handed {
         buckets: vec![
@@ -206,7 +205,10 @@ fn staged_descriptors_move_without_reading_unwanted_payloads_and_keep_fresh_orde
         [vec![1], vec![2]]
     );
     assert_eq!(staged.len(), 1);
-    assert_eq!(staged[0].ordinal, 1);
+    assert_eq!(
+        staged[0].ordinal,
+        ryo_values::domain::records::types::StagedOrdinal(1)
+    );
     assert_eq!(staged[0].file, StoredFileNumber(2));
     assert_eq!(staged[0].words, span);
 }

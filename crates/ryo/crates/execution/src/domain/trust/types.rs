@@ -2,7 +2,7 @@
 
 use ryo_relations::domain::relations::types::Relation;
 
-use ryo_values::domain::plan_parts::types::Comparison;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 
 /// A place where a plan reads a relation: the relation, and the comparisons on its `kind` column that the rows must satisfy
 /// to get any further, when the step that reads it is a `select`.
@@ -11,7 +11,7 @@ pub struct RelationRead {
     /// The relation read.
     pub relation: Relation,
     /// The comparisons on the kind of the rows that this read applies before anything else does.
-    pub kinds: Vec<Comparison>,
+    pub kinds: Vec<PlanComparison>,
 }
 
 /// What the steps of a rule read of the relations, by where the steps run.

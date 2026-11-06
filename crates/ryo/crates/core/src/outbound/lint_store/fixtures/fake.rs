@@ -9,24 +9,25 @@ use super::super::types::StoreKeeping;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::reasons::types::ToolMessage;
 use ryo_relations::domain::relations::types::{Offset, Span};
+use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::descriptions::types::{LanguageName, RelationName};
 use ryo_values::domain::files::types::{FileSize, Nanoseconds};
-use ryo_values::domain::program::types::ColumnName;
-use ryo_values::domain::records::types::Cell;
-use ryo_values::domain::records::types::{
-    GoverningRules, PlacedColumn, PlacedLine, PlacedRule, Unreadable,
-};
+use ryo_values::domain::records::types::{GoverningRules, Unreadable};
+use ryo_values::domain::row_texts::types::Cell;
+use ryo_values::domain::row_texts::types::{PlacedColumn, PlacedLine, PlacedRule};
 use ryo_values::domain::runs::types::{ManifestRefused, RuleId};
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_facts::types::{
     ArenaBytes, Bucket, Digest, FileNotes, LanguageNumber, NoteBytes, PartialCause, PartialKind,
     PartialScope, ReadFailure, StoredPartial,
 };
+use ryo_values::domain::stored_findings::types::{
+    FindingMade, FindingPlace, StoredCell, StoredFileNumber, StoredFinding, StoredPlace,
+    StoredUnknown, StoredUnread, StoredValue, UnknownText,
+};
 use ryo_values::domain::stores::types::{
-    BucketsWanted, Crossing, FileAgain, FindingMade, FindingPlace, KeptRows, Stored, StoredCell,
-    StoredCovered, StoredFile, StoredFileNumber, StoredFinding, StoredFrontier, StoredHanded,
-    StoredNotes, StoredPlace, StoredRule, StoredText, StoredUnknown, StoredUnread, StoredValue,
-    StoredWords, UnknownText,
+    BucketsWanted, Crossing, FileAgain, KeptRows, Stored, StoredCovered, StoredFile,
+    StoredFrontier, StoredHanded, StoredNotes, StoredRule, StoredText, StoredWords,
 };
 
 /// What the core's tests stand in for `lint_store` with: the tables kept in memory, and how often each call was made.
@@ -179,6 +180,7 @@ impl ReadStore for FakeRead {
 /// Registers, in `handed.proofs`, exactly the proof of every frontier row: a store keeps a frontier payload only under the exact
 /// proof of its (file, bucket), as a run issues it, once. The fixtures replace frontier rows, so they register their proofs here.
 pub fn register_proofs(handed: &mut StoredHanded) {
+    let handed = &mut handed.0;
     handed.proofs.clear();
     for row in &handed.frontier {
         if !handed
@@ -353,7 +355,7 @@ pub fn stored(tag: u8) -> Stored {
 
 /// What the files of `stored(tag)` handed.
 fn handed(tag: u8) -> StoredHanded {
-    StoredHanded {
+    StoredHanded(ryo_values::domain::stores::types::HandedRows {
         observations: Vec::new(),
         proofs: vec![ryo_values::domain::stores::types::StoredFrontierProof {
             file: StoredFileNumber(0),
@@ -387,7 +389,7 @@ fn handed(tag: u8) -> StoredHanded {
                 at: PartialScope::Repository,
             }],
         }],
-    }
+    })
 }
 
 /// The same as `stored`, with a file no language could parse.

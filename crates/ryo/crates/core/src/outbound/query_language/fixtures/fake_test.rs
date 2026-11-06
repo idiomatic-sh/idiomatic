@@ -35,7 +35,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(text: &Input) -> Result<Value, Failure> {
     QueryLanguageFake::default()
         .compile(
-            &ryo_values::domain::program::types::QueryBundle::from(text.clone()),
+            &ryo_values::domain::query_tokens::types::QueryBundle::from(text.clone()),
             &[],
             &[],
         )

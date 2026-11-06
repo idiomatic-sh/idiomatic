@@ -2,12 +2,13 @@
 use super::types::*;
 use crate::domain::operator::types::PlanIdentity;
 use ryo_relations::domain::relations::{service::kinds, types::CellKind};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input, Operand, RepeatedRows, Side, StepId, Test,
 };
 use ryo_values::domain::plans::{
     service::{inputs_of, named},
-    types::{Operation, Plan, StepScope},
+    types::{Operation, Plan},
 };
 
 fn step(plan: &Plan, id: StepId) -> Result<&Operation, Decline> {

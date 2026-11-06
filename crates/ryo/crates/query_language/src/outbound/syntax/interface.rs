@@ -2,7 +2,8 @@
 
 use super::errors::SyntaxError;
 use ryo_values::domain::descriptions::types::Grammar;
-use ryo_values::domain::program::types::{ParsedQueryBundle, Program, QueryBundle, QueryView};
+use ryo_values::domain::program::types::{ParsedQueryBundle, WrittenProgram};
+use ryo_values::domain::query_tokens::types::{QueryBundle, QueryView};
 
 /// What every `syntax` adapter implements.
 pub trait SyntaxPort: Send + Sync {
@@ -11,7 +12,7 @@ pub trait SyntaxPort: Send + Sync {
     /// # Errors
     ///
     /// `Unreadable` with the place where the text stops making sense.
-    fn read(&self, text: QueryView<'_>) -> Result<Program, SyntaxError>;
+    fn read(&self, text: QueryView<'_>) -> Result<WrittenProgram, SyntaxError>;
 
     /// Parses a bundle without resolving imports or expanding module ASTs.
     ///

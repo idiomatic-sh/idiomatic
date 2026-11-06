@@ -17,7 +17,6 @@ use {
     crate::domain::frontiers::service::project_input,
     crate::domain::frontiers::service::project_relation,
     crate::domain::operating::errors::OperatingError, crate::domain::table_model::types::Frontier,
-    ryo_values::domain::table_words::service::admit_compact,
     ryo_values::domain::table_words::service::decode_complete,
     ryo_values::domain::table_words::types::DecodeMode,
 };
@@ -82,12 +81,13 @@ pub(crate) fn prepare(
                 continue;
             }
         }
-        if !program
+        if program
             .metadata()
             .get(rule.0)
             .and_then(|rule| rule.frontier_capture.get(place))
             .copied()
             .ok_or(OperatingError::NotRun)?
+            == ryo_values::domain::run_metadata::types::FrontierFeed::CrossFile
         {
             continue;
         }
@@ -115,10 +115,10 @@ pub(crate) fn prepare(
             continue;
         }
         if memory {
-            let bytes = ryo_values::domain::records::types::retention::value::RetainedBytes::packed(
+            let bytes = ryo_values::domain::stores::types::retention::value::RetainedBytes::packed(
                 &words.words,
             );
-            tracing::trace!(target:"ryo::diagnostic::lifecycle_memory", phase="cross_input_packed", owner="packed_input", packed_live_bytes=bytes.packed_live, packed_capacity_bytes=bytes.packed_capacity);
+            tracing::trace!(target:"ryo::diagnostic::lifecycle_memory", phase="cross_input_packed", owner="packed_input", packed_live_bytes=bytes.packed_live.0, packed_capacity_bytes=bytes.packed_capacity.0);
         }
         let mode = match policy {
             PreparationPolicy::Diagnostic => DecodeMode::Permissive,
@@ -138,7 +138,7 @@ pub(crate) fn prepare(
             .iter()
             .map(|input| match input {
                 FrontierInput::Compact { table, .. } => {
-                    ryo_values::domain::table_words::service::compact_rows(table)
+                    ryo_values::domain::compact_table::service::compact_rows(table).0
                 }
                 FrontierInput::Decoded { .. } | FrontierInput::Packed(_) => 0,
             })
@@ -197,21 +197,31 @@ pub(crate) fn admit(
         mode,
         coverage,
     } = packed;
-    let refuse = |error: ryo_values::domain::table_words::errors::WordsDecodeError| RefusedFrontier {
-        input,
-        error: OperatingError::ObservationIncomplete {
-            reason: error.to_string(),
-        },
-    };
+    let refuse =
+        |error: ryo_values::domain::table_words::errors::TableWordsError| RefusedFrontier {
+            input,
+            error: OperatingError::ObservationIncomplete {
+                reason: error.to_string(),
+            },
+        };
     if matches!(input, Input::Step(_)) {
-        return admit_compact(words, places_mut(symbols), mode)
-            .map(|(table, spelling)| FrontierInput::Compact {
+        return ryo_values::domain::compact_table::service::admit_compact(
+            ryo_values::domain::table_words::types::CompactBacking(words),
+            places_mut(symbols),
+            mode,
+        )
+        .map(
+            |ryo_values::domain::table_words::types::Admitted {
+                 table,
+                 names: spelling,
+             }| FrontierInput::Compact {
                 input,
                 table: std::sync::Arc::new(table),
                 spelling,
                 coverage,
-            })
-            .map_err(refuse);
+            },
+        )
+        .map_err(refuse);
     }
     // Non-Step borrowed relation/binding sources keep their existing representation.
     match mode {
@@ -267,16 +277,18 @@ pub(crate) fn validate_bucket(
             || !required.files().contains(&source.file)
             || skipped.contains(&source.file)
             || !seen_files.insert(source.file.0)
-            || source.proof.version != 1
-            || source.proof.rule != u32::try_from(rule.0).map_err(|_| refuse())?
-            || source.proof.input != u32::try_from(input).map_err(|_| refuse())?
+            || source.proof.rule.0 != u32::try_from(rule.0).map_err(|_| refuse())?
+            || source.proof.input.0 != u32::try_from(input).map_err(|_| refuse())?
             || source.proof.rule_digest != expected
         {
             return Err(refuse());
         }
         let end = at.checked_add(source.length).ok_or_else(refuse)?;
         let frame = payload.words.0.0.get(at..end).ok_or_else(refuse)?;
-        if !ryo_values::domain::table_words::service::single_table_frame(frame) {
+        if ryo_values::domain::table_words::service::single_table_frame(
+            ryo_values::domain::table_words::types::PackedSlice(frame),
+        ) != ryo_values::domain::table_words::types::Framing::Whole
+        {
             return Err(refuse());
         }
         at = end;

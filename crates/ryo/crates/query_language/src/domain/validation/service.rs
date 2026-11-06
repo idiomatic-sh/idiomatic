@@ -1,50 +1,35 @@
-//! The `validation` service: free functions that check a program against ryo's own relations,
-//! with no IO and no ports. It checks that every name a query writes names something; the types
-//! are checked where the names are resolved, in `lowering`.
+//! The `validation` service: free functions that check a program against ryo's own relations, with no IO and no
+//! ports: every name a query writes names something. The types are checked where the names are resolved, in `lowering`.
 
 use ryo_relations::domain::relations::service::relation_named;
-use ryo_relations::domain::relations::types::NameRef;
-use ryo_relations::domain::relations::types::Relation;
-
+use ryo_relations::domain::relations::types::{NameRef, Relation};
 use ryo_values::domain::hosted::types::HostedName;
+use ryo_values::domain::program::service::identity_of;
 
 use super::errors::ValidationError;
-use super::types::Known;
+use super::types::{Identities, Known};
 use crate::domain::syntax::constants::{operator_named, slot_name};
 use crate::domain::syntax::service::{is_input, shape_named};
 use crate::domain::syntax::types::ArgumentRole;
-use ryo_values::domain::program::types::{
-    ArgumentValue, Call, Columns, Condition, Expression, Filter, Joining, ParameterDeclaration,
-    Program, QuerySource, QuerySpan, QuerySpelling, Select, SourceReference, WrittenOperand,
+use ryo_values::domain::program::types::{ParameterDeclaration, WrittenProgram};
+use ryo_values::domain::query_syntax::types::{
+    ArgumentValue, Call, Columns, Condition, Expression, Filter, Joining, QuerySource, Select,
+    SourceReference, WrittenOperand,
 };
+use ryo_values::domain::query_tokens::types::{Attribution, Linking, QuerySpan, QuerySpelling};
 use std::collections::BTreeSet;
 
-/// Checks that every relation, step, parameter and operation a program names exists, and that
-/// every call has its required arguments.
-///
-/// # Errors
-///
-/// The first thing wrong, with the place it is written.
-#[cfg(test)]
-pub(crate) fn validate(
-    program: &Program,
-    catalog: &[Relation],
-    hosted: &[HostedName],
-) -> Result<(), ValidationError> {
-    validate_with_observations(program, catalog, hosted, &[])
-}
-
-/// Validate declared typed named inputs without admitting arbitrary unknown step names.
+/// Checks that every name a program writes exists and every call has its required arguments; the first fault is answered.
 pub(crate) fn validate_with_observations(
-    program: &Program,
+    program: &WrittenProgram,
     catalog: &[Relation],
     hosted: &[HostedName],
     observations: &[ryo_values::domain::observations::types::BoundObservationInput],
 ) -> Result<(), ValidationError> {
-    if program.linked {
+    if program.linked == Linking::Linked {
         let mut identities = BTreeSet::new();
         for step in &program.steps {
-            let Some(identity) = step.name.1 else {
+            let Some(identity) = identity_of(step.name.1) else {
                 return Err(ValidationError::UnknownStep {
                     name: step.name.0.to_string(),
                     span: step.span,
@@ -59,13 +44,19 @@ pub(crate) fn validate_with_observations(
         }
     }
     let mut known = Known {
-        linked: program.linked,
+        identities: if program.linked == Linking::Linked {
+            Identities::Assigned
+        } else {
+            Identities::Unassigned
+        },
         steps: Vec::new(),
         hosted,
         observations,
     };
     for step in &program.steps {
-        if !program.linked && known.steps.iter().any(|known| known.0 == step.name.0) {
+        if program.linked == Linking::Unlinked
+            && known.steps.iter().any(|known| known.0 == step.name.0)
+        {
             return Err(ValidationError::DuplicateStep {
                 name: step.name.0.to_string(),
                 span: step.span,
@@ -78,9 +69,7 @@ pub(crate) fn validate_with_observations(
             Expression::Call(call) => check_call(call, &known, catalog, &program.parameters),
         };
         checked.map_err(|error| {
-            match step
-                .name
-                .1
+            match identity_of(step.name.1)
                 .and_then(|identity| program.step_origins.get(&identity))
                 .cloned()
             {
@@ -112,11 +101,11 @@ pub(crate) fn validate_with_observations(
         };
         if let Some(error) = error {
             return Err(match output.origin.clone() {
-                Some(origin) => ValidationError::Located {
+                Attribution::Located(origin) => ValidationError::Located {
                     origin,
                     error: Box::new(error),
                 },
-                None => error,
+                Attribution::Unlocated => error,
             });
         }
     }
@@ -126,11 +115,11 @@ pub(crate) fn validate_with_observations(
             span: program.emit.span,
         };
         return Err(match program.emit_origin.clone() {
-            Some(origin) => ValidationError::Located {
+            Attribution::Located(origin) => ValidationError::Located {
                 origin,
                 error: Box::new(error),
             },
-            None => error,
+            Attribution::Unlocated => error,
         });
     }
     Ok(())
@@ -184,16 +173,19 @@ fn check_source(
             check_relation(QuerySpelling(&text.0), source.span, catalog, known)
         }
         SourceReference::Step(text) => {
-            let exists = match text.1 {
-                Some(identity) => known.steps.iter().any(|step| step.1 == Some(identity)),
+            let exists = match identity_of(text.1) {
+                Some(identity) => known
+                    .steps
+                    .iter()
+                    .any(|step| identity_of(step.1) == Some(identity)),
                 None if known
                     .observations
                     .iter()
-                    .any(|bound| bound.name.0 == text.0) =>
+                    .any(|bound| *bound.name.0 == *text.0) =>
                 {
                     true
                 }
-                None if known.linked => false,
+                None if known.identities == Identities::Assigned => false,
                 None => known.steps.iter().any(|step| step.0 == text.0),
             };
             if exists {
@@ -297,7 +289,7 @@ fn check_call(
                 {
                     ()
                 }
-                ArgumentValue::Word(text) if !known.linked => {
+                ArgumentValue::Word(text) if known.identities == Identities::Unassigned => {
                     check_step(QuerySpelling(&text.0), call.span, known)?;
                 }
                 ArgumentValue::Word(text) => {
@@ -307,15 +299,15 @@ fn check_call(
                     });
                 }
                 ArgumentValue::Step(step) => {
-                    if !(step.1.is_none()
+                    if !(identity_of(step.1).is_none()
                         && known
                             .observations
                             .iter()
-                            .any(|bound| bound.name.0 == step.0))
+                            .any(|bound| *bound.name.0 == *step.0))
                         && !known
                             .steps
                             .iter()
-                            .any(|known| known.1 == step.1 && step.1.is_some())
+                            .any(|known| known.1 == step.1 && identity_of(step.1).is_some())
                     {
                         return Err(ValidationError::UnknownStep {
                             name: step.0.to_string(),

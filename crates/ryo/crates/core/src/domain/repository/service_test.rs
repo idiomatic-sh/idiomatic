@@ -2,11 +2,11 @@
 
 use super::service::{by_path, configuration, paths_of};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::rule_requests::types::RuleParameters;
-use ryo_values::domain::rule_requests::types::RuleSpec;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::types::{CorpusEntry, CorpusInput, FileSize, Nanoseconds};
 use ryo_values::domain::plan_parts::types::QueryText;
+use ryo_values::domain::rule_requests::types::RuleParameters;
+use ryo_values::domain::rule_requests::types::RuleSpec;
 use ryo_values::domain::runs::types::RuleId;
 
 /// What a row of the cases does with the files of a run.
@@ -45,7 +45,7 @@ fn files() -> Vec<CorpusInput> {
 fn rule(id: &str, query: &str) -> RuleSpec {
     RuleSpec {
         id: RuleId(id.into()),
-        query: ryo_values::domain::program::types::QueryBundle::from(QueryText(query.into())),
+        query: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(query.into())),
         applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
         given: Vec::new(),
         observations: Vec::new(),

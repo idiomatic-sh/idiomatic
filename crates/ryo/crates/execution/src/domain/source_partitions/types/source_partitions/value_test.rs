@@ -14,19 +14,23 @@ use ryo_values::domain::rule_requests::types::RuleParameters;
 use ryo_values::domain::{
     hosted::types::HostName,
     observations::types::{
-        BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationIndex,
-        ObservationName, PlanObservation,
+        BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationName,
+        PlanObservation,
     },
     plan_parts::types::{ColumnIndex, ParameterName, StepId, WholeNumber},
-    plans::types::{Emit, Operation, ParameterType, PlanParameter, PlanStep},
-    program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+    plans::types::{Emit, Operation, PlanStep},
+    query_bindings::types::{ParameterType, PlanParameter},
+    query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+    records::types::ObservationIndex,
     runs::types::{RuleApplicability, RuleId},
 };
 use ryo_values::domain::{
     hosted::types::HostRelation,
-    observations::types::{ObservationBindingId, ObservationProducer},
-    plan_parts::types::{HostedNumber, Input as PlanInput, ParameterId},
-    plans::types::{Plan, StepScope},
+    observations::types::ObservationProducer,
+    plan_parts::types::{
+        HostedNumber, Input as PlanInput, ObservationBindingId, ParameterId, StepScope,
+    },
+    plans::types::Plan,
     query_bindings::types::ParameterBinding,
     rule_requests::types::RuleSpec,
 };

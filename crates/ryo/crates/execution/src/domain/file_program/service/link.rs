@@ -3,13 +3,14 @@ use crate::domain::file_program::{
     errors::FileProgramError,
     types::{ResolvedObservationBinding, ResolvedObservationProducer},
 };
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::{
-    observations::types::ObservationIndex,
     plan_parts::types::{Input, StepId},
     plans::{
         service::{each_input, inputs_of, named},
-        types::{Plan, StepScope},
+        types::Plan,
     },
+    records::types::ObservationIndex,
 };
 
 /// A linked request owns its remapped plans and typed producer references. Cached plans are untouched.

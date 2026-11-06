@@ -9,7 +9,8 @@ use crate::domain::table_texts::service::datum;
 use crate::domain::table_texts::types::{Datum, Texts};
 use ryo_relations::domain::relations::constants::NO_SPAN;
 use ryo_relations::domain::relations::types::Value;
-use ryo_values::domain::plans::types::{Operation, OperationKind};
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rows::service::cell;
 use unicode_width::UnicodeWidthChar;
@@ -137,8 +138,8 @@ impl OperatorsItem for FitsRenderedItem {
         if let Some(last) = literals.last() {
             rendered.push_str(&last.0);
         }
-        let maximum = usize::try_from(*max_line).map_err(|_| OperatingError::WrongBinding)?;
-        let tab_width = usize::try_from(*tab_width).map_err(|_| OperatingError::WrongBinding)?;
+        let maximum = usize::try_from(max_line.0).map_err(|_| OperatingError::WrongBinding)?;
+        let tab_width = usize::try_from(tab_width.0).map_err(|_| OperatingError::WrongBinding)?;
         if tab_width == 0 {
             return Err(OperatingError::WrongBinding);
         }

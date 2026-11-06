@@ -7,7 +7,7 @@ use ryo_values::{
     domain::{
         plan_parts::types::{ColumnIndex, HostedNumber, Input as PlanInput, StepId},
         plans::types::Operation,
-        rows::errors::TableModelError,
+        rows::errors::RowsError,
     },
 };
 #[derive(Clone, Copy)]
@@ -111,9 +111,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_column_the_input_lacks_is_refused"),
         word: Word::Refuses,
         input: || Scenario::MissingColumn,
-        expect: Expect::Error(OperatingError::Table(TableModelError::NoSuchColumn {
-            index: 9,
-        })),
+        expect: Expect::Error(OperatingError::Table(RowsError::NoSuchColumn { index: 9 })),
     },
 ];
 #[test]

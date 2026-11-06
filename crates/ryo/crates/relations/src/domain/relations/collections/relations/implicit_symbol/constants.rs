@@ -1,5 +1,6 @@
 //! Query vocabulary for occurrence-independent language builtins.
 use super::item::ImplicitSymbolColumn;
+use crate::domain::relations::constants::{SINCE_MAJOR, SINCE_MINOR};
 /// Relation name.
 #[must_use]
 pub fn name() -> &'static str {
@@ -17,8 +18,8 @@ pub fn column_name(column: ImplicitSymbolColumn) -> &'static str {
         ImplicitSymbolColumn::Name => "name",
         ImplicitSymbolColumn::Kind => "kind",
         ImplicitSymbolColumn::Scope => "scope",
-        ImplicitSymbolColumn::SinceMajor => "since-major",
-        ImplicitSymbolColumn::SinceMinor => "since-minor",
+        ImplicitSymbolColumn::SinceMajor => SINCE_MAJOR,
+        ImplicitSymbolColumn::SinceMinor => SINCE_MINOR,
         ImplicitSymbolColumn::File => "file",
     }
 }

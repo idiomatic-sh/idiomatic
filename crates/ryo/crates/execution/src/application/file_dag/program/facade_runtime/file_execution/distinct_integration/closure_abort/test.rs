@@ -2,8 +2,8 @@
 use super::super::*;
 use ryo_values::domain::{
     hosted::types::HostKind,
-    plan_parts::types::{Comparison, HostedNumber, LiteralText, Operand, QueryLiteral, Test},
-    records::types::Cell as HostCell,
+    plan_parts::types::{HostedNumber, LiteralText, Operand, PlanComparison, QueryLiteral, Test},
+    row_texts::types::Cell as HostCell,
 };
 
 #[derive(Clone, Copy)]
@@ -46,11 +46,11 @@ fn exercise(refusal: Refusal, fused: bool) {
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: PlanInput::Step(StepId(1)),
-                comparisons: vec![Comparison {
+                comparisons: vec![PlanComparison {
                     test: Test::Matches,
                     left: Operand::Literal(QueryLiteral::Text(LiteralText("a".into()))),
                     right: Operand::Column(ColumnIndex(1)),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
                 kept: vec![
                     ColumnIndex(0),
@@ -159,7 +159,8 @@ fn exercise(refusal: Refusal, fused: bool) {
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
-        None)
+        None,
+    )
     .unwrap();
     let owner = Rc::clone(&file.owner);
     let read = |_| Err::<Rows<'_>, _>(OperatingError::NotRead);

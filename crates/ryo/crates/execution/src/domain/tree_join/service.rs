@@ -22,8 +22,8 @@ use crate::domain::tree_join::collections::strategies::span_index::item::SpanInd
 use crate::domain::tree_join::collections::strategies::types::{Fitting, NodeColumns};
 use ryo_derived::domain::contract::types::Finding;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorCall;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Comparison};
-use ryo_values::domain::rows::errors::TableModelError;
+use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison};
+use ryo_values::domain::rows::errors::RowsError;
 pub(crate) mod driver;
 
 /// The column of the elements of a tree that the column `column` of the view of them is.
@@ -38,7 +38,7 @@ pub(crate) fn source_column(view: &[ColumnIndex], column: ColumnIndex) -> Column
 /// Takes what the join needs from the scratch of `context`, and makes ready what its comparisons decide.
 pub(crate) fn take_state(
     tree: &TreeRows<'_>,
-    comparisons: &[Comparison],
+    comparisons: &[PlanComparison],
     context: &mut OperatorContext<'_>,
 ) -> TreeState {
     let names = NameCount(name_count(context.symbols.as_ref()).0);
@@ -136,7 +136,7 @@ pub(crate) fn probe(
         output,
     } = shape;
     if let ColumnLack::Column(missing) = state.missing {
-        return Err(OperatingError::Table(TableModelError::NoSuchColumn {
+        return Err(OperatingError::Table(RowsError::NoSuchColumn {
             index: u32::try_from(missing.0).unwrap_or(u32::MAX),
         }));
     }

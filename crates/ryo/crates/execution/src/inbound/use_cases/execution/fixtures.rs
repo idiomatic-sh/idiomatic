@@ -17,8 +17,8 @@ use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     hosted::types::HostRelation,
     plans::types::Plan,
-    program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
     query_bindings::types::ParameterBinding,
+    query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
     rows::types::Table,
     rule_requests::types::{RuleParameters, RuleSpec},
     runs::types::{RuleApplicability, RuleId},
@@ -212,7 +212,7 @@ pub(super) fn numbers(name: &str, width: usize, rows: &[&[i64]]) -> HostRelation
     use ryo_relations::domain::relations::types::Integer;
     use ryo_values::domain::{
         hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRow},
-        records::types::Cell,
+        row_texts::types::Cell,
     };
     HostRelation {
         name: HostName(name.into()),
@@ -237,8 +237,8 @@ pub(super) fn numbers(name: &str, width: usize, rows: &[&[i64]]) -> HostRelation
 /// Assemble explicit step data; the production compiler owns dependencies and schemas.
 pub(super) fn plan(operations: Vec<ryo_values::domain::plans::types::Operation>) -> Plan {
     use ryo_values::domain::{
-        plan_parts::types::{ColumnIndex, StepId},
-        plans::types::{Emit, PlanStep, StepScope},
+        plan_parts::types::{ColumnIndex, StepId, StepScope},
+        plans::types::{Emit, PlanStep},
     };
     let emit = Emit {
         step: StepId((operations.len() - 1) as u32),
@@ -266,7 +266,7 @@ pub(super) fn plan(operations: Vec<ryo_values::domain::plans::types::Operation>)
 pub(super) fn texts(name: &str, rows: &[&str]) -> HostRelation {
     use ryo_values::domain::{
         hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRow},
-        records::types::Cell,
+        row_texts::types::Cell,
     };
     HostRelation {
         name: HostName(name.into()),
@@ -381,8 +381,9 @@ pub(super) fn table_inputs(
     use ryo_values::domain::{
         hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRow},
         plan_parts::types::{ColumnIndex, HostedNumber, Input, ParameterName, StepId},
-        plans::types::{Operation, ParameterType, PlanParameter},
-        records::types::Cell as HostCell,
+        plans::types::Operation,
+        query_bindings::types::{ParameterType, PlanParameter},
+        row_texts::types::Cell as HostCell,
     };
     let mut operations = vec![];
     let mut sources = vec![];

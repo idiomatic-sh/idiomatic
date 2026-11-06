@@ -16,21 +16,21 @@ impl ObservedPublication {
     pub(in crate::application::file_dag) fn validate_transfer_readiness(
         &self,
         owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
-        readiness: &ryo_values::domain::observations::types::ProducerReadiness,
+        readiness: &ryo_values::domain::records::types::ProducerReadiness,
     ) -> Result<(), OperatingError> {
         self.admitted.publication(owner)?;
         match (self.admitted.coverage()?, readiness) {
             (
                 crate::domain::completion::types::CoverageState::Complete,
-                ryo_values::domain::observations::types::ProducerReadiness::Complete,
+                ryo_values::domain::records::types::ProducerReadiness::Complete,
             ) => Ok(()),
             (
                 crate::domain::completion::types::CoverageState::Partial { files },
-                ryo_values::domain::observations::types::ProducerReadiness::Unknown(_),
+                ryo_values::domain::records::types::ProducerReadiness::Unknown(_),
             ) if !files.is_empty() => Ok(()),
             (
                 crate::domain::completion::types::CoverageState::Inapplicable { files },
-                ryo_values::domain::observations::types::ProducerReadiness::Unknown(_),
+                ryo_values::domain::records::types::ProducerReadiness::Unknown(_),
             ) if !files.is_empty() => Ok(()),
             _ => Err(OperatingError::ObservationIncomplete {
                 reason:

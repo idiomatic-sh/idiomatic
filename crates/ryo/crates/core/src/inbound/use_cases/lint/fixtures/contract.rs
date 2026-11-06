@@ -26,7 +26,7 @@ use ryo_relations::domain::relations::service::{column_name, columns, name, prov
 use ryo_relations::domain::relations::types::{Integer, Provenance};
 use ryo_values::domain::files::types::{CorpusFile, FileBytes, Glob};
 use ryo_values::domain::plan_parts::types::{LiteralText, ParameterName, QueryText};
-use ryo_values::domain::records::types::{Cell as Typed, RowTotal};
+use ryo_values::domain::row_texts::types::{Cell as Typed, RowTotal};
 use ryo_values::domain::runs::types::{AnswerShape, Session};
 
 use super::super::errors::LintError;
@@ -50,15 +50,15 @@ use crate::outbound::language::fixtures::fake::{LanguageFake, READ};
 use crate::outbound::language::{interface::LanguagePort, types::Absence};
 use crate::outbound::lint_store::interface::LintStorePort;
 use crate::outbound::memory::fixtures::fake::MemoryFake;
-use crate::outbound::rows::fixtures::fake::{BytesRowsFake, TallyRowsFake};
-use crate::outbound::rows::interface::RowsPort;
+use crate::outbound::row_sink::fixtures::fake::{BytesRowSinkFake, TallyRowSinkFake};
+use crate::outbound::row_sink::interface::RowSinkPort;
 use crate::outbound::scheduler::fixtures::fake::{CountingSchedulerFake, SchedulerFake};
 use crate::outbound::scheduler::interface::SchedulerPort;
-use crate::outbound::{facts, matching, query_language, rows};
+use crate::outbound::{facts, matching, query_language, row_sink};
 use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
-use ryo_values::domain::plans::types::QueryOperator;
+use ryo_values::domain::query_operators::types::QueryOperator;
 
 /// What a row of the contract is given: the request to lint.
 type Input = LintRequest;
@@ -99,7 +99,7 @@ fn rule(id: &str, query: &str, include: Vec<Glob>) -> Rule {
     Rule {
         observations: Vec::new(),
         id: ryo_values::domain::runs::types::RuleId(id.into()),
-        query: ryo_values::domain::program::types::QueryBundle::from(QueryText(query.into())),
+        query: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(query.into())),
         applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
         parameters: fixture_parameters(query),
         include,
@@ -505,7 +505,7 @@ fn lint(
     scheduler: Arc<dyn SchedulerPort>,
     facts: Arc<dyn FactsPort>,
     files: Vec<CorpusFile>,
-    rows: Arc<dyn RowsPort>,
+    rows: Arc<dyn RowSinkPort>,
 ) {
     lint_keeping(
         corpus,
@@ -523,7 +523,7 @@ fn lint_keeping(
     scheduler: Arc<dyn SchedulerPort>,
     facts: Arc<dyn FactsPort>,
     files: Vec<CorpusFile>,
-    rows: Arc<dyn RowsPort>,
+    rows: Arc<dyn RowSinkPort>,
     store: Arc<dyn LintStorePort>,
 ) {
     let use_case = use_case_over(corpus, scheduler, facts, files, rows, store);
@@ -546,7 +546,7 @@ fn use_case_over(
     scheduler: Arc<dyn SchedulerPort>,
     facts: Arc<dyn FactsPort>,
     files: Vec<CorpusFile>,
-    rows: Arc<dyn RowsPort>,
+    rows: Arc<dyn RowSinkPort>,
     store: Arc<dyn LintStorePort>,
 ) -> LintUseCaseImpl {
     {
@@ -597,8 +597,8 @@ fn use_case_over(
 
 /// The rows each rule gives over one copy of every input, by the rule's id.
 fn given(corpus: &Corpus, scheduler: Arc<dyn SchedulerPort>) -> Given {
-    let collected = rows::types::Collector::default();
-    let kept: Arc<dyn RowsPort> = Arc::new(rows::factory::collect(collected.clone()));
+    let collected = row_sink::types::Collector::default();
+    let kept: Arc<dyn RowSinkPort> = Arc::new(row_sink::factory::collect(collected.clone()));
     let files = files(corpus, CopyNaming::Input, 1, 1);
     lint(
         corpus,
@@ -664,8 +664,8 @@ pub fn allocation(corpus: &Corpus, library: &dyn Fn(&[u8])) {
             1,
         )
     };
-    let counted = Arc::new(TallyRowsFake::default());
-    for sink in [Arc::new(TallyRowsFake::default()), Arc::clone(&counted)] {
+    let counted = Arc::new(TallyRowSinkFake::default());
+    for sink in [Arc::new(TallyRowSinkFake::default()), Arc::clone(&counted)] {
         let facts = Arc::new(facts::factory::memory());
         lint(
             corpus,
@@ -737,14 +737,14 @@ pub fn call_count(corpus: &Corpus) {
     agrees(&given(corpus, Arc::new(SchedulerFake::default())), corpus);
     let counted = |times: usize| -> (usize, usize) {
         let facts = Arc::new(FactsFake::default());
-        let found = Arc::new(TallyRowsFake::default());
+        let found = Arc::new(TallyRowSinkFake::default());
         let files = files(corpus, CopyNaming::Input, 1, times);
         lint(
             corpus,
             Arc::new(SchedulerFake::default()),
             Arc::<FactsFake>::clone(&facts),
             files,
-            Arc::<TallyRowsFake>::clone(&found),
+            Arc::<TallyRowSinkFake>::clone(&found),
         );
         let tallies = found.counts.lock().unwrap_or_else(PoisonError::into_inner);
         (tallies.values().sum(), facts.calls())
@@ -768,7 +768,7 @@ struct Written {
 /// Reads `copies` copies of every input, lints them and runs a query over them, and answers how
 /// many bytes were written and how many the lint's store holds.
 fn write_all(corpus: &Corpus, copies: u32) -> Written {
-    let linted = Arc::new(BytesRowsFake::default());
+    let linted = Arc::new(BytesRowSinkFake::default());
     let files = files(
         corpus,
         CopyNaming::Copy {
@@ -784,20 +784,20 @@ fn write_all(corpus: &Corpus, copies: u32) -> Written {
         Arc::new(SchedulerFake::default()),
         facts,
         files,
-        Arc::<BytesRowsFake>::clone(&linted),
+        Arc::<BytesRowSinkFake>::clone(&linted),
         Arc::clone(&store),
     );
     // What the store holds is what letting it go gives back.
     let holding = dhat::HeapStats::get().curr_bytes;
     drop(store);
     let kept = holding.saturating_sub(dhat::HeapStats::get().curr_bytes);
-    let written = Arc::new(BytesRowsFake::default());
+    let written = Arc::new(BytesRowSinkFake::default());
     run_query(
         corpus,
         copies,
         1,
         u64::MAX,
-        Arc::<BytesRowsFake>::clone(&written),
+        Arc::<BytesRowSinkFake>::clone(&written),
     );
     Written {
         bytes: linted.bytes.load(Ordering::Relaxed) + written.bytes.load(Ordering::Relaxed),
@@ -806,7 +806,13 @@ fn write_all(corpus: &Corpus, copies: u32) -> Written {
 }
 
 /// Runs the query over `copies` copies of every input, each as long as `times` of it, writing at most `limit` rows into `written`.
-fn run_query(corpus: &Corpus, copies: u32, times: usize, limit: u64, written: Arc<BytesRowsFake>) {
+fn run_query(
+    corpus: &Corpus,
+    copies: u32,
+    times: usize,
+    limit: u64,
+    written: Arc<BytesRowSinkFake>,
+) {
     let files = files(
         corpus,
         CopyNaming::Copy {
@@ -876,7 +882,7 @@ pub(crate) fn output_path(corpus: &Corpus, library: &dyn Fn(&[u8])) {
             copies,
             TIMES,
             limit,
-            Arc::new(BytesRowsFake::default()),
+            Arc::new(BytesRowSinkFake::default()),
         );
         let run = i64::try_from(blocks() - before).unwrap_or(i64::MAX);
         let parsing = blocks();

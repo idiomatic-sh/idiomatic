@@ -264,7 +264,7 @@ pub(super) fn observation_table<'facts>(
 pub(super) fn observation_slot(
     program: &PreparedProgram,
     rule: RuleIndex,
-    input: ryo_values::domain::observations::types::ObservationBindingId,
+    input: ryo_values::domain::plan_parts::types::ObservationBindingId,
 
 ) -> Result<ObservationKey, OperatingError> {
     let slots = &program

@@ -4,8 +4,8 @@ use ryo_core::inbound::use_cases::validate::errors::ValidateError as CoreError;
 use ryo_core::inbound::use_cases::validate::types::ValidateRequest as CoreRequest;
 use ryo_relations::domain::relations::types::Span as CoreSpan;
 use ryo_values::domain::descriptions::types::ValidateReport as CoreReport;
-use ryo_values::domain::plan_parts::types::{RefusedKind, RefusedQuery};
-use ryo_values::domain::program::types::QueryOrigin as CoreOrigin;
+use ryo_values::domain::program::types::RefusedKind;
+use ryo_values::domain::program::types::RefusedQuery;
 
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::hosted::types::{
@@ -37,8 +37,10 @@ impl TryFrom<&str> for RyoQlQuery {
         if text.trim().is_empty() {
             return Err(RyoQlQuerySchemaError);
         }
-        let bundle = ryo_values::domain::program::service::standalone(text)
-            .map_err(|_error| RyoQlQuerySchemaError)?;
+        let bundle = ryo_values::domain::program::service::standalone(
+            ryo_values::domain::query_tokens::types::QuerySpelling(text),
+        )
+        .map_err(|_error| RyoQlQuerySchemaError)?;
         Ok(Self::from_bundle(bundle))
     }
 }
@@ -55,8 +57,10 @@ impl crate::domain::query::types::QueryModuleSource {
     /// Returns [`QueryBundleError::BlankSourceId`] when `id` is blank.
     pub fn try_new(id: &str, text: &str) -> Result<Self, QueryBundleError> {
         Ok(Self::from_parts(
-            ryo_values::domain::program::service::source_id(id)
-                .map_err(QueryBundleError::from_internal)?,
+            ryo_values::domain::program::service::source_id(
+                ryo_values::domain::query_tokens::types::QuerySpelling(id),
+            )
+            .map_err(QueryBundleError::from_internal)?,
             text.into(),
         ))
     }
@@ -79,7 +83,7 @@ impl crate::domain::query::types::QueryModuleCatalog {
                 .into_iter()
                 .map(crate::domain::query::types::QueryModuleSource::into_document),
         )
-        .map(Self::from_catalog)
+        .map(|catalog| Self::from_catalog(catalog.0))
         .map_err(QueryBundleError::from_internal)
     }
 }
@@ -107,11 +111,19 @@ impl RyoQlQuery {
         if root_text.trim().is_empty() {
             return Err(QueryBundleError::BlankRootText);
         }
-        let root_id = source_id(root_id).map_err(QueryBundleError::from_internal)?;
+        let root_id = source_id(ryo_values::domain::query_tokens::types::QuerySpelling(
+            root_id,
+        ))
+        .map_err(QueryBundleError::from_internal)?;
         let root = document_source(root_id, root_text);
-        query_bundle_with_catalog(root, std::sync::Arc::clone(modules.catalog()))
-            .map(Self::from_bundle)
-            .map_err(QueryBundleError::from_internal)
+        query_bundle_with_catalog(
+            root,
+            ryo_values::domain::query_tokens::types::ModuleCatalog(std::sync::Arc::clone(
+                modules.catalog(),
+            )),
+        )
+        .map(Self::from_bundle)
+        .map_err(QueryBundleError::from_internal)
     }
 }
 
@@ -192,15 +204,21 @@ fn refused(error: RefusedQuery) -> ValidateError {
 }
 
 /// Keep the standalone SDK's error variants while locating errors in named bundle sources.
-fn located(error: ValidateError, origin: Option<CoreOrigin>) -> ValidateError {
+fn located(
+    error: ValidateError,
+    origin: ryo_values::domain::query_tokens::types::Attribution,
+) -> ValidateError {
     match origin {
-        Some(origin) if origin.source_id.0.as_ref() != "<query>" || !origin.trace.is_empty() => {
+        ryo_values::domain::query_tokens::types::Attribution::Located(origin)
+            if origin.source_id.0.as_ref() != "<query>" || !origin.trace.is_empty() =>
+        {
             ValidateError::Located {
                 origin: crate::domain::query::errors::QueryOrigin::from_internal(origin),
                 error: Box::new(error),
             }
         }
-        None | Some(_) => error,
+        ryo_values::domain::query_tokens::types::Attribution::Unlocated
+        | ryo_values::domain::query_tokens::types::Attribution::Located(_) => error,
     }
 }
 
@@ -211,7 +229,7 @@ impl From<ValidateErrorSchema<'_>> for ValidateError {
             CoreError::Uncompilable { error } => {
                 let origin = error.origin.clone();
                 match origin {
-                    Some(origin)
+                    ryo_values::domain::query_tokens::types::Attribution::Located(origin)
                         if origin.source_id.0.as_ref() != "<query>" || !origin.trace.is_empty() =>
                     {
                         ValidateError::Located {

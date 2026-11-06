@@ -39,12 +39,13 @@ use ryo_relations::domain::relations::types::Words;
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::records::types::{
-    GoverningRules, HandedNotes, Handing, PlacedRule, Record, RuleFrontier,
+    GoverningRules, HandedNotes, Handing, Record, RuleFrontier,
 };
+use ryo_values::domain::row_texts::types::PlacedRule;
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_facts::types::{ArenaBytes, Bucket};
+use ryo_values::domain::stored_findings::types::StoredFileNumber;
 use ryo_values::domain::stores::types::BucketsWanted;
-use ryo_values::domain::stores::types::StoredFileNumber;
 use ryo_values::domain::table_words::service::pack_onto;
 use ryo_values::domain::table_words::types::WordSlice;
 
@@ -501,7 +502,7 @@ impl FileAnalysis {
                             &mut tables.rendered,
                         )
                         .map_err(|error| {
-                            crate::domain::rules::service::failed(
+                            ryo_values::domain::rule_requests::service::failed(
                                 &visit.setting.ids[rule.0],
                                 &error,
                             )
@@ -537,7 +538,7 @@ impl FileAnalysis {
                         }
                     }
                     RootOutcome::Failed(error) => {
-                        return Err(crate::domain::rules::service::failed(
+                        return Err(ryo_values::domain::rule_requests::service::failed(
                             &visit.setting.ids[rule.0],
                             &error,
                         )
@@ -931,7 +932,10 @@ impl FileAnalysis {
         record: &Record,
     ) -> Result<(), FileAnalysisError> {
         let setting = &visit.setting;
-        if !matches!(setting.reuse, ryo_values::domain::stores::types::Reuse::Cross(_)) {
+        if !matches!(
+            setting.reuse,
+            ryo_values::domain::stores::types::Reuse::Cross(_)
+        ) {
             return Ok(());
         }
         let ran = match &record.outcome {
@@ -950,7 +954,12 @@ impl FileAnalysis {
                 },
                 governing: &handed.governing,
                 partials: &handed.partials,
-                observations: handed.observations.as_ref(),
+                observations: match &handed.observations {
+                    ryo_values::domain::records::types::HandedReadiness::Recorded(root) => {
+                        Some(root)
+                    }
+                    ryo_values::domain::records::types::HandedReadiness::Unrecorded => None,
+                },
                 buckets: handed
                     .buckets
                     .iter()
@@ -1050,7 +1059,9 @@ impl FileAnalysis {
                     &loaded
                 }
             };
-            Self::hand_words_again(worker, setting, number, bucket, proof, words, &map, &mut out)?;
+            Self::hand_words_again(
+                worker, setting, number, bucket, proof, words, &map, &mut out,
+            )?;
         }
         Ok(())
     }
@@ -1073,10 +1084,9 @@ impl FileAnalysis {
         out: &mut Words,
     ) -> Result<(), FileAnalysisError> {
         use ryo_values::domain::records::types::FrontierCoverage;
-        let rule = RuleIndex(usize::try_from(proof.rule).unwrap_or(usize::MAX));
-        let input = usize::try_from(proof.input).unwrap_or(usize::MAX);
-        let valid = proof.version == 1
-            && setting.program.rule_digest(rule).ok() == Some(proof.rule_digest)
+        let rule = RuleIndex(usize::try_from(proof.rule.0).unwrap_or(usize::MAX));
+        let input = usize::try_from(proof.input.0).unwrap_or(usize::MAX);
+        let valid = setting.program.rule_digest(rule).ok() == Some(proof.rule_digest)
             && setting
                 .program
                 .frontiers(rule)
@@ -1088,7 +1098,7 @@ impl FileAnalysis {
                 .get(rule.0)
                 .and_then(|rule| rule.frontier_capture.get(input))
                 .copied()
-                == Some(true)
+                == Some(ryo_values::domain::run_metadata::types::FrontierFeed::Captured)
             && setting.first_bucket.get(rule.0).copied().map(|first| {
                 ryo_values::domain::stored_facts::service::frontier_bucket(
                     first,
@@ -1275,10 +1285,11 @@ impl FileAnalysis {
     ) -> Result<(), FileAnalysisError> {
         if asked.executable == EngineRows::Asked {
             match executable {
-                ExecutablePermission::Posix(value) => {
+                posix @ (ExecutablePermission::PosixExecutable
+                | ExecutablePermission::PosixNotExecutable) => {
                     worker.facts.columns_mut()?.write(FilesystemExecutableRow {
                         path: number,
-                        executable: if value {
+                        executable: if posix == ExecutablePermission::PosixExecutable {
                             ryo_relations::domain::relations::types::Flag::Raised
                         } else {
                             ryo_relations::domain::relations::types::Flag::Lowered
@@ -1341,7 +1352,7 @@ impl FileAnalysis {
         let layout = setting.program.observation_layout();
         let (observations, slots) = match (tables.current_observations.as_deref(), layout) {
             (Some(map), Some((layout, slots))) => {
-                let count = ryo_values::domain::observations::types::ObservationReadinessCount(
+                let count = ryo_values::domain::records::types::ObservationReadinessCount(
                     u32::try_from(slots.len()).ok()?,
                 );
                 let checked = ryo_values::domain::observations::service::validate_frontiers(

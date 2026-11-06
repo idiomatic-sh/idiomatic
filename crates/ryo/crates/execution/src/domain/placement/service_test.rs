@@ -7,10 +7,11 @@ use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
 use ryo_matching::inbound::use_cases::matching::{
     interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
 };
-use ryo_values::cases::{Case, CaseName, Expect, Word, run, selects};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::files::types::Hits;
 use ryo_values::domain::runs::types::RuleNumber;
+use ryo_values::selects;
 
 /// What a row of the cases does: the scopes of the rules, and the path placed.
 type Input = (
@@ -92,7 +93,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_glob_that_is_not_one_is_refused"),
         word: Word::Refuses,
         input: || (BAD_GLOB, "a.rs"),
-        expect: Expect::Refusal(|error| selects(matches!(error, MatchingError::BadGlob { .. }))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, MatchingError::BadGlob { .. }))),
     },
 ];
 

@@ -5,7 +5,7 @@ use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, JoinColumn, Side},
     plans::types::Operation,
-    rows::{errors::TableModelError, service::column_in},
+    rows::{errors::RowsError, service::column_in},
 };
 
 /// Project columns without consulting a row; a repeated column remains repeated.
@@ -18,7 +18,7 @@ pub(crate) fn projected(
         .map(|column| {
             column_in(kinds, *column)
                 .copied()
-                .ok_or_else(|| TableModelError::NoSuchColumn { index: column.0 }.into())
+                .ok_or_else(|| RowsError::NoSuchColumn { index: column.0 }.into())
         })
         .collect()
 }

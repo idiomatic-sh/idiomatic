@@ -13,14 +13,14 @@ use ryo_relations::domain::relations::types::{
 use super::service::read_tree_cells;
 use crate::domain::table_cells::types::{CellsRead, ColumnPlaces, TreeForm, TreeRows};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::rows::errors::TableModelError;
+use ryo_values::domain::rows::errors::RowsError;
 
 /// A scenario: what a row asks of the part.
-type Input = fn() -> Result<Value, TableModelError>;
+type Input = fn() -> Result<Value, RowsError>;
 /// What a scenario answers: a yes as one, or a count.
 type Value = usize;
 /// Why a scenario is refused.
-type Failure = TableModelError;
+type Failure = RowsError;
 
 /// A row of a tree is decided on the cells asked for, and the others are left as they were.
 fn reads_only_the_cells_asked_of_a_tree() -> Value {

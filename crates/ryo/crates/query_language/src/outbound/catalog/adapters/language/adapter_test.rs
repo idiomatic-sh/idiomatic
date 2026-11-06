@@ -3,7 +3,8 @@
 use ryo_relations::domain::relations::types::Relation;
 
 use super::adapter::CatalogLanguageAdapter;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 use crate::outbound::catalog::errors::CatalogError;
 use crate::outbound::catalog::fixtures::contract::check;
 use crate::outbound::catalog::fixtures::fake::CatalogFake;
@@ -37,7 +38,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("fails_when_the_catalog_cannot_be_read"),
         word: Word::Fails,
         input: || Scenario::Unreadable,
-        expect: Expect::Refusal(|error| selects(matches!(error, CatalogError::Unavailable { .. }))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, CatalogError::Unavailable { .. }))),
     },
 ];
 

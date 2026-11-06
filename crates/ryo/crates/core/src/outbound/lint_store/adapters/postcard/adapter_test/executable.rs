@@ -8,8 +8,8 @@ fn known_true_false_and_unavailable_observations_roundtrip_through_the_store() {
     let root = tempfile::tempdir().unwrap();
     let adapter = store_in(root.path(), "permissions");
     for observation in [
-        ExecutablePermission::Posix(false),
-        ExecutablePermission::Posix(true),
+        ExecutablePermission::PosixNotExecutable,
+        ExecutablePermission::PosixExecutable,
         ExecutablePermission::Unknown,
         ExecutablePermission::Unsupported,
     ] {

@@ -6,7 +6,7 @@ use crate::domain::render::types::Rendered;
 use crate::domain::workers::service::add_fed;
 use ryo_execution::inbound::use_cases::execution::types::RowsFed;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
-use ryo_values::domain::run_metadata::types::RuleRunMetadata;
+use ryo_values::domain::run_metadata::types::{CrossFileSteps, RuleRunMetadata};
 use ryo_values::domain::runs::types::RuleId;
 
 /// Whether the plan has cross-file steps.
@@ -29,7 +29,7 @@ pub(crate) fn todo_list(metadata: &[RuleRunMetadata], ids: &[RuleId]) -> Vec<Tod
     metadata
         .iter()
         .enumerate()
-        .filter(|(_, rule)| rule.has_cross_steps)
+        .filter(|(_, rule)| rule.has_cross_steps == CrossFileSteps::Present)
         .map(|(rule, _)| Todo {
             rule: RuleIndex(rule),
             id: MetadataUseCaseImpl.rule_id(ids, RuleIndex(rule)),
@@ -62,7 +62,8 @@ pub(crate) fn settle(
     unknowns.append(&mut incomplete);
     observations
 }
-use ryo_values::domain::plans::types::{Plan, StepScope};
+use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::plan_parts::types::StepScope;
 
 use ryo_execution::inbound::use_cases::metadata::{
     interface::MetadataUseCase, use_case::MetadataUseCaseImpl,

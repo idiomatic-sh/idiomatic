@@ -1,5 +1,6 @@
 //! Public names for decoded byte-string literals.
 use super::item::BytesLiteralColumn;
+use crate::domain::relations::constants::OCCURRENCE;
 /// Query relation name.
 #[must_use]
 pub fn name() -> &'static str {
@@ -14,7 +15,7 @@ pub fn summary() -> &'static str {
 #[must_use]
 pub fn column_name(column: BytesLiteralColumn) -> &'static str {
     match column {
-        BytesLiteralColumn::Occurrence => "occurrence",
+        BytesLiteralColumn::Occurrence => OCCURRENCE,
         BytesLiteralColumn::Owner => "owner",
         BytesLiteralColumn::HexValue => "hex-value",
         BytesLiteralColumn::File => "file",

@@ -1,13 +1,14 @@
 //! The `validation` service's cases, on query text read by the real syntax adapter.
 
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::validation::errors::ValidationError;
-use crate::domain::validation::service::validate;
+use crate::domain::validation::service::validate_with_observations;
 use crate::outbound::catalog::fixtures::fake::CatalogFake;
 use crate::outbound::catalog::interface::CatalogPort as _;
-use crate::outbound::syntax::factory::winnow;
+use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
-use ryo_values::domain::program::types::QueryView;
+use crate::selects;
+use ryo_values::domain::query_tokens::types::QueryView;
 
 /// The query text a row gives.
 type Input = &'static str;
@@ -38,7 +39,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNKNOWN_RELATION,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidationError::UnknownRelation { .. }))
+            selects!(matches!(error, ValidationError::UnknownRelation { .. }))
         }),
     },
     Case {
@@ -46,7 +47,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNKNOWN_STEP,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidationError::UnknownStep { .. }))
+            selects!(matches!(error, ValidationError::UnknownStep { .. }))
         }),
     },
     Case {
@@ -54,7 +55,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNKNOWN_PARAMETER,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidationError::UnknownParameter { .. }))
+            selects!(matches!(error, ValidationError::UnknownParameter { .. }))
         }),
     },
     Case {
@@ -62,7 +63,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNKNOWN_OPERATION,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidationError::UnknownOperation { .. }))
+            selects!(matches!(error, ValidationError::UnknownOperation { .. }))
         }),
     },
     Case {
@@ -70,7 +71,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || MISSING_ARGUMENT,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidationError::MissingArgument { .. }))
+            selects!(matches!(error, ValidationError::MissingArgument { .. }))
         }),
     },
     Case {
@@ -78,7 +79,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || DUPLICATE_STEP,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidationError::DuplicateStep { .. }))
+            selects!(matches!(error, ValidationError::DuplicateStep { .. }))
         }),
     },
     Case {
@@ -86,7 +87,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || JOIN_WITHOUT_COLUMNS,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidationError::JoinNeedsColumns { .. }))
+            selects!(matches!(error, ValidationError::JoinNeedsColumns { .. }))
         }),
     },
 ];
@@ -97,7 +98,7 @@ fn subject(text: Input) -> Result<Value, Failure> {
         .read(QueryView(text))
         .expect("the row's text is readable");
     let catalog = CatalogFake::default().relations().expect("the fake lists");
-    validate(&program, &catalog.0, &[]).map(|()| true)
+    validate_with_observations(&program, &catalog.0, &[], &[]).map(|()| true)
 }
 
 #[test]

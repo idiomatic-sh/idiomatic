@@ -1,5 +1,6 @@
 //! Query vocabulary for binding-event.
 use super::item::BindingEventColumn;
+use crate::domain::relations::constants::{OCCURRENCE, ORDINAL};
 /// Query relation name.
 #[must_use]
 pub fn name() -> &'static str {
@@ -14,12 +15,12 @@ pub fn summary() -> &'static str {
 #[must_use]
 pub fn column_name(column: BindingEventColumn) -> &'static str {
     match column {
-        BindingEventColumn::Occurrence => "occurrence",
+        BindingEventColumn::Occurrence => OCCURRENCE,
         BindingEventColumn::Name => "name",
         BindingEventColumn::Scope => "scope",
         BindingEventColumn::Phase => "phase",
         BindingEventColumn::Kind => "kind",
-        BindingEventColumn::Ordinal => "ordinal",
+        BindingEventColumn::Ordinal => ORDINAL,
         BindingEventColumn::File => "file",
         BindingEventColumn::Span => "span",
     }

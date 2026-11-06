@@ -71,11 +71,11 @@ where
 
 /// Visit every closed-set symbol that spells `text`. Several vocabularies may
 /// give different IDs to the same word, so callers must not assume one hit.
-pub fn symbols_with_text(text: &str, mut visit: impl FnMut(Symbol)) {
+pub fn symbols_with_text(text: NameText<'_>, mut visit: impl FnMut(Symbol)) {
     macro_rules! visit_set {
         ($kind:ty) => {
             for term in <$kind>::iter() {
-                if term.text().0 == text {
+                if term.text() == text {
                     visit(term_symbol(term));
                 }
             }
@@ -99,7 +99,11 @@ pub const fn unknown_symbol(reason: UnknownReason) -> Symbol {
 #[must_use]
 pub fn unknown_reason(symbol: Symbol) -> Option<UnknownReason> {
     let within = symbol.0.checked_sub(start_of(WordBlock::Unknown).0)?;
-    u8::try_from(within).ok().map(UnknownReason) // a symbol past the block of unknown reasons is no reason, which is the question asked
+    // A symbol past the block of unknown reasons is no reason, which is the question asked.
+    match u8::try_from(within) {
+        Ok(number) => Some(UnknownReason(number)),
+        Err(_) => None,
+    }
 }
 
 /// The words of a closed set, in the order of their numbers.
@@ -146,7 +150,10 @@ pub fn is_term(symbol: Symbol) -> Wordness {
 #[must_use]
 pub fn term_text(symbol: Symbol) -> Option<NameText<'static>> {
     let within = symbol.0.checked_sub(TERM_BASE)?;
-    let number = u8::try_from(within % BLOCK_SIZE).ok()?; // a place in a block past the words of a closed set is no word, which is the question asked
+    // A place in a block past the words of a closed set is no word, which is the question asked.
+    let Ok(number) = u8::try_from(within % BLOCK_SIZE) else {
+        return None;
+    };
     match within / BLOCK_SIZE {
         0 => DeclarationKind::from_repr(number).map(Term::text),
         1 => ParameterKind::from_repr(number).map(Term::text),

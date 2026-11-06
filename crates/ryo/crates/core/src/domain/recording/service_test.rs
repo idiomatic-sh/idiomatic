@@ -10,7 +10,8 @@ use ryo_values::domain::files::types::{CorpusEntry, FileNumber, FileSize, Nanose
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as PlanInput, RepeatedRows, StepId,
 };
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::records::types::{FileOutcome, Kept, Ran, Record, Unreadable};
 use ryo_values::domain::stored_facts::types::{
     ArenaBase, Bucket, Digest, KeptWords, LanguageNumber,
@@ -283,9 +284,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             worker.captured = vec![Kept {
                 bucket: Bucket(1),
                 proof: ryo_values::domain::records::types::FrontierProof {
-                    version: 1,
-                    rule: 0,
-                    input: 0,
+                    rule: ryo_values::domain::records::types::ProducerRule(0),
+                    input: ryo_values::domain::records::types::FrontierOrdinal(0),
                     rule_digest: Digest([17; 16]),
                     coverage: ryo_values::domain::records::types::FrontierCoverage::Complete,
                 },
@@ -311,9 +311,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 BucketWords {
                     bucket: Bucket(1),
                     proof: ryo_values::domain::records::types::FrontierProof {
-                        version: 1,
-                        rule: 0,
-                        input: 0,
+                        rule: ryo_values::domain::records::types::ProducerRule(0),
+                        input: ryo_values::domain::records::types::FrontierOrdinal(0),
                         rule_digest: Digest([17; 16]),
                         coverage: ryo_values::domain::records::types::FrontierCoverage::Complete,
                     },
@@ -323,9 +322,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 BucketWords {
                     bucket: Bucket(9),
                     proof: ryo_values::domain::records::types::FrontierProof {
-                        version: 1,
-                        rule: 1,
-                        input: 0,
+                        rule: ryo_values::domain::records::types::ProducerRule(1),
+                        input: ryo_values::domain::records::types::FrontierOrdinal(0),
                         rule_digest: Digest([18; 16]),
                         coverage: ryo_values::domain::records::types::FrontierCoverage::Complete,
                     },

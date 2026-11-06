@@ -96,7 +96,7 @@ pub enum AnswerShape {
     /// and the places, the rows of the cross-file steps last. With more than one rule, the rule's id comes first and the columns are
     /// every rule's, each empty in the rows of a rule that has none of that heading. At most this many rows are written, and every
     /// row is counted. Nothing is kept for the next run.
-    Rows(crate::domain::records::types::RowTotal),
+    Rows(crate::domain::row_texts::types::RowTotal),
 }
 
 /// A rule, by its place among the rules of a run.

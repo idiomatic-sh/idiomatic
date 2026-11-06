@@ -8,8 +8,7 @@ pub(crate) fn portable_fault(
     match fault {
         DerivedFault::MissingInput { position } => OperatingError::MissingInput { position },
         DerivedFault::NoSuchColumn { column } => {
-            ryo_values::domain::rows::errors::TableModelError::NoSuchColumn { index: column.0 }
-                .into()
+            ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: column.0 }.into()
         }
         DerivedFault::DuplicateOrder => OperatingError::DuplicateOrder,
         DerivedFault::DuplicateDfsOrder => OperatingError::DuplicateDfsOrder,

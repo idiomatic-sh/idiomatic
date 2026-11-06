@@ -18,7 +18,7 @@ use ryo_relations::domain::terms::service::term_symbol;
 use ryo_relations::domain::terms::types::{DeclarationKind, NameText, Symbol};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, LiteralText, Operand, ParameterId, QueryLiteral, Test,
+    ColumnIndex, PlanComparison, LiteralText, Operand, ParameterId, QueryLiteral, Test,
 };
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rows::types::Table;
@@ -57,11 +57,11 @@ fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<()
         Arc::new(Selector {
             relation: Relation::Defines,
             identity: Arc::new(crate::domain::table_model::types::SelectionIdentity {
-                comparisons: vec![Comparison {
+                comparisons: vec![PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(0)),
                     right: Operand::Literal(QueryLiteral::Text(word)),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
                 bindings: Vec::new(),
             }),
@@ -140,17 +140,17 @@ fn absent_symbol_literal_preserves_ordered_errors() -> Result<(), Failure> {
         kinds: &[CellKind::Symbol],
         columns: &columns,
     };
-    let absent = Comparison {
+    let absent = PlanComparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(0)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText("absent".into()))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
-    let bad = Comparison {
+    let bad = PlanComparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(0)),
         right: Operand::Parameter(ParameterId(0)),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let selector = |comparisons| {
         Arc::new(Selector {
@@ -260,11 +260,11 @@ fn empty_literal_preserves_malformed_symbol_fallback() -> Result<(), Failure> {
     let selector = Arc::new(Selector {
         relation: Relation::Defines,
         identity: Arc::new(crate::domain::table_model::types::SelectionIdentity {
-            comparisons: vec![Comparison {
+            comparisons: vec![PlanComparison {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(0)),
                 right: Operand::Literal(QueryLiteral::Text(LiteralText("".into()))),
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             }],
             bindings: Vec::new(),
         }),

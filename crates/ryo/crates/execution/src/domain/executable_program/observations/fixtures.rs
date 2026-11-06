@@ -11,16 +11,14 @@ use crate::domain::{
 };
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::domain::plan_parts::types::{Input, StepId};
-use ryo_values::domain::plans::types::{Operation, Plan, StepScope};
+use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::{
-    observations::types::{
-        BoundObservationInput, ObservationBindingId, ObservationBindingName, ObservationColumn,
-        ObservationColumnName, ObservationIndex, ObservationName, ObservationReadinessLayout,
-        PlanObservation,
-    },
-    plan_parts::types::{ColumnIndex, HostedNumber, ParameterId},
+    observations::types::{BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName, ObservationName, PlanObservation},
+    plan_parts::types::{ColumnIndex, HostedNumber, ParameterId, ObservationBindingId},
     plans::types::Emit,
     stored_facts::types::Digest,
+    records::types::{ObservationReadinessLayout, ObservationIndex},
 };
 
 pub(crate) struct DeclaredFileProducers;

@@ -24,6 +24,9 @@ enum Scenario {
     Written,
     /// A number past the last word of its block.
     PastTheLast,
+    /// Every decodable closed term, including future blocks and noncontiguous discriminants in the
+    /// reserved term range, must be found again by its text.
+    EveryClosedTerm,
 }
 
 /// What a row of the cases asks.
@@ -35,6 +38,7 @@ type Failure = ();
 
 fn subject(input: Input) -> Result<Value, Failure> {
     let symbol = match input {
+        Scenario::EveryClosedTerm => return Ok(every_closed_term_is_found_by_its_text()),
         Scenario::Declaration(word) => term_symbol(word),
         Scenario::Parameter(word) => term_symbol(word),
         Scenario::Value(word) => term_symbol(word),
@@ -48,6 +52,23 @@ fn subject(input: Input) -> Result<Value, Failure> {
         .flatten()
         .map(|text| text.0))
 }
+
+/// The text lookup must cover every currently decodable closed term.
+fn every_closed_term_is_found_by_its_text() -> Value {
+    for raw in super::constants::TERM_BASE..=u32::MAX {
+        let symbol = Symbol(raw);
+        let Some(text) = term_text(symbol) else {
+            continue;
+        };
+        let mut found = Vec::new();
+        symbols_with_text(text, |candidate| found.push(candidate));
+        assert!(found.contains(&symbol), "missing {symbol:?} = {}", text.0);
+    }
+    Some(ALL_TERMS_FOUND)
+}
+
+/// What the closed-term sweep answers when every term is found.
+const ALL_TERMS_FOUND: &str = "every closed term found";
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -99,24 +120,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::PastTheLast,
         expect: Expect::Value(None),
     },
+    Case {
+        name: CaseName("every_closed_term_is_found_by_its_text"),
+        word: Word::Succeeds,
+        input: || Scenario::EveryClosedTerm,
+        expect: Expect::Value(Some(ALL_TERMS_FOUND)),
+    },
 ];
 
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
-}
-
-/// The text lookup must cover every currently decodable closed term, including
-/// future blocks and noncontiguous discriminants in the reserved term range.
-#[test]
-fn text_lookup_covers_every_closed_term() {
-    for raw in super::constants::TERM_BASE..=u32::MAX {
-        let symbol = Symbol(raw);
-        let Some(text) = term_text(symbol) else {
-            continue;
-        };
-        let mut found = Vec::new();
-        symbols_with_text(text.0, |candidate| found.push(candidate));
-        assert!(found.contains(&symbol), "missing {symbol:?} = {}", text.0);
-    }
 }

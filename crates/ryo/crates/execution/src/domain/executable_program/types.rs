@@ -5,8 +5,8 @@ use crate::domain::{
 };
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::{
-    plan_parts::types::StepId,
-    plans::types::{Operation, StepScope},
+    plan_parts::types::{StepId, StepScope},
+    plans::types::Operation,
 };
 use std::sync::Arc;
 
@@ -250,7 +250,7 @@ pub(crate) trait ProducerPartitions {
     fn observation(
         &self,
         rule: RuleIndex,
-        input: ryo_values::domain::observations::types::ObservationBindingId,
+        input: ryo_values::domain::plan_parts::types::ObservationBindingId,
     ) -> Result<PartitionRequirement, OperatingError>;
 }
 

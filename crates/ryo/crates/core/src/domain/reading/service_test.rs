@@ -12,13 +12,13 @@ use crate::domain::{
 use ryo_execution::inbound::use_cases::metadata::interface::Recovery;
 use ryo_relations::domain::relations::types::{Relation, WorkerNumber};
 use ryo_values::domain::{
-    plan_parts::types::ColumnIndex,
-    plan_parts::types::{Input, InputNumber, StepId},
-    plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
+    plan_parts::types::{ColumnIndex, Input, InputNumber, StepId, StepScope},
+    plans::types::{Emit, Operation, Plan, PlanStep},
     records::{
         service::keep,
-        types::{Cell as Typed, CellText, FrontierCoverage, FrontierProof, Kept},
+        types::{FrontierCoverage, FrontierProof, Kept},
     },
+    row_texts::types::{Cell as Typed, CellText},
     runs::types::RuleNumber,
     stored_facts::{
         service::frontier_bucket,
@@ -36,9 +36,8 @@ fn a_file_is_counted_and_its_text_begins_where_the_worker_left_off() {
     tables.captured.push(Kept {
         bucket: Bucket(1),
         proof: FrontierProof {
-            version: 1,
-            rule: 0,
-            input: 0,
+            rule: ryo_values::domain::records::types::ProducerRule(0),
+            input: ryo_values::domain::records::types::FrontierOrdinal(0),
             rule_digest: Digest([0; 16]),
             coverage: FrontierCoverage::Complete,
         },

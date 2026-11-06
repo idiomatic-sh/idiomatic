@@ -15,7 +15,7 @@ use ryo_values::domain::{
         BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
         ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
     },
-    program::types::QueryBundle,
+    query_tokens::types::QueryBundle,
     runs::types::MemoryBytes,
 };
 use std::sync::atomic::AtomicUsize;
@@ -74,12 +74,12 @@ impl QueryLanguagePort for ProjectQueries {
         _hosted: &[HostedRelation],
         observations: &[BoundObservationInput],
     ) -> Result<Plan, QueryLanguageError> {
-        let first = bundle.root.text.as_ref() == "first";
+        let first = &*bundle.root.text == "first";
         let mut plan = QueryLanguageFake::selecting().plan;
         plan.observation_inputs = observations.to_vec();
         let from = if self.route == BudgetRoute::Named && !first {
             PlanInput::BoundObservation(
-                ryo_values::domain::observations::types::ObservationBindingId(0),
+                ryo_values::domain::plan_parts::types::ObservationBindingId(0),
             )
         } else {
             PlanInput::Step(StepId(0))

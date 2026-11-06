@@ -3,7 +3,7 @@
 use super::service::{declarations, identity, kind_of};
 use super::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::records::types::Cell;
+use crate::domain::row_texts::types::Cell;
 use ryo_relations::domain::relations::types::CellKind;
 
 /// What a row of the cases asks of the service.

@@ -6,8 +6,17 @@ use ryo_relations::domain::relations::types::CellKind;
 use super::types::ArgumentSlot;
 use ryo_values::domain::plan_parts::types::Direction;
 use ryo_values::domain::plan_parts::types::Side;
-use ryo_values::domain::plans::types::ParameterType;
-use ryo_values::domain::plans::types::QueryOperator;
+use ryo_values::domain::query_bindings::types::ParameterType;
+use ryo_values::domain::query_operators::types::QueryOperator;
+
+/// The text of the relation argument, and of the relation keyword.
+pub(crate) const RELATION: &str = "relation";
+
+/// The text of the destination argument.
+pub(crate) const DESTINATION: &str = "destination";
+
+/// The word a declaration writes for a flag.
+pub(crate) const BOOLEAN: &str = "boolean";
 
 /// Every operator, in the order the language documents them.
 pub(crate) const OPERATORS: [QueryOperator; 25] = [
@@ -83,7 +92,7 @@ pub(crate) fn operator_named(text: &str) -> Option<QueryOperator> {
 pub(crate) fn slot_name(slot: ArgumentSlot) -> &'static str {
     match slot {
         ArgumentSlot::Node => "node",
-        ArgumentSlot::Context => "context",
+        ArgumentSlot::Context => ryo_relations::domain::relations::constants::CONTEXT,
         ArgumentSlot::MaxLine => "max-line",
         ArgumentSlot::TabWidth => "tab-width",
         ArgumentSlot::Texts => "texts",
@@ -122,12 +131,12 @@ pub(crate) fn slot_name(slot: ArgumentSlot) -> &'static str {
         ArgumentSlot::Captures => "captures",
         ArgumentSlot::Text => "text",
         ArgumentSlot::Word => "word",
-        ArgumentSlot::Relation => "relation",
+        ArgumentSlot::Relation => RELATION,
         ArgumentSlot::Direction => "direction",
         ArgumentSlot::Domain => "domain",
         ArgumentSlot::Edges => "edges",
         ArgumentSlot::Source => ryo_relations::domain::relations::constants::SOURCE,
-        ArgumentSlot::Destination => "destination",
+        ArgumentSlot::Destination => DESTINATION,
         ArgumentSlot::Column => ryo_values::domain::descriptions::constants::COLUMN,
         ArgumentSlot::Sets => "sets",
     }
@@ -201,7 +210,7 @@ pub(crate) fn parameter_kind_named(declared: &str) -> Option<ParameterType> {
         .or_else(|| declared.strip_prefix("set<"))
         .and_then(|rest| rest.strip_suffix('>'));
     let scalar = |text: &str| match text {
-        "boolean" => Some(CellKind::Flag),
+        BOOLEAN => Some(CellKind::Flag),
         "integer" => Some(CellKind::Number),
         "string" | "path" | "glob" => Some(CellKind::Symbol),
         _ => None,
@@ -221,8 +230,10 @@ pub(crate) fn parameter_kind_named(declared: &str) -> Option<ParameterType> {
 pub(crate) fn fragment_scalar_kind_named(declared: &str) -> Option<ParameterType> {
     match declared {
         "string" | "text" => Some(ParameterType::Text),
-        "integer" | "number" => Some(ParameterType::Number),
-        "boolean" => Some(ParameterType::Flag),
+        "integer" | ryo_relations::domain::relations::constants::NUMBER => {
+            Some(ParameterType::Number)
+        }
+        BOOLEAN => Some(ParameterType::Flag),
         _ => None,
     }
 }
@@ -235,8 +246,8 @@ pub(crate) fn relation_cell_kind_named(declared: &str) -> Option<CellKind> {
         "symbol" | "text" => Some(CellKind::Symbol),
         "file" => Some(CellKind::File),
         "span" => Some(CellKind::Span),
-        "number" | "integer" => Some(CellKind::Number),
-        "flag" | "boolean" => Some(CellKind::Flag),
+        ryo_relations::domain::relations::constants::NUMBER | "integer" => Some(CellKind::Number),
+        "flag" | BOOLEAN => Some(CellKind::Flag),
         _ => None,
     }
 }

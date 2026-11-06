@@ -17,5 +17,5 @@ pub struct Compiled {
 #[derive(Clone, Copy, Debug)]
 pub enum ObservationIdentity {
     Independent,
-    Named(ryo_values::domain::observations::types::ObservationReadinessLayout),
+    Named(ryo_values::domain::records::types::ObservationReadinessLayout),
 }

@@ -7,9 +7,8 @@ use crate::domain::{
     file_program::types::ResolvedObservationProducer,
     operating::errors::OperatingError,
 };
-use ryo_values::domain::observations::types::{
-    ObservationBindingName, ObservationColumnName, ObservationIndex,
-};
+use ryo_values::domain::observations::types::{ObservationBindingName, ObservationColumnName};
+use ryo_values::domain::records::types::ObservationIndex;
 
 fn fixture(frontier: FrontierSlots) -> Fixture {
     super::fixtures::fixture(

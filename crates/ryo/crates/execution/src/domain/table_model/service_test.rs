@@ -14,15 +14,16 @@ use ryo_relations::domain::relations::types::{
     CellKind, FileId, KindBits, Offset, Position, Span, Value as Cell,
 };
 use ryo_relations::domain::terms::types::NameText;
+use ryo_values::selects;
 
 use super::types::Rows;
 use crate::domain::positions::service_test::prepared_index;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use ryo_derived::domain::contract::types::On;
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
-use ryo_values::cases::{Case, CaseName, Expect, Word, run, selects};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::rows::errors::TableModelError;
+use ryo_values::domain::rows::errors::RowsError;
 use {
     super::service::count_of, super::service::kinds_of, super::service::matching,
     super::service::read_row, ryo_values::domain::rows::service::cell,
@@ -175,20 +176,20 @@ fn compact_materialization_preserves_ragged_and_zero_width_legacy_rows() {
 }
 
 /// A scenario: what a row asks of the part.
-type Input = fn() -> Result<Value, TableModelError>;
+type Input = fn() -> Result<Value, RowsError>;
 /// What a scenario answers: a yes as one, or a count.
 type Value = usize;
 /// Why a scenario is refused.
-type Failure = TableModelError;
+type Failure = RowsError;
 
-fn finds_the_second_cell() -> Result<Value, TableModelError> {
+fn finds_the_second_cell() -> Result<Value, RowsError> {
     let row = [Cell::Number(Integer(1)), Cell::Number(Integer(2))];
     Ok(usize::from(
         cell(&row, ColumnIndex(1))? == Cell::Number(Integer(2)),
     ))
 }
 
-fn misses_a_cell() -> Result<Value, TableModelError> {
+fn misses_a_cell() -> Result<Value, RowsError> {
     cell(&[Cell::Number(Integer(1))], ColumnIndex(4)).map(|_| 0)
 }
 
@@ -208,7 +209,7 @@ fn pairs(rows: &[[i64; 2]]) -> Table {
 }
 
 /// Looking up a key finds the rows that have it, in the order they came, whatever the order of the table.
-fn finds_the_rows_of_a_key() -> Result<Value, TableModelError> {
+fn finds_the_rows_of_a_key() -> Result<Value, RowsError> {
     let table = pairs(&[[2, 1], [1, 2], [2, 3], [3, 4]]);
     let on = [ColumnIndex(0)];
     let order = prepared_index(&Rows::Computed(&table), &on)?;
@@ -232,7 +233,7 @@ fn finds_the_rows_of_a_key() -> Result<Value, TableModelError> {
 }
 
 /// Among many keys, a key finds exactly the rows that have it, still in the order they came.
-fn finds_a_key_among_many() -> Result<Value, TableModelError> {
+fn finds_a_key_among_many() -> Result<Value, RowsError> {
     let rows: Vec<[i64; 2]> = (0..700).map(|each| [each % 7, each]).collect();
     let table = pairs(&rows);
     let on = [ColumnIndex(0)];
@@ -436,9 +437,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_position_the_row_lacks_is_refused"),
         word: Word::Refuses,
         input: || misses_a_cell,
-        expect: Expect::Refusal(|error| {
-            selects(matches!(error, TableModelError::NoSuchColumn { .. }))
-        }),
+        expect: Expect::Refusal(|error| selects!(matches!(error, RowsError::NoSuchColumn { .. }))),
     },
 ];
 
@@ -606,7 +605,7 @@ fn stored_keys_reuse_empty_indexes_and_validate_columns_before_rows() {
     );
     assert_eq!(
         prepared_index(&Rows::Stored(vacant), &[ColumnIndex(1)]).err(),
-        Some(TableModelError::NoSuchColumn { index: 1 })
+        Some(RowsError::NoSuchColumn { index: 1 })
     );
     let order = prepared_index(&Rows::Stored(view), &[]).expect("cartesian");
     assert_eq!(

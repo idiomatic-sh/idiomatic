@@ -15,7 +15,7 @@ use {ryo_values::domain::rows::service::push_row, ryo_values::domain::rows::serv
 
 use ryo_values::domain::hosted::service::kind_of;
 use ryo_values::domain::hosted::types::HostRelation;
-use ryo_values::domain::records::types::Cell;
+use ryo_values::domain::row_texts::types::Cell;
 
 /// Historical readable presentation, retained to prove the typed identity is independent of its delimiters.
 #[cfg(test)]

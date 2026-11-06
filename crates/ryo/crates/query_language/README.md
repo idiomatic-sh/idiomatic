@@ -8,9 +8,21 @@ The RyoQL front end: the parser, the lowering and the plan a query compiles to; 
 
 The `query_language` domain's `assembling` concept: a validated program lowered to a plan, by calling the concepts that lower each kind of step.
 
+### binding
+
+The `query_language` domain's `binding` concept: what a call binds its fragment's inputs and parameters to.
+
 ### calling
 
 The `query_language` domain's `calling` concept: the calls that shape rows lowered to steps: `project`, `extend`, `join` and `antijoin`, and the dispatch of every call.
+
+### capture_pushing
+
+The `query_language` domain's `capture_pushing` concept: the filters made before the capture they follow, so the capture matches only the rows they let through.
+
+### checking
+
+The `query_language` domain's `checking` concept: the checks of a module before its calls are expanded.
 
 ### combining
 
@@ -19,6 +31,14 @@ The `query_language` domain's `combining` concept: the set calls (`union`, `inte
 ### comparing
 
 The `query_language` domain's `comparing` concept: the sides of a comparison, resolved, and the test checked against their types.
+
+### cutting
+
+The `query_language` domain's `cutting` concept: the rows a file hands over, cut to the columns the steps after the files ask.
+
+### expanding
+
+The `query_language` domain's `expanding` concept: the expansion of every imported-fragment call into fresh, identity-linked steps.
 
 ### fusing
 
@@ -30,7 +50,7 @@ The `query_language` domain's `idioms` concept: the pairs of functions with equa
 
 ### inlining
 
-The `query_language` domain's `inlining` concept: the views of a relation read in place, and the rows handed over cut to the columns asked.
+The `query_language` domain's `inlining` concept: the views of a relation read in place, and what an operation reads of them.
 
 ### joining
 
@@ -38,7 +58,7 @@ The `query_language` domain's `joining` concept: the join a `select` writes, and
 
 ### linking
 
-Resolves fragment imports, input bindings and source identities before lowering.
+The `query_language` domain's `linking` concept: the located refusals of linking and the source ids it reads.
 
 ### lowering
 
@@ -60,6 +80,14 @@ The `query_language` domain's `pruning` concept: the steps nothing reads, droppe
 
 The `query_language` domain's `pushing` concept: the lookups into a join of edges and elements made before the join.
 
+### remapping
+
+The `query_language` domain's `remapping` concept: the rewriting of a fragment step's identities, inputs and parameters at a call site.
+
+### rendering
+
+The `query_language` domain's `rendering` concept: the calls that read the physical text of the syntax tree, its rendering of a node and the width of a replacement.
+
 ### reshaping
 
 The `query_language` domain's `reshaping` concept: the calls that count, digest, capture, split or rank rows, lowered to steps.
@@ -72,13 +100,21 @@ The `query_language` domain's `resolving` concept: where the names a query write
 
 The `query_language` domain's `rewriting` concept: the idiom of a plan that says in many rows what one aggregate says in few: the pairs of functions whose sets of texts are equal.
 
+### rooting
+
+The `query_language` domain's `rooting` concept: the identities and origins the root of a bundle is given.
+
 ### selecting
 
 The `query_language` domain's `selecting` concept: a `select` lowered to the join, the filter and the projection the query wrote.
 
+### spanning
+
+The `query_language` domain's `spanning` concept: the calls that compose the byte spans of rows and project their start and end.
+
 ### substituting
 
-The `query_language` domain's `substituting` concept: validating and lowering literal regular-expression replacement and ordered request/reply matching, including their keys, ordering and output columns.
+The `query_language` domain's `substituting` concept: validating and lowering literal regular-expression replacement, source occurrence matching and ordered request/reply matching, including their keys, ordering and output columns.
 
 ### syntax
 

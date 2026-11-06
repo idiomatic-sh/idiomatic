@@ -1,22 +1,25 @@
 //! Conservatively fuse exclusively source-keyed closure consumers into physical demand joins.
 
-use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Input, Operand, ReachLookup, RepeatedRows, StepId, Test,
-};
-use ryo_values::domain::plans::service::{inputs_of, named};
-use ryo_values::domain::plans::types::{Operation, PlanStep, StepScope};
-
-/// Treat an unrepresentable plan index as out of range on narrow targets.
-fn offset(value: u32) -> usize {
-    usize::try_from(value).unwrap_or(usize::MAX)
-}
+use crate::domain::fusing::types::EmptyColumns;
+use crate::domain::fusing::types::RootStep;
+use crate::domain::fusing::types::pulled_graph::value::PulledGraph;
+use crate::domain::fusing::types::pulled_graph::value::graph_source;
+use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::plan_parts::types::Input;
+use ryo_values::domain::plan_parts::types::ReachLookup;
+use ryo_values::domain::plan_parts::types::RepeatedRows;
+use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::plans::service::inputs_of;
+use ryo_values::domain::plans::service::named;
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::plans::types::PlanStep;
 
 /// One closure and the pure projection map through which a consumer sees its logical RHS.
 #[derive(Clone)]
 struct Rooted {
     /// Original closure step; all of its remaining consumers must qualify together.
-    root: usize,
+    root: RootStep,
     /// Physical complete/pure graph input.
     edges: Input,
     /// Endpoint/partition metadata and logical output map.
@@ -41,7 +44,7 @@ impl<'a> DemandClosure<'a> {
     pub(crate) fn rewrite(&self) -> Vec<PlanStep> {
         let mut rooted: Vec<Option<Rooted>> = Vec::with_capacity(self.steps.len());
         for (index, step) in self.steps.iter().enumerate() {
-            rooted.push(self.root(index, step, &rooted));
+            rooted.push(self.root(RootStep(index), step, &rooted));
         }
         let candidates: Vec<_> = self
             .steps
@@ -50,8 +53,11 @@ impl<'a> DemandClosure<'a> {
             .collect();
         let mut safe = vec![true; self.steps.len()];
         for protected in self.protected {
-            if let Some(root) = rooted.get(offset(protected.0)).and_then(Option::as_ref) {
-                safe[root.root] = false;
+            if let Some(root) = rooted
+                .get(usize::try_from(protected.0).unwrap_or(usize::MAX))
+                .and_then(Option::as_ref)
+            {
+                safe[root.root.0] = false;
             }
         }
         for (index, step) in self.steps.iter().enumerate() {
@@ -59,18 +65,21 @@ impl<'a> DemandClosure<'a> {
                 let Input::Step(id) = input else {
                     continue;
                 };
-                let Some(root) = rooted.get(offset(id.0)).and_then(Option::as_ref) else {
+                let Some(root) = rooted
+                    .get(usize::try_from(id.0).unwrap_or(usize::MAX))
+                    .and_then(Option::as_ref)
+                else {
                     continue;
                 };
                 let wrapper = rooted[index]
                     .as_ref()
-                    .is_some_and(|child| child.root == root.root && index != root.root);
+                    .is_some_and(|child| child.root == root.root && index != root.root.0);
                 let keyed = candidates[index]
                     .as_ref()
                     .is_some_and(|child| child.root == root.root)
                     && matches!(&step.operation, Operation::Join { right, .. } if right == input);
                 if !wrapper && !keyed {
-                    safe[root.root] = false;
+                    safe[root.root.0] = false;
                 }
             }
         }
@@ -78,7 +87,7 @@ impl<'a> DemandClosure<'a> {
             .iter()
             .zip(candidates)
             .map(|(step, rooted)| {
-                let Some(rooted) = rooted.filter(|root| safe[root.root]) else {
+                let Some(rooted) = rooted.filter(|root| safe[root.root.0]) else {
                     return step.clone();
                 };
                 let Operation::Join {
@@ -111,7 +120,7 @@ impl<'a> DemandClosure<'a> {
     }
 
     /// Resolve only ordinary closure and non-distinct, predicate-free column wrappers.
-    fn root(&self, index: usize, step: &PlanStep, before: &[Option<Rooted>]) -> Option<Rooted> {
+    fn root(&self, index: RootStep, step: &PlanStep, before: &[Option<Rooted>]) -> Option<Rooted> {
         if step.scope != StepScope::PerFile {
             return None;
         }
@@ -122,8 +131,12 @@ impl<'a> DemandClosure<'a> {
                 destination,
                 keys,
             } => {
-                let (edges, source, destination, keys) =
-                    graph_source(*edges, *source, *destination, keys, self.steps)?;
+                let PulledGraph {
+                    input: edges,
+                    source,
+                    destination,
+                    keys,
+                } = graph_source(*edges, *source, *destination, keys, self.steps)?;
                 Some(Rooted {
                     root: index,
                     edges,
@@ -131,9 +144,11 @@ impl<'a> DemandClosure<'a> {
                         source,
                         destination,
                         keys: keys.clone(),
-                        columns: (0..keys.len() + 2)
-                            .map(|column| ColumnIndex(u32::try_from(column).unwrap_or(u32::MAX)))
-                            .collect(),
+                        columns: std::iter::successors(Some(ColumnIndex(0)), |previous| {
+                            Some(ColumnIndex(previous.0.saturating_add(1)))
+                        })
+                        .take(keys.len() + 2)
+                        .collect(),
                     },
                 })
             }
@@ -141,12 +156,24 @@ impl<'a> DemandClosure<'a> {
                 from: Input::Step(id),
                 columns,
                 distinct: RepeatedRows::Kept,
-            } => project(before.get(offset(id.0))?.as_ref()?, columns, false),
+            } => project(
+                before
+                    .get(usize::try_from(id.0).unwrap_or(usize::MAX))?
+                    .as_ref()?,
+                columns,
+                EmptyColumns::KeepsNone,
+            ),
             Operation::Select {
                 from: Input::Step(id),
                 comparisons,
                 kept,
-            } if comparisons.is_empty() => project(before.get(offset(id.0))?.as_ref()?, kept, true),
+            } if comparisons.is_empty() => project(
+                before
+                    .get(usize::try_from(id.0).unwrap_or(usize::MAX))?
+                    .as_ref()?,
+                kept,
+                EmptyColumns::KeepsEvery,
+            ),
             Operation::Select { .. }
             | Operation::Project { .. }
             | Operation::Extend { .. }
@@ -193,10 +220,12 @@ fn candidate(step: &PlanStep, rooted: &[Option<Rooted>]) -> Option<Rooted> {
     if step.scope != StepScope::PerFile || !filter.is_empty() || !view.is_empty() {
         return None;
     }
-    let root = rooted.get(offset(id.0))?.as_ref()?;
+    let root = rooted
+        .get(usize::try_from(id.0).unwrap_or(usize::MAX))?
+        .as_ref()?;
     if let Input::Step(left) = left
         && rooted
-            .get(offset(left.0))
+            .get(usize::try_from(left.0).unwrap_or(usize::MAX))
             .and_then(Option::as_ref)
             .is_some_and(|other| other.root == root.root)
     {
@@ -204,7 +233,12 @@ fn candidate(step: &PlanStep, rooted: &[Option<Rooted>]) -> Option<Rooted> {
     }
     let bound: Vec<_> = right_on
         .iter()
-        .map(|column| root.reach.columns.get(offset(column.0)).copied())
+        .map(|column| {
+            root.reach
+                .columns
+                .get(usize::try_from(column.0).unwrap_or(usize::MAX))
+                .copied()
+        })
         .collect::<Option<_>>()?;
     (0..=root.reach.keys.len())
         .all(|column| bound.contains(&ColumnIndex(u32::try_from(column).unwrap_or(u32::MAX))))
@@ -212,166 +246,18 @@ fn candidate(step: &PlanStep, rooted: &[Option<Rooted>]) -> Option<Rooted> {
 }
 
 /// Empty Select keeps every column; empty Project keeps no columns.
-fn project(root: &Rooted, columns: &[ColumnIndex], empty_identity: bool) -> Option<Rooted> {
+fn project(root: &Rooted, columns: &[ColumnIndex], empty: EmptyColumns) -> Option<Rooted> {
     let mut result = root.clone();
-    if !empty_identity || !columns.is_empty() {
+    if matches!(empty, EmptyColumns::KeepsNone) || !columns.is_empty() {
         result.reach.columns = columns
             .iter()
-            .map(|column| root.reach.columns.get(offset(column.0)).copied())
+            .map(|column| {
+                root.reach
+                    .columns
+                    .get(usize::try_from(column.0).unwrap_or(usize::MAX))
+                    .copied()
+            })
             .collect::<Option<_>>()?;
     }
     Some(result)
-}
-
-/// Positive closure ignores parallel duplicate edges. Pull input views through only when every
-/// projected physical column is still validated by an endpoint/partition check. This is NOT a
-/// generic Project/Axis rewrite: direct axes and outer closure projections retain their bags.
-fn graph_source(
-    mut input: Input,
-    source: ColumnIndex,
-    destination: ColumnIndex,
-    keys: &[ColumnIndex],
-    steps: &[PlanStep],
-) -> Option<(Input, ColumnIndex, ColumnIndex, Vec<ColumnIndex>)> {
-    let mut used = keys.to_vec();
-    used.extend([source, destination]);
-    for _ in 0..=steps.len() {
-        let Input::Step(id) = input else {
-            break;
-        };
-        let step = steps.get(offset(id.0))?;
-        if step.scope != StepScope::PerFile {
-            return None;
-        }
-        let view = match &step.operation {
-            Operation::Project { from, columns, .. } => Some((*from, columns.as_slice())),
-            Operation::Select {
-                from,
-                comparisons,
-                kept,
-            } if comparisons.is_empty() => Some((*from, kept.as_slice())),
-            Operation::Select { .. }
-            | Operation::Extend { .. }
-            | Operation::Join { .. }
-            | Operation::Union { .. }
-            | Operation::Intersection { .. }
-            | Operation::Difference { .. }
-            | Operation::Antijoin { .. }
-            | Operation::GroupCount { .. }
-            | Operation::GroupDigest { .. }
-            | Operation::Capture { .. }
-            | Operation::Rank { .. }
-            | Operation::Replace { .. }
-            | Operation::OrderedMatch { .. }
-            | Operation::Words { .. }
-            | Operation::Axis { .. }
-            | Operation::Closure { .. }
-            | Operation::OrderedDfs { .. }
-            | Operation::Cycles { .. }
-            | Operation::Rows { .. }
-            | Operation::Hosted { .. }
-            | Operation::SpanBounds { .. }
-            | Operation::SourceMatches { .. }
-            | Operation::RenderSyntax { .. }
-            | Operation::FitsRendered { .. }
-            | Operation::SpanBetween { .. } => None,
-        };
-        let Some((from, columns)) = view else {
-            break;
-        };
-        if columns.is_empty() && matches!(step.operation, Operation::Select { .. }) {
-            input = from;
-            continue;
-        }
-        let mapped = used
-            .iter()
-            .map(|column| columns.get(offset(column.0)).copied())
-            .collect::<Option<Vec<_>>>()?;
-        if columns.iter().any(|column| !mapped.contains(column)) {
-            break;
-        }
-        used = mapped;
-        input = from;
-    }
-    if !graph_input(input, steps) {
-        return None;
-    }
-    let destination = used.pop()?;
-    let source = used.pop()?;
-    Some((input, source, destination, used))
-}
-
-/// Stored relations and the already supported pure selection/projection chains alone qualify.
-fn graph_input(mut input: Input, steps: &[PlanStep]) -> bool {
-    for _ in 0..=steps.len() {
-        match input {
-            Input::Relation(Relation::SyntaxTree | Relation::SyntaxChild)
-            | Input::BoundObservation(_) => return false,
-            Input::Relation(_) => return true,
-            Input::Step(id) => {
-                let Some(step) = steps
-                    .get(offset(id.0))
-                    .filter(|step| step.scope == StepScope::PerFile)
-                else {
-                    return false;
-                };
-                input = match &step.operation {
-                    Operation::Project {
-                        from,
-                        distinct: RepeatedRows::Kept,
-                        ..
-                    } => *from,
-                    Operation::Select {
-                        from, comparisons, ..
-                    } if comparisons.iter().all(pure) => *from,
-                    Operation::Select { .. }
-                    | Operation::Project { .. }
-                    | Operation::Extend { .. }
-                    | Operation::Join { .. }
-                    | Operation::Union { .. }
-                    | Operation::Intersection { .. }
-                    | Operation::Difference { .. }
-                    | Operation::Antijoin { .. }
-                    | Operation::GroupCount { .. }
-                    | Operation::GroupDigest { .. }
-                    | Operation::Capture { .. }
-                    | Operation::Rank { .. }
-                    | Operation::Replace { .. }
-                    | Operation::OrderedMatch { .. }
-                    | Operation::Words { .. }
-                    | Operation::Axis { .. }
-                    | Operation::Closure { .. }
-                    | Operation::OrderedDfs { .. }
-                    | Operation::Cycles { .. }
-                    | Operation::Rows { .. }
-                    | Operation::Hosted { .. }
-                    | Operation::SpanBounds { .. }
-                    | Operation::SourceMatches { .. }
-                    | Operation::RenderSyntax { .. }
-                    | Operation::FitsRendered { .. }
-                    | Operation::SpanBetween { .. } => return false,
-                };
-            }
-        }
-    }
-    false
-}
-
-/// Error-sensitive functions/patterns stay in their original owner-local execution path.
-fn pure(comparison: &ryo_values::domain::plan_parts::types::Comparison) -> bool {
-    !matches!(comparison.left, Operand::Function(_))
-        && !matches!(comparison.right, Operand::Function(_))
-        && matches!(
-            comparison.test,
-            Test::Equal
-                | Test::NotEqual
-                | Test::LessThan
-                | Test::LessThanOrEqual
-                | Test::GreaterThan
-                | Test::GreaterThanOrEqual
-                | Test::StartsWith
-                | Test::EndsWith
-                | Test::In
-                | Test::NotIn
-        )
 }

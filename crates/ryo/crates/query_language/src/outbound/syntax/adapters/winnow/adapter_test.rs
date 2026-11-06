@@ -3,14 +3,19 @@
 
 use super::adapter::SyntaxWinnowAdapter;
 use super::constants::{GRAMMAR, Keyword, Mark, keyword_text, mark_text};
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::syntax::errors::SyntaxError;
 use crate::outbound::syntax::fixtures::contract::check;
 use crate::outbound::syntax::interface::SyntaxPort as _;
-use ryo_values::domain::program::types::{
-    ArgumentValue as Argument, ColumnName, Columns, Condition, Expression, Filter, Joining,
-    Program, QueryView, SourceReference, WordText, WrittenFunction, WrittenLiteral,
-    WrittenOperand, WrittenParameter, WrittenRelation, WrittenTest,
+use crate::selects;
+use ryo_values::domain::descriptions::types::ColumnName;
+use ryo_values::domain::program::types::WrittenProgram;
+use ryo_values::domain::query_syntax::types::{
+    ArgumentValue as Argument, Columns, Condition, Expression, Filter, Joining, SourceReference,
+    WrittenFunction, WrittenOperand, WrittenTest,
+};
+use ryo_values::domain::query_tokens::types::{
+    QueryView, WordText, WrittenLiteral, WrittenParameter, WrittenRelation,
 };
 use winnow::Parser as _;
 
@@ -40,7 +45,6 @@ const LIST_AFTER_IN: &str = "let found = select * from \"function\" where name i
 const LIST_AT: usize = 51;
 
 const DANGLING_OR: &str = "let a = select * from \"syntax-tree\" where kind = \"a\" or;\nemit a subject \"file\" key(\"span\");";
-
 
 /// What a row of the cases asks of the adapter.
 #[derive(Clone, Copy)]
@@ -73,6 +77,8 @@ enum Scenario {
     ListAfterIn,
     /// Checks the grammar table: how many of its entries break the check.
     Grammar(Coverage),
+    /// A check that drives the adapter itself and asserts what it reads; it answers no steps.
+    Check(fn()),
 }
 
 /// What a row of the cases asks of the adapter.
@@ -85,6 +91,10 @@ type Failure = SyntaxError;
 fn subject(scenario: Input) -> Result<Value, Failure> {
     if let Scenario::Grammar(coverage) = scenario {
         return Ok(uncovered(coverage));
+    }
+    if let Scenario::Check(check) = scenario {
+        check();
+        return Ok(0);
     }
     let text = match scenario {
         Scenario::OrderedDfs => {
@@ -99,7 +109,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::FunctionsAndAffixes => FUNCTIONS,
         Scenario::CallAndJoin => IFS_IN_FUNCTIONS,
         Scenario::ListsOfStrings => ANTIJOIN,
-        Scenario::MisspelledKeyword | Scenario::Grammar(_) => MISSPELLED,
+        Scenario::MisspelledKeyword | Scenario::Grammar(_) | Scenario::Check(_) => MISSPELLED,
         Scenario::TwoEmits => TWO_EMITS,
         Scenario::ListAfterIn => LIST_AFTER_IN,
     };
@@ -130,23 +140,23 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         | Scenario::Unclosed
         | Scenario::DanglingOr
         | Scenario::ListAfterIn
-        | Scenario::Grammar(_) => {}
+        | Scenario::Grammar(_)
+        | Scenario::Check(_) => {}
     }
     Ok(program.steps.len())
 }
 
-#[test]
 fn fragment_emit_is_rejected_at_its_original_module_span() {
     use crate::outbound::syntax::errors::SyntaxError;
     use crate::outbound::syntax::interface::SyntaxPort as _;
 
     let bundle = ryo_values::domain::program::service::query_bundle(
         ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id("root").unwrap(),
+            ryo_values::domain::program::service::source_id(ryo_values::domain::query_tokens::types::QuerySpelling("root")).unwrap(),
             "let rows = select id from \"syntax-tree\"; emit rows subject id key(id);",
         ),
         [ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id("fragment").unwrap(),
+            ryo_values::domain::program::service::source_id(ryo_values::domain::query_tokens::types::QuerySpelling("fragment")).unwrap(),
             "output relation<id: node>;\nlet rows = select id from \"syntax-tree\";\nreturn rows;\nemit rows subject id key(id);",
         )],
     )
@@ -160,7 +170,7 @@ fn fragment_emit_is_rejected_at_its_original_module_span() {
 }
 
 /// The test at `place` of a select's `where`, which the row writes with no `or`.
-fn test_at(select: &ryo_values::domain::program::types::Select, place: usize) -> &Filter {
+fn test_at(select: &ryo_values::domain::query_syntax::types::Select, place: usize) -> &Filter {
     let Condition::Test(filter) = &select.filters[place] else {
         panic!("the condition is a test");
     };
@@ -176,7 +186,7 @@ fn alternatives(condition: &Condition) -> Vec<usize> {
 }
 
 /// `a or b and c` of `OR` is one `or` of `a` and of `b and c`.
-fn or_precedence_read(program: &Program) {
+fn or_precedence_read(program: &WrittenProgram) {
     let Expression::Select(select) = &program.steps[0].expression else {
         panic!("the step is a select");
     };
@@ -185,7 +195,7 @@ fn or_precedence_read(program: &Program) {
 }
 
 /// `(a or b) and c and (d and e)` of `GROUPED` is an `or` and three tests: the group with no `or` is read as its tests.
-fn grouped_read(program: &Program) {
+fn grouped_read(program: &WrittenProgram) {
     let Expression::Select(select) = &program.steps[0].expression else {
         panic!("the step is a select");
     };
@@ -197,7 +207,7 @@ fn grouped_read(program: &Program) {
 }
 
 /// The parameter and the `where` filter of `LONG_FILES` are read as written.
-fn parameter_and_filter_read(program: &Program) {
+fn parameter_and_filter_read(program: &WrittenProgram) {
     assert_eq!(&*program.parameters[0].name.0, "max-lines");
     assert_eq!(&*program.parameters[0].kind.0, "integer");
     let Expression::Select(select) = &program.steps[0].expression else {
@@ -216,7 +226,7 @@ fn parameter_and_filter_read(program: &Program) {
 }
 
 /// The float-text filter of `FLOATS` is read with its parameter.
-fn float_text_filter_read(program: &Program) {
+fn float_text_filter_read(program: &WrittenProgram) {
     let Expression::Select(select) = &program.steps[0].expression else {
         panic!("the step is a select");
     };
@@ -231,7 +241,7 @@ fn float_text_filter_read(program: &Program) {
 }
 
 /// The affix filters of `FUNCTIONS` are read with their nested functions.
-fn functions_and_affixes_read(program: &Program) {
+fn functions_and_affixes_read(program: &WrittenProgram) {
     let Expression::Select(select) = &program.steps[0].expression else {
         panic!("the step is a select");
     };
@@ -267,7 +277,7 @@ fn functions_and_affixes_read(program: &Program) {
 }
 
 /// The `axis` call and the join of `IFS_IN_FUNCTIONS` are read.
-fn call_and_join_read(program: &Program) {
+fn call_and_join_read(program: &WrittenProgram) {
     let Expression::Call(call) = &program.steps[1].expression else {
         panic!("the step is a call");
     };
@@ -284,7 +294,7 @@ fn call_and_join_read(program: &Program) {
 }
 
 /// The list of texts `ANTIJOIN` gives an argument is read.
-fn lists_of_strings_read(program: &Program) {
+fn lists_of_strings_read(program: &WrittenProgram) {
     let Expression::Call(call) = &program.steps[0].expression else {
         panic!("the step is a call");
     };
@@ -365,35 +375,75 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_misspelled_keyword_is_unreadable"),
         word: Word::Refuses,
         input: || Scenario::MisspelledKeyword,
-        expect: Expect::Refusal(|error| selects(matches!(error, SyntaxError::Unreadable { .. }))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, SyntaxError::Unreadable { .. }))),
     },
     Case {
         name: CaseName("a_second_emit_line_is_unreadable"),
         word: Word::Refuses,
         input: || Scenario::TwoEmits,
-        expect: Expect::Refusal(|error| selects(matches!(error, SyntaxError::Unreadable { .. }))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, SyntaxError::Unreadable { .. }))),
     },
     Case {
         name: CaseName("an_unclosed_parenthesis_is_unreadable"),
         word: Word::Refuses,
         input: || Scenario::Unclosed,
-        expect: Expect::Refusal(|error| selects(matches!(error, SyntaxError::Unreadable { .. }))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, SyntaxError::Unreadable { .. }))),
     },
     Case {
         name: CaseName("an_or_with_nothing_after_it_is_unreadable"),
         word: Word::Refuses,
         input: || Scenario::DanglingOr,
-        expect: Expect::Refusal(|error| selects(matches!(error, SyntaxError::Unreadable { .. }))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, SyntaxError::Unreadable { .. }))),
     },
     Case {
         name: CaseName("a_list_after_in_is_refused_where_it_begins"),
         word: Word::Refuses,
         input: || Scenario::ListAfterIn,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, SyntaxError::Unreadable { span, .. } if span.start.0 == LIST_AT),
             )
         }),
+    },
+    Case {
+        name: CaseName("fragment_emit_is_rejected_at_its_original_module_span"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(fragment_emit_is_rejected_at_its_original_module_span),
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("fragment_document_reads_typed_signature_nested_import_and_return"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(fragment_document_reads_typed_signature_nested_import_and_return),
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("source_names_keep_written_spelling_separate_from_definition_identity"),
+        word: Word::Succeeds,
+        input: || {
+            Scenario::Check(source_names_keep_written_spelling_separate_from_definition_identity)
+        },
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("numeric_gte_reads_literal_and_parameter_operands_in_both_positions"),
+        word: Word::Succeeds,
+        input: || {
+            Scenario::Check(numeric_gte_reads_literal_and_parameter_operands_in_both_positions)
+        },
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("integer_successor_reads_ordered_text_and_integer_operands"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(integer_successor_reads_ordered_text_and_integer_operands),
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("natural_lt_reads_text_and_parameter_operands"),
+        word: Word::Succeeds,
+        input: || Scenario::Check(natural_lt_reads_text_and_parameter_operands),
+        expect: Expect::Value(0),
     },
 ];
 
@@ -496,7 +546,7 @@ fn misread(name: &str, text: &str) -> usize {
         "expression" => whole(parsers::expression, text),
         "select" => whole(parsers::select, text),
         "select_column" => whole(parsers::select_column, text),
-        "source" => whole(parsers::source, text),
+        ryo_relations::domain::relations::constants::SOURCE => whole(parsers::source, text),
         "join" => whole(parsers::join, text),
         "join_key" => whole(parsers::join_key, text),
         "filters" => whole(parsers::filters, text),
@@ -518,7 +568,7 @@ fn misread(name: &str, text: &str) -> usize {
         "argument" => whole(parsers::argument, text),
         "value" => whole(parsers::value, text),
         "parameter" => whole(parsers::parameter, text),
-        "number" => whole(parsers::number, text),
+        ryo_relations::domain::relations::constants::NUMBER => whole(parsers::number, text),
         "name_or_string" => whole(parsers::name_or_string, text),
         "string" => whole(parsers::string, text),
         "word" => whole(parsers::word, text),
@@ -578,7 +628,6 @@ fn uncovered(coverage: Coverage) -> usize {
     }
 }
 
-#[test]
 fn fragment_document_reads_typed_signature_nested_import_and_return() {
     use winnow::stream::LocatingSlice;
 
@@ -604,15 +653,16 @@ fn fragment_document_reads_typed_signature_nested_import_and_return() {
     assert_eq!(root.imports[0].module.0.as_ref(), "python/ruff/suppress");
 }
 
-#[test]
 fn source_names_keep_written_spelling_separate_from_definition_identity() {
     let parsed = SyntaxWinnowAdapter
         .read(QueryView(
             "let rows = select * from \"function\"; let copy = select * from rows; emit copy subject file key(span);",
         ))
         .expect("the query parses");
-    let first = parsed.steps[0].name.1.expect("definition has identity");
-    let second = parsed.steps[1].name.1.expect("definition has identity");
+    let first = ryo_values::domain::program::service::identity_of(parsed.steps[0].name.1)
+        .expect("definition has identity");
+    let second = ryo_values::domain::program::service::identity_of(parsed.steps[1].name.1)
+        .expect("definition has identity");
     assert_ne!(first, second);
     assert_eq!(parsed.steps[0].name.0.as_ref(), "rows");
     let Expression::Select(select) = &parsed.steps[1].expression else {
@@ -622,11 +672,16 @@ fn source_names_keep_written_spelling_separate_from_definition_identity() {
         panic!("the second step reads the first step");
     };
     assert_eq!(reference.0.as_ref(), "rows");
-    assert_eq!(reference.1, Some(first));
-    assert_eq!(parsed.emit.step.1, Some(second));
+    assert_eq!(
+        ryo_values::domain::program::service::identity_of(reference.1),
+        Some(first)
+    );
+    assert_eq!(
+        ryo_values::domain::program::service::identity_of(parsed.emit.step.1),
+        Some(second)
+    );
 }
 
-#[test]
 fn numeric_gte_reads_literal_and_parameter_operands_in_both_positions() {
     let query = "param limit: integer; let n = select * from \"numeric-literal\" where numeric_gte(value, $limit) and numeric_gte(86400, value); emit n subject file key(span);";
     let program = SyntaxWinnowAdapter
@@ -650,7 +705,6 @@ fn numeric_gte_reads_literal_and_parameter_operands_in_both_positions() {
     assert!(matches!(test_at(select, 1).left, WrittenOperand::Number(_)));
 }
 
-#[test]
 fn integer_successor_reads_ordered_text_and_integer_operands() {
     let program = SyntaxWinnowAdapter.read(QueryView("let a = select * from \"numeric-literal\" where integer_successor(value, 43); emit a subject file key(id);"))
         .expect("successor predicate parses");
@@ -664,7 +718,6 @@ fn integer_successor_reads_ordered_text_and_integer_operands() {
     ));
 }
 
-#[test]
 fn natural_lt_reads_text_and_parameter_operands() {
     let program = SyntaxWinnowAdapter.read(QueryView("param limit: string; let a = select * from \"function\" where natural_lt(name, $limit) and natural_lt(\"item2\", name); emit a subject file key(span);"))
         .expect("natural text predicate parses");

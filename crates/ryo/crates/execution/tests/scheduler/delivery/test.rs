@@ -4,8 +4,8 @@ use ryo_execution::inbound::use_cases::execution::{interface::*, types::*};
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::*;
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Input, StepId},
-    plans::types::{Operation, PlanStep, StepScope},
+    plan_parts::types::{ColumnIndex, Input, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
 };
 use std::cell::Cell;
 

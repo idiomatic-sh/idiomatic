@@ -195,7 +195,7 @@ fn a_query_run_reports_rows_of_ryo_itself() {
         rules: vec![Rule {
             observations: Vec::new(),
             id: RuleId("1".into()),
-            query: ryo_values::domain::program::types::QueryBundle::from(
+            query: ryo_values::domain::query_tokens::types::QueryBundle::from(
                 ryo_values::domain::plan_parts::types::QueryText(
                     "let f = select * from \"function\"; emit f subject file key(span);".into(),
                 ),
@@ -206,7 +206,7 @@ fn a_query_run_reports_rows_of_ryo_itself() {
             exclude: Vec::new(),
         }],
         hosted: Vec::new(),
-        answer: AnswerShape::Rows(ryo_values::domain::records::types::RowTotal(20)),
+        answer: AnswerShape::Rows(ryo_values::domain::row_texts::types::RowTotal(20)),
     };
     tracing::subscriber::with_default(subscriber, || {
         let _report = crate::resources::query::run::composition::build(

@@ -2,8 +2,7 @@
 //! constructor and no inherent impl.
 
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Comparison;
-use ryo_values::domain::plan_parts::types::Input;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plans::types::Operation;
 
 /// How many steps of a chain of filters are passed over.
@@ -20,7 +19,7 @@ pub(crate) struct FilteredElements<'a> {
     /// The columns of the elements the keys name, in order.
     pub view: &'a [ColumnIndex],
     /// The comparisons the elements already satisfy.
-    pub filter: &'a [Comparison],
+    pub filter: &'a [PlanComparison],
 }
 
 /// What the first join of a lookup keeps.
@@ -45,19 +44,7 @@ pub(crate) struct Pushed {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct FilterStep<'a> {
     /// The comparisons it holds.
-    pub comparisons: &'a [Comparison],
+    pub comparisons: &'a [PlanComparison],
     /// The columns it keeps; none named means every column.
     pub kept: &'a [ColumnIndex],
-}
-
-/// A filter after a capture and what moves out of it: the capture, what it reads, the comparisons that move before it and those that stay.
-pub(crate) struct MovedComparisons {
-    /// The place of the capture.
-    pub capture: crate::domain::rewriting::types::StepIndex,
-    /// What the capture reads.
-    pub input: Input,
-    /// The comparisons that are made before the capture.
-    pub before: Vec<Comparison>,
-    /// The comparisons that stay where they are.
-    pub rest: Vec<Comparison>,
 }

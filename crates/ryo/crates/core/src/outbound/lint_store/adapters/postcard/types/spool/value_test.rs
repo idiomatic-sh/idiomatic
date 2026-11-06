@@ -55,7 +55,7 @@ fn spool_lifetime_and_foreign_overflow_truncation_checks_are_not_empty_fallbacks
         .expect("selected first only");
     assert_eq!(loaded.0, [1, 2, 3]);
     assert!(
-        loaded.0.capacity() < usize::try_from(second.length).expect("size"),
+        loaded.0.capacity() < usize::try_from(second.length.0).expect("size"),
         "never read every staged bucket at once"
     );
     assert!(
@@ -74,8 +74,8 @@ fn spool_lifetime_and_foreign_overflow_truncation_checks_are_not_empty_fallbacks
             spool.session,
             spool.length,
             &StagedWords {
-                offset: u64::MAX,
-                length: 1,
+                offset: ryo_values::domain::records::types::PayloadOffset(u64::MAX),
+                length: ryo_values::domain::records::types::PayloadLength(1),
                 ..first
             }
         )
@@ -86,8 +86,8 @@ fn spool_lifetime_and_foreign_overflow_truncation_checks_are_not_empty_fallbacks
             spool.session,
             spool.length,
             &StagedWords {
-                offset: 0,
-                length: u64::MAX,
+                offset: ryo_values::domain::records::types::PayloadOffset(0),
+                length: ryo_values::domain::records::types::PayloadLength(u64::MAX),
                 ..first
             }
         )

@@ -19,8 +19,8 @@ use crate::domain::{
 };
 use ryo_relations::domain::relations::types::{Relation, Value};
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Direction, Input, StepId},
-    plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
+    plan_parts::types::{ColumnIndex, Direction, Input, StepId, StepScope},
+    plans::types::{Emit, Operation, Plan, PlanStep},
 };
 use std::rc::Rc;
 
@@ -215,9 +215,7 @@ impl GraphFixture {
             return Ok(None);
         };
         let mut cache = self.owner.derived.graph_cache()?;
-        self.owner
-            .derived
-            .acquire_graph(plan, &source, &mut cache)
+        self.owner.derived.acquire_graph(plan, &source, &mut cache)
     }
     pub(in crate::application::file_dag) fn domain(
         &self,
@@ -255,8 +253,7 @@ impl GraphFixture {
         walk: &mut GraphWalk,
     ) -> Result<Option<RootAnswer>, OperatingError> {
         let mut cache = self.owner.derived.graph_cache()?;
-        DemandAnswers::new(&self.owner.derived, &mut cache)
-        .reach(access, partition, root, walk)
+        DemandAnswers::new(&self.owner.derived, &mut cache).reach(access, partition, root, walk)
     }
     pub(in crate::application::file_dag) fn nearest(
         &self,
@@ -268,8 +265,14 @@ impl GraphFixture {
         walk: &mut GraphWalk,
     ) -> Result<Option<u32>, OperatingError> {
         let mut cache = self.owner.derived.graph_cache()?;
-        DemandAnswers::new(&self.owner.derived, &mut cache)
-        .nearest(access, domain, root, orientation, local, walk)
+        DemandAnswers::new(&self.owner.derived, &mut cache).nearest(
+            access,
+            domain,
+            root,
+            orientation,
+            local,
+            walk,
+        )
     }
     pub(in crate::application::file_dag) fn index(
         &self,

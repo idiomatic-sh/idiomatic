@@ -10,8 +10,8 @@ use ryo_relations::domain::relations::types::{
     CellKind, FileId, Integer, KindBits, Offset, Position, Span, Value as Cell,
 };
 use ryo_values::domain::files::types::SourceView;
-use ryo_values::domain::records::types::Cell as Typed;
-use ryo_values::domain::records::types::{CellText, RowsTextView};
+use ryo_values::domain::row_texts::types::Cell as Typed;
+use ryo_values::domain::row_texts::types::{CellText, RowsTextView};
 
 use super::service::{finding_parts, lent_row, render_rows, row_cells, rows_answer};
 use super::types::{
@@ -27,7 +27,7 @@ use crate::domain::value_cells::types::Scene;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Heading, StepId};
 use ryo_values::domain::plans::types::{Emit, Plan};
-use ryo_values::domain::records::types::RowTotal;
+use ryo_values::domain::row_texts::types::RowTotal;
 
 /// What a row of the cases does.
 #[derive(Clone, Copy)]

@@ -10,19 +10,19 @@ use ryo_values::domain::{
         ObservationColumn, ObservationColumnName, ObservationName, PlanObservation,
     },
     plan_parts::types::{
-        ColumnIndex, Comparison, Input, JoinColumn, Operand, QueryLiteral, RepeatedRows, Side,
-        StepId, Test,
+        ColumnIndex, PlanComparison, Input, JoinColumn, Operand, QueryLiteral, RepeatedRows, Side,
+        StepId, StepScope, Test,
     },
-    plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
+    plans::types::{Emit, Operation, Plan, PlanStep},
 };
 use std::collections::HashSet;
 
-fn equal(column: ColumnIndex) -> Comparison {
-    Comparison {
+fn equal(column: ColumnIndex) -> PlanComparison {
+    PlanComparison {
         test: Test::Equal,
         left: Operand::Column(column),
         right: Operand::Column(column),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }
 }
 fn plan_of(steps: Vec<Operation>, emit: u32) -> Plan {

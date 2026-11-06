@@ -2,13 +2,14 @@
 
 use super::errors::ObservationInputsError;
 use super::service::validate_inputs;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::domain::hosted::types::{HostedName, HostedRelation};
 use ryo_values::domain::observations::types::{
     BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
 };
-use ryo_values::domain::plans::types::StepScope;
+use ryo_values::domain::plan_parts::types::StepScope;
 
 #[derive(Clone, Copy)]
 enum Scenario {
@@ -50,7 +51,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Input::BlankName,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ObservationInputsError::BlankName))
+            selects!(matches!(error, ObservationInputsError::BlankName))
         }),
     },
     Case {
@@ -58,7 +59,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Input::DuplicateInput,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, ObservationInputsError::SourceCollision { name } if name.0.as_ref() == "observed"),
             )
         }),
@@ -68,7 +69,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Input::CatalogCollision,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, ObservationInputsError::SourceCollision { name } if name.0.as_ref() == "function"),
             )
         }),
@@ -78,7 +79,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Input::HostedCollision,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, ObservationInputsError::SourceCollision { name } if name.0.as_ref() == "host.placed"),
             )
         }),
@@ -88,7 +89,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Input::BlankColumn,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, ObservationInputsError::Column { input, column } if input.0.as_ref() == "observed" && column.0.as_ref() == " "),
             )
         }),
@@ -98,7 +99,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Input::DuplicateColumn,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, ObservationInputsError::Column { input, column } if input.0.as_ref() == "observed" && column.0.as_ref() == "id"),
             )
         }),

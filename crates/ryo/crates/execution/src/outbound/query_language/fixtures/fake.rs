@@ -3,7 +3,7 @@ use super::super::errors::QueryLanguageError;
 use super::super::interface::QueryLanguagePort;
 use ryo_values::domain::{
     descriptions::types::ValidateReport, hosted::types::HostedRelation, plans::types::Plan,
-    program::types::QueryBundle,
+    query_tokens::types::QueryBundle,
 };
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -73,7 +73,9 @@ impl QueryLanguagePort for QueryLanguageFake {
 }
 fn compiler_refusal() -> QueryLanguageError {
     use ryo_relations::domain::relations::types::{Offset, Span};
-    use ryo_values::domain::plan_parts::types::{RefusalMessage, RefusedKind, RefusedQuery};
+    use ryo_values::domain::program::types::RefusalMessage;
+    use ryo_values::domain::program::types::RefusedKind;
+    use ryo_values::domain::program::types::RefusedQuery;
     QueryLanguageError::Refused {
         error: RefusedQuery {
             kind: RefusedKind::Invalid,
@@ -82,7 +84,7 @@ fn compiler_refusal() -> QueryLanguageError {
                 start: Offset(0),
                 end: Offset(0),
             },
-            origin: None,
+            origin: ryo_values::domain::query_tokens::types::Attribution::Unlocated,
         },
     }
 }

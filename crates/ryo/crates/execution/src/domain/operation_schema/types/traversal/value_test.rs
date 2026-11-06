@@ -207,9 +207,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("ordered_dfs_checks_endpoint_columns"),
         word: Word::Refuses,
         input: || Scenario::MissingEndpoint,
-        expect: Expect::Error(OperatingError::Table(TableModelError::NoSuchColumn {
-            index: 99,
-        })),
+        expect: Expect::Error(OperatingError::Table(RowsError::NoSuchColumn { index: 99 })),
     },
     Case {
         name: CaseName("traversal_missing_input_remains_explicit"),
@@ -227,4 +225,4 @@ fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
 
-use ryo_values::domain::rows::errors::TableModelError;
+use ryo_values::domain::rows::errors::RowsError;

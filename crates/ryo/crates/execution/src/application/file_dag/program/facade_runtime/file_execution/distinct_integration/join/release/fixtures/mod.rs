@@ -26,9 +26,9 @@ impl OperatorsUseCase for OrderedPort {
 }
 /// The error every refusing port raises, as the owner reports it.
 pub(super) fn refused() -> OperatingError {
-    OperatingError::Table(
-        ryo_values::domain::rows::errors::TableModelError::NoSuchColumn { index: REFUSAL },
-    )
+    OperatingError::Table(ryo_values::domain::rows::errors::RowsError::NoSuchColumn {
+        index: REFUSAL,
+    })
 }
 /// Three source rows whose numbers are 1, 3 and 2, with the strategy fixture's own schema.
 pub(super) fn ordered_sources() -> [Provider<'static>; 2] {

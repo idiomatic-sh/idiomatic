@@ -7,8 +7,8 @@ use ryo_execution::inbound::use_cases::execution::{
 };
 use ryo_relations::domain::relations::types::{FileId, Integer, Relation};
 use ryo_values::domain::{
-    plan_parts::types::{Input, Operand, QueryLiteral, StepId, Test},
-    plans::types::{Operation, PlanStep, StepScope},
+    plan_parts::types::{Input, Operand, QueryLiteral, StepId, StepScope, Test},
+    plans::types::{Operation, PlanStep},
 };
 
 #[test]
@@ -262,8 +262,7 @@ fn full_rule_count_shares_source_decoding_and_ordered_predicate_prefixes() {
 fn shared_prefixes_preserve_distinct_parameter_bindings_and_first_errors() {
     use ryo_values::domain::{
         plan_parts::types::{ParameterId, ParameterName},
-        plans::types::{ParameterType, PlanParameter},
-        query_bindings::types::ParameterBinding,
+        query_bindings::types::{ParameterBinding, ParameterType, PlanParameter},
     };
     let (engine, semantics) = engine();
     let mut authored = authored_request(3);

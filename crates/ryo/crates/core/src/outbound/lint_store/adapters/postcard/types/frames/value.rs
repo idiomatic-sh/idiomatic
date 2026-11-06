@@ -9,9 +9,8 @@ use crate::outbound::lint_store::adapters::postcard::types::{
 };
 use ryo_values::domain::records::types::StagedWords;
 use ryo_values::domain::stored_facts::types::{Bucket, PackedWords};
-use ryo_values::domain::stores::types::{
-    OldWords, StagedRow, StoreSnapshot, StoredFileNumber, StoredWords,
-};
+use ryo_values::domain::stored_findings::types::StoredFileNumber;
+use ryo_values::domain::stores::types::{OldWords, StagedRow, StoreSnapshot, StoredWords};
 use std::collections::BTreeMap;
 use std::io::{BufReader, Read, Seek, SeekFrom, Write};
 
@@ -126,7 +125,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn fresh<'a>(
     let mut spans: Vec<_> = staged.iter().collect();
     spans.sort_by_key(|row| row.ordinal);
     if spans.iter().any(|row| {
-        usize::try_from(row.ordinal)
+        usize::try_from(row.ordinal.0)
             .ok()
             .is_none_or(|ordinal| ordinal >= count)
     }) || spans
@@ -141,7 +140,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn fresh<'a>(
     for ordinal in
         0..u64::try_from(count).map_err(|_| invalid("fresh row count exceeds staging width"))?
     {
-        if spans.peek().is_some_and(|row| row.ordinal == ordinal) {
+        if spans.peek().is_some_and(|row| row.ordinal.0 == ordinal) {
             let row = spans.next().ok_or_else(|| invalid("missing staged row"))?;
             buckets.entry(row.bucket).or_default().push(Frame {
                 file: row.file,
@@ -277,20 +276,25 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn read_old_in(
         .ok_or_else(|| invalid("old bucket span is truncated or overflows"))?;
     let after = words
         .offset
-        .checked_add(words.length)
+        .0
+        .checked_add(words.length.0)
         .filter(|after| *after <= end)
         .ok_or_else(|| invalid("old row payload is truncated or overflows"))?;
-    if words.header <= bucket.start.0 || words.header >= words.offset || words.offset > after {
+    if words.header.0 <= bucket.start.0
+        || words.header.0 >= words.offset.0
+        || words.offset.0 > after
+    {
         return Err(invalid("old row header is outside its bucket"));
     }
-    let length = usize::try_from(words.length)
+    let length = usize::try_from(words.length.0)
         .map_err(|_| invalid("old row payload exceeds addressable memory"))?;
     // Only the two encoded fields belong to this row header. Reading exactly that
     // span avoids byte-at-a-time file reads without prefetching another payload.
     const HEADER_BYTES: usize = 5 + (size_of::<usize>() * 8).div_ceil(7);
     let header_length = words
         .offset
-        .checked_sub(words.header)
+        .0
+        .checked_sub(words.header.0)
         .ok_or_else(|| invalid("old row header is inverted"))?;
     let header_length = usize::try_from(header_length)
         .map_err(|_| invalid("old row header exceeds addressable memory"))?;
@@ -305,19 +309,24 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn read_old_in(
         .try_reserve_exact(total)
         .map_err(std::io::Error::other)?;
     into.0.resize(total, 0);
-    let _position = file.seek(SeekFrom::Start(words.header))?;
+    let _position = file.seek(SeekFrom::Start(words.header.0))?;
     if let Err(error) = file.read_exact(&mut into.0) {
         into.0.clear();
         return Err(error);
     }
     let framing = (|| {
         let mut fields = std::io::Cursor::new(&into.0[..header_length]);
-        let mut cursor = words.header;
-        let number = integer(&mut fields, &mut cursor, words.offset, u64::from(u32::MAX))?;
+        let mut cursor = words.header.0;
+        let number = integer(
+            &mut fields,
+            &mut cursor,
+            words.offset.0,
+            u64::from(u32::MAX),
+        )?;
         let framed_length = integer(
             &mut fields,
             &mut cursor,
-            words.offset,
+            words.offset.0,
             u64::try_from(usize::MAX).unwrap_or(u64::MAX),
         )?;
         Ok::<_, std::io::Error>((number, framed_length, cursor))
@@ -327,7 +336,9 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn read_old_in(
         error
     })?;
     let (number, framed_length, cursor) = framing;
-    if number != u64::from(words.file.0) || framed_length != words.length || cursor != words.offset
+    if number != u64::from(words.file.0)
+        || framed_length != words.length.0
+        || cursor != words.offset.0
     {
         into.0.clear();
         return Err(invalid("old row descriptor does not match its framing"));
@@ -419,7 +430,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn write_bucket(
             Payload::Inline(bytes) => {
                 u64::try_from(bytes.len()).map_err(|_| invalid("inline size overflows"))?
             }
-            Payload::Staged(span) => span.length,
+            Payload::Staged(span) => span.length.0,
             Payload::Old(span) => span.length.0,
         };
         let addressable =

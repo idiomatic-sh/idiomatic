@@ -10,7 +10,7 @@ type Failure = std::convert::Infallible;
 fn frontier_keeps_only_file_to_project_dependencies() {
     let steps = vec![
         plans::PlanStep {
-            scope: plans::StepScope::PerFile,
+            scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
             operation: plans::Operation::Select {
                 from: parts::Input::Relation(Relation::Function),
                 comparisons: vec![],
@@ -18,14 +18,14 @@ fn frontier_keeps_only_file_to_project_dependencies() {
             },
         },
         plans::PlanStep {
-            scope: plans::StepScope::CrossFile,
+            scope: ryo_values::domain::plan_parts::types::StepScope::CrossFile,
             operation: plans::Operation::Union {
                 left: parts::Input::Step(parts::StepId(0)),
                 right: parts::Input::Relation(Relation::SyntaxChild),
             },
         },
         plans::PlanStep {
-            scope: plans::StepScope::CrossFile,
+            scope: ryo_values::domain::plan_parts::types::StepScope::CrossFile,
             operation: plans::Operation::Union {
                 left: parts::Input::Step(parts::StepId(1)),
                 right: parts::Input::Step(parts::StepId(0)),
@@ -46,8 +46,11 @@ fn projected_file_key_controls_scope() {
     let scoped = super::service::scoped(&builder, input);
     let fields = scoped.fields.clone();
     for (column, expected) in [
-        (2, plans::StepScope::PerFile),
-        (1, plans::StepScope::CrossFile),
+        (2, ryo_values::domain::plan_parts::types::StepScope::PerFile),
+        (
+            1,
+            ryo_values::domain::plan_parts::types::StepScope::CrossFile,
+        ),
     ] {
         let operation = plans::Operation::Project {
             from: input,

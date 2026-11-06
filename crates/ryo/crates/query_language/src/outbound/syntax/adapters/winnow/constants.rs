@@ -94,7 +94,7 @@ pub(crate) fn keyword_text(keyword: Keyword) -> &'static str {
         Keyword::Param => "param",
         Keyword::Import => "import",
         Keyword::Input => "input",
-        Keyword::Output => "output",
+        Keyword::Output => ryo_values::domain::descriptions::constants::OUTPUT,
         Keyword::Return => "return",
         Keyword::Relation => "relation",
         Keyword::Let => "let",
@@ -239,7 +239,7 @@ pub(crate) const GRAMMAR: &[GrammarLine] = &[
         example: "l.name as \"name\"",
     },
     GrammarLine {
-        name: "source",
+        name: ryo_relations::domain::relations::constants::SOURCE,
         form: "( string | word ) [ as word ], a string naming a relation and a word a step",
         example: "\"function\" as l",
     },
@@ -349,7 +349,7 @@ pub(crate) const GRAMMAR: &[GrammarLine] = &[
         example: "$max-lines",
     },
     GrammarLine {
-        name: "number",
+        name: ryo_relations::domain::relations::constants::NUMBER,
         form: "digit { digit }",
         example: "400",
     },

@@ -3,24 +3,32 @@
 
 use super::constants::SIDE_SEPARATOR;
 use crate::domain::lowering::errors::LoweringError;
+use crate::domain::lowering::types::ArgumentFault;
+use crate::domain::lowering::types::Widened;
 use crate::domain::lowering::types::{
     Builder, Joined, LastStep, PlannedColumn, SearchMatch, ShownColumns, SideColumn, Sourced,
     Uniqueness,
 };
+use crate::domain::planning::service::push;
 use crate::domain::planning::service::pushed;
+use crate::domain::resolving::service::argument_named;
+use crate::domain::resolving::service::bad_argument;
 use crate::domain::resolving::service::{column_of, find_column, position, read_source};
+use crate::domain::syntax::constants::side_named;
+use crate::domain::syntax::types::ArgumentSlot;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
-use ryo_values::domain::program::types::{self as syntax, QuerySpelling};
+use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::query_tokens::types::QuerySpelling;
 
 /// The join of a select over its source: the step that makes it, the fields it gives, and the columns of either side
 /// its `where` names as `alias.column`. A side's column the select does not keep is given after the kept ones, for the
 /// `where` to read.
 pub(crate) fn select_join(
     builder: &mut Builder<'_>,
-    name: &syntax::StepName,
-    select: &syntax::Select,
-    join: &syntax::Join,
+    name: &ryo_values::domain::query_tokens::types::StepName,
+    select: &ryo_values::domain::query_syntax::types::Select,
+    join: &ryo_values::domain::query_syntax::types::Join,
     source: Sourced,
     last: LastStep,
 ) -> Result<Joined, LoweringError> {
@@ -34,14 +42,15 @@ pub(crate) fn select_join(
     for key in &join.on {
         // An `on` names its columns by the aliases of the two sides, as a `where` does: any other alias is refused.
         for reference in [&key.left, &key.right] {
-            if let syntax::Alias::Written(alias) = &reference.alias
+            if let ryo_values::domain::query_syntax::types::Alias::Written(alias) = &reference.alias
                 && reference.alias != *left_alias
                 && reference.alias != join.source.alias
             {
                 return Err(unknown_side(builder, select, join, alias));
             }
         }
-        let swapped = key.left.alias != syntax::Alias::Unwritten && key.left.alias != *left_alias;
+        let swapped = key.left.alias != ryo_values::domain::query_syntax::types::Alias::Unwritten
+            && key.left.alias != *left_alias;
         let (left_key, right_key) = if swapped {
             (&key.right, &key.left)
         } else {
@@ -60,13 +69,14 @@ pub(crate) fn select_join(
     }
     let mut output = Vec::new();
     let mut kept = Vec::new();
-    let listed: &[syntax::SelectColumn] = match &select.columns {
-        syntax::Columns::Listed(columns) => columns,
-        syntax::Columns::Every => &[],
+    let listed: &[ryo_values::domain::query_syntax::types::SelectColumn] = match &select.columns {
+        ryo_values::domain::query_syntax::types::Columns::Listed(columns) => columns,
+        ryo_values::domain::query_syntax::types::Columns::Every => &[],
     };
     for column in listed {
-        let from_right =
-            column.column.alias != syntax::Alias::Unwritten && column.column.alias != *left_alias;
+        let from_right = column.column.alias
+            != ryo_values::domain::query_syntax::types::Alias::Unwritten
+            && column.column.alias != *left_alias;
         let side_fields = if from_right { &right_fields } else { &fields };
         let index = position(
             side_fields,
@@ -83,8 +93,12 @@ pub(crate) fn select_join(
         });
         kept.push(PlannedColumn {
             name: match &column.rename {
-                syntax::Renaming::Renamed(renamed) => renamed.clone(),
-                syntax::Renaming::Unchanged => column.column.column.clone(),
+                ryo_values::domain::query_syntax::types::Renaming::Renamed(renamed) => {
+                    renamed.clone()
+                }
+                ryo_values::domain::query_syntax::types::Renaming::Unchanged => {
+                    column.column.column.clone()
+                }
             },
             kind: column_of(side_fields, index).kind,
             unique: Uniqueness::Shared,
@@ -128,17 +142,19 @@ pub(crate) fn select_join(
 /// The refusal of `alias`, which names neither side of the join, listing the aliases its two sides have.
 fn unknown_side(
     builder: &Builder<'_>,
-    select: &syntax::Select,
-    join: &syntax::Join,
-    alias: &syntax::AliasName,
+    select: &ryo_values::domain::query_syntax::types::Select,
+    join: &ryo_values::domain::query_syntax::types::Join,
+    alias: &ryo_values::domain::query_tokens::types::AliasName,
 ) -> LoweringError {
     LoweringError::UnknownSide {
         alias: alias.0.to_string(),
         sides: [&select.from.alias, &join.source.alias]
             .iter()
             .filter_map(|each| match each {
-                syntax::Alias::Written(written) => Some(format!("`{}`", written.0)),
-                syntax::Alias::Unwritten => None,
+                ryo_values::domain::query_syntax::types::Alias::Written(written) => {
+                    Some(format!("`{}`", written.0))
+                }
+                ryo_values::domain::query_syntax::types::Alias::Unwritten => None,
             })
             .collect::<Vec<_>>()
             .join(SIDE_SEPARATOR),
@@ -150,15 +166,16 @@ fn unknown_side(
 /// join: a column the select keeps is read there, any other is added to `output` and `kept` after the kept ones.
 fn side_columns(
     builder: &Builder<'_>,
-    select: &syntax::Select,
-    join: &syntax::Join,
+    select: &ryo_values::domain::query_syntax::types::Select,
+    join: &ryo_values::domain::query_syntax::types::Join,
     both: [&[PlannedColumn]; 2],
     output: &mut Vec<parts::JoinColumn>,
     kept: &mut Vec<PlannedColumn>,
 ) -> Result<Vec<SideColumn>, LoweringError> {
     let mut sides = Vec::new();
     for reference in aliased(&select.filters) {
-        let syntax::Alias::Written(alias) = &reference.alias else {
+        let ryo_values::domain::query_syntax::types::Alias::Written(alias) = &reference.alias
+        else {
             continue;
         };
         let side = if reference.alias == select.from.alias {
@@ -212,16 +229,18 @@ fn side_columns(
 }
 
 /// The columns the tests of `conditions` name with an alias, however deep in an `or`, in the order written.
-fn aliased(conditions: &[syntax::Condition]) -> Vec<&syntax::ColumnReference> {
+fn aliased(
+    conditions: &[ryo_values::domain::query_syntax::types::Condition],
+) -> Vec<&ryo_values::domain::query_syntax::types::ColumnReference> {
     let mut found = Vec::new();
     for condition in conditions {
         match condition {
-            syntax::Condition::Test(filter) => {
+            ryo_values::domain::query_syntax::types::Condition::Test(filter) => {
                 for operand in [&filter.left, &filter.right] {
                     operand_columns(operand, &mut found);
                 }
             }
-            syntax::Condition::Any(alternatives) => {
+            ryo_values::domain::query_syntax::types::Condition::Any(alternatives) => {
                 for alternative in alternatives {
                     found.extend(aliased(alternative));
                 }
@@ -233,30 +252,114 @@ fn aliased(conditions: &[syntax::Condition]) -> Vec<&syntax::ColumnReference> {
 
 /// Adds to `found` the columns an operand names with an alias, itself or through the arguments of its function.
 fn operand_columns<'a>(
-    operand: &'a syntax::WrittenOperand,
-    found: &mut Vec<&'a syntax::ColumnReference>,
+    operand: &'a ryo_values::domain::query_syntax::types::WrittenOperand,
+    found: &mut Vec<&'a ryo_values::domain::query_syntax::types::ColumnReference>,
 ) {
     match operand {
-        syntax::WrittenOperand::Column(reference) => {
-            if matches!(reference.alias, syntax::Alias::Written(_)) {
+        ryo_values::domain::query_syntax::types::WrittenOperand::Column(reference) => {
+            if matches!(
+                reference.alias,
+                ryo_values::domain::query_syntax::types::Alias::Written(_)
+            ) {
                 found.push(reference);
             }
         }
-        syntax::WrittenOperand::Function(applied) => {
+        ryo_values::domain::query_syntax::types::WrittenOperand::Function(applied) => {
             for argument in &applied.arguments {
                 operand_columns(argument, found);
             }
         }
-        syntax::WrittenOperand::Parameter(_)
-        | syntax::WrittenOperand::Text(_)
-        | syntax::WrittenOperand::Number(_) => {}
+        ryo_values::domain::query_syntax::types::WrittenOperand::Parameter(_)
+        | ryo_values::domain::query_syntax::types::WrittenOperand::Text(_)
+        | ryo_values::domain::query_syntax::types::WrittenOperand::Number(_) => {}
     }
 }
 
 /// How many columns of a join's rows a `select` shows: those it lists, none for `*`.
-pub(crate) fn shown_of(columns: &syntax::Columns) -> ShownColumns {
+pub(crate) fn shown_of(columns: &ryo_values::domain::query_syntax::types::Columns) -> ShownColumns {
     ShownColumns(match columns {
-        syntax::Columns::Listed(listed) => listed.len(),
-        syntax::Columns::Every => 0,
+        ryo_values::domain::query_syntax::types::Columns::Listed(listed) => listed.len(),
+        ryo_values::domain::query_syntax::types::Columns::Every => 0,
+    })
+}
+
+/// Resolve each explicit join projection against its selected input side.
+pub(crate) fn join_output(
+    call: &ryo_values::domain::query_syntax::types::Call,
+    left_fields: &[PlannedColumn],
+    right_fields: &[PlannedColumn],
+) -> Result<Widened, LoweringError> {
+    let ryo_values::domain::query_syntax::types::ArgumentValue::Map(entries) =
+        argument_named(call, ArgumentSlot::Output)?
+    else {
+        return Err(bad_argument(
+            call,
+            Some(ArgumentSlot::Output),
+            ArgumentFault::ExpectedMap,
+        ));
+    };
+    let mut output = Vec::new();
+    let mut kept = Vec::new();
+    for entry in entries {
+        let ryo_values::domain::query_syntax::types::ArgumentValue::List(source) = &entry.value
+        else {
+            return Err(bad_argument(
+                call,
+                Some(ArgumentSlot::Output),
+                ArgumentFault::ExpectedSideAndColumn,
+            ));
+        };
+        let [
+            ryo_values::domain::query_syntax::types::ArgumentValue::Word(side),
+            column,
+        ] = source.as_slice()
+        else {
+            return Err(bad_argument(
+                call,
+                Some(ArgumentSlot::Output),
+                ArgumentFault::ExpectedSideAndColumn,
+            ));
+        };
+        let column: &str = match column {
+            ryo_values::domain::query_syntax::types::ArgumentValue::Text(text) => &text.0,
+            ryo_values::domain::query_syntax::types::ArgumentValue::Word(word) => &word.0,
+            ryo_values::domain::query_syntax::types::ArgumentValue::Number(_)
+            | ryo_values::domain::query_syntax::types::ArgumentValue::Parameter(_)
+            | ryo_values::domain::query_syntax::types::ArgumentValue::Step(_)
+            | ryo_values::domain::query_syntax::types::ArgumentValue::List(_)
+            | ryo_values::domain::query_syntax::types::ArgumentValue::Map(_) => {
+                return Err(bad_argument(
+                    call,
+                    Some(ArgumentSlot::Output),
+                    ArgumentFault::ExpectedSideAndColumn,
+                ));
+            }
+        };
+        let side = side_named(&side.0).ok_or_else(|| {
+            bad_argument(
+                call,
+                Some(ArgumentSlot::Output),
+                ArgumentFault::ExpectedSide,
+            )
+        })?;
+        let side_fields = match side {
+            parts::Side::Left => left_fields,
+            parts::Side::Right => right_fields,
+        };
+        let index = position(side_fields, QuerySpelling(column), call.span)?;
+        output.push(parts::JoinColumn {
+            side,
+            column: index,
+        });
+        kept.push(PlannedColumn {
+            name: ryo_values::domain::descriptions::types::ColumnName(entry.name.0.clone()),
+            kind: column_of(side_fields, index).kind,
+            unique: Uniqueness::Shared,
+            words: column_of(side_fields, index).words,
+        });
+    }
+    Ok(Widened {
+        output,
+        fields: kept,
     })
 }

@@ -5,7 +5,7 @@
 
 use ryo_values::domain::hosted::types::HostedRelation;
 use ryo_values::domain::plans::types::Plan;
-use ryo_values::domain::program::types::QueryBundle;
+use ryo_values::domain::query_tokens::types::QueryBundle;
 
 /// The RyoQL text to compile, and the relations the host declares beside ryo's own.
 #[derive(Clone, Debug, PartialEq, Eq)]

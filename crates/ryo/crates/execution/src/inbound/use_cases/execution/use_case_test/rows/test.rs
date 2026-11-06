@@ -37,9 +37,9 @@ fn subject((keys, binding): Input) -> Result<Value, Failure> {
         keys: keys.iter().map(|key| TableKey((*key).into())).collect(),
     }]);
     plan.parameters
-        .push(ryo_values::domain::plans::types::PlanParameter {
+        .push(ryo_values::domain::query_bindings::types::PlanParameter {
             name: ryo_values::domain::plan_parts::types::ParameterName("input".into()),
-            kind: ryo_values::domain::plans::types::ParameterType::Tables,
+            kind: ryo_values::domain::query_bindings::types::ParameterType::Tables,
         });
     let mut symbols = Symbols::default();
     let output = fixtures::published(plan, binding.into_iter().collect(), vec![], &mut symbols)?;

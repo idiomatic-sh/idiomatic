@@ -11,7 +11,7 @@ use ryo_language::domain::{
 };
 use ryo_relations::domain::{relations::types::KindBits, terms::types::NameText};
 use ryo_values::domain::{
-    plan_parts::types::{Comparison, LiteralText, Operand, QueryLiteral, Test},
+    plan_parts::types::{LiteralText, Operand, PlanComparison, QueryLiteral, Test},
     rows::service::{push_row, row_in},
 };
 pub(in super::super) fn node(at: u32) -> Cell {
@@ -71,12 +71,12 @@ pub(in super::super) fn tree_rows(elements: &Elements, form: TreeForm) -> Rows<'
     })
 }
 
-fn text_of(place: u32, text: &str) -> Comparison {
-    Comparison {
+fn text_of(place: u32, text: &str) -> PlanComparison {
+    PlanComparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(place)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }
 }
 
@@ -130,11 +130,11 @@ fn only_the_elements_a_filter_admits_are_joined_by_their_ids() -> Result<usize, 
 fn only_the_edges_a_filter_admits_are_joined() -> Result<usize, OperatingError> {
     let (elements, mut symbols) = wide_tree(1, false);
     let left = table_of(&[CellKind::Node], &[&[node(0)]]);
-    let second = Comparison {
+    let second = PlanComparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(2)),
         right: Operand::Literal(QueryLiteral::Number(Integer(1))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let operation = operation(&[0], &[1], &[(Side::Right, 0)], vec![second], &[1, 0]);
     let inputs = [Rows::Computed(&left), tree_rows(&elements, TreeForm::Edges)];

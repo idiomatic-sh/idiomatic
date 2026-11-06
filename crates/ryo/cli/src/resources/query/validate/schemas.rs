@@ -28,7 +28,7 @@ impl TryFrom<ValidateArgumentsSchema> for ValidateRequest {
         }
         // A relation the host declares can only come from a program that links the SDK: the command line declares none.
         Ok(Self {
-            text: ryo_values::domain::program::types::QueryBundle::from(QueryText(
+            text: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(
                 schema.text.into(),
             )),
             hosted: Vec::new(),

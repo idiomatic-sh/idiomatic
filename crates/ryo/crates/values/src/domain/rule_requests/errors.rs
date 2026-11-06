@@ -4,7 +4,7 @@ use crate::domain::runs::types::RuleId;
 
 /// Why a rule of a run is refused.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
-pub enum RulesError {
+pub enum RuleRequestsError {
     /// A bound producer's observation is unavailable in this generation.
     #[error("rule `{}` has incomplete observation input: {reason}", id.0)]
     ObservationIncomplete { id: RuleId, reason: String },

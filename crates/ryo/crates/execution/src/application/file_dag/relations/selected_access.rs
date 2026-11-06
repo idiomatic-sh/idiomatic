@@ -40,9 +40,7 @@ impl RelationOwner {
             Default::default(),
             DerivedInputs::Rows(&[proof.rows()]),
             &mut DerivedScratch::default(),
-            Some(StoredColumns {
-                relation,
-            }),
+            Some(StoredColumns { relation }),
         )
     }
 }

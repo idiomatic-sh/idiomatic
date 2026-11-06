@@ -57,6 +57,10 @@ pub(crate) struct Subject<'a>(pub &'a str);
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct GlobText<'a>(pub &'a str);
 
+/// The authored text of a glob the interpreter keeps.
+#[derive(Clone, Debug)]
+pub(crate) struct OwnedGlobText(pub Box<str>);
+
 /// A character of the text.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Letter(pub char);
@@ -89,7 +93,7 @@ pub(crate) enum TextGlobProgram {
     /// The library has exactly the text matcher semantics for these patterns.
     Ready(regex_automata::meta::Regex),
     /// These patterns retain the interpreter's character, escape or directory semantics.
-    Interpreted(Vec<Box<str>>),
+    Interpreted(Vec<OwnedGlobText>),
 }
 
 /// Whether a character belongs to a class.

@@ -11,7 +11,7 @@ pub fn kind_name(kind: CellKind) -> &'static str {
         CellKind::Symbol => "name",
         CellKind::File => "file",
         CellKind::Span => "span",
-        CellKind::Number => "number",
+        CellKind::Number => NUMBER,
         CellKind::Flag => "flag",
     }
 }
@@ -45,6 +45,33 @@ pub const DECLARATION: &str = "declaration";
 
 /// A column of every relation that has it, named the same in each: The node that holds a row's node.
 pub const PARENT: &str = "parent";
+
+/// A column of every relation that has it, named the same in each: The node a row refers to.
+pub const REFERENCE: &str = "reference";
+
+/// A column of every relation that has it, named the same in each: The syntactic setting a row occurs in.
+pub const CONTEXT: &str = "context";
+
+/// A column of every relation that has it, named the same in each: The major version a row holds since.
+pub const SINCE_MAJOR: &str = "since-major";
+
+/// A column of every relation that has it, named the same in each: The minor version a row holds since.
+pub const SINCE_MINOR: &str = "since-minor";
+
+/// A column of every relation that has it, named the same in each: How a parse or evaluation ended.
+pub const OUTCOME: &str = "outcome";
+
+/// A column of every relation that has it, named the same in each: The category of the error an outcome names.
+pub const ERROR_CATEGORY: &str = "error-category";
+
+/// A column of every relation that has it, named the same in each: The dialect a text was read in.
+pub const DIALECT: &str = "dialect";
+
+/// A column of every relation that has it, named the same in each: The conversion a format field applies.
+pub const CONVERSION: &str = "conversion";
+
+/// A column of every relation that has it, named the same in each: The name of the number kind of a column.
+pub const NUMBER: &str = "number";
 
 /// Why every relation of code is read in part in a file with syntax errors: the tree is a recovery of what was written.
 pub const SYNTAX_ERRORS: &str = "the file has syntax errors";

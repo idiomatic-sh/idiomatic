@@ -109,8 +109,8 @@ pub(crate) fn replay(recordings: &[Recording]) -> Result<Replayed, String> {
 }
 
 /// A feature as the listings write it: `operation:join`, `family:glob-any`, `direction:nearest-ancestor`, `relation:syntax-tree`.
-pub(crate) fn feature_name(feature: ryo_values::domain::plans::types::Feature) -> String {
-    use ryo_values::domain::plans::types::Feature;
+pub(crate) fn feature_name(feature: ryo_values::domain::run_metadata::types::Feature) -> String {
+    use ryo_values::domain::run_metadata::types::Feature;
     match feature {
         Feature::Operation(kind) => format!("operation:{kind:?}"),
         Feature::Family(test) => format!("family:{test:?}"),

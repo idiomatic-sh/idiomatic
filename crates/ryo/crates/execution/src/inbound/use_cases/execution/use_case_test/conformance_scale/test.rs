@@ -4,7 +4,8 @@ use crate::application::file_dag::acceptance::operator_contract_test::fixtures::
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
-    plans::types::{Operation, OperationKind},
+    plans::types::Operation,
+    query_operators::types::OperationKind,
 };
 #[test]
 fn former_unary_pilots_keep_linear_visits_and_bounded_row_scratch() {

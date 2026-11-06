@@ -1,12 +1,12 @@
 //! The names of the `reference` relation: the text its name and its columns carry when they leave the engine.
 
 use super::item::ReferenceColumn;
-use crate::domain::relations::constants::{OCCURRENCE, TARGET};
+use crate::domain::relations::constants::{OCCURRENCE, REFERENCE, TARGET};
 
 /// The relation's name in RyoQL and in listings: text that leaves the engine.
 #[must_use]
 pub fn name() -> &'static str {
-    "reference"
+    REFERENCE
 }
 
 /// What the relation holds, in a sentence.

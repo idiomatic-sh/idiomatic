@@ -6,10 +6,10 @@ use crate::application::file_dag::program::constants::{
     FILE_OWNER_FINISH, PRODUCER_COVERAGE_INCOMPLETE, RESOURCE_ROUTES_TARGET,
 };
 use crate::application::file_dag::program::facade_runtime::source_admission::table_of;
+use crate::application::file_dag::program::facade_runtime::types::ProgramServices;
 use crate::application::file_dag::program::facade_runtime::types::{
     FileRoot, FrontierCommit, ObservationKey, PreparedNamed, ReuseEligibility, WalkPreparation,
 };
-use crate::application::file_dag::program::facade_runtime::types::ProgramServices;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::protocol::types::FileRuleIntent;
 use crate::application::file_dag::program::protocol::types::LogicalCounts;
@@ -93,7 +93,9 @@ pub(crate) fn open_file<'a>(
     if intents.len() != program.rule_count().0 {
         return Err(OperatingError::ShapeMismatch);
     }
-    if services.request.contains(file) == crate::application::file_dag::program::request_identity::CorpusMembership::Unlisted {
+    if services.request.contains(file)
+        == crate::application::file_dag::program::request_identity::CorpusMembership::Unlisted
+    {
         return Err(OperatingError::NotRead);
     }
     if !matches!(partials, ScopePartials::File { .. }) {
@@ -188,7 +190,7 @@ impl FileRun<'_> {
     #[cfg(test)]
     pub(crate) fn observation_routes(
         &self,
-        slot: ryo_values::domain::observations::types::ObservationIndex,
+        slot: ryo_values::domain::records::types::ObservationIndex,
     ) -> Result<crate::domain::operating::types::ExecutionObservation, OperatingError> {
         let region = self
             .program
@@ -214,10 +216,10 @@ impl FileRun<'_> {
     pub(crate) fn observation_snapshot(
         &self,
     ) -> Option<Arc<ryo_values::domain::records::types::FrontierReadiness>> {
-        use ryo_values::domain::observations::{
-            service::{new_frontiers, set_frontier},
-            types::{ObservationReadinessCount, ObservationReadinessSlot, ProducerReadiness},
-        };
+        use ryo_values::domain::observations::service::{new_frontiers, set_frontier};
+        use ryo_values::domain::records::types::ObservationReadinessCount;
+        use ryo_values::domain::records::types::ObservationReadinessSlot;
+        use ryo_values::domain::records::types::ProducerReadiness;
         let metadata = self.program.observation_metadata()?;
         if metadata.frontiers.is_empty() {
             return None;
@@ -255,8 +257,9 @@ impl FileRun<'_> {
 
 fn readiness_of(
     outcome: &RootOutcome,
-) -> Option<ryo_values::domain::observations::types::ProducerReadiness> {
-    use ryo_values::domain::observations::types::{ObservationReason, ProducerReadiness};
+) -> Option<ryo_values::domain::records::types::ProducerReadiness> {
+    use ryo_values::domain::records::types::ObservationReason;
+    use ryo_values::domain::records::types::ProducerReadiness;
     Some(match outcome {
         RootOutcome::Complete(_) => ProducerReadiness::Complete,
         RootOutcome::Partial { .. } => {

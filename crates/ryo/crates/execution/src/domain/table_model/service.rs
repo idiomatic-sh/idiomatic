@@ -30,7 +30,7 @@ use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use ryo_derived::domain::contract::key::hash_key;
 use ryo_derived::domain::contract::types::{ChainLink, KeyIndex, On};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::rows::errors::TableModelError;
+use ryo_values::domain::rows::errors::RowsError;
 
 use ryo_values::domain::rows::service::{positions, push_row, reset, row_in};
 
@@ -50,7 +50,7 @@ pub(crate) fn kinds_of<'a>(rows: &'a Rows<'_>) -> &'a [CellKind] {
             ..
         }) => &ELEMENT_KINDS,
         Rows::Computed(table) => &table.kinds,
-        Rows::Compact(table) => ryo_values::domain::table_words::service::compact_kinds(table),
+        Rows::Compact(table) => ryo_values::domain::compact_table::service::compact_kinds(table),
     }
 }
 
@@ -69,9 +69,7 @@ pub(crate) fn count_of(rows: &Rows<'_>) -> RowCount {
         ),
         Rows::Stored(view) => RowCount(view.columns.first().map_or(0, |column| column.0.len())),
         Rows::Computed(table) => table.count,
-        Rows::Compact(table) => RowCount(ryo_values::domain::table_words::service::compact_rows(
-            table,
-        )),
+        Rows::Compact(table) => ryo_values::domain::compact_table::service::compact_rows(table),
         Rows::Tree(tree) => RowCount(
             real_count(tree.elements)
                 .0
@@ -179,15 +177,12 @@ pub(crate) fn compare_key(row: &[Value], on: On<'_>, key: &[Value]) -> Ordering 
 /// # Errors
 ///
 /// `NoSuchColumn` naming the first it lacks.
-pub(crate) fn check_columns(
-    kinds: &[CellKind],
-    columns: &[ColumnIndex],
-) -> Result<(), TableModelError> {
+pub(crate) fn check_columns(kinds: &[CellKind], columns: &[ColumnIndex]) -> Result<(), RowsError> {
     match columns
         .iter()
         .find(|column| usize::try_from(column.0).map_or(true, |place| place >= kinds.len()))
     {
-        Some(missing) => Err(TableModelError::NoSuchColumn { index: missing.0 }),
+        Some(missing) => Err(RowsError::NoSuchColumn { index: missing.0 }),
         None => Ok(()),
     }
 }

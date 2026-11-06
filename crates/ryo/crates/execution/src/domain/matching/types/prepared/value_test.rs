@@ -15,7 +15,7 @@ use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
         plan_parts::types::{
-            ColumnIndex, Comparison, Input as Source, LiteralText, Operand, QueryLiteral, Test,
+            ColumnIndex, PlanComparison, Input as Source, LiteralText, Operand, QueryLiteral, Test,
             WholeNumber,
         },
         plans::types::Operation,
@@ -36,11 +36,11 @@ fn select(test: Test, pattern: &str) -> Operation {
     Operation::Select {
         from: Source::Relation(Relation::Function),
         kept: vec![],
-        comparisons: vec![Comparison {
+        comparisons: vec![PlanComparison {
             left: Operand::Column(ColumnIndex(0)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText(pattern.into()))),
             test,
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         }],
     }
 }

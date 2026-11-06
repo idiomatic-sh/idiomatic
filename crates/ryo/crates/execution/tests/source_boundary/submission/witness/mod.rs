@@ -1,15 +1,16 @@
 //! The witness that implements every method of each entry trait.
 use ryo_execution::inbound::use_cases::execution::{
     interface::{
-        ExecutionRequest, ExecutionUseCase, FileExecution, InvocationStateCounts, WalkCounts, ObservationExecution, ProjectRootExecution,
-        ProjectStage, ReadinessCounts,
+        ExecutionRequest, ExecutionUseCase, FileExecution, InvocationStateCounts,
+        ObservationExecution, ProjectRootExecution, ProjectStage, ReadinessCounts, WalkCounts,
     },
     types::*,
 };
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::{
-    files::types::CorpusInput, observations::types::ObservationBindingId,
-    plan_parts::types::InputNumber, runs::types::Skipped,
+    files::types::CorpusInput,
+    plan_parts::types::{InputNumber, ObservationBindingId},
+    runs::types::Skipped,
     stored_facts::types::{ArenaBytes, Bucket},
 };
 
@@ -56,7 +57,12 @@ methods!(
 /// Its methods never run: implementing every method of each entry trait is what the compiler checks.
 pub(super) struct Witness;
 pub(super) fn implements_every_entry_trait<
-    W: ExecutionUseCase + ExecutionRequest + FileExecution + ProjectRootExecution + ProjectStage + ObservationExecution,
+    W: ExecutionUseCase
+        + ExecutionRequest
+        + FileExecution
+        + ProjectRootExecution
+        + ProjectStage
+        + ObservationExecution,
 >(
     _: &W,
 ) {
@@ -185,7 +191,9 @@ impl FileExecution for Witness {
         &mut self,
         _: RuleIndex,
         _: &mut Symbols,
-        _: &mut dyn FnMut(&[ryo_relations::domain::relations::types::Value]) -> Result<(), OperatingError>,
+        _: &mut dyn FnMut(
+            &[ryo_relations::domain::relations::types::Value],
+        ) -> Result<(), OperatingError>,
     ) -> Result<RowEmission, OperatingError> {
         witness(Method::FileEmitRows)
     }

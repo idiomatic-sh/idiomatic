@@ -9,15 +9,18 @@ use ryo_execution::inbound::use_cases::metadata::interface::{Message, Unknown};
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::types::{CorpusEntry, CorpusInput, FileNumber, Nanoseconds};
 use ryo_values::domain::records::types::{
-    Cell, FileOutcome, FindingRows, Freshness, Handing, PlacedRule, Ran, Record, RuleFrontier,
+    FileOutcome, Freshness, Handing, Ran, Record, RuleFrontier,
 };
+use ryo_values::domain::row_texts::types::{Cell, FindingRows, PlacedRule};
 use ryo_values::domain::runs::types::{RuleId, Skipped};
 use ryo_values::domain::stored_facts::types::{Bucket, Digest};
+use ryo_values::domain::stored_findings::types::{
+    FindingMade, StoredCell, StoredFileNumber, StoredFinding, StoredUnknown, StoredUnread,
+    UnknownText,
+};
 use ryo_values::domain::stores::types::MadeAgain;
 use ryo_values::domain::stores::types::{
-    BucketsWanted, Crossing, FileAgain, FindingMade, KeptRows, Stored, StoredCell, StoredFile,
-    StoredFileNumber, StoredFinding, StoredFrontier, StoredRule, StoredUnknown, StoredUnread,
-    UnknownText,
+    BucketsWanted, Crossing, FileAgain, KeptRows, Stored, StoredFile, StoredFrontier, StoredRule,
 };
 
 /// The stored file at `path`: the files are kept in the order of their paths.

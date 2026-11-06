@@ -307,7 +307,7 @@ impl PreparedWalk {
     pub(crate) fn comparison(
         &self,
         predicate: PredicatePlace,
-    ) -> &ryo_values::domain::plan_parts::types::Comparison {
+    ) -> &ryo_values::domain::plan_parts::types::PlanComparison {
         &self.predicates[predicate.0].comparison
     }
     pub(crate) fn needed(
@@ -351,7 +351,7 @@ struct PreparedPredicate {
     class: ClassPlace,
     number: PredicateNumber,
     /// Owned, so retention can drop its defining class without invalidating the trie.
-    comparison: ryo_values::domain::plan_parts::types::Comparison,
+    comparison: ryo_values::domain::plan_parts::types::PlanComparison,
 }
 
 #[cfg(test)]

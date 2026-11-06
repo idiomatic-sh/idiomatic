@@ -9,7 +9,7 @@ use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn},
 };
-use ryo_values::domain::rows::errors::TableModelError;
+use ryo_values::domain::rows::errors::RowsError;
 
 fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
     let skipped_at_start = matches!(final_consumer, FinalConsumer::SkippedAtStart);
@@ -92,10 +92,13 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
-        None)?;
+        None,
+    )?;
     // Required views still have to live until their published producer's last
     // consumer when optional retention is unavailable.
-    file.owner.derived.set_optional_limit(crate::application::file_dag::derived::owner::index::types::ByteLimit(0))?;
+    file.owner.derived.set_optional_limit(
+        crate::application::file_dag::derived::owner::index::types::ByteLimit(0),
+    )?;
     let columns = [
         FactColumn(vec![to_bits(Cell::File(FileId(0))).0; 2]),
         FactColumn(vec![
@@ -185,7 +188,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
                 assert!(
                     matches!(
                         second.emit,
-                        RootOutcome::Failed(OperatingError::Table(TableModelError::NoSuchColumn {
+                        RootOutcome::Failed(OperatingError::Table(RowsError::NoSuchColumn {
                             index: 99
                         }))
                     ),

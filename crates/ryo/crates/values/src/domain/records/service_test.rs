@@ -1,12 +1,12 @@
 //! The `records` service's cases, on values alone.
 
 use super::service::{is_as_it_was, keep, lent, owned};
-use super::types::{
-    Cell, CellText, FileOutcome, Freshness, Record, RenderedText, RowsTextAt, RowsTextView,
-    TextRange, Unreadable,
-};
+use super::types::{FileOutcome, Freshness, Record, Unreadable};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::files::types::{CorpusEntry, FileNumber, FileSize, Nanoseconds};
+use crate::domain::row_texts::types::{
+    Cell, CellText, RenderedText, RowsTextAt, RowsTextView, TextRange,
+};
 use crate::domain::stored_facts::types::Digest;
 use ryo_language::domain::files::types::FilePath;
 
@@ -25,6 +25,8 @@ enum Scenario {
     KeptAndLent,
     /// A cell whose range the text does not hold, lent.
     OutOfText,
+    /// A file whose executable bit changed with the size and the timestamp the same.
+    ExecutableChanged,
 }
 
 /// What a row of the cases asks of the service.
@@ -69,6 +71,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_range_the_text_does_not_hold_lends_nothing"),
         word: Word::Succeeds,
         input: || Scenario::OutOfText,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("an_executable_observation_invalidates_in_both_directions"),
+        word: Word::Succeeds,
+        input: || Scenario::ExecutableChanged,
         expect: Expect::Value(1),
     },
 ];
@@ -117,6 +125,29 @@ fn entry(size: u64, modified: u64) -> CorpusEntry {
     }
 }
 
+fn executable_changes_invalidate() -> bool {
+    use crate::domain::files::types::ExecutablePermission::{
+        PosixExecutable, PosixNotExecutable, Unknown, Unsupported,
+    };
+    let mut held = true;
+    for (before, after) in [
+        (PosixNotExecutable, PosixExecutable),
+        (PosixExecutable, PosixNotExecutable),
+        (Unknown, PosixNotExecutable),
+        (PosixNotExecutable, Unknown),
+        (Unsupported, Unknown),
+    ] {
+        let mut kept = record(7);
+        kept.executable = before;
+        let mut file = entry(5, 7);
+        file.executable = before;
+        held &= super::service::is_as_it_was(&kept, &file) == Freshness::AsItWas;
+        file.executable = after;
+        held &= super::service::is_as_it_was(&kept, &file) == Freshness::Changed;
+    }
+    held
+}
+
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let answered = match scenario {
         Scenario::Same => is_as_it_was(&record(9), &entry(5, 9)) == Freshness::AsItWas,
@@ -124,6 +155,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::WrittenSince => is_as_it_was(&record(9), &entry(5, 10)) == Freshness::Changed,
         Scenario::Undated => is_as_it_was(&record(0), &entry(5, 0)) == Freshness::Changed,
         Scenario::KeptAndLent => kept_and_lent(),
+        Scenario::ExecutableChanged => executable_changes_invalidate(),
         Scenario::OutOfText => {
             lent(
                 RowsTextView("ab"),
@@ -140,30 +172,4 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
-}
-
-#[test]
-fn executable_observation_invalidates_same_size_and_timestamp_in_both_directions() {
-    use crate::domain::files::types::ExecutablePermission::{Posix, Unknown, Unsupported};
-    for (before, after) in [
-        (Posix(false), Posix(true)),
-        (Posix(true), Posix(false)),
-        (Unknown, Posix(false)),
-        (Posix(false), Unknown),
-        (Unsupported, Unknown),
-    ] {
-        let mut kept = record(7);
-        kept.executable = before;
-        let mut file = entry(5, 7);
-        file.executable = before;
-        assert_eq!(
-            super::service::is_as_it_was(&kept, &file),
-            crate::domain::records::types::Freshness::AsItWas
-        );
-        file.executable = after;
-        assert_eq!(
-            super::service::is_as_it_was(&kept, &file),
-            crate::domain::records::types::Freshness::Changed
-        );
-    }
 }

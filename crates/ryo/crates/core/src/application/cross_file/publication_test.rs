@@ -8,7 +8,7 @@ use ryo_relations::domain::relations::types::{CellKind, Integer, NamePlace, Valu
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
-        observations::types::{ObservationIndex, ObservationReason, ProducerReadiness},
+        records::types::{ObservationIndex, ObservationReason, ProducerReadiness},
         rows::types::{RowCount, Table},
         stored_facts::types::ArenaBytes,
     },
@@ -103,7 +103,10 @@ fn subject(scenario: Input) -> Result<Answer, Failure> {
     match scenario {
         Scenario::Partial => {
             assert_eq!(transfer.arena.0, [8]);
-            assert!(transfer.roots[0].words.is_some());
+            assert!(matches!(
+                transfer.roots[0].words,
+                ryo_values::domain::records::types::RootWords::Published(_)
+            ));
             assert!(matches!(
                 transfer.roots[0].readiness,
                 ProducerReadiness::Unknown(_)
@@ -112,9 +115,15 @@ fn subject(scenario: Input) -> Result<Answer, Failure> {
         Scenario::LaterRefusal => {
             assert_eq!(transfer.arena.0, [8]);
             assert_eq!(port.0.load(Ordering::SeqCst), 2);
-            assert!(transfer.roots[0].words.is_some());
+            assert!(matches!(
+                transfer.roots[0].words,
+                ryo_values::domain::records::types::RootWords::Published(_)
+            ));
             assert_eq!(transfer.roots[0].readiness, ProducerReadiness::Complete);
-            assert!(transfer.roots[1].words.is_none());
+            assert!(matches!(
+                transfer.roots[1].words,
+                ryo_values::domain::records::types::RootWords::Withheld
+            ));
             assert!(matches!(
                 transfer.roots[1].readiness,
                 ProducerReadiness::Unknown(_)
@@ -123,7 +132,10 @@ fn subject(scenario: Input) -> Result<Answer, Failure> {
         Scenario::MissingTable | Scenario::Skipped => {
             assert!(transfer.arena.0.is_empty());
             assert_eq!(port.0.load(Ordering::SeqCst), 0);
-            assert!(transfer.roots[0].words.is_none());
+            assert!(matches!(
+                transfer.roots[0].words,
+                ryo_values::domain::records::types::RootWords::Withheld
+            ));
             if matches!(scenario, Scenario::MissingTable) {
                 assert!(matches!(
                     transfer.roots[0].readiness,

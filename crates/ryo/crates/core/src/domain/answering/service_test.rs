@@ -1,7 +1,8 @@
 //! The `answering` service's cases, on values alone.
 use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput, StepId};
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 
 use super::service::{cross_steps, settle, todo_list};
 use super::types::{CrossSteps, Crossed, Todo};
@@ -11,7 +12,7 @@ use crate::domain::render::types::{Rendered, RowNumber};
 use ryo_execution::inbound::use_cases::execution::types::RowsFed;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_values::domain::records::service::keep;
-use ryo_values::domain::records::types::{Cell, CellText, RowsTextView};
+use ryo_values::domain::row_texts::types::{Cell, CellText, RowsTextView};
 use ryo_values::domain::runs::types::RuleId;
 
 /// What a row of the cases does; a number packs the answers of the calls it names, first call in the highest digits.

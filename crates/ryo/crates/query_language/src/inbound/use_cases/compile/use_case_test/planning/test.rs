@@ -8,11 +8,13 @@ use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::Builder;
 use crate::domain::planning::service::frontier_of;
 use crate::domain::selecting::service::lower_select;
-use crate::outbound::syntax::factory::winnow;
+use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
-use ryo_values::domain::plans::types::{Operation, PlanStep, StepScope};
-use ryo_values::domain::program::types::{Expression, QueryView};
+use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::plans::types::{Operation, PlanStep};
+use ryo_values::domain::query_syntax::types::Expression;
+use ryo_values::domain::query_tokens::types::QueryView;
 
 /// The query text a row gives.
 type Input = &'static str;

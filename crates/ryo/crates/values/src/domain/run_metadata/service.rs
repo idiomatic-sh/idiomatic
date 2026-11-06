@@ -1,11 +1,16 @@
 //! Extract the few non-executable rule facts once while plans are transient.
-use super::types::{FeatureSlot, FeatureSource, RuleRunMetadata, StepMetadata};
+use super::types::{
+    CrossFileSteps, FeatureSlot, FeatureSource, FrontierFeed, ProjectRead, RuleRunMetadata,
+    StepMetadata,
+};
+use crate::domain::plan_parts::types::StepScope;
 use crate::domain::plans::service::{comparisons_of, kind_of};
+use crate::domain::run_metadata::types::Feature;
 use crate::domain::{
     plan_parts::types::Input,
     plans::{
         service::{inputs_of, named},
-        types::{Feature, Operation, Plan, StepScope},
+        types::{Operation, Plan},
     },
 };
 use ryo_relations::domain::relations::{service::provenance_of, types::Provenance};
@@ -17,14 +22,27 @@ pub fn from_plans(plans: &[Plan]) -> Vec<RuleRunMetadata> {
 
 fn from_plan(plan: &Plan) -> RuleRunMetadata {
     RuleRunMetadata {
-        reads_project: plan.frontier.iter().any(|input| {
+        reads_project: if plan.frontier.iter().any(|input| {
             matches!(input, Input::Relation(relation) if provenance_of(*relation) == Provenance::Manifests)
-        }),
-        has_cross_steps: plan.steps.iter().any(|step| step.scope == StepScope::CrossFile),
+        }) {
+            ProjectRead::Reads
+        } else {
+            ProjectRead::Ignores
+        },
+        has_cross_steps: if plan.steps.iter().any(|step| step.scope == StepScope::CrossFile) {
+            CrossFileSteps::Present
+        } else {
+            CrossFileSteps::Absent
+        },
         frontier_capture: plan.frontier.iter().map(|input| {
-            !matches!(input, Input::BoundObservation(id) if plan.observation_inputs
+            if matches!(input, Input::BoundObservation(id) if plan.observation_inputs
                 .get(id.0 as usize)
                 .is_some_and(|schema| schema.scope == StepScope::CrossFile))
+            {
+                FrontierFeed::CrossFile
+            } else {
+                FrontierFeed::Captured
+            }
         }).collect(),
         steps: plan.steps.iter().map(|step| {
             let mut features = vec![FeatureSlot {
@@ -46,7 +64,7 @@ fn from_plan(plan: &Plan) -> RuleRunMetadata {
                 let Input::Relation(relation) = input else { return None; };
                 Some(FeatureSlot {
                     feature: Feature::Relation(*relation),
-                    source: FeatureSource::Input(place),
+                    source: FeatureSource::Input(super::types::SourcePosition(place)),
                 })
             }));
             StepMetadata {

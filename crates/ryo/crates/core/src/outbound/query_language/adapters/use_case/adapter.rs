@@ -43,7 +43,7 @@ impl QueryLanguageUseCaseAdapter {
 impl QueryLanguagePort for QueryLanguageUseCaseAdapter {
     fn validate(
         &self,
-        bundle: &ryo_values::domain::program::types::QueryBundle,
+        bundle: &ryo_values::domain::query_tokens::types::QueryBundle,
         hosted: &[hosted::HostedRelation],
         observations: &[ryo_values::domain::observations::types::BoundObservationInput],
     ) -> Result<ValidateReport, QueryLanguageError> {
@@ -61,7 +61,7 @@ impl QueryLanguagePort for QueryLanguageUseCaseAdapter {
 
     fn compile(
         &self,
-        bundle: &ryo_values::domain::program::types::QueryBundle,
+        bundle: &ryo_values::domain::query_tokens::types::QueryBundle,
         hosted: &[hosted::HostedRelation],
         observations: &[ryo_values::domain::observations::types::BoundObservationInput],
     ) -> Result<plans::Plan, QueryLanguageError> {
@@ -83,10 +83,10 @@ impl QueryLanguagePort for QueryLanguageUseCaseAdapter {
 /// What the compiler said of a text it refused, as the core says it.
 fn refused(
     mut error: ryo_query_language::inbound::use_cases::compile::errors::CompileError,
-) -> parts::RefusedQuery {
+) -> ryo_values::domain::program::types::RefusedQuery {
     use ryo_query_language::inbound::use_cases::compile::errors::CompileError;
-    let mut origin = None;
-    let span = |at: ryo_values::domain::program::types::QuerySpan| Span {
+    let mut origin = ryo_values::domain::query_tokens::types::Attribution::Unlocated;
+    let span = |at: ryo_values::domain::query_tokens::types::QuerySpan| Span {
         start: offset(at.start),
         end: offset(at.end),
     };
@@ -100,32 +100,56 @@ fn refused(
                 origin: found,
                 error: inner,
             } => {
-                origin = Some(found);
+                origin = ryo_values::domain::query_tokens::types::Attribution::Located(found);
                 error = *inner;
             }
             CompileError::Syntax { span: at, message } => {
-                break (parts::RefusedKind::Syntax, message, span(at));
+                break (
+                    ryo_values::domain::program::types::RefusedKind::Syntax,
+                    message,
+                    span(at),
+                );
             }
             CompileError::UnknownRelation { name, span: at } => {
-                break (parts::RefusedKind::UnknownRelation, name, span(at));
+                break (
+                    ryo_values::domain::program::types::RefusedKind::UnknownRelation,
+                    name,
+                    span(at),
+                );
             }
             CompileError::Type { span: at, message } => {
-                break (parts::RefusedKind::Type, message, span(at));
+                break (
+                    ryo_values::domain::program::types::RefusedKind::Type,
+                    message,
+                    span(at),
+                );
             }
             CompileError::Invalid { span: at, message } => {
-                break (parts::RefusedKind::Invalid, message, span(at));
+                break (
+                    ryo_values::domain::program::types::RefusedKind::Invalid,
+                    message,
+                    span(at),
+                );
             }
             CompileError::ObservationInputs { message } => {
-                break (parts::RefusedKind::Invalid, message, nowhere);
+                break (
+                    ryo_values::domain::program::types::RefusedKind::Invalid,
+                    message,
+                    nowhere,
+                );
             }
             CompileError::Catalog { reason } => {
-                break (parts::RefusedKind::Catalog, reason, nowhere);
+                break (
+                    ryo_values::domain::program::types::RefusedKind::Catalog,
+                    reason,
+                    nowhere,
+                );
             }
         }
     };
-    parts::RefusedQuery {
+    ryo_values::domain::program::types::RefusedQuery {
         kind,
-        message: parts::RefusalMessage(message),
+        message: ryo_values::domain::program::types::RefusalMessage(message),
         span,
         origin,
     }
@@ -134,10 +158,10 @@ fn refused(
 /// What the typechecker said of a text it refused, as the core says it.
 fn invalid(
     mut error: ryo_query_language::inbound::use_cases::typecheck::errors::TypecheckError,
-) -> parts::RefusedQuery {
+) -> ryo_values::domain::program::types::RefusedQuery {
     use ryo_query_language::inbound::use_cases::typecheck::errors::TypecheckError;
-    let mut origin = None;
-    let span = |at: ryo_values::domain::program::types::QuerySpan| Span {
+    let mut origin = ryo_values::domain::query_tokens::types::Attribution::Unlocated;
+    let span = |at: ryo_values::domain::query_tokens::types::QuerySpan| Span {
         start: offset(at.start),
         end: offset(at.end),
     };
@@ -151,38 +175,62 @@ fn invalid(
                 origin: found,
                 error: inner,
             } => {
-                origin = Some(found);
+                origin = ryo_values::domain::query_tokens::types::Attribution::Located(found);
                 error = *inner;
             }
             TypecheckError::Syntax { span: at, message } => {
-                break (parts::RefusedKind::Syntax, message, span(at));
+                break (
+                    ryo_values::domain::program::types::RefusedKind::Syntax,
+                    message,
+                    span(at),
+                );
             }
             TypecheckError::UnknownRelation { name, span: at } => {
-                break (parts::RefusedKind::UnknownRelation, name, span(at));
+                break (
+                    ryo_values::domain::program::types::RefusedKind::UnknownRelation,
+                    name,
+                    span(at),
+                );
             }
             TypecheckError::Type { span: at, message } => {
-                break (parts::RefusedKind::Type, message, span(at));
+                break (
+                    ryo_values::domain::program::types::RefusedKind::Type,
+                    message,
+                    span(at),
+                );
             }
             TypecheckError::Invalid { span: at, message } => {
-                break (parts::RefusedKind::Invalid, message, span(at));
+                break (
+                    ryo_values::domain::program::types::RefusedKind::Invalid,
+                    message,
+                    span(at),
+                );
             }
             TypecheckError::ObservationInputs { message } => {
-                break (parts::RefusedKind::Invalid, message, nowhere);
+                break (
+                    ryo_values::domain::program::types::RefusedKind::Invalid,
+                    message,
+                    nowhere,
+                );
             }
             TypecheckError::Catalog { reason } => {
-                break (parts::RefusedKind::Catalog, reason, nowhere);
+                break (
+                    ryo_values::domain::program::types::RefusedKind::Catalog,
+                    reason,
+                    nowhere,
+                );
             }
         }
     };
-    parts::RefusedQuery {
+    ryo_values::domain::program::types::RefusedQuery {
         kind,
-        message: parts::RefusalMessage(message),
+        message: ryo_values::domain::program::types::RefusalMessage(message),
         span,
         origin,
     }
 }
 
 /// A byte offset of the text, as the engine names an offset: four bytes, the largest when the text is longer.
-fn offset(at: ryo_values::domain::program::types::ByteOffset) -> Offset {
+fn offset(at: ryo_values::domain::query_tokens::types::ByteOffset) -> Offset {
     Offset(u32::try_from(at.0).unwrap_or(u32::MAX))
 }

@@ -2,16 +2,16 @@
 
 use ryo_relations::domain::relations::types::Relation;
 
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{Builder, Sourced};
 use crate::domain::resolving::service::{column_of, position, read_source};
-use crate::outbound::syntax::factory::winnow;
+use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
+use crate::selects;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::program::types::{
-    Condition, Expression, QuerySpelling, QueryView, WrittenOperand,
-};
+use ryo_values::domain::query_syntax::types::{Condition, Expression, WrittenOperand};
+use ryo_values::domain::query_tokens::types::{QuerySpelling, QueryView};
 
 /// The query text a row gives.
 type Input = &'static str;
@@ -41,7 +41,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || NO_COLUMN,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::UnknownColumn { .. }))
+            selects!(matches!(error, LoweringError::UnknownColumn { .. }))
         }),
     },
     Case {
@@ -49,7 +49,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || NO_SUBJECT,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::UnknownColumn { .. }))
+            selects!(matches!(error, LoweringError::UnknownColumn { .. }))
         }),
     },
     Case {
@@ -57,7 +57,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNKNOWN_RELATION,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::UnknownRelation { .. }))
+            selects!(matches!(error, LoweringError::UnknownRelation { .. }))
         }),
     },
     Case {
@@ -65,7 +65,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNKNOWN_STEP,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::UnknownStep { .. }))
+            selects!(matches!(error, LoweringError::UnknownStep { .. }))
         }),
     },
 ];

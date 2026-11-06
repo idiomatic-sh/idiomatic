@@ -12,7 +12,7 @@ use ryo_values::{
         plan_parts::types::{ColumnIndex, Direction, Input as PlanInput, RepeatedRows},
         plans::types::Operation,
         rows::{
-            errors::TableModelError,
+            errors::RowsError,
             types::{RowCount, Table},
         },
     },
@@ -95,9 +95,7 @@ fn project_static_column_failure_precedes_malformed_population() {
     for malformed in [false, true] {
         assert_eq!(
             project_result(&project(99), malformed).err(),
-            Some(OperatingError::Table(TableModelError::NoSuchColumn {
-                index: 99
-            }))
+            Some(OperatingError::Table(RowsError::NoSuchColumn { index: 99 }))
         );
     }
     // The same malformed population must still fail when the metadata is valid.
@@ -160,9 +158,7 @@ fn collected_axis_empty_roots_do_not_acquire_unsupported_table_walk() {
     // Root-id metadata is checked before the original empty-root gate.
     assert_eq!(
         axis_result(&axis(Direction::Deep, 99), &axis_inputs(true, false)).err(),
-        Some(OperatingError::Table(TableModelError::NoSuchColumn {
-            index: 99
-        }))
+        Some(OperatingError::Table(RowsError::NoSuchColumn { index: 99 }))
     );
     // A real nonempty unsupported walk must not become an unconditional no-op.
     assert_eq!(
@@ -179,9 +175,7 @@ fn collected_axis_computed_empty_domain_keeps_its_original_shortcut() {
     assert_eq!(empty.count.0, 0);
     assert_eq!(
         axis_result(&axis(Direction::Deep, 99), &axis_inputs(false, true)).err(),
-        Some(OperatingError::Table(TableModelError::NoSuchColumn {
-            index: 99
-        }))
+        Some(OperatingError::Table(RowsError::NoSuchColumn { index: 99 }))
     );
 }
 

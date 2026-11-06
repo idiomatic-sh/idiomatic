@@ -9,14 +9,16 @@ use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
     observations::types::{
-        BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName,
-        ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer,
-        ObservationReadinessLayout, PlanObservation,
+        BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
+        ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
     },
-    plan_parts::types::{ColumnIndex, HostedNumber, Input, StepId},
-    plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
-    program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
-    records::types::{Cell, PlacedRule},
+    plan_parts::types::{
+        ColumnIndex, HostedNumber, Input, ObservationBindingId, StepId, StepScope,
+    },
+    plans::types::{Emit, Operation, Plan, PlanStep},
+    query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+    records::types::ObservationReadinessLayout,
+    row_texts::types::{Cell, PlacedRule},
     rule_requests::types::{RuleParameters, RuleSpec},
     runs::types::{RuleApplicability, RuleId},
     stored_facts::types::{Bucket, Digest},
@@ -150,19 +152,31 @@ fn warm_consumer_selects_transitive_cross_producers_and_changed_producer_selects
     let first = [Bucket(10), Bucket(20), Bucket(30), Bucket(40)];
     assert_eq!(
         prepared.replay_closure(selection(&[2]), &first).unwrap(),
-        ReplayClosure { reuse: selection(&[0, 1, 2]), buckets: vec![] }
+        ReplayClosure {
+            reuse: selection(&[0, 1, 2]),
+            buckets: vec![]
+        }
     );
     assert_eq!(
         prepared.replay_closure(selection(&[0]), &first).unwrap(),
-        ReplayClosure { reuse: selection(&[0, 1, 2]), buckets: vec![] }
+        ReplayClosure {
+            reuse: selection(&[0, 1, 2]),
+            buckets: vec![]
+        }
     );
     assert_eq!(
         prepared.replay_closure(selection(&[3]), &first).unwrap(),
-        ReplayClosure { reuse: selection(&[3]), buckets: vec![] }
+        ReplayClosure {
+            reuse: selection(&[3]),
+            buckets: vec![]
+        }
     );
     assert_eq!(
         prepared.replay_closure(selection(&[]), &first).unwrap(),
-        ReplayClosure { reuse: selection(&[]), buckets: vec![] }
+        ReplayClosure {
+            reuse: selection(&[]),
+            buckets: vec![]
+        }
     );
     assert!(matches!(
         prepared.replay_closure(selection(&[4]), &first),
@@ -179,7 +193,10 @@ fn per_file_producer_is_not_reexecuted_in_the_consumer_cross_phase() {
                 &[Bucket(10), Bucket(20), Bucket(30), Bucket(40)]
             )
             .unwrap(),
-        ReplayClosure { reuse: selection(&[1, 2]), buckets: vec![Bucket(10)] },
+        ReplayClosure {
+            reuse: selection(&[1, 2]),
+            buckets: vec![Bucket(10)]
+        },
         "actual captured file frontier is read instead of rerunning its producer"
     );
 }

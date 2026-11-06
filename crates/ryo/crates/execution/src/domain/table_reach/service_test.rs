@@ -10,17 +10,17 @@ use crate::domain::operator::contract::views::{BorrowedRows, IndexedRows};
 use crate::domain::positions::service_test::prepared_index;
 use crate::domain::table_model::types::Rows;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::rows::errors::TableModelError;
+use ryo_values::domain::rows::errors::RowsError;
 use ryo_values::domain::rows::service::push_row;
 
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// A scenario: what a row asks of the part.
-type Input = fn() -> Result<Value, TableModelError>;
+type Input = fn() -> Result<Value, RowsError>;
 /// What a scenario answers: a yes as one.
 type Value = usize;
 /// Why a scenario is refused.
-type Failure = TableModelError;
+type Failure = RowsError;
 
 /// Three edges: 1 leads to 2 and to 4, and 2 leads to 3.
 fn edges_table() -> Table {
@@ -38,7 +38,7 @@ fn edges_table() -> Table {
 }
 
 /// The entities a walk from 1 reaches, nearest first, or in ascending order.
-fn reached_from_one(breadth: bool) -> Result<Vec<Cell>, TableModelError> {
+fn reached_from_one(breadth: bool) -> Result<Vec<Cell>, RowsError> {
     let table = edges_table();
     let (from, mut walk) = ([ColumnIndex(0)], Walk::default());
     let order = prepared_index(&Rows::Computed(&table), &from)?;
@@ -68,7 +68,7 @@ fn reached_from_one(breadth: bool) -> Result<Vec<Cell>, TableModelError> {
     Ok(walk.reached)
 }
 
-fn reaches_nearest_first() -> Result<Value, TableModelError> {
+fn reaches_nearest_first() -> Result<Value, RowsError> {
     let reached = reached_from_one(true)?;
     Ok(usize::from(
         reached
@@ -80,7 +80,7 @@ fn reaches_nearest_first() -> Result<Value, TableModelError> {
     ))
 }
 
-fn reaches_each_once_in_order() -> Result<Value, TableModelError> {
+fn reaches_each_once_in_order() -> Result<Value, RowsError> {
     let reached = reached_from_one(false)?;
     Ok(usize::from(
         reached

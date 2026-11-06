@@ -1,6 +1,7 @@
 //! The vocabulary of the optional `literal-properties` relation.
 
 use super::item::LiteralPropertiesColumn;
+use crate::domain::relations::constants::BOOLEAN;
 
 /// Query relation name.
 #[must_use]
@@ -22,7 +23,7 @@ pub fn column_name(column: LiteralPropertiesColumn) -> &'static str {
         LiteralPropertiesColumn::Kind => "kind",
         LiteralPropertiesColumn::Zero => "zero",
         LiteralPropertiesColumn::Empty => "empty",
-        LiteralPropertiesColumn::Boolean => "boolean",
+        LiteralPropertiesColumn::Boolean => BOOLEAN,
         LiteralPropertiesColumn::File => "file",
         LiteralPropertiesColumn::Span => "span",
     }

@@ -6,7 +6,8 @@ use ryo_language::domain::symbols::types::QuerySymbols;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::Inputs;
-use ryo_values::domain::plans::types::{Operation, OperationKind};
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 /// The finite existing semantic input shapes; dependency acquisition is engine work.
@@ -305,7 +306,7 @@ pub(crate) fn portable_fault(
     match error {
         PortableOperatorFault::Interrupted => OperatingError::WrongOperation,
         PortableOperatorFault::NoSuchColumn { index } => {
-            ryo_values::domain::rows::errors::TableModelError::NoSuchColumn { index }.into()
+            ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index }.into()
         }
         PortableOperatorFault::ShapeMismatch => OperatingError::ShapeMismatch,
         PortableOperatorFault::InvalidSpanBounds => OperatingError::InvalidSpanBounds,
@@ -481,7 +482,7 @@ impl<'a> PrimitiveLease<'a> {
 /// Exact semantic program bound once; a primitive cannot substitute comparisons.
 #[derive(Clone, Debug)]
 pub(crate) struct PreparedPredicates {
-    pub comparisons: Vec<ryo_values::domain::plan_parts::types::Comparison>,
+    pub comparisons: Vec<ryo_values::domain::plan_parts::types::PlanComparison>,
     pub kinds: Vec<CellKind>,
 }
 

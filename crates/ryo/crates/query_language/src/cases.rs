@@ -1,4 +1,3 @@
-// `selects` is given the result of a `matches!` over the error, the one boolean the selector of a row is made of
 //! The crate's test support: the rows every `*_test.rs` states its cases in, and the one `run` that checks them.
 
 use std::fmt::Debug;
@@ -25,16 +24,18 @@ pub enum Selection {
     Differs,
 }
 
-/// Whether an error is the one a row picks, as a selector answers it.
-#[must_use]
-pub const fn selects(matched: bool) -> Selection {
-    if matched {
-        Selection::Matches
-    } else {
-        Selection::Differs
-    }
+/// Whether an error is the one a row picks, as a selector answers it: the row gives the result of a
+/// `matches!` over the error.
+#[macro_export]
+macro_rules! selects {
+    ($matched:expr $(,)?) => {
+        if $matched {
+            $crate::cases::Selection::Matches
+        } else {
+            $crate::cases::Selection::Differs
+        }
+    };
 }
-
 /// What a row expects: a value, an error variant, or an error picked by a selector.
 #[derive(Debug)]
 pub enum Expect<V, E> {
@@ -135,9 +136,9 @@ pub(crate) fn lowering_builder() -> crate::domain::lowering::types::Builder<'sta
         kinds: Vec::new(),
         steps: Vec::new(),
         lowered: Vec::new(),
-        span: ryo_values::domain::program::types::QuerySpan {
-            start: ryo_values::domain::program::types::ByteOffset(7),
-            end: ryo_values::domain::program::types::ByteOffset(19),
+        span: ryo_values::domain::query_tokens::types::QuerySpan {
+            start: ryo_values::domain::query_tokens::types::ByteOffset(7),
+            end: ryo_values::domain::query_tokens::types::ByteOffset(19),
         },
         origin: None,
         comparison_origins: Vec::new(),

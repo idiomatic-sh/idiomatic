@@ -12,7 +12,7 @@ use crate::application::file_dag::program::protocol::types::ProjectBatch;
 use crate::domain::{
     completion::types::CoverageState, coverage::types::Partials, table_model::types::Frontier,
 };
-use ryo_values::domain::rows::errors::TableModelError;
+use ryo_values::domain::rows::errors::RowsError;
 
 #[derive(Clone, Copy)]
 enum Delivery {
@@ -105,7 +105,8 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
                                 table: std::sync::Arc::new(table),
                             },
                             coverage: CoverageState::Complete,
-                        }].into(),
+                        }]
+                        .into(),
                         program: Arc::clone(prepared.program()),
                         required: required.clone(),
                         refused: vec![].into(),
@@ -221,7 +222,7 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
             RootOutcome::Failed(error) if at == 3 && matches!(exit, PhaseExit::SemanticFailure) => {
                 assert!(matches!(
                     error,
-                    OperatingError::Table(TableModelError::NoSuchColumn { index: 99 })
+                    OperatingError::Table(RowsError::NoSuchColumn { index: 99 })
                 ));
             }
             _ => panic!("completed project root lost terminal result"),
@@ -291,9 +292,9 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
                     assert!(
                         matches!(
                             outcome.emit,
-                            RootOutcome::Failed(OperatingError::Table(
-                                TableModelError::NoSuchColumn { index: 99 }
-                            ))
+                            RootOutcome::Failed(OperatingError::Table(RowsError::NoSuchColumn {
+                                index: 99
+                            }))
                         ),
                         "outer project delivery preserves the original terminal error"
                     );

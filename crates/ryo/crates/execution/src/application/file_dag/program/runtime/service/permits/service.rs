@@ -256,7 +256,7 @@ impl<'scope> KernelPermit<'scope> {
         }
         Ok(())
     }
-    pub(crate) fn kind(&self) -> ryo_values::domain::plans::types::OperationKind {
+    pub(crate) fn kind(&self) -> ryo_values::domain::query_operators::types::OperationKind {
         self.program.regions()[self.region.0].instructions[self.instruction.0]
             .contract
             .kind

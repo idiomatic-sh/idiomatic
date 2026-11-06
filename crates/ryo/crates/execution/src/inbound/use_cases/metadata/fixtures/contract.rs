@@ -1,7 +1,7 @@
 //! One catalog contract helper used by the inbound case table.
 use super::super::interface::MetadataUseCase;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::plans::types::QueryOperator;
+use ryo_values::domain::query_operators::types::QueryOperator;
 
 type Input = QueryOperator;
 type Value = usize;

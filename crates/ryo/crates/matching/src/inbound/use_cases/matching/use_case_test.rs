@@ -1,7 +1,7 @@
 //! Production inbound semantic controls with positive and refusal cases.
 
 use super::errors::MatchingError;
-use super::fixtures::contract::{MatchingInput, MatchingValue, answer};
+use super::fixtures::subject::{MatchingInput, MatchingValue, answer};
 type Input = (MatchingInput, MatchingValue);
 type Value = ();
 use super::use_case::MatchingUseCaseImpl;
@@ -75,7 +75,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             )
         },
         expect: Expect::Refusal(|error| {
-            crate::cases::selects(
+            crate::selects!(
                 matches!(error, MatchingError::InvalidRegex { reason } if !reason.is_empty()),
             )
         }),
@@ -86,7 +86,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 MatchingInput::Globs(&["*.rs", "**/*.rs"], "src/main.rs"),
-                MatchingValue::Hits(vec![1]),
+                MatchingValue::Hits(vec![1].into()),
             )
         },
         expect: Expect::Value(()),
@@ -96,7 +96,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || (MatchingInput::Parse("["), MatchingValue::Match(false)),
         expect: Expect::Refusal(|error| {
-            crate::cases::selects(
+            crate::selects!(
                 matches!(error, MatchingError::BadGlob { glob, reason } if glob == "[" && !reason.is_empty()),
             )
         }),

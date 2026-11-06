@@ -5,7 +5,7 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{Origin, Words, WorkerNumber};
 use ryo_values::domain::records::types::{CrossPublicationTransfer, PackedObservedRoot};
 use ryo_values::domain::{
-    observations::types::{ObservationReason, ProducerReadiness},
+    records::types::{ObservationReason, ProducerReadiness},
     stored_facts::types::{ArenaBytes, KeptWords},
 };
 use {
@@ -53,7 +53,7 @@ fn pack_root(
 ) -> PackedObservedRoot {
     let mut published = PackedObservedRoot {
         output: root.output,
-        words: None,
+        words: ryo_values::domain::records::types::RootWords::Withheld,
         readiness: root.readiness,
         arenas: Vec::new(),
     };
@@ -86,6 +86,8 @@ fn pack_root(
     }
     let mut words = Words::default();
     encode_table(&table, &places, &mut words);
-    published.words = Some(KeptWords(pack(WordSlice(&words.0))));
+    published.words = ryo_values::domain::records::types::RootWords::Published(KeptWords(pack(
+        WordSlice(&words.0),
+    )));
     published
 }

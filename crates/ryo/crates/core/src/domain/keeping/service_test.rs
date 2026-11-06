@@ -19,18 +19,18 @@ use {
     ryo_values::domain::runs::types::RuleNumber,
 };
 
-use ryo_values::domain::records::types::RenderedText;
-use ryo_values::domain::records::types::{RowEnds, RowsTextAt, TextRange};
+use ryo_values::domain::row_texts::types::RenderedText;
+use ryo_values::domain::row_texts::types::{RowEnds, RowsTextAt, TextRange};
 use ryo_values::domain::table_words::service::{decode_combined, encode_table, pack, unpacked};
 use ryo_values::domain::table_words::types::WordSlice;
 
 use ryo_relations::domain::relations::types::Words;
+use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::plan_parts::types::QueryText;
-use ryo_values::domain::program::types::ColumnName;
-use ryo_values::domain::records::types::{PlacedColumn, PlacedLine, RowTotal};
+use ryo_values::domain::row_texts::types::{PlacedColumn, PlacedLine, RowTotal};
 use ryo_values::domain::runs::types::RuleId;
-use ryo_values::domain::stores::types::{
+use ryo_values::domain::stored_findings::types::{
     FindingMade, FindingPlace, StoredFileNumber, StoredFinding, StoredPlace, StoredValue,
 };
 
@@ -129,7 +129,7 @@ fn hosting(rules: &[RuleSpec], hosted: &[HostedText]) -> DigestInput {
 fn rule(id: &str, query: &str) -> RuleSpec {
     RuleSpec {
         id: RuleId(id.into()),
-        query: ryo_values::domain::program::types::QueryBundle::from(QueryText(query.into())),
+        query: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(query.into())),
         applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
         given: Vec::new(),
         observations: Vec::new(),
@@ -187,13 +187,17 @@ fn configuration_follows_the_rules() -> Value {
     let same = configuration(&rules);
     let with_module = |body: &str| {
         let root = ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id("rules/F401")
-                .expect("root id is nonblank"),
+            ryo_values::domain::program::service::source_id(
+                ryo_values::domain::query_tokens::types::QuerySpelling("rules/F401"),
+            )
+            .expect("root id is nonblank"),
             "root query",
         );
         let module = ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id("python/ruff/suppress")
-                .expect("module id is nonblank"),
+            ryo_values::domain::program::service::source_id(
+                ryo_values::domain::query_tokens::types::QuerySpelling("python/ruff/suppress"),
+            )
+            .expect("module id is nonblank"),
             body,
         );
         let bundle = ryo_values::domain::program::service::query_bundle(root, [module])
@@ -219,14 +223,18 @@ fn subject(scenario: Input) -> Value {
             let rendered = Rendered {
                 text: RenderedText("ra.rs".to_owned()),
                 cells: vec![
-                    Some(ryo_values::domain::records::types::Cell::Text(TextRange {
-                        start: RowsTextAt(0),
-                        end: RowsTextAt(1),
-                    })),
-                    Some(ryo_values::domain::records::types::Cell::File(TextRange {
-                        start: RowsTextAt(1),
-                        end: RowsTextAt(5),
-                    })),
+                    Some(ryo_values::domain::row_texts::types::Cell::Text(
+                        TextRange {
+                            start: RowsTextAt(0),
+                            end: RowsTextAt(1),
+                        },
+                    )),
+                    Some(ryo_values::domain::row_texts::types::Cell::File(
+                        TextRange {
+                            start: RowsTextAt(1),
+                            end: RowsTextAt(5),
+                        },
+                    )),
                     None,
                 ],
                 ends: RowEnds(vec![3]),
@@ -253,26 +261,32 @@ fn subject(scenario: Input) -> Value {
                         column: PlacedColumn(3),
                     })
                 },
-                subject: Some(ryo_values::domain::records::types::Cell::File(
+                subject: Some(ryo_values::domain::row_texts::types::Cell::File(
                     "a.rs".into(),
                 ))
                 .into(),
                 key: vec![
-                    Some(ryo_values::domain::records::types::Cell::Text("k,1".into())).into(),
+                    Some(ryo_values::domain::row_texts::types::Cell::Text(
+                        "k,1".into(),
+                    ))
+                    .into(),
                     None.into(),
-                    Some(ryo_values::domain::records::types::Cell::Number(Integer(4))).into(),
+                    Some(ryo_values::domain::row_texts::types::Cell::Number(Integer(
+                        4,
+                    )))
+                    .into(),
                 ],
                 values: vec![
                     StoredValue {
                         column: ColumnName("name".into()),
-                        value: Some(ryo_values::domain::records::types::Cell::Text(
+                        value: Some(ryo_values::domain::row_texts::types::Cell::Text(
                             "ma:in".into(),
                         ))
                         .into(),
                     },
                     StoredValue {
                         column: ColumnName("span".into()),
-                        value: Some(ryo_values::domain::records::types::Cell::Span(Span {
+                        value: Some(ryo_values::domain::row_texts::types::Cell::Span(Span {
                             start: Offset(0),
                             end: Offset(4),
                         }))

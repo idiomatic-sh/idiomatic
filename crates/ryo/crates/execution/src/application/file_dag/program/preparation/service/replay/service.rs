@@ -5,7 +5,7 @@ use crate::application::file_dag::program::preparation::types::{
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::file_program::types::ResolvedObservationProducer;
 use crate::domain::operating::errors::OperatingError;
-use ryo_values::domain::plans::types::StepScope;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::stores::types::{MadeAgain, Reuse};
 use std::collections::VecDeque;
 
@@ -87,7 +87,7 @@ impl PreparedProgram {
             .filter(|(_, needed)| *needed == Visit::Reached)
             .map(|(rule, _)| {
                 u32::try_from(rule)
-                    .map(ryo_values::domain::records::types::PlacedRule)
+                    .map(ryo_values::domain::row_texts::types::PlacedRule)
                     .map_err(|_| OperatingError::NotRun)
             })
             .collect::<Result<Vec<_>, _>>()?;

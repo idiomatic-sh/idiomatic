@@ -9,14 +9,15 @@ use std::io::Write as _;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, PoisonError};
 
-use ryo_core::outbound::rows::errors::RowsError;
-use ryo_core::outbound::rows::interface::RowsPort;
-use ryo_core::outbound::rows::types::{LentCell, Summary};
+use ryo_core::outbound::row_sink::errors::RowSinkError;
+use ryo_core::outbound::row_sink::interface::RowSinkPort;
+use ryo_core::outbound::row_sink::types::{LentCell, Summary};
 use ryo_relations::domain::relations::constants::UNLOCATED;
 use ryo_relations::domain::relations::service::location;
 use ryo_relations::domain::relations::types::Locatedness;
 use ryo_values::domain::plan_parts::types::Heading;
-use ryo_values::domain::records::types::{Cell, CellText, RowTotal, Unread, Unreadable};
+use ryo_values::domain::records::types::{Unread, Unreadable};
+use ryo_values::domain::row_texts::types::{Cell, CellText, RowTotal};
 
 use super::Format;
 
@@ -182,7 +183,7 @@ impl RowsSchema {
     }
 }
 
-impl RowsPort for RowsSchema {
+impl RowSinkPort for RowsSchema {
     fn begin(&self, columns: &[Heading]) {
         self.put(|out| {
             if self.json {
@@ -221,7 +222,7 @@ impl RowsPort for RowsSchema {
         });
     }
 
-    fn end(&self, summary: Summary, unread: &[Unread]) -> Result<(), RowsError> {
+    fn end(&self, summary: Summary, unread: &[Unread]) -> Result<(), RowSinkError> {
         let lines: Vec<String> = unread.iter().map(unread_line).collect();
         self.put(|out| {
             if self.json {
@@ -262,8 +263,8 @@ impl RowsPort for RowsSchema {
         }
         match &*self.health.lock().unwrap_or_else(PoisonError::into_inner) {
             StreamHealth::Well => Ok(()),
-            StreamHealth::Closed => Err(RowsError::Closed),
-            StreamHealth::Failed(reason) => Err(RowsError::Failed {
+            StreamHealth::Closed => Err(RowSinkError::Closed),
+            StreamHealth::Failed(reason) => Err(RowSinkError::Failed {
                 reason: reason.clone(),
             }),
         }

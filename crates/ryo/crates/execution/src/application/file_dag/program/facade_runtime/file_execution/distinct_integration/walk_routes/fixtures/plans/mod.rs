@@ -2,12 +2,13 @@
 use super::super::super::*;
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::observations::types::{
-    BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName,
-    ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer,
-    ObservationReadinessLayout, PlanObservation,
+    BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
+    ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
 };
-use ryo_values::domain::plan_parts::types::{Comparison, Operand, QueryLiteral, Test};
+use ryo_values::domain::plan_parts::types::ObservationBindingId;
+use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::records::types::ObservationReadinessLayout;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 
 pub(in super::super) struct Authored {
@@ -47,18 +48,18 @@ pub(super) fn plan(steps: Vec<PlanStep>) -> Plan {
         comparison_origins: vec![],
     }
 }
-pub(super) fn comparison(test: Test, number: Integer) -> Comparison {
-    Comparison {
+pub(super) fn comparison(test: Test, number: Integer) -> PlanComparison {
+    PlanComparison {
         test,
         left: Operand::Column(ColumnIndex(1)),
         right: Operand::Literal(QueryLiteral::Number(number)),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }
 }
-fn head(kept: Vec<ColumnIndex>, comparisons: Vec<Comparison>) -> Plan {
+fn head(kept: Vec<ColumnIndex>, comparisons: Vec<PlanComparison>) -> Plan {
     head_of(Relation::LanguageTarget, kept, comparisons)
 }
-fn head_of(relation: Relation, kept: Vec<ColumnIndex>, comparisons: Vec<Comparison>) -> Plan {
+fn head_of(relation: Relation, kept: Vec<ColumnIndex>, comparisons: Vec<PlanComparison>) -> Plan {
     plan(vec![PlanStep {
         scope: StepScope::PerFile,
         operation: Operation::Select {
@@ -217,11 +218,11 @@ impl Authored {
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: PlanInput::BoundObservation(ObservationBindingId(0)),
-                comparisons: vec![Comparison {
+                comparisons: vec![PlanComparison {
                     test: Test::GreaterThan,
                     left: Operand::Column(ColumnIndex(0)),
                     right: Operand::Literal(QueryLiteral::Number(Integer(0))),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
                 kept: vec![],
             },

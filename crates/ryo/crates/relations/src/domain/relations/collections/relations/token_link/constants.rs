@@ -1,5 +1,6 @@
 //! Vocabulary of optional physical token edges.
 use super::item::TokenLinkColumn;
+use crate::domain::relations::constants::SOURCE;
 /// Canonical optional relation name.
 #[must_use]
 pub fn name() -> &'static str {
@@ -14,7 +15,7 @@ pub fn summary() -> &'static str {
 #[must_use]
 pub fn column_name(column: TokenLinkColumn) -> &'static str {
     match column {
-        TokenLinkColumn::Source => "source",
+        TokenLinkColumn::Source => SOURCE,
         TokenLinkColumn::Target => "target",
         TokenLinkColumn::LinkKind => "link-kind",
         TokenLinkColumn::File => "file",

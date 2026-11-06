@@ -11,12 +11,10 @@ use ryo_language::domain::{
     symbols::types::Symbols,
 };
 use ryo_relations::domain::relations::types::{CellKind, FileId, Value};
+use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
-    plans::{
-        service::kind_of,
-        types::{Operation, OperationKind},
-    },
+    plans::{service::kind_of, types::Operation},
     rows::types::Table,
 };
 use std::sync::Arc;
@@ -97,7 +95,7 @@ pub(in super::super) fn compare_delivery_with_port(
 ) -> Result<ObservedDelivery, OperatingError> {
     use ryo_values::domain::{
         files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
-        program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+        query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
         rule_requests::types::{RuleParameters, RuleSpec},
         runs::types::{RuleApplicability, RuleId},
         stored_facts::types::Digest,
@@ -157,7 +155,7 @@ pub(in super::super) fn compare_delivery_with_port(
         a.plan
             .steps
             .push(ryo_values::domain::plans::types::PlanStep {
-                scope: ryo_values::domain::plans::types::StepScope::PerFile,
+                scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
                 operation: span,
             });
         a.plan.emit.step = StepId((a.plan.steps.len() - 1) as u32);

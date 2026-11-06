@@ -22,8 +22,8 @@ use ryo_relations::domain::relations::{
 };
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Input, RepeatedRows, StepId},
-    plans::types::{Emit as PlanEmit, Operation, Plan, PlanStep, StepScope},
+    plan_parts::types::{ColumnIndex, Input, RepeatedRows, StepId, StepScope},
+    plans::types::{Emit as PlanEmit, Operation, Plan, PlanStep},
 };
 
 fn plan(relation: Relation) -> Plan {
@@ -86,10 +86,15 @@ fn dag_preserves_all_bulk_routes_with_and_without_optional_retention() {
     };
     let mut words = ryo_relations::domain::relations::types::Words::default();
     ryo_values::domain::table_words::service::encode_table(&computed, &[], &mut words);
-    let (compact, names) = ryo_values::domain::table_words::service::admit_compact(
-        Arc::new(ryo_values::domain::stored_facts::types::KeptWords(
-            ryo_values::domain::table_words::service::pack(
-                ryo_values::domain::table_words::types::WordSlice(&words.0),
+    let ryo_values::domain::table_words::types::Admitted {
+        table: compact,
+        names,
+    } = ryo_values::domain::compact_table::service::admit_compact(
+        ryo_values::domain::table_words::types::CompactBacking(Arc::new(
+            ryo_values::domain::stored_facts::types::KeptWords(
+                ryo_values::domain::table_words::service::pack(
+                    ryo_values::domain::table_words::types::WordSlice(&words.0),
+                ),
             ),
         )),
         &mut Vec::new(),
@@ -97,7 +102,10 @@ fn dag_preserves_all_bulk_routes_with_and_without_optional_retention() {
     )
     .unwrap();
     assert!(names.is_empty());
-    assert!(ryo_values::domain::table_words::service::compact_rectangular(&compact));
+    assert_eq!(
+        ryo_values::domain::compact_table::service::compact_rectangular(&compact),
+        ryo_values::domain::table_words::types::TableShape::Rectangular
+    );
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"ab"));
     enter_node(&mut builder, KindBits(0), Offset(0));
@@ -264,8 +272,13 @@ fn supplied_compact_is_published_once_then_retired_or_latched_refused() {
         if refused {
             codec::encode_table(&short, &[], &mut words);
         }
-        let (compact, names) = codec::admit_compact(
-            Arc::new(KeptWords(codec::pack(WordSlice(&words.0)))),
+        let ryo_values::domain::table_words::types::Admitted {
+            table: compact,
+            names,
+        } = ryo_values::domain::compact_table::service::admit_compact(
+            ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(
+                codec::pack(WordSlice(&words.0)),
+            ))),
             &mut Vec::new(),
             if refused {
                 DecodeMode::Permissive
@@ -275,7 +288,11 @@ fn supplied_compact_is_published_once_then_retired_or_latched_refused() {
         )
         .unwrap();
         assert!(names.is_empty());
-        assert_eq!(codec::compact_rectangular(&compact), !refused);
+        assert_eq!(
+            ryo_values::domain::compact_table::service::compact_rectangular(&compact)
+                == ryo_values::domain::table_words::types::TableShape::Rectangular,
+            !refused
+        );
         let scope = crate::application::file_dag::testing::FileScope::new(
             Arc::clone(&graph),
             crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),

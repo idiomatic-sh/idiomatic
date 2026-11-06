@@ -9,13 +9,20 @@ use ryo_relations::domain::terms::types::Vocabulary;
 use super::constants::{ENDS_WITH, MATCHES, STARTS_WITH, WORD_SEPARATOR, arity, function_name};
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{
-    Addressable, Builder, Compatibility, PlannedColumn, ResolvedOperand, SearchMatch, Typed,
+    Addressable, Builder, Compatibility, OriginCount, PlannedColumn, ResolvedOperand, SearchMatch,
+    Typed,
 };
 use crate::domain::resolving::service::{column_of, find_parameter, parameter_of, position};
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plan_parts::types::ComparisonOriginId;
 use ryo_values::domain::plans::types as plans;
-use ryo_values::domain::program::types::{self as syntax, QuerySpelling};
+use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::query_bindings::types::ParameterType;
+use ryo_values::domain::query_syntax::types::{
+    Alias, ColumnReference, Filter, WrittenApplied, WrittenFunction, WrittenOperand, WrittenTest,
+};
+use ryo_values::domain::query_tokens::types::QuerySpan;
+use ryo_values::domain::query_tokens::types::QuerySpelling;
 
 /// Whether a side is text: a name or a file column, text the query wrote, a text parameter or a function's text.
 fn is_text(side: Typed) -> SearchMatch {
@@ -23,7 +30,7 @@ fn is_text(side: Typed) -> SearchMatch {
         side,
         Typed::Column(CellKind::Symbol | CellKind::File)
             | Typed::Text
-            | Typed::Parameter(plans::ParameterType::Text)
+            | Typed::Parameter(ParameterType::Text)
     ) {
         SearchMatch::Matches
     } else {
@@ -50,7 +57,7 @@ pub(crate) fn compatible(test: parts::Test, left: Typed, right: Typed) -> Compat
             side,
             Typed::Column(CellKind::Number)
                 | Typed::Number
-                | Typed::Parameter(plans::ParameterType::Number)
+                | Typed::Parameter(ParameterType::Number)
         )
     };
     let texty = |side: Typed| is_text(side) == SearchMatch::Matches;
@@ -63,7 +70,7 @@ pub(crate) fn compatible(test: parts::Test, left: Typed, right: Typed) -> Compat
                     (left, right),
                     (
                         Typed::Column(CellKind::Flag),
-                        Typed::Parameter(plans::ParameterType::Flag)
+                        Typed::Parameter(ParameterType::Flag)
                     )
                 )
         }
@@ -82,11 +89,11 @@ pub(crate) fn compatible(test: parts::Test, left: Typed, right: Typed) -> Compat
         | parts::Test::Matches
         | parts::Test::EndsWith => texty(left) && texty(right),
         parts::Test::In | parts::Test::NotIn => {
-            (numbery(left) && right == Typed::Parameter(plans::ParameterType::Numbers))
-                || (texty(left) && right == Typed::Parameter(plans::ParameterType::Texts))
+            (numbery(left) && right == Typed::Parameter(ParameterType::Numbers))
+                || (texty(left) && right == Typed::Parameter(ParameterType::Texts))
         }
         parts::Test::GlobAny | parts::Test::NotGlobAny => {
-            texty(left) && (texty(right) || right == Typed::Parameter(plans::ParameterType::Texts))
+            texty(left) && (texty(right) || right == Typed::Parameter(ParameterType::Texts))
         }
     };
     if comparable {
@@ -97,46 +104,44 @@ pub(crate) fn compatible(test: parts::Test, left: Typed, right: Typed) -> Compat
 }
 
 /// The test a filter's operator is.
-pub(crate) fn test_of(test: syntax::WrittenTest) -> parts::Test {
+pub(crate) fn test_of(test: WrittenTest) -> parts::Test {
     match test {
-        syntax::WrittenTest::NaturalLessThan => parts::Test::NaturalLessThan,
-        syntax::WrittenTest::Equal => parts::Test::Equal,
-        syntax::WrittenTest::NotEqual => parts::Test::NotEqual,
-        syntax::WrittenTest::LessThan => parts::Test::LessThan,
-        syntax::WrittenTest::LessThanOrEqual => parts::Test::LessThanOrEqual,
-        syntax::WrittenTest::GreaterThan => parts::Test::GreaterThan,
-        syntax::WrittenTest::GreaterThanOrEqual => parts::Test::GreaterThanOrEqual,
-        syntax::WrittenTest::In => parts::Test::In,
-        syntax::WrittenTest::NotIn => parts::Test::NotIn,
-        syntax::WrittenTest::GlobAny => parts::Test::GlobAny,
-        syntax::WrittenTest::NotGlobAny => parts::Test::NotGlobAny,
-        syntax::WrittenTest::FloatTextGreaterThanOrEqual => {
-            parts::Test::FloatTextGreaterThanOrEqual
-        }
-        syntax::WrittenTest::NumericGreaterThanOrEqual => parts::Test::NumericGreaterThanOrEqual,
-        syntax::WrittenTest::IntegerSuccessor => parts::Test::IntegerSuccessor,
-        syntax::WrittenTest::StartsWith => parts::Test::StartsWith,
-        syntax::WrittenTest::Matches => parts::Test::Matches,
-        syntax::WrittenTest::EndsWith => parts::Test::EndsWith,
+        WrittenTest::NaturalLessThan => parts::Test::NaturalLessThan,
+        WrittenTest::Equal => parts::Test::Equal,
+        WrittenTest::NotEqual => parts::Test::NotEqual,
+        WrittenTest::LessThan => parts::Test::LessThan,
+        WrittenTest::LessThanOrEqual => parts::Test::LessThanOrEqual,
+        WrittenTest::GreaterThan => parts::Test::GreaterThan,
+        WrittenTest::GreaterThanOrEqual => parts::Test::GreaterThanOrEqual,
+        WrittenTest::In => parts::Test::In,
+        WrittenTest::NotIn => parts::Test::NotIn,
+        WrittenTest::GlobAny => parts::Test::GlobAny,
+        WrittenTest::NotGlobAny => parts::Test::NotGlobAny,
+        WrittenTest::FloatTextGreaterThanOrEqual => parts::Test::FloatTextGreaterThanOrEqual,
+        WrittenTest::NumericGreaterThanOrEqual => parts::Test::NumericGreaterThanOrEqual,
+        WrittenTest::IntegerSuccessor => parts::Test::IntegerSuccessor,
+        WrittenTest::StartsWith => parts::Test::StartsWith,
+        WrittenTest::Matches => parts::Test::Matches,
+        WrittenTest::EndsWith => parts::Test::EndsWith,
     }
 }
 
 /// The function a query applies, as the plan holds it.
-fn function_of(function: syntax::WrittenFunction) -> parts::Function {
+fn function_of(function: WrittenFunction) -> parts::Function {
     match function {
-        syntax::WrittenFunction::Concat => parts::Function::Concat,
-        syntax::WrittenFunction::Pascal => parts::Function::Pascal,
-        syntax::WrittenFunction::Camel => parts::Function::Camel,
-        syntax::WrittenFunction::Snake => parts::Function::Snake,
-        syntax::WrittenFunction::Kebab => parts::Function::Kebab,
-        syntax::WrittenFunction::Lower => parts::Function::Lower,
+        WrittenFunction::Concat => parts::Function::Concat,
+        WrittenFunction::Pascal => parts::Function::Pascal,
+        WrittenFunction::Camel => parts::Function::Camel,
+        WrittenFunction::Snake => parts::Function::Snake,
+        WrittenFunction::Kebab => parts::Function::Kebab,
+        WrittenFunction::Lower => parts::Function::Lower,
     }
 }
 
 /// A function applied to its arguments: each argument text, as many as the function takes; the function's answer is text.
 fn applied_of(
     builder: &Builder<'_>,
-    applied: &syntax::WrittenApplied,
+    applied: &WrittenApplied,
     columns: Addressable<'_>,
 ) -> Result<ResolvedOperand, LoweringError> {
     let name = function_name(applied.function);
@@ -172,11 +177,11 @@ fn applied_of(
 /// One side of a comparison, with what the query says it is.
 pub(crate) fn operand_of(
     builder: &Builder<'_>,
-    operand: &syntax::WrittenOperand,
+    operand: &WrittenOperand,
     columns: Addressable<'_>,
 ) -> Result<ResolvedOperand, LoweringError> {
     match operand {
-        syntax::WrittenOperand::Column(reference) => {
+        WrittenOperand::Column(reference) => {
             let index = column_index(builder, reference, columns)?;
             let kind = column_of(columns.fields, index).kind;
             Ok(ResolvedOperand {
@@ -184,7 +189,7 @@ pub(crate) fn operand_of(
                 typed: Typed::Column(kind),
             })
         }
-        syntax::WrittenOperand::Parameter(name) => {
+        WrittenOperand::Parameter(name) => {
             let id = find_parameter(builder.parameters, |parameter| {
                 if parameter.name == *name {
                     SearchMatch::Matches
@@ -201,29 +206,29 @@ pub(crate) fn operand_of(
                 typed: Typed::Parameter(*parameter_of(&builder.kinds, id)),
             })
         }
-        syntax::WrittenOperand::Text(text) => Ok(ResolvedOperand {
+        WrittenOperand::Text(text) => Ok(ResolvedOperand {
             operand: parts::Operand::Literal(parts::QueryLiteral::Text(parts::LiteralText(
                 text.0.clone(),
             ))),
             typed: Typed::Text,
         }),
-        syntax::WrittenOperand::Number(number) => Ok(ResolvedOperand {
+        WrittenOperand::Number(number) => Ok(ResolvedOperand {
             operand: parts::Operand::Literal(parts::QueryLiteral::Number(
                 ryo_relations::domain::relations::types::Integer(number.0),
             )),
             typed: Typed::Number,
         }),
-        syntax::WrittenOperand::Function(applied) => applied_of(builder, applied, columns),
+        WrittenOperand::Function(applied) => applied_of(builder, applied, columns),
     }
 }
 
 /// Where the column `reference` names sits: after a join, `alias.column` is that side's column; otherwise the column of that name.
 fn column_index(
     builder: &Builder<'_>,
-    reference: &syntax::ColumnReference,
+    reference: &ColumnReference,
     columns: Addressable<'_>,
 ) -> Result<parts::ColumnIndex, LoweringError> {
-    if let syntax::Alias::Written(alias) = &reference.alias
+    if let Alias::Written(alias) = &reference.alias
         && let Some(side) = columns
             .sides
             .iter()
@@ -241,9 +246,9 @@ fn column_index(
 /// The comparison a filter makes over `columns`: its two operands resolved and checked to be of kinds that compare.
 pub(crate) fn comparison_of(
     builder: &mut Builder<'_>,
-    filter: &syntax::Filter,
+    filter: &Filter,
     columns: Addressable<'_>,
-) -> Result<parts::Comparison, LoweringError> {
+) -> Result<parts::PlanComparison, LoweringError> {
     let ResolvedOperand {
         operand: left,
         typed: left_type,
@@ -305,15 +310,13 @@ pub(crate) fn comparison_of(
     }
     let origin = if let Some(mut origin) = builder.origin.clone() {
         origin.span = filter.span;
-        let id = u32::try_from(builder.comparison_origins.len())
-            .map(ComparisonOriginId)
-            .map_err(|_overflow| LoweringError::TooManyComparisonOrigins { span: filter.span })?;
+        let id = comparison_origin_id(OriginCount(builder.comparison_origins.len()), filter.span)?;
         builder.comparison_origins.push(origin);
-        Some(id)
+        parts::ComparisonOrigin::Recorded(id)
     } else {
-        None
+        parts::ComparisonOrigin::Unrecorded
     };
-    Ok(parts::Comparison {
+    Ok(parts::PlanComparison {
         test,
         left,
         right,
@@ -321,10 +324,20 @@ pub(crate) fn comparison_of(
     })
 }
 
+/// The id the next comparison origin is interned under, when `held` are interned already.
+pub(crate) fn comparison_origin_id(
+    held: OriginCount,
+    span: QuerySpan,
+) -> Result<ComparisonOriginId, LoweringError> {
+    u32::try_from(held.0)
+        .map(ComparisonOriginId)
+        .map_err(|_overflow| LoweringError::TooManyComparisonOrigins { span })
+}
+
 /// That a word compared with a column of a closed set of words is one of them: `kind = "headline"` is refused when the query is compiled,
 /// naming the words there are, never a comparison that matches nothing.
 fn check_words(
-    filter: &syntax::Filter,
+    filter: &Filter,
     left: &parts::Operand,
     right: &parts::Operand,
     fields: &[PlannedColumn],

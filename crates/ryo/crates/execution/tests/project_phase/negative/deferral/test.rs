@@ -14,9 +14,9 @@ use ryo_relations::domain::relations::{
     types::{CellKind, FileId, Relation, Words, WorkerNumber},
 };
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Input, InputNumber, StepId},
-    plans::types::{Operation, PlanStep, StepScope},
-    rows::errors::TableModelError,
+    plan_parts::types::{ColumnIndex, Input, InputNumber, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
+    rows::errors::RowsError,
     stored_facts::types::Bucket,
 };
 use std::sync::atomic::Ordering;
@@ -233,9 +233,7 @@ fn a_skipped_project_frontier_preserves_the_later_original_file_error_index() {
     );
     assert!(matches!(
         &captures[1].outcome,
-        Err(OperatingError::Table(TableModelError::NoSuchColumn {
-            index: 99
-        }))
+        Err(OperatingError::Table(RowsError::NoSuchColumn { index: 99 }))
     ));
     file.finish().unwrap();
     request.finish();

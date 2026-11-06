@@ -1,5 +1,6 @@
 //! Public column vocabulary for proven lexical names.
 use super::item::QualifiedNameColumn;
+use crate::domain::relations::constants::{SINCE_MAJOR, SINCE_MINOR};
 /// Query relation name.
 #[must_use]
 pub fn name() -> &'static str {
@@ -17,8 +18,8 @@ pub fn column_name(column: QualifiedNameColumn) -> &'static str {
         QualifiedNameColumn::Id => "id",
         QualifiedNameColumn::Path => "path",
         QualifiedNameColumn::Provenance => "provenance",
-        QualifiedNameColumn::SinceMajor => "since-major",
-        QualifiedNameColumn::SinceMinor => "since-minor",
+        QualifiedNameColumn::SinceMajor => SINCE_MAJOR,
+        QualifiedNameColumn::SinceMinor => SINCE_MINOR,
         QualifiedNameColumn::File => "file",
         QualifiedNameColumn::Span => "span",
     }

@@ -4,7 +4,7 @@ use crate::domain::render::service::{finding_parts, row_cells};
 use crate::domain::render::types::Rendered;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::records::service::lent;
-use ryo_values::domain::records::types::{Cell, RowsTextView, TextRange};
+use ryo_values::domain::row_texts::types::{Cell, RowsTextView, TextRange};
 
 /// The rows of a file's findings to write, in the order they leave in: those laid out as a finding's, and, when `only` names files,
 /// those whose subject is a path it names.

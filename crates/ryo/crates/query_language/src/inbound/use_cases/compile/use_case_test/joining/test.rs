@@ -3,14 +3,16 @@
 
 use ryo_relations::domain::relations::types::Relation;
 
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::joining::service::{select_join, shown_of};
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{Builder, LastStep};
 use crate::domain::resolving::service::read_source;
-use crate::outbound::syntax::factory::winnow;
+use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
-use ryo_values::domain::program::types::{Expression, Joining, QueryView};
+use crate::selects;
+use ryo_values::domain::query_syntax::types::{Expression, Joining};
+use ryo_values::domain::query_tokens::types::QueryView;
 
 /// The query text a row gives.
 type Input = &'static str;
@@ -65,7 +67,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNKNOWN_RIGHT,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, LoweringError::UnknownSideColumn { alias, name, .. } if alias == "r" && name == "nothing"),
             )
         }),
@@ -75,7 +77,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNKNOWN_LEFT,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, LoweringError::UnknownSideColumn { alias, name, .. } if alias == "l" && name == "nothing"),
             )
         }),
@@ -85,7 +87,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNKNOWN_SIDE,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, LoweringError::UnknownSide { alias, sides, .. } if alias == "q" && sides == "`l` and `r`"),
             )
         }),
@@ -95,7 +97,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || UNKNOWN_ON_SIDE,
         expect: Expect::Refusal(|error| {
-            selects(
+            selects!(
                 matches!(error, LoweringError::UnknownSide { alias, sides, .. } if alias == "q" && sides == "`l` and `r`"),
             )
         }),

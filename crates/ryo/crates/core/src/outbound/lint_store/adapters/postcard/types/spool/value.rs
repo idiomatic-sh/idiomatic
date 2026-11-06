@@ -70,8 +70,8 @@ impl StagingSpool {
         }
         let span = StagedWords {
             session: self.session,
-            offset: self.length,
-            length,
+            offset: ryo_values::domain::records::types::PayloadOffset(self.length),
+            length: ryo_values::domain::records::types::PayloadLength(length),
         };
         self.length = end;
         Ok(span)
@@ -84,9 +84,9 @@ impl StagingSpool {
         into: &mut PackedWords,
     ) -> std::io::Result<()> {
         validate(self.session, self.length, span)?;
-        let length = usize::try_from(span.length)
+        let length = usize::try_from(span.length.0)
             .map_err(|_| invalid("staged payload exceeds addressable memory"))?;
-        self.position(span.offset)?;
+        self.position(span.offset.0)?;
         into.0.clear();
         into.0
             .try_reserve_exact(length)
@@ -101,7 +101,7 @@ impl StagingSpool {
             self.reader = None;
             return Err(error);
         }
-        self.read_at = span.offset + span.length;
+        self.read_at = span.offset.0 + span.length.0;
         Ok(())
     }
 
@@ -112,18 +112,18 @@ impl StagingSpool {
         into: &mut W,
     ) -> std::io::Result<()> {
         validate(self.session, self.length, span)?;
-        self.position(span.offset)?;
+        self.position(span.offset.0)?;
         if let Err(error) = copy_buffered(
             self.reader
                 .as_mut()
                 .ok_or_else(|| invalid("missing spool reader"))?,
             into,
-            span.length,
+            span.length.0,
         ) {
             self.reader = None;
             return Err(error);
         }
-        self.read_at = span.offset + span.length;
+        self.read_at = span.offset.0 + span.length.0;
         Ok(())
     }
 
@@ -185,7 +185,8 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn validate(
     }
     if span
         .offset
-        .checked_add(span.length)
+        .0
+        .checked_add(span.length.0)
         .is_none_or(|end| end > held)
     {
         return Err(invalid("staged span is outside this snapshot"));
@@ -212,8 +213,8 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn append<F: Write + See
     file.flush()?;
     let span = StagedWords {
         session,
-        offset: *held,
-        length,
+        offset: ryo_values::domain::records::types::PayloadOffset(*held),
+        length: ryo_values::domain::records::types::PayloadLength(length),
     };
     *held = end;
     Ok(span)
@@ -229,10 +230,10 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn read<F: Read + Write 
     into: &mut PackedWords,
 ) -> std::io::Result<()> {
     validate(session, held, span)?;
-    let length = usize::try_from(span.length)
+    let length = usize::try_from(span.length.0)
         .map_err(|_| invalid("staged payload exceeds addressable memory"))?;
     file.flush()?;
-    let _position = file.seek(SeekFrom::Start(span.offset))?;
+    let _position = file.seek(SeekFrom::Start(span.offset.0))?;
     into.0.clear();
     into.0
         .try_reserve_exact(length)

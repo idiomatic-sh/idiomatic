@@ -10,8 +10,9 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plan_parts::types::StepId;
-use ryo_values::domain::plan_parts::types::{Comparison, Operand, Test};
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::plan_parts::types::{PlanComparison, Operand, Test};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 
 /// What a row asks: the relations a plan reads when the catalog is this, or the ones among these a visit walks.
 #[derive(Clone)]
@@ -256,11 +257,11 @@ fn plan_reading_edges(reading: Reading, relation: Relation) -> Plan {
     let operation = match reading {
         Reading::FiltersField => Operation::Select {
             from: edges,
-            comparisons: vec![Comparison {
+            comparisons: vec![PlanComparison {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(3)),
                 right: Operand::Column(ColumnIndex(3)),
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             }],
             kept: vec![ColumnIndex(1)],
         },

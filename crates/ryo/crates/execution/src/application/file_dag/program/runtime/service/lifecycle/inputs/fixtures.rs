@@ -23,8 +23,8 @@ use ryo_relations::domain::{
     terms::types::Symbol,
 };
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, HostedNumber, Input, ParameterId, StepId},
-    plans::types::{Emit as PlanEmit, Operation, Plan, PlanStep, StepScope},
+    plan_parts::types::{ColumnIndex, HostedNumber, Input, ParameterId, StepId, StepScope},
+    plans::types::{Emit as PlanEmit, Operation, Plan, PlanStep},
     rows::types::{RowCount, Table},
 };
 use std::{collections::HashMap, rc::Rc, sync::Arc};
@@ -51,7 +51,7 @@ impl ProducerPartitions for FileProducers {
     fn observation(
         &self,
         _: RuleIndex,
-        _: ryo_values::domain::observations::types::ObservationBindingId,
+        _: ryo_values::domain::plan_parts::types::ObservationBindingId,
     ) -> Result<PartitionRequirement, OperatingError> {
         Err(OperatingError::NotRead)
     }

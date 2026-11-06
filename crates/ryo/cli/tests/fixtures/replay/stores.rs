@@ -81,7 +81,7 @@ impl FactsPort for Counting {
 /// The complete emitted output and report of a run, which the cache must give again unchanged.
 pub(crate) struct Complete {
     /// The emitted columns, ordered cells, unread reasons and summary.
-    pub output: ryo_core::outbound::rows::types::Collected,
+    pub output: ryo_core::outbound::row_sink::types::Collected,
     /// The successful report, with its unknowns and work counters.
     pub report: ryo_core::inbound::use_cases::lint::types::LintReport,
 }

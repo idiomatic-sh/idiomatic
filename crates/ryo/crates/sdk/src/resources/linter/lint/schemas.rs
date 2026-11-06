@@ -20,11 +20,12 @@ use ryo_values::domain::hosted::types::{
     HostName as CoreHostName, HostRelation as CoreHost, HostRow as CoreHostRow,
 };
 use ryo_values::domain::plan_parts::types::{
-    FlagState as CoreFlag, LiteralText as CoreText, ParameterName, RefusedKind, RefusedQuery,
-    WholeNumber,
+    FlagState as CoreFlag, LiteralText as CoreText, ParameterName, WholeNumber,
 };
-use ryo_values::domain::records::types::Cell as RowCell;
+use ryo_values::domain::program::types::RefusedKind;
+use ryo_values::domain::program::types::RefusedQuery;
 use ryo_values::domain::records::types::Unreadable as CoreUnreadable;
+use ryo_values::domain::row_texts::types::Cell as RowCell;
 use ryo_values::domain::runs::types::{Budget, MemoryBytes, Session, WorkersAsked};
 
 use super::errors::{LintError, ProviderCode};
@@ -133,7 +134,7 @@ struct LintRequestSchema(LintRequest);
 /// What a lint answered and what its findings were kept as.
 struct LintReportSchema {
     /// Where the rows the run wrote were kept.
-    collector: ryo_core::outbound::rows::types::Collector,
+    collector: ryo_core::outbound::row_sink::types::Collector,
     /// The files nothing read.
     report: CoreReport,
 }
@@ -436,11 +437,13 @@ fn compile_error(error: RefusedQuery) -> ValidateError {
         RefusedKind::Catalog => ValidateError::Catalog { reason: message },
     };
     match origin {
-        Some(origin) => ValidateError::Located {
-            origin: crate::domain::query::errors::QueryOrigin::from_internal(origin),
-            error: Box::new(error),
-        },
-        None => error,
+        ryo_values::domain::query_tokens::types::Attribution::Located(origin) => {
+            ValidateError::Located {
+                origin: crate::domain::query::errors::QueryOrigin::from_internal(origin),
+                error: Box::new(error),
+            }
+        }
+        ryo_values::domain::query_tokens::types::Attribution::Unlocated => error,
     }
 }
 
@@ -543,7 +546,7 @@ fn host_cell(kind: HostKind, cell: Cell) -> Option<RowCell> {
 ///
 /// `Io` of the output when a row the run wrote is not a finding as the run writes one: a fault of the run, never dropped.
 pub(super) fn report(
-    collector: ryo_core::outbound::rows::types::Collector,
+    collector: ryo_core::outbound::row_sink::types::Collector,
     report: CoreReport,
 ) -> Result<LintReport, LintError> {
     LintReport::try_from(LintReportSchema { collector, report })

@@ -1,7 +1,7 @@
 //! The `lowering` concept's failures.
 
 use super::types::ArgumentFault;
-use ryo_values::domain::program::types::{QueryOrigin, QuerySpan};
+use ryo_values::domain::query_tokens::types::{QueryOrigin, QuerySpan};
 
 /// Why a program does not lower to a plan.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

@@ -23,11 +23,11 @@ fn selected_join(distinct: bool) -> Plan {
             operation: Operation::Select {
                 from: Input::Relation(Relation::Function),
                 kept: vec![ColumnIndex(0), ColumnIndex(2)],
-                comparisons: vec![Comparison {
+                comparisons: vec![PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(1)),
                     right: Operand::Literal(QueryLiteral::Text(LiteralText("keep".into()))),
-                    origin: None,
+                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }],
             },
         },

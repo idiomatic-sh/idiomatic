@@ -2,8 +2,9 @@
 use super::super::super::{fixtures, types::OperatingError};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Value as Cell;
+use ryo_values::selects;
 use ryo_values::{
-    cases::{Case, CaseName, Expect, Word, run, selects},
+    cases::{Case, CaseName, Expect, Word, run},
     domain::{
         plan_parts::types::{
             ColumnIndex, HostedNumber, Input as PlanInput, JoinColumn, Side, StepId,
@@ -204,7 +205,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             right: &[(1, 3), (1, 4)],
             expected: &[],
         },
-        expect: Expect::Refusal(|error| selects(matches!(error, OperatingError::DuplicateOrder))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, OperatingError::DuplicateOrder))),
     },
     Case {
         name: CaseName("duplicate_unmatched_right_group_refused"),
@@ -214,7 +215,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             right: &[(2, 3), (2, 3)],
             expected: &[],
         },
-        expect: Expect::Refusal(|error| selects(matches!(error, OperatingError::DuplicateOrder))),
+        expect: Expect::Refusal(|error| selects!(matches!(error, OperatingError::DuplicateOrder))),
     },
     Case {
         name: CaseName("same_order_in_distinct_groups_valid"),

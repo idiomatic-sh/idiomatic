@@ -2,18 +2,22 @@
 
 use ryo_relations::domain::relations::types::Relation;
 
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::ArgumentFault;
 use crate::domain::lowering::types::Builder;
 use crate::domain::selecting::service::lower_select;
 use crate::domain::syntax::constants::operator_named;
 use crate::domain::traversing::service::{call_axis, call_closure, call_ordered_dfs};
-use crate::outbound::syntax::factory::winnow;
+use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
+use crate::selects;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
-use ryo_values::domain::plans::types::{Operation, PlanStep, QueryOperator, StepScope};
-use ryo_values::domain::program::types::{Expression, QueryView};
+use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::plans::types::{Operation, PlanStep};
+use ryo_values::domain::query_operators::types::QueryOperator;
+use ryo_values::domain::query_syntax::types::Expression;
+use ryo_values::domain::query_tokens::types::QueryView;
 
 /// The query text a row gives.
 type Input = &'static str;
@@ -21,15 +25,6 @@ type Input = &'static str;
 type Value = &'static str;
 /// What the lowering refuses a row with.
 type Failure = LoweringError;
-
-/// The children of each function: one axis walks from a node to its children.
-const CHILDREN: &str = "let f = select * from \"function\"; let kids = axis(from=f, relation=\"syntax-child\", direction=child, domain=\"syntax-tree\"); emit kids subject id key(related);";
-/// The parent of each name: the same walk the other way.
-const PARENTS: &str = "let names = select * from \"syntax-tree\" where kind = \"name\"; let owners = axis(from=names, relation=\"syntax-child\", direction=parent, domain=\"syntax-tree\"); emit owners subject id key(related);";
-/// The token just before each name under its parent: a sibling walk over the tree's own edges.
-const BEFORE_NAMES: &str = "let names = select * from \"syntax-tree\" where kind = \"name\"; let before = axis(from=names, relation=\"syntax-child\", direction=previous-sibling, domain=\"syntax-tree\"); emit before subject id key(related);";
-/// A sibling walk over edges a query made, which keep no order of the children.
-const SIBLINGS_OF_A_STEP: &str = "let edges = select * from \"syntax-child\"; let names = select * from \"syntax-tree\" where kind = \"name\"; let after = axis(from=names, relation=edges, direction=next-sibling, domain=\"syntax-tree\"); emit after subject id key(related);";
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -62,7 +57,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let visits = ordered-dfs(from=\"function\",edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[file],output=visit); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::BadArgument {
                     reason: ArgumentFault::Missing,
@@ -76,7 +71,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let visits = ordered-dfs(from=\"function\",root=id,source=parent,destination=child,order=ordinal,edge=field,keys=[file],output=visit); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::BadArgument {
                     reason: ArgumentFault::Missing,
@@ -90,7 +85,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let visits = ordered-dfs(from=\"function\",root=missing,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[file],output=visit); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::UnknownColumn { .. }))
+            selects!(matches!(error, LoweringError::UnknownColumn { .. }))
         }),
     },
     Case {
@@ -98,7 +93,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=missing,edge=field,keys=[file],output=visit); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::UnknownColumn { .. }))
+            selects!(matches!(error, LoweringError::UnknownColumn { .. }))
         }),
     },
     Case {
@@ -106,7 +101,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let visits = ordered-dfs(from=\"function\",root=name,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[file],output=visit); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::BadArgument {
                     reason: ArgumentFault::MatchingGraphEntities,
@@ -120,7 +115,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=field,edge=field,keys=[file],output=visit); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::BadArgument {
                     reason: ArgumentFault::NumericGraphOrder,
@@ -134,7 +129,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let e = select parent, child, ordinal, field as file from \"syntax-child\"; let visits = ordered-dfs(from=\"function\",root=id,edges=e,source=parent,destination=child,order=ordinal,edge=ordinal,keys=[file],output=visit); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::BadArgument {
                     reason: ArgumentFault::MatchingGraphKeys,
@@ -148,7 +143,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=file,output=visit); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(
+            selects!(matches!(
                 error,
                 LoweringError::BadArgument {
                     reason: ArgumentFault::ExpectedNames,
@@ -162,7 +157,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[missing],output=visit); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::UnknownColumn { .. }))
+            selects!(matches!(error, LoweringError::UnknownColumn { .. }))
         }),
     },
     Case {
@@ -170,7 +165,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[file,file],output=visit); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::DuplicateOutput { .. }))
+            selects!(matches!(error, LoweringError::DuplicateOutput { .. }))
         }),
     },
     Case {
@@ -178,7 +173,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=child,keys=[file],output=visit); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::DuplicateOutput { .. }))
+            selects!(matches!(error, LoweringError::DuplicateOutput { .. }))
         }),
     },
     Case {
@@ -186,7 +181,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[file],output=id); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::DuplicateOutput { .. }))
+            selects!(matches!(error, LoweringError::DuplicateOutput { .. }))
         }),
     },
     Case {
@@ -194,115 +189,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[file],output=file); emit visits subject id key(visit);",
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::DuplicateOutput { .. }))
-        }),
-    },
-    Case {
-        name: CaseName("closure_omitted"),
-        word: Word::Succeeds,
-        input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child); emit c subject parent key(child);",
-        expect: Expect::Value("select closure"),
-    },
-    Case {
-        name: CaseName("closure_empty"),
-        word: Word::Succeeds,
-        input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child, keys=[]); emit c subject parent key(child);",
-        expect: Expect::Value("select closure"),
-    },
-    Case {
-        name: CaseName("closure_one_key"),
-        word: Word::Succeeds,
-        input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child, keys=[file]); emit c subject parent key(child);",
-        expect: Expect::Value("select closure"),
-    },
-    Case {
-        name: CaseName("closure_multiple_keys"),
-        word: Word::Succeeds,
-        input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child, keys=[file, ordinal]); emit c subject parent key(child);",
-        expect: Expect::Value("select closure"),
-    },
-    Case {
-        name: CaseName("closure_refuses_repeated_key"),
-        word: Word::Refuses,
-        input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child, keys=[file,file]); emit c subject parent key(child);",
-        expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::DuplicateOutput { .. }))
-        }),
-    },
-    Case {
-        name: CaseName("closure_refuses_endpoint_key"),
-        word: Word::Refuses,
-        input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child, keys=[parent]); emit c subject parent key(child);",
-        expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::DuplicateOutput { .. }))
-        }),
-    },
-    Case {
-        name: CaseName("closure_refuses_missing_key"),
-        word: Word::Refuses,
-        input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child, keys=[missing]); emit c subject parent key(child);",
-        expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::UnknownColumn { .. }))
-        }),
-    },
-    Case {
-        name: CaseName("closure_refuses_scalar_keys"),
-        word: Word::Refuses,
-        input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child, keys=file); emit c subject parent key(child);",
-        expect: Expect::Refusal(|error| {
-            selects(matches!(
-                error,
-                LoweringError::BadArgument {
-                    reason: ArgumentFault::ExpectedNames,
-                    ..
-                }
-            ))
-        }),
-    },
-    Case {
-        name: CaseName("closure_refuses_numeric_key"),
-        word: Word::Refuses,
-        input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child, keys=[42]); emit c subject parent key(child);",
-        expect: Expect::Refusal(|error| {
-            selects(matches!(
-                error,
-                LoweringError::BadArgument {
-                    reason: ArgumentFault::ExpectedNames,
-                    ..
-                }
-            ))
-        }),
-    },
-    Case {
-        name: CaseName("a_walk_to_the_children_of_a_node_is_one_axis"),
-        word: Word::Succeeds,
-        input: || CHILDREN,
-        expect: Expect::Value("select axis"),
-    },
-    Case {
-        name: CaseName("a_walk_to_the_parent_of_a_node_is_one_axis"),
-        word: Word::Succeeds,
-        input: || PARENTS,
-        expect: Expect::Value("select axis"),
-    },
-    Case {
-        name: CaseName("a_sibling_of_the_tree_is_one_axis"),
-        word: Word::Succeeds,
-        input: || BEFORE_NAMES,
-        expect: Expect::Value("select axis"),
-    },
-    Case {
-        name: CaseName("a_sibling_walk_over_edges_a_query_made_is_refused"),
-        word: Word::Refuses,
-        input: || SIBLINGS_OF_A_STEP,
-        expect: Expect::Refusal(|error| {
-            selects(matches!(
-                error,
-                LoweringError::BadArgument {
-                    reason: ArgumentFault::SiblingOverTree,
-                    ..
-                }
-            ))
+            selects!(matches!(error, LoweringError::DuplicateOutput { .. }))
         }),
     },
 ];

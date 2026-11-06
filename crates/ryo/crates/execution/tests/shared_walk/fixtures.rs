@@ -27,13 +27,14 @@ use ryo_relations::domain::{
 };
 use ryo_values::domain::{
     plan_parts::types::{
-        ColumnIndex, Comparison, Input, LiteralText, Operand, ParameterId, ParameterName,
+        ColumnIndex, Input, LiteralText, Operand, ParameterId, ParameterName, PlanComparison,
         QueryLiteral, Test,
     },
-    plans::types::{Operation, ParameterType, PlanParameter},
-    query_bindings::types::ParameterBinding,
+    plans::types::Operation,
+    query_bindings::types::{ParameterBinding, ParameterType, PlanParameter},
     rows::types::{RowCount, Table},
 };
+use ryo_values::selects;
 use std::sync::{
     Arc,
     atomic::{AtomicUsize, Ordering},
@@ -72,18 +73,18 @@ pub(super) enum Selector {
     RegexBeforeAbsentKind,
     AbsentKindBeforeRegex,
 }
-pub(super) fn compared(test: Test, column: u32, right: Operand) -> Comparison {
-    Comparison {
+pub(super) fn compared(test: Test, column: u32, right: Operand) -> PlanComparison {
+    PlanComparison {
         test,
         left: Operand::Column(ColumnIndex(column)),
         right,
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }
 }
 pub(super) fn text(text: &str) -> Operand {
     Operand::Literal(QueryLiteral::Text(LiteralText(text.into())))
 }
-pub(super) fn selection(selector: Selector) -> Vec<Comparison> {
+pub(super) fn selection(selector: Selector) -> Vec<PlanComparison> {
     let kind = |name| compared(Test::Equal, 1, text(name));
     let regex = compared(Test::Matches, 2, Operand::Column(ColumnIndex(2)));
     match selector {
@@ -97,7 +98,10 @@ pub(super) fn selection(selector: Selector) -> Vec<Comparison> {
         Selector::AbsentKindBeforeRegex => vec![kind("absent-kind"), regex],
     }
 }
-pub(super) fn prepared(engine: &ExecutionUseCaseImpl, selectors: &[Selector]) -> PreparedExecutionProgram {
+pub(super) fn prepared(
+    engine: &ExecutionUseCaseImpl,
+    selectors: &[Selector],
+) -> PreparedExecutionProgram {
     let mut input = authored_request(selectors.len());
     for (index, selector) in selectors.iter().copied().enumerate() {
         input.plans[index].steps[0].operation = Operation::Select {

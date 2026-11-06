@@ -8,8 +8,8 @@ use crate::application::file_dag::program::facade_runtime::file_execution::class
 use crate::application::file_dag::program::facade_runtime::file_execution::outcome_of;
 use crate::application::file_dag::program::facade_runtime::file_execution::readiness_of;
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
-use crate::application::file_dag::program::facade_runtime::types::DeclaredIntent;
 use crate::application::file_dag::program::facade_runtime::source_admission::observation_table;
+use crate::application::file_dag::program::facade_runtime::types::DeclaredIntent;
 use crate::application::file_dag::program::protocol::types::DiagnosticDelivery;
 use crate::application::file_dag::program::protocol::types::EmitDemand;
 use crate::application::file_dag::program::protocol::types::ObservationDemand;
@@ -66,11 +66,11 @@ impl FileRun<'_> {
         let owns_file_root = (demand.emit == EmitDemand::Enabled
             && metadata.emit_root.as_ref().is_ok_and(|id| {
                 self.program.program().regions()[id.0].phase
-                    == ryo_values::domain::plans::types::StepScope::PerFile
+                    == ryo_values::domain::plan_parts::types::StepScope::PerFile
             }))
             || (demand.observations == ObservationDemand::Required
                 && metadata.observations.iter().any(|root| {
-                    root.phase == ryo_values::domain::plans::types::StepScope::PerFile
+                    root.phase == ryo_values::domain::plan_parts::types::StepScope::PerFile
                 }));
         if owns_file_root {
             self.prepare_walk(read, symbols)?;
@@ -115,7 +115,7 @@ impl FileRun<'_> {
             EmitDemand::Enabled => match &metadata.emit_root {
                 Ok(id)
                     if self.program.program().regions()[id.0].phase
-                        != ryo_values::domain::plans::types::StepScope::PerFile =>
+                        != ryo_values::domain::plan_parts::types::StepScope::PerFile =>
                 {
                     RootOutcome::Deferred {
                         phase: self.program.program().regions()[id.0].phase,
@@ -140,7 +140,7 @@ impl FileRun<'_> {
         let mut published = Vec::new();
         if matches!(demand.observations, ObservationDemand::Required) {
             for (index, root) in metadata.observations.iter().enumerate() {
-                if root.phase != ryo_values::domain::plans::types::StepScope::PerFile {
+                if root.phase != ryo_values::domain::plan_parts::types::StepScope::PerFile {
                     continue;
                 }
                 let result = if completion.observation_admission(&root.reads)
@@ -170,7 +170,7 @@ impl FileRun<'_> {
                 };
                 observations.push(
                     crate::application::file_dag::program::protocol::types::OutputOutcome {
-                        output: ryo_values::domain::observations::types::ObservationIndex(
+                        output: ryo_values::domain::records::types::ObservationIndex(
                             u32::try_from(index).map_err(|_| OperatingError::ShapeMismatch)?,
                         ),
                         outcome,
@@ -183,9 +183,13 @@ impl FileRun<'_> {
             self.roots.get_mut(&rule).ok_or(OperatingError::NotRun)?[index].publication =
                 Some(input);
         }
-        for crate::application::file_dag::program::protocol::types::OutputOutcome { output, outcome } in &observations {
-            self.roots.get_mut(&rule).ok_or(OperatingError::NotRun)?[output.0 as usize]
-                .readiness = readiness_of(outcome);
+        for crate::application::file_dag::program::protocol::types::OutputOutcome {
+            output,
+            outcome,
+        } in &observations
+        {
+            self.roots.get_mut(&rule).ok_or(OperatingError::NotRun)?[output.0 as usize].readiness =
+                readiness_of(outcome);
         }
         Ok(RuleOutcome {
             emit,

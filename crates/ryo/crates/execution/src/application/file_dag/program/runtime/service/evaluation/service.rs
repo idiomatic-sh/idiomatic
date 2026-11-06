@@ -159,7 +159,7 @@ impl ProgramExecution {
             // Schema and scope admission above established valid source geometry;
             // no PreparedWalk class or submission result selects this inventory.
             if tracing::enabled!(target: crate::application::file_dag::program::constants::WALK_TARGET, tracing::Level::TRACE)
-                && region.phase == ryo_values::domain::plans::types::StepScope::PerFile
+                && region.phase == ryo_values::domain::plan_parts::types::StepScope::PerFile
             {
                 use ryo_values::domain::{
                     plan_parts::types::{Input, RepeatedRows},

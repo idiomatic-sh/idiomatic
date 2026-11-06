@@ -26,7 +26,7 @@ use crate::domain::operator::collections::operators::span_between::item::SpanBet
 use crate::domain::operator::collections::operators::span_bounds::item::SpanBoundsItem;
 use crate::domain::operator::collections::operators::union::item::UnionItem;
 use crate::domain::operator::collections::operators::words::item::WordsItem;
-use ryo_values::domain::plans::types::OperationKind;
+use ryo_values::domain::query_operators::types::OperationKind;
 /// Only this registry constructs a callable operator selected by the exhaustive kind.
 /// The implementation trait stays inside the operator concept.
 pub(crate) struct RegisteredOperator {

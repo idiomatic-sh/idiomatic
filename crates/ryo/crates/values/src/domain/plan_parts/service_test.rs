@@ -25,6 +25,8 @@ enum Scenario {
     FixedFunction,
     /// A function is remapped through its arguments, and not at all when one of its columns has no place.
     FunctionRemapped,
+    /// Two comparisons that differ only in their diagnostic origin.
+    OriginIgnored,
 }
 
 /// `concat(pascal(column 3), "Service", column 1)`.
@@ -98,6 +100,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::FunctionRemapped,
         expect: Expect::Value(1),
     },
+    Case {
+        name: CaseName("comparison_equality_ignores_diagnostic_origin_ids"),
+        word: Word::Succeeds,
+        input: || Scenario::OriginIgnored,
+        expect: Expect::Value(1),
+    },
 ];
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
@@ -126,6 +134,17 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             )))],
         }))
         .is_empty(),
+        Scenario::OriginIgnored => {
+            use super::types::{ComparisonOrigin, ComparisonOriginId, PlanComparison, Test};
+            let comparison = |origin| PlanComparison {
+                test: Test::Equal,
+                left: Operand::Column(ColumnIndex(1)),
+                right: Operand::Column(ColumnIndex(2)),
+                origin,
+            };
+            comparison(ComparisonOrigin::Unrecorded)
+                == comparison(ComparisonOrigin::Recorded(ComparisonOriginId(9)))
+        }
         Scenario::FunctionRemapped => {
             let moved = remapped(&nested(), &|column| Some(ColumnIndex(column.0 + 1)));
             let mut read = Vec::new();
@@ -142,17 +161,4 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
-}
-
-#[test]
-fn comparison_equality_ignores_diagnostic_origin_ids() {
-    use super::types::{Comparison, ComparisonOriginId, Test};
-
-    let comparison = |origin| Comparison {
-        test: Test::Equal,
-        left: Operand::Column(ColumnIndex(1)),
-        right: Operand::Column(ColumnIndex(2)),
-        origin,
-    };
-    assert_eq!(comparison(None), comparison(Some(ComparisonOriginId(9))));
 }

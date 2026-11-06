@@ -4,7 +4,7 @@ use crate::domain::files::types::CorpusEntry;
 use crate::domain::files::types::Nanoseconds;
 use crate::domain::records::types::Freshness;
 use crate::domain::records::types::Record;
-use crate::domain::records::types::{
+use crate::domain::row_texts::types::{
     Cell, CellText, RenderedText, RowsTextAt, RowsTextView, TextRange,
 };
 

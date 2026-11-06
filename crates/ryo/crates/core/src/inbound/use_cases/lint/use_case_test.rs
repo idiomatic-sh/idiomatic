@@ -1,7 +1,7 @@
 // the 37 rows each drive the whole lint use case through fakes (warm, edited, deleted and changed-rule runs): a row is one whole run, and its expected rows are the full answer of that run.
 //! What the `lint` use case promises, against the fakes of the ports it calls.
 
-use crate::outbound::rows;
+use crate::outbound::row_sink;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
@@ -18,8 +18,8 @@ use crate::outbound::language::fixtures::fake::{FakeCatalog, LanguageFake};
 use crate::outbound::matching::fixtures::fake::MatchingFake;
 use crate::outbound::memory::fixtures::fake::MemoryFake;
 use crate::outbound::query_language::fixtures::fake::{QueryLanguageFake, REFUSED};
-use crate::outbound::rows::fixtures::fake::{Ends, RowsFake};
-use crate::outbound::rows::interface::RowsPort;
+use crate::outbound::row_sink::fixtures::fake::{Ends, RowSinkFake};
+use crate::outbound::row_sink::interface::RowSinkPort;
 use ryo_values::domain::runs::types::AnswerShape;
 use ryo_values::domain::runs::types::RuleId;
 
@@ -34,16 +34,18 @@ use ryo_values::domain::files::types::{CorpusFile, FileBytes, Glob};
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
 };
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, HostedNumber, Input as PlanInput, LiteralText, Operand, ParameterName,
-    QueryLiteral, QueryText, StepId, Test,
+    ColumnIndex, HostedNumber, Input as PlanInput, LiteralText, Operand, ParameterName,
+    PlanComparison, QueryLiteral, QueryText, StepId, Test,
 };
-use ryo_values::domain::plans::types::{
-    Emit, Operation, ParameterType, Plan, PlanParameter, PlanStep, StepScope,
-};
-use ryo_values::domain::records::types::{Cell as Typed, RowTotal};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::query_bindings::types::ParameterType;
+use ryo_values::domain::query_bindings::types::PlanParameter;
+use ryo_values::domain::row_texts::types::{Cell as Typed, RowTotal};
 use ryo_values::domain::runs::types::{Budget, Session};
-use ryo_values::domain::stores::types::{FindingMade, Stored};
+use ryo_values::domain::stored_findings::types::FindingMade;
+use ryo_values::domain::stores::types::Stored;
 
 /// What a row gives the use case: the ports it calls, the rules and the files linted.
 struct Given {
@@ -74,7 +76,7 @@ struct Given {
 /// What a lint over a given made: the answer, the rows kept, the files the language read and what the ports were asked.
 struct Lint {
     report: Result<usize, LintError>,
-    rows: Vec<rows::types::Row>,
+    rows: Vec<row_sink::types::Row>,
     parses: usize,
     projects: usize,
     compiles: usize,
@@ -162,11 +164,11 @@ const SOURCES: [(&str, &str); 3] = [
 
 /// A plan over `function`: every row, or only the rows whose name is the text given.
 fn plan_with_name(name: &str) -> Plan {
-    let comparison = Comparison {
+    let comparison = PlanComparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(1)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(name.into()))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let mut plan = QueryLanguageFake::selecting().plan;
     if let Some(PlanStep {
@@ -253,7 +255,7 @@ fn violations() -> Given {
 /// The use case and the fakes whose counts a row reads.
 struct World {
     use_case: LintUseCaseImpl,
-    collected: rows::types::Collector,
+    collected: row_sink::types::Collector,
     language: Arc<LanguageFake>,
     query: Arc<QueryLanguageFake>,
     reads: Arc<std::sync::atomic::AtomicUsize>,
@@ -289,7 +291,7 @@ fn request(given: &Given) -> LintRequest {
                         .get(place)
                         .map_or_else(|| place.to_string().into(), |id| (*id).into()),
                 ),
-                query: ryo_values::domain::program::types::QueryBundle::from(QueryText(
+                query: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(
                     (*query).into(),
                 )),
                 applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
@@ -445,14 +447,14 @@ fn scheduled_world_with_query_resources(
     analysis_memory: Arc<dyn crate::outbound::memory::interface::MemoryPort>,
     operators: Arc<dyn ryo_execution::inbound::use_cases::execution::types::OperatorsPort>,
 ) -> World {
-    let collected = rows::types::Collector::default();
-    let kept: Arc<dyn RowsPort> = Arc::new(rows::factory::collect(collected.clone()));
-    let ports: Arc<dyn RowsPort> = if given.ends == Ends::Well {
+    let collected = row_sink::types::Collector::default();
+    let kept: Arc<dyn RowSinkPort> = Arc::new(row_sink::factory::collect(collected.clone()));
+    let ports: Arc<dyn RowSinkPort> = if given.ends == Ends::Well {
         kept
     } else {
-        Arc::new(RowsFake {
+        Arc::new(RowSinkFake {
             ends: given.ends,
-            ..RowsFake::default()
+            ..RowSinkFake::default()
         })
     };
     let language = Arc::new(given.language);
@@ -472,11 +474,11 @@ fn scheduled_world_with_query_resources(
             file
         })
         .collect();
-    let store: Arc<dyn crate::outbound::lint_store::interface::LintStorePort> =
-        match given.kept_in {
-            Some(other) => other,
-            None => given.store,
-        };
+    let store: Arc<dyn crate::outbound::lint_store::interface::LintStorePort> = match given.kept_in
+    {
+        Some(other) => other,
+        None => given.store,
+    };
     let use_case = {
         let analysis_corpus: Arc<dyn crate::outbound::corpus::interface::CorpusPort> =
             Arc::new(CorpusFake {
@@ -1530,16 +1532,16 @@ fn changed_nested_module() -> Result<Value, Failure> {
         };
         query_bundle(
             document_source(
-                source_id("root").unwrap(),
+                source_id(ryo_values::domain::query_tokens::types::QuerySpelling("root")).unwrap(),
                 "import outer from \"outer\"; let found = outer(); emit found subject id key(id);",
             ),
             [
                 document_source(
-                    source_id("outer").unwrap(),
+                    source_id(ryo_values::domain::query_tokens::types::QuerySpelling("outer")).unwrap(),
                     "import nested from \"nested\"; output relation<id: node>; let found = nested(); return found;",
                 ),
                 document_source(
-                    source_id("nested").unwrap(),
+                    source_id(ryo_values::domain::query_tokens::types::QuerySpelling("nested")).unwrap(),
                     format!("output relation<id: node>; let found = select {projection} from \"syntax-tree\"; return found;").into_boxed_str(),
                 ),
             ],
@@ -1572,11 +1574,11 @@ fn changed_fragment_plan() -> Result<Value, Failure> {
         );
         ryo_values::domain::program::service::query_bundle(
             ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id("root").unwrap(),
+                ryo_values::domain::program::service::source_id(ryo_values::domain::query_tokens::types::QuerySpelling("root")).unwrap(),
                 "import choose from \"query/filter\"; let files = select path from \"filesystem.file\"; let result = choose(files=files); emit result subject \"path\" key(\"path\");",
             ),
             [ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id("query/filter").unwrap(),
+                ryo_values::domain::program::service::source_id(ryo_values::domain::query_tokens::types::QuerySpelling("query/filter")).unwrap(),
                 module.into_boxed_str(),
             )],
         )
@@ -1640,7 +1642,7 @@ fn collected_file_paths(world: &World) -> std::collections::BTreeSet<String> {
     rows.iter()
         .flat_map(|row| row.0.iter())
         .filter_map(|cell| match cell {
-            Some(ryo_values::domain::records::types::Cell::File(path)) => Some(path.to_string()),
+            Some(ryo_values::domain::row_texts::types::Cell::File(path)) => Some(path.to_string()),
             _ => None,
         })
         .collect()
@@ -1766,7 +1768,7 @@ fn succeeds() {
             )),
             Arc::new(SchedulerFake::default()),
             WorkerCount(1),
-            Arc::new(rows::factory::collect(rows::types::Collector::default())),
+            Arc::new(row_sink::factory::collect(row_sink::types::Collector::default())),
             Arc::clone(&analysis_digest),
             Arc::new(LintStoreFake::default()),
         )
@@ -1870,7 +1872,11 @@ fn consulted_equal_byte_files_revalidate_on_each_executable_metadata_change() {
                     ("project.manifest.fake", "members = 1"),
                 ],
                 outside: vec![("../config.fake", "target = 1")],
-                outside_executable: ExecutablePermission::Posix(executable),
+                outside_executable: if executable {
+                    ExecutablePermission::PosixExecutable
+                } else {
+                    ExecutablePermission::PosixNotExecutable
+                },
                 store: Arc::clone(&store),
                 root: "root",
                 query: Arc::new(reading_the_project()),
@@ -1895,7 +1901,7 @@ fn consulted_equal_byte_files_revalidate_on_each_executable_metadata_change() {
 /// What one whole lint answered: the rows written, what the rules could not decide, the files a rule skipped, and how many files the
 /// language parsed.
 struct Answered {
-    rows: Vec<rows::types::Row>,
+    rows: Vec<row_sink::types::Row>,
     undecided: String,
     skipped: String,
     parses: usize,
@@ -1916,7 +1922,10 @@ fn answered(
         kept_in: Some(kept_in),
         ..violations()
     };
-    given.language.rejected_syntax = rejected.iter().map(|path| FilePath((*path).into())).collect();
+    given.language.rejected_syntax = rejected
+        .iter()
+        .map(|path| FilePath((*path).into()))
+        .collect();
     let mut asked = request(&given);
     asked.rules[0].applicability = applicability;
     let world = world(given);
@@ -1955,7 +1964,11 @@ fn store_of(
     }
 }
 
-const THREE: [(&str, &str); 3] = [("a.rs", "fn a() {}"), ("b.rs", "fn b() {}"), ("c.rs", "fn c() {}")];
+const THREE: [(&str, &str); 3] = [
+    ("a.rs", "fn a() {}"),
+    ("b.rs", "fn b() {}"),
+    ("c.rs", "fn c() {}"),
+];
 
 /// A cold, a warm and an edited run answer the rows and findings a cold run over the same files answers, whichever store keeps
 /// them; the stores that keep read only the files that changed, the one that discards reads every file each time.
@@ -1971,12 +1984,30 @@ fn cold_warm_and_edited_runs_answer_the_same_in_every_store() {
         ] {
             let directory = tempfile::tempdir().expect("a directory");
             let kept_in = store_of(kind, directory.path());
-            for (run, files) in [&THREE[..], &THREE[..], &edited[..]].into_iter().enumerate() {
-                let oracle = answered(files, &[], Always, answer, store_of("discard", directory.path()));
+            for (run, files) in [&THREE[..], &THREE[..], &edited[..]]
+                .into_iter()
+                .enumerate()
+            {
+                let oracle = answered(
+                    files,
+                    &[],
+                    Always,
+                    answer,
+                    store_of("discard", directory.path()),
+                );
                 let now = answered(files, &[], Always, answer, Arc::clone(&kept_in));
-                assert_eq!(now.rows, oracle.rows, "{kind} {answer:?} run {run}: the rows");
-                assert_eq!(now.undecided, oracle.undecided, "{kind} run {run}: what was undecided");
-                assert_eq!(now.skipped, oracle.skipped, "{kind} run {run}: what was skipped");
+                assert_eq!(
+                    now.rows, oracle.rows,
+                    "{kind} {answer:?} run {run}: the rows"
+                );
+                assert_eq!(
+                    now.undecided, oracle.undecided,
+                    "{kind} run {run}: what was undecided"
+                );
+                assert_eq!(
+                    now.skipped, oracle.skipped,
+                    "{kind} run {run}: what was skipped"
+                );
                 // The reuse of a rows answer is not asserted: it is decided apart from the findings (see ryo-l1w3).
                 if answer == AnswerShape::Findings {
                     assert_eq!(now.parses, parsed[run], "{kind} run {run}: the files read");
@@ -1994,15 +2025,37 @@ fn a_syntax_skipped_file_does_not_poison_unrelated_partitions_cold_or_warm() {
     let without = [THREE[0], THREE[2]];
     for kind in ["memory", "postcard"] {
         let directory = tempfile::tempdir().expect("a directory");
-        let oracle = answered(&without, &[], Always, AnswerShape::Findings, store_of("discard", directory.path()));
+        let oracle = answered(
+            &without,
+            &[],
+            Always,
+            AnswerShape::Findings,
+            store_of("discard", directory.path()),
+        );
         let kept_in = store_of(kind, directory.path());
-        let cold = answered(&THREE, &["b.rs"], AcceptedSyntax, AnswerShape::Findings, Arc::clone(&kept_in));
-        let warm = answered(&THREE, &["b.rs"], AcceptedSyntax, AnswerShape::Findings, kept_in);
+        let cold = answered(
+            &THREE,
+            &["b.rs"],
+            AcceptedSyntax,
+            AnswerShape::Findings,
+            Arc::clone(&kept_in),
+        );
+        let warm = answered(
+            &THREE,
+            &["b.rs"],
+            AcceptedSyntax,
+            AnswerShape::Findings,
+            kept_in,
+        );
         assert_eq!(cold.rows, oracle.rows, "{kind}: cold rows");
         assert_eq!(warm.rows, oracle.rows, "{kind}: warm rows");
         assert_eq!(cold.undecided, "[]", "{kind}: nothing undecided cold");
         assert_eq!(warm.undecided, "[]", "{kind}: nothing undecided warm");
-        assert!(cold.skipped.contains("b.rs") && cold.skipped.contains("SyntaxRejected"), "{kind}: {}", cold.skipped);
+        assert!(
+            cold.skipped.contains("b.rs") && cold.skipped.contains("SyntaxRejected"),
+            "{kind}: {}",
+            cold.skipped
+        );
         assert_eq!(warm.skipped, cold.skipped, "{kind}: the skip is kept");
         assert_eq!(warm.parses, 0, "{kind}: a warm run reads no file");
     }
@@ -2018,7 +2071,10 @@ fn a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_comp
             files: files.to_vec(),
             ..violations()
         };
-        given.language.rejected_syntax = rejected.iter().map(|path| FilePath((*path).into())).collect();
+        given.language.rejected_syntax = rejected
+            .iter()
+            .map(|path| FilePath((*path).into()))
+            .collect();
         let mut asked = request(&given);
         asked.rules[0].applicability = applicability;
         let world = world(given);
@@ -2031,7 +2087,11 @@ fn a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_comp
                 .unwrap_or_else(std::sync::PoisonError::into_inner),
         )
         .rows;
-        (rows, format!("{:?}", report.unknowns), format!("{:?}", report.skipped))
+        (
+            rows,
+            format!("{:?}", report.unknowns),
+            format!("{:?}", report.skipped),
+        )
     };
     let oracle = lint(&[THREE[0], THREE[2]], &[], Always);
     let (rows, undecided, skipped) = lint(&THREE, &["b.rs"], AcceptedSyntax);
@@ -2041,7 +2101,11 @@ fn a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_comp
         skipped.contains("b.rs") && skipped.contains("SyntaxRejected"),
         "named with its reason: {skipped}"
     );
-    assert!(oracle.2 == "[]", "a file that is read is not skipped: {}", oracle.2);
+    assert!(
+        oracle.2 == "[]",
+        "a file that is read is not skipped: {}",
+        oracle.2
+    );
 }
 
 mod project_budget;

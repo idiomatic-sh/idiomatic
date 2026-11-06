@@ -31,8 +31,8 @@ use {
 use crate::domain::value_cells::service::unknown_cell;
 use ryo_values::domain::plans::types::Emit;
 use ryo_values::domain::records::service::keep;
-use ryo_values::domain::records::types::RenderedText;
-use ryo_values::domain::records::types::{Cell, CellText, TextRange};
+use ryo_values::domain::row_texts::types::RenderedText;
+use ryo_values::domain::row_texts::types::{Cell, CellText, TextRange};
 
 /// One finding for each row of `rows`, none placed yet: it is of `file`, unless the row's subject
 /// is a file, which it is then.

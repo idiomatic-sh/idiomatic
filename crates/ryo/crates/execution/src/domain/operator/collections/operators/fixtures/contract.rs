@@ -2,7 +2,7 @@
 
 use crate::domain::operator::constants::describe;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::plans::types::QueryOperator;
+use ryo_values::domain::query_operators::types::QueryOperator;
 
 /// What a shared row is given: nothing, the item is asked about itself.
 type Input = ();

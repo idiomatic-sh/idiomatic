@@ -1,5 +1,6 @@
 //! Names of the `brace-format-field` columns.
 use super::item::BraceFormatFieldColumn;
+use crate::domain::relations::constants::{CONTEXT, ORDINAL};
 
 /// Query relation name.
 #[must_use]
@@ -18,8 +19,8 @@ pub fn summary() -> &'static str {
 pub fn column_name(column: BraceFormatFieldColumn) -> &'static str {
     match column {
         BraceFormatFieldColumn::Id => "id",
-        BraceFormatFieldColumn::Ordinal => "ordinal",
-        BraceFormatFieldColumn::Context => "context",
+        BraceFormatFieldColumn::Ordinal => ORDINAL,
+        BraceFormatFieldColumn::Context => CONTEXT,
         BraceFormatFieldColumn::ParentOrdinal => "parent-ordinal",
         BraceFormatFieldColumn::SelectorKind => "selector-kind",
         BraceFormatFieldColumn::SelectorIndex => "selector-index",

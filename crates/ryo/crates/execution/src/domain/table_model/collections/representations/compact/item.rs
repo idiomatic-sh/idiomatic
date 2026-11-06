@@ -22,8 +22,8 @@ impl RepresentationsItem for CompactItem {
         Ok(RelationContract {
             input,
             kind: RepresentationKind::Compact,
-            kinds: ryo_values::domain::table_words::service::compact_kinds(table),
-            rows: ryo_values::domain::table_words::service::compact_rows(table),
+            kinds: ryo_values::domain::compact_table::service::compact_kinds(table),
+            rows: ryo_values::domain::compact_table::service::compact_rows(table).0,
             metadata: Ok(()),
         })
     }
@@ -34,7 +34,9 @@ impl RepresentationsItem for CompactItem {
         if contract.kinds != contract.input.kinds() {
             return Err(OperatingError::ShapeMismatch);
         }
-        if !ryo_values::domain::table_words::service::compact_rectangular(table) {
+        if ryo_values::domain::compact_table::service::compact_rectangular(table)
+            != ryo_values::domain::table_words::types::TableShape::Rectangular
+        {
             return Err(OperatingError::ShapeMismatch);
         }
         Ok(PhysicalShape::Complete)
@@ -48,13 +50,13 @@ impl RepresentationsItem for CompactItem {
         let RepresentationInput::Compact(table) = input else {
             return Err(OperatingError::WrongOperation);
         };
-        if row.0 >= ryo_values::domain::table_words::service::compact_rows(table)
+        if row.0 >= ryo_values::domain::compact_table::service::compact_rows(table).0
             || column.0 as usize
-                >= ryo_values::domain::table_words::service::compact_kinds(table).len()
+                >= ryo_values::domain::compact_table::service::compact_kinds(table).len()
         {
             return Ok(CellRead::MissingPhysical);
         }
-        ryo_values::domain::table_words::service::compact_cell(table, row.0, column.0 as usize)
+        ryo_values::domain::compact_table::service::compact_cell(table, row, column)
             .map(CellRead::Value)
             .ok_or(OperatingError::ShapeMismatch)
     }
@@ -67,10 +69,10 @@ impl RepresentationsItem for CompactItem {
         let RepresentationInput::Compact(table) = input else {
             return Err(OperatingError::WrongOperation);
         };
-        if row.0 >= ryo_values::domain::table_words::service::compact_rows(table) {
+        if row.0 >= ryo_values::domain::compact_table::service::compact_rows(table).0 {
             return Ok(RowRead::MissingPhysical);
         }
-        ryo_values::domain::table_words::service::compact_read(table, row.0, _decode)
+        ryo_values::domain::compact_table::service::compact_read(table, row, _decode)
             .map(RowRead::Decoded)
             .ok_or(OperatingError::ShapeMismatch)
     }

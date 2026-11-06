@@ -1,5 +1,6 @@
 //! Names of the `brace-format-parse` columns.
 use super::item::BraceFormatParseColumn;
+use crate::domain::relations::constants::{ERROR_CATEGORY, OUTCOME};
 
 /// Query relation name.
 #[must_use]
@@ -19,8 +20,8 @@ pub fn column_name(column: BraceFormatParseColumn) -> &'static str {
     match column {
         BraceFormatParseColumn::Id => "id",
         BraceFormatParseColumn::Representation => "representation",
-        BraceFormatParseColumn::Outcome => "outcome",
-        BraceFormatParseColumn::ErrorCategory => "error-category",
+        BraceFormatParseColumn::Outcome => OUTCOME,
+        BraceFormatParseColumn::ErrorCategory => ERROR_CATEGORY,
         BraceFormatParseColumn::AutomaticCount => "automatic-count",
         BraceFormatParseColumn::IndexedCount => "indexed-count",
         BraceFormatParseColumn::KeywordCount => "keyword-count",

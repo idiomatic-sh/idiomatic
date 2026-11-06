@@ -20,9 +20,10 @@ use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     plan_parts::types::{
         ColumnIndex, Input as PlanInput, JoinColumn, ReachLookup, RepeatedRows, Side, StepId,
+        StepScope,
     },
-    plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
-    program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+    plans::types::{Emit, Operation, Plan, PlanStep},
+    query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
     rows::types::{RowCount, Table},
     runs::types::{RuleApplicability, RuleId},
     stored_facts::types::Digest,
@@ -257,7 +258,8 @@ fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
-        None)?;
+        None,
+    )?;
     let function = function_rows(match scenario {
         Scenario::ReachDuplicate => &[0, 0],
         _ => &[0, 0, 2],

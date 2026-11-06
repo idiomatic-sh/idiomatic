@@ -1,26 +1,26 @@
-// the lookups pushed into a join and the filters pushed before a capture are the two pushes the planner makes and share the reading of a chain of filters.
 //! The `pushing` service: free functions named by verb over the lookups into a join of edges and elements made before the join.
 
-use ryo_relations::domain::relations::types::Relation;
-
-use super::types::{
-    ColumnPrefixLength, FilterDepth, FilterStep, FilteredElements, KeptColumns, MovedComparisons,
-    Pushed,
-};
 use crate::domain::fusing::service::source_column;
-use crate::domain::rewriting::types::{Planned, StepIndex};
-use crate::domain::walking::service::width_of;
-use ryo_values::domain::plan_parts::service::{columns_of, each_column, remapped};
+use crate::domain::rewriting::types::Planned;
+use crate::domain::rewriting::types::StepIndex;
+use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::plan_parts::service::remapped;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::plan_parts::types::Operand;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plans::service::each_input;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
+use super::types::ColumnPrefixLength;
+use super::types::FilterDepth;
+use super::types::FilterStep;
+use super::types::FilteredElements;
+use super::types::KeptColumns;
+use super::types::Pushed;
 
 /// The steps with each lookup into a join of the edges of the tree with a filter of its elements made before the join:
 /// asking the edges and the elements for the children of a few nodes does not need the children of every node.
@@ -97,12 +97,12 @@ fn element_comparisons(
     chain: &[FilterStep<'_>],
     made_output: &[JoinColumn],
     elements: FilteredElements<'_>,
-) -> Option<Vec<Comparison>> {
+) -> Option<Vec<PlanComparison>> {
     let FilteredElements {
         view: element_view,
         filter: element_filter,
     } = elements;
-    let mut filters: Vec<Comparison> = element_filter.to_vec();
+    let mut filters: Vec<PlanComparison> = element_filter.to_vec();
     for (depth, FilterStep { comparisons, .. }) in chain.iter().enumerate() {
         for comparison in *comparisons {
             let element_side = |operand: &Operand| -> Option<Operand> {
@@ -118,7 +118,7 @@ fn element_comparisons(
                     })
                 })
             };
-            filters.push(Comparison {
+            filters.push(PlanComparison {
                 test: comparison.test,
                 left: element_side(&comparison.left)?,
                 right: element_side(&comparison.right)?,
@@ -338,132 +338,4 @@ fn edge_lookup(
 
         reach: None,
     }
-}
-
-/// The plan with each filter on the columns a capture was given, made before the capture instead of after it: the capture matches the
-/// paths of the rows the filter lets through, not of every row. Not done when another step reads the capture.
-#[must_use]
-pub(crate) fn push_below_captures(steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
-    let steps = push_below_captures_roots(steps, std::slice::from_mut(&mut emitted));
-    Planned { steps, emitted }
-}
-
-/// The same rewrite with every externally observable root protected and renumbered together.
-pub(crate) fn push_below_captures_roots(
-    mut steps: Vec<PlanStep>,
-    roots: &mut [StepId],
-) -> Vec<PlanStep> {
-    let mut place = 0;
-    while place < steps.len() {
-        if let Some(MovedComparisons {
-            capture,
-            input,
-            before: moved,
-            rest,
-        }) = movable(&steps, StepIndex(place), roots)
-        {
-            let capture = capture.0;
-            let before = StepId(u32::try_from(capture).unwrap_or(u32::MAX));
-            for step in &mut steps {
-                each_input(&mut step.operation, &mut |read| {
-                    if let Input::Step(id) = read
-                        && id.0 >= before.0
-                    {
-                        id.0 += 1;
-                    }
-                });
-            }
-            for root in roots.iter_mut() {
-                if root.0 >= before.0 {
-                    root.0 += 1;
-                }
-            }
-            #[expect(
-                clippy::indexing_slicing,
-                clippy::wildcard_enum_match_arm,
-                clippy::unreachable,
-                reason = "`movable` found a select at `place` reading a capture at `capture`; the inputs were already renumbered, so any other step here is a bug that must crash, not a wrong plan"
-            )]
-            {
-                match &mut steps[place].operation {
-                    Operation::Select { comparisons, .. } => *comparisons = rest,
-                    _ => unreachable!(),
-                }
-                match &mut steps[capture].operation {
-                    Operation::Capture { from, .. } => *from = Input::Step(before),
-                    _ => unreachable!(),
-                }
-            }
-            #[expect(
-                clippy::indexing_slicing,
-                reason = "`movable` found a capture at `capture`"
-            )]
-            let captured = &steps[capture];
-            let scope = captured.scope;
-            steps.insert(
-                capture,
-                PlanStep {
-                    operation: Operation::Select {
-                        from: input,
-                        comparisons: moved,
-                        kept: Vec::new(),
-                    },
-                    scope,
-                },
-            );
-            place += 1;
-        }
-        place += 1;
-    }
-    steps
-}
-
-/// The filter at `place`, when it filters what a capture made on columns the capture was given: the capture, what it reads, and the
-/// comparisons that move before it and those that stay.
-fn movable(steps: &[PlanStep], place: StepIndex, roots: &[StepId]) -> Option<MovedComparisons> {
-    let Operation::Select {
-        from: Input::Step(read),
-        comparisons,
-        ..
-    } = &steps.get(place.0)?.operation
-    else {
-        return None;
-    };
-    let capture = usize::try_from(read.0).unwrap_or(usize::MAX);
-    let captured = steps.get(capture)?;
-    let Operation::Capture { from, .. } = &captured.operation else {
-        return None;
-    };
-    // Another step that reads the capture, or an emit of it, would see the rows the filter would take out.
-    let readers = steps
-        .iter()
-        .filter(|step| {
-            let mut reads = false;
-            let mut copy = step.operation.clone();
-            each_input(&mut copy, &mut |each| reads |= *each == Input::Step(*read));
-            reads
-        })
-        .count();
-    if readers != 1 || roots.contains(read) || captured.scope != steps.get(place.0)?.scope {
-        return None;
-    }
-    let width = width_of(steps, *from)?.0;
-    let (moved, rest): (Vec<Comparison>, Vec<Comparison>) =
-        comparisons.iter().cloned().partition(|comparison| {
-            let mut inside = true;
-            for operand in [&comparison.left, &comparison.right] {
-                each_column(operand, &mut |column| inside &= column.0 < width);
-            }
-            inside
-        });
-    // A filter that reads no column is no reason to move anything.
-    let reads_a_column = moved.iter().any(|comparison| {
-        !columns_of(&comparison.left).is_empty() || !columns_of(&comparison.right).is_empty()
-    });
-    (reads_a_column).then_some(MovedComparisons {
-        capture: StepIndex(capture),
-        input: *from,
-        before: moved,
-        rest,
-    })
 }

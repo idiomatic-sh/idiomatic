@@ -21,6 +21,7 @@ use ryo_relations::domain::relations::{
     types::{Bits, CellKind, ColumnsView, Integer, Value},
 };
 use ryo_relations::domain::terms::service::symbols_with_text;
+use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Operand, QueryLiteral, Test},
     query_bindings::types::ParameterBinding,
@@ -166,7 +167,7 @@ fn selective(
 
 /// Equality lookup never interns query text and verifies symbol hashes by exact text.
 fn discriminator(
-    comparison: &ryo_values::domain::plan_parts::types::Comparison,
+    comparison: &ryo_values::domain::plan_parts::types::PlanComparison,
     program: &Selector,
     source: ColumnsView<'_>,
     context: &OperatorContext<'_>,
@@ -210,7 +211,7 @@ fn discriminator(
                 hash,
             );
             let mut ambiguous = false;
-            symbols_with_text(&text.0, |candidate| {
+            symbols_with_text(NameText(&text.0), |candidate| {
                 if found_symbol.replace(candidate).is_some() {
                     ambiguous = true;
                 }

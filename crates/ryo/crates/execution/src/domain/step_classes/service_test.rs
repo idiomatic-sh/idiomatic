@@ -3,11 +3,12 @@
 use super::service::merge;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    Applied, ColumnIndex, Comparison, Function, Input as PlanInput, LiteralText, Operand,
-    ParameterId, QueryLiteral, StepId, Test, WholeNumber,
+    Applied, ColumnIndex, Function, Input as PlanInput, LiteralText, Operand, ParameterId,
+    PlanComparison, QueryLiteral, StepId, Test, WholeNumber,
 };
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 /// The kinds the one step of each rule selects, an empty one for the elements with no text.
@@ -16,21 +17,21 @@ type Input = &'static [&'static str];
 type Value = &'static str;
 type Failure = ();
 
-fn text_is(text: &str) -> Comparison {
-    Comparison {
+fn text_is(text: &str) -> PlanComparison {
+    PlanComparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(2)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }
 }
 
-fn kind_is(name: &str) -> Comparison {
-    Comparison {
+fn kind_is(name: &str) -> PlanComparison {
+    PlanComparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(1)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(name.into()))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }
 }
 
@@ -106,7 +107,9 @@ fn succeeds() {
 #[test]
 fn comparison_origin_does_not_split_shared_step_classes() {
     use ryo_values::domain::plan_parts::types::ComparisonOriginId;
-    use ryo_values::domain::program::types::{ByteOffset, QueryOrigin, QuerySourceId, QuerySpan};
+    use ryo_values::domain::query_tokens::types::{
+        ByteOffset, QueryOrigin, QuerySourceId, QuerySpan,
+    };
 
     let mut first = plan("word");
     let mut second = plan("word");
@@ -122,7 +125,9 @@ fn comparison_origin_does_not_split_shared_step_classes() {
         let Operation::Select { comparisons, .. } = &mut plan.steps[0].operation else {
             panic!("the fixture has one select");
         };
-        comparisons[0].origin = Some(ComparisonOriginId(0));
+        comparisons[0].origin = ryo_values::domain::plan_parts::types::ComparisonOrigin::Recorded(
+            ryo_values::domain::plan_parts::types::ComparisonOriginId(0),
+        );
     }
 
     let merged = merge(&[first, second], &[Vec::new(), Vec::new()]);
@@ -136,11 +141,11 @@ fn with_operands(left: Operand, right: Operand) -> Plan {
     let Operation::Select { comparisons, .. } = &mut selected.steps[0].operation else {
         panic!("fixture is a selection");
     };
-    comparisons.push(Comparison {
+    comparisons.push(PlanComparison {
         test: Test::Equal,
         left,
         right,
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     });
     selected
 }
@@ -294,23 +299,23 @@ fn relation_identity_and_wide_source_projections_are_preserved() {
         unreachable!();
     };
     *from = PlanInput::Relation(Relation::SourceLocation);
-    comparisons[0] = Comparison {
+    comparisons[0] = PlanComparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(8)),
         right: Operand::Literal(QueryLiteral::Number(
             ryo_relations::domain::relations::types::Integer(7),
         )),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     *kept = vec![ColumnIndex(8), ColumnIndex(0), ColumnIndex(8)];
     wide.steps.push(PlanStep {
         operation: Operation::Select {
             from: PlanInput::Step(StepId(0)),
-            comparisons: vec![Comparison {
+            comparisons: vec![PlanComparison {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(2)),
                 right: Operand::Column(ColumnIndex(0)),
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             }],
             kept: vec![ColumnIndex(1)],
         },

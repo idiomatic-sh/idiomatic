@@ -3,13 +3,14 @@
 //! make again cheaply is. Plain data, public fields and derives, with no constructor and no inherent impl.
 
 use crate::domain::files::types::{FileSize, Nanoseconds};
-use crate::domain::program::types::ColumnName;
-use crate::domain::records::types::{
-    Cell, GoverningRules, PlacedColumn, PlacedLine, PlacedRule, Unreadable,
-};
+use crate::domain::records::types::GoverningRules;
+use crate::domain::row_texts::types::{Cell, PlacedRule};
 use crate::domain::runs::types::{ManifestRefused, RuleId, Skipped};
 use crate::domain::stored_facts::types::PackedWords;
 use crate::domain::stored_facts::types::{ArenaBytes, Bucket, Digest, FileNotes, StoredPartial};
+use crate::domain::stored_findings::types::{
+    StoredCell, StoredFileNumber, StoredFinding, StoredUnknown, StoredUnread,
+};
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::project_context::types::EntryObservation;
 
@@ -87,7 +88,7 @@ pub struct StagedRow {
     /// Its destination bucket.
     pub bucket: Bucket,
     /// Original fresh-row position among both inline and staged rows, preserving tie order.
-    pub ordinal: u64,
+    pub ordinal: crate::domain::records::types::StagedOrdinal,
     /// Plain descriptor; no path or IO resource crosses into domain data.
     pub words: crate::domain::records::types::StagedWords,
 }
@@ -102,10 +103,40 @@ pub struct FileAgain {
 }
 
 /// What each file handed the steps that read across files and the project, in tables of their own.
-pub type StoredHanded = HandedRows<StoredWords>;
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct StoredHanded(pub HandedRows<StoredWords>);
+
+impl std::ops::Deref for StoredHanded {
+    type Target = HandedRows<StoredWords>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for StoredHanded {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 /// One snapshot's read representation; old words need not be retained as payload bytes.
-pub type ReadHanded = HandedRows<ReadWords>;
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ReadHanded(pub HandedRows<ReadWords>);
+
+impl std::ops::Deref for ReadHanded {
+    type Target = HandedRows<ReadWords>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for ReadHanded {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 /// Rest tables share their unchanged representation across persistent writes and snapshot reads.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -183,11 +214,11 @@ pub struct OldWords {
     /// File number encoded by this row.
     pub file: StoredFileNumber,
     /// Start of the row's file-number and payload-length header.
-    pub header: u64,
+    pub header: crate::domain::records::types::HeaderOffset,
     /// Start of its packed bytes in the opened snapshot.
-    pub offset: u64,
+    pub offset: crate::domain::records::types::PayloadOffset,
     /// Exact packed byte count.
-    pub length: u64,
+    pub length: crate::domain::records::types::PayloadLength,
 }
 
 /// The words a file handed the steps that read across files in one bucket.
@@ -272,78 +303,6 @@ pub struct StoredFile {
     pub noted: Digest,
 }
 
-/// A file, by its place among the stored files.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct StoredFileNumber(pub u32);
-
-/// Which visit made a finding.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum FindingMade {
-    /// The visit of the file at this place among the stored files.
-    InFile(StoredFileNumber),
-    /// The rules that read across files, once every file was visited.
-    AcrossFiles,
-}
-
-/// Where in its subject a finding is.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum FindingPlace {
-    /// At this line and character.
-    At(StoredPlace),
-    /// Nowhere in particular: the finding is about its subject as a whole.
-    Unplaced,
-}
-
-/// Where in its file a finding is.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct StoredPlace {
-    /// The line.
-    pub line: PlacedLine,
-    /// The character in the line.
-    pub column: PlacedColumn,
-}
-
-/// A finding a run showed.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct StoredFinding {
-    /// The rule that found it.
-    pub rule: RuleId,
-    /// Which visit made it.
-    pub made: FindingMade,
-    /// Where it is in its subject.
-    pub place: FindingPlace,
-    /// What it is about.
-    pub subject: StoredCell,
-    /// What tells it apart from the rule's others: the value of each of the rule's key columns, in order.
-    pub key: Vec<StoredCell>,
-    /// Its columns, in the order the rule writes them.
-    pub values: Vec<StoredValue>,
-}
-
-/// One column of a finding.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct StoredValue {
-    /// Its heading.
-    pub column: ColumnName,
-    /// Its value.
-    pub value: StoredCell,
-}
-
-/// A cell of a finding as the store keeps it: its value, or nothing when the value reads as nothing.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum StoredCell {
-    /// The value.
-    Value(Cell),
-    /// The value reads as nothing.
-    Nothing,
-}
-
-impl From<Option<Cell>> for StoredCell {
-    fn from(cell: Option<Cell>) -> Self {
-        cell.map_or(Self::Nothing, Self::Value)
-    }
-}
-
 impl<'a> From<&'a StoredCell> for Option<&'a Cell> {
     fn from(cell: &'a StoredCell) -> Self {
         match cell {
@@ -351,30 +310,6 @@ impl<'a> From<&'a StoredCell> for Option<&'a Cell> {
             StoredCell::Nothing => None,
         }
     }
-}
-
-/// A file no language read.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct StoredUnread {
-    /// The file.
-    pub file: StoredFileNumber,
-    /// Why: no linked language reads such a file, or what the language said when it failed.
-    pub reason: Unreadable,
-}
-
-/// What a rule could not decide, as shown.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct UnknownText(pub Box<str>);
-
-/// Something a rule could not decide, and the file that is the reason.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct StoredUnknown {
-    /// The rule.
-    pub rule: RuleId,
-    /// The file whose relation is read only in part.
-    pub path: FilePath,
-    /// What is partial there and why.
-    pub message: UnknownText,
 }
 
 /// One existing stored file's named frontier readiness.
@@ -392,7 +327,7 @@ pub enum MadeAgain {
     /// Every one: what a file shows the project or every rule changed, or files were added or removed.
     All,
     /// These, by their place, in order: what the changed files hand them changed, and nothing else did.
-    These(Vec<crate::domain::records::types::PlacedRule>),
+    These(Vec<crate::domain::row_texts::types::PlacedRule>),
 }
 
 /// How much of what the last run kept a run uses again.
@@ -406,3 +341,18 @@ pub enum Reuse {
     /// the others' findings are as the store kept them.
     Cross(MadeAgain),
 }
+
+/// How many records, arenas, frontiers, rows or packed inputs a retention measurement covers.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ObjectCount(pub usize);
+
+/// Bytes of an owning allocation counted by its capacity, spare room included.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CapacityBytes(pub usize);
+
+/// Bytes of an owning allocation that hold data now.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct LiveBytes(pub usize);
+
+/// Canonical read-only retention measurements over portable payloads.
+pub mod retention;

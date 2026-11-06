@@ -270,17 +270,17 @@ fn selecting_never_prepares_an_unknown_selector_identity() -> Result<(), Failure
 #[test]
 fn every_possible_discriminator_column_is_prepared_once() -> Result<(), Failure> {
     use ryo_values::domain::plan_parts::types::{
-        ColumnIndex, Comparison, Operand, QueryLiteral, Test,
+        ColumnIndex, PlanComparison, Operand, QueryLiteral, Test,
     };
     let mut selector = (*program(2)).clone();
     selector.identity = Arc::new(crate::domain::table_model::types::SelectionIdentity {
         comparisons: vec![1, 2]
             .into_iter()
-            .map(|column| Comparison {
+            .map(|column| PlanComparison {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(column)),
                 right: Operand::Literal(QueryLiteral::Number(Integer(2))),
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             })
             .collect(),
         bindings: vec![],

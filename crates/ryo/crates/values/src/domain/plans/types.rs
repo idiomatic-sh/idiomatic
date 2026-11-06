@@ -2,7 +2,6 @@
 
 use crate::domain::plan_parts::types::CapturePattern;
 use crate::domain::plan_parts::types::ColumnIndex;
-use crate::domain::plan_parts::types::Comparison;
 use crate::domain::plan_parts::types::Direction;
 use crate::domain::plan_parts::types::Heading;
 use crate::domain::plan_parts::types::HostedNumber;
@@ -11,11 +10,15 @@ use crate::domain::plan_parts::types::JoinColumn;
 use crate::domain::plan_parts::types::Operand;
 use crate::domain::plan_parts::types::ParameterId;
 use crate::domain::plan_parts::types::ParameterName;
+use crate::domain::plan_parts::types::PlanComparison;
 use crate::domain::plan_parts::types::RepeatedRows;
 use crate::domain::plan_parts::types::StepId;
+use crate::domain::plan_parts::types::StepScope;
 use crate::domain::plan_parts::types::TableKey;
 use crate::domain::plan_parts::types::Test;
-use crate::domain::program::types::QueryOrigin;
+use crate::domain::query_bindings::types::PlanParameter;
+use crate::domain::query_operators::types::{LineOutput, MaxLine, TabWidth, TextOutput};
+use crate::domain::query_tokens::types::QueryOrigin;
 
 /// A compiled query: its parameters, its steps in the order to run them, and what it emits.
 #[derive(Clone, Debug, PartialEq)]
@@ -37,34 +40,6 @@ pub struct Plan {
     pub frontier: Vec<Input>,
 }
 
-/// A parameter the host supplies when it runs the plan.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PlanParameter {
-    /// The parameter's name, as the host supplies it: text that came from the query.
-    pub name: ParameterName,
-    /// What it holds.
-    pub kind: ParameterType,
-}
-
-/// What a parameter holds.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ParameterType {
-    /// A yes or no.
-    Flag,
-    /// A whole number.
-    Number,
-    /// Text: a string, a path or a glob.
-    Text,
-    /// A list or a set of numbers.
-    Numbers,
-    /// A list or a set of text.
-    Texts,
-    /// A list of sets of text: the sets in order.
-    TextSets,
-    /// A list of tables of text, each a row: `list<table>`.
-    Tables,
-}
-
 /// One operation of the plan.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PlanStep {
@@ -72,16 +47,6 @@ pub struct PlanStep {
     pub operation: Operation,
     /// Where it runs.
     pub scope: StepScope,
-}
-
-/// Where a step runs: in the worker that has the file, or once after the workers on the rows they
-/// handed over.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum StepScope {
-    /// On one file's rows, in the worker.
-    PerFile,
-    /// On the frontier rows of every file.
-    CrossFile,
 }
 
 /// The operations of the language, one variant each, with typed fields.
@@ -92,7 +57,7 @@ pub enum Operation {
         /// What it filters.
         from: Input,
         /// The comparisons, all of which must hold.
-        comparisons: Vec<Comparison>,
+        comparisons: Vec<PlanComparison>,
         /// The columns kept, in order; none named means every column.
         kept: Vec<ColumnIndex>,
     },
@@ -125,7 +90,7 @@ pub enum Operation {
         /// The columns of the answer.
         output: Vec<JoinColumn>,
         /// What the rows of the right input must satisfy to be joined, as the comparisons of a filter of it.
-        filter: Vec<Comparison>,
+        filter: Vec<PlanComparison>,
         /// The columns of the right input the keys and the answer name, in order; none named means all of them.
         view: Vec<ColumnIndex>,
         /// Source-keyed closure demand; the right input is physical edges when present.
@@ -254,7 +219,7 @@ pub enum Operation {
         /// The entity column in `domain`.
         domain_id: ColumnIndex,
         /// What the rows of the domain must satisfy to prove an answer valid, as the comparisons of a filter of it.
-        domain_filter: Vec<Comparison>,
+        domain_filter: Vec<PlanComparison>,
         /// The columns of the domain the entity column names, in order; none named means all of them.
         domain_view: Vec<ColumnIndex>,
         /// The columns of the answer, each of the starting row (left) or of the element reached (right); none named means the
@@ -336,9 +301,9 @@ pub enum Operation {
         /// Optional required named capture; a nonparticipating capture emits no row.
         capture: Option<crate::domain::plan_parts::types::LiteralText>,
         /// Append the captured physical text as a source-backed Symbol.
-        capture_text: bool,
+        capture_text: TextOutput,
         /// Append the captured start line after any whole-match line output.
-        capture_line: bool,
+        capture_line: LineOutput,
     },
     /// Render candidate syntax in a declared embedding role on demand.
     RenderSyntax {
@@ -360,9 +325,9 @@ pub enum Operation {
         /// Original physical statement span.
         span: ColumnIndex,
         /// Maximum physical display columns.
-        max_line: i64,
+        max_line: MaxLine,
         /// Physical tab stop width.
-        tab_width: u32,
+        tab_width: TabWidth,
     },
     /// Append checked byte offsets of an existing physical source span.
     SpanBounds {
@@ -371,91 +336,6 @@ pub enum Operation {
         /// Span whose endpoints are projected.
         span: ColumnIndex,
     },
-}
-
-/// Keep the feature catalog's variants generated from the same declaration as
-/// the kind itself. Adding a kind cannot silently omit it from `ALL`.
-macro_rules! operation_kinds {
-    ($( $(#[$meta:meta])* $variant:ident, )+) => {
-        /// The kinds of operation the language has, one variant each.
-        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-        pub enum OperationKind {
-            $( $(#[$meta])* $variant, )+
-        }
-
-        impl OperationKind {
-            /// Every declared operation kind, in its stable catalog order.
-            pub const ALL: &'static [Self] = &[ $( Self::$variant, )+ ];
-        }
-    };
-}
-
-operation_kinds! {
-    /// Literal regular-expression replacement.
-    Replace,
-    /// Ordered consumption of right rows.
-    OrderedMatch,
-    /// `select`.
-    Select,
-    /// `project`.
-    Project,
-    /// `extend`.
-    Extend,
-    /// `join`.
-    Join,
-    /// `union`.
-    Union,
-    /// `intersection`.
-    Intersection,
-    /// `difference`.
-    Difference,
-    /// `antijoin`.
-    Antijoin,
-    /// `group-count`.
-    GroupCount,
-    /// `group-digest`.
-    GroupDigest,
-    /// `capture`.
-    Capture,
-    /// `rank`.
-    Rank,
-    /// `words`.
-    Words,
-    /// `axis`.
-    Axis,
-    /// `closure`.
-    Closure,
-    /// `cycles`.
-    Cycles,
-    /// The rows a `list<table>` parameter holds.
-    Rows,
-    /// The rows of a relation the host declared.
-    Hosted,
-    /// `span-between`.
-    SpanBetween,
-    /// `source-matches`.
-    SourceMatches,
-    /// Candidate-driven semantic syntax rendering.
-    RenderSyntax,
-    /// Physical display-width admission for rendered text.
-    FitsRendered,
-    /// `span-bounds`.
-    SpanBounds,
-    /// Ordered depth-first edge visits.
-    OrderedDfs,
-}
-
-/// Something of the language a query uses, which a run must be shown to exercise.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Feature {
-    /// An operation.
-    Operation(OperationKind),
-    /// A way of comparing, in a comparison of a `select`, a `join` filter or a domain filter.
-    Family(Test),
-    /// A direction of an `axis`.
-    Direction(Direction),
-    /// A relation a step reads.
-    Relation(ryo_relations::domain::relations::types::Relation),
 }
 
 /// What the query emits.
@@ -469,60 +349,4 @@ pub struct Emit {
     pub key: Vec<ColumnIndex>,
     /// The headings of the answer's columns: text that leaves the engine.
     pub headings: Vec<Heading>,
-}
-
-/// The operators of the engine, one variant each, in the order the documentation lists them: the `select` sugar and every call a
-/// query can use.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum QueryOperator {
-    /// Literal regular-expression replacement.
-    Replace,
-    /// Ordered consumption of right rows.
-    OrderedMatch,
-    /// `select ... from ... where ...`.
-    Select,
-    /// `project(from, columns)`.
-    Project,
-    /// `extend(from, values)`.
-    Extend,
-    /// `join(left, right, left-on, right-on, output)`.
-    Join,
-    /// `union(left, right)`.
-    Union,
-    /// `intersection(left, right)`.
-    Intersection,
-    /// `difference(left, right)`.
-    Difference,
-    /// `antijoin(left, right, left-on, right-on)`.
-    Antijoin,
-    /// `group-count(from, keys, distinct, count)`.
-    GroupCount,
-    /// `group-digest(from, keys, distinct, digest, count)`.
-    GroupDigest,
-    /// `capture(from, path, pattern, captures)`.
-    Capture,
-    /// `words(from, text, word)`.
-    Words,
-    /// `rank(from, column, sets, output)`.
-    Rank,
-    /// `axis(from, relation, direction, domain)`.
-    Axis,
-    /// The rows a `list<table>` parameter holds.
-    Rows,
-    /// `closure(edges, source, destination)`.
-    Closure,
-    /// `cycles(edges, source, destination)`.
-    Cycles,
-    /// `span-between(from, start, end, output)`.
-    SpanBetween,
-    /// `source-matches(from, span, pattern, output)`.
-    SourceMatches,
-    /// `render-syntax(from, node, context, output)`.
-    RenderSyntax,
-    /// `fits-rendered(from, text, span, max-line, tab-width)`.
-    FitsRendered,
-    /// `span-bounds(from, span, start-output, end-output)`.
-    SpanBounds,
-    /// `ordered-dfs(from, root, edges, source, destination, order, edge, keys, output)`.
-    OrderedDfs,
 }

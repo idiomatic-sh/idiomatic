@@ -11,11 +11,11 @@ use crate::domain::file_program::types::RuleSchedule;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::trust::types::RelationRead;
 use ryo_values::domain::hosted::types::HostRelation;
-use ryo_values::domain::observations::types::ObservationIndex;
-use ryo_values::domain::observations::types::ObservationReadinessLayout;
+use ryo_values::domain::records::types::ObservationIndex;
+use ryo_values::domain::records::types::ObservationReadinessLayout;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plans::types::Emit;
-use ryo_values::domain::plans::types::StepScope;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stores::types::Reuse;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
@@ -67,7 +67,7 @@ pub(in crate::application::file_dag::program) struct RuleMetadata {
     pub observation_frontiers: Box<[FrontierPurpose]>,
     pub semantic_needed: SemanticNeed,
     pub frontier_dependencies: Result<
-        Vec<Vec<ryo_values::domain::observations::types::ObservationBindingId>>,
+        Vec<Vec<ryo_values::domain::plan_parts::types::ObservationBindingId>>,
         OperatingError,
     >,
 }

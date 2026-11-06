@@ -2,11 +2,11 @@
 use super::super::*;
 use ryo_values::domain::{
     observations::types::{
-        BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName,
-        ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer,
-        ObservationReadinessLayout, PlanObservation,
+        BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
+        ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
     },
-    plan_parts::types::{Operand, QueryLiteral},
+    plan_parts::types::{ObservationBindingId, Operand, QueryLiteral},
+    records::types::ObservationReadinessLayout,
 };
 
 #[test]

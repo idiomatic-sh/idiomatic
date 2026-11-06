@@ -10,7 +10,7 @@ pub mod memory;
 pub mod operators;
 pub mod publication;
 pub mod query_language;
-pub mod rows;
+pub mod row_sink;
 pub mod scheduler;
 
 pub mod derived;

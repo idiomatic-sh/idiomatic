@@ -54,3 +54,16 @@ pub(in crate::application::file_dag) fn shared_vector_checked<T>(
         .checked_add(checked::<T>(SlotCount(rows.capacity()))?.0)
         .map(ByteCount)
 }
+
+/// A compact table's own metadata: its header, its frames, kinds and row offsets by reserved room.
+pub(in crate::application::file_dag) fn compact_table(
+    table: &ryo_values::domain::table_words::types::CompactTable,
+) -> ByteCount {
+    ByteCount(
+        size_of::<ryo_values::domain::table_words::types::CompactTable>()
+            + 2 * size_of::<usize>()
+            + vector(&table.frames).0
+            + vector(&table.kinds).0
+            + vector(&table.row_offsets).0,
+    )
+}

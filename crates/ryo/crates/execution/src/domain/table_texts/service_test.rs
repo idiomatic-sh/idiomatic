@@ -9,7 +9,7 @@ use ryo_relations::domain::relations::types::{FileId, Offset, Value as Cell};
 use super::service::datum;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::WholeNumber;
-use ryo_values::domain::rows::errors::TableModelError;
+use ryo_values::domain::rows::errors::RowsError;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 use {
     crate::domain::table_texts::types::Datum, crate::domain::table_texts::types::TextView,
@@ -17,11 +17,11 @@ use {
 };
 
 /// A scenario: what a row asks of the part.
-type Input = fn() -> Result<Value, TableModelError>;
+type Input = fn() -> Result<Value, RowsError>;
 /// What a scenario answers: a yes as one, or a count.
 type Value = usize;
 /// Why a scenario is refused.
-type Failure = TableModelError;
+type Failure = RowsError;
 
 /// A name that left its file reads as text where its worker's arena holds it, and as its hash where nothing does.
 fn a_name_that_left_its_file_reads_from_the_arena() -> Value {

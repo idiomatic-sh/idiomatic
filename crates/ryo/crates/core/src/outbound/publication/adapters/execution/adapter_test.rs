@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 type Input = ();
 type Answer = usize;
-type Failure = ryo_values::domain::observations::types::ObservationReason;
+type Failure = ryo_values::domain::records::types::ObservationReason;
 const NAME_BYTES: &[u8] = &[b'a', b'l', b'p', b'h', b'a'];
 const CASES: &[Case<Input, Answer, Failure>] = &[Case {
     name: CaseName(stringify!(symbol_gets_portable_text_and_place)),

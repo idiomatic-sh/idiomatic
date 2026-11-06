@@ -2,10 +2,11 @@
 
 use super::value::DemandClosure;
 use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, Input, JoinColumn, Operand, RepeatedRows, Side, StepId, Test,
+    ColumnIndex, Input, JoinColumn, Operand, PlanComparison, RepeatedRows, Side, StepId, Test,
 };
-use ryo_values::domain::plans::types::{Operation, PlanStep, StepScope};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
 
 fn step(operation: Operation) -> PlanStep {
     PlanStep {
@@ -144,11 +145,11 @@ fn distinct_predicate_native_and_cross_file_barriers_are_unchanged() {
     assert_eq!(DemandClosure::new(&distinct, &[]).rewrite(), distinct);
     let mut filtered = [closure(vec![]), join(0, vec![ColumnIndex(0)])];
     if let Operation::Join { filter, .. } = &mut filtered[1].operation {
-        filter.push(Comparison {
+        filter.push(PlanComparison {
             left: Operand::Column(ColumnIndex(0)),
             right: Operand::Column(ColumnIndex(0)),
             test: Test::Equal,
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         });
     }
     assert_eq!(DemandClosure::new(&filtered, &[]).rewrite(), filtered);

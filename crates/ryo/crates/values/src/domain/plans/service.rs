@@ -1,11 +1,13 @@
 //! The `plans` service: free functions named by verb over a compiled plan, with no IO and no ports.
 
-use super::types::{Operation, OperationKind, Plan, StepScope};
+use super::types::{Operation, Plan};
 use crate::domain::plan_parts::service::step_in;
-use crate::domain::plan_parts::types::Comparison;
 use crate::domain::plan_parts::types::Input;
+use crate::domain::plan_parts::types::PlanComparison;
 use crate::domain::plan_parts::types::StepId;
+use crate::domain::plan_parts::types::StepScope;
 use crate::domain::plan_parts::types::{InputCount, Inputs};
+use crate::domain::query_operators::types::OperationKind;
 
 /// What an operation reads, in the order its operator reads its inputs.
 #[must_use]
@@ -144,7 +146,7 @@ pub fn kind_of(operation: &Operation) -> OperationKind {
 }
 
 /// The comparisons an operation makes.
-pub fn comparisons_of(operation: &Operation) -> &[Comparison] {
+pub fn comparisons_of(operation: &Operation) -> &[PlanComparison] {
     match operation {
         Operation::Select { comparisons, .. } => comparisons,
         Operation::Join { filter, .. } => filter,

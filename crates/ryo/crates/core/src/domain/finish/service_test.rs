@@ -18,7 +18,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
 use ryo_values::domain::plans::types::Emit;
-use ryo_values::domain::records::types::RenderedText;
+use ryo_values::domain::row_texts::types::RenderedText;
 
 /// What a row of the cases does with the rows.
 #[derive(Clone, Copy)]
@@ -148,13 +148,13 @@ fn shown_text(value: Cell, resolving: &Resolving<'_>, loaded: &Loaded) -> Option
     let mut text = RenderedText::default();
     let shown = shown_cell(&mut text, value, resolving, loaded)?;
     match ryo_values::domain::records::service::lent(
-        ryo_values::domain::records::types::RowsTextView(&text),
+        ryo_values::domain::row_texts::types::RowsTextView(&text),
         shown,
     ) {
-        ryo_values::domain::records::types::Cell::Text(piece) => Some(piece.0.to_owned()),
-        ryo_values::domain::records::types::Cell::File(_)
-        | ryo_values::domain::records::types::Cell::Number(_)
-        | ryo_values::domain::records::types::Cell::Span(_) => None,
+        ryo_values::domain::row_texts::types::Cell::Text(piece) => Some(piece.0.to_owned()),
+        ryo_values::domain::row_texts::types::Cell::File(_)
+        | ryo_values::domain::row_texts::types::Cell::Number(_)
+        | ryo_values::domain::row_texts::types::Cell::Span(_) => None,
     }
 }
 

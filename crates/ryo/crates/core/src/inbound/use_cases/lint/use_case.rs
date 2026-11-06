@@ -79,8 +79,8 @@ use crate::outbound::language::types::{ManifestReading, ProjectInput, ProjectNot
 use crate::outbound::lint_store::interface::LintStorePort;
 use crate::outbound::lint_store::types::StoreKeeping;
 use crate::outbound::memory::interface::MemoryPort;
-use crate::outbound::rows::interface::RowsPort;
-use crate::outbound::rows::types::{LentCell, Summary};
+use crate::outbound::row_sink::interface::RowSinkPort;
+use crate::outbound::row_sink::types::{LentCell, Summary};
 use crate::outbound::scheduler::errors::SchedulerError;
 use crate::outbound::scheduler::interface::SchedulerPort;
 use crate::outbound::scheduler::types::{JobCount, JobNumber, WorkerCount};
@@ -104,12 +104,13 @@ use ryo_values::domain::files::types::{CorpusInput, Glob};
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::{Heading, InputNumber};
 use ryo_values::domain::plans::types::Plan;
-use ryo_values::domain::records::types::{Freshness, PlacedRule, Unreadable};
+use ryo_values::domain::records::types::{Freshness, Unreadable};
+use ryo_values::domain::row_texts::types::PlacedRule;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded};
 use ryo_values::domain::stores::types::{Crossing, StoredFile, StoredRule};
 
-use ryo_values::domain::records::types::{RowTotal, RowsTextView};
+use ryo_values::domain::row_texts::types::{RowTotal, RowsTextView};
 use ryo_values::domain::runs::types::{AnswerShape, MemoryBytes};
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::Digest;
@@ -149,7 +150,7 @@ pub struct LintUseCaseImpl {
     /// How many workers the scheduler runs jobs on: the run makes one worker for each.
     workers: WorkerCount,
     /// Takes the findings the rules write.
-    rows: Arc<dyn RowsPort>,
+    rows: Arc<dyn RowSinkPort>,
     /// Digests the rules and files whose results the store keeps between runs.
     digest: Arc<dyn DigestPort>,
     /// Keeps what a run found of each file and rule for the next run, for the build that made it.
@@ -184,7 +185,7 @@ impl LintUseCaseImpl {
         derived: Arc<dyn ryo_execution::inbound::use_cases::execution::types::DerivedPort>,
         scheduler: Arc<dyn SchedulerPort>,
         workers: WorkerCount,
-        rows: Arc<dyn RowsPort>,
+        rows: Arc<dyn RowSinkPort>,
         digest: Arc<dyn DigestPort>,
         store: Arc<dyn LintStorePort>,
     ) -> Self {
@@ -932,7 +933,7 @@ impl LintUseCaseImpl {
         };
         self.within_budget(listing.budget, || vec![first_rule.id.clone()])?;
         let stage = run.services.project_phase().map_err(|error| {
-            LintError::from(crate::domain::rules::service::failed(
+            LintError::from(ryo_values::domain::rule_requests::service::failed(
                 &first_rule.id,
                 &error,
             ))
@@ -952,7 +953,7 @@ impl LintUseCaseImpl {
             }
             let _memory_rule = memory_rule(&each.id, each.rule.0);
             let first = *run.first_bucket.get(each.rule.0).ok_or_else(|| {
-                CrossError::from(crate::domain::rules::service::failed(
+                CrossError::from(ryo_values::domain::rule_requests::service::failed(
                     &each.id,
                     &"missing frontier bucket",
                 ))
@@ -965,9 +966,9 @@ impl LintUseCaseImpl {
                     crossing.domain.skipped,
                     inapplicable.get(each.rule.0).ok_or(
                         ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun,
-                    ).map_err(|error| crate::domain::rules::service::failed(&each.id, &error))?,
+                    ).map_err(|error| ryo_values::domain::rule_requests::service::failed(&each.id, &error))?,
                 )
-                .map_err(|error| crate::domain::rules::service::failed(&each.id, &error))?;
+                .map_err(|error| ryo_values::domain::rule_requests::service::failed(&each.id, &error))?;
             let frontier = run
                 .services
                 .prepare_frontiers(
@@ -985,7 +986,7 @@ impl LintUseCaseImpl {
                 .map_err(|error| match error {
                     PreparationError::Facts(error) => CrossError::from(error),
                     PreparationError::Metadata(error) => {
-                        CrossError::from(crate::domain::rules::service::failed(&each.id, &error))
+                        CrossError::from(ryo_values::domain::rule_requests::service::failed(&each.id, &error))
                     }
                 })?;
             Ok(PreparedProject {
@@ -1036,7 +1037,7 @@ impl LintUseCaseImpl {
             return Err(error.into());
         }
         finished.map_err(|error| {
-            LintError::from(crate::domain::rules::service::failed(
+            LintError::from(ryo_values::domain::rule_requests::service::failed(
                 &first_rule.id,
                 &error,
             ))
@@ -1415,7 +1416,10 @@ impl LintUseCase for LintUseCaseImpl {
                     identities.observations,
                 )
                 .map_err(|error| {
-                    crate::domain::rules::service::failed(&RuleId("<request>".into()), &error)
+                    ryo_values::domain::rule_requests::service::failed(
+                        &RuleId("<request>".into()),
+                        &error,
+                    )
                 })?,
         );
         let services = execution.begin(&program, &listing.files);
@@ -1461,7 +1465,10 @@ impl LintUseCase for LintUseCaseImpl {
             program
                 .replay_closure(again, &first_bucket)
                 .map_err(|error| {
-                    crate::domain::rules::service::failed(&RuleId("<request>".into()), &error)
+                    ryo_values::domain::rule_requests::service::failed(
+                        &RuleId("<request>".into()),
+                        &error,
+                    )
                 })?;
         let reuse_now = again.clone();
         setting.reuse = &reuse_now;

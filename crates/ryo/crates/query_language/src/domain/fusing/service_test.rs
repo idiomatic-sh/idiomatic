@@ -5,19 +5,19 @@ use ryo_relations::domain::relations::types::Relation;
 use super::service::fuse_selects;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::plan_parts::types::Direction;
 use ryo_values::domain::plan_parts::types::Input as Reads;
 use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plan_parts::types::Operand;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::QueryLiteral;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
-use ryo_values::domain::plans::types::StepScope;
 
 /// What a row asks of the service.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -64,11 +64,11 @@ fn step(operation: Operation) -> PlanStep {
 fn two_filters_are_one() -> usize {
     let (kept_first, test) = (
         vec![column(0), column(1), column(4)],
-        |left: u32, text: &str| Comparison {
+        |left: u32, text: &str| PlanComparison {
             test: Test::Equal,
             left: Operand::Column(column(left)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         },
     );
     let steps = vec![
@@ -91,11 +91,11 @@ fn two_filters_are_one() -> usize {
 
 fn a_join_on_ids_reads_the_filtered_elements_in_place(scenario: Scenario) -> usize {
     let on = u32::from(scenario != Scenario::AJoinOnIdsReadsTheFilteredElementsInPlace);
-    let keep = Comparison {
+    let keep = PlanComparison {
         test: Test::NotEqual,
         left: Operand::Column(column(2)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(Box::from("")))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let steps = vec![
         step(Operation::Select {
@@ -126,11 +126,11 @@ fn a_join_on_ids_reads_the_filtered_elements_in_place(scenario: Scenario) -> usi
 }
 
 fn a_join_on_the_stretch_reads_the_filtered_elements_in_place() -> usize {
-    let keep = Comparison {
+    let keep = PlanComparison {
         test: Test::Equal,
         left: Operand::Column(column(2)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(Box::from("")))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let steps = vec![
         step(Operation::Select {
@@ -197,11 +197,11 @@ fn a_join_on_the_edges_reads_them_in_place(scenario: Scenario) -> usize {
 }
 
 fn an_axis_among_filtered_elements_reads_them_in_place() -> usize {
-    let keep = Comparison {
+    let keep = PlanComparison {
         test: Test::Equal,
         left: Operand::Column(column(2)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(Box::from("")))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let steps = vec![
         step(Operation::Select {
@@ -285,11 +285,11 @@ fn a_filter_of_a_join_with_the_tree_is_the_joins_own(scenario: Scenario) -> usiz
         }),
         step(Operation::Select {
             from: Reads::Step(StepId(1)),
-            comparisons: vec![Comparison {
+            comparisons: vec![PlanComparison {
                 test: Test::Equal,
                 left: Operand::Column(column(u32::from(!on_left))),
                 right: Operand::Literal(QueryLiteral::Text(LiteralText("ident".into()))),
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             }],
             kept: Vec::new(),
         }),

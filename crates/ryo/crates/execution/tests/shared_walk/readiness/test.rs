@@ -8,9 +8,9 @@ use ryo_execution::inbound::use_cases::execution::{
 use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Relation, Value};
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
-    plan_parts::types::{HostedNumber, Input, StepId},
-    plans::types::{Operation, PlanStep, StepScope},
-    records::types::Cell,
+    plan_parts::types::{HostedNumber, Input, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
+    row_texts::types::Cell,
     rows::types::{RowCount, Table},
 };
 fn readiness_intent() -> FileRuleIntent {

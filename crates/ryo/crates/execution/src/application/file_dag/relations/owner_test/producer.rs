@@ -9,7 +9,7 @@ use ryo_relations::domain::relations::{
     types::{ColumnsView, FileId, Integer, Relation, Value},
 };
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Comparison, Operand, ParameterId, Test, WholeNumber,
+    ColumnIndex, Operand, ParameterId, PlanComparison, Test, WholeNumber,
 };
 use std::sync::Arc;
 use {
@@ -43,11 +43,11 @@ fn exercise_real_selector(limit: Retention) {
     let program = Arc::new(Selector {
         relation,
         identity: Arc::new(SelectionIdentity {
-            comparisons: vec![Comparison {
+            comparisons: vec![PlanComparison {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(1)),
                 right: Operand::Parameter(ParameterId(0)),
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             }],
             bindings: vec![ParameterBinding::Number(WholeNumber(101))],
         }),
@@ -66,7 +66,12 @@ fn exercise_real_selector(limit: Retention) {
         .unwrap();
     let owner = fixture.owner();
     if matches!(limit, Retention::Refused) {
-        owner.derived.set_optional_limit(crate::application::file_dag::derived::owner::index::types::ByteLimit(0)).unwrap();
+        owner
+            .derived
+            .set_optional_limit(
+                crate::application::file_dag::derived::owner::index::types::ByteLimit(0),
+            )
+            .unwrap();
     }
     let (mut symbols, mut memo, mut scratch) =
         (Symbols::default(), Vec::new(), OperatorScratch::default());

@@ -9,9 +9,9 @@ use crate::domain::{
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::{
     hosted::types::HostRelation,
-    observations::types::{ObservationBindingId, ObservationProducer},
-    plan_parts::types::{HostedNumber, Input, ParameterId},
-    plans::types::{Plan, StepScope},
+    observations::types::ObservationProducer,
+    plan_parts::types::{HostedNumber, Input, ParameterId, ObservationBindingId, StepScope},
+    plans::types::Plan,
 };
 
 type Declaration = Result<PartitionRequirement, OperatingError>;

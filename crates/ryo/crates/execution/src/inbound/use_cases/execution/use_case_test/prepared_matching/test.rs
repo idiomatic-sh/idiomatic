@@ -18,10 +18,10 @@ use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
         plan_parts::types::{
-            Applied, ColumnIndex, Comparison, Function, Input as Source, LiteralText, Operand,
-            ParameterId, QueryLiteral, StepId, Test,
+            Applied, ColumnIndex, PlanComparison, Function, Input as Source, LiteralText, Operand,
+            ParameterId, QueryLiteral, StepId, StepScope, Test,
         },
-        plans::types::{Operation, PlanStep, StepScope},
+        plans::types::{Operation, PlanStep},
         query_bindings::types::ParameterBinding,
         rows::{service::push_row, types::Table},
     },
@@ -41,11 +41,11 @@ fn select(test: Test, pattern: &str) -> Operation {
     Operation::Select {
         from: Source::Relation(Relation::Function),
         kept: vec![],
-        comparisons: vec![Comparison {
+        comparisons: vec![PlanComparison {
             left: Operand::Column(ColumnIndex(0)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText(pattern.into()))),
             test,
-            origin: None,
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         }],
     }
 }

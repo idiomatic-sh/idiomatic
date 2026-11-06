@@ -6,7 +6,7 @@ use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn},
 };
-use ryo_values::domain::rows::errors::TableModelError;
+use ryo_values::domain::rows::errors::RowsError;
 
 /// Two diagnostic obligations share an external Union root. Distinct Join
 /// consumers acquire the real producer's equality lease during the same batch.
@@ -53,7 +53,9 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
         None,
         None,
     )?;
-    file.owner.derived.set_optional_limit(crate::application::file_dag::derived::owner::index::types::ByteLimit(0))?;
+    file.owner.derived.set_optional_limit(
+        crate::application::file_dag::derived::owner::index::types::ByteLimit(0),
+    )?;
     assert_eq!(
         file.prepared_roots
             .iter()
@@ -191,9 +193,7 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
         ExternalRootExit::SemanticFailure | ExternalRootExit::CaptureCollectedFailure => {
             assert!(matches!(
                 final_consumer.emit,
-                RootOutcome::Failed(OperatingError::Table(TableModelError::NoSuchColumn {
-                    index: 99
-                }))
+                RootOutcome::Failed(OperatingError::Table(RowsError::NoSuchColumn { index: 99 }))
             ))
         }
         ExternalRootExit::ProviderRefusal => assert!(matches!(
@@ -226,7 +226,7 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
                 assert!(
                     matches!(
                         failed.emit,
-                        RootOutcome::Failed(OperatingError::Table(TableModelError::NoSuchColumn {
+                        RootOutcome::Failed(OperatingError::Table(RowsError::NoSuchColumn {
                             index: 99
                         }))
                     ),

@@ -28,7 +28,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || ("anything", "["),
         expect: Expect::Refusal(|error| {
-            ryo_values::cases::selects(matches!(error, OperatingError::InvalidRegex { .. }))
+            ryo_values::selects!(matches!(error, OperatingError::InvalidRegex { .. }))
         }),
     },
 ];

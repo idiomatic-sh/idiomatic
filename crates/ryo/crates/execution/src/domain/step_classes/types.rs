@@ -3,7 +3,7 @@
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::operator::types::StepPlace;
 use crate::domain::positions::types::ClassPlace;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Comparison};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison};
 
 /// A per-file selection's rule and place among that rule's steps.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -24,7 +24,7 @@ pub(crate) struct StepClass {
     /// Every step of the class, the first included.
     pub members: Vec<MergedStep>,
     /// Ordered predicates mapped through preceding selections to source columns.
-    pub comparisons: Vec<Comparison>,
+    pub comparisons: Vec<PlanComparison>,
 }
 
 /// A selection chain mapped to its original typed relation and source columns.
@@ -33,7 +33,7 @@ pub(crate) struct Rooted {
     /// The original relation, before any projection.
     pub source: ryo_relations::domain::relations::types::Relation,
     /// The comparisons over the source's columns.
-    pub comparisons: Vec<Comparison>,
+    pub comparisons: Vec<PlanComparison>,
     /// For each output column, the source column it reads.
     pub columns: Vec<ColumnIndex>,
 }

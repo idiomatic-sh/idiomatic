@@ -6,11 +6,12 @@ use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
     plan_parts::types::{
-        Applied, ColumnIndex, Comparison, Function, HostedNumber, Input as Source, LiteralText,
-        Operand, ParameterId, ParameterName, QueryLiteral, StepId, Test,
+        Applied, ColumnIndex, Function, HostedNumber, Input as Source, LiteralText, Operand,
+        ParameterId, ParameterName, PlanComparison, QueryLiteral, StepId, Test,
     },
-    plans::types::{Operation, ParameterType, PlanParameter},
-    records::types::Cell,
+    plans::types::Operation,
+    query_bindings::types::{ParameterType, PlanParameter},
+    row_texts::types::Cell,
 };
 #[derive(Clone, Copy)]
 enum Scenario {
@@ -63,11 +64,11 @@ fn services(test: Test, left: Operand, right: Operand) -> Result<usize, Failure>
         },
         Operation::Select {
             from: Source::Step(StepId(0)),
-            comparisons: vec![Comparison {
+            comparisons: vec![PlanComparison {
                 test,
                 left,
                 right,
-                origin: None,
+                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             }],
             kept: vec![],
         },
@@ -104,7 +105,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 },
                 Operation::Select {
                     from: Source::Step(StepId(0)),
-                    comparisons: vec![Comparison {
+                    comparisons: vec![PlanComparison {
                         test: if matches!(scenario, Scenario::Unbound) {
                             Test::Equal
                         } else {
@@ -120,7 +121,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                                 1
                             })))
                         },
-                        origin: None,
+                        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                     }],
                     kept: if kept { vec![column(0)] } else { vec![] },
                 },

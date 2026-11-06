@@ -1,27 +1,28 @@
 //! Checked construction and accessors for query source bundles.
 
+use crate::domain::query_tokens::types::{StepIdentified, StepIdentity};
 use std::{collections::BTreeMap, sync::Arc};
 
-use crate::domain::plan_parts::types::QueryText;
-
-use super::errors::QueryBundleError;
-use super::types::{QueryBundle, QueryDocumentSource, QuerySourceId};
+use super::errors::ProgramError;
+use crate::domain::query_tokens::types::{
+    ModuleCatalog, QueryBundle, QueryDocumentSource, QuerySourceId, QuerySourceText, QuerySpelling,
+};
 
 /// Validate and construct a stable source identifier.
 ///
 /// # Errors
 ///
-/// Returns [`QueryBundleError::BlankSourceId`] when the identifier is blank.
-pub fn source_id(text: &str) -> Result<QuerySourceId, QueryBundleError> {
-    if text.trim().is_empty() {
-        return Err(QueryBundleError::BlankSourceId);
+/// Returns [`ProgramError::BlankSourceId`] when the identifier is blank.
+pub fn source_id(text: QuerySpelling<'_>) -> Result<QuerySourceId, ProgramError> {
+    if text.0.trim().is_empty() {
+        return Err(ProgramError::BlankSourceId);
     }
-    Ok(QuerySourceId(text.into()))
+    Ok(QuerySourceId(text.0.into()))
 }
 
 /// Construct a source record after its identity has been checked.
 #[must_use]
-pub fn document_source(id: QuerySourceId, text: impl Into<Arc<str>>) -> QueryDocumentSource {
+pub fn document_source(id: QuerySourceId, text: impl Into<QuerySourceText>) -> QueryDocumentSource {
     QueryDocumentSource {
         id,
         text: text.into(),
@@ -32,16 +33,16 @@ pub fn document_source(id: QuerySourceId, text: impl Into<Arc<str>>) -> QueryDoc
 ///
 /// # Errors
 ///
-/// Returns [`QueryBundleError::DuplicateSourceId`] if a module repeats the root id or another module id.
+/// Returns [`ProgramError::DuplicateSourceId`] if a module repeats the root id or another module id.
 pub fn query_bundle(
     root: QueryDocumentSource,
     modules: impl IntoIterator<Item = QueryDocumentSource>,
-) -> Result<QueryBundle, QueryBundleError> {
+) -> Result<QueryBundle, ProgramError> {
     let mut indexed = BTreeMap::new();
     for module in modules {
         let id = module.id.clone();
         if id == root.id || indexed.insert(id.clone(), module).is_some() {
-            return Err(QueryBundleError::DuplicateSourceId { id });
+            return Err(ProgramError::DuplicateSourceId { id });
         }
     }
     Ok(QueryBundle {
@@ -53,30 +54,30 @@ pub fn query_bundle(
 /// Validate module identities once and retain their exact immutable source bytes.
 ///
 /// # Errors
-/// Returns [`QueryBundleError::DuplicateSourceId`] for repeated module ids.
+/// Returns [`ProgramError::DuplicateSourceId`] for repeated module ids.
 pub fn module_catalog(
     modules: impl IntoIterator<Item = QueryDocumentSource>,
-) -> Result<Arc<BTreeMap<QuerySourceId, QueryDocumentSource>>, QueryBundleError> {
+) -> Result<ModuleCatalog, ProgramError> {
     let mut indexed = BTreeMap::new();
     for module in modules {
         let id = module.id.clone();
         if indexed.insert(id.clone(), module).is_some() {
-            return Err(QueryBundleError::DuplicateSourceId { id });
+            return Err(ProgramError::DuplicateSourceId { id });
         }
     }
-    Ok(Arc::new(indexed))
+    Ok(ModuleCatalog(Arc::new(indexed)))
 }
 
 /// Associate a root with an immutable catalog without copying its documents.
 ///
 /// # Errors
-/// Returns [`QueryBundleError::DuplicateSourceId`] when the root id is a module id.
+/// Returns [`ProgramError::DuplicateSourceId`] when the root id is a module id.
 pub fn query_bundle_with_catalog(
     root: QueryDocumentSource,
-    modules: Arc<BTreeMap<QuerySourceId, QueryDocumentSource>>,
-) -> Result<QueryBundle, QueryBundleError> {
+    ModuleCatalog(modules): ModuleCatalog,
+) -> Result<QueryBundle, ProgramError> {
     if modules.contains_key(&root.id) {
-        return Err(QueryBundleError::DuplicateSourceId { id: root.id });
+        return Err(ProgramError::DuplicateSourceId { id: root.id });
     }
     Ok(QueryBundle { root, modules })
 }
@@ -85,30 +86,37 @@ pub fn query_bundle_with_catalog(
 ///
 /// # Errors
 ///
-/// Returns [`QueryBundleError::BlankRootText`] when the query is blank.
-pub fn standalone(text: &str) -> Result<QueryBundle, QueryBundleError> {
-    if text.trim().is_empty() {
-        return Err(QueryBundleError::BlankRootText);
+/// Returns [`ProgramError::BlankRootText`] when the query is blank.
+pub fn standalone(text: QuerySpelling<'_>) -> Result<QueryBundle, ProgramError> {
+    if text.0.trim().is_empty() {
+        return Err(ProgramError::BlankRootText);
     }
-    let id = source_id("<query>")?;
-    query_bundle(document_source(id, text), [])
+    let id = source_id(QuerySpelling(
+        crate::domain::query_tokens::constants::STANDALONE_SOURCE_ID,
+    ))?;
+    query_bundle(document_source(id, text.0), [])
 }
 
 /// The root source's exact text.
 #[must_use]
-pub fn root_text(bundle: &QueryBundle) -> &str {
+pub fn root_text(bundle: &QueryBundle) -> &QuerySourceText {
     &bundle.root.text
 }
 
-impl From<QueryText> for QueryBundle {
-    fn from(text: QueryText) -> Self {
-        let root = QueryDocumentSource {
-            id: QuerySourceId("<query>".into()),
-            text: text.0.into(),
-        };
-        Self {
-            root,
-            modules: Arc::new(BTreeMap::new()),
-        }
+/// The identity linking assigned to a step name, when it has one.
+#[must_use]
+pub fn identity_of(identified: StepIdentified) -> Option<StepIdentity> {
+    match identified {
+        StepIdentified::Assigned(identity) => Some(identity),
+        StepIdentified::Unassigned => None,
+    }
+}
+
+/// The step-name state for an identity that may not be assigned yet.
+#[must_use]
+pub fn identified(identity: Option<StepIdentity>) -> StepIdentified {
+    match identity {
+        Some(identity) => StepIdentified::Assigned(identity),
+        None => StepIdentified::Unassigned,
     }
 }

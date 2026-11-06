@@ -13,7 +13,8 @@ use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Direction, HostedNumber, Input, JoinColumn, LiteralText, Operand, ParameterId,
     QueryLiteral, RepeatedRows, Side, TableKey,
 };
-use ryo_values::domain::plans::types::{Operation, OperationKind};
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::rows::service::push_row;
 use std::sync::Arc;
 
@@ -362,8 +363,8 @@ pub(crate) fn fixture(kind: OperationKind) -> Fixture {
                 base_line: None,
                 pattern: LiteralText("a".into()),
                 capture: None,
-                capture_text: false,
-                capture_line: false,
+                capture_text: ryo_values::domain::query_operators::types::TextOutput::Omitted,
+                capture_line: ryo_values::domain::query_operators::types::LineOutput::Omitted,
             },
             vec![table(&[CellKind::Span], &[vec![span(0, 3)]])],
             cells(vec![
@@ -386,8 +387,8 @@ pub(crate) fn fixture(kind: OperationKind) -> Fixture {
                 texts: vec![ColumnIndex(0)],
                 literals: vec![LiteralText("".into()), LiteralText("".into())],
                 span: ColumnIndex(1),
-                max_line: 88,
-                tab_width: 4,
+                max_line: ryo_values::domain::query_operators::types::MaxLine(88),
+                tab_width: ryo_values::domain::query_operators::types::TabWidth(4),
             },
             vec![table(
                 &[CellKind::Symbol, CellKind::Span],

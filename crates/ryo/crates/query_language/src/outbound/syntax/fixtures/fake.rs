@@ -2,12 +2,14 @@
 
 use super::super::errors::SyntaxError;
 use super::super::interface::SyntaxPort;
+use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::descriptions::types::{
     Example, Grammar, Production, ProductionForm, ProductionName,
 };
-use ryo_values::domain::program::types::{
-    ByteOffset, Call, ColumnName, Expression, LetStep, OperationName, ParsedQueryBundle, Program,
-    QueryBundle, QueryOrigin, QuerySpan, QueryView, StepName, WrittenEmit,
+use ryo_values::domain::program::types::{LetStep, ParsedQueryBundle, WrittenEmit, WrittenProgram};
+use ryo_values::domain::query_syntax::types::{Call, Expression};
+use ryo_values::domain::query_tokens::types::{
+    ByteOffset, OperationName, QueryBundle, QueryOrigin, QuerySpan, QueryView, StepName,
 };
 
 /// What the core's tests stand in for `syntax` with: it reads any text that contains `emit` as the
@@ -15,24 +17,27 @@ use ryo_values::domain::program::types::{
 #[derive(Debug)]
 pub struct SyntaxFake {
     /// The program every readable text is read as.
-    pub program: Program,
+    pub program: WrittenProgram,
 }
 
 impl Default for SyntaxFake {
     /// A fake whose program has one step, so it passes the contract.
     fn default() -> Self {
         Self {
-            program: Program {
-                linked: false,
+            program: WrittenProgram {
+                linked: ryo_values::domain::query_tokens::types::Linking::Unlinked,
                 imports: Vec::new(),
                 origins: Vec::new(),
                 fragment_contracts: Vec::new(),
                 step_origins: std::collections::BTreeMap::new(),
                 observations: Vec::new(),
-                emit_origin: None,
+                emit_origin: ryo_values::domain::query_tokens::types::Attribution::Unlocated,
                 parameters: Vec::new(),
                 steps: vec![LetStep {
-                    name: StepName("functions".into(), None),
+                    name: StepName(
+                        "functions".into(),
+                        ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
+                    ),
                     expression: Expression::Call(Call {
                         name: OperationName("union".into()),
                         arguments: Vec::new(),
@@ -47,7 +52,10 @@ impl Default for SyntaxFake {
                     },
                 }],
                 emit: WrittenEmit {
-                    step: StepName("".into(), None),
+                    step: StepName(
+                        "".into(),
+                        ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
+                    ),
                     subject: ColumnName("".into()),
                     key: Vec::new(),
                     span: QuerySpan {
@@ -61,7 +69,7 @@ impl Default for SyntaxFake {
 }
 
 impl SyntaxPort for SyntaxFake {
-    fn read(&self, text: QueryView<'_>) -> Result<Program, SyntaxError> {
+    fn read(&self, text: QueryView<'_>) -> Result<WrittenProgram, SyntaxError> {
         if text.0.contains("emit") {
             return Ok(self.program.clone());
         }

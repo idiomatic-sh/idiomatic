@@ -15,8 +15,9 @@ use ryo_language::inbound::use_cases::project::types::ManifestFile;
 use ryo_values::domain::files::types::{CorpusInput, Glob};
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::{FlagState, LiteralText, ParameterName, WholeNumber};
-use ryo_values::domain::program::types::QueryBundle;
-use ryo_values::domain::records::types::{RowTotal, Unread};
+use ryo_values::domain::query_tokens::types::QueryBundle;
+use ryo_values::domain::records::types::Unread;
+use ryo_values::domain::row_texts::types::RowTotal;
 use ryo_values::domain::rule_requests::types::RuleParameters;
 use ryo_values::domain::runs::types::{
     AnswerShape, MemoryBytes, RuleApplicability, RuleId, Session, Skipped,
@@ -183,7 +184,7 @@ pub struct RuleWork {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct StepFed {
     /// What the step does.
-    pub operation: ryo_values::domain::plans::types::OperationKind,
+    pub operation: ryo_values::domain::query_operators::types::OperationKind,
     /// The rows of its inputs.
     pub rows: RowTotal,
 }
@@ -192,7 +193,7 @@ pub struct StepFed {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FeatureFed {
     /// The feature.
-    pub feature: ryo_values::domain::plans::types::Feature,
+    pub feature: ryo_values::domain::run_metadata::types::Feature,
     /// The rows its steps were fed: the rows of their inputs, over the files and the cross-file finish.
     pub rows: RowTotal,
 }

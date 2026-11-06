@@ -15,13 +15,13 @@ use crate::{
     domain::executable_program::types::{InputSource, LogicalInstruction},
 };
 use ryo_values::domain::{
-    observations::types::ObservationBindingId,
-    plan_parts::types::{Input as Source, RepeatedRows, StepId},
+    plan_parts::types::{Input as Source, RepeatedRows, StepId, ObservationBindingId},
     plans::{
         service::kind_of,
-        types::{Operation, OperationKind},
+        types::{Operation},
     },
 };
+use ryo_values::domain::query_operators::types::OperationKind;
 use std::collections::HashSet;
 
 fn engine(route: Option<WalkRoute>) -> Option<Route> {

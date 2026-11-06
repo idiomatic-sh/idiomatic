@@ -92,21 +92,21 @@ use ryo_values::domain::query_bindings::types::ParameterBinding;
 #[test]
 fn predicate_prefixes_share_only_the_referenced_bound_values_in_authored_order() {
     use ryo_values::domain::plan_parts::types::{
-        ColumnIndex, Comparison, Input, Operand, ParameterId, QueryLiteral, Test,
+        ColumnIndex, PlanComparison, Input, Operand, ParameterId, QueryLiteral, Test,
     };
     use ryo_values::domain::plans::types::Operation;
     let mut authored = plans();
-    let first = Comparison {
+    let first = PlanComparison {
         test: Test::Equal,
         left: Operand::Column(ColumnIndex(2)),
         right: Operand::Parameter(ParameterId(0)),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
-    let second = Comparison {
+    let second = PlanComparison {
         test: Test::NotEqual,
         left: Operand::Column(ColumnIndex(2)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText("other".into()))),
-        origin: None,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     for (at, plan) in authored.iter_mut().enumerate() {
         plan.steps[0].operation = Operation::Select {

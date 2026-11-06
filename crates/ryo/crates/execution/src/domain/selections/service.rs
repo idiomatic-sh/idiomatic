@@ -5,12 +5,12 @@ use crate::domain::{
     positions::types::Slots,
     table_cells::types::TreeRows,
 };
-use ryo_values::domain::{plan_parts::types::Comparison, rows::types::RowIndex};
+use ryo_values::domain::{plan_parts::types::PlanComparison, rows::types::RowIndex};
 /// Select tree positions and report each visited candidate before semantic comparison.
 /// This keeps logical work accounting exact on early errors and narrowed scans.
 pub(crate) fn select_tree_with_visits(
     tree: &TreeRows<'_>,
-    comparisons: &[Comparison],
+    comparisons: &[PlanComparison],
     context: &mut OperatorContext<'_>,
     visit: &mut dyn FnMut(RowIndex),
     out: &mut Slots,

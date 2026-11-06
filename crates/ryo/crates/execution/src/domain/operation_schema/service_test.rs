@@ -7,9 +7,11 @@ use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, HostedNumber, Input as Source, JoinColumn, Side},
     plans::{
         service::kind_of,
-        types::{Feature, Operation, OperationKind},
+        types::{Operation},
     },
+    run_metadata::types::Feature,
 };
+use ryo_values::domain::query_operators::types::OperationKind;
 const FROM: Source = Source::Relation(Relation::Function);
 
 #[test]
