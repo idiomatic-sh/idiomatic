@@ -80,9 +80,9 @@ impl PublicationScope {
                         coverage,
                         ..
                     } => (
-                        input,
-                        coverage,
-                        ProjectFrontierPayload::Compact(Arc::new(table)),
+                        *input,
+                        coverage.clone(),
+                        ProjectFrontierPayload::Compact(Arc::clone(table)),
                     ),
                 };
                 let source = sources

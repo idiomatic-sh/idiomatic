@@ -65,7 +65,7 @@ pub(crate) fn prepare(
         })
         .collect::<Result<Vec<_>, OperatingError>>()?
         .into();
-    let mut rows = Vec::new();
+    let mut admitted = Vec::new();
     let mut refused = Vec::new();
     let memory =
         tracing::enabled!(target: "ryo::diagnostic::lifecycle_memory", tracing::Level::TRACE);
@@ -93,7 +93,7 @@ pub(crate) fn prepare(
         }
         if let Some(relation) = project_relation(input) {
             let rows = project.rows(relation)?;
-            rows.push(FrontierInput::Decoded {
+            admitted.push(FrontierInput::Decoded {
                 frontier: project_input(rows, input, project_symbols, symbols),
                 coverage: crate::domain::completion::types::CoverageState::Complete,
             });
@@ -126,7 +126,7 @@ pub(crate) fn prepare(
         };
         if matches!(input, Input::Step(_)) {
             match admit_compact(std::sync::Arc::new(words.words), places_mut(symbols), mode) {
-                Ok((table, spelling)) => rows.push(FrontierInput::Compact {
+                Ok((table, spelling)) => admitted.push(FrontierInput::Compact {
                     input,
                     table: std::sync::Arc::new(table),
                     spelling,
@@ -143,7 +143,7 @@ pub(crate) fn prepare(
             // Non-Step borrowed relation/binding sources keep their existing
             // representation in the bounded POC; no second evaluator exists.
             match mode {
-                DecodeMode::Permissive => rows.push(FrontierInput::Decoded {
+                DecodeMode::Permissive => admitted.push(FrontierInput::Decoded {
                     frontier: Frontier {
                         input,
                         table: std::sync::Arc::new(decode_input(&words.words, symbols)),
@@ -152,7 +152,7 @@ pub(crate) fn prepare(
                 }),
                 DecodeMode::Complete => {
                     match decode_complete(&words.words.0, places_mut(symbols)) {
-                        Ok(table) => rows.push(FrontierInput::Decoded {
+                        Ok(table) => admitted.push(FrontierInput::Decoded {
                             frontier: Frontier {
                                 input,
                                 table: std::sync::Arc::new(table),
@@ -171,7 +171,7 @@ pub(crate) fn prepare(
         }
     }
     if memory {
-        let compact_rows = rows
+        let compact_rows = admitted
             .iter()
             .map(|input| match input {
                 FrontierInput::Compact { table, .. } => {
@@ -180,7 +180,7 @@ pub(crate) fn prepare(
                 FrontierInput::Decoded { .. } => 0,
             })
             .sum::<usize>();
-        let spelling_capacity = rows
+        let spelling_capacity = admitted
             .iter()
             .map(|input| match input {
                 FrontierInput::Compact { spelling, .. } => {
@@ -189,12 +189,12 @@ pub(crate) fn prepare(
                 FrontierInput::Decoded { .. } => 0,
             })
             .sum::<usize>();
-        tracing::trace!(target:"ryo::diagnostic::lifecycle_memory", phase="compact_inputs_prepared", owner="frontier_descriptors", inputs=rows.len(), compact_rows, spelling_capacity_bytes=spelling_capacity);
+        tracing::trace!(target:"ryo::diagnostic::lifecycle_memory", phase="compact_inputs_prepared", owner="frontier_descriptors", inputs=admitted.len(), compact_rows, spelling_capacity_bytes=spelling_capacity);
     }
     Ok(PreparedFrontiers {
         producer: rule,
         sources,
-        rows: rows.into(),
+        rows: admitted.into(),
         program: std::sync::Arc::clone(program.program()),
         required: required.clone(),
         refused: refused.into(),
