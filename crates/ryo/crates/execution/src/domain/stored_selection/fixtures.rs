@@ -68,3 +68,32 @@ pub(crate) fn plan() -> ryo_values::domain::plans::types::Plan {
         },
     }
 }
+
+/// Assemble an expected bag from independently enumerated fixture positions.
+/// This fixture performs no predicate, distinct, selection, or graph operation.
+pub(crate) fn expected_columns(
+    source: ryo_relations::domain::relations::types::ColumnsView<'_>,
+    columns: &[ColumnIndex],
+    positions: &[u32],
+) -> ryo_values::domain::rows::types::Table {
+    use ryo_relations::domain::relations::{service::from_bits, types::Bits};
+    ryo_values::domain::rows::types::Table {
+        kinds: columns
+            .iter()
+            .map(|column| source.kinds[column.0 as usize])
+            .collect(),
+        cells: positions
+            .iter()
+            .flat_map(|&row| {
+                columns.iter().map(move |column| {
+                    let column = column.0 as usize;
+                    from_bits(
+                        source.kinds[column],
+                        Bits(source.columns[column].0[row as usize]),
+                    )
+                })
+            })
+            .collect(),
+        count: ryo_values::domain::rows::types::RowCount(positions.len()),
+    }
+}

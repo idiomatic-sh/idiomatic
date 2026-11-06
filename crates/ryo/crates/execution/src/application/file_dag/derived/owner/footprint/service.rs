@@ -2,7 +2,9 @@
 use crate::application::file_dag::derived::owner::acquisition::semantics::service::DerivedStorage;
 use crate::domain::operating::errors::OperatingError;
 use std::sync::Arc;
-pub(super) fn storage_bytes(storage: &Arc<DerivedStorage>) -> Result<usize, OperatingError> {
+pub(in crate::application::file_dag::derived::owner) fn storage_bytes(
+    storage: &Arc<DerivedStorage>,
+) -> Result<usize, OperatingError> {
     DerivedStorage::backings(storage)?
         .iter()
         .try_fold(0_usize, |total, backing| {

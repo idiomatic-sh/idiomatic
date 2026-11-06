@@ -364,7 +364,7 @@ fn exhausted_domain_identity_uses_local_membership_without_retained_duplicates()
             .unwrap()
             .unwrap();
         assert!(
-            domain.identity.is_none(),
+            domain.raw_domain().identity.is_none(),
             "an exhausted source publication cannot grant stable membership identity"
         );
         let nearest = fixture
