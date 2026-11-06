@@ -173,12 +173,13 @@ fn population(value: &str) -> String {
         .unwrap()
         .into()
 }
-fn decode(events: &Events, skipped: usize) -> Coverage {
+fn decode(events: &Events, skipped: usize, required_heads: BTreeSet<u64>) -> Coverage {
     let mut heads = BTreeMap::new();
     let mut expected = BTreeSet::new();
     let mut served = BTreeSet::new();
     let mut dispatches = 0;
     let mut ready_heads = 0;
+    let mut actual_heads = BTreeSet::new();
     let events = events.0.lock().unwrap();
     for event in events.iter().filter(|event| {
         event.get("event").map(String::as_str)
@@ -198,6 +199,10 @@ fn decode(events: &Events, skipped: usize) -> Coverage {
                 assert_eq!(event["phase"], "PerFile");
                 assert_eq!(event["file"], "0");
                 let head = event["logical"].parse::<u64>().unwrap();
+                assert!(
+                    actual_heads.insert(head),
+                    "one authority-issued readiness obligation per physical head in this valid demand-all corpus"
+                );
                 expected.insert(Obligation {
                     generation: event["generation"].clone(),
                     population: population(&event["population"]),
@@ -226,6 +231,10 @@ fn decode(events: &Events, skipped: usize) -> Coverage {
             _ => {}
         }
     }
+    assert_eq!(
+        actual_heads, required_heads,
+        "all independently declared and compiled roots of this demand-all corpus must reach runtime admission"
+    );
     Coverage {
         expected,
         served,
@@ -239,6 +248,7 @@ pub(super) fn observe(omit: bool) -> Coverage {
     let events = Events::default();
     let observer = events.clone();
     let mut skipped = 0;
+    let mut required_heads = BTreeSet::new();
     tracing::subscriber::with_default(observer, || {
         let SmallTree {
             elements,
@@ -297,6 +307,33 @@ pub(super) fn observe(omit: bool) -> Coverage {
             ObservationIdentity::Independent,
         )
         .unwrap();
+        // Expected physical IDs come from all five authored emit roots, not
+        // prepared walk classes, ready observations or executed dispatches.
+        for rule in 0..rules.len() {
+            let root = prepared
+                .rule_metadata(RuleIndex(rule))
+                .unwrap()
+                .emit_root
+                .clone()
+                .unwrap();
+            let region = &prepared.program().regions()[root.0];
+            assert_eq!(region.phase, StepScope::PerFile);
+            assert_eq!(region.instructions.len(), 1);
+            let head = &region.instructions[0];
+            assert!(matches!(
+                &head.operation,
+                Operation::Select {
+                    from: PlanInput::Relation(_),
+                    ..
+                } | Operation::Project {
+                    from: PlanInput::Relation(_),
+                    distinct: RepeatedRows::Kept,
+                    ..
+                }
+            ));
+            assert_eq!(head.contract.output_kinds.as_ref().unwrap().len(), 1);
+            assert!(required_heads.insert(u64::try_from(head.logical.0).unwrap()));
+        }
         let services = Arc::new(ProgramServices::new(
             Arc::new(CommonOperatorEngine::new(Arc::new(
                 ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
@@ -434,5 +471,5 @@ pub(super) fn observe(omit: bool) -> Coverage {
             "retained publication and equivalent-head replay adds no readiness or dispatch"
         );
     });
-    decode(&events, skipped)
+    decode(&events, skipped, required_heads)
 }
