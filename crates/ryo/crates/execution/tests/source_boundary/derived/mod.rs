@@ -4,6 +4,7 @@ mod kernel;
 pub(super) const KERNEL: &str = kernel::KERNEL;
 pub(super) const RAW_SCOPE: &str = kernel::RAW_SCOPE;
 pub(super) const CACHE: &str = sealing::CACHE;
+mod census;
 mod sealing;
 mod witness;
 pub(super) const ROOT: &str = "src/application/file_dag/derived.rs";
@@ -367,5 +368,6 @@ pub(super) fn controls() -> Vec<Probe> {
     probes.extend(kernel::controls());
     probes.extend(sealing::controls(ROOT, MODULE));
     probes.extend(witness::controls(ROOT));
+    probes.extend(census::controls(ROOT));
     probes
 }

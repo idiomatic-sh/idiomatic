@@ -1,6 +1,8 @@
 //! Actual publications enter the production owner; no registry, payload factory or executor is copied.
 mod demand;
+mod refusing;
 mod request;
+pub(in crate::application::file_dag) mod route;
 use self::demand::demand;
 use self::request::{observed, request};
 use crate::application::file_dag::{
@@ -15,6 +17,7 @@ use crate::domain::{
     table_cells::types::{TreeForm, TreeRows},
     table_model::types::Rows,
 };
+use crate::application::file_dag::derived::population::types::PopulationId;
 use ryo_derived::domain::contract::types::DerivedKind;
 use ryo_language::domain::symbols::{service::intern_derived, types::ByteSlice};
 use ryo_relations::domain::{
@@ -45,6 +48,8 @@ pub(in crate::application::file_dag) enum Scenario {
     OtherPopulation,
     /// A copy of the admitted descriptor, equal in value but not the issued one.
     RetargetedDescriptor,
+    /// The semantic port refuses to build: no lease may stay charged.
+    BuildFails,
 }
 fn numbers() -> Table {
     Table {
@@ -59,7 +64,12 @@ pub(in crate::application::file_dag) fn exercise(
     kind: DerivedKind,
     scenario: Scenario,
 ) -> Result<DerivedKind, OperatingError> {
-    let owner = Rc::new(RelationOwner::new(true, program_derived_port()));
+    let port = if scenario == Scenario::BuildFails {
+        Arc::new(refusing::RefusingBuild) as Arc<dyn crate::outbound::derived::interface::DerivedPort>
+    } else {
+        program_derived_port()
+    };
+    let owner = Rc::new(RelationOwner::new(true, port));
     let actual = acquire(kind, scenario, Rc::clone(&owner));
     owner.release_population();
     assert_eq!(
@@ -240,8 +250,30 @@ fn acquire(
     } else {
         rows
     };
+    let pins = [first.identity(&owner)?.0, second.identity(&owner)?.0];
+    let baseline = owner.derived.publication_ownership_bytes().0;
+    for population in pins {
+        owner.derived.pin(population);
+    }
+    // A real lease exists before every exit that is not a success.
+    let held = if matches!(
+        scenario,
+        Scenario::Cancelled
+            | Scenario::Stale
+            | Scenario::OtherPlan
+            | Scenario::OtherPopulation
+            | Scenario::RetargetedDescriptor
+    ) {
+        Some(demand(kind, &owner, &plan, &admitted, rows, &mut symbols)?)
+    } else {
+        None
+    };
     match scenario {
-        Scenario::Cancelled => return Ok(kind),
+        Scenario::Cancelled => {
+            drop(held);
+            leave(&owner, pins, baseline, kind, scenario);
+            return Ok(kind);
+        }
         Scenario::Stale => owner.release_population(),
         Scenario::Held => {
             let held = demand(kind, &owner, &plan, &admitted, rows, &mut symbols)?;
@@ -260,13 +292,36 @@ fn acquire(
         }
         _ => {}
     }
-    let view = demand(
+    let result = demand(
         kind,
         &owner,
         &presented,
         &admitted,
         presented_rows,
         &mut symbols,
-    )?;
-    observed(&view)
+    )
+    .and_then(|view| observed(&view));
+    drop(held);
+    if scenario != Scenario::Stale {
+        leave(&owner, pins, baseline, kind, scenario);
+    }
+    result
+}
+/// The last consumer's exit: its populations are released while the generation is still live,
+/// and the required bytes return to what they were before the view was acquired.
+fn leave(
+    owner: &RelationOwner,
+    pins: [PopulationId; 2],
+    baseline: usize,
+    kind: DerivedKind,
+    scenario: Scenario,
+) {
+    for population in pins {
+        owner.derived.release(population);
+    }
+    assert_eq!(
+        owner.derived.publication_ownership_bytes().0,
+        baseline,
+        "{kind:?} {scenario:?}: the exit itself releases the lease, before the generation retires"
+    );
 }

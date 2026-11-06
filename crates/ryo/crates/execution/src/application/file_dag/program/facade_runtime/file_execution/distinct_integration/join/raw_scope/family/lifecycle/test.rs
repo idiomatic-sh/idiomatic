@@ -4,6 +4,7 @@
 use super::super::super::fixtures::{RawCase, observe};
 use crate::application::file_dag::derived::owner::acquisition::family::fixtures::{
     Scenario, exercise,
+    route::{Entry, Exit, entry, leave},
 };
 use crate::domain::operating::errors::OperatingError;
 use ryo_derived::domain::contract::types::DerivedKind;
@@ -51,6 +52,11 @@ fn every_family_releases_its_last_consumer_on_success_cancellation_and_error() {
                     matches!(refused, Err(OperatingError::WrongOperation)),
                     "{kind:?} error exit: {refused:?}"
                 );
+                let failed = exercise(kind, Scenario::BuildFails);
+                assert!(
+                    matches!(failed, Err(OperatingError::DuplicateOrder)),
+                    "{kind:?} build failure: {failed:?}"
+                );
             }
             Route::Raw => {
                 assert!(
@@ -87,5 +93,26 @@ fn every_stored_lease_survives_retirement_while_a_new_demand_refuses() {
                 "{kind:?} held: {actual:?}"
             );
         }
+    }
+}
+
+/// Every exit again, through the entry production acquires the family with. The ledger is
+/// asserted inside `leave`. `RawKeyOrder` needs a `KernelPermit`: its success, cancellation and
+/// error exits are the `raw_scope::test` cases named in the contract matrix.
+#[test]
+fn every_family_leaves_through_its_production_entry_on_success_cancellation_and_error() {
+    for kind in DerivedKind::ALL.iter().copied() {
+        if entry(kind) == Entry::Permit {
+            continue;
+        }
+        for exit in [Exit::Succeeds, Exit::Cancelled] {
+            let actual = leave(kind, exit);
+            assert!(
+                matches!(actual, Ok(found) if found == kind),
+                "{kind:?} {exit:?}: {actual:?}"
+            );
+        }
+        let refused = leave(kind, Exit::Errors);
+        assert!(refused.is_err(), "{kind:?} error exit: {refused:?}");
     }
 }
