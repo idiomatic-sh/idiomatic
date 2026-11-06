@@ -168,6 +168,64 @@ pub(crate) fn prepared_value(prepared: &PreparedRuleContext) -> serde_json::Valu
     })
 }
 
+/// The canonical text of the normalized settings a reference process is bound to.
+///
+/// # Errors
+/// Refuses settings the transport encoding cannot spell.
+pub(crate) fn invocation_settings_text(
+    normalized: &ryo_benchmark_contracts::domain::measurements::types::Invocation,
+    case: &ryo_benchmark_contracts::domain::workloads::types::PreparedCase,
+    profile: &ryo_benchmark_contracts::domain::workloads::types::Tool,
+    observations: Option<&RuleObservationDeclarations>,
+) -> Result<String, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+    use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+    let spell = |value: &std::ffi::OsStr| value.to_string_lossy().into_owned();
+    let environment: std::collections::BTreeMap<String, String> = normalized
+        .environment
+        .iter()
+        .map(|(key, value)| (spell(key), spell(value)))
+        .collect();
+    let mut settings = serde_json::json!({
+        "arguments": normalized.arguments.iter().map(|value| spell(value)).collect::<Vec<_>>(),
+        "environment": environment,
+        "directory": spell(normalized.directory.as_os_str()),
+        "parser_configuration": profile.parser_configuration,
+        "project_context_mode": format!("{:?}", profile.project_context_mode),
+    });
+    settings["performance"] = serde_json::to_value(OptionsSchema::from(case.request.performance))
+        .map_err(|error| Error::Invalid(error.to_string()))?;
+    if let Some(declaration) = &profile.rule_context {
+        settings["rule_context_declaration"] = declaration_value(declaration);
+    }
+    if let Some(context) = &case.request.rule_context {
+        settings["rule_context"] = prepared_value(context);
+    }
+    if let Some(declarations) = observations {
+        settings["rule_observations"] = observation_declarations_value(declarations);
+    }
+    if let Some(selected) = &case.request.selected_rules {
+        let selected: std::collections::BTreeSet<_> =
+            selected.iter().map(ToString::to_string).collect();
+        settings["selected_rules"] = serde_json::json!(selected);
+    }
+    if let Some(language) = &profile.source_language {
+        settings["source_language"] = serde_json::json!(language);
+    }
+    if let Some(roots) = &case.request.project_search_roots {
+        settings["project_search_roots"] =
+            serde_json::json!(roots.iter().map(|root| root.0.as_ref()).collect::<Vec<_>>());
+    }
+    let inventory =
+        crate::outbound::context::adapters::local::schemas::ProjectInventorySchema::from(
+            case.request.given_project_inventory.clone(),
+        );
+    if !inventory.is_default() {
+        settings["given_project_inventory"] =
+            serde_json::to_value(inventory).map_err(|error| Error::Json(Box::new(error)))?;
+    }
+    Ok(settings.to_string())
+}
+
 #[cfg(test)]
 #[path = "schemas_test.rs"]
 mod tests;

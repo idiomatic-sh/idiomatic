@@ -96,12 +96,26 @@ pub(super) fn run(
                     .ok_or_else(|| Error::Invalid(constants::MISSING_PROFILE_BOUNDARY.into()))?;
                 let profile = suite.profile(ArtifactPath(profile_root))?;
                 let executable = suite.digest(ArtifactPath(&invocation.executable))?;
-                let settings =
-                    super::invocation_identity::invocation_settings(&invocation, case, &profile)?;
+                let normalized =
+                    crate::domain::invocation_identity::service::normalize(&invocation, case)
+                        .map_err(|error| Error::Invalid(error.to_string()))?;
+                let observations =
+                    crate::domain::invocation_identity::service::effective_observations(
+                        case, &profile,
+                    );
+                let settings_text = crate::outbound::worker::schemas::invocation_settings_text(
+                    &normalized,
+                    case,
+                    &profile,
+                    observations.as_ref(),
+                )?;
+                let settings = crate::domain::canonical_text::service::text_digest(
+                    &crate::domain::canonical_text::types::Document(settings_text.clone()),
+                );
                 let mut captured = serde_json::json!({
                     constants::ACTUAL_REQUEST_ROOT:request_root, constants::FILES:case.request.files.iter().map(|file|file.0.as_ref()).collect::<Vec<_>>(),
                     constants::EXECUTABLE_SHA256:executable.0, constants::SETTINGS_SHA256:settings.0,
-                    constants::NORMALIZED_SETTINGS:super::invocation_identity::normalized_invocation(&invocation,case,&profile)?,
+                    constants::NORMALIZED_SETTINGS:serde_json::from_str::<serde_json::Value>(&settings_text).map_err(|error| Error::Json(Box::new(error)))?,
                     constants::PROFILE_SHA256:suite.digest(ArtifactPath(&profile_root.join(constants::BENCHMARK_TOML)))?.0,
                     constants::TOOL:profile.tool.0, constants::VERSION:profile.version.0, constants::STATE:state,
                     constants::ARGUMENTS:invocation.arguments.iter().map(|argument|argument.to_string_lossy()).collect::<Vec<_>>(),

@@ -20,6 +20,7 @@ pub enum Operation {
     RuleIds,
     RuleQuery,
     RuleCases,
+    Invocation,
 }
 type Input = Operation;
 type Value = usize;
@@ -27,6 +28,7 @@ type Value = usize;
 pub enum Refusal {
     Unexpected,
     MissingArtifact,
+    Malformed,
 }
 type Failure = Refusal;
 
@@ -91,6 +93,12 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Operation::RuleCases,
         expect: Expect::Error(Failure::MissingArtifact),
     },
+    Case {
+        name: CaseName("a record without a process identity is refused"),
+        word: Word::Refuses,
+        input: || Operation::Invocation,
+        expect: Expect::Error(Failure::Malformed),
+    },
 ];
 
 /// Exercise actual physical observations; policy expectations are proved by the application tests.
@@ -147,6 +155,7 @@ pub fn check(adapter: &impl SuitePort) {
             Operation::RuleQuery => adapter
                 .rule_query(ArtifactPath(&temporary.path().join("rules")), &tool.defaults[0])
                 .map(|query| usize::from(query.is_some())),
+            Operation::Invocation => adapter.decode_invocation(b"{}").map(|_| 0),
             Operation::RuleCases => adapter
                 .rule_cases(ArtifactPath(&temporary.path().join("rules")), &tool.defaults[0])
                 .map(|cases| cases.cases.len()),
@@ -155,6 +164,7 @@ pub fn check(adapter: &impl SuitePort) {
                 Error::Io(error) if error.kind() == std::io::ErrorKind::NotFound => {
                     Failure::MissingArtifact
                 }
+                Error::Invalid(_) => Failure::Malformed,
                 _ => Failure::Unexpected,
             })
         };

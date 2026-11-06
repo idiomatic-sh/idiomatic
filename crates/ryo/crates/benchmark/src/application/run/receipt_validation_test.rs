@@ -74,6 +74,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let case = cases[0].clone();
     let captured = CapturedObservation {
         artifacts: Default::default(),
+        invocations: Default::default(),
         records,
         sha256: Some("raw-receipt".into()),
     };

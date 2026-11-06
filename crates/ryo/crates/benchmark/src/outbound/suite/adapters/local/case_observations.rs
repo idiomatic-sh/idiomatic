@@ -142,6 +142,14 @@ mod tests {
         inventory::interface::InventoryPort as _,
         suite::{interface::SuitePort as _, types::ArtifactPath},
     };
+    /// A capture that could not record its process identity, as the typed record reads it.
+    fn failed_invocation() -> serde_json::Value {
+        serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/receipts/failed-invocation.json"
+        )))
+        .unwrap()
+    }
     fn row() -> ObservationDocument {
         use crate::outbound::suite::types::{
             observation_document::{
@@ -205,7 +213,7 @@ mod tests {
                 row(),
                 Some(CapturedProcess {
                     key: &constants::A.repeat(64),
-                    invocation: &serde_json::json!({constants::EXIT:2}),
+                    invocation: &failed_invocation(),
                     stdout,
                     stderr: constants::ERROR,
                 }),

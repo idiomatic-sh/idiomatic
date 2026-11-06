@@ -5,6 +5,7 @@ mod cases;
 mod corpus;
 mod declarations;
 mod observation;
+mod process;
 mod tool;
 
 #[cfg(test)]

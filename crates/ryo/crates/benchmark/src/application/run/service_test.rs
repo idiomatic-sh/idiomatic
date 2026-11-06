@@ -502,13 +502,14 @@ fn native_intended() -> Result<Value, Error> {
     let result = native_pair(&suite, &intended, &execution);
     assert_eq!(history_len(&execution), Some(2), "both actual sides executed");
     let mut canonical = suite.prepared.clone();
-    super::discrepancy::attach(&suite, Path::new("/profile/rules"), &mut canonical)
+    crate::application::discrepancy_attachment::service::attach(&suite, Path::new("/profile/rules"), &mut canonical)
         .expect("application owns wire conversion");
     assert!(
-        !super::discrepancy::matches_intended(
+        crate::domain::discrepancy::service::matches_intended(
             &canonical[0],
-            super::discrepancy::reference_expected(&canonical[0]).expect("diagnostic expectation")
-        ),
+            crate::domain::discrepancy::service::reference_expected(&canonical[0])
+                .expect("diagnostic expectation")
+        ) == crate::domain::discrepancy::types::IntentMatch::Differs,
         "JSONL retains raw reference mismatch"
     );
     result
@@ -912,8 +913,14 @@ fn discrepancy_suite() -> SuiteFake {
     let invocation = LinterFake::default()
         .prepare(&case.request)
         .expect("fixture invocation");
-    let settings = super::invocation_identity::invocation_settings(&invocation, case, &profile)
-        .expect("fixture settings");
+    let settings = crate::domain::canonical_text::service::text_digest(
+        &crate::application::discrepancy_validation::service::settings_text(
+            &invocation,
+            case,
+            &profile,
+        )
+        .expect("fixture settings"),
+    );
     case.reference_discrepancy = Some(PreparedReferenceDiscrepancy {
         basis: ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect,
         identity: ReferenceDiscrepancyIdentity {
@@ -924,8 +931,10 @@ fn discrepancy_suite() -> SuiteFake {
             profile_sha256: profile_hash.clone(),
             settings_sha256: settings,
             source_sha256: ArtifactDigest("c".repeat(64)),
-            intended_output_sha256: super::discrepancy::output_digest(&case.expected),
-            reference_output_sha256: super::discrepancy::output_digest(&reference),
+            intended_output_sha256: crate::domain::discrepancy::service::output_digest(
+                &case.expected,
+            ),
+            reference_output_sha256: crate::domain::discrepancy::service::output_digest(&reference),
         },
         expected:
             ryo_benchmark_contracts::domain::process::types::ReferenceExpectation::Diagnostics(

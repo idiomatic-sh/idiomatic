@@ -61,3 +61,6 @@ pub(super) const RAW_ARTIFACT_HAS_NO_CASE_DIRECTORY: &str = "raw artifact has no
 /// Text of the extra raw artifacts in referenced case in this part.
 pub(super) const EXTRA_RAW_ARTIFACTS_IN_REFERENCED_CASE: &str =
     "extra raw artifacts in referenced case directory";
+/// Text of an invocation record that names no process identity.
+pub(super) const INVOCATION_LACKS_PROCESS_IDENTITY: &str =
+    "invocation record lacks its complete process identity";

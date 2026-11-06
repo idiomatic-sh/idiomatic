@@ -80,8 +80,8 @@ fn process_observation(case: &PreparedCase, invocation: &serde_json::Value) -> P
         metadata_error: invocation[constants::METADATA_ERROR]
             .as_str()
             .map(|reason| ReasonText(reason.to_owned())),
-        template_sha256: super::process_discrepancy::expected(case)
-            .map(|process| Sha256Text(super::process_discrepancy::output_digest(process).0)),
+        template_sha256: crate::domain::process_failure::service::expected(case)
+            .map(|process| Sha256Text(crate::domain::process_failure::service::output_digest(process).0)),
         artifacts: None,
     }
 }
@@ -175,8 +175,12 @@ pub(super) fn write(
             manifest_hash: Sha256Text(hash.0),
         }
     });
-    let intended_matches =
-        report.map(|actual| YesNo::from(super::discrepancy::matches_intended(case, actual)));
+    let intended_matches = report.map(|actual| {
+        YesNo::from(
+            crate::domain::discrepancy::service::matches_intended(case, actual)
+                == crate::domain::discrepancy::types::IntentMatch::Matches,
+        )
+    });
     let basis = case.reference_discrepancy.as_ref().map(|item| item.basis);
     let mut record = ObservationDocument {
         rule: RuleName(case.rule.as_ref().to_owned()),
@@ -192,7 +196,7 @@ pub(super) fn write(
         file_metadata_sha256: FileMetadataDigest::from(metadata_sha256.map(Sha256Text)),
         project_inputs_sha256: ProjectInputsDigest::from(project_inputs_sha256.map(Sha256Text)),
         expected: findings(&case.expected.diagnostics),
-        reference_expected: super::discrepancy::reference_expected(case)
+        reference_expected: crate::domain::discrepancy::service::reference_expected(case)
             .ok()
             .map_or(ReferenceExpectation::Underivable, |report| {
                 ReferenceExpectation::Derived(findings(&report.diagnostics))

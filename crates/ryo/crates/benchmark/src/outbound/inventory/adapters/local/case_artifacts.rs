@@ -1,5 +1,6 @@
 //! Read only referenced receipt-file attempts; retain unreferenced resume history untouched.
 use crate::outbound::inventory::adapters::local::constants;
+use crate::outbound::inventory::types::RawArtifacts;
 use crate::outbound::suite::types::{
     observation_document::ObservationDocument, reference_discrepancy::ArtifactPointer,
 };
@@ -9,10 +10,7 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-pub(super) fn read(
-    receipt: &Path,
-    rows: &[ObservationDocument],
-) -> Result<BTreeMap<PathBuf, Vec<u8>>, String> {
+pub(super) fn read(receipt: &Path, rows: &[ObservationDocument]) -> Result<RawArtifacts, String> {
     let name = receipt
         .file_name()
         .and_then(|name| name.to_str())
@@ -25,6 +23,7 @@ pub(super) fn read(
         .map_err(|error| error.to_string())?;
     let prefix = format!("{name}.process-");
     let mut bytes = BTreeMap::new();
+    let mut invocations = BTreeMap::new();
     let mut directories = BTreeSet::new();
     for row in rows {
         let Some(artifacts) = row
@@ -77,9 +76,13 @@ pub(super) fn read(
                 return Err(constants::RAW_ARTIFACT_ESCAPES_ITS_RECEIPT_BOUNDARY.into());
             }
             let data = std::fs::read(&full).map_err(|error| error.to_string())?;
-            if sha256.0 != format!("{:x}", Sha256::digest(&data))
-                || bytes.insert(path.clone(), data).is_some()
-            {
+            if sha256.0 != format!("{:x}", Sha256::digest(&data)) {
+                return Err(constants::RAW_PROCESS_ARTIFACT_IS_STALE_OR.into());
+            }
+            if filename == constants::INVOCATION_JSON {
+                invocations.insert(path.clone(), super::schemas::invocation(&data)?);
+            }
+            if bytes.insert(path.clone(), data).is_some() {
                 return Err(constants::RAW_PROCESS_ARTIFACT_IS_STALE_OR.into());
             }
             directories.insert(
@@ -110,5 +113,5 @@ pub(super) fn read(
             return Err(constants::EXTRA_RAW_ARTIFACTS_IN_REFERENCED_CASE.into());
         }
     }
-    Ok(bytes)
+    Ok(RawArtifacts { bytes, invocations })
 }

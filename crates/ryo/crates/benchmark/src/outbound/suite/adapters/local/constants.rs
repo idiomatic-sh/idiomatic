@@ -79,9 +79,6 @@ pub(super) const SIDE: &str = "side";
 /// Text of the a in this part.
 #[cfg(test)]
 pub(super) const A: &str = "a";
-/// Text of the exit in this part.
-#[cfg(test)]
-pub(super) const EXIT: &str = "exit";
 /// Text of the error in this part.
 #[cfg(test)]
 pub(super) const ERROR: &[u8] = b"error\n";
@@ -259,3 +256,9 @@ pub(super) const GIVEN_PROJECT_NON_FILE_ENTRY_REQUIRES: &str =
 /// Refuse a process observation that has no raw artifacts to point at.
 pub(super) const PROCESS_OBSERVATION_NEEDS_RAW_ARTIFACTS: &str =
     "a process observation needs its three raw artifacts";
+/// Text of an identity that is not a lowercase SHA256.
+pub(super) const DISCREPANCY_REQUIRES_LOWERCASE_SHA256_IDENTITIES: &str =
+    "discrepancy requires lowercase SHA256 identities";
+/// Text of a process failure without a positive exit.
+pub(super) const PROCESS_FAILURE_REQUIRES_A_POSITIVE_NUMERIC_EXIT: &str =
+    "process failure requires a positive numeric exit";
