@@ -1,9 +1,9 @@
 {
- "source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+ "source": "18f96bccd7d88f6e5a2b284bcd6904a3c922be2a",
  "scope": "Ownership consolidation checkpoint; not full product acceptance",
  "checks": {
   "libraries": {
-   "source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+   "source": "18f96bccd7d88f6e5a2b284bcd6904a3c922be2a",
    "command": [
     "cargo",
     "test",
@@ -39,10 +39,10 @@
     "--test-threads=6"
    ],
    "exit": 0,
-   "elapsed_seconds": 61.37
+   "elapsed_seconds": 66.8
   },
   "boundary": {
-   "source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+   "source": "18f96bccd7d88f6e5a2b284bcd6904a3c922be2a",
    "command": [
     "cargo",
     "test",
@@ -62,10 +62,10 @@
     "--test-threads=6"
    ],
    "exit": 0,
-   "elapsed_seconds": 431.32
+   "elapsed_seconds": 577.53
   },
   "project_boundary": {
-   "source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+   "source": "18f96bccd7d88f6e5a2b284bcd6904a3c922be2a",
    "command": [
     "cargo",
     "test",
@@ -85,10 +85,10 @@
     "--test-threads=6"
    ],
    "exit": 0,
-   "elapsed_seconds": 37.18
+   "elapsed_seconds": 39.69
   },
   "activation": {
-   "source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+   "source": "18f96bccd7d88f6e5a2b284bcd6904a3c922be2a",
    "command": [
     "cargo",
     "test",
@@ -106,10 +106,10 @@
     "activation"
    ],
    "exit": 0,
-   "elapsed_seconds": 1.74
+   "elapsed_seconds": 2.0
   },
   "bdd": {
-   "source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+   "source": "18f96bccd7d88f6e5a2b284bcd6904a3c922be2a",
    "command": [
     "cargo",
     "test",
@@ -127,10 +127,10 @@
     "bdd"
    ],
    "exit": 0,
-   "elapsed_seconds": 2.75
+   "elapsed_seconds": 2.98
   },
   "doctest": {
-   "source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+   "source": "18f96bccd7d88f6e5a2b284bcd6904a3c922be2a",
    "command": [
     "cargo",
     "test",
@@ -147,10 +147,10 @@
     "--doc"
    ],
    "exit": 0,
-   "elapsed_seconds": 1.0
+   "elapsed_seconds": 0.86
   },
   "ruff_sharing": {
-   "source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+   "source": "18f96bccd7d88f6e5a2b284bcd6904a3c922be2a",
    "command": [
     "cargo",
     "test",
@@ -170,10 +170,10 @@
     "--test-threads=6"
    ],
    "exit": 0,
-   "elapsed_seconds": 98.68
+   "elapsed_seconds": 110.91
   },
   "ruff": {
-   "source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+   "source": "18f96bccd7d88f6e5a2b284bcd6904a3c922be2a",
    "command": [
     "cargo",
     "test",
@@ -194,11 +194,11 @@
     "--test-threads=6"
    ],
    "exit": 101,
-   "elapsed_seconds": 21.01,
-   "note": "34 passed, 1 failed: engine_test::i001_observation::i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory (a syntax-rejected sibling file makes every rule Unknown on every file in a Given project; Phase 1 output correctness, undiagnosed past that); actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_warm_replay passes"
+   "elapsed_seconds": 23.81,
+   "note": "11 passed, 1 failed in the engine_test target: engine_test::succeeds, the known Phase 1 red (i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory, bead ryo-xqxb)"
   },
   "core_bdd": {
-   "source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+   "source": "18f96bccd7d88f6e5a2b284bcd6904a3c922be2a",
    "command": [
     "cargo",
     "test",
@@ -216,10 +216,10 @@
     "bdd"
    ],
    "exit": 0,
-   "elapsed_seconds": 3.41
+   "elapsed_seconds": 3.59
   },
   "core_allocation": {
-   "source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+   "source": "18f96bccd7d88f6e5a2b284bcd6904a3c922be2a",
    "command": [
     "cargo",
     "test",
@@ -237,11 +237,11 @@
     "allocation"
    ],
    "exit": 101,
-   "elapsed_seconds": 1.79,
-   "note": "exit 101 is the Phase 7 measurement (bead ryo-l3mj): 56 files allocate 1879-1882 blocks each, beyond the parser library by more than one block; not a Phase 4 or 6 proof"
+   "elapsed_seconds": 1.85,
+   "note": "red by design: a Phase 7 measurement (bead ryo-l3mj)"
   },
   "execution_program_authority": {
-   "source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+   "source": "18f96bccd7d88f6e5a2b284bcd6904a3c922be2a",
    "command": [
     "cargo",
     "test",
@@ -266,10 +266,10 @@
     "--test-threads=6"
    ],
    "exit": 0,
-   "elapsed_seconds": 1.0
+   "elapsed_seconds": 1.46
   },
   "doctest_values": {
-   "source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+   "source": "18f96bccd7d88f6e5a2b284bcd6904a3c922be2a",
    "command": [
     "cargo",
     "test",
@@ -286,10 +286,10 @@
     "--doc"
    ],
    "exit": 0,
-   "elapsed_seconds": 1.8
+   "elapsed_seconds": 2.85
   },
   "doctest_core": {
-   "source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+   "source": "18f96bccd7d88f6e5a2b284bcd6904a3c922be2a",
    "command": [
     "cargo",
     "test",
@@ -306,10 +306,10 @@
     "--doc"
    ],
    "exit": 0,
-   "elapsed_seconds": 0.56
+   "elapsed_seconds": 0.43
   },
   "doctest_sdk": {
-   "source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+   "source": "18f96bccd7d88f6e5a2b284bcd6904a3c922be2a",
    "command": [
     "cargo",
     "test",
@@ -326,10 +326,10 @@
     "--doc"
    ],
    "exit": 0,
-   "elapsed_seconds": 18.82
+   "elapsed_seconds": 20.3
   },
   "doctest_derived": {
-   "source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+   "source": "18f96bccd7d88f6e5a2b284bcd6904a3c922be2a",
    "command": [
     "cargo",
     "test",
@@ -346,10 +346,10 @@
     "--doc"
    ],
    "exit": 0,
-   "elapsed_seconds": 1.54
+   "elapsed_seconds": 2.52
   },
   "tm_import_cli": {
-   "source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+   "source": "18f96bccd7d88f6e5a2b284bcd6904a3c922be2a",
    "command": [
     "cargo",
     "test",
@@ -372,10 +372,10 @@
     "--exact"
    ],
    "exit": 0,
-   "elapsed_seconds": 0.48
+   "elapsed_seconds": 0.94
   },
   "tm_cli_source": {
-   "source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+   "source": "18f96bccd7d88f6e5a2b284bcd6904a3c922be2a",
    "command": [
     "tm",
     "--root",
@@ -387,10 +387,10 @@
     "json"
    ],
    "exit": 0,
-   "elapsed_seconds": 0.37
+   "elapsed_seconds": 0.47
   },
   "tm_source": {
-   "source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+   "source": "18f96bccd7d88f6e5a2b284bcd6904a3c922be2a",
    "command": [
     "tm",
     "--root",
@@ -405,11 +405,11 @@
     "json"
    ],
    "exit": 1,
-   "elapsed_seconds": 15.22,
-   "note": "53 findings, zero suppressed: 21 derived (20 no-bare-integers, 1 no-bare-bool; deferred to Phase 7), 11 in domain/shared_walk and tests/shared_walk (file-length 5, test-shape 3, case-expectation 2, io-at-boundary 1), 21 in program/** and invocation/** test trees (file-length 8, stable-ids 6, application-service#closed 4, no-env-reads 1, io-at-boundary 1, no-runtime-fixtures 1); no module-cycles finding remains"
+   "elapsed_seconds": 16.28,
+   "note": "exit 1: reports its findings; not a pass/fail gate"
   },
   "tm_guards": {
-   "source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+   "source": "18f96bccd7d88f6e5a2b284bcd6904a3c922be2a",
    "command": [
     "tm",
     "--root",
@@ -429,7 +429,7 @@
    "elapsed_seconds": 0.04
   },
   "ownership_edges": {
-   "source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+   "source": "18f96bccd7d88f6e5a2b284bcd6904a3c922be2a",
    "command": [
     "ryo",
     "query",
@@ -444,23 +444,23 @@
     "json"
    ],
    "exit": 0,
-   "elapsed_seconds": 0.89
+   "elapsed_seconds": 1.06
   }
  },
  "results": {
   "execution_library": {
-   "passed": 526,
+   "passed": 528,
    "failed": 0
   },
   "core_library": {
-   "passed": 186,
+   "passed": 185,
    "failed": 0
   },
-  "benchmark_passed": 191,
+  "benchmark_passed": 154,
   "sdk_passed": 43,
   "other_libraries_passed": 155,
   "libraries_total": {
-   "passed": 1101,
+   "passed": 1061,
    "failed": 0
   },
   "execution_boundary": {
@@ -488,7 +488,7 @@
    "failed": 0
   },
   "ruff": {
-   "passed": 34,
+   "passed": 11,
    "failed": 1
   },
   "execution_program_authority": {
@@ -519,16 +519,67 @@
   }
  },
  "ownership_graph": {
-  "source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+  "source": "18f96bccd7d88f6e5a2b284bcd6904a3c922be2a",
   "raw": "ownership_edges.log (kept outside the repository)",
-  "occurrences": 6516,
+  "occurrences": 6672,
   "targeted_cycles": [],
-  "other_cycles": 6,
-  "note": "6 file-level cycles (sizes 2,2,2,2,3,8); the seventh of validation315 is gone; the shared_walk domain-concept cycle of tm check is gone (no module-cycles finding)"
+  "other_cycles": 0,
+  "note": "file-level strongly connected components of the ownership edges: 0 (gate <= 6 holds); computed from ownership_edges.log of validation317"
  },
  "evidence_reuse": [],
  "review": "../../audits/2026-11-06-derived/ownership/checkpoint.json",
  "new_performance_measurement": false,
- "validation": "316",
- "raw_identity": "/tmp/ryo-contract-validation316-20261106/final3"
+ "validation": 317,
+ "raw_identity": "/tmp/ryo-contract-validation317-20261106b",
+ "tm_whole_tree": {
+  "command": "tm --root crates/ryo check --format json (no --fix; git status unchanged)",
+  "total": 4251,
+  "suppressed": 0,
+  "status": "measured whole-tree state at checkpoint 317; not a baseline and not a waiver",
+  "at_checkpoint_316": 8060,
+  "per_crate": {
+   "crates/execution": 1725,
+   "crates/benchmark": 971,
+   "crates/core": 584,
+   "crates/operators": 260,
+   "crates/derived": 213,
+   "crates/benchmark_contracts": 128,
+   "cli": 101,
+   "crates/language": 49,
+   "languages/python": 46,
+   "docs": 30,
+   "crates/query_language": 23,
+   "crates/sdk": 23,
+   "languages/javascript": 20,
+   "languages/typescript": 20,
+   "crates/matching": 19,
+   "crates/values": 13,
+   "crates/relations": 12,
+   "languages/rust": 6,
+   "languages/html": 2,
+   "languages/json": 2,
+   "languages/css": 1,
+   "languages/go": 1,
+   "languages/markdown": 1,
+   "languages/toml": 1
+  },
+  "module_cycles_findings": 27,
+  "no_domain_concept_cycles_findings": 32,
+  "tm_validate": "231 versions hold, 0 do not",
+  "newly_applied_rules_in_execution": {
+   "test-imports": 110,
+   "constants-once": 14,
+   "note": "+124 in execution (1,639 -> 1,725) come from rules newly applied through the merged spec versions"
+  },
+  "assigned_batches": {
+   "crates/execution and cli": "ryo-wsjf",
+   "crates/core": "ryo-aos7",
+   "crates/operators and crates/derived": "ryo-1c4e remainder",
+   "crates/benchmark and benchmark_contracts": "ryo-v73i part 5"
+  },
+  "known_broken_targets_left_for_ryo-4i09": [
+   "cli replay/blocks/lint tests call LintUseCaseImpl::unlowered (retired in Phase 5)",
+   "crates/core benches/performance/facts import ryo_core::outbound::facts::{interface,types}"
+  ]
+ }
 }
