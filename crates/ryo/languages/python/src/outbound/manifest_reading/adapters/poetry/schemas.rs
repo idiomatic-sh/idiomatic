@@ -24,28 +24,13 @@ const MAIN: &str = "main";
 /// The requirement on the interpreter, which names no package.
 const INTERPRETER: &str = "python";
 
-/// A `pyproject.toml`.
-#[derive(Debug, Default, Deserialize)]
-// the shape is the tables of pyproject.toml, read table for table: a flatter shape reads a different file
-struct PyprojectSchema {
-    /// The `[tool]` table, which holds Poetry's.
-    tool: Option<ToolSchema>,
-}
-
 /// A `pyproject.toml` and the directory it is in, which its paths are from.
 #[derive(Debug)]
 struct ManifestSchema {
     /// The directory the `pyproject.toml` is in, from the repository root.
     directory: Box<str>,
-    /// What the `pyproject.toml` says.
-    pyproject: PyprojectSchema,
-}
-
-/// A `[tool]`.
-#[derive(Debug, Default, Deserialize)]
-struct ToolSchema {
-    /// The `[tool.poetry]` table.
-    poetry: Option<PoetrySchema>,
+    /// What the `[tool.poetry]` table of the `pyproject.toml` says.
+    poetry: PoetrySchema,
 }
 
 /// A `[tool.poetry]`.
@@ -167,9 +152,9 @@ fn requirements(
                 kind,
                 optional,
                 origin,
-                reference: table
-                    .path
-                    .map_or(Reference::Named, |path| locating(directory, PatternPart(&path))),
+                reference: table.path.map_or(Reference::Named, |path| {
+                    locating(directory, PatternPart(&path))
+                }),
             }
         })
         .collect()
@@ -177,11 +162,7 @@ fn requirements(
 
 impl From<ManifestSchema> for Declared {
     fn from(schema: ManifestSchema) -> Self {
-        let poetry = schema
-            .pyproject
-            .tool
-            .and_then(|tool| tool.poetry)
-            .unwrap_or_default();
+        let poetry = schema.poetry;
         let directory = Directory(&schema.directory);
         let mut all = Vec::new();
         let mut table = |dependencies: BTreeMap<String, toml::Value>, kind: DependencyKind| {
@@ -223,14 +204,20 @@ pub(super) fn declared(
     manifest: &ManifestPath,
     text: &str,
 ) -> Result<Declared, ManifestReadingError> {
-    let pyproject = toml::from_str(text).map_err(|error: toml::de::Error| {
-        ManifestReadingError::Unreadable {
-            reason: error.message().to_owned(),
-        }
-    })?;
+    let unreadable = |error: toml::de::Error| ManifestReadingError::Unreadable {
+        reason: error.message().to_owned(),
+    };
+    let pyproject: toml::Table = toml::from_str(text).map_err(unreadable)?;
+    let poetry = match pyproject.get("tool").and_then(|tool| tool.get("poetry")) {
+        Some(table) => table
+            .clone()
+            .try_into::<PoetrySchema>()
+            .map_err(unreadable)?,
+        None => PoetrySchema::default(),
+    };
     Ok(ManifestSchema {
         directory: directory_of(manifest).0.into(),
-        pyproject,
+        poetry,
     }
     .into())
 }
