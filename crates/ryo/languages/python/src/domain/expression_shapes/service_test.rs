@@ -1,14 +1,25 @@
 //! Independent AST identity examples; no reference linter supplies these expected classes.
-use super::service::{clear, intern, prepare, shape_of};
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::model::types::{ExpressionShapeIndex, ShapeHash, ShapeState, ShapeWord};
-use crate::domain::{
-    model::types::Declarations,
-    nodes::types::Category,
-    syntax::service::{category, written},
-};
-use crate::fixtures::reading::{initialize_model, parsed};
-use ryo::languages::{self, ByteSlice, Tree};
+use super::service::clear;
+use super::service::intern;
+use super::service::prepare;
+use super::service::shape_of;
+use crate::cases::Case;
+use crate::cases::CaseName;
+use crate::cases::Expect;
+use crate::cases::Word;
+use crate::cases::run;
+use crate::domain::model::types::Declarations;
+use crate::domain::model::types::ExpressionShapeIndex;
+use crate::domain::model::types::ShapeHash;
+use crate::domain::model::types::ShapeState;
+use crate::domain::model::types::ShapeWord;
+use crate::domain::nodes::types::Category;
+use crate::domain::syntax::service::category;
+use crate::domain::syntax::service::written;
+use crate::fixtures::reading::initialize_model;
+use crate::fixtures::reading::parsed;
+use ryo::languages::ByteSlice;
+use ryo::languages::Tree;
 type Input = (&'static str, &'static str, &'static str);
 type Value = bool;
 type Failure = ();
@@ -67,192 +78,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("complex literal remains distinct from real float"),
         word: Word::Succeeds,
         input: || ("1j\n1.0\n", "1j", "1.0"),
-        expect: Expect::Value(false),
-    },
-    Case {
-        name: CaseName("decoded byte escapes normalize"),
-        word: Word::Succeeds,
-        input: || ("b\"a\"\nb\"\\x61\"\n", "b\"a\"", "b\"\\x61\""),
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("semantic Name in a simple annotation matches native identity"),
-        word: Word::Succeeds,
-        input: || ("x\nvalue: \"x\"\n", "x", "x"),
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("nested semantic expression ignores formatting"),
-        word: Word::Succeeds,
-        input: || ("a+b\nvalue: \"a + b\"\n", "a+b", "a + b"),
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("lambda parameter categories preserve positional only separator"),
-        word: Word::Succeeds,
-        input: || {
-            (
-                "lambda x: x\nlambda x, /: x\n",
-                "lambda x: x",
-                "lambda x, /: x",
-            )
-        },
-        expect: Expect::Value(false),
-    },
-    Case {
-        name: CaseName("comprehension async flag is structural"),
-        word: Word::Succeeds,
-        input: || {
-            (
-                "[x for x in xs]\n[x async for x in xs]\n",
-                "[x for x in xs]",
-                "[x async for x in xs]",
-            )
-        },
-        expect: Expect::Value(false),
-    },
-    Case {
-        name: CaseName("full key comparison survives deliberately colliding hashes"),
-        word: Word::Succeeds,
-        input: || ("collision witness", "", ""),
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("valid invalid empty valid reparses cannot leak classes"),
-        word: Word::Succeeds,
-        input: || ("reparse witness", "", ""),
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("redundant parentheses and whitespace are not expression fields"),
-        word: Word::Succeeds,
-        input: || ("(a + b)\na+b\n", "a + b", "a+b"),
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("operand order remains significant"),
-        word: Word::Succeeds,
-        input: || ("a+b\nb+a\n", "a+b", "b+a"),
-        expect: Expect::Value(false),
-    },
-    Case {
-        name: CaseName("operator remains significant"),
-        word: Word::Succeeds,
-        input: || ("a+b\na-b\n", "a+b", "a-b"),
-        expect: Expect::Value(false),
-    },
-    Case {
-        name: CaseName("read and write contexts are ignored"),
-        word: Word::Succeeds,
-        input: || ("x=0\nx\n", "x", "x"),
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("NFKC identifiers share lexical identity"),
-        word: Word::Succeeds,
-        input: || ("𝗲𝘅𝗲𝗰\nexec\n", "𝗲𝘅𝗲𝗰", "exec"),
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("small integer radix is normalized"),
-        word: Word::Succeeds,
-        input: || ("16\n0x10\n", "16", "0x10"),
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("integer and floating literal kinds are distinct"),
-        word: Word::Succeeds,
-        input: || ("1\n1.0\n", "1", "1.0"),
-        expect: Expect::Value(false),
-    },
-    Case {
-        name: CaseName("boolean is not an integer shape"),
-        word: Word::Succeeds,
-        input: || ("True\n1\n", "True", "1"),
-        expect: Expect::Value(false),
-    },
-    Case {
-        name: CaseName("implicit string concatenation is one decoded literal"),
-        word: Word::Succeeds,
-        input: || ("'a' 'b'\n'ab'\n", "'a' 'b'", "'ab'"),
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("bytes and text are distinct literal kinds"),
-        word: Word::Succeeds,
-        input: || ("b'ab'\n'ab'\n", "b'ab'", "'ab'"),
-        expect: Expect::Value(false),
-    },
-    Case {
-        name: CaseName("call positional and keyword fields are grouped independently"),
-        word: Word::Succeeds,
-        input: || ("f(k=1,*xs)\nf(*xs,k=1)\n", "f(k=1,*xs)", "f(*xs,k=1)"),
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("keyword order is preserved within the keyword field"),
-        word: Word::Succeeds,
-        input: || ("f(a=1,b=2)\nf(b=2,a=1)\n", "f(a=1,b=2)", "f(b=2,a=1)"),
-        expect: Expect::Value(false),
-    },
-    Case {
-        name: CaseName("dictionary unpack positions are significant"),
-        word: Word::Succeeds,
-        input: || ("{'a':x,**y}\n{**x,'a':y}\n", "{'a':x,**y}", "{**x,'a':y}"),
-        expect: Expect::Value(false),
-    },
-    Case {
-        name: CaseName("slice omitted fields do not collapse"),
-        word: Word::Succeeds,
-        input: || ("x[:a]\nx[a:]\n", "x[:a]", "x[a:]"),
-        expect: Expect::Value(false),
-    },
-    Case {
-        name: CaseName("formatted string conversion is significant"),
-        word: Word::Succeeds,
-        input: || ("f'{x!s}'\nf'{x!r}'\n", "f'{x!s}'", "f'{x!r}'"),
-        expect: Expect::Value(false),
-    },
-    Case {
-        name: CaseName("formatted string empty format is not absent format"),
-        word: Word::Succeeds,
-        input: || ("f'{x}'\nf'{x:}'\n", "f'{x}'", "f'{x:}'"),
-        expect: Expect::Value(false),
-    },
-    Case {
-        name: CaseName("formatted string debug source contributes to its value"),
-        word: Word::Succeeds,
-        input: || ("f'{x=}'\nf'{x =}'\n", "f'{x=}'", "f'{x =}'"),
-        expect: Expect::Value(false),
-    },
-    Case {
-        name: CaseName("formatted string adjacent literal segments merge"),
-        word: Word::Succeeds,
-        input: || ("f'{x}a' 'b'\nf'{x}ab'\n", "f'{x}a' 'b'", "f'{x}ab'"),
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("f-string escape spellings share decoded literal text"),
-        word: Word::Succeeds,
-        input: || ("f'{x}\\n'\nf'{x}\\x0a'\n", "f'{x}\\n'", "f'{x}\\x0a'"),
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("f-string escaped braces share decoded literal text"),
-        word: Word::Succeeds,
-        input: || {
-            (
-                "f'{{{x}}}'\nf'\\x7b{x}\\x7d'\n",
-                "f'{{{x}}}'",
-                "f'\\x7b{x}\\x7d'",
-            )
-        },
-        expect: Expect::Value(true),
-    },
-    Case {
-        name: CaseName("unequal f-string literal fragments remain distinct"),
-        word: Word::Succeeds,
-        input: || ("f'{x}a'\nf'{x}b'\n", "f'{x}a'", "f'{x}b'"),
         expect: Expect::Value(false),
     },
 ];
@@ -425,3 +250,10 @@ fn embedded_shapes() -> Value {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+#[cfg(test)]
+mod semantic_identity_test;
+#[cfg(test)]
+mod strings_and_calls_test;
+#[cfg(test)]
+mod structure_test;
