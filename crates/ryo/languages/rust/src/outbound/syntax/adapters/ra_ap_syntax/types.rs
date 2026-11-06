@@ -122,7 +122,7 @@ pub(crate) struct Open {
 
 /// A token tree being held while its macro is looked at.
 #[derive(Clone, Debug)]
-pub(crate) struct Held {
+pub(crate) struct HeldMacro {
     /// The macro it is the arguments of.
     pub name: MacroName,
     /// The place in the table of the node that holds it.
