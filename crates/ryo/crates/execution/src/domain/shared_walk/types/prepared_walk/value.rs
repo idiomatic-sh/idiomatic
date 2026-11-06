@@ -205,7 +205,6 @@ impl PreparedWalk {
     pub(crate) fn retain_program_consumers(
         &mut self,
         program: &crate::domain::executable_program::types::ExecutableProgram,
-        _bindings: &[Vec<ParameterBinding>],
     ) -> Result<(), OperatingError> {
         let retained = self
             .classes
@@ -349,7 +348,7 @@ fn source_barrier(
     operation: &ryo_values::domain::plans::types::Operation,
     inputs: &[crate::domain::executable_program::types::InputSource],
 ) -> WalkBarrier {
-    use ryo_values::domain::{plan_parts::types::Input, plans::types::Operation};
+    use ryo_values::domain::plans::types::Operation;
     match operation {
         Operation::Select { from, .. } | Operation::Project { from, .. } => match from {
             Input::Relation(_) => WalkBarrier::Representation,

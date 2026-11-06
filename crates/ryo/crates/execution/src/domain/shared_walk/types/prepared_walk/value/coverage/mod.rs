@@ -1,5 +1,7 @@
-//! Independent physical-head coverage over the authoritative relation catalog.
+//! Independent physical-head and per-operation route coverage over the relation catalog.
 #[cfg(any(test, feature = "fixtures"))]
 mod fixtures;
 #[cfg(test)]
-mod test;
+mod heads;
+#[cfg(test)]
+mod routes;

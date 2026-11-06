@@ -169,6 +169,10 @@ fn an_aliased_consumer_cancelled_early_does_not_retire_a_batch_other_rules_still
     file.finish().unwrap();
 }
 
+/// A `KernelPermit` cannot be built outside the runtime, so this control leases through the
+/// test-only `lease_any` on the batch map. It proves a held lease stays readable across
+/// retirement and that a later demand finds no batch; it does not exercise the permit path
+/// of a real nested kernel demand.
 #[test]
 fn a_held_lease_stays_readable_across_reentrant_demands_and_retirement() {
     let program = program(Residency::Unstable);

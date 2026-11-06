@@ -212,7 +212,7 @@ impl FileWalk {
             batch: NativeBatch::for_program(prepared.walk()),
         });
         if source.batch.class(class).is_none() {
-            source.ready.insert(class);
+            source.ready.extend([class]);
         }
         Ok(true)
     }
@@ -269,9 +269,7 @@ impl FileWalk {
             let mut sources = self.batches.borrow_mut();
             let source = sources.get_mut(&identity).ok_or(OperatingError::NotRun)?;
             source.batch.merge(batch)?;
-            for class in &ready {
-                source.ready.remove(class);
-            }
+            source.ready.retain(|held| !ready.contains(held));
         }
         Ref::filter_map(self.batches.borrow(), |batches| {
             batches.get(&identity).map(|source| &source.batch)
@@ -291,13 +289,13 @@ impl FileWalk {
             .copied()
             .collect::<BTreeSet<_>>();
         if deliveries.0 > 0 && !classes.is_empty() {
-            self.owed.borrow_mut().insert(
+            self.owed.borrow_mut().extend([(
                 rule,
                 Owed {
                     deliveries,
                     classes,
                 },
-            );
+            )]);
         }
     }
     /// One entry-point call of `rule` finished, whatever its outcome (success,
@@ -313,7 +311,7 @@ impl FileWalk {
             if entry.deliveries.0 > 0 {
                 return;
             }
-            owed.remove(&rule);
+            drop(owed.remove(&rule));
         }
         let pending = self
             .owed

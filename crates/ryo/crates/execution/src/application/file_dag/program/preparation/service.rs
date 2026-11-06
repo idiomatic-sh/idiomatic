@@ -391,7 +391,7 @@ pub(crate) fn prepare(
         &partitions,
         &operators,
     )?);
-    walk.retain_program_consumers(&program, &bindings)?;
+    walk.retain_program_consumers(&program)?;
     if tracing::enabled!(target: crate::application::file_dag::program::constants::WALK_TARGET, tracing::Level::TRACE)
     {
         let census = walk.census();

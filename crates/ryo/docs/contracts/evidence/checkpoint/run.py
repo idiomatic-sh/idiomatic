@@ -1,6 +1,6 @@
 import json,subprocess,time,fcntl
 from pathlib import Path
-p=Path('/tmp/ryo-contract-validation310-20261106')
+p=Path(__file__).resolve().parent
 locks=[open('/workspaces/.cargo-build.lock','a'),open('/tmp/ryo-cargo-serial.lock','a')]
 for lock in locks: fcntl.flock(lock,fcntl.LOCK_EX)
 assert not subprocess.check_output(['git','status','--porcelain'],text=True).strip(), 'freeze source before validation'
