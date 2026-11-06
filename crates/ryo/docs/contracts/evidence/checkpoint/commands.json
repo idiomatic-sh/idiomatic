@@ -351,6 +351,84 @@
   ]
  ],
  [
+  "cli_tests",
+  [
+   "cargo",
+   "test",
+   "--manifest-path",
+   "crates/ryo/Cargo.toml",
+   "--target-dir",
+   "/workspaces/idiomatic-benchmark-guards/target",
+   "--locked",
+   "--offline",
+   "-j6",
+   "--all-features",
+   "-p",
+   "idiomatic-sh-ryo",
+   "--test",
+   "replay",
+   "--test",
+   "blocks",
+   "--test",
+   "call_count",
+   "--test",
+   "command_line",
+   "--test",
+   "command_tree",
+   "--test",
+   "readme",
+   "--no-fail-fast"
+  ]
+ ],
+ [
+  "bench_build",
+  [
+   "cargo",
+   "bench",
+   "--no-run",
+   "--manifest-path",
+   "crates/ryo/Cargo.toml",
+   "--target-dir",
+   "/workspaces/idiomatic-benchmark-guards/target",
+   "--locked",
+   "--offline",
+   "-j6",
+   "--all-features",
+   "-p",
+   "idiomatic-sh-ryo",
+   "--bench",
+   "lint",
+   "-p",
+   "idiomatic-sh-ryo-core",
+   "--benches"
+  ]
+ ],
+ [
+  "no_print",
+  [
+   "cargo",
+   "clippy",
+   "--manifest-path",
+   "crates/ryo/Cargo.toml",
+   "--target-dir",
+   "/workspaces/idiomatic-benchmark-guards/target",
+   "--locked",
+   "--offline",
+   "-j6",
+   "--all-features",
+   "-p",
+   "idiomatic-sh-ryo-execution",
+   "-p",
+   "idiomatic-sh-ryo-core",
+   "--lib",
+   "--",
+   "-D",
+   "clippy::print_stderr",
+   "-D",
+   "clippy::print_stdout"
+  ]
+ ],
+ [
   "tm_source",
   [
    "tm",
@@ -362,6 +440,13 @@
    "crates/execution/src/application/file_dag/derived",
    "crates/execution/src/domain/shared_walk",
    "crates/execution/tests/shared_walk",
+   "crates/execution/src/domain/executable_program",
+   "crates/execution/src/domain/step_classes",
+   "crates/execution/src/domain/completion",
+   "crates/execution/src/domain/coverage",
+   "crates/execution/src/domain/frontiers",
+   "crates/execution/src/application/file_dag/frontiers",
+   "crates/core/src/application/file_analysis",
    "--format",
    "json"
   ]
