@@ -1,5 +1,31 @@
 //! Candidate choice and immutable equality-cache acquisition remain application policy.
-use super::super::*;
+use crate::application::file_dag::derived::owner::acquisition::selection::service::SelectionSource;
+use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
+use crate::application::file_dag::derived::owner::selection::fanout::service::fanout_candidates;
+use crate::application::file_dag::derived::owner::selection::literals::service::first_literal;
+use crate::application::file_dag::derived::owner::selection::types::*;
+use crate::domain::{
+    derived_views::types::{DerivedContract, ViewRequest},
+    operating::{errors::OperatingError, types::OperatorContext},
+    stored_selection::types::{PreparedSelectionViews, PreparedSelectorViews, Selector},
+    table_model::service::matching_stored,
+    table_texts::types::Texts,
+};
+use ryo_language::domain::symbols::{
+    service::{find_hashed, hash_of},
+    types::ByteSlice,
+};
+use ryo_relations::domain::relations::{
+    service::from_bits,
+    types::{Bits, CellKind, ColumnsView, Integer, Value},
+};
+use ryo_relations::domain::terms::service::symbols_with_text;
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, LiteralText, Operand, QueryLiteral, Test},
+    query_bindings::types::ParameterBinding,
+};
+use std::sync::Arc;
+
 /// Use a column index only when multiple active descriptors can amortize its build.
 pub(in crate::application::file_dag::derived::owner) fn candidates(
     cache: &mut CacheBackend,
@@ -96,27 +122,6 @@ pub(in crate::application::file_dag::derived::owner) fn candidates(
         ));
     }
     Ok((None, path))
-}
-
-/// Only a total, authored, nonempty text equality in the first predicate can
-/// reject rows before any caller-owned comparison or error origin is visited.
-pub(in crate::application::file_dag::derived::owner::selection) fn first_literal<'a>(
-    selector: &'a Selector,
-    kinds: &[CellKind],
-) -> Option<(ColumnIndex, &'a str)> {
-    let comparison = selector.identity.comparisons.first()?;
-    if comparison.test != Test::Equal {
-        return None;
-    }
-    let (column, text) = match (&comparison.left, &comparison.right) {
-        (Operand::Column(column), Operand::Literal(QueryLiteral::Text(text)))
-        | (Operand::Literal(QueryLiteral::Text(text)), Operand::Column(column)) => {
-            (column, &text.0)
-        }
-        _ => return None,
-    };
-    (kinds.get(column.0 as usize) == Some(&CellKind::Symbol) && !text.is_empty())
-        .then_some((*column, text.as_ref()))
 }
 
 /// Route all active texts for one physical column in one pass. This is a

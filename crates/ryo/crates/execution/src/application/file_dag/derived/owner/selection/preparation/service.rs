@@ -1,5 +1,30 @@
 //! Request preparation and bounded activation; never rebuild descriptors in a row path.
-use super::super::*;
+use crate::application::file_dag::derived::owner::acquisition::selection::service::SelectionSource;
+use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
+use crate::application::file_dag::derived::owner::selection::literals::service::first_literal;
+use crate::application::file_dag::derived::owner::selection::types::*;
+use crate::domain::{
+    derived_views::types::{DerivedContract, ViewRequest},
+    operating::{errors::OperatingError, types::OperatorContext},
+    stored_selection::types::{PreparedSelectionViews, PreparedSelectorViews, Selector},
+    table_model::service::matching_stored,
+    table_texts::types::Texts,
+};
+use ryo_language::domain::symbols::{
+    service::{find_hashed, hash_of},
+    types::ByteSlice,
+};
+use ryo_relations::domain::relations::{
+    service::from_bits,
+    types::{Bits, CellKind, ColumnsView, Integer, Value},
+};
+use ryo_relations::domain::terms::service::symbols_with_text;
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, LiteralText, Operand, QueryLiteral, Test},
+    query_bindings::types::ParameterBinding,
+};
+use std::sync::Arc;
+
 use crate::domain::operation_schema::types::InputShape;
 use ryo_relations::domain::relations::types::Relation;
 use std::collections::HashMap;
@@ -201,4 +226,12 @@ pub(in crate::application::file_dag::derived::owner) fn install_views(
     tracing::trace!(target:"ryo::diagnostic::lifecycle_memory",phase="selector_activation",request_groups=views.groups,active_groups=cache.selector_repetition.len(),working_metadata_bytes=cache.selector_repetition.capacity().saturating_mul(size_of::<(usize, u8)>()));
     cache.selection_views = Some(views);
     super::super::fanout::service::prepare_active(cache);
+}
+
+/// Prepare request-specific metadata once per worker, without evaluating any relation.
+/// Exact ordered predicates and referenced binding values; origins/projections are not result identity.
+fn same(left: &Selector, right: &Selector) -> bool {
+    left.relation == right.relation
+        && left.identity.comparisons == right.identity.comparisons
+        && left.identity.bindings == right.identity.bindings
 }

@@ -160,7 +160,7 @@ impl<'a> GraphInput<'a> {
     pub(super) fn canonical_backing(&self) -> bool {
         self.proof.canonical_backing()
     }
-    pub(super) fn population(&self) -> Result<super::derived::owner::PopulationId, OperatingError> {
+    pub(super) fn population(&self) -> Result<super::derived::population::types::PopulationId, OperatingError> {
         self.proof.backing_population(self.owner)
     }
     pub(super) fn relation(&self) -> Option<ryo_relations::domain::relations::types::Relation> {

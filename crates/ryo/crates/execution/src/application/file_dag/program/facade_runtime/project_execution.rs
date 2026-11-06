@@ -5,7 +5,7 @@ use super::super::project_population::types::{
 };
 use super::source_admission::ProjectSources;
 use super::*;
-use crate::application::file_dag::{derived::owner::PopulationId, frontiers::types::FrontierInput};
+use crate::application::file_dag::{derived::population::types::PopulationId, frontiers::types::FrontierInput};
 use crate::domain::executable_program::types::InputSource;
 impl ProjectFrontierPopulation<AvailableInput> {
     pub(super) fn source(&self) -> &Result<InputSource, OperatingError> {
@@ -112,7 +112,7 @@ impl PublicationScope {
         prepared: &PreparedProgram,
         rule: RuleIndex,
         policy: CompletionPolicy,
-    ) -> Result<crate::application::file_dag::derived::owner::PopulationId, OperatingError> {
+    ) -> Result<crate::application::file_dag::derived::population::types::PopulationId, OperatingError> {
         let mut bindings = Vec::new();
         for binding in bound.iter().flatten() {
             bindings.push(BoundKey::Input(InputSource::Observation(
@@ -247,7 +247,7 @@ impl ProjectRun<'_> {
     fn identity(
         &self,
         rule: RuleIndex,
-    ) -> Result<crate::application::file_dag::derived::owner::PopulationId, OperatingError> {
+    ) -> Result<crate::application::file_dag::derived::population::types::PopulationId, OperatingError> {
         crate::application::file_dag::frontiers::types::validate_consumer_sources(
             self.program,
             self.frontier_producer,

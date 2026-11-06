@@ -163,7 +163,7 @@ pub(crate) struct ProgramExecution {
     file_state: RuntimeState,
     project_states: RefCell<
         Vec<(
-            crate::application::file_dag::derived::owner::PopulationId,
+            crate::application::file_dag::derived::population::types::PopulationId,
             std::rc::Rc<RuntimeState>,
         )>,
     >,
@@ -611,10 +611,10 @@ impl ProgramExecution {
         let index = self
             .owner
             .derived
-            .view_weak(ryo_derived::domain::contract::types::DerivedKind::Equality);
+            .view_witness(ryo_derived::domain::contract::types::DerivedKind::Equality);
         let index_live = index
             .as_ref()
-            .is_some_and(|index| index.upgrade().is_some());
+            .is_some_and(|index| index.is_alive());
         probe.events.push(ProducerLeaseEvent {
             consumer,
             point,
@@ -752,7 +752,7 @@ impl ProgramExecution {
     }
     pub(in crate::application::file_dag::program) fn project_state(
         &self,
-        id: crate::application::file_dag::derived::owner::PopulationId,
+        id: crate::application::file_dag::derived::population::types::PopulationId,
     ) -> std::rc::Rc<RuntimeState> {
         let mut states = self.project_states.borrow_mut();
         if let Some((_, state)) = states.iter().find(|(key, _)| *key == id) {

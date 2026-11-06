@@ -1,5 +1,5 @@
 //! One file generation owns representation descriptors and lazy admission proofs.
-use super::derived::owner::PopulationId;
+use super::derived::population::types::PopulationId;
 use crate::domain::operator::contract::views::BorrowedRows;
 use crate::domain::table_model::collections::representations::{
     publication::PublishedRelation,

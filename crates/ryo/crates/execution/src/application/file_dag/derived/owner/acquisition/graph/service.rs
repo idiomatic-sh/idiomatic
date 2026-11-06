@@ -9,8 +9,9 @@ use crate::application::file_dag::derived::owner::graphs::types::handles::servic
     DomainHandle, GraphHandle,
 };
 use crate::application::file_dag::derived::owner::{
-    DerivedOwner, GraphRequirement, GraphSelection, GraphViewIdentity, PopulationId, ViewContext,
+    DerivedOwner, GraphRequirement, GraphSelection, GraphViewIdentity, ViewContext,
 };
+use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::application::file_dag::workspace::GraphInput;
 use crate::domain::{
     operating::errors::OperatingError,

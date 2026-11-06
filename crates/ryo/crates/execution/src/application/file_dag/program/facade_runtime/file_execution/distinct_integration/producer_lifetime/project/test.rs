@@ -191,14 +191,14 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
     );
     let backing = owner
         .derived
-        .view_weak(ryo_derived::domain::contract::types::DerivedKind::Equality);
+        .view_witness(ryo_derived::domain::contract::types::DerivedKind::Equality);
     if !matches!(exit, PhaseExit::RefuseBeforeWork) {
         assert!(
             live > 0,
             "phase owns required backing until every batch obligation ends"
         );
         assert_eq!(builds.0, 1, "refused later cohort creates no second index");
-        assert!(backing.as_ref().unwrap().upgrade().is_some());
+        assert!(backing.as_ref().unwrap().is_alive());
         assert!(counts.evaluations.0 > 0);
     }
     let mut transferred = Vec::new();
@@ -320,7 +320,7 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
     );
     assert_eq!(owner.derived.owned_bytes(), 0);
     assert!(
-        backing.is_none_or(|backing| backing.upgrade().is_none()),
+        backing.is_none_or(|backing| !backing.is_alive()),
         "same real backing drops at phase finish"
     );
     assert_eq!(

@@ -1,4 +1,5 @@
 //! Explicitly unshared finite raw work uses the same acquisition and backing ledger.
+use super::DerivedOwner;
 use crate::application::file_dag::relations::RelationOwner;
 use crate::domain::operator::contract::derived::ScopedDerived;
 use crate::domain::{
@@ -70,5 +71,31 @@ impl ScopedDerived for RawScope {
             self.working = Some(acquired);
         }
         result
+    }
+}
+
+impl DerivedOwner {
+    /// A finite semantic workspace belongs to this exact live population owner.
+    /// The descriptor was prepared once by the request; undeclared raw orders refuse.
+    pub(in crate::application::file_dag) fn finite_raw(
+        &self,
+        owner: std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+        prepared: Option<Arc<DerivedContract>>,
+        permit: &crate::application::file_dag::program::runtime::service::KernelPermit<'_>,
+    ) -> Result<impl crate::domain::operator::contract::derived::ScopedDerived, OperatingError>
+    {
+        if !std::ptr::eq(self, &owner.derived)
+            || prepared
+                .as_ref()
+                .is_some_and(|plan| !matches!(&plan.request, ViewRequest::RawKeyOrder { .. }))
+        {
+            return Err(OperatingError::WrongOperation);
+        }
+        permit.validate_derived_owner(&owner)?;
+        let admitted = prepared
+            .as_ref()
+            .map(|plan| self.admit_raw(plan, &owner, permit))
+            .transpose()?;
+        Ok(RawScope::for_program(owner, prepared, admitted))
     }
 }

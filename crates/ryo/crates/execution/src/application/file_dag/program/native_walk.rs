@@ -2,7 +2,7 @@
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::service::KernelPermit;
 use crate::{
-    application::file_dag::derived::owner::PopulationId,
+    application::file_dag::derived::population::types::PopulationId,
     domain::{
         operating::{errors::OperatingError, types::OperatorContext},
         positions::types::ClassPlace,

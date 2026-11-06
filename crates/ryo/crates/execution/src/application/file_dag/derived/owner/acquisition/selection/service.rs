@@ -1,8 +1,7 @@
 //! Owner-bound selector acquisition; immutable views leave this scope, never the backend.
 use super::super::super::*;
-use crate::application::file_dag::derived::owner::selection::candidates::service::candidates;
-use crate::application::file_dag::derived::owner::selection::{
-    CandidateRows, SelectionPath, histogram, shared_positions,
+use crate::application::file_dag::derived::owner::selection::types::{
+    CandidateRows, SelectionPath,
 };
 use crate::application::file_dag::relations::{AdmittedInput, RelationOwner};
 use crate::domain::{
@@ -19,6 +18,32 @@ pub(in crate::application::file_dag::derived::owner) struct SelectionSource<'a> 
     source: &'a RelationOwner,
     proof: &'a AdmittedInput<'a>,
     population: PopulationId,
+}
+impl<'a> SelectionSource<'a> {
+    pub(in crate::application::file_dag::derived::owner) fn admit(
+        owner: &'a DerivedOwner,
+        relation_owner: &'a RelationOwner,
+        publication: &crate::application::file_dag::relations::PublishedInput,
+        proof: &'a AdmittedInput<'a>,
+        source: ColumnsView<'_>,
+    ) -> Result<Self, OperatingError> {
+        proof.require_publication(relation_owner, publication.as_ref())?;
+        if !std::ptr::eq(owner, &relation_owner.derived)
+            || !crate::application::file_dag::relations::same_admitted_rows(
+                proof.rows(),
+                crate::domain::operator::contract::views::BorrowedRows::Stored(source),
+            )
+        {
+            return Err(OperatingError::NotRead);
+        }
+        let population = proof.identity(relation_owner)?.0;
+        Ok(Self {
+            owner,
+            source: relation_owner,
+            proof,
+            population,
+        })
+    }
 }
 impl SelectionSource<'_> {
     fn build(
@@ -91,14 +116,14 @@ impl SelectionSource<'_> {
                 drop(state);
                 let population = source.columns.first().map_or(0, |column| column.0.len());
                 let units = self.owner.ledger.borrow().snapshot().optional_units;
-                if groups >= crate::application::file_dag::derived::owner::selection::MAX_FANOUT_GROUPS
-                    || literals > crate::application::file_dag::derived::owner::selection::MAX_FANOUT_LITERALS
-                    || text_bytes > crate::application::file_dag::derived::owner::selection::MAX_FANOUT_TEXT_BYTES
+                if groups >= crate::application::file_dag::derived::owner::selection::types::MAX_FANOUT_GROUPS
+                    || literals > crate::application::file_dag::derived::owner::selection::types::MAX_FANOUT_LITERALS
+                    || text_bytes > crate::application::file_dag::derived::owner::selection::types::MAX_FANOUT_TEXT_BYTES
                     || population
                         .checked_mul(2)
                         .and_then(|need| units.checked_add(need))
                         .is_none_or(|units| {
-                            units > crate::application::file_dag::derived::owner::selection::MAX_RETAINED_POSITION_CAPACITY
+                            units > crate::application::file_dag::derived::owner::selection::types::MAX_RETAINED_POSITION_CAPACITY
                         })
                 {
                     return Ok(None);
@@ -215,81 +240,6 @@ impl SelectionSource<'_> {
         )
     }
 }
-impl DerivedOwner {
-    pub(in crate::application::file_dag) fn selector_plan(
-        &self,
-        program: &Arc<Selector>,
-    ) -> Result<Option<Arc<DerivedContract>>, OperatingError> {
-        let backend = self.backend.borrow();
-        let backend = backend.as_ref().ok_or(OperatingError::NotRun)?;
-        let plans = backend
-            .selection_views
-            .as_ref()
-            .ok_or(OperatingError::NotRun)?;
-        let views = plans
-            .by_selector
-            .get(&(Arc::as_ptr(program) as usize))
-            .ok_or(OperatingError::NotRun)?;
-        if backend.selector_repetition_failed {
-            return Ok(None);
-        }
-        if views.group >= plans.groups {
-            return Err(OperatingError::NotRun);
-        }
-        Ok(Some(Arc::clone(&views.predicate)))
-    }
-    pub(in crate::application::file_dag) fn select<'f>(
-        &self,
-        program: &Arc<Selector>,
-        source: ColumnsView<'f>,
-        relation_owner: &RelationOwner,
-        publication: &crate::application::file_dag::relations::PublishedInput,
-        proof: &AdmittedInput<'_>,
-        context: &mut OperatorContext<'_>,
-    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, OperatingError>
-    {
-        proof.require_publication(relation_owner, publication.as_ref())?;
-        if !std::ptr::eq(self, &relation_owner.derived)
-            || !crate::application::file_dag::relations::same_admitted_rows(
-                proof.rows(),
-                crate::domain::operator::contract::views::BorrowedRows::Stored(source),
-            )
-        {
-            return Err(OperatingError::NotRead);
-        }
-        let population = proof.identity(relation_owner)?.0;
-        let produced = {
-            let mut backend = self.backend.borrow_mut();
-            let Some(backend) = backend.as_mut() else {
-                return Ok(None);
-            };
-            crate::application::file_dag::derived::owner::selection::select(
-                backend,
-                SelectionSource {
-                    owner: self,
-                    source: relation_owner,
-                    proof,
-                    population,
-                },
-                program,
-                source,
-                context,
-            )?
-        };
-        let Some(produced) = produced else {
-            return Ok(None);
-        };
-        crate::application::file_dag::relations::selection::publish(
-            relation_owner,
-            publication,
-            proof,
-            produced.rows.selection,
-            produced.resources,
-        )
-        .map(Some)
-    }
-}
-
 // Borrow comparison state and count actual visits around the mandatory predicate item.
 
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
@@ -333,6 +283,15 @@ impl PredicateProgram for Decision<'_> {
         )
     }
 }
+type CandidateChooser = fn(
+    &mut CacheBackend,
+    SelectionSource<'_>,
+    &Selector,
+    &PreparedSelectorViews,
+    ColumnsView<'_>,
+    &OperatorContext<'_>,
+) -> Result<(Option<CandidateRows>, SelectionPath), OperatingError>;
+
 pub(in crate::application::file_dag::derived::owner) fn matches(
     cache: &mut CacheBackend,
     resources: SelectionSource<'_>,
@@ -340,12 +299,13 @@ pub(in crate::application::file_dag::derived::owner) fn matches(
     views: &PreparedSelectorViews,
     source: ColumnsView<'_>,
     context: &mut OperatorContext<'_>,
+    choose: CandidateChooser,
 ) -> Result<
     crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
     OperatingError,
 > {
     let acquired = resources.acquire_predicate(cache, &views.predicate, views.group, |cache| {
-        build_matches(cache, resources, program, views, source, context)
+        build_matches(cache, resources, program, views, source, context, choose)
     })?;
     let population = source.columns.first().map_or(0, |column| column.0.len());
     let rows = shared_positions(&acquired, population, population)?;
@@ -365,6 +325,7 @@ fn build_matches(
     views: &PreparedSelectorViews,
     source: ColumnsView<'_>,
     context: &mut OperatorContext<'_>,
+    choose: CandidateChooser,
 ) -> Result<DerivedStorage, OperatingError> {
     let needed = &views.predicate.needed;
     // Preserve the old first invalid predicate-column error before candidate acquisition.
@@ -374,7 +335,7 @@ fn build_matches(
             &[ColumnIndex(u32::try_from(column).unwrap_or(u32::MAX))],
         )?;
     }
-    let (candidates, path) = candidates(cache, resources, program, views, source, context)?;
+    let (candidates, path) = choose(cache, resources, program, views, source, context)?;
     let indexed = candidates.is_some();
     let population = source.columns.first().map_or(0, |column| column.0.len());
     let names = NameCount(name_count(context.symbols.as_ref()).0);
@@ -442,3 +403,40 @@ fn build_matches(
 
 use crate::domain::{operator::contract::views::BorrowedRows, table_model::types::Verdict};
 use ryo_values::domain::{plan_parts::types::ColumnIndex, query_bindings::types::ParameterBinding};
+
+pub(in crate::application::file_dag::derived::owner) fn histogram<'a>(
+    cache: &'a mut CacheBackend,
+    program: &Arc<Selector>,
+) -> Option<&'a mut SelectorHistogram> {
+    let entries = cache.selection_histogram.as_mut()?;
+    let at = entries
+        .iter()
+        .position(|entry| Arc::ptr_eq(&entry.selector, program));
+    let at = at.unwrap_or_else(|| {
+        entries.push(SelectorHistogram::new(program));
+        entries.len() - 1
+    });
+    entries.get_mut(at)
+}
+
+pub(in crate::application::file_dag::derived::owner) fn shared_positions(
+    acquired: &crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
+    population: usize,
+    maximum: usize,
+) -> Result<Arc<Vec<u32>>, OperatingError> {
+    let DerivedView::RowIds(rows) = acquired.view()? else {
+        return Err(OperatingError::WrongOperation);
+    };
+    if rows.len() > maximum
+        || rows.first().is_some_and(|row| *row as usize >= population)
+        || rows.last().is_some_and(|row| *row as usize >= population)
+    {
+        return Err(OperatingError::ShapeMismatch);
+    }
+    let rows = acquired
+        .storage()
+        .payload()
+        .share_positions()
+        .ok_or(OperatingError::WrongOperation)?;
+    Ok(Arc::clone(rows.backing()))
+}

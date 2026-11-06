@@ -126,9 +126,9 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
     let backing = file
         .owner
         .derived
-        .view_weak(ryo_derived::domain::contract::types::DerivedKind::Equality)
+        .view_witness(ryo_derived::domain::contract::types::DerivedKind::Equality)
         .expect("actual equality backing");
-    assert!(backing.upgrade().is_some());
+    assert!(backing.is_alive());
     let builds = file.owner.derived.counts();
     assert_eq!(
         builds.0, 1,
@@ -272,7 +272,7 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
             );
             file.commit_frontier(capture_rule, input)?;
             assert!(
-                backing.upgrade().is_some(),
+                backing.is_alive(),
                 "capture/commit cannot consume another external lease"
             );
             assert_eq!(file.owner.derived.working_bytes(), required);
@@ -300,7 +300,7 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
         "finish releases retained and required resources"
     );
     assert!(
-        backing.upgrade().is_none(),
+        !backing.is_alive(),
         "finish drops the same actual shared backing"
     );
     assert_eq!(

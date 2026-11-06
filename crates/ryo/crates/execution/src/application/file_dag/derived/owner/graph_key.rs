@@ -1,5 +1,6 @@
 //! Immutable canonical map keys; live position compatibility is a separate lookup guard.
-use super::*;
+use crate::domain::derived_views::types::DerivedContract;
+use std::sync::{Arc, Weak};
 /// Selected positions are immutable. A Weak guard prevents address reuse while
 /// retaining no position payload after the last semantic/consumer handle drops.
 #[derive(Clone, Debug)]

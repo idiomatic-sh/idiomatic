@@ -245,7 +245,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
                 .as_ref()
                 .expect("real acquired equality backing");
             if let Some(first) = weak {
-                assert!(std::sync::Weak::ptr_eq(first, backing));
+                assert!(first.same_backing(backing));
             } else {
                 weak = Some(backing);
             }
@@ -288,7 +288,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
         "transferred output survives producer retirement"
     );
     assert!(
-        weak.upgrade().is_none(),
+        !weak.is_alive(),
         "last actual consumer releases the unretained physical index"
     );
     assert_eq!(file.owner.derived.owned_bytes(), 0);

@@ -1,6 +1,6 @@
 //! A demand-scoped immutable input and the one admission decision that belongs to it.
 use super::{BorrowedRows, OperatingError, PhysicalShape, Relation, RelationBody, RelationOwner};
-use crate::application::file_dag::derived::owner::PopulationId;
+use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::domain::table_model::collections::representations::publication::PublishedRelation;
 use std::sync::Arc;
 

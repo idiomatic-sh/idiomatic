@@ -81,9 +81,9 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
     assert_eq!(owner.derived.retained_bytes(), 0);
     let backing = owner
         .derived
-        .view_weak(ryo_derived::domain::contract::types::DerivedKind::Equality)
+        .view_witness(ryo_derived::domain::contract::types::DerivedKind::Equality)
         .expect("actual project equality backing");
-    assert!(backing.upgrade().is_some());
+    assert!(backing.is_alive());
     let mut transferred = vec![];
     for (at, outcome) in outcomes.into_iter().enumerate() {
         let outcome = outcome?;
@@ -149,7 +149,7 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
             );
             assert_eq!(owner.derived.working_bytes(), working);
             assert!(
-                backing.upgrade().is_some(),
+                backing.is_alive(),
                 "another duplicate obligation must retain its actual backing"
             );
         }
@@ -158,7 +158,7 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
     assert_eq!(owner.derived.working_bytes(), 0);
     assert_eq!(owner.derived.owned_bytes(), 0);
     assert!(
-        backing.upgrade().is_none(),
+        !backing.is_alive(),
         "last actual phase release drops restored producer backing"
     );
     assert_eq!(

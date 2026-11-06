@@ -1,5 +1,5 @@
 //! Structural source and invocation records have no facade or evaluation dependency.
-use crate::application::file_dag::derived::owner::PopulationId;
+use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::domain::{
     completion::types::{CoverageState, completion_policy::value::CompletionPolicy},
     executable_program::types::InputSource,

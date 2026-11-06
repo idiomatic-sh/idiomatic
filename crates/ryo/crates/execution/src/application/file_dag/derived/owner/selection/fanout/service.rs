@@ -1,5 +1,30 @@
 //! Active literal metadata is prepared once; only the common owner retains completed postings.
-use super::super::*;
+use crate::application::file_dag::derived::owner::acquisition::selection::service::SelectionSource;
+use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
+use crate::application::file_dag::derived::owner::selection::literals::service::first_literal;
+use crate::application::file_dag::derived::owner::selection::types::*;
+use crate::domain::{
+    derived_views::types::{DerivedContract, ViewRequest},
+    operating::{errors::OperatingError, types::OperatorContext},
+    stored_selection::types::{PreparedSelectionViews, PreparedSelectorViews, Selector},
+    table_model::service::matching_stored,
+    table_texts::types::Texts,
+};
+use ryo_language::domain::symbols::{
+    service::{find_hashed, hash_of},
+    types::ByteSlice,
+};
+use ryo_relations::domain::relations::{
+    service::from_bits,
+    types::{Bits, CellKind, ColumnsView, Integer, Value},
+};
+use ryo_relations::domain::terms::service::symbols_with_text;
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, LiteralText, Operand, QueryLiteral, Test},
+    query_bindings::types::ParameterBinding,
+};
+use std::sync::Arc;
+
 use crate::application::file_dag::derived::owner::cache::types::ActivePostings;
 fn active_bytes(active: &Vec<ActivePostings>) -> Option<usize> {
     active
