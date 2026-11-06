@@ -1,4 +1,5 @@
 //! Finite request descriptors; no executable Plan or mutable worker pool survives.
+use crate::application::file_dag::derived::constants as activation;
 use crate::domain::{
     coverage::types::{Partial, RuleIndex},
     executable_program::types::{ExecutableProgram, InputSource},
@@ -114,8 +115,10 @@ impl PreparedDerived {
         }
         let mut wanted = Vec::new();
         for rule in demanded {
+            tracing::trace!(target: activation::TARGET, event = activation::RELATION_RULE, rule = rule.0);
             let relations = self.relations.get(rule.0).ok_or(OperatingError::NotRun)?;
             for relation in relations.iter() {
+                tracing::trace!(target: activation::TARGET, event = activation::RELATION);
                 if !wanted.contains(relation) {
                     wanted.push(*relation);
                 }

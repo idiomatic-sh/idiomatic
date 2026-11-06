@@ -1,0 +1,294 @@
+//! Real public file opening, observed without allocating in the activation subscriber.
+use ryo_execution::inbound::use_cases::execution::{
+    interface::{ExecutionRequest, ExecutionUseCase, FileExecution},
+    types::*,
+    use_case::ExecutionUseCaseImpl,
+};
+use ryo_language::domain::{
+    elements::types::Elements, files::types::FilePath, symbols::types::Symbols,
+};
+use ryo_relations::domain::relations::{
+    service::kinds,
+    types::{CellKind, FileId, Relation},
+};
+use ryo_values::domain::{
+    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
+    plan_parts::types::{
+        ColumnIndex, Comparison, Direction, Input, JoinColumn, LiteralText, Operand, QueryLiteral,
+        Side, StepId, Test,
+    },
+    plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
+    program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+    rule_requests::types::{RuleParameters, RuleSpec},
+    runs::types::{RuleApplicability, RuleId},
+    stored_facts::types::Digest,
+};
+use std::{
+    cell::Cell,
+    sync::{Arc, Mutex},
+};
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct Sample {
+    /// Rule-relation lookup, relation visit, graph probe, selector-range lookup,
+    /// selector visit, comparison visit, repetition visit, fanout visit.
+    pub work: [u64; 8],
+    /// Actual visited rule indices in relation, graph and selector lookups.
+    pub rule_sums: [u64; 3],
+    pub graph_hits: u64,
+    pub blocks: u64,
+    pub bytes: u64,
+}
+#[derive(Default)]
+struct State {
+    active: bool,
+    starts: usize,
+    ends: usize,
+    before: (u64, u64),
+    sample: Sample,
+}
+// Field values borrow an event only while Visit runs; the event name is copied
+// to a small ordinal instead of storing an event-owned string.
+#[derive(Default)]
+struct EventFields {
+    event: u8,
+    rule: u64,
+    eligible: bool,
+}
+impl tracing::field::Visit for EventFields {
+    fn record_debug(&mut self, _: &tracing::field::Field, _: &dyn std::fmt::Debug) {}
+    fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+        if field.name() == "event" {
+            self.event = match value {
+                "begin" => 1,
+                "end" => 2,
+                "relation_rule" => 3,
+                "relation_visit" => 4,
+                "graph_rule" => 5,
+                "selector_rule" => 6,
+                "selector" => 7,
+                "candidate" => 8,
+                "repetition" => 9,
+                "fanout" => 10,
+                _ => 0,
+            };
+        }
+    }
+    fn record_u64(&mut self, field: &tracing::field::Field, value: u64) {
+        if field.name() == "rule" {
+            self.rule = value;
+        }
+    }
+    fn record_bool(&mut self, field: &tracing::field::Field, value: bool) {
+        if field.name() == "eligible" {
+            self.eligible = value;
+        }
+    }
+}
+#[derive(Clone, Default)]
+struct Activation(Arc<Mutex<State>>);
+impl tracing::Subscriber for Activation {
+    fn register_callsite(
+        &self,
+        _: &'static tracing::Metadata<'static>,
+    ) -> tracing::subscriber::Interest {
+        tracing::subscriber::Interest::sometimes()
+    }
+    fn max_level_hint(&self) -> Option<tracing::metadata::LevelFilter> {
+        Some(tracing::metadata::LevelFilter::TRACE)
+    }
+    fn enabled(&self, metadata: &tracing::Metadata<'_>) -> bool {
+        metadata.target() == "ryo::diagnostic::activation"
+    }
+    fn new_span(&self, _: &tracing::span::Attributes<'_>) -> tracing::span::Id {
+        tracing::span::Id::from_u64(1)
+    }
+    fn record(&self, _: &tracing::span::Id, _: &tracing::span::Record<'_>) {}
+    fn record_follows_from(&self, _: &tracing::span::Id, _: &tracing::span::Id) {}
+    fn event(&self, event: &tracing::Event<'_>) {
+        let mut fields = EventFields::default();
+        event.record(&mut fields);
+        let mut state = self.0.lock().unwrap();
+        if fields.event == 1 {
+            assert!(!state.active);
+            let heap = dhat::HeapStats::get();
+            state.before = (heap.total_blocks, heap.total_bytes);
+            state.sample = Sample::default();
+            state.starts += 1;
+            state.active = true;
+        } else if fields.event == 2 {
+            assert!(state.active);
+            let heap = dhat::HeapStats::get();
+            state.sample.blocks = heap.total_blocks - state.before.0;
+            state.sample.bytes = heap.total_bytes - state.before.1;
+            state.ends += 1;
+            state.active = false;
+        } else if state.active && (3..=10).contains(&fields.event) {
+            state.sample.work[usize::from(fields.event - 3)] += 1;
+            match fields.event {
+                3 => state.sample.rule_sums[0] += fields.rule,
+                5 => {
+                    state.sample.rule_sums[1] += fields.rule;
+                    state.sample.graph_hits += u64::from(fields.eligible);
+                }
+                6 => state.sample.rule_sums[2] += fields.rule,
+                _ => {}
+            }
+        }
+    }
+    fn enter(&self, _: &tracing::span::Id) {}
+    fn exit(&self, _: &tracing::span::Id) {}
+}
+
+fn plan(index: usize) -> Plan {
+    let node = ColumnIndex(0);
+    let operation = if index % 2 == 1 {
+        Operation::Axis {
+            from: Input::Relation(Relation::Function),
+            edges: Input::Relation(Relation::SyntaxChild),
+            domain: Input::Relation(Relation::SyntaxTree),
+            direction: Direction::Descendant,
+            id: node,
+            parent: node,
+            child: ColumnIndex(1),
+            domain_id: node,
+            domain_filter: vec![],
+            domain_view: vec![],
+            output: vec![JoinColumn {
+                side: Side::Left,
+                column: node,
+            }],
+        }
+    } else {
+        let name = ColumnIndex(
+            u32::try_from(
+                kinds(Relation::Function)
+                    .iter()
+                    .position(|kind| *kind == CellKind::Symbol)
+                    .unwrap(),
+            )
+            .unwrap(),
+        );
+        Operation::Select {
+            from: Input::Relation(Relation::Function),
+            comparisons: vec![Comparison {
+                test: Test::Equal,
+                left: Operand::Column(name),
+                right: Operand::Literal(QueryLiteral::Text(LiteralText(
+                    format!("{index:08}").into(),
+                ))),
+                origin: None,
+            }],
+            kept: vec![node],
+        }
+    };
+    Plan {
+        parameters: vec![],
+        observation_inputs: vec![],
+        observations: vec![],
+        steps: vec![PlanStep {
+            scope: StepScope::PerFile,
+            operation,
+        }],
+        comparison_origins: vec![],
+        frontier: vec![],
+        emit: Emit {
+            step: StepId(0),
+            subject: node,
+            key: vec![],
+            headings: vec![],
+        },
+    }
+}
+
+/// Only declared relevant intents change; the installed engine and public entry stay identical.
+pub(super) fn measure(total: usize, demanded: &[usize]) -> Sample {
+    let engine = ExecutionUseCaseImpl::new(
+        Arc::new(
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+        ),
+        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+    );
+    let prepared = engine
+        .prepare(PreparedRequest {
+            plans: (0..total).map(plan).collect(),
+            bindings: vec![vec![]; total],
+            rules: (0..total)
+                .map(|index| RuleSpec {
+                    id: RuleId(format!("activation-{index}").into()),
+                    query: QueryBundle {
+                        root: QueryDocumentSource {
+                            id: QuerySourceId(format!("activation-{index}").into()),
+                            text: "".into(),
+                        },
+                        modules: Default::default(),
+                    },
+                    applicability: RuleApplicability::Always,
+                    given: vec![],
+                    observations: vec![],
+                    spelled: RuleParameters("".into()),
+                    include: vec![],
+                    exclude: vec![],
+                })
+                .collect(),
+            digests: (0..total).map(|index| Digest([index as u8; 16])).collect(),
+            hosted: vec![],
+            observations: ObservationIdentity::Independent,
+        })
+        .unwrap();
+    let corpus = [CorpusInput::Available(CorpusEntry {
+        executable: ExecutablePermission::Unknown,
+        path: FilePath("activation.fixture".into()),
+        size: FileSize(0),
+        modified: Nanoseconds(0),
+    })];
+    let request = engine.begin(&prepared, &corpus);
+    let mut intents = vec![FileRuleIntent::Undemanded; total];
+    for &index in demanded {
+        intents[index] = FileRuleIntent::Run {
+            diagnostic: DiagnosticDelivery::Collected,
+            observations: ObservationDemand::NotRequired,
+            capture: CaptureIntent::Disabled,
+        };
+    }
+    let reads = Cell::new(0);
+    let read = |_| {
+        reads.set(reads.get() + 1);
+        Err(OperatingError::NotRead)
+    };
+    let elements = Elements::default();
+    let observed = Activation::default();
+    let dispatch = tracing::Dispatch::new(observed.clone());
+    // The first actual opening warms callsite registration and the allocator's
+    // own metadata. The second sees exactly the same real request and intents.
+    for _ in 0..2 {
+        tracing::dispatcher::with_default(&dispatch, || {
+            let mut symbols = Symbols::default();
+            let file = request
+                .open_file(
+                    FileInput {
+                        language: SourceLanguage::Recognized,
+                        resident_stability: facts::ResidentStability::Stable,
+                        file: FileId(0),
+                        evaluation: &[],
+                        publication: &[],
+                        intents: &intents,
+                        source: b"",
+                        elements: &elements,
+                        read: &read,
+                        semantic: None,
+                        kinds: None,
+                    },
+                    &mut symbols,
+                )
+                .unwrap();
+            assert_eq!(file.readiness_counts().evaluations.0, 0);
+            file.finish().unwrap();
+        });
+    }
+    assert_eq!(reads.get(), 0, "activation must not evaluate a provider");
+    request.finish();
+    let state = observed.0.lock().unwrap();
+    assert_eq!((state.starts, state.ends, state.active), (2, 2, false));
+    state.sample
+}

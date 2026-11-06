@@ -1,4 +1,5 @@
 //! Active literal metadata is prepared once; only the common owner retains completed postings.
+use crate::application::file_dag::derived::constants as activation;
 use crate::application::file_dag::derived::owner::acquisition::selection::service::SelectionSource;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::owner::selection::literals::service::first_literal;
@@ -58,6 +59,7 @@ pub(in crate::application::file_dag::derived::owner::selection) fn prepare_activ
     };
     let mut groups = std::collections::BTreeMap::<(_, _), Vec<LiteralText>>::new();
     for selector in &cache.selectors {
+        tracing::trace!(target: activation::TARGET, event = activation::FANOUT);
         let Some(prepared) = views.by_selector.get(&(Arc::as_ptr(selector) as usize)) else {
             continue;
         };

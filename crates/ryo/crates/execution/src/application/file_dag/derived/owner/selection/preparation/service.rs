@@ -1,4 +1,5 @@
 //! Request preparation and bounded activation; never rebuild descriptors in a row path.
+use crate::application::file_dag::derived::constants as activation;
 use crate::application::file_dag::derived::owner::acquisition::selection::service::SelectionSource;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::owner::selection::literals::service::first_literal;
@@ -158,8 +159,12 @@ pub(in crate::application::file_dag::derived::owner) fn activate_program(
     let mut selectors = Vec::new();
     for use_ in demanded
         .iter()
-        .flat_map(|rule| prepared.selectors[prepared.selector_ranges[rule.0].clone()].iter())
+        .flat_map(|rule| {
+            tracing::trace!(target: activation::TARGET, event = activation::SELECTOR_RULE, rule = rule.0);
+            prepared.selectors[prepared.selector_ranges[rule.0].clone()].iter()
+        })
     {
+        tracing::trace!(target: activation::TARGET, event = activation::SELECTOR);
         if !cache.eligible.contains(&use_.selector.relation) {
             continue;
         }
@@ -211,6 +216,7 @@ pub(in crate::application::file_dag::derived::owner) fn install_views(
         .is_ok()
     {
         for selector in &cache.selectors {
+            tracing::trace!(target: activation::TARGET, event = activation::REPETITION);
             if let Some(prepared) = views.by_selector.get(&(Arc::as_ptr(selector) as usize)) {
                 if prepared.group >= views.groups {
                     cache.selector_repetition.clear();
