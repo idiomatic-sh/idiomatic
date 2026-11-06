@@ -1,6 +1,6 @@
 //! Refusals raised while linking a parsed query bundle.
 
-use ryo_values::domain::program::types::QueryOrigin;
+use ryo_values::domain::query_tokens::types::QueryOrigin;
 
 /// Why a parsed query bundle does not link.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

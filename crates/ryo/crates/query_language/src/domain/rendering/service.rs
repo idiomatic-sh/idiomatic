@@ -23,10 +23,10 @@ use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::terms::types::Vocabulary;
 use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plans::types::Operation;
-use ryo_values::domain::program::types::ArgumentValue;
-use ryo_values::domain::program::types::Call;
-use ryo_values::domain::program::types::QuerySpelling;
-use ryo_values::domain::program::types::StepName;
+use ryo_values::domain::query_syntax::types::ArgumentValue;
+use ryo_values::domain::query_syntax::types::Call;
+use ryo_values::domain::query_tokens::types::QuerySpelling;
+use ryo_values::domain::query_tokens::types::StepName;
 
 fn semantic_arguments(call: &Call, allowed: &[ArgumentSlot]) -> Result<(), LoweringError> {
     for (at, argument) in call.arguments.iter().enumerate() {
@@ -176,8 +176,8 @@ pub(crate) fn call_fits_rendered(
                 .map(|literal| LiteralText(literal.0))
                 .collect(),
             span,
-            max_line: ryo_values::domain::plans::types::MaxLine(max_line.0),
-            tab_width: ryo_values::domain::plans::types::TabWidth(tab_width),
+            max_line: ryo_values::domain::query_operators::types::MaxLine(max_line.0),
+            tab_width: ryo_values::domain::query_operators::types::TabWidth(tab_width),
         },
         fields,
     );

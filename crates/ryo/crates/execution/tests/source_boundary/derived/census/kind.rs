@@ -15,11 +15,23 @@ pub(super) struct Route {
     pub(super) identity: (&'static str, &'static str),
 }
 const STORED: &[(&str, &str)] = &[
-    ("lifecycle/test.rs", "every_family_leaves_through_its_production_entry_on_success_cancellation_and_error"),
-    ("lifecycle/test.rs", "every_family_releases_its_last_consumer_on_success_cancellation_and_error"),
+    (
+        "lifecycle/test.rs",
+        "every_family_leaves_through_its_production_entry_on_success_cancellation_and_error",
+    ),
+    (
+        "lifecycle/test.rs",
+        "every_family_releases_its_last_consumer_on_success_cancellation_and_error",
+    ),
 ];
-const IDENTITY: (&str, &str) = ("identity/test.rs", "every_family_refuses_every_mismatched_capability");
-const RAW_EXITS: &[(&str, &str)] = &[("lifecycle/test.rs", "every_family_releases_its_last_consumer_on_success_cancellation_and_error")];
+const IDENTITY: (&str, &str) = (
+    "identity/test.rs",
+    "every_family_refuses_every_mismatched_capability",
+);
+const RAW_EXITS: &[(&str, &str)] = &[(
+    "lifecycle/test.rs",
+    "every_family_releases_its_last_consumer_on_success_cancellation_and_error",
+)];
 pub(super) fn route(kind: DerivedKind) -> Route {
     let stored = |entries: &'static [Entry]| Route {
         entries,
@@ -32,7 +44,11 @@ pub(super) fn route(kind: DerivedKind) -> Route {
             lifecycle: RAW_EXITS,
             identity: IDENTITY,
         },
-        DerivedKind::Equality => stored(&[Entry::AdmitView, Entry::AcquireStored, Entry::AcquireStoredWithRoute]),
+        DerivedKind::Equality => stored(&[
+            Entry::AdmitView,
+            Entry::AcquireStored,
+            Entry::AcquireStoredWithRoute,
+        ]),
         DerivedKind::PredicateMatches
         | DerivedKind::CandidatePostings
         | DerivedKind::DistinctRepresentatives => stored(&[
@@ -41,8 +57,19 @@ pub(super) fn route(kind: DerivedKind) -> Route {
             Entry::PrepareProgramFile,
             Entry::PrepareViewsWithSchemas,
         ]),
-        DerivedKind::Adjacency => stored(&[Entry::PrepareGraph, Entry::AcquireGraph, Entry::DemandAnswers, Entry::GraphRow, Entry::Reach, Entry::Axis]),
-        DerivedKind::Membership => stored(&[Entry::AcquireGraphDomain, Entry::DemandAnswers, Entry::Nearest]),
+        DerivedKind::Adjacency => stored(&[
+            Entry::PrepareGraph,
+            Entry::AcquireGraph,
+            Entry::DemandAnswers,
+            Entry::GraphRow,
+            Entry::Reach,
+            Entry::Axis,
+        ]),
+        DerivedKind::Membership => stored(&[
+            Entry::AcquireGraphDomain,
+            Entry::DemandAnswers,
+            Entry::Nearest,
+        ]),
         DerivedKind::PartitionOrder => stored(&[Entry::AdmitView, Entry::AcquireStored]),
         DerivedKind::ClosureAdjacency => stored(&[Entry::AdmitPartition, Entry::ScopedBuild]),
         DerivedKind::CycleAdjacency | DerivedKind::OrderedKeys | DerivedKind::OrderedDfs => {

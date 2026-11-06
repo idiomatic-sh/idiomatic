@@ -6,8 +6,12 @@ pub(super) const CACHE: &str = "src/application/file_dag/derived/owner/cache/typ
 /// Every non-test field of the backend, read from its declaration, so a new field is probed
 /// individually and a public field is refused by its own probe.
 fn cache_fields() -> Vec<String> {
-    let source = std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(CACHE)).unwrap();
-    let start = source.find("struct CacheBackend {").expect("CacheBackend is declared in its source");
+    let source =
+        std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(CACHE))
+            .unwrap();
+    let start = source
+        .find("struct CacheBackend {")
+        .expect("CacheBackend is declared in its source");
     let lines: Vec<&str> = source[start..].lines().skip(1).collect();
     let mut fields = Vec::new();
     for (at, line) in lines.iter().enumerate() {
@@ -15,7 +19,9 @@ fn cache_fields() -> Vec<String> {
         if trimmed == "}" {
             break;
         }
-        if !(trimmed.starts_with("pub(") || trimmed.starts_with("pub ")) || !line.starts_with("    pub") {
+        if !(trimmed.starts_with("pub(") || trimmed.starts_with("pub "))
+            || !line.starts_with("    pub")
+        {
             continue;
         }
         if at > 0 && lines[at - 1].trim() == "#[cfg(test)]" {
@@ -25,7 +31,10 @@ fn cache_fields() -> Vec<String> {
         let name = after.split(':').next().unwrap().trim();
         fields.push(name.to_owned());
     }
-    assert!(fields.len() >= 21, "the backend declares at least the 21 fields known at the review: {fields:?}");
+    assert!(
+        fields.len() >= 21,
+        "the backend declares at least the 21 fields known at the review: {fields:?}"
+    );
     fields
 }
 const CONTRACT_UPDATE: &str = r#"
@@ -126,7 +135,11 @@ fn refuse(
 
 pub(super) fn controls(root: &'static str, module: &'static str) -> Vec<Probe> {
     let fields = cache_fields();
-    let field_reads = fields.iter().map(|field| format!("let _ = &cache.{field};")).collect::<Vec<_>>().join(" ");
+    let field_reads = fields
+        .iter()
+        .map(|field| format!("let _ = &cache.{field};"))
+        .collect::<Vec<_>>()
+        .join(" ");
     let mut probes = vec![
         refuse(root, CONTRACT_UPDATE.into(), "E0451", "identity_hash", "private"),
         refuse(root, CONTRACT_READ.into(), "E0616", "identity_hash", "private"),

@@ -4,9 +4,8 @@ use super::service::{scalar_matches, substitute_value};
 use super::types::{Bindings, FragmentBindingKey, ScalarMatch};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_relations::domain::relations::types::Integer;
-use ryo_values::domain::program::types::{
-    ArgumentValue, TypeName, WrittenLiteral, WrittenParameter,
-};
+use ryo_values::domain::query_tokens::types::{TypeName, WrittenLiteral, WrittenParameter};
+use ryo_values::domain::query_syntax::types::ArgumentValue;
 
 /// What a row asks of the service.
 #[derive(Clone, Copy)]

@@ -1,6 +1,6 @@
 //! The types of the `validation` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use ryo_values::domain::program::types::StepName;
+use ryo_values::domain::query_tokens::types::StepName;
 
 /// Whether the linker has given the program's step references their identities.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -7,11 +7,12 @@ use ryo_relations::domain::relations::types::Relation;
 
 use super::constants::operator_named;
 use super::types::{ArgumentRole, ArgumentSlot, OperationShape};
-use ryo_values::domain::plans::types::QueryOperator;
-use ryo_values::domain::program::types::{
-    ArgumentName, ArgumentValue, Expression, Joining, OperationName, SourceReference,
-    WrittenProgram,
+use ryo_values::domain::program::types::WrittenProgram;
+use ryo_values::domain::query_operators::types::QueryOperator;
+use ryo_values::domain::query_syntax::types::{
+    ArgumentValue, Expression, Joining, SourceReference,
 };
+use ryo_values::domain::query_tokens::types::{ArgumentName, OperationName};
 
 /// The operations a query can call, besides `select`.
 const SHAPES: [OperationShape; 24] = [

@@ -27,11 +27,11 @@ use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     plan_parts::types::{
-        ColumnIndex, PlanComparison, Input as PlanInput, JoinColumn, LiteralText, Operand,
+        ColumnIndex, Input as PlanInput, JoinColumn, LiteralText, Operand, PlanComparison,
         QueryLiteral, RepeatedRows, Side, StepId, StepScope, Test,
     },
     plans::types::{Emit, Operation, Plan, PlanStep},
-    program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+    query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
     rows::types::{RowCount, Table},
     runs::types::{RuleApplicability, RuleId},
     stored_facts::types::Digest,

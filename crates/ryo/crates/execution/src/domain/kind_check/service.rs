@@ -13,7 +13,7 @@ use crate::domain::table_texts::types::TextView;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindWord};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, PlanComparison, Input, Operand, ParameterId, QueryLiteral, Test,
+    ColumnIndex, Input, Operand, ParameterId, PlanComparison, QueryLiteral, Test,
 };
 use ryo_values::domain::plans::types::{Operation, Plan};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
@@ -52,7 +52,7 @@ pub(crate) fn kinds_asked(plan: &Plan, bound: &[ParameterBinding]) -> Vec<AskedK
 /// The words of the comparisons of the kind column, added to `asked`.
 fn asked_in(
     comparisons: &[PlanComparison],
-    origins: &[ryo_values::domain::program::types::QueryOrigin],
+    origins: &[ryo_values::domain::query_tokens::types::QueryOrigin],
     bound: &[ParameterBinding],
     asked: &mut Vec<AskedKind>,
 ) {

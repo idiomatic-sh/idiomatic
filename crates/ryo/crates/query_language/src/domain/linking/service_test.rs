@@ -4,8 +4,9 @@ use super::errors::LinkingError;
 use super::service::{located, source_id};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::selects;
-use ryo_values::domain::program::types::{
-    ByteOffset, ImportDeclaration, QuerySourceId, QuerySpan, WrittenLiteral, WrittenName,
+use ryo_values::domain::program::types::ImportDeclaration;
+use ryo_values::domain::query_tokens::types::{
+    ByteOffset, QuerySourceId, QuerySpan, WrittenLiteral, WrittenName,
 };
 
 /// What a row asks of the service.

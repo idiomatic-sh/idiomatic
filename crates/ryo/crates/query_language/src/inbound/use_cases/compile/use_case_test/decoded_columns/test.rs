@@ -9,9 +9,9 @@ use crate::domain::syntax::constants::parameter_kind_named;
 use crate::outbound::syntax::fixtures::winnow::winnow;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::PlanComparison;
-use ryo_values::domain::program::types::Condition;
-use ryo_values::domain::program::types::Expression;
-use ryo_values::domain::program::types::QueryView;
+use ryo_values::domain::query_syntax::types::Condition;
+use ryo_values::domain::query_syntax::types::Expression;
+use ryo_values::domain::query_tokens::types::QueryView;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::lowering::errors::LoweringError;

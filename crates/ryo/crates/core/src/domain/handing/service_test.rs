@@ -47,7 +47,7 @@ fn stored() -> Stored {
 /// What a file hands: words in the buckets 1 and 2, a text, notes and the rules that govern it.
 fn handed() -> Handed {
     Handed {
-        observations: ryo_values::domain::records::types::NamedReadiness::Unrecorded,
+        observations: ryo_values::domain::records::types::HandedReadiness::Unrecorded,
         buckets: vec![
             HandedWords {
                 bucket: Bucket(1),
@@ -206,7 +206,10 @@ fn staged_descriptors_move_without_reading_unwanted_payloads_and_keep_fresh_orde
         [vec![1], vec![2]]
     );
     assert_eq!(staged.len(), 1);
-    assert_eq!(staged[0].ordinal, ryo_values::domain::records::types::StagedOrdinal(1));
+    assert_eq!(
+        staged[0].ordinal,
+        ryo_values::domain::records::types::StagedOrdinal(1)
+    );
     assert_eq!(staged[0].file, StoredFileNumber(2));
     assert_eq!(staged[0].words, span);
 }

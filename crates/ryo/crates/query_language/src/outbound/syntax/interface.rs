@@ -2,7 +2,8 @@
 
 use super::errors::SyntaxError;
 use ryo_values::domain::descriptions::types::Grammar;
-use ryo_values::domain::program::types::{ParsedQueryBundle, WrittenProgram, QueryBundle, QueryView};
+use ryo_values::domain::program::types::{ParsedQueryBundle, WrittenProgram};
+use ryo_values::domain::query_tokens::types::{QueryBundle, QueryView};
 
 /// What every `syntax` adapter implements.
 pub trait SyntaxPort: Send + Sync {

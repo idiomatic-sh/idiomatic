@@ -44,6 +44,14 @@ The values domain's `query_bindings` concept: The immutable bindings a host hand
 
 The values domain's `query_operators` concept: the operators of the engine, the kinds of operation a plan holds and the output choices of their steps.
 
+### `query_syntax`
+
+The values domain's `query_syntax` concept: the expressions, conditions and sources a RyoQL step is written with.
+
+### `query_tokens`
+
+The values domain's `query_tokens` concept: the spans, names and sources RyoQL text is written from, and where a node came from.
+
 ### records
 
 The values domain's `records` concept: what a run kept of each file, and of the repository, and the typed `Cell` a row of the answer holds: a file, a text, a number or a span, never turned into text before the command line prints it.

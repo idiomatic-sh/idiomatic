@@ -19,25 +19,25 @@ use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::hosted::types::HostedRelation;
 use ryo_values::domain::observations::types::BoundObservationInput;
 use ryo_values::domain::plan_parts::types::QueryText;
-use ryo_values::domain::program::types::Alias;
-use ryo_values::domain::program::types::ByteOffset;
-use ryo_values::domain::program::types::Columns;
-use ryo_values::domain::program::types::Condition;
-use ryo_values::domain::program::types::Expression;
-use ryo_values::domain::program::types::Filter;
-use ryo_values::domain::program::types::Joining;
 use ryo_values::domain::program::types::LetStep;
-use ryo_values::domain::program::types::QuerySource;
-use ryo_values::domain::program::types::QuerySpan;
-use ryo_values::domain::program::types::Select;
-use ryo_values::domain::program::types::SourceReference;
-use ryo_values::domain::program::types::StepName;
 use ryo_values::domain::program::types::WrittenEmit;
-use ryo_values::domain::program::types::WrittenLiteral;
-use ryo_values::domain::program::types::WrittenOperand;
 use ryo_values::domain::program::types::WrittenProgram;
-use ryo_values::domain::program::types::WrittenRelation;
-use ryo_values::domain::program::types::WrittenTest;
+use ryo_values::domain::query_syntax::types::Alias;
+use ryo_values::domain::query_syntax::types::Columns;
+use ryo_values::domain::query_syntax::types::Condition;
+use ryo_values::domain::query_syntax::types::Expression;
+use ryo_values::domain::query_syntax::types::Filter;
+use ryo_values::domain::query_syntax::types::Joining;
+use ryo_values::domain::query_syntax::types::QuerySource;
+use ryo_values::domain::query_syntax::types::Select;
+use ryo_values::domain::query_syntax::types::SourceReference;
+use ryo_values::domain::query_syntax::types::WrittenOperand;
+use ryo_values::domain::query_syntax::types::WrittenTest;
+use ryo_values::domain::query_tokens::types::ByteOffset;
+use ryo_values::domain::query_tokens::types::QuerySpan;
+use ryo_values::domain::query_tokens::types::StepName;
+use ryo_values::domain::query_tokens::types::WrittenLiteral;
+use ryo_values::domain::query_tokens::types::WrittenRelation;
 use std::sync::Arc;
 
 /// What a row gives the use case.
@@ -64,7 +64,7 @@ fn read_function(filters: Vec<Filter>) -> LetStep {
     LetStep {
         name: StepName(
             "functions".into(),
-            ryo_values::domain::program::types::StepIdentified::Unassigned,
+            ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
         ),
         expression: Expression::Select(Select {
             columns: Columns::Every,
@@ -82,19 +82,19 @@ fn read_function(filters: Vec<Filter>) -> LetStep {
 
 fn program_with(filters: Vec<Filter>) -> WrittenProgram {
     WrittenProgram {
-        linked: ryo_values::domain::program::types::Linking::Unlinked,
+        linked: ryo_values::domain::query_tokens::types::Linking::Unlinked,
         imports: Vec::new(),
         origins: Vec::new(),
         fragment_contracts: Vec::new(),
         step_origins: std::collections::BTreeMap::new(),
         observations: Vec::new(),
-        emit_origin: ryo_values::domain::program::types::Attribution::Unlocated,
+        emit_origin: ryo_values::domain::query_tokens::types::Attribution::Unlocated,
         parameters: Vec::new(),
         steps: vec![read_function(filters)],
         emit: WrittenEmit {
             step: StepName(
                 "functions".into(),
-                ryo_values::domain::program::types::StepIdentified::Unassigned,
+                ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
             ),
             subject: ColumnName("file".into()),
             key: vec![ColumnName("span".into())],
@@ -164,7 +164,7 @@ fn emitting_a_step_nobody_defined() -> Given {
     let mut program = program_with(Vec::new());
     program.emit.step = StepName(
         "later".into(),
-        ryo_values::domain::program::types::StepIdentified::Unassigned,
+        ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
     );
     Given {
         syntax: SyntaxFake { program },
@@ -297,7 +297,9 @@ fn compile_twice(given: Given) -> Result<Value, Failure> {
     let use_case = CompileUseCaseImpl::new(Arc::new(given.syntax), Arc::new(given.catalog));
     let request = CompileRequest {
         observations: given.observations,
-        text: ryo_values::domain::program::types::QueryBundle::from(QueryText(given.text.into())),
+        text: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(
+            given.text.into(),
+        )),
         hosted: given.hosted,
     };
     let first = use_case.compile(request.clone())?;

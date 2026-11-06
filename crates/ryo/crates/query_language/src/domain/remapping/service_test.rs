@@ -6,8 +6,9 @@ use crate::domain::binding::types::{Bindings, FragmentBindingKey};
 use crate::domain::linking::errors::LinkingError;
 use crate::selects;
 use ryo_relations::domain::relations::types::Integer;
-use ryo_values::domain::program::types::{
-    ArgumentValue, ByteOffset, QuerySourceId, QuerySpan, WrittenOperand, WrittenParameter,
+use ryo_values::domain::query_syntax::types::{ArgumentValue, WrittenOperand};
+use ryo_values::domain::query_tokens::types::{
+    ByteOffset, QuerySourceId, QuerySpan, WrittenParameter,
 };
 
 /// What a row asks of the service.

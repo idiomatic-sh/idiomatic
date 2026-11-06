@@ -4,14 +4,14 @@ use crate::domain::linking::errors::LinkingError;
 use crate::domain::linking::service::located;
 use crate::domain::syntax::constants::BOOLEAN_WORDS;
 use crate::domain::syntax::constants::fragment_scalar_kind_named;
-use ryo_values::domain::plans::types::ParameterType;
-use ryo_values::domain::program::types::Argument;
-use ryo_values::domain::program::types::ArgumentValue;
-use ryo_values::domain::program::types::Call;
+use ryo_values::domain::query_bindings::types::ParameterType;
+use ryo_values::domain::query_syntax::types::Argument;
+use ryo_values::domain::query_syntax::types::ArgumentValue;
+use ryo_values::domain::query_syntax::types::Call;
 use ryo_values::domain::program::types::FragmentProgram;
 use ryo_values::domain::program::types::LetStep;
-use ryo_values::domain::program::types::QuerySourceId;
-use ryo_values::domain::program::types::QueryTraceSite;
+use ryo_values::domain::query_tokens::types::QuerySourceId;
+use ryo_values::domain::query_tokens::types::QueryTraceSite;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use super::types::{Bindings, BoundArguments, FragmentBindingKey, ScalarMatch};
@@ -150,7 +150,7 @@ pub(crate) fn bind_relation_argument(
 
 /// Checks a fragment scalar argument against its declared parameter type.
 pub(crate) fn scalar_matches(
-    kind: &ryo_values::domain::program::types::TypeName,
+    kind: &ryo_values::domain::query_tokens::types::TypeName,
     value: &ArgumentValue,
     root_parameters: &[ryo_values::domain::program::types::ParameterDeclaration],
 ) -> ScalarMatch {
@@ -219,7 +219,7 @@ pub(crate) fn substitute_argument_value(value: &mut ArgumentValue, bindings: &Bi
 pub(crate) fn unbound_parameter<'a>(
     value: &'a ArgumentValue,
     bindings: &Bindings,
-) -> Option<&'a ryo_values::domain::program::types::WrittenParameter> {
+) -> Option<&'a ryo_values::domain::query_tokens::types::WrittenParameter> {
     match value {
         ArgumentValue::Parameter(parameter) => {
             (!bindings.0.contains_key(&*parameter.0)).then_some(parameter)

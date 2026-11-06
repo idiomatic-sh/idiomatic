@@ -4,10 +4,13 @@ use super::service::{imports_for, validate_step_names};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::linking::errors::LinkingError;
 use crate::selects;
-use ryo_values::domain::program::types::{
-    Alias, ByteOffset, Columns, Expression, ImportDeclaration, Joining, LetStep, QuerySource,
-    QuerySourceId, QuerySpan, Select, SourceReference, StepIdentified, StepName, WrittenLiteral,
-    WrittenName, WrittenRelation,
+use ryo_values::domain::program::types::{ImportDeclaration, LetStep};
+use ryo_values::domain::query_syntax::types::{
+    Alias, Columns, Expression, Joining, QuerySource, Select, SourceReference,
+};
+use ryo_values::domain::query_tokens::types::{
+    ByteOffset, QuerySourceId, QuerySpan, StepIdentified, StepName, WrittenLiteral, WrittenName,
+    WrittenRelation,
 };
 
 /// What a row asks of the service.
@@ -86,9 +89,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
         Scenario::DistinctSteps => validate_step_names(&root, &[step("one"), step("two")]),
         Scenario::RepeatedStep => validate_step_names(&root, &[step("one"), step("one")]),
-        Scenario::RepeatedAlias => {
-            imports_for(&root, &[import("one"), import("two")]).map(|_| ())
-        }
+        Scenario::RepeatedAlias => imports_for(&root, &[import("one"), import("two")]).map(|_| ()),
     }
 }
 

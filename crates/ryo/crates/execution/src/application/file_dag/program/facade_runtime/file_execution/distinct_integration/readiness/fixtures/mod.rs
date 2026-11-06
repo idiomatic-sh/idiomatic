@@ -11,7 +11,7 @@ use crate::domain::{
     executable_program::types::{Instruction, LogicalInstruction},
     operating::types::Emit as RowSink,
 };
-use ryo_values::domain::plan_parts::types::{PlanComparison, Operand, QueryLiteral, Test};
+use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
 use std::{
     cell::Cell as Counter,
     collections::{BTreeMap, BTreeSet},

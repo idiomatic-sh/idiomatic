@@ -1,6 +1,6 @@
 //! The `compile` use case's failures.
 
-use ryo_values::domain::program::types::{QueryOrigin, QuerySpan};
+use ryo_values::domain::query_tokens::types::{QueryOrigin, QuerySpan};
 
 /// Why `compile` failed: the text `validate` refuses is refused the same way.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

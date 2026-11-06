@@ -43,7 +43,7 @@ impl QueryLanguageUseCaseAdapter {
 impl QueryLanguagePort for QueryLanguageUseCaseAdapter {
     fn validate(
         &self,
-        bundle: &ryo_values::domain::program::types::QueryBundle,
+        bundle: &ryo_values::domain::query_tokens::types::QueryBundle,
         hosted: &[hosted::HostedRelation],
         observations: &[ryo_values::domain::observations::types::BoundObservationInput],
     ) -> Result<ValidateReport, QueryLanguageError> {
@@ -61,7 +61,7 @@ impl QueryLanguagePort for QueryLanguageUseCaseAdapter {
 
     fn compile(
         &self,
-        bundle: &ryo_values::domain::program::types::QueryBundle,
+        bundle: &ryo_values::domain::query_tokens::types::QueryBundle,
         hosted: &[hosted::HostedRelation],
         observations: &[ryo_values::domain::observations::types::BoundObservationInput],
     ) -> Result<plans::Plan, QueryLanguageError> {
@@ -85,8 +85,8 @@ fn refused(
     mut error: ryo_query_language::inbound::use_cases::compile::errors::CompileError,
 ) -> parts::RefusedQuery {
     use ryo_query_language::inbound::use_cases::compile::errors::CompileError;
-    let mut origin = ryo_values::domain::program::types::Attribution::Unlocated;
-    let span = |at: ryo_values::domain::program::types::QuerySpan| Span {
+    let mut origin = ryo_values::domain::query_tokens::types::Attribution::Unlocated;
+    let span = |at: ryo_values::domain::query_tokens::types::QuerySpan| Span {
         start: offset(at.start),
         end: offset(at.end),
     };
@@ -100,7 +100,7 @@ fn refused(
                 origin: found,
                 error: inner,
             } => {
-                origin = ryo_values::domain::program::types::Attribution::Located(found);
+                origin = ryo_values::domain::query_tokens::types::Attribution::Located(found);
                 error = *inner;
             }
             CompileError::Syntax { span: at, message } => {
@@ -136,8 +136,8 @@ fn invalid(
     mut error: ryo_query_language::inbound::use_cases::typecheck::errors::TypecheckError,
 ) -> parts::RefusedQuery {
     use ryo_query_language::inbound::use_cases::typecheck::errors::TypecheckError;
-    let mut origin = ryo_values::domain::program::types::Attribution::Unlocated;
-    let span = |at: ryo_values::domain::program::types::QuerySpan| Span {
+    let mut origin = ryo_values::domain::query_tokens::types::Attribution::Unlocated;
+    let span = |at: ryo_values::domain::query_tokens::types::QuerySpan| Span {
         start: offset(at.start),
         end: offset(at.end),
     };
@@ -151,7 +151,7 @@ fn invalid(
                 origin: found,
                 error: inner,
             } => {
-                origin = ryo_values::domain::program::types::Attribution::Located(found);
+                origin = ryo_values::domain::query_tokens::types::Attribution::Located(found);
                 error = *inner;
             }
             TypecheckError::Syntax { span: at, message } => {
@@ -183,6 +183,6 @@ fn invalid(
 }
 
 /// A byte offset of the text, as the engine names an offset: four bytes, the largest when the text is longer.
-fn offset(at: ryo_values::domain::program::types::ByteOffset) -> Offset {
+fn offset(at: ryo_values::domain::query_tokens::types::ByteOffset) -> Offset {
     Offset(u32::try_from(at.0).unwrap_or(u32::MAX))
 }

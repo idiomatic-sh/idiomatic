@@ -15,7 +15,7 @@ use ryo_values::domain::{
         BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
         ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
     },
-    program::types::QueryBundle,
+    query_tokens::types::QueryBundle,
     runs::types::MemoryBytes,
 };
 use std::sync::atomic::AtomicUsize;

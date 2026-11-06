@@ -1,9 +1,9 @@
 //! A query bundle names its sources without ambiguity: a blank identity, a blank query and a repeated identity are refused.
 use super::errors::ProgramError;
 use super::service::{document_source, query_bundle, source_id, standalone};
-use super::types::QuerySourceId;
-use super::types::QuerySpelling;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::query_tokens::types::QuerySourceId;
+use crate::domain::query_tokens::types::QuerySpelling;
 use std::borrow::Cow;
 
 #[derive(Clone, Copy)]

@@ -9,10 +9,10 @@ use ryo_values::domain::plan_parts::types::{
     CapturePattern, HostedNumber, JoinColumn, LiteralText, Operand, ParameterId, ParameterName,
     QueryLiteral, Side, TableKey, Test,
 };
-use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::query_bindings::types::ParameterType;
 use ryo_values::domain::query_bindings::types::PlanParameter;
 use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable, ParameterBinding};
+use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::records::types::Cell as HostedCell;
 
 /// A request-owned or per-row operation read beside a shared head.

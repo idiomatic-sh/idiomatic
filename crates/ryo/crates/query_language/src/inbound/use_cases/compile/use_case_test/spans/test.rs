@@ -65,7 +65,9 @@ fn span_plan(
     module: Option<&str>,
     hosted: &[ryo_values::domain::hosted::types::HostedRelation],
 ) -> Result<ryo_values::domain::plans::types::Plan, String> {
-    use ryo_values::domain::program::types::{QueryBundle, QueryDocumentSource, QuerySourceId};
+    use ryo_values::domain::query_tokens::types::{
+        QueryBundle, QueryDocumentSource, QuerySourceId,
+    };
     let mut bundle = QueryBundle {
         root: QueryDocumentSource {
             id: QuerySourceId("root".into()),
@@ -263,8 +265,8 @@ fn source_matches_named_capture_is_typed_and_validated() {
         step.operation,
         Operation::SourceMatches {
             capture: Some(_),
-            capture_text: ryo_values::domain::plans::types::TextOutput::Appended,
-            capture_line: ryo_values::domain::plans::types::LineOutput::Omitted,
+            capture_text: ryo_values::domain::query_operators::types::TextOutput::Appended,
+            capture_line: ryo_values::domain::query_operators::types::LineOutput::Omitted,
             ..
         }
     )));

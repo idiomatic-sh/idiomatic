@@ -39,9 +39,7 @@ pub(super) fn controls(root: &'static str) -> Vec<Probe> {
                 probes.push(refuse(root, &control.negative));
             }
             Class::Reads {
-                owner_type,
-                path,
-                ..
+                owner_type, path, ..
             } => positive.push_str(&controls::read(path, owner_type, entry.row().name)),
             Class::Exempt(_) => {}
         }
@@ -74,7 +72,11 @@ fn every_derived_consumer_is_censused_and_every_kind_names_its_controls() {
             (row.file.to_owned(), row.name.to_owned())
         })
         .collect();
-    assert_eq!(declared.len(), Entry::ALL.len(), "one row per owner function");
+    assert_eq!(
+        declared.len(),
+        Entry::ALL.len(),
+        "one row per owner function"
+    );
     let surface = scan::owner_surface(&src, &production);
     assert_eq!(
         (
@@ -151,9 +153,15 @@ fn every_derived_consumer_is_censused_and_every_kind_names_its_controls() {
     let mut routed = BTreeSet::new();
     let mut ordinals = BTreeSet::new();
     for derived in DerivedKind::ALL.iter().copied() {
-        assert!(ordinals.insert(derived.ordinal()), "{derived:?} listed once");
+        assert!(
+            ordinals.insert(derived.ordinal()),
+            "{derived:?} listed once"
+        );
         let route = kind::route(derived);
-        assert!(!route.entries.is_empty(), "{derived:?} has a production route");
+        assert!(
+            !route.entries.is_empty(),
+            "{derived:?} has a production route"
+        );
         for entry in route.entries {
             assert!(
                 matches!(entry.row().class, Class::Acquires(_)),
@@ -175,7 +183,10 @@ fn every_derived_consumer_is_censused_and_every_kind_names_its_controls() {
     }
     for entry in Entry::ALL {
         if matches!(entry.row().class, Class::Acquires(_)) {
-            assert!(routed.contains(&entry), "{entry:?} belongs to a kind's route");
+            assert!(
+                routed.contains(&entry),
+                "{entry:?} belongs to a kind's route"
+            );
         }
     }
 }

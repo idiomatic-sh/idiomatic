@@ -1,6 +1,6 @@
 //! The names of the `comparing` concept.
 
-use ryo_values::domain::program::types::WrittenFunction;
+use ryo_values::domain::query_syntax::types::WrittenFunction;
 
 /// What separates the words of a closed set when a refusal lists them.
 pub(crate) const WORD_SEPARATOR: &str = ", ";

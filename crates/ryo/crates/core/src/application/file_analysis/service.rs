@@ -954,10 +954,10 @@ impl FileAnalysis {
                 governing: &handed.governing,
                 partials: &handed.partials,
                 observations: match &handed.observations {
-                    ryo_values::domain::records::types::NamedReadiness::Recorded(root) => {
+                    ryo_values::domain::records::types::HandedReadiness::Recorded(root) => {
                         Some(root)
                     }
-                    ryo_values::domain::records::types::NamedReadiness::Unrecorded => None,
+                    ryo_values::domain::records::types::HandedReadiness::Unrecorded => None,
                 },
                 buckets: handed
                     .buckets

@@ -6,9 +6,10 @@ use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::descriptions::types::{
     Example, Grammar, Production, ProductionForm, ProductionName,
 };
-use ryo_values::domain::program::types::{
-    ByteOffset, Call, Expression, LetStep, OperationName, ParsedQueryBundle, QueryBundle,
-    QueryOrigin, QuerySpan, QueryView, StepName, WrittenEmit, WrittenProgram,
+use ryo_values::domain::program::types::{LetStep, ParsedQueryBundle, WrittenEmit, WrittenProgram};
+use ryo_values::domain::query_syntax::types::{Call, Expression};
+use ryo_values::domain::query_tokens::types::{
+    ByteOffset, OperationName, QueryBundle, QueryOrigin, QuerySpan, QueryView, StepName,
 };
 
 /// What the core's tests stand in for `syntax` with: it reads any text that contains `emit` as the
@@ -30,12 +31,12 @@ impl Default for SyntaxFake {
                 fragment_contracts: Vec::new(),
                 step_origins: std::collections::BTreeMap::new(),
                 observations: Vec::new(),
-                emit_origin: ryo_values::domain::program::types::Attribution::Unlocated,
+                emit_origin: ryo_values::domain::query_tokens::types::Attribution::Unlocated,
                 parameters: Vec::new(),
                 steps: vec![LetStep {
                     name: StepName(
                         "functions".into(),
-                        ryo_values::domain::program::types::StepIdentified::Unassigned,
+                        ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
                     ),
                     expression: Expression::Call(Call {
                         name: OperationName("union".into()),
@@ -53,7 +54,7 @@ impl Default for SyntaxFake {
                 emit: WrittenEmit {
                     step: StepName(
                         "".into(),
-                        ryo_values::domain::program::types::StepIdentified::Unassigned,
+                        ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
                     ),
                     subject: ColumnName("".into()),
                     key: Vec::new(),

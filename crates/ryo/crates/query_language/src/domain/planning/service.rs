@@ -12,6 +12,7 @@ use crate::domain::resolving::service::{column_of, relation_fields, step_of};
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
 use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::query_tokens::types as tokens;
 
 /// The step the next one pushed onto `items` will be.
 pub(crate) fn next_step<T>(items: &[T]) -> parts::StepId {
@@ -230,7 +231,7 @@ pub(crate) fn scoped(builder: &Builder<'_>, input: parts::Input) -> ScopedInput 
 /// Adds a step to the plan and keeps its columns for the steps below: for a step no later step of the statement reads by number.
 pub(crate) fn push(
     builder: &mut Builder<'_>,
-    name: Option<&syntax::StepName>,
+    name: Option<&tokens::StepName>,
     operation: plans::Operation,
     fields: Vec<PlannedColumn>,
 ) {
@@ -250,7 +251,7 @@ pub(crate) fn push(
 /// Adds a step to the plan, as [`push`] does, and answers its number: for a step the next steps of the statement read.
 pub(crate) fn pushed(
     builder: &mut Builder<'_>,
-    name: Option<&syntax::StepName>,
+    name: Option<&tokens::StepName>,
     operation: plans::Operation,
     fields: Vec<PlannedColumn>,
 ) -> parts::StepId {

@@ -1,5 +1,6 @@
 //! The `checking` service: free functions named by verb over the checks of a module before its calls are expanded.
 
+use super::types::{ImportAlias, ImportIndex};
 use crate::domain::linking::errors::LinkingError;
 use crate::domain::linking::service::located;
 use crate::domain::linking::service::source_id;
@@ -9,15 +10,17 @@ use crate::domain::syntax::constants::relation_cell_kind_named;
 use ryo_values::domain::program::types::FragmentProgram;
 use ryo_values::domain::program::types::ImportDeclaration;
 use ryo_values::domain::program::types::LetStep;
-use ryo_values::domain::program::types::QueryBundle;
-use ryo_values::domain::program::types::QuerySourceId;
-use ryo_values::domain::program::types::QueryTraceSite;
+use ryo_values::domain::query_tokens::types::QueryBundle;
+use ryo_values::domain::query_tokens::types::QuerySourceId;
+use ryo_values::domain::query_tokens::types::QueryTraceSite;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
-use super::types::{ImportAlias, ImportIndex};
 
 /// Rejects repeated step names within one source module.
-pub(crate) fn validate_step_names(source: &QuerySourceId, steps: &[LetStep]) -> Result<(), LinkingError> {
+pub(crate) fn validate_step_names(
+    source: &QuerySourceId,
+    steps: &[LetStep],
+) -> Result<(), LinkingError> {
     let mut names = BTreeSet::new();
     for step in steps {
         if !names.insert(step.name.0.as_ref()) {

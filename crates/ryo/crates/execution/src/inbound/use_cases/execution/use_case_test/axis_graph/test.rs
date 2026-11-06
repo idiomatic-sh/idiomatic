@@ -11,7 +11,7 @@ use ryo_values::{
         files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
         plan_parts::types::{ColumnIndex, Direction, HostedNumber, Input as Source, StepId},
         plans::types::{Operation, Plan},
-        program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+        query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
         rows::types::Table,
         rule_requests::types::{RuleParameters, RuleSpec},
         runs::types::{RuleApplicability, RuleId},

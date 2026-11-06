@@ -3,7 +3,7 @@ use super::super::errors::QueryLanguageError;
 use super::super::interface::QueryLanguagePort;
 use ryo_values::domain::{
     descriptions::types::ValidateReport, hosted::types::HostedRelation, plans::types::Plan,
-    program::types::QueryBundle,
+    query_tokens::types::QueryBundle,
 };
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -84,7 +84,7 @@ fn compiler_refusal() -> QueryLanguageError {
                 start: Offset(0),
                 end: Offset(0),
             },
-            origin: ryo_values::domain::program::types::Attribution::Unlocated,
+            origin: ryo_values::domain::query_tokens::types::Attribution::Unlocated,
         },
     }
 }

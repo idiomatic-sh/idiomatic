@@ -10,10 +10,12 @@ use super::types::{Identities, Known};
 use crate::domain::syntax::constants::{operator_named, slot_name};
 use crate::domain::syntax::service::{is_input, shape_named};
 use crate::domain::syntax::types::ArgumentRole;
-use ryo_values::domain::program::types::{
-    ArgumentValue, Call, Columns, Condition, Expression, Filter, Joining, ParameterDeclaration,
-    QuerySource, QuerySpan, QuerySpelling, Select, SourceReference, WrittenOperand, WrittenProgram,
+use ryo_values::domain::program::types::{ParameterDeclaration, WrittenProgram};
+use ryo_values::domain::query_syntax::types::{
+    ArgumentValue, Call, Columns, Condition, Expression, Filter, Joining, QuerySource, Select,
+    SourceReference, WrittenOperand,
 };
+use ryo_values::domain::query_tokens::types::{QuerySpan, QuerySpelling};
 use std::collections::BTreeSet;
 
 /// Checks that every name a program writes exists and every call has its required arguments; the first fault is answered.
@@ -23,7 +25,7 @@ pub(crate) fn validate_with_observations(
     hosted: &[HostedName],
     observations: &[ryo_values::domain::observations::types::BoundObservationInput],
 ) -> Result<(), ValidationError> {
-    if program.linked == ryo_values::domain::program::types::Linking::Linked {
+    if program.linked == ryo_values::domain::query_tokens::types::Linking::Linked {
         let mut identities = BTreeSet::new();
         for step in &program.steps {
             let Some(identity) = ryo_values::domain::program::service::identity_of(step.name.1)
@@ -42,7 +44,7 @@ pub(crate) fn validate_with_observations(
         }
     }
     let mut known = Known {
-        identities: if program.linked == ryo_values::domain::program::types::Linking::Linked {
+        identities: if program.linked == ryo_values::domain::query_tokens::types::Linking::Linked {
             Identities::Assigned
         } else {
             Identities::Unassigned
@@ -99,13 +101,13 @@ pub(crate) fn validate_with_observations(
         };
         if let Some(error) = error {
             return Err(match output.origin.clone() {
-                ryo_values::domain::program::types::Attribution::Located(origin) => {
+                ryo_values::domain::query_tokens::types::Attribution::Located(origin) => {
                     ValidationError::Located {
                         origin,
                         error: Box::new(error),
                     }
                 }
-                ryo_values::domain::program::types::Attribution::Unlocated => error,
+                ryo_values::domain::query_tokens::types::Attribution::Unlocated => error,
             });
         }
     }
@@ -115,13 +117,13 @@ pub(crate) fn validate_with_observations(
             span: program.emit.span,
         };
         return Err(match program.emit_origin.clone() {
-            ryo_values::domain::program::types::Attribution::Located(origin) => {
+            ryo_values::domain::query_tokens::types::Attribution::Located(origin) => {
                 ValidationError::Located {
                     origin,
                     error: Box::new(error),
                 }
             }
-            ryo_values::domain::program::types::Attribution::Unlocated => error,
+            ryo_values::domain::query_tokens::types::Attribution::Unlocated => error,
         });
     }
     Ok(())

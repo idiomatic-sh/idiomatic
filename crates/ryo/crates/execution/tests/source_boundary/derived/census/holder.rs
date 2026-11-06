@@ -103,7 +103,14 @@ impl Holder {
             Holder::Invocation => &[Authority::AcquiredView, Authority::CachedGraph],
             Holder::RelationAccounting => &[Authority::AcquiredView, Authority::ResourceDependency],
             Holder::RelationHandle => &[Authority::ResourceDependency],
-            Holder::DerivedAccessPrepare | Holder::DerivedAccessRequest | Holder::DerivedAccessViews | Holder::DerivedAccessRelations | Holder::DerivedAccessScope | Holder::DerivedAccessServices | Holder::DerivedAccessPreparation | Holder::DerivedAccessOrders => &[Authority::DerivedAccess],
+            Holder::DerivedAccessPrepare
+            | Holder::DerivedAccessRequest
+            | Holder::DerivedAccessViews
+            | Holder::DerivedAccessRelations
+            | Holder::DerivedAccessScope
+            | Holder::DerivedAccessServices
+            | Holder::DerivedAccessPreparation
+            | Holder::DerivedAccessOrders => &[Authority::DerivedAccess],
         }
     }
 }

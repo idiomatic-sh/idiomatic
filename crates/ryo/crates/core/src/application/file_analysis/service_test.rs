@@ -42,7 +42,7 @@ fn prepared_test_program(
     ryo_execution::inbound::use_cases::execution::types::RequestExecution,
 ) {
     use ryo_values::domain::{
-        program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+        query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
         rule_requests::types::{RuleParameters, RuleSpec},
         stored_facts::types::Digest,
     };
@@ -107,7 +107,9 @@ fn one_capture_plan() -> Plan {
             key: vec![],
             headings: vec![],
         },
-        frontier: vec![ryo_values::domain::plan_parts::types::Input::Step(StepId(0))],
+        frontier: vec![ryo_values::domain::plan_parts::types::Input::Step(StepId(
+            0,
+        ))],
     }
 }
 
@@ -205,7 +207,9 @@ fn replay_under_capture(
                 applicability_can_gate: true,
                 placed: &placed,
                 records: &[],
-                reuse: &ryo_values::domain::stores::types::Reuse::Cross(ryo_values::domain::stores::types::MadeAgain::All),
+                reuse: &ryo_values::domain::stores::types::Reuse::Cross(
+                    ryo_values::domain::stores::types::MadeAgain::All,
+                ),
                 stored: &NOTHING_STORED,
                 handed: &NOTHING_HANDED,
                 wanted_buckets: wanted,
@@ -1425,8 +1429,12 @@ fn successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads() 
             }
             Ok(RecordWords::Staged(StagedWords {
                 session: StagingSession(1),
-                offset: ryo_values::domain::records::types::PayloadOffset(u64::try_from(offset).expect("small count")),
-                length: ryo_values::domain::records::types::PayloadLength(u64::try_from(words.0.len()).expect("size")),
+                offset: ryo_values::domain::records::types::PayloadOffset(
+                    u64::try_from(offset).expect("small count"),
+                ),
+                length: ryo_values::domain::records::types::PayloadLength(
+                    u64::try_from(words.0.len()).expect("size"),
+                ),
             }))
         }
     }
@@ -1604,7 +1612,9 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
                 applicability_can_gate: true,
                 placed: &placed,
                 records: &[],
-                reuse: &ryo_values::domain::stores::types::Reuse::Cross(ryo_values::domain::stores::types::MadeAgain::All),
+                reuse: &ryo_values::domain::stores::types::Reuse::Cross(
+                    ryo_values::domain::stores::types::MadeAgain::All,
+                ),
                 stored: &NOTHING_STORED,
                 handed: &NOTHING_HANDED,
                 wanted_buckets: &wanted,

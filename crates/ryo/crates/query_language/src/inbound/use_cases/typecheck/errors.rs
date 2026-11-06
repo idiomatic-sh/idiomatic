@@ -1,6 +1,6 @@
 //! The `typecheck` use case's failures.
 
-use ryo_values::domain::program::types::{QueryOrigin, QuerySpan};
+use ryo_values::domain::query_tokens::types::{QueryOrigin, QuerySpan};
 
 /// Why `typecheck` failed.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

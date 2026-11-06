@@ -1,6 +1,6 @@
 //! Refusals when building an immutable query source bundle.
 
-use super::types::QuerySourceId;
+use crate::domain::query_tokens::types::QuerySourceId;
 
 /// A query bundle could not be constructed without ambiguity.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

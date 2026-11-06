@@ -5,8 +5,8 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    Applied, ColumnIndex, PlanComparison, Function, Input as PlanInput, LiteralText, Operand,
-    ParameterId, QueryLiteral, StepId, Test, WholeNumber,
+    Applied, ColumnIndex, Function, Input as PlanInput, LiteralText, Operand, ParameterId,
+    PlanComparison, QueryLiteral, StepId, Test, WholeNumber,
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
@@ -107,7 +107,9 @@ fn succeeds() {
 #[test]
 fn comparison_origin_does_not_split_shared_step_classes() {
     use ryo_values::domain::plan_parts::types::ComparisonOriginId;
-    use ryo_values::domain::program::types::{ByteOffset, QueryOrigin, QuerySourceId, QuerySpan};
+    use ryo_values::domain::query_tokens::types::{
+        ByteOffset, QueryOrigin, QuerySourceId, QuerySpan,
+    };
 
     let mut first = plan("word");
     let mut second = plan("word");

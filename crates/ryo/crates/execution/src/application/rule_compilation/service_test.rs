@@ -13,10 +13,10 @@ use ryo_values::domain::hosted::types::{
 };
 use ryo_values::domain::plan_parts::types::{ParameterName, QueryText, WholeNumber};
 use ryo_values::domain::plans::types::Plan;
-use ryo_values::domain::program::types::QueryBundle;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::query_bindings::types::ParameterType;
 use ryo_values::domain::query_bindings::types::PlanParameter;
+use ryo_values::domain::query_tokens::types::QueryBundle;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
 use std::sync::{Arc, PoisonError, atomic::Ordering};
@@ -281,7 +281,7 @@ fn module_catalog_identity() -> Result<Value, Failure> {
     let plans = CompiledPlans::default();
     let service = RuleCompilation::new(Arc::<QueryLanguageFake>::clone(&compiler))
         .compiling_into(plans.clone());
-    let module = source_id(ryo_values::domain::program::types::QuerySpelling(
+    let module = source_id(ryo_values::domain::query_tokens::types::QuerySpelling(
         "shared/module",
     ))
     .expect("nonblank module id");
@@ -310,7 +310,7 @@ fn module_catalog_identity() -> Result<Value, Failure> {
     assert_eq!(&*snapshot.modules[&module].text, "original bytes\nλ");
     let _changed_bytes_miss = service.compile(&[asked.clone()], &[])?;
     assert_eq!(compiler.calls.load(Ordering::SeqCst), 2);
-    let renamed_id = source_id(ryo_values::domain::program::types::QuerySpelling(
+    let renamed_id = source_id(ryo_values::domain::query_tokens::types::QuerySpelling(
         "shared/renamed",
     ))
     .expect("nonblank renamed id");

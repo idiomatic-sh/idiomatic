@@ -38,15 +38,17 @@ use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::terms::types::Vocabulary;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
-use ryo_values::domain::plans::types::QueryOperator;
 use ryo_values::domain::program::types as syntax;
-use ryo_values::domain::program::types::QuerySpelling;
+use ryo_values::domain::query_operators::types::QueryOperator;
+use ryo_values::domain::query_syntax::types as ast;
+use ryo_values::domain::query_tokens::types as tokens;
+use ryo_values::domain::query_tokens::types::QuerySpelling;
 
 /// `name(argument=value, ...)`: one step of the operation the call names.
 pub(crate) fn lower_call(
     builder: &mut Builder<'_>,
-    name: &syntax::StepName,
-    call: &syntax::Call,
+    name: &tokens::StepName,
+    call: &ast::Call,
 ) -> Result<(), LoweringError> {
     let Some(operator) = operator_named(&call.name.0) else {
         return Err(bad_argument(call, None, ArgumentFault::NoSuchOperation));
@@ -96,8 +98,8 @@ pub(crate) fn lower_call(
 /// Lowers a `project` call: its input's rows with only the named columns, in the order named, as the step `name`.
 pub(crate) fn call_project(
     builder: &mut Builder<'_>,
-    name: &syntax::StepName,
-    call: &syntax::Call,
+    name: &tokens::StepName,
+    call: &ast::Call,
 ) -> Result<(), LoweringError> {
     let Sourced {
         input: from,
@@ -126,14 +128,14 @@ pub(crate) fn call_project(
 /// Lowers an `extend` call: its input's rows with the columns its `values` map adds, as the step `name`.
 pub(crate) fn call_extend(
     builder: &mut Builder<'_>,
-    name: &syntax::StepName,
-    call: &syntax::Call,
+    name: &tokens::StepName,
+    call: &ast::Call,
 ) -> Result<(), LoweringError> {
     let Sourced {
         input: from,
         mut fields,
     } = input_argument(builder, call, ArgumentSlot::From)?;
-    let syntax::ArgumentValue::Map(values) = argument_named(call, ArgumentSlot::Values)? else {
+    let ast::ArgumentValue::Map(values) = argument_named(call, ArgumentSlot::Values)? else {
         return Err(bad_argument(
             call,
             Some(ArgumentSlot::Values),
@@ -143,19 +145,19 @@ pub(crate) fn call_extend(
     let mut operands = Vec::new();
     for value in values {
         let (operand, kind) = match &value.value {
-            syntax::ArgumentValue::Number(number) => (
+            ast::ArgumentValue::Number(number) => (
                 parts::Operand::Literal(parts::QueryLiteral::Number(
                     ryo_relations::domain::relations::types::Integer(number.0),
                 )),
                 CellKind::Number,
             ),
-            syntax::ArgumentValue::Text(text) => (
+            ast::ArgumentValue::Text(text) => (
                 parts::Operand::Literal(parts::QueryLiteral::Text(parts::LiteralText(
                     text.0.clone(),
                 ))),
                 CellKind::Symbol,
             ),
-            syntax::ArgumentValue::Parameter(parameter) => {
+            ast::ArgumentValue::Parameter(parameter) => {
                 let id = find_parameter(builder.parameters, |declared| {
                     if declared.name == *parameter {
                         SearchMatch::Matches
@@ -183,10 +185,10 @@ pub(crate) fn call_extend(
                 };
                 (parts::Operand::Parameter(id), kind)
             }
-            syntax::ArgumentValue::Word(_)
-            | syntax::ArgumentValue::Step(_)
-            | syntax::ArgumentValue::List(_)
-            | syntax::ArgumentValue::Map(_) => {
+            ast::ArgumentValue::Word(_)
+            | ast::ArgumentValue::Step(_)
+            | ast::ArgumentValue::List(_)
+            | ast::ArgumentValue::Map(_) => {
                 return Err(bad_argument(
                     call,
                     Some(ArgumentSlot::Values),
@@ -217,8 +219,8 @@ pub(crate) fn call_extend(
 /// Lowers a `join` call: the rows of its left input matched to those of its right on the named columns, as the step `name`.
 pub(crate) fn call_join(
     builder: &mut Builder<'_>,
-    name: &syntax::StepName,
-    call: &syntax::Call,
+    name: &tokens::StepName,
+    call: &ast::Call,
 ) -> Result<(), LoweringError> {
     let Sourced {
         input: left,
@@ -310,8 +312,8 @@ pub(crate) fn call_join(
 /// Lowers an `antijoin` call: the rows of its left input that no row of its right input matches on the named columns, as the step `name`.
 pub(crate) fn call_antijoin(
     builder: &mut Builder<'_>,
-    name: &syntax::StepName,
-    call: &syntax::Call,
+    name: &tokens::StepName,
+    call: &ast::Call,
 ) -> Result<(), LoweringError> {
     let Sourced {
         input: left,

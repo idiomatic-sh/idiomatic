@@ -1,6 +1,6 @@
 //! The `syntax` port's failures.
 
-use ryo_values::domain::program::types::{QueryOrigin, QuerySpan};
+use ryo_values::domain::query_tokens::types::{QueryOrigin, QuerySpan};
 
 /// Why the `syntax` port failed.
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]

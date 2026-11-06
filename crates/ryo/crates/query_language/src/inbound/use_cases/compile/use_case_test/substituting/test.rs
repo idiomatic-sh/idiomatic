@@ -8,7 +8,7 @@ use crate::selects;
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::domain::hosted::types::{ColumnLabel, HostedColumn, HostedName, HostedRelation};
 use ryo_values::domain::plans::types::Operation;
-use ryo_values::domain::program::types::QueryView;
+use ryo_values::domain::query_tokens::types::QueryView;
 
 type Input = &'static str;
 type Value = bool;

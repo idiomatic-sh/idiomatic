@@ -9,7 +9,7 @@ use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn},
 };
-use ryo_values::domain::plan_parts::types::{PlanComparison, Operand, Test};
+use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, Test};
 use ryo_values::domain::stored_facts::types::PartialCause;
 use std::sync::atomic::{AtomicUsize, Ordering};
 #[derive(Debug, Default)]

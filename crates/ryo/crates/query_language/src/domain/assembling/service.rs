@@ -7,19 +7,17 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::terms::types::Vocabulary;
 
 use crate::domain::calling::service::lower_call;
-use crate::domain::fusing::service::{fuse_keyed_reaches, fuse_selects};
+use crate::domain::capture_pushing::service::{push_below_captures, push_below_captures_roots};
 use crate::domain::cutting::service::{
     cut_relations, cut_relations_roots, reduced_frontier, reduced_frontier_roots,
 };
+use crate::domain::fusing::service::{fuse_keyed_reaches, fuse_selects};
 use crate::domain::inlining::service::inline_views;
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{Builder, HostedStep, PlannedColumn, StepLabel, Uniqueness};
 use crate::domain::planning::service::{frontier_of, pushed};
 use crate::domain::pruning::service::{without_unused, without_unused_roots};
-use crate::domain::capture_pushing::service::{push_below_captures, push_below_captures_roots};
-use crate::domain::pushing::service::{
-    push_lookups, push_lookups_roots,
-};
+use crate::domain::pushing::service::{push_lookups, push_lookups_roots};
 use crate::domain::resolving::service::{position, read_source, step_named, step_of};
 use crate::domain::rewriting::types::Planned;
 use crate::domain::selecting::service::lower_select;
@@ -28,7 +26,8 @@ use crate::domain::walking::service::{fuse_descents, fuse_neighbours};
 use ryo_values::domain::hosted::types as hosted;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
-use ryo_values::domain::program::types::{self as syntax, QuerySpelling};
+use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::query_tokens::types::QuerySpelling;
 
 /// Lowers a program that validation accepted.
 ///
@@ -257,17 +256,17 @@ fn locate_step_error(
 
 /// Attaches an optional source origin to a lowering error.
 fn locate_error(
-    origin: ryo_values::domain::program::types::Attribution,
+    origin: ryo_values::domain::query_tokens::types::Attribution,
     error: LoweringError,
 ) -> LoweringError {
     match origin {
-        ryo_values::domain::program::types::Attribution::Located(origin) => {
+        ryo_values::domain::query_tokens::types::Attribution::Located(origin) => {
             LoweringError::Located {
                 origin,
                 error: Box::new(error),
             }
         }
-        ryo_values::domain::program::types::Attribution::Unlocated => error,
+        ryo_values::domain::query_tokens::types::Attribution::Unlocated => error,
     }
 }
 
@@ -346,7 +345,7 @@ fn check_fragment_output(
 fn check_relation_shape(
     actual: &[PlannedColumn],
     expected: &syntax::RelationSignature,
-    origin: ryo_values::domain::program::types::QueryOrigin,
+    origin: ryo_values::domain::query_tokens::types::QueryOrigin,
 ) -> Result<(), LoweringError> {
     if actual.len() != expected.columns.len() {
         return Err(LoweringError::FragmentContract {

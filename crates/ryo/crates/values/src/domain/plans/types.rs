@@ -16,9 +16,9 @@ use crate::domain::plan_parts::types::StepId;
 use crate::domain::plan_parts::types::StepScope;
 use crate::domain::plan_parts::types::TableKey;
 use crate::domain::plan_parts::types::Test;
-use crate::domain::program::types::QueryOrigin;
 use crate::domain::query_bindings::types::PlanParameter;
 use crate::domain::query_operators::types::{LineOutput, MaxLine, TabWidth, TextOutput};
+use crate::domain::query_tokens::types::QueryOrigin;
 
 /// A compiled query: its parameters, its steps in the order to run them, and what it emits.
 #[derive(Clone, Debug, PartialEq)]

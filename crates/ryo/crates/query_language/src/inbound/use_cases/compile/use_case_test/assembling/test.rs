@@ -15,7 +15,7 @@ use ryo_values::domain::hosted::types::HostedRelation;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plans::types::Operation;
-use ryo_values::domain::program::types::QueryView;
+use ryo_values::domain::query_tokens::types::QueryView;
 
 /// The query text a row gives.
 type Text = &'static str;

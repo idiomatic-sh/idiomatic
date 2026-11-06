@@ -4,10 +4,13 @@ use super::types::{CrossFileSteps, FeatureSource, FrontierFeed, ProjectRead};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     observations::types::{BoundObservationInput, ObservationBindingName},
-    plan_parts::types::{ColumnIndex, Direction, Input as PlanInput, LiteralText, ObservationBindingId, Operand, PlanComparison, QueryLiteral, RepeatedRows, StepId, StepScope, Test},
+    plan_parts::types::{
+        ColumnIndex, Direction, Input as PlanInput, LiteralText, ObservationBindingId, Operand,
+        PlanComparison, QueryLiteral, RepeatedRows, StepId, StepScope, Test,
+    },
     plans::types::{Emit, Operation, Plan, PlanStep},
-    run_metadata::types::Feature,
     query_operators::types::OperationKind,
+    run_metadata::types::Feature,
 };
 use ryo_relations::domain::relations::types::Relation;
 use std::borrow::Cow;

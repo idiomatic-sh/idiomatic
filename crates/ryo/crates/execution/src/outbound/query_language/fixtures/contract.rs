@@ -1,10 +1,10 @@
 //! What every `query_language` adapter must pass.
 
-use ryo_values::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::interface::QueryLanguagePort;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run, selects};
 use ryo_values::domain::plan_parts::types::QueryText;
-use ryo_values::domain::program::types::QueryBundle;
+use ryo_values::domain::query_tokens::types::QueryBundle;
 
 /// What a row of the contract is given: query text, which every implementation validates and compiles alike.
 type Input = QueryBundle;

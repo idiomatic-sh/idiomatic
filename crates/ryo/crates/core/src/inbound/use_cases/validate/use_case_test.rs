@@ -318,7 +318,7 @@ fn subject((text, declared, linked, compiler): Input) -> Result<Value, Failure> 
     ValidateUseCaseImpl::new(compiling, language)
         .validate(ValidateRequest {
             observations: Vec::new(),
-            text: ryo_values::domain::program::types::QueryBundle::from(QueryText(text)),
+            text: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(text)),
             hosted,
         })
         .map(|report| report.relations.len())
@@ -331,7 +331,7 @@ struct CompilesNothing;
 impl QueryLanguagePort for CompilesNothing {
     fn validate(
         &self,
-        _text: &ryo_values::domain::program::types::QueryBundle,
+        _text: &ryo_values::domain::query_tokens::types::QueryBundle,
         _hosted: &[HostedRelation],
         _observations: &[ryo_values::domain::observations::types::BoundObservationInput],
     ) -> Result<ValidateReport, QueryLanguageError> {
@@ -344,7 +344,7 @@ impl QueryLanguagePort for CompilesNothing {
 
     fn compile(
         &self,
-        _text: &ryo_values::domain::program::types::QueryBundle,
+        _text: &ryo_values::domain::query_tokens::types::QueryBundle,
         _hosted: &[HostedRelation],
         _observations: &[ryo_values::domain::observations::types::BoundObservationInput],
     ) -> Result<Plan, QueryLanguageError> {
@@ -356,7 +356,7 @@ impl QueryLanguagePort for CompilesNothing {
                     start: Offset(0),
                     end: Offset(0),
                 },
-                origin: ryo_values::domain::program::types::Attribution::Unlocated,
+                origin: ryo_values::domain::query_tokens::types::Attribution::Unlocated,
             },
         })
     }

@@ -1,6 +1,6 @@
 //! The `validation` concept's failures.
 
-use ryo_values::domain::program::types::{QueryOrigin, QuerySpan};
+use ryo_values::domain::query_tokens::types::{QueryOrigin, QuerySpan};
 
 /// Why a program is not valid.
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]

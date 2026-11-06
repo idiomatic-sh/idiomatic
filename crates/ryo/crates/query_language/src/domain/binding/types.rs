@@ -1,6 +1,6 @@
 //! The types of the `binding` concept: plain data, public fields and derives.
 
-use ryo_values::domain::program::types::ArgumentValue;
+use ryo_values::domain::query_syntax::types::ArgumentValue;
 use std::collections::BTreeMap;
 
 /// The name a fragment input or parameter is bound under.

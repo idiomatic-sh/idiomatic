@@ -32,7 +32,7 @@ fn runs(world: &mut Behavior) {
     let catalog = Arc::new(ryo_query_language::outbound::catalog::factory::language());
     world.answer = match CompileUseCaseImpl::new(syntax, catalog).compile(CompileRequest {
         observations: Vec::new(),
-        text: ryo_values::domain::program::types::QueryBundle::from(QueryText(text.into())),
+        text: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(text.into())),
         hosted: Vec::new(),
     }) {
         Ok(report) => format!("{} steps", report.plan.steps.len()),

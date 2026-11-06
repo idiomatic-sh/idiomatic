@@ -14,8 +14,9 @@ use crate::domain::syntax::constants::{direction_named, slot_name};
 use crate::domain::syntax::types::ArgumentSlot;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
-use ryo_values::domain::plans::types::QueryOperator;
-use ryo_values::domain::program::types::{self as syntax, QuerySpelling};
+use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::query_operators::types::QueryOperator;
+use ryo_values::domain::query_tokens::types::QuerySpelling;
 
 /// Lowers an `axis` call: the rows of its input joined to the elements the relation's edges reach from them, as the step `name`.
 pub(crate) fn call_axis(

@@ -171,7 +171,7 @@ pub enum Handing {
 
 /// Whether a file handed the readiness of its demanded named frontiers.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub enum NamedReadiness {
+pub enum HandedReadiness {
     /// The readiness the file recorded.
     Recorded(std::sync::Arc<FrontierReadiness>),
     /// Missing or ambiguous: unavailable to demanded roots.
@@ -185,7 +185,7 @@ pub enum NamedReadiness {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Handed {
     /// Independently versioned readiness of demanded per-file named frontiers.
-    pub observations: NamedReadiness,
+    pub observations: HandedReadiness,
     /// Its words in each bucket, as if it were the first file read by the first worker.
     pub buckets: Vec<HandedWords>,
     /// The text its names made, from the start of its own.

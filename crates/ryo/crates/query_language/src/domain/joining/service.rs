@@ -18,7 +18,8 @@ use crate::domain::syntax::constants::side_named;
 use crate::domain::syntax::types::ArgumentSlot;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
-use ryo_values::domain::program::types::{self as syntax, QuerySpelling};
+use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::query_tokens::types::QuerySpelling;
 
 /// The join of a select over its source: the step that makes it, the fields it gives, and the columns of either side
 /// its `where` names as `alias.column`. A side's column the select does not keep is given after the kept ones, for the

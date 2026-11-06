@@ -5,33 +5,35 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
 use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::query_syntax::types as ast;
+use ryo_values::domain::query_tokens::types as tokens;
 type Input = fn();
 type Value = ();
 type Failure = std::convert::Infallible;
 
-fn call(name: &str, arguments: Vec<(&str, syntax::ArgumentValue)>) -> syntax::Call {
-    syntax::Call {
-        name: syntax::OperationName(name.into()),
+fn call(name: &str, arguments: Vec<(&str, ast::ArgumentValue)>) -> ast::Call {
+    ast::Call {
+        name: tokens::OperationName(name.into()),
         span: lowering_builder().span,
         arguments: arguments
             .into_iter()
-            .map(|(name, value)| syntax::Argument {
-                name: syntax::ArgumentName(name.into()),
+            .map(|(name, value)| ast::Argument {
+                name: tokens::ArgumentName(name.into()),
                 value,
             })
             .collect(),
     }
 }
-fn text(value: &str) -> syntax::ArgumentValue {
-    syntax::ArgumentValue::Text(syntax::WrittenLiteral(value.into()))
+fn text(value: &str) -> ast::ArgumentValue {
+    ast::ArgumentValue::Text(tokens::WrittenLiteral(value.into()))
 }
-fn word(value: &str) -> syntax::ArgumentValue {
-    syntax::ArgumentValue::Word(syntax::WordText(value.into()))
+fn word(value: &str) -> ast::ArgumentValue {
+    ast::ArgumentValue::Word(tokens::WordText(value.into()))
 }
-fn name() -> syntax::StepName {
-    syntax::StepName(
+fn name() -> tokens::StepName {
+    tokens::StepName(
         "result".into(),
-        ryo_values::domain::program::types::StepIdentified::Unassigned,
+        ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
     )
 }
 
@@ -41,7 +43,7 @@ fn project_keeps_exact_file_column() {
         "project",
         vec![
             ("from", text("function")),
-            ("columns", syntax::ArgumentValue::List(vec![word("file")])),
+            ("columns", ast::ArgumentValue::List(vec![word("file")])),
         ],
     );
     super::service::lower_call(&mut builder, &name(), &call).unwrap();

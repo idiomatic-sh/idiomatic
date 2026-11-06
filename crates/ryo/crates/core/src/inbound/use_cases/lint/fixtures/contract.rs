@@ -99,7 +99,7 @@ fn rule(id: &str, query: &str, include: Vec<Glob>) -> Rule {
     Rule {
         observations: Vec::new(),
         id: ryo_values::domain::runs::types::RuleId(id.into()),
-        query: ryo_values::domain::program::types::QueryBundle::from(QueryText(query.into())),
+        query: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(query.into())),
         applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
         parameters: fixture_parameters(query),
         include,

@@ -51,7 +51,7 @@ fn succeeds() {
 fn raw_tree_file_joins_keep_single_and_and_or_filters_outside_the_join() {
     use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
     use ryo_values::domain::plans::types::Operation;
-    use ryo_values::domain::program::types::QueryBundle;
+    use ryo_values::domain::query_tokens::types::QueryBundle;
 
     let compiler = compiler_over_the_language();
     for predicate in [
@@ -111,7 +111,7 @@ fn raw_tree_file_joins_keep_single_and_and_or_filters_outside_the_join() {
 
 fn authored_observation_keeps_independent_root_through_optimization() {
     use ryo_values::domain::plan_parts::types::Input;
-    use ryo_values::domain::program::types::QueryBundle;
+    use ryo_values::domain::query_tokens::types::QueryBundle;
     let compiler = compiler_over_the_language();
     let report = compiler
         .compile(CompileRequest {
@@ -153,7 +153,7 @@ fn bound_observation_preserves_declared_schema_and_phase() {
     };
     use ryo_values::domain::plan_parts::types::Input;
     use ryo_values::domain::plan_parts::types::StepScope;
-    use ryo_values::domain::program::types::QueryBundle;
+    use ryo_values::domain::query_tokens::types::QueryBundle;
     let compiler = compiler_over_the_language();
     let report = compiler.compile(CompileRequest {
         hosted: Vec::new(),

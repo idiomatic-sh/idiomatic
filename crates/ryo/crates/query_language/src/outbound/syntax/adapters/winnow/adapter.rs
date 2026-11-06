@@ -17,13 +17,19 @@ use ryo_values::domain::descriptions::types::{
     Example, Grammar, Production, ProductionForm, ProductionName,
 };
 use ryo_values::domain::program::types::{
-    Alias, AliasName, Argument, ArgumentName, ArgumentValue, BareWord, ByteOffset, Call,
-    ColumnReference, Columns, Condition, Expression, Filter, FragmentInput, FragmentProgram,
-    FragmentReturn, ImportDeclaration, Join, JoinKey, Joining, LetStep, OperationName,
-    ParameterDeclaration, QuerySource, QuerySpan, QueryView, RelationSignature, Renaming, Select,
-    SelectColumn, SignatureColumn, SourceReference, StepIdentity, StepName, TypeName, WordText,
-    WrittenApplied, WrittenEmit, WrittenFunction, WrittenLiteral, WrittenName, WrittenObservation,
-    WrittenOperand, WrittenParameter, WrittenProgram, WrittenRelation, WrittenTest,
+    FragmentInput, FragmentProgram, FragmentReturn, ImportDeclaration, LetStep,
+    ParameterDeclaration, RelationSignature, SignatureColumn, WrittenEmit, WrittenObservation,
+    WrittenProgram,
+};
+use ryo_values::domain::query_syntax::types::{
+    Alias, Argument, ArgumentValue, Call, ColumnReference, Columns, Condition, Expression, Filter,
+    Join, JoinKey, Joining, QuerySource, Renaming, Select, SelectColumn, SourceReference,
+    WrittenApplied, WrittenFunction, WrittenOperand, WrittenTest,
+};
+use ryo_values::domain::query_tokens::types::{
+    AliasName, ArgumentName, BareWord, ByteOffset, OperationName, QuerySpan, QueryView,
+    StepIdentity, StepName, TypeName, WordText, WrittenLiteral, WrittenName, WrittenParameter,
+    WrittenRelation,
 };
 
 /// The winnow syntax adapter.
@@ -77,9 +83,10 @@ impl SyntaxPort for SyntaxWinnowAdapter {
 
     fn read_bundle(
         &self,
-        bundle: &ryo_values::domain::program::types::QueryBundle,
+        bundle: &ryo_values::domain::query_tokens::types::QueryBundle,
     ) -> Result<ryo_values::domain::program::types::ParsedQueryBundle, SyntaxError> {
-        use ryo_values::domain::program::types::{ParsedQueryBundle, QueryOrigin};
+        use ryo_values::domain::program::types::ParsedQueryBundle;
+        use ryo_values::domain::query_tokens::types::QueryOrigin;
         let root_id = bundle.root.id.clone();
         let root = self
             .read(QueryView(&bundle.root.text))
@@ -200,7 +207,7 @@ pub(super) fn program(input: &mut Input<'_>) -> ModalResult<WrittenProgram> {
                 fragment_contracts: Vec::new(),
                 step_origins: std::collections::BTreeMap::new(),
                 observations,
-                emit_origin: ryo_values::domain::program::types::Attribution::Unlocated,
+                emit_origin: ryo_values::domain::query_tokens::types::Attribution::Unlocated,
                 parameters,
                 steps,
                 emit,
@@ -408,8 +415,8 @@ pub(super) fn fragment_return_line(input: &mut Input<'_>) -> ModalResult<Fragmen
         (keyword(Keyword::Return), multispace1),
         word.map(|name| {
             StepName(
-                ryo_values::domain::program::types::StepSpelling::from(name.0),
-                ryo_values::domain::program::types::StepIdentified::Unassigned,
+                ryo_values::domain::query_tokens::types::StepSpelling::from(name.0),
+                ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
             )
         }),
         (multispace0, ';'),
@@ -452,14 +459,14 @@ pub(super) fn observe_line(input: &mut Input<'_>) -> ModalResult<WrittenObservat
     Ok(WrittenObservation {
         step: StepName(
             step.0.into(),
-            ryo_values::domain::program::types::StepIdentified::Unassigned,
+            ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
         ),
         name: ryo_values::domain::observations::types::ObservationName(name.0.into()),
         span: QuerySpan {
             start: ByteOffset(span.start),
             end: ByteOffset(span.end),
         },
-        origin: ryo_values::domain::program::types::Attribution::Unlocated,
+        origin: ryo_values::domain::query_tokens::types::Attribution::Unlocated,
     })
 }
 
@@ -521,8 +528,8 @@ pub(super) fn step_line(input: &mut Input<'_>) -> ModalResult<LetStep> {
     .parse_next(input)?;
     Ok(LetStep {
         name: StepName(
-            ryo_values::domain::program::types::StepSpelling::from(name.0),
-            ryo_values::domain::program::types::StepIdentified::Unassigned,
+            ryo_values::domain::query_tokens::types::StepSpelling::from(name.0),
+            ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
         ),
         expression,
         span: QuerySpan {
@@ -559,8 +566,8 @@ pub(super) fn emit_line(input: &mut Input<'_>) -> ModalResult<WrittenEmit> {
     let key: Vec<ColumnName> = key;
     Ok(WrittenEmit {
         step: StepName(
-            ryo_values::domain::program::types::StepSpelling::from(step.0),
-            ryo_values::domain::program::types::StepIdentified::Unassigned,
+            ryo_values::domain::query_tokens::types::StepSpelling::from(step.0),
+            ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
         ),
         subject,
         key,
@@ -621,8 +628,8 @@ pub(super) fn source(input: &mut Input<'_>) -> ModalResult<QuerySource> {
             string.map(|name| SourceReference::Relation(WrittenRelation(name.0))),
             word.map(|name| {
                 SourceReference::Step(StepName(
-                    ryo_values::domain::program::types::StepSpelling::from(name.0),
-                    ryo_values::domain::program::types::StepIdentified::Unassigned,
+                    ryo_values::domain::query_tokens::types::StepSpelling::from(name.0),
+                    ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
                 ))
             }),
         )),

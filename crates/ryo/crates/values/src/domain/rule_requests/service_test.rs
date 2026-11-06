@@ -40,7 +40,7 @@ fn globs(texts: &[&str]) -> Vec<Glob> {
 fn spec(id: &str, include: &[&str], exclude: &[&str]) -> RuleSpec {
     RuleSpec {
         id: RuleId(id.into()),
-        query: crate::domain::program::types::QueryBundle::from(QueryText("select".into())),
+        query: crate::domain::query_tokens::types::QueryBundle::from(QueryText("select".into())),
         applicability: crate::domain::runs::types::RuleApplicability::Always,
         given: Vec::new(),
         observations: Vec::new(),

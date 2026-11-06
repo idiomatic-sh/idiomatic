@@ -1,7 +1,7 @@
 //! The `validate` use case's failures.
 
 use ryo_values::domain::program::types::RefusedQuery;
-use ryo_values::domain::program::types::QueryOrigin;
+use ryo_values::domain::query_tokens::types::QueryOrigin;
 
 /// Why `validate` failed.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

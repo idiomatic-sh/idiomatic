@@ -4,7 +4,7 @@ use super::errors::QueryLanguageError;
 use ryo_values::domain::descriptions::types::ValidateReport;
 use ryo_values::domain::hosted::types::HostedRelation;
 use ryo_values::domain::plans::types::Plan;
-use ryo_values::domain::program::types::QueryBundle;
+use ryo_values::domain::query_tokens::types::QueryBundle;
 
 /// What every `query_language` adapter implements.
 pub trait QueryLanguagePort: Send + Sync {

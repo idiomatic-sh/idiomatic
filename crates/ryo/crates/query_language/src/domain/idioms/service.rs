@@ -13,7 +13,8 @@ use crate::domain::resolving::service::{column_of, step_of};
 use crate::domain::rewriting::types::SameSets;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
-use ryo_values::domain::program::types::{self as syntax, QuerySpelling};
+use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::query_tokens::types::QuerySpelling;
 
 /// Says the pairs whose two functions have equal sets of texts as a comparison of digests: each
 /// function's texts are reduced in its own file to one digest and one size, and what the files

@@ -5,47 +5,49 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
 use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::query_syntax::types as ast;
+use ryo_values::domain::query_tokens::types as tokens;
 type Input = fn();
 type Value = ();
 type Failure = std::convert::Infallible;
 
-fn column(alias: &str, name: &str) -> syntax::ColumnReference {
-    syntax::ColumnReference {
-        alias: syntax::Alias::Written(syntax::AliasName(alias.into())),
+fn column(alias: &str, name: &str) -> ast::ColumnReference {
+    ast::ColumnReference {
+        alias: ast::Alias::Written(tokens::AliasName(alias.into())),
         column: syntax::ColumnName(name.into()),
     }
 }
-fn source(alias: &str) -> syntax::QuerySource {
-    syntax::QuerySource {
-        reference: syntax::SourceReference::Relation(syntax::WrittenRelation("function".into())),
-        alias: syntax::Alias::Written(syntax::AliasName(alias.into())),
+fn source(alias: &str) -> ast::QuerySource {
+    ast::QuerySource {
+        reference: ast::SourceReference::Relation(tokens::WrittenRelation("function".into())),
+        alias: ast::Alias::Written(tokens::AliasName(alias.into())),
         span: lowering_builder().span,
     }
 }
 fn lower(key: &str) -> Result<plans::Operation, LoweringError> {
     let mut builder = lowering_builder();
-    let join = syntax::Join {
+    let join = ast::Join {
         source: source("right"),
-        on: vec![syntax::JoinKey {
+        on: vec![ast::JoinKey {
             left: column("left", key),
             right: column("right", key),
         }],
     };
-    let select = syntax::Select {
-        columns: syntax::Columns::Listed(vec![syntax::SelectColumn {
+    let select = ast::Select {
+        columns: ast::Columns::Listed(vec![ast::SelectColumn {
             column: column("left", "file"),
-            rename: syntax::Renaming::Unchanged,
+            rename: ast::Renaming::Unchanged,
         }]),
         from: source("left"),
-        join: syntax::Joining::Joined(join.clone()),
+        join: ast::Joining::Joined(join.clone()),
         filters: vec![],
     };
     let input = crate::domain::resolving::service::read_source(&mut builder, &select.from)?;
     super::service::select_join(
         &mut builder,
-        &syntax::StepName(
+        &tokens::StepName(
             "result".into(),
-            ryo_values::domain::program::types::StepIdentified::Unassigned,
+            ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
         ),
         &select,
         &join,
@@ -92,28 +94,28 @@ fn unknown_join_key_keeps_name_and_span() {
 }
 
 /// The refusal of a join keyed by `key`, whose select keeps the filters it is given.
-fn refusal_of(key: syntax::JoinKey, filters: Vec<syntax::Condition>) -> LoweringError {
+fn refusal_of(key: ast::JoinKey, filters: Vec<ast::Condition>) -> LoweringError {
     let mut builder = lowering_builder();
-    let join = syntax::Join {
+    let join = ast::Join {
         source: source("right"),
         on: vec![key],
     };
-    let select = syntax::Select {
-        columns: syntax::Columns::Listed(vec![syntax::SelectColumn {
+    let select = ast::Select {
+        columns: ast::Columns::Listed(vec![ast::SelectColumn {
             column: column("left", "file"),
-            rename: syntax::Renaming::Unchanged,
+            rename: ast::Renaming::Unchanged,
         }]),
         from: source("left"),
-        join: syntax::Joining::Joined(join.clone()),
+        join: ast::Joining::Joined(join.clone()),
         filters,
     };
     let input = crate::domain::resolving::service::read_source(&mut builder, &select.from)
         .expect("the source is read");
     super::service::select_join(
         &mut builder,
-        &syntax::StepName(
+        &tokens::StepName(
             "result".into(),
-            ryo_values::domain::program::types::StepIdentified::Unassigned,
+            ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
         ),
         &select,
         &join,
@@ -123,7 +125,7 @@ fn refusal_of(key: syntax::JoinKey, filters: Vec<syntax::Condition>) -> Lowering
     .expect_err("the join is refused")
 }
 fn a_key_naming_neither_side_is_refused() {
-    let key = syntax::JoinKey {
+    let key = ast::JoinKey {
         left: column("elsewhere", "file"),
         right: column("right", "file"),
     };
@@ -133,18 +135,18 @@ fn a_key_naming_neither_side_is_refused() {
     ));
 }
 fn a_where_naming_a_column_its_side_lacks_is_refused() {
-    let key = syntax::JoinKey {
+    let key = ast::JoinKey {
         left: column("left", "file"),
         right: column("right", "file"),
     };
-    let filter = syntax::Filter {
-        left: syntax::WrittenOperand::Column(column("left", "missing")),
-        test: syntax::WrittenTest::Equal,
-        right: syntax::WrittenOperand::Text(syntax::WrittenLiteral("x".into())),
+    let filter = ast::Filter {
+        left: ast::WrittenOperand::Column(column("left", "missing")),
+        test: ast::WrittenTest::Equal,
+        right: ast::WrittenOperand::Text(tokens::WrittenLiteral("x".into())),
         span: lowering_builder().span,
     };
     assert!(matches!(
-        refusal_of(key, vec![syntax::Condition::Test(filter)]),
+        refusal_of(key, vec![ast::Condition::Test(filter)]),
         LoweringError::UnknownSideColumn { .. }
     ));
 }

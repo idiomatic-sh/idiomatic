@@ -19,19 +19,19 @@ use crate::domain::remapping::types::ParameterCheck;
 use crate::domain::rooting::service::assign_root_identities;
 use crate::domain::rooting::service::attribute_root;
 use crate::domain::rooting::service::bind_declared_sources;
-use ryo_values::domain::program::types::Call;
-use ryo_values::domain::program::types::Expression;
 use ryo_values::domain::program::types::FragmentContract;
 use ryo_values::domain::program::types::FragmentContractInput;
 use ryo_values::domain::program::types::FragmentProgram;
 use ryo_values::domain::program::types::LetStep;
-use ryo_values::domain::program::types::QueryBundle;
-use ryo_values::domain::program::types::QueryOrigin;
-use ryo_values::domain::program::types::QuerySourceId;
-use ryo_values::domain::program::types::QueryTraceSite;
-use ryo_values::domain::program::types::StepIdentity;
-use ryo_values::domain::program::types::StepName;
 use ryo_values::domain::program::types::WrittenProgram;
+use ryo_values::domain::query_syntax::types::Call;
+use ryo_values::domain::query_syntax::types::Expression;
+use ryo_values::domain::query_tokens::types::QueryBundle;
+use ryo_values::domain::query_tokens::types::QueryOrigin;
+use ryo_values::domain::query_tokens::types::QuerySourceId;
+use ryo_values::domain::query_tokens::types::QueryTraceSite;
+use ryo_values::domain::query_tokens::types::StepIdentity;
+use ryo_values::domain::query_tokens::types::StepName;
 use std::collections::BTreeMap;
 
 /// Expands every imported-fragment call into fresh, identity-linked AST definitions.
@@ -131,7 +131,7 @@ pub(crate) fn link_with_observations(
         }
         root_visible.push(original);
     }
-    root.linked = ryo_values::domain::program::types::Linking::Linked;
+    root.linked = ryo_values::domain::query_tokens::types::Linking::Linked;
     root.steps = linked;
     root.fragment_contracts = contracts;
     attribute_root(&mut root, &root_id);

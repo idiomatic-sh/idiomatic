@@ -12,7 +12,7 @@ use ryo_relations::domain::relations::{
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input, StepId, StepScope},
     plans::types::{Operation, Plan, PlanStep},
-    program::types::QueryBundle,
+    query_tokens::types::QueryBundle,
     rows::types::{RowCount, Table},
     stored_facts::types::Digest,
 };

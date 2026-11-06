@@ -2,15 +2,15 @@
 
 use std::collections::BTreeMap;
 
-use crate::domain::linking::errors::LinkingError;
 use super::service::link;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::linking::errors::LinkingError;
 use crate::selects;
 use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::program::service::{document_source, query_bundle, source_id};
-use ryo_values::domain::program::types::{
-    ByteOffset, ImportDeclaration, QuerySpan, StepName, WrittenEmit, WrittenLiteral, WrittenName,
-    WrittenProgram,
+use ryo_values::domain::program::types::{ImportDeclaration, WrittenEmit, WrittenProgram};
+use ryo_values::domain::query_tokens::types::{
+    ByteOffset, QuerySpan, StepName, WrittenLiteral, WrittenName,
 };
 
 /// What a row asks of the service.
@@ -69,19 +69,19 @@ fn import(alias: &str, module: &str) -> ImportDeclaration {
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let mut program = WrittenProgram {
-        linked: ryo_values::domain::program::types::Linking::Unlinked,
+        linked: ryo_values::domain::query_tokens::types::Linking::Unlinked,
         imports: Vec::new(),
         origins: Vec::new(),
         fragment_contracts: Vec::new(),
         step_origins: BTreeMap::new(),
         observations: Vec::new(),
-        emit_origin: ryo_values::domain::program::types::Attribution::Unlocated,
+        emit_origin: ryo_values::domain::query_tokens::types::Attribution::Unlocated,
         parameters: Vec::new(),
         steps: Vec::new(),
         emit: WrittenEmit {
             step: StepName(
                 "rows".into(),
-                ryo_values::domain::program::types::StepIdentified::Unassigned,
+                ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
             ),
             subject: ColumnName("file".into()),
             key: vec![ColumnName("span".into())],
@@ -96,13 +96,15 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }
     }
     let root = document_source(
-        source_id(ryo_values::domain::program::types::QuerySpelling("root"))
-            .expect("a named source"),
+        source_id(ryo_values::domain::query_tokens::types::QuerySpelling(
+            "root",
+        ))
+        .expect("a named source"),
         "",
     );
     let bundle = query_bundle(root, []).expect("a bundle of one source");
     link(&bundle, program, &BTreeMap::new())
-        .map(|linked| linked.linked == ryo_values::domain::program::types::Linking::Linked)
+        .map(|linked| linked.linked == ryo_values::domain::query_tokens::types::Linking::Linked)
 }
 
 #[test]

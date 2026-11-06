@@ -2,7 +2,7 @@
 use super::super::*;
 use ryo_values::domain::{
     hosted::types::HostKind,
-    plan_parts::types::{PlanComparison, HostedNumber, LiteralText, Operand, QueryLiteral, Test},
+    plan_parts::types::{HostedNumber, LiteralText, Operand, PlanComparison, QueryLiteral, Test},
     records::types::Cell as HostCell,
 };
 

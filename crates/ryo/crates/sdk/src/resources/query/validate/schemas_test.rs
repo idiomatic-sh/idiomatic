@@ -6,9 +6,10 @@ use ryo_relations::domain::relations::types::{CellKind, Offset, Span as CoreSpan
 use ryo_values::domain::hosted::types::{ColumnLabel, HostedColumn, HostedName, HostedRelation};
 use ryo_values::domain::{
     plan_parts::types::QueryText,
-    program::types::{
+    program::types::{RefusalMessage, RefusedKind, RefusedQuery},
+    query_tokens::types::{
         ByteOffset as CoreByteOffset, QueryOrigin as CoreQueryOrigin, QuerySourceId,
-        QuerySpan as CoreQuerySpan, RefusalMessage, RefusedKind, RefusedQuery,
+        QuerySpan as CoreQuerySpan,
     },
 };
 
@@ -42,7 +43,7 @@ fn refused(kind: RefusedKind, start: u32, end: u32) -> RefusedQuery {
             start: Offset(start),
             end: Offset(end),
         },
-        origin: ryo_values::domain::program::types::Attribution::Unlocated,
+        origin: ryo_values::domain::query_tokens::types::Attribution::Unlocated,
     }
 }
 
@@ -146,7 +147,7 @@ fn an_uncompilable_fragment_error_keeps_its_module_location() {
         trace: Vec::new(),
     };
     let mut core_error = refused(RefusedKind::Invalid, 7, 12);
-    core_error.origin = ryo_values::domain::program::types::Attribution::Located(core_origin);
+    core_error.origin = ryo_values::domain::query_tokens::types::Attribution::Located(core_origin);
     let converted = error(TEXT, CoreError::Uncompilable { error: core_error });
     assert!(matches!(
         converted,
@@ -246,7 +247,7 @@ fn requested((declared, expected): Declared) -> bool {
         hosted: declared,
     }) == CoreRequest {
         observations: Vec::new(),
-        text: ryo_values::domain::program::types::QueryBundle::from(QueryText(TEXT.into())),
+        text: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(TEXT.into())),
         hosted: expected,
     }
 }
@@ -323,7 +324,7 @@ fn query_bundle_retains_module_identity_and_exact_source() {
     assert!(Arc::ptr_eq(&original.root.text.0, &cloned.root.text.0));
     assert!(Arc::ptr_eq(&original.modules, &other_root.modules));
     let id = ryo_values::domain::program::service::source_id(
-        ryo_values::domain::program::types::QuerySpelling(module.id()),
+        ryo_values::domain::query_tokens::types::QuerySpelling(module.id()),
     )
     .unwrap();
     assert!(Arc::ptr_eq(

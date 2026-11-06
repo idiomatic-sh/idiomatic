@@ -290,7 +290,7 @@ fn request(given: &Given) -> LintRequest {
                         .get(place)
                         .map_or_else(|| place.to_string().into(), |id| (*id).into()),
                 ),
-                query: ryo_values::domain::program::types::QueryBundle::from(QueryText(
+                query: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(
                     (*query).into(),
                 )),
                 applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
@@ -1531,16 +1531,16 @@ fn changed_nested_module() -> Result<Value, Failure> {
         };
         query_bundle(
             document_source(
-                source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap(),
+                source_id(ryo_values::domain::query_tokens::types::QuerySpelling("root")).unwrap(),
                 "import outer from \"outer\"; let found = outer(); emit found subject id key(id);",
             ),
             [
                 document_source(
-                    source_id(ryo_values::domain::program::types::QuerySpelling("outer")).unwrap(),
+                    source_id(ryo_values::domain::query_tokens::types::QuerySpelling("outer")).unwrap(),
                     "import nested from \"nested\"; output relation<id: node>; let found = nested(); return found;",
                 ),
                 document_source(
-                    source_id(ryo_values::domain::program::types::QuerySpelling("nested")).unwrap(),
+                    source_id(ryo_values::domain::query_tokens::types::QuerySpelling("nested")).unwrap(),
                     format!("output relation<id: node>; let found = select {projection} from \"syntax-tree\"; return found;").into_boxed_str(),
                 ),
             ],
@@ -1573,11 +1573,11 @@ fn changed_fragment_plan() -> Result<Value, Failure> {
         );
         ryo_values::domain::program::service::query_bundle(
             ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap(),
+                ryo_values::domain::program::service::source_id(ryo_values::domain::query_tokens::types::QuerySpelling("root")).unwrap(),
                 "import choose from \"query/filter\"; let files = select path from \"filesystem.file\"; let result = choose(files=files); emit result subject \"path\" key(\"path\");",
             ),
             [ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("query/filter")).unwrap(),
+                ryo_values::domain::program::service::source_id(ryo_values::domain::query_tokens::types::QuerySpelling("query/filter")).unwrap(),
                 module.into_boxed_str(),
             )],
         )

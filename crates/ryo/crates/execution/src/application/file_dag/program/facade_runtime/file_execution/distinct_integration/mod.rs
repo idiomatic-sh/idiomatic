@@ -23,7 +23,7 @@ use ryo_values::domain::{
         StepScope,
     },
     plans::types::{Emit, Operation, Plan, PlanStep},
-    program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+    query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
     rows::types::{RowCount, Table},
     runs::types::{RuleApplicability, RuleId},
     stored_facts::types::Digest,

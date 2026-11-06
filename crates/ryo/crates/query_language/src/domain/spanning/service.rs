@@ -15,9 +15,9 @@ use crate::domain::syntax::types::ArgumentSlot;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::terms::types::Vocabulary;
 use ryo_values::domain::plans::types::Operation;
-use ryo_values::domain::program::types::Call;
-use ryo_values::domain::program::types::QuerySpelling;
-use ryo_values::domain::program::types::StepName;
+use ryo_values::domain::query_syntax::types::Call;
+use ryo_values::domain::query_tokens::types::QuerySpelling;
+use ryo_values::domain::query_tokens::types::StepName;
 
 /// Compose byte offsets only after fragment inputs have resolved to concrete scopes.
 pub(crate) fn call_span_between(

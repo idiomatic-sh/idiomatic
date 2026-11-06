@@ -3,10 +3,12 @@
 use super::service::assign_root_identities;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::descriptions::types::ColumnName;
-use ryo_values::domain::program::types::{
-    Alias, Attribution, ByteOffset, Columns, Expression, Joining, LetStep, Linking, QuerySource,
-    QuerySpan, Select, SourceReference, StepIdentified, StepName, WrittenEmit, WrittenProgram,
-    WrittenRelation,
+use ryo_values::domain::program::types::{LetStep, WrittenEmit, WrittenProgram};
+use ryo_values::domain::query_syntax::types::{
+    Alias, Columns, Expression, Joining, QuerySource, Select, SourceReference,
+};
+use ryo_values::domain::query_tokens::types::{
+    Attribution, ByteOffset, Linking, QuerySpan, StepIdentified, StepName, WrittenRelation,
 };
 
 /// What a row asks of the service.

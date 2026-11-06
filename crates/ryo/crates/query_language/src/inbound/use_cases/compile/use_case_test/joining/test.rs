@@ -11,7 +11,8 @@ use crate::domain::resolving::service::read_source;
 use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use crate::selects;
-use ryo_values::domain::program::types::{Expression, Joining, QueryView};
+use ryo_values::domain::query_syntax::types::{Expression, Joining};
+use ryo_values::domain::query_tokens::types::QueryView;
 
 /// The query text a row gives.
 type Input = &'static str;

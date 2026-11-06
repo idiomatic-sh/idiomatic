@@ -5,18 +5,20 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
 use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::query_syntax::types as ast;
+use ryo_values::domain::query_tokens::types as tokens;
 type Input = fn();
 type Value = ();
 type Failure = std::convert::Infallible;
 
-fn comparison() -> syntax::Filter {
-    syntax::Filter {
-        left: syntax::WrittenOperand::Column(syntax::ColumnReference {
-            alias: syntax::Alias::Unwritten,
+fn comparison() -> ast::Filter {
+    ast::Filter {
+        left: ast::WrittenOperand::Column(ast::ColumnReference {
+            alias: ast::Alias::Unwritten,
             column: syntax::ColumnName("name".into()),
         }),
-        test: syntax::WrittenTest::Equal,
-        right: syntax::WrittenOperand::Text(syntax::WrittenLiteral("main".into())),
+        test: ast::WrittenTest::Equal,
+        right: ast::WrittenOperand::Text(tokens::WrittenLiteral("main".into())),
         span: lowering_builder().span,
     }
 }
@@ -48,8 +50,8 @@ fn incompatible_operand_keeps_exact_location() {
     let mut builder = lowering_builder();
     let fields = crate::domain::resolving::service::relation_fields(Relation::Function);
     let mut comparison = comparison();
-    comparison.left = syntax::WrittenOperand::Column(syntax::ColumnReference {
-        alias: syntax::Alias::Unwritten,
+    comparison.left = ast::WrittenOperand::Column(ast::ColumnReference {
+        alias: ast::Alias::Unwritten,
         column: syntax::ColumnName("id".into()),
     });
     assert_eq!(
@@ -68,7 +70,7 @@ fn incompatible_operand_keeps_exact_location() {
 }
 
 /// The refusal a filter meets over the columns of one relation.
-fn refusal_of(relation: Relation, filter: &syntax::Filter) -> LoweringError {
+fn refusal_of(relation: Relation, filter: &ast::Filter) -> LoweringError {
     let mut builder = lowering_builder();
     let fields = crate::domain::resolving::service::relation_fields(relation);
     super::service::comparison_of(
@@ -81,19 +83,19 @@ fn refusal_of(relation: Relation, filter: &syntax::Filter) -> LoweringError {
     )
     .expect_err("the filter is refused")
 }
-fn column(name: &str) -> syntax::WrittenOperand {
-    syntax::WrittenOperand::Column(syntax::ColumnReference {
-        alias: syntax::Alias::Unwritten,
+fn column(name: &str) -> ast::WrittenOperand {
+    ast::WrittenOperand::Column(ast::ColumnReference {
+        alias: ast::Alias::Unwritten,
         column: syntax::ColumnName(name.into()),
     })
 }
-fn written(value: &str) -> syntax::WrittenOperand {
-    syntax::WrittenOperand::Text(syntax::WrittenLiteral(value.into()))
+fn written(value: &str) -> ast::WrittenOperand {
+    ast::WrittenOperand::Text(tokens::WrittenLiteral(value.into()))
 }
 fn a_function_given_the_wrong_number_of_arguments_is_refused() {
     let mut filter = comparison();
-    filter.left = syntax::WrittenOperand::Function(syntax::WrittenApplied {
-        function: syntax::WrittenFunction::Pascal,
+    filter.left = ast::WrittenOperand::Function(ast::WrittenApplied {
+        function: ast::WrittenFunction::Pascal,
         arguments: vec![column("name"), column("name")],
         span: filter.span,
     });
@@ -104,8 +106,8 @@ fn a_function_given_the_wrong_number_of_arguments_is_refused() {
 }
 fn a_function_given_a_column_that_is_not_text_is_refused() {
     let mut filter = comparison();
-    filter.left = syntax::WrittenOperand::Function(syntax::WrittenApplied {
-        function: syntax::WrittenFunction::Pascal,
+    filter.left = ast::WrittenOperand::Function(ast::WrittenApplied {
+        function: ast::WrittenFunction::Pascal,
         arguments: vec![column("id")],
         span: filter.span,
     });
@@ -117,7 +119,7 @@ fn a_function_given_a_column_that_is_not_text_is_refused() {
 fn an_affix_test_of_a_column_that_is_not_text_is_refused() {
     let mut filter = comparison();
     filter.left = column("id");
-    filter.test = syntax::WrittenTest::StartsWith;
+    filter.test = ast::WrittenTest::StartsWith;
     assert!(matches!(
         refusal_of(Relation::Function, &filter),
         LoweringError::NotText { .. }
@@ -125,7 +127,7 @@ fn an_affix_test_of_a_column_that_is_not_text_is_refused() {
 }
 fn a_literal_pattern_that_is_not_a_regex_is_refused() {
     let mut filter = comparison();
-    filter.test = syntax::WrittenTest::Matches;
+    filter.test = ast::WrittenTest::Matches;
     filter.right = written("[");
     assert!(matches!(
         refusal_of(Relation::Function, &filter),

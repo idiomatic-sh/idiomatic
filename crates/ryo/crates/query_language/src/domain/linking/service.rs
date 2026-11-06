@@ -2,10 +2,10 @@
 
 use super::errors::LinkingError;
 use ryo_values::domain::program::types::ImportDeclaration;
-use ryo_values::domain::program::types::QueryOrigin;
-use ryo_values::domain::program::types::QuerySourceId;
-use ryo_values::domain::program::types::QuerySpan;
-use ryo_values::domain::program::types::QueryTraceSite;
+use ryo_values::domain::query_tokens::types::QueryOrigin;
+use ryo_values::domain::query_tokens::types::QuerySourceId;
+use ryo_values::domain::query_tokens::types::QuerySpan;
+use ryo_values::domain::query_tokens::types::QueryTraceSite;
 
 /// Resolves the target module identifier written by an import.
 pub(crate) fn source_id(
@@ -13,7 +13,7 @@ pub(crate) fn source_id(
     import: &ImportDeclaration,
 ) -> Result<QuerySourceId, LinkingError> {
     ryo_values::domain::program::service::source_id(
-        ryo_values::domain::program::types::QuerySpelling(&import.module.0),
+        ryo_values::domain::query_tokens::types::QuerySpelling(&import.module.0),
     )
     .map_err(|error| {
         located(

@@ -6,8 +6,8 @@ use ryo_relations::domain::relations::types::CellKind;
 use super::types::ArgumentSlot;
 use ryo_values::domain::plan_parts::types::Direction;
 use ryo_values::domain::plan_parts::types::Side;
-use ryo_values::domain::plans::types::ParameterType;
-use ryo_values::domain::plans::types::QueryOperator;
+use ryo_values::domain::query_bindings::types::ParameterType;
+use ryo_values::domain::query_operators::types::QueryOperator;
 
 /// The text of the relation argument, and of the relation keyword.
 pub(crate) const RELATION: &str = "relation";

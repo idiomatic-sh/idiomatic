@@ -2,7 +2,7 @@
 //! and no inherent impl. The operations of the language and the arguments they take are enums;
 //! their outside text is in `constants.rs`.
 
-use ryo_values::domain::plans::types::QueryOperator;
+use ryo_values::domain::query_operators::types::QueryOperator;
 
 /// What an argument of a call is for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

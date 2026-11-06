@@ -19,8 +19,8 @@ use ryo_values::domain::{
     },
     plan_parts::types::{ColumnIndex, ParameterName, StepId, WholeNumber},
     plans::types::{Emit, Operation, PlanStep},
-    program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
     query_bindings::types::{ParameterType, PlanParameter},
+    query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
     records::types::ObservationIndex,
     runs::types::{RuleApplicability, RuleId},
 };

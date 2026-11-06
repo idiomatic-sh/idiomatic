@@ -29,9 +29,9 @@ pub(super) fn control(method: Method) -> Control {
     match method {
         Method::UseCasePrepare => Control::Refuses(observations_need_a_named_program),
         Method::UseCaseBegin => Control::Refuses(file_session_undeclared_rule),
-        Method::UseCasePrepareCompiled => {
-            Control::AcceptsNoRoot("declares the rules of a request; no root exists before preparation")
-        }
+        Method::UseCasePrepareCompiled => Control::AcceptsNoRoot(
+            "declares the rules of a request; no root exists before preparation",
+        ),
         Method::RequestOpenFile => Control::Refuses(file_route),
         Method::RequestObservations => Control::Refuses(observations_need_a_named_program),
         Method::RequestPrepareFrontiers => Control::Refuses(frontiers_of_an_undeclared_rule),
@@ -149,10 +149,16 @@ pub(super) fn file_session_undeclared_rule() {
         )
         .expect("a complete declared set opens");
     let undeclared = RuleIndex(2);
-    assert!(file.counts(RuleIndex(1)).is_ok(), "a declared rule is known");
+    assert!(
+        file.counts(RuleIndex(1)).is_ok(),
+        "a declared rule is known"
+    );
     assert!(file.counts(undeclared).is_err());
     assert!(file.rule(undeclared, demand(), &mut symbols).is_err());
-    assert!(file.emit_rows(undeclared, &mut symbols, &mut |_| Ok(())).is_err());
+    assert!(
+        file.emit_rows(undeclared, &mut symbols, &mut |_| Ok(()))
+            .is_err()
+    );
     let (mut arena, mut places, mut words) = (vec![], vec![], Default::default());
     let bucket = ryo_values::domain::stored_facts::types::Bucket(0);
     assert!(
@@ -170,8 +176,11 @@ pub(super) fn file_session_undeclared_rule() {
         .is_err()
     );
     assert!(
-        file.commit_frontier(undeclared, ryo_values::domain::plan_parts::types::InputNumber(0))
-            .is_err()
+        file.commit_frontier(
+            undeclared,
+            ryo_values::domain::plan_parts::types::InputNumber(0)
+        )
+        .is_err()
     );
     let _ = file.finish();
     request.finish();

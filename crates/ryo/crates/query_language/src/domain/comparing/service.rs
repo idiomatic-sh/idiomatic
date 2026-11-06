@@ -16,7 +16,8 @@ use crate::domain::resolving::service::{column_of, find_parameter, parameter_of,
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plan_parts::types::ComparisonOriginId;
 use ryo_values::domain::plans::types as plans;
-use ryo_values::domain::program::types::{self as syntax, QuerySpelling};
+use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::query_tokens::types::QuerySpelling;
 
 /// Whether a side is text: a name or a file column, text the query wrote, a text parameter or a function's text.
 fn is_text(side: Typed) -> SearchMatch {

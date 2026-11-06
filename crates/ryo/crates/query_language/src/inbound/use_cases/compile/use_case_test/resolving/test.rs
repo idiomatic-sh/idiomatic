@@ -10,9 +10,8 @@ use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use crate::selects;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::program::types::{
-    Condition, Expression, QuerySpelling, QueryView, WrittenOperand,
-};
+use ryo_values::domain::query_syntax::types::{Condition, Expression, WrittenOperand};
+use ryo_values::domain::query_tokens::types::{QuerySpelling, QueryView};
 
 /// The query text a row gives.
 type Input = &'static str;

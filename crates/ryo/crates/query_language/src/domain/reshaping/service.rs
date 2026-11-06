@@ -16,7 +16,8 @@ use crate::domain::syntax::constants::slot_name;
 use crate::domain::syntax::types::ArgumentSlot;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
-use ryo_values::domain::program::types::{self as syntax, QuerySpelling};
+use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::query_tokens::types::QuerySpelling;
 
 /// Lowers a `group_count` call: one row for each group of the key columns with how many rows (or distinct values) it holds, as the step `name`.
 pub(crate) fn call_group_count(

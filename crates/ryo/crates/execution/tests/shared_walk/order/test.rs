@@ -10,7 +10,7 @@ use ryo_relations::domain::relations::{
     types::{FileId, Relation},
 };
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Input, StepId, Test, StepScope},
+    plan_parts::types::{ColumnIndex, Input, StepId, StepScope, Test},
     plans::types::{Operation, PlanStep},
     rows::types::{RowCount, Table},
 };

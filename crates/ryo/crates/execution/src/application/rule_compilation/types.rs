@@ -1,7 +1,7 @@
 //! Bounded session plans and one invocation's compiled/bound answer.
 pub(crate) use crate::domain::prepared_request::types::ObservationIdentity;
 use ryo_values::domain::plans::types::Plan;
-use ryo_values::domain::program::types::QueryBundle;
+use ryo_values::domain::query_tokens::types::QueryBundle;
 use ryo_values::domain::runs::types::RuleId;
 use std::sync::{Arc, Mutex};
 

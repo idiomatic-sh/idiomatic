@@ -9,11 +9,11 @@ use ryo_relations::domain::relations::{
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     plan_parts::types::{
-        ColumnIndex, PlanComparison, Direction, Input, JoinColumn, LiteralText, Operand, QueryLiteral,
-        Side, StepId, StepScope, Test,
+        ColumnIndex, Direction, Input, JoinColumn, LiteralText, Operand, PlanComparison,
+        QueryLiteral, Side, StepId, StepScope, Test,
     },
     plans::types::{Emit, Operation, Plan, PlanStep},
-    program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+    query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
     rule_requests::types::{RuleParameters, RuleSpec},
     runs::types::{RuleApplicability, RuleId},
     stored_facts::types::Digest,

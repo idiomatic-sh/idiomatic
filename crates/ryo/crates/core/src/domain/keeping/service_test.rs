@@ -25,9 +25,9 @@ use ryo_values::domain::table_words::service::{decode_combined, encode_table, pa
 use ryo_values::domain::table_words::types::WordSlice;
 
 use ryo_relations::domain::relations::types::Words;
+use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::plan_parts::types::QueryText;
-use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::records::types::{PlacedColumn, PlacedLine, RowTotal};
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stores::types::{
@@ -129,7 +129,7 @@ fn hosting(rules: &[RuleSpec], hosted: &[HostedText]) -> DigestInput {
 fn rule(id: &str, query: &str) -> RuleSpec {
     RuleSpec {
         id: RuleId(id.into()),
-        query: ryo_values::domain::program::types::QueryBundle::from(QueryText(query.into())),
+        query: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(query.into())),
         applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
         given: Vec::new(),
         observations: Vec::new(),
@@ -187,13 +187,17 @@ fn configuration_follows_the_rules() -> Value {
     let same = configuration(&rules);
     let with_module = |body: &str| {
         let root = ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("rules/F401"))
-                .expect("root id is nonblank"),
+            ryo_values::domain::program::service::source_id(
+                ryo_values::domain::query_tokens::types::QuerySpelling("rules/F401"),
+            )
+            .expect("root id is nonblank"),
             "root query",
         );
         let module = ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("python/ruff/suppress"))
-                .expect("module id is nonblank"),
+            ryo_values::domain::program::service::source_id(
+                ryo_values::domain::query_tokens::types::QuerySpelling("python/ruff/suppress"),
+            )
+            .expect("module id is nonblank"),
             body,
         );
         let bundle = ryo_values::domain::program::service::query_bundle(root, [module])

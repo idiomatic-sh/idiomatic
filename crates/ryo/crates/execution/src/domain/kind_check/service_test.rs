@@ -8,8 +8,8 @@ use ryo_values::domain::descriptions::types::LanguageName;
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary, KindWord};
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    Applied, ColumnIndex, PlanComparison, Function, LiteralText, Operand, ParameterId, QueryLiteral,
-    StepId, Test,
+    Applied, ColumnIndex, Function, LiteralText, Operand, ParameterId, PlanComparison,
+    QueryLiteral, StepId, Test,
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
@@ -98,7 +98,9 @@ fn plan_comparing_kind(test: Test, right: Operand, relation: Relation, site: Kin
 #[test]
 fn an_unknown_kind_keeps_the_origin_from_its_own_plan_table() {
     use ryo_values::domain::plan_parts::types::ComparisonOriginId;
-    use ryo_values::domain::program::types::{ByteOffset, QueryOrigin, QuerySourceId, QuerySpan};
+    use ryo_values::domain::query_tokens::types::{
+        ByteOffset, QueryOrigin, QuerySourceId, QuerySpan,
+    };
 
     let origin = QueryOrigin {
         source_id: QuerySourceId("fragment/filter".into()),

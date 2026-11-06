@@ -9,10 +9,13 @@ use crate::outbound::syntax::fixtures::contract::check;
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use crate::selects;
 use ryo_values::domain::descriptions::types::ColumnName;
-use ryo_values::domain::program::types::{
-    ArgumentValue as Argument, Columns, Condition, Expression, Filter, Joining, QueryView,
-    SourceReference, WordText, WrittenFunction, WrittenLiteral, WrittenOperand, WrittenParameter,
-    WrittenProgram, WrittenRelation, WrittenTest,
+use ryo_values::domain::program::types::WrittenProgram;
+use ryo_values::domain::query_syntax::types::{
+    ArgumentValue as Argument, Columns, Condition, Expression, Filter, Joining, SourceReference,
+    WrittenFunction, WrittenOperand, WrittenTest,
+};
+use ryo_values::domain::query_tokens::types::{
+    QueryView, WordText, WrittenLiteral, WrittenParameter, WrittenRelation,
 };
 use winnow::Parser as _;
 
@@ -149,11 +152,11 @@ fn fragment_emit_is_rejected_at_its_original_module_span() {
 
     let bundle = ryo_values::domain::program::service::query_bundle(
         ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap(),
+            ryo_values::domain::program::service::source_id(ryo_values::domain::query_tokens::types::QuerySpelling("root")).unwrap(),
             "let rows = select id from \"syntax-tree\"; emit rows subject id key(id);",
         ),
         [ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("fragment")).unwrap(),
+            ryo_values::domain::program::service::source_id(ryo_values::domain::query_tokens::types::QuerySpelling("fragment")).unwrap(),
             "output relation<id: node>;\nlet rows = select id from \"syntax-tree\";\nreturn rows;\nemit rows subject id key(id);",
         )],
     )
@@ -167,7 +170,7 @@ fn fragment_emit_is_rejected_at_its_original_module_span() {
 }
 
 /// The test at `place` of a select's `where`, which the row writes with no `or`.
-fn test_at(select: &ryo_values::domain::program::types::Select, place: usize) -> &Filter {
+fn test_at(select: &ryo_values::domain::query_syntax::types::Select, place: usize) -> &Filter {
     let Condition::Test(filter) = &select.filters[place] else {
         panic!("the condition is a test");
     };

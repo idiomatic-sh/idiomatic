@@ -6,7 +6,7 @@ use ryo_values::domain::observations::types::{
     ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
 };
 use ryo_values::domain::plan_parts::types::ObservationBindingId;
-use ryo_values::domain::plan_parts::types::{PlanComparison, Operand, QueryLiteral, Test};
+use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::records::types::ObservationReadinessLayout;
 use ryo_values::domain::rule_requests::types::RuleSpec;

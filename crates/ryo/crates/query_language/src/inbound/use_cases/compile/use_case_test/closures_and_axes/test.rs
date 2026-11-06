@@ -12,9 +12,9 @@ use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
-use ryo_values::domain::plans::types::QueryOperator;
-use ryo_values::domain::program::types::Expression;
-use ryo_values::domain::program::types::QueryView;
+use ryo_values::domain::query_operators::types::QueryOperator;
+use ryo_values::domain::query_syntax::types::Expression;
+use ryo_values::domain::query_tokens::types::QueryView;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::lowering::errors::LoweringError;

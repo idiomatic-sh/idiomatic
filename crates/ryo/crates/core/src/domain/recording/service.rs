@@ -144,8 +144,8 @@ pub(crate) fn frontier_flat(
         let end = slots.partition_point(|slot| slot.producer.0 <= rule.0);
         if start != end {
             use ryo_values::domain::observations::types::ObservationReadinessRange;
-            use ryo_values::domain::records::types::ObservationReadinessSlot;
             use ryo_values::domain::records::types::ObservationReadinessCount;
+            use ryo_values::domain::records::types::ObservationReadinessSlot;
             let bytes = ryo_values::domain::observations::service::frontier_identity(
                 observations,
                 ObservationReadinessRange {
@@ -190,8 +190,8 @@ pub(crate) fn made_ran(
         noted: Digest([0; 16]),
         handed: Handing::Made(Handed {
             observations: match tables.current_observations.clone() {
-                Some(root) => ryo_values::domain::records::types::NamedReadiness::Recorded(root),
-                None => ryo_values::domain::records::types::NamedReadiness::Unrecorded,
+                Some(root) => ryo_values::domain::records::types::HandedReadiness::Recorded(root),
+                None => ryo_values::domain::records::types::HandedReadiness::Unrecorded,
             },
             buckets: moved
                 .into_iter()

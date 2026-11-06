@@ -140,7 +140,7 @@ fn world_with_applicability(
     use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort as _;
     use ryo_values::domain::{
         files::types::{CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
-        program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+        query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
         rule_requests::types::{RuleParameters, RuleSpec},
         stored_facts::types::Digest,
     };

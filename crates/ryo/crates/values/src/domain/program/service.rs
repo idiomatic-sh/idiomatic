@@ -3,7 +3,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use super::errors::ProgramError;
-use super::types::{
+use crate::domain::query_tokens::types::{
     ModuleCatalog, QueryBundle, QueryDocumentSource, QuerySourceId, QuerySourceText, QuerySpelling,
 };
 

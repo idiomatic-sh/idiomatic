@@ -16,9 +16,9 @@ use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::terms::types::Vocabulary;
 use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plans::types::Operation;
-use ryo_values::domain::program::types::Call;
-use ryo_values::domain::program::types::QuerySpelling;
-use ryo_values::domain::program::types::StepName;
+use ryo_values::domain::query_syntax::types::Call;
+use ryo_values::domain::query_tokens::types::QuerySpelling;
+use ryo_values::domain::query_tokens::types::StepName;
 
 /// Search a checked physical source span and append each absolute occurrence span.
 pub(crate) fn call_source_matches(
@@ -207,14 +207,14 @@ pub(crate) fn call_source_matches(
             pattern,
             capture: capture_name.map(|name| LiteralText(name.0)),
             capture_text: if capture_text {
-                ryo_values::domain::plans::types::TextOutput::Appended
+                ryo_values::domain::query_operators::types::TextOutput::Appended
             } else {
-                ryo_values::domain::plans::types::TextOutput::Omitted
+                ryo_values::domain::query_operators::types::TextOutput::Omitted
             },
             capture_line: if capture_line {
-                ryo_values::domain::plans::types::LineOutput::Appended
+                ryo_values::domain::query_operators::types::LineOutput::Appended
             } else {
-                ryo_values::domain::plans::types::LineOutput::Omitted
+                ryo_values::domain::query_operators::types::LineOutput::Omitted
             },
         },
         fields,

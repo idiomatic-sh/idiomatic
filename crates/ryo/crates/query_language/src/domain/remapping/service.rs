@@ -1,28 +1,28 @@
 //! The `remapping` service: free functions named by verb over the rewriting of a fragment step's identities, inputs and parameters at a call site.
 
+use super::types::ParameterCheck;
 use crate::domain::binding::service::substitute_argument_value;
 use crate::domain::binding::service::unbound_parameter;
 use crate::domain::binding::types::Bindings;
 use crate::domain::linking::errors::LinkingError;
 use crate::domain::linking::service::located;
 use crate::domain::syntax::service::shape_named;
-use ryo_values::domain::program::types::ArgumentValue;
-use ryo_values::domain::program::types::Call;
-use ryo_values::domain::program::types::Condition;
-use ryo_values::domain::program::types::Expression;
-use ryo_values::domain::program::types::Filter;
 use ryo_values::domain::program::types::LetStep;
-use ryo_values::domain::program::types::QuerySourceId;
-use ryo_values::domain::program::types::QuerySpan;
-use ryo_values::domain::program::types::QueryTraceSite;
-use ryo_values::domain::program::types::Select;
-use ryo_values::domain::program::types::SourceReference;
-use ryo_values::domain::program::types::StepIdentity;
-use ryo_values::domain::program::types::StepName;
-use ryo_values::domain::program::types::WrittenApplied;
-use ryo_values::domain::program::types::WrittenOperand;
+use ryo_values::domain::query_syntax::types::ArgumentValue;
+use ryo_values::domain::query_syntax::types::Call;
+use ryo_values::domain::query_syntax::types::Condition;
+use ryo_values::domain::query_syntax::types::Expression;
+use ryo_values::domain::query_syntax::types::Filter;
+use ryo_values::domain::query_syntax::types::Select;
+use ryo_values::domain::query_syntax::types::SourceReference;
+use ryo_values::domain::query_syntax::types::WrittenApplied;
+use ryo_values::domain::query_syntax::types::WrittenOperand;
+use ryo_values::domain::query_tokens::types::QuerySourceId;
+use ryo_values::domain::query_tokens::types::QuerySpan;
+use ryo_values::domain::query_tokens::types::QueryTraceSite;
+use ryo_values::domain::query_tokens::types::StepIdentity;
+use ryo_values::domain::query_tokens::types::StepName;
 use std::collections::BTreeMap;
-use super::types::{ParameterCheck};
 
 /// Rewrites one fragment step's local identities, inputs, parameters, and nested calls.
 pub(crate) fn remap_step(
@@ -67,8 +67,8 @@ pub(crate) fn remap_select(
     trace: &[QueryTraceSite],
 ) -> Result<(), LinkingError> {
     for query_source in std::iter::once(&mut select.from).chain(match &mut select.join {
-        ryo_values::domain::program::types::Joining::Alone => None,
-        ryo_values::domain::program::types::Joining::Joined(join) => Some(&mut join.source),
+        ryo_values::domain::query_syntax::types::Joining::Alone => None,
+        ryo_values::domain::query_syntax::types::Joining::Joined(join) => Some(&mut join.source),
     }) {
         let SourceReference::Step(reference) = &query_source.reference else {
             continue;
@@ -79,7 +79,7 @@ pub(crate) fn remap_select(
             identities.get(&identity).copied().map(|identity| {
                 SourceReference::Step(StepName(
                     reference.0.clone().into(),
-                    ryo_values::domain::program::types::StepIdentified::Assigned(identity),
+                    ryo_values::domain::query_tokens::types::StepIdentified::Assigned(identity),
                 ))
             })
         } else {
@@ -87,12 +87,12 @@ pub(crate) fn remap_select(
                 .get(reference.0.as_ref())
                 .and_then(|input| match input {
                     ArgumentValue::Text(name) => Some(SourceReference::Relation(
-                        ryo_values::domain::program::types::WrittenRelation(name.0.clone()),
+                        ryo_values::domain::query_tokens::types::WrittenRelation(name.0.clone()),
                     )),
                     ArgumentValue::Step(step) => Some(SourceReference::Step(step.clone())),
                     ArgumentValue::Word(word) => Some(SourceReference::Step(StepName(
                         word.0.clone().into(),
-                        ryo_values::domain::program::types::StepIdentified::Unassigned,
+                        ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
                     ))),
                     ArgumentValue::Number(_)
                     | ArgumentValue::Parameter(_)

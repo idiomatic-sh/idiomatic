@@ -8,10 +8,15 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::observations::types::ObservationName;
 use ryo_values::domain::program::types::{
-    Alias, ByteOffset, Call, Columns, Condition, Expression, Filter, Join, Joining, LetStep,
-    OperationName, QueryOrigin, QuerySource, QuerySourceId, QuerySpan, Select, SourceReference,
-    StepIdentity, StepName, WrittenEmit, WrittenLiteral, WrittenObservation, WrittenOperand,
-    WrittenParameter, WrittenProgram, WrittenRelation, WrittenTest,
+    LetStep, WrittenEmit, WrittenObservation, WrittenProgram,
+};
+use ryo_values::domain::query_syntax::types::{
+    Alias, Call, Columns, Condition, Expression, Filter, Join, Joining, QuerySource, Select,
+    SourceReference, WrittenOperand, WrittenTest,
+};
+use ryo_values::domain::query_tokens::types::{
+    ByteOffset, OperationName, QueryOrigin, QuerySourceId, QuerySpan, StepIdentity, StepName,
+    WrittenLiteral, WrittenParameter, WrittenRelation,
 };
 
 #[derive(Clone, Copy)]
@@ -139,7 +144,7 @@ fn source(relation: &str) -> LetStep {
     LetStep {
         name: StepName(
             "rows".into(),
-            ryo_values::domain::program::types::StepIdentified::Unassigned,
+            ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
         ),
         expression: Expression::Select(Select {
             columns: Columns::Every,
@@ -169,7 +174,7 @@ fn called(name: &str) -> LetStep {
     LetStep {
         name: StepName(
             "rows".into(),
-            ryo_values::domain::program::types::StepIdentified::Unassigned,
+            ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
         ),
         expression: Expression::Call(Call {
             name: OperationName(name.into()),
@@ -184,29 +189,29 @@ fn observation(name: &str) -> WrittenObservation {
     WrittenObservation {
         step: StepName(
             "rows".into(),
-            ryo_values::domain::program::types::StepIdentified::Unassigned,
+            ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
         ),
         name: ObservationName(name.into()),
         span: SPAN,
-        origin: ryo_values::domain::program::types::Attribution::Unlocated,
+        origin: ryo_values::domain::query_tokens::types::Attribution::Unlocated,
     }
 }
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let mut program = WrittenProgram {
-        linked: ryo_values::domain::program::types::Linking::Unlinked,
+        linked: ryo_values::domain::query_tokens::types::Linking::Unlinked,
         imports: Vec::new(),
         origins: Vec::new(),
         fragment_contracts: Vec::new(),
         step_origins: std::collections::BTreeMap::new(),
         observations: Vec::new(),
-        emit_origin: ryo_values::domain::program::types::Attribution::Unlocated,
+        emit_origin: ryo_values::domain::query_tokens::types::Attribution::Unlocated,
         parameters: Vec::new(),
         steps: vec![source("function")],
         emit: WrittenEmit {
             step: StepName(
                 "rows".into(),
-                ryo_values::domain::program::types::StepIdentified::Unassigned,
+                ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
             ),
             subject: ColumnName("file".into()),
             key: vec![ColumnName("span".into())],
@@ -219,7 +224,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::MissingEmitStep => {
             program.emit.step = StepName(
                 "missing".into(),
-                ryo_values::domain::program::types::StepIdentified::Unassigned,
+                ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
             )
         }
         Scenario::UndeclaredParameter => {
@@ -247,7 +252,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let mut unknown = source("nothing");
             unknown.name = StepName(
                 "rows".into(),
-                ryo_values::domain::program::types::StepIdentified::Assigned(identity),
+                ryo_values::domain::query_tokens::types::StepIdentified::Assigned(identity),
             );
             program.steps = vec![unknown];
             program.step_origins.insert(

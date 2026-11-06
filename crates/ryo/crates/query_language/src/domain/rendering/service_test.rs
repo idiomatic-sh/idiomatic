@@ -3,18 +3,20 @@ use crate::cases::{Case, CaseName, Expect, Word, lowering_builder, run};
 use crate::domain::lowering::errors::LoweringError;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::query_syntax::types as ast;
+use ryo_values::domain::query_tokens::types as tokens;
 type Input = fn();
 type Value = ();
 type Failure = std::convert::Infallible;
 
 type Lowering = fn(
     &mut crate::domain::lowering::types::Builder<'_>,
-    &syntax::StepName,
-    &syntax::Call,
+    &tokens::StepName,
+    &ast::Call,
 ) -> Result<(), LoweringError>;
 
 /// The refusal a call to `lower` meets, over the relations of one file and the manifests of the project.
-fn refusal_of(lower: Lowering, call: &syntax::Call) -> LoweringError {
+fn refusal_of(lower: Lowering, call: &ast::Call) -> LoweringError {
     let mut builder = lowering_builder();
     builder.catalog = &[
         Relation::Function,
@@ -25,21 +27,21 @@ fn refusal_of(lower: Lowering, call: &syntax::Call) -> LoweringError {
     lower(&mut builder, &name(), call).expect_err("the call is refused")
 }
 
-fn call(name: &str, arguments: Vec<(&str, syntax::ArgumentValue)>) -> syntax::Call {
-    syntax::Call {
-        name: syntax::OperationName(name.into()),
+fn call(name: &str, arguments: Vec<(&str, ast::ArgumentValue)>) -> ast::Call {
+    ast::Call {
+        name: tokens::OperationName(name.into()),
         span: lowering_builder().span,
         arguments: arguments
             .into_iter()
-            .map(|(name, value)| syntax::Argument {
-                name: syntax::ArgumentName(name.into()),
+            .map(|(name, value)| ast::Argument {
+                name: tokens::ArgumentName(name.into()),
                 value,
             })
             .collect(),
     }
 }
-fn text(value: &str) -> syntax::ArgumentValue {
-    syntax::ArgumentValue::Text(syntax::WrittenLiteral(value.into()))
+fn text(value: &str) -> ast::ArgumentValue {
+    ast::ArgumentValue::Text(tokens::WrittenLiteral(value.into()))
 }
 fn semantic_call_rejects_extra_arguments() {
     let call = call(

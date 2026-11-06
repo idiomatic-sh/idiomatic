@@ -57,11 +57,11 @@ fn succeeds() {
 fn fragment_contract_compiles_against_real_relation_columns() {
     let root = ryo_values::domain::program::service::query_bundle(
         ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap(),
+            ryo_values::domain::program::service::source_id(ryo_values::domain::query_tokens::types::QuerySpelling("root")).unwrap(),
             "import identity from \"query/identity\";\nlet nodes = select id from \"syntax-tree\";\nlet result = identity(source=nodes);\nemit result subject id key(id);",
         ),
         [ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("query/identity")).unwrap(),
+            ryo_values::domain::program::service::source_id(ryo_values::domain::query_tokens::types::QuerySpelling("query/identity")).unwrap(),
             "input source: relation<id: node>;\noutput relation<id: node>;\nlet selected = select id from source;\nreturn selected;",
         )],
     )
@@ -87,14 +87,14 @@ fn fragment_relation_contracts_reject_input_and_output_shape_mismatches() {
         let bundle = ryo_values::domain::program::service::query_bundle(
             ryo_values::domain::program::service::document_source(
                 ryo_values::domain::program::service::source_id(
-                    ryo_values::domain::program::types::QuerySpelling("root"),
+                    ryo_values::domain::query_tokens::types::QuerySpelling("root"),
                 )
                 .unwrap(),
                 root_text,
             ),
             [ryo_values::domain::program::service::document_source(
                 ryo_values::domain::program::service::source_id(
-                    ryo_values::domain::program::types::QuerySpelling("query/identity"),
+                    ryo_values::domain::query_tokens::types::QuerySpelling("query/identity"),
                 )
                 .unwrap(),
                 module_text,
@@ -114,11 +114,11 @@ fn fragment_relation_contracts_reject_input_and_output_shape_mismatches() {
     }
     let invalid_body = ryo_values::domain::program::service::query_bundle(
         ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap(),
+            ryo_values::domain::program::service::source_id(ryo_values::domain::query_tokens::types::QuerySpelling("root")).unwrap(),
             root_text,
         ),
         [ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("query/identity")).unwrap(),
+            ryo_values::domain::program::service::source_id(ryo_values::domain::query_tokens::types::QuerySpelling("query/identity")).unwrap(),
             "input source: relation<id: node>;\noutput relation<id: node>;\nlet selected = select missing from source;\nreturn selected;",
         )],
     )
@@ -138,16 +138,16 @@ fn fragment_relation_contracts_reject_input_and_output_shape_mismatches() {
 fn nested_fragment_validation_error_keeps_the_inner_source_and_import_trace() {
     let bundle = ryo_values::domain::program::service::query_bundle(
         ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap(),
+            ryo_values::domain::program::service::source_id(ryo_values::domain::query_tokens::types::QuerySpelling("root")).unwrap(),
             "import outer from \"query/outer\";\nlet nodes = select id from \"syntax-tree\";\nlet result = outer(source=nodes);\nemit result subject id key(id);",
         ),
         [
             ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("query/outer")).unwrap(),
+                ryo_values::domain::program::service::source_id(ryo_values::domain::query_tokens::types::QuerySpelling("query/outer")).unwrap(),
                 "import inner from \"query/inner\";\ninput source: relation<id: node>;\noutput relation<id: node>;\nlet result = inner(source=source);\nreturn result;",
             ),
             ryo_values::domain::program::service::document_source(
-                ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("query/inner")).unwrap(),
+                ryo_values::domain::program::service::source_id(ryo_values::domain::query_tokens::types::QuerySpelling("query/inner")).unwrap(),
                 "input source: relation<id: node>;\noutput relation<id: node>;\nlet result = select missing from source;\nreturn result;",
             ),
         ],
@@ -181,14 +181,14 @@ fn fragment_calls_cannot_capture_caller_or_nested_private_steps() {
             ryo_values::domain::program::service::query_bundle(
                 ryo_values::domain::program::service::document_source(
                     ryo_values::domain::program::service::source_id(
-                        ryo_values::domain::program::types::QuerySpelling("root"),
+                        ryo_values::domain::query_tokens::types::QuerySpelling("root"),
                     )
                     .unwrap(),
                     root_with_caller,
                 ),
                 [ryo_values::domain::program::service::document_source(
                     ryo_values::domain::program::service::source_id(
-                        ryo_values::domain::program::types::QuerySpelling("query"),
+                        ryo_values::domain::query_tokens::types::QuerySpelling("query"),
                     )
                     .unwrap(),
                     caller_capture,
@@ -201,7 +201,7 @@ fn fragment_calls_cannot_capture_caller_or_nested_private_steps() {
             ryo_values::domain::program::service::query_bundle(
                 ryo_values::domain::program::service::document_source(
                     ryo_values::domain::program::service::source_id(
-                        ryo_values::domain::program::types::QuerySpelling("root"),
+                        ryo_values::domain::query_tokens::types::QuerySpelling("root"),
                     )
                     .unwrap(),
                     root_with_nested,
@@ -209,14 +209,14 @@ fn fragment_calls_cannot_capture_caller_or_nested_private_steps() {
                 [
                     ryo_values::domain::program::service::document_source(
                         ryo_values::domain::program::service::source_id(
-                            ryo_values::domain::program::types::QuerySpelling("outer"),
+                            ryo_values::domain::query_tokens::types::QuerySpelling("outer"),
                         )
                         .unwrap(),
                         outer,
                     ),
                     ryo_values::domain::program::service::document_source(
                         ryo_values::domain::program::service::source_id(
-                            ryo_values::domain::program::types::QuerySpelling("inner"),
+                            ryo_values::domain::query_tokens::types::QuerySpelling("inner"),
                         )
                         .unwrap(),
                         inner,
@@ -248,11 +248,11 @@ fn a_fused_fragment_comparison_keeps_its_original_source_span() {
     let module = "input nodes: relation<id: node, kind: symbol>;\noutput relation<id: node, kind: symbol>;\nlet selected = select id, kind from nodes where kind = \"totally-unknown\";\nlet projected = select id, kind from selected;\nreturn projected;";
     let bundle = ryo_values::domain::program::service::query_bundle(
         ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("root")).unwrap(),
+            ryo_values::domain::program::service::source_id(ryo_values::domain::query_tokens::types::QuerySpelling("root")).unwrap(),
             "import filter from \"filter\";\nlet nodes = select id, kind from \"syntax-tree\";\nlet result = filter(nodes=nodes);\nemit result subject id key(id);",
         ),
         [ryo_values::domain::program::service::document_source(
-            ryo_values::domain::program::service::source_id(ryo_values::domain::program::types::QuerySpelling("filter")).unwrap(),
+            ryo_values::domain::program::service::source_id(ryo_values::domain::query_tokens::types::QuerySpelling("filter")).unwrap(),
             module,
         )],
     )

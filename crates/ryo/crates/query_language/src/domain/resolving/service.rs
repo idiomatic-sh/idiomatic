@@ -14,7 +14,8 @@ use crate::domain::lowering::types::{
 use crate::domain::syntax::constants::slot_name;
 use crate::domain::syntax::types::ArgumentSlot;
 use ryo_values::domain::plan_parts::types as parts;
-use ryo_values::domain::program::types::{self as syntax, QuerySpelling};
+use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::query_tokens::types::QuerySpelling;
 
 /// Where the column called `name` sits among `fields`.
 pub(crate) fn position(
@@ -229,7 +230,7 @@ pub(crate) fn input_argument(
         }
         syntax::ArgumentValue::Word(name) => syntax::SourceReference::Step(syntax::StepName(
             name.0.clone().into(),
-            ryo_values::domain::program::types::StepIdentified::Unassigned,
+            ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
         )),
         syntax::ArgumentValue::Step(step) => syntax::SourceReference::Step(step.clone()),
         syntax::ArgumentValue::Number(_)

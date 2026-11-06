@@ -5,14 +5,14 @@ use crate::domain::linking::errors::LinkingError;
 use crate::domain::linking::service::located;
 use crate::domain::linking::service::source_id;
 use crate::domain::syntax::service::shape_named;
-use ryo_values::domain::program::types::ArgumentValue;
-use ryo_values::domain::program::types::Expression;
 use ryo_values::domain::program::types::FragmentProgram;
-use ryo_values::domain::program::types::QueryOrigin;
-use ryo_values::domain::program::types::QuerySourceId;
-use ryo_values::domain::program::types::SourceReference;
-use ryo_values::domain::program::types::StepIdentity;
 use ryo_values::domain::program::types::WrittenProgram;
+use ryo_values::domain::query_syntax::types::ArgumentValue;
+use ryo_values::domain::query_syntax::types::Expression;
+use ryo_values::domain::query_syntax::types::SourceReference;
+use ryo_values::domain::query_tokens::types::QueryOrigin;
+use ryo_values::domain::query_tokens::types::QuerySourceId;
+use ryo_values::domain::query_tokens::types::StepIdentity;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
@@ -41,8 +41,10 @@ pub(crate) fn assign_root_identities(program: &mut WrittenProgram) {
             && let Expression::Select(select) = &mut step.expression
         {
             let sources = std::iter::once(&mut select.from).chain(match &mut select.join {
-                ryo_values::domain::program::types::Joining::Alone => None,
-                ryo_values::domain::program::types::Joining::Joined(join) => Some(&mut join.source),
+                ryo_values::domain::query_syntax::types::Joining::Alone => None,
+                ryo_values::domain::query_syntax::types::Joining::Joined(join) => {
+                    Some(&mut join.source)
+                }
             });
             for source in sources {
                 if let SourceReference::Step(reference) = &mut source.reference
@@ -132,14 +134,16 @@ pub(crate) fn attribute_root(program: &mut WrittenProgram, root: &QuerySourceId)
             span: output.span,
             trace: Vec::new(),
         };
-        output.origin = ryo_values::domain::program::types::Attribution::Located(origin.clone());
+        output.origin =
+            ryo_values::domain::query_tokens::types::Attribution::Located(origin.clone());
         program.origins.push(origin);
     }
-    program.emit_origin = ryo_values::domain::program::types::Attribution::Located(QueryOrigin {
-        source_id: root.clone(),
-        span: program.emit.span,
-        trace: Vec::new(),
-    });
+    program.emit_origin =
+        ryo_values::domain::query_tokens::types::Attribution::Located(QueryOrigin {
+            source_id: root.clone(),
+            span: program.emit.span,
+            trace: Vec::new(),
+        });
 }
 
 /// Root local definitions cannot shadow external inputs; hygienic private fragment definitions remain local.
@@ -174,8 +178,8 @@ pub(crate) fn bind_declared_sources(
         match &mut step.expression {
             Expression::Select(select) => {
                 let joined = match &mut select.join {
-                    ryo_values::domain::program::types::Joining::Alone => None,
-                    ryo_values::domain::program::types::Joining::Joined(join) => {
+                    ryo_values::domain::query_syntax::types::Joining::Alone => None,
+                    ryo_values::domain::query_syntax::types::Joining::Joined(join) => {
                         Some(&mut join.source)
                     }
                 };
@@ -185,7 +189,9 @@ pub(crate) fn bind_declared_sources(
                         && names.contains(name.0.as_ref())
                     {
                         input.reference = SourceReference::Relation(
-                            ryo_values::domain::program::types::WrittenRelation(name.0.clone()),
+                            ryo_values::domain::query_tokens::types::WrittenRelation(
+                                name.0.clone(),
+                            ),
                         );
                     }
                 }
@@ -226,7 +232,7 @@ pub(crate) fn bind_declared_sources(
                     };
                     if let Some(name) = external {
                         argument.value = ArgumentValue::Text(
-                            ryo_values::domain::program::types::WrittenLiteral(name),
+                            ryo_values::domain::query_tokens::types::WrittenLiteral(name),
                         );
                     }
                 }

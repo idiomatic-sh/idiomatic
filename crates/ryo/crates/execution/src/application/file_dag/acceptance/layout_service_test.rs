@@ -1,5 +1,7 @@
 //! Schema, publication and refusal controls through production request preparation.
 
+use crate::application::file_dag::frontiers::types::FrontierInput;
+use crate::domain::completion::types::CoverageState;
 use crate::domain::{
     file_program::{
         service::compile_prepared_observations,
@@ -9,23 +11,24 @@ use crate::domain::{
     operator::contract::types::RequestOperators,
     prepared_request::types::{Compiled, ObservationIdentity},
 };
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     service::kinds,
     types::{CellKind, Integer, Relation, Value},
 };
+use ryo_values::domain::table_words::types::DecodeMode;
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Direction, Input, JoinColumn, LiteralText, Operand, QueryLiteral, RepeatedRows, Side, StepId, StepScope},
+    plan_parts::types::{
+        ColumnIndex, Direction, Input, JoinColumn, LiteralText, Operand, QueryLiteral,
+        RepeatedRows, Side, StepId, StepScope,
+    },
     plans::types::{Emit, Operation, Plan, PlanStep},
-    program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+    query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
     rows::types::{RowCount, Table},
     rule_requests::types::{RuleParameters, RuleSpec},
     runs::types::{RuleApplicability, RuleId},
     stored_facts::types::Digest,
 };
-use crate::application::file_dag::frontiers::types::FrontierInput;
-use crate::domain::completion::types::CoverageState;
-use ryo_language::domain::symbols::types::Symbols;
-use ryo_values::domain::table_words::types::DecodeMode;
 use std::{collections::BTreeMap, sync::Arc};
 
 // Fixtures assemble authored requests only. The production compiler derives every schema,
@@ -437,7 +440,10 @@ fn cut_words() -> Arc<ryo_values::domain::stored_facts::types::KeptWords> {
         ryo_values::domain::stored_facts::types::PackedWords(vec![0x80]),
     ))
 }
-fn packed(input: Input, mode: DecodeMode) -> crate::application::file_dag::frontiers::types::PackedFrontier {
+fn packed(
+    input: Input,
+    mode: DecodeMode,
+) -> crate::application::file_dag::frontiers::types::PackedFrontier {
     crate::application::file_dag::frontiers::types::PackedFrontier {
         input,
         words: cut_words(),
@@ -449,9 +455,12 @@ fn packed(input: Input, mode: DecodeMode) -> crate::application::file_dag::front
 #[test]
 fn a_cut_frontier_is_refused_by_its_input_when_admitted_in_complete_mode() {
     let input = Input::Relation(Relation::Function);
-    let refused = crate::application::file_dag::frontiers::service::admit(packed(input, DecodeMode::Complete), &mut Symbols::default())
-        .err()
-        .expect("a cut frame is never complete");
+    let refused = crate::application::file_dag::frontiers::service::admit(
+        packed(input, DecodeMode::Complete),
+        &mut Symbols::default(),
+    )
+    .err()
+    .expect("a cut frame is never complete");
     assert_eq!(refused.input, input);
     assert!(matches!(
         refused.error,
@@ -462,9 +471,12 @@ fn a_cut_frontier_is_refused_by_its_input_when_admitted_in_complete_mode() {
 #[test]
 fn a_cut_step_frontier_is_refused_by_its_input_when_admitted_in_complete_mode() {
     let input = Input::Step(StepId(0));
-    let refused = crate::application::file_dag::frontiers::service::admit(packed(input, DecodeMode::Complete), &mut Symbols::default())
-        .err()
-        .expect("a cut frame is never complete");
+    let refused = crate::application::file_dag::frontiers::service::admit(
+        packed(input, DecodeMode::Complete),
+        &mut Symbols::default(),
+    )
+    .err()
+    .expect("a cut frame is never complete");
     assert_eq!(refused.input, input);
     assert!(matches!(
         refused.error,
@@ -475,8 +487,11 @@ fn a_cut_step_frontier_is_refused_by_its_input_when_admitted_in_complete_mode() 
 #[test]
 fn the_permissive_diagnostic_decode_never_refuses_a_packed_frontier() {
     let input = Input::Relation(Relation::Function);
-    let admitted = crate::application::file_dag::frontiers::service::admit(packed(input, DecodeMode::Permissive), &mut Symbols::default())
-        .ok()
-        .expect("diagnostic frontiers decode what they can");
+    let admitted = crate::application::file_dag::frontiers::service::admit(
+        packed(input, DecodeMode::Permissive),
+        &mut Symbols::default(),
+    )
+    .ok()
+    .expect("diagnostic frontiers decode what they can");
     assert!(matches!(admitted, FrontierInput::Decoded { .. }));
 }
