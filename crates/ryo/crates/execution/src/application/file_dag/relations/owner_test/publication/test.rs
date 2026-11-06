@@ -1,5 +1,5 @@
 //! Required publication aliases share normalization and release its backing at the last consumer.
-use super::*;
+use super::super::*;
 
 #[test]
 fn lazy_source_normalization_is_shared_and_lives_until_the_last_consumer() {
@@ -55,4 +55,60 @@ fn lazy_source_normalization_is_shared_and_lives_until_the_last_consumer() {
     drop(consumer);
     assert!(weak.upgrade().is_none());
     assert_eq!(owner.derived.publication_ownership_bytes(), (0, 0, 0));
+}
+
+#[test]
+fn computed_publication_clones_keep_required_backing_until_last_handle_in_live_generation() {
+    use ryo_values::domain::rows::types::{RowCount, Table};
+    let owner = RelationOwner::new(
+        true,
+        crate::application::file_dag::testing::program_derived_port(),
+    );
+    let generation = owner.generation_guard();
+    let publication = owner
+        .computed(Table {
+            kinds: vec![CellKind::Number],
+            cells: vec![Value::Number(Integer(41)), Value::Number(Integer(43))],
+            count: RowCount(2),
+        })
+        .unwrap();
+    let record = Arc::downgrade(publication.record());
+    let alias = publication.clone();
+    assert!(alias.same_record(&publication));
+    let charged = owner.derived.publication_ownership_bytes();
+    assert!(
+        charged.0 > 0,
+        "actual computed publication has required backing"
+    );
+    assert_eq!(charged.1, 0, "publication is not optional retention");
+    assert_eq!(charged.0, charged.2, "one physical required backing charge");
+    drop(publication);
+    assert!(record.upgrade().is_some());
+    assert_eq!(owner.derived.publication_ownership_bytes(), charged);
+    {
+        let rows = owner
+            .resolve(alias.as_ref(), &|_| Err(OperatingError::NotRead))
+            .unwrap();
+        assert_eq!(
+            read(&rows),
+            [
+                vec![Value::Number(Integer(41))],
+                vec![Value::Number(Integer(43))]
+            ]
+        );
+        assert_eq!(owner.derived.publication_ownership_bytes(), charged);
+    }
+    assert!(owner.matches_generation(&generation));
+    assert!(owner.generation_liveness().is_live());
+    drop(alias);
+    assert!(
+        record.upgrade().is_none(),
+        "last leased handle releases the actual record"
+    );
+    assert_eq!(owner.derived.publication_ownership_bytes(), (0, 0, 0));
+    assert!(
+        owner.matches_generation(&generation),
+        "release did not rely on retiring the generation"
+    );
+    assert!(owner.generation_liveness().is_live());
 }
