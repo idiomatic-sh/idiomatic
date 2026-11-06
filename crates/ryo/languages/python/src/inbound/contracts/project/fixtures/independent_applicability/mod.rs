@@ -92,7 +92,7 @@ fn metadata_rejection_and_dependency_refusal_have_independent_applicability() {
 }
 
 /// The row of this case.
-pub(super) const CASES: &[Case<(), (), ()>] = &[Case {
+pub(crate) const CASES: &[Case<(), (), ()>] = &[Case {
     name: CaseName("metadata_rejection_and_dependency_refusal_have_independent_applicability"),
     word: Word::Succeeds,
     input: || (),
@@ -100,7 +100,7 @@ pub(super) const CASES: &[Case<(), (), ()>] = &[Case {
 }];
 
 /// Runs the body of the case.
-pub(super) fn subject((): ()) -> Result<(), ()> {
+pub(crate) fn subject((): ()) -> Result<(), ()> {
     metadata_rejection_and_dependency_refusal_have_independent_applicability();
     Ok(())
 }

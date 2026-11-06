@@ -51,7 +51,7 @@ fn module_identity_only_preserves_inputs_without_projecting_or_validating() {
 }
 
 /// The row of this case.
-pub(super) const CASES: &[Case<(), (), ()>] = &[Case {
+pub(crate) const CASES: &[Case<(), (), ()>] = &[Case {
     name: CaseName("module_identity_only_preserves_inputs_without_projecting_or_validating"),
     word: Word::Succeeds,
     input: || (),
@@ -59,7 +59,7 @@ pub(super) const CASES: &[Case<(), (), ()>] = &[Case {
 }];
 
 /// Runs the body of the case.
-pub(super) fn subject((): ()) -> Result<(), ()> {
+pub(crate) fn subject((): ()) -> Result<(), ()> {
     module_identity_only_preserves_inputs_without_projecting_or_validating();
     Ok(())
 }

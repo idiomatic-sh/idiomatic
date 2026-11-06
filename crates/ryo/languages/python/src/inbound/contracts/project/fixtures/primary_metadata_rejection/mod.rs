@@ -61,7 +61,7 @@ fn primary_metadata_rejection_keeps_real_dependency_projection() {
 }
 
 /// The row of this case.
-pub(super) const CASES: &[Case<(), (), ()>] = &[Case {
+pub(crate) const CASES: &[Case<(), (), ()>] = &[Case {
     name: CaseName("primary_metadata_rejection_keeps_real_dependency_projection"),
     word: Word::Succeeds,
     input: || (),
@@ -69,7 +69,7 @@ pub(super) const CASES: &[Case<(), (), ()>] = &[Case {
 }];
 
 /// Runs the body of the case.
-pub(super) fn subject((): ()) -> Result<(), ()> {
+pub(crate) fn subject((): ()) -> Result<(), ()> {
     primary_metadata_rejection_keeps_real_dependency_projection();
     Ok(())
 }

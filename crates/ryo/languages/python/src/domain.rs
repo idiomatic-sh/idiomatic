@@ -34,6 +34,7 @@ pub(crate) mod semantic_syntax;
 pub(crate) mod binding_states;
 /// Hashable parser-supported constant expressions.
 pub(crate) mod constant_keys;
+pub(crate) mod constant_numbers;
 /// Structural expression identity.
 pub(crate) mod expression_shapes;
 /// Parsed primitive categories and narrow value predicates.
@@ -42,6 +43,7 @@ pub(crate) mod numeric_literals;
 
 /// Ordered language events and explicitly deferred evaluation phases.
 pub(crate) mod binding_schedule;
+pub(crate) mod binding_walk;
 
 /// Static binding observations with explicit absence and uncertainty.
 pub(crate) mod binding_results;

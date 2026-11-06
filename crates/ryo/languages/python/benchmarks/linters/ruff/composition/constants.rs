@@ -144,6 +144,7 @@ pub(crate) const EXPECTED_COLLECTOR: &str = "expected resource collector executa
 #[cfg(not(test))]
 pub(crate) const LANGUAGE_DIRECTORY: &str = "../..";
 /// Language identity required by this composition.
+#[cfg(not(test))]
 pub(crate) const PYTHON: &str = "python";
 /// Required argument or refusal for project count error.
 #[cfg(not(test))]
@@ -164,6 +165,7 @@ pub(crate) const UNTRACKED_SOURCE: &str = "Ruff discovered untracked source";
 #[cfg(not(test))]
 pub(crate) const PREFLIGHT_DIRECTORY: &str = "preflight";
 /// Stable command, artifact or observation identity for invalid syntax.
+#[cfg(not(test))]
 pub(crate) const INVALID_SYNTAX: &str = "invalid-syntax";
 /// Stable command, artifact or observation identity for valid source profile.
 #[cfg(not(test))]

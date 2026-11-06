@@ -113,7 +113,7 @@ fn positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots() 
 }
 
 /// The row of this case.
-pub(super) const CASES: &[Case<(), (), ()>] = &[Case {
+pub(crate) const CASES: &[Case<(), (), ()>] = &[Case {
     name: CaseName("positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots"),
     word: Word::Succeeds,
     input: || (),
@@ -121,7 +121,7 @@ pub(super) const CASES: &[Case<(), (), ()>] = &[Case {
 }];
 
 /// Runs the body of the case.
-pub(super) fn subject((): ()) -> Result<(), ()> {
+pub(crate) fn subject((): ()) -> Result<(), ()> {
     positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots();
     Ok(())
 }
