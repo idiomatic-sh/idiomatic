@@ -2,7 +2,7 @@
 //! Acquisition, population identity, capacity, and release stay with the program owner.
 
 use super::types::{
-    InputSource, LogicalInstruction, OperandSource, Region, RegionId, RuleProgram,
+    InputSource, OperandSource, Region, RegionId, RuleProgram, SelectionAlternative,
 };
 use crate::domain::{
     coverage::types::RuleIndex, operator::contract::types::RequestOperators,
@@ -14,34 +14,6 @@ use ryo_values::domain::{
     plans::types::{Operation, StepScope},
 };
 use std::sync::Arc;
-
-/// An immutable semantic alternative for one exact compiled instruction.
-/// The selector is the request-prepared Arc also registered with the derived owner.
-#[derive(Clone, Debug)]
-pub(crate) struct SelectionAlternative {
-    target: RegionId,
-    selector: Arc<Selector>,
-    producer: RuleIndex,
-    logical: LogicalInstruction,
-}
-
-impl SelectionAlternative {
-    pub(crate) fn target(&self) -> RegionId {
-        self.target
-    }
-
-    pub(crate) fn selector(&self) -> &Arc<Selector> {
-        &self.selector
-    }
-
-    pub(crate) fn producer(&self) -> RuleIndex {
-        self.producer
-    }
-
-    pub(crate) fn logical(&self) -> LogicalInstruction {
-        self.logical
-    }
-}
 
 fn direct_relation(operation: &Operation) -> Option<Relation> {
     match operation {

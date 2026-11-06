@@ -128,8 +128,9 @@ fn evaluate_once(
             Some(prepared?)
         } else {
             if workspace.literal_regex.is_none() {
-                workspace.literal_regex =
-                    Some(crate::domain::matching::service::compile_regex(&pattern.0)?);
+                workspace.literal_regex = Some(
+                    crate::domain::matching::types::prepared::value::compile_regex(&pattern.0)?,
+                );
             }
             workspace.literal_regex.as_ref()
         }

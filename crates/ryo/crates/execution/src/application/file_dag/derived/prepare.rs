@@ -94,7 +94,8 @@ pub(in crate::application::file_dag) fn view(
             view: view.clone(),
         },
     };
-    let access: crate::application::file_dag::derived::owner::types::DerivedAccess = semantic.into();
+    let access: crate::application::file_dag::derived::owner::types::DerivedAccess =
+        semantic.into();
     let prepared = access.prepare(
         meaning,
         schemas.iter().map(|schema| schema.kinds.to_vec()).collect(),
@@ -113,7 +114,7 @@ pub(in crate::application::file_dag) fn view(
     };
     use std::hash::{Hash, Hasher};
     let mut identity = std::collections::hash_map::DefaultHasher::new();
-    let kind = crate::domain::derived_views::service::kind(&request);
+    let kind = request.kind();
     kind.hash(&mut identity);
     let schemas = schemas
         .iter()

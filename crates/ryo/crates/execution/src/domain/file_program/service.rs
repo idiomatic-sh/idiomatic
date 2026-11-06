@@ -397,7 +397,7 @@ pub(crate) fn compile_prepared_observations(
                 .any(|id| resolved_readers[id.0] != 1)
             {
                 ordered_existence[select.0] = Some(
-                    crate::domain::ordered_existence::types::ResolvedAlternative::Declined(
+                    crate::domain::file_program::types::ResolvedAlternative::Declined(
                         crate::domain::ordered_existence::types::Decline::ExtraConsumer,
                     ),
                 );
@@ -438,8 +438,8 @@ pub(crate) fn compile_prepared_observations(
             }
 
             ordered_existence[select.0] = Some(
-                crate::domain::ordered_existence::types::ResolvedAlternative::Eligible(
-                    crate::domain::ordered_existence::types::ResolvedShape {
+                crate::domain::file_program::types::ResolvedAlternative::Eligible(
+                    crate::domain::file_program::types::ResolvedShape {
                         shape: shape.clone(),
                         source,
                         join,
@@ -451,9 +451,8 @@ pub(crate) fn compile_prepared_observations(
         }
     }
     for (node, alternative) in ordered_existence.iter().enumerate() {
-        if let Some(crate::domain::ordered_existence::types::ResolvedAlternative::Declined(
-            reason,
-        )) = alternative
+        if let Some(crate::domain::file_program::types::ResolvedAlternative::Declined(reason)) =
+            alternative
         {
             tracing::trace!(target: "ryo::diagnostic::preparation", node, ?reason,
                 "ordered existence declined after canonical producer binding");

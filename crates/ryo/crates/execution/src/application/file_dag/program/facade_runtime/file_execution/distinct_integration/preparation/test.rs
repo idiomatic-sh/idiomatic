@@ -18,9 +18,9 @@ fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_a
     }];
     let mut rules = Vec::new();
     let mut plans = Vec::new();
-    for index in 0..PRODUCERS {
+    for literal in 0..PRODUCERS {
         let mut authored = rule();
-        authored.id = RuleId(format!("opening-{index}").into());
+        authored.id = RuleId(format!("opening-{literal}").into());
         rules.push(authored);
         let mut producer = plan(Scenario::ProjectRetry);
         producer.steps = vec![
@@ -30,7 +30,7 @@ fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_a
                 operation: Operation::Extend {
                     from: PlanInput::Step(StepId(0)),
                     values: vec![Operand::Literal(QueryLiteral::Number(Integer(
-                        index as i64,
+                        literal as i64,
                     )))],
                 },
             },
@@ -179,7 +179,8 @@ fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_a
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
-        None)
+        None,
+    )
     .unwrap();
     assert_eq!(
         file.roots.len(),

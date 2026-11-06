@@ -2,10 +2,11 @@
 use crate::application::file_dag::derived::constants as activation;
 use crate::domain::{
     coverage::types::RuleIndex,
+    derived_views::types::PreparedSelectionViews,
     executable_program::types::{ExecutableProgram, InputSource},
     operating::errors::OperatingError,
     operator::contract::types::RequestOperators,
-    stored_selection::types::{PreparedSelectionViews, Selector},
+    stored_selection::types::Selector,
 };
 use ryo_relations::domain::relations::types::Relation;
 use std::sync::Arc;

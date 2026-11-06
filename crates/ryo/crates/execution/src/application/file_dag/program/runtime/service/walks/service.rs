@@ -18,7 +18,8 @@ impl KernelPermit<'_> {
         self.validate_live()?;
         match self.partition {
             Partition::File(actual)
-                if actual.matches(expected, self.generation) == crate::application::file_dag::program::admission::Agreement::Same =>
+                if actual.matches(expected, self.generation)
+                    == crate::application::file_dag::program::admission::Agreement::Same =>
             {
                 Ok(())
             }
@@ -72,11 +73,12 @@ impl KernelPermit<'_> {
     }
     pub(in crate::application::file_dag::program) fn selection_input<'a>(
         &'a self,
-        shape: &crate::domain::executable_program::selection::SelectionAlternative,
+        shape: &crate::domain::executable_program::types::SelectionAlternative,
     ) -> Result<&'a AdmittedInput, OperatingError> {
         self.validate_live()?;
         let region = &self.program.regions()[self.region.0];
-        let declared = crate::domain::executable_program::service::selection(&region.route).ok_or(OperatingError::WrongOperation)?;
+        let declared = crate::domain::executable_program::service::selection(&region.route)
+            .ok_or(OperatingError::WrongOperation)?;
         if shape.target() != self.region
             || shape.logical() != region.instructions[self.instruction.0].logical
             || !Arc::ptr_eq(shape.selector(), declared.selector())

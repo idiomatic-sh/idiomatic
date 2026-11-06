@@ -36,52 +36,32 @@ pub(super) struct Route {
     pub route: String,
     pub class: Option<u64>,
 }
-// The route each operation kind's meaning allows. Execution's route test reads these four lists
-// and checks them against its `meaning` for every operation kind, so the two cannot drift.
-const SELECTION: &[&str] = &["Select", "Project"];
-const PER_ROW: &[&str] = &[
-    "Extend",
-    "Capture",
-    "Rank",
-    "Replace",
-    "SpanBetween",
-    "SourceMatches",
-    "RenderSyntax",
-    "FitsRendered",
-    "SpanBounds",
-];
-const WHOLE_INPUT: &[&str] = &[
-    "Join",
-    "Union",
-    "Intersection",
-    "Difference",
-    "Antijoin",
-    "GroupCount",
-    "GroupDigest",
-    "OrderedMatch",
-    "Words",
-    "Axis",
-    "Closure",
-    "OrderedDfs",
-    "Cycles",
-];
-const REQUEST_OWNED: &[&str] = &["Rows", "Hosted"];
+// The route each operation kind's meaning allows. Execution's route test checks this table against its
+// `meaning` for every operation kind, so the two cannot drift.
+const MEANINGS: &str = include_str!(
+    "../../../../../../../crates/execution/src/domain/shared_walk/types/prepared_walk/value/coverage/fixtures/route_meanings.txt"
+);
+/// The meaning the shared table gives an operation kind.
+fn meaning_of(kind: &str) -> Option<&'static str> {
+    MEANINGS
+        .lines()
+        .filter(|line| !line.starts_with('#'))
+        .find_map(|line| line.split_once(' ').filter(|(named, _)| *named == kind))
+        .map(|(_, meaning)| meaning)
+}
 /// The routes an instruction of `kind` may bind to: a later instruction continues its region, an
 /// observation union is an observation, and a head follows its kind's meaning.
 pub(super) fn expected_routes(kind: &str, head: bool) -> &'static [&'static str] {
     if !head {
         return &["Continuation", "Observation"];
     }
-    if SELECTION.contains(&kind) {
-        &["Shared", "Representation", "DependentInput", "Observation"]
-    } else if PER_ROW.contains(&kind) {
-        &["RowSemantics", "Observation"]
-    } else if WHOLE_INPUT.contains(&kind) {
-        &["DerivedOrOrdered", "Observation"]
-    } else if REQUEST_OWNED.contains(&kind) {
-        &["RequestOwnedSource", "Observation"]
-    } else {
-        panic!("operation kind {kind} has no declared meaning")
+    match meaning_of(kind) {
+        Some("selection") => &["Shared", "Representation", "DependentInput", "Observation"],
+        Some("per-row") => &["RowSemantics", "Observation"],
+        Some("whole-input") => &["DerivedOrOrdered", "Observation"],
+        Some("request-owned") => &["RequestOwnedSource", "Observation"],
+        Some(other) => panic!("operation kind {kind} has unknown meaning {other}"),
+        None => panic!("operation kind {kind} has no declared meaning"),
     }
 }
 pub(super) fn observe() -> Result<Observation, Box<dyn std::error::Error>> {
@@ -278,7 +258,9 @@ fn decode(
                     class_rules
                         .insert(
                             count(fields, "class"),
-                            serde_json::from_str::<BTreeSet<u64>>(fields["rules"].as_str().unwrap())?
+                            serde_json::from_str::<BTreeSet<u64>>(
+                                fields["rules"].as_str().unwrap()
+                            )?
                         )
                         .is_none(),
                     "duplicate compiled class membership"

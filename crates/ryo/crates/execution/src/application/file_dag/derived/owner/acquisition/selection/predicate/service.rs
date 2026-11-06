@@ -9,9 +9,10 @@ use crate::application::file_dag::derived::owner::selection::types::{
     CandidateChoice, SelectionPath,
 };
 use crate::domain::{
+    derived_views::types::PreparedSelectorViews,
     operating::types::{Memo, NameCount, OperatorContext},
     operator::contract::views::BorrowedRows,
-    stored_selection::types::{PreparedSelectorViews, Selector},
+    stored_selection::types::Selector,
     table_model::service::check_columns,
 };
 use ryo_language::domain::symbols::service::name_count;

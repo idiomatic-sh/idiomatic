@@ -72,7 +72,7 @@ impl RowCells for AdmittedRows<'_, '_> {
 }
 pub(super) struct Predicate<'a, 'f> {
     pub(super) rows: BorrowedRows<'f>,
-    pub(super) program: &'a mut dyn crate::domain::operator::contract::types::PredicateProgram,
+    pub(super) program: &'a mut dyn crate::domain::operator::contract::views::PredicateProgram,
     pub(super) symbols: &'a Symbols,
     pub(super) needed: &'a crate::domain::table_cells::types::ColumnPlaces,
     pub(super) row: &'a mut Vec<Value>,

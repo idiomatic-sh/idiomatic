@@ -1,7 +1,7 @@
 //! Native cell reading and lookup strategy decisions use their actual pure owners.
 use crate::domain::{
     table_cells::types::{TreeForm, TreeRows},
-    tree_join::service::{source_column, tree_value},
+    tree_join::service::{driver::tree_value, source_column},
 };
 use ryo_derived::{
     domain::contract::types::{

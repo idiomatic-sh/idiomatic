@@ -105,7 +105,7 @@ impl super::super::KernelSession<'_, '_> {
     }
     pub(in crate::application::file_dag::program::kernel_session) fn selected_session(
         &self,
-        shape: &crate::domain::executable_program::selection::SelectionAlternative,
+        shape: &crate::domain::executable_program::types::SelectionAlternative,
         permit: &KernelPermit<'_>,
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
@@ -168,7 +168,7 @@ impl super::super::KernelSession<'_, '_> {
     }
     pub(in crate::application::file_dag::program::kernel_session) fn column_session(
         &self,
-        shape: &crate::domain::executable_program::column::ColumnAlternative,
+        shape: &crate::domain::executable_program::types::ColumnAlternative,
         permit: &KernelPermit<'_>,
         left: &crate::application::file_dag::program::admission::AdmittedInput,
         right: &crate::application::file_dag::program::admission::AdmittedInput,

@@ -10,7 +10,7 @@ pub(crate) enum PhysicalRoute<'a> {
     Registered,
     Positions(&'a crate::domain::lowering::types::LoweredShape),
     Ordered(&'a OrderedExistence),
-    Column(&'a super::column::ColumnAlternative),
+    Column(&'a super::types::ColumnAlternative),
 }
 pub(crate) struct PhysicalBinding<'a> {
     pub bindings: &'a [ryo_values::domain::query_bindings::types::ParameterBinding],

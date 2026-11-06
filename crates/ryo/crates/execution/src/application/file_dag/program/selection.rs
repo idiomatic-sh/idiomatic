@@ -3,7 +3,7 @@ use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::service::KernelPermit;
 use crate::application::file_dag::relations::{RelationOwner, handle::service::PublishedInput};
 use crate::domain::{
-    executable_program::selection::SelectionAlternative,
+    executable_program::types::SelectionAlternative,
     operating::{errors::OperatingError, types::OperatorContext},
     operator::contract::{types::WorkCounters, views::BorrowedRows},
     table_model::{service::rectangular, types::Rows},

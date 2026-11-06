@@ -98,25 +98,3 @@ impl SelectorHistogram {
         }
     }
 }
-
-/// Prepared construction contracts indexed by exact request-owned selector identity.
-#[derive(Debug, Default)]
-pub(crate) struct PreparedSelectionViews {
-    /// Pins every selector address for the complete request lifetime.
-    pub selectors: Vec<Arc<Selector>>,
-    /// O(1) capability lookup; no metadata construction occurs while selecting.
-    pub by_selector: std::collections::HashMap<usize, Arc<PreparedSelectorViews>>,
-    pub groups: usize,
-}
-#[derive(Debug)]
-pub(crate) struct PreparedSelectorViews {
-    pub group: usize,
-    pub predicate: Arc<crate::domain::derived_views::types::DerivedContract>,
-    pub postings: Arc<crate::domain::derived_views::types::DerivedContract>,
-    pub distinct: Arc<crate::domain::derived_views::types::DerivedContract>,
-    /// Every statically possible equality discriminator, chosen without runtime preparation.
-    pub equalities: std::collections::HashMap<
-        ColumnIndex,
-        Arc<crate::domain::derived_views::types::DerivedContract>,
-    >,
-}

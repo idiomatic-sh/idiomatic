@@ -1,169 +1,27 @@
-//! The negative adapter omits only ready; all evaluation stays in KernelSession.
+//! Runtime admission fixtures: the omitting adapter and the obligations it is compared against.
+pub(super) mod adapter;
+pub(super) mod events;
+use self::adapter::ReadyAdapter;
+use self::events::Events;
 use super::super::*;
-use crate::application::file_dag::program::{
-    kernel_session::KernelSession,
-    runtime::{
-        service::{KernelInvocation, KernelPermit, ReadySelection},
-        types::{ColumnCounters, InvocationFailure, KernelInput, KernelScratch, StrategyOutcome},
-    },
-};
-use crate::domain::{
-    executable_program::types::{Instruction, LogicalInstruction},
-    operating::types::Emit as RowSink,
-};
+use crate::application::file_dag::program::kernel_session::KernelSession;
 use ryo_values::domain::plan_parts::types::{Comparison, Operand, QueryLiteral, Test};
-use std::{
-    cell::Cell as Counter,
-    collections::{BTreeMap, BTreeSet},
-    sync::Mutex,
-};
-
-#[derive(Clone, Default)]
-struct Events(Arc<Mutex<Vec<BTreeMap<String, String>>>>);
-#[derive(Default)]
-struct Fields(BTreeMap<String, String>);
-impl tracing::field::Visit for Fields {
-    fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
-        let _previous = self.0.insert(field.name().into(), format!("{value:?}"));
-    }
-    fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
-        let _previous = self.0.insert(field.name().into(), value.into());
-    }
-}
-impl tracing::Subscriber for Events {
-    fn register_callsite(
-        &self,
-        _: &'static tracing::Metadata<'static>,
-    ) -> tracing::subscriber::Interest {
-        tracing::subscriber::Interest::sometimes()
-    }
-    fn max_level_hint(&self) -> Option<tracing::metadata::LevelFilter> {
-        Some(tracing::metadata::LevelFilter::TRACE)
-    }
-    fn enabled(&self, metadata: &tracing::Metadata<'_>) -> bool {
-        metadata.target() == crate::application::file_dag::program::constants::WALK_TARGET
-    }
-    fn new_span(&self, _: &tracing::span::Attributes<'_>) -> tracing::span::Id {
-        tracing::span::Id::from_u64(1)
-    }
-    fn record(&self, _: &tracing::span::Id, _: &tracing::span::Record<'_>) {}
-    fn record_follows_from(&self, _: &tracing::span::Id, _: &tracing::span::Id) {}
-    fn event(&self, event: &tracing::Event<'_>) {
-        let mut fields = Fields::default();
-        event.record(&mut fields);
-        self.0.lock().unwrap().push(fields.0);
-    }
-    fn enter(&self, _: &tracing::span::Id) {}
-    fn exit(&self, _: &tracing::span::Id) {}
-}
-struct ReadyAdapter<'a> {
-    actual: &'a dyn KernelInvocation,
-    omitted: Option<LogicalInstruction>,
-    skipped: Counter<usize>,
-    events: Events,
-}
-impl KernelInvocation for ReadyAdapter<'_> {
-    fn ready(
-        &self,
-        ready: &ReadySelection<'_, '_>,
-        inputs: &[AdmittedInput],
-        context: &mut OperatorContext<'_>,
-    ) -> Result<(), OperatingError> {
-        let logical = ready.permit().descriptor().logical;
-        {
-            let events = self.events.0.lock().unwrap();
-            assert!(
-                events
-                    .iter()
-                    .any(|event| event.get("event").map(String::as_str)
-                        == Some(crate::application::file_dag::program::constants::WALK_READY)
-                        && event.get("logical") == Some(&logical.0.to_string())),
-                "actual runtime obligation must exist before this callback, even when it will be skipped; head={logical:?}; operation={:?}; captured={events:?}",
-                ready.permit().descriptor().operation
-            );
-        }
-        if self.omitted == Some(logical) {
-            self.skipped.set(self.skipped.get() + 1);
-            return Ok(());
-        }
-        self.actual.ready(ready, inputs, context)
-    }
-    fn ordered(
-        &self,
-        shape: &crate::domain::executable_program::types::OrderedExistence,
-        permit: &KernelPermit<'_>,
-        input: &AdmittedInput,
-        context: &mut OperatorContext<'_>,
-        scratch: &mut KernelScratch,
-        output: &mut dyn RowSink,
-    ) -> Result<StrategyOutcome, InvocationFailure> {
-        self.actual
-            .ordered(shape, permit, input, context, scratch, output)
-    }
-    fn positions(
-        &self,
-        permit: &KernelPermit<'_>,
-        context: &mut OperatorContext<'_>,
-        scratch: &mut KernelScratch,
-    ) -> Result<
-        crate::application::file_dag::program::runtime::types::Attempt<crate::application::file_dag::relations::handle::service::PublishedInput>,
-        InvocationFailure,
-    > {
-        self.actual.positions(permit, context, scratch)
-    }
-    fn selected(
-        &self,
-        shape: &crate::domain::executable_program::selection::SelectionAlternative,
-        permit: &KernelPermit<'_>,
-        context: &mut OperatorContext<'_>,
-        scratch: &mut KernelScratch,
-    ) -> Result<
-        crate::application::file_dag::program::runtime::types::Attempt<crate::application::file_dag::relations::handle::service::PublishedInput>,
-        InvocationFailure,
-    > {
-        self.actual.selected(shape, permit, context, scratch)
-    }
-    fn column(
-        &self,
-        shape: &crate::domain::executable_program::column::ColumnAlternative,
-        permit: &KernelPermit<'_>,
-        left: &AdmittedInput,
-        right: &AdmittedInput,
-        context: &mut OperatorContext<'_>,
-        scratch: &mut KernelScratch,
-        counts: &ColumnCounters,
-        rows: &mut Table,
-    ) -> Result<StrategyOutcome, InvocationFailure> {
-        self.actual
-            .column(shape, permit, left, right, context, scratch, counts, rows)
-    }
-    fn evaluate(
-        &self,
-        instruction: &Instruction,
-        permit: &KernelPermit<'_>,
-        input: KernelInput<'_>,
-        context: &mut OperatorContext<'_>,
-        scratch: &mut KernelScratch,
-        output: &mut dyn RowSink,
-    ) -> Result<(), InvocationFailure> {
-        self.actual
-            .evaluate(instruction, permit, input, context, scratch, output)
-    }
-}
+use std::cell::Cell as Counter;
+use std::collections::{BTreeMap, BTreeSet};
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(super) struct Obligation {
-    generation: String,
-    population: String,
-    class: u64,
+pub(crate) struct Obligation {
+    pub(crate) generation: String,
+    pub(crate) population: String,
+    pub(crate) class: u64,
 }
-pub(super) struct Coverage {
-    pub(super) expected: BTreeSet<Obligation>,
-    pub(super) served: BTreeSet<Obligation>,
-    pub(super) dispatches: usize,
-    pub(super) skipped: usize,
-    pub(super) heads: usize,
+pub(crate) struct Coverage {
+    pub(crate) expected: BTreeSet<Obligation>,
+    pub(crate) served: BTreeSet<Obligation>,
+    pub(crate) dispatches: usize,
+    pub(crate) skipped: usize,
+    pub(crate) heads: usize,
 }
-fn numbers(value: &str) -> Vec<u64> {
+pub(crate) fn numbers(value: &str) -> Vec<u64> {
     let value = value.strip_prefix('[').unwrap().strip_suffix(']').unwrap();
     if value.trim().is_empty() {
         return vec![];
@@ -173,7 +31,7 @@ fn numbers(value: &str) -> Vec<u64> {
         .map(|number| number.trim().parse().unwrap())
         .collect()
 }
-fn population(value: &str) -> String {
+pub(crate) fn population(value: &str) -> String {
     value
         .strip_prefix("Ok(")
         .unwrap()
@@ -181,7 +39,7 @@ fn population(value: &str) -> String {
         .unwrap()
         .into()
 }
-fn decode(events: &Events, skipped: usize, required_heads: BTreeSet<u64>) -> Coverage {
+pub(crate) fn decode(events: &Events, skipped: usize, required_heads: BTreeSet<u64>) -> Coverage {
     let mut heads = BTreeMap::new();
     let mut expected = BTreeSet::new();
     let mut served = BTreeSet::new();
@@ -251,8 +109,7 @@ fn decode(events: &Events, skipped: usize, required_heads: BTreeSet<u64>) -> Cov
         heads: ready_heads,
     }
 }
-
-pub(super) fn observe(omit: bool) -> Coverage {
+pub(crate) fn observe(omit: bool) -> Coverage {
     let events = Events::default();
     let observer = tracing::Dispatch::new(events.clone());
     // tracing-core 0.1.36's sole-dispatch fast path consults the registering
@@ -501,9 +358,8 @@ pub(super) fn observe(omit: bool) -> Coverage {
     drop(registration);
     decode(&events, skipped, required_heads)
 }
-
 // Distinct callsites make both CASES exercise first registration independently.
-fn registration_probe(omission: bool) {
+pub(crate) fn registration_probe(omission: bool) {
     if omission {
         tracing::trace!(target: crate::application::file_dag::program::constants::WALK_TARGET, event = "capture_registration_omission");
     } else {

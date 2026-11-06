@@ -1,5 +1,7 @@
 //! Read-only physical inputs expose no owned cache or retained selection handle.
 
+use crate::domain::operating::errors::OperatingError;
+use crate::domain::table_model::types::Verdict;
 use ryo_derived::domain::contract::types::KeyIndex;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -170,4 +172,15 @@ impl<'a> IntoIterator for ClosureViews<'a> {
     fn into_iter(self) -> Self::IntoIter {
         ClosureIter { views: self, at: 0 }
     }
+}
+
+/// The evaluator is bound to the prepared contract's exact ordered program.
+/// Its implementation is engine-private; this interface cannot choose predicates,
+/// schemas, cache keys or upstream scheduling.
+pub(crate) trait PredicateProgram {
+    fn holds(
+        &mut self,
+        row: &[Value],
+        symbols: &ryo_language::domain::symbols::types::Symbols,
+    ) -> Result<Verdict, OperatingError>;
 }

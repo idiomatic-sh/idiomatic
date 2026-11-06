@@ -10,7 +10,7 @@ use crate::domain::tree_join::{
     collections::strategies::{
         entity_vector::item::EntityVectorItem, span_index::item::SpanIndexItem, types::NodeColumns,
     },
-    service::tree_value,
+    service::driver::tree_value,
 };
 use ryo_derived::domain::contract::types::Finding;
 use ryo_operators::inbound::use_cases::operators::interface::{

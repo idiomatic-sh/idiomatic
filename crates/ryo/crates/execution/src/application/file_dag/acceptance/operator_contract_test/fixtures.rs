@@ -11,7 +11,7 @@ use ryo_relations::domain::relations::types::{
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Direction, HostedNumber, Input, JoinColumn, LiteralText, Operand, ParameterId,
-    QueryLiteral, RepeatedRows, Side, TableKey, WholeNumber,
+    QueryLiteral, RepeatedRows, Side, TableKey,
 };
 use ryo_values::domain::plans::types::{Operation, OperationKind};
 use ryo_values::domain::rows::service::push_row;
@@ -432,8 +432,8 @@ pub(crate) fn fixture(kind: OperationKind) -> Fixture {
 }
 
 mod expectations;
-pub(crate) use expectations::{SOURCE, assert_expected};
 use expectations::{Expected, Fixture, cells};
+pub(crate) use expectations::{SOURCE, assert_expected};
 
 use ryo_values::domain::rows::types::Table;
 

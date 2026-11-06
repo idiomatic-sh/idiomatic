@@ -1,6 +1,6 @@
 //! Every operation kind and route of the compiled corpus has a fusion classification.
 use super::super::super::{WalkBarrier, WalkRoute};
-use super::super::fixtures::operations::{Corpus, compiled_operations};
+use super::super::fixtures::operations::corpus::{Corpus, compiled_operations};
 use crate::domain::executable_program::{
     fusion::types::{Barrier, Fusibility, Ineligible},
     types::LogicalInstruction,

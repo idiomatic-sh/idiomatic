@@ -66,20 +66,3 @@ pub(crate) struct Program {
     pub shapes: Vec<Shape>,
     pub declines: Vec<(StepId, Decline)>,
 }
-
-/// Request-owned binding to canonical producers, never template Step(0) equality.
-#[derive(Clone, Debug)]
-pub(crate) struct ResolvedShape {
-    pub shape: Shape,
-    pub source: crate::domain::file_program::types::NodeId,
-    pub join: crate::domain::file_program::types::NodeId,
-    pub select: crate::domain::file_program::types::NodeId,
-    /// Exact logical output layout consumed by the unchanged Project.
-    pub output: Vec<ryo_values::domain::plan_parts::types::JoinColumn>,
-}
-
-#[derive(Clone, Debug)]
-pub(crate) enum ResolvedAlternative {
-    Eligible(ResolvedShape),
-    Declined(Decline),
-}

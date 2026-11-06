@@ -54,23 +54,6 @@ impl tracing::field::Visit for JoinDiagnosticFields {
 
 #[test]
 fn file_index_diagnostic_is_one_aggregate_per_owner_never_per_probe_or_hit() {
-    let test = "application::file_dag::program::facade_runtime::file_execution::distinct_integration::join::diagnostics::test::file_index_diagnostic_is_one_aggregate_per_owner_never_per_probe_or_hit";
-    const CHILD: &str = "RYO_JOIN_OWNER_DIAGNOSTIC_CHILD";
-    if std::env::var_os(CHILD).as_deref() != Some(std::ffi::OsStr::new("1")) {
-        let output = std::process::Command::new(std::env::current_exe().unwrap())
-            .args(["--exact", test, "--test-threads=1"])
-            .env(CHILD, "1")
-            .output()
-            .unwrap();
-        assert!(
-            output.status.success()
-                && String::from_utf8_lossy(&output.stdout).contains("1 passed; 0 failed"),
-            "actual isolated observer test must run: {} {}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        );
-        return;
-    }
     let n = |n| Cell::Number(Integer(n));
     let left = table_of(&[CellKind::Number], &[&[n(1)], &[n(1)], &[n(9)]]);
     let empty = table_of(&[CellKind::Number], &[]);
@@ -82,6 +65,10 @@ fn file_index_diagnostic_is_one_aggregate_per_owner_never_per_probe_or_hit() {
     let op = operation(&[0], &[0], &[(Side::Right, 1)], vec![], &[]);
     let observer = JoinDiagnostics::default();
     let captured = observer.events.clone();
+    // tracing-core's sole-dispatch fast path consults the registering thread's default, and another
+    // libtest thread may have none. A second live registration makes callsite interest consult the
+    // registered subscribers instead; only `observer` is installed for event delivery.
+    let registration = tracing::Dispatch::new(observer.clone());
     tracing::subscriber::with_default(observer, || {
         for (rows, sink_after, expected) in [
             (&left, None, 4),
@@ -109,6 +96,7 @@ fn file_index_diagnostic_is_one_aggregate_per_owner_never_per_probe_or_hit() {
             }
         }
     });
+    drop(registration);
     let events = captured.lock().unwrap();
     assert_eq!(
         events.len(),

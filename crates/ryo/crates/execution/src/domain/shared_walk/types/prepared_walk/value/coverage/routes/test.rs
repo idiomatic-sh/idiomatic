@@ -1,7 +1,10 @@
 //! Every operation variant routes as its meaning says; relabelled routes are refused.
 use super::super::fixtures::{
     meaning::{Eligibility, FirstInput, Meaning, Place, Route, head_route, meaning, route},
-    operations::{Corpus, compiled_operations, operations},
+    operations::{
+        corpus::{Corpus, compiled_operations},
+        heads::operations,
+    },
 };
 use super::super::heads::expected;
 use crate::domain::shared_walk::types::walk_route::value::{
@@ -190,24 +193,22 @@ const ROUTE_CASES: &[Case<RouteScenario, (), RouteRefusal>] = &[
         expect: Expect::Error(RouteRefusal::RouteMismatch),
     },
 ];
-/// The quoted kinds of one list of the ruff sharing test's route table.
-fn table_list(text: &str, name: &str) -> Vec<String> {
-    let opening = format!("const {name}: &[&str] = &[");
-    let from = text.find(&opening).expect("a declared list") + opening.len();
-    let list = &text[from..from + text[from..].find("];").expect("a closed list")];
-    list.split('"')
-        .skip(1)
-        .step_by(2)
-        .map(str::to_owned)
+/// The kinds the table gives one meaning.
+fn table_list(text: &str, meaning: &str) -> Vec<String> {
+    text.lines()
+        .filter(|line| !line.starts_with('#'))
+        .filter_map(|line| line.split_once(' '))
+        .filter(|(_, written)| *written == meaning)
+        .map(|(kind, _)| kind.to_owned())
         .collect()
 }
 /// Every operation kind is in exactly the list its meaning names.
 fn verify_table(text: &str) -> Result<(), RouteRefusal> {
     let lists = [
-        (Meaning::Selection, table_list(text, "SELECTION")),
-        (Meaning::PerRow, table_list(text, "PER_ROW")),
-        (Meaning::WholeInput, table_list(text, "WHOLE_INPUT")),
-        (Meaning::RequestOwned, table_list(text, "REQUEST_OWNED")),
+        (Meaning::Selection, table_list(text, "selection")),
+        (Meaning::PerRow, table_list(text, "per-row")),
+        (Meaning::WholeInput, table_list(text, "whole-input")),
+        (Meaning::RequestOwned, table_list(text, "request-owned")),
     ];
     for kind in OperationKind::ALL {
         let name = format!("{kind:?}");
@@ -222,13 +223,9 @@ fn verify_table(text: &str) -> Result<(), RouteRefusal> {
     }
     Ok(())
 }
-/// Read at run time: the boundary probes compile a copy of this crate that has no sibling workspace.
-fn sharing_table() -> String {
-    std::fs::read_to_string(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../languages/python/benchmarks/linters/ruff/sharing/fixtures/mod.rs"),
-    )
-    .expect("the python sharing table")
+/// The route table the ruff sharing test also reads; a source include, so a copy of this crate carries it.
+fn sharing_table() -> &'static str {
+    include_str!("../fixtures/route_meanings.txt")
 }
 fn head_of(corpus: &Corpus, kind: OperationKind) -> LogicalInstruction {
     corpus
@@ -262,9 +259,9 @@ fn route_subject(scenario: RouteScenario) -> Result<(), RouteRefusal> {
             corpus.walk.physical[at.0] = Some(WalkRoute::Barrier(WalkBarrier::Continuation));
             verify_program(&corpus)
         }
-        RouteScenario::SharingTable => verify_table(&sharing_table()),
+        RouteScenario::SharingTable => verify_table(sharing_table()),
         RouteScenario::SharingTableMovedKind => {
-            verify_table(&sharing_table().replacen("\"Hosted\"", "\"Join\"", 1))
+            verify_table(&sharing_table().replacen("Hosted request-owned", "Join request-owned", 1))
         }
     }
 }

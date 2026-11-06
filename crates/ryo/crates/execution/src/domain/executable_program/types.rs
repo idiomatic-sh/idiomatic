@@ -1,7 +1,7 @@
 //! Dense executable instructions and their real publication boundaries.
 use crate::domain::{
-    coverage::types::RuleIndex, operating::errors::OperatingError,
-    operator::contract::types::OperatorContract,
+    column_kernel::types::Chain, coverage::types::RuleIndex, operating::errors::OperatingError,
+    operator::contract::types::OperatorContract, stored_selection::types::Selector,
 };
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::{
@@ -89,9 +89,9 @@ pub(crate) enum Route {
     /// The reviewed ordered-existence replacement of a self-join anti-join select.
     OrderedExistence(OrderedExistence),
     /// The column kernel over a stored equality index, replacing a join-filter-project chain.
-    Column(super::column::ColumnAlternative),
+    Column(ColumnAlternative),
     /// The stored selection of a direct select or project over one relation.
-    Selection(super::selection::SelectionAlternative),
+    Selection(SelectionAlternative),
     /// The native positions of a step that reads only the tree.
     NativePositions(Arc<crate::domain::lowering::types::LoweredShape>),
 }
@@ -107,8 +107,8 @@ pub(crate) enum RouteKind {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct RouteOffers {
     pub ordered: Option<OrderedExistence>,
-    pub column: Option<super::column::ColumnAlternative>,
-    pub selection: Option<super::selection::SelectionAlternative>,
+    pub column: Option<ColumnAlternative>,
+    pub selection: Option<SelectionAlternative>,
     pub native: Option<Arc<crate::domain::lowering::types::LoweredShape>>,
 }
 #[derive(Clone, Debug)]
@@ -289,4 +289,62 @@ pub(crate) struct FileReaderGraph {
         RegionId,
         std::collections::HashMap<RegionId, Box<[ConsumerObligation]>>,
     >,
+}
+/// The typed semantic shape required by the shared physical invocation.
+#[derive(Clone, Debug)]
+pub(crate) struct ColumnAlternative {
+    pub(super) target: RegionId,
+    pub(super) left: RegionId,
+    pub(super) join: RegionId,
+    pub(super) filter: RegionId,
+    pub(super) chain: Chain,
+}
+
+impl ColumnAlternative {
+    pub(crate) fn target(&self) -> RegionId {
+        self.target
+    }
+
+    pub(crate) fn left(&self) -> RegionId {
+        self.left
+    }
+
+    pub(crate) fn join(&self) -> RegionId {
+        self.join
+    }
+
+    pub(crate) fn filter(&self) -> RegionId {
+        self.filter
+    }
+
+    pub(crate) fn chain(&self) -> &Chain {
+        &self.chain
+    }
+}
+/// An immutable semantic alternative for one exact compiled instruction.
+/// The selector is the request-prepared Arc also registered with the derived owner.
+#[derive(Clone, Debug)]
+pub(crate) struct SelectionAlternative {
+    pub(super) target: RegionId,
+    pub(super) selector: Arc<Selector>,
+    pub(super) producer: RuleIndex,
+    pub(super) logical: LogicalInstruction,
+}
+
+impl SelectionAlternative {
+    pub(crate) fn target(&self) -> RegionId {
+        self.target
+    }
+
+    pub(crate) fn selector(&self) -> &Arc<Selector> {
+        &self.selector
+    }
+
+    pub(crate) fn producer(&self) -> RuleIndex {
+        self.producer
+    }
+
+    pub(crate) fn logical(&self) -> LogicalInstruction {
+        self.logical
+    }
 }

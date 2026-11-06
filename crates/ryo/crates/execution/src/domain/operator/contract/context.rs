@@ -1,8 +1,8 @@
 //! The `contract` service: pure functions over the domain's types, with no IO and no ports.
 use super::types::{
-    PredicateProgram, PrimitiveLease, PrimitiveSemantics, PrimitiveViews, PrimitiveWorkspace,
-    WorkCounters,
+    PrimitiveLease, PrimitiveSemantics, PrimitiveViews, PrimitiveWorkspace, WorkCounters,
 };
+use super::views::PredicateProgram;
 use ryo_language::domain::symbols::types::QuerySymbols;
 
 /// The application invocation bridge owns the only production call site.

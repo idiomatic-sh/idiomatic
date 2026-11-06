@@ -1,14 +1,13 @@
 //! Regular-expression matching with bounded, reusable compilation storage.
 
-use super::types::prepared::value::PreparedMatchers;
+use super::types::prepared::value::{PreparedMatchers, compile_regex};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::types::Verdict;
 use crate::domain::table_scratch::types::Patterns;
 use crate::domain::table_texts::types::Datum;
 use crate::domain::table_texts::types::{RegexPattern, TextView};
 use ryo_matching::inbound::use_cases::matching::{
-    compiled::CompiledRegex, errors::MatchingError, interface::MatchingUseCase,
-    use_case::MatchingUseCaseImpl,
+    compiled::CompiledRegex, interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
 };
 
 /// Searches text with a regular expression. Invalid expressions are errors, not empty results.
@@ -66,15 +65,4 @@ fn compile(pattern: TextView<'_>, compiled: &mut Patterns) -> Result<(), Operati
         let _previous = compiled.0.insert(RegexPattern(pattern.0.to_owned()), regex);
     }
     Ok(())
-}
-
-/// Adapt semantic compilation refusal without changing the engine's cache or error meaning.
-pub(crate) fn compile_regex(pattern: &str) -> Result<CompiledRegex, OperatingError> {
-    MatchingUseCaseImpl::new()
-        .compile_regex(pattern)
-        .map_err(|error| {
-            let (MatchingError::InvalidRegex { reason } | MatchingError::BadGlob { reason, .. }) =
-                error;
-            OperatingError::InvalidRegex { reason }
-        })
 }

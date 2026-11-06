@@ -1,5 +1,6 @@
 //! Immutable request graph and bounded, invocation-local shared results.
 
+use crate::domain::ordered_existence::types::{Decline, Shape};
 use ryo_relations::domain::relations::types::Relation;
 use std::sync::Arc;
 
@@ -47,8 +48,7 @@ pub(crate) struct RequestGraph {
     /// references are deferred faults, never a choice of another scheduler.
     pub program_nodes: Vec<Vec<Result<NodeId, crate::domain::operating::errors::OperatingError>>>,
     /// Reviewed alternatives indexed by their replaced Select producer.
-    pub ordered_existence:
-        Vec<Option<crate::domain::ordered_existence::types::ResolvedAlternative>>,
+    pub ordered_existence: Vec<Option<ResolvedAlternative>>,
     /// Named roots extend this request graph; ordinary requests retain no observation allocation.
     pub observations: Option<GraphObservations>,
     /// Producers of declared derived inputs, computed once for the whole request.
@@ -173,3 +173,20 @@ pub struct ObservedFrontierRoot {
 /// One request-wide binding slot; its payload is the same width as an ordinary NodeId edge.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct ObservationGraphInputId(pub usize);
+
+/// Request-owned binding to canonical producers, never template Step(0) equality.
+#[derive(Clone, Debug)]
+pub(crate) struct ResolvedShape {
+    pub shape: Shape,
+    pub source: NodeId,
+    pub join: NodeId,
+    pub select: NodeId,
+    /// Exact logical output layout consumed by the unchanged Project.
+    pub output: Vec<ryo_values::domain::plan_parts::types::JoinColumn>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum ResolvedAlternative {
+    Eligible(ResolvedShape),
+    Declined(Decline),
+}
