@@ -12,6 +12,7 @@ use crate::domain::registered_inputs::types::RefusalText;
 use crate::outbound::inventory::types::{InvocationDocument, Pin, Signal};
 use crate::outbound::suite::types::{observation_document::ExitStatus, text::YesNo};
 use crate::outbound::{
+    inventory::interface::InventoryPort,
     linter::interface::LinterPort,
     suite::{
         interface::SuitePort,
@@ -37,13 +38,14 @@ fn refused(error: impl std::fmt::Display) -> Failure {
 /// Refuse stale evidence across the selected inventory before either contestant executes.
 pub(crate) fn validate_all(
     suite: &dyn SuitePort,
+    inventory: &dyn InventoryPort,
     reference: &dyn LinterPort,
     rules: &Path,
     cases: &[PreparedCase],
 ) -> Result<Vec<Option<ReferenceProof>>, Failure> {
     cases
         .iter()
-        .map(|case| validate(suite, reference, rules, case))
+        .map(|case| validate(suite, inventory, reference, rules, case))
         .collect()
 }
 
@@ -96,6 +98,7 @@ fn requirement(row: &DiscrepancyEvidence) -> EvidenceRequirement {
 /// Bind both expected outputs, independent evidence and the actual approved reference invocation.
 pub(crate) fn validate(
     suite: &dyn SuitePort,
+    inventory: &dyn InventoryPort,
     reference: &dyn LinterPort,
     rules: &Path,
     case: &PreparedCase,
@@ -175,6 +178,7 @@ pub(crate) fn validate(
     if let Some(process) = process {
         validate_archives(
             suite,
+            inventory,
             profile_root,
             &profile,
             case,
@@ -209,6 +213,7 @@ pub(crate) fn validate(
 /// Validate every archived observation and require an exact pair for the actual binary.
 pub(crate) fn validate_archives(
     suite: &dyn SuitePort,
+    inventory: &dyn InventoryPort,
     profile_root: &Path,
     profile: &Tool,
     case: &PreparedCase,
@@ -250,7 +255,7 @@ pub(crate) fn validate_archives(
         let record = bytes
             .get(&observation.invocation.path)
             .ok_or(Failure::ArchivedBytesDiffer)?;
-        let InvocationDocument::Complete(metadata) = suite.decode_invocation(record)? else {
+        let InvocationDocument::Complete(metadata) = inventory.decode_invocation(record).map_err(refused)? else {
             return Err(Failure::ArchivedBytesDiffer);
         };
         let root = metadata.actual_request_root.0.as_str();

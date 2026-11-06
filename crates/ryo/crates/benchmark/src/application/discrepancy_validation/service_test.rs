@@ -169,6 +169,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
     match &input.step {
         Step::Validate => validate(
             &served,
+            &crate::outbound::inventory::factory::local(),
             &LinterFake::default(),
             Path::new(input.rules),
             &input.case,
@@ -176,6 +177,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         .map(|proof| proof.map_or(Outcome::NoProof, |_| Outcome::Proved)),
         Step::Archives(archive) => validate_archives(
             &served,
+            &crate::outbound::inventory::factory::local(),
             archive.root.path(),
             &profile(),
             &input.case,

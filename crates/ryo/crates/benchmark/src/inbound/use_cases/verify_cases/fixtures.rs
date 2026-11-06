@@ -33,8 +33,9 @@ pub fn exercise(scenario: Scenario) -> Result<usize, Refusal> {
                 Scenario::Complete | Scenario::Unaccounted => rules.to_owned(),
                 Scenario::Missing => rules.join("missing"),
             };
+            let inventory = crate::outbound::inventory::factory::local();
             let result = super::use_case::VerifyCasesUseCaseImpl::new(
-                suite, reference, candidate, execution,
+                suite, reference, candidate, execution, &inventory,
             )
             .verify_cases(
                 &input,

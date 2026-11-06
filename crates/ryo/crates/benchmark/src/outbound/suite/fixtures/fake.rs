@@ -101,12 +101,6 @@ impl SuitePort for SuiteFake {
             )
         }
     }
-    fn decode_invocation(
-        &self,
-        bytes: &[u8],
-    ) -> Result<crate::outbound::inventory::types::InvocationDocument, Error> {
-        crate::outbound::suite::factory::local().decode_invocation(bytes)
-    }
     fn digest(&self, ArtifactPath(path): ArtifactPath<'_>) -> Result<ArtifactDigest, Error> {
         self.artifact_digests
             .get(path)

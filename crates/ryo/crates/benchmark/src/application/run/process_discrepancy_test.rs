@@ -37,8 +37,7 @@ fn matches_capture(
     fixture: &fixtures::Fixture,
     capture: &case_execution::Capture,
 ) -> Result<(), crate::application::process_discrepancy::errors::ProcessDiscrepancyError> {
-    let document = fixture
-        .suite
+    let document = crate::outbound::inventory::factory::local()
         .decode_invocation(&serde_json::to_vec(&capture.invocation).unwrap())
         .unwrap();
     crate::application::process_discrepancy::service::matches(

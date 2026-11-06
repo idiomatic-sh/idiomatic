@@ -77,6 +77,7 @@ pub(super) fn validate_report(request: &RunRequest, report: &RunReport) -> Resul
 
 use crate::domain::diagnostics::service::compare_diagnostics as compare;
 use crate::domain::discrepancy::types::{Contestant, ReferenceProof};
+use crate::outbound::inventory::interface::InventoryPort;
 use crate::outbound::suite::interface::SuitePort;
 use ryo_benchmark_contracts::domain::requests::types::CaseSelection;
 use std::path::Path;
@@ -131,6 +132,7 @@ pub(crate) fn verify_prepared_shard(
     reference: &dyn LinterPort,
     candidate: &dyn LinterPort,
     execution: &dyn ExecutionPort,
+    inventory: &dyn InventoryPort,
     rules: &Path,
     mut cases: Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>,
     selection: CaseSelection<'_>,
@@ -151,6 +153,7 @@ pub(crate) fn verify_prepared_shard(
         .ok_or_else(|| Error::Invalid(super::constants::NO_CASES.into()))?;
     let proofs = crate::application::discrepancy_validation::service::validate_all(
         suite,
+        inventory,
         reference,
         rules,
         &selected_cases,
@@ -274,7 +277,7 @@ pub(crate) fn verify_prepared_shard(
                         .then_some(())
                         .and(capture.as_ref().zip(proof.as_ref()))
                         .map(|(capture, proof)| {
-                            process_matches(&case, capture, proof, suite, rules)
+                            process_matches(&case, capture, proof, suite, inventory, rules)
                         });
                     let accepted = matches!(assessment, Some(Ok(())));
                     let message = match assessment {
@@ -315,7 +318,7 @@ pub(crate) fn verify_prepared_shard(
 /// Execute admitted cases through the actual reference-only verification workflow.
 pub(crate) fn verify_prepared_reference_cases(
     suite: &dyn SuitePort, reference: &dyn LinterPort, execution: &dyn ExecutionPort,
-    rules: &Path, mut cases: Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>,
+    inventory: &dyn InventoryPort, rules: &Path, mut cases: Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>,
 ) -> Result<ryo_benchmark_contracts::domain::workloads::types::reference_case_count::value::ReferenceCaseCount, Error>{
     if cases.is_empty() {
         return Err(Error::Invalid(super::constants::NO_CASES.into()));
@@ -328,7 +331,7 @@ pub(crate) fn verify_prepared_reference_cases(
     }
     let mut failures = Vec::new();
     let proofs = crate::application::discrepancy_validation::service::validate_all(
-        suite, reference, rules, &cases,
+        suite, inventory, reference, rules, &cases,
     )?;
     let validations = proofs
         .iter()
@@ -403,7 +406,7 @@ pub(crate) fn verify_prepared_reference_cases(
                 let assessment = capture
                     .as_ref()
                     .zip(proof.as_ref())
-                    .map(|(capture, proof)| process_matches(&case, capture, proof, suite, rules));
+                    .map(|(capture, proof)| process_matches(&case, capture, proof, suite, inventory, rules));
                 let accepted = matches!(assessment, Some(Ok(())));
                 let message = match assessment {
                     Some(Err(mismatch)) => format!("{error}; {mismatch}"),
@@ -472,11 +475,14 @@ fn process_matches(
     capture: &super::case_execution::Capture,
     proof: &ReferenceProof,
     suite: &dyn SuitePort,
+    inventory: &dyn InventoryPort,
     rules: &Path,
 ) -> Result<(), Error> {
     let record =
         serde_json::to_vec(&capture.invocation).map_err(|error| Error::Json(Box::new(error)))?;
-    let document = suite.decode_invocation(&record)?;
+    let document = inventory
+        .decode_invocation(&record)
+        .map_err(Error::Invalid)?;
     crate::application::process_discrepancy::service::matches(
         case,
         &document,

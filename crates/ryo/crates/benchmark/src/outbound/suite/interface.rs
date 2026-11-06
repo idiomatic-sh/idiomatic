@@ -133,14 +133,6 @@ pub trait SuitePort {
         &self,
         artifacts: super::types::discrepancy::CaseArtifacts<'_>,
     ) -> Result<(), super::types::discrepancy::ArtifactError>;
-    /// Decode one raw invocation record kept beside an archived process capture.
-    ///
-    /// # Errors
-    /// Refuses malformed records and surprise fields.
-    fn decode_invocation(
-        &self,
-        bytes: &[u8],
-    ) -> Result<crate::outbound::inventory::types::InvocationDocument, Error>;
     /// Hash one regular file's exact bytes with unframed SHA256 for executable pinning.
     ///
     /// # Errors

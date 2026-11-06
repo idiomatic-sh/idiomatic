@@ -18,10 +18,12 @@ pub fn exercise(scenario: Scenario) -> Result<usize, Refusal> {
                 Scenario::Complete => rules.to_owned(),
                 Scenario::Missing => rules.join("missing"),
             };
-            let result =
-                super::use_case::VerifyReferenceCasesUseCaseImpl::new(suite, reference, execution)
-                    .verify_reference_cases(&input, scratch)
-                    .map(|count| count.0);
+            let inventory = crate::outbound::inventory::factory::local();
+            let result = super::use_case::VerifyReferenceCasesUseCaseImpl::new(
+                suite, reference, execution, &inventory,
+            )
+            .verify_reference_cases(&input, scratch)
+            .map(|count| count.0);
             match scenario {
                 Scenario::Complete => {
                     let actual = std::fs::read_to_string(launches);

@@ -68,6 +68,7 @@ fn production_verifier_rejects_unavailable_observers_and_accepts_only_the_declar
             &reference,
             &candidate,
             &bounded,
+            &crate::outbound::inventory::factory::local(),
             &fixture.rules,
             suite.prepared.clone(),
             ryo_benchmark_contracts::domain::requests::types::CaseSelection::default()
@@ -87,6 +88,7 @@ fn production_verifier_rejects_unavailable_observers_and_accepts_only_the_declar
             &reference,
             &candidate,
             &PairExecution,
+            &crate::outbound::inventory::factory::local(),
             &fixture.rules,
             suite.prepared.clone(),
             ryo_benchmark_contracts::domain::requests::types::CaseSelection::default()
@@ -119,6 +121,7 @@ fn production_verifier_rejects_unavailable_observers_and_accepts_only_the_declar
             &reference,
             &candidate,
             &PairExecution,
+            &crate::outbound::inventory::factory::local(),
             &fixture.rules,
             suite.prepared.clone(),
             ryo_benchmark_contracts::domain::requests::types::CaseSelection::default()

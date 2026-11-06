@@ -196,6 +196,7 @@ pub(super) fn verify_cases(
             reference.as_ref(),
             candidate.as_ref(),
             execution.as_ref(),
+            &ryo_benchmark::outbound::inventory::factory::local(),
         )
         .verify_cases(
             &profile.join(constants::RULES_DIRECTORY),
@@ -250,7 +251,7 @@ pub(super) fn verify_reference_cases(
     let reference = reference(executable, tool)?;
     let scratch = tempfile::tempdir()?;
     let root = scratch.path().canonicalize()?;
-    ryo_benchmark::inbound::use_cases::verify_reference_cases::use_case::VerifyReferenceCasesUseCaseImpl::new(&suite_source, &reference, &execution).verify_reference_cases(
+    ryo_benchmark::inbound::use_cases::verify_reference_cases::use_case::VerifyReferenceCasesUseCaseImpl::new(&suite_source, &reference, &execution, &ryo_benchmark::outbound::inventory::factory::local()).verify_reference_cases(
         &source.join(constants::RULES_DIRECTORY),
         &root,
     )

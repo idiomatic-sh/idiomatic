@@ -200,6 +200,7 @@ impl Fixture {
         });
         crate::application::discrepancy_validation::service::validate_archives(
             &suite,
+            &crate::outbound::inventory::factory::local(),
             &source,
             &profile,
             &prepared,
@@ -234,7 +235,7 @@ impl Fixture {
         };
         crate::application::process_discrepancy::service::matches(
             &prepared,
-            &suite
+            &crate::outbound::inventory::factory::local()
                 .decode_invocation(&serde_json::to_vec(&capture.invocation).unwrap())
                 .unwrap(),
             &capture.output,

@@ -7,6 +7,7 @@ pub struct VerifyReferenceCasesUseCaseImpl<'a> {
     suite: &'a dyn crate::outbound::suite::interface::SuitePort,
     reference: &'a dyn crate::outbound::linter::interface::LinterPort,
     execution: &'a dyn crate::outbound::execution::interface::ExecutionPort,
+    inventory: &'a dyn crate::outbound::inventory::interface::InventoryPort,
 }
 impl<'a> VerifyReferenceCasesUseCaseImpl<'a> {
     /// Borrow the boundaries already composed by the caller.
@@ -15,11 +16,13 @@ impl<'a> VerifyReferenceCasesUseCaseImpl<'a> {
         suite: &'a dyn crate::outbound::suite::interface::SuitePort,
         reference: &'a dyn crate::outbound::linter::interface::LinterPort,
         execution: &'a dyn crate::outbound::execution::interface::ExecutionPort,
+        inventory: &'a dyn crate::outbound::inventory::interface::InventoryPort,
     ) -> Self {
         Self {
             suite,
             reference,
             execution,
+            inventory,
         }
     }
 }
@@ -31,6 +34,7 @@ impl VerifyReferenceCasesUseCase for VerifyReferenceCasesUseCaseImpl<'_> {
             self.suite,
             self.reference,
             self.execution,
+            self.inventory,
             rules,
             cases,
         )
