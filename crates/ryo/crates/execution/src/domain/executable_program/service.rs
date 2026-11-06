@@ -479,8 +479,9 @@ pub(crate) fn compile(
     })
 }
 
-/// The one selection rule: ordered existence, then the column kernel, then the stored
-/// selection, then native positions; the generic route when no family offered one. A route
+/// The one selection rule: ordered existence, then the column kernel, then native positions
+/// (a native join consumes the positions of its inputs, so they must be published as such),
+/// then the stored selection; the generic route when no family offered one. A route
 /// that cannot run declines before any observable work and the generic evaluation of the
 /// instruction then runs once; no second specialised route is ever tried.
 pub(crate) fn choose(offers: super::types::RouteOffers) -> super::types::Route {
@@ -489,10 +490,10 @@ pub(crate) fn choose(offers: super::types::RouteOffers) -> super::types::Route {
         Route::OrderedExistence(shape)
     } else if let Some(shape) = offers.column {
         Route::Column(shape)
-    } else if let Some(shape) = offers.selection {
-        Route::Selection(shape)
     } else if let Some(shape) = offers.native {
         Route::NativePositions(shape)
+    } else if let Some(shape) = offers.selection {
+        Route::Selection(shape)
     } else {
         Route::Generic
     }
