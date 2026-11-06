@@ -7,20 +7,19 @@ use super::{
 use crate::domain::{
     lowering::types::LoweredShape,
     operating::{errors::OperatingError, types::OperatorContext},
-    operator::contract::{
-        derived::ScopedDerived,
-        types::{PrimitiveSemantics, WorkCounters},
-    },
+    operator::contract::types::{PrimitiveSemantics, WorkCounters},
     positions::types::Positions,
     table_cells::types::TreeRows,
 };
+use ryo_derived::domain::contract::types::RawOrder;
 use ryo_values::domain::plans::types::Operation;
 
-/// Evaluate one already prepared operation. Source acquisition, dependency order, publication,
+/// Evaluate one already prepared operation. `order` is the raw order the application acquired
+/// for the keys of `keys::raw_keys`, borrowed for this call; it is absent when none was needed. Source acquisition, dependency order, publication,
 /// and scratch release belong to the application, before and after this call.
 pub(crate) fn evaluate(
     semantics: &dyn PrimitiveSemantics,
-    derived: &mut dyn ScopedDerived,
+    order: Option<&RawOrder>,
     operation: &Operation,
     tree: &TreeRows<'_>,
     inputs: &[PositionInput<'_>],
@@ -34,16 +33,16 @@ pub(crate) fn evaluate(
             selection::select(operation, tree, inputs, output, context, work, counts)
         }
         Operation::Project { .. } => {
-            selection::project(derived, operation, tree, inputs, output, work, counts)
+            selection::project(order, operation, tree, inputs, output, work, counts)
         }
         Operation::Join { .. } => joining::join(
-            semantics, derived, operation, tree, inputs, output, context, work, counts,
+            semantics, order, operation, tree, inputs, output, context, work, counts,
         ),
         Operation::Antijoin { .. } => sets::antijoin(
-            semantics, derived, operation, tree, inputs, output, work, counts,
+            semantics, order, operation, tree, inputs, output, work, counts,
         ),
         Operation::Union { .. } => {
-            sets::union(semantics, derived, tree, inputs, output, work, counts)
+            sets::union(semantics, order, output, work)
         }
         Operation::Axis { .. } => {
             axis::axis(operation, tree, inputs, output, context, work, counts)

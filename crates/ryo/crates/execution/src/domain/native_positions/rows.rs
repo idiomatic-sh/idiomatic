@@ -1,27 +1,27 @@
 //! Pure coordinate adaptation of already-admitted borrowed row representations.
-use super::types::{PositionInput, PositionWork};
+use super::{
+    keys,
+    types::{PositionInput, PositionWork, RawKeys},
+};
 use crate::domain::{
     lowering::types::{LoweredColumn, LoweredShape, RowPosition, RowWidth},
     operating::{errors::OperatingError, types::OperatorContext},
-    operator::contract::{
-        derived::ScopedDerived,
-        types::{PrimitiveSemantics, WorkCounters},
-    },
+    operator::contract::types::{PrimitiveSemantics, WorkCounters},
     positions::types::{Positions, Slots},
     table_cells::types::TreeForm,
     table_model::types::Rows,
 };
+use ryo_derived::domain::contract::types::RawOrder;
 use ryo_values::domain::plans::types::Operation;
-pub(crate) fn evaluate(
-    semantics: &dyn PrimitiveSemantics,
-    derived: &mut dyn ScopedDerived,
-    operation: &Operation,
-    rows: &[Rows<'_>],
-    shape: &LoweredShape,
-    context: &mut OperatorContext<'_>,
-    work: &mut PositionWork,
-    counts: &WorkCounters,
-) -> Result<Option<Positions>, OperatingError> {
+/// Source rows adapted to coordinates once, so the key phase and the evaluation phase share them.
+pub(crate) struct Staged<'s, 'a> {
+    tree: TreeRows<'a>,
+    rows: &'s [Rows<'a>],
+    direct: Vec<Option<(LoweredShape, Positions)>>,
+}
+
+/// Adapt the source rows; none when they are not tree rows this module can read.
+pub(crate) fn stage<'s, 'a>(rows: &'s [Rows<'a>]) -> Result<Option<Staged<'s, 'a>>, OperatingError> {
     let Some(tree) = source_tree(rows)? else {
         return Ok(None);
     };
@@ -63,9 +63,14 @@ pub(crate) fn evaluate(
             _ => return Err(OperatingError::WrongOperation),
         }
     }
-    let inputs: Vec<_> = rows
+    Ok(Some(Staged { tree, rows, direct }))
+}
+
+impl Staged<'_, '_> {
+    fn inputs(&self) -> Result<Vec<PositionInput<'_>>, OperatingError> {
+        self.rows
         .iter()
-        .zip(&direct)
+            .zip(&self.direct)
         .map(|(rows, direct)| match (rows, direct) {
             (Rows::Positioned(view), None) => Ok(PositionInput {
                 shape: view.shape,
@@ -77,11 +82,37 @@ pub(crate) fn evaluate(
             }),
             _ => Err(OperatingError::WrongOperation),
         })
-        .collect::<Result<_, _>>()?;
-    let result = crate::domain::native_positions::service::evaluate(
-        semantics, derived, operation, &tree, &inputs, shape, context, work, counts,
-    );
-    result.map(Some)
+            .collect::<Result<_, _>>()
+    }
+
+    /// Keys the operation needs ordered, or none when it needs no raw order.
+    pub(crate) fn raw_keys(
+        &self,
+        operation: &Operation,
+        shape: &LoweredShape,
+        work: &mut PositionWork,
+        counts: &WorkCounters,
+    ) -> Result<Option<RawKeys>, OperatingError> {
+        let inputs = self.inputs()?;
+        keys::raw_keys(operation, &self.tree, &inputs, shape, work, counts)
+    }
+
+    /// Evaluate with the raw order the application acquired for `raw_keys`.
+    pub(crate) fn evaluate(
+        &self,
+        semantics: &dyn PrimitiveSemantics,
+        order: Option<&RawOrder>,
+        operation: &Operation,
+        shape: &LoweredShape,
+        context: &mut OperatorContext<'_>,
+        work: &mut PositionWork,
+        counts: &WorkCounters,
+    ) -> Result<Positions, OperatingError> {
+        let inputs = self.inputs()?;
+        crate::domain::native_positions::service::evaluate(
+            semantics, order, operation, &self.tree, &inputs, shape, context, work, counts,
+        )
+    }
 }
 
 /// The same source compatibility check serves ordinary evaluation and an empty

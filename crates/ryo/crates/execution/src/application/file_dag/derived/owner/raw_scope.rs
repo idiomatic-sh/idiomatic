@@ -1,7 +1,6 @@
 //! Explicitly unshared finite raw work uses the same acquisition and backing ledger.
 use super::DerivedOwner;
 use crate::application::file_dag::relations::RelationOwner;
-use crate::domain::operator::contract::derived::ScopedDerived;
 use crate::domain::{
     derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch, ViewRequest},
     operating::errors::OperatingError,
@@ -37,8 +36,10 @@ impl RawScope {
         }
     }
 }
-impl ScopedDerived for RawScope {
-    fn with_raw_order(
+impl RawScope {
+    /// The engine holds the required payload lease until the callback returns, including error
+    /// paths. A borrowed order cannot escape the callback or retain upstream input authority.
+    pub(in crate::application::file_dag) fn with_raw_order(
         &mut self,
         keys: &[u64],
         stride: usize,
@@ -82,8 +83,7 @@ impl DerivedOwner {
         owner: std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
         prepared: Option<Arc<DerivedContract>>,
         permit: &crate::application::file_dag::program::runtime::service::KernelPermit<'_>,
-    ) -> Result<impl crate::domain::operator::contract::derived::ScopedDerived, OperatingError>
-    {
+    ) -> Result<RawScope, OperatingError> {
         if !std::ptr::eq(self, &owner.derived)
             || prepared
                 .as_ref()

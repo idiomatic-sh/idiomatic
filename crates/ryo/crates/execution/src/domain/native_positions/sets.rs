@@ -5,7 +5,6 @@ use crate::domain::{
     lowering::types::LoweredShape,
     operating::errors::OperatingError,
     operator::contract::{
-        derived::ScopedDerived,
         failure::FailureLatch,
         types::{PrimitiveSemantics, WorkCounters, written_result},
     },
@@ -79,15 +78,12 @@ impl SetPositionsDriver for UnionDriver<'_> {
     }
 }
 
-pub(super) fn union(
-    semantics: &dyn PrimitiveSemantics,
-    derived: &mut dyn ScopedDerived,
-    tree: &TreeRows<'_>,
+/// Rows of both inputs projected to the output columns; the owner orders their keys.
+pub(super) fn union_rows(
     inputs: &[PositionInput<'_>],
     output: &LoweredShape,
-    work: &mut PositionWork,
     counts: &WorkCounters,
-) -> Result<Positions, OperatingError> {
+) -> Result<Slots, OperatingError> {
     let left = inputs
         .first()
         .copied()
@@ -96,7 +92,6 @@ pub(super) fn union(
         .get(1)
         .copied()
         .ok_or(OperatingError::MissingInput { position: 2 })?;
-    let stride = output.columns.len().max(1);
     let mut slots = Slots::default();
     for (source_at, source) in [left, right].into_iter().enumerate() {
         if source.shape.columns.len() != output.columns.len() {
@@ -123,13 +118,18 @@ pub(super) fn union(
             }
         }
     }
-    let PositionWork { keys, kept, .. } = work;
+    Ok(slots)
+}
+
+/// Row keys of the staged union rows, one marker per row when no column is visible.
+pub(super) fn union_keys(tree: &TreeRows<'_>, output: &LoweredShape, slots: &Slots, keys: &mut Keys) {
     keys.0.clear();
     if output.columns.is_empty() {
         // Every visible key is empty; one physical marker per row preserves cardinality
         // while the portable SetRow meaning chooses the first distinct empty row.
         keys.0.resize(slots.0.len(), 0);
     } else {
+        let stride = output.columns.len();
         for each in slots.0.chunks(stride) {
             for (position, column) in each.iter().zip(&output.columns) {
                 keys.0
@@ -137,27 +137,36 @@ pub(super) fn union(
             }
         }
     }
-    derived.with_raw_order(&keys.0, stride, &mut |order: &RawOrder| {
-        order.firsts(&mut kept.0);
-        let mut driver = UnionDriver {
-            slots: &mut slots,
-            keep: kept,
-            stride: Stride(stride),
-            next: RowIndex(0),
-            current: None,
-            written: RowIndex(0),
-            failure: FailureLatch::default(),
-        };
-        let answer = semantics.operators(OperatorCall::SetRow {
-            input: SetInput::Positions {
-                kind: SetKind::Union,
-                driver: &mut driver,
-            },
-        });
-        written_result(answer, driver.failure.take())?;
-        driver.slots.0.truncate(driver.written.0 * stride);
-        Ok(())
-    })?;
+}
+
+pub(super) fn union(
+    semantics: &dyn PrimitiveSemantics,
+    order: Option<&RawOrder>,
+    output: &LoweredShape,
+    work: &mut PositionWork,
+) -> Result<Positions, OperatingError> {
+    let order = order.ok_or(OperatingError::WrongOperation)?;
+    let stride = output.columns.len().max(1);
+    let mut slots = std::mem::take(&mut work.staged);
+    let PositionWork { kept, .. } = work;
+    order.firsts(&mut kept.0);
+    let mut driver = UnionDriver {
+        slots: &mut slots,
+        keep: kept,
+        stride: Stride(stride),
+        next: RowIndex(0),
+        current: None,
+        written: RowIndex(0),
+        failure: FailureLatch::default(),
+    };
+    let answer = semantics.operators(OperatorCall::SetRow {
+        input: SetInput::Positions {
+            kind: SetKind::Union,
+            driver: &mut driver,
+        },
+    });
+    written_result(answer, driver.failure.take())?;
+    driver.slots.0.truncate(driver.written.0 * stride);
     Ok(Positions {
         width: output.width,
         slots,
@@ -230,7 +239,7 @@ impl SetPositionsDriver for AntiDriver<'_, '_> {
 
 pub(super) fn antijoin(
     semantics: &dyn PrimitiveSemantics,
-    derived: &mut dyn ScopedDerived,
+    order: Option<&RawOrder>,
     operation: &Operation,
     tree: &TreeRows<'_>,
     inputs: &[PositionInput<'_>],
@@ -238,9 +247,7 @@ pub(super) fn antijoin(
     work: &mut PositionWork,
     counts: &WorkCounters,
 ) -> Result<Positions, OperatingError> {
-    let Operation::Antijoin {
-        left_on, right_on, ..
-    } = operation
+    let Operation::Antijoin { left_on, .. } = operation
     else {
         return Err(OperatingError::WrongOperation);
     };
@@ -252,46 +259,30 @@ pub(super) fn antijoin(
         .get(1)
         .copied()
         .ok_or(OperatingError::MissingInput { position: 2 })?;
-    let PositionWork { keys, probe, .. } = work;
-    let mut keyed = Keys::default();
-    for at in positions(count(right.rows)) {
-        counts.found(1, 1);
-        key_into(
-            tree,
-            &right.shape.columns,
-            row(right.rows, at),
-            right_on,
-            &mut keyed,
-        );
-    }
-    std::mem::swap(&mut keys.0, &mut keyed.0);
+    let order = order.ok_or(OperatingError::WrongOperation)?;
+    let PositionWork { probe, .. } = work;
     let mut slots = Slots::default();
-    let mut probe_keys = std::mem::take(probe);
-    let result = derived.with_raw_order(&keys.0, right_on.len(), &mut |order: &RawOrder| {
-        let mut driver = AntiDriver {
-            tree,
-            left: left.rows,
-            columns: &left.shape.columns,
-            left_on,
-            order,
-            probe: &mut probe_keys,
-            out: &mut slots,
-            right_count: count(right.rows),
-            next: RowIndex(0),
-            current: None,
-            failure: FailureLatch::default(),
-            counts,
-        };
-        let answer = semantics.operators(OperatorCall::SetRow {
-            input: SetInput::Positions {
-                kind: SetKind::Antijoin,
-                driver: &mut driver,
-            },
-        });
-        written_result(answer, driver.failure.take())
+    let mut driver = AntiDriver {
+        tree,
+        left: left.rows,
+        columns: &left.shape.columns,
+        left_on,
+        order,
+        probe,
+        out: &mut slots,
+        right_count: count(right.rows),
+        next: RowIndex(0),
+        current: None,
+        failure: FailureLatch::default(),
+        counts,
+    };
+    let answer = semantics.operators(OperatorCall::SetRow {
+        input: SetInput::Positions {
+            kind: SetKind::Antijoin,
+            driver: &mut driver,
+        },
     });
-    *probe = probe_keys;
-    result?;
+    written_result(answer, driver.failure.take())?;
     Ok(Positions {
         width: output.width,
         slots,

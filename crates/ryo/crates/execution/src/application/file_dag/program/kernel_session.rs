@@ -334,7 +334,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
                 })
             })
         } else {
-            crate::domain::native_positions::rows::evaluate(
+            evaluate_native(
                 &semantics,
                 &mut derived,
                 permit.operation(),
@@ -950,4 +950,42 @@ impl KernelInvocation for KernelSession<'_, '_> {
         scratch.workspace = Some(invocation_workspace);
         result
     }
+}
+
+/// The owner orders the keys the kernel names through its raw scope and lends the kernel the
+/// admitted order for the call; the kernel never sees the scope or the acquisition path.
+fn evaluate_native(
+    semantics: &dyn crate::domain::operator::contract::types::PrimitiveSemantics,
+    scope: &mut crate::application::file_dag::derived::owner::raw_scope::RawScope,
+    operation: &ryo_values::domain::plans::types::Operation,
+    rows: &[crate::domain::table_model::types::Rows<'_>],
+    shape: &crate::domain::lowering::types::LoweredShape,
+    context: &mut crate::domain::operating::types::OperatorContext<'_>,
+    work: &mut crate::domain::native_positions::types::PositionWork,
+    counts: &crate::domain::operator::contract::types::WorkCounters,
+) -> Result<Option<crate::domain::positions::types::Positions>, OperatingError> {
+    let Some(staged) = crate::domain::native_positions::rows::stage(rows)? else {
+        return Ok(None);
+    };
+    let Some(raw) = staged.raw_keys(operation, shape, work, counts)? else {
+        return staged
+            .evaluate(semantics, None, operation, shape, context, work, counts)
+            .map(Some);
+    };
+    let mut positions = None;
+    let ordered = scope.with_raw_order(&raw.keys.0, raw.stride, &mut |order| {
+        positions = Some(staged.evaluate(
+            semantics,
+            Some(order),
+            operation,
+            shape,
+            context,
+            work,
+            counts,
+        )?);
+        Ok(())
+    });
+    work.keys = raw.keys;
+    ordered?;
+    Ok(positions)
 }

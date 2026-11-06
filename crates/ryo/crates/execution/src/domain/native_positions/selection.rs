@@ -8,14 +8,15 @@ use crate::domain::{
         errors::OperatingError,
         types::{Memo, NameCount, OperatorContext},
     },
-    operator::contract::{derived::ScopedDerived, types::WorkCounters},
+    operator::contract::types::WorkCounters,
     positions::{
-        service::{count, key_into, row, values},
-        types::{Keys, Positions, Slots},
+        service::{count, row, values},
+        types::{Positions, Slots},
     },
     table_cells::types::TreeRows,
     table_model::types::Verdict,
 };
+use ryo_derived::domain::contract::types::RawOrder;
 use ryo_language::domain::symbols::service::name_count;
 use ryo_values::domain::{
     plan_parts::types::{Input, RepeatedRows},
@@ -79,7 +80,7 @@ pub(super) fn select(
 }
 
 pub(super) fn project(
-    derived: &mut dyn ScopedDerived,
+    order: Option<&RawOrder>,
     operation: &Operation,
     tree: &TreeRows<'_>,
     inputs: &[PositionInput<'_>],
@@ -106,30 +107,14 @@ pub(super) fn project(
         counts.found(0, count(source.rows).0 as u64);
         slots.0.extend_from_slice(&source.rows.slots.0);
     } else {
-        let PositionWork { keys, kept, .. } = work;
-        keys.0.clear();
-        let mut keyed = Keys::default();
-        for at in positions(count(source.rows)) {
-            counts.found(0, 1);
-            key_into(
-                tree,
-                &source.shape.columns,
-                row(source.rows, at),
-                columns,
-                &mut keyed,
-            );
-        }
-        std::mem::swap(&mut keys.0, &mut keyed.0);
-        let result = derived.with_raw_order(&keys.0, columns.len().max(1), &mut |order| {
-            order.firsts(&mut kept.0);
-            for (at, first) in kept.0.iter().enumerate() {
-                if *first {
-                    slots.0.extend_from_slice(row(source.rows, RowIndex(at)).0);
-                }
+        let order = order.ok_or(OperatingError::WrongOperation)?;
+        let PositionWork { kept, .. } = work;
+        order.firsts(&mut kept.0);
+        for (at, first) in kept.0.iter().enumerate() {
+            if *first {
+                slots.0.extend_from_slice(row(source.rows, RowIndex(at)).0);
             }
-            Ok(())
-        });
-        result?;
+        }
     }
     Ok(Positions {
         width: output.width,

@@ -1,5 +1,6 @@
 //! Same-crate controls target the actual derived owner and its actual private issuers.
 use super::fixtures::{Compilation, Expectation, Probe};
+mod kernel;
 mod sealing;
 mod witness;
 pub(super) const ROOT: &str = "src/application/file_dag/derived.rs";
@@ -360,6 +361,7 @@ pub(super) fn controls() -> Vec<Probe> {
             },
         },
     ];
+    probes.extend(kernel::controls());
     probes.extend(sealing::controls(ROOT, MODULE));
     probes.extend(witness::controls(ROOT));
     probes

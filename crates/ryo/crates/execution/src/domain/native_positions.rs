@@ -2,6 +2,7 @@
 
 mod axis;
 mod joining;
+mod keys;
 mod selection;
 pub(crate) mod service;
 mod sets;
