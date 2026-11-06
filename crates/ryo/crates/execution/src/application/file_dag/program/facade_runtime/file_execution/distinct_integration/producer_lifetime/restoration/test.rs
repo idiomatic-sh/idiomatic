@@ -1,6 +1,7 @@
 //! Real restored-token consumers keep backing and terminal results through outer delivery exits.
 use super::super::super::*;
 use super::fixtures::{BoundSupply, CapturedProject, Exit};
+use crate::application::file_dag::derived::owner::witness::service::BackingLiveness;
 use crate::application::file_dag::program::facade_runtime::{
     ProjectRootDeclaration, evaluate_roots,
 };
@@ -83,7 +84,7 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
         .derived
         .view_witness(ryo_derived::domain::contract::types::DerivedKind::Equality)
         .expect("actual project equality backing");
-    assert!(backing.is_alive());
+    assert!(backing.liveness() == BackingLiveness::Alive);
     let mut transferred = vec![];
     for (at, outcome) in outcomes.into_iter().enumerate() {
         let outcome = outcome?;
@@ -149,7 +150,7 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
             );
             assert_eq!(owner.derived.working_bytes(), working);
             assert!(
-                backing.is_alive(),
+                backing.liveness() == BackingLiveness::Alive,
                 "another duplicate obligation must retain its actual backing"
             );
         }
@@ -158,7 +159,7 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
     assert_eq!(owner.derived.working_bytes(), 0);
     assert_eq!(owner.derived.owned_bytes(), 0);
     assert!(
-        !backing.is_alive(),
+        backing.liveness() == BackingLiveness::Released,
         "last actual phase release drops restored producer backing"
     );
     assert_eq!(

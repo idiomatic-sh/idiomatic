@@ -1,6 +1,7 @@
 //! Actual external aliases retain one production backing through terminal exits.
 use super::super::super::*;
 use super::fixtures::{ExternalRootExit, PreparedCase, prepare_case};
+use crate::application::file_dag::derived::owner::witness::service::BackingLiveness;
 use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn},
@@ -128,7 +129,7 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
         .derived
         .view_witness(ryo_derived::domain::contract::types::DerivedKind::Equality)
         .expect("actual equality backing");
-    assert!(backing.is_alive());
+    assert!(backing.liveness() == BackingLiveness::Alive);
     let builds = file.owner.derived.counts();
     assert_eq!(
         builds.0, 1,
@@ -272,7 +273,7 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
             );
             file.commit_frontier(capture_rule, input)?;
             assert!(
-                backing.is_alive(),
+                backing.liveness() == BackingLiveness::Alive,
                 "capture/commit cannot consume another external lease"
             );
             assert_eq!(file.owner.derived.working_bytes(), required);
@@ -300,7 +301,7 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
         "finish releases retained and required resources"
     );
     assert!(
-        !backing.is_alive(),
+        backing.liveness() == BackingLiveness::Released,
         "finish drops the same actual shared backing"
     );
     assert_eq!(

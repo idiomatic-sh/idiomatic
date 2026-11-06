@@ -2,7 +2,7 @@
 use super::super::fixtures::{Expectation, Probe};
 
 const IMPORT: &str = r#"
-use crate::application::file_dag::derived::owner::witness::service::BackingWitness as Witness;
+use crate::application::file_dag::derived::owner::witness::service::{BackingWitness as Witness, BackingLiveness, BackingIdentity};
 "#;
 
 pub(super) fn controls(owner: &'static str) -> Vec<Probe> {
@@ -13,10 +13,10 @@ pub(super) fn controls(owner: &'static str) -> Vec<Probe> {
                 r#"
 mod witness_observation {{
     {IMPORT}
-    fn observe(left: &Witness, right: &Witness) -> (bool, bool, Witness) {{
-        (left.is_alive(), left.same_backing(right), left.clone())
+    fn observe(left: &Witness, right: &Witness) -> (BackingLiveness, BackingIdentity, Witness) {{
+        (left.liveness(), left.compare(right), left.clone())
     }}
-    const _: fn(&Witness, &Witness) -> (bool, bool, Witness) = observe;
+    const _: fn(&Witness, &Witness) -> (BackingLiveness, BackingIdentity, Witness) = observe;
 }}
 "#
             ),

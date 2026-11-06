@@ -790,18 +790,18 @@ impl KernelInvocation for KernelSession<'_, '_> {
                             }
                             return match result {
                                 Ok(
-                                    crate::application::file_dag::executor::KernelAnswer::Complete,
+                                    crate::application::file_dag::executor::response::types::KernelAnswer::Complete,
                                 ) => Ok(()),
                                 Ok(_) => {
                                     Err(InvocationFailure::Semantic(OperatingError::WrongOperation))
                                 }
                                 Err(
-                                    crate::application::file_dag::executor::KernelFault::Refused(
+                                    crate::application::file_dag::executor::response::types::KernelFault::Refused(
                                         error,
                                     ),
                                 ) => Err(InvocationFailure::Semantic(error)),
                                 Err(
-                                    crate::application::file_dag::executor::KernelFault::Portable(
+                                    crate::application::file_dag::executor::response::types::KernelFault::Portable(
                                         error,
                                     ),
                                 ) => Err(InvocationFailure::Semantic(

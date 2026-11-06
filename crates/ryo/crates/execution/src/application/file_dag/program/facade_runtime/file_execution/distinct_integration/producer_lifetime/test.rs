@@ -1,6 +1,9 @@
 //! Required derived storage follows real compiled producer consumers, including cancellation.
 use super::super::*;
 use super::fixtures::{FinalConsumer, ProjectionOrder, numbers, shared_plan};
+use crate::application::file_dag::derived::owner::witness::service::{
+    BackingIdentity, BackingLiveness,
+};
 use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn},
@@ -245,7 +248,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
                 .as_ref()
                 .expect("real acquired equality backing");
             if let Some(first) = weak {
-                assert!(first.same_backing(backing));
+                assert!(first.compare(backing) == BackingIdentity::Same);
             } else {
                 weak = Some(backing);
             }
@@ -288,7 +291,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
         "transferred output survives producer retirement"
     );
     assert!(
-        !weak.is_alive(),
+        weak.liveness() == BackingLiveness::Released,
         "last actual consumer releases the unretained physical index"
     );
     assert_eq!(file.owner.derived.owned_bytes(), 0);

@@ -1,6 +1,7 @@
 //! Real publication scopes retain and release project batch leases.
 use super::super::super::*;
 use super::fixtures::{PhaseExit, PreparedCase, prepare_case};
+use crate::application::file_dag::derived::owner::witness::service::BackingLiveness;
 use crate::application::file_dag::frontiers::types::FrontierInput;
 use crate::application::file_dag::frontiers::types::FrontierSource;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
@@ -198,7 +199,7 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
             "phase owns required backing until every batch obligation ends"
         );
         assert_eq!(builds.0, 1, "refused later cohort creates no second index");
-        assert!(backing.as_ref().unwrap().is_alive());
+        assert!(backing.as_ref().unwrap().liveness() == BackingLiveness::Alive);
         assert!(counts.evaluations.0 > 0);
     }
     let mut transferred = Vec::new();
@@ -304,7 +305,7 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
                 assert_eq!(owner.derived.counts(), builds);
                 assert_eq!(owner.derived.working_bytes(), live);
                 assert!(
-                    backing.as_ref().unwrap().is_alive(),
+                    backing.as_ref().unwrap().liveness() == BackingLiveness::Alive,
                     "duplicate outer deliveries retain the same phase lease"
                 );
             }
@@ -320,7 +321,7 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
     );
     assert_eq!(owner.derived.owned_bytes(), 0);
     assert!(
-        backing.is_none_or(|backing| !backing.is_alive()),
+        backing.is_none_or(|backing| backing.liveness() == BackingLiveness::Released),
         "same real backing drops at phase finish"
     );
     assert_eq!(
