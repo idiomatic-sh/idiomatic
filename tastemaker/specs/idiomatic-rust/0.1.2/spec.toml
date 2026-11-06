@@ -1,0 +1,587 @@
+description = "The Rust policy rules every product that writes Rust places once: how code is written, whatever its shape."
+why = "One set of rules for every product that writes Rust, placed by one entry over the product's code, so two products cannot drift apart. It has no template, so it owns nothing: its rules reach every file beneath its place, the files of the parts placed inside it too."
+closed = false
+params = { test-contracts = { type = "list<table>", description = "Exact canonical public contract paths integration tests may name beyond the standard types/errors/factories; [] declares none." }, apart = { type = "identifier", description = "The name of the directory (relative to the placement) whose subdirectories place their own `client-at-adapter`, or a name no directory has: the directories that place their own `client-at-adapter` in a local tastemaker.toml, with their own libraries (a language's parser crates): the rule's general placement leaves them out, since two placements of one rule with different params may not reach a file. A product with none passes a glob that matches nothing." }, allowed-paths = { type = "set<string>", description = "The paths where text, bare numbers, tuples, bool parameters and string-keyed maps may be written: the files that map an enum to its outside text, the errors, the edges and the tests." }, heap-accounting-owners = { type = "set<string>", description = "The globs of the one path that owns retained-byte accounting, a ledger file and its parts; [] declares no owner." }, libraries = { type = "set<string>", description = "The client and store libraries (`name::*`) that only an adapter, a factory or a composition names." } }
+rules = [
+  { rule = "idiomatic.arch/no-heap-accounting@0.2.0", params = { owners = { param = "heap-accounting-owners" } }, include = ["**/*.rs"], exclude = ["**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/fixtures/**", "**/fixtures.rs"], description = "Custom allocation accounting signals an ownership or lifetime design problem; use scoped owners instead of heap estimators and reclamation ledgers." },
+  { rule = "idiomatic.arch/allow-attributes-per-file@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**"], params = { max-allows = 3 }, description = "No file carries more than three `#[allow(..)]` attributes: a lint allowed that often is a lint to fix or to configure once." },
+  { rule = "idiomatic.arch/deep-function-nesting@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**"], params = { max-depth = 1 }, description = "A function declares functions one level deep at most." },
+  { rule = "idiomatic.arch/nested-function-count@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**"], params = { max-nested = 2 }, description = "A function encloses at most two functions." },
+  { rule = "idiomatic.arch/deep-nesting@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**"], params = { max-depth = 4 }, description = "Control flow nests at most four levels: a deeper branch is a function of its own." },
+  { rule = "idiomatic.arch/lossy-float-literals@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**"], params = { limit = "1e15" }, description = "No float literal is so large that binary64 loses its integers." },
+  { rule = "idiomatic.arch/parse-errors@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**", "**/tests/ui/**"], description = "Every Rust file parses without the parser recovering from an error; compile-fail cases are the exception." },
+  { rule = "idiomatic.arch/private-checked-fields@0.1.0", include = ["**/types.rs"], exclude = ["**/tests/fixtures/**"], description = "A validated value is built only through `TryFrom<Raw>`, so no unchecked one exists." },
+  { rule = "idiomatic.arch/unfinished-macros@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**"], description = "No `todo!`, `unimplemented!` or `dbg!` is left in the code." },
+  { rule = "idiomatic.arch/unsafe-without-safety@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**"], description = "Every `unsafe` block and impl says why it is sound in a `// SAFETY:` comment." },
+  { rule = "idiomatic.arch/todo-comments@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**"], description = "Comments holding an open-work marker are listed, so none hides." },
+  { rule = "idiomatic.arch/fixture-fakes@0.1.0", include = ["**/fixtures.rs", "**/fixtures/**"], exclude = ["**/tests/fixtures/**"], description = "A hex's fixtures implement its own ports, nothing else." },
+  { rule = "idiomatic.arch/repeated-bound-strings@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**"], params = { min-files = 3 }, description = "A string bound to a variable in three or more files is named once." },
+  { rule = "idiomatic.arch/print-in-library@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/fixtures/**", "**/fixtures.rs"], description = "Library code prints nothing: output goes through the edge's writers." },
+  { rule = "stdio-at-presentation", include = ["**/src/**"], exclude = ["**/src/output.rs", "**/src/output/**", "**/src/timings.rs", "**/src/timings/**", "**/src/main.rs", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/acceptance.rs", "**/tests/**", "**/fixtures/**", "**/fixtures.rs", "**/benches/**", "**/benchmarks/provider/**"], description = "Only the command line's `output` module and its timings report write to stdout and stderr; every other file says it through them." },
+  { rule = "idiomatic.arch/orphan-rust-files@0.1.0", include = ["**"], exclude = ["**/tests/fixtures/**", "**/tests/ui/**"], description = "Every Rust file is a module some crate root reaches; compile-fail cases under `tests/ui` are run by their runner, not a crate root." },
+  # Trial rules. The five that read the semantic model are `off`: they read the semantic model, and the engine this Tastemaker build runs answers `could not decide` (a finding at `error`) for every file with a destructuring initializer, which is noise, not a finding. An entry turns on when the engine decides them; the rules stand written and proven on their fixtures.
+  { rule = "idiomatic.arch/adapter-at-root@0.1.0", include = ["**"], exclude = ["**/composition.rs", "**/connections.rs", "**/factory.rs", "**/main.rs", "**/adapters/**", "**/fixtures/**", "**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs"], description = "Across the product, a concrete adapter is named only where it is composed: compositions, factories, main, fixtures and tests." },
+  { rule = "idiomatic.arch/macro-paths-hygienic@0.1.0", include = ["**"], exclude = ["**/tests/fixtures/**"], description = "Every exported macro names its own crate through `$crate::`." },
+  { rule = "idiomatic.arch/case-vocabulary@0.2.0", include = ["**/*_test.rs"], description = "Every test names its case with one word of the case vocabulary." },
+  { rule = "idiomatic.arch/client-at-adapter@0.1.0", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/src/languages.rs", "**/schemas.rs", "**/schemas_test.rs", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/fixtures.rs", "**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "{apart}/**"], params = { libraries = { param = "libraries" } }, description = "A client or store library is named only in an adapter, in the factory of its port, in an edge composition (and the command line's `languages.rs`, which links the languages it is built with), in an edge's schemas, which hold the wire shapes a client library writes, and in test code and test data, which set a scene up with any library." },
+  { rule = "idiomatic.arch/import-directions@0.1.0", alias = "directions-edge", include = ["**/src/resources/**"], exclude = ["**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/acceptance.rs", "**/tests/**", "**/fixtures/**", "**/fixtures.rs", "**/benches/**", "**/benchmarks/provider/**", "**/composition.rs"], params = { forbidden = ["*::adapters", "*::adapters::*", "{,::}crate::domain::*::service", "{,::}crate::domain::*::service::*", "*::use_case", "*::use_case::*Impl", "{,::}crate::resources", "{,::}crate::resources::*", "super::super", "super::super::*"] }, description = "An edge (a command or an SDK entry) imports use-case interface, types and errors and port types and factory; never an adapter, a domain service or a use_case.rs; never its parent module (`crate::resources`, `super::super`) or a sibling command: what it needs from above is handed down." },
+  { rule = "idiomatic.arch/import-directions@0.1.0", alias = "directions-composition", include = ["**/src/resources/**/composition.rs"], exclude = ["**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/acceptance.rs", "**/tests/**", "**/fixtures/**", "**/fixtures.rs", "**/benches/**", "**/benchmarks/provider/**"], params = { forbidden = ["*::adapters", "*::adapters::*", "{,::}crate::domain::*::service", "{,::}crate::domain::*::service::*", "{,::}crate::resources", "{,::}crate::resources::*", "super::super", "super::super::*"] }, description = "A composition names use_case.rs and the ports' factories; never an adapter itself or a domain service; never its parent module (`crate::resources`, `super::super`) or a sibling command: what it needs from above is handed down." },
+  { rule = "idiomatic.arch/import-directions@0.1.0", alias = "directions-domain", include = ["**/src/domain/**"], exclude = ["**/*_test.rs", "**/acceptance.rs", "**/tests/**", "**/fixtures/**", "**/fixtures.rs", "**/benches/**", "**/benchmarks/provider/**"], params = { forbidden = ["*::application", "*::application::*", "{,::}crate::inbound", "{,::}crate::inbound::*", "{,::}crate::outbound", "{,::}crate::outbound::*", "*::outbound::*::adapters", "*::outbound::*::adapters::*", "*::outbound::*::factory", "*::outbound::*::factory::*", "*::use_case", "*::use_case::*Impl", "*::output::schemas", "*::output::schemas::*"] }, description = "Domain imports only domain and the kernel crates: never its own crate's inbound or outbound, never an adapter, a factory or a use_case.rs of any crate, and never the command line's `output::schemas`, where a typed value becomes text. Of a kernel crate it names the public surface: the types and errors under its `inbound/` and its ports' interfaces and types." },
+  { rule = "idiomatic.arch/import-directions@0.1.0", alias = "directions-use-case", include = ["**/src/inbound/use_cases/**"], exclude = ["**/*_test.rs", "**/acceptance.rs", "**/tests/**", "**/fixtures/**", "**/fixtures.rs", "**/benches/**", "**/benchmarks/provider/**"], params = { forbidden = ["{,::}crate::outbound::*::adapters", "{,::}crate::outbound::*::adapters::*", "{,::}crate::outbound::*::factory", "{,::}crate::outbound::*::factory::*", "*::use_case", "*::use_case::*Impl", "*::output::schemas", "*::output::schemas::*"] }, description = "A use case imports domain, its own crate's outbound port interface, types and errors and the kernel; never another use case, an adapter, a factory or a use_case.rs." },
+  { rule = "idiomatic.arch/import-directions@0.1.0", alias = "directions-port", include = ["**/src/outbound/*/interface.rs", "**/src/outbound/*/types.rs", "**/src/outbound/*/errors.rs"], exclude = ["**/*_test.rs", "**/acceptance.rs", "**/tests/**", "**/fixtures/**", "**/fixtures.rs", "**/benches/**", "**/benchmarks/provider/**"], params = { forbidden = ["{,::}crate::application", "{,::}crate::application::*", "{,::}crate::inbound", "{,::}crate::inbound::*", "{,::}crate::outbound::*::adapters", "{,::}crate::outbound::*::adapters::*", "*::use_case", "*::use_case::*Impl", "*::output::schemas", "*::output::schemas::*"] }, description = "A port's interface, types and errors import its own outbound vocabulary and external APIs; never another local layer, another port, an adapter or a use_case.rs." },
+  { rule = "idiomatic.arch/import-directions@0.1.0", alias = "directions-adapter", include = ["**/src/outbound/*/adapters/**"], exclude = ["**/*_test.rs", "**/acceptance.rs", "**/tests/**", "**/fixtures/**", "**/fixtures.rs", "**/benches/**", "**/benchmarks/provider/**"], params = { forbidden = ["{,::}crate::application", "{,::}crate::application::*", "{,::}crate::inbound", "{,::}crate::inbound::*", "*::use_case", "*::use_case::*Impl", "*::output::schemas", "*::output::schemas::*"] }, description = "An adapter imports its own outbound port, schemas and external client APIs, and when it translates, another crate's use-case interface, types and errors; never another local layer, another adapter, another port or a use_case.rs." },
+  { rule = "idiomatic.arch/import-directions@0.1.0", alias = "directions-application", include = ["**/src/application/**"], exclude = ["**/*_test.rs", "**/acceptance.rs", "**/fixtures.rs"], params = { forbidden = ["{,::}crate::inbound", "{,::}crate::inbound::*", "*::outbound::*::adapters", "*::outbound::*::adapters::*", "*::outbound::*::factory", "*::outbound::*::factory::*", "*::output::schemas", "*::output::schemas::*"] }, description = "Application services depend on domain and outbound contracts and may call another crate through its public inbound interface. Own-crate inbound, sibling services and concrete adapters remain forbidden." },
+  { rule = "idiomatic.arch/error-variants-reached@0.1.0", include = ["**/errors.rs", "**/*_test.rs"], description = "Every error variant is matched by a test of its own crate." },
+  { rule = "idiomatic.arch/hollow-artifacts@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**"], description = "No file is only comments and imports, and no type in it is an empty placeholder." },
+  { rule = "idiomatic.arch/io-at-boundary@0.1.0", include = ["**"], exclude = ["**/src/domain/**", "**/src/inbound/use_cases/**", "**/src/outbound/**", "**/src/application/**", "**/adapters/**", "**/cli/src/output/pager.rs", "**/connections.rs", "**/main.rs", "**/build.rs", "**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/fixtures.rs", "**/fixtures/*.rs"], description = "Files, processes and sockets are reached only at the boundary." },
+  { rule = "idiomatic.arch/module-declares@0.1.0", include = ["**/src/**", "**/Cargo.toml"], exclude = ["**/tests/**", "**/benches/**", "**/benchmarks/provider/**"], description = "Every module file declares exactly the files beside it, or Cargo explicitly owns the source as a test target." },
+  { rule = "idiomatic.arch/fixtures-reach@0.1.0", include = ["**/*.rs", "**/Cargo.toml"], exclude = ["**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/acceptance.rs", "**/tests/**", "**/benches/**", "**/benchmarks/provider/**"], description = "A file the `fixtures` feature builds names another crate's `fixtures` only when the crate's `fixtures` feature enables `<dep>/fixtures`." },
+  { rule = "idiomatic.arch/test-imports@0.1.0", include = ["**/tests/**/*.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/Cargo.toml"], exclude = ["**/tests/fixtures/**", "**/tests/ui/**"], params = { test-contracts = { param = "test-contracts" }, allowed = ["*::types", "*::types::*", "*::errors", "*::errors::*", "*::factory", "*::factory::*", "*::contract", "*::contract::*", "*::linked", "*::linked::*"] }, description = "A crate's integration tests name their own crate and, of another crate, only its fixtures, its public types and errors, its factories, an SDK resource's contract and a language's `linked`: a scenario of another crate's logic lives in that crate." },
+  { rule = "no-domain-concept-cycles", include = ["**/src/domain/**"], exclude = ["**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/acceptance.rs", "**/tests/**", "**/fixtures/**", "**/fixtures.rs", "**/benches/**", "**/benchmarks/provider/**"], description = "No domain concept lies on a cycle of imports between domain concepts: level error, no baseline." },
+  { rule = "hex-cohesion", include = ["**/src/inbound/use_cases.rs", "**/src/inbound/use_cases/**"], exclude = ["**/*_test.rs", "**/acceptance.rs", "**/tests/**", "**/fixtures/**", "**/fixtures.rs", "**/benches/**", "**/benchmarks/provider/**"], description = "A core's use cases form one connected group through the ports, domain concepts and application services they name: groups that share nothing are more than one hex." },
+  { rule = "idiomatic.arch/constants-once@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/fixtures/**", "**/fixtures.rs", "{apart}/**"], description = "A string constant is declared in one file: the same name holding the same string in two files is one concept written twice. The directories `apart` names (a language each) hold their own, since none may depend on another." },
+  { rule = "idiomatic.arch/no-temp-in-use-cases@0.1.0", include = ["**/*.rs"], exclude = ["**/adapters/**", "cli/src/**", "**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/fixtures/**", "**/fixtures.rs", "**/build.rs"], params = { libraries = ["tempfile", "tempfile::*", "*::temp_dir", "temp_dir"], methods = ["scratch", "discard"] }, description = "A temporary directory is made only in a named adapter or in test code: the use cases, the domain, the compositions and the types name no temporary-file library and call no port's scratch method." },
+  { rule = "no-bare-integers", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**"], params = { allowed-paths = { param = "allowed-paths" }, libraries = { param = "libraries" } }, description = "No field, parameter, return type or generic argument is a bare integer: a number is a named type." },
+  { rule = "no-bare-floats", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**"], params = { allowed-paths = { param = "allowed-paths" }, libraries = { param = "libraries" } }, description = "No field, parameter, return type or generic argument is a bare float: a measure is a named type." },
+  { rule = "no-bare-bool", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**"], params = { allowed-paths = { param = "allowed-paths" }, libraries = { param = "libraries" } }, description = "No field, parameter, return type or generic argument is a bare `bool`: a yes or no is a two-variant enum." },
+  { rule = "no-bare-char", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**"], params = { allowed-paths = { param = "allowed-paths" }, libraries = { param = "libraries" } }, description = "No field, parameter, return type or generic argument is a bare `char`: a character with a meaning is a named type." },
+  { rule = "no-bare-tuples", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**"], params = { allowed-paths = { param = "allowed-paths" }, libraries = { param = "libraries" } }, description = "No field, parameter, return type or generic argument is a bare tuple: a group of values is a named struct." },
+  { rule = "no-bare-keys", include = ["**/*.rs"], params = { allowed-paths = { param = "allowed-paths" } }, description = "A map or set is keyed by an enum or a named type, never by a bare string, number, bool, char or tuple." },
+  { rule = "no-bare-text", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**"], params = { allowed-paths = { param = "allowed-paths" }, libraries = { param = "libraries" } }, description = "No field, parameter, return type or generic argument is bare text: text is a named type." },
+  { rule = "idiomatic.arch/no-ignored-tests@0.1.0", include = ["**"], description = "No test is ignored." },
+  { rule = "idiomatic.arch/no-json-in-process@0.3.0", include = ["**"], exclude = ["**/adapters/**", "**/connections.rs", "**/main.rs", "**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/fixtures.rs", "**/fixtures/*.rs"], description = "JSON is read and written only at the boundary." },
+  { rule = "idiomatic.arch/no-public-options@0.1.0", include = ["**"], exclude = ["**/dtos.rs", "**/schemas.rs"], description = "Outside DTOs, no public field of a public struct is an `Option`." },
+  { rule = "idiomatic.arch/no-reexports@0.4.0", include = ["**"], exclude = ["**/src/lib.rs", "**/src/resources.rs", "**/src/resources/*.rs", "**/src/resources/*/contract.rs", "**/src/resources/*/macros/*.rs"], description = "Only an SDK root, a resource module, a resource contract and the macros a resource module calls reexport." },
+  { rule = "idiomatic.arch/no-runtime-fixtures@0.1.0", include = ["**/*.rs"], exclude = ["**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/acceptance.rs", "**/fixtures.rs", "**/fixtures/**", "**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/src/resources/*/contract.rs"], description = "Production code never names a `fixtures` module." },
+  { rule = "no-string-literals", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**"], params = { allowed-paths = { param = "allowed-paths" } }, description = "Text is held only where it enters or leaves the program." },
+  { rule = "idiomatic.arch/schema-confined@0.1.0", include = ["**"], exclude = ["**/schemas.rs", "**/schemas_test.rs"], description = "A name ending `Schema` or `SchemaError` is written only in a schemas.rs and its test." },
+  { rule = "idiomatic.arch/threads-at-adapter@0.1.0", include = ["**"], exclude = ["**/adapters/**", "**/connections.rs", "**/main.rs", "**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/fixtures.rs", "**/fixtures/*.rs"], description = "Threads are started only at the boundary." },
+  { rule = "idiomatic.arch/no-env-reads@0.1.0", include = ["**"], exclude = ["**/tests/fixtures/**"], description = "The program reads no environment variable." },
+  { rule = "field-written-never-read", include = ["**/*.rs"], params = { trivial-derives = ["Debug", "Clone", "Copy", "Default", "PartialEq", "Eq", "Hash", "PartialOrd", "Ord"] }, description = "A field written and never read is dead: rustc does not see it when it is public." },
+  { rule = "variants-benched", include = ["**/*.rs", "**/Cargo.toml"], description = "A factory with two or more adapters has a bench that names them." },
+  { rule = "no-hardcoded-paths", include = ["**/*.rs"], exclude = ["**/composition.rs", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/acceptance.rs", "**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/fixtures/**", "**/build.rs"], description = "No string literal of the code is a path of one machine." },
+  { rule = "module-cycles", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**", "**/tests/ui/**"], description = "No cycle of written-path dependencies between files." },
+  { rule = "shadowed-prelude", include = ["**/*.rs"], params = { names = ["Option", "Result", "Vec", "String", "Box", "Some", "None", "Ok", "Err", "Default", "Clone", "Copy", "Send", "Sync", "Sized", "Drop", "Fn", "FnMut", "FnOnce", "From", "Into", "Iterator", "ToString", "ToOwned", "AsRef", "AsMut", "Extend", "IntoIterator"] }, description = "No type is named like an item of the prelude." },
+  { rule = "test-names-nothing-beside", include = ["**/*.rs"], description = "A sibling test names nothing its module declares." },
+  { rule = "no-sync-in-public-api", include = ["**/*.rs"], exclude = ["**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/acceptance.rs", "**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/fixtures/**", "**/fixtures.rs"], description = "A public signature names no `Arc`, `Mutex` or `RwLock`: how a value is shared is the owner's business, not part of what a caller sees. Test support (a part's fixtures) is no caller's API: a fixture hands its test the `Arc` it shares with the part under test." },
+  { rule = "no-panicking-closure", include = ["**/*.rs"], exclude = ["**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/acceptance.rs", "**/tests/**", "**/benches/**", "**/benchmarks/provider/**"], description = "No closure has only a `panic!`, `unreachable!`, `todo!` or `unimplemented!` call as its body: an `expect` written the long way." },
+  { rule = "application-service-boundaries", include = ["**/src/application/**/*.rs", "**/src/application/*.rs"], exclude = ["**/*_test.rs", "**/tests/**", "**/fixtures/**", "**/fixtures.rs", "**/acceptance.rs"], description = "Each application operation depends on its own parts, domain functions and outbound contracts, never a sibling application operation in the same crate; use cases compose operations." },
+  { rule = "bounded-engine-state", include = ["**/src/inbound/use_cases/*/*.rs", "**/src/outbound/*/adapters/*/*.rs", "**/src/application/*/*.rs"], description = "Retained interior-mutable state in a use case, adapter or cohesive application operation requires an owning named cache, bound constant and colocated test reference. This structural evidence does not prove runtime bounds; cap, failure and concurrency behavior still require executed tests." },
+  { rule = "no-thread-local-outside-adapters", include = ["**/*.rs"], exclude = ["**/adapters/**", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/fixtures/**", "**/fixtures.rs"], description = "No `thread_local!` outside an adapter: a per-thread value is process-global state that only an adapter holds." },
+  { rule = "no-callable-domain-fields", include = ["**/src/domain/**/*.rs"], exclude = ["**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/acceptance.rs", "**/tests/**", "**/fixtures/**", "**/fixtures.rs", "**/benches/**", "**/benchmarks/provider/**"], description = "No field of a domain type is a `dyn Fn`, `dyn FnMut`, `dyn FnOnce` or `fn(..)` pointer: behaviour is a port or a service function, a domain value is data." },
+  { rule = "idiomatic.arch/no-vacuous-tests@0.1.0", include = ["**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/tests/**/*.rs"], exclude = ["**/src/domain/**", "**/src/inbound/use_cases/**", "**/src/outbound/**", "**/src/application/**"], description = "A test has a subject: no `todo!()` stands in for it, no table of cases is empty, and a fixture that cannot be read fails the test instead of becoming an empty one." },
+  { rule = "no-sentinel-values", include = ["**/*.rs"], exclude = ["**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/acceptance.rs", "**/tests/**", "**/benches/**", "**/benchmarks/provider/**"], description = "A field is never compared to `0` or `\"\"` to mean `use the default`: a value that can be absent is an `Option`, or an enum that says so." },
+  { rule = "idiomatic.arch/parallel-members@0.1.0", include = ["**"], exclude = ["**/src/commands/**", "**/src/resources/**", "**/benches/**", "**/benchmarks/provider/**", "**/tests/**"], params = { roles = ["adapters", "methods", "commands", "macros", "tests", "benches", "fixtures", "src", "domain", "inbound", "outbound", "application", "use_cases", "contracts", "collections"], independent = ["languages", "relations"] }, description = "No concept is split by role across two parents: the same three or more member directories under two parents are one set of concepts to colocate. The structural and nu-hex layer directories are roles; the command-line and test trees, mirrors by design, are left out." },
+  { rule = "idiomatic.arch/repeated-string-literals@0.2.0", include = ["**/constants.rs", "**/schemas.rs"], exclude = ["languages/**", "**/tests/fixtures/**"], params = { min-files = 3, allowed = [] }, description = "A value the program holds is named once: the same text in three or more constants.rs or schemas.rs files is one constant to share. The language providers' vocabularies are independent by design and are left out." },
+  { rule = "idiomatic.arch/pub-item-unreferenced-elsewhere@0.1.0", include = ["**/*.rs"], exclude = ["**/src/lib.rs", "**/cli/src/timings.rs", "**/cli/src/output/**", "**/tests/fixtures/**"], description = "A plain `pub` item is named by another file, tests and fixtures included, or by a public signature of its own file. A library's root, its public API, is left out, and so are the command line's timings and output modules, whose public functions the `cli` spec's templates write." },
+  { rule = "unix-behind-cfg", include = ["**/*.rs"], description = "`std::os::unix` is named only under `#[cfg(unix)]`, and the file holds a `#[cfg(not(unix))]` or `#[cfg(windows)]` twin." },
+  { rule = "idiomatic.arch/no-inline-modules@0.1.0", include = ["**/adapter.rs", "**/method.rs", "**/interface.rs", "**/types.rs", "**/errors.rs", "**/dtos.rs", "**/composition.rs", "**/command.rs", "**/use_case.rs", "**/service.rs", "**/item.rs", "**/bench.rs", "**/adapter_test.rs", "**/method_test.rs", "**/interface_test.rs", "**/types_test.rs", "**/errors_test.rs", "**/dtos_test.rs", "**/composition_test.rs", "**/command_test.rs", "**/use_case_test.rs", "**/service_test.rs", "**/item_test.rs", "**/bench_test.rs"], exclude = ["**/tests/fixtures/**", "**/tests/ui/**", "**/benches/**/use_case.rs"], description = "A role file declares no inline module with a body: a concept that needs a module is a directory or a role file of its own; a module holding only traits (a sealed trait) is the exception." },
+  { rule = "idiomatic.arch/collection-directory@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**", "**/tests/ui/**"], params = { max-items = 3 }, description = "One file declares at most three items sharing a non-standard derive, attribute or a trait of their own crate: more are a collection, one directory each." },
+  { rule = "idiomatic.arch/mirrored-types@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/fixtures.rs", "**/fixtures/**", "**/acceptance.rs"], description = "No two structs of one crate have the same three or more named fields: one type per concept, passed on." },
+  { rule = "idiomatic.arch/one-type-per-name@0.2.0", include = ["**/*.rs"], exclude = ["**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/fixtures.rs", "**/fixtures/**", "**/acceptance.rs"], description = "No two visible structs or enums of one project share a name: the one copy of a concept lives in the values crate." },
+  { rule = "idiomatic.arch/no-packed-strings@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/fixtures.rs", "**/fixtures/**", "**/acceptance.rs"], description = "No field holds values packed into one string with a separator: one field per value." },
+  { rule = "idiomatic.arch/storage-shapes-in-schemas@0.1.0", include = ["**/*.rs"], exclude = ["**/outbound/*/adapters/*/schemas.rs", "**/outbound/*/adapters/*/schemas/**", "**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/fixtures.rs", "**/fixtures/**", "**/acceptance.rs"], description = "A string table, and the integer references into it, is written only in an outbound adapter's `schemas.rs`: the core holds plain Rust values." },
+  { rule = "idiomatic.arch/no-format-versions@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/fixtures.rs", "**/fixtures/**", "**/acceptance.rs"], description = "Nothing the program writes carries a format version: a store that does not decode is rebuilt." },
+  { rule = "idiomatic.arch/no-whole-state-ports@0.1.0", include = ["**/outbound/*/interface.rs"], description = "No port method takes or returns an `Image`: a store port speaks the core's own rows." },
+  { rule = "idiomatic.arch/composition-opens-nothing@0.1.0", include = ["**/composition.rs"], description = "A composition opens nothing: opening a store or a client is the connections' I/O." },
+  { rule = "idiomatic.arch/port-takes-no-settings@0.1.0", include = ["**/src/outbound/*/interface.rs"], params = { settings = ["BuildName", "EngineBuild", "ProgramBuild", "Build", "WorkerCount", "Workers", "MemoryBudget", "SourceBytes", "Expanding", "Logging"], locations = ["MachinePath", "PathBuf", "Path", "SystemPath"], location-names = ["directory", "cache", "store", "temp", "scratch"] }, description = "A port's methods take and give no settings: the build, the worker count, the memory budget and a cache or temporary directory are injected into the adapter's factory at the edge." },
+  { rule = "idiomatic.arch/no-drilled-settings@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/fixtures.rs", "**/fixtures/**", "**/acceptance.rs"], params = { types = ["*BuildName*", "*EngineBuild*", "*ProgramBuild*", "*WorkerCount*", "*Workers*", "*MemoryBudget*", "*Settings*", "*Setting*"] }, description = "No setting is handed unchanged through three functions in a row: it is decided once at the edge and injected where it is used." },
+  { rule = "idiomatic.arch/no-deep-stored-types@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/fixtures.rs", "**/fixtures/**", "**/acceptance.rs"], params = { derives = ["*Serialize*", "*Deserialize*"] }, description = "No stored or schema type holds a record that holds a record that holds a record." },
+  { rule = "idiomatic.arch/no-any-in-ports@0.1.0", include = ["**/src/outbound/*/interface.rs", "**/src/outbound/*/types.rs"], description = "No port hands back `Any`: a caller never downcasts to the adapter's own type." },
+  { rule = "idiomatic.arch/no-serde-in-domain@0.1.0", include = ["**/*.rs"], exclude = ["**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/acceptance.rs", "**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/fixtures/**", "**/fixtures.rs"], description = "Serde is used only at the edges that encode: an adapter's schemas, a command's schemas, the SDK's published types." },
+  { rule = "idiomatic.arch/format-names-in-adapters@0.1.0", include = ["**/*.rs"], exclude = ["**/adapters/**", "**/factory.rs", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/acceptance.rs", "**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/fixtures/**", "**/fixtures.rs"], description = "A format's versioned name (`source-inventory-v1`) is written only in its adapter: the composition passes the factory its settings, never the format's names." },
+  { rule = "idiomatic.arch/cache-names-once@0.1.0", include = ["**/*.rs"], exclude = ["**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/acceptance.rs", "**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/fixtures/**", "**/fixtures.rs", "{apart}/**"], params = { locations = [".*_cache", ".*_cache/**"] }, description = "A cache directory is named once, by its adapter, factory or composition: never in the core, never copied. The language providers, which name their ecosystems' tools' caches to skip them, are left out." },
+  { rule = "idiomatic.arch/one-cache-one-engine@0.1.0", include = ["**/*.rs"], exclude = ["**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/acceptance.rs", "**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/fixtures/**", "**/fixtures.rs"], params = { kept = ["ryo_kept", "*::ryo_kept", "Cache::At", "*::Cache::At", "lint"] }, description = "One function keeps its work in one cache directory once: a second keeping call on the same engine or the same cache rewrites what the first kept." },
+  { rule = "idiomatic.arch/requests-carry-no-settings@0.1.0", include = ["**/*.rs"], exclude = ["**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/acceptance.rs", "**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/fixtures/**", "**/fixtures.rs"], params = { requests = ["*Request", "Session"], settings = ["workers", "memory", "memory_budget", "cache", "build", "logging"] }, description = "A request carries what the caller asks: no worker count, memory budget, cache, build or output format." },
+  { rule = "idiomatic.arch/no-persist-toggles-in-ports@0.1.0", include = ["**/src/outbound/*/interface.rs", "**/src/outbound/*/types.rs"], params = { toggles = ["Keeping", "ImageKeeping", "Writing"] }, description = "No port takes or gives whether a cache is kept: the edge composes a store that keeps, or one that does not." },
+  { rule = "idiomatic.arch/no-ok-on-result@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/fixtures/**", "**/fixtures.rs"], description = "Production code never turns an error into `None` with `.ok()` or `Result::ok`." },
+  { rule = "idiomatic.arch/no-path-exists@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/fixtures/**", "**/fixtures.rs"], description = "Production code never asks whether a path exists: it attempts the operation and matches `NotFound`." },
+  { rule = "idiomatic.arch/no-filter-map-parse@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**"], description = "No value that fails to parse is dropped by a `filter_map`." },
+  { rule = "idiomatic.arch/exit-status-checked@0.1.0", include = ["**/*_test.rs", "**/tests/**/*.rs", "**/benches/**/*.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/fixtures.rs", "**/fixtures/**/*.rs"], description = "Every process a test runs has its exit checked, or is handed back to a caller that checks it." },
+  { rule = "idiomatic.arch/no-constant-assertions@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/fixtures/**"], description = "No assertion's condition is the literal `true` or `false`." },
+  { rule = "idiomatic.arch/serialize-dont-format@0.2.0", include = ["**/*.rs"], exclude = ["**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/acceptance.rs", "**/fixtures/**", "**/fixtures.rs"], description = "TOML and JSON are written through their serializer: no string literal is a fragment of a document." },
+  { rule = "idiomatic.arch/ordered-output@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/acceptance.rs", "**/fixtures/**", "**/fixtures.rs"], description = "A serialized type holds no hash map or set, so what it writes is in a fixed order." },
+  { rule = "idiomatic.arch/stream-discipline@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/acceptance.rs", "**/fixtures/**", "**/fixtures.rs"], description = "No trace writer falls back to a file of its own in the working directory: it writes the file the presentation layer gives it." },
+  { rule = "idiomatic.arch/digest-not-stamp-alone@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/acceptance.rs", "**/fixtures/**", "**/fixtures.rs"], description = "Unchanged is decided by a content digest: no key is made from a modification time." },
+  { rule = "idiomatic.arch/stable-ids@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/acceptance.rs", "**/fixtures/**", "**/fixtures.rs"], description = "No id is made from an enumeration's position." },
+  { rule = "idiomatic.arch/portable-test-filenames@0.1.0", include = ["**/*_test.rs", "**/tests/**/*.rs", "**/benches/**/*.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/fixtures.rs", "**/fixtures/**/*.rs"], exclude = ["**/tests/fixtures/corpus/**"], description = "A test that creates files names none Windows refuses, unless it runs only on Unix." },
+  { rule = "idiomatic.arch/no-silent-skip@0.1.0", include = ["**/*_test.rs", "**/tests/**/*.rs", "**/benches/**/*.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/fixtures.rs", "**/fixtures/**/*.rs"], exclude = ["**/tests/fixtures/corpus/**"], description = "No test prints that it passes over a case and goes on: a case it cannot run fails." },
+  { rule = "idiomatic.arch/cases-not-empty@0.1.0", include = ["**/*_test.rs", "**/tests/**/*.rs", "**/benches/**/*.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/fixtures.rs", "**/fixtures/**/*.rs"], exclude = ["**/tests/fixtures/corpus/**"], description = "A test never turns a fixture directory it cannot read into no cases." },
+  { rule = "idiomatic.arch/no-unwrap-or-on-lookup@0.1.0", include = ["**/*.rs"], exclude = ["**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/fixtures/**", "**/fixtures.rs"], description = "A lookup in an internal table by its own index fails loudly when it misses, never answers a default." },
+]
+
+[given]
+files.'Cargo.toml' = '''
+[workspace]
+members = ["demo"]
+resolver = "3"
+'''
+files.'demo/Cargo.toml' = '''
+[package]
+name = "demo"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+specs = [
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], libraries = ["rayon::*"] } },
+]
+'''
+files.'demo/src/lib.rs' = '''
+//! The demo.
+'''
+
+[[scenarios]]
+id = 'code-follows-policy-passes'
+scenario = 'Code that follows the policy passes.'
+given.files.'demo/src/lib.rs' = '''
+//! The demo.
+
+/// Runs.
+pub fn run() {}
+'''
+
+[[scenarios]]
+id = 'ignored-test'
+scenario = 'An ignored test: it is reported.'
+given.files.'demo/src/lib.rs' = '''
+//! The demo.
+
+/// Runs.
+pub fn run() {}
+
+#[cfg(test)]
+mod tests {
+    #[ignore]
+    #[test]
+    fn skipped() {}
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/no-ignored-tests', path = 'demo/src/lib.rs', line = 8 },
+]
+
+[[scenarios]]
+id = 'sdk-contract-names-fixtures'
+scenario = "A resource's contract names the fixtures it runs."
+given.files.'demo/src/resources/greeting/contract.rs' = '''
+//! What an implementation of the greeting runs.
+
+use other::fixtures::contract;
+
+/// Runs the contract.
+pub fn run() {
+    contract::check();
+}
+'''
+then.only = ['idiomatic.arch/no-runtime-fixtures']
+
+[[scenarios]]
+id = 'sdk-resource-names-fixtures'
+scenario = 'Another file of a resource names fixtures.'
+given.files.'demo/src/resources/greeting/show.rs' = '''
+//! What an implementation of the greeting runs.
+
+use other::fixtures::contract;
+
+/// Runs the contract.
+pub fn run() {
+    contract::check();
+}
+'''
+then.only = ['idiomatic.arch/no-runtime-fixtures']
+then.findings = [
+  { rule = 'idiomatic.arch/no-runtime-fixtures', path = 'demo/src/resources/greeting/show.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'domain-in-a-concept-names-inbound'
+scenario = 'A file inside a domain concept part of a core names a use case: the direction is held inside nested parts.'
+given.files.'demo/src/lib.rs' = '''
+//! The demo.
+
+pub mod domain;
+pub mod inbound;
+'''
+given.files.'demo/src/domain.rs' = '''
+//! The concepts.
+
+pub mod greeting;
+pub mod naming;
+'''
+given.files.'demo/src/domain/greeting.rs' = '''
+//! The greeting.
+
+pub mod service;
+'''
+given.files.'demo/src/domain/greeting/service.rs' = '''
+//! Greets.
+
+use crate::inbound::use_cases::greet::types::GreetRequest;
+
+/// Greets.
+pub fn greet(_request: GreetRequest) {}
+'''
+given.files.'demo/src/domain/naming.rs' = '''
+//! The naming.
+
+pub mod types;
+'''
+given.files.'demo/src/domain/naming/types.rs' = '''
+//! A name.
+
+/// A name.
+pub struct Name;
+'''
+given.files.'demo/src/inbound.rs' = '''
+//! The use cases.
+
+pub mod use_cases;
+'''
+given.files.'demo/src/inbound/use_cases.rs' = '''
+//! The list.
+
+pub mod greet;
+'''
+given.files.'demo/src/inbound/use_cases/greet.rs' = '''
+//! The greet use case.
+
+pub mod types;
+'''
+given.files.'demo/src/inbound/use_cases/greet/types.rs' = '''
+//! The request.
+
+/// The request.
+pub struct GreetRequest;
+'''
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+specs = [
+  { spec = "idiomatic.arch/nu-hex", include = ["demo"], params = { exposed = [], plugins = [], implements = [], item-trait = [] } },
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], libraries = ["rayon::*"] } },
+]
+'''
+then.only = ['idiomatic.arch/import-directions']
+then.findings = [
+  { rule = 'idiomatic.arch/import-directions', path = 'demo/src/domain/greeting/service.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'domain-in-a-concept-names-domain'
+scenario = 'A file inside a domain concept part names another concept: it passes.'
+given.files.'demo/src/lib.rs' = '''
+//! The demo.
+
+pub mod domain;
+pub mod inbound;
+'''
+given.files.'demo/src/domain.rs' = '''
+//! The concepts.
+
+pub mod greeting;
+pub mod naming;
+'''
+given.files.'demo/src/domain/greeting.rs' = '''
+//! The greeting.
+
+pub mod service;
+'''
+given.files.'demo/src/domain/greeting/service.rs' = '''
+//! Greets.
+
+use crate::domain::naming::types::Name;
+
+/// Greets.
+pub fn greet(_name: Name) {}
+'''
+given.files.'demo/src/domain/naming.rs' = '''
+//! The naming.
+
+pub mod types;
+'''
+given.files.'demo/src/domain/naming/types.rs' = '''
+//! A name.
+
+/// A name.
+pub struct Name;
+'''
+given.files.'demo/src/inbound.rs' = '''
+//! The use cases.
+
+pub mod use_cases;
+'''
+given.files.'demo/src/inbound/use_cases.rs' = '''
+//! The list.
+
+pub mod greet;
+'''
+given.files.'demo/src/inbound/use_cases/greet.rs' = '''
+//! The greet use case.
+
+pub mod types;
+'''
+given.files.'demo/src/inbound/use_cases/greet/types.rs' = '''
+//! The request.
+
+/// The request.
+pub struct GreetRequest;
+'''
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+specs = [
+  { spec = "idiomatic.arch/nu-hex", include = ["demo"], params = { exposed = [], plugins = [], implements = [], item-trait = [] } },
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], libraries = ["rayon::*"] } },
+]
+'''
+then.only = ['idiomatic.arch/import-directions']
+
+[[scenarios]]
+id = 'domain-names-a-kernel-crates-public-types'
+scenario = "A domain file names the public types of a kernel crate, which live under its `inbound/`, and a port interface of it: it passes, since only its own crate's inbound and outbound are against the direction."
+given.files.'demo/src/lib.rs' = '''
+//! The demo.
+
+pub mod domain;
+pub mod inbound;
+'''
+given.files.'demo/src/domain.rs' = '''
+//! The concepts.
+
+pub mod greeting;
+pub mod naming;
+'''
+given.files.'demo/src/domain/greeting.rs' = '''
+//! The greeting.
+
+pub mod service;
+'''
+given.files.'demo/src/domain/greeting/service.rs' = '''
+//! Greets.
+
+use kernel::inbound::use_cases::project::types::RootPath;
+use kernel::outbound::scheduler::interface::SchedulerPort;
+
+/// Greets.
+pub fn greet(_root: RootPath, _scheduler: &dyn SchedulerPort) {}
+'''
+given.files.'demo/src/domain/naming.rs' = '''
+//! The naming.
+
+pub mod types;
+'''
+given.files.'demo/src/domain/naming/types.rs' = '''
+//! A name.
+
+/// A name.
+pub struct Name;
+'''
+given.files.'demo/src/inbound.rs' = '''
+//! The use cases.
+
+pub mod use_cases;
+'''
+given.files.'demo/src/inbound/use_cases.rs' = '''
+//! The list.
+
+pub mod greet;
+'''
+given.files.'demo/src/inbound/use_cases/greet.rs' = '''
+//! The greet use case.
+
+pub mod types;
+'''
+given.files.'demo/src/inbound/use_cases/greet/types.rs' = '''
+//! The request.
+
+/// The request.
+pub struct GreetRequest;
+'''
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+specs = [
+  { spec = "idiomatic.arch/nu-hex", include = ["demo"], params = { exposed = [], plugins = [], implements = [], item-trait = [] } },
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], libraries = ["rayon::*"] } },
+]
+'''
+then.only = ['idiomatic.arch/import-directions']
+
+[[scenarios]]
+id = 'domain-names-value-rendering'
+scenario = "A domain file names the command line's `output::schemas`, where a typed value becomes text: it fails."
+given.files.'demo/src/lib.rs' = '''
+//! The demo.
+
+pub mod domain;
+pub mod inbound;
+'''
+given.files.'demo/src/domain.rs' = '''
+//! The concepts.
+
+pub mod greeting;
+pub mod naming;
+'''
+given.files.'demo/src/domain/greeting.rs' = '''
+//! The greeting.
+
+pub mod service;
+'''
+given.files.'demo/src/domain/greeting/service.rs' = '''
+//! Greets.
+
+use kernel::output::schemas::Rendered;
+
+/// Greets.
+pub fn greet(_rendered: Rendered) {}
+'''
+given.files.'demo/src/domain/naming.rs' = '''
+//! The naming.
+
+pub mod types;
+'''
+given.files.'demo/src/domain/naming/types.rs' = '''
+//! A name.
+
+/// A name.
+pub struct Name;
+'''
+given.files.'demo/src/inbound.rs' = '''
+//! The use cases.
+
+pub mod use_cases;
+'''
+given.files.'demo/src/inbound/use_cases.rs' = '''
+//! The list.
+
+pub mod greet;
+'''
+given.files.'demo/src/inbound/use_cases/greet.rs' = '''
+//! The greet use case.
+
+pub mod types;
+'''
+given.files.'demo/src/inbound/use_cases/greet/types.rs' = '''
+//! The request.
+
+/// The request.
+pub struct GreetRequest;
+'''
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+specs = [
+  { spec = "idiomatic.arch/nu-hex", include = ["demo"], params = { exposed = [], plugins = [], implements = [], item-trait = [] } },
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], libraries = ["rayon::*"] } },
+]
+'''
+then.only = ['idiomatic.arch/import-directions']
+then.findings = [
+  { rule = 'idiomatic.arch/import-directions', path = 'demo/src/domain/greeting/service.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'composition-reaches-up-to-resources'
+scenario = 'A composition calls a function of the module above it: the value is handed down instead.'
+given.files.'demo/src/resources.rs' = '''
+//! The resources.
+
+pub mod greeting;
+
+/// The store.
+pub fn store() {}
+'''
+given.files.'demo/src/resources/greeting.rs' = '''
+//! The greeting resource.
+
+pub mod composition;
+'''
+given.files.'demo/src/resources/greeting/composition.rs' = '''
+//! Wires the greeting.
+
+/// Wires it.
+pub fn build() {
+    crate::resources::store();
+}
+'''
+then.only = ['idiomatic.arch/import-directions']
+then.findings = [
+  { rule = 'idiomatic.arch/import-directions', path = 'demo/src/resources/greeting/composition.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'command-reaches-up-by-super-super'
+scenario = 'A command names an item two modules up: it is handed down instead.'
+given.files.'demo/src/resources/greeting/show/command.rs' = '''
+//! The show command.
+
+use super::super::edge;
+
+/// Shows.
+pub fn run() {
+    edge();
+}
+'''
+then.only = ['idiomatic.arch/import-directions']
+then.findings = [
+  { rule = 'idiomatic.arch/import-directions', path = 'demo/src/resources/greeting/show/command.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'command-names-its-own-schemas'
+scenario = 'A command names the schemas beside it, which is its own directory.'
+given.files.'demo/src/resources/greeting/show/command.rs' = '''
+//! The show command.
+
+use super::schemas::Shown;
+
+/// Shows.
+pub fn run(_shown: Shown) {}
+'''
+then.only = ['idiomatic.arch/import-directions']
+
+[[scenarios]]
+id = 'literal-rules-hold-production-not-test-roles'
+scenario = 'A product that lists its test roles as allowed paths: a bare integer in a production file is reported, the same field in a test role is not.'
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+specs = [
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/test.rs", "**/*_test.rs", "**/fixtures.rs", "**/fixtures/**", "**/tests/**"], libraries = ["rayon::*"] } },
+]
+'''
+given.files.'demo/src/lib.rs' = '''
+//! The demo.
+
+pub mod size;
+'''
+given.files.'demo/src/size/mod.rs' = '''
+//! The size.
+
+pub mod types;
+#[cfg(test)]
+mod test;
+'''
+given.files.'demo/src/size/types.rs' = '''
+//! The size values.
+
+/// A size.
+pub struct Size {
+    /// A bare count.
+    pub count: usize,
+}
+'''
+given.files.'demo/src/size/test.rs' = '''
+//! The size test.
+
+struct Probe {
+    count: usize,
+}
+'''
+then.only = ['idiomatic.arch/idiomatic-rust/no-bare-integers']
+then.findings = [
+  { rule = 'idiomatic.arch/idiomatic-rust/no-bare-integers', path = 'demo/src/size/types.rs', line = 6 },
+]

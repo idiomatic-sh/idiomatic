@@ -1,0 +1,140 @@
+description = "No closure outside test code has a `panic!`, `unreachable!`, `todo!` or `unimplemented!` call as its body: `unwrap_or_else(|| panic!(..))` and `map_err(|error| panic!(..))` are an `expect` written the long way."
+why = "A closure that only panics stands in for `expect`: it ends the caller's process on a missing value or an error exactly as `.expect(..)` does, and hides it from the rules and lints that look for `unwrap` and `expect`. Return the error with `?`, or make the failure a value the caller handles. Read syntactically: a `closure-expr` whose body is a macro call named `panic`, `unreachable`, `todo` or `unimplemented`; test code is an item whose attribute holds the identifier `test` anywhere in its tokens, and everything nested in it. Not seen: a closure whose body is a block holding the macro, a macro reached through a path (`std::panic!`), and a call inside a macro invocation's tokens."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let closures = select * from tree-nodes where kind = "closure-expr";
+let macro-exprs = select * from tree-nodes where kind = "macro-expr";
+let macro-calls = select * from tree-nodes where kind = "macro-call";
+let paths = select * from tree-nodes where kind = "path";
+let segments = select * from tree-nodes where kind = "path-segment";
+let name-refs = select * from tree-nodes where kind = "name-ref";
+let closure-bodies = select l."id" as "closure", l."file" as "file", l."span" as "span", r."child" as "body" from closures as l join "syntax-child" as r on l."id" = r."parent";
+let body-macros = select l."closure" as "closure", l."file" as "file", l."span" as "span", r."id" as "expr" from closure-bodies as l join macro-exprs as r on l."body" = r."id";
+let expr-kids = select l."closure" as "closure", l."file" as "file", l."span" as "span", r."child" as "call" from body-macros as l join "syntax-child" as r on l."expr" = r."parent";
+let calls = select l."closure" as "closure", l."file" as "file", l."span" as "span", r."id" as "call" from expr-kids as l join macro-calls as r on l."call" = r."id";
+let call-kids = select l."closure" as "closure", l."file" as "file", l."span" as "span", r."child" as "node" from calls as l join "syntax-child" as r on l."call" = r."parent";
+let call-paths = select l."closure" as "closure", l."file" as "file", l."span" as "span", r."id" as "node" from call-kids as l join paths as r on l."node" = r."id";
+let path-kids = select l."closure" as "closure", l."file" as "file", l."span" as "span", r."child" as "node" from call-paths as l join "syntax-child" as r on l."node" = r."parent";
+let call-segments = select l."closure" as "closure", l."file" as "file", l."span" as "span", r."id" as "node" from path-kids as l join segments as r on l."node" = r."id";
+let segment-kids = select l."closure" as "closure", l."file" as "file", l."span" as "span", r."child" as "node" from call-segments as l join "syntax-child" as r on l."node" = r."parent";
+let call-refs = select l."closure" as "closure", l."file" as "file", l."span" as "span", r."id" as "node" from segment-kids as l join name-refs as r on l."node" = r."id";
+let ref-kids = select l."closure" as "closure", l."file" as "file", l."span" as "span", r."child" as "token" from call-refs as l join "syntax-child" as r on l."node" = r."parent";
+let ref-names = select l."closure" as "closure", l."file" as "file", l."span" as "span", r."text" as "text" from ref-kids as l join tree-tokens as r on l."token" = r."id";
+let panics = select * from ref-names where glob_any(text, "{panic,unreachable,todo,unimplemented}");
+let panicking = select l."closure" as "id", l."file" as "file", l."span" as "span", l."text" as "text" from panics as l join closures as r on l."closure" = r."id";
+let test-tokens = select * from tree-tokens where text = "test";
+let test-token-parents = select r."parent" as "id" from test-tokens as l join "syntax-child" as r on l."id" = r."child";
+let attributes = select * from tree-nodes where kind = "attr";
+let test-token-attributes = axis(from=test-token-parents, relation="syntax-child", direction=nearest-ancestor, domain=attributes);
+let test-attribute-owners = select r."parent" as "item" from test-token-attributes as l join "syntax-child" as r on l."related" = r."child";
+let test-items = select r."id" as "id" from test-attribute-owners as l join tree-nodes as r on l."item" = r."id";
+let in-tests = axis(from=panicking, relation="syntax-child", direction=ancestor, domain=test-items);
+let production = antijoin(left=panicking, right=in-tests, left-on=["id"], right-on=["id"]);
+emit production subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this closure only calls `{text}!`: an `expect` written the long way"
+help = "Return the error with `?`, or make the failure a value the caller handles."
+
+[given]
+include = ['**/*.rs']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'unwrap-or-else-panic'
+scenario = 'Unwrap_or_else with a panic closure.'
+given.files.'src/lib.rs' = '''
+pub fn first(values: &[u8]) -> u8 {
+    values.first().copied().unwrap_or_else(|| panic!("empty"))
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'map-err-panic'
+scenario = 'Map_err with a panic closure.'
+given.files.'src/lib.rs' = '''
+pub fn read(text: &str) -> u8 {
+    text.parse::<u8>().map_err(|error| panic!("{error}")).unwrap_or(0)
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'unreachable-closure'
+scenario = 'A closure that is unreachable!'
+given.files.'src/lib.rs' = '''
+pub fn pick(value: Option<u8>) -> u8 {
+    value.unwrap_or_else(|| unreachable!())
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'todo-closure'
+scenario = 'A closure that is todo!'
+given.files.'src/lib.rs' = '''
+pub fn pick(value: Option<u8>) -> u8 {
+    value.unwrap_or_else(|| todo!())
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'closure-in-a-test'
+scenario = 'A panicking closure in test code.'
+given.files.'src/lib.rs' = '''
+pub fn pick(value: Option<u8>) -> u8 {
+    value.unwrap_or(0)
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn picks() {
+        let _ = Some(1u8).unwrap_or_else(|| panic!("none"));
+    }
+}
+'''
+
+[[scenarios]]
+id = 'closure-with-work'
+scenario = 'Closures that compute a value.'
+given.files.'src/lib.rs' = '''
+pub fn pick(value: Option<u8>) -> u8 {
+    value.unwrap_or_else(|| 7)
+}
+
+pub fn wrap(value: Result<u8, String>) -> Result<u8, String> {
+    value.map_err(|error| format!("{error}"))
+}
+'''
+
+[[scenarios]]
+id = 'panic-outside-a-closure'
+scenario = 'A panic that is no closure body.'
+given.files.'src/lib.rs' = '''
+pub fn pick(value: Option<u8>) -> u8 {
+    match value {
+        Some(found) => found,
+        None => panic!("none"),
+    }
+}
+'''
