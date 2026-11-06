@@ -149,10 +149,12 @@ pub(crate) struct ExecutableProgram {
     pub(super) logical_regions: Box<[RegionId]>,
     pub(super) observation_regions: Box<[Result<RegionId, OperatingError>]>,
     /// The fusion classification of every instruction, indexed by its logical number.
+    #[cfg(test)]
     pub fusibility: Box<[super::fusion::types::Fusibility]>,
 }
 impl ExecutableProgram {
     /// How the compiler classified an instruction against the region of its producer.
+    #[cfg(test)]
     pub(crate) fn fusibility(
         &self,
         logical: LogicalInstruction,

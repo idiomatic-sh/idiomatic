@@ -1,5 +1,7 @@
 //! Lower the temporary canonical analysis graph; erase internal continuation cuts.
-use super::fusion::types::{Fusibility, Ineligible, RegionSharing};
+#[cfg(test)]
+use super::fusion::types::Ineligible;
+use super::fusion::types::{Fusibility, RegionSharing};
 use super::types::*;
 use crate::domain::{
     file_program::types::{NodeId, NodeInput, RequestGraph},
@@ -353,6 +355,7 @@ pub(crate) fn compile(
             original_steps: original_steps.into_boxed_slice(),
         });
     }
+    #[cfg(test)]
     let synthesized = regions.len();
     let observation_regions = super::observed::compile_unions(
         &mut regions,
@@ -361,18 +364,23 @@ pub(crate) fn compile(
         count,
     )?;
     // Named distinct-set unions are synthesized instructions: two members, never a continuation.
-    let mut fusibility = classification.fusibility;
-    for instruction in regions[synthesized..]
-        .iter()
-        .flat_map(|region| region.instructions.iter())
-    {
-        if fusibility.len() <= instruction.logical.0 {
-            fusibility.resize(
-                instruction.logical.0 + 1,
-                Fusibility::Excluded(Ineligible::MultiInput),
-            );
+    // Only the controls read the table back, so only the test build keeps it.
+    #[cfg(test)]
+    let fusibility = {
+        let mut fusibility = classification.fusibility;
+        for instruction in regions[synthesized..]
+            .iter()
+            .flat_map(|region| region.instructions.iter())
+        {
+            if fusibility.len() <= instruction.logical.0 {
+                fusibility.resize(
+                    instruction.logical.0 + 1,
+                    Fusibility::Excluded(Ineligible::MultiInput),
+                );
+            }
         }
-    }
+        fusibility
+    };
     // The stored-selection and native-position families are offered over the same regions, then
     // one rule keeps one route per region. Only the kept route takes a reader of its source.
     candidates.resize_with(regions.len(), Default::default);
@@ -470,6 +478,7 @@ pub(crate) fn compile(
         rules: rules.into_boxed_slice(),
         logical_regions: logical_regions.into_boxed_slice(),
         observation_regions: observation_regions.into_boxed_slice(),
+        #[cfg(test)]
         fusibility: fusibility.into_boxed_slice(),
     })
 }
