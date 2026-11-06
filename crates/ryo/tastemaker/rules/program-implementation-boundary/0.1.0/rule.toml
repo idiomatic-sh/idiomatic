@@ -1,8 +1,14 @@
 description = "Only declared owners and bridges may depend on execution implementation modules."
-why = "The application program owns admission, publication, restoration, and physical dispatch; the domain dispatcher owns operator registration. A domain primitive cannot depend on any application module, including a newly added acquisition or permit module. Other consumers cannot resolve the protected implementation modules directly. This checks resolved same-crate Rust source dependencies, including aliases and qualified paths. The immutable preparation service/types, neutral protocol roles, outer file/project entry and borrowed semantic interfaces remain available. Lower implementations never depend on an orchestration facade. Public partition/applicability descriptors and opaque validated restoration retain their existing caller API at the actual defining module; their input/permit constructors remain Rust-private. Source admission validates explicit scope data and cannot depend on runtime state; protocol/preparation and runtime type roles cannot point back to their own workflow implementations. Rust visibility and engine-issued permits separately enforce construction and invocation. The source, invocation and semantic bridges have one production implementer each. Operator and physical representation implementers must be selected by the tail match of their actual RegisteredOperator/RegisteredRepresentation item method: only an unguarded direct immutable &Item arm result registers its resolved type, including qualified or renamed imports. Blocks, guards, patterns, unused matches and other methods supply no registration; a new implementation does not acquire a route merely by satisfying the trait. Registered proof roles may substitute implementations for negative controls. The kind enums drive exhaustive dispatch and real fixture coverage; this check does not establish runtime behavior. This relation does not follow a facade re-export chain or resolve macro-generated paths, so it is one source boundary rather than proof of every callable route."
+why = "The application program owns admission, publication, restoration, and physical dispatch; the domain dispatcher owns operator registration. A domain primitive cannot depend on any application module, including a newly added acquisition or permit module. Other consumers cannot resolve the protected implementation modules directly. This checks resolved same-crate Rust source dependencies, including aliases and qualified paths. Exact syntax paths inside visibility restrictions are excluded by source file and span; visibility names an access scope and does not borrow or call that owner. Real imports, type references and calls at the same path remain subject to the boundary. The immutable preparation service/types, neutral protocol roles, outer file/project entry and borrowed semantic interfaces remain available. Lower implementations never depend on an orchestration facade. Public partition/applicability descriptors and opaque validated restoration retain their existing caller API at the actual defining module; their input/permit constructors remain Rust-private. Source admission validates explicit scope data and cannot depend on runtime state; protocol/preparation and runtime type roles cannot point back to their own workflow implementations. Rust visibility and engine-issued permits separately enforce construction and invocation. The source, invocation and semantic bridges have one production implementer each. Operator and physical representation implementers must be selected by the tail match of their actual RegisteredOperator/RegisteredRepresentation item method: only an unguarded direct immutable &Item arm result registers its resolved type, including qualified or renamed imports. Blocks, guards, patterns, unused matches and other methods supply no registration; a new implementation does not acquire a route merely by satisfying the trait. Registered proof roles may substitute implementations for negative controls. The kind enums drive exhaustive dispatch and real fixture coverage; this check does not establish runtime behavior. This relation does not follow a facade re-export chain or resolve macro-generated paths, so it is one source boundary rather than proof of every callable route."
 
 query = '''
-let paths = capture(from="source-dependency", path="source", pattern="{*source-root}/{*source-tail}", captures=["source-root", "source-tail"]);
+let dependency-nodes = select id, file, span, kind from "syntax-tree" where text = "";
+let dependency-visibilities = select * from dependency-nodes where kind = "visibility";
+let dependency-paths = select * from dependency-nodes where kind = "path";
+let visibility-paths = axis(from=dependency-visibilities, relation="syntax-child", direction=descendant, domain=dependency-paths);
+let visibility-references = select r.file as source, r.span as span from visibility-paths as l join dependency-paths as r on l.related = r.id;
+let callable-dependencies = antijoin(left="source-dependency", right=visibility-references, left-on=["source", "span"], right-on=["source", "span"]);
+let paths = capture(from=callable-dependencies, path="source", pattern="{*source-root}/{*source-tail}", captures=["source-root", "source-tail"]);
 let targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/program/{*implementation-tail}", captures=["target-root", "implementation-tail"]);
 let local = select source as file, span, source-tail, implementation-tail from targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
 let protected = select * from local where not glob_any(implementation-tail, "{preparation/service.rs,preparation/types.rs,protocol/types.rs,protocol/service.rs,facade_runtime.rs,admission.rs,restored.rs}");
@@ -930,3 +936,65 @@ scenario = "A nested lookalike cannot impersonate the actual top-level catalog o
 given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
 given.files.'src/domain/table_model/collections/representations/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match self.kind { Kind::Stored => &super::super::super::stored::item::StoredItem } } } fn unrelated() { struct RegisteredRepresentation; impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::interface::RepresentationsItem { match () { () => &super::super::super::stored::item::Extra } } } }"
 then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
+
+[[scenarios]]
+id = "lease-constructor-visibility-is-not-owner-access"
+scenario = "Constructor privacy names its real owning lease without borrowing it."
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
+given.files.'src/application/file_dag/execution/lease/capability.rs' = "pub mod service;"
+given.files.'src/application/file_dag/execution/lease/capability/service.rs' = "pub(in crate::application::file_dag::execution::lease) fn create() {}"
+
+[[scenarios]]
+id = "lease-field-visibility-is-not-owner-access"
+scenario = "Private data visibility may name the owner without importing it."
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
+given.files.'src/application/file_dag/execution/lease/capability.rs' = "pub mod service;"
+given.files.'src/application/file_dag/execution/lease/capability/service.rs' = "pub(in crate::application::file_dag::execution::lease) struct Owned { pub(in crate::application::file_dag::execution::lease) value: usize }"
+
+[[scenarios]]
+id = "lease-visibility-does-not-hide-real-import"
+scenario = "The same file and owner path still expose an actual imported function."
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
+given.files.'src/application/file_dag/execution/lease/capability.rs' = "pub mod service;"
+given.files.'src/application/file_dag/execution/lease/capability/service.rs' = "pub(in crate::application::file_dag::execution::lease) fn create() {}\nuse crate::application::file_dag::execution::lease::bridge;"
+then.findings = [{path="src/application/file_dag/execution/lease/capability/service.rs",line=2}]
+
+[[scenarios]]
+id = "lease-visibility-does-not-hide-real-type"
+scenario = "Only the visibility span is excluded; an argument type still borrows the owner."
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
+given.files.'src/application/file_dag/execution/lease/capability.rs' = "pub mod service;"
+given.files.'src/application/file_dag/execution/lease/capability/service.rs' = "pub(in crate::application::file_dag::execution::lease) fn create() {}\npub fn consume(_: &crate::application::file_dag::execution::lease::Lease) {}"
+then.findings = [{path="src/application/file_dag/execution/lease/capability/service.rs",line=2}]
+
+[[scenarios]]
+id = "lease-visibility-does-not-hide-qualified-call"
+scenario = "A real qualified call at the same path remains prohibited."
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
+given.files.'src/application/file_dag/execution/lease/capability.rs' = "pub mod service;"
+given.files.'src/application/file_dag/execution/lease/capability/service.rs' = "pub(in crate::application::file_dag::execution::lease) fn create() {}\npub fn bypass() { crate::application::file_dag::execution::lease::bridge(); }"
+then.findings = [{path="src/application/file_dag/execution/lease/capability/service.rs",line=2}]
+
+[[scenarios]]
+id = "lease-visibility-does-not-hide-renamed-import-call"
+scenario = "Renaming an imported owner function cannot turn it into visibility metadata."
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
+given.files.'src/application/file_dag/execution/lease/capability.rs' = "pub mod service;"
+given.files.'src/application/file_dag/execution/lease/capability/service.rs' = "pub(in crate::application::file_dag::execution::lease) fn create() {}\nuse crate::application::file_dag::execution::lease::bridge as invoke;\npub fn bypass() { invoke(); }"
+then.findings = [{path="src/application/file_dag/execution/lease/capability/service.rs",line=2}]
+
+[[scenarios]]
+id = "lease-real-import-before-visibility-stays-prohibited"
+scenario = "Visibility later in the same file cannot erase an earlier import span."
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
+given.files.'src/application/file_dag/execution/lease/capability.rs' = "pub mod service;"
+given.files.'src/application/file_dag/execution/lease/capability/service.rs' = "use crate::application::file_dag::execution::lease::bridge;\npub(in crate::application::file_dag::execution::lease) fn create() {}"
+then.findings = [{path="src/application/file_dag/execution/lease/capability/service.rs",line=1}]
+
+[[scenarios]]
+id = "new-lease-module-visibility-does-not-hide-call"
+scenario = "A newly declared adjacent module gets the same exact-span filter."
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
+given.files.'src/application/file_dag/execution/lease/capability.rs' = "pub mod new_route;"
+given.files.'src/application/file_dag/execution/lease/capability/new_route.rs' = "pub(in crate::application::file_dag::execution::lease) fn create() {}\npub fn bypass() { crate::application::file_dag::execution::lease::bridge(); }"
+then.findings = [{path="src/application/file_dag/execution/lease/capability/new_route.rs",line=2}]
