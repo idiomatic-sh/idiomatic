@@ -19,6 +19,8 @@ pub(super) fn acquire(
     owner: &Rc<RelationOwner>,
     context: &mut OperatorContext<'_>,
     work: &WorkCounters,
+    walk: &super::native_walk::WalkPartition<'_>,
+    kernels: &dyn super::super::executor::PrimitiveExecutor,
 ) -> Result<Option<PublishedInput>, OperatingError> {
     let input = permit.selection_input(shape)?;
     let publication = input.publication(owner)?;
@@ -36,6 +38,56 @@ pub(super) fn acquire(
             .is_some_and(|column| column.0.len() > u32::MAX as usize)
     {
         return Ok(None);
+    }
+    if proof.physical_shape()
+        != crate::domain::table_model::collections::representations::types::PhysicalShape::Complete
+    {
+        return Ok(None);
+    }
+    if let Some(shared) = walk.acquire(
+        prepared,
+        permit,
+        rows,
+        super::native_walk::WalkDelivery::Stored,
+        context,
+        kernels,
+    )? {
+        let selector = shape.selector();
+        let kinds = selector
+            .columns
+            .iter()
+            .map(|column| {
+                columns
+                    .kinds
+                    .get(column.0 as usize)
+                    .copied()
+                    .ok_or(OperatingError::ShapeMismatch)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        if kinds != permit.output_kinds()? {
+            return Err(OperatingError::ShapeMismatch);
+        }
+        let selection = {
+            let result = shared.result();
+            work.found(0, shared.visits().0);
+            result.completion.clone()?;
+            std::sync::Arc::new(crate::domain::table_model::types::StoredSelection {
+                relation: selector.relation,
+                rows: std::sync::Arc::new(result.positions.0.clone()),
+                columns: selector.columns.clone(),
+                kinds,
+                identity: std::sync::Arc::clone(&selector.identity),
+            })
+        };
+        // The cached walk borrow ends before owner-issued publication/leases.
+        return crate::application::file_dag::relations::selection::publish(
+            owner,
+            publication,
+            &proof,
+            selection,
+            [None, None],
+        )
+        .map(Some);
     }
     let Some(plan) = owner.derived.selector_plan(shape.selector())? else {
         return Ok(None);
