@@ -229,3 +229,5 @@ pub const INVALID_CASE_SHARD_COUNT: &str = "invalid case shard count";
 /// Text `pinned reference does not evaluate PO...`.
 pub const PINNED_REFERENCE_DOES_NOT_EVALUATE: &str =
     "pinned reference does not evaluate POSIX executable checks on this host";
+/// The phases of the pinned Ruff rules, as pinned beside the profiles.
+pub const PINNED_RULE_PHASES: &str = include_str!("../profiles/pinned-rule-phases.json");

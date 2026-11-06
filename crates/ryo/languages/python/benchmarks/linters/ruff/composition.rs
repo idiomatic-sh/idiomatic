@@ -3,6 +3,7 @@ use self::constants::UNSUPPORTED_WORKER_COMMAND;
 use ryo_benchmark::outbound::suite::types::ArtifactPath;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::{path::PathBuf, sync::Arc};
+mod certification;
 mod commands;
 mod constants;
 mod corpus;
@@ -56,7 +57,7 @@ pub(crate) fn run(
             | self::constants::MEASURE_SCOPED
             | self::constants::MEASURE_VALID,
         ) => self::measure::measure(
-            self::measure::MeasureCommand(command.as_deref().unwrap_or_default()),
+            self::certification::MeasureCommand(command.as_deref().unwrap_or_default()),
             &mut args.map(self::request_input::BenchmarkArgument),
             observations,
             &suite_source,
