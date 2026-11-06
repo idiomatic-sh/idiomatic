@@ -23,7 +23,7 @@ use ryo_values::domain::{
     stored_facts::types::Digest,
 };
 
-pub(super) struct DeclaredFileProducers;
+pub(crate) struct DeclaredFileProducers;
 impl ProducerPartitions for DeclaredFileProducers {
     fn hosted(
         &self,
@@ -95,22 +95,22 @@ fn plan(source: Input) -> Plan {
         frontier: vec![],
     }
 }
-pub(super) struct Fixture {
-    pub(super) plans: Vec<Plan>,
-    pub(super) graph: RequestGraph,
-    pub(super) operators: RequestOperators,
+pub(crate) struct Fixture {
+    pub(crate) plans: Vec<Plan>,
+    pub(crate) graph: RequestGraph,
+    pub(crate) operators: RequestOperators,
 }
 #[derive(Clone, Copy)]
-pub(super) enum FrontierSlots {
+pub(crate) enum FrontierSlots {
     Declared,
     UndeclaredFirst,
 }
-pub(super) struct Names {
-    pub(super) left: ObservationBindingName,
-    pub(super) right: ObservationBindingName,
-    pub(super) column: ObservationColumnName,
+pub(crate) struct Names {
+    pub(crate) left: ObservationBindingName,
+    pub(crate) right: ObservationBindingName,
+    pub(crate) column: ObservationColumnName,
 }
-pub(super) fn fixture(frontier: FrontierSlots, names: Names) -> Fixture {
+pub(crate) fn fixture(frontier: FrontierSlots, names: Names) -> Fixture {
     let invalid_frontier = matches!(frontier, FrontierSlots::UndeclaredFirst);
     let mut producers = [
         plan(Input::Relation(Relation::LanguageTarget)),
