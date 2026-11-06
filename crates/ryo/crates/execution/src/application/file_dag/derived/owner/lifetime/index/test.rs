@@ -2,14 +2,10 @@
 use crate::application::file_dag::derived::owner::*;
 use fixtures::resources::ResourceFixture;
 use ryo_derived::domain::contract::types::DerivedView;
-use ryo_relations::domain::relations::types::{
-    CellKind, ColumnsView, FactColumn, Integer, Relation, Value,
-};
+use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use {
-    crate::domain::operator::contract::views::BorrowedRows,
-    crate::domain::table_model::types::Rows, crate::domain::table_scratch::types::OperatorScratch,
-    ryo_values::domain::files::types::SourceView,
+    crate::domain::operator::contract::views::BorrowedRows, crate::domain::table_model::types::Rows,
 };
 const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Number];
 fn fixture(columns: &[FactColumn]) -> ResourceFixture {
@@ -176,5 +172,3 @@ fn backend_clear_preserves_one_required_backing_until_last_consumer_drops() {
         0
     );
 }
-
-use ryo_values::domain::rows::types::Table;

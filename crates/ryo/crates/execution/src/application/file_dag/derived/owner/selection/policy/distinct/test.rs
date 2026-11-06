@@ -8,7 +8,6 @@ use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation};
-use ryo_relations::domain::terms::types::Symbol;
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, WholeNumber};
 use ryo_values::domain::query_bindings::types::ParameterBinding;

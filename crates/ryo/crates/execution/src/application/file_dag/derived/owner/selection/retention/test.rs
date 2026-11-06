@@ -4,7 +4,6 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::stored_selection::fixtures::program;
 use crate::domain::table_scratch::types::OperatorScratch;
-use ryo_derived::domain::contract::types::DerivedKind;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::service::to_bits;

@@ -16,19 +16,17 @@ use crate::application::file_dag::derived::owner::graphs::types::handles::servic
 };
 use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
 use crate::application::file_dag::derived::owner::{
-    DerivedOwner, GraphRequirement, GraphSelection, GraphViewIdentity, ViewContext,
+    GraphRequirement, GraphSelection, GraphViewIdentity, ViewContext,
 };
-use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::application::file_dag::workspace::GraphInput;
 use crate::domain::{
     operating::errors::OperatingError,
     stored_graph::types::GraphDomain,
     table_model::{
-        service::{check_columns, count_of, kinds_of},
+        service::{check_columns, kinds_of},
         types::Rows,
     },
 };
-use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
 pub(in crate::application::file_dag::derived::owner) fn acquire(
     plan: &Arc<crate::domain::derived_views::types::DerivedContract>,

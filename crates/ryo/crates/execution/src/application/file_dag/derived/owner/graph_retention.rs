@@ -1,6 +1,6 @@
 //! The common owner alone installs retained graph and domain storage.
 use super::super::{
-    ledger::types::{Backing, ByteCount},
+    ledger::types::Backing,
     owner::graphs::{
         service::{replace, room, slot},
         types::{

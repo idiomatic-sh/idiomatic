@@ -1,18 +1,15 @@
 //! Candidate choice and immutable equality-cache acquisition remain application policy.
 use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
-use crate::application::file_dag::derived::owner::acquisition::selection::service::SelectionSource;
 use crate::application::file_dag::derived::owner::acquisition::selection::types::StoredColumns;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::owner::selection::fanout::service::fanout_candidates;
-use crate::application::file_dag::derived::owner::selection::literals::service::first_literal;
 use crate::application::file_dag::derived::owner::selection::types::*;
 use crate::domain::{
     derived_views::types::{DerivedInputs, DerivedScratch},
     operating::{errors::OperatingError, types::OperatorContext},
     operator::contract::views::BorrowedRows,
-    stored_selection::types::{PreparedSelectionViews, PreparedSelectorViews, Selector},
+    stored_selection::types::{PreparedSelectorViews, Selector},
     table_model::service::matching_stored,
-    table_texts::types::Texts,
 };
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_language::domain::symbols::{
@@ -25,10 +22,9 @@ use ryo_relations::domain::relations::{
 };
 use ryo_relations::domain::terms::service::symbols_with_text;
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, LiteralText, Operand, QueryLiteral, Test},
+    plan_parts::types::{ColumnIndex, Operand, QueryLiteral, Test},
     query_bindings::types::ParameterBinding,
 };
-use std::sync::Arc;
 
 /// Use a column index only when multiple active descriptors can amortize its build.
 pub(in crate::application::file_dag::derived::owner) fn candidates(

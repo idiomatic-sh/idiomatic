@@ -13,10 +13,9 @@ use crate::application::file_dag::{
 };
 use crate::domain::{
     coverage::types::Partial,
-    operation_schema::types::InputShape,
     operator::contract::views::BorrowedRows,
-    stored_graph::types::{GraphCounts, GraphWalk, Orientation},
-    table_model::{service::kinds_of, types::Rows},
+    stored_graph::types::{GraphWalk, Orientation},
+    table_model::types::Rows,
 };
 use ryo_relations::domain::relations::types::{Relation, Value};
 use ryo_values::domain::{

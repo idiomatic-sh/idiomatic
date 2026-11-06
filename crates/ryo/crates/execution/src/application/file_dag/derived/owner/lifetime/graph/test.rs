@@ -320,7 +320,10 @@ fn impossible_selected_position_admission_does_not_evict_dormant_index() {
     assert_eq!(first.sharing(), GraphSharing::Local);
     assert_eq!(
         first.graph().vertices(),
-        vec![1, 2, 3].into_iter().map(|n| number(Integer(n))).collect::<Vec<_>>()
+        vec![1, 2, 3]
+            .into_iter()
+            .map(|n| number(Integer(n)))
+            .collect::<Vec<_>>()
     );
     let cost = fixture.graph_cost(&first);
     fixture.set_limit(before.bytes + cost - before.retained_view_bytes / 2);

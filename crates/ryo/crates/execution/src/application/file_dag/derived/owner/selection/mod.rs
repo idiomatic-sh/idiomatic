@@ -1,52 +1,30 @@
 //! Application policy for prepared compact selections and their shared file backend.
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::domain::{
-    derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch, ViewRequest},
+    derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch},
     operating::{errors::OperatingError, types::OperatorContext},
     operator::contract::views::BorrowedRows,
-    stored_selection::types::{
-        PreparedSelectionViews, PreparedSelectorViews, Selector, SelectorHistogram,
-    },
+    stored_selection::types::Selector,
     table_model::{
-        service::{check_columns, matching_stored},
-        types::{SelectedRows, StoredSelection, Verdict},
+        service::check_columns,
+        types::{SelectedRows, StoredSelection},
     },
-    table_texts::types::Texts,
 };
-use ryo_derived::domain::contract::types::DerivedKind;
-use ryo_derived::domain::contract::types::DerivedView;
-use ryo_derived::domain::contract::types::KeyIndex;
-use ryo_language::domain::symbols::{
-    service::{find_hashed, hash_of},
-    types::ByteSlice,
-};
-use ryo_relations::domain::relations::{
-    service::from_bits,
-    types::{Bits, CellKind, ColumnsView, Integer, Value},
-};
-use ryo_relations::domain::terms::service::symbols_with_text;
-use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, LiteralText, Operand, QueryLiteral, Test,
-};
+use ryo_relations::domain::relations::types::ColumnsView;
 use std::sync::Arc;
 pub(super) mod candidates;
 mod fanout;
 mod literals;
 pub(in crate::application::file_dag) mod preparation;
+use crate::application::file_dag::derived::owner::DerivedOwner;
 use crate::application::file_dag::derived::owner::acquisition::selection::{
     predicate::service::matches,
     service::{SelectionSource, histogram, shared_positions},
     types::RowBound,
 };
-use crate::application::file_dag::derived::owner::{DerivedOwner, ViewContext};
 use crate::application::file_dag::relations::{RelationOwner, admission::service::AdmittedInput};
-use types::*;
 pub(in crate::application::file_dag::derived::owner) mod types;
-#[cfg(test)]
-use crate::domain::stored_selection::types::program::value::SelectionProgram;
 use candidates::service::candidates;
-#[cfg(test)]
-use ryo_values::domain::plans::types::Plan;
 pub(in crate::application::file_dag::derived::owner) struct SelectionOutput<'a> {
     pub(in crate::application::file_dag::derived::owner) rows: SelectedRows<'a>,
     pub(in crate::application::file_dag::derived::owner) resources: [Option<
@@ -155,8 +133,6 @@ fn make<'a>(
 
 #[cfg(test)]
 mod retention;
-
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 #[cfg(test)]
 pub(crate) mod fixtures;

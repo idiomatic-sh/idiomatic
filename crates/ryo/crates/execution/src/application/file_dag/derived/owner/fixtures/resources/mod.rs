@@ -7,7 +7,7 @@ use crate::domain::{
 };
 use ryo_derived::domain::contract::types::KeyIndex;
 use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::{plan_parts::types::ColumnIndex, plans::types::Plan};
+use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::rc::Rc;
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Snapshot {

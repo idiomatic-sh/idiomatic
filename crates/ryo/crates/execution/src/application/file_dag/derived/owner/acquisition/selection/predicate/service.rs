@@ -4,6 +4,7 @@ use super::super::{
     service::{SelectionSource, histogram, shared_positions},
     types::{PredicateDecision, RowBound, SelectorGroup, Visits},
 };
+use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
 use crate::application::file_dag::derived::owner::selection::types::{
     CandidateChoice, SelectionPath,
 };
@@ -13,7 +14,6 @@ use crate::domain::{
     stored_selection::types::{PreparedSelectorViews, Selector},
     table_model::service::check_columns,
 };
-use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
 use ryo_language::domain::symbols::service::name_count;
 use ryo_relations::domain::relations::types::ColumnsView;
 use ryo_values::domain::plan_parts::types::ColumnIndex;

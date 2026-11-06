@@ -5,7 +5,6 @@ use crate::application::file_dag::derived::owner::cache::types::{CacheBackend, G
 use crate::{
     application::file_dag::{cached_graph::CachedGraph, workspace::InvocationWorkspace},
     domain::{
-        operating::types::OperatorContext,
         operator::contract::{
             graph_view::CachedGraphRow, resources::ResourceProgram, types::OperatorContract,
         },
