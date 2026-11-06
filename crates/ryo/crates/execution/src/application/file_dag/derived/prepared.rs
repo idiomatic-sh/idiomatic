@@ -1,7 +1,7 @@
 //! Finite request descriptors; no executable Plan or mutable worker pool survives.
 use crate::application::file_dag::derived::constants as activation;
 use crate::domain::{
-    coverage::types::{Partial, RuleIndex},
+    coverage::types::RuleIndex,
     executable_program::types::{ExecutableProgram, InputSource},
     operating::errors::OperatingError,
     operator::contract::types::RequestOperators,
@@ -14,11 +14,11 @@ pub(in crate::application::file_dag) struct SelectorUse {
     pub selector: Arc<Selector>,
 }
 pub(in crate::application::file_dag) struct PreparedDerived {
-    pub selectors: Box<[SelectorUse]>,
-    pub selector_ranges: Box<[std::ops::Range<usize>]>,
-    pub views: Arc<PreparedSelectionViews>,
-    pub relations: Box<[Box<[Relation]>]>,
-    pub graph_rules: std::collections::HashSet<RuleIndex>,
+    selectors: Box<[SelectorUse]>,
+    selector_ranges: Box<[std::ops::Range<usize>]>,
+    views: Arc<PreparedSelectionViews>,
+    relations: Box<[Box<[Relation]>]>,
+    graph_rules: std::collections::HashSet<RuleIndex>,
 }
 impl PreparedDerived {
     pub(in crate::application::file_dag) fn compile(
@@ -106,24 +106,47 @@ impl PreparedDerived {
             graph_rules,
         })
     }
-    pub(in crate::application::file_dag) fn wanted(
+    pub(in crate::application::file_dag) fn relations_for(
         &self,
-        demanded: &[RuleIndex],
-    ) -> Result<Vec<Relation>, OperatingError> {
-        if !demanded.windows(2).all(|pair| pair[0] < pair[1]) {
+        rule: RuleIndex,
+    ) -> Result<&[Relation], OperatingError> {
+        tracing::trace!(target: activation::TARGET, event = activation::RELATION_RULE, rule = rule.0);
+        self.relations
+            .get(rule.0)
+            .map(AsRef::as_ref)
+            .ok_or(OperatingError::NotRun)
+    }
+    pub(in crate::application::file_dag) fn selectors_for(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<&[SelectorUse], OperatingError> {
+        tracing::trace!(target: activation::TARGET, event = activation::SELECTOR_RULE, rule = rule.0);
+        let range = self
+            .selector_ranges
+            .get(rule.0)
+            .ok_or(OperatingError::NotRun)?;
+        self.selectors
+            .get(range.clone())
+            .ok_or(OperatingError::NotRun)
+    }
+    pub(in crate::application::file_dag) fn graph_for(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<bool, OperatingError> {
+        tracing::trace!(target: activation::TARGET, event = activation::GRAPH_RULE, rule = rule.0);
+        let eligible = self.graph_rules.contains(&rule);
+        if eligible {
+            tracing::trace!(target: activation::TARGET, event = activation::GRAPH_HIT);
+        }
+        if rule.0 >= self.relations.len() {
             return Err(OperatingError::NotRun);
         }
-        let mut wanted = Vec::new();
-        for rule in demanded {
-            tracing::trace!(target: activation::TARGET, event = activation::RELATION_RULE, rule = rule.0);
-            let relations = self.relations.get(rule.0).ok_or(OperatingError::NotRun)?;
-            for relation in relations.iter() {
-                tracing::trace!(target: activation::TARGET, event = activation::RELATION);
-                if !wanted.contains(relation) {
-                    wanted.push(*relation);
-                }
-            }
-        }
-        Ok(wanted)
+        Ok(eligible)
+    }
+    pub(in crate::application::file_dag) fn bind_views(
+        &self,
+        cache: &mut super::owner::cache::types::CacheBackend,
+    ) {
+        cache.bind_request_views(Arc::clone(&self.views));
     }
 }
