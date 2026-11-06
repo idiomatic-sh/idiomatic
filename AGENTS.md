@@ -15,3 +15,9 @@ commits, remaining changes, live processes, failures and next commands in the
 existing Beads issue. Preserve failing tests and useful build caches; do not
 claim completion or weaken contracts to make the handoff look green. Keep this
 checkpoint current during normal work. Never infer the allowance from token counts.
+
+Never run bare `git stash` or `git stash pop`: the stash stack is shared across worktrees, so commit work in progress instead.
+
+Use zero suppressions (no `// ignore:` comments, no `#[ignore]`, no allow attributes), because a suppressed finding is a hidden defect; split or fix the code instead.
+
+A wait loop must never match its own command line with `pgrep -f`, because it finds itself and never exits; wait on a file or an exit code.
