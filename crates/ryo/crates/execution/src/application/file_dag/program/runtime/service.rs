@@ -59,14 +59,20 @@ pub(in crate::application::file_dag::program) trait KernelInvocation {
         permit: &KernelPermit<'_>,
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
-    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>;
+    ) -> Result<
+        Option<crate::application::file_dag::relations::handle::service::PublishedInput>,
+        InvocationFailure,
+    >;
     fn selected(
         &self,
         shape: &crate::domain::executable_program::selection::SelectionAlternative,
         permit: &KernelPermit<'_>,
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
-    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>;
+    ) -> Result<
+        Option<crate::application::file_dag::relations::handle::service::PublishedInput>,
+        InvocationFailure,
+    >;
     fn column(
         &self,
         shape: &crate::domain::executable_program::column::ColumnAlternative,
@@ -158,7 +164,8 @@ pub(crate) struct ProgramExecution {
     program: Arc<ExecutableProgram>,
     owner: std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
     generation: Arc<()>,
-    generation_live: Arc<crate::application::file_dag::relations::GenerationLease>,
+    generation_live:
+        Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
     partition: Partition,
     file_state: RuntimeState,
     project_states: RefCell<
@@ -184,7 +191,7 @@ enum RootReaders {
 }
 pub(in crate::application::file_dag::program) struct RuntimeState {
     generation: Arc<()>,
-    scope: crate::application::file_dag::relations::ProducerScope,
+    scope: crate::application::file_dag::relations::publication::types::ProducerScope,
     roots: RefCell<RootReaders>,
     slots: RefCell<std::collections::HashMap<usize, Slot>>,
     dormant: RefCell<std::collections::HashMap<RegionId, usize>>,
@@ -244,7 +251,8 @@ pub(crate) struct KernelPermit<'scope> {
     instruction: usize,
     generation: &'scope Arc<()>,
     partition: &'scope Partition,
-    live: &'scope Arc<crate::application::file_dag::relations::GenerationLease>,
+    live:
+        &'scope Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
     bindings: BoundInputs<'scope>,
     strategy: KernelStrategy,
     owner: &'scope RelationOwner,
@@ -256,7 +264,8 @@ pub(in crate::application::file_dag) struct SemanticPermit<'scope> {
     program: &'scope crate::domain::executable_program::types::ExecutableProgram,
     region: RegionId,
     instruction: usize,
-    live: &'scope Arc<crate::application::file_dag::relations::GenerationLease>,
+    live:
+        &'scope Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
     strategy: KernelStrategy,
 }
 
@@ -427,7 +436,7 @@ impl Slot {
 }
 impl RuntimeState {
     fn new(
-        scope: crate::application::file_dag::relations::ProducerScope,
+        scope: crate::application::file_dag::relations::publication::types::ProducerScope,
         generation: Arc<()>,
     ) -> Self {
         Self {
@@ -473,14 +482,14 @@ impl RuntimeState {
     }
     pub(in crate::application::file_dag::program) fn population_scope(
         &self,
-    ) -> crate::application::file_dag::relations::ProducerScope {
+    ) -> crate::application::file_dag::relations::publication::types::ProducerScope {
         self.scope
     }
     pub(in crate::application::file_dag::program) fn bind(
         &self,
         owner: &crate::application::file_dag::relations::RelationOwner,
         root: crate::application::file_dag::program::admission::ProducerRoot,
-        publication: &crate::application::file_dag::relations::PublishedInput,
+        publication: &crate::application::file_dag::relations::handle::service::PublishedInput,
     ) -> Result<(), OperatingError> {
         if let crate::application::file_dag::program::admission::ProducerRoot::Region(id) = root {
             owner.bind_producer(self.scope, id, publication.as_ref())?;
@@ -499,7 +508,7 @@ impl ProgramExecution {
         let generation = owner.generation_guard();
         let generation_live = owner.generation_liveness();
         let file_state = RuntimeState::new(
-            crate::application::file_dag::relations::ProducerScope::File,
+            crate::application::file_dag::relations::publication::types::ProducerScope::File,
             Arc::clone(&generation),
         );
         Self {
@@ -614,7 +623,7 @@ impl ProgramExecution {
             .view_witness(ryo_derived::domain::contract::types::DerivedKind::Equality);
         let index_live = index
             .as_ref()
-            .is_some_and(|index| index.is_alive());
+            .is_some_and(|index| index.liveness() == crate::application::file_dag::derived::owner::witness::service::BackingLiveness::Alive);
         probe.events.push(ProducerLeaseEvent {
             consumer,
             point,
@@ -759,7 +768,7 @@ impl ProgramExecution {
             return std::rc::Rc::clone(state);
         }
         let state = std::rc::Rc::new(RuntimeState::new(
-            crate::application::file_dag::relations::ProducerScope::Project(id),
+            crate::application::file_dag::relations::publication::types::ProducerScope::Project(id),
             Arc::clone(&self.generation),
         ));
         states.push((id, std::rc::Rc::clone(&state)));
@@ -2174,14 +2183,14 @@ impl<'scope> KernelPermit<'scope> {
     }
     pub(in crate::application::file_dag::program) fn validate_native_join(
         &self,
-        native: &crate::application::file_dag::invocation::NativeJoinLease<'_>,
+        native: &crate::application::file_dag::invocation::native::service::NativeJoinLease<'_>,
         owner: &Rc<RelationOwner>,
         left: &crate::domain::table_model::types::Rows<'_>,
     ) -> Result<(), OperatingError> {
         self.validate_registered(self.operation())?;
         if !matches!(
             self.native_join_eligibility(),
-            crate::application::file_dag::program::native_join::Eligibility::Native
+            crate::application::file_dag::program::runtime::types::NativeJoinEligibility::Native
         ) {
             return Err(OperatingError::WrongOperation);
         }
@@ -2211,7 +2220,7 @@ impl<'scope> KernelPermit<'scope> {
     }
     pub(in crate::application::file_dag::program) fn native_join_eligibility(
         &self,
-    ) -> crate::application::file_dag::program::native_join::Eligibility {
+    ) -> crate::application::file_dag::program::runtime::types::NativeJoinEligibility {
         let region = &self.program.regions()[self.region.0];
         if region.instructions.len() == 1
             && matches!(
@@ -2227,9 +2236,9 @@ impl<'scope> KernelPermit<'scope> {
                 .row_error
                 .is_none()
         {
-            crate::application::file_dag::program::native_join::Eligibility::Native
+            crate::application::file_dag::program::runtime::types::NativeJoinEligibility::Native
         } else {
-            crate::application::file_dag::program::native_join::Eligibility::Ordinary
+            crate::application::file_dag::program::runtime::types::NativeJoinEligibility::Ordinary
         }
     }
     pub(in crate::application::file_dag) fn validate_registered(
@@ -2304,18 +2313,18 @@ impl PermittedPhysical<'_, '_, '_> {
         port: &dyn crate::outbound::operators::interface::OperatorsPort,
     ) -> Result<
         ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer,
-        crate::application::file_dag::executor::KernelFault,
+        crate::application::file_dag::executor::response::types::KernelFault,
     > {
         if !self.permit.live.is_live() {
             return Err(
-                crate::application::file_dag::executor::KernelFault::Refused(
+                crate::application::file_dag::executor::response::types::KernelFault::Refused(
                     OperatingError::NotRead,
                 ),
             );
         }
         let _authority = self.authority;
         port.operators(self.meaning)
-            .map_err(crate::application::file_dag::executor::KernelFault::Portable)
+            .map_err(crate::application::file_dag::executor::response::types::KernelFault::Portable)
     }
 }
 

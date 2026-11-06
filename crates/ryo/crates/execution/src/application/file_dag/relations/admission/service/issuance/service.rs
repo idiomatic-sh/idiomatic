@@ -1,21 +1,8 @@
-//! A demand-scoped immutable input and the one admission decision that belongs to it.
-use super::{BorrowedRows, OperatingError, PhysicalShape, Relation, RelationBody, RelationOwner};
-use crate::application::file_dag::derived::population::types::PopulationId;
+//! Owner-dependent admission logic lives below its private data representation.
+use super::super::*;
+use crate::application::file_dag::relations::publication::types::*;
+use crate::application::file_dag::relations::*;
 use crate::domain::table_model::collections::representations::publication::PublishedRelation;
-use std::sync::Arc;
-
-/// Only the representation owner can bind population identity to borrowed input.
-/// No provider reference or proof is retained beyond the immutable demand scope.
-#[derive(Clone)]
-pub(in crate::application::file_dag) struct AdmittedInput<'a> {
-    rows: BorrowedRows<'a>,
-    shape: PhysicalShape,
-    backing_population: PopulationId,
-    backing_relation: Option<Relation>,
-    canonical_backing: bool,
-    origin: (PopulationId, Option<Relation>, Arc<()>),
-    publication_population: PopulationId,
-}
 impl<'a> AdmittedInput<'a> {
     pub(in crate::application::file_dag) fn require_publication(
         &self,

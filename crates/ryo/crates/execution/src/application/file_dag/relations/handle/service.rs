@@ -1,7 +1,7 @@
 //! Worker-local lease capabilities wrap thread-safe immutable publication records.
-use super::RelationResult;
 use crate::application::file_dag::derived::ledger::ResourceLease;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::ResourceDependency;
+use crate::application::file_dag::relations::publication::types::RelationResult;
 use std::{cell::RefCell, sync::Arc};
 #[derive(Debug)]
 struct RequiredLeases {
@@ -17,7 +17,7 @@ pub(crate) struct PublishedInput {
     _resources: Option<Arc<[ResourceDependency]>>,
 }
 impl PublishedInput {
-    pub(super) fn new(
+    pub(in crate::application::file_dag::relations) fn new(
         record: Arc<RelationResult>,
         initial: Arc<ResourceLease>,
         resources: Option<Arc<[ResourceDependency]>>,
@@ -39,10 +39,13 @@ impl PublishedInput {
     pub(in crate::application::file_dag) fn record(&self) -> &Arc<RelationResult> {
         &self.record
     }
-    pub(super) fn normalization_charged(&self) -> bool {
+    pub(in crate::application::file_dag::relations) fn normalization_charged(&self) -> bool {
         self.leases.normalized_in_initial || self.leases.normalized.borrow().is_some()
     }
-    pub(super) fn hold_normalization(&self, lease: Arc<ResourceLease>) {
+    pub(in crate::application::file_dag::relations) fn hold_normalization(
+        &self,
+        lease: Arc<ResourceLease>,
+    ) {
         *self.leases.normalized.borrow_mut() = Some(lease);
     }
     #[cfg(test)]

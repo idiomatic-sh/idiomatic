@@ -1,0 +1,74 @@
+//! One native Join dispatch through the existing required PrimitiveExecutor.
+use super::super::*;
+use crate::application::file_dag::executor::PrimitiveExecutor;
+impl PermittedNativeJoin<'_, '_, '_> {
+    pub(in crate::application::file_dag) fn dispatch(
+        self,
+        kernels: &dyn PrimitiveExecutor,
+    ) -> Result<(), OperatingError> {
+        self.permit.validate_registered(self.permit.operation())?;
+        let ryo_values::domain::plans::types::Operation::Join {
+            left_on,
+            filter,
+            view,
+            output,
+            reach: None,
+            ..
+        } = self.permit.operation()
+        else {
+            return Err(OperatingError::WrongOperation);
+        };
+        let failure = OnceLock::new();
+        let semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
+            port: kernels,
+            permit: self.permit.semantics(),
+            binding: crate::domain::executable_program::physical::PhysicalBinding {
+                bindings: self.context.bindings,
+                regex_identity: None,
+                native_join: true,
+                source_len: self.context.source.0.len(),
+            },
+            failure: &failure,
+        };
+        let mut sink = Delivery {
+            output: self.output,
+            error: self.delivery,
+        };
+        let result = crate::domain::tree_join::service::join_tree(
+            &semantics,
+            left_on,
+            &self.native.tree(),
+            self.left,
+            self.work,
+            self.native.finding()?,
+            TreeShape {
+                comparisons: filter,
+                view,
+                output,
+            },
+            self.context,
+            &mut sink,
+        );
+        if let Some(error) = failure.get() {
+            return Err(error.clone());
+        }
+        result
+    }
+}
+struct Delivery<'a> {
+    output: &'a mut dyn Emit,
+    error: &'a OnceLock<OperatingError>,
+}
+impl Emit for Delivery<'_> {
+    fn row(
+        &mut self,
+        context: &mut OperatorContext<'_>,
+        row: &[ryo_relations::domain::relations::types::Value],
+    ) -> Result<(), OperatingError> {
+        let result = self.output.row(context, row);
+        if let Err(error) = &result {
+            let _first = self.error.set(error.clone());
+        }
+        result
+    }
+}

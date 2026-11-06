@@ -1,5 +1,6 @@
 //! The injected semantic adapter. Acquisition and invocation state are elsewhere.
-use super::executor::{KernelAnswer, KernelCall, KernelFault, PrimitiveExecutor};
+use super::executor::{KernelCall, PrimitiveExecutor};
+use crate::application::file_dag::executor::response::types::{KernelAnswer, KernelFault};
 use crate::domain::operator::contract::types::PrimitiveSemantics;
 use crate::outbound::operators::interface::OperatorsPort;
 pub(in crate::application::file_dag) mod lease;
