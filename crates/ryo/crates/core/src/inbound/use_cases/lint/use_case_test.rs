@@ -60,6 +60,8 @@ struct Given {
     scheduler: SchedulerFake,
     ends: Ends,
     store: Arc<LintStoreFake>,
+    /// A store of another kind the run keeps in instead of `store`, when a row is about the stores themselves.
+    kept_in: Option<Arc<dyn crate::outbound::lint_store::interface::LintStorePort>>,
     root: &'static str,
     rules: Vec<&'static str>,
     ids: Vec<&'static str>,
@@ -237,6 +239,7 @@ fn violations() -> Given {
         scheduler: SchedulerFake::default(),
         ends: Ends::Well,
         store: Arc::new(LintStoreFake::default()),
+        kept_in: None,
         root: ".",
         rules: vec!["a rule"],
         ids: Vec::new(),
@@ -494,6 +497,11 @@ fn scheduled_world_with_query_kernel_resources(
             file
         })
         .collect();
+    let store: Arc<dyn crate::outbound::lint_store::interface::LintStorePort> =
+        match given.kept_in {
+            Some(other) => other,
+            None => given.store,
+        };
     let use_case = {
         let analysis_corpus: Arc<dyn crate::outbound::corpus::interface::CorpusPort> =
             Arc::new(CorpusFake {
@@ -530,7 +538,7 @@ fn scheduled_world_with_query_kernel_resources(
             workers,
             ports,
             Arc::clone(&analysis_digest),
-            given.store,
+            store,
         )
     };
     World {
@@ -1948,6 +1956,122 @@ fn consulted_equal_byte_files_revalidate_on_each_executable_metadata_change() {
                 "consulted metadata must invalidate even when source digest is equal"
             );
         }
+    }
+}
+
+/// What one whole lint answered: the rows written, what the rules could not decide, the files a rule skipped, and how many files the
+/// language parsed.
+struct Answered {
+    rows: Vec<rows::types::Row>,
+    undecided: String,
+    skipped: String,
+    parses: usize,
+}
+
+/// A lint of `files` with the cross-file rule, over `kept_in`, when the language rejects the syntax of `rejected`.
+fn answered(
+    files: &[(&'static str, &'static str)],
+    rejected: &[&str],
+    applicability: ryo_values::domain::runs::types::RuleApplicability,
+    answer: AnswerShape,
+    kept_in: Arc<dyn crate::outbound::lint_store::interface::LintStorePort>,
+) -> Answered {
+    let mut given = Given {
+        files: files.to_vec(),
+        query: Arc::new(QueryLanguageFake::counting_across_files()),
+        answer,
+        kept_in: Some(kept_in),
+        ..violations()
+    };
+    given.language.rejected_syntax = rejected.iter().map(|path| FilePath((*path).into())).collect();
+    let mut asked = request(&given);
+    asked.rules[0].applicability = applicability;
+    let world = world(given);
+    let report = world.use_case.lint(asked).expect("the lint answers");
+    Answered {
+        rows: std::mem::take(
+            &mut *world
+                .collected
+                .0
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        )
+        .rows,
+        undecided: format!("{:?}", report.unknowns),
+        skipped: format!("{:?}", report.skipped),
+        parses: world.language.parses.load(Ordering::SeqCst),
+    }
+}
+
+/// A store of the kind `kind` names, kept under `directory` when it is kept on disk.
+fn store_of(
+    kind: &str,
+    directory: &std::path::Path,
+) -> Arc<dyn crate::outbound::lint_store::interface::LintStorePort> {
+    match kind {
+        "memory" => Arc::new(crate::outbound::lint_store::factory::memory()),
+        "postcard" => Arc::new(crate::outbound::lint_store::factory::postcard(
+            crate::outbound::lint_store::types::Store {
+                directory: crate::outbound::lint_store::types::CacheDirectory(
+                    directory.to_string_lossy().into(),
+                ),
+                build: crate::outbound::lint_store::types::BuildIdentity("reuse".into()),
+            },
+        )),
+        _ => Arc::new(crate::outbound::lint_store::factory::discard()),
+    }
+}
+
+const THREE: [(&str, &str); 3] = [("a.rs", "fn a() {}"), ("b.rs", "fn b() {}"), ("c.rs", "fn c() {}")];
+
+/// A cold, a warm and an edited run answer the rows and findings a cold run over the same files answers, whichever store keeps
+/// them; the stores that keep read only the files that changed, the one that discards reads every file each time.
+#[test]
+fn cold_warm_and_edited_runs_answer_the_same_in_every_store() {
+    use ryo_values::domain::runs::types::RuleApplicability::Always;
+    let edited = [("a.rs", "fn changed() {}"), THREE[1], THREE[2]];
+    for answer in [AnswerShape::Findings, AnswerShape::Rows(RowTotal(20))] {
+        for (kind, parsed) in [
+            ("memory", [3, 0, 1]),
+            ("postcard", [3, 0, 1]),
+            ("discard", [3, 3, 3]),
+        ] {
+            let directory = tempfile::tempdir().expect("a directory");
+            let kept_in = store_of(kind, directory.path());
+            for (run, files) in [&THREE[..], &THREE[..], &edited[..]].into_iter().enumerate() {
+                let oracle = answered(files, &[], Always, answer, store_of("discard", directory.path()));
+                let now = answered(files, &[], Always, answer, Arc::clone(&kept_in));
+                assert_eq!(now.rows, oracle.rows, "{kind} {answer:?} run {run}: the rows");
+                assert_eq!(now.undecided, oracle.undecided, "{kind} run {run}: what was undecided");
+                assert_eq!(now.skipped, oracle.skipped, "{kind} run {run}: what was skipped");
+                // The reuse of a rows answer is not asserted: it is decided apart from the findings (see ryo-l1w3).
+                if answer == AnswerShape::Findings {
+                    assert_eq!(now.parses, parsed[run], "{kind} run {run}: the files read");
+                }
+            }
+        }
+    }
+}
+
+/// One file whose syntax a rule skips does not poison the cross-file partitions of the files around it: cold or warm, they answer
+/// what the same run without that file answers, and the skip is named and kept.
+#[test]
+fn a_syntax_skipped_file_does_not_poison_unrelated_partitions_cold_or_warm() {
+    use ryo_values::domain::runs::types::RuleApplicability::{AcceptedSyntax, Always};
+    let without = [THREE[0], THREE[2]];
+    for kind in ["memory", "postcard"] {
+        let directory = tempfile::tempdir().expect("a directory");
+        let oracle = answered(&without, &[], Always, AnswerShape::Findings, store_of("discard", directory.path()));
+        let kept_in = store_of(kind, directory.path());
+        let cold = answered(&THREE, &["b.rs"], AcceptedSyntax, AnswerShape::Findings, Arc::clone(&kept_in));
+        let warm = answered(&THREE, &["b.rs"], AcceptedSyntax, AnswerShape::Findings, kept_in);
+        assert_eq!(cold.rows, oracle.rows, "{kind}: cold rows");
+        assert_eq!(warm.rows, oracle.rows, "{kind}: warm rows");
+        assert_eq!(cold.undecided, "[]", "{kind}: nothing undecided cold");
+        assert_eq!(warm.undecided, "[]", "{kind}: nothing undecided warm");
+        assert!(cold.skipped.contains("b.rs") && cold.skipped.contains("SyntaxRejected"), "{kind}: {}", cold.skipped);
+        assert_eq!(warm.skipped, cold.skipped, "{kind}: the skip is kept");
+        assert_eq!(warm.parses, 0, "{kind}: a warm run reads no file");
     }
 }
 
