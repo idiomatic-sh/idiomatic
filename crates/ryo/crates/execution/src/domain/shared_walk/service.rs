@@ -2,8 +2,8 @@
 //! provider demand, fallback, or owner lifetime is decided in this domain.
 
 use super::types::{
-    ClassWork, CohortPlace, Eligibility, KindCount, WalkWork,
-    prepared_walk::value::{ClassCount, NativeBatch, PreparedWalk},
+    ClassCount, ClassWork, CohortPlace, Eligibility, KindCount, WalkWork,
+    prepared_walk::value::{NativeBatch, PreparedWalk},
 };
 use crate::domain::{
     comparing::service::holds_all,
@@ -73,7 +73,7 @@ fn consider(
     place: ClassPlace,
     class: &StepClass,
     predicates: &mut std::collections::HashMap<
-        super::types::prepared_walk::value::PredicatePlace,
+        super::types::PredicatePlace,
         Result<Verdict, crate::domain::operating::errors::OperatingError>,
     >,
     batch: &mut NativeBatch,

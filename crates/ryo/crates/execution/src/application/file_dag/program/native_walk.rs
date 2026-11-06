@@ -103,15 +103,13 @@ pub(super) enum WalkDelivery {
 }
 pub(super) struct WalkResult {
     result: std::sync::Arc<crate::domain::shared_walk::types::ClassResult>,
-    visits: crate::domain::shared_walk::types::prepared_walk::value::RowsVisited,
+    visits: crate::domain::shared_walk::types::RowsVisited,
 }
 impl WalkResult {
     pub(super) fn result(&self) -> &crate::domain::shared_walk::types::ClassResult {
         &self.result
     }
-    pub(super) fn visits(
-        &self,
-    ) -> crate::domain::shared_walk::types::prepared_walk::value::RowsVisited {
+    pub(super) fn visits(&self) -> crate::domain::shared_walk::types::RowsVisited {
         self.visits
     }
 }

@@ -4,20 +4,13 @@ use crate::domain::{
     coverage::types::RuleIndex,
     operating::errors::OperatingError,
     positions::types::ClassPlace,
+    shared_walk::types::{ClassCount, PredicatePlace, RowsVisited},
     step_classes::{
         service::merge,
         types::{Merge, StepClass},
     },
 };
 use ryo_values::domain::plans::types::Plan;
-
-/// Number of equivalence classes in one prepared request.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ClassCount(pub usize);
-
-/// Candidate source rows offered to a reached class.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct RowsVisited(pub u64);
 
 /// A request's exact comparison and binding equivalence, with no retained Plan.
 #[derive(Debug)]
@@ -323,9 +316,6 @@ fn source_barrier(operation: &ryo_values::domain::plans::types::Operation) -> Wa
     }
 }
 
-/// Immutable identity of an exact ordered predicate prefix in this request.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct PredicatePlace(pub usize);
 #[derive(Debug)]
 struct PreparedPredicate {
     class: ClassPlace,

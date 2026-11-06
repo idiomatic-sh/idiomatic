@@ -1,5 +1,5 @@
 description = "File walk ownership and semantic dispatch stay inside the required engine boundary."
-why = "All file invocation strategies receive one required file-walk owner and use its acquisition policy. Explicit project scope is checked against the live runtime permit; it is never an optional file owner. FileWalk, WalkResult and PermittedWalk have private representations in native_walk.rs. Only that owner constructs the request from its actual ready-class queue and calls the semantic shared walker. Rust privacy resolves construction aliases; runtime controls prove scope, readiness, source identity and semantic barriers. The structural checks reject optional KernelSession state, moved or widened owner representations and written raw evaluator paths. Across every execution source layer, resolved same-crate source dependencies also reject aliased access to the semantic service. Only native_walk.rs, the semantic service itself, and the exact registered domain/shared_walk/service_test.rs proof may reference that service; test filenames and neighboring domain modules grant no authority. Macro expansion and facade re-export chains remain outside this source proof."
+why = "All file invocation strategies receive one required file-walk owner and use its acquisition policy. Explicit project scope is checked against the live runtime permit; it is never an optional file owner. FileWalk, WalkResult and PermittedWalk have private representations in native_walk.rs. Only that owner constructs the request from its actual ready-class queue and calls the semantic shared walker. Rust privacy resolves construction aliases; runtime controls prove scope, readiness, source identity and semantic barriers. The structural checks reject optional KernelSession state, moved or widened owner representations and written raw evaluator paths. Across every execution source layer, resolved same-crate source dependencies also reject aliased access to the semantic service. Only native_walk.rs, the semantic service itself, and the exact registered domain/shared_walk/service_test.rs proof may reference that service; test filenames and neighboring domain modules grant no authority. Fundamental shared-walk counters, predicate identities and file scratch belong to types.rs; prepared request values may depend on that common vocabulary, never the reverse. Resolved reverse dependencies reject counter/identity moves back into the prepared value. Macro expansion and facade re-export chains remain outside this source proof."
 query = '''
 let nodes = select id, kind, file, span from "syntax-tree" where text = "";
 let tokens = select id, kind, file, span, text from "syntax-tree" where text != "";
@@ -36,7 +36,9 @@ let visibility-paths = axis(from=visibilities, relation="syntax-child", directio
 let visibility-references = select r.file as file, r.span as span from visibility-paths as l join paths as r on l.related = r.id;
 let callable-semantics = antijoin(left=foreign-semantics, right=visibility-references, left-on=["file", "span"], right-on=["file", "span"]);
 let written-boundary = union(left=session-boundary, right=raw-sites);
-let violations = union(left=written-boundary, right=callable-semantics);
+let reverse-prepared-types = select source as file, span from semantic-targets where source-root = target-root and source-tail = "domain/shared_walk/types.rs" and glob_any(semantic-tail, "domain/shared_walk/types/**");
+let semantic-boundary = union(left=written-boundary, right=callable-semantics);
+let violations = union(left=semantic-boundary, right=reverse-prepared-types);
 emit violations subject file key(span);
 '''
 
@@ -184,4 +186,30 @@ id = "counter-value-cannot-alias-evaluator"
 scenario = "The visibility exception is limited to syntax paths inside visibility nodes, not a whole metadata module."
 given.files.'src/domain/shared_walk.rs' = 'pub(crate) mod service; mod types;'
 given.files.'src/domain/shared_walk/types.rs' = 'use crate::domain::shared_walk as semantic; fn bypass() { semantic::service::evaluate(); }'
+then.findings = [{ path = "src/domain/shared_walk/types.rs", line = 1 }]
+
+[[scenarios]]
+id = "prepared-values-use-common-counter-types"
+scenario = "Prepared request values consume the common counter and predicate vocabulary without a reverse foundation dependency."
+given.files.'src/domain/shared_walk.rs' = 'pub(crate) mod service; mod types;'
+given.files.'src/domain/shared_walk/types.rs' = 'pub(crate) mod prepared_walk; pub(crate) struct RowsVisited(pub u64);'
+given.files.'src/domain/shared_walk/types/prepared_walk.rs' = 'pub(crate) mod value;'
+given.files.'src/domain/shared_walk/types/prepared_walk/value.rs' = 'use crate::domain::shared_walk::types::RowsVisited; struct Batch { visits: RowsVisited }'
+
+[[scenarios]]
+id = "fundamental-counter-cannot-live-in-prepared-request"
+scenario = "File scratch cannot depend on prepared request values to obtain a fundamental counter."
+given.files.'src/domain/shared_walk.rs' = 'pub(crate) mod service; mod types;'
+given.files.'src/domain/shared_walk/types.rs' = 'pub(crate) mod prepared_walk; use self::prepared_walk::value::RowsVisited; struct Scratch { visits: RowsVisited }'
+given.files.'src/domain/shared_walk/types/prepared_walk.rs' = 'pub(crate) mod value;'
+given.files.'src/domain/shared_walk/types/prepared_walk/value.rs' = 'pub(crate) struct RowsVisited(pub u64);'
+then.findings = [{ path = "src/domain/shared_walk/types.rs", line = 1 }]
+
+[[scenarios]]
+id = "alias-cannot-reverse-fundamental-type-ownership"
+scenario = "An alias to a prepared value module does not conceal the reverse common-type dependency."
+given.files.'src/domain/shared_walk.rs' = 'pub(crate) mod service; mod types;'
+given.files.'src/domain/shared_walk/types.rs' = 'pub(crate) mod prepared_walk; use self::prepared_walk::value as prepared; struct Scratch { visits: prepared::RowsVisited }'
+given.files.'src/domain/shared_walk/types/prepared_walk.rs' = 'pub(crate) mod value;'
+given.files.'src/domain/shared_walk/types/prepared_walk/value.rs' = 'pub(crate) struct RowsVisited(pub u64);'
 then.findings = [{ path = "src/domain/shared_walk/types.rs", line = 1 }]

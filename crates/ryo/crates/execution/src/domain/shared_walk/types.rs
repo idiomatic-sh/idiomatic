@@ -7,6 +7,18 @@ use ryo_relations::domain::relations::types::Value;
 
 pub(crate) mod prepared_walk;
 
+/// Number of equivalence classes in one prepared request.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ClassCount(pub usize);
+
+/// Candidate source rows offered to a reached class.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct RowsVisited(pub u64);
+
+/// Immutable identity of an exact ordered predicate prefix in this request.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct PredicatePlace(pub usize);
+
 /// The number of kinds named by one prepared class.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct KindCount(pub usize);
@@ -23,7 +35,7 @@ pub(crate) enum Eligibility {
 #[derive(Debug, Default)]
 pub(crate) struct ClassWork {
     pub result: Option<ClassResult>,
-    pub visits: prepared_walk::value::RowsVisited,
+    pub visits: RowsVisited,
     pub kinds: KindCount,
     pub needed: ColumnPlaces,
     pub memo: Vec<Memo>,
@@ -43,7 +55,7 @@ pub(crate) struct WalkWork {
     pub every: Vec<CohortPlace>,
     pub cells: Vec<Value>,
     pub predicates: std::collections::HashMap<
-        prepared_walk::value::PredicatePlace,
+        PredicatePlace,
         Result<
             crate::domain::table_model::types::Verdict,
             crate::domain::operating::errors::OperatingError,
