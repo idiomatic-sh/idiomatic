@@ -1313,7 +1313,6 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
         KeptWords(pack(WordSlice(&words.0)))
     };
     let proof = |input| ryo_values::domain::records::types::FrontierProof {
-        version: 1,
         rule: 0,
         input,
         rule_digest: ryo_values::domain::stored_facts::types::Digest([0; 16]),

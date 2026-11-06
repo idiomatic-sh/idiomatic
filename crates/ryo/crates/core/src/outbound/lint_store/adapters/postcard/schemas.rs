@@ -324,7 +324,6 @@ enum FrontierCoverageSchema {
 struct FrontierProofSchema {
     file: u32,
     bucket: u32,
-    version: u32,
     rule: u32,
     input: u32,
     rule_digest: [u8; 16],
@@ -837,7 +836,6 @@ fn proof_schema(
     FrontierProofSchema {
         file: row.file.0,
         bucket: row.bucket.0,
-        version: row.proof.version,
         rule: row.proof.rule,
         input: row.proof.input,
         rule_digest: row.proof.rule_digest.0,
@@ -860,9 +858,6 @@ fn proof_row(
     row: &FrontierProofSchema,
 ) -> Result<ryo_values::domain::stores::types::StoredFrontierProof, postcard::Error> {
     use ryo_values::domain::records::types::{FrontierAffected, FrontierCoverage, FrontierProof};
-    if row.version != 1 {
-        return Err(postcard::Error::DeserializeBadEncoding);
-    }
     let coverage = match &row.coverage {
         FrontierCoverageSchema::Complete => FrontierCoverage::Complete,
         FrontierCoverageSchema::Partial(affected) => {
@@ -883,7 +878,6 @@ fn proof_row(
         file: StoredFileNumber(row.file),
         bucket: Bucket(row.bucket),
         proof: FrontierProof {
-            version: row.version,
             rule: row.rule,
             input: row.input,
             rule_digest: Digest(row.rule_digest),

@@ -283,7 +283,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             worker.captured = vec![Kept {
                 bucket: Bucket(1),
                 proof: ryo_values::domain::records::types::FrontierProof {
-                    version: 1,
                     rule: 0,
                     input: 0,
                     rule_digest: Digest([17; 16]),
@@ -311,7 +310,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 BucketWords {
                     bucket: Bucket(1),
                     proof: ryo_values::domain::records::types::FrontierProof {
-                        version: 1,
                         rule: 0,
                         input: 0,
                         rule_digest: Digest([17; 16]),
@@ -323,7 +321,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 BucketWords {
                     bucket: Bucket(9),
                     proof: ryo_values::domain::records::types::FrontierProof {
-                        version: 1,
                         rule: 1,
                         input: 0,
                         rule_digest: Digest([18; 16]),

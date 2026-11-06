@@ -1075,8 +1075,7 @@ impl FileAnalysis {
         use ryo_values::domain::records::types::FrontierCoverage;
         let rule = RuleIndex(usize::try_from(proof.rule).unwrap_or(usize::MAX));
         let input = usize::try_from(proof.input).unwrap_or(usize::MAX);
-        let valid = proof.version == 1
-            && setting.program.rule_digest(rule).ok() == Some(proof.rule_digest)
+        let valid = setting.program.rule_digest(rule).ok() == Some(proof.rule_digest)
             && setting
                 .program
                 .frontiers(rule)

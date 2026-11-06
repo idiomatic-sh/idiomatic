@@ -109,7 +109,6 @@ fn notes(capacity: usize, live: usize) -> FileNotes {
 }
 fn proof() -> FrontierProof {
     FrontierProof {
-        version: 1,
         rule: 0,
         input: 0,
         rule_digest: Digest([0; 16]),

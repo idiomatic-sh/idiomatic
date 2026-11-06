@@ -84,7 +84,6 @@ fn prepared_packed_buckets_preserve_flat_digests_store_bytes_and_move_ownership(
         Kept {
             bucket: Bucket(9),
             proof: ryo_values::domain::records::types::FrontierProof {
-                version: 1,
                 rule: 1,
                 input: 0,
                 rule_digest: Digest([18; 16]),
@@ -95,7 +94,6 @@ fn prepared_packed_buckets_preserve_flat_digests_store_bytes_and_move_ownership(
         Kept {
             bucket: Bucket(1),
             proof: ryo_values::domain::records::types::FrontierProof {
-                version: 1,
                 rule: 0,
                 input: 0,
                 rule_digest: Digest([17; 16]),
@@ -106,7 +104,6 @@ fn prepared_packed_buckets_preserve_flat_digests_store_bytes_and_move_ownership(
         Kept {
             bucket: Bucket(2),
             proof: ryo_values::domain::records::types::FrontierProof {
-                version: 1,
                 rule: 0,
                 input: 1,
                 rule_digest: Digest([17; 16]),
@@ -117,7 +114,6 @@ fn prepared_packed_buckets_preserve_flat_digests_store_bytes_and_move_ownership(
         Kept {
             bucket: Bucket(9),
             proof: ryo_values::domain::records::types::FrontierProof {
-                version: 1,
                 rule: 1,
                 input: 0,
                 rule_digest: Digest([18; 16]),
@@ -211,7 +207,6 @@ fn incremental_normalization_preserves_every_truncated_complete_prefix() {
         worker.captured = vec![Kept {
             bucket: Bucket(0),
             proof: ryo_values::domain::records::types::FrontierProof {
-                version: 1,
                 rule: 0,
                 input: 0,
                 rule_digest: Digest([17; 16]),
@@ -248,7 +243,6 @@ fn invalid_last_bucket_is_rejected_for_file_worker_and_arena_underflow() {
     let good = Kept {
         bucket: Bucket(0),
         proof: ryo_values::domain::records::types::FrontierProof {
-            version: 1,
             rule: 0,
             input: 0,
             rule_digest: Digest([17; 16]),
@@ -298,7 +292,6 @@ fn invalid_last_bucket_is_rejected_for_file_worker_and_arena_underflow() {
             Kept {
                 bucket: Bucket(1),
                 proof: ryo_values::domain::records::types::FrontierProof {
-                    version: 1,
                     rule: 0,
                     input: 1,
                     rule_digest: Digest([17; 16]),

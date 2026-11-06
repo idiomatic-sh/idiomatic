@@ -242,13 +242,6 @@ fn frontier_proof_roundtrip_preserves_partial_and_rejects_old_layout() {
     let wrong = rest_from(&rest_bytes(&wrong_root).unwrap()).unwrap();
     assert!(bucket_from(Bucket(11), &payload, &wrong.proofs).is_none());
 
-    handed.proofs[0].proof.version = 0;
-    let old = rest_bytes(&handed).expect("old proof bytes");
-    assert!(
-        rest_from(&old).is_none(),
-        "old proof cannot become Complete"
-    );
-
     let mut complete = StoredHanded::default();
     complete.proofs.push(StoredFrontierProof {
         file: StoredFileNumber(0),

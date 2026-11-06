@@ -36,7 +36,6 @@ fn a_file_is_counted_and_its_text_begins_where_the_worker_left_off() {
     tables.captured.push(Kept {
         bucket: Bucket(1),
         proof: FrontierProof {
-            version: 1,
             rule: 0,
             input: 0,
             rule_digest: Digest([0; 16]),

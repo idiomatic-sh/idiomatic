@@ -267,7 +267,6 @@ pub(crate) fn validate_bucket(
             || !required.files().contains(&source.file)
             || skipped.contains(&source.file)
             || !seen_files.insert(source.file.0)
-            || source.proof.version != 1
             || source.proof.rule != u32::try_from(rule.0).map_err(|_| refuse())?
             || source.proof.input != u32::try_from(input).map_err(|_| refuse())?
             || source.proof.rule_digest != expected

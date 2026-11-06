@@ -283,7 +283,6 @@ pub(super) fn prepared_in(
     let facts_port = crate::outbound::facts::fixtures::fake::FactsFake::default();
     let mut workers = Vec::new();
     let proof = FrontierProof {
-        version: 1,
         rule: rule.0 as u32,
         input: 0,
         rule_digest: world.program.rule_digest(rule).expect("rule digest"),

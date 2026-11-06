@@ -262,8 +262,6 @@ pub enum FrontierCoverage {
 /// digest, frontier ordinal, physical file and observed coverage before use.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FrontierProof {
-    /// Proof layout version; unknown versions are refused.
-    pub version: u32,
     /// Producer rule ordinal in the request that wrote this bucket.
     pub rule: u32,
     /// Original frontier ordinal within that rule.

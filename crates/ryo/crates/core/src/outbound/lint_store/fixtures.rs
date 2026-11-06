@@ -7,7 +7,6 @@ pub mod fake;
 /// issue proofs from the prepared rule and its actual physical coverage.
 pub fn proof() -> ryo_values::domain::records::types::FrontierProof {
     ryo_values::domain::records::types::FrontierProof {
-        version: 1,
         rule: 0,
         input: 0,
         rule_digest: ryo_values::domain::stored_facts::types::Digest([0; 16]),
