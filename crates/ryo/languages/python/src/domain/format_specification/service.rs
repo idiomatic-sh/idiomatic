@@ -1,10 +1,10 @@
 //! Read decoded brace fields and syntax-owned f-string specs, without call/type policy.
-use crate::domain::brace_format::types::{CachedBraceFormat};
-use crate::domain::format_syntax::types::{RetainedFormatIndex};
+use super::constants;
 use super::types::{Observation, Observations};
+use crate::domain::brace_format::types::CachedBraceFormat;
+use crate::domain::format_syntax::types::RetainedFormatIndex;
 use crate::domain::{
-    brace_format::types::{
-        BraceFieldContext, BraceFormatResult, BraceFormatState},
+    brace_format::types::{BraceFieldContext, BraceFormatResult, BraceFormatState},
     fields::service::field_of,
     format_parsing::service::decoded_into,
     format_syntax::types::{DecodedInput, FormatScratch},
@@ -12,12 +12,14 @@ use crate::domain::{
     nodes::types::Node,
     standard_format_spec::{
         service::recognize,
-        types::{FormatSpecText, StandardSpecOutcome}},
+        types::{FormatSpecText, StandardSpecOutcome},
+    },
     syntax::{
         service::{kind, parent},
-        types::Kind}};
+        types::Kind,
+    },
+};
 use ryo::languages::{self, Position, Tree};
-use super::constants;
 /// The actual f-string owner, excluding synthetic format-spec JoinedStr nodes.
 fn fstring_owner(tree: &Tree<'_>, at: Position) -> Option<Position> {
     let mut above = parent(tree, at);
@@ -37,7 +39,7 @@ fn fstring_owner(tree: &Tree<'_>, at: Position) -> Option<Position> {
 pub(crate) fn observe(
     tree: &Tree<'_>,
     braces: &RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>,
-    target: (i64, i64),
+    target: crate::domain::standard_library::types::TargetVersion,
 ) -> Observations {
     let mut result = Observations {
         partial: braces.state != BraceFormatState::Complete,

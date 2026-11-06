@@ -55,7 +55,7 @@ pub(crate) struct LexicalBinding {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Declarations {
     /// Configured language target, attached to every recognized source file.
-    pub language_target: (i64, i64),
+    pub language_target: crate::domain::standard_library::types::TargetVersion,
     /// Lazy canonical expression classes, invalidated between source revisions.
     pub expression_shapes: RefCell<RetainedKeyIndex<Position, ShapeWord, ShapeHash, ShapeState>>,
     /// Lazy normalized constant-expression keys, invalidated between source revisions.

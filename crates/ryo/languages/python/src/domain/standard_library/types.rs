@@ -1,18 +1,18 @@
 //! Typed inputs and outcomes for release-specific module membership.
 
 /// Selected Python release, independent of the host interpreter.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct TargetVersion {
     pub major: PythonMajor,
     pub minor: PythonMinor,
 }
 
 /// Python's major release number.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct PythonMajor(pub i64);
 
 /// Python's minor release number.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct PythonMinor(pub i64);
 
 /// Absolute imported path; the first component names the module to classify.

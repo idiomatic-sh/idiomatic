@@ -144,12 +144,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 
 fn subject(input: Input) -> Result<Value, Failure> {
-    let (major, minor) = input.version.components();
     Ok(contains(
-        TargetVersion {
-            major: PythonMajor(major),
-            minor: PythonMinor(minor),
-        },
+        input.version.components(),
         ModulePath(input.module),
     ))
 }

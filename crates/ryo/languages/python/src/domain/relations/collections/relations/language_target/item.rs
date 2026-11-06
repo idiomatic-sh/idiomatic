@@ -14,8 +14,8 @@ ryo::reads! {
     LanguageTargetItem => languages::LanguageTarget, model(Declarations) |tree, model, at, symbols| {
         kinds: [Kind::Node(Node::Module)] as kind_bits,
         each (std::iter::once(model.language_target)) as target {
-            given major = languages::Integer(target.0);
-            given minor = languages::Integer(target.1);
+            given major = languages::Integer(target.major.0);
+            given minor = languages::Integer(target.minor.0);
             row { file: file, major: value(major), minor: value(minor), }
         }
     }

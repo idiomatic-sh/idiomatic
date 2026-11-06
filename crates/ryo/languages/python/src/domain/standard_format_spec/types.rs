@@ -39,11 +39,11 @@ pub(crate) struct StandardFormatTarget {
     pub major: TargetVersionPart,
     pub minor: TargetVersionPart,
 }
-impl From<(i64, i64)> for StandardFormatTarget {
-    fn from((major, minor): (i64, i64)) -> Self {
+impl From<crate::domain::standard_library::types::TargetVersion> for StandardFormatTarget {
+    fn from(target: crate::domain::standard_library::types::TargetVersion) -> Self {
         Self {
-            major: TargetVersionPart(major),
-            minor: TargetVersionPart(minor),
+            major: TargetVersionPart(target.major.0),
+            minor: TargetVersionPart(target.minor.0),
         }
     }
 }

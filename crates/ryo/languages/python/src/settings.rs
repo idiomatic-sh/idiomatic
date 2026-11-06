@@ -2,6 +2,7 @@
 
 mod constants;
 
+use crate::domain::standard_library::types::{PythonMajor, PythonMinor, TargetVersion};
 use constants::{
     IDENTITY_LATEST, IDENTITY_PY37, IDENTITY_PY38, IDENTITY_PY39, IDENTITY_PY310, IDENTITY_PY311,
     IDENTITY_PY312, IDENTITY_PY313, IDENTITY_PY314, IDENTITY_PY315,
@@ -37,17 +38,44 @@ pub enum PythonTargetVersion {
 impl PythonTargetVersion {
     /// Numeric language version used by generic target-aware queries.
     #[must_use]
-    pub(crate) const fn components(self) -> (i64, i64) {
+    pub(crate) const fn components(self) -> TargetVersion {
         match self {
-            Self::Py37 => (3, 7),
-            Self::Py38 => (3, 8),
-            Self::Py39 => (3, 9),
-            Self::Py310 => (3, 10),
-            Self::Py311 => (3, 11),
-            Self::Py312 => (3, 12),
-            Self::Py313 => (3, 13),
-            Self::Py314 => (3, 14),
-            Self::Py315 | Self::Latest => (3, 15),
+            Self::Py37 => TargetVersion {
+                major: PythonMajor(3),
+                minor: PythonMinor(7),
+            },
+            Self::Py38 => TargetVersion {
+                major: PythonMajor(3),
+                minor: PythonMinor(8),
+            },
+            Self::Py39 => TargetVersion {
+                major: PythonMajor(3),
+                minor: PythonMinor(9),
+            },
+            Self::Py310 => TargetVersion {
+                major: PythonMajor(3),
+                minor: PythonMinor(10),
+            },
+            Self::Py311 => TargetVersion {
+                major: PythonMajor(3),
+                minor: PythonMinor(11),
+            },
+            Self::Py312 => TargetVersion {
+                major: PythonMajor(3),
+                minor: PythonMinor(12),
+            },
+            Self::Py313 => TargetVersion {
+                major: PythonMajor(3),
+                minor: PythonMinor(13),
+            },
+            Self::Py314 => TargetVersion {
+                major: PythonMajor(3),
+                minor: PythonMinor(14),
+            },
+            Self::Py315 | Self::Latest => TargetVersion {
+                major: PythonMajor(3),
+                minor: PythonMinor(15),
+            },
         }
     }
 }

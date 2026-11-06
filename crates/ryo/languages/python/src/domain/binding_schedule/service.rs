@@ -1,4 +1,5 @@
 //! Schedule language evaluation and alternatives; no linter policy or runtime CFG is encoded.
+use super::constants;
 use crate::domain::{
     definitions::service::definition,
     fields::service::field_of,
@@ -377,7 +378,12 @@ fn enclosing_phase(tree: &Tree<'_>, at: Position) -> Position {
 }
 
 /// Drain newly discovered deferred phases only after their parent has completed.
-fn deferred(tree: &Tree<'_>, model: &Declarations, plan: &mut BindingSchedule, next: &mut PhaseCursor) {
+fn deferred(
+    tree: &Tree<'_>,
+    model: &Declarations,
+    plan: &mut BindingSchedule,
+    next: &mut PhaseCursor,
+) {
     while next.0 < plan.phases.len() {
         let Some(task) = plan.phases.get(next.0).copied() else {
             break;
@@ -413,7 +419,7 @@ pub(crate) fn schedule(
 ) {
     plan.steps.clear();
     plan.phases.clear();
-    plan.annotations = if model.language_target >= (3, 14)
+    plan.annotations = if model.language_target >= constants::LAZY_ANNOTATIONS_FROM
         || languages::property_at(
             tree.elements,
             Position(0),
