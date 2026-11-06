@@ -1,5 +1,5 @@
 description = "Production code never names a `fixtures` module or imports colocated acceptance steps: a path segment `fixtures` in a use or an expression outside test code is a finding."
-why = "`fixtures.rs` holds test data and fakes, compiled for the crate's own tests and, through the `fixtures` feature, for other crates' tests; it never ships. What production runs is not a fixture: a probe or a certification case the product needs is a value in `types.rs` or a use case's input. A reached concept/test.rs normally declared as #[cfg(test)] mod test; by its reached concept/mod.rs is test code; module syntax, exact cfg metadata and analyzed-source establish this role, never its filename alone. Mixed ungated declarations refuse this exception. As module membership is not a resolved fact, production include! or an explicit path/cfg_attr literal naming a generic test.rs conservatively refuses the new exception across all candidate roles, since cross-package redirection cannot be resolved from these facts; decoded literals handle escaped and raw spelling without pretending to normalize paths. Existing module-declares and test-directory-layout placements enforce the surrounding ownership. Legacy test/support placement exclusions remain as before. The entry leaves out other test code (`*_test.rs`, `tests/`, `benches/`) and `fixtures.rs` itself; declaring the module (`pub mod fixtures;`) names no path and is not a finding. A `fixtures` that is the whole of an expression's path (a local binding, `fixtures.first()`) names no module and is not a finding: a module is named by a path that goes on past it (`fixtures::fake`) or by an import. A domain concept named `fixtures` (`domain::fixtures`, a product whose subject is test cases, such as a linter's fixtures of its rules) is the product's own domain, not test support, and is not a finding, in a path of code, of an import or of a type."
+why = "`fixtures.rs` holds test data and fakes, compiled for the crate's own tests and, through the `fixtures` feature, for other crates' tests; it never ships. What production runs is not a fixture: a probe or a certification case the product needs is a value in `types.rs` or a use case's input. A reached concept/test.rs normally declared as #[cfg(test)] mod test; by its reached concept/mod.rs is test code; module syntax, exact cfg metadata and analyzed-source establish this role, never its filename alone. Mixed ungated declarations refuse this exception. As module membership is not a resolved fact, production include! or an explicit path/cfg_attr literal naming a generic test.rs conservatively refuses the new exception across all candidate roles, since cross-package redirection cannot be resolved from these facts; decoded literals handle escaped and raw spelling without pretending to normalize paths. Existing module-declares and test-directory-layout placements enforce the surrounding ownership. Legacy test/support placement exclusions remain as before. Exact #[cfg(test)] item syntax also excludes that item and its syntax descendants; negated or feature-enabled cfgs do not. Test-only include sites cannot invalidate registered test roles. The entry leaves out other test code (`*_test.rs`, `tests/`, `benches/`) and `fixtures.rs` itself; declaring the module (`pub mod fixtures;`) names no path and is not a finding. A `fixtures` that is the whole of an expression's path (a local binding, `fixtures.first()`) names no module and is not a finding: a module is named by a path that goes on past it (`fixtures::fake`) or by an import. A domain concept named `fixtures` (`domain::fixtures`, a product whose subject is test cases, such as a linter's fixtures of its rules) is the product's own domain, not test support, and is not a finding, in a path of code, of an import or of a type."
 
 query = '''
 let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
@@ -42,8 +42,14 @@ let role-macro-edges = select l."id" as "macro", l."file" as "file", r."child" a
 let role-macro-paths = select l."macro" as "macro", l."file" as "file", r."id" as "id" from role-macro-edges as l join role-path-nodes as r on l."child" = r."id";
 let role-include-names = select * from tree-tokens where text = "include";
 let role-includes = axis(from=role-macro-paths, relation="syntax-child", direction=descendant, domain=role-include-names);
-let role-path-files = project(from=role-production-paths, columns=["file"]);
-let role-include-files = project(from=role-includes, columns=["file"]);
+let test-item-roots = select r."id" as "id", r."file" as "file", r."span" as "span" from role-cfgs as l join tree-nodes as r on l."decl" = r."id";
+let test-item-descendants = axis(from=test-item-roots, relation="syntax-child", direction=descendant, domain=tree-nodes);
+let test-descendant-nodes = select r."id" as "id", r."file" as "file", r."span" as "span" from test-item-descendants as l join tree-nodes as r on l."related" = r."id";
+let test-item-nodes = union(left=test-item-roots, right=test-descendant-nodes);
+let runtime-paths = antijoin(left=role-production-paths, right=test-item-nodes, left-on=["decl"], right-on=["id"]);
+let runtime-includes = antijoin(left=role-includes, right=test-item-nodes, left-on=["id"], right-on=["id"]);
+let role-path-files = project(from=runtime-paths, columns=["file"]);
+let role-include-files = project(from=runtime-includes, columns=["file"]);
 let role-uncertain-files = union(left=role-path-files, right=role-include-files);
 let role-production-files = select * from role-uncertain-files where not glob_any(file, "{tests/**,benches/**,**/tests/**,**/benches/**,**/*_test.rs,**/fixtures.rs,**/fixtures/**}");
 let role-uncertain = extend(from=role-production-files, values={"guard": 1});
@@ -150,7 +156,8 @@ let declared-acceptance = union(left=direct-rows, right=imported-rows);
 let acceptance-found = union(left=declared-acceptance, right=local-include-rows);
 let findings = union(left=spans, right=acceptance-found);
 let production = antijoin(left=findings, right=test-roles, left-on=["file"], right-on=["file"]);
-emit production subject "file" key("span");
+let runtime = antijoin(left=production, right=test-item-nodes, left-on=["file", "span"], right-on=["file", "span"]);
+emit runtime subject "file" key("span");
 '''
 
 [diagnostic]
@@ -971,3 +978,37 @@ then.findings = [
   { path = 'crate_b/src/concept/test.rs', line = 1 },
   { path = 'crate_b/src/concept/test.rs', line = 2 },
 ]
+
+[[scenarios]]
+id = "cfg-item-alias"
+scenario = "cfg item alias"
+given.files.'src/lib.rs' = "#[cfg(test)] fn check() { use crate::fixtures::VALUE as expected; let _ = expected; }"
+
+[[scenarios]]
+id = "cfg-nested-module"
+scenario = "cfg nested module"
+given.files.'src/lib.rs' = "#[cfg(test)] mod proof { mod nested { use crate::fixtures::VALUE as expected; fn check() { let _ = expected; } } }"
+
+[[scenarios]]
+id = "production-alias-control"
+scenario = "production alias control"
+given.files.'src/lib.rs' = "fn check() { use crate::fixtures::VALUE as expected; let _ = expected; }"
+then.findings = [{path = "src/lib.rs", line = 1}]
+
+[[scenarios]]
+id = "negated-item-control"
+scenario = "negated item control"
+given.files.'src/lib.rs' = "#[cfg(not(test))] fn check() { use crate::fixtures::VALUE as expected; let _ = expected; }"
+then.findings = [{path = "src/lib.rs", line = 1}]
+
+[[scenarios]]
+id = "test-include-preserves-registered-role"
+given.files.'Cargo.toml' = '''[package]
+name="test-context"
+version="0.1.0"
+edition="2024"'''
+scenario = "test include preserves registered role"
+given.files.'src/lib.rs' = "mod concept;\n#[cfg(test)] mod checks { include!(\"generated.rs\"); }"
+given.files.'src/concept/mod.rs' = "#[cfg(test)] mod test;"
+given.files.'src/concept/test.rs' = "use crate::fixtures::VALUE as expected;\nfn check() { let _ = expected; }"
+given.files.'src/generated.rs' = ""
