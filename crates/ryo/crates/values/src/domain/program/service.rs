@@ -3,7 +3,9 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use super::errors::ProgramError;
-use super::types::{ModuleCatalog, QueryBundle, QueryDocumentSource, QuerySourceId, QuerySpelling, SourceText};
+use super::types::{
+    ModuleCatalog, QueryBundle, QueryDocumentSource, QuerySourceId, QuerySpelling, SourceText,
+};
 
 /// Validate and construct a stable source identifier.
 ///
@@ -96,4 +98,22 @@ pub fn standalone(text: QuerySpelling<'_>) -> Result<QueryBundle, ProgramError> 
 #[must_use]
 pub fn root_text(bundle: &QueryBundle) -> &SourceText {
     &bundle.root.text
+}
+
+/// The identity linking assigned to a step name, when it has one.
+#[must_use]
+pub fn identity_of(identified: StepIdentified) -> Option<StepIdentity> {
+    match identified {
+        StepIdentified::Assigned(identity) => Some(identity),
+        StepIdentified::Unassigned => None,
+    }
+}
+
+/// The step-name state for an identity that may not be assigned yet.
+#[must_use]
+pub fn identified(identity: Option<StepIdentity>) -> StepIdentified {
+    match identity {
+        Some(identity) => StepIdentified::Assigned(identity),
+        None => StepIdentified::Unassigned,
+    }
 }

@@ -1,7 +1,7 @@
 // the 37 rows each drive the whole lint use case through fakes (warm, edited, deleted and changed-rule runs): a row is one whole run, and its expected rows are the full answer of that run.
 //! What the `lint` use case promises, against the fakes of the ports it calls.
 
-use crate::outbound::rows;
+use crate::outbound::row_sink;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
@@ -18,8 +18,8 @@ use crate::outbound::language::fixtures::fake::{FakeCatalog, LanguageFake};
 use crate::outbound::matching::fixtures::fake::MatchingFake;
 use crate::outbound::memory::fixtures::fake::MemoryFake;
 use crate::outbound::query_language::fixtures::fake::{QueryLanguageFake, REFUSED};
-use crate::outbound::rows::fixtures::fake::{Ends, RowsFake};
-use crate::outbound::rows::interface::RowsPort;
+use crate::outbound::row_sink::fixtures::fake::{Ends, RowSinkFake};
+use crate::outbound::row_sink::interface::RowSinkPort;
 use ryo_values::domain::runs::types::AnswerShape;
 use ryo_values::domain::runs::types::RuleId;
 
@@ -36,8 +36,8 @@ use ryo_values::domain::hosted::types::{
 };
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, PlanComparison, HostedNumber, Input as PlanInput, LiteralText, Operand, ParameterName,
-    QueryLiteral, QueryText, StepId, Test,
+    ColumnIndex, HostedNumber, Input as PlanInput, LiteralText, Operand, ParameterName,
+    PlanComparison, QueryLiteral, QueryText, StepId, Test,
 };
 use ryo_values::domain::plans::types::{
     Emit, Operation, ParameterType, Plan, PlanParameter, PlanStep,
@@ -75,7 +75,7 @@ struct Given {
 /// What a lint over a given made: the answer, the rows kept, the files the language read and what the ports were asked.
 struct Lint {
     report: Result<usize, LintError>,
-    rows: Vec<rows::types::Row>,
+    rows: Vec<row_sink::types::Row>,
     parses: usize,
     projects: usize,
     compiles: usize,
@@ -254,7 +254,7 @@ fn violations() -> Given {
 /// The use case and the fakes whose counts a row reads.
 struct World {
     use_case: LintUseCaseImpl,
-    collected: rows::types::Collector,
+    collected: row_sink::types::Collector,
     language: Arc<LanguageFake>,
     query: Arc<QueryLanguageFake>,
     reads: Arc<std::sync::atomic::AtomicUsize>,
@@ -446,14 +446,14 @@ fn scheduled_world_with_query_resources(
     analysis_memory: Arc<dyn crate::outbound::memory::interface::MemoryPort>,
     operators: Arc<dyn ryo_execution::inbound::use_cases::execution::types::OperatorsPort>,
 ) -> World {
-    let collected = rows::types::Collector::default();
-    let kept: Arc<dyn RowsPort> = Arc::new(rows::factory::collect(collected.clone()));
-    let ports: Arc<dyn RowsPort> = if given.ends == Ends::Well {
+    let collected = row_sink::types::Collector::default();
+    let kept: Arc<dyn RowSinkPort> = Arc::new(row_sink::factory::collect(collected.clone()));
+    let ports: Arc<dyn RowSinkPort> = if given.ends == Ends::Well {
         kept
     } else {
-        Arc::new(RowsFake {
+        Arc::new(RowSinkFake {
             ends: given.ends,
-            ..RowsFake::default()
+            ..RowSinkFake::default()
         })
     };
     let language = Arc::new(given.language);
@@ -1767,7 +1767,7 @@ fn succeeds() {
             )),
             Arc::new(SchedulerFake::default()),
             WorkerCount(1),
-            Arc::new(rows::factory::collect(rows::types::Collector::default())),
+            Arc::new(row_sink::factory::collect(row_sink::types::Collector::default())),
             Arc::clone(&analysis_digest),
             Arc::new(LintStoreFake::default()),
         )
@@ -1900,7 +1900,7 @@ fn consulted_equal_byte_files_revalidate_on_each_executable_metadata_change() {
 /// What one whole lint answered: the rows written, what the rules could not decide, the files a rule skipped, and how many files the
 /// language parsed.
 struct Answered {
-    rows: Vec<rows::types::Row>,
+    rows: Vec<row_sink::types::Row>,
     undecided: String,
     skipped: String,
     parses: usize,

@@ -1,8 +1,8 @@
-//! The `table_model` concept's failures.
+//! The `rows` concept's failures.
 
 /// Why an operation on a table failed.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
-pub enum TableModelError {
+pub enum RowsError {
     /// A step reads a column its table does not have.
     #[error("the table has no column {index}")]
     NoSuchColumn {

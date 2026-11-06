@@ -32,7 +32,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Fails,
         input: || RawCase::SemanticFailure,
         expect: Expect::Error(OperatingError::Table(
-            ryo_values::domain::rows::errors::TableModelError::NoSuchColumn { index: 60001 },
+            ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: 60001 },
         )),
     },
     Case {

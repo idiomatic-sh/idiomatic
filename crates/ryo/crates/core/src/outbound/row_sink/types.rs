@@ -1,4 +1,4 @@
-//! The types of the `rows` port: plain data, public fields and derives, with no constructor and no inherent impl.
+//! The types of the `row_sink` port: plain data, public fields and derives, with no constructor and no inherent impl.
 
 use ryo_values::domain::plan_parts::types::Heading;
 

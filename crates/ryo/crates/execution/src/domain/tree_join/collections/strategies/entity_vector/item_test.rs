@@ -17,7 +17,7 @@ use crate::domain::tree_join::collections::strategies::types::Fitting;
 use ryo_derived::domain::contract::types::Finding;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::rows::errors::TableModelError;
+use ryo_values::domain::rows::errors::RowsError;
 
 /// What a row asks: the row on the left, which tree form is read, and by which columns.
 type Input = fn() -> Result<[u32; 4], OperatingError>;
@@ -154,9 +154,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_row_without_the_column_is_refused"),
         word: Word::Refuses,
         input: || a_row_without_the_column_is_refused,
-        expect: Expect::Error(OperatingError::Table(TableModelError::NoSuchColumn {
-            index: 0,
-        })),
+        expect: Expect::Error(OperatingError::Table(RowsError::NoSuchColumn { index: 0 })),
     },
 ];
 

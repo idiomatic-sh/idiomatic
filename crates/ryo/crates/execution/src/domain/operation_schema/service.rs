@@ -11,7 +11,7 @@ use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 use ryo_values::domain::plans::service::inputs_of;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
-use ryo_values::domain::rows::errors::TableModelError;
+use ryo_values::domain::rows::errors::RowsError;
 use {
     crate::domain::table_model::service::check_columns,
     ryo_values::domain::rows::service::column_in,
@@ -60,7 +60,7 @@ pub(crate) fn joined(
                 ),
             };
             column_in(kinds, source).copied().ok_or_else(|| {
-                TableModelError::NoSuchColumn {
+                RowsError::NoSuchColumn {
                     index: column.column.0,
                 }
                 .into()

@@ -4,7 +4,7 @@ use super::super::*;
 use ryo_language::domain::symbols::{service::intern_derived, types::ByteSlice};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::{
-    PlanComparison, Input, LiteralText, Operand, QueryLiteral, Test,
+    Input, LiteralText, Operand, PlanComparison, QueryLiteral, Test,
 };
 use std::sync::atomic::Ordering;
 fn column(number: u32) -> ColumnIndex {
@@ -255,7 +255,7 @@ fn selected_cut_join_filter_project_keeps_exact_rows_frontier_and_required_capab
     assert!(matches!(
         result.result,
         Err(OperatingError::Table(
-            ryo_values::domain::rows::errors::TableModelError::NoSuchColumn { index: 60001 }
+            ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: 60001 }
         ))
     ));
 }

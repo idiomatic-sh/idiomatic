@@ -99,7 +99,58 @@ pub struct StepIdentity(pub u64);
 
 /// The name a `let` gives a step, or a step is read under; identity is separate from spelling.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct StepName(pub Box<str>, pub Option<StepIdentity>);
+pub struct StepName(pub StepSpelling, pub StepIdentified);
+
+/// The text a step is written under.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct StepSpelling(pub Box<str>);
+
+impl std::ops::Deref for StepSpelling {
+    type Target = str;
+
+    fn deref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl AsRef<str> for StepSpelling {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Display for StepSpelling {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl From<&str> for StepSpelling {
+    fn from(text: &str) -> Self {
+        Self(text.into())
+    }
+}
+
+impl From<String> for StepSpelling {
+    fn from(text: String) -> Self {
+        Self(text.into())
+    }
+}
+
+impl From<Box<str>> for StepSpelling {
+    fn from(text: Box<str>) -> Self {
+        Self(text)
+    }
+}
+
+/// Whether a step name carries the identity linking gave its definition.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum StepIdentified {
+    /// Linking assigned this identity.
+    Assigned(StepIdentity),
+    /// No identity is assigned yet.
+    Unassigned,
+}
 
 /// The alias a source is given after `as`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]

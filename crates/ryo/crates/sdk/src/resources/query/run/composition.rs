@@ -3,7 +3,7 @@
 
 use ryo_core::inbound::use_cases::lint::interface::LintUseCase;
 use ryo_core::outbound::{
-    corpus, digest, facts, language, lint_store, matching, memory, query_language, rows,
+    corpus, digest, facts, language, lint_store, matching, memory, query_language, row_sink,
 };
 use std::sync::Arc;
 
@@ -26,8 +26,8 @@ where
 }
 
 /// The production place the rows of a run are kept in, which the caller takes them from after the run.
-pub(crate) fn build_rows() -> rows::types::Collector {
-    rows::types::Collector::default()
+pub(crate) fn build_rows() -> row_sink::types::Collector {
+    row_sink::types::Collector::default()
 }
 
 /// Chooses the production adapters and hands `compose` the construction of the service over them: the languages that read files,
@@ -35,7 +35,7 @@ pub(crate) fn build_rows() -> rows::types::Collector {
 /// store is the one in memory, never read or written.
 pub(crate) fn build(
     languages: Vec<Language>,
-    collector: rows::types::Collector,
+    collector: row_sink::types::Collector,
     root: ryo_language::inbound::use_cases::project::types::RootPath,
     budget: ryo_values::domain::runs::types::Budget,
     pool: WorkerPool,
@@ -98,7 +98,7 @@ pub(crate) fn build(
 std::sync::Arc::new(ryo_core::outbound::derived::factory::use_case(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new())),
                 pool,
                 workers,
-                Arc::new(rows::factory::collect(collector)),
+                Arc::new(row_sink::factory::collect(collector)),
                 digests,
                 Arc::new(lint_store::factory::memory()),
             )

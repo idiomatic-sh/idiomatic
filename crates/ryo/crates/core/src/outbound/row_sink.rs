@@ -1,4 +1,4 @@
-//! The `rows` port.
+//! The `row_sink` port.
 
 pub(crate) mod adapters;
 pub mod errors;

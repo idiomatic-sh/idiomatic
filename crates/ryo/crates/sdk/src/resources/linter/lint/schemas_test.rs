@@ -9,9 +9,9 @@ use crate::resources::linter::lint::types::Place;
 use crate::resources::linter::lint::types::RuleId;
 use crate::resources::linter::{Corpus, LintRequest, Rule, RuleApplicability, SkipReason};
 use ryo_core::inbound::use_cases::lint::types::LintReport as CoreReport;
-use ryo_core::outbound::rows::factory::collect;
-use ryo_core::outbound::rows::interface::RowsPort as _;
-use ryo_core::outbound::rows::types::LentCell;
+use ryo_core::outbound::row_sink::factory::collect;
+use ryo_core::outbound::row_sink::interface::RowSinkPort as _;
+use ryo_core::outbound::row_sink::types::LentCell;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::records::types::{Cell, CellText};
 
@@ -223,8 +223,11 @@ fn converted_skip() -> Result<Value, Failure> {
         path: ryo_language::domain::files::types::FilePath("bad.py".into()),
         reason: ryo_values::domain::runs::types::SkipReason::SyntaxRejected,
     });
-    let converted = report(ryo_core::outbound::rows::types::Collector::default(), core)
-        .map_err(|_error| Refused::Policy)?;
+    let converted = report(
+        ryo_core::outbound::row_sink::types::Collector::default(),
+        core,
+    )
+    .map_err(|_error| Refused::Policy)?;
     Ok(usize::from(
         converted.skipped.len() == 1
             && converted.skipped[0].rule.as_ref() == "policy"
@@ -271,7 +274,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
 fn written(
     cells: &[Option<Cell<CellText<'_>>>],
 ) -> Option<crate::resources::linter::lint::types::Finding> {
-    let collected = ryo_core::outbound::rows::types::Collector::default();
+    let collected = ryo_core::outbound::row_sink::types::Collector::default();
     let collector = collect(collected.clone());
     collector.row(&mut cells.iter().copied().map(LentCell::from));
     match report(collected, CoreReport::default()) {

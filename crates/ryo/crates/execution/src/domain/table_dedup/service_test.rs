@@ -6,15 +6,15 @@ use ryo_relations::domain::relations::types::{CellKind, Value as Cell};
 
 use super::service::distinct;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::rows::errors::TableModelError;
+use ryo_values::domain::rows::errors::RowsError;
 use ryo_values::domain::rows::service::push_row;
 
 /// A scenario: what a row asks of the part.
-type Input = fn() -> Result<Value, TableModelError>;
+type Input = fn() -> Result<Value, RowsError>;
 /// What a scenario answers: a yes as one, or a count.
 type Value = usize;
 /// Why a scenario is refused.
-type Failure = TableModelError;
+type Failure = RowsError;
 
 fn drops_the_repeated_row() -> Value {
     let mut table = Table {

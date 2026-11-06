@@ -466,7 +466,7 @@ fn evaluation_errors_do_not_leave_mutable_state_in_the_next_rule() {
     assert!(matches!(
         failed.emit,
         RootOutcome::Failed(OperatingError::Table(
-            ryo_values::domain::rows::errors::TableModelError::NoSuchColumn { index: 99 }
+            ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: 99 }
         ))
     ));
     let next = file
@@ -485,7 +485,7 @@ fn evaluation_errors_do_not_leave_mutable_state_in_the_next_rule() {
         matches!(
             repeated.emit,
             RootOutcome::Failed(OperatingError::Table(
-                ryo_values::domain::rows::errors::TableModelError::NoSuchColumn { index: 99 }
+                ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: 99 }
             ))
         ),
         "the earlier failure remains exact after a later successful invocation"

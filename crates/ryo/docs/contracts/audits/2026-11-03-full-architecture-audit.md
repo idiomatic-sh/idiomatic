@@ -59,7 +59,7 @@ Legend: owner = where the semantics live today (accepted). Portable = what a sta
 ## Duplicate owners, cycles, leaks, generic vs provider
 
 - **Duplicate owner (extraction):** `PrimitiveSemantics` (core domain) duplicates `OperatorsPort` (core outbound) to satisfy `import-directions` (domain may not name `crate::outbound`). Acceptable as a bridge only if documented as the single domain-side handle; otherwise it is a second interface for one capability.
-- **Duplicate vocabulary:** `ProjectColumnAbsent` vs `TableModelError::NoSuchColumn` vs `SpanFault::NoSuchColumn`; `OperatingError::WrongBinding` used to absorb an infallible `Append`. One semantic fault enum is needed.
+- **Duplicate vocabulary:** `ProjectColumnAbsent` vs `RowsError::NoSuchColumn` vs `SpanFault::NoSuchColumn`; `OperatingError::WrongBinding` used to absorb an infallible `Append`. One semantic fault enum is needed.
 - **Direction:** no Cargo cycle; `layer-order` layers do not include `operators`. Domain → `ryo_operators` is allowed (kernel-like crate) only if `ryo_operators` never depends on core; currently true by manifest.
 - **Implementation leak:** engine timing enums public in `ryo_operators` (finding 3). `OperatorCall` uses fully qualified `ryo_language`/`ryo_values` paths in public fields: fine, these are kernel public types.
 - **Implementation leak (accepted, pre-existing):** `ryo_core::application::{file_analysis::FileAnalysis, cross_file::CrossFile, rule_compilation::CompiledPlans}` are `pub` and constructed by SDK and CLI compositions. Constructor injection, not a locator, but it makes application services part of core's published API. `domain::{coverage,kind_check,corpus_copies}` are `pub` with no external user found in sdk/cli/benchmark.

@@ -500,7 +500,9 @@ fn normalized_staging_preserves_store_bytes_and_snapshot_lifetime() {
         kept.staged.push(StagedRow {
             file: row.file,
             bucket: row.bucket,
-            ordinal: ryo_values::domain::records::types::StagedOrdinal(u64::try_from(ordinal).expect("ordinal")),
+            ordinal: ryo_values::domain::records::types::StagedOrdinal(
+                u64::try_from(ordinal).expect("ordinal"),
+            ),
             words,
         });
     }
@@ -636,7 +638,9 @@ fn staged_fresh_and_selected_old_rows_match_inline_edit_add_remove_and_reorder()
                 reused.staged.push(StagedRow {
                     file: row.file,
                     bucket: row.bucket,
-                    ordinal: ryo_values::domain::records::types::StagedOrdinal(u64::try_from(ordinal).expect("ordinal")),
+                    ordinal: ryo_values::domain::records::types::StagedOrdinal(
+                        u64::try_from(ordinal).expect("ordinal"),
+                    ),
                     words,
                 });
             } else {

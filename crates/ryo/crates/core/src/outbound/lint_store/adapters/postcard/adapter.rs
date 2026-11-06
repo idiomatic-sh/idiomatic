@@ -229,7 +229,9 @@ impl LintStorePostcardAdapter {
                         file: row.file,
                         header: ryo_values::domain::records::types::HeaderOffset(row.header),
                         offset: ryo_values::domain::records::types::PayloadOffset(row.span.start.0),
-                        length: ryo_values::domain::records::types::PayloadLength(row.span.length.0),
+                        length: ryo_values::domain::records::types::PayloadLength(
+                            row.span.length.0,
+                        ),
                     }),
                 });
             }

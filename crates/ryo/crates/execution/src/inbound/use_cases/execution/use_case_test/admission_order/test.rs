@@ -28,7 +28,7 @@ use ryo_values::{
         },
         plans::types::{Operation, OperationKind, Plan},
         rows::{
-            errors::TableModelError,
+            errors::RowsError,
             types::{RowCount, Table},
         },
     },
@@ -174,7 +174,7 @@ fn execute(
 fn layout_error(kind: OperationKind) -> OperatingError {
     match kind {
         OperationKind::Select | OperationKind::Project | OperationKind::Join => {
-            OperatingError::Table(TableModelError::NoSuchColumn { index: 99 })
+            OperatingError::Table(RowsError::NoSuchColumn { index: 99 })
         }
         _ => OperatingError::ShapeMismatch,
     }
@@ -289,8 +289,8 @@ fn child_failure_and_resources_first() {
     );
 }
 fn stored_prefix_keeps_static_error_order_and_source_identity() {
-    use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
     use ryo_relations::domain::relations::service::to_bits;
+    use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
     let mut symbols = Symbols::default();
     let symbol = intern_derived(&mut symbols, ByteSlice(b""), NameText("prefix"));
     let table = population(Relation::Function, false, symbol);

@@ -9,9 +9,9 @@ use super::super::types::StoreKeeping;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::reasons::types::ToolMessage;
 use ryo_relations::domain::relations::types::{Offset, Span};
+use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::descriptions::types::{LanguageName, RelationName};
 use ryo_values::domain::files::types::{FileSize, Nanoseconds};
-use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::records::types::Cell;
 use ryo_values::domain::records::types::{
     GoverningRules, PlacedColumn, PlacedLine, PlacedRule, Unreadable,

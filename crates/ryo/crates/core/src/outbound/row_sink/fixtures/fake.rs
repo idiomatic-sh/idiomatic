@@ -1,11 +1,11 @@
-//! The fake of the `rows` port: what the core's tests stand in for it with.
+//! The fake of the `row_sink` port: what the core's tests stand in for it with.
 
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, PoisonError};
 
-use super::super::errors::RowsError;
-use super::super::interface::RowsPort;
+use super::super::errors::RowSinkError;
+use super::super::interface::RowSinkPort;
 use super::super::types::{LentCell, Summary};
 use ryo_values::domain::plan_parts::types::Heading;
 use ryo_values::domain::records::types::{Cell, Unread};
@@ -24,25 +24,25 @@ pub enum Ends {
 
 /// What the core's tests stand in for `rows` with: it counts the rows it is given and keeps none.
 #[derive(Debug, Default)]
-pub struct RowsFake {
+pub struct RowSinkFake {
     /// How many rows it was given.
     pub rows: AtomicUsize,
     /// How the answer ends.
     pub ends: Ends,
 }
 
-impl RowsPort for RowsFake {
+impl RowSinkPort for RowSinkFake {
     fn begin(&self, _columns: &[Heading]) {}
 
     fn row(&self, _cells: &mut dyn Iterator<Item = LentCell<'_>>) {
         let _rows_before = self.rows.fetch_add(1, Ordering::Relaxed);
     }
 
-    fn end(&self, _summary: Summary, _unread: &[Unread]) -> Result<(), RowsError> {
+    fn end(&self, _summary: Summary, _unread: &[Unread]) -> Result<(), RowSinkError> {
         match self.ends {
             Ends::Well => Ok(()),
-            Ends::Closed => Err(RowsError::Closed),
-            Ends::Failed => Err(RowsError::Failed {
+            Ends::Closed => Err(RowSinkError::Closed),
+            Ends::Failed => Err(RowSinkError::Failed {
                 reason: "the fake was told to fail".to_owned(),
             }),
         }
@@ -52,12 +52,12 @@ impl RowsPort for RowsFake {
 /// What a test stands in for `rows` with to count the rows each rule gave: it keeps nothing else, and once a rule has been seen counting
 /// allocates nothing.
 #[derive(Debug, Default)]
-pub struct TallyRowsFake {
+pub struct TallyRowSinkFake {
     /// How many rows each rule gave, by the rule's id, the first cell of a row, a text cell.
     pub counts: Mutex<BTreeMap<String, usize>>,
 }
 
-impl RowsPort for TallyRowsFake {
+impl RowSinkPort for TallyRowSinkFake {
     fn begin(&self, _columns: &[Heading]) {}
 
     fn row(&self, cells: &mut dyn Iterator<Item = LentCell<'_>>) {
@@ -72,7 +72,7 @@ impl RowsPort for TallyRowsFake {
         }
     }
 
-    fn end(&self, _summary: Summary, _unread: &[Unread]) -> Result<(), RowsError> {
+    fn end(&self, _summary: Summary, _unread: &[Unread]) -> Result<(), RowSinkError> {
         Ok(())
     }
 }
@@ -80,12 +80,12 @@ impl RowsPort for TallyRowsFake {
 /// What a test stands in for `rows` with to measure what is written: it adds up the bytes the cells it is given hold, a file or a
 /// text by the bytes of its text and a number or a span by its own size, and keeps nothing else.
 #[derive(Debug, Default)]
-pub struct BytesRowsFake {
+pub struct BytesRowSinkFake {
     /// How many bytes the cells of the rows come to.
     pub bytes: AtomicUsize,
 }
 
-impl RowsPort for BytesRowsFake {
+impl RowSinkPort for BytesRowSinkFake {
     fn begin(&self, _columns: &[Heading]) {}
 
     fn row(&self, cells: &mut dyn Iterator<Item = LentCell<'_>>) {
@@ -100,7 +100,7 @@ impl RowsPort for BytesRowsFake {
         let _bytes_before = self.bytes.fetch_add(held, Ordering::Relaxed);
     }
 
-    fn end(&self, _summary: Summary, _unread: &[Unread]) -> Result<(), RowsError> {
+    fn end(&self, _summary: Summary, _unread: &[Unread]) -> Result<(), RowSinkError> {
         Ok(())
     }
 }

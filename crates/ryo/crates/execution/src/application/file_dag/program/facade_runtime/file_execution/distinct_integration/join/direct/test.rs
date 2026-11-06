@@ -23,9 +23,12 @@ pub(in super::super) fn encoded(
         let mut words = ryo_relations::domain::relations::types::Words::default();
         encode_table(&table, &[], &mut words);
         let ryo_values::domain::table_words::types::Admitted {
-        table: compact,
-        names,
-    } = admit_compact(ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(pack(WordSlice(&words.0))))),
+            table: compact,
+            names,
+        } = admit_compact(
+            ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(pack(
+                WordSlice(&words.0),
+            )))),
             &mut vec![],
             DecodeMode::Complete,
         )
@@ -294,9 +297,7 @@ fn invalid_direct_join_keys_keep_exact_error_index_across_computed_stored_and_bo
                 assert_eq!(
                     actual.result,
                     Err(OperatingError::Table(
-                        ryo_values::domain::rows::errors::TableModelError::NoSuchColumn {
-                            index: 99
-                        }
+                        ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: 99 }
                     ))
                 );
                 assert!(actual.prefix.is_empty());

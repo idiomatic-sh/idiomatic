@@ -12,10 +12,10 @@ use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::project_context::types::{EntryObservation, EntryState};
 use ryo_language::domain::reasons::types::ToolMessage;
 use ryo_relations::domain::relations::types::{Integer, Offset, Span};
+use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::descriptions::types::LanguageName;
 use ryo_values::domain::descriptions::types::RelationName;
 use ryo_values::domain::files::types::{FileSize, Nanoseconds};
-use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::records::types::Cell;
 use ryo_values::domain::records::types::{GoverningRules, PlacedRule};
 use ryo_values::domain::records::types::{PlacedColumn, PlacedLine, Unreadable};
@@ -1014,73 +1014,81 @@ fn handed_of(rest: &RestSchema<'_>) -> Result<StoredHanded, postcard::Error> {
             });
         }
     }
-    Ok(StoredHanded(ryo_values::domain::stores::types::HandedRows {
-        proofs,
-        observations: rest
-            .observations
-            .iter()
-            .map(|each| {
-                use ryo_values::domain::records::types::ObservationReason;
-                use ryo_values::domain::records::types::ObservationReadinessSlot;
-                use ryo_values::domain::records::types::ObservationReadinessCount;
-                use ryo_values::domain::records::types::ObservationReadinessLayout;
-                use ryo_values::domain::records::types::ObservationReadinessVersion;
-                use ryo_values::domain::records::types::{
-                    FrontierReadiness, FrontierRefusal, FrontierRefusalReason,
-                };
-                Ok(ryo_values::domain::stores::types::StoredFrontierReadiness {
-                    file: StoredFileNumber(each.file),
-                    root: std::sync::Arc::new(FrontierReadiness {
-                        version: ObservationReadinessVersion(each.version),
-                        layout: ObservationReadinessLayout(Digest(each.layout)),
-                        slots: ObservationReadinessCount(each.slots),
-                        complete: ryo_values::domain::records::types::ReadinessBits(each.complete.clone()),
-                        skipped: ryo_values::domain::records::types::ReadinessBits(each.skipped.clone()),
-                        refusals: each
-                            .refusals
-                            .iter()
-                            .map(|(slot, reason)| {
-                                Ok(FrontierRefusal {
-                                    slot: ObservationReadinessSlot(*slot),
-                                    reason: match *reason {
-                                        ObservationReadinessSchema::Unknown(reason) => {
-                                            FrontierRefusalReason::Unknown(ObservationReason(
-                                                named(strings, reason)?,
-                                            ))
-                                        }
-                                        ObservationReadinessSchema::NoQuery => {
-                                            FrontierRefusalReason::NoQuery
-                                        }
-                                    },
+    Ok(StoredHanded(
+        ryo_values::domain::stores::types::HandedRows {
+            proofs,
+            observations: rest
+                .observations
+                .iter()
+                .map(|each| {
+                    use ryo_values::domain::records::types::ObservationReadinessCount;
+                    use ryo_values::domain::records::types::ObservationReadinessLayout;
+                    use ryo_values::domain::records::types::ObservationReadinessSlot;
+                    use ryo_values::domain::records::types::ObservationReadinessVersion;
+                    use ryo_values::domain::records::types::ObservationReason;
+                    use ryo_values::domain::records::types::{
+                        FrontierReadiness, FrontierRefusal, FrontierRefusalReason,
+                    };
+                    Ok(ryo_values::domain::stores::types::StoredFrontierReadiness {
+                        file: StoredFileNumber(each.file),
+                        root: std::sync::Arc::new(FrontierReadiness {
+                            version: ObservationReadinessVersion(each.version),
+                            layout: ObservationReadinessLayout(Digest(each.layout)),
+                            slots: ObservationReadinessCount(each.slots),
+                            complete: ryo_values::domain::records::types::ReadinessBits(
+                                each.complete.clone(),
+                            ),
+                            skipped: ryo_values::domain::records::types::ReadinessBits(
+                                each.skipped.clone(),
+                            ),
+                            refusals: each
+                                .refusals
+                                .iter()
+                                .map(|(slot, reason)| {
+                                    Ok(FrontierRefusal {
+                                        slot: ObservationReadinessSlot(*slot),
+                                        reason: match *reason {
+                                            ObservationReadinessSchema::Unknown(reason) => {
+                                                FrontierRefusalReason::Unknown(ObservationReason(
+                                                    named(strings, reason)?,
+                                                ))
+                                            }
+                                            ObservationReadinessSchema::NoQuery => {
+                                                FrontierRefusalReason::NoQuery
+                                            }
+                                        },
+                                    })
                                 })
-                            })
-                            .collect::<Result<_, postcard::Error>>()?,
-                    }),
+                                .collect::<Result<_, postcard::Error>>()?,
+                        }),
+                    })
                 })
-            })
-            .collect::<Result<_, postcard::Error>>()?,
-        frontier: Vec::new(),
-        texts: rest
-            .texts
-            .iter()
-            .map(|each| StoredText {
-                file: StoredFileNumber(each.file),
-                text: ArenaBytes(each.bytes.to_vec()),
-            })
-            .collect(),
-        notes: rest
-            .notes
-            .iter()
-            .map(|each| StoredNotes {
-                file: StoredFileNumber(each.file),
-                notes: FileNotes {
-                    language: LanguageNumber(usize::try_from(each.language).unwrap_or(usize::MAX)),
-                    notes: NoteBytes(each.bytes.to_vec()),
-                },
-            })
-            .collect(),
-        covered,
-    }))
+                .collect::<Result<_, postcard::Error>>()?,
+            frontier: Vec::new(),
+            texts: rest
+                .texts
+                .iter()
+                .map(|each| StoredText {
+                    file: StoredFileNumber(each.file),
+                    text: ArenaBytes(each.bytes.to_vec()),
+                })
+                .collect(),
+            notes: rest
+                .notes
+                .iter()
+                .map(|each| StoredNotes {
+                    file: StoredFileNumber(each.file),
+                    notes: FileNotes {
+                        language: LanguageNumber(
+                            usize::try_from(each.language).unwrap_or(usize::MAX),
+                        ),
+                        notes: NoteBytes(each.bytes.to_vec()),
+                    },
+                })
+                .collect(),
+            covered,
+        },
+    ))
 }
 
 /// The tables of `stored` but what its files handed, as their section's bytes.

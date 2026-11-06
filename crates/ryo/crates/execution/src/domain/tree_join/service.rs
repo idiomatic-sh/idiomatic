@@ -31,7 +31,7 @@ use ryo_derived::domain::contract::types::Finding;
 use ryo_language::domain::elements::service::{kind_at, parent_at, text_at};
 use ryo_operators::inbound::use_cases::operators::interface::OperatorCall;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison};
-use ryo_values::domain::rows::errors::TableModelError;
+use ryo_values::domain::rows::errors::RowsError;
 mod driver;
 
 /// The column of the elements of a tree that the column `column` of the view of them is.
@@ -167,7 +167,7 @@ pub(crate) fn probe(
         output,
     } = shape;
     if let ColumnLack::Column(missing) = state.missing {
-        return Err(OperatingError::Table(TableModelError::NoSuchColumn {
+        return Err(OperatingError::Table(RowsError::NoSuchColumn {
             index: u32::try_from(missing.0).unwrap_or(u32::MAX),
         }));
     }

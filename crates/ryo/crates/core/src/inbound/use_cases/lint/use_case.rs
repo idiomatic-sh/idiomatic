@@ -79,8 +79,8 @@ use crate::outbound::language::types::{ManifestReading, ProjectInput, ProjectNot
 use crate::outbound::lint_store::interface::LintStorePort;
 use crate::outbound::lint_store::types::StoreKeeping;
 use crate::outbound::memory::interface::MemoryPort;
-use crate::outbound::rows::interface::RowsPort;
-use crate::outbound::rows::types::{LentCell, Summary};
+use crate::outbound::row_sink::interface::RowSinkPort;
+use crate::outbound::row_sink::types::{LentCell, Summary};
 use crate::outbound::scheduler::errors::SchedulerError;
 use crate::outbound::scheduler::interface::SchedulerPort;
 use crate::outbound::scheduler::types::{JobCount, JobNumber, WorkerCount};
@@ -149,7 +149,7 @@ pub struct LintUseCaseImpl {
     /// How many workers the scheduler runs jobs on: the run makes one worker for each.
     workers: WorkerCount,
     /// Takes the findings the rules write.
-    rows: Arc<dyn RowsPort>,
+    rows: Arc<dyn RowSinkPort>,
     /// Digests the rules and files whose results the store keeps between runs.
     digest: Arc<dyn DigestPort>,
     /// Keeps what a run found of each file and rule for the next run, for the build that made it.
@@ -184,7 +184,7 @@ impl LintUseCaseImpl {
         derived: Arc<dyn ryo_execution::inbound::use_cases::execution::types::DerivedPort>,
         scheduler: Arc<dyn SchedulerPort>,
         workers: WorkerCount,
-        rows: Arc<dyn RowsPort>,
+        rows: Arc<dyn RowSinkPort>,
         digest: Arc<dyn DigestPort>,
         store: Arc<dyn LintStorePort>,
     ) -> Self {

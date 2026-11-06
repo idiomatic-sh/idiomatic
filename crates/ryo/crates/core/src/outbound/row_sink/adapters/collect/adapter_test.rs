@@ -1,11 +1,11 @@
 //! The collect adapter of the rows port: the port's contract rows run through it, then the cases specific to it.
 
-use super::adapter::RowsCollectAdapter;
+use super::adapter::RowSinkCollectAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::rows::errors::RowsError;
-use crate::outbound::rows::fixtures::contract::check;
-use crate::outbound::rows::interface::RowsPort as _;
-use crate::outbound::rows::types::{Collector, LentCell, Row, Summary};
+use crate::outbound::row_sink::errors::RowSinkError;
+use crate::outbound::row_sink::fixtures::contract::check;
+use crate::outbound::row_sink::interface::RowSinkPort as _;
+use crate::outbound::row_sink::types::{Collector, LentCell, Row, Summary};
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::records::types::{Cell, CellText};
 
@@ -13,7 +13,7 @@ use ryo_values::domain::records::types::{Cell, CellText};
 type Input = &'static [Option<Cell<CellText<'static>>>];
 /// Whether the row kept is the row given, each cell owned.
 type Value = bool;
-type Failure = RowsError;
+type Failure = RowSinkError;
 
 /// The rows of what is specific to this adapter.
 const CASES: &[Case<Input, Value, Failure>] = &[Case {
@@ -31,7 +31,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 
 fn subject(cells: Input) -> Result<Value, Failure> {
     let collected = Collector::default();
-    let adapter = RowsCollectAdapter::new(collected.clone());
+    let adapter = RowSinkCollectAdapter::new(collected.clone());
     adapter.row(&mut cells.iter().copied().map(LentCell::from));
     adapter.end(Summary::default(), &[])?;
     let kept = collected
@@ -50,6 +50,6 @@ fn subject(cells: Input) -> Result<Value, Failure> {
 
 #[test]
 fn succeeds() {
-    check(&RowsCollectAdapter::new(Collector::default()));
+    check(&RowSinkCollectAdapter::new(Collector::default()));
     run(CASES, Word::Succeeds, subject);
 }

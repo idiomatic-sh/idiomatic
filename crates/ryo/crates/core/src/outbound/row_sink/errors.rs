@@ -1,8 +1,8 @@
-//! The `rows` port's failures.
+//! The `row_sink` port's failures.
 
-/// Why the `rows` port failed.
+/// Why the `row_sink` port failed.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
-pub enum RowsError {
+pub enum RowSinkError {
     /// Whoever reads the rows stopped reading: nothing more is wanted.
     #[error("whoever reads the rows stopped reading")]
     Closed,

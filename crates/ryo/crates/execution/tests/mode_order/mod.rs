@@ -5,7 +5,7 @@ use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
     plan_parts::types::{Direction, HostedNumber},
     records::types::Cell as HostCell,
-    rows::errors::TableModelError,
+    rows::errors::RowsError,
 };
 
 fn evaluate<'facts>(
@@ -93,7 +93,7 @@ fn axis(from: Input, domain: Input, parent: u32) -> Operation {
 }
 fn assert_column(outcome: RootOutcome, index: u32) {
     assert!(
-        matches!(outcome, RootOutcome::Failed(OperatingError::Table(TableModelError::NoSuchColumn { index: actual })) if actual == index)
+        matches!(outcome, RootOutcome::Failed(OperatingError::Table(RowsError::NoSuchColumn { index: actual })) if actual == index)
     );
 }
 

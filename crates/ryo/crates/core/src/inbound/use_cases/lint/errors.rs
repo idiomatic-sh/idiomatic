@@ -7,7 +7,7 @@ use crate::outbound::corpus::errors::CorpusError;
 use crate::outbound::language::errors::LanguageError;
 use crate::outbound::lint_store::errors::LintStoreError;
 use crate::outbound::memory::errors::MemoryError;
-use crate::outbound::rows::errors::RowsError;
+use crate::outbound::row_sink::errors::RowSinkError;
 use crate::outbound::scheduler::errors::SchedulerError;
 use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
 use ryo_values::domain::program::types::RefusedQuery;
@@ -250,11 +250,11 @@ impl From<LanguageError> for LintError {
     }
 }
 
-impl From<RowsError> for LintError {
-    fn from(error: RowsError) -> Self {
+impl From<RowSinkError> for LintError {
+    fn from(error: RowSinkError) -> Self {
         match error {
-            RowsError::Closed => Self::OutputClosed,
-            RowsError::Failed { reason } => Self::Output { reason },
+            RowSinkError::Closed => Self::OutputClosed,
+            RowSinkError::Failed { reason } => Self::Output { reason },
         }
     }
 }

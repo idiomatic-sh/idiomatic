@@ -218,7 +218,7 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
     assert!(matches!(
         actual.result,
         Err(OperatingError::Table(
-            ryo_values::domain::rows::errors::TableModelError::NoSuchColumn { index: 99 }
+            ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: 99 }
         ))
     ));
     assert!(actual.derived_builds.is_empty());

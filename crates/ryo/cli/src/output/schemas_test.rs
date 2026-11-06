@@ -4,9 +4,9 @@
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 
-use ryo_core::outbound::rows::errors::RowsError;
-use ryo_core::outbound::rows::interface::RowsPort as _;
-use ryo_core::outbound::rows::types::{LentCell, Summary};
+use ryo_core::outbound::row_sink::errors::RowSinkError;
+use ryo_core::outbound::row_sink::interface::RowSinkPort as _;
+use ryo_core::outbound::row_sink::types::{LentCell, Summary};
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::constants::NO_SPAN;
 use ryo_relations::domain::relations::types::{Integer, Offset, Span};
@@ -87,7 +87,7 @@ type Input = Offered;
 /// What was written: the cell's text, then a line break, then its JSON; or the whole answer.
 type Value = String;
 /// Why the answer could not be written.
-type Failure = RowsError;
+type Failure = RowSinkError;
 
 /// A span value from `start` to `end`.
 const fn span(start: u32, end: u32) -> Cell<CellText<'static>> {
@@ -177,7 +177,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 summary(1, 1),
             )
         },
-        expect: Expect::Error(RowsError::Closed),
+        expect: Expect::Error(RowSinkError::Closed),
     },
     Case {
         name: CaseName("a_stream_that_fails_fails_the_answer"),
@@ -189,7 +189,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 summary(1, 1),
             )
         },
-        expect: Expect::Refusal(|error| selects(matches!(error, RowsError::Failed { .. }))),
+        expect: Expect::Refusal(|error| selects(matches!(error, RowSinkError::Failed { .. }))),
     },
     Case {
         name: CaseName("a_reader_that_left_before_the_flush_closes_the_answer"),
@@ -201,7 +201,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 summary(1, 1),
             )
         },
-        expect: Expect::Error(RowsError::Closed),
+        expect: Expect::Error(RowSinkError::Closed),
     },
     Case {
         name: CaseName("a_flush_that_fails_fails_the_answer"),
@@ -213,7 +213,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 summary(1, 1),
             )
         },
-        expect: Expect::Refusal(|error| selects(matches!(error, RowsError::Failed { .. }))),
+        expect: Expect::Refusal(|error| selects(matches!(error, RowSinkError::Failed { .. }))),
     },
 ];
 

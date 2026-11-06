@@ -1,5 +1,5 @@
 //! A row answers the cell at a column, and refuses a column its table does not have.
-use super::errors::TableModelError;
+use super::errors::RowsError;
 use super::service::cell;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::plan_parts::types::ColumnIndex;
@@ -12,7 +12,7 @@ enum Scenario {
 }
 type Input = Scenario;
 type Value = Cell;
-type Failure = TableModelError;
+type Failure = RowsError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("the_cell_at_a_column_is_the_value_there"),
@@ -24,7 +24,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_column_past_the_row_is_refused"),
         word: Word::Refuses,
         input: || Scenario::PastTheLastColumn,
-        expect: Expect::Error(TableModelError::NoSuchColumn { index: 2 }),
+        expect: Expect::Error(RowsError::NoSuchColumn { index: 2 }),
     },
 ];
 fn subject(input: Input) -> Result<Value, Failure> {

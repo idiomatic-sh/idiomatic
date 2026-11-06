@@ -9,7 +9,7 @@ use ryo_values::domain::descriptions::types::{RelationName, StepCount, ValidateR
 use ryo_values::domain::hosted::types::HostedRelation;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, PlanComparison, Input, LiteralText, Operand, QueryLiteral, StepId, Test,
+    ColumnIndex, Input, LiteralText, Operand, PlanComparison, QueryLiteral, StepId, Test,
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 use ryo_values::domain::program::types::RefusalMessage;

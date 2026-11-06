@@ -37,7 +37,7 @@ struct RunErrorSchema(CoreError);
 /// What a run answered and the rows it wrote, offered to the conversion.
 struct RunReportSchema {
     /// Where the rows the run wrote were kept.
-    collector: ryo_core::outbound::rows::types::Collector,
+    collector: ryo_core::outbound::row_sink::types::Collector,
     /// What the run answered.
     report: CoreReport,
 }
@@ -179,7 +179,7 @@ pub(super) fn request(request: RunRequest) -> Result<CoreRequest, RunError> {
 
 /// The caller's report for the rows a run wrote and what it answered.
 pub(super) fn report(
-    collector: ryo_core::outbound::rows::types::Collector,
+    collector: ryo_core::outbound::row_sink::types::Collector,
     report: CoreReport,
 ) -> RunReport {
     RunReportSchema { collector, report }.into()

@@ -51,7 +51,7 @@ fn refusal(result: Result<Table, OperatingError>) {
         matches!(
             result,
             Err(OperatingError::Table(
-                ryo_values::domain::rows::errors::TableModelError::NoSuchColumn { index: REFUSAL }
+                ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: REFUSAL }
             ))
         ),
         "{result:?}"
@@ -124,7 +124,10 @@ fn computed_stored_compact_and_tree_providers_reach_the_same_required_capability
     let ryo_values::domain::table_words::types::Admitted {
         table: compact,
         names,
-    } = admit_compact(ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(pack(WordSlice(&words.0))))),
+    } = admit_compact(
+        ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(pack(
+            WordSlice(&words.0),
+        )))),
         &mut Vec::new(),
         DecodeMode::Complete,
     )
@@ -436,7 +439,7 @@ fn compiled_tree_and_step_joins_cannot_bypass_the_same_semantic_refusal() {
 #[test]
 fn native_provenance_preserves_canonical_left_then_right_refusal_even_when_left_is_empty() {
     use ryo_values::domain::plan_parts::types::{
-        PlanComparison, LiteralText, Operand, QueryLiteral, Test,
+        LiteralText, Operand, PlanComparison, QueryLiteral, Test,
     };
     for (left_fails, right_fails, error) in [
         (false, true, Some(OperatingError::NotRead)),
@@ -531,7 +534,7 @@ fn native_provenance_preserves_canonical_left_then_right_refusal_even_when_left_
 #[test]
 fn empty_native_step_join_validates_both_sources_without_sorting_rhs_keys() {
     use ryo_values::domain::plan_parts::types::{
-        PlanComparison, LiteralText, Operand, QueryLiteral, Test,
+        LiteralText, Operand, PlanComparison, QueryLiteral, Test,
     };
     for (refuse_right, foreign_tree) in [(false, false), (true, false), (false, true)] {
         let (left_elements, mut symbols) = wide_tree(1, true);
@@ -634,7 +637,7 @@ fn empty_native_step_join_validates_both_sources_without_sorting_rhs_keys() {
 #[test]
 fn tree_lookup_preflight_preserves_required_support_and_optional_equality_fallback() {
     use ryo_derived::domain::contract::types::ViewRequest;
-    use ryo_values::domain::plan_parts::types::{PlanComparison, Operand, Test};
+    use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, Test};
     let (elements, mut symbols) = wide_tree(1, true);
     let right = tree_rows(&elements, TreeForm::Elements);
     let mut materialized = Table::default();

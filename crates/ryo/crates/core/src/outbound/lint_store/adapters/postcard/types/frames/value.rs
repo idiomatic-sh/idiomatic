@@ -281,7 +281,10 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn read_old_in(
         .checked_add(words.length.0)
         .filter(|after| *after <= end)
         .ok_or_else(|| invalid("old row payload is truncated or overflows"))?;
-    if words.header.0 <= bucket.start.0 || words.header.0 >= words.offset.0 || words.offset.0 > after {
+    if words.header.0 <= bucket.start.0
+        || words.header.0 >= words.offset.0
+        || words.offset.0 > after
+    {
         return Err(invalid("old row header is outside its bucket"));
     }
     let length = usize::try_from(words.length.0)
@@ -315,7 +318,12 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn read_old_in(
     let framing = (|| {
         let mut fields = std::io::Cursor::new(&into.0[..header_length]);
         let mut cursor = words.header.0;
-        let number = integer(&mut fields, &mut cursor, words.offset.0, u64::from(u32::MAX))?;
+        let number = integer(
+            &mut fields,
+            &mut cursor,
+            words.offset.0,
+            u64::from(u32::MAX),
+        )?;
         let framed_length = integer(
             &mut fields,
             &mut cursor,
@@ -329,7 +337,9 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn read_old_in(
         error
     })?;
     let (number, framed_length, cursor) = framing;
-    if number != u64::from(words.file.0) || framed_length != words.length.0 || cursor != words.offset.0
+    if number != u64::from(words.file.0)
+        || framed_length != words.length.0
+        || cursor != words.offset.0
     {
         into.0.clear();
         return Err(invalid("old row descriptor does not match its framing"));

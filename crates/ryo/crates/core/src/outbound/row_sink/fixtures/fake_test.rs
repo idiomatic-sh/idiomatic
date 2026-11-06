@@ -1,17 +1,17 @@
-//! The `rows` port's fake runs the port's contract, then ends the answer as it was told to: well, closed or failed.
+//! The `row_sink` port's fake runs the port's contract, then ends the answer as it was told to: well, closed or failed.
 
 use super::super::contract::check;
-use super::{Ends, RowsFake};
+use super::{Ends, RowSinkFake};
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
-use crate::outbound::rows::errors::RowsError;
-use crate::outbound::rows::interface::RowsPort as _;
-use crate::outbound::rows::types::Summary;
+use crate::outbound::row_sink::errors::RowSinkError;
+use crate::outbound::row_sink::interface::RowSinkPort as _;
+use crate::outbound::row_sink::types::Summary;
 
 /// How the fake is told to end the answer.
 type Input = Ends;
 /// Whether the answer ended.
 type Value = ();
-type Failure = RowsError;
+type Failure = RowSinkError;
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -24,27 +24,27 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_fake_told_its_reader_left_closes_the_answer"),
         word: Word::Refuses,
         input: || Ends::Closed,
-        expect: Expect::Error(RowsError::Closed),
+        expect: Expect::Error(RowSinkError::Closed),
     },
     Case {
         name: CaseName("a_fake_told_to_fail_fails_the_answer"),
         word: Word::Fails,
         input: || Ends::Failed,
-        expect: Expect::Refusal(|error| selects(matches!(error, RowsError::Failed { .. }))),
+        expect: Expect::Refusal(|error| selects(matches!(error, RowSinkError::Failed { .. }))),
     },
 ];
 
 fn subject(ends: Input) -> Result<Value, Failure> {
-    let fake = RowsFake {
+    let fake = RowSinkFake {
         ends,
-        ..RowsFake::default()
+        ..RowSinkFake::default()
     };
     fake.end(Summary::default(), &[])
 }
 
 #[test]
 fn succeeds() {
-    check(&RowsFake::default());
+    check(&RowSinkFake::default());
     run(CASES, Word::Succeeds, subject);
 }
 

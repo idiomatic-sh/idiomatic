@@ -260,7 +260,7 @@ fn raw_order() -> (
 use ryo_derived::domain::contract::types::KeyIndex;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::{plan_parts::types::ColumnIndex, rows::types::RowIndex};
-use {crate::domain::table_model::types::Rows, ryo_values::domain::rows::errors::TableModelError};
+use {crate::domain::table_model::types::Rows, ryo_values::domain::rows::errors::RowsError};
 /// Finite typed input adapter for pure semantic conformance, with no cache or scheduler.
 pub(crate) struct SemanticRows<'f>(pub crate::domain::table_model::types::Rows<'f>);
 impl ryo_derived::domain::contract::types::RowCells for SemanticRows<'_> {
@@ -291,7 +291,7 @@ impl ryo_derived::domain::contract::types::RowCells for SemanticRows<'_> {
 pub(crate) fn prepared_payload(
     request: ryo_derived::domain::contract::types::ViewRequest,
     rows: &Rows<'_>,
-) -> Result<ryo_derived::domain::contract::types::DerivedPayload, TableModelError> {
+) -> Result<ryo_derived::domain::contract::types::DerivedPayload, RowsError> {
     use ryo_derived::domain::contract::types::{
         BuildOutcome, BuildWorkspace, DerivedFault, DerivedInputs,
     };
@@ -311,7 +311,7 @@ pub(crate) fn prepared_payload(
     ) {
         Ok(BuildOutcome::Built(payload)) => Ok(payload),
         Err(DerivedFault::NoSuchColumn { column }) => {
-            Err(TableModelError::NoSuchColumn { index: column.0 })
+            Err(RowsError::NoSuchColumn { index: column.0 })
         }
         other => panic!("unexpected semantic fixture result: {other:?}"),
     }
@@ -319,7 +319,7 @@ pub(crate) fn prepared_payload(
 pub(crate) fn prepared_index(
     rows: &Rows<'_>,
     columns: &[ColumnIndex],
-) -> Result<std::sync::Arc<KeyIndex>, TableModelError> {
+) -> Result<std::sync::Arc<KeyIndex>, RowsError> {
     prepared_payload(
         ryo_derived::domain::contract::types::ViewRequest::Equality {
             columns: columns.to_vec(),
@@ -336,7 +336,7 @@ pub(crate) fn prepared_index(
 pub(crate) fn prepared_order(
     rows: &Rows<'_>,
     columns: &[ColumnIndex],
-) -> Result<Vec<RowIndex>, TableModelError> {
+) -> Result<Vec<RowIndex>, RowsError> {
     use ryo_derived::domain::contract::types::{DerivedView, ViewRequest};
     let request = ViewRequest::PartitionOrder {
         keys: columns.to_vec(),

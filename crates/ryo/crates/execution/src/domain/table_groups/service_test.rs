@@ -11,7 +11,7 @@ use ryo_operators::inbound::use_cases::operators::interface::{
     OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault,
 };
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::rows::errors::TableModelError;
+use ryo_values::domain::rows::errors::RowsError;
 
 #[derive(Debug)]
 pub(super) struct TestOperators;
@@ -124,9 +124,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_distinct_column_the_table_lacks_is_refused"),
         word: Word::Refuses,
         input: || counts_by_a_column_the_table_lacks,
-        expect: Expect::Error(OperatingError::Table(TableModelError::NoSuchColumn {
-            index: 9,
-        })),
+        expect: Expect::Error(OperatingError::Table(RowsError::NoSuchColumn { index: 9 })),
     },
 ];
 

@@ -19,7 +19,9 @@ use ryo_values::domain::hosted::types::{
     HostColumn as CoreHostColumn, HostColumnName as CoreHostColumnName, HostKind as CoreHostKind,
     HostName as CoreHostName, HostRelation as CoreHost, HostRow as CoreHostRow,
 };
-use ryo_values::domain::plan_parts::types::{FlagState as CoreFlag, LiteralText as CoreText, ParameterName, WholeNumber};
+use ryo_values::domain::plan_parts::types::{
+    FlagState as CoreFlag, LiteralText as CoreText, ParameterName, WholeNumber,
+};
 use ryo_values::domain::program::types::RefusedKind;
 use ryo_values::domain::program::types::RefusedQuery;
 use ryo_values::domain::records::types::Cell as RowCell;
@@ -132,7 +134,7 @@ struct LintRequestSchema(LintRequest);
 /// What a lint answered and what its findings were kept as.
 struct LintReportSchema {
     /// Where the rows the run wrote were kept.
-    collector: ryo_core::outbound::rows::types::Collector,
+    collector: ryo_core::outbound::row_sink::types::Collector,
     /// The files nothing read.
     report: CoreReport,
 }
@@ -542,7 +544,7 @@ fn host_cell(kind: HostKind, cell: Cell) -> Option<RowCell> {
 ///
 /// `Io` of the output when a row the run wrote is not a finding as the run writes one: a fault of the run, never dropped.
 pub(super) fn report(
-    collector: ryo_core::outbound::rows::types::Collector,
+    collector: ryo_core::outbound::row_sink::types::Collector,
     report: CoreReport,
 ) -> Result<LintReport, LintError> {
     LintReport::try_from(LintReportSchema { collector, report })

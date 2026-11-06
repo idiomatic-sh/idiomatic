@@ -15,9 +15,9 @@ use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_values::domain::runs::types::Budget;
 use ryo_values::domain::runs::types::Session;
 
-use ryo_core::outbound::rows::interface::RowsPort;
+use ryo_core::outbound::row_sink::interface::RowSinkPort;
 use ryo_core::outbound::{
-    corpus, digest, facts, language, matching, memory, query_language, rows, scheduler,
+    corpus, digest, facts, language, matching, memory, query_language, row_sink, scheduler,
 };
 use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
 use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
@@ -342,8 +342,8 @@ pub(crate) fn lint_report_with_languages(
         Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
         Arc::new(ryo_query_language::outbound::catalog::factory::language()),
     );
-    let collected = rows::types::Collector::default();
-    let kept: Arc<dyn RowsPort> = Arc::new(rows::factory::collect(collected.clone()));
+    let collected = row_sink::types::Collector::default();
+    let kept: Arc<dyn RowSinkPort> = Arc::new(row_sink::factory::collect(collected.clone()));
     let use_case = {
         let analysis_corpus: Arc<dyn corpus::interface::CorpusPort> =
             Arc::new(corpus::factory::ignore(
@@ -459,7 +459,7 @@ pub(crate) fn does_not_run(each: &Recording) -> Option<String> {
 }
 
 /// The findings a lint kept, each as the text a recording holds: the rule, the subject, the key, the line and the character.
-pub(crate) fn base_rows(collected: &rows::types::Collector) -> Vec<Vec<String>> {
+pub(crate) fn base_rows(collected: &row_sink::types::Collector) -> Vec<Vec<String>> {
     std::mem::take(
         &mut *collected
             .0

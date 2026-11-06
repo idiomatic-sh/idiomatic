@@ -30,7 +30,7 @@ use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use ryo_derived::domain::contract::key::hash_key;
 use ryo_derived::domain::contract::types::{ChainLink, KeyIndex, On};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::rows::errors::TableModelError;
+use ryo_values::domain::rows::errors::RowsError;
 
 use ryo_values::domain::rows::service::{positions, push_row, reset, row_in};
 
@@ -177,15 +177,12 @@ pub(crate) fn compare_key(row: &[Value], on: On<'_>, key: &[Value]) -> Ordering 
 /// # Errors
 ///
 /// `NoSuchColumn` naming the first it lacks.
-pub(crate) fn check_columns(
-    kinds: &[CellKind],
-    columns: &[ColumnIndex],
-) -> Result<(), TableModelError> {
+pub(crate) fn check_columns(kinds: &[CellKind], columns: &[ColumnIndex]) -> Result<(), RowsError> {
     match columns
         .iter()
         .find(|column| usize::try_from(column.0).map_or(true, |place| place >= kinds.len()))
     {
-        Some(missing) => Err(TableModelError::NoSuchColumn { index: missing.0 }),
+        Some(missing) => Err(RowsError::NoSuchColumn { index: missing.0 }),
         None => Ok(()),
     }
 }

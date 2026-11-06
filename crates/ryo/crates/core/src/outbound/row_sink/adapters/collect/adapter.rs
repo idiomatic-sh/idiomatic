@@ -2,28 +2,28 @@
 
 use std::sync::PoisonError;
 
-use crate::outbound::rows::errors::RowsError;
-use crate::outbound::rows::interface::RowsPort;
-use crate::outbound::rows::types::{Collector, LentCell, Row, Summary};
+use crate::outbound::row_sink::errors::RowSinkError;
+use crate::outbound::row_sink::interface::RowSinkPort;
+use crate::outbound::row_sink::types::{Collector, LentCell, Row, Summary};
 use ryo_values::domain::plan_parts::types::Heading;
 use ryo_values::domain::records::service::owned;
 use ryo_values::domain::records::types::Unread;
 
 /// The collect rows adapter.
 #[derive(Debug)]
-pub(crate) struct RowsCollectAdapter {
+pub(crate) struct RowSinkCollectAdapter {
     /// Where the rows are kept so far, with the headings and the summary.
     into: Collector,
 }
 
-impl RowsCollectAdapter {
+impl RowSinkCollectAdapter {
     /// Keeps the rows it is given in `into`.
     pub(crate) const fn new(into: Collector) -> Self {
         Self { into }
     }
 }
 
-impl RowsPort for RowsCollectAdapter {
+impl RowSinkPort for RowSinkCollectAdapter {
     fn begin(&self, columns: &[Heading]) {
         self.into
             .0
@@ -42,7 +42,7 @@ impl RowsPort for RowsCollectAdapter {
             .push(row);
     }
 
-    fn end(&self, summary: Summary, unread: &[Unread]) -> Result<(), RowsError> {
+    fn end(&self, summary: Summary, unread: &[Unread]) -> Result<(), RowSinkError> {
         let mut held = self.into.0.lock().unwrap_or_else(PoisonError::into_inner);
         held.unread = unread.to_vec();
         held.summary = summary;

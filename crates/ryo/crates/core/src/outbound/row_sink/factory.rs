@@ -4,6 +4,8 @@
 
 /// The collect rows adapter: it keeps every row in `into`, for the caller to take after the run.
 #[must_use]
-pub fn collect(into: super::types::Collector) -> impl crate::outbound::rows::interface::RowsPort {
-    super::adapters::collect::adapter::RowsCollectAdapter::new(into)
+pub fn collect(
+    into: super::types::Collector,
+) -> impl crate::outbound::row_sink::interface::RowSinkPort {
+    super::adapters::collect::adapter::RowSinkCollectAdapter::new(into)
 }

@@ -11,7 +11,7 @@ use ryo_values::{
             ColumnIndex, HostedNumber, Input as PlanInput, RepeatedRows, StepId, StepScope,
         },
         plans::types::{Emit, Operation, Plan, PlanStep},
-        rows::errors::TableModelError,
+        rows::errors::RowsError,
     },
 };
 use std::borrow::Cow;
@@ -236,9 +236,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("project_refuses_its_missing_column"),
         word: Word::Refuses,
         input: || Scenario::ProjectMissing,
-        expect: Expect::Error(OperatingError::Table(TableModelError::NoSuchColumn {
-            index: 5,
-        })),
+        expect: Expect::Error(OperatingError::Table(RowsError::NoSuchColumn { index: 5 })),
     },
     Case {
         name: CaseName("union_keeps_exact_distinct_rows"),
@@ -292,9 +290,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("antijoin_refuses_exact_missing_key_column"),
         word: Word::Refuses,
         input: || Scenario::AntijoinColumn,
-        expect: Expect::Error(OperatingError::Table(TableModelError::NoSuchColumn {
-            index: 4,
-        })),
+        expect: Expect::Error(OperatingError::Table(RowsError::NoSuchColumn { index: 4 })),
     },
     Case {
         name: CaseName("a_key_the_right_holds_is_not_absent"),

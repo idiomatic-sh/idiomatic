@@ -8,7 +8,7 @@ use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
     plan_parts::types::HostedNumber,
     records::types::Cell as HostedCell,
-    rows::errors::TableModelError,
+    rows::errors::RowsError,
 };
 const SOURCE: &[u8] = b"replayed";
 fn files(count: u32) -> Table {
@@ -223,9 +223,7 @@ fn rows_the_real_computation_refuses_are_not_passed_on() {
     };
     assert!(matches!(
         project_into(99, &mut sink),
-        Err(OperatingError::Table(TableModelError::NoSuchColumn {
-            index: 99
-        }))
+        Err(OperatingError::Table(RowsError::NoSuchColumn { index: 99 }))
     ));
     assert_eq!(sink.calls, 0);
 }
@@ -364,9 +362,7 @@ fn a_key_no_row_has_finds_nothing() {
 fn a_join_row_without_its_key_column_is_refused() {
     assert!(matches!(
         indexed_join(1, 3),
-        Err(OperatingError::Table(TableModelError::NoSuchColumn {
-            index: 3
-        }))
+        Err(OperatingError::Table(RowsError::NoSuchColumn { index: 3 }))
     ));
 }
 #[test]

@@ -1,7 +1,7 @@
-//! What every `rows` adapter must pass.
+//! What every `row_sink` adapter must pass.
 
-use super::super::errors::RowsError;
-use super::super::interface::RowsPort;
+use super::super::errors::RowSinkError;
+use super::super::interface::RowSinkPort;
 use super::super::types::{LentCell, Summary};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_relations::domain::relations::types::{Offset, Span};
@@ -13,7 +13,7 @@ type Input = ();
 /// Whether the answer ended without a failure.
 type Value = bool;
 /// What a row of the contract expects when it is refused.
-type Failure = RowsError;
+type Failure = RowSinkError;
 
 /// The contract's rows: a name, one case word, an input and the expected value or error variant. Every implementation runs them.
 pub const CASES: &[Case<Input, Value, Failure>] = &[Case {
@@ -28,7 +28,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[Case {
 /// # Panics
 ///
 /// When the implementation breaks the contract.
-pub fn check(adapter: &impl RowsPort) {
+pub fn check(adapter: &impl RowSinkPort) {
     run(CASES, Word::Succeeds, |()| {
         adapter.begin(&[Heading("name".into()), Heading("span".into())]);
         let span = |start: u32, end: u32| {

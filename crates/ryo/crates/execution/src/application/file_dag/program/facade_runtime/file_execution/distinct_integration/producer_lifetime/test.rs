@@ -9,7 +9,7 @@ use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn},
 };
-use ryo_values::domain::rows::errors::TableModelError;
+use ryo_values::domain::rows::errors::RowsError;
 
 fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
     let skipped_at_start = matches!(final_consumer, FinalConsumer::SkippedAtStart);
@@ -188,7 +188,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
                 assert!(
                     matches!(
                         second.emit,
-                        RootOutcome::Failed(OperatingError::Table(TableModelError::NoSuchColumn {
+                        RootOutcome::Failed(OperatingError::Table(RowsError::NoSuchColumn {
                             index: 99
                         }))
                     ),
