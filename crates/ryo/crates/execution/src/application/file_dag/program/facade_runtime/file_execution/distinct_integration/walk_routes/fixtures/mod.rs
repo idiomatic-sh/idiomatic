@@ -30,6 +30,7 @@ pub(super) struct Program {
     intents: Vec<FileRuleIntent>,
     residency: Residency,
     columns: Vec<FactColumn>,
+    lines: Vec<FactColumn>,
     reads: AtomicUsize,
 }
 impl Program {
@@ -81,12 +82,21 @@ impl Program {
                     .collect(),
             ),
         ];
+        let lines = vec![
+            FactColumn(vec![to_bits(Cell::File(FileId(0))).0; rows.len()]),
+            FactColumn(
+                rows.iter()
+                    .map(|row| to_bits(Cell::Number(Integer(row[1]))).0)
+                    .collect(),
+            ),
+        ];
         Ok(Self {
             prepared,
             services,
             intents: authored.intents,
             residency,
             columns,
+            lines,
             reads: AtomicUsize::new(0),
         })
     }
@@ -108,12 +118,14 @@ impl Program {
     }
     pub(super) fn read(&self, relation: Relation) -> Result<Rows<'_>, OperatingError> {
         self.reads.fetch_add(1, Ordering::Relaxed);
-        if relation != Relation::LanguageTarget {
-            return Err(OperatingError::NotRead);
-        }
+        let columns = match relation {
+            Relation::LanguageTarget => &self.columns,
+            Relation::FilesystemLineCount => &self.lines,
+            _ => return Err(OperatingError::NotRead),
+        };
         Ok(Rows::Stored(ColumnsView {
             kinds: kinds(relation),
-            columns: &self.columns,
+            columns,
         }))
     }
     /// The source class of the rule's authored head, resolved from the prepared walk.
@@ -140,6 +152,12 @@ pub(super) fn demand() -> RuleDemand {
     RuleDemand {
         emit: EmitDemand::Enabled,
         observations: ObservationDemand::NotRequired,
+    }
+}
+pub(super) fn observed_demand() -> RuleDemand {
+    RuleDemand {
+        emit: EmitDemand::Enabled,
+        observations: ObservationDemand::Required,
     }
 }
 pub(super) fn cells(values: &[i64]) -> Vec<Cell> {

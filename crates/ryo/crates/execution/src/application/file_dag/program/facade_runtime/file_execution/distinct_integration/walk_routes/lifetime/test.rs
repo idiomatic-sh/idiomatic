@@ -4,7 +4,6 @@ use super::super::fixtures::plans::Authored;
 use super::super::fixtures::semantics::{BuildPolicy, Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, demand};
 use crate::application::file_dag::program::native_walk::RetainedBatches;
-
 fn program(residency: Residency) -> Program {
     Program::new(
         Authored::continuations(),

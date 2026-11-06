@@ -50,10 +50,13 @@ fn comparison(test: Test, number: Integer) -> Comparison {
     }
 }
 fn head(kept: Vec<ColumnIndex>, comparisons: Vec<Comparison>) -> Plan {
+    head_of(Relation::LanguageTarget, kept, comparisons)
+}
+fn head_of(relation: Relation, kept: Vec<ColumnIndex>, comparisons: Vec<Comparison>) -> Plan {
     plan(vec![PlanStep {
         scope: StepScope::PerFile,
         operation: Operation::Select {
-            from: PlanInput::Relation(Relation::LanguageTarget),
+            from: PlanInput::Relation(relation),
             comparisons,
             kept,
         },
@@ -78,7 +81,53 @@ fn collected() -> FileRuleIntent {
         capture: CaptureIntent::Disabled,
     }
 }
+/// The production intent shape of the one core caller: collected rows, required
+/// observations and frontier capture, so a rule owes two entry-point deliveries.
+fn captured() -> FileRuleIntent {
+    FileRuleIntent::Run {
+        diagnostic: DiagnosticDelivery::Collected,
+        observations: ObservationDemand::Required,
+        capture: CaptureIntent::Observations,
+    }
+}
 impl Authored {
+    /// Two rules sharing one class under the production intent shape.
+    pub(in super::super) fn captured() -> Self {
+        let plans = vec![
+            extended(ColumnIndex(2), Integer(7)),
+            extended(ColumnIndex(2), Integer(7)),
+        ];
+        Self {
+            rules: rules(&plans),
+            intents: vec![captured(); plans.len()],
+            plans,
+            observations: ObservationIdentity::Independent,
+        }
+    }
+    /// Two relations, two classes on the first (`> 1` and `> 2`) and one class on the
+    /// second (`> 1`) consumed by two rules: rules 0 and 1 read `LanguageTarget`,
+    /// rules 2 and 3 read `FilesystemLineCount`.
+    pub(in super::super) fn relations() -> Self {
+        let on = |relation, number| {
+            head_of(
+                relation,
+                vec![ColumnIndex(1)],
+                vec![comparison(Test::GreaterThan, Integer(number))],
+            )
+        };
+        let plans = vec![
+            on(Relation::LanguageTarget, 1),
+            on(Relation::LanguageTarget, 2),
+            on(Relation::FilesystemLineCount, 1),
+            on(Relation::FilesystemLineCount, 1),
+        ];
+        Self {
+            rules: rules(&plans),
+            intents: vec![collected(); plans.len()],
+            plans,
+            observations: ObservationIdentity::Independent,
+        }
+    }
     pub(in super::super) fn continuations() -> Self {
         let good = extended(ColumnIndex(2), Integer(7));
         let plans = vec![

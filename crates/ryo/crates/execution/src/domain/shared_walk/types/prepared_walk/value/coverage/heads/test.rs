@@ -1,7 +1,7 @@
 //! Expected eligibility never reads prepared classes, routes, census or trace events.
 use super::super::super::{PreparedWalk, WalkBarrier, WalkRoute};
 use super::super::fixtures::catalog::{CompiledCorpus, compiled};
-use super::service::{expected, supported_head};
+use super::{expected, supported_head};
 use crate::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::executable_program::types::ExecutableProgram,

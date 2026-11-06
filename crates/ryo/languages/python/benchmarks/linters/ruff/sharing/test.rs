@@ -16,6 +16,7 @@ fn subject(_: Input) -> Result<Value, Failure> {
     verify(observed.clone())?;
     // The trace dispatcher installs once per process, so both controls reuse this observation.
     let mut silent = observed.clone();
+    let mut single = observed.clone();
     let mut omitted = observed;
     assert!(
         omitted.dispatches.len() > 1,
@@ -37,6 +38,15 @@ fn subject(_: Input) -> Result<Value, Failure> {
     assert!(
         std::panic::catch_unwind(|| verify(silent)).is_err(),
         "a file generation with no dispatch must fail coverage"
+    );
+    // Cross-rule sharing comes from the compiled program's class membership: with every
+    // class reduced to one rule, verification must fail.
+    for rules in single.class_rules.values_mut() {
+        *rules = rules.iter().take(1).copied().collect();
+    }
+    assert!(
+        std::panic::catch_unwind(|| verify(single)).is_err(),
+        "a program in which no class is shared by two rules must fail coverage"
     );
     Ok(())
 }
@@ -201,6 +211,15 @@ fn verify(observed: Observation) -> Result<Value, Failure> {
         "every runtime-admitted physical head is served or explicitly representation-refused, independently of submission"
     );
     assert!(dispatched.len() > 1 && passes > 0 && rows > 0);
+    assert_eq!(
+        observed.class_rules.keys().collect::<Vec<_>>(),
+        observed.classes.keys().collect::<Vec<_>>(),
+        "every compiled class names the rules that share it"
+    );
+    assert!(
+        observed.class_rules.values().any(|rules| rules.len() > 1),
+        "at least one compiled class is shared by two or more rules"
+    );
     assert!(
         shared_cohort,
         "actual configured rules must share a source traversal across distinct classes"

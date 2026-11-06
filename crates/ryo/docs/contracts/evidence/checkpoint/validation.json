@@ -396,7 +396,31 @@
     "unread_rust": [],
     "note": "8 cycles, none under program/** or invocation/**"
   },
-  "evidence_reuse": [],
+  "evidence_reuse": [
+    {
+      "checks": [
+        "libraries",
+        "boundary",
+        "tm_guards",
+        "tm_source",
+        "tm_import_cli",
+        "tm_cli_source"
+      ],
+      "executed_source": "7bc0a25cc16a0bece5bb69238e4415bcfa922434",
+      "labelled_source": "29b1f027c42ab93eccbbde34d2ef9b11d5d90bdd",
+      "diff_proof": "git diff --stat 7bc0a25cc1 29b1f027c4: one file, crates/ryo/languages/python/benchmarks/linters/ruff/sharing/test.rs; 29b1f027c4..51aeb2cf4b touches only docs (3 files)",
+      "raw_identity": "/tmp/ryo-contract-validation312-20261106/identity.json"
+    },
+    {
+      "checks": [
+        "build",
+        "project_boundary"
+      ],
+      "executed_source": "4067e8e93a13ddc27672bd29c79ab7df11e692aa",
+      "labelled_source": "4067e8e93a13ddc27672bd29c79ab7df11e692aa",
+      "diff_proof": "git diff --stat 4067e8e93a 29b1f027c4 spans 2323 files; not re-executed at 312, so this reuse has no small-diff proof and is not claimed for 312"
+    }
+  ],
   "review": "../../audits/2026-11-06-derived/ownership/checkpoint.json",
   "new_performance_measurement": false,
   "validation": "313"

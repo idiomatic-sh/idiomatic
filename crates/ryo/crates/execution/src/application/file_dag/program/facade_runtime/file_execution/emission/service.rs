@@ -26,6 +26,9 @@ impl FileRun<'_> {
         ) -> Result<(), OperatingError>,
     ) -> Result<crate::application::file_dag::program::protocol::types::RowEmission, OperatingError>
     {
+        if self.declared(rule)?.diagnostic != DiagnosticDelivery::Forwarded {
+            return Err(OperatingError::NotRun);
+        }
         let emission = self.deliver_rows(rule, read, symbols, each);
         self.walk.delivered(self.program, rule);
         emission
@@ -40,9 +43,6 @@ impl FileRun<'_> {
         ) -> Result<(), OperatingError>,
     ) -> Result<crate::application::file_dag::program::protocol::types::RowEmission, OperatingError>
     {
-        if self.declared(rule)?.diagnostic != DiagnosticDelivery::Forwarded {
-            return Err(OperatingError::NotRun);
-        }
         let id = *self
             .program
             .program()

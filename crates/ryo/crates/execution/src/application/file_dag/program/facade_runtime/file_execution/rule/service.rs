@@ -26,6 +26,7 @@ use std::rc::Rc;
 
 impl FileRun<'_> {
     /// One delivery of the rule: whatever its outcome, the walk learns it is done.
+    /// A call this entry point refuses (not the declared delivery) is not a delivery.
     pub(crate) fn rule<'facts>(
         &mut self,
         rule: RuleIndex,
@@ -33,17 +34,12 @@ impl FileRun<'_> {
         read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
     ) -> Result<RuleOutcome, OperatingError> {
+        self.admit_rule(rule, demand)?;
         let outcome = self.deliver_rule(rule, demand, read, symbols);
         self.walk.delivered(self.program, rule);
         outcome
     }
-    fn deliver_rule<'facts>(
-        &mut self,
-        rule: RuleIndex,
-        demand: RuleDemand,
-        read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
-        symbols: &mut ryo_language::domain::symbols::types::Symbols,
-    ) -> Result<RuleOutcome, OperatingError> {
+    fn admit_rule(&self, rule: RuleIndex, demand: RuleDemand) -> Result<(), OperatingError> {
         let DeclaredIntent {
             diagnostic,
             observations,
@@ -57,6 +53,15 @@ impl FileRun<'_> {
         if (RuleDemand { emit, observations }) != demand {
             return Err(OperatingError::NotRun);
         }
+        Ok(())
+    }
+    fn deliver_rule<'facts>(
+        &mut self,
+        rule: RuleIndex,
+        demand: RuleDemand,
+        read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
+        symbols: &mut ryo_language::domain::symbols::types::Symbols,
+    ) -> Result<RuleOutcome, OperatingError> {
         let metadata = self.program.rule_metadata(rule)?;
         let owns_file_root = (demand.emit == EmitDemand::Enabled
             && metadata.emit_root.as_ref().is_ok_and(|id| {
