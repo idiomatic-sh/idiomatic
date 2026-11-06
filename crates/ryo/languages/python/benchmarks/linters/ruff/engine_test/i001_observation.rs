@@ -1,4 +1,12 @@
 //! Actual I001 suppression output and RUF100 readiness across project inventory changes.
+use super::constants::{
+    BENCHMARK_TOML, BENCHMARKS_LINTERS_RUFF, BROKEN_PY, CASE_PY, CODE, CONFIG_DISABLED,
+    CONFIG_EXTERNAL, CONFIG_SELECTED, DEF_BROKEN_NOQA_I001, DIRECTIVE, EMPTY, FILE, HIDDEN, I001,
+    IMPORT_A_IMPORT_B, IMPORT_B_IMPORT_A, IMPORT_LOCAL_IMPORT_NUMPY_NOQA_I00,
+    IMPORT_LOCAL_NOQA_I001_IMPORT_NUMP, INCOMING, LET_LOCATED_SELECT_L_DIRECTIVE_AS, LOCAL_PY,
+    NOQA_MATCHES, OTHER_PY, PREFIX, QUERY_MODULES, RUF100, RULES_I001_QUERY_RYOQL,
+    RULES_RUF100_QUERY_RYOQL, SUPPRESSION_MATCHES, TEST_HIDDEN, TEST_I001, TEST_RUF100, TEXT,
+};
 use super::*;
 use ryo::linter::{
     Cache, CaseSource, Cell, Corpus, ExecutablePermission, GivenProjectInventory, Glob, HostColumn,
@@ -13,10 +21,10 @@ use ryo::linter::{
 fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory() {
     let root = tempfile::tempdir().unwrap();
     let store = tempfile::tempdir().unwrap();
-    let authored = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("benchmarks/linters/ruff");
+    let authored = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(BENCHMARKS_LINTERS_RUFF);
     let profile: toml::Value =
-        toml::from_str(&std::fs::read_to_string(authored.join("benchmark.toml")).unwrap()).unwrap();
-    let modules = profile["query-modules"]
+        toml::from_str(&std::fs::read_to_string(authored.join(BENCHMARK_TOML)).unwrap()).unwrap();
+    let modules = profile[QUERY_MODULES]
         .as_table()
         .unwrap()
         .iter()
@@ -29,20 +37,20 @@ fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory
         })
         .collect::<Vec<_>>();
     let modules = ryo::query::QueryModuleCatalog::try_new(modules).unwrap();
-    let i001 = RuleId::try_from("I001").unwrap();
-    let ruf100 = RuleId::try_from("RUF100").unwrap();
-    let hidden = RuleId::try_from("HIDDEN").unwrap();
+    let i001 = RuleId::try_from(I001).unwrap();
+    let ruf100 = RuleId::try_from(RUF100).unwrap();
+    let hidden = RuleId::try_from(HIDDEN).unwrap();
     let columns = vec![
         ObservationColumn {
-            name: ObservationColumnName("directive".into()),
+            name: ObservationColumnName(DIRECTIVE.into()),
             kind: ObservationKind::Node,
         },
         ObservationColumn {
-            name: ObservationColumnName("file".into()),
+            name: ObservationColumnName(FILE.into()),
             kind: ObservationKind::File,
         },
         ObservationColumn {
-            name: ObservationColumnName("code".into()),
+            name: ObservationColumnName(CODE.into()),
             kind: ObservationKind::Symbol,
         },
     ];
@@ -52,7 +60,7 @@ fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory
             columns: columns.clone(),
             producers: vec![ObservationProducer::Output {
                 rule: i001.clone(),
-                output: ObservationName("noqa_matches".into()),
+                output: ObservationName(NOQA_MATCHES.into()),
             }],
         }]
     };
@@ -65,48 +73,48 @@ fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory
         exclude: Vec::new(),
     };
     let mut producer = rule(
-        "test/I001",
-        &std::fs::read_to_string(authored.join("rules/I001/query.ryoql")).unwrap(),
+        TEST_I001,
+        &std::fs::read_to_string(authored.join(RULES_I001_QUERY_RYOQL)).unwrap(),
         Vec::new(),
     );
-    producer.exclude.push(Glob::try_from("**").unwrap());
+    producer.exclude.push(Glob::try_from(TEXT).unwrap());
     let consumer = rule(
-        "test/RUF100",
-        &std::fs::read_to_string(authored.join("rules/RUF100/query.ryoql")).unwrap(),
-        binding("suppression_matches"),
+        TEST_RUF100,
+        &std::fs::read_to_string(authored.join(RULES_RUF100_QUERY_RYOQL)).unwrap(),
+        binding(SUPPRESSION_MATCHES),
     );
-    let hidden_query = "let located = select l.directive as id, l.file as file, r.span as span from incoming as l join \"source-location\" as r on l.directive = r.id and l.file = r.file; emit located subject file key(id);";
-    let hidden_consumer = rule("test/HIDDEN", hidden_query, binding("incoming"));
+    let hidden_query = LET_LOCATED_SELECT_L_DIRECTIVE_AS;
+    let hidden_consumer = rule(TEST_HIDDEN, hidden_query, binding(INCOMING));
     let hosted = vec![
         HostRelation {
-            name: HostRelationName("config.selected".into()),
+            name: HostRelationName(CONFIG_SELECTED.into()),
             columns: vec![HostColumn {
-                name: HostColumnName("code".into()),
+                name: HostColumnName(CODE.into()),
                 kind: HostKind::Text,
             }],
-            rows: ["I001", "RUF100", "HIDDEN"]
+            rows: [I001, RUF100, HIDDEN]
                 .into_iter()
                 .map(|code| HostRow(vec![Cell::Text(HostText(code.into()))]))
                 .collect(),
         },
         HostRelation {
-            name: HostRelationName("config.disabled".into()),
+            name: HostRelationName(CONFIG_DISABLED.into()),
             columns: vec![
                 HostColumn {
-                    name: HostColumnName("file".into()),
+                    name: HostColumnName(FILE.into()),
                     kind: HostKind::File,
                 },
                 HostColumn {
-                    name: HostColumnName("code".into()),
+                    name: HostColumnName(CODE.into()),
                     kind: HostKind::Text,
                 },
             ],
             rows: Vec::new(),
         },
         HostRelation {
-            name: HostRelationName("config.external".into()),
+            name: HostRelationName(CONFIG_EXTERNAL.into()),
             columns: vec![HostColumn {
-                name: HostColumnName("prefix".into()),
+                name: HostColumnName(PREFIX.into()),
                 kind: HostKind::Text,
             }],
             rows: Vec::new(),
@@ -122,23 +130,19 @@ fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory
     };
     let cached = engine(Cache::At(store.path().into()));
     for (source, first_line) in [
-        (
-            "import local  # noqa: I001\nimport numpy\nimport unresolved\n",
-            true,
-        ),
-        (
-            "import local\nimport numpy  # noqa: I001\nimport unresolved\n",
-            false,
-        ),
+        (IMPORT_LOCAL_NOQA_I001_IMPORT_NUMP, true),
+        (IMPORT_LOCAL_IMPORT_NUMPY_NOQA_I00, false),
     ] {
         for (phase, complete) in [true, true, false, false, true].into_iter().enumerate() {
             let request = LintRequest {
                 source_language: None,
                 root: root.path().into(),
-                project_search_scope: ProjectSearchScope::Declared(vec![RelativePath("".into())]),
+                project_search_scope: ProjectSearchScope::Declared(vec![RelativePath(
+                    EMPTY.into(),
+                )]),
                 given_project_inventory: GivenProjectInventory {
                     entries: vec![ProjectEntryObservation {
-                        path: RelativePath("local.py".into()),
+                        path: RelativePath(LOCAL_PY.into()),
                         state: ProjectEntryState::File,
                     }],
                     completeness: if complete {
@@ -148,7 +152,7 @@ fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory
                     },
                 },
                 corpus: Corpus::Given(vec![CaseSource {
-                    path: RelativePath("case.py".into()),
+                    path: RelativePath(CASE_PY.into()),
                     text: SourceText(source.into()),
                     executable: ExecutablePermission::Unknown,
                 }]),
@@ -195,8 +199,8 @@ fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory
                     unreachable!()
                 };
                 files.push(CaseSource {
-                    path: RelativePath("broken.py".into()),
-                    text: SourceText("def broken(  # noqa: I001\n".into()),
+                    path: RelativePath(BROKEN_PY.into()),
+                    text: SourceText(DEF_BROKEN_NOQA_I001.into()),
                     executable: ExecutablePermission::Unknown,
                 });
                 let fresh_mixed = lint_with(&engine(Cache::None), mixed_syntax.clone()).unwrap();
@@ -214,7 +218,7 @@ fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory
                             .filter(|finding| &finding.rule == rule
                                 && finding.subject
                                     == ryo::linter::Slot::Is(Cell::File(RelativePath(
-                                        "case.py".into()
+                                        CASE_PY.into()
                                     ))))
                             .count(),
                         expected,
@@ -225,7 +229,7 @@ fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory
                             .unknowns
                             .iter()
                             .any(|unknown| &unknown.rule == rule
-                                && unknown.path == RelativePath("case.py".into())),
+                                && unknown.path == RelativePath(CASE_PY.into())),
                         "one broken file cannot poison the valid named partition"
                     );
                     assert!(
@@ -233,7 +237,7 @@ fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory
                             .unknowns
                             .iter()
                             .any(|unknown| &unknown.rule == rule
-                                && unknown.path == RelativePath("broken.py".into())),
+                                && unknown.path == RelativePath(BROKEN_PY.into())),
                         "the incomplete partition remains explicitly Unknown"
                     );
                 }
@@ -244,13 +248,13 @@ fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory
                 // diagnostic Emit remains visible under the same rule.
                 let mut mixed = request;
                 mixed.rules.get_mut(&i001).unwrap().exclude =
-                    vec![Glob::try_from("case.py").unwrap()];
+                    vec![Glob::try_from(CASE_PY).unwrap()];
                 let Corpus::Given(files) = &mut mixed.corpus else {
                     unreachable!()
                 };
                 files.push(CaseSource {
-                    path: RelativePath("other.py".into()),
-                    text: SourceText("import b\nimport a\n".into()),
+                    path: RelativePath(OTHER_PY.into()),
+                    text: SourceText(IMPORT_B_IMPORT_A.into()),
                     executable: ExecutablePermission::Unknown,
                 });
                 let fresh_mixed = lint_with(&engine(Cache::None), mixed.clone()).unwrap();
@@ -283,7 +287,7 @@ fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory
                     let Corpus::Given(files) = &mut mixed.corpus else {
                         unreachable!()
                     };
-                    files[1].text = SourceText("import a\nimport b\n".into());
+                    files[1].text = SourceText(IMPORT_A_IMPORT_B.into());
                 }
                 let fresh_other_edit = lint_with(&engine(Cache::None), mixed.clone()).unwrap();
                 let warm_other_edit = lint_with(&cached, mixed.clone()).unwrap();
@@ -314,9 +318,7 @@ fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory
                     let Corpus::Given(files) = &mut mixed.corpus else {
                         unreachable!()
                     };
-                    files[0].text = SourceText(
-                        "import local\nimport numpy  # noqa: I001\nimport unresolved\n".into(),
-                    );
+                    files[0].text = SourceText(IMPORT_LOCAL_IMPORT_NUMPY_NOQA_I00.into());
                 }
                 let fresh_producer_edit = lint_with(&engine(Cache::None), mixed.clone()).unwrap();
                 let warm_producer_edit = lint_with(&cached, mixed).unwrap();

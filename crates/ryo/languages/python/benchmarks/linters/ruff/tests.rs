@@ -1,4 +1,5 @@
 //! Ruff boundary checks run without requiring an installed competitor.
+use self::engine_test::constants::{DIAGNOSTIC_RYO, DIAGNOSTIC_UNKNOWN, PROFILE_RYO, RUN_RYO};
 mod adapter;
 #[path = "adapter_test.rs"]
 mod adapter_test;
@@ -37,19 +38,16 @@ pub(crate) fn failure(
 fn worker_modes_are_explicit_and_keep_diagnostics_out_of_timed_run() {
     use diagnostic_protocol::{WorkerTracing, tracing_for_command};
 
+    assert_eq!(tracing_for_command(RUN_RYO), Some(WorkerTracing::Disabled));
     assert_eq!(
-        tracing_for_command("run-ryo"),
-        Some(WorkerTracing::Disabled)
-    );
-    assert_eq!(
-        tracing_for_command("profile-ryo"),
+        tracing_for_command(PROFILE_RYO),
         Some(WorkerTracing::Chrome)
     );
     assert_eq!(
-        tracing_for_command("diagnostic-ryo"),
+        tracing_for_command(DIAGNOSTIC_RYO),
         Some(WorkerTracing::JsonLines)
     );
-    assert_eq!(tracing_for_command("diagnostic-unknown"), None);
+    assert_eq!(tracing_for_command(DIAGNOSTIC_UNKNOWN), None);
 }
 
 mod host_policy;

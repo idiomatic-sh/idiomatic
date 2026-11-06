@@ -1,6 +1,13 @@
 //! Independent worker and fixture commands at the Cargo executable boundary.
 use super::super::{adapter::LinterRuffAdapter, settings::LinterRuffSettings};
 use super::constants;
+use super::constants::{
+    CASE_RECEIPT_DESTINATION_MUST_BE_N, CASE_SELECTION, CASE_SELECTION_MUST_BE_NONEMPTY_AN,
+    DUPLICATE_CASE_SELECTION_ARGUMENT, DUPLICATE_CASE_SHARD_ARGUMENT, EXPECTED_SHARD_INDEX_COUNT,
+    INVALID_CASE_SHARD_COUNT, INVALID_CASE_SHARD_INDEX, PINNED_REFERENCE_DOES_NOT_EVALUATE,
+    PYTHON_TARGET, SHARD, UNEXPECTED_TRAILING_WORKER_ARGUMEN, UNEXPECTED_VERIFY_CASES_ARGUMENT,
+    UNEXPECTED_WORKER_CONFIGURATION,
+};
 use super::diagnostic_protocol::WorkerTracing;
 use super::request_input::{BenchmarkArgument, worker_input};
 use ryo_benchmark::inbound::use_cases::audit::interface::AuditUseCase as _;
@@ -26,7 +33,7 @@ pub(super) fn worker(
     let input = worker_input(&mut args)?;
     let next_argument = args.next().map(|argument| argument.0);
     let (parser_configuration, trace_path) = match next_argument {
-        Some(configuration) if configuration.starts_with("python-target=") => {
+        Some(configuration) if configuration.starts_with(PYTHON_TARGET) => {
             let trace_path = if tracing == WorkerTracing::Disabled {
                 None
             } else {
@@ -39,14 +46,14 @@ pub(super) fn worker(
             (Some(configuration), trace_path)
         }
         Some(path) if tracing != WorkerTracing::Disabled => (None, Some(path)),
-        Some(_) => return Err(Error::Invalid("unexpected worker configuration".into())),
+        Some(_) => return Err(Error::Invalid(UNEXPECTED_WORKER_CONFIGURATION.into())),
         None if tracing != WorkerTracing::Disabled => {
             return Err(Error::Invalid(constants::MISSING_TRACE.into()));
         }
         None => (None, None),
     };
     if args.next().is_some() {
-        return Err(Error::Invalid("unexpected trailing worker argument".into()));
+        return Err(Error::Invalid(UNEXPECTED_TRAILING_WORKER_ARGUMEN.into()));
     }
     super::request_input::checked_worker_identity(&input, parser_configuration.as_deref())?;
     let target_version = parser_target(parser_configuration.as_deref())?;
@@ -115,17 +122,15 @@ pub(super) fn verify_cases(
             .strip_prefix(ryo_benchmark::outbound::inventory::types::CASE_RECEIPTS_ARGUMENT)
         {
             if path.is_empty() || case_receipts.replace(PathBuf::from(path)).is_some() {
-                return Err(Error::Invalid(
-                    "case receipt destination must be nonempty and supplied once".into(),
-                ));
+                return Err(Error::Invalid(CASE_RECEIPT_DESTINATION_MUST_BE_N.into()));
             }
-        } else if argument.0.starts_with("--shard=") {
+        } else if argument.0.starts_with(SHARD) {
             if shard.replace(parse_shard(&argument.0)?).is_some() {
-                return Err(Error::Invalid("duplicate case shard argument".into()));
+                return Err(Error::Invalid(DUPLICATE_CASE_SHARD_ARGUMENT.into()));
             }
-        } else if let Some(path) = argument.0.strip_prefix("--case-selection=") {
+        } else if let Some(path) = argument.0.strip_prefix(CASE_SELECTION) {
             if case_selection.is_some() {
-                return Err(Error::Invalid("duplicate case selection argument".into()));
+                return Err(Error::Invalid(DUPLICATE_CASE_SELECTION_ARGUMENT.into()));
             }
             let selected: Vec<String> = serde_json::from_slice(&std::fs::read(path)?)
                 .map_err(|error| Error::Invalid(error.to_string()))?;
@@ -134,13 +139,11 @@ pub(super) fn verify_cases(
                 .into_iter()
                 .collect::<std::collections::BTreeSet<_>>();
             if selected.is_empty() || selected.len() != selected_count {
-                return Err(Error::Invalid(
-                    "case selection must be nonempty and unique".into(),
-                ));
+                return Err(Error::Invalid(CASE_SELECTION_MUST_BE_NONEMPTY_AN.into()));
             }
             case_selection = Some(selected);
         } else {
-            return Err(Error::Invalid("unexpected verify-cases argument".into()));
+            return Err(Error::Invalid(UNEXPECTED_VERIFY_CASES_ARGUMENT.into()));
         }
     }
     let suite_source: Arc<dyn SuitePort> = match case_receipts {
@@ -214,17 +217,17 @@ fn parse_shard(
     value: &str,
 ) -> Result<ryo_benchmark_contracts::domain::requests::types::case_shard::value::CaseShard, Error> {
     let coordinates = value
-        .strip_prefix("--shard=")
-        .ok_or_else(|| Error::Invalid("expected --shard=INDEX/COUNT".into()))?;
+        .strip_prefix(SHARD)
+        .ok_or_else(|| Error::Invalid(EXPECTED_SHARD_INDEX_COUNT.into()))?;
     let (index, count) = coordinates
         .split_once('/')
-        .ok_or_else(|| Error::Invalid("expected --shard=INDEX/COUNT".into()))?;
+        .ok_or_else(|| Error::Invalid(EXPECTED_SHARD_INDEX_COUNT.into()))?;
     let index = index
         .parse()
-        .map_err(|_invalid_index| Error::Invalid("invalid case shard index".into()))?;
+        .map_err(|_invalid_index| Error::Invalid(INVALID_CASE_SHARD_INDEX.into()))?;
     let count = count
         .parse()
-        .map_err(|_invalid_count| Error::Invalid("invalid case shard count".into()))?;
+        .map_err(|_invalid_count| Error::Invalid(INVALID_CASE_SHARD_COUNT.into()))?;
     ryo_benchmark_contracts::domain::requests::types::case_shard::value::CaseShard::new(
         index, count,
     )
@@ -259,9 +262,7 @@ pub(super) fn verify_reference_cases(
 /// Compose the selected reference rule subset with its verified executable.
 pub(super) fn reference(executable: PathBuf, tool: Tool) -> Result<LinterRuffAdapter, Error> {
     if tool.file_observation.is_some() && !super::super::host::permission_checks_supported() {
-        return Err(Error::Invalid(
-            "pinned reference does not evaluate POSIX executable checks on this host".into(),
-        ));
+        return Err(Error::Invalid(PINNED_REFERENCE_DOES_NOT_EVALUATE.into()));
     }
     let target_version = ruff_target(tool.parser_configuration.as_deref())?.to_owned();
     Ok(LinterRuffAdapter::new(LinterRuffSettings {

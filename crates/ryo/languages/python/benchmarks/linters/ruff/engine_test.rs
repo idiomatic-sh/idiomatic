@@ -9,6 +9,8 @@ use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
 use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::collections::BTreeMap;
 
+pub(crate) mod constants;
+
 /// Reuse the production worker preparation boundary before exercising the SDK adapter.
 trait PreparedEngine: EnginePort {
     fn run_prepared(

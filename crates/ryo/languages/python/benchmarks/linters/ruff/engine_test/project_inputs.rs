@@ -1,4 +1,10 @@
 //! Authored project cases reach the SDK through the real suite and prepared worker boundaries.
+use super::constants::{
+    ALWAYS, BENCHMARK_TOML, BENCHMARKS_LINTERS_RUFF, CASES, CASES_NAME_EXPLICIT_PYTHON_UNRELAT,
+    CASES_TOML, EXPLICIT_PYTHON_UNRELATED_TOML_STI, INVALID_TOML_AND_INVALID_PYTHON,
+    OTHER_TOML_PYTHON_SOURCE_WITHOUT_M, PROFILE, PROFILES_RUF200_BENCHMARK_TOML, PYTHON,
+    PYTHON_TARGET_3_10, QUERY_RYOQL, RUF200, RULES, RULES_RUF200, UNKNOWN_EXTENSION_STILL_PYTHON,
+};
 use super::*;
 use ryo_benchmark::inbound::use_cases::prepare_cases::interface::PrepareCasesUseCase as _;
 use ryo_benchmark::outbound::suite::{factory as suite, types::ArtifactPath};
@@ -9,34 +15,32 @@ use std::collections::BTreeSet;
 #[test]
 fn listed_project_inputs_and_invalid_sources_keep_distinct_readers() -> Result<(), Error> {
     let scratch = tempfile::tempdir()?;
-    let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("benchmarks/linters/ruff");
-    let profile = scratch.path().join("profile");
-    let rules = profile.join("rules");
-    let rule = rules.join("RUF200");
+    let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(BENCHMARKS_LINTERS_RUFF);
+    let profile = scratch.path().join(PROFILE);
+    let rules = profile.join(RULES);
+    let rule = rules.join(RUF200);
     std::fs::create_dir_all(&rule)?;
     let _profile = std::fs::copy(
-        source.join("profiles/RUF200/benchmark.toml"),
-        profile.join("benchmark.toml"),
+        source.join(PROFILES_RUF200_BENCHMARK_TOML),
+        profile.join(BENCHMARK_TOML),
     )?;
-    for name in ["query.ryoql", "cases.toml"] {
-        let _source = std::fs::copy(source.join("rules/RUF200").join(name), rule.join(name))?;
+    for name in [QUERY_RYOQL, CASES_TOML] {
+        let _source = std::fs::copy(source.join(RULES_RUF200).join(name), rule.join(name))?;
     }
-    let cases_path = rule.join("cases.toml");
+    let cases_path = rule.join(CASES_TOML);
     let mut cases_text = std::fs::read_to_string(&cases_path)?;
-    cases_text.push_str(
-        "\n[[cases]]\nname = \"explicit-python-unrelated-toml-still-parses\"\ncomparison = \"full\"\nfiles = { \"other.toml\" = \"def broken(\\n\" }\ncontext = { logical-root = \"project\" }\nexpected = [{ rule = \"invalid-syntax\", file = \"other.toml\", start = 12, end = 12 }]\n",
-    );
+    cases_text.push_str(CASES_NAME_EXPLICIT_PYTHON_UNRELAT);
     std::fs::write(&cases_path, cases_text)?;
     let cases =
         ryo_benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
             &suite::local(),
         )
-        .prepare_cases(&rules, &scratch.path().join("cases"))?;
+        .prepare_cases(&rules, &scratch.path().join(CASES))?;
     let selected = [
-        "invalid-toml-and-invalid-python",
-        "other-toml-python-source-without-manifest-diagnostic",
-        "unknown-extension-still-python",
-        "explicit-python-unrelated-toml-still-parses",
+        INVALID_TOML_AND_INVALID_PYTHON,
+        OTHER_TOML_PYTHON_SOURCE_WITHOUT_M,
+        UNKNOWN_EXTENSION_STILL_PYTHON,
+        EXPLICIT_PYTHON_UNRELATED_TOML_STI,
     ];
     let mut seen = BTreeSet::new();
     let engine = factory::local_with_frontend_diagnostic(
@@ -51,7 +55,7 @@ fn listed_project_inputs_and_invalid_sources_keep_distinct_readers() -> Result<(
         let _new = seen.insert(case.name.0.as_ref());
         let report = engine.run_prepared(WorkerRequest {
             performance: Default::default(),
-            selected_rules: Some(vec![ryo::linter::RuleId::try_from("RUF200").unwrap()]),
+            selected_rules: Some(vec![ryo::linter::RuleId::try_from(RUF200).unwrap()]),
             rule_observations: None,
             rule_context: None,
             project_search_roots: None,
@@ -61,9 +65,9 @@ fn listed_project_inputs_and_invalid_sources_keep_distinct_readers() -> Result<(
             root: case.request.root.clone(),
             rules: rules.clone(),
             query_modules: BTreeMap::new(),
-            rule_applicability: BTreeMap::from([("RUF200".into(), "always".into())]),
-            parser_configuration: Some("python-target=3.10".into()),
-            source_language: Some("python".into()),
+            rule_applicability: BTreeMap::from([(RUF200.into(), ALWAYS.into())]),
+            parser_configuration: Some(PYTHON_TARGET_3_10.into()),
+            source_language: Some(PYTHON.into()),
             files: case.request.files.clone(),
             state: WorkerState::Fresh,
         })?;

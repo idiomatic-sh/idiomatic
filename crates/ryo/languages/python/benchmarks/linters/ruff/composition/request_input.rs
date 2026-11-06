@@ -1,5 +1,10 @@
 //! Parse the child's request transport without putting large JSON in argv.
 use super::constants;
+use super::constants::{
+    ACCEPTED_SYNTAX, ALWAYS, APPLICABILITY, PARSER_CONFIGURATION, RULE_APPLICABILITY,
+    RULES_DIRECTORY, WORKER_PARSER_CONFIGURATION_DIFFER, WORKER_REQUIRES_AN_EXPLICIT_SUPPOR,
+    WORKER_REQUIRES_EXPLICIT_SELECTED, WORKER_RULE_APPLICABILITY_DIFFERS,
+};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::PathBuf;
 
@@ -38,40 +43,32 @@ pub(super) fn checked_worker_identity(
 ) -> Result<(), Error> {
     let configuration = configuration
         .filter(|value| super::targets::resolve(Some(*value)).is_ok())
-        .ok_or_else(|| {
-            Error::Invalid("worker requires an explicit supported parser configuration".into())
-        })?;
+        .ok_or_else(|| Error::Invalid(WORKER_REQUIRES_AN_EXPLICIT_SUPPOR.into()))?;
     let request: serde_json::Value =
         serde_json::from_str(input).map_err(|error| Error::Invalid(error.to_string()))?;
     if request
-        .get("parser_configuration")
+        .get(PARSER_CONFIGURATION)
         .and_then(serde_json::Value::as_str)
         != Some(configuration)
     {
-        return Err(Error::Invalid(
-            "worker parser configuration differs from its profile identity".into(),
-        ));
+        return Err(Error::Invalid(WORKER_PARSER_CONFIGURATION_DIFFER.into()));
     }
     let applicability = request
-        .get("rule_applicability")
+        .get(RULE_APPLICABILITY)
         .and_then(serde_json::Value::as_object)
         .filter(|values| !values.is_empty())
-        .ok_or_else(|| {
-            Error::Invalid("worker requires explicit selected rule applicability".into())
-        })?;
+        .ok_or_else(|| Error::Invalid(WORKER_REQUIRES_EXPLICIT_SELECTED.into()))?;
     let registry: serde_json::Value =
         serde_json::from_str(include_str!("../profiles/pinned-rule-phases.json"))
             .map_err(|error| Error::Invalid(error.to_string()))?;
     for (rule, value) in applicability {
-        if !matches!(value.as_str(), Some("always" | "accepted-syntax"))
+        if !matches!(value.as_str(), Some(ALWAYS | ACCEPTED_SYNTAX))
             || registry
-                .get("rules")
+                .get(RULES_DIRECTORY)
                 .and_then(|rules| rules.get(rule))
-                .is_some_and(|canonical| canonical.get("applicability") != Some(value))
+                .is_some_and(|canonical| canonical.get(APPLICABILITY) != Some(value))
         {
-            return Err(Error::Invalid(
-                "worker rule applicability differs from the pinned phase policy".into(),
-            ));
+            return Err(Error::Invalid(WORKER_RULE_APPLICABILITY_DIFFERS.into()));
         }
     }
     Ok(())

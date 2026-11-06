@@ -119,3 +119,120 @@ pub(crate) const PATH_SEPARATOR: &str = ", ";
 
 /// Separator between explicit per-rule finding counts.
 pub(crate) const FINDING_SEPARATOR: &str = ", ";
+/// Text `unsupported worker command`.
+pub(crate) const UNSUPPORTED_WORKER_COMMAND: &str = "unsupported worker command";
+/// Text `--case-inventory=`.
+pub(crate) const CASE_INVENTORY: &str = "--case-inventory=";
+/// Text `canonical benchmark requires explicit...`.
+pub(crate) const CANONICAL_BENCHMARK_REQUIRES_EXPLI: &str =
+    "canonical benchmark requires explicit registered --case-inventory=PATH";
+/// Text `registered-case-results-`.
+pub(crate) const REGISTERED_CASE_RESULTS: &str = "registered-case-results-";
+/// Text `unexpected measurement argument`.
+pub(crate) const UNEXPECTED_MEASUREMENT_ARGUMENT: &str = "unexpected measurement argument";
+/// Text `python-target=`.
+pub(crate) const PYTHON_TARGET: &str = "python-target=";
+/// Text `unexpected worker configuration`.
+pub(crate) const UNEXPECTED_WORKER_CONFIGURATION: &str = "unexpected worker configuration";
+/// Text `unexpected trailing worker argument`.
+pub(crate) const UNEXPECTED_TRAILING_WORKER_ARGUMEN: &str = "unexpected trailing worker argument";
+/// Text `case receipt destination must be none...`.
+pub(crate) const CASE_RECEIPT_DESTINATION_MUST_BE_N: &str =
+    "case receipt destination must be nonempty and supplied once";
+/// Text `--shard=`.
+pub(crate) const SHARD: &str = "--shard=";
+/// Text `duplicate case shard argument`.
+pub(crate) const DUPLICATE_CASE_SHARD_ARGUMENT: &str = "duplicate case shard argument";
+/// Text `--case-selection=`.
+pub(crate) const CASE_SELECTION: &str = "--case-selection=";
+/// Text `duplicate case selection argument`.
+pub(crate) const DUPLICATE_CASE_SELECTION_ARGUMENT: &str = "duplicate case selection argument";
+/// Text `case selection must be nonempty and u...`.
+pub(crate) const CASE_SELECTION_MUST_BE_NONEMPTY_AN: &str =
+    "case selection must be nonempty and unique";
+/// Text `unexpected verify-cases argument`.
+pub(crate) const UNEXPECTED_VERIFY_CASES_ARGUMENT: &str = "unexpected verify-cases argument";
+/// Text `expected --shard=INDEX/COUNT`.
+pub(crate) const EXPECTED_SHARD_INDEX_COUNT: &str = "expected --shard=INDEX/COUNT";
+/// Text `invalid case shard index`.
+pub(crate) const INVALID_CASE_SHARD_INDEX: &str = "invalid case shard index";
+/// Text `invalid case shard count`.
+pub(crate) const INVALID_CASE_SHARD_COUNT: &str = "invalid case shard count";
+/// Text `pinned reference does not evaluate PO...`.
+pub(crate) const PINNED_REFERENCE_DOES_NOT_EVALUATE: &str =
+    "pinned reference does not evaluate POSIX executable checks on this host";
+/// Text `worker requires an explicit supported...`.
+pub(crate) const WORKER_REQUIRES_AN_EXPLICIT_SUPPOR: &str =
+    "worker requires an explicit supported parser configuration";
+/// Text `parser_configuration`.
+pub(crate) const PARSER_CONFIGURATION: &str = "parser_configuration";
+/// Text `worker parser configuration differs f...`.
+pub(crate) const WORKER_PARSER_CONFIGURATION_DIFFER: &str =
+    "worker parser configuration differs from its profile identity";
+/// Text `rule_applicability`.
+pub(crate) const RULE_APPLICABILITY: &str = "rule_applicability";
+/// Text `worker requires explicit selected rul...`.
+pub(crate) const WORKER_REQUIRES_EXPLICIT_SELECTED: &str =
+    "worker requires explicit selected rule applicability";
+/// Text `always`.
+pub(crate) const ALWAYS: &str = "always";
+/// Text `accepted-syntax`.
+pub(crate) const ACCEPTED_SYNTAX: &str = "accepted-syntax";
+/// Text `applicability`.
+pub(crate) const APPLICABILITY: &str = "applicability";
+/// Text `worker rule applicability differs fro...`.
+pub(crate) const WORKER_RULE_APPLICABILITY_DIFFERS: &str =
+    "worker rule applicability differs from the pinned phase policy";
+/// Text `python-target=3.7`.
+pub(crate) const PYTHON_TARGET_3_7: &str = "python-target=3.7";
+/// Text `py37`.
+pub(crate) const PY37: &str = "py37";
+/// Text `python-target=3.8`.
+pub(crate) const PYTHON_TARGET_3_8: &str = "python-target=3.8";
+/// Text `py38`.
+pub(crate) const PY38: &str = "py38";
+/// Text `python-target=3.9`.
+pub(crate) const PYTHON_TARGET_3_9: &str = "python-target=3.9";
+/// Text `py39`.
+pub(crate) const PY39: &str = "py39";
+/// Text `python-target=3.10`.
+pub(crate) const PYTHON_TARGET_3_10: &str = "python-target=3.10";
+/// Text `py310`.
+pub(crate) const PY310: &str = "py310";
+/// Text `python-target=3.11`.
+pub(crate) const PYTHON_TARGET_3_11: &str = "python-target=3.11";
+/// Text `py311`.
+pub(crate) const PY311: &str = "py311";
+/// Text `python-target=3.12`.
+pub(crate) const PYTHON_TARGET_3_12: &str = "python-target=3.12";
+/// Text `py312`.
+pub(crate) const PY312: &str = "py312";
+/// Text `python-target=3.13`.
+pub(crate) const PYTHON_TARGET_3_13: &str = "python-target=3.13";
+/// Text `py313`.
+pub(crate) const PY313: &str = "py313";
+/// Text `python-target=3.14`.
+pub(crate) const PYTHON_TARGET_3_14: &str = "python-target=3.14";
+/// Text `py314`.
+pub(crate) const PY314: &str = "py314";
+/// Text `python-target=3.15`.
+pub(crate) const PYTHON_TARGET_3_15: &str = "python-target=3.15";
+/// Text `py315`.
+pub(crate) const PY315: &str = "py315";
+/// Text `unsupported or missing Ruff parser co...`.
+pub(crate) const UNSUPPORTED_OR_MISSING_RUFF_PARSER: &str =
+    "unsupported or missing Ruff parser configuration";
+/// Text `explicit legacy target`.
+pub(crate) const EXPLICIT_LEGACY_TARGET: &str = "explicit legacy target";
+/// Text `explicit native annotation target`.
+pub(crate) const EXPLICIT_NATIVE_ANNOTATION_TARGET: &str = "explicit native annotation target";
+/// Text `python-target=latest`.
+pub(crate) const PYTHON_TARGET_LATEST: &str = "python-target=latest";
+/// Text `python-target=3.6`.
+pub(crate) const PYTHON_TARGET_3_6: &str = "python-target=3.6";
+/// Text `python-target=3.16`.
+pub(crate) const PYTHON_TARGET_3_16: &str = "python-target=3.16";
+/// Text `python-target=3.09`.
+pub(crate) const PYTHON_TARGET_3_09: &str = "python-target=3.09";
+/// Text `python-target=3.10 `.
+pub(crate) const PYTHON_TARGET_3_10_2: &str = "python-target=3.10 ";

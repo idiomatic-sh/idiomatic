@@ -1,4 +1,8 @@
 //! Python composition provides its linked language only at this outer edge.
+use self::constants::{
+    CANONICAL_BENCHMARK_REQUIRES_EXPLI, CASE_INVENTORY, REGISTERED_CASE_RESULTS,
+    UNEXPECTED_MEASUREMENT_ARGUMENT, UNSUPPORTED_WORKER_COMMAND,
+};
 use ryo_benchmark::inbound::use_cases::audit::interface::AuditUseCase as _;
 use ryo_benchmark::inbound::use_cases::stage_suite::interface::StageSuiteUseCase as _;
 mod commands;
@@ -49,7 +53,7 @@ pub(crate) fn run(
             commands::worker(
                 args.map(request_input::BenchmarkArgument),
                 diagnostic_protocol::tracing_for_command(command.as_deref().unwrap_or_default())
-                    .ok_or_else(|| Error::Invalid("unsupported worker command".into()))?,
+                    .ok_or_else(|| Error::Invalid(UNSUPPORTED_WORKER_COMMAND.into()))?,
             )
         }
         Some(constants::VERIFY_CASES) => {
@@ -110,11 +114,15 @@ pub(crate) fn run(
                 BenchmarkCoverage::Interim
             };
             let case_source = if scope == BenchmarkCoverage::Accounted {
-                let input=selection_or_inventory.as_deref().and_then(|s|s.strip_prefix("--case-inventory=")).filter(|s|!s.is_empty()).ok_or_else(||Error::Invalid("canonical benchmark requires explicit registered --case-inventory=PATH".into()))?;
+                let input = selection_or_inventory
+                    .as_deref()
+                    .and_then(|s| s.strip_prefix(CASE_INVENTORY))
+                    .filter(|s| !s.is_empty())
+                    .ok_or_else(|| Error::Invalid(CANONICAL_BENCHMARK_REQUIRES_EXPLI.into()))?;
                 ryo_benchmark_contracts::domain::requests::types::CertificationCases::Registered {
                     registration: std::path::PathBuf::from(input).canonicalize()?,
                     output: tempfile::Builder::new()
-                        .prefix("registered-case-results-")
+                        .prefix(REGISTERED_CASE_RESULTS)
                         .tempdir_in(&cache)?
                         .keep(),
                 }
@@ -131,7 +139,7 @@ pub(crate) fn run(
                 ryo_benchmark_contracts::domain::requests::types::CertificationCases::Profile
             };
             if args.next().is_some() {
-                return Err(Error::Invalid("unexpected measurement argument".into()));
+                return Err(Error::Invalid(UNEXPECTED_MEASUREMENT_ARGUMENT.into()));
             }
             if scope == BenchmarkCoverage::Accounted {
                 require_accounted(&audit, &tool)?;
