@@ -1,0 +1,383 @@
+{
+  "schema": "contract-review-verdict/v1",
+  "source": {
+    "base": "36b0cdbea124f493a0f45c75d89af0f7c037f8a4",
+    "head": "9dd131005ae477a021d3e25fe4836e6e64348139",
+    "tree": "fb386ca357d26d4f42bdeac073f8fbb3522d1eb3",
+    "worktree": "/tmp/ryo-admitted-walk-work-20261105",
+    "status_during_opus_before": "clean",
+    "status_during_opus_after": "clean",
+    "subsequent_integrator_head": "7752021acd629a408c7e4a996350704ea8bde291",
+    "binding_note": "Opus finished on unchanged9dd. Root subsequently integrated fixture-only repairs; later lead reads explicitly used git show9dd. No successor is approved by this review."
+  },
+  "verdict": "blocking",
+  "axes": {
+    "enforced_boundaries": "FAIL",
+    "clear_ownership_and_flow": "FAIL",
+    "proof": "FAIL"
+  },
+  "reviewers": {
+    "lead": {
+      "model": "gpt-6-astra",
+      "agent": "/root/ownership_review_astra",
+      "round_uuid": "dcaa46b9-bb26-4212-91d9-0b6aeb4cfe33"
+    },
+    "independent": {
+      "model": [
+        "claude-opus-5-5"
+      ],
+      "session": "a810a5aa-f1ef-4428-bf1f-624ed4b791b2",
+      "round_uuid": "01bb7bdc-e4d1-4fe3-904c-0b6b1752085c",
+      "exit": 0,
+      "source_before": "9dd131005ae477a021d3e25fe4836e6e64348139",
+      "source_after": "9dd131005ae477a021d3e25fe4836e6e64348139",
+      "command_metadata": "/tmp/ryo-derived-review-opus-9dd1/metadata.json",
+      "raw_result": "/tmp/ryo-derived-review-opus-9dd1/raw.json",
+      "raw_sha256": "ecb51a9eb2566e9491819b98bc0754631a69f27e869f12d81b6516809c733903",
+      "verdict": "/tmp/ryo-derived-review-opus-9dd1/verdict.json"
+    }
+  },
+  "scope": {
+    "included": [
+      "DG1 complete raw storage/graph handle/consumer repair",
+      "Held immutable reads, new stale/foreign demands, Axis parent identity and compiler probe harness",
+      "B4b.1 sealed core original declaration, actual production callers and bypass guard",
+      "Pre-callback runtime walk obligations, independent five-head oracle, omitted submission control, observation census and generic profile completeness"
+    ],
+    "excluded": [
+      "Whole phase/category approval",
+      "Performance acceptance; user-authorized one directional measurement is outside this review",
+      "New performance fixes",
+      "Broad documentation polish or re-investigation of known global TM/output failures"
+    ]
+  },
+  "findings": [
+    {
+      "id": "BUILD-299",
+      "severity": "blocking",
+      "family": "Combined execution proof unavailable",
+      "matrix_rows": [
+        "B4b.1",
+        "B4b.4",
+        "B4b.5",
+        "B4b.10",
+        "D2",
+        "D4",
+        "D7",
+        "P3.12"
+      ],
+      "anchors": [
+        "crates/ryo/crates/core/src/application/cross_file/preparation/fixtures/mod.rs:39",
+        "crates/ryo/crates/core/src/application/cross_file/preparation/fixtures/mod.rs:58",
+        "crates/ryo/crates/core/src/application/cross_file/preparation/fixtures/mod.rs:59",
+        "crates/ryo/crates/core/src/application/cross_file/preparation/fixtures/mod.rs:61",
+        "crates/ryo/crates/core/src/application/cross_file/preparation/fixtures/mod.rs:70"
+      ],
+      "failure": "Exact9dd combined build fails on five core lib-test diagnostics: fixture relative imports resolve outside preparation; ReadinessCounts type path is absent; BatchPreparationError path is wrong; ExecutionRequest trait is missing for project_phase. No production compiler error is reported. This does not establish any runtime or compiler-negative suite result.",
+      "falsifier": "/tmp/ryo-contract-validation299-20261106/build.log lines16610\u201317147; build.json exit101 after68.1092700958252s.",
+      "required_proof": "Repair the fixture cohort, then execute combined runtime, execution source-boundary, core project-batch boundary, benchmark schema, and actual413 suites on the next exact source. Preserve all assertions and privacy.",
+      "owner": "root and phase2_route_proofs; source-only successor repair reported, not9dd acceptance"
+    },
+    {
+      "id": "B4B1-ENTRY",
+      "severity": "blocking",
+      "family": "Core project entry bypasses mandatory sealed adapter",
+      "matrix_rows": [
+        "B4b.1",
+        "B4b.4",
+        "B4b.5"
+      ],
+      "anchors": [
+        "crates/ryo/tastemaker/rules/project-batch-owner/0.1.0/rule.toml:7",
+        "crates/ryo/tastemaker/rules/project-batch-owner/0.1.0/rule.toml:10",
+        "crates/ryo/crates/execution/src/inbound/use_cases/execution/use_case.rs:144",
+        "crates/ryo/crates/execution/src/inbound/use_cases/execution/use_case.rs:241",
+        "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/project_execution.rs:319"
+      ],
+      "failure": "The new project-batch-owner guard recognizes only static evaluate calls. Core has callable public ExecutionRequest::open_project and ProjectExecution::rule, which reach ProjectRun::rule and deliver without SealedBatch. Thus core production can execute one root during preparation before the declared batch is sealed.",
+      "falsifier": "Add a core production helper importing ExecutionRequest and ProjectExecution: let mut session = request.open_project(input, symbols)?; session.rule(rule, demand, symbols). Existing preparation has request/scope/frontier resources. These calls are legal public Rust; the guard produces no evaluate-match. This is a source-level callable bypass, not a claim that current ordinary/named callers already use it.",
+      "required_proof": "Guard the whole core project-entry family, including open_project, preexisting ProjectSession.rule, direct evaluate, aliases, qualified calls and newly added modules. Keep external SDK singleton use and legitimate core FileExecution.rule legal. Validate bad/good source scenarios; run real probes and complete batch controls.",
+      "owner": "phase2_route_proofs; follow-up guard assigned outside this reviewed source"
+    },
+    {
+      "id": "STRUCTURAL-ACCEPTANCE",
+      "severity": "blocking",
+      "family": "Unresolved in-scope structural evidence",
+      "matrix_rows": [
+        "P3.11",
+        "D2",
+        "D4",
+        "D7",
+        "B4b.1"
+      ],
+      "failure": "Recorded source-author scopes remain graph142 findings, integration repair19, walk102, zero suppressed. New core preparation/proof scope is0 and its existing guard scenarios validate, but those scenarios omit B4B1-ENTRY. The scopes differ and cannot be summed or treated as a combined pass.",
+      "required_proof": "Resolve or explicitly narrow remaining structural acceptance and validate the strengthened guard with actual source checks. No claim that these known residual counts are new review discoveries.",
+      "owner": "respective source owners and integrator"
+    }
+  ],
+  "dispositions": [
+    {
+      "id": "D4-RAW/DG-1",
+      "status": "source_repaired_proof_open",
+      "matrix_rows": [
+        "D2",
+        "D3",
+        "D4",
+        "D7"
+      ],
+      "basis": [
+        "Raw storage view/payload/accessors and retained cache fields now live behind derived::owner visibility.",
+        "GraphHandle/DomainHandle fields are private; graph() exposes non-Clone CompactGraph by borrow and members() exposes a slice.",
+        "DemandAnswers consumes issued handles and validates live owner and exact parent storage before new graph work.",
+        "Selection publication completes in the owner and returns a leased publication; raw graph/domain Arc getters remain owner-private."
+      ],
+      "required_proof": "70 execution source probes and real graph/selection/Axis/lifetime suites are unexecuted299; historical36b passes cannot prove changed postimages."
+    },
+    {
+      "id": "D4-LIFE",
+      "status": "source_repaired_proof_open",
+      "basis": "AcquiredView.view no longer rejects retired generation, while validate_owner/AcquisitionOrigin.validate retain live owner checks for new dependent acquisition. New graph-retirement test asserts lawful held reads and refused fresh demand.",
+      "required_proof": "Run held equality, graph retirement, foreign-owner/parent and real Axis controls."
+    },
+    {
+      "id": "AXIS-PARENT",
+      "status": "source_repaired_proof_open",
+      "basis": "Removed the mismatched GraphInput generation token comparison; retained parent origin live identity comparison and actual graph storage identity in admit_domain/domain handle. Source coherence accepted, actual failing Axis route outcome remains unproven."
+    },
+    {
+      "id": "ISSUER-PROOF",
+      "status": "source_repaired_proof_open",
+      "basis": "Probe helpers now have concrete uses. Authoritative source inventory is70 execution probes:46runtime/admission+24derived;14positive+56negative. Core adds8sealing probes:3positive+5negative. All78 are authored, not executed on299."
+    },
+    {
+      "id": "P3-CENSUS",
+      "status": "source_repaired_proof_open",
+      "basis": "Barrier classification now reads resolved region.inputs, preserving observation origin after BoundObservation normalization. Physical total includes synthetic IDs; exact two unions plus two consumers expectation retained.",
+      "required_proof": "Execute real named observation census and catalog coverage controls."
+    },
+    {
+      "id": "P3-RUNTIME-PROOF",
+      "status": "source_repaired_proof_open",
+      "basis": [
+        "Runtime emits the obligation after mandatory admission/schema but before ready callback, selected by actual PerFile/File-partition direct relation Select or kept-Project shape, independent of walk_class.",
+        "Separate compiled physical-head\u2192class mapping fails missing mappings. Expected identity includes active generation, population and class; equivalent heads deduplicate only after physical IDs are checked.",
+        "Actual omitted-callback wrapper delegates all other KernelSession behavior; five independently compiled demanded emit-root IDs must exactly equal readiness head IDs.",
+        "Representation refusals originate only from actual source admission or semantic geometry guard; missing dispatch is not inferred as refusal."
+      ],
+      "limits": "Actual413 reached-head coverage on one small corpus, not a proof that dormant configured classes execute or all binding/predicate cases are independently correct. Generation pointer is diagnostic correlation within the active owner, not globally unique authority. Controls unrun299."
+    },
+    {
+      "id": "PROFILE-COMPLETENESS",
+      "status": "source_repaired_proof_open",
+      "basis": "Generic profile conversion now requires a nonempty explicit applicability map to cover both defaults and supporting rules; Ruff supplies missing supporting policies. Source tests include selected omission and supporting omission.",
+      "required_proof": "Run benchmark schema tests and actual413 production RunRyoUseCase path;299 proves no runtime success."
+    },
+    {
+      "id": "B4B1-SEAL",
+      "status": "bounded_source_accepted_proof_open",
+      "basis": "Preparation privately captures ordinary todo or named selected occurrences before its preparation closure; prepare_all accounts every captured occurrence and seal cannot issue with Pending slots. CrossFile.evaluate_batch requires sealed input and carries exact preparation failures. Actual ordinary caller supplies full current todo; named caller supplies current compiler batch and selected run.todo.",
+      "limits": "Completeness is relative to the supplied declaration. Constructors accept arbitrary slices; no engine-issued proof establishes all upstream requested work. Test-only pending-slot omissions prove post-capture accounting only. Runtime13cases and8compiler probes remain unrun."
+    },
+    {
+      "id": "OPUS-B4B1-INV",
+      "status": "narrowed_to_evidence_limit",
+      "reason": "Opus alleges upstream filtering can omit demanded roots but identifies no actual incorrect production selection. Legitimate reuse path lint/use_case.rs1226 filters todo to rules requiring rerun after appending stored results; named batches intentionally intersect selected todo. Requiring every compiled project root would exceed intended work. Do not present supplied-slice completeness as global inventory proof; retain the precise B4B1-ENTRY bypass as actionable blocker."
+    },
+    {
+      "id": "PR-1-OLD",
+      "status": "rejected",
+      "reason": "Retained Opus retracts old inference that dead_code meant unauthorized construction compiled; private runtime/service issuer fields remain the actual source boundary."
+    },
+    {
+      "id": "P3-2-OLD",
+      "status": "rejected",
+      "reason": "No new reachable invalid-Project bypass; prior runtime schema/bounds disposition stands."
+    }
+  ],
+  "inventory": {
+    "derived_kinds": [
+      "Equality",
+      "PredicateMatches",
+      "CandidatePostings",
+      "DistinctRepresentatives",
+      "Adjacency",
+      "Membership",
+      "PartitionOrder",
+      "ClosureAdjacency",
+      "CycleAdjacency",
+      "OrderedKeys",
+      "OrderedDfs",
+      "NativeLookup",
+      "RawKeyOrder"
+    ],
+    "execution_probes": {
+      "total": 70,
+      "runtime_admission": 46,
+      "derived": 24,
+      "positive": 14,
+      "negative": 56,
+      "executed299": 0
+    },
+    "core_batch_probes": {
+      "total": 8,
+      "positive": 3,
+      "negative": 5,
+      "executed299": 0
+    },
+    "core_batch_behavior_cases": 13,
+    "runtime_coverage_controls": [
+      "five independently compiled physical emit roots",
+      "valid ready submission and equivalent-head replay",
+      "one actual ready callback deliberately omitted with other dispatches retained"
+    ],
+    "all_execution_claims": "Authored/unrun on299 because combined build gate failed."
+  },
+  "validation299": {
+    "source": "9dd131005ae477a021d3e25fe4836e6e64348139",
+    "build_exit": 101,
+    "elapsed_seconds": 68.1092700958252,
+    "diagnostic_count": 5,
+    "diagnostic_scope": "core preparation test fixture only; no production diagnostic",
+    "runtime": "not executed after failed combined build",
+    "artifacts": {
+      "identity.json": {
+        "path": "/tmp/ryo-contract-validation299-20261106/identity.json",
+        "sha256": "ee1fd5f1b092a11150f632a31bb588cd61910cca219f9528dd9032ea488378bf"
+      },
+      "commands.json": {
+        "path": "/tmp/ryo-contract-validation299-20261106/commands.json",
+        "sha256": "8593bb229505af0b090013af06064a86b1b476bdd3693f698082536c2be3ce1b"
+      },
+      "build.json": {
+        "path": "/tmp/ryo-contract-validation299-20261106/build.json",
+        "sha256": "5a02dc4e1ee7440d4e906169f0db6b4b4bd275a2d9a42172dba110b07397384e"
+      },
+      "build.log": {
+        "path": "/tmp/ryo-contract-validation299-20261106/build.log",
+        "sha256": "a6ada4a206f9676f2d5358c41dca6ba3ff1f2c758db4b2af04b64c942476f330"
+      }
+    }
+  },
+  "author_evidence": {
+    "/tmp/ryo-phase4-graph-final-tm-20261106.json": {
+      "sha256": "ea77ef0eb8d7258a4078f825e1881c7043829b98f92b8b22f85d787a8b6becd0",
+      "scope": "source-author receipt; does not replace current runtime proof"
+    },
+    "/tmp/ryo-phase4-298-repairs-tm-20261106.json": {
+      "sha256": "ea3397a4ef9b639360b1eeb64ecf26fc1a572a4367d4a4193d2bcaf3f275b8b3",
+      "scope": "source-author receipt; does not replace current runtime proof"
+    },
+    "/tmp/ryo-walk-ready-coverage-evidence-20261106/receipt.json": {
+      "sha256": "4341441eebc1db4efd4ce9f03c6980f3dda6c27f096e76ffdc30490ee5ba2568",
+      "scope": "source-author receipt; does not replace current runtime proof"
+    },
+    "/tmp/ryo-sealed-project-batch-evidence.json": {
+      "sha256": "cf17b22efbe869229325e574287e2517da72aed42b20c8ce2fbf8ae7a91fe3ae",
+      "scope": "source-author receipt; does not replace current runtime proof"
+    }
+  },
+  "file_postimages": {
+    "core_seal": {
+      "path": "crates/ryo/crates/core/src/application/cross_file/preparation/service.rs",
+      "sha256": "8ead540c1df6b1b62f3545a033102359cf719c3b738a8d9707c05ee6a8454e0d",
+      "read_from_commit": "9dd131005ae477a021d3e25fe4836e6e64348139"
+    },
+    "core_adapter": {
+      "path": "crates/ryo/crates/core/src/application/cross_file/service.rs",
+      "sha256": "a9ff1b9efb4f67e5f32bc112945920be1caa8eed6e845e0145c58b214da906b8",
+      "read_from_commit": "9dd131005ae477a021d3e25fe4836e6e64348139"
+    },
+    "core_fixture": {
+      "path": "crates/ryo/crates/core/src/application/cross_file/preparation/fixtures/mod.rs",
+      "sha256": "6620ee56dd44fc4ca8bee664654c0e6b9492254e2f03099c96349069b193739e",
+      "read_from_commit": "9dd131005ae477a021d3e25fe4836e6e64348139"
+    },
+    "ordinary": {
+      "path": "crates/ryo/crates/core/src/inbound/use_cases/lint/use_case.rs",
+      "sha256": "5ec6dd35128625664a01bde3ccf315df629be0d35d3a1748a4bd0eb098417270",
+      "read_from_commit": "9dd131005ae477a021d3e25fe4836e6e64348139"
+    },
+    "named": {
+      "path": "crates/ryo/crates/core/src/application/cross_file/coordinator.rs",
+      "sha256": "70385df9e186dc3fe26db4f8dd654b930a81942d79758ea538f16d0b9db0b739",
+      "read_from_commit": "9dd131005ae477a021d3e25fe4836e6e64348139"
+    },
+    "guard": {
+      "path": "crates/ryo/tastemaker/rules/project-batch-owner/0.1.0/rule.toml",
+      "sha256": "e6b882268e57f758f16f8397a2793fcf1b19b1b4764e7bddb116936966b46ca5",
+      "read_from_commit": "9dd131005ae477a021d3e25fe4836e6e64348139"
+    },
+    "public_entry": {
+      "path": "crates/ryo/crates/execution/src/inbound/use_cases/execution/use_case.rs",
+      "sha256": "6d2fd18cea4b005142162b2ea4f9d065ee98f3c83db10eb5f59a590a0bce5fc2",
+      "read_from_commit": "9dd131005ae477a021d3e25fe4836e6e64348139"
+    },
+    "project_entry": {
+      "path": "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/project_execution.rs",
+      "sha256": "0aac50018de5ce3c6a7f2c99306b851a967c04a638c94b558c3eb9d4a78694bb",
+      "read_from_commit": "9dd131005ae477a021d3e25fe4836e6e64348139"
+    },
+    "view": {
+      "path": "crates/ryo/crates/execution/src/application/file_dag/derived/owner/acquisition/admission/service.rs",
+      "sha256": "0014d919ca2b4debb95533d081bde4cd9da36fef34523c932b57f3cf652c4f0b",
+      "read_from_commit": "9dd131005ae477a021d3e25fe4836e6e64348139"
+    },
+    "storage": {
+      "path": "crates/ryo/crates/execution/src/application/file_dag/derived/owner/acquisition/semantics/service.rs",
+      "sha256": "6a6f55dfccbeb73063de092b7c50fea73d2f19a0230427127892fe138bee436f",
+      "read_from_commit": "9dd131005ae477a021d3e25fe4836e6e64348139"
+    },
+    "handles": {
+      "path": "crates/ryo/crates/execution/src/application/file_dag/derived/owner/graphs/types/handles/service.rs",
+      "sha256": "79919a1116e7ec8ccbe30bbbdac4f3267985dac6f38aa821d5f479c93d96bad6",
+      "read_from_commit": "9dd131005ae477a021d3e25fe4836e6e64348139"
+    },
+    "answers": {
+      "path": "crates/ryo/crates/execution/src/application/file_dag/derived/owner/graphs/types/roots/value.rs",
+      "sha256": "0c875a46e46e33651c104d034cfd37392eb00f3b4b0425be980bbf6b0ffe3b56",
+      "read_from_commit": "9dd131005ae477a021d3e25fe4836e6e64348139"
+    },
+    "runtime": {
+      "path": "crates/ryo/crates/execution/src/application/file_dag/program/runtime/service.rs",
+      "sha256": "8e36db07de58b2e7ec58345eaf6c1e4303563ac02740f9ed8d7a2e2ae0901280",
+      "read_from_commit": "9dd131005ae477a021d3e25fe4836e6e64348139"
+    },
+    "walk": {
+      "path": "crates/ryo/crates/execution/src/application/file_dag/program/native_walk.rs",
+      "sha256": "1d20794da137a799c43373f42f13fcc20fd63a4087edb9a86b51ee8338b58318",
+      "read_from_commit": "9dd131005ae477a021d3e25fe4836e6e64348139"
+    },
+    "walk_fixture": {
+      "path": "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/readiness/fixtures/mod.rs",
+      "sha256": "89a5a5a64039bf3dd3c97a866815f0c2c22cc9b76ad11975d0ffe6f78833cd75",
+      "read_from_commit": "9dd131005ae477a021d3e25fe4836e6e64348139"
+    },
+    "census": {
+      "path": "crates/ryo/crates/execution/src/domain/shared_walk/types/prepared_walk/value.rs",
+      "sha256": "75617f23e702642b3b8d1ec83bf0ddbec96a9075c8c57754115d81c5dab405e2",
+      "read_from_commit": "9dd131005ae477a021d3e25fe4836e6e64348139"
+    },
+    "sharing": {
+      "path": "crates/ryo/languages/python/benchmarks/linters/ruff/sharing/test.rs",
+      "sha256": "96f675a8534025510f9b7c9c124dce634c0eae99c6fe435206c811ae2594c74b",
+      "read_from_commit": "9dd131005ae477a021d3e25fe4836e6e64348139"
+    },
+    "profile": {
+      "path": "crates/ryo/crates/benchmark/src/outbound/suite/adapters/local/schemas.rs",
+      "sha256": "616be41c439ccd7635ef5195b9e5f9e60bec7568f09af6807bac1d15e82fc6ee",
+      "read_from_commit": "9dd131005ae477a021d3e25fe4836e6e64348139"
+    }
+  },
+  "manual_judgment": [
+    "Upstream work selection remains outside the supplied-declaration seal guarantee; current ordinary and named callsites were traced without finding an actual missing selected rule.",
+    "TM cannot infer arbitrary receiver/macro flows; guard scope and passing/failing examples must be explicit.",
+    "The derived owner subtree remains the trusted internal implementation boundary; no claim that its own implementation cannot access raw backing."
+  ],
+  "limits": [
+    "No build, test, TM, repository edit or measurement performed by either reviewer.",
+    "Normal CI review validator is ci/contract_review/command.py; this reviewer did not execute governance acceptance.",
+    "No whole phase/category approval.",
+    "Future fixture/guard repairs and validation300 are outside this exact9dd verdict."
+  ],
+  "completed_at": "2026-11-06T03:12:43.564630+00:00"
+}

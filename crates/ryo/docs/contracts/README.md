@@ -18,7 +18,7 @@ The bounded 2/3 overlap keeps shared-walk work moving while scheduling finishes 
 
 - [413-rule CI fixtures](https://github.com/idiomatic-sh/idiomatic/actions/runs/42116738222/job/127558257740): 413 PASS / 0 FAIL on older public `3cd3249a2`, 11,185 cases. This is not proof of the current unmerged engine or Django.
 - Latest full Django256: **failed**, 2,986.06 seconds / 6.009 GB / 2,880 unknowns. Rust guards remain unverified.
-- [Last diagnostic comparison](evidence/phase2-scheduling/measurements.json): one valid file/all413, identical complete outputs, but wall 10.024 → 15.708 seconds and peak 1.224 → 1.329 GB. Cause unproven; further measurement is deferred.
+- [Last diagnostic comparison](evidence/phase2-scheduling/measurements.json): one valid file/all413, identical complete outputs, but wall 10.024 → 15.708 seconds and peak 1.224 → 1.329 GB. Cause unproven; retained as historical evidence, not a comparator for the new singleton checkpoint.
 - Historical diagnostics: [query catalogs](evidence/query-catalog/measurements.json), [shared positions](evidence/shared-positions/measurements.json). Different source/scope; do not pool results.
 - Full-product TM on public `3cd3249a2`: 10,208 findings. Scoped276 on `d8d7c637ad`: 511 findings, zero suppressed. These scopes are not comparable. Runtime-authority scenarios pass; full enforcement does not.
 
@@ -26,34 +26,38 @@ The bounded 2/3 overlap keeps shared-walk work moving while scheduling finishes 
 - [ ] Phase 6: restore exact frontier proofs and configuration invalidation in the deferred storage/replay controls.
 - [ ] Phase 7: repair benchmark scratch asset-version selection and obtain valid Rust, full-Django and source-bound review results.
 
-### Current work by phase — combined source `c7fdb6589`, validation298
+### Current work by phase — source `7752021acd`, validation300
 
-**Build failed:** 10 compiler diagnostics in 5.09 seconds; runtime suites did not run. Nine concern remaining derived-owner callers, private re-exports and test placement; one is a moved observation-test inventory (source repaired in `21ec1b311`). Repair the complete batch before rebuilding. No new timing result. Behavioral results below remain historical validation297 on `36b0cdbea`.
+**Build passes.** Execution: 449 passed / 3 failed. Core: 177 passed / 6 deferred failures. Benchmark: 191/191; SDK: 43/43. Execution boundary suite: 90/90, including all 70 actual-source compiler controls. Core compiler suite stops at its second probe on a fixture lifetime mismatch. Configured413 sharing fixture passes; this is not full-corpus parity.
 
-Integrated source includes sealed ordinary/named project batches (13 behavioral cases, eight compiler probes), pre-callback walk coverage controls, and opaque derived graph/storage handles. These changes are not runtime-verified. Author TM checks: new project-owner/proof scope 0 findings; graph scope 142; walk scope 102; all zero suppressed. Scopes differ and must not be summed or treated as full-product results.
+Remaining execution controls: held-view accounting incorrectly included retired cache metadata; an inbound zero-column oracle used Select instead of Project; the omitted-submission observer fails to capture the required event under parallel tests; a tracing-registration repair is pending. Repairs remain unverified. The [independent review](audits/2026-11-06-derived/successor.json) also found a core `open_project(...).rule(...)` route missing from the TM guard. No category is approved.
+
+[Directional checkpoint](evidence/checkpoint/measurements.json): current N999 over all 2,875 pinned Django source files, cold cache, **11.716 s wall / 11.709 s CPU / 1,045,807,104 bytes peak RSS**, exit0, all files evaluated, zero unknown/unread, 112 diagnostics. One observation, no matched baseline or reference-output certification. Record the result and continue consolidation; no performance fixes.
+
+Author TM scopes remain distinct: project preparation 0 findings, graph142, walk102; none suppressed. This is not full-product acceptance.
 
 A checkbox requires the whole named item to pass; source progress is recorded separately.
 
 | Phase | Remaining item | Implementation / evidence |
 |---|---|---|
-| 2 ACTIVE | [ ] Seal every runtime/admission proof issuer against aliases and sibling construction. | Private issuer repair is integrated. Of 56 source probes, nine passed; probe ten failed its diagnostic contract and 46 did not run. |
+| 2 ACTIVE | [ ] Seal every runtime/admission proof issuer against aliases and sibling construction. | All70 execution source probes now pass, including owner-only storage and graph-handle controls. Eight new core probes remain blocked at the second fixture on a lifetime mismatch. |
 | 2 ACTIVE | [ ] Bind admitted proof to the exact publication. | Publication/proof substitution refusal passes on297. Full identity/route scope remains open. |
 | 2 ACTIVE | [ ] Complete batch release, cancellation and primary-error behavior. | Primary-error control passes; all four project exit controls pass on297 after repairing invalid file-cache setup. Broader cancellation/cleanup scope remains open. |
-| 2 ACTIVE | [ ] Require complete declared root submission; close sparse-work and all-route negative controls. | Both core callers now require a sealed, fully accounted occurrence inventory. Thirteen behavioral controls and eight compiler probes are authored; the new TM guard validates. Combined execution and review remain pending. |
+| 2 ACTIVE | [ ] Require complete declared root submission; close sparse-work and all-route negative controls. | Both core callers now require a sealed, fully accounted supplied inventory;13 preparation cases pass. Core compiler controls and the complete direct-entry TM guard still need successor execution/review. |
 | 2 ACTIVE | [ ] Close scheduling-owned cycles/TM findings and review exact combined source. | Preparation/protocol/runtime homes integrated; remaining context/publication/frontier/kernel coupling is open. |
 | 3 ACTIVE | [ ] Count every physical instruction, including synthetic observation unions. | Independent total and two synthetic unions pass. Consumer barriers are mislabeled after input normalization; a resolved-input classifier repair is authored. |
-| 3 ACTIVE | [ ] Prove actual413 sharing with independent expected coverage. | Historical static eligibility controls pass. Supporting-rule applicability is repaired in source; pre-callback readiness, independent compiled-root and deliberately omitted-submission controls are integrated but unrun. |
+| 3 ACTIVE | [ ] Prove actual413 sharing with independent expected coverage. | Actual configured413 sharing and independent compiled-root coverage pass. The deliberately omitted-submission control fails while capturing tracing events; its complete refusal proof remains open. |
 | 3 ACTIVE | [ ] Close ready-gate, source/barrier and result-lease enforcement. | Shared owner/prefix/traversal code exists; full route, alias and reentrancy acceptance remains open. |
-| 4 ACTIVE | [ ] Require admitted acquisition across all13 derived kinds. | All13 ordinary acquisition positives pass, but specialized graph/axis paths fail. Review found raw-storage and graph-handle authority escapes. |
-| 4 ACTIVE | [ ] Unify raw ordering, graph construction and common acquired-view lifetime. | Historical raw success/fault controls pass. Opaque issued graph handles and owner-private payload storage are integrated; remaining caller/privacy diagnostics prevent executing the new lifetime proofs. |
-| 4 ACTIVE | [ ] Migrate real fixtures, boundary tests and TM; integrate and execute. | Runtime cases execute; source-probe generator stops on unrelated dead-code diagnostics. Current structural scope remains unaccepted. |
+| 4 ACTIVE | [ ] Require admitted acquisition across all13 derived kinds. | All13 ordinary acquisition positives and previously failing specialized graph/Axis routes pass. All70 execution compiler controls pass; retirement accounting and complete successor review remain open. |
+| 4 ACTIVE | [ ] Unify raw ordering, graph construction and common acquired-view lifetime. | Opaque issued graph handles and owner-private payload storage compile and pass boundary controls. Held-view lifetime control needs corrected accounting assertions; no whole-family review approval yet. |
+| 4 ACTIVE | [ ] Migrate real fixtures, boundary tests and TM; integrate and execute. | Execution compiler probes pass. Three execution controls and the core compiler fixture require the current repair batch; structural scope remains unaccepted. |
 | 5 QUEUED | [ ] Consolidate legal fusion behind the common program. | Existing strategies are not complete phase acceptance. No active implementation wave. |
 | 5 QUEUED | [ ] Remove redundant intermediates, repeated scans and superseded machinery. | Await consolidated scheduling/walk/derived ownership. |
 | 6 QUEUED | [ ] Unify cold/warm/edit reuse and frontier restoration. | Existing replay code has recorded failures; no active phase wave. |
 | 6 QUEUED | [ ] Prove file/project/configuration invalidation and retained lifetime. | Follow shared owners; preserve deferred failure controls. |
-| 1 QUEUED | [ ] Repair every deferred output failure; rerun all413 and full corpus. | Core175 passed/6 failed; historical public413 pass is not current-engine parity. |
+| 1 QUEUED | [ ] Repair every deferred output failure; rerun all413 and full corpus. | Core177 passed/6 failed; historical public413 pass is not current-engine parity. |
 | 7 QUEUED | [ ] Close full TM, contracts, independent review and normal CI. | Whole required scope remains unaccepted. |
-| 7 QUEUED | [ ] Measure full-Django cold/warm/edit and Rust regressions; meet final objective. | No new performance measurement during phases2–6. |
+| 7 QUEUED | [ ] Measure full-Django cold/warm/edit and Rust regressions; meet final objective. | One N999 directional measurement is recorded; full-rule Django and Rust acceptance remain deferred. |
 
 Latest combined build **passes** on `36b0cdbea` (validation297). Execution:
 436 pass / 8 fail. SDK:43/43; other five libraries:155/155; Core:175/181
