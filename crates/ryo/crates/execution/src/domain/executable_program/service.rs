@@ -267,7 +267,7 @@ pub(crate) fn compile(
         let source = logical_regions[resolved.source.0];
         let join = logical_regions[resolved.join.0];
         if select == join || select == source || regions[select.0].instructions.len() != 1 {
-            return Err(OperatingError::WrongOperation);
+            return Err({ eprintln!("WO {}:{}", file!(), line!()); OperatingError::WrongOperation });
         }
         candidates[select.0].ordered = Some(OrderedExistence {
             source,
@@ -279,6 +279,8 @@ pub(crate) fn compile(
         });
     }
     let mut rules = Vec::with_capacity(plans.len());
+    // The region each plan's named output reads, in the plan's own output order.
+    let mut observed_roots: Vec<Vec<Option<RegionId>>> = Vec::with_capacity(plans.len());
     for (rule, (plan, nodes)) in plans.iter().zip(graph.program_nodes).enumerate() {
         let original_steps: Vec<_> = nodes
             .into_iter()
@@ -324,8 +326,17 @@ pub(crate) fn compile(
         };
         let emit = from(&Input::Step(plan.emit.step)).and_then(|source| match source {
             InputSource::Region(region) => Ok(region),
-            _ => Err(OperatingError::WrongOperation),
+            _ => Err({ eprintln!("WO {}:{}", file!(), line!()); OperatingError::WrongOperation }),
         });
+        observed_roots.push(
+            plan.observations
+                .iter()
+                .map(|output| match from(&output.source) {
+                    Ok(InputSource::Region(id)) => Some(id),
+                    _ => None,
+                })
+                .collect(),
+        );
         let root_readers = emit
             .iter()
             .copied()
@@ -398,7 +409,10 @@ pub(crate) fn compile(
     }
     super::native::offer(&regions, &native_shapes, &mut candidates);
     // Native positions are published for a reader that consumes positions. A region read by one
-    // that has no native route must hand it rows, so its stored selection stays the offer.
+    // that has no native route must hand it rows, so it keeps no native offer: a stored selection
+    // when one was offered, the generic route otherwise. A named observation is read by
+    // synthesized unions and the consumers of its members, none of which has a native route, so
+    // the region each declared output reads is read by rows.
     let mut read_by_rows = vec![false; regions.len()];
     for (reader, region) in regions.iter().enumerate() {
         if candidates[reader].native.is_some() {
@@ -410,8 +424,11 @@ pub(crate) fn compile(
             }
         }
     }
+    for root in observed_roots.iter().flatten().flatten() {
+        read_by_rows[root.0] = true;
+    }
     for (at, candidate) in candidates.iter_mut().enumerate() {
-        if read_by_rows[at] && candidate.selection.is_some() {
+        if read_by_rows[at] {
             candidate.native = None;
         }
     }

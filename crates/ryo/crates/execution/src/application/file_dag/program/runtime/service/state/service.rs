@@ -250,7 +250,7 @@ impl ProgramExecution {
         required: &crate::application::file_dag::program::admission::RequiredPartitions,
     ) -> Result<(), OperatingError> {
         if Arc::ptr_eq(&self.program, program)
-            && matches!(&self.partition, Partition::Project(actual) if actual.same_request(required) == crate::application::file_dag::program::admission::Agreement::Same)
+            && matches!(&self.partition, Partition::Project(actual) if actual.same_project(required) == crate::application::file_dag::program::admission::Agreement::Same)
         {
             Ok(())
         } else {

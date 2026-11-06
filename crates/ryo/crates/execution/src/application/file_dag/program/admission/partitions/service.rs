@@ -137,6 +137,19 @@ impl Partition {
     }
 }
 impl RequiredPartitions {
+    /// Whether both describe one project request. The files a rule has no frame for are that rule's
+    /// own evidence, so one project execution serves rules whose inapplicable files differ.
+    pub(in crate::application::file_dag) fn same_project(&self, other: &Self) -> Agreement {
+        if self.request == other.request
+            && self.files == other.files
+            && self.covered == other.covered
+            && self.skipped == other.skipped
+        {
+            Agreement::Same
+        } else {
+            Agreement::Different
+        }
+    }
     pub(in crate::application::file_dag) fn same_request(&self, other: &Self) -> Agreement {
         if self == other {
             Agreement::Same
