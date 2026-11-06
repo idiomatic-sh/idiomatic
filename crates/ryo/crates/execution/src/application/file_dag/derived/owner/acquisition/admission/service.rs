@@ -79,6 +79,11 @@ impl AcquiredView {
     pub(in crate::application::file_dag) fn same_storage(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.storage, &other.storage)
     }
+    /// The lease invariant is structural: `lease` is an owned field, so the ledger entries of
+    /// `backings` stay required-live for as long as this value exists (`ResourceLease::drop`
+    /// is the only release). The test-only `assert_required` re-derives that from the ledger;
+    /// it is not unconditional because it takes a `RefCell` borrow, scans the lease keys and
+    /// does one hash lookup per backing on every read, which production reads must not pay.
     pub(in crate::application::file_dag) fn view(&self) -> Result<DerivedView<'_>, OperatingError> {
         #[cfg(test)]
         self.lease.assert_required(&self.backings);
