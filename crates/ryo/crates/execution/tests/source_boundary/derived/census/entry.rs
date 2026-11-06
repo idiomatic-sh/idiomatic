@@ -166,12 +166,10 @@ pub(super) enum Entry {
     Pin,
     Release,
     SelectorWork,
-    WitnessCompare,
-    WitnessLiveness,
     Wanted,
 }
 impl Entry {
-    pub(super) const ALL: [Entry; 54] = [
+    pub(super) const ALL: [Entry; 52] = [
         Entry::AdmitView,
         Entry::AdmitPartition,
         Entry::AcquireStored,
@@ -223,8 +221,6 @@ impl Entry {
         Entry::Pin,
         Entry::Release,
         Entry::SelectorWork,
-        Entry::WitnessCompare,
-        Entry::WitnessLiveness,
         Entry::Wanted,
     ];
     pub(super) fn row(self) -> Row {
@@ -292,8 +288,6 @@ impl Entry {
             Entry::Pin => exempt(owner!("lifetime.rs"), "pin", "population pin; the lifecycle controls release it"),
             Entry::Release => exempt(owner!("lifetime.rs"), "release", "population release; the lifecycle controls drive it"),
             Entry::SelectorWork => exempt(owner!("observations.rs"), "selector_work", accounting),
-            Entry::WitnessCompare => exempt(owner!("witness/service.rs"), "compare", "opaque backing observation; the witness controls refuse construction"),
-            Entry::WitnessLiveness => exempt(owner!("witness/service.rs"), "liveness", "opaque backing observation; the witness controls refuse construction"),
             Entry::Wanted => exempt(setup, "wanted", "request-side relation list; no view crosses"),
         }
     }

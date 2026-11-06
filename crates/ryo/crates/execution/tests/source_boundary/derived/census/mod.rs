@@ -75,10 +75,14 @@ fn every_derived_consumer_is_censused_and_every_kind_names_its_controls() {
         })
         .collect();
     assert_eq!(declared.len(), Entry::ALL.len(), "one row per owner function");
+    let surface = scan::owner_surface(&src, &production);
     assert_eq!(
-        scan::owner_surface(&src, &production),
-        declared,
-        "the owner gained or lost a consumer-visible function: classify it in entry.rs"
+        (
+            surface.difference(&declared).collect::<Vec<_>>(),
+            declared.difference(&surface).collect::<Vec<_>>()
+        ),
+        (vec![], vec![]),
+        "the owner gained (left) or lost (right) a consumer-visible function: classify it in entry.rs"
     );
 
     // Every caller outside the owner is declared.

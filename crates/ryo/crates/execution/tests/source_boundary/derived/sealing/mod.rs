@@ -20,7 +20,8 @@ fn cache_fields() -> Vec<String> {
         if at > 0 && lines[at - 1].trim() == "#[cfg(test)]" {
             continue;
         }
-        let name = trimmed.split(':').next().unwrap().rsplit(' ').next().unwrap();
+        let after = trimmed.split_once(") ").map_or(trimmed, |(_, rest)| rest);
+        let name = after.split(':').next().unwrap().trim();
         fields.push(name.to_owned());
     }
     assert!(fields.len() >= 21, "the backend declares at least the 21 fields known at the review: {fields:?}");
