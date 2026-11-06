@@ -3,7 +3,7 @@ use super::super::super::*;
 use super::super::fixtures::plans::Authored;
 use super::super::fixtures::semantics::{BuildPolicy, Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, demand};
-use crate::application::file_dag::program::native_walk::Retained;
+use crate::application::file_dag::program::native_walk::RetainedBatches;
 
 fn program(residency: Residency) -> Program {
     Program::new(
@@ -46,7 +46,7 @@ fn success_of_the_last_consumer_retires_the_shared_batch_and_keeps_its_accountin
     let mut file = program.open(&mut symbols).unwrap();
     assert_eq!(
         file.walk.retained(),
-        Retained(0),
+        RetainedBatches(0),
         "nothing is walked before a delivery"
     );
     assert!(matches!(
@@ -55,20 +55,20 @@ fn success_of_the_last_consumer_retires_the_shared_batch_and_keeps_its_accountin
     ));
     assert_eq!(
         file.walk.retained(),
-        Retained(1),
+        RetainedBatches(1),
         "three consumers of the class still owe"
     );
     deliver(&mut file, &program, RuleIndex(3), &mut symbols);
     deliver(&mut file, &program, RuleIndex(0), &mut symbols);
     assert_eq!(
         file.walk.retained(),
-        Retained(1),
+        RetainedBatches(1),
         "the forwarded consumer still owes"
     );
     forward(&mut file, &program, &mut symbols, &mut |_| Ok(())).unwrap();
     assert_eq!(
         file.walk.retained(),
-        Retained(0),
+        RetainedBatches(0),
         "the last consumer released the batch"
     );
     let work = file.walk_counts();
@@ -94,7 +94,7 @@ fn error_of_the_last_consumer_retires_the_shared_batch() {
     forward(&mut file, &program, &mut symbols, &mut |_| Ok(())).unwrap();
     assert_eq!(
         file.walk.retained(),
-        Retained(1),
+        RetainedBatches(1),
         "the failing rule still owes its delivery"
     );
     let failed = deliver(&mut file, &program, RuleIndex(0), &mut symbols);
@@ -104,7 +104,7 @@ fn error_of_the_last_consumer_retires_the_shared_batch() {
     ));
     assert_eq!(
         file.walk.retained(),
-        Retained(0),
+        RetainedBatches(0),
         "a failed last consumer still releases"
     );
     file.finish().unwrap();
@@ -118,14 +118,14 @@ fn cancellation_of_the_last_consumer_retires_the_shared_batch() {
     for rule in [RuleIndex(0), RuleIndex(1), RuleIndex(3)] {
         deliver(&mut file, &program, rule, &mut symbols);
     }
-    assert_eq!(file.walk.retained(), Retained(1));
+    assert_eq!(file.walk.retained(), RetainedBatches(1));
     let refused = forward(&mut file, &program, &mut symbols, &mut |_| {
         Err(OperatingError::NotRead)
     });
     assert!(matches!(refused, Err(OperatingError::NotRead)));
     assert_eq!(
         file.walk.retained(),
-        Retained(0),
+        RetainedBatches(0),
         "a cancelled last consumer still releases"
     );
     file.finish().unwrap();
@@ -147,7 +147,7 @@ fn an_aliased_consumer_cancelled_early_does_not_retire_a_batch_other_rules_still
     assert!(matches!(refused, Err(OperatingError::NotRead)));
     assert_eq!(
         file.walk.retained(),
-        Retained(1),
+        RetainedBatches(1),
         "rules 0 and 3 still owe the batch the cancelled alias shared"
     );
     let failed = deliver(&mut file, &program, RuleIndex(0), &mut symbols);
@@ -155,12 +155,12 @@ fn an_aliased_consumer_cancelled_early_does_not_retire_a_batch_other_rules_still
         failed,
         RootOutcome::Failed(OperatingError::WrongOperation)
     ));
-    assert_eq!(file.walk.retained(), Retained(1), "rule 3 still owes");
+    assert_eq!(file.walk.retained(), RetainedBatches(1), "rule 3 still owes");
     assert!(matches!(
         deliver(&mut file, &program, RuleIndex(3), &mut symbols),
         RootOutcome::Complete(_)
     ));
-    assert_eq!(file.walk.retained(), Retained(0));
+    assert_eq!(file.walk.retained(), RetainedBatches(0));
     let RootOutcome::Complete(repeated) = deliver(&mut file, &program, RuleIndex(1), &mut symbols)
     else {
         panic!("the committed answer survives retirement of its batch")
@@ -193,7 +193,7 @@ fn a_held_lease_stays_readable_across_reentrant_demands_and_retirement() {
     deliver(&mut file, &program, RuleIndex(3), &mut symbols);
     deliver(&mut file, &program, RuleIndex(0), &mut symbols);
     forward(&mut file, &program, &mut symbols, &mut |_| Ok(())).unwrap();
-    assert_eq!(file.walk.retained(), Retained(0));
+    assert_eq!(file.walk.retained(), RetainedBatches(0));
     assert!(
         file.walk.lease_any(class).is_none(),
         "a demand after retirement finds no batch and refuses"
@@ -219,10 +219,10 @@ fn files_retire_their_own_batches_independently() {
     let mut first = program.open(&mut first_symbols).unwrap();
     let mut second = program.open(&mut second_symbols).unwrap();
     deliver(&mut first, &program, RuleIndex(1), &mut first_symbols);
-    assert_eq!(first.walk.retained(), Retained(1));
+    assert_eq!(first.walk.retained(), RetainedBatches(1));
     assert_eq!(
         second.walk.retained(),
-        Retained(0),
+        RetainedBatches(0),
         "another generation never sees the batch"
     );
     deliver(&mut second, &program, RuleIndex(1), &mut second_symbols);
@@ -230,17 +230,17 @@ fn files_retire_their_own_batches_independently() {
         deliver(&mut first, &program, rule, &mut first_symbols);
     }
     forward(&mut first, &program, &mut first_symbols, &mut |_| Ok(())).unwrap();
-    assert_eq!(first.walk.retained(), Retained(0));
+    assert_eq!(first.walk.retained(), RetainedBatches(0));
     assert_eq!(
         second.walk.retained(),
-        Retained(1),
+        RetainedBatches(1),
         "the second file still owes its consumers"
     );
     for rule in [RuleIndex(3), RuleIndex(0)] {
         deliver(&mut second, &program, rule, &mut second_symbols);
     }
     forward(&mut second, &program, &mut second_symbols, &mut |_| Ok(())).unwrap();
-    assert_eq!(second.walk.retained(), Retained(0));
+    assert_eq!(second.walk.retained(), RetainedBatches(0));
     assert_eq!(first.walk_counts(), second.walk_counts());
     first.finish().unwrap();
     second.finish().unwrap();

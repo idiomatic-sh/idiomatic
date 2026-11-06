@@ -92,11 +92,11 @@ fn output() -> Vec<JoinColumn> {
         },
     ]
 }
-fn equal() -> Comparison {
+fn equal(column: ColumnIndex) -> Comparison {
     Comparison {
         test: Test::Equal,
-        left: Operand::Column(ColumnIndex(0)),
-        right: Operand::Column(ColumnIndex(0)),
+        left: Operand::Column(column),
+        right: Operand::Column(column),
         origin: None,
     }
 }
@@ -313,7 +313,21 @@ fn shapes() -> Vec<Plan> {
     };
     let mut plans = vec![
         plan(select(vec![]), StepScope::PerFile),
-        plan(select(vec![equal()]), StepScope::PerFile),
+        plan(select(vec![equal(ColumnIndex(0))]), StepScope::PerFile),
+        // A column past the relation's width is no shared head: it keeps its own representation.
+        plan(
+            Operation::Project {
+                from: f,
+                columns: vec![ColumnIndex(
+                    u32::try_from(
+                        ryo_relations::domain::relations::service::columns(FUNCTION).len(),
+                    )
+                    .unwrap(),
+                )],
+                distinct: RepeatedRows::Kept,
+            },
+            StepScope::PerFile,
+        ),
         plan(
             Operation::Project {
                 from: f,
@@ -336,7 +350,9 @@ fn shapes() -> Vec<Plan> {
         });
     dependent.emit.step = StepId(1);
     plans.push(dependent);
-    let mut continuation = plan(select(vec![equal()]), StepScope::PerFile);
+    // Its head is its own graph node (a different predicate from every other plan), so the
+    // projection after it is its only consumer and fuses into the same region.
+    let mut continuation = plan(select(vec![equal(ColumnIndex(1))]), StepScope::PerFile);
     continuation
         .steps
         .push(ryo_values::domain::plans::types::PlanStep {

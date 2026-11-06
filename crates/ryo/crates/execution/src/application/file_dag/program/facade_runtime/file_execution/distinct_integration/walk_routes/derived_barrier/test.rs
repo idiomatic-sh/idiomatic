@@ -3,7 +3,7 @@ use super::super::super::*;
 use super::super::fixtures::plans::Authored;
 use super::super::fixtures::semantics::{BuildPolicy, Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, demand};
-use crate::application::file_dag::program::native_walk::Retained;
+use crate::application::file_dag::program::native_walk::RetainedBatches;
 
 #[test]
 fn derived_group_count_barrier_follows_a_shared_head_without_a_second_pass() {
@@ -66,7 +66,7 @@ fn derived_group_count_barrier_follows_a_shared_head_without_a_second_pass() {
     assert_eq!(work.predicate_tests.0, 3);
     assert_eq!(
         file.walk.retained(),
-        Retained(0),
+        RetainedBatches(0),
         "both consumers delivered, so the batch retired"
     );
     file.finish().unwrap();

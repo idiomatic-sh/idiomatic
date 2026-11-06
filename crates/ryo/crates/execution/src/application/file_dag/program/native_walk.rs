@@ -139,7 +139,7 @@ enum Fate {
 /// Batches a file walk still holds.
 #[cfg(test)]
 #[derive(Debug, PartialEq, Eq)]
-pub(super) struct Retained(pub(super) usize);
+pub(super) struct RetainedBatches(pub(super) usize);
 
 /// What one demanded rule still owes the walk before its classes are unneeded.
 struct Owed {
@@ -355,8 +355,8 @@ impl FileWalk {
             .map(|(result, visits)| WalkResult { result, visits })
     }
     #[cfg(test)]
-    pub(super) fn retained(&self) -> Retained {
-        Retained(self.batches.borrow().len())
+    pub(super) fn retained(&self) -> RetainedBatches {
+        RetainedBatches(self.batches.borrow().len())
     }
     fn sum(mut total: WalkCounts, counts: WalkCounts) -> WalkCounts {
         total.passes.0 = total.passes.0.saturating_add(counts.passes.0);
