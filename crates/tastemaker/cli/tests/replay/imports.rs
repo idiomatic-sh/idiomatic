@@ -28,7 +28,7 @@ fn visibility_scopes_do_not_authorize_real_imports_types_or_calls() {
         ("package/package.toml", "name = 'p'\n"),
         (
             "package/templates/guard/0.1.0/template.toml",
-            "description = 'A scoped file.'\nwhy = 'Its real dependencies require permission.'\ncontent = '// scope contract'\n",
+            include_str!("../fixtures/replay/roles/templates/value/0.1.0/template.toml"),
         ),
     ] {
         let destination = project.join(file);
@@ -36,6 +36,13 @@ fn visibility_scopes_do_not_authorize_real_imports_types_or_calls() {
         std::fs::write(destination, text).unwrap();
     }
     std::fs::create_dir_all(project.join("src/owner")).unwrap();
+    let proof = tm(&["validate", "template/guard", "--format", "json"], project);
+    assert!(
+        proof.status.success(),
+        "the real fixture template passes its positive and negative scenarios: {} {}",
+        String::from_utf8_lossy(&proof.stdout),
+        String::from_utf8_lossy(&proof.stderr)
+    );
     let mut failures = Vec::new();
     for (name, module, text, expected) in [
         (
