@@ -1,9 +1,10 @@
 //! Reconstruct preserved logical string carriers and cache only syntactic outcomes.
+use super::constants;
 use super::{
     interface::LiteralExpressionSyntax,
     types::{
-        CarrierVisibility, LiteralDialect, LiteralParseIndex, LiteralParseOccurrence, LiteralParseOutcome,
-        LiteralParseState,
+        CarrierVisibility, LiteralDialect, LiteralParseIndex, LiteralParseOccurrence,
+        LiteralParseOutcome, LiteralParseState,
     },
 };
 use crate::domain::{
@@ -17,30 +18,26 @@ use crate::domain::{
 use ryo::languages::{self, NameText, Position, Symbols, Tree};
 use std::cell::{Ref, RefCell};
 use std::collections::HashSet;
-use super::constants;
 
 /// Missing logical carriers must remain observable through a partial relation read.
-pub(crate) const INCOMPLETE: &str =
-    constants::INCOMPLETE;
+pub(crate) const INCOMPLETE: &str = constants::INCOMPLETE;
 
 /// Drop source identities and admit budgeted grammar outcomes for the next demand.
 pub(crate) fn clear(index: &mut LiteralParseIndex) {
     crate::domain::grammar_cache::service::empty(&mut index.memo);
     for ((_dialect, input), outcome) in index.by_carrier.drain(..) {
         if outcome != LiteralParseOutcome::Unavailable {
-            crate::domain::grammar_cache::service::admit(&mut index.memo, input, outcome, 0);
+            crate::domain::grammar_cache::service::admit(
+                &mut index.memo,
+                crate::domain::grammar_cache::types::MemoKey(input),
+                outcome,
+            );
         }
     }
     crate::domain::grammar_cache::service::reset_map(&mut index.by_carrier);
     crate::domain::grammar_cache::service::reset(&mut index.occurrences);
     index.embedded.clear();
-    if index
-        .embedded
-        .capacity()
-        .saturating_mul(size_of::<Position>() + 1)
-        .saturating_mul(2)
-        > crate::domain::grammar_cache::service::ARENA_BUDGET
-    {
+    if index.embedded.capacity() > constants::EMBEDDED_CAPACITY {
         index.embedded = HashSet::new();
     }
     index.state = LiteralParseState::Fresh;
@@ -97,17 +94,26 @@ where
 {
     let key = (LiteralDialect::PythonStringAnnotation, assembled);
     if let Some(outcome) = index.by_carrier.get(&key).copied() {
-        crate::domain::grammar_cache::service::scratch(&mut index.memo, key.1);
+        crate::domain::grammar_cache::service::scratch(
+            &mut index.memo,
+            crate::domain::grammar_cache::types::Scratch(key.1),
+        );
         return outcome;
     }
-    if !crate::domain::grammar_cache::service::reserve(&mut index.by_carrier) {
+    if crate::domain::grammar_cache::service::reserve(&mut index.by_carrier)
+        == crate::domain::grammar_cache::types::Reservation::Refused
+    {
         return LiteralParseOutcome::Unavailable;
     }
-    let (stored_input, result) = if let Some((previous_input, result)) =
-        crate::domain::grammar_cache::service::take(&mut index.memo, &key.1)
-    {
-        crate::domain::grammar_cache::service::scratch(&mut index.memo, key.1);
-        (previous_input, result)
+    let (stored_input, result) = if let Some(taken) = crate::domain::grammar_cache::service::take(
+        &mut index.memo,
+        crate::domain::grammar_cache::types::Lookup(&key.1),
+    ) {
+        crate::domain::grammar_cache::service::scratch(
+            &mut index.memo,
+            crate::domain::grammar_cache::types::Scratch(key.1),
+        );
+        (taken.key.0, taken.value)
     } else {
         (key.1, LiteralParseOutcome::Unavailable)
     };
@@ -138,17 +144,18 @@ pub(crate) fn prepare<'a, P>(
 where
     P: LiteralExpressionSyntax,
 {
-    if !crate::domain::grammar_cache::service::is_grammar::<P, _>(
+    if crate::domain::grammar_cache::service::grammar_state::<P, _>(
         &held.borrow().memo,
-        P::GRAMMAR.0,
-    ) {
+        crate::domain::grammar_cache::types::DialectName(P::GRAMMAR.0),
+    ) == crate::domain::grammar_cache::types::GrammarState::Stale
+    {
         clear(&mut held.borrow_mut());
     }
     if held.borrow().state == LiteralParseState::Fresh {
         let mut index = held.borrow_mut();
         crate::domain::grammar_cache::service::grammar::<P, _>(
             &mut index.memo,
-            P::GRAMMAR.0,
+            crate::domain::grammar_cache::types::DialectName(P::GRAMMAR.0),
         );
         index.state = if languages::has_incomplete_syntax(tree.elements)
             || languages::has_incomplete_lexical_stream(tree.elements)
@@ -179,12 +186,15 @@ where
                 index.state = LiteralParseState::Partial;
                 break;
             }
-            let mut source = std::mem::take(&mut index.memo.scratch);
+            let mut source = std::mem::take(&mut index.memo.scratch).0;
             let result = if carrier(tree, node, symbols, &mut source).is_some() {
                 let embedded = embedded_available && index.embedded.contains(&node);
                 outcome::<P>(&mut index, source, embedded)
             } else {
-                crate::domain::grammar_cache::service::scratch(&mut index.memo, source);
+                crate::domain::grammar_cache::service::scratch(
+                    &mut index.memo,
+                    crate::domain::grammar_cache::types::Scratch(source),
+                );
                 LiteralParseOutcome::Unavailable
             };
             if result == LiteralParseOutcome::Unavailable {

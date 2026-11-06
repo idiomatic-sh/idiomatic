@@ -25,13 +25,11 @@ pub(crate) fn clear(index: &mut RawFormatIndex) {
     for (input, at) in index.by_input.drain(..) {
         if let Some(value) = index.values.get_mut(at.0) {
             let result = std::mem::replace(value, FormatParseResult::Unavailable);
-            let bytes = crate::domain::format_parsing::service::owned_bytes(&result);
             if result != FormatParseResult::Unavailable {
                 crate::domain::grammar_cache::service::admit(
                     &mut index.memo,
-                    input.0,
+                    crate::domain::grammar_cache::types::MemoKey(input.0),
                     result,
-                    bytes.0,
                 );
             }
         }
@@ -84,16 +82,20 @@ where
     if let Some(cached) = index.by_input.get(body) {
         return Some(*cached);
     }
-    let reused = crate::domain::grammar_cache::service::take(&mut index.memo, body);
+    let reused = crate::domain::grammar_cache::service::take(
+        &mut index.memo,
+        crate::domain::grammar_cache::types::Lookup(body),
+    );
     let mut owned = String::new();
     if (reused.is_none() && owned.try_reserve(body.len()).is_err())
-        || !crate::domain::grammar_cache::service::reserve(&mut index.by_input)
+        || crate::domain::grammar_cache::service::reserve(&mut index.by_input)
+            == crate::domain::grammar_cache::types::Reservation::Refused
         || index.values.try_reserve(1).is_err()
     {
         return None;
     }
     let (owned, result) = if let Some(reused) = reused {
-        reused
+        (reused.key.0, reused.value)
     } else {
         owned.push_str(body);
         (
@@ -197,15 +199,19 @@ pub(crate) fn prepare<'a, P>(
 where
     P: FormatSyntax,
 {
-    if !crate::domain::grammar_cache::service::is_grammar::<P, _>(
+    if crate::domain::grammar_cache::service::grammar_state::<P, _>(
         &held.borrow().memo,
-        P::RAW_GRAMMAR.0,
-    ) {
+        crate::domain::grammar_cache::types::DialectName(P::RAW_GRAMMAR.0),
+    ) == crate::domain::grammar_cache::types::GrammarState::Stale
+    {
         clear(&mut held.borrow_mut());
     }
     if held.borrow().state == FormatParseState::Fresh {
         let mut index = held.borrow_mut();
-        crate::domain::grammar_cache::service::grammar::<P, _>(&mut index.memo, P::RAW_GRAMMAR.0);
+        crate::domain::grammar_cache::service::grammar::<P, _>(
+            &mut index.memo,
+            crate::domain::grammar_cache::types::DialectName(P::RAW_GRAMMAR.0),
+        );
         let source_complete = if !languages::has_incomplete_syntax(tree.elements)
             && !languages::has_incomplete_lexical_stream(tree.elements)
         {

@@ -1,49 +1,59 @@
 //! Budget, content, grammar identity and current-source occurrence regressions.
+use super::constants::{KEY_CAPACITY, MEMO_ENTRIES, SCRATCH_CAPACITY};
+use super::{
+    service,
+    types::{DialectName, EntryCount, GrammarMemo, Lookup, MemoKey, Scratch, Taken},
+};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use super::{service, types::GrammarMemo};
 use crate::domain::format_syntax::{
     interface::FormatSyntax,
     types::{
         FormatDialect, FormatErrorKind, FormatParseError, FormatParseResult, FormatSummary,
-        ParsedFormat}};
+        ParsedFormat,
+    },
+};
 
 struct FirstGrammar;
 struct SecondGrammar;
 
-fn byte_budget_rejects_large_keys_and_owned_results() {
+fn bounds_reject_large_keys_and_full_memos() {
     let mut memo = GrammarMemo::default();
-    service::grammar::<FirstGrammar, _>(&mut memo, "first-dialect-v1");
-    service::admit(&mut memo, "small".into(), 7_u32, 0);
-    assert_eq!(service::take(&mut memo, "small"), Some(("small".into(), 7)));
-    service::admit(&mut memo, "x".repeat(service::BUDGET + 1), 8, 0);
-    service::admit(&mut memo, "small".into(), 9, service::BUDGET);
+    service::grammar::<FirstGrammar, _>(&mut memo, DialectName("first-dialect-v1"));
+    service::admit(&mut memo, MemoKey("small".into()), 7_u32);
+    assert_eq!(
+        service::take(&mut memo, Lookup("small")),
+        Some(Taken {
+            key: MemoKey("small".into()),
+            value: 7
+        })
+    );
+    service::admit(&mut memo, MemoKey("x".repeat(KEY_CAPACITY + 1)), 8);
     assert!(memo.entries.is_empty());
-    assert!(service::retained(&memo) <= service::MEMO_BUDGET);
-    service::scratch(&mut memo, "x".repeat(service::BUDGET * 2));
-    assert!(memo.scratch.is_empty());
-    assert!(memo.scratch.capacity() <= service::ARENA_BUDGET);
+    service::scratch(&mut memo, Scratch("x".repeat(SCRATCH_CAPACITY * 2)));
+    assert!(memo.scratch.0.is_empty());
+    assert!(memo.scratch.0.capacity() <= SCRATCH_CAPACITY);
 }
 
 fn parser_identity_and_exact_content_prevent_stale_reuse() {
     let mut memo = GrammarMemo::default();
-    service::grammar::<FirstGrammar, _>(&mut memo, "first-dialect-v1");
-    service::admit(&mut memo, "original".into(), 1_u32, 0);
-    assert_eq!(service::take(&mut memo, "edited"), None);
-    service::grammar::<SecondGrammar, _>(&mut memo, "first-dialect-v1");
-    assert_eq!(service::take(&mut memo, "original"), None);
-    service::admit(&mut memo, "dialect".into(), 3_u32, 0);
-    service::grammar::<SecondGrammar, _>(&mut memo, "different-dialect-v1");
-    assert_eq!(service::take(&mut memo, "dialect"), None);
+    service::grammar::<FirstGrammar, _>(&mut memo, DialectName("first-dialect-v1"));
+    service::admit(&mut memo, MemoKey("original".into()), 1_u32);
+    assert_eq!(service::take(&mut memo, Lookup("edited")), None);
+    service::grammar::<SecondGrammar, _>(&mut memo, DialectName("first-dialect-v1"));
+    assert_eq!(service::take(&mut memo, Lookup("original")), None);
+    service::admit(&mut memo, MemoKey("dialect".into()), 3_u32);
+    service::grammar::<SecondGrammar, _>(&mut memo, DialectName("different-dialect-v1"));
+    assert_eq!(service::take(&mut memo, Lookup("dialect")), None);
     for round in 0_u32..100_u32 {
         service::empty(&mut memo);
         for item in 0..100 {
-            service::admit(&mut memo, format!("{round}:{item}"), item, 0);
+            service::admit(&mut memo, MemoKey(format!("{round}:{item}")), item);
         }
-        assert!(service::retained(&memo) <= service::MEMO_BUDGET);
+        assert!(memo.len() <= EntryCount(MEMO_ENTRIES));
     }
     service::empty(&mut memo);
     assert!(memo.entries.is_empty());
-    assert!(service::retained(&memo) <= service::MEMO_BUDGET);
+    assert!(memo.len() <= EntryCount(MEMO_ENTRIES));
 }
 
 fn all_four_readers_rebuild_occurrences_after_same_file_edits() {
@@ -135,13 +145,15 @@ fn all_four_readers_rebuild_occurrences_after_same_file_edits() {
         let literal = crate::domain::literal_expression_parsing::service::prepare::<
             RuffStringAnnotation,
         >(
-            &tree, &model.literal_expression_parsing, &mut file.symbols,
+            &tree,
+            &model.literal_expression_parsing,
+            &mut file.symbols,
             crate::domain::semantic_syntax::service::positions(&tree),
             |at, symbols| {
-            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
-                == crate::domain::semantic_syntax::types::Visibility::Visible)
-                .into()
-        },
+                (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                    == crate::domain::semantic_syntax::types::Visibility::Visible)
+                    .into()
+            },
         );
         assert_eq!(
             usize::try_from(languages::start_at(tree.elements, literal.occurrences[0].node).0)
@@ -164,7 +176,7 @@ fn oversized_current_inputs_do_not_become_reusable_content() {
     };
     use ryo::languages::{self, ByteSlice, Tree};
     let mut model = Declarations::default();
-    let large = format!("value = '{}'\n", "x".repeat(service::BUDGET * 2));
+    let large = format!("value = '{}'\n", "x".repeat(KEY_CAPACITY * 2));
     for source in [large.as_str(), "value = 'small'\n"] {
         let mut file = parsed(source.as_bytes()).expect("source parses");
         let tree = Tree {
@@ -173,12 +185,10 @@ fn oversized_current_inputs_do_not_become_reusable_content() {
             file: languages::FileId(0),
         };
         initialize_model(&tree, &mut model);
-        assert!(service::retained(&model.format_parsing.borrow().memo) <= service::BUDGET);
-        assert!(service::retained(&model.raw_format.borrow().memo) <= service::BUDGET);
-        assert!(service::retained(&model.brace_format.borrow().memo) <= service::BUDGET);
-        assert!(
-            service::retained(&model.literal_expression_parsing.borrow().memo) <= service::BUDGET
-        );
+        assert!(model.format_parsing.borrow().memo.len() <= EntryCount(MEMO_ENTRIES));
+        assert!(model.raw_format.borrow().memo.len() <= EntryCount(MEMO_ENTRIES));
+        assert!(model.brace_format.borrow().memo.len() <= EntryCount(MEMO_ENTRIES));
+        assert!(model.literal_expression_parsing.borrow().memo.len() <= EntryCount(MEMO_ENTRIES));
         drop(crate::domain::format_parsing::service::prepare::<
             RuffLiteralCFormat,
         >(
@@ -225,10 +235,11 @@ fn oversized_current_inputs_do_not_become_reusable_content() {
                 &mut file.symbols,
                 crate::domain::semantic_syntax::service::positions(&tree),
                 |at, symbols| {
-            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
-                == crate::domain::semantic_syntax::types::Visibility::Visible)
-                .into()
-        },
+                    (crate::domain::semantic_syntax::service::visibility(
+                        &tree, &model, at, symbols,
+                    ) == crate::domain::semantic_syntax::types::Visibility::Visible)
+                        .into()
+                },
             ),
         );
     }
@@ -347,17 +358,24 @@ fn completed_active_results_are_invalidated_when_parser_implementation_changes()
     ));
 }
 
-fn memo_admission_prefers_source_insertion_order_when_budget_is_full() {
+fn memo_admission_prefers_source_insertion_order_when_the_memo_is_full() {
     use crate::domain::format_syntax::types::{
-        CachedFormat, FormatArgument, FormatFieldValue, FormatParseResult, FormatParseState, RetainedFormatIndex,
-        FormatQuantityMode, FormatSummary, ParsedFormat,
+        CachedFormat, FormatArgument, FormatFieldValue, FormatParseResult, FormatParseState,
+        FormatQuantityMode, FormatSummary, ParsedFormat, RetainedFormatIndex,
     };
     for _ in 0_usize..12_usize {
-        let mut index = RetainedFormatIndex::<FormatParseResult, CachedFormat, FormatParseState>::default();
-        for name in ["first", "second", "third"] {
-            assert!(service::reserve(&mut index.by_input));
+        let mut index =
+            RetainedFormatIndex::<FormatParseResult, CachedFormat, FormatParseState>::default();
+        let names: Vec<String> = (0..=MEMO_ENTRIES)
+            .map(|ordinal| format!("input-{ordinal}"))
+            .collect();
+        for name in &names {
+            assert_eq!(
+                service::reserve(&mut index.by_input),
+                super::types::Reservation::Granted
+            );
             let previous = index.by_input.insert(
-                name.to_owned().into(),
+                name.clone().into(),
                 crate::domain::format_syntax::types::FormatResultIndex(index.values.len()),
             );
             assert!(previous.is_none());
@@ -366,7 +384,7 @@ fn memo_admission_prefers_source_insertion_order_when_budget_is_full() {
                     fields: vec![FormatFieldValue {
                         ordinal: crate::domain::format_syntax::types::FormatFieldOrdinal(0),
                         argument: FormatArgument::Mapping(
-                            crate::domain::format_syntax::types::FormatMappingKey("x".repeat(3000)),
+                            crate::domain::format_syntax::types::FormatMappingKey("x".into()),
                         ),
                         conversion: crate::domain::format_syntax::types::FormatCharacter('s'),
                         flags: Default::default(),
@@ -378,34 +396,45 @@ fn memo_admission_prefers_source_insertion_order_when_budget_is_full() {
             });
         }
         crate::domain::format_parsing::service::clear(&mut index);
-        assert!(index.memo.entries.contains_key("first"));
-        assert!(index.memo.entries.contains_key("second"));
-        assert!(!index.memo.entries.contains_key("third"));
-        assert!(service::retained(&index.memo) <= service::MEMO_BUDGET);
-        assert!(service::ordered_bytes(&index.by_input) <= service::ARENA_BUDGET);
+        assert!(index.memo.entries.contains_key(names[0].as_str()));
+        assert!(
+            index
+                .memo
+                .entries
+                .contains_key(names[MEMO_ENTRIES - 1].as_str())
+        );
+        assert!(
+            !index
+                .memo
+                .entries
+                .contains_key(names[MEMO_ENTRIES].as_str())
+        );
+        assert!(index.memo.len() <= EntryCount(MEMO_ENTRIES));
     }
 }
 
 fn ordered_lookup_releases_large_dense_and_hash_storage_on_reset() {
     let mut map = indexmap::IndexMap::new();
     for ordinal in 0_usize..256_usize {
-        assert!(service::reserve(&mut map));
+        assert_eq!(
+            service::reserve(&mut map),
+            super::types::Reservation::Granted
+        );
         let previous = map.insert(ordinal.to_string(), ordinal);
         assert!(previous.is_none());
     }
-    assert!(service::ordered_bytes(&map) > service::ARENA_BUDGET);
+    assert!(map.capacity() > super::constants::MAP_CAPACITY);
     map.clear();
     service::reset_map(&mut map);
-    assert_eq!(service::ordered_bytes(&map), 0);
     assert_eq!(map.capacity(), 0);
 }
 
 /// Each check below states its own source and asserts its own outcome.
 const CASES: &[Case<fn(), (), ()>] = &[
     Case {
-        name: CaseName("byte_budget_rejects_large_keys_and_owned_results"),
+        name: CaseName("bounds_reject_large_keys_and_full_memos"),
         word: Word::Succeeds,
-        input: || byte_budget_rejects_large_keys_and_owned_results,
+        input: || bounds_reject_large_keys_and_full_memos,
         expect: Expect::Value(()),
     },
     Case {
@@ -427,15 +456,17 @@ const CASES: &[Case<fn(), (), ()>] = &[
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName("completed_active_results_are_invalidated_when_parser_implementation_changes"),
+        name: CaseName(
+            "completed_active_results_are_invalidated_when_parser_implementation_changes",
+        ),
         word: Word::Succeeds,
         input: || completed_active_results_are_invalidated_when_parser_implementation_changes,
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName("memo_admission_prefers_source_insertion_order_when_budget_is_full"),
+        name: CaseName("memo_admission_prefers_source_insertion_order_when_the_memo_is_full"),
         word: Word::Succeeds,
-        input: || memo_admission_prefers_source_insertion_order_when_budget_is_full,
+        input: || memo_admission_prefers_source_insertion_order_when_the_memo_is_full,
         expect: Expect::Value(()),
     },
     Case {

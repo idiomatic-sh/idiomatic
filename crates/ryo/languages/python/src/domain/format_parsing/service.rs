@@ -1,33 +1,33 @@
 //! Lazily cache the decoded grammar result once per distinct source string.
-use crate::domain::format_syntax::types::{RetainedFormatIndex};
 use crate::domain::format_syntax::types::FormatResultIndex;
+use crate::domain::format_syntax::types::RetainedFormatIndex;
 use std::cell::{Ref, RefCell};
 
 use ryo::languages::{self, Position, Symbols, Tree};
 
 use super::super::format_syntax::interface::FormatSyntax;
 use super::super::format_syntax::types::{
-    CachedFormat, DecodedInput, FormatDialect, FormatOccurrence, FormatOwnedBytes,
-    FormatParseResult, FormatParseState, FormatScratch, FormatVisibility,
-    StringOccurrence};
+    CachedFormat, DecodedInput, FormatDialect, FormatOccurrence, FormatParseResult,
+    FormatParseState, FormatScratch, FormatVisibility, StringOccurrence,
+};
 use super::super::nodes::types::Node;
 use super::super::syntax::service::{below, interpolation, kind, literal, standing};
 use super::super::syntax::types::{Interpolation, Kind, Literal, Standing};
 use super::super::tokens::types::Token;
 
 /// Reset current identities and admit small, content-only results for one following source.
-pub(crate) fn clear(index: &mut RetainedFormatIndex<FormatParseResult, CachedFormat, FormatParseState>) {
+pub(crate) fn clear(
+    index: &mut RetainedFormatIndex<FormatParseResult, CachedFormat, FormatParseState>,
+) {
     crate::domain::grammar_cache::service::empty(&mut index.memo);
     for (input, at) in index.by_input.drain(..) {
         if let Some(value) = index.values.get_mut(at.0) {
             let result = std::mem::replace(&mut value.result, FormatParseResult::Unavailable);
-            let bytes = owned_bytes(&result);
             if result != FormatParseResult::Unavailable {
                 crate::domain::grammar_cache::service::admit(
                     &mut index.memo,
-                    input.0,
+                    crate::domain::grammar_cache::types::MemoKey(input.0),
                     result,
-                    bytes.0,
                 );
             }
         }
@@ -78,42 +78,22 @@ pub(crate) fn decoded_into(
     Ok(DecodedInput::Static)
 }
 
-/// Owned child capacity of a grammar result, excluding its inline representation.
-#[must_use]
-pub(crate) fn owned_bytes(result: &FormatParseResult) -> FormatOwnedBytes {
-    FormatOwnedBytes(match result {
-        FormatParseResult::Parsed(parsed) => parsed
-            .fields
-            .capacity()
-            .saturating_mul(size_of::<
-                crate::domain::format_syntax::types::FormatFieldValue,
-            >())
-            .saturating_add(
-                parsed
-                    .fields
-                    .iter()
-                    .map(|field| match &field.argument {
-                        crate::domain::format_syntax::types::FormatArgument::Mapping(key) => {
-                            key.0.capacity()
-                        }
-                        crate::domain::format_syntax::types::FormatArgument::Positional => 0,
-                    })
-                    .sum::<usize>(),
-            ),
-        FormatParseResult::Malformed(_) | FormatParseResult::Unavailable => 0,
-    })
-}
-
 /// Add one occurrence, sharing a prior parse when its decoded value has already appeared.
-fn occurrence<P>(tree: &Tree<'_>, index: &mut RetainedFormatIndex<FormatParseResult, CachedFormat, FormatParseState>, at: Position)
-where
+fn occurrence<P>(
+    tree: &Tree<'_>,
+    index: &mut RetainedFormatIndex<FormatParseResult, CachedFormat, FormatParseState>,
+    at: Position,
+) where
     P: FormatSyntax,
 {
-    let mut decoded = std::mem::take(&mut index.memo.scratch);
+    let mut decoded = std::mem::take(&mut index.memo.scratch).0;
     match decoded_into(tree, at, FormatScratch(&mut decoded)) {
         Ok(DecodedInput::Static) => {}
         Ok(DecodedInput::Dynamic) => {
-            crate::domain::grammar_cache::service::scratch(&mut index.memo, decoded);
+            crate::domain::grammar_cache::service::scratch(
+                &mut index.memo,
+                crate::domain::grammar_cache::types::Scratch(decoded),
+            );
             if index.occurrences.try_reserve(1).is_err() {
                 index.state = FormatParseState::Partial;
                 return;
@@ -126,7 +106,10 @@ where
             return;
         }
         Err(()) => {
-            crate::domain::grammar_cache::service::scratch(&mut index.memo, decoded);
+            crate::domain::grammar_cache::service::scratch(
+                &mut index.memo,
+                crate::domain::grammar_cache::types::Scratch(decoded),
+            );
             index.state = FormatParseState::Partial;
             if index.occurrences.try_reserve(1).is_ok() {
                 index.occurrences.push(FormatOccurrence {
@@ -144,7 +127,10 @@ where
             index.state = FormatParseState::Partial;
             return;
         }
-        crate::domain::grammar_cache::service::scratch(&mut index.memo, decoded);
+        crate::domain::grammar_cache::service::scratch(
+            &mut index.memo,
+            crate::domain::grammar_cache::types::Scratch(decoded),
+        );
         index.occurrences.push(FormatOccurrence {
             node: at,
             cached: Some(cached),
@@ -155,16 +141,21 @@ where
 
     if index.values.try_reserve(1).is_err()
         || index.occurrences.try_reserve(1).is_err()
-        || !crate::domain::grammar_cache::service::reserve(&mut index.by_input)
+        || crate::domain::grammar_cache::service::reserve(&mut index.by_input)
+            == crate::domain::grammar_cache::types::Reservation::Refused
     {
         index.state = FormatParseState::Partial;
         return;
     }
-    let (decoded, parsed) = if let Some((key, result)) =
-        crate::domain::grammar_cache::service::take(&mut index.memo, &decoded)
-    {
-        crate::domain::grammar_cache::service::scratch(&mut index.memo, decoded);
-        (key, result)
+    let (decoded, parsed) = if let Some(taken) = crate::domain::grammar_cache::service::take(
+        &mut index.memo,
+        crate::domain::grammar_cache::types::Lookup(&decoded),
+    ) {
+        crate::domain::grammar_cache::service::scratch(
+            &mut index.memo,
+            crate::domain::grammar_cache::types::Scratch(decoded),
+        );
+        (taken.key.0, taken.value)
     } else {
         let parsed = P::parse(
             crate::domain::format_syntax::types::FormatInput(&decoded),
@@ -198,17 +189,18 @@ pub(crate) fn prepare<'a, P>(
 where
     P: FormatSyntax,
 {
-    if !crate::domain::grammar_cache::service::is_grammar::<P, _>(
+    if crate::domain::grammar_cache::service::grammar_state::<P, _>(
         &held.borrow().memo,
-        P::DECODED_GRAMMAR.0,
-    ) {
+        crate::domain::grammar_cache::types::DialectName(P::DECODED_GRAMMAR.0),
+    ) == crate::domain::grammar_cache::types::GrammarState::Stale
+    {
         clear(&mut held.borrow_mut());
     }
     if held.borrow().state == FormatParseState::Fresh {
         let mut index = held.borrow_mut();
         crate::domain::grammar_cache::service::grammar::<P, _>(
             &mut index.memo,
-            P::DECODED_GRAMMAR.0,
+            crate::domain::grammar_cache::types::DialectName(P::DECODED_GRAMMAR.0),
         );
         if languages::has_incomplete_syntax(tree.elements)
             || languages::has_incomplete_lexical_stream(tree.elements)
@@ -233,13 +225,17 @@ where
 
 /// The current completeness state of the retained parse.
 #[must_use]
-pub(crate) fn state(index: &RetainedFormatIndex<FormatParseResult, CachedFormat, FormatParseState>) -> FormatParseState {
+pub(crate) fn state(
+    index: &RetainedFormatIndex<FormatParseResult, CachedFormat, FormatParseState>,
+) -> FormatParseState {
     index.state
 }
 
 /// The original visible string occurrences and their cached parsed result indexes.
 #[must_use]
-pub(crate) fn occurrences(index: &RetainedFormatIndex<FormatParseResult, CachedFormat, FormatParseState>) -> &[FormatOccurrence] {
+pub(crate) fn occurrences(
+    index: &RetainedFormatIndex<FormatParseResult, CachedFormat, FormatParseState>,
+) -> &[FormatOccurrence] {
     &index.occurrences
 }
 

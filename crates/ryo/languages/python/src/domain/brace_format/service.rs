@@ -1,31 +1,31 @@
 //! Lazily parse decoded brace-format strings once per distinct input value.
-use crate::domain::brace_format::types::{CachedBraceFormat};
-use crate::domain::format_syntax::types::{RetainedFormatIndex};
 use super::super::nodes::types::Node;
 use super::super::syntax::service::kind;
 use super::super::syntax::types::Kind;
 use super::interface::BraceFormatSyntax;
 use super::types::{BraceFormatResult, BraceFormatState};
+use crate::domain::brace_format::types::CachedBraceFormat;
 use crate::domain::format_syntax::types::FormatOccurrence;
+use crate::domain::format_syntax::types::RetainedFormatIndex;
 use crate::domain::format_syntax::types::{
-    DecodedInput, FormatOwnedBytes, FormatResultIndex, FormatScratch, FormatVisibility,
-    StringOccurrence};
+    DecodedInput, FormatResultIndex, FormatScratch, FormatVisibility, StringOccurrence,
+};
 use ryo::languages::{Position, Symbols, Tree};
 use std::cell::{Ref, RefCell};
 
 /// Reset source identities; retain only byte-budgeted content-only grammar results.
-pub(crate) fn clear(index: &mut RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>) {
+pub(crate) fn clear(
+    index: &mut RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>,
+) {
     crate::domain::grammar_cache::service::empty(&mut index.memo);
     for (input, at) in index.by_input.drain(..) {
         if let Some(value) = index.values.get_mut(at.0) {
             let result = std::mem::replace(&mut value.result, BraceFormatResult::Unavailable);
-            let bytes = owned_bytes(&result);
             if result != BraceFormatResult::Unavailable {
                 crate::domain::grammar_cache::service::admit(
                     &mut index.memo,
-                    input.0,
+                    crate::domain::grammar_cache::types::MemoKey(input.0),
                     result,
-                    bytes.0,
                 );
             }
         }
@@ -37,11 +37,14 @@ pub(crate) fn clear(index: &mut RetainedFormatIndex<BraceFormatResult, CachedBra
 }
 
 /// Cache one original literal occurrence by its decoded input value.
-fn occurrence<P>(tree: &Tree<'_>, index: &mut RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>, at: Position)
-where
+fn occurrence<P>(
+    tree: &Tree<'_>,
+    index: &mut RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>,
+    at: Position,
+) where
     P: BraceFormatSyntax,
 {
-    let mut input = std::mem::take(&mut index.memo.scratch);
+    let mut input = std::mem::take(&mut index.memo.scratch).0;
     let decoded =
         super::super::format_parsing::service::decoded_into(tree, at, FormatScratch(&mut input));
     let (cached, unknown_input) = match decoded {
@@ -54,7 +57,8 @@ where
             if let Some(cached) = index.by_input.get(&input).copied() {
                 (Some(cached), false)
             } else {
-                if !crate::domain::grammar_cache::service::reserve(&mut index.by_input)
+                if crate::domain::grammar_cache::service::reserve(&mut index.by_input)
+                    == crate::domain::grammar_cache::types::Reservation::Refused
                     || index.values.try_reserve(1).is_err()
                     || index.occurrences.try_reserve(1).is_err()
                 {
@@ -62,10 +66,11 @@ where
                     return;
                 }
                 let cached = FormatResultIndex(index.values.len());
-                let (key, result) = if let Some((key, result)) =
-                    crate::domain::grammar_cache::service::take(&mut index.memo, &input)
-                {
-                    (key, result)
+                let (key, result) = if let Some(taken) = crate::domain::grammar_cache::service::take(
+                    &mut index.memo,
+                    crate::domain::grammar_cache::types::Lookup(&input),
+                ) {
+                    (taken.key.0, taken.value)
                 } else {
                     {
                         let result =
@@ -84,7 +89,10 @@ where
             }
         }
     };
-    crate::domain::grammar_cache::service::scratch(&mut index.memo, input);
+    crate::domain::grammar_cache::service::scratch(
+        &mut index.memo,
+        crate::domain::grammar_cache::types::Scratch(input),
+    );
     if index.occurrences.try_reserve(1).is_err() {
         index.state = BraceFormatState::Partial;
         return;
@@ -108,13 +116,19 @@ pub(crate) fn prepare<'a, P>(
 where
     P: BraceFormatSyntax,
 {
-    if !crate::domain::grammar_cache::service::is_grammar::<P, _>(&held.borrow().memo, P::GRAMMAR.0)
+    if crate::domain::grammar_cache::service::grammar_state::<P, _>(
+        &held.borrow().memo,
+        crate::domain::grammar_cache::types::DialectName(P::GRAMMAR.0),
+    ) == crate::domain::grammar_cache::types::GrammarState::Stale
     {
         clear(&mut held.borrow_mut());
     }
     if held.borrow().state == BraceFormatState::Fresh {
         let mut index = held.borrow_mut();
-        crate::domain::grammar_cache::service::grammar::<P, _>(&mut index.memo, P::GRAMMAR.0);
+        crate::domain::grammar_cache::service::grammar::<P, _>(
+            &mut index.memo,
+            crate::domain::grammar_cache::types::DialectName(P::GRAMMAR.0),
+        );
         for at in positions {
             if !matches!(kind(tree, at), Kind::Node(Node::Constant | Node::JoinedStr))
                 || super::super::format_parsing::service::is_string_occurrence(tree, at)
@@ -135,13 +149,17 @@ where
 
 /// Occurrences in source order.
 #[must_use]
-pub(crate) fn occurrences(index: &RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>) -> &[FormatOccurrence] {
+pub(crate) fn occurrences(
+    index: &RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>,
+) -> &[FormatOccurrence] {
     &index.occurrences
 }
 
 /// State of the retained index.
 #[must_use]
-pub(crate) fn state(index: &RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>) -> BraceFormatState {
+pub(crate) fn state(
+    index: &RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>,
+) -> BraceFormatState {
     index.state
 }
 
@@ -155,34 +173,4 @@ pub(crate) fn result<'a>(
         .values
         .get(occurrence.cached?.0)
         .map(|cached| &cached.result)
-}
-
-/// Owned result buffers, independent of the file occurrence that uses the result.
-#[must_use]
-pub(crate) fn owned_bytes(result: &BraceFormatResult) -> FormatOwnedBytes {
-    FormatOwnedBytes(match result {
-        BraceFormatResult::Parsed(parsed) => parsed
-            .fields
-            .capacity()
-            .saturating_mul(size_of::<super::types::BraceFormatField>())
-            .saturating_add(
-                parsed
-                    .fields
-                    .iter()
-                    .map(|field| {
-                        field
-                            .format_spec
-                            .as_ref()
-                            .map_or(0, |spec| spec.0.capacity())
-                            .saturating_add(field.selector_text.0.capacity())
-                            .saturating_add(match &field.selector {
-                                super::types::BraceSelector::Automatic { .. } => 0,
-                                super::types::BraceSelector::Index { text, .. }
-                                | super::types::BraceSelector::Keyword(text) => text.0.capacity(),
-                            })
-                    })
-                    .sum::<usize>(),
-            ),
-        BraceFormatResult::Malformed(_) | BraceFormatResult::Unavailable => 0,
-    })
 }

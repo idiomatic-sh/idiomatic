@@ -314,6 +314,3 @@ pub(crate) enum StringOccurrence {
     String,
     Other,
 }
-/// Existing cache admission charge for the owned result buffers.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct FormatOwnedBytes(pub usize);

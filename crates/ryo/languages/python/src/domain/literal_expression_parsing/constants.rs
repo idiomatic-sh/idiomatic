@@ -12,3 +12,5 @@ pub(crate) const PARSED: &str = "parsed";
 pub(crate) const MALFORMED: &str = "malformed";
 /// The text `unavailable`.
 pub(crate) const UNAVAILABLE: &str = "unavailable";
+/// Most hosts of capacity the embedded-expression set keeps across a reset.
+pub(crate) const EMBEDDED_CAPACITY: usize = 256;
