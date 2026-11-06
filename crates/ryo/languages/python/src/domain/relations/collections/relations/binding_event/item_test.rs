@@ -35,6 +35,10 @@ fn succeeds() {
     run(CASES, Word::Succeeds, |input| {
         Ok(proposed::<BindingEventItem>(input))
     });
+    run(CHECKS, Word::Succeeds, |check| {
+        check();
+        Ok(())
+    });
 }
 
 #[derive(Clone, Copy)]
@@ -127,7 +131,6 @@ fn check_site(events: &[Event]) -> &Event {
         .expect("the BoolOp has a source-order name read")
 }
 
-#[test]
 fn contextual_builtin_lookup_uses_the_check_site_event_order() {
     let source = "x and not x and (lambda list: list())\n";
     let rows = events(source);
@@ -143,7 +146,6 @@ fn contextual_builtin_lookup_uses_the_check_site_event_order() {
     assert_ne!(site.phase, call_read.phase, "lambda body is deferred");
 }
 
-#[test]
 fn contextual_lookup_sees_outer_parameters_but_not_later_function_locals() {
     let source = "def f(list):\n    x and not x and (lambda: list())\n";
     let rows = events(source);
@@ -169,7 +171,6 @@ fn contextual_lookup_sees_outer_parameters_but_not_later_function_locals() {
     assert!(later_local.ordinal < later_call_read.ordinal);
 }
 
-#[test]
 fn deferred_function_body_observes_later_module_binding_events() {
     let source = "def f():\n    x and not x and (lambda: list())\nlist = custom\n";
     let rows = events(source);
@@ -192,7 +193,6 @@ fn deferred_function_body_observes_later_module_binding_events() {
     assert!(site.ordinal < call_read.ordinal);
 }
 
-#[test]
 fn deletion_and_exception_cleanup_precede_the_lookup_anchor() {
     let source = "list = custom\ndel list\nx and not x and (lambda: list())\n";
     let rows = events(source);
@@ -220,7 +220,6 @@ fn deletion_and_exception_cleanup_precede_the_lookup_anchor() {
     assert!(exception_site.ordinal < exception_call_read.ordinal);
 }
 
-#[test]
 fn class_lookup_uses_the_current_class_and_skips_outer_class_scopes() {
     let source = "class Outer:\n    list = custom\n    x and not x and (lambda list: list())\n";
     let rows = events(source);
@@ -251,3 +250,37 @@ fn class_lookup_uses_the_current_class_and_skips_outer_class_scopes() {
     );
     assert!(outer_class_binding.ordinal < inner_site.ordinal);
 }
+
+/// Each check below states its own source and asserts its own outcome.
+const CHECKS: &[Case<fn(), (), ()>] = &[
+    Case {
+        name: CaseName("contextual_builtin_lookup_uses_the_check_site_event_order"),
+        word: Word::Succeeds,
+        input: || contextual_builtin_lookup_uses_the_check_site_event_order,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("contextual_lookup_sees_outer_parameters_but_not_later_function_locals"),
+        word: Word::Succeeds,
+        input: || contextual_lookup_sees_outer_parameters_but_not_later_function_locals,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("deferred_function_body_observes_later_module_binding_events"),
+        word: Word::Succeeds,
+        input: || deferred_function_body_observes_later_module_binding_events,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("deletion_and_exception_cleanup_precede_the_lookup_anchor"),
+        word: Word::Succeeds,
+        input: || deletion_and_exception_cleanup_precede_the_lookup_anchor,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("class_lookup_uses_the_current_class_and_skips_outer_class_scopes"),
+        word: Word::Succeeds,
+        input: || class_lookup_uses_the_current_class_and_skips_outer_class_scopes,
+        expect: Expect::Value(()),
+    },
+];

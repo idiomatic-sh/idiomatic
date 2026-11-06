@@ -1,5 +1,6 @@
 //! Parser values normalize every Python radix without evaluating unary or arithmetic expressions.
 
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::{
     service::{classify, float_text},
     types::{Classification, NumericValue},
@@ -35,7 +36,6 @@ fn literals(source: &'static str) -> Vec<NumericLiteral> {
         .collect()
 }
 
-#[test]
 fn integer_payloads_are_canonical_arbitrary_precision_and_exclude_other_primitives() {
     let values = literals(
         "0x10\n0o20\n0b10000\n1_000\n9007199254740993\n18446744073709551616\n340282366920938463463374607431768211457\nTrue\nFalse\n1j\nNone\n'42'\nb'42'\n",
@@ -57,7 +57,6 @@ fn integer_payloads_are_canonical_arbitrary_precision_and_exclude_other_primitiv
     );
 }
 
-#[test]
 fn unary_signs_and_arithmetic_remain_separate_syntax() {
     assert_eq!(
         literals("-42\n+0x10\n1 + 2\n-0.0\n")
@@ -68,7 +67,6 @@ fn unary_signs_and_arithmetic_remain_separate_syntax() {
     );
 }
 
-#[test]
 fn floats_round_trip_and_keep_their_numeric_kind() {
     let values = literals("1.0\n1e3\n1_000.0\n5e-324\n1e-9999\n1e9999\n");
     let expected = [
@@ -112,7 +110,6 @@ fn floats_round_trip_and_keep_their_numeric_kind() {
     }
 }
 
-#[test]
 fn literals_inside_interpolations_remain_real_numeric_occurrences() {
     assert_eq!(
         literals("f'1{0x10}2{1.0}'\n")
@@ -121,4 +118,40 @@ fn literals_inside_interpolations_remain_real_numeric_occurrences() {
             .collect::<Vec<_>>(),
         ["16", "1.0"]
     );
+}
+
+/// Each check below states its own source and asserts its own outcome.
+const CASES: &[Case<fn(), (), ()>] = &[
+    Case {
+        name: CaseName("integer_payloads_are_canonical_arbitrary_precision_and_exclude_other_primitives"),
+        word: Word::Succeeds,
+        input: || integer_payloads_are_canonical_arbitrary_precision_and_exclude_other_primitives,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("unary_signs_and_arithmetic_remain_separate_syntax"),
+        word: Word::Succeeds,
+        input: || unary_signs_and_arithmetic_remain_separate_syntax,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("floats_round_trip_and_keep_their_numeric_kind"),
+        word: Word::Succeeds,
+        input: || floats_round_trip_and_keep_their_numeric_kind,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("literals_inside_interpolations_remain_real_numeric_occurrences"),
+        word: Word::Succeeds,
+        input: || literals_inside_interpolations_remain_real_numeric_occurrences,
+        expect: Expect::Value(()),
+    },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |check| {
+        check();
+        Ok(())
+    });
 }

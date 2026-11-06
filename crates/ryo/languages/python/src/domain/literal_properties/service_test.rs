@@ -1,5 +1,6 @@
 //! Parser-owned literal values classify without inferring runtime truthiness.
 
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::service::{Classification, Properties, classify};
 use crate::domain::{
     nodes::types::Node,
@@ -35,7 +36,6 @@ fn property(kind: &'static str, zero: bool, empty: bool, boolean: bool) -> Prope
     }
 }
 
-#[test]
 fn primitive_values_use_parser_payload_and_decoded_tokens() {
     assert_eq!(
         properties(
@@ -69,7 +69,6 @@ fn primitive_values_use_parser_payload_and_decoded_tokens() {
     );
 }
 
-#[test]
 fn boolean_parser_payload_is_written_in_optimized_builds() {
     assert_eq!(
         properties("True\n"),
@@ -77,7 +76,6 @@ fn boolean_parser_payload_is_written_in_optimized_builds() {
     );
 }
 
-#[test]
 fn f_string_fragments_are_excluded_but_interpolation_expressions_are_literals() {
     assert_eq!(
         properties("f'{0}x{\"\"!r:{1}}'\n"),
@@ -87,4 +85,34 @@ fn f_string_fragments_are_excluded_but_interpolation_expressions_are_literals() 
             property("integer", false, false, false),
         ]
     );
+}
+
+/// Each check below states its own source and asserts its own outcome.
+const CASES: &[Case<fn(), (), ()>] = &[
+    Case {
+        name: CaseName("primitive_values_use_parser_payload_and_decoded_tokens"),
+        word: Word::Succeeds,
+        input: || primitive_values_use_parser_payload_and_decoded_tokens,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("boolean_parser_payload_is_written_in_optimized_builds"),
+        word: Word::Succeeds,
+        input: || boolean_parser_payload_is_written_in_optimized_builds,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("f_string_fragments_are_excluded_but_interpolation_expressions_are_literals"),
+        word: Word::Succeeds,
+        input: || f_string_fragments_are_excluded_but_interpolation_expressions_are_literals,
+        expect: Expect::Value(()),
+    },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |check| {
+        check();
+        Ok(())
+    });
 }

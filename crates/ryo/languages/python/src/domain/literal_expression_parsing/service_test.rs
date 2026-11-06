@@ -1,4 +1,5 @@
 //! Demand, representation, reset and unavailable-knowledge contracts.
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::{
     interface::LiteralExpressionSyntax,
     service::prepare,
@@ -32,7 +33,6 @@ impl LiteralExpressionSyntax for Counting {
     }
 }
 
-#[test]
 fn literal_parsing_is_absent_without_demand_and_caches_both_outcomes() {
     CALLS.with(|count| count.set(0));
     let mut source = parsed(b"'T'\n'T'\n''\n''\n").expect("source");
@@ -121,7 +121,6 @@ fn literal_parsing_is_absent_without_demand_and_caches_both_outcomes() {
     CALLS.with(|count| assert_eq!(count.get(), 2));
 }
 
-#[test]
 fn reset_discards_old_identities_results_and_key_bytes_but_keeps_capacity() {
     CALLS.with(|count| count.set(0));
     let mut model = Declarations::default();
@@ -154,7 +153,6 @@ fn reset_discards_old_identities_results_and_key_bytes_but_keeps_capacity() {
     }
 }
 
-#[test]
 fn equal_decoded_text_keeps_representation_sensitive_parser_modes() {
     CALLS.with(|count| count.set(0));
     let mut source = parsed(b"'''T\n| U'''\n'T\\n| U'\n('T\\n' '| U')\n").expect("source");
@@ -183,7 +181,6 @@ fn equal_decoded_text_keeps_representation_sensitive_parser_modes() {
     CALLS.with(|count| assert_eq!(count.get(), 3));
 }
 
-#[test]
 fn an_existing_hidden_embedded_success_is_reused_without_new_parsing() {
     CALLS.with(|count| count.set(0));
     let mut source = parsed(b"from typing import Literal\nx: Literal['T']\n").expect("source");
@@ -213,7 +210,6 @@ fn an_existing_hidden_embedded_success_is_reused_without_new_parsing() {
     );
 }
 
-#[test]
 fn missing_logical_carriers_are_unavailable_and_partial_not_malformed() {
     CALLS.with(|count| count.set(0));
     let source = parsed(b"'T'\n").expect("source");
@@ -242,7 +238,6 @@ fn missing_logical_carriers_are_unavailable_and_partial_not_malformed() {
     CALLS.with(|count| assert_eq!(count.get(), 0));
 }
 
-#[test]
 fn retained_storage_is_outcomes_occurrences_and_complete_carrier_keys() {
     use std::fmt::Write as _;
     CALLS.with(|count| count.set(0));
@@ -284,7 +279,6 @@ fn retained_storage_is_outcomes_occurrences_and_complete_carrier_keys() {
     CALLS.with(|count| assert_eq!(count.get(), 257));
 }
 
-#[test]
 fn literal_demand_does_not_initialize_other_parser_caches() {
     CALLS.with(|count| count.set(0));
     let mut source = parsed(b"'T'\n").expect("source");
@@ -303,4 +297,58 @@ fn literal_demand_does_not_initialize_other_parser_caches() {
         crate::domain::brace_format::types::BraceFormatState::Fresh
     );
     CALLS.with(|count| assert_eq!(count.get(), 1));
+}
+
+/// Each check below states its own source and asserts its own outcome.
+const CASES: &[Case<fn(), (), ()>] = &[
+    Case {
+        name: CaseName("literal_parsing_is_absent_without_demand_and_caches_both_outcomes"),
+        word: Word::Succeeds,
+        input: || literal_parsing_is_absent_without_demand_and_caches_both_outcomes,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("reset_discards_old_identities_results_and_key_bytes_but_keeps_capacity"),
+        word: Word::Succeeds,
+        input: || reset_discards_old_identities_results_and_key_bytes_but_keeps_capacity,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("equal_decoded_text_keeps_representation_sensitive_parser_modes"),
+        word: Word::Succeeds,
+        input: || equal_decoded_text_keeps_representation_sensitive_parser_modes,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("an_existing_hidden_embedded_success_is_reused_without_new_parsing"),
+        word: Word::Succeeds,
+        input: || an_existing_hidden_embedded_success_is_reused_without_new_parsing,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("missing_logical_carriers_are_unavailable_and_partial_not_malformed"),
+        word: Word::Succeeds,
+        input: || missing_logical_carriers_are_unavailable_and_partial_not_malformed,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("retained_storage_is_outcomes_occurrences_and_complete_carrier_keys"),
+        word: Word::Succeeds,
+        input: || retained_storage_is_outcomes_occurrences_and_complete_carrier_keys,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("literal_demand_does_not_initialize_other_parser_caches"),
+        word: Word::Succeeds,
+        input: || literal_demand_does_not_initialize_other_parser_caches,
+        expect: Expect::Value(()),
+    },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |check| {
+        check();
+        Ok(())
+    });
 }

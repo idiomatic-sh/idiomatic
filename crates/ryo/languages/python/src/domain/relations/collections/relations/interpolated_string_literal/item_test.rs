@@ -1,11 +1,11 @@
 //! The reader emits decoded f-string text pieces, not interpolation or format-spec text.
 
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::super::fixtures::contract::check;
 use super::item::InterpolatedStringLiteralItem;
 use crate::fixtures::reading::reading;
 use ryo::languages::contract::Want;
 
-#[test]
 fn fstring_fragments_are_scoped_and_decoded() {
     check::<InterpolatedStringLiteralItem>();
     let source = concat!(
@@ -77,4 +77,22 @@ fn fstring_fragments_are_scoped_and_decoded() {
         "{:?}",
         adjacent.rows
     );
+}
+
+/// Each check below states its own source and asserts its own outcome.
+const CASES: &[Case<fn(), (), ()>] = &[
+    Case {
+        name: CaseName("fstring_fragments_are_scoped_and_decoded"),
+        word: Word::Succeeds,
+        input: || fstring_fragments_are_scoped_and_decoded,
+        expect: Expect::Value(()),
+    },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |check| {
+        check();
+        Ok(())
+    });
 }

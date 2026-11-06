@@ -80,9 +80,12 @@ fn subject(source: Input) -> Value {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
+    run(CHECKS, Word::Succeeds, |check| {
+        check();
+        Ok(())
+    });
 }
 
-#[test]
 fn quoted_annotation_call_arguments_are_visible_without_string_expression_leakage() {
     let annotation = "x: \"[data[index] for index,value in enumerate(data)]\"\n";
     assert_expanded_node_coordinate::<CallArgumentItem>(
@@ -104,3 +107,13 @@ fn quoted_annotation_call_arguments_are_visible_without_string_expression_leakag
     assert!(hidden.causes.is_empty());
     assert!(hidden.rows.is_empty());
 }
+
+/// Each check below states its own source and asserts its own outcome.
+const CHECKS: &[Case<fn(), (), ()>] = &[
+    Case {
+        name: CaseName("quoted_annotation_call_arguments_are_visible_without_string_expression_leakage"),
+        word: Word::Succeeds,
+        input: || quoted_annotation_call_arguments_are_visible_without_string_expression_leakage,
+        expect: Expect::Value(()),
+    },
+];

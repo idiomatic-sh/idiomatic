@@ -1,10 +1,17 @@
 //! Budget, content, grammar identity and current-source occurrence regressions.
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::{service, types::Memo};
+use crate::domain::format_syntax::{
+    interface::FormatSyntax,
+    types::{
+        FormatDialect, FormatErrorKind, FormatParseError, FormatParseResult, FormatSummary,
+        ParsedFormat,
+    },
+};
 
 struct FirstGrammar;
 struct SecondGrammar;
 
-#[test]
 fn byte_budget_rejects_large_keys_and_owned_results() {
     let mut memo = Memo::default();
     service::grammar::<FirstGrammar, _>(&mut memo, "first-dialect-v1");
@@ -19,7 +26,6 @@ fn byte_budget_rejects_large_keys_and_owned_results() {
     assert!(memo.scratch.capacity() <= service::ARENA_BUDGET);
 }
 
-#[test]
 fn parser_identity_and_exact_content_prevent_stale_reuse() {
     let mut memo = Memo::default();
     service::grammar::<FirstGrammar, _>(&mut memo, "first-dialect-v1");
@@ -42,7 +48,6 @@ fn parser_identity_and_exact_content_prevent_stale_reuse() {
     assert!(service::retained(&memo) <= service::MEMO_BUDGET);
 }
 
-#[test]
 fn all_four_readers_rebuild_occurrences_after_same_file_edits() {
     use crate::domain::model::types::Declarations;
     use crate::fixtures::reading::{initialize_model, parsed};
@@ -141,7 +146,6 @@ fn all_four_readers_rebuild_occurrences_after_same_file_edits() {
     }
 }
 
-#[test]
 fn oversized_current_inputs_do_not_become_reusable_content() {
     use crate::domain::model::types::Declarations;
     use crate::fixtures::reading::{initialize_model, parsed};
@@ -251,56 +255,45 @@ fn oversized_current_inputs_do_not_become_reusable_content() {
     );
 }
 
-#[test]
+struct ParsedGrammar;
+impl FormatSyntax for ParsedGrammar {
+    const DECODED_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
+        crate::domain::format_syntax::types::GrammarIdentity("test-percent-decoded");
+    const RAW_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
+        crate::domain::format_syntax::types::GrammarIdentity("test-percent-raw");
+
+    fn parse(
+        _: crate::domain::format_syntax::types::FormatInput<'_>,
+        _: FormatDialect,
+    ) -> FormatParseResult {
+        FormatParseResult::Parsed(ParsedFormat {
+            fields: Vec::new(),
+            summary: FormatSummary::default(),
+        })
+    }
+}
+struct RejectedGrammar;
+impl FormatSyntax for RejectedGrammar {
+    const DECODED_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
+        crate::domain::format_syntax::types::GrammarIdentity("test-percent-decoded");
+    const RAW_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
+        crate::domain::format_syntax::types::GrammarIdentity("test-percent-raw");
+
+    fn parse(
+        _: crate::domain::format_syntax::types::FormatInput<'_>,
+        _: FormatDialect,
+    ) -> FormatParseResult {
+        FormatParseResult::Malformed(FormatParseError {
+            kind: FormatErrorKind::IncompleteFormat,
+            character: None,
+            index: crate::domain::format_syntax::types::FormatScalarIndex(0),
+        })
+    }
+}
 fn completed_active_results_are_invalidated_when_parser_implementation_changes() {
-    use crate::domain::{
-        format_parsing::service::prepare,
-        format_syntax::{
-            interface::FormatSyntax,
-            types::{
-                FormatDialect, FormatErrorKind, FormatParseError, FormatParseResult, FormatSummary,
-                ParsedFormat,
-            },
-        },
-        model::types::Declarations,
-    };
+    use crate::domain::{format_parsing::service::prepare, model::types::Declarations};
     use crate::fixtures::reading::{initialize_model, parsed};
     use ryo::languages::{self, ByteSlice, Symbols, Tree};
-    struct ParsedGrammar;
-    impl FormatSyntax for ParsedGrammar {
-        const DECODED_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
-            crate::domain::format_syntax::types::GrammarIdentity("test-percent-decoded");
-        const RAW_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
-            crate::domain::format_syntax::types::GrammarIdentity("test-percent-raw");
-
-        fn parse(
-            _: crate::domain::format_syntax::types::FormatInput<'_>,
-            _: FormatDialect,
-        ) -> FormatParseResult {
-            FormatParseResult::Parsed(ParsedFormat {
-                fields: Vec::new(),
-                summary: FormatSummary::default(),
-            })
-        }
-    }
-    struct RejectedGrammar;
-    impl FormatSyntax for RejectedGrammar {
-        const DECODED_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
-            crate::domain::format_syntax::types::GrammarIdentity("test-percent-decoded");
-        const RAW_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
-            crate::domain::format_syntax::types::GrammarIdentity("test-percent-raw");
-
-        fn parse(
-            _: crate::domain::format_syntax::types::FormatInput<'_>,
-            _: FormatDialect,
-        ) -> FormatParseResult {
-            FormatParseResult::Malformed(FormatParseError {
-                kind: FormatErrorKind::IncompleteFormat,
-                character: None,
-                index: crate::domain::format_syntax::types::FormatScalarIndex(0),
-            })
-        }
-    }
     let file = parsed(b"value = 'same input'\n").expect("source parses");
     let tree = Tree {
         elements: &file.elements,
@@ -342,7 +335,6 @@ fn completed_active_results_are_invalidated_when_parser_implementation_changes()
     ));
 }
 
-#[test]
 fn memo_admission_prefers_source_insertion_order_when_budget_is_full() {
     use crate::domain::format_syntax::types::{
         CachedFormat, FormatArgument, FormatFieldValue, FormatParseIndex, FormatParseResult,
@@ -382,7 +374,6 @@ fn memo_admission_prefers_source_insertion_order_when_budget_is_full() {
     }
 }
 
-#[test]
 fn ordered_lookup_releases_large_dense_and_hash_storage_on_reset() {
     let mut map = indexmap::IndexMap::new();
     for ordinal in 0_usize..256_usize {
@@ -395,4 +386,58 @@ fn ordered_lookup_releases_large_dense_and_hash_storage_on_reset() {
     service::reset_map(&mut map);
     assert_eq!(service::ordered_bytes(&map), 0);
     assert_eq!(map.capacity(), 0);
+}
+
+/// Each check below states its own source and asserts its own outcome.
+const CASES: &[Case<fn(), (), ()>] = &[
+    Case {
+        name: CaseName("byte_budget_rejects_large_keys_and_owned_results"),
+        word: Word::Succeeds,
+        input: || byte_budget_rejects_large_keys_and_owned_results,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("parser_identity_and_exact_content_prevent_stale_reuse"),
+        word: Word::Succeeds,
+        input: || parser_identity_and_exact_content_prevent_stale_reuse,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("all_four_readers_rebuild_occurrences_after_same_file_edits"),
+        word: Word::Succeeds,
+        input: || all_four_readers_rebuild_occurrences_after_same_file_edits,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("oversized_current_inputs_do_not_become_reusable_content"),
+        word: Word::Succeeds,
+        input: || oversized_current_inputs_do_not_become_reusable_content,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("completed_active_results_are_invalidated_when_parser_implementation_changes"),
+        word: Word::Succeeds,
+        input: || completed_active_results_are_invalidated_when_parser_implementation_changes,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("memo_admission_prefers_source_insertion_order_when_budget_is_full"),
+        word: Word::Succeeds,
+        input: || memo_admission_prefers_source_insertion_order_when_budget_is_full,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("ordered_lookup_releases_large_dense_and_hash_storage_on_reset"),
+        word: Word::Succeeds,
+        input: || ordered_lookup_releases_large_dense_and_hash_storage_on_reset,
+        expect: Expect::Value(()),
+    },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |check| {
+        check();
+        Ok(())
+    });
 }

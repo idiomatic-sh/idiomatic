@@ -47,11 +47,24 @@ fn subject(source: Input) -> Value {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
+    run(CHECKS, Word::Succeeds, |check| {
+        check();
+        Ok(())
+    });
 }
 
-#[test]
 fn module_nonlocal_validation_keeps_expression_shapes_complete() {
     let result = subject("nonlocal x\n1\n");
     assert!(result.causes.is_empty());
     assert_eq!(result.rows.len(), 1);
 }
+
+/// Each check below states its own source and asserts its own outcome.
+const CHECKS: &[Case<fn(), (), ()>] = &[
+    Case {
+        name: CaseName("module_nonlocal_validation_keeps_expression_shapes_complete"),
+        word: Word::Succeeds,
+        input: || module_nonlocal_validation_keeps_expression_shapes_complete,
+        expect: Expect::Value(()),
+    },
+];

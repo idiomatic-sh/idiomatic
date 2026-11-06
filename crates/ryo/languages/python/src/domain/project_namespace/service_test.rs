@@ -1,4 +1,5 @@
 //! Project namespace membership controls independent of successful dependency resolution.
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::{candidates, memberships};
 use crate::domain::project_namespace::types::{EntryKind, ImportedRoot, MembershipState};
 use ryo::languages::{FileId, FilePath};
@@ -22,7 +23,6 @@ fn dotted(file: u32, name: &str) -> ImportedRoot {
     }
 }
 
-#[test]
 fn imported_root_membership_requires_complete_scope_or_positive_observation() {
     let imported = [root(0, "pkg"), root(1, "pkg")];
     let undeclared = memberships(None, &imported, Vec::new(), |_, _| None);
@@ -55,7 +55,6 @@ fn imported_root_membership_requires_complete_scope_or_positive_observation() {
     );
 }
 
-#[test]
 fn namespace_directory_and_missing_child_have_distinct_memberships() {
     let imported = [root(0, "pkg"), root(0, "other")];
     let search = [path("src")];
@@ -78,7 +77,6 @@ fn namespace_directory_and_missing_child_have_distinct_memberships() {
     );
 }
 
-#[test]
 fn namespace_root_stays_present_while_dotted_children_are_observed_separately() {
     let imported = [dotted(0, "acme.storage"), dotted(0, "acme.billing")];
     let search = [path("src")];
@@ -125,7 +123,6 @@ fn namespace_root_stays_present_while_dotted_children_are_observed_separately() 
     );
 }
 
-#[test]
 fn module_file_and_directory_collision_preserves_both_observed_prefixes() {
     let imported = [dotted(0, "acme.billing"), dotted(0, "acme.unknown")];
     let search = [path("src")];
@@ -162,7 +159,6 @@ fn module_file_and_directory_collision_preserves_both_observed_prefixes() {
     );
 }
 
-#[test]
 fn dotted_child_add_delete_type_change_and_partial_observation_change_its_kind() {
     let imported = [dotted(0, "acme.billing")];
     let search = [path("src")];
@@ -192,7 +188,6 @@ fn dotted_child_add_delete_type_change_and_partial_observation_change_its_kind()
     assert_eq!(state(Some(true), None), EntryKind::Unknown);
 }
 
-#[test]
 fn observed_package_in_another_declared_root_remains_a_real_project_entry() {
     let imported = [dotted(0, "acme.billing")];
     let observe = |candidate: &FilePath, file: bool| match (candidate.0.as_ref(), file) {
@@ -213,7 +208,6 @@ fn observed_package_in_another_declared_root_remains_a_real_project_entry() {
     }
 }
 
-#[test]
 fn missing_or_conflicting_entry_cannot_prove_absence() {
     let imported = [root(0, "local")];
     let search = [path("")];
@@ -224,7 +218,6 @@ fn missing_or_conflicting_entry_cannot_prove_absence() {
     assert_eq!(rows[0].state, MembershipState::Unknown);
 }
 
-#[test]
 fn positive_entries_keep_uncertainty_from_an_unobserved_search_root() {
     let imported = [root(0, "acme")];
     let search = [path("src"), path("lib")];
@@ -255,4 +248,64 @@ fn positive_entries_keep_uncertainty_from_an_unobserved_search_root() {
                 .all(|row| row.file == FileId(0) && &*row.root == "acme" && &*row.path == "acme")
         );
     }
+}
+
+/// Each check below states its own source and asserts its own outcome.
+const CASES: &[Case<fn(), (), ()>] = &[
+    Case {
+        name: CaseName("imported_root_membership_requires_complete_scope_or_positive_observation"),
+        word: Word::Succeeds,
+        input: || imported_root_membership_requires_complete_scope_or_positive_observation,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("namespace_directory_and_missing_child_have_distinct_memberships"),
+        word: Word::Succeeds,
+        input: || namespace_directory_and_missing_child_have_distinct_memberships,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("namespace_root_stays_present_while_dotted_children_are_observed_separately"),
+        word: Word::Succeeds,
+        input: || namespace_root_stays_present_while_dotted_children_are_observed_separately,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("module_file_and_directory_collision_preserves_both_observed_prefixes"),
+        word: Word::Succeeds,
+        input: || module_file_and_directory_collision_preserves_both_observed_prefixes,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("dotted_child_add_delete_type_change_and_partial_observation_change_its_kind"),
+        word: Word::Succeeds,
+        input: || dotted_child_add_delete_type_change_and_partial_observation_change_its_kind,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("observed_package_in_another_declared_root_remains_a_real_project_entry"),
+        word: Word::Succeeds,
+        input: || observed_package_in_another_declared_root_remains_a_real_project_entry,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("missing_or_conflicting_entry_cannot_prove_absence"),
+        word: Word::Succeeds,
+        input: || missing_or_conflicting_entry_cannot_prove_absence,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("positive_entries_keep_uncertainty_from_an_unobserved_search_root"),
+        word: Word::Succeeds,
+        input: || positive_entries_keep_uncertainty_from_an_unobserved_search_root,
+        expect: Expect::Value(()),
+    },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |check| {
+        check();
+        Ok(())
+    });
 }

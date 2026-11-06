@@ -1,4 +1,5 @@
 //! Pure module decisions preserve marker boundaries and Given isolation.
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::{
     service::{disk, given, relative_to},
     types::{Decision, Markers, PackageModule},
@@ -7,7 +8,6 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     path::{Path, PathBuf},
 };
-#[test]
 fn disk_requests_every_marker_then_retains_initializer_component() {
     let source = Path::new("/boundary/pkg/sub/__init__.py");
     let mut markers = Markers::default();
@@ -32,7 +32,6 @@ fn disk_requests_every_marker_then_retains_initializer_component() {
         }))
     );
 }
-#[test]
 fn standalone_is_complete_empty_and_pyi_is_not_a_marker() {
     let markers = Markers(BTreeMap::from([("/root/__init__.py".into(), false)]));
     assert_eq!(
@@ -42,7 +41,6 @@ fn standalone_is_complete_empty_and_pyi_is_not_a_marker() {
     let files = BTreeSet::from([PathBuf::from("__init__.pyi"), PathBuf::from("mod.py")]);
     assert_eq!(given(Path::new("mod.py"), &files), Decision::Known(None));
 }
-#[test]
 fn given_knows_nested_packages_but_never_an_unnamed_root_package() {
     let mut files = BTreeSet::from([
         PathBuf::from("pkg/__init__.py"),
@@ -58,7 +56,6 @@ fn given_knows_nested_packages_but_never_an_unnamed_root_package() {
     let _inserted = files.insert("__init__.py".into());
     assert_eq!(given(Path::new("pkg/mod.py"), &files), Decision::Unknown);
 }
-#[test]
 fn paths_above_root_remain_real_relative_dependencies() {
     assert_eq!(
         relative_to(
@@ -69,7 +66,6 @@ fn paths_above_root_remain_real_relative_dependencies() {
     );
 }
 
-#[test]
 fn raw_basenames_and_directory_components_are_not_filename_stems() {
     use super::service::basenames;
     let source = Path::new("/boundary/pkg.with.dot/nested.name/mod.with.dot.pyi");
@@ -95,7 +91,6 @@ fn raw_basenames_and_directory_components_are_not_filename_stems() {
     );
     assert_eq!(basenames(Path::new("/boundary/pkg/mod.txt")), None);
 }
-#[test]
 fn dotted_nonpackage_directory_does_not_create_module_context() {
     let source = Path::new("/boundary/no.package/mod.py");
     let markers = Markers(BTreeMap::from([(
@@ -110,7 +105,6 @@ fn dotted_nonpackage_directory_does_not_create_module_context() {
     );
 }
 
-#[test]
 fn root_basename_preserves_contiguous_boundary_and_namespace_prefix() {
     for source in [
         "/boundary/namespace/pkg.root/sub.name/__init__.py",
@@ -137,4 +131,58 @@ fn root_basename_preserves_contiguous_boundary_and_namespace_prefix() {
         assert!(module.path.starts_with("pkg.root.sub.name."));
         assert!(!module.path.contains("namespace"));
     }
+}
+
+/// Each check below states its own source and asserts its own outcome.
+const CASES: &[Case<fn(), (), ()>] = &[
+    Case {
+        name: CaseName("disk_requests_every_marker_then_retains_initializer_component"),
+        word: Word::Succeeds,
+        input: || disk_requests_every_marker_then_retains_initializer_component,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("standalone_is_complete_empty_and_pyi_is_not_a_marker"),
+        word: Word::Succeeds,
+        input: || standalone_is_complete_empty_and_pyi_is_not_a_marker,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("given_knows_nested_packages_but_never_an_unnamed_root_package"),
+        word: Word::Succeeds,
+        input: || given_knows_nested_packages_but_never_an_unnamed_root_package,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("paths_above_root_remain_real_relative_dependencies"),
+        word: Word::Succeeds,
+        input: || paths_above_root_remain_real_relative_dependencies,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("raw_basenames_and_directory_components_are_not_filename_stems"),
+        word: Word::Succeeds,
+        input: || raw_basenames_and_directory_components_are_not_filename_stems,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("dotted_nonpackage_directory_does_not_create_module_context"),
+        word: Word::Succeeds,
+        input: || dotted_nonpackage_directory_does_not_create_module_context,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("root_basename_preserves_contiguous_boundary_and_namespace_prefix"),
+        word: Word::Succeeds,
+        input: || root_basename_preserves_contiguous_boundary_and_namespace_prefix,
+        expect: Expect::Value(()),
+    },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |check| {
+        check();
+        Ok(())
+    });
 }

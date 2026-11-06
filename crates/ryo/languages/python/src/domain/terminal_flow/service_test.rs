@@ -1,4 +1,5 @@
 //! The terminal index is lazy, memoized and cleared on source replacement.
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::{
     service::{outcome, prepare},
     types::IndexState,
@@ -7,7 +8,6 @@ use crate::domain::model::types::Declarations;
 use crate::fixtures::reading::{initialize_model, parsed};
 use ryo::languages::{self, ByteSlice, Tree};
 
-#[test]
 fn is_lazy_retained_and_invalidated_between_files() {
     let first = parsed(b"def f():\n    raise ValueError()\n").expect("source parses");
     let first_tree = Tree {
@@ -44,4 +44,22 @@ fn is_lazy_retained_and_invalidated_between_files() {
             .iter()
             .any(|summary| summary.function_terminal == super::types::Outcome::Implicit)
     );
+}
+
+/// Each check below states its own source and asserts its own outcome.
+const CASES: &[Case<fn(), (), ()>] = &[
+    Case {
+        name: CaseName("is_lazy_retained_and_invalidated_between_files"),
+        word: Word::Succeeds,
+        input: || is_lazy_retained_and_invalidated_between_files,
+        expect: Expect::Value(()),
+    },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |check| {
+        check();
+        Ok(())
+    });
 }

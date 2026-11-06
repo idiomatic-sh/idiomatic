@@ -1,5 +1,7 @@
 //! Independent Python lexical provenance examples; every case also checks the shared retained-model lifecycle.
+use super::service::builtin_named;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo::languages::NameText;
 type Input = (&'static str, &'static str);
 type Value = (Option<&'static str>, &'static str, i64, i64);
 type Failure = String;
@@ -416,4 +418,21 @@ fn subject(input: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+    run(CHECKS, Word::Succeeds, |check| {
+        check();
+        Ok(())
+    });
 }
+
+fn the_builtin_catalog_answers_for_builtins_only() {
+    assert!(builtin_named(NameText("exec")).is_some());
+    assert!(builtin_named(NameText("not_a_builtin_name")).is_none());
+}
+
+/// Each check below states its own source and asserts its own outcome.
+const CHECKS: &[Case<fn(), (), ()>] = &[Case {
+    name: CaseName("the_builtin_catalog_answers_for_builtins_only"),
+    word: Word::Succeeds,
+    input: || the_builtin_catalog_answers_for_builtins_only,
+    expect: Expect::Value(()),
+}];

@@ -54,12 +54,8 @@ pub(crate) mod binding_use;
 /// Generic static binding analysis.
 pub(crate) mod binding_shadow;
 
-pub(crate) mod brace_format_field;
-pub(crate) mod brace_format_parse;
 pub(crate) mod constant_key;
 pub(crate) mod expression_type;
-pub(crate) mod format_field;
-pub(crate) mod format_parse;
 pub(crate) mod function_terminal;
 /// Optional builtin inventory independent of Name expressions.
 pub(crate) mod implicit_symbol;
@@ -67,11 +63,6 @@ pub(crate) mod interpolated_string_literal;
 pub(crate) mod language_target;
 pub(crate) mod literal_properties;
 pub(crate) mod numeric_literal;
-pub(crate) mod raw_format_field;
-pub(crate) mod raw_format_segment;
-
-/// Optional syntactic validity is statically bound in the inbound parser contract.
-pub(crate) mod literal_expression_parse;
 
 /// Canonical known module compiler features; absence is not a disabled flag.
 pub(crate) mod compiler_feature;
