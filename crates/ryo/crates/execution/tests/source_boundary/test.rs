@@ -173,6 +173,20 @@ fn actual_runtime_authority_is_private_to_its_owner() {
             ),
             Some(("E0451", "region", "private")),
         ),
+        (
+            PROGRAM,
+            format!(
+                "{SIBLING} use super::native_walk::PermittedWalk; fn requeue(request: PermittedWalk<'_, '_, '_>) {{ let _ = PermittedWalk {{ ready: &[], ..request }}; }} const _: for<'a, 'b, 'c> fn(PermittedWalk<'a, 'b, 'c>) = requeue; }}"
+            ),
+            Some(("E0451", "ready", "private")),
+        ),
+        (
+            PROGRAM,
+            format!(
+                "{SIBLING} fn walk_factory(permit: &KernelPermit<'_>) {{ let _ = permit.walk(); }} const _: for<'a, 'b> fn(&'a KernelPermit<'b>) = walk_factory; }}"
+            ),
+            Some(("E0599", "walk", "KernelPermit")),
+        ),
     ];
     for (owner, probe, refusal) in probes {
         fs::write(overlay.path().join(PROGRAM), &program).unwrap();
