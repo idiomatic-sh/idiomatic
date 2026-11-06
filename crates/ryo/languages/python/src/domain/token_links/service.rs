@@ -1,11 +1,11 @@
 //! Linear links over the completed native token prefix, never a second lexer.
-use super::types::{Event, TokenLink, LinkKind, Scan};
+use super::constants;
+use super::types::{Coverage, Event, LinkKind, Opener, Pairing, PositionCursor, Scan, TokenLink};
 use crate::domain::{
     syntax::{service::kind, types::Kind},
     tokens::types::Token,
 };
 use ryo::languages::{self, NameText, Position, Tree};
-use super::constants;
 
 /// Native root extent excludes separately adopted embedded expressions.
 pub(crate) fn scan<'tree, 'source>(
@@ -20,12 +20,15 @@ pub(crate) fn scan<'tree, 'source>(
     };
     let mut state = Scan {
         tree,
-        positions: 0..end,
+        positions: PositionCursor {
+            next: Position(0),
+            end: Position(end),
+        },
         previous: None,
         stack: Vec::new(),
         pending: [None; 2],
-        incomplete: false,
-        reported: false,
+        pairing: Pairing::Whole,
+        reported: Coverage::Pending,
     };
     std::iter::from_fn(move || next_event(&mut state))
 }
@@ -54,39 +57,40 @@ fn next_event(scan: &mut Scan<'_, '_>) -> Option<Event> {
         scan.pending[0] = scan.pending[1].take();
         return Some(Event::Link(link));
     }
-    for raw in scan.positions.by_ref() {
-        let at = Position(raw);
+    while scan.positions.next.0 < scan.positions.end.0 {
+        let at = scan.positions.next;
+        scan.positions.next = Position(at.0.saturating_add(1));
         let Kind::Token(token) = kind(scan.tree, at) else {
             continue;
         };
         if token == Token::Errortoken {
-            scan.incomplete = true;
+            scan.pairing = Pairing::Lost;
             scan.previous = None;
             scan.stack.clear();
             continue;
         }
         let mut paired = None;
-        let mut enclosing = scan.stack.last().map(|(_, opener)| *opener);
+        let mut enclosing = scan.stack.last().map(|opener| opener.at);
         if closing(token).is_some() {
             if scan.stack.try_reserve(1).is_err() {
-                scan.incomplete = true;
+                scan.pairing = Pairing::Lost;
                 scan.previous = None;
                 scan.stack.clear();
                 continue;
             }
-            scan.stack.push((token, at));
+            scan.stack.push(Opener { token, at });
         } else if matches!(token, Token::Rpar | Token::Rsqb | Token::Rbrace) {
             match scan.stack.pop() {
-                Some((open, source)) if closing(open) == Some(token) => {
+                Some(opener) if closing(opener.token) == Some(token) => {
                     paired = Some(TokenLink {
-                        source,
+                        source: opener.at,
                         target: at,
                         kind: LinkKind::Matching,
                     });
-                    enclosing = scan.stack.last().map(|(_, opener)| *opener);
+                    enclosing = scan.stack.last().map(|opener| opener.at);
                 }
                 Some(_) | None => {
-                    scan.incomplete = true;
+                    scan.pairing = Pairing::Lost;
                     scan.stack.clear();
                     enclosing = None;
                 }
@@ -114,11 +118,11 @@ fn next_event(scan: &mut Scan<'_, '_>) -> Option<Event> {
         }
     }
     if !scan.stack.is_empty() {
-        scan.incomplete = true;
+        scan.pairing = Pairing::Lost;
         scan.stack.clear();
     }
-    if scan.incomplete && !scan.reported {
-        scan.reported = true;
+    if scan.pairing == Pairing::Lost && scan.reported == Coverage::Pending {
+        scan.reported = Coverage::Reported;
         return Some(Event::Incomplete);
     }
     None
