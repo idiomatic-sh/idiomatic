@@ -255,8 +255,9 @@ fn acquire(
     for population in pins {
         owner.derived.pin(population);
     }
-    // A real lease exists before every exit that is not a success.
-    let held = if matches!(
+    // A real lease exists before every exit that is not a success. `RawKeyOrder` is refused
+    // on this ordinary route (its admission needs the kernel permit), so it holds none.
+    let held = if kind != DerivedKind::RawKeyOrder && matches!(
         scenario,
         Scenario::Cancelled
             | Scenario::Stale
