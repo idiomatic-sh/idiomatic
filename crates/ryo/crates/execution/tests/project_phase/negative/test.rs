@@ -297,3 +297,58 @@ fn an_extra_root_is_refused_by_name_without_displacing_the_declared_roots() {
     );
     assert!(!guarded.guarded.contains(&RuleIndex(2)));
 }
+
+#[test]
+fn finish_refuses_while_a_scope_or_session_still_shares_the_publication() {
+    let engine = engine();
+    let prepared = prepared(&engine);
+    let corpus = corpus();
+    let request = engine.begin(&prepared, &corpus);
+    let covered = [Covered {
+        file: FileId(0),
+        rules: vec![RuleIndex(0)],
+        partial: vec![],
+    }];
+    let phase = request.project_phase().unwrap();
+    let scope = phase
+        .project_scope(RuleIndex(0), &corpus, &covered, &[])
+        .unwrap();
+    let project = ProjectFacts::new(Relation::ModuleIdentity);
+    let mut symbols = Symbols::default();
+    let project_symbols = Symbols::default();
+    let ordinary = request
+        .prepare_frontiers(
+            FrontierRequest {
+                demand: FrontierDemand::Diagnostic,
+                scope: &scope,
+                rule: RuleIndex(0),
+                first: Bucket(0),
+                facts: &NoFileFrontiers,
+                project: &project,
+                project_symbols: &project_symbols,
+            },
+            &mut symbols,
+        )
+        .unwrap();
+    let partials = Partials::default();
+    let run = request
+        .open_project(
+            ProjectInput {
+                scope: &scope,
+                evaluation: &partials,
+                publication: &partials,
+                ordinary,
+                bound: &[],
+                arenas: &[],
+            },
+            &mut symbols,
+        )
+        .unwrap();
+    assert!(
+        matches!(phase.finish(), Err(OperatingError::NotRead)),
+        "an outstanding scope and session keep the publication shared, so finish reports the refusal"
+    );
+    run.finish();
+    drop(scope);
+    request.finish();
+}

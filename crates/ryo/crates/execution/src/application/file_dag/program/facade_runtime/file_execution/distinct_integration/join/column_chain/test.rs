@@ -12,7 +12,7 @@ fn column(number: u32) -> ColumnIndex {
 }
 
 /// The same compiled family observed at PYI034 cut 116 and PLC0206 cut 233.
-fn plan() -> Plan {
+pub(in super::super) fn plan() -> Plan {
     let steps = vec![
         PlanStep {
             scope: StepScope::PerFile,
@@ -91,7 +91,7 @@ fn plan() -> Plan {
     }
 }
 
-fn stored(relation: Relation, table: Table) -> Provider<'static> {
+pub(in super::super) fn stored(relation: Relation, table: Table) -> Provider<'static> {
     let columns = (0..table.kinds.len())
         .map(|column| {
             FactColumn(
@@ -112,7 +112,11 @@ fn stored(relation: Relation, table: Table) -> Provider<'static> {
         representation: RepresentationKind::Stored,
     }
 }
-fn sources(symbols: &mut Symbols, count: u32, hit: bool) -> [Provider<'static>; 2] {
+pub(in super::super) fn sources(
+    symbols: &mut Symbols,
+    count: u32,
+    hit: bool,
+) -> [Provider<'static>; 2] {
     let body = intern_derived(symbols, ByteSlice(b""), NameText("body"));
     let other = intern_derived(symbols, ByteSlice(b""), NameText("other"));
     let file = FileId(0);
@@ -155,7 +159,7 @@ fn sources(symbols: &mut Symbols, count: u32, hit: bool) -> [Provider<'static>; 
         stored(Relation::SemanticChild, right),
     ]
 }
-fn expected(count: u32) -> Vec<Cell> {
+pub(in super::super) fn expected(count: u32) -> Vec<Cell> {
     (0..count)
         .flat_map(|row| {
             [

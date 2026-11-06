@@ -117,3 +117,71 @@ fn selected_distinct_success_and_owner_fault_are_terminal_without_registered_fal
 fn unstable_selected_source_declines_before_semantics_without_hiding_a_reached_fault() {
     exercise(Scenario::Declined).expect("actual presemantic stability decline");
 }
+
+fn forward_refusal(scenario: Scenario) -> Result<(), OperatingError> {
+    let derived = Arc::new(Derived::new(match scenario {
+        Scenario::Acquired => BuildPolicy::Normal,
+        Scenario::Fault | Scenario::Declined => BuildPolicy::RefuseDistinct,
+    }));
+    let program = Program::new(
+        Authored::forwarded_distinct(),
+        Population::Duplicate,
+        Residency::Stable,
+        Arc::new(Meanings::default()),
+        derived.clone(),
+    )?;
+    let mut symbols = Symbols::default();
+    let mut file = program.open(&mut symbols)?;
+    let read = |relation| program.read(relation);
+    let mut refused = vec![];
+    let first = file.emit_rows(RuleIndex(0), &read, &mut symbols, &mut |row| {
+        refused.push(row.to_vec());
+        Err(OperatingError::NotRead)
+    });
+    let builds = derived.snapshot();
+    match scenario {
+        Scenario::Acquired => {
+            assert!(
+                matches!(first, Err(OperatingError::NotRead)),
+                "the sink refusal is the only failure of a completed selected publication"
+            );
+            assert_eq!(
+                refused,
+                vec![cells(&[2])],
+                "delivery stops at the first refused row"
+            );
+            let mut replay = vec![];
+            file.emit_rows(RuleIndex(0), &read, &mut symbols, &mut |row| {
+                replay.push(row.to_vec());
+                Ok(())
+            })?;
+            assert_eq!(
+                replay,
+                vec![cells(&[2]), cells(&[3])],
+                "retry replays the whole committed publication"
+            );
+            assert_eq!(derived.snapshot(), builds, "retry builds nothing again");
+        }
+        Scenario::Fault | Scenario::Declined => {
+            assert!(
+                matches!(first, Err(OperatingError::DuplicateOrder)),
+                "the reached acquisition fault is primary; the sink is never asked"
+            );
+            assert!(refused.is_empty());
+            let again = file.emit_rows(RuleIndex(0), &read, &mut symbols, &mut |_| Ok(()));
+            assert!(matches!(again, Err(OperatingError::DuplicateOrder)));
+            assert_eq!(derived.snapshot(), builds, "a failed root is never rebuilt");
+        }
+    }
+    let owner = Rc::clone(&file.owner);
+    file.finish()?;
+    assert_eq!(owner.derived.working_bytes(), 0);
+    assert_eq!(owner.derived.publication_ownership_bytes().0, 0);
+    Ok(())
+}
+#[test]
+fn selected_distinct_delivery_refusal_and_acquisition_fault_release_with_the_owner() {
+    for scenario in [Scenario::Acquired, Scenario::Fault] {
+        forward_refusal(scenario).unwrap_or_else(|error| panic!("{scenario:?}: {error:?}"));
+    }
+}

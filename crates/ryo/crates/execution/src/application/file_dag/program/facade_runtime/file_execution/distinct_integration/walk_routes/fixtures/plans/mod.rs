@@ -176,6 +176,16 @@ impl Authored {
             observations: ObservationIdentity::Named(ObservationReadinessLayout(Digest([93; 16]))),
         }
     }
+    /// The same selected distinct root delivered through a forwarded row callback.
+    pub(in super::super) fn forwarded_distinct() -> Self {
+        let mut authored = Self::distinct();
+        authored.intents = vec![FileRuleIntent::Run {
+            diagnostic: DiagnosticDelivery::Forwarded,
+            observations: ObservationDemand::NotRequired,
+            capture: CaptureIntent::Disabled,
+        }];
+        authored
+    }
     pub(in super::super) fn distinct() -> Self {
         let plans = vec![plan(vec![PlanStep {
             scope: StepScope::PerFile,
