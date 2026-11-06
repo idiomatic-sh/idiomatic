@@ -5,6 +5,12 @@ use crate::fixes::{FOUND, tm};
 fn visibility_scopes_do_not_authorize_real_imports_types_or_calls() {
     let scratch = tempfile::tempdir().unwrap();
     let project = scratch.path();
+    let repository = std::process::Command::new("git")
+        .args(["init", "-q"])
+        .current_dir(project)
+        .status()
+        .expect("initialize the real CLI fixture repository");
+    assert!(repository.success(), "git init succeeds");
     for (file, text) in [
         (
             "Cargo.toml",
