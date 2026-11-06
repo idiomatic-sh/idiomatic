@@ -7,7 +7,7 @@ pub fn name() -> &'static str {
 /// A short description for relation listings.
 #[must_use]
 pub fn summary() -> &'static str {
-    "Optional basic parser-derived types of individual Python expressions."
+    "Optional basic parser-derived types of individual expressions."
 }
 /// The RyoQL spelling of a typed column.
 #[must_use]

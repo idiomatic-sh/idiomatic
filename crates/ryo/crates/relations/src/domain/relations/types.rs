@@ -535,13 +535,13 @@ pub enum OptionalCapability {
     CompilerFeature,
     /// Collision-checked keys for supported parsed constant expressions.
     ConstantKey,
-    /// Parsed Python percent-format strings and their format fields.
+    /// Parsed percent-format strings and their format fields.
     FormatParse,
-    /// Parsed Python percent-format strings and their format fields.
+    /// Parsed percent-format strings and their format fields.
     FormatField,
-    /// Parsed Python brace-format strings, kept separate from percent-format demand.
+    /// Parsed brace-format strings, kept separate from percent-format demand.
     BraceFormatParse,
-    /// Ordered Python brace-format fields, including nested format-spec fields.
+    /// Ordered brace-format fields, including nested format-spec fields.
     BraceFormatField,
     /// Basic structured terminal outcomes of function bodies.
     FunctionTerminal,

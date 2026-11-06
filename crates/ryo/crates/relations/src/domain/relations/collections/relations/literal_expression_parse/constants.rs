@@ -1,5 +1,6 @@
 //! Public vocabulary for literal-expression-parse.
 use super::item::LiteralExpressionParseColumn;
+use crate::domain::relations::constants::{DIALECT, OUTCOME};
 /// Return the relation's query name.
 #[must_use]
 pub fn name() -> &'static str {
@@ -15,8 +16,8 @@ pub fn summary() -> &'static str {
 pub fn column_name(column: LiteralExpressionParseColumn) -> &'static str {
     match column {
         LiteralExpressionParseColumn::Id => "id",
-        LiteralExpressionParseColumn::Dialect => "dialect",
-        LiteralExpressionParseColumn::Outcome => "outcome",
+        LiteralExpressionParseColumn::Dialect => DIALECT,
+        LiteralExpressionParseColumn::Outcome => OUTCOME,
         LiteralExpressionParseColumn::File => "file",
         LiteralExpressionParseColumn::Span => "span",
     }

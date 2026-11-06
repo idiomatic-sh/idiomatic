@@ -35,7 +35,7 @@ macro_rules! raw_format_field {
                 segment_field_ordinal SegmentFieldOrdinal: Integer => Number;
                 /// Positional or mapping argument selection.
                 argument_kind ArgumentKind: Symbol => Symbol;
-                /// Raw mapping key spelling, never Python-escape decoded.
+                /// Raw mapping key spelling, never escape-decoded.
                 mapping_key MappingKey: Symbol => Symbol;
                 /// Conversion character.
                 conversion Conversion: Symbol => Symbol;

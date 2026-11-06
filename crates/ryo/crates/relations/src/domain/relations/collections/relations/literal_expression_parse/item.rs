@@ -25,7 +25,7 @@ macro_rules! literal_expression_parse {
             columns {
                 /// Existing original string-expression identity.
                 id Id: NodeId => Node;
-                /// Syntactic grammar, initially python-string-annotation.
+                /// Syntactic grammar.
                 dialect Dialect: Symbol => Symbol;
                 /// Parsed, malformed, or unavailable; independent of type position.
                 outcome Outcome: Symbol => Symbol;

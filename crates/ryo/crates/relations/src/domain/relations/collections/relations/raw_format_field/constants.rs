@@ -1,5 +1,6 @@
 //! Public vocabulary of raw-format-field.
 use super::item::RawFormatFieldColumn;
+use crate::domain::relations::constants::{CONVERSION, ORDINAL};
 /// Relation catalog name.
 #[must_use]
 pub fn name() -> &'static str {
@@ -17,11 +18,11 @@ pub fn column_name(column: RawFormatFieldColumn) -> &'static str {
         RawFormatFieldColumn::Id => "id",
         RawFormatFieldColumn::Segment => "segment",
         RawFormatFieldColumn::SegmentOrdinal => "segment-ordinal",
-        RawFormatFieldColumn::Ordinal => "ordinal",
+        RawFormatFieldColumn::Ordinal => ORDINAL,
         RawFormatFieldColumn::SegmentFieldOrdinal => "segment-field-ordinal",
         RawFormatFieldColumn::ArgumentKind => "argument-kind",
         RawFormatFieldColumn::MappingKey => "mapping-key",
-        RawFormatFieldColumn::Conversion => "conversion",
+        RawFormatFieldColumn::Conversion => CONVERSION,
         RawFormatFieldColumn::WidthMode => "width-mode",
         RawFormatFieldColumn::PrecisionMode => "precision-mode",
         RawFormatFieldColumn::File => "file",

@@ -1,5 +1,6 @@
 //! The vocabulary of the optional `format-parse` relation.
 use super::item::FormatParseColumn;
+use crate::domain::relations::constants::{DIALECT, ERROR_CATEGORY, OUTCOME};
 
 /// The relation's catalog name.
 #[must_use]
@@ -18,10 +19,10 @@ pub fn summary() -> &'static str {
 pub fn column_name(column: FormatParseColumn) -> &'static str {
     match column {
         FormatParseColumn::Id => "id",
-        FormatParseColumn::Dialect => "dialect",
+        FormatParseColumn::Dialect => DIALECT,
         FormatParseColumn::Representation => "representation",
-        FormatParseColumn::Outcome => "outcome",
-        FormatParseColumn::ErrorCategory => "error-category",
+        FormatParseColumn::Outcome => OUTCOME,
+        FormatParseColumn::ErrorCategory => ERROR_CATEGORY,
         FormatParseColumn::ErrorCharacter => "error-character",
         FormatParseColumn::ErrorIndex => "error-index",
         FormatParseColumn::PositionalConsumption => "positional-consumption",

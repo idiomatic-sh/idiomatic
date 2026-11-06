@@ -1,5 +1,6 @@
 //! Public vocabulary of raw-format-segment.
 use super::item::RawFormatSegmentColumn;
+use crate::domain::relations::constants::{DIALECT, ERROR_CATEGORY, OUTCOME};
 /// Relation catalog name.
 #[must_use]
 pub fn name() -> &'static str {
@@ -17,9 +18,9 @@ pub fn column_name(column: RawFormatSegmentColumn) -> &'static str {
         RawFormatSegmentColumn::Id => "id",
         RawFormatSegmentColumn::Segment => "segment",
         RawFormatSegmentColumn::SegmentOrdinal => "segment-ordinal",
-        RawFormatSegmentColumn::Dialect => "dialect",
-        RawFormatSegmentColumn::Outcome => "outcome",
-        RawFormatSegmentColumn::ErrorCategory => "error-category",
+        RawFormatSegmentColumn::Dialect => DIALECT,
+        RawFormatSegmentColumn::Outcome => OUTCOME,
+        RawFormatSegmentColumn::ErrorCategory => ERROR_CATEGORY,
         RawFormatSegmentColumn::ErrorCharacter => "error-character",
         RawFormatSegmentColumn::ErrorIndex => "error-index",
         RawFormatSegmentColumn::PositionalConsumption => "positional-consumption",

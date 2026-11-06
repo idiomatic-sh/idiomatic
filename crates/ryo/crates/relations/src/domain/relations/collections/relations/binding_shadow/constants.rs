@@ -1,5 +1,6 @@
 //! Query vocabulary for binding-shadow.
 use super::item::BindingShadowColumn;
+use crate::domain::relations::constants::BINDING;
 /// Query relation name.
 #[must_use]
 pub fn name() -> &'static str {
@@ -14,7 +15,7 @@ pub fn summary() -> &'static str {
 #[must_use]
 pub fn column_name(column: BindingShadowColumn) -> &'static str {
     match column {
-        BindingShadowColumn::Binding => "binding",
+        BindingShadowColumn::Binding => BINDING,
         BindingShadowColumn::Previous => "previous",
         BindingShadowColumn::Scope => "scope",
         BindingShadowColumn::PreviousScope => "previous-scope",

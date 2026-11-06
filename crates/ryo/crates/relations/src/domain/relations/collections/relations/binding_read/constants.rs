@@ -1,5 +1,6 @@
 //! Query vocabulary for binding-read.
 use super::item::BindingReadColumn;
+use crate::domain::relations::constants::{CONTEXT, REFERENCE, SINCE_MAJOR, SINCE_MINOR};
 /// Query relation name.
 #[must_use]
 pub fn name() -> &'static str {
@@ -14,14 +15,14 @@ pub fn summary() -> &'static str {
 #[must_use]
 pub fn column_name(column: BindingReadColumn) -> &'static str {
     match column {
-        BindingReadColumn::Reference => "reference",
+        BindingReadColumn::Reference => REFERENCE,
         BindingReadColumn::Name => "name",
         BindingReadColumn::Scope => "scope",
         BindingReadColumn::Phase => "phase",
-        BindingReadColumn::Context => "context",
+        BindingReadColumn::Context => CONTEXT,
         BindingReadColumn::State => "state",
-        BindingReadColumn::SinceMajor => "since-major",
-        BindingReadColumn::SinceMinor => "since-minor",
+        BindingReadColumn::SinceMajor => SINCE_MAJOR,
+        BindingReadColumn::SinceMinor => SINCE_MINOR,
         BindingReadColumn::File => "file",
         BindingReadColumn::Span => "span",
     }

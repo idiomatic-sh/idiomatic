@@ -1,5 +1,6 @@
 //! The vocabulary of the optional `format-field` relation.
 use super::item::FormatFieldColumn;
+use crate::domain::relations::constants::{CONVERSION, ORDINAL};
 
 /// The relation's catalog name.
 #[must_use]
@@ -18,10 +19,10 @@ pub fn summary() -> &'static str {
 pub fn column_name(column: FormatFieldColumn) -> &'static str {
     match column {
         FormatFieldColumn::Id => "id",
-        FormatFieldColumn::Ordinal => "ordinal",
+        FormatFieldColumn::Ordinal => ORDINAL,
         FormatFieldColumn::ArgumentKind => "argument-kind",
         FormatFieldColumn::MappingKey => "mapping-key",
-        FormatFieldColumn::Conversion => "conversion",
+        FormatFieldColumn::Conversion => CONVERSION,
         FormatFieldColumn::WidthMode => "width-mode",
         FormatFieldColumn::PrecisionMode => "precision-mode",
         FormatFieldColumn::File => "file",
