@@ -105,15 +105,14 @@ pub(crate) fn drop_uncertain(
                     .is_some_and(|kind| is_file_kind(*kind) == Keying::ByFile)
             })
             .map(|(place, _)| place),
-        Operation::GroupCount { keys, .. } | Operation::GroupDigest { keys, .. } => keys
+        // A grouped answer lists its keys first, so the key at `place` of the answer is the one the output
+        // schema says is a file or a node. `probed` is the schema of the operand in one caller and of the
+        // answer in the other; only the answer's own schema is positioned the same in both.
+        Operation::GroupCount { keys, .. } | Operation::GroupDigest { keys, .. } => out
+            .kinds
             .iter()
-            .enumerate()
-            .find(|(_, key)| {
-                probed
-                    .get(usize::try_from(key.0).unwrap_or(usize::MAX))
-                    .is_some_and(|kind| is_file_kind(*kind) == Keying::ByFile)
-            })
-            .map(|(place, _)| place),
+            .take(keys.len())
+            .position(|kind| is_file_kind(*kind) == Keying::ByFile),
         Operation::SpanBetween { .. }
         | Operation::SpanBounds { .. }
         | Operation::SourceMatches { .. }

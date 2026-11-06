@@ -1,5 +1,5 @@
 //! Compile the production relation boundary, with a valid client before each negative.
-//! Unrelated scalar storage is scaffolded; interface, data lease and registry are real source.
+//! Unrelated scalar storage is scaffolded; interface, types, value and registry are real source.
 use std::{fs, path::Path, process::Command};
 
 fn compile(directory: &Path, name: &str, source: &str) -> std::process::Output {
@@ -30,10 +30,6 @@ fn negative(directory: &Path, name: &str, source: &str, diagnostic: &str) {
         "wrong refusal for {name}: {error}"
     );
 }
-fn rust_path(path: &Path) -> String {
-    // A Rust string literal, including quotes: spaces, backslashes and quotes are escaped.
-    format!("{:?}", path.to_str().expect("UTF-8 production path"))
-}
 const METHODS: &[(&str, &str)] = &[
     (
         "prepare",
@@ -43,6 +39,8 @@ const METHODS: &[(&str, &str)] = &[
             RepresentationInput::Selected{kinds,..}=>(RepresentationKind::Selected,kinds),
             RepresentationInput::Tree(_)=>(RepresentationKind::Tree,&[][..]),
             RepresentationInput::Computed(table)=>(RepresentationKind::Computed,table.kinds.as_slice()),
+            RepresentationInput::Compact(_)=>(RepresentationKind::Compact,&[][..]),
+            RepresentationInput::Positioned(_)=>(RepresentationKind::Positioned,&[][..]),
         };
         Ok(RelationContract{input,kind,kinds,rows:0,metadata:Ok(())})
     }"#,
@@ -65,9 +63,18 @@ const METHODS: &[(&str, &str)] = &[
     ),
 ];
 
-fn scaffold(omitted: Option<&str>, registry: &str) -> String {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src/domain/table_model/collections/representations");
+const KINDS: &[&str] = &["Stored", "Selected", "Tree", "Computed", "Compact", "Positioned"];
+
+fn production(name: &str) -> String {
+    fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("src/domain/table_model/collections/representations")
+            .join(name),
+    )
+    .unwrap()
+}
+/// The real interface, types, value and registration are inlined at their real module positions; unrelated scalars are stubs.
+fn scaffold(omitted: Option<&str>, value: &str) -> String {
     let template = r#"
 #![allow(dead_code,unused_imports,private_interfaces)]
 extern crate self as ryo_language;
@@ -82,37 +89,47 @@ pub mod domain {
         #[derive(Clone,Copy)]pub struct ColumnsView<'a> {pub kinds:&'a[CellKind],pub columns:&'a[FactColumn]}
     }}
     pub mod plan_parts {pub mod types {pub struct ColumnIndex(pub u32);}}
-    pub mod table_cells {pub mod types {
+    pub mod rows {pub mod types {
         pub struct RowIndex(pub usize);
-        #[derive(Clone,Copy)]pub struct TreeRows<'a>(pub &'a());
+        pub struct Table {pub kinds:Vec<crate::domain::relations::types::CellKind>,pub cells:Vec<crate::domain::relations::types::Value>}
     }}
+    pub mod table_words {pub mod types {pub struct CompactTable;}}
+    pub mod table_cells {pub mod types {#[derive(Clone,Copy)]pub struct TreeRows<'a>(pub &'a());}}
     pub mod table_model {
-        pub mod types {
-            pub struct Table {pub kinds:Vec<crate::domain::relations::types::CellKind>,pub cells:Vec<crate::domain::relations::types::Value>}
-        }
+        pub mod types {#[derive(Clone,Copy)]pub struct PositionedRows<'a>(pub &'a());}
         pub mod collections {pub mod representations {
-            #[path=__INTERFACE__]pub mod interface;
-            #[path=__TYPES__]pub mod types;
-            pub mod stored {pub mod item {pub(crate) use crate::Legitimate as StoredItem;}}
-            pub mod selected {pub mod item {pub(crate) use crate::Legitimate as SelectedItem;}}
-            pub mod tree {pub mod item {pub(crate) use crate::Legitimate as TreeItem;}}
-            pub mod computed {pub mod item {pub(crate) use crate::Legitimate as ComputedItem;}}
+            use crate::domain::{operating::errors::OperatingError,relations::types::Value,rows::types::RowIndex,plan_parts::types::ColumnIndex};
+            use self::types::*;
+            pub mod interface {__INTERFACE__}
+            pub mod types {__TYPES__}
+            pub mod stored {pub mod item {pub(crate) use super::super::Legitimate as StoredItem;}}
+            pub mod selected {pub mod item {pub(crate) use super::super::Legitimate as SelectedItem;}}
+            pub mod tree {pub mod item {pub(crate) use super::super::Legitimate as TreeItem;}}
+            pub mod computed {pub mod item {pub(crate) use super::super::Legitimate as ComputedItem;}}
+            pub mod compact {pub mod item {pub(crate) use super::super::Legitimate as CompactItem;}}
+            pub mod positioned {pub mod item {pub(crate) use super::super::Legitimate as PositionedItem;}}
             pub mod registration {__REGISTRATION__}
+            pub(crate) struct Legitimate;
+            impl interface::RepresentationsItem for Legitimate {__METHODS__}
         }}
     }
 }
 use domain::operating::errors::OperatingError;
 use domain::relations::types::Value;
-use domain::table_cells::types::RowIndex;
+use domain::rows::types::RowIndex;
 use domain::plan_parts::types::ColumnIndex;
-use domain::table_model::collections::representations::{interface::RepresentationsItem,types::*};
-pub(crate) struct Legitimate;
-impl RepresentationsItem for Legitimate {__METHODS__}
+use domain::table_model::collections::representations::types::*;
 "#;
+    let types = production("types.rs").replace(
+        "pub(crate) mod registered_representation;",
+        &format!(
+            "pub(crate) mod registered_representation {{ pub mod value {{ {value} }} }}"
+        ),
+    );
     template
-        .replace("__INTERFACE__", &rust_path(&root.join("interface.rs")))
-        .replace("__TYPES__", &rust_path(&root.join("types.rs")))
-        .replace("__REGISTRATION__", registry)
+        .replace("__INTERFACE__", &production("interface.rs"))
+        .replace("__TYPES__", &types)
+        .replace("__REGISTRATION__", &production("registration.rs"))
         .replace(
             "__METHODS__",
             &METHODS
@@ -123,18 +140,14 @@ impl RepresentationsItem for Legitimate {__METHODS__}
                 .join("\n"),
         )
 }
-fn registry() -> String {
-    fs::read_to_string(
-        Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("src/domain/table_model/collections/representations/registration.rs"),
-    )
-    .unwrap()
+fn value() -> String {
+    production("types/registered_representation/value.rs")
 }
 
 #[test]
 fn every_relation_method_is_required_by_the_real_interface() {
     let directory = tempfile::tempdir().unwrap();
-    let registration = registry();
+    let registration = value();
     positive(
         directory.path(),
         "all_methods",
@@ -153,14 +166,14 @@ fn every_relation_method_is_required_by_the_real_interface() {
 #[test]
 fn every_real_representation_arm_is_required() {
     let directory = tempfile::tempdir().unwrap();
-    let registration = registry();
+    let registration = value();
     positive(
         directory.path(),
         "complete_registry",
         &scaffold(None, &registration),
     );
-    for kind in ["Stored", "Selected", "Tree", "Computed"] {
-        let marker = format!("RepresentationKind::{kind}");
+    for kind in KINDS {
+        let marker = format!("RepresentationKind::{kind} => ");
         let begin = registration
             .find(&marker)
             .expect("actual production registry arm");
@@ -179,7 +192,7 @@ fn every_real_representation_arm_is_required() {
 #[test]
 fn physical_readers_cannot_gain_scheduler_cache_mutation_or_static_source_lifetimes() {
     let directory = tempfile::tempdir().unwrap();
-    let source = scaffold(None, &registry());
+    let source = scaffold(None, &value());
     positive(directory.path(), "borrowed_relation_control", &source);
     for (name, body, diagnostic) in [
         (
@@ -237,61 +250,75 @@ fn physical_readers_cannot_gain_scheduler_cache_mutation_or_static_source_lifeti
     }
 }
 
+fn declaration(source: &str, marker: &str) -> String {
+    let start = source.find(marker).expect("production declaration");
+    let opening = start + source[start..].find('{').expect("declaration body");
+    let mut depth = 0usize;
+    for (offset, byte) in source[opening..].bytes().enumerate() {
+        match byte {
+            b'{' => depth += 1,
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return source[start..=opening + offset].to_owned();
+                }
+            }
+            _ => {}
+        }
+    }
+    panic!("unclosed production declaration: {marker}");
+}
+
+/// The real record and the real published-relation trait, at their real module positions, with a valid owner and a peer client.
 fn private_publication_scaffold() -> String {
     let core = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let directory = core.join("src/application/file_dag/relations");
-    let token = fs::read_to_string(directory.join("produced.rs")).unwrap();
-    let start = token.find("pub(crate) struct ProducedSelection").unwrap();
-    let end = start + token[start..].find("\n}").unwrap() + 2;
-    // These are the actual authority-bearing fields and visibility, not a narrower copy.
-    let token = &token[start..end];
-    let mut source = scaffold(None, &registry());
-    source = source.replace("    pub mod table_model {", "    pub mod stored_selection {pub mod types {#[derive(Debug)]pub struct Selector;}}\n    pub mod table_model {");
-    source = source.replace("pub struct Table {", "#[derive(Debug,Default)]pub struct StoredSelection;\n            #[derive(Debug,Default)]pub struct Table {");
-    source = source.replacen(
-        "pub mod types;",
-        &format!(
-            "pub mod types; #[path={}]pub mod publication;",
-            rust_path(
-                &core.join("src/domain/table_model/collections/representations/publication.rs")
-            )
-        ),
-        1,
-    );
-    let private = r#"
-pub mod application {pub(crate) mod file_dag {
- pub mod derived {pub mod view {pub struct AcquiredView;}}
- mod relations {
-  use crate::domain::operating::errors::OperatingError;
-  use crate::domain::table_model::{types::{Table,StoredSelection},collections::representations::{types::{PhysicalShape,RepresentationKind},publication::PublishedRelation}};
-  use std::sync::{Arc,OnceLock};
-  #[derive(Debug)]enum RelationBody {Computed(Arc<Table>)}
-  #[path=__RECORD__]mod record;
-  pub(crate) use record::RelationResult;
-  pub(crate) struct PublishedInput(Arc<RelationResult>);
-  mod produced {use super::{Arc,RelationResult,StoredSelection,PublishedInput};__TOKEN__}
-  pub(super) use produced::ProducedSelection;
-  pub(super) fn control()->(Arc<RelationResult>,ProducedSelection<'static>) {
-   let result=Arc::new(RelationResult{population:0,producer:OnceLock::new(),generation:Arc::new(()),kind:RepresentationKind::Computed,body:RelationBody::Computed(Arc::new(Table::default())),inspected:OnceLock::from(Ok(PhysicalShape::Complete)),normalized:OnceLock::new()});
-   let token=produced::ProducedSelection{rows:crate::domain::relations::types::ColumnsView{kinds:&[],columns:&[]},source:PublishedInput(Arc::clone(&result)),selection:Arc::new(StoredSelection),resources:[None,None]};
-   (result,token)
+    let record = fs::read_to_string(
+        core.join("src/application/file_dag/relations/publication/types.rs"),
+    )
+    .unwrap();
+    let published = production("publication.rs");
+    r#"
+#![allow(dead_code,unused_imports)]
+pub mod domain {
+  pub mod operating {pub mod errors {#[derive(Clone,Debug)]pub enum OperatingError {WrongOperation}}}
+  pub mod table_model {
+    pub mod types {#[derive(Debug,Default)]pub struct Table;}
+    pub mod collections {pub mod representations {
+      pub mod types {#[derive(Clone,Copy,Debug,PartialEq,Eq)]pub enum PhysicalShape {Complete}}
+      pub mod publication {__TRAIT__}
+    }}
   }
- }
- mod peer {
-  use super::relations::{RelationResult,ProducedSelection};
-  use crate::domain::table_model::{types::Table,collections::representations::{publication::PublishedRelation,types::{PhysicalShape,RepresentationKind}}};
-  use std::sync::{Arc,OnceLock};
-  fn legitimate(){let(record,token)=super::relations::control();let _=record.kind();drop(token);}
-  __CLIENT__
- }
+}
+pub mod application {pub mod file_dag {
+  pub mod relations {
+    pub mod publication {pub mod types {
+      use crate::domain::operating::errors::OperatingError;
+      use crate::domain::table_model::{types::Table,collections::representations::{publication::PublishedRelation,types::PhysicalShape}};
+      use std::sync::{Arc,OnceLock};
+      #[derive(Clone,Copy,Debug)]pub(in crate::application::file_dag) enum ProducerScope {File}
+      #[derive(Debug)]pub(in crate::application::file_dag::relations) enum RelationBody {Computed(Arc<Table>)}
+      #[derive(Debug)]
+      __RESULT__
+      impl PublishedRelation for RelationResult {fn as_any(&self)->&dyn std::any::Any{self}}
+    }}
+    pub fn control()->publication::types::RelationResult {
+      use std::sync::{Arc,OnceLock};
+      publication::types::RelationResult{population:0,producer:OnceLock::new(),producer_scope:OnceLock::new(),generation:Arc::new(()),
+        body:publication::types::RelationBody::Computed(Arc::new(Default::default())),
+        inspected:OnceLock::from(Ok(crate::domain::table_model::collections::representations::types::PhysicalShape::Complete)),normalized:OnceLock::new()}
+    }
+  }
+  pub mod peer {
+    use crate::application::file_dag::relations::publication::types::RelationResult;
+    use crate::domain::table_model::{types::Table,collections::representations::{publication::PublishedRelation,types::PhysicalShape}};
+    use std::sync::{Arc,OnceLock};
+    fn legitimate(){let record=super::relations::control();let _=format!("{record:?}");}
+    __CLIENT__
+  }
 }}
-"#;
-    source.push_str(
-        &private
-            .replace("__RECORD__", &rust_path(&directory.join("record.rs")))
-            .replace("__TOKEN__", token),
-    );
-    source
+"#
+    .replace("__TRAIT__", &declaration(&published, "pub(crate) trait PublishedRelation"))
+    .replace("__RESULT__", &declaration(&record, "pub(crate) struct RelationResult"))
 }
 
 #[test]
@@ -322,21 +349,6 @@ fn only_the_actual_application_owner_can_construct_or_modify_admission_state() {
         (
             "write_epoch",
             "fn forbidden(record:&mut RelationResult){record.generation=Arc::new(());}",
-            "E0616",
-        ),
-        (
-            "forge_producer_token",
-            "fn forbidden<'f>(seed:ProducedSelection<'f>)->ProducedSelection<'f>{ProducedSelection{..seed}}",
-            "E0451",
-        ),
-        (
-            "rewrite_producer_projection",
-            "fn forbidden(token:&mut ProducedSelection){token.selection=Arc::new(Default::default());}",
-            "E0616",
-        ),
-        (
-            "rewrite_producer_rows",
-            "fn forbidden(token:&mut ProducedSelection){token.rows=crate::domain::relations::types::ColumnsView{kinds:&[],columns:&[]};}",
             "E0616",
         ),
         (

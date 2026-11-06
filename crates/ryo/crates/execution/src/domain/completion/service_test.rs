@@ -224,6 +224,43 @@ fn contributor_partiality_filters_absence_answers_before_keys_can_be_projected_a
     );
 }
 
+/// A count keyed by a later column of its operand answers where its key sits in the answer, whichever schema the caller probes with.
+#[test]
+fn a_grouped_answer_withholds_only_the_partitions_of_the_affected_files() {
+    use crate::domain::coverage::service::drop_uncertain;
+    use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
+    use ryo_values::domain::{
+        plan_parts::types::{ColumnIndex, Input, StepId},
+        plans::types::Operation,
+        rows::types::{RowCount, Table},
+    };
+    let operation = Operation::GroupCount {
+        from: Input::Step(StepId(0)),
+        keys: vec![ColumnIndex(1)],
+        distinct: None,
+    };
+    let answer = || Table {
+        kinds: vec![CellKind::File, CellKind::Number],
+        cells: (0..3)
+            .flat_map(|file| [Cell::File(FileId(file)), Cell::Number(Integer(1))])
+            .collect(),
+        count: RowCount(3),
+    };
+    let operand = [CellKind::Number, CellKind::File];
+    for probed in [&operand[..], &answer().kinds[..]] {
+        let mut skipped = answer();
+        drop_uncertain(&operation, probed, &mut skipped, &[Some(FileId(1))]);
+        assert_eq!(skipped.count, RowCount(2), "the other partitions answer");
+        assert!(
+            !skipped.cells.contains(&Cell::File(FileId(1))),
+            "the partition of the skipped file is withheld, not answered"
+        );
+        let mut repository = answer();
+        drop_uncertain(&operation, probed, &mut repository, &[None]);
+        assert_eq!(repository.count, RowCount(0), "an unlocated cause withholds all");
+    }
+}
+
 #[test]
 fn ordered_reduction_requires_a_file_partition_before_preserving_file_scoped_uncertainty() {
     use super::service::ordered_output_coverage;

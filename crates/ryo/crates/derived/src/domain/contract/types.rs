@@ -273,6 +273,13 @@ pub enum ViewRequest {
     },
 }
 /// Preparation stores metadata failures until the original consumer demand gate.
+///
+/// A caller cannot construct prepared metadata; only preparation does.
+///
+/// ```compile_fail,E0451
+/// use ryo_derived::domain::contract::types::PreparedDerived;
+/// fn forge() -> PreparedDerived { PreparedDerived { request: todo!(), schemas: todo!(), metadata: todo!() } }
+/// ```
 #[derive(Clone, Debug)]
 pub struct PreparedDerived {
     pub(crate) request: ViewRequest,
@@ -637,6 +644,20 @@ impl PreparedDfs {
 }
 
 /// Successful payload construction is private to the capability's build dispatcher.
+///
+/// A caller cannot construct or rewrite a payload.
+///
+/// ```compile_fail,E0451
+/// use ryo_derived::domain::contract::types::DerivedPayload;
+/// fn forge() -> DerivedPayload { DerivedPayload { data: todo!() } }
+/// ```
+///
+/// A caller cannot rewrite a payload it only borrows.
+///
+/// ```compile_fail,E0594
+/// use ryo_derived::domain::contract::types::DerivedPayload;
+/// fn rewrite(borrowed: &DerivedPayload, other: DerivedPayload) { *borrowed = other; }
+/// ```
 #[derive(Debug)]
 pub struct DerivedPayload {
     pub(crate) data: PayloadData,

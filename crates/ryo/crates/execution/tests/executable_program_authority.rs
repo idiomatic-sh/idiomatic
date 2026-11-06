@@ -58,7 +58,6 @@ fn program_source(client: &str) -> String {
     )
     .unwrap();
     let data = declaration(&source, "pub(crate) struct ExecutableProgram");
-    let accessors = declaration(&source, "impl ExecutableProgram");
     r#"
 #![allow(dead_code, unused_imports)]
 mod domain {
@@ -66,18 +65,20 @@ mod domain {
     pub mod types {
       pub struct Region;
       pub struct RuleProgram;
+      pub struct FileReaderGraph;
       pub struct RegionId(pub usize);
       pub struct OperatingError;
       __DECLARATION__
-      __ACCESSORS__
+      impl ExecutableProgram {
+        pub fn regions(&self) -> &[Region] { &self.regions }
+      }
     }
     pub mod service {
       use super::types::*;
       pub fn compile() -> ExecutableProgram {
         ExecutableProgram {
-          regions: Box::new([]), rules: Box::new([]),
+          regions: Box::new([]), file_readers: FileReaderGraph, rules: Box::new([]),
           logical_regions: Box::new([]), observation_regions: Box::new([]),
-          original_instruction_count: 0, fused_instruction_count: 0,
         }
       }
     }
@@ -95,7 +96,6 @@ mod application {
 }
 "#
     .replace("__DECLARATION__", &data)
-    .replace("__ACCESSORS__", &accessors)
     .replace("__CLIENT__", client)
 }
 
@@ -112,9 +112,10 @@ fn compiled_program_state_is_constructed_only_by_its_domain_owner() {
         "sibling_constructs_program",
         &program_source(
             "pub fn forge() -> ExecutableProgram { ExecutableProgram {
-              regions: Box::new([]), rules: Box::new([]),
+              regions: Box::new([]),
+              file_readers: crate::domain::executable_program::types::FileReaderGraph,
+              rules: Box::new([]),
               logical_regions: Box::new([]), observation_regions: Box::new([]),
-              original_instruction_count: 0, fused_instruction_count: 0,
             } }",
         ),
         "E0451",
@@ -132,14 +133,20 @@ fn compiled_program_state_is_constructed_only_by_its_domain_owner() {
 }
 
 fn permit_source(client: &str) -> String {
-    let source = fs::read_to_string(
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("src/application/file_dag/program/admission.rs"),
+    let runtime = fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("src/application/file_dag/program/runtime/service.rs"),
     )
     .unwrap();
-    let permit = declaration(&source, "pub(crate) struct KernelPermit");
-    let physical = declaration(&source, "pub(crate) struct PermittedPhysical");
+    let permit = declaration(&runtime, "pub(crate) struct KernelPermit");
+    let semantic = declaration(
+        &runtime,
+        "pub(in crate::application::file_dag) struct SemanticPermit",
+    );
+    let physical = declaration(&runtime, "pub(crate) struct PermittedPhysical");
     let owner = fs::read_to_string(
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("src/application/file_dag/relations.rs"),
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("src/application/file_dag/relations/generation/service.rs"),
     )
     .unwrap();
     let lease = declaration(
@@ -150,6 +157,9 @@ fn permit_source(client: &str) -> String {
     r#"
 #![allow(dead_code, unused_imports)]
 extern crate self as ryo_operators;
+pub mod inbound { pub mod use_cases { pub mod operators { pub mod interface {
+  pub struct OperatorCall<'a>(pub std::marker::PhantomData<&'a ()>);
+}}}}
 pub mod domain {
   pub mod executable_program {
     pub mod types {
@@ -158,16 +168,16 @@ pub mod domain {
     }
     pub mod physical { pub struct PhysicalAuthorization; }
   }
-  pub mod contract { pub mod types {
-    pub struct OperatorCall<'a>(pub std::marker::PhantomData<&'a ()>);
-  }}
 }
 pub mod application { pub mod file_dag {
   pub mod relations {
-    __LEASE__
-    __LEASE_METHODS__
+    pub struct RelationOwner;
+    pub mod generation { pub mod service {
+      __LEASE__
+      __LEASE_METHODS__
+    }}
     pub fn owner_revocation() -> bool {
-      let lease = GenerationLease::new();
+      let lease = generation::service::GenerationLease::new();
       let before = lease.is_live();
       lease.invalidate();
       before && !lease.is_live()
@@ -177,18 +187,32 @@ pub mod application { pub mod file_dag {
     pub mod admission {
       use std::sync::Arc;
       use crate::domain::executable_program::types::{ExecutableProgram, RegionId};
+      use crate::application::file_dag::relations::RelationOwner;
+      pub struct Partition;
+      #[derive(Clone, Copy)]
+      pub struct BoundInputs<'a>(pub std::marker::PhantomData<&'a ()>);
+      #[derive(Clone, Copy)]
+      pub struct KernelStrategy;
       __PERMIT__
+      __SEMANTIC__
       __PHYSICAL__
       pub fn issue<'a>(
-        program: &'a ExecutableProgram, generation: &'a Arc<()>,
-        live: &'a Arc<super::super::relations::GenerationLease>,
+        program: &'a ExecutableProgram, generation: &'a Arc<()>, partition: &'a Partition,
+        live: &'a Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
+        owner: &'a RelationOwner,
       ) -> KernelPermit<'a> {
-        KernelPermit { program, region: RegionId(0), instruction: 0,
-                       generation, live, ordered: false }
+        KernelPermit { program, region: RegionId(0), instruction: 0, generation, partition, live,
+                       bindings: BoundInputs(std::marker::PhantomData), strategy: KernelStrategy, owner }
+      }
+      pub fn semantic<'a>(
+        program: &'a ExecutableProgram,
+        live: &'a Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
+      ) -> SemanticPermit<'a> {
+        SemanticPermit { program, region: RegionId(0), instruction: 0, live, strategy: KernelStrategy }
       }
       pub fn physical<'p, 'm, 's>(
-        permit: &'p KernelPermit<'s>,
-        meaning: crate::domain::contract::types::OperatorCall<'m>,
+        permit: &'p SemanticPermit<'s>,
+        meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'m>,
       ) -> PermittedPhysical<'p, 'm, 's> {
         PermittedPhysical {
           permit, meaning,
@@ -199,8 +223,9 @@ pub mod application { pub mod file_dag {
     pub mod rogue {
       use std::sync::Arc;
       use crate::domain::executable_program::types::{ExecutableProgram, RegionId};
-      use super::super::relations::GenerationLease;
-      use super::admission::{KernelPermit, PermittedPhysical};
+      use crate::application::file_dag::relations::RelationOwner;
+      use crate::application::file_dag::relations::generation::service::GenerationLease;
+      use super::admission::{BoundInputs, KernelPermit, KernelStrategy, Partition, PermittedPhysical, SemanticPermit};
       __CLIENT__
     }
   }
@@ -209,6 +234,7 @@ pub mod application { pub mod file_dag {
     .replace("__LEASE__", &lease)
     .replace("__LEASE_METHODS__", &lease_methods)
     .replace("__PERMIT__", &permit)
+    .replace("__SEMANTIC__", &semantic)
     .replace("__PHYSICAL__", &physical)
     .replace("__CLIENT__", client)
 }
@@ -226,11 +252,11 @@ fn physical_permits_are_minted_only_by_admission() {
         "sibling_mints_permit",
         &permit_source(
             "pub fn forge<'a>(
-              program: &'a ExecutableProgram, generation: &'a Arc<()>,
-              live: &'a Arc<GenerationLease>,
+              program: &'a ExecutableProgram, generation: &'a Arc<()>, partition: &'a Partition,
+              live: &'a Arc<GenerationLease>, owner: &'a RelationOwner,
             ) -> KernelPermit<'a> {
-              KernelPermit { program, region: RegionId(0), instruction: 0,
-                             generation, live, ordered: false }
+              KernelPermit { program, region: RegionId(0), instruction: 0, generation, partition, live,
+                             bindings: BoundInputs(std::marker::PhantomData), strategy: KernelStrategy, owner }
             }",
         ),
         "E0451",
@@ -240,8 +266,8 @@ fn physical_permits_are_minted_only_by_admission() {
         "sibling_dispatches_physical",
         &permit_source(
             "pub fn forge<'p, 'm, 's>(
-              permit: &'p KernelPermit<'s>,
-              meaning: crate::domain::contract::types::OperatorCall<'m>,
+              permit: &'p SemanticPermit<'s>,
+              meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'m>,
             ) -> PermittedPhysical<'p, 'm, 's> {
               PermittedPhysical {
                 permit, meaning,
