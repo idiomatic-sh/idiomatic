@@ -3,7 +3,8 @@
 pub(crate) const GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
     crate::domain::format_syntax::types::GrammarIdentity("python-string-annotation-carrier");
 /// The text `literal-expression parsing requires complete logical string `.
-pub(crate) const INCOMPLETE: &str = "literal-expression parsing requires complete logical string carriers";
+pub(crate) const INCOMPLETE: &str =
+    "literal-expression parsing requires complete logical string carriers";
 /// The text `(\n`.
 pub(crate) const CARRIER_OPEN: &str = "(\n";
 /// The text `parsed`.

@@ -3,7 +3,7 @@ use super::composition::LiteralExpressionParseItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::literal_expression_parsing::{
     interface::LiteralExpressionSyntax as _,
-    types::{LiteralDialect, LiteralParseOutcome},
+    types::{CarrierInput, LiteralDialect, LiteralParseOutcome},
 };
 use crate::domain::relations::collections::relations::{
     embedded_expression::item::EmbeddedExpressionItem, fixtures::contract::check,
@@ -71,7 +71,7 @@ fn actual_adapter_preserves_string_annotation_modes() {
         ("t'T'", LiteralParseOutcome::Unavailable),
     ] {
         assert_eq!(
-            RuffStringAnnotation::parse(carrier, LiteralDialect::PythonStringAnnotation),
+            RuffStringAnnotation::parse(CarrierInput(carrier), LiteralDialect::PythonStringAnnotation),
             expected,
             "{carrier:?}",
         );

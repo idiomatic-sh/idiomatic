@@ -1,10 +1,10 @@
 //! Demand, representation, reset and unavailable-knowledge contracts.
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::{
     interface::LiteralExpressionSyntax,
     service::prepare,
-    types::{LiteralDialect, LiteralParseOutcome, LiteralParseState},
+    types::{CarrierInput, LiteralDialect, LiteralParseOutcome, LiteralParseState},
 };
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::format_syntax::types::FormatParseState;
 use crate::domain::{
     brace_format::service::prepare as brace, format_parsing::service::prepare as decoded,
@@ -13,7 +13,8 @@ use crate::domain::{
 use crate::fixtures::reading::{initialize_model, parsed};
 use crate::outbound::{
     format_syntax::adapters::{
-        ruff_literal_braceformat::grammar::RuffLiteralBraceFormat, ruff_literal_cformat::grammar::RuffLiteralCFormat,
+        ruff_literal_braceformat::grammar::RuffLiteralBraceFormat,
+        ruff_literal_cformat::grammar::RuffLiteralCFormat,
     },
     literal_expression::adapters::ruff_string_annotation::grammar::RuffStringAnnotation,
 };
@@ -30,7 +31,7 @@ impl LiteralExpressionSyntax for Counting {
     const GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
         RuffStringAnnotation::GRAMMAR;
 
-    fn parse(carrier: &str, dialect: LiteralDialect) -> LiteralParseOutcome {
+    fn parse(carrier: CarrierInput<'_>, dialect: LiteralDialect) -> LiteralParseOutcome {
         CALLS.with(|count| count.set(count.get() + 1));
         RuffStringAnnotation::parse(carrier, dialect)
     }
@@ -90,11 +91,17 @@ fn literal_parsing_is_absent_without_demand_and_caches_both_outcomes() {
         model.literal_expression_parsing.borrow().state,
         LiteralParseState::Fresh
     );
-    let index = prepare::<Counting>(&tree, &model.literal_expression_parsing, &mut source.symbols, crate::domain::semantic_syntax::service::positions(&tree), |at, symbols| {
+    let index = prepare::<Counting>(
+        &tree,
+        &model.literal_expression_parsing,
+        &mut source.symbols,
+        crate::domain::semantic_syntax::service::positions(&tree),
+        |at, symbols| {
             (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
                 == crate::domain::semantic_syntax::types::Visibility::Visible)
                 .into()
-        });
+        },
+    );
     CALLS.with(|count| assert_eq!(count.get(), 2));
     assert_eq!(index.state, LiteralParseState::Complete);
     assert_eq!(index.by_carrier.len(), 2);
@@ -124,11 +131,17 @@ fn literal_parsing_is_absent_without_demand_and_caches_both_outcomes() {
         "equal carriers keep distinct existing occurrence identities"
     );
     drop(index);
-    drop(prepare::<Counting>(&tree, &model.literal_expression_parsing, &mut source.symbols, crate::domain::semantic_syntax::service::positions(&tree), |at, symbols| {
+    drop(prepare::<Counting>(
+        &tree,
+        &model.literal_expression_parsing,
+        &mut source.symbols,
+        crate::domain::semantic_syntax::service::positions(&tree),
+        |at, symbols| {
             (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
                 == crate::domain::semantic_syntax::types::Visibility::Visible)
                 .into()
-        }));
+        },
+    ));
     CALLS.with(|count| assert_eq!(count.get(), 2));
 }
 
@@ -157,11 +170,17 @@ fn reset_discards_old_identities_results_and_key_bytes_but_keeps_capacity() {
         assert!(fresh.by_carrier.is_empty());
         assert!(fresh.occurrences.capacity() >= retained_capacity);
         drop(fresh);
-        let index = prepare::<Counting>(&tree, &model.literal_expression_parsing, &mut source.symbols, crate::domain::semantic_syntax::service::positions(&tree), |at, symbols| {
-            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
-                == crate::domain::semantic_syntax::types::Visibility::Visible)
-                .into()
-        });
+        let index = prepare::<Counting>(
+            &tree,
+            &model.literal_expression_parsing,
+            &mut source.symbols,
+            crate::domain::semantic_syntax::service::positions(&tree),
+            |at, symbols| {
+                (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
+                    == crate::domain::semantic_syntax::types::Visibility::Visible)
+                    .into()
+            },
+        );
         assert_eq!(index.occurrences.first().map(|row| row.outcome), expected);
         retained_capacity = index.occurrences.capacity();
         CALLS.with(|count| assert_eq!(count.get(), calls));
@@ -178,11 +197,17 @@ fn equal_decoded_text_keeps_representation_sensitive_parser_modes() {
     };
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    let index = prepare::<Counting>(&tree, &model.literal_expression_parsing, &mut source.symbols, crate::domain::semantic_syntax::service::positions(&tree), |at, symbols| {
+    let index = prepare::<Counting>(
+        &tree,
+        &model.literal_expression_parsing,
+        &mut source.symbols,
+        crate::domain::semantic_syntax::service::positions(&tree),
+        |at, symbols| {
             (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
                 == crate::domain::semantic_syntax::types::Visibility::Visible)
                 .into()
-        });
+        },
+    );
     assert_eq!(index.by_carrier.len(), 3);
     let outcomes = index
         .occurrences
@@ -213,11 +238,17 @@ fn an_existing_hidden_embedded_success_is_reused_without_new_parsing() {
     let count = languages::contract::element_count(tree.elements);
     let embedded = languages::embedded_expressions(tree.elements).count();
     assert!(embedded > 0);
-    let index = prepare::<Counting>(&tree, &model.literal_expression_parsing, &mut source.symbols, crate::domain::semantic_syntax::service::positions(&tree), |at, symbols| {
+    let index = prepare::<Counting>(
+        &tree,
+        &model.literal_expression_parsing,
+        &mut source.symbols,
+        crate::domain::semantic_syntax::service::positions(&tree),
+        |at, symbols| {
             (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
                 == crate::domain::semantic_syntax::types::Visibility::Visible)
                 .into()
-        });
+        },
+    );
     assert_eq!(index.occurrences.len(), 1);
     assert!(
         index
@@ -249,11 +280,17 @@ fn missing_logical_carriers_are_unavailable_and_partial_not_malformed() {
         file: languages::FileId(0),
     };
     let mut symbols = source.symbols;
-    let index = prepare::<Counting>(&unavailable, &model.literal_expression_parsing, &mut symbols, crate::domain::semantic_syntax::service::positions(&unavailable), |at, symbols| {
+    let index = prepare::<Counting>(
+        &unavailable,
+        &model.literal_expression_parsing,
+        &mut symbols,
+        crate::domain::semantic_syntax::service::positions(&unavailable),
+        |at, symbols| {
             (crate::domain::semantic_syntax::service::visibility(&unavailable, &model, at, symbols)
                 == crate::domain::semantic_syntax::types::Visibility::Visible)
                 .into()
-        });
+        },
+    );
     assert_eq!(index.state, LiteralParseState::Partial);
     assert_eq!(index.occurrences.len(), 1);
     assert!(
@@ -281,11 +318,17 @@ fn retained_storage_is_outcomes_occurrences_and_complete_carrier_keys() {
     };
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    let index = prepare::<Counting>(&tree, &model.literal_expression_parsing, &mut source.symbols, crate::domain::semantic_syntax::service::positions(&tree), |at, symbols| {
+    let index = prepare::<Counting>(
+        &tree,
+        &model.literal_expression_parsing,
+        &mut source.symbols,
+        crate::domain::semantic_syntax::service::positions(&tree),
+        |at, symbols| {
             (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
                 == crate::domain::semantic_syntax::types::Visibility::Visible)
                 .into()
-        });
+        },
+    );
     assert_eq!(index.by_carrier.len(), 256);
     assert_eq!(index.occurrences.len(), 256);
     CALLS.with(|count| assert_eq!(count.get(), 256));
@@ -298,11 +341,17 @@ fn retained_storage_is_outcomes_occurrences_and_complete_carrier_keys() {
         file: languages::FileId(0),
     };
     initialize_model(&large_tree, &mut model);
-    let large_index = prepare::<Counting>(&large_tree, &model.literal_expression_parsing, &mut large_source.symbols, crate::domain::semantic_syntax::service::positions(&large_tree), |at, symbols| {
+    let large_index = prepare::<Counting>(
+        &large_tree,
+        &model.literal_expression_parsing,
+        &mut large_source.symbols,
+        crate::domain::semantic_syntax::service::positions(&large_tree),
+        |at, symbols| {
             (crate::domain::semantic_syntax::service::visibility(&large_tree, &model, at, symbols)
                 == crate::domain::semantic_syntax::types::Visibility::Visible)
                 .into()
-        });
+        },
+    );
     assert_eq!(large_index.by_carrier.len(), 1);
     assert_eq!(large_index.occurrences.len(), 1);
     assert!(
@@ -324,11 +373,17 @@ fn literal_demand_does_not_initialize_other_parser_caches() {
     };
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    drop(prepare::<Counting>(&tree, &model.literal_expression_parsing, &mut source.symbols, crate::domain::semantic_syntax::service::positions(&tree), |at, symbols| {
+    drop(prepare::<Counting>(
+        &tree,
+        &model.literal_expression_parsing,
+        &mut source.symbols,
+        crate::domain::semantic_syntax::service::positions(&tree),
+        |at, symbols| {
             (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
                 == crate::domain::semantic_syntax::types::Visibility::Visible)
                 .into()
-        }));
+        },
+    ));
     assert_eq!(model.format_parsing.borrow().state, FormatParseState::Fresh);
     assert_eq!(model.raw_format.borrow().state, FormatParseState::Fresh);
     assert_eq!(

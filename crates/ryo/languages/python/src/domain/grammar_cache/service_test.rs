@@ -274,7 +274,7 @@ fn oversized_current_inputs_do_not_become_reusable_content() {
             .borrow()
             .by_carrier
             .keys()
-            .all(|(_, key)| key.len() < 100)
+            .all(|key| key.input.0.len() < 100)
     );
 }
 

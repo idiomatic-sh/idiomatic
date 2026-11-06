@@ -3,8 +3,8 @@ use super::constants;
 use super::{
     interface::LiteralExpressionSyntax,
     types::{
-        CarrierVisibility, LiteralDialect, LiteralParseIndex, LiteralParseOccurrence,
-        LiteralParseOutcome, LiteralParseState,
+        CarrierInput, CarrierKey, CarrierText, CarrierVisibility, HostState, LiteralDialect,
+        LiteralParseIndex, LiteralParseOccurrence, LiteralParseOutcome, LiteralParseState,
     },
 };
 use crate::domain::{
@@ -25,11 +25,11 @@ pub(crate) const INCOMPLETE: &str = constants::INCOMPLETE;
 /// Drop source identities and admit budgeted grammar outcomes for the next demand.
 pub(crate) fn clear(index: &mut LiteralParseIndex) {
     crate::domain::grammar_cache::service::empty(&mut index.memo);
-    for ((_dialect, input), outcome) in index.by_carrier.drain(..) {
+    for (key, outcome) in index.by_carrier.drain(..) {
         if outcome != LiteralParseOutcome::Unavailable {
             crate::domain::grammar_cache::service::admit(
                 &mut index.memo,
-                crate::domain::grammar_cache::types::MemoKey(input),
+                crate::domain::grammar_cache::types::MemoKey(key.input.0),
                 outcome,
             );
         }
@@ -46,7 +46,13 @@ pub(crate) fn clear(index: &mut LiteralParseIndex) {
 /// Rebuild an injective spelling of the original string-token sequence.
 /// Grouping permits multiline implicit concatenation; newlines delimit tokens
 /// without changing any prefix, quote, escape, or literal-body byte.
-fn carrier(tree: &Tree<'_>, node: Position, symbols: &Symbols, source: &mut String) -> Option<()> {
+fn carrier(
+    tree: &Tree<'_>,
+    node: Position,
+    symbols: &Symbols,
+    source: &mut CarrierText,
+) -> Option<()> {
+    let source = &mut source.0;
     source.clear();
     if source.try_reserve(3).is_err() {
         return None;
@@ -86,17 +92,20 @@ fn carrier(tree: &Tree<'_>, node: Position, symbols: &Symbols, source: &mut Stri
 /// Return one cached result, reusing an already parsed embedded host when possible.
 fn outcome<P>(
     index: &mut LiteralParseIndex,
-    assembled: String,
-    embedded: bool,
+    assembled: CarrierText,
+    host: HostState,
 ) -> LiteralParseOutcome
 where
     P: LiteralExpressionSyntax,
 {
-    let key = (LiteralDialect::PythonStringAnnotation, assembled);
+    let key = CarrierKey {
+        dialect: LiteralDialect::PythonStringAnnotation,
+        input: assembled,
+    };
     if let Some(outcome) = index.by_carrier.get(&key).copied() {
         crate::domain::grammar_cache::service::scratch(
             &mut index.memo,
-            crate::domain::grammar_cache::types::Scratch(key.1),
+            crate::domain::grammar_cache::types::Scratch(key.input.0),
         );
         return outcome;
     }
@@ -107,24 +116,30 @@ where
     }
     let (stored_input, result) = if let Some(taken) = crate::domain::grammar_cache::service::take(
         &mut index.memo,
-        crate::domain::grammar_cache::types::Lookup(&key.1),
+        crate::domain::grammar_cache::types::Lookup(&key.input.0),
     ) {
         crate::domain::grammar_cache::service::scratch(
             &mut index.memo,
-            crate::domain::grammar_cache::types::Scratch(key.1),
+            crate::domain::grammar_cache::types::Scratch(key.input.0),
         );
-        (taken.key.0, taken.value)
+        (CarrierText(taken.key.0), taken.value)
     } else {
-        (key.1, LiteralParseOutcome::Unavailable)
+        (key.input, LiteralParseOutcome::Unavailable)
     };
     let result = if result != LiteralParseOutcome::Unavailable {
         result
-    } else if embedded {
+    } else if host == HostState::Embedded {
         LiteralParseOutcome::Parsed
     } else {
-        P::parse(&stored_input, key.0)
+        P::parse(CarrierInput(&stored_input.0), key.dialect)
     };
-    let previous = index.by_carrier.insert((key.0, stored_input), result);
+    let previous = index.by_carrier.insert(
+        CarrierKey {
+            dialect: key.dialect,
+            input: stored_input,
+        },
+        result,
+    );
     debug_assert!(
         previous.is_none(),
         "a checked carrier has no cached outcome yet"
@@ -186,14 +201,18 @@ where
                 index.state = LiteralParseState::Partial;
                 break;
             }
-            let mut source = std::mem::take(&mut index.memo.scratch).0;
+            let mut source = CarrierText(std::mem::take(&mut index.memo.scratch).0);
             let result = if carrier(tree, node, symbols, &mut source).is_some() {
-                let embedded = embedded_available && index.embedded.contains(&node);
-                outcome::<P>(&mut index, source, embedded)
+                let host = if embedded_available && index.embedded.contains(&node) {
+                    HostState::Embedded
+                } else {
+                    HostState::Standalone
+                };
+                outcome::<P>(&mut index, source, host)
             } else {
                 crate::domain::grammar_cache::service::scratch(
                     &mut index.memo,
-                    crate::domain::grammar_cache::types::Scratch(source),
+                    crate::domain::grammar_cache::types::Scratch(source.0),
                 );
                 LiteralParseOutcome::Unavailable
             };
