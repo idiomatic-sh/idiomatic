@@ -511,8 +511,7 @@ fn diagnostic_findings(findings: Vec<linter::Finding>) -> Result<Vec<BenchmarkFi
 }
 
 #[cfg(test)]
-#[path = "query_module_tests.rs"]
-mod query_module_tests;
+mod test;
 
 /// Observe the actual staged file before transporting an Isolated input into memory.
 fn executable(path: &Path) -> Result<ryo::linter::ExecutablePermission, Error> {

@@ -212,7 +212,7 @@ pub(super) fn matches_intended(case: &PreparedCase, actual: &RunReport) -> bool 
     compare(&case.expected, actual).is_ok()
 }
 
-/// Hash a canonical JSON value using the same sorted-object encoding as the Python harness.
+/// Hash a canonical JSON value using the same sorted-object encoding as the reference harness.
 pub(super) fn json_digest(value: &serde_json::Value) -> ArtifactDigest {
     ArtifactDigest(format!(
         "{:x}",

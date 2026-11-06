@@ -58,37 +58,5 @@ pub fn digest(
 }
 
 #[cfg(test)]
-#[test]
-fn ordered_scope_and_entry_kinds_have_a_stable_cross_language_digest() {
-    let roots = [
-        RelativePath(constants::SRC.into()),
-        RelativePath(constants::VENDOR.into()),
-    ];
-    let inventory = GivenProjectInventory {
-        entries: vec![
-            ryo::linter::ProjectEntryObservation {
-                path: RelativePath(constants::SRC_PKG.into()),
-                state: ProjectEntryState::Directory,
-            },
-            ryo::linter::ProjectEntryObservation {
-                path: RelativePath(constants::VENDOR_PKG_PY.into()),
-                state: ProjectEntryState::Missing,
-            },
-        ],
-        completeness: ProjectInventoryCompleteness::CompleteWithinDeclaredScope,
-    };
-    assert_eq!(
-        digest(Some(&roots), &inventory)
-            .expect(constants::DIGEST)
-            .map(|value| value.0),
-        Some(constants::FF9B78535B775BABAADAE518C198876AA1C27EF21D0A.into())
-    );
-    assert_eq!(
-        digest(None, &GivenProjectInventory::default()).expect(constants::LEGACY),
-        None
-    );
-    assert_ne!(
-        digest(Some(&roots), &inventory).expect(constants::ORIGINAL),
-        digest(Some(&roots[..1]), &inventory).expect(constants::CHANGED_ROOT_AUTHORITY)
-    );
-}
+#[path = "project_inputs_test.rs"]
+mod tests;

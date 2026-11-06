@@ -18,7 +18,7 @@ fn run(defaults: &[&str]) -> (Result<bool, String>, serde_json::Value, usize) {
     let output = root.path().join("result");
     std::fs::write(
         &registration,
-        serde_json::json!({"provider":"fixture", "defaults": defaults, "rules": []}).to_string(),
+        serde_json::json!({"authority": {"kind": "unavailable", "reason": "fixture registration has no implementation"}, "provider": "fixture", "defaults": defaults, "rules": []}).to_string(),
     )
     .expect("registration fixture");
     let execution = Arc::new(ExecutionFake::default());
