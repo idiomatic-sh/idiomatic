@@ -412,7 +412,7 @@ fn transported_places_require_the_same_live_symbol_generation() -> usize {
     {
         let mut query = QuerySymbols::from(&mut second);
         assert!(!query_has_transport_generation(&query, &key));
-        query_places_mut(&mut query, &key).expect_err("a pool of another generation");
+        drop(query_places_mut(&mut query, &key).expect_err("a pool of another generation"));
     }
     {
         let mut query = QuerySymbols::from(&mut first);
@@ -429,7 +429,7 @@ fn transported_places_require_the_same_live_symbol_generation() -> usize {
     clear_symbols(&mut first);
     let mut query = QuerySymbols::from(&mut first);
     assert!(!query_has_transport_generation(&query, &key));
-    query_places_mut(&mut query, &key).expect_err("a cleared pool");
+    drop(query_places_mut(&mut query, &key).expect_err("a cleared pool"));
     1
 }
 

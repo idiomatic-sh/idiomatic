@@ -97,7 +97,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Asked::Observing(READS_PUBLISHED, Declared::No),
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidateError::UnknownRelation { .. }))
+            selects(
+                matches!(error, ValidateError::Located { error, .. } if matches!(**error, ValidateError::Invalid { .. })),
+            )
         }),
     },
     Case {
@@ -105,14 +107,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Asked::Observing(FORWARDS_PUBLISHED, Declared::No),
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidateError::UnknownRelation { .. }))
+            selects(
+                matches!(error, ValidateError::Located { error, .. } if matches!(**error, ValidateError::Invalid { .. })),
+            )
         }),
     },
     Case {
         name: CaseName("a_query_cannot_redefine_a_declared_observation"),
         word: Word::Refuses,
         input: || Asked::Observing(REDEFINES_PUBLISHED, Declared::Yes),
-        expect: Expect::Refusal(|error| selects(matches!(error, ValidateError::Invalid { .. }))),
+        expect: Expect::Refusal(|error| {
+            selects(
+                matches!(error, ValidateError::Located { error, .. } if matches!(**error, ValidateError::Invalid { .. })),
+            )
+        }),
     },
 ];
 

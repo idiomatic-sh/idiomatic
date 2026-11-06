@@ -7,7 +7,8 @@ use std::num::{NonZeroU64, NonZeroUsize};
 use super::entry::lint;
 use super::errors::LintError;
 use super::fixtures::scenarios::{
-    self, HOSTED, LITERAL_PARSE_POSITIVE, Outcome, RAW_FORMAT_POSITIVE, capability_cache, shared,
+    self, HOSTED, LITERAL_PARSE_POSITIVE, OPTIONAL_POSITIVE, Outcome, RAW_FORMAT_POSITIVE,
+    capability_cache, shared,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::capacity::types::MemoryBudget;
@@ -142,8 +143,6 @@ const MISSPELLED: &str =
     "let functions = selekt * from \"function\"; emit functions subject \"file\" key(\"span\");";
 
 /// What most rows state: the functions rule over a directory holding one file, walked, with nothing kept, no budget and nothing hosted.
-const OPTIONAL_POSITIVE: &str =
-    "let names = select * from \"identifier\"; emit names subject file key(span);";
 const OPTIONAL_ABSENCE: &str = "let names = select * from \"identifier\" where name = \"missing\"; let absent = antijoin(left=\"syntax-tree\",right=names,left-on=[\"file\"],right-on=[\"file\"]); emit absent subject file key(span);";
 
 const LINTED: Given = Given {
@@ -207,7 +206,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             linter: Linting::Scenario(scenarios::permission_bytes),
             ..LINTED
         },
-        expect: Expect::Value((1, 1, true, 2)),
+        expect: Expect::Value((1, 1, true, 1)),
     },
     Case {
         name: CaseName("an_unavailable_permission_is_neither_false_nor_a_proven_absence"),
@@ -216,7 +215,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             linter: Linting::Scenario(scenarios::permission_unavailable),
             ..LINTED
         },
-        expect: Expect::Value((1, 1, true, 2)),
+        expect: Expect::Value((1, 1, true, 1)),
     },
     Case {
         name: CaseName("changed_hosted_text_invalidates_retained_cross_file_findings"),
@@ -225,7 +224,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             linter: Linting::Scenario(scenarios::hosted_text_identity),
             ..LINTED
         },
-        expect: Expect::Value((1, 0, true, 2)),
+        expect: Expect::Value((1, 0, true, 1)),
     },
     Case {
         name: CaseName("a_later_rule_publishes_a_nonempty_observation_despite_zero_findings"),
@@ -234,7 +233,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             linter: Linting::Scenario(scenarios::zero_finding_producer),
             ..LINTED
         },
-        expect: Expect::Value((1, 0, true, 2)),
+        expect: Expect::Value((1, 0, true, 1)),
     },
     Case {
         name: CaseName("a_re_exported_publication_survives_cold_warm_replay_and_a_fresh_engine"),
@@ -272,7 +271,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             linter: Linting::Scenario(scenarios::unbound_export),
             ..LINTED
         },
-        expect: Expect::Value((1, 0, true, 2)),
+        expect: Expect::Value((1, 0, true, 1)),
     },
     Case {
         name: CaseName("a_listed_corpus_reads_the_listed_files"),

@@ -55,12 +55,15 @@ fn formatted_properties_are_atomic_and_reuse_storage() -> usize {
         format_args!("{}:{}", 17_u8, 23_u8),
     )
     .expect("memory format");
-    node_property_fmt(
-        &mut builder,
-        PropertyId(2),
-        format_args!("{RefusingScalar}"),
-    )
-    .expect_err("the scalar refuses to format");
+    assert_eq!(
+        node_property_fmt(
+            &mut builder,
+            PropertyId(2),
+            format_args!("{RefusingScalar}"),
+        )
+        .expect_err("the scalar refuses to format"),
+        std::fmt::Error
+    );
     node_property_fmt(&mut builder, PropertyId(3), format_args!("{}", 42_u8))
         .expect("next memory format");
     leave_node(&mut builder, Offset(1));

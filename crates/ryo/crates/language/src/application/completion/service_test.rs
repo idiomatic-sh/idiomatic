@@ -170,7 +170,7 @@ fn initialization_completion_and_incremental_failure_never_leave_a_prepared_mark
                 },
             )
         }));
-        result.expect_err("the failing phase panics");
+        drop(result.expect_err("the failing phase panics"));
         assert_eq!(
             engine(&elements).model_preparation.ready,
             ModelReadiness::Stale
