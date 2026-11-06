@@ -49,8 +49,7 @@ rules = [
 ]
 templates = [
   { alias = "lint-project-budget-module", template = "idiomatic.ryo/program-runtime-proof", file = "crates/core/src/inbound/use_cases/lint/use_case_test/project_budget/mod.rs", description = "Normal module registration for real lint project budget controls." },
-  { alias = "lint-project-budget-fixtures", template = "idiomatic.ryo/program-runtime-proof", file = "crates/core/src/inbound/use_cases/lint/use_case_test/project_budget/fixtures.rs", description = "Injected memory pressure follows actual portable reduction work through the production lint fixture." },
-  { alias = "lint-project-budget-types", template = "idiomatic.arch/types", file = "crates/core/src/inbound/use_cases/lint/use_case_test/project_budget/types.rs", params = { kind = "use-case", part = "project_budget" }, description = "Named route, memory disposition and observed reduction data for lint budget controls." },
+  { alias = "lint-project-budget-fixtures", template = "idiomatic.ryo/program-runtime-proof", file = "crates/core/src/inbound/use_cases/lint/use_case_test/project_budget/fixtures/mod.rs", description = "Injected memory pressure follows actual portable reduction work through the production lint fixture." },
   { alias = "lint-project-budget-test", template = "idiomatic.arch/unit-test", file = "crates/core/src/inbound/use_cases/lint/use_case_test/project_budget/test.rs", params = { kind = "use-case", part = "project_budget" }, description = "Six independent real lint ordinary/named budget, unreadable-memory and success rows." },
 
   { template = "idiomatic.ryo/program-runtime-proof", file = "crates/execution/tests/source_boundary/mod.rs", description = "Normal Rust test registration for same-crate authority proofs." },

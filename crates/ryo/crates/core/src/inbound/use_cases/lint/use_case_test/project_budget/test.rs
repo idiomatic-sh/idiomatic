@@ -1,6 +1,6 @@
 //! What the `project_budget` use case promises, against the fakes of the ports it calls, from its fixtures.
 //! Real lint routes preserve budget failures and stop later project cohorts.
-use super::{fixtures::observe, types::*};
+use super::fixtures::{BudgetRoute, BudgetScenario, MemoryPressure, ReductionCount, observe};
 use crate::{
     cases::{Case, CaseName, Expect, Word, run, selects},
     inbound::use_cases::lint::errors::LintError,

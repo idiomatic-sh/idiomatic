@@ -1,6 +1,5 @@
 //! Actual lint dependencies; memory changes only after successful semantic reduction.
 use super::super::*;
-use super::types::*;
 use crate::outbound::memory::{errors::MemoryError, interface::MemoryPort};
 use ryo_execution::inbound::use_cases::execution::types::query_language::{
     QueryLanguageError, QueryLanguagePort,
@@ -190,4 +189,28 @@ pub(super) fn observe(scenario: BudgetScenario) -> BudgetObservation {
         report,
         reductions: ReductionCount(effect.reductions.load(Ordering::SeqCst)),
     }
+}
+
+use crate::inbound::use_cases::lint::{errors::LintError, types::LintReport};
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum BudgetRoute {
+    Ordinary,
+    Named,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum MemoryPressure {
+    Budget,
+    Unreadable,
+    Allowed,
+}
+#[derive(Clone, Copy, Debug)]
+pub(super) struct BudgetScenario {
+    pub route: BudgetRoute,
+    pub pressure: MemoryPressure,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct ReductionCount(pub usize);
+pub(super) struct BudgetObservation {
+    pub report: Result<LintReport, LintError>,
+    pub reductions: ReductionCount,
 }
