@@ -1,4 +1,4 @@
-Feature: Validate sealed receipt-only registrations
+Feature: validate_case_receipts
   @succeeds
   Scenario: Shared producer registration verifies both recorded sides
     Then receipt validation admits the shared producer registration
