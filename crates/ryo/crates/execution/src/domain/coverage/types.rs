@@ -52,7 +52,7 @@ pub struct FilePartial {
 }
 
 /// The place of a rule among the rules of a run: an index into their needs.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RuleIndex(pub usize);
 
 /// What is partial in a file's relation, and why, for a human.

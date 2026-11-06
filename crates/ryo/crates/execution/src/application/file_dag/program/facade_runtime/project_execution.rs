@@ -208,11 +208,7 @@ pub(crate) fn open_project<'a>(
     let transport = scope.claim_symbols(symbols)?;
     let owner = Rc::clone(scope.owner());
     if let Some(existing) = scope.execution.get() {
-        if !Arc::ptr_eq(&existing.program, program.program())
-            || !existing.project_partition_matches(&required)
-        {
-            return Err(OperatingError::WrongOperation);
-        }
+        existing.validate_project(program.program(), &required)?;
     } else {
         let execution = ProgramExecution::open(
             Arc::clone(program.program()),

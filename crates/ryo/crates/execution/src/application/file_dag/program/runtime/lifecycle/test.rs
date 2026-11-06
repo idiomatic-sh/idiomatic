@@ -3,6 +3,7 @@ use super::fixtures::{
     EvaluationCount, Reentry, RuntimeProbe, RuntimeProbeMode, Sink, SinkMode, context,
 };
 use super::inputs::fixtures::{CompiledCase, TestInputs, compiled};
+use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::runtime::types::DependencyCheckpoint;
 use crate::application::file_dag::program::runtime::types::InvocationOutcome;
 use crate::application::file_dag::program::runtime::types::Slot;

@@ -770,11 +770,18 @@ impl ProgramExecution {
         }
         Ok(())
     }
-    pub(in crate::application::file_dag::program) fn project_partition_matches(
+    pub(in crate::application::file_dag::program) fn validate_project(
         &self,
+        program: &Arc<ExecutableProgram>,
         required: &crate::application::file_dag::program::admission::RequiredPartitions,
-    ) -> bool {
-        matches!(&self.partition, Partition::Project(actual) if actual.same_request(required))
+    ) -> Result<(), OperatingError> {
+        if Arc::ptr_eq(&self.program, program)
+            && matches!(&self.partition, Partition::Project(actual) if actual.same_request(required))
+        {
+            Ok(())
+        } else {
+            Err(OperatingError::WrongOperation)
+        }
     }
     /// Drives the admission half of this interpreter for every bound root.
     /// Newly discovered dependencies join the same queue; no dependency graph is
@@ -902,7 +909,6 @@ impl ProgramExecution {
         if inputs.population_scope() != state.scope {
             return Err(OperatingError::NotRead);
         }
-        self.cleanup_status()?;
         let producer = self
             .program
             .regions()
@@ -929,6 +935,9 @@ impl ProgramExecution {
         if let Some(input) = self.published(state, id)? {
             return Ok(InvocationOutcome::Published(input));
         }
+        // Completed publications and semantic failures survive a later cleanup
+        // refusal; only new work is blocked. finish still reports that refusal.
+        self.cleanup_status()?;
         // Singleton demand is the same root-set scheduler, never a recursive evaluator.
         self.prepare_roots(state, &[id], inputs, kernels, completion, context)?;
         let published = self.published(state, id)?;
