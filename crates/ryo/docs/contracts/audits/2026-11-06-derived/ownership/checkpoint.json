@@ -1,0 +1,490 @@
+{
+  "schema": "contract-review-verdict/v1",
+  "source": {
+    "base": "b665d2dbcd756b3c831ced1eb122fed0f2b0ccbd",
+    "head": "4067e8e93a13ddc27672bd29c79ab7df11e692aa",
+    "tree": "42db66e6e7216e169650b1a2d0457004807dbf32",
+    "worktree": "/tmp/ryo-admitted-walk-work-20261105",
+    "status_before": "clean",
+    "status_after": "",
+    "head_after": "4067e8e93a13ddc27672bd29c79ab7df11e692aa",
+    "tree_after": "42db66e6e7216e169650b1a2d0457004807dbf32"
+  },
+  "verdict": "blocking",
+  "axes": {
+    "enforced_boundaries": "FAIL",
+    "clear_ownership_and_flow": "PASS",
+    "proof": "FAIL"
+  },
+  "axis_reasons": {
+    "enforced_boundaries": "REG-1/PUB-RAW source fixes accepted,76 production/compiler controls completed, but remaining witness/publication controls and built-CLI/source-check proof are incomplete.",
+    "clear_ownership_and_flow": "PASS bounded to assigned owner/acquisition/registration/publication family: private issuer scopes preserved, required leased publication lifetime passes, exact target SCCs zero. Ten other SCCs/global architecture explicitly excluded; no whole category approval.",
+    "proof": "Three new executed test failures, incomplete witness/publication compiler inventory, CLI prerequisite failure and missing current source tm check block acceptance."
+  },
+  "reviewers": {
+    "lead": {
+      "model": "gpt-6-astra",
+      "agent": "/root/ownership_review_astra",
+      "round_uuid": "31fb04d3-e02b-4a31-9560-bd5f788b5a7d"
+    },
+    "independent": {
+      "model": [
+        "claude-opus-5-5"
+      ],
+      "session": "a810a5aa-f1ef-4428-bf1f-624ed4b791b2",
+      "round_uuid": "a628498d-6f0d-4eb6-97b5-b9b525d04a37",
+      "exit": 0,
+      "command_metadata": "/tmp/ryo-derived-review-opus-4067/metadata.json",
+      "raw_result": "/tmp/ryo-derived-review-opus-4067/raw.json",
+      "raw_sha256": "06912656dbf30d3f87a2e9a033c343adb97174157d8204c6e820075cc582e0c2",
+      "verdict": "/tmp/ryo-derived-review-opus-4067/verdict.json",
+      "source_before": "4067e8e93a13ddc27672bd29c79ab7df11e692aa",
+      "source_after": "4067e8e93a13ddc27672bd29c79ab7df11e692aa",
+      "scope_reconciliation": "Actual round source-accepted REG-1/PUB-RAW and read3 library failures. Remaining305 gates completed after its verdict; lead binds terminal receipts below. No independent full PASS is inferred. Opus initial ownershipFAIL cited pending SCC evidence, now terminal target0; lead bounded ownership axisPASS does not approve overall source."
+    }
+  },
+  "findings": [
+    {
+      "id": "LIFE-RESTORE",
+      "severity": "blocking",
+      "type": "executed fixture/proof failure",
+      "family": "Named restored outer project lifecycle",
+      "paths": [
+        "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/restoration/test.rs:74",
+        "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/restoration/fixtures/mod.rs:44"
+      ],
+      "failure": "Both restored lifecycle tests reach builds.0 ==0 and fail before proving Equality backing retention/release.",
+      "root_cause_disposition": "All declared bound producers/input scope are PerFile. executable_program/observed.rs:64 uses binding.input.schema.scope for synthetic union; runtime/service.rs:864 correctly refuses CurrentFile in Project partition before Join/Equality. Lead inspected these source sites and existing public project_phase/restoration/partition test with actual empty CrossFile producer. This is invalid fixture scope/proof, not a demonstrated production acquisition bug.",
+      "required_proof": "Use actual Hosted\u2192ProjectRun project producer plus restored captured token, preserving lease/semantic/replay/cancellation/last-release assertions; execute both restored cases and affected outer lifecycle families. No partition relaxation."
+    },
+    {
+      "id": "REG-PHYS-VALUE",
+      "severity": "blocking",
+      "type": "executed positive-oracle failure",
+      "family": "Physical registered classification",
+      "paths": [
+        "crates/ryo/crates/execution/src/domain/table_model/collections/representations/types/registered_representation/value_test.rs:17",
+        "crates/ryo/crates/execution/src/domain/table_model/collections/representations/computed/item.rs:78"
+      ],
+      "failure": "Positive expects MissingPhysical from row0 of count1/zero-cell computed table; actual result ShapeMismatch.",
+      "root_cause_disposition": "Existing ComputedItem::row returns MissingPhysical only beyond row count and ShapeMismatch for malformed in-range slice. Uniform registration dispatch preserves that behavior; foreign-classification refusal case passes.",
+      "required_proof": "Correct positive fixture/oracle and preserve foreign classification before malformed read plus scratch immutability; distinct malformed authorized ShapeMismatch control. Candidate fcb1766 is not reviewed as executed at4067."
+    },
+    {
+      "id": "WITNESS-CONTEXT",
+      "severity": "blocking",
+      "type": "executed compiler harness availability failure",
+      "family": "Seven test-only witness controls and following publication probes",
+      "paths": [
+        "crates/ryo/crates/execution/tests/source_boundary/test.rs:393",
+        "crates/ryo/crates/execution/src/application/file_dag/derived/owner.rs:234"
+      ],
+      "failure": "Inner cargo check --lib omits cfg(test) witness module; authorized observer fails E0433. First76 controls pass,77th fails;9 subsequent controls unrun.",
+      "required_proof": "Compile all7 observer controls in actual unit-test context, retaining production cfg/privacy and intended failure codes; then run all86 controls including3 publication probes. E0433 is not a valid forbidden-access proof."
+    },
+    {
+      "id": "TM-CLI-305",
+      "severity": "blocking",
+      "type": "executed fixture prerequisite failure",
+      "family": "Built CLI visibility/import policy controls",
+      "paths": [
+        "crates/tastemaker/cli/tests/replay/imports.rs:88"
+      ],
+      "failure": "Missing src/owner directory is fixed, but scratch is not a Git repository; first CLI policy case aborts during CLI setup.0of8 policy cases executed.",
+      "required_proof": "Initialize the normal repository prerequisite as other replay fixtures do, preserve all8 expectations and run actual built CLI cases. No filtering policy change indicated."
+    },
+    {
+      "id": "TM-SOURCE-CHECK",
+      "severity": "blocking",
+      "type": "missing required structural evidence",
+      "family": "Integrated changed-source structural check",
+      "paths": [
+        "/tmp/ryo-contract-validation305-20261106/tm_guards.json"
+      ],
+      "failure": "305 tm_guards runs tm validate,7proven4kept0failed. No tm check receipt covers the integrated changed sources; historical other findings remain unwaived.",
+      "required_proof": "Run actual scoped tm check over final corrected changed source, record and resolve in-scope findings. Exact zero-target SCC query does not substitute for source placement/import/other structural checks.",
+      "scope": "Same corrected fixture/proof cohort, no new architecture/source wave."
+    }
+  ],
+  "dispositions": [
+    {
+      "id": "REG-1",
+      "disposition": "fixed",
+      "basis": "Actual selected registry item() AST ownership/tail/unguarded immutable reference gate; same26+6 exhaustive catalogs and required kind checks.104 author scenarios source-hash-matched and actual305 guardvalidate7proven4kept.6 new registration compiler controls completed."
+    },
+    {
+      "id": "PUB-RAW",
+      "disposition": "fixed_source_runtime_proved_compiler_pending",
+      "basis": "record owner-private; source adjacent exports remain borrowed or leased. Actual computed clone/drop control and normalization lifetime control pass;3 intended compiler controls unrun after unrelated witness context abort."
+    },
+    {
+      "id": "BUILD-302 / BUILD-304",
+      "disposition": "fixed",
+      "basis": "305 ten-crate all-features tests buildPASS, no compiler errors; prior14 imports/fixture/type and4test-feature availability issues absent.4067cfg-only correction neither widens visibility nor weakens assertions."
+    },
+    {
+      "id": "SCC-EVID",
+      "disposition": "fixed_for_resolved_target_family",
+      "basis": "Exact4067 query5094/5094 occurrences,2869unique edges,zero targeted SCCs,10outside unchanged;5404unread classified non-Rust,zero unreadRust. No whole-engine acyclic claim."
+    },
+    {
+      "id": "TM-CLI-303 mkdir",
+      "disposition": "fixed_prerequisite_new_fixture_failure",
+      "basis": "Parent directory exists; test now reaches CLI startup but lacks normal Git repository prerequisite. Zero policy cases executed."
+    },
+    {
+      "id": "Opus trait-impl suggestion",
+      "disposition": "rejected_as_source_bypass",
+      "basis": "Rust provider languages/rust/src/domain/implementations/service.rs names impl from full header: `Shadow for RegisteredOperator`, not `RegisteredOperator`. Exact implementation-name filter selects inherent owner and excludes trait impl."
+    },
+    {
+      "id": "Opus unreachable wildcard suggestion",
+      "disposition": "manual_limit_not_established_current_defect",
+      "basis": "Suggested counterexample adds warning suppression absent from approved source. No current wildcard/suppression or executed falsifier demonstrated. Source guard does not independently prove arm-key-to-item semantics; existing all26behavioral controls remain required. No new repair wave inferred."
+    },
+    {
+      "id": "Prior SP-1/issuer/DG1/held-read/Axis/core batch/census/ready fixes",
+      "disposition": "retained",
+      "basis": "No source regression observed; relevant runtime controls and76 source checks pass305, real413/current core8 pass. Whole phase not approved."
+    }
+  ],
+  "validation305": {
+    "source": "4067e8e93a13ddc27672bd29c79ab7df11e692aa",
+    "build": "PASS75.0955s",
+    "libraries": {
+      "execution": {
+        "pass": 456,
+        "fail": 3,
+        "failure_families": [
+          "2restored-lifecycle fixture scope",
+          "1physical positive oracle"
+        ]
+      },
+      "core": {
+        "pass": 177,
+        "fail": 6,
+        "disposition": "unchanged deferred output/store"
+      },
+      "benchmark": "191/191",
+      "SDK": "43/43",
+      "other_five": "155/155",
+      "process_exit": 101
+    },
+    "execution_boundary": {
+      "pass": 89,
+      "fail": 1,
+      "authored_compiler_controls": 86,
+      "positive": 18,
+      "negative": 68,
+      "completed": 76,
+      "completed_positive": 16,
+      "completed_negative": 60,
+      "first_failed": 77,
+      "first_failed_kind": "authorized test-only witness E0433",
+      "subsequent_unrun": 9,
+      "unrun_composition": "6witnessnegatives+3publicationcontrols"
+    },
+    "core_boundary": "1/1 PASS;8actualsourceprobes",
+    "actual413sharing": "1/1 PASS;production RunRyoUseCase one-file reached-head scope",
+    "tm_validate": {
+      "proven": 7,
+      "kept": 4,
+      "failed": 0
+    },
+    "tm_import_query_unit": "3031/1PASS reused via identical3sourcepostimages recorded in unchanged-query-proof.json",
+    "tm_import_cli": "0/1;Git prerequisite fails before0of8policycases",
+    "target_SCC": {
+      "occurrences": 5094,
+      "unique_edges": 2869,
+      "targeted_cycles": 0,
+      "other_cycles": 10,
+      "unread_Rust": 0
+    },
+    "tm_source_check": "not run;required"
+  },
+  "matrix_dispositions": [
+    {
+      "rows": [
+        "A3",
+        "A5",
+        "A6",
+        "B5.12",
+        "B5.14",
+        "C7"
+      ],
+      "disposition": "current_cohort_builds_proof_blocked",
+      "source_or_evidence": "Build305 PASS. Execution456/459; core177/183 with six unchanged deferred failures; benchmark191,SDK43 and five other libraries155 pass. Execution boundary89/90; core boundary1/1 containing8 probes; configured413sharing1/1. Guard validate7proven4kept; source check not run.",
+      "remaining_responsibility": "Complete assigned lifecycle/value fixtures, witness probe context and CLI Git prerequisite; run affected proof and actual source TM on one corrected source. No production-authority defect newly identified."
+    },
+    {
+      "rows": [
+        "B3",
+        "B4d.13",
+        "B5.5"
+      ],
+      "disposition": "source_census_accepted_with_explicit_limits",
+      "source_or_evidence": "Current catalogs/callers and69 relation/26 operator/13 derived/6 representation families are mapped. Core supplied-batch, source admission, dispatch and retirement owner boundaries retained. Three of five outer lifecycle test families pass; restored families fail fixture admission before acquisition.",
+      "remaining_responsibility": "Bind final corrected fixture/probe paths to census; no project callback API exists. Complete remaining real restored route controls. No blanket all-production lifecycle closure."
+    },
+    {
+      "rows": [
+        "B4a.4",
+        "B4d.4",
+        "B4d.6"
+      ],
+      "disposition": "retain_fixed_update_current_execution",
+      "source_or_evidence": "Exact publication/proof pairing, same-owner alias substitution and normalized synthetic observation controls pass in305. Raw publication escape is now source-fixed separately.",
+      "remaining_responsibility": "No SP-1 repair remains. Broader route claims stay bounded to executed controls."
+    },
+    {
+      "rows": [
+        "B4a.9",
+        "B4b.10",
+        "B4c.12",
+        "B5.8"
+      ],
+      "disposition": "partial_current_behavior_proven",
+      "source_or_evidence": "Combined runtime primary-semantic/cleanup refusal and ordinary project exits pass. External file/capture and project duplicate replay retain required leases; two named-restored controls fail before reaching Equality.",
+      "remaining_responsibility": "Correct actual project-scope fixture input using legitimate mixed project/restored supply; preserve all error/replay/charge/last-release assertions. Do not weaken partition admission or introduce project callback/cleanup API."
+    },
+    {
+      "rows": [
+        "B4b.1",
+        "B4b.4",
+        "B4b.5",
+        "B4b.12"
+      ],
+      "disposition": "retain_fixed_current_core_boundary_pass",
+      "source_or_evidence": "Complete supplied ordinary/named batch sealing remains source-correct; all8 actual core compiler probes pass305. Legal FileExecution and external SDK singleton behavior retained.",
+      "remaining_responsibility": "No upstream global-selection completeness claim; preserve legitimate cached/unselected filtering. Wider lifecycle requirement remains separate."
+    },
+    {
+      "rows": [
+        "B4c.9",
+        "B4c.11",
+        "A7"
+      ],
+      "disposition": "unchanged_open",
+      "source_or_evidence": "No new complete sparse activation/preparation-counter mutation proof in this corrective cohort.",
+      "remaining_responsibility": "Retain specific existing activation-work falsifier obligation; no performance measurement or tuning."
+    },
+    {
+      "rows": [
+        "B4d.12",
+        "P3.7"
+      ],
+      "disposition": "partial_current_behavior_proven",
+      "source_or_evidence": "All-six physical classification controls and existing strategy decline/error ordering pass305; RegisteredRepresentation enforces classification before operations. Its standalone Computed positive value fixture incorrectly expects MissingPhysical for an in-range malformed row.",
+      "remaining_responsibility": "Correct positive oracle to existing ComputedItem contract, preserving foreign-kind WrongOperation and unchanged decode scratch; retain distinct malformed ShapeMismatch case. No production physical semantics change warranted."
+    },
+    {
+      "rows": [
+        "B4d.14",
+        "D1"
+      ],
+      "disposition": "REG1_fixed_source_and_asset_proof",
+      "source_or_evidence": "REG-1 is fixed: only actual top-level inherent catalog owner item() tail-match unguarded immutable direct reference selects membership. Both catalogs use that shape.104 author scenarios match current file hashes;305 actual guard validation passes. All6 new registry compiler controls complete before witness failure.",
+      "remaining_responsibility": "Do not retain incidental match-arm bypass as active. Finish remaining fixture/probe/source-check proof; behavioral kind-to-item correctness remains tested separately from AST registration shape."
+    },
+    {
+      "rows": [
+        "B5.2",
+        "B5.3",
+        "P3.6"
+      ],
+      "disposition": "retain_fixed_current_production_boundary_prefix_pass",
+      "source_or_evidence": "Private runtime issuers and moved dispatch capability constructors retain authority; prior70 plus6 registry controls complete successfully. Required ready callback and independent omitted-submit controls pass305.",
+      "remaining_responsibility": "Remaining compiler failure concerns test-only observer context, not production issuance. Do not reopen fixed issuer/P3-1 defects."
+    },
+    {
+      "rows": [
+        "B5.4",
+        "B5.11"
+      ],
+      "disposition": "partial_compiler_inventory_executed",
+      "source_or_evidence": "86 authored execution controls:18 positives68 negatives. First76 complete (16positives60negatives);77th authorized BackingWitness observer fails E0433 because inner check --lib omits cfg(test). Remaining6 witness negatives and3 publication controls unrun. Core8 pass.",
+      "remaining_responsibility": "Repair whole7 witness test compilation context without exposing production storage or weakening intended reasons; execute complete inventory including3 publication controls."
+    },
+    {
+      "rows": [
+        "A9",
+        "B5.9",
+        "B5.10",
+        "P3.11"
+      ],
+      "disposition": "targeted_cycles_closed_other_structural_scope_open",
+      "source_or_evidence": "Exact305 resolved-source graph:5094 occurrences/2869 unique edges;zero targeted derived-owner/runtime/native-walk SCCs. Ten other SCCs retained;5404 unread files all non-Rust. AST visibility filtering source is accepted. Guard validate passes7proven4kept.",
+      "remaining_responsibility": "Do not retain old targeted49/46/31 cycles as active. Actual integrated source tm check remains missing, other recorded findings unwaived, built CLI policy cases blocked by missing Git fixture prerequisite. No whole-engine acyclic/TM-green claim."
+    },
+    {
+      "rows": [
+        "B5.13"
+      ],
+      "disposition": "unchanged_open",
+      "source_or_evidence": "Trusted normal-CI validator remains ci/contract_review/command.py; no new migration executor or receipt certification introduced.",
+      "remaining_responsibility": "Current missing/stale/invalid review gate success/failure proof remains a separate acceptance obligation."
+    },
+    {
+      "rows": [
+        "P3.2",
+        "P3.5",
+        "P3.9"
+      ],
+      "disposition": "retain_fixed_current_runtime_pass",
+      "source_or_evidence": "Synthetic IDs/normalized observation census, zero-column projection oracle, demanded-five-head and omitted-callback controls pass305.",
+      "remaining_responsibility": "No new census/source defect; wider all-route claim remains distinct."
+    },
+    {
+      "rows": [
+        "P3.10",
+        "D7"
+      ],
+      "disposition": "PUB_RAW_source_fixed_behavior_pass_compiler_pending",
+      "source_or_evidence": "Raw PublishedInput.record() is relations-owner-only; borrowed RelationResult is not Clone and hides payload fields.305 computed publication clone/drop test proves required bytes and backing survive until last authorized handle in a still-live generation; normalization clone control also passes.",
+      "remaining_responsibility": "Do not retain raw-publication escape as active source defect. Three new non-owner raw/borrow escape and authorized leased-clone compiler probes remain unrun after earlier witness harness failure; final consumer coverage remains bounded."
+    },
+    {
+      "rows": [
+        "P3.12",
+        "matrix20b"
+      ],
+      "disposition": "current_configured413_reached_head_proof_pass",
+      "source_or_evidence": "Actual configured413 sharing via production RunRyoUseCase passes305 on one file; independent readiness/omitted-callback controls pass in execution library.",
+      "remaining_responsibility": "Keep dormant heads/every physical production route outside this reached-head proof. No full phase/category approval or performance claim."
+    },
+    {
+      "rows": [
+        "D2",
+        "D4",
+        "D6"
+      ],
+      "disposition": "current_owner_source_coherent_runtime_partial",
+      "source_or_evidence": "Owner-dependent issuance remains below private data; required OwnedView retains storage+ResourceLease. Current graph/Axis/native/raw/held-read and all13 acquired-family controls pass. Targeted owner SCCs zero on exact source.",
+      "remaining_responsibility": "Remaining restored lifecycle fixture proof, witness/publication compiler completion and actual source TM check; no known visibility regression or detached derived storage escape."
+    },
+    {
+      "rows": [
+        "D3",
+        "matrix15",
+        "matrix16"
+      ],
+      "disposition": "current_owner_migration_builds_and_executes",
+      "source_or_evidence": "Whole selector/candidates/graph-policy import/visibility migration now compiles; selected/fanout/refusal/retention controls pass. Execution owner owns postings and selected publication; no core migration remains.",
+      "remaining_responsibility": "Retain source-check obligation and broad category limits; do not retain BUILD302 imports as open."
+    },
+    {
+      "rows": [
+        "D5"
+      ],
+      "disposition": "current_raw_family_pass",
+      "source_or_evidence": "RawKeyOrder remains required scoped acquisition with live owner and runtime permit; raw success/fault controls pass305.",
+      "remaining_responsibility": "No new fallback raw builder or mechanism; broad category acceptance remains separate."
+    },
+    {
+      "rows": [
+        "D8"
+      ],
+      "disposition": "source_classification_and_existing_controls_retained",
+      "source_or_evidence": "Direct matching helpers borrow existing indexes; materialization returns caller-owned rows; table_groups is invocation reduction; table_reach uses prebuilt leased graphs plus invocation scratch. Existing semantic/owner controls pass305.",
+      "remaining_responsibility": "No extra retained derived family identified. Do not request repeat builder classification as an outstanding source defect; broader complete-category approval remains absent."
+    },
+    {
+      "rows": [
+        "matrix14a",
+        "matrix14b",
+        "matrix17",
+        "matrix18",
+        "matrix21b",
+        "matrix22"
+      ],
+      "disposition": "keep_broad_categories_open_update_actual_progress",
+      "source_or_evidence": "Both REG-1 and PUB-RAW source fixes accepted; source owner inversion builds and current acquired/graph/storage controls pass; target SCCs are zero.305 has three fixture failures and incomplete observer/publication/compiler/CLI proof.",
+      "remaining_responsibility": "Complete the same assigned fixture/proof cohort and actual scoped source check, preserving passing postimages where unchanged. No new source wave or category closure."
+    },
+    {
+      "rows": [
+        "C4a"
+      ],
+      "disposition": "partial_actual_scope_proof",
+      "source_or_evidence": "Scope admission, core complete supplied-batch and76 completed production source probes pass. New restored fixture incorrectly declares PerFile union for project execution; runtime correctly refuses before acquisition.",
+      "remaining_responsibility": "Use valid real mixed project/restored producer route; do not weaken partition checks or mislabel this as a production derived acquisition defect."
+    },
+    {
+      "rows": [
+        "C5"
+      ],
+      "disposition": "unchanged_deferred",
+      "source_or_evidence": "Only prior authorized directional singleton observation exists;305 is contract validation, not performance measurement.",
+      "remaining_responsibility": "No performance work or deferred output/store changes in this batch."
+    }
+  ],
+  "proof_scope": {
+    "whole_census": "69relations26operators13derived6representations;current source mapping recorded;no wholecategory closure.",
+    "lifecycle": "External deduplicated, file capture/commit and ordinary project duplicate replay controls pass; two restored named tests fail before lease proof. Within restored duplicate loop first Complete fails, later SemanticFailure/RefusedBinding cases are not executed.",
+    "sharing": "Reached ready heads on one valid file/allconfigured413; separate five-demanded-root and omitted-submission controls pass; dormant/everyphysicalroute scope not claimed.",
+    "structural": "Zero resolved target owner/runtime/nativewalk SCCs is source-bound;10otherSCCs and unwaived broader findings remain;validate is notcheck."
+  },
+  "next_action": "One already-assigned corrective fixture/proof batch: valid project-restored input, physical oracle, actual test-only witness probe context, CLI Git prerequisite; affected checks plus actual scoped source TM. No new ownership architecture, performance or deferred-output wave.",
+  "file_postimages": {
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner.rs": "ef2b762036a658f733771c7f0b604f0433d19d4b65e4e011a7184d3996717158",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/acquisition/selection/service.rs": "3c7dfc65f17dcac2221301fd6345ab9ebff5f38e5bc16af1c67797f4e0d1fdd2",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/acquisition/service.rs": "eb3f8bda28fab7ba4d0184c055d1ed8f3d8dade73ab8f321b27d0e045dad3fbd",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/fixtures/mod.rs": "e09cebae24591efe27be083065d5c344efdde34faa6158f4c49ab936ad5aa1dc",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/graph_policy.rs": "9472af00c929bfd32eaac06c8a725a48e5519dc12a9ed8cc395a71bee43b26e4",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/selection/candidates/service.rs": "2a962c8439e3c935c3519a797fe303d3746d4fe0c9d6f733e1a68cfaf2031d02",
+    "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/external/test.rs": "ad3df88de85c2574ed7534749ec3d19cc1d6c6fe0bbdd6ba9dfc315fb260bae0",
+    "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/test.rs": "bbf42b61c84260557b8575a47733e07549b6cedb8b89244338986870bf045183",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/handle/service.rs": "3600c7b966e8d568c0e11d4bcf0f6d6bc47eaf1eb5fa005bd168c82c43e646c6",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/number/service/test.rs": "6828138d69004c5eaa95992a0b0904e41cd2d24b51122201066d57d8e00cd0cc",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/owner_test.rs": "ae1352d505813714cc6b11b6cd8348d87e42a4470b5eaa3eb4ea77d082632932",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/owner_test/publication/mod.rs": "d0380c2ce51349b400e821ed07cb835e535e940c1c6df918e6eedf56ac7bc2b0",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/owner_test/publication/test.rs": "e38549f390ea24e35ae316801160ecf913c00b3fab21bd4bedf6e8c21c4e6e1a",
+    "crates/ryo/crates/execution/src/domain/operator/contract/registration.rs": "b4ca7918b3784b94605f78e41473a307e19bc3db3c684e047d42838428fb1ace",
+    "crates/ryo/crates/execution/src/domain/table_model/collections/representations/types.rs": "a6eb602312e754e6d51d0c34fa6b223bd1547719201e940ab32346f3c5734f83",
+    "crates/ryo/crates/execution/src/domain/table_model/collections/representations/types/registered_representation/value.rs": "c954396bad4caf2bc1e14756735acf92d7bb3d28aef254c7c0e9e88288f0054b",
+    "crates/ryo/crates/execution/tests/source_boundary/mod.rs": "60b9c7815a2d0b3b86f95e9fd6ee294d97aff945de3bb11389c5b4015a7d34a4",
+    "crates/ryo/crates/execution/tests/source_boundary/publication/fixtures/mod.rs": "6ae6994dadf9a682f2cb36c068c12b13d2c8bddc162ddb55d93cd737dbb0c865",
+    "crates/ryo/crates/execution/tests/source_boundary/publication/mod.rs": "7de6365f0610a6a4071c59f49b5e502276567ae7a6da55c19c12d9b178b2bd9e",
+    "crates/ryo/crates/execution/tests/source_boundary/test.rs": "1a52ade171e7f9a915ebc324c74b00b57ea2341d11e23af11ef743d1366ef163",
+    "crates/ryo/docs/contracts/README.md": "a8daa240b956da221fdf97f34660db5b396e5fb413f70eaa50256d911856eb06",
+    "crates/ryo/docs/contracts/audits/2026-11-06-derived/ownership/review.json": "0f9f841f57ed5811cb68d1518863609dd90c177749e5b257fea4b8f71f345bf8",
+    "crates/ryo/tastemaker.toml": "9adf0a7e0a029dd5adbc500980e1324d3e20e8b12776cf53f02138f3154a2b6e",
+    "crates/ryo/tastemaker/rules/program-implementation-boundary/0.1.0/rule.toml": "14aa6a87d5fc3b7ecc0f1b346b5aca5becf45108f36687f09e2a32fdfe663857",
+    "crates/tastemaker/cli/tests/replay/imports.rs": "1242ecfdde8b85fbeeb20f8a4b59695e60f8a3e6eafdcdbb634d661f913b8d73"
+  },
+  "evidence_sha256": {
+    "/tmp/ryo-contract-validation305-20261106/commands.json": "5f862328eecd0273c6a3bc222dc5e9bf26a476898987558e2908a507ea90eb1b",
+    "/tmp/ryo-contract-validation305-20261106/unchanged-query-proof.json": "2dce4e294c4351e7de4c563e19de2dd63676c52f9319a0fc12cb91bf2decb2fb",
+    "/tmp/ryo-contract-validation305-20261106/identity.json": "45730da5668d6fb8d8b844b8e1cc08437b8afe9a09c8c9d650c8420698b7f022",
+    "/tmp/ryo-contract-validation305-20261106/build.log": "a4af67bcbb0b1c2049377b8df53f40d8666e695be40033591eebecd1328844ea",
+    "/tmp/ryo-contract-validation305-20261106/build.json": "7fdc1ca10e68caeeccb898ae9bc3bce2c38ca6e484b519437f3d3018b620aa30",
+    "/tmp/ryo-contract-validation305-20261106/libraries.log": "0950ab20ce13f9f7d939de0e98e74103253a0d702ff12f18aa10e7953ce4666b",
+    "/tmp/ryo-contract-validation305-20261106/libraries.json": "410304e3b8acc2c9b7ed1344377ded5a454e3123a151002dfac536bed6cef92c",
+    "/tmp/ryo-contract-validation305-20261106/boundary.log": "f4a5a017a9148f3f99c3f05d9d93c7b67742650933a8cb99d01c2bb96dd64e5a",
+    "/tmp/ryo-contract-validation305-20261106/boundary.json": "23bb0a23e6b1f4172eae0ede68e790c9cf8c68df5c8b4fbf8a4f83623b08011a",
+    "/tmp/ryo-contract-validation305-20261106/project_boundary.log": "2a5320fef3bf507519a15afad1f089e6883143ed409a7477b1ac95c2a22181ad",
+    "/tmp/ryo-contract-validation305-20261106/project_boundary.json": "9615c25b2bbb6fd240028b571acc0f63f1a567f604aff1daa6c4516bc13db8b2",
+    "/tmp/ryo-contract-validation305-20261106/sharing.log": "3e8eb459ccd47bfe87473086dfc3ad8eb6afe5f85bc61c28963731495a4473cc",
+    "/tmp/ryo-contract-validation305-20261106/sharing.json": "ab2136fe7a3cc2bda05e040d803510cb5524969b2b95ca08b6c6fa4244d5283b",
+    "/tmp/ryo-contract-validation305-20261106/tm_import_cli.log": "43137ab7c665b236f49e4c8f8a0e8343b4fdc43bffa83c34fa863c8baa5756da",
+    "/tmp/ryo-contract-validation305-20261106/tm_import_cli.json": "c1fb85720bca8e58a896f8dfafadd74660ee3b5e7f2b7879975c49253e0e8de5",
+    "/tmp/ryo-contract-validation305-20261106/tm_guards.log": "3ff2c82c6e23801b998076ed13ac6623b7db376a091bd16b78dd7ca86562574f",
+    "/tmp/ryo-contract-validation305-20261106/tm_guards.json": "e4433150ada5b8120a8acedb99ae3b3c80705ac8507ef4be9477a8fef4d4eea7",
+    "/tmp/ryo-contract-validation305-20261106/ownership_edges.log": "2233d217d49b4333978d7d889edf40878ef71202175d68888b28cfbe6264e80c",
+    "/tmp/ryo-contract-validation305-20261106/ownership_edges.json": "5e3073c6679a7b0e7088fab23808fe6df681e68c432e212044200aab317d6224",
+    "/tmp/ryo-contract-validation305-20261106/ownership_inventory.json": "11149d0c82e0a6e5c81e72aebd2c2acfe56cf4ad3113e144595c5a6b8186c820",
+    "/tmp/ryo-selected-registration-evidence.json": "c2a52e5725d137bf4c193fdd5faf0d7741e49e4b33c8725ffd44866db889578f",
+    "/tmp/ryo-selected-registration-before.json": "a482dcd462bf1d239a58970b361602b4c2c67d7423f8b23b831c42b4ef38d64a",
+    "/tmp/ryo-selected-registration-after.json": "00be585cc8569444e285f02d04e85adb2d56290897fa878d4179ea275e54c9c0",
+    "/tmp/ryo-ownership-unread-classification-20261106.json": "7d010207ff5f7280f18006bb79142466bf2d6ca876b0896ff70924ce29c59a0f",
+    "/tmp/ryo-derived-review-b665-paired.json": "0f9f841f57ed5811cb68d1518863609dd90c177749e5b257fea4b8f71f345bf8"
+  },
+  "limits": [
+    "Reviewers ran no build/test/TM/performance and did not edit repository source.",
+    "Whole source remains blocking. No runtime box may be closed from source-only correction.",
+    "Completed305receipts read after Opus round are lead reconciliation, not a retroactive independent PASS.",
+    "Historical author scopes and outside-targetSCCs retained;not summed or silently waived.",
+    "No performance claim from this contract validation."
+  ],
+  "completed_at": "2026-11-06T05:22:35.663838+00:00"
+}

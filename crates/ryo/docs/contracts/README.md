@@ -14,7 +14,7 @@
 | 6 | QUEUED | Cold/warm/edit reuse and invalidation |
 | 7 | QUEUED | Final enforcement, review and acceptance |
 
-Latest reviewed source is `b665d2dbcd`, tree `feffd158ae7b`; its build and boundary review fail. The last runnable bounded checkpoint remains `34dbb52484`; no phase is VERIFIED. Beads `ryo-7tkn.19` retains process handles and raw evidence.
+Latest runnable reviewed source is `4067e8e93a`, tree `42db66e6e721`. Build passes; fixture and boundary-proof failures still block acceptance. No phase is VERIFIED. Beads `ryo-7tkn.19` retains process handles and raw evidence.
 
 - [413-rule CI fixtures](https://github.com/idiomatic-sh/idiomatic/actions/runs/42116738222/job/127558257740): 413 PASS / 0 FAIL on older public `3cd3249a2`, 11,185 cases. This is not proof of the current unmerged engine or Django.
 - Latest full Django256: **failed**, 2,986.06 seconds / 6.009 GB / 2,880 unknowns. Configured full Rust-workload guards remain unverified.
@@ -26,19 +26,31 @@ Latest reviewed source is `b665d2dbcd`, tree `feffd158ae7b`; its build and bound
 - [ ] Phase 6: restore exact frontier proofs and configuration invalidation in the deferred storage/replay controls.
 - [ ] Phase 7: repair benchmark scratch asset-version selection and obtain valid Rust, full-Django and source-bound review results.
 
-### Current ownership batch — source `b665d2dbcd`
+### Current ownership checkpoint — source `4067e8e93a`, validation305
 
-The [Astra/Opus review](audits/2026-11-06-derived/ownership/review.json) records all three axes **FAIL**, with dispositions for 60 affected rows. Validation302 fails compilation with 14 distinct diagnostics; the 83 execution probes, 8 core probes and five extended lifecycle families have not run on this source. Validation303 passes the TM query unit; its CLI fixture fails setup before any of the eight cases run.
+The [Astra/Opus review](audits/2026-11-06-derived/ownership/checkpoint.json) remains **BLOCKING**: boundaries FAIL / ownership and flow PASS / proof FAIL. REG-1 registration and PUB-RAW publication access fixes are source-accepted. The real publication clone/drop lifetime test passes. The targeted owner/runtime/walk cycle is eliminated; ten other SCCs remain.
 
-- [ ] Repair the combined compiler diagnostics and rerun the affected production suites. Repairs are integrated in `bcaca60115` and `1bb5d93dec`, uncompiled.
-- [ ] REG-1: require actual selected operator/physical registration. Eight new TM negatives reproduce incidental references incorrectly counting as registration. Rows B4d.14/D1 remain open.
-- [ ] PUB-RAW: prevent non-owner callers retaining a raw publication after dropping its required lease. Add forbidden-access and retained-lease controls; publication/lifetime rows remain open.
-- [ ] Fix CLI fixture setup and execute all eight visibility/import/type/call cases.
-- [ ] Bind actual structural checks and independent review to the repaired combined source. The resolved targeted owner cycle is source progress; ten other SCCs remain outside that scope.
+| Check | Result |
+|---|---|
+| Combined build | PASS |
+| Execution library | 456 PASS / 3 fixture failures |
+| Core library | 177 PASS / same 6 deferred failures |
+| Benchmark / SDK / five other libraries | 191 / 43 / 155 PASS |
+| Execution boundaries | 89 PASS / 1 FAIL; 76 of 86 compiler controls completed |
+| Core boundaries | 8 compiler controls PASS |
+| Configured 413-rule sharing, one file | PASS; not full-corpus parity |
+| TM guard scenarios | 7 definitions proven, 4 kept, zero failed |
+| Built TM CLI import cases | Fixture lacks Git repository; zero of 8 exercised |
 
-No historical checkbox below certifies this changed source. The current review separates retained source fixes from unexecuted controls; no category or phase is accepted.
+- [ ] Correct two restored-lifetime fixtures to use the real mixed project-scope route; retain all lifecycle assertions.
+- [ ] Correct the physical-row fixture to distinguish missing and malformed rows.
+- [ ] Compile all seven test-only witness controls in the real test context, then execute the three publication controls.
+- [ ] Initialize the CLI fixture repository and execute all eight cases.
+- [ ] Run actual scoped source TM checks and review the combined corrections. Guard scenario validation is separate evidence.
 
-### Last runnable checkpoint — source `34dbb52484`, validation301
+All corrections are authored for integration; none is yet execution-verified. No performance measurement or phase closure. The [prior blocked source review](audits/2026-11-06-derived/ownership/review.json) remains historical.
+
+### Earlier runnable checkpoint — source `34dbb52484`, validation301
 
 **Build PASS; execution 452/452 PASS.** Core: 177 passed / 6 deferred output/store failures; its boundary suite passes 1/1 with all 8 real-source probes. Reused unchanged production postimages from300: execution boundaries 90/90 with 70 probes (14 positive, 56 negative), benchmark 191/191, SDK 43/43 and five other libraries 155/155; actual configured413 sharing passes on one file.
 
