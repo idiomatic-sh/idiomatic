@@ -1,0 +1,56 @@
+description = "The core's workloads next to the commands': a use case taken over the fakes of its ports, warm and cold."
+why = "Measures the core without its edge, so a slow command is told from a slow use case."
+content = '''
+//! The core's workloads, taken for their rounds.
+
+/// The workload of each use case the command line's core runs.
+pub(crate) fn measured() -> Vec<crate::measure::Measured> {
+    Vec::new()
+}
+'''
+
+[given]
+file = 'cli/benches/performance/use_case.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'cli/benches/performance/use_case.rs' = '''
+//! The core's workloads, taken for their rounds.
+
+/// The workload of each use case the command line's core runs.
+pub(crate) fn measured() -> Vec<crate::measure::Measured> {
+    Vec::new()
+}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'cli/benches/performance/use_case.rs' = '''
+//! The core's workloads, taken for their rounds.
+
+/// The workload of each use case the command line's core runs.
+pub(crate) fn measured() -> Vec<crate::measure::Measured> {
+    Vec::new()
+}
+
+fn warm() {}
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'performance-use-case#count', path = '.' },
+]
+
+[[scenarios]]
+id = 'no-measured'
+scenario = 'The use-case workloads are not listed.'
+given.files.'cli/benches/performance/use_case.rs' = '''
+//! The core's workloads, taken for their rounds.
+'''
+then.findings = [
+  { rule = 'performance-use-case#template', path = 'cli/benches/performance/use_case.rs' },
+]
