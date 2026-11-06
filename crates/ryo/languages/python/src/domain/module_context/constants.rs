@@ -1,6 +1,6 @@
 //! The names of this concept.
 /// The text `.`.
-pub(crate) const DOT: &str = ".";
+pub(crate) const DOT: &str = crate::domain::syntax::constants::DOT;
 /// The text `.pyi`.
 pub(crate) const STUB_SUFFIX: &str = ".pyi";
 /// The text `.py`.

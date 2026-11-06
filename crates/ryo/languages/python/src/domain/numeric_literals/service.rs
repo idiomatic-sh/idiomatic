@@ -11,7 +11,6 @@ use crate::domain::{
     },
 };
 use ryo::languages::{self, ByteSlice, NameText, Position, Symbol, Symbols, Tree};
-use std::io::Write as _;
 use super::constants;
 
 /// Intern an occurrence without allocating temporary decimal text on each file read.
@@ -35,7 +34,7 @@ fn write_float(bits: u64, buffer: &mut [u8; FLOAT_TEXT_BYTES]) -> &str {
     let value = f64::from_bits(bits);
     let mut rest: &mut [u8] = &mut buffer[..];
     assert!(
-        write!(rest, "{value}").is_ok(),
+        std::io::Write::write_fmt(&mut rest, format_args!("{value}")).is_ok(),
         "binary64 text fits the fixed buffer"
     );
     let mut written = FLOAT_TEXT_BYTES - rest.len();
@@ -46,7 +45,7 @@ fn write_float(bits: u64, buffer: &mut [u8; FLOAT_TEXT_BYTES]) -> &str {
     {
         let mut rest: &mut [u8] = &mut buffer[written..];
         assert!(
-            rest.write_all(constants::FLOAT_SUFFIX).is_ok(),
+            std::io::Write::write_all(&mut rest, constants::FLOAT_SUFFIX).is_ok(),
             "binary64 suffix fits the fixed buffer"
         );
         written = FLOAT_TEXT_BYTES - rest.len();

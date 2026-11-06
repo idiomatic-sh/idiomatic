@@ -1,6 +1,6 @@
 //! Stable project namespace vocabulary.
 pub(crate) const PRESENT: &str = "present";
-pub(crate) const ABSENT: &str = "absent";
+pub(crate) const ABSENT: &str = crate::domain::syntax::constants::ABSENT;
 pub(crate) const UNKNOWN: &str = crate::domain::language::constants::UNKNOWN;
 pub(crate) const UNKNOWN_CONTEXT: &str =
     "project namespace membership has an unobserved search entry";

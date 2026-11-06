@@ -24,7 +24,7 @@ pub(crate) const POSSIBLY_UNBOUND: &str = "possibly-unbound";
 /// The text `unbound`.
 pub(crate) const UNBOUND: &str = "unbound";
 /// The text `builtin`.
-pub(crate) const BUILTIN: &str = "builtin";
+pub(crate) const BUILTIN: &str = crate::domain::syntax::constants::BUILTIN;
 /// The text `declaration-or-builtin`.
 pub(crate) const DECLARATION_OR_BUILTIN: &str = "declaration-or-builtin";
 /// The text `uncertain`.

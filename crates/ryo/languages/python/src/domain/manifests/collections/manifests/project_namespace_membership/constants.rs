@@ -6,4 +6,4 @@ pub(crate) const PACKAGE: &str = "package";
 /// The text `namespace`.
 pub(crate) const NAMESPACE: &str = "namespace";
 /// The text `absent`.
-pub(crate) const ABSENT: &str = "absent";
+pub(crate) const ABSENT: &str = crate::domain::syntax::constants::ABSENT;

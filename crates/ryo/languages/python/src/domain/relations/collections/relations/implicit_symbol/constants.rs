@@ -1,6 +1,6 @@
 //! The names of this concept.
 /// The text `builtin`.
-pub(crate) const BUILTIN: &str = "builtin";
+pub(crate) const BUILTIN: &str = crate::domain::syntax::constants::BUILTIN;
 /// The text `module-global`.
 pub(crate) const MODULE_GLOBAL: &str = "module-global";
 /// The text `WindowsError`.
