@@ -35,7 +35,7 @@ impl QueryModuleSource {
     pub(crate) fn into_document(self) -> QueryDocumentSource {
         QueryDocumentSource {
             id: self.id,
-            text: self.text,
+            text: self.text.into(),
         }
     }
 
