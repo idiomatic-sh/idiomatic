@@ -1,6 +1,6 @@
 //! Only probe insertion differs from production; no authority implementation is copied.
 use super::derived::controls;
-use super::fixtures::{Expectation, Probe};
+use super::fixtures::{Compilation, Expectation, Probe};
 use cargo_metadata::{DependencyKind, Message, MetadataCommand, diagnostic::DiagnosticLevel};
 use std::{fs, io, path::Path, process::Command};
 
@@ -51,20 +51,29 @@ fn manifest(source: &Path) -> toml::Table {
     );
     identity.insert("autotests".into(), false.into());
     result.insert("package".into(), identity.into());
-    result.insert("workspace".into(), toml::Table::new().into());
+    let mut resolution = toml::Table::new();
+    resolution.insert(
+        "resolver".into(),
+        workspace["workspace"]["resolver"].clone(),
+    );
+    result.insert("workspace".into(), resolution.into());
     result.insert("lib".into(), original["lib"].clone());
     result.insert("features".into(), original["features"].clone());
     result.insert("lints".into(), workspace["workspace"]["lints"].clone());
     let mut dependencies = toml::Table::new();
-    for dependency in package
-        .dependencies
-        .iter()
-        .filter(|dependency| dependency.kind == DependencyKind::Normal)
-    {
+    let mut development = toml::Table::new();
+    for dependency in &package.dependencies {
+        let destination = match dependency.kind {
+            DependencyKind::Normal => &mut dependencies,
+            DependencyKind::Development => &mut development,
+            _ => continue,
+        };
         let mut entry = toml::Table::new();
         entry.insert("version".into(), dependency.req.to_string().into());
         entry.insert("package".into(), dependency.name.clone().into());
-        entry.insert("optional".into(), dependency.optional.into());
+        if dependency.kind == DependencyKind::Normal {
+            entry.insert("optional".into(), dependency.optional.into());
+        }
         entry.insert(
             "default-features".into(),
             dependency.uses_default_features.into(),
@@ -83,7 +92,7 @@ fn manifest(source: &Path) -> toml::Table {
         if let Some(path) = &dependency.path {
             entry.insert("path".into(), path.to_string().into());
         }
-        dependencies.insert(
+        destination.insert(
             dependency
                 .rename
                 .as_ref()
@@ -93,6 +102,7 @@ fn manifest(source: &Path) -> toml::Table {
         );
     }
     result.insert("dependencies".into(), dependencies.into());
+    result.insert("dev-dependencies".into(), development.into());
     result
 }
 
@@ -135,6 +145,7 @@ fn actual_runtime_authority_is_private_to_its_owner() {
     fs::copy(source.join("README.md"), overlay.path().join("README.md")).unwrap();
     let manifest = manifest(source);
     let target = overlay.path().join("target");
+    let library_name = manifest["lib"]["name"].as_str().unwrap();
     fs::write(
         overlay.path().join("Cargo.toml"),
         toml::to_string(&manifest).unwrap(),
@@ -160,11 +171,13 @@ fn actual_runtime_authority_is_private_to_its_owner() {
     let derived_issuer = fs::read_to_string(source.join(super::derived::ISSUER)).unwrap();
     let mut probes = vec![
         Probe {
+            compilation: Compilation::Library,
             owner: RUNTIME,
             source: AUTHORIZED.to_owned(),
             expected: Expectation::Accept,
         },
         Probe {
+            compilation: Compilation::Library,
             owner: PROGRAM,
             source: format!(
                 "{SIBLING} fn rebind(execution: &mut ProgramExecution, owner: std::rc::Rc<crate::application::file_dag::relations::RelationOwner>) {{ execution.owner = owner; }} const _: fn(&mut ProgramExecution, std::rc::Rc<crate::application::file_dag::relations::RelationOwner>) = rebind; }}"
@@ -176,6 +189,7 @@ fn actual_runtime_authority_is_private_to_its_owner() {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: PROGRAM,
             source: format!(
                 "{SIBLING} fn forge(execution: &ProgramExecution, region: RegionId) {{ let _ = KernelAdmission {{ execution, region }}; }} const _: fn(&ProgramExecution, RegionId) = forge; }}"
@@ -187,6 +201,7 @@ fn actual_runtime_authority_is_private_to_its_owner() {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: PROGRAM,
             source: format!(
                 "{SIBLING} fn admitted<'a>(execution: &'a ProgramExecution, inputs: &'a [AdmittedInput]) {{ let _ = KernelPermit::admitted(execution, inputs); }} const _: for<'a> fn(&'a ProgramExecution, &'a [AdmittedInput]) = admitted; }}"
@@ -198,6 +213,7 @@ fn actual_runtime_authority_is_private_to_its_owner() {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: PROGRAM,
             source: format!(
                 "{SIBLING} fn ordered<'a>(execution: &'a ProgramExecution, input: &'a AdmittedInput) {{ let _ = KernelPermit::ordered(execution, input); }} const _: for<'a> fn(&'a ProgramExecution, &'a AdmittedInput) = ordered; }}"
@@ -209,6 +225,7 @@ fn actual_runtime_authority_is_private_to_its_owner() {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: PROGRAM,
             source: format!(
                 "{SIBLING} fn column<'a>(execution: &'a ProgramExecution, input: &'a AdmittedInput) {{ let _ = KernelPermit::column(execution, input, input); }} const _: for<'a> fn(&'a ProgramExecution, &'a AdmittedInput) = column; }}"
@@ -220,6 +237,7 @@ fn actual_runtime_authority_is_private_to_its_owner() {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: PROGRAM,
             source: format!(
                 "{SIBLING} fn retarget(permit: KernelPermit<'_>, region: RegionId) {{ let _ = KernelPermit {{ region, ..permit }}; }} const _: for<'a> fn(KernelPermit<'a>, RegionId) = retarget; }}"
@@ -231,6 +249,7 @@ fn actual_runtime_authority_is_private_to_its_owner() {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: PROGRAM,
             source: format!(
                 "{SIBLING} use super::native_walk::lease::service::PermittedWalk; fn requeue(request: PermittedWalk<'_, '_, '_>) {{ let _ = PermittedWalk {{ ready: &[], ..request }}; }} const _: for<'a, 'b, 'c> fn(PermittedWalk<'a, 'b, 'c>) = requeue; }}"
@@ -242,6 +261,7 @@ fn actual_runtime_authority_is_private_to_its_owner() {
             },
         },
         Probe {
+            compilation: Compilation::Library,
             owner: PROGRAM,
             source: format!(
                 "{SIBLING} fn walk_factory(permit: &KernelPermit<'_>) {{ let _ = permit.walk(); }} const _: for<'a, 'b> fn(&'a KernelPermit<'b>) = walk_factory; }}"
@@ -253,72 +273,72 @@ fn actual_runtime_authority_is_private_to_its_owner() {
             },
         },
     ];
-    probes.push(Probe { owner: RUNTIME_MODULE, source: "mod alias_kerneladmission { use crate::application::file_dag::program::runtime::service::KernelAdmission as Authority; fn forge<'a>(value: Authority<'a>, region: crate::domain::executable_program::types::RegionId) -> Authority<'a> { Authority { region, ..value } }  const _: () = { let _ = forge; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "region", second: "private" } });
-    probes.push(Probe { owner: RUNTIME_MODULE, source: "mod self_kerneladmission { use crate::application::file_dag::program::runtime::service::KernelAdmission as Authority; impl<'a> Authority<'a> { fn forbidden(value: Self, region: crate::domain::executable_program::types::RegionId) -> Self { Self { region, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "region", second: "private" } });
-    probes.push(Probe { owner: RUNTIME_MODULE, source: "mod retarget_kerneladmission { use crate::application::file_dag::program::runtime::service::KernelAdmission as Authority; fn retarget<'a>(value: &mut Authority<'a>, region: crate::domain::executable_program::types::RegionId) { value.region = region; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Refuse { code: "E0616", first: "region", second: "private" } });
-    probes.push(Probe { owner: RUNTIME, source: "mod alias_kerneladmission { use crate::application::file_dag::program::runtime::service::KernelAdmission as Authority; fn forge<'a>(value: Authority<'a>, region: crate::domain::executable_program::types::RegionId) -> Authority<'a> { Authority { region, ..value } }  const _: () = { let _ = forge; }; }\nmod self_kerneladmission { use crate::application::file_dag::program::runtime::service::KernelAdmission as Authority; impl<'a> Authority<'a> { fn forbidden(value: Self, region: crate::domain::executable_program::types::RegionId) -> Self { Self { region, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }\nmod retarget_kerneladmission { use crate::application::file_dag::program::runtime::service::KernelAdmission as Authority; fn retarget<'a>(value: &mut Authority<'a>, region: crate::domain::executable_program::types::RegionId) { value.region = region; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Accept });
-    probes.push(Probe { owner: RUNTIME_MODULE, source: "mod alias_kernelpermit { use crate::application::file_dag::program::runtime::service::KernelPermit as Authority; fn forge<'a>(value: Authority<'a>, region: crate::domain::executable_program::types::RegionId) -> Authority<'a> { Authority { region, ..value } }  const _: () = { let _ = forge; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "region", second: "private" } });
-    probes.push(Probe { owner: RUNTIME_MODULE, source: "mod self_kernelpermit { use crate::application::file_dag::program::runtime::service::KernelPermit as Authority; impl<'a> Authority<'a> { fn forbidden(value: Self, region: crate::domain::executable_program::types::RegionId) -> Self { Self { region, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "region", second: "private" } });
-    probes.push(Probe { owner: RUNTIME_MODULE, source: "mod retarget_kernelpermit { use crate::application::file_dag::program::runtime::service::KernelPermit as Authority; fn retarget<'a>(value: &mut Authority<'a>, region: crate::domain::executable_program::types::RegionId) { value.region = region; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Refuse { code: "E0616", first: "region", second: "private" } });
-    probes.push(Probe { owner: RUNTIME, source: "mod alias_kernelpermit { use crate::application::file_dag::program::runtime::service::KernelPermit as Authority; fn forge<'a>(value: Authority<'a>, region: crate::domain::executable_program::types::RegionId) -> Authority<'a> { Authority { region, ..value } }  const _: () = { let _ = forge; }; }\nmod self_kernelpermit { use crate::application::file_dag::program::runtime::service::KernelPermit as Authority; impl<'a> Authority<'a> { fn forbidden(value: Self, region: crate::domain::executable_program::types::RegionId) -> Self { Self { region, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }\nmod retarget_kernelpermit { use crate::application::file_dag::program::runtime::service::KernelPermit as Authority; fn retarget<'a>(value: &mut Authority<'a>, region: crate::domain::executable_program::types::RegionId) { value.region = region; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Accept });
-    probes.push(Probe { owner: RUNTIME_MODULE, source: "mod alias_readyselection { use crate::application::file_dag::program::runtime::service::ReadySelection as Authority; fn forge<'a, 'b>(value: Authority<'a, 'b>, permit: &'a crate::application::file_dag::program::runtime::service::KernelPermit<'b>) -> Authority<'a, 'b> { Authority { permit, ..value } }  const _: () = { let _ = forge; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "permit", second: "private" } });
-    probes.push(Probe { owner: RUNTIME_MODULE, source: "mod self_readyselection { use crate::application::file_dag::program::runtime::service::ReadySelection as Authority; impl<'a, 'b> Authority<'a, 'b> { fn forbidden(value: Self, permit: &'a crate::application::file_dag::program::runtime::service::KernelPermit<'b>) -> Self { Self { permit, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "permit", second: "private" } });
-    probes.push(Probe { owner: RUNTIME_MODULE, source: "mod retarget_readyselection { use crate::application::file_dag::program::runtime::service::ReadySelection as Authority; fn retarget<'a, 'b>(value: &mut Authority<'a, 'b>, permit: &'a crate::application::file_dag::program::runtime::service::KernelPermit<'b>) { value.permit = permit; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Refuse { code: "E0616", first: "permit", second: "private" } });
-    probes.push(Probe { owner: RUNTIME, source: "mod alias_readyselection { use crate::application::file_dag::program::runtime::service::ReadySelection as Authority; fn forge<'a, 'b>(value: Authority<'a, 'b>, permit: &'a crate::application::file_dag::program::runtime::service::KernelPermit<'b>) -> Authority<'a, 'b> { Authority { permit, ..value } }  const _: () = { let _ = forge; }; }\nmod self_readyselection { use crate::application::file_dag::program::runtime::service::ReadySelection as Authority; impl<'a, 'b> Authority<'a, 'b> { fn forbidden(value: Self, permit: &'a crate::application::file_dag::program::runtime::service::KernelPermit<'b>) -> Self { Self { permit, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }\nmod retarget_readyselection { use crate::application::file_dag::program::runtime::service::ReadySelection as Authority; fn retarget<'a, 'b>(value: &mut Authority<'a, 'b>, permit: &'a crate::application::file_dag::program::runtime::service::KernelPermit<'b>) { value.permit = permit; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Accept });
-    probes.push(Probe { owner: RUNTIME_MODULE, source: "mod alias_semanticpermit { use crate::application::file_dag::program::runtime::service::SemanticPermit as Authority; fn forge<'a>(value: Authority<'a>, region: crate::domain::executable_program::types::RegionId) -> Authority<'a> { Authority { region, ..value } }  const _: () = { let _ = forge; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "region", second: "private" } });
-    probes.push(Probe { owner: RUNTIME_MODULE, source: "mod self_semanticpermit { use crate::application::file_dag::program::runtime::service::SemanticPermit as Authority; impl<'a> Authority<'a> { fn forbidden(value: Self, region: crate::domain::executable_program::types::RegionId) -> Self { Self { region, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "region", second: "private" } });
-    probes.push(Probe { owner: RUNTIME_MODULE, source: "mod retarget_semanticpermit { use crate::application::file_dag::program::runtime::service::SemanticPermit as Authority; fn retarget<'a>(value: &mut Authority<'a>, region: crate::domain::executable_program::types::RegionId) { value.region = region; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Refuse { code: "E0616", first: "region", second: "private" } });
-    probes.push(Probe { owner: RUNTIME, source: "mod alias_semanticpermit { use crate::application::file_dag::program::runtime::service::SemanticPermit as Authority; fn forge<'a>(value: Authority<'a>, region: crate::domain::executable_program::types::RegionId) -> Authority<'a> { Authority { region, ..value } }  const _: () = { let _ = forge; }; }\nmod self_semanticpermit { use crate::application::file_dag::program::runtime::service::SemanticPermit as Authority; impl<'a> Authority<'a> { fn forbidden(value: Self, region: crate::domain::executable_program::types::RegionId) -> Self { Self { region, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }\nmod retarget_semanticpermit { use crate::application::file_dag::program::runtime::service::SemanticPermit as Authority; fn retarget<'a>(value: &mut Authority<'a>, region: crate::domain::executable_program::types::RegionId) { value.region = region; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Accept });
-    probes.push(Probe { owner: RUNTIME_MODULE, source: "mod alias_permittedphysical { use crate::application::file_dag::program::runtime::service::PermittedPhysical as Authority; fn forge<'a, 'b, 'c>(value: Authority<'a, 'b, 'c>, meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'b>) -> Authority<'a, 'b, 'c> { Authority { meaning, ..value } }  const _: () = { let _ = forge; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "meaning", second: "private" } });
-    probes.push(Probe { owner: RUNTIME_MODULE, source: "mod self_permittedphysical { use crate::application::file_dag::program::runtime::service::PermittedPhysical as Authority; impl<'a, 'b, 'c> Authority<'a, 'b, 'c> { fn forbidden(value: Self, meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'b>) -> Self { Self { meaning, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "meaning", second: "private" } });
-    probes.push(Probe { owner: RUNTIME_MODULE, source: "mod retarget_permittedphysical { use crate::application::file_dag::program::runtime::service::PermittedPhysical as Authority; fn retarget<'a, 'b, 'c>(value: &mut Authority<'a, 'b, 'c>, meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'b>) { value.meaning = meaning; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Refuse { code: "E0616", first: "meaning", second: "private" } });
-    probes.push(Probe { owner: RUNTIME, source: "mod alias_permittedphysical { use crate::application::file_dag::program::runtime::service::PermittedPhysical as Authority; fn forge<'a, 'b, 'c>(value: Authority<'a, 'b, 'c>, meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'b>) -> Authority<'a, 'b, 'c> { Authority { meaning, ..value } }  const _: () = { let _ = forge; }; }\nmod self_permittedphysical { use crate::application::file_dag::program::runtime::service::PermittedPhysical as Authority; impl<'a, 'b, 'c> Authority<'a, 'b, 'c> { fn forbidden(value: Self, meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'b>) -> Self { Self { meaning, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }\nmod retarget_permittedphysical { use crate::application::file_dag::program::runtime::service::PermittedPhysical as Authority; fn retarget<'a, 'b, 'c>(value: &mut Authority<'a, 'b, 'c>, meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'b>) { value.meaning = meaning; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Accept });
-    probes.push(Probe { owner: RUNTIME_MODULE, source: "mod alias_programexecution { use crate::application::file_dag::program::runtime::service::ProgramExecution as Authority; fn forge(value: Authority, generation: std::sync::Arc<()>) -> Authority { Authority { generation, ..value } }  const _: () = { let _ = forge; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "generation", second: "private" } });
-    probes.push(Probe { owner: RUNTIME_MODULE, source: "mod self_programexecution { use crate::application::file_dag::program::runtime::service::ProgramExecution as Authority; impl Authority { fn forbidden(value: Self, generation: std::sync::Arc<()>) -> Self { Self { generation, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "generation", second: "private" } });
-    probes.push(Probe { owner: RUNTIME_MODULE, source: "mod retarget_programexecution { use crate::application::file_dag::program::runtime::service::ProgramExecution as Authority; fn retarget(value: &mut Authority, generation: std::sync::Arc<()>) { value.generation = generation; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Refuse { code: "E0616", first: "generation", second: "private" } });
-    probes.push(Probe { owner: RUNTIME, source: "mod alias_programexecution { use crate::application::file_dag::program::runtime::service::ProgramExecution as Authority; fn forge(value: Authority, generation: std::sync::Arc<()>) -> Authority { Authority { generation, ..value } }  const _: () = { let _ = forge; }; }\nmod self_programexecution { use crate::application::file_dag::program::runtime::service::ProgramExecution as Authority; impl Authority { fn forbidden(value: Self, generation: std::sync::Arc<()>) -> Self { Self { generation, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }\nmod retarget_programexecution { use crate::application::file_dag::program::runtime::service::ProgramExecution as Authority; fn retarget(value: &mut Authority, generation: std::sync::Arc<()>) { value.generation = generation; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Accept });
-    probes.push(Probe { owner: RUNTIME_MODULE, source: "mod alias_runtimestate { use crate::application::file_dag::program::runtime::service::RuntimeState as Authority; fn forge(value: Authority, generation: std::sync::Arc<()>) -> Authority { Authority { generation, ..value } }  const _: () = { let _ = forge; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "generation", second: "private" } });
-    probes.push(Probe { owner: RUNTIME_MODULE, source: "mod self_runtimestate { use crate::application::file_dag::program::runtime::service::RuntimeState as Authority; impl Authority { fn forbidden(value: Self, generation: std::sync::Arc<()>) -> Self { Self { generation, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "generation", second: "private" } });
-    probes.push(Probe { owner: RUNTIME_MODULE, source: "mod retarget_runtimestate { use crate::application::file_dag::program::runtime::service::RuntimeState as Authority; fn retarget(value: &mut Authority, generation: std::sync::Arc<()>) { value.generation = generation; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Refuse { code: "E0616", first: "generation", second: "private" } });
-    probes.push(Probe { owner: RUNTIME, source: "mod alias_runtimestate { use crate::application::file_dag::program::runtime::service::RuntimeState as Authority; fn forge(value: Authority, generation: std::sync::Arc<()>) -> Authority { Authority { generation, ..value } }  const _: () = { let _ = forge; }; }\nmod self_runtimestate { use crate::application::file_dag::program::runtime::service::RuntimeState as Authority; impl Authority { fn forbidden(value: Self, generation: std::sync::Arc<()>) -> Self { Self { generation, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }\nmod retarget_runtimestate { use crate::application::file_dag::program::runtime::service::RuntimeState as Authority; fn retarget(value: &mut Authority, generation: std::sync::Arc<()>) { value.generation = generation; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Accept });
-    probes.push(Probe { owner: RUNTIME_MODULE, source: "mod alias_programadmittedinput { use crate::application::file_dag::program::admission::AdmittedInput as Authority; fn forge(value: Authority, root: crate::application::file_dag::program::admission::ProducerRoot) -> Authority { Authority { root, ..value } }  const _: () = { let _ = forge; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "root", second: "private" } });
-    probes.push(Probe { owner: RUNTIME_MODULE, source: "mod self_programadmittedinput { use crate::application::file_dag::program::admission::AdmittedInput as Authority; impl Authority { fn forbidden(value: Self, root: crate::application::file_dag::program::admission::ProducerRoot) -> Self { Self { root, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "root", second: "private" } });
-    probes.push(Probe { owner: RUNTIME_MODULE, source: "mod retarget_programadmittedinput { use crate::application::file_dag::program::admission::AdmittedInput as Authority; fn retarget(value: &mut Authority, root: crate::application::file_dag::program::admission::ProducerRoot) { value.root = root; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Refuse { code: "E0616", first: "root", second: "private" } });
-    probes.push(Probe { owner: RELATIONS, source: "mod alias_relationadmittedinput { use crate::application::file_dag::relations::admission::service::AdmittedInput as Authority; fn forge<'a>(value: Authority<'a>, rows: crate::domain::operator::contract::views::BorrowedRows<'a>) -> Authority<'a> { Authority { rows, ..value } }  const _: () = { let _ = forge; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "rows", second: "private" } });
-    probes.push(Probe { owner: RELATIONS, source: "mod self_relationadmittedinput { use crate::application::file_dag::relations::admission::service::AdmittedInput as Authority; impl<'a> Authority<'a> { fn forbidden(value: Self, rows: crate::domain::operator::contract::views::BorrowedRows<'a>) -> Self { Self { rows, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "rows", second: "private" } });
-    probes.push(Probe { owner: RELATIONS, source: "mod retarget_relationadmittedinput { use crate::application::file_dag::relations::admission::service::AdmittedInput as Authority; fn retarget<'a>(value: &mut Authority<'a>, rows: crate::domain::operator::contract::views::BorrowedRows<'a>) { value.rows = rows; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Refuse { code: "E0616", first: "rows", second: "private" } });
-    probes.push(Probe { owner: RUNTIME_TYPES, source: "mod alias_sibling { use super::super::service::KernelAdmission as Authority; fn forge<'a>(execution: &'a super::super::service::ProgramExecution, region: crate::domain::executable_program::types::RegionId) -> Authority<'a> { Authority { execution, region } }  const _: () = { let _ = forge; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "execution", second: "region" } });
-    probes.push(Probe { owner: ADMISSION, source: "mod private_program_proof { use super::AdmittedInput as Authority; use super::ProducerRoot; fn alias(value: Authority, root: ProducerRoot) -> Authority { Authority { root, ..value } } impl Authority { fn private_self(value: Self, root: ProducerRoot) -> Self { Self { root, ..value } } } fn retarget(value: &mut Authority, root: ProducerRoot) { value.root = root; }  const _: () = { let _ = alias; let _ = Authority::private_self; let _ = retarget; }; }".to_owned(), expected: Expectation::Accept });
-    probes.push(Probe { owner: RELATION_ISSUER, source: "mod private_relation_proof { use super::AdmittedInput as Authority; use crate::domain::operator::contract::views::BorrowedRows; fn alias<'a>(value: Authority<'a>, rows: BorrowedRows<'a>) -> Authority<'a> { Authority { rows, ..value } } impl<'a> Authority<'a> { fn private_self(value: Self, rows: BorrowedRows<'a>) -> Self { Self { rows, ..value } } } fn retarget<'a>(value: &mut Authority<'a>, rows: BorrowedRows<'a>) { value.rows = rows; }  const _: () = { let _ = alias; let _ = Authority::private_self; let _ = retarget; }; }".to_owned(), expected: Expectation::Accept });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_MODULE, source: "mod alias_kerneladmission { use crate::application::file_dag::program::runtime::service::KernelAdmission as Authority; fn forge<'a>(value: Authority<'a>, region: crate::domain::executable_program::types::RegionId) -> Authority<'a> { Authority { region, ..value } }  const _: () = { let _ = forge; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "region", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_MODULE, source: "mod self_kerneladmission { use crate::application::file_dag::program::runtime::service::KernelAdmission as Authority; impl<'a> Authority<'a> { fn forbidden(value: Self, region: crate::domain::executable_program::types::RegionId) -> Self { Self { region, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "region", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_MODULE, source: "mod retarget_kerneladmission { use crate::application::file_dag::program::runtime::service::KernelAdmission as Authority; fn retarget<'a>(value: &mut Authority<'a>, region: crate::domain::executable_program::types::RegionId) { value.region = region; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Refuse { code: "E0616", first: "region", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME, source: "mod alias_kerneladmission { use crate::application::file_dag::program::runtime::service::KernelAdmission as Authority; fn forge<'a>(value: Authority<'a>, region: crate::domain::executable_program::types::RegionId) -> Authority<'a> { Authority { region, ..value } }  const _: () = { let _ = forge; }; }\nmod self_kerneladmission { use crate::application::file_dag::program::runtime::service::KernelAdmission as Authority; impl<'a> Authority<'a> { fn forbidden(value: Self, region: crate::domain::executable_program::types::RegionId) -> Self { Self { region, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }\nmod retarget_kerneladmission { use crate::application::file_dag::program::runtime::service::KernelAdmission as Authority; fn retarget<'a>(value: &mut Authority<'a>, region: crate::domain::executable_program::types::RegionId) { value.region = region; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Accept });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_MODULE, source: "mod alias_kernelpermit { use crate::application::file_dag::program::runtime::service::KernelPermit as Authority; fn forge<'a>(value: Authority<'a>, region: crate::domain::executable_program::types::RegionId) -> Authority<'a> { Authority { region, ..value } }  const _: () = { let _ = forge; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "region", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_MODULE, source: "mod self_kernelpermit { use crate::application::file_dag::program::runtime::service::KernelPermit as Authority; impl<'a> Authority<'a> { fn forbidden(value: Self, region: crate::domain::executable_program::types::RegionId) -> Self { Self { region, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "region", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_MODULE, source: "mod retarget_kernelpermit { use crate::application::file_dag::program::runtime::service::KernelPermit as Authority; fn retarget<'a>(value: &mut Authority<'a>, region: crate::domain::executable_program::types::RegionId) { value.region = region; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Refuse { code: "E0616", first: "region", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME, source: "mod alias_kernelpermit { use crate::application::file_dag::program::runtime::service::KernelPermit as Authority; fn forge<'a>(value: Authority<'a>, region: crate::domain::executable_program::types::RegionId) -> Authority<'a> { Authority { region, ..value } }  const _: () = { let _ = forge; }; }\nmod self_kernelpermit { use crate::application::file_dag::program::runtime::service::KernelPermit as Authority; impl<'a> Authority<'a> { fn forbidden(value: Self, region: crate::domain::executable_program::types::RegionId) -> Self { Self { region, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }\nmod retarget_kernelpermit { use crate::application::file_dag::program::runtime::service::KernelPermit as Authority; fn retarget<'a>(value: &mut Authority<'a>, region: crate::domain::executable_program::types::RegionId) { value.region = region; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Accept });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_MODULE, source: "mod alias_readyselection { use crate::application::file_dag::program::runtime::service::ReadySelection as Authority; fn forge<'a, 'b>(value: Authority<'a, 'b>, permit: &'a crate::application::file_dag::program::runtime::service::KernelPermit<'b>) -> Authority<'a, 'b> { Authority { permit, ..value } }  const _: () = { let _ = forge; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "permit", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_MODULE, source: "mod self_readyselection { use crate::application::file_dag::program::runtime::service::ReadySelection as Authority; impl<'a, 'b> Authority<'a, 'b> { fn forbidden(value: Self, permit: &'a crate::application::file_dag::program::runtime::service::KernelPermit<'b>) -> Self { Self { permit, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "permit", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_MODULE, source: "mod retarget_readyselection { use crate::application::file_dag::program::runtime::service::ReadySelection as Authority; fn retarget<'a, 'b>(value: &mut Authority<'a, 'b>, permit: &'a crate::application::file_dag::program::runtime::service::KernelPermit<'b>) { value.permit = permit; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Refuse { code: "E0616", first: "permit", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME, source: "mod alias_readyselection { use crate::application::file_dag::program::runtime::service::ReadySelection as Authority; fn forge<'a, 'b>(value: Authority<'a, 'b>, permit: &'a crate::application::file_dag::program::runtime::service::KernelPermit<'b>) -> Authority<'a, 'b> { Authority { permit, ..value } }  const _: () = { let _ = forge; }; }\nmod self_readyselection { use crate::application::file_dag::program::runtime::service::ReadySelection as Authority; impl<'a, 'b> Authority<'a, 'b> { fn forbidden(value: Self, permit: &'a crate::application::file_dag::program::runtime::service::KernelPermit<'b>) -> Self { Self { permit, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }\nmod retarget_readyselection { use crate::application::file_dag::program::runtime::service::ReadySelection as Authority; fn retarget<'a, 'b>(value: &mut Authority<'a, 'b>, permit: &'a crate::application::file_dag::program::runtime::service::KernelPermit<'b>) { value.permit = permit; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Accept });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_MODULE, source: "mod alias_semanticpermit { use crate::application::file_dag::program::runtime::service::SemanticPermit as Authority; fn forge<'a>(value: Authority<'a>, region: crate::domain::executable_program::types::RegionId) -> Authority<'a> { Authority { region, ..value } }  const _: () = { let _ = forge; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "region", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_MODULE, source: "mod self_semanticpermit { use crate::application::file_dag::program::runtime::service::SemanticPermit as Authority; impl<'a> Authority<'a> { fn forbidden(value: Self, region: crate::domain::executable_program::types::RegionId) -> Self { Self { region, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "region", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_MODULE, source: "mod retarget_semanticpermit { use crate::application::file_dag::program::runtime::service::SemanticPermit as Authority; fn retarget<'a>(value: &mut Authority<'a>, region: crate::domain::executable_program::types::RegionId) { value.region = region; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Refuse { code: "E0616", first: "region", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME, source: "mod alias_semanticpermit { use crate::application::file_dag::program::runtime::service::SemanticPermit as Authority; fn forge<'a>(value: Authority<'a>, region: crate::domain::executable_program::types::RegionId) -> Authority<'a> { Authority { region, ..value } }  const _: () = { let _ = forge; }; }\nmod self_semanticpermit { use crate::application::file_dag::program::runtime::service::SemanticPermit as Authority; impl<'a> Authority<'a> { fn forbidden(value: Self, region: crate::domain::executable_program::types::RegionId) -> Self { Self { region, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }\nmod retarget_semanticpermit { use crate::application::file_dag::program::runtime::service::SemanticPermit as Authority; fn retarget<'a>(value: &mut Authority<'a>, region: crate::domain::executable_program::types::RegionId) { value.region = region; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Accept });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_MODULE, source: "mod alias_permittedphysical { use crate::application::file_dag::program::runtime::service::PermittedPhysical as Authority; fn forge<'a, 'b, 'c>(value: Authority<'a, 'b, 'c>, meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'b>) -> Authority<'a, 'b, 'c> { Authority { meaning, ..value } }  const _: () = { let _ = forge; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "meaning", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_MODULE, source: "mod self_permittedphysical { use crate::application::file_dag::program::runtime::service::PermittedPhysical as Authority; impl<'a, 'b, 'c> Authority<'a, 'b, 'c> { fn forbidden(value: Self, meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'b>) -> Self { Self { meaning, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "meaning", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_MODULE, source: "mod retarget_permittedphysical { use crate::application::file_dag::program::runtime::service::PermittedPhysical as Authority; fn retarget<'a, 'b, 'c>(value: &mut Authority<'a, 'b, 'c>, meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'b>) { value.meaning = meaning; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Refuse { code: "E0616", first: "meaning", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME, source: "mod alias_permittedphysical { use crate::application::file_dag::program::runtime::service::PermittedPhysical as Authority; fn forge<'a, 'b, 'c>(value: Authority<'a, 'b, 'c>, meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'b>) -> Authority<'a, 'b, 'c> { Authority { meaning, ..value } }  const _: () = { let _ = forge; }; }\nmod self_permittedphysical { use crate::application::file_dag::program::runtime::service::PermittedPhysical as Authority; impl<'a, 'b, 'c> Authority<'a, 'b, 'c> { fn forbidden(value: Self, meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'b>) -> Self { Self { meaning, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }\nmod retarget_permittedphysical { use crate::application::file_dag::program::runtime::service::PermittedPhysical as Authority; fn retarget<'a, 'b, 'c>(value: &mut Authority<'a, 'b, 'c>, meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'b>) { value.meaning = meaning; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Accept });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_MODULE, source: "mod alias_programexecution { use crate::application::file_dag::program::runtime::service::ProgramExecution as Authority; fn forge(value: Authority, generation: std::sync::Arc<()>) -> Authority { Authority { generation, ..value } }  const _: () = { let _ = forge; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "generation", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_MODULE, source: "mod self_programexecution { use crate::application::file_dag::program::runtime::service::ProgramExecution as Authority; impl Authority { fn forbidden(value: Self, generation: std::sync::Arc<()>) -> Self { Self { generation, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "generation", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_MODULE, source: "mod retarget_programexecution { use crate::application::file_dag::program::runtime::service::ProgramExecution as Authority; fn retarget(value: &mut Authority, generation: std::sync::Arc<()>) { value.generation = generation; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Refuse { code: "E0616", first: "generation", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME, source: "mod alias_programexecution { use crate::application::file_dag::program::runtime::service::ProgramExecution as Authority; fn forge(value: Authority, generation: std::sync::Arc<()>) -> Authority { Authority { generation, ..value } }  const _: () = { let _ = forge; }; }\nmod self_programexecution { use crate::application::file_dag::program::runtime::service::ProgramExecution as Authority; impl Authority { fn forbidden(value: Self, generation: std::sync::Arc<()>) -> Self { Self { generation, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }\nmod retarget_programexecution { use crate::application::file_dag::program::runtime::service::ProgramExecution as Authority; fn retarget(value: &mut Authority, generation: std::sync::Arc<()>) { value.generation = generation; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Accept });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_MODULE, source: "mod alias_runtimestate { use crate::application::file_dag::program::runtime::service::RuntimeState as Authority; fn forge(value: Authority, generation: std::sync::Arc<()>) -> Authority { Authority { generation, ..value } }  const _: () = { let _ = forge; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "generation", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_MODULE, source: "mod self_runtimestate { use crate::application::file_dag::program::runtime::service::RuntimeState as Authority; impl Authority { fn forbidden(value: Self, generation: std::sync::Arc<()>) -> Self { Self { generation, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "generation", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_MODULE, source: "mod retarget_runtimestate { use crate::application::file_dag::program::runtime::service::RuntimeState as Authority; fn retarget(value: &mut Authority, generation: std::sync::Arc<()>) { value.generation = generation; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Refuse { code: "E0616", first: "generation", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME, source: "mod alias_runtimestate { use crate::application::file_dag::program::runtime::service::RuntimeState as Authority; fn forge(value: Authority, generation: std::sync::Arc<()>) -> Authority { Authority { generation, ..value } }  const _: () = { let _ = forge; }; }\nmod self_runtimestate { use crate::application::file_dag::program::runtime::service::RuntimeState as Authority; impl Authority { fn forbidden(value: Self, generation: std::sync::Arc<()>) -> Self { Self { generation, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }\nmod retarget_runtimestate { use crate::application::file_dag::program::runtime::service::RuntimeState as Authority; fn retarget(value: &mut Authority, generation: std::sync::Arc<()>) { value.generation = generation; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Accept });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_MODULE, source: "mod alias_programadmittedinput { use crate::application::file_dag::program::admission::AdmittedInput as Authority; fn forge(value: Authority, root: crate::application::file_dag::program::admission::ProducerRoot) -> Authority { Authority { root, ..value } }  const _: () = { let _ = forge; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "root", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_MODULE, source: "mod self_programadmittedinput { use crate::application::file_dag::program::admission::AdmittedInput as Authority; impl Authority { fn forbidden(value: Self, root: crate::application::file_dag::program::admission::ProducerRoot) -> Self { Self { root, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "root", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_MODULE, source: "mod retarget_programadmittedinput { use crate::application::file_dag::program::admission::AdmittedInput as Authority; fn retarget(value: &mut Authority, root: crate::application::file_dag::program::admission::ProducerRoot) { value.root = root; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Refuse { code: "E0616", first: "root", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RELATIONS, source: "mod alias_relationadmittedinput { use crate::application::file_dag::relations::admission::service::AdmittedInput as Authority; fn forge<'a>(value: Authority<'a>, rows: crate::domain::operator::contract::views::BorrowedRows<'a>) -> Authority<'a> { Authority { rows, ..value } }  const _: () = { let _ = forge; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "rows", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RELATIONS, source: "mod self_relationadmittedinput { use crate::application::file_dag::relations::admission::service::AdmittedInput as Authority; impl<'a> Authority<'a> { fn forbidden(value: Self, rows: crate::domain::operator::contract::views::BorrowedRows<'a>) -> Self { Self { rows, ..value } } }  const _: () = { let _ = Authority::forbidden; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "rows", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RELATIONS, source: "mod retarget_relationadmittedinput { use crate::application::file_dag::relations::admission::service::AdmittedInput as Authority; fn retarget<'a>(value: &mut Authority<'a>, rows: crate::domain::operator::contract::views::BorrowedRows<'a>) { value.rows = rows; }  const _: () = { let _ = retarget; }; }".to_owned(), expected: Expectation::Refuse { code: "E0616", first: "rows", second: "private" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: RUNTIME_TYPES, source: "mod alias_sibling { use super::super::service::KernelAdmission as Authority; fn forge<'a>(execution: &'a super::super::service::ProgramExecution, region: crate::domain::executable_program::types::RegionId) -> Authority<'a> { Authority { execution, region } }  const _: () = { let _ = forge; }; }".to_owned(), expected: Expectation::Refuse { code: "E0451", first: "execution", second: "region" } });
+    probes.push(Probe { compilation: Compilation::Library, owner: ADMISSION, source: "mod private_program_proof { use super::AdmittedInput as Authority; use super::ProducerRoot; fn alias(value: Authority, root: ProducerRoot) -> Authority { Authority { root, ..value } } impl Authority { fn private_self(value: Self, root: ProducerRoot) -> Self { Self { root, ..value } } } fn retarget(value: &mut Authority, root: ProducerRoot) { value.root = root; }  const _: () = { let _ = alias; let _ = Authority::private_self; let _ = retarget; }; }".to_owned(), expected: Expectation::Accept });
+    probes.push(Probe { compilation: Compilation::Library, owner: RELATION_ISSUER, source: "mod private_relation_proof { use super::AdmittedInput as Authority; use crate::domain::operator::contract::views::BorrowedRows; fn alias<'a>(value: Authority<'a>, rows: BorrowedRows<'a>) -> Authority<'a> { Authority { rows, ..value } } impl<'a> Authority<'a> { fn private_self(value: Self, rows: BorrowedRows<'a>) -> Self { Self { rows, ..value } } } fn retarget<'a>(value: &mut Authority<'a>, rows: BorrowedRows<'a>) { value.rows = rows; }  const _: () = { let _ = alias; let _ = Authority::private_self; let _ = retarget; }; }".to_owned(), expected: Expectation::Accept });
     // These clients are appended to the actual program sibling. They cannot
     // name raw catalog implementations or retarget a registered classification.
     probes.extend([
-        Probe {
+        Probe { compilation: Compilation::Library,
             owner: PROGRAM,
             source: "mod unregistered_operator { use crate::domain::operator::collections::operators::interface::OperatorsItem as Route; fn bypass(_: &dyn Route) {} const _: fn(&dyn Route) = bypass; }".into(),
             expected: Expectation::Refuse { code: "E0603", first: "OperatorsItem", second: "private" },
         },
-        Probe {
+        Probe { compilation: Compilation::Library,
             owner: PROGRAM,
             source: "mod unregistered_representation { fn bypass(_: &dyn crate::domain::table_model::collections::representations::interface::RepresentationsItem) {} const _: fn(&dyn crate::domain::table_model::collections::representations::interface::RepresentationsItem) = bypass; }".into(),
             expected: Expectation::Refuse { code: "E0603", first: "RepresentationsItem", second: "private" },
         },
-        Probe {
+        Probe { compilation: Compilation::Library,
             owner: PROGRAM,
             source: "mod retarget_registered_operator { use crate::domain::operator::contract::registration::RegisteredOperator; use ryo_values::domain::plans::types::OperationKind; fn bypass(route: &mut RegisteredOperator) { route.kind = OperationKind::Project; } const _: fn(&mut RegisteredOperator) = bypass; }".into(),
             expected: Expectation::Refuse { code: "E0616", first: "kind", second: "private" },
         },
-        Probe {
+        Probe { compilation: Compilation::Library,
             owner: PROGRAM,
             source: "mod retarget_registered_representation { use crate::domain::table_model::collections::representations::types::{registered_representation::value::RegisteredRepresentation, RepresentationKind}; fn bypass(route: &mut RegisteredRepresentation) { route.kind = RepresentationKind::Computed; } const _: fn(&mut RegisteredRepresentation) = bypass; }".into(),
             expected: Expectation::Refuse { code: "E0616", first: "kind", second: "private" },
         },
-        Probe {
+        Probe { compilation: Compilation::Library,
             owner: PROGRAM,
             source: "mod registered_operator_preparation { use crate::domain::{operator::contract::types::OperatorContract, operating::errors::OperatingError}; use ryo_values::domain::plans::types::Operation; fn prepare(operation: &Operation) -> Result<OperatorContract, OperatingError> { crate::domain::operator::service::registered(ryo_values::domain::plans::service::kind_of(operation)).prepare(operation, &[], &[]) } const _: fn(&Operation) -> Result<OperatorContract, OperatingError> = prepare; }".into(),
             expected: Expectation::Accept,
         },
-        Probe {
+        Probe { compilation: Compilation::Library,
             owner: PROGRAM,
             source: "mod registered_representation_read { use crate::domain::table_model::collections::representations::types::{RepresentationInput, RelationContract}; use crate::domain::operating::errors::OperatingError; fn prepare<'a>(input: RepresentationInput<'a>) -> Result<RelationContract<'a>, OperatingError> { input.contract() } const _: for<'a> fn(RepresentationInput<'a>) -> Result<RelationContract<'a>, OperatingError> = prepare; }".into(),
             expected: Expectation::Accept,
@@ -327,6 +347,7 @@ fn actual_runtime_authority_is_private_to_its_owner() {
     probes.extend(controls());
     probes.extend(super::publication::controls());
     for Probe {
+        compilation,
         owner,
         source: probe,
         expected,
@@ -361,24 +382,34 @@ fn actual_runtime_authority_is_private_to_its_owner() {
             super::derived::ISSUER => &derived_issuer,
             _ => panic!("unclassified production overlay"),
         };
+        let probe = match compilation {
+            Compilation::Library => probe,
+            Compilation::LibraryTests => format!("#[cfg(test)]\n{probe}"),
+        };
         fs::write(overlay.path().join(owner), format!("{original}\n{probe}")).unwrap();
-        let output = Command::new(env!("CARGO"))
-            .args([
-                "check",
-                "--offline",
-                "--lib",
-                "--jobs",
-                "2",
-                "--message-format=json",
-            ])
+        let mut command = Command::new(env!("CARGO"));
+        if let Compilation::LibraryTests = compilation {
+            command.arg("check").arg("--tests");
+        } else {
+            command.arg("check");
+        }
+        let output = command
+            .args(["--offline", "--lib", "--jobs", "2", "--message-format=json"])
             .arg("--manifest-path")
             .arg(overlay.path().join("Cargo.toml"))
             .arg("--target-dir")
             .arg(&target)
             .output()
             .unwrap();
-        let errors = Message::parse_stream(output.stdout.as_slice())
+        let messages = Message::parse_stream(output.stdout.as_slice())
             .map(Result::unwrap)
+            .collect::<Vec<_>>();
+        let checked_library_tests = messages.iter().any(|message| {
+            matches!(message, Message::CompilerArtifact(artifact)
+                if artifact.target.name == library_name && artifact.profile.test)
+        });
+        let errors = messages
+            .into_iter()
             .filter_map(|message| match message {
                 Message::CompilerMessage(message)
                     if message.message.level == DiagnosticLevel::Error =>
@@ -392,10 +423,16 @@ fn actual_runtime_authority_is_private_to_its_owner() {
             Expectation::Accept => {
                 assert!(
                     output.status.success(),
-                    "authorized production control failed; parsed errors: {errors:#?}; stderr: {}",
+                    "authorized {compilation:?} control failed; parsed errors: {errors:#?}; stderr: {}",
                     String::from_utf8_lossy(&output.stderr)
                 );
                 assert!(errors.is_empty(), "{errors:#?}");
+                if let Compilation::LibraryTests = compilation {
+                    assert!(
+                        checked_library_tests,
+                        "authorized test-only probe did not compile the actual library-test target"
+                    );
+                }
             }
             Expectation::Refuse {
                 code,
