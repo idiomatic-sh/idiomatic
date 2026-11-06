@@ -155,6 +155,7 @@ templates = [
   { template = "idiomatic.arch/asymptote-config", file = "asymptote.toml", description = "The tools whose findings the product's asymptote lock ratchets." },
   { template = "idiomatic.arch/asymptote-lock", file = ".asymptote/operations/{operation}.lock", count = { min = 0 }, description = "One of the lock files asymptote writes: the findings accepted for one operation." },
   { template = "idiomatic.arch/doc-page", file = "docs/{*page}" },
+  { alias = "benchmark-doc-page", template = "idiomatic.arch/doc-page", file = "crates/benchmark/docs/{*page}", count = { min = 0 }, description = "The measured per-rule Django bottleneck tables of the benchmark crate." },
   { template = "idiomatic.ryo/executable-lowering", file = "crates/execution/src/domain/executable_program/file_demand/mod.rs", description = "Request-wide file demand concept module with generic roles." },
   { template = "idiomatic.arch/service", file = "crates/execution/src/domain/executable_program/file_demand/service.rs", params = { concept = "file_demand" }, description = "Pure request-wide file root and reader-obligation compilation." },
   { template = "idiomatic.arch/types", file = "crates/execution/src/domain/executable_program/file_demand/types.rs", params = { kind = "concept", part = "file_demand" }, description = "Immutable file demand metadata without evaluation authority." },
