@@ -222,9 +222,12 @@ fn validation_error(text: &str, phase: Phase, error: &toml::de::Error) -> Valida
     let location = match error.span() {
         None => Location::FileOrigin,
         Some(range) => {
-            let offsets = match (u32::try_from(range.start), u32::try_from(range.end)) {
-                (Ok(start), Ok(end)) => Some((start, end)),
-                _ => None,
+            let offsets = if let (Ok(start), Ok(end)) =
+                (u32::try_from(range.start), u32::try_from(range.end))
+            {
+                Some((start, end))
+            } else {
+                None
             };
             let Some((start, end)) =
                 offsets.filter(|_| range.start <= range.end && text.get(range.clone()).is_some())
