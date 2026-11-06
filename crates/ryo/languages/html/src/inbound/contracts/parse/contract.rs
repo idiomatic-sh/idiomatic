@@ -16,6 +16,7 @@ use crate::domain::relations::collections::relations::string_literal::item::Stri
 use crate::domain::relations::collections::relations::syntax_child::item::SyntaxChildItem;
 use crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
 use crate::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeItem;
+use crate::domain::syntax::constants::NO_CONFIGURATION;
 use crate::domain::syntax::service::{
     field_bits, field_name, fields, kind_bits, kind_name, kinds, role_of,
 };
@@ -44,7 +45,7 @@ impl Parse for ParseContract {
     }
 
     fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
-        languages::ParseConfigurationIdentity("")
+        languages::ParseConfigurationIdentity(NO_CONFIGURATION)
     }
 
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
@@ -361,7 +362,7 @@ impl Parse for ParseContract {
     }
 
     fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
-        // HTML resources are URLs, not language standard-library modules.
+        // standard: WHATWG HTML, Semantics (https://html.spec.whatwg.org/multipage/semantics.html): a resource is named by a URL, and the standard defines no standard library of modules.
         languages::absent(AbsenceCause::NoSuchConstruct)
     }
 }

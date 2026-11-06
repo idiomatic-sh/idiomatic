@@ -13,8 +13,8 @@ use super::schemas::kind_of;
 use super::schemas::repaired;
 use super::schemas::step_of;
 use super::types::{
-    ArgumentSpan, Child, Cursor, DecodedString, Expansion, Held, MacroArgument, MacroName, Open,
-    FragmentEntryPoint, RustText, Step, Stretch, StringLiteral, Triviality,
+    ArgumentSpan, Child, Cursor, DecodedString, Expansion, FragmentEntryPoint, HeldMacro,
+    MacroArgument, MacroName, Open, RustText, Step, Stretch, StringLiteral, Triviality,
 };
 use crate::domain::syntax::service::kind_bits;
 use crate::outbound::syntax::interface::SyntaxPort;
@@ -127,7 +127,7 @@ impl SyntaxPort for SyntaxRaApSyntaxAdapter {
         let (mut name, mut armed) = (0..0, false);
         // The nodes open, with the place each has in the table.
         let mut open: Vec<Open> = Vec::new();
-        let mut held: Option<Held> = None;
+        let mut held: Option<HeldMacro> = None;
         let mut expansions: Vec<Expansion> = Vec::new();
         // The library answers whether the walk reached the end of the text, which a whole file's walk always does.
         let _: bool = lexed.intersperse_trivia(&output, &mut |step| {
@@ -169,7 +169,7 @@ impl SyntaxPort for SyntaxRaApSyntaxAdapter {
                 Step::Token(SyntaxKind::WHITESPACE | SyntaxKind::COMMENT, _) | Step::Exit => {}
                 Step::Enter(SyntaxKind::TOKEN_TREE) if armed => {
                     armed = false;
-                    held = Some(Held {
+                    held = Some(HeldMacro {
                         name: MacroName(whole.get(name.clone()).unwrap_or_default().into()),
                         host: open.last().map_or(Position(0), |each| each.at),
                         start: cursor.position,

@@ -3,6 +3,7 @@
 
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
+use crate::domain::syntax::constants::{INCOMPLETE_IMPACT, PARSE_PHASE, UNSPECIFIED_CODE};
 use crate::domain::syntax::service::{
     diagnostic_id, diagnostic_message, diagnostic_span, is_root, kind_bits,
 };
@@ -17,9 +18,9 @@ ryo::reads! {
         kinds: [Kind::Node(Node::File), Kind::Extra(Extra::ModFile)] as kind_bits,
         require (is_root(tree, at) == Rootness::Root);
         each (languages::diagnostics(tree.elements)) as (number, diagnostic) {
-            given phase = languages::intern_derived(symbols, tree.source, languages::NameText("parse"));
-            given impact = languages::intern_derived(symbols, tree.source, languages::NameText("incomplete"));
-            given code = languages::intern_derived(symbols, tree.source, languages::NameText("unspecified"));
+            given phase = languages::intern_derived(symbols, tree.source, languages::NameText(PARSE_PHASE));
+            given impact = languages::intern_derived(symbols, tree.source, languages::NameText(INCOMPLETE_IMPACT));
+            given code = languages::intern_derived(symbols, tree.source, languages::NameText(UNSPECIFIED_CODE));
             row {
                 id: value(diagnostic_id(tree, number)),
                 message: value(diagnostic_message(tree, symbols, &diagnostic)),

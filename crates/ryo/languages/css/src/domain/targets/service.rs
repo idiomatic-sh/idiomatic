@@ -21,8 +21,10 @@ fn written<'a>(tree: &Tree<'a>, at: Position) -> Url<'a> {
     tree.source
         .0
         .get(start..end)
-        .and_then(|bytes| std::str::from_utf8(bytes).ok()) // the bytes of a node that are not text have no text, which the reader takes as an empty name: the row keeps its place either way
-        .map_or(Url(Default::default()), Url)
+        // the bytes of a node that are not text have no text, which the reader takes as an empty name: the row keeps its place either way
+        .map_or(Url(Default::default()), |bytes| {
+            Url(std::str::from_utf8(bytes).unwrap_or_default())
+        })
 }
 
 /// The token the adapter wrote a url's resolved target on: a url-token, or the function-token of a `url("..")` (`at` is the

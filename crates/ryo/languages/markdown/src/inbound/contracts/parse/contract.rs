@@ -20,6 +20,7 @@ use crate::domain::relations::collections::relations::string_literal::item::Stri
 use crate::domain::relations::collections::relations::syntax_child::item::SyntaxChildItem;
 use crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
 use crate::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeItem;
+use crate::domain::syntax::constants::NO_CONFIGURATION;
 use crate::domain::syntax::service::{
     field_bits, field_name, fields, kind_bits, kind_name, kinds, role_of,
 };
@@ -48,7 +49,7 @@ impl Parse for ParseContract {
     }
 
     fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
-        languages::ParseConfigurationIdentity("")
+        languages::ParseConfigurationIdentity(NO_CONFIGURATION)
     }
 
     fn file_model(&self, tree: &languages::Tree<'_>, model: &mut Sections) {
@@ -367,8 +368,10 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NoSuchConstruct)
     }
 
-    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, Sections>> {
-        // Markdown links are resources, not language standard-library module imports.
+    fn standard_library_import(
+        &self,
+    ) -> Support<Reader<languages::StandardLibraryImport, Sections>> {
+        // standard: mdast.md, Nodes: a link or an image names a resource by URL, and mdast defines no standard library of modules.
         languages::absent(AbsenceCause::NoSuchConstruct)
     }
 }

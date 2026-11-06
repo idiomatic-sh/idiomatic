@@ -29,14 +29,17 @@ use crate::domain::package_index::types::ListIndex;
 use crate::domain::packages::constants::{CONFIGURATION, LEGACY_CONFIGURATION};
 use crate::domain::packages::service::{read, unlisted_among};
 use crate::domain::packages::types::Packages;
-use crate::domain::paths::service::{entries_among, found_above, name_of};
+use crate::domain::paths::service::{
+    consulted_files, entries_among, found_above, fulfil, linking_of, name_of, supply_of,
+};
 use crate::domain::paths::types::EntryName;
 use crate::domain::paths::types::RepoPath;
 use crate::domain::paths::types::Section;
 use crate::domain::paths::types::{FileText, Settlement};
+use crate::domain::paths::types::{Linking, Supply};
 use crate::domain::targets::types::Manifest as TargetManifest;
 use crate::domain::workspaces::service::settled;
-use crate::domain::workspaces::types::{WorkspaceConfiguration, Looking, Reason};
+use crate::domain::workspaces::types::{Looking, Reason, WorkspaceConfiguration};
 use crate::outbound::conditions::interface::ConditionsPort;
 use crate::outbound::job_scheduling::interface::JobSchedulingPort;
 use crate::outbound::job_scheduling::types::{JobIndex, ScheduledJobCount};
@@ -187,66 +190,34 @@ impl ProjectContract {
             if settled(&looking) == Settlement::Settled {
                 return packages;
             }
-            looking.manifests.seen.extend(
-                std::mem::take(&mut looking.manifests.wanted)
-                    .into_iter()
-                    .map(|path| {
-                        let text = match given {
-                            Section::Present(_) => Section::Absent,
-                            Section::Absent => repository.text(&path),
-                        };
-                        if matches!(text, Section::Present(_)) {
-                            consulted.push(path.clone());
-                        }
-                        let told = present(text)
-                            .ok_or_else(|| Reason(path.0.clone()))
-                            .and_then(|text| self.parsed(&text));
-                        (path, told)
-                    }),
-            );
-            looking.directories.seen.extend(
-                std::mem::take(&mut looking.directories.wanted)
-                    .into_iter()
-                    .map(|directory| {
-                        let entries = match given {
-                            Section::Present(files) => entries_among(files, supplied, &directory),
-                            Section::Absent => repository.entries(&directory).0,
-                        };
-                        (directory, entries)
-                    }),
-            );
-            looking.matches.seen.extend(
-                std::mem::take(&mut looking.matches.wanted)
-                    .into_iter()
-                    .map(|comparison| {
-                        let matching = self
-                            .matching
-                            .matches(&comparison.pattern, &comparison.name)
-                            .unwrap_or(Matching::Differs);
-                        (comparison, matching)
-                    }),
-            );
-            looking.configurations.seen.extend(
-                std::mem::take(&mut looking.configurations.wanted)
-                    .into_iter()
-                    .map(|directory| {
-                        let configured = match given {
-                            Section::Present(_) => Vec::new(),
-                            Section::Absent => {
-                                self.configurations(&*repository, &directory, consulted)
-                            }
-                        };
-                        (directory, configured)
-                    }),
-            );
-            looking.platforms.seen.extend(
-                std::mem::take(&mut looking.platforms.wanted)
-                    .into_iter()
-                    .map(|platform| {
-                        let shown = self.conditions.show(&platform);
-                        (platform, shown)
-                    }),
-            );
+            fulfil(&mut looking.manifests, |path| {
+                let text = match given {
+                    Section::Present(_) => Section::Absent,
+                    Section::Absent => repository.text(path),
+                };
+                if matches!(text, Section::Present(_)) {
+                    consulted.push(path.clone());
+                }
+                present(text)
+                    .ok_or_else(|| Reason(path.0.clone()))
+                    .and_then(|text| self.parsed(&text))
+            });
+            fulfil(&mut looking.directories, |directory| match given {
+                Section::Present(files) => entries_among(files, supplied, directory),
+                Section::Absent => repository.entries(directory).0,
+            });
+            fulfil(&mut looking.matches, |comparison| {
+                self.matching
+                    .matches(&comparison.pattern, &comparison.name)
+                    .unwrap_or(Matching::Differs)
+            });
+            fulfil(&mut looking.configurations, |directory| match given {
+                Section::Present(_) => Vec::new(),
+                Section::Absent => self.configurations(&*repository, directory, consulted),
+            });
+            fulfil(&mut looking.platforms, |platform| {
+                self.conditions.show(platform)
+            });
         }
     }
 
@@ -327,11 +298,7 @@ impl Project for ProjectContract {
     }
 
     fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<Linked>, ProjectError> {
-        if !request
-            .manifests
-            .iter()
-            .any(|manifest| *name_of(&RepoPath(manifest.path.0.clone())).0 == *MANIFEST)
-        {
+        if supply_of(&request.manifests) == Supply::NoManifest {
             return Ok(Resolved {
                 observed_entries: request.observed_entries.receipt(),
                 refused: Vec::new(),
@@ -352,12 +319,7 @@ impl Project for ProjectContract {
                 &mut found,
             ),
         };
-        found.sort_unstable();
-        found.dedup();
-        let consulted = found
-            .into_iter()
-            .map(|path| languages::FilePath(path.0))
-            .collect();
+        let consulted = consulted_files(found);
         let refused = packages
             .refused
             .iter()
@@ -366,13 +328,7 @@ impl Project for ProjectContract {
                 reason: languages::ToolMessage(each.reason.0.clone()),
             })
             .collect();
-        let links_wanted = request.wanted.iter().any(|each| {
-            matches!(
-                each,
-                languages::Relation::SourceDependency | languages::Relation::AnalyzedSource
-            )
-        });
-        let mut derived = if links_wanted {
+        let mut derived = if linking_of(&request.wanted) == Linking::Asked {
             self.linked(request, &packages)
         } else {
             Linked::default()

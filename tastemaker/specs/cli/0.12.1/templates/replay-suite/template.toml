@@ -1,0 +1,40 @@
+description = "One module of a product's replay test: the suite of one concern, with any content."
+why = "A product's replay test (the lint run against recorded answers, compared with a golden) is one test binary of many modules, each a concern (behavior, cache, coverage, cost,...). Placing each module lets a closed `cli` spec account for every file instead of leaving the test out of the workspace; the content is its author's, so the template is open and asks only that the module exist and says what it is."
+content = '''
+//! The `{{ suite }}` module of the replay test.
+'''
+
+[params]
+suite = { type = "string", description = "The module, its file's name without `.rs`, captured from its path." }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'tests/replay/{suite}.rs'
+given.count = { min = 1 }
+given.files.'tests/replay/guide.rs' = '''
+//! The `guide` module of the replay test.
+'''
+
+[[scenarios]]
+id = 'any-content'
+scenario = 'A module holds any content.'
+given.file = 'tests/replay/{suite}.rs'
+given.count = { min = 1 }
+given.files.'tests/replay/guide.rs' = '''
+//! Anything.
+
+use std::fmt;
+
+/// A thing.
+pub fn thing() {}
+'''
+
+[[scenarios]]
+id = 'module-missing'
+scenario = 'The module is missing.'
+given.file = 'tests/replay/{suite}.rs'
+given.count = { min = 1 }
+then.findings = [
+  { rule = 'replay-suite#count', path = '.' },
+]
