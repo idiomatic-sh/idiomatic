@@ -140,11 +140,7 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
                 && refusal.metadata.impact == TreeImpact::Incomplete
                 && refusal.metadata.phase == DiagnosticPhase::Parse
             {
-                DiagnosticMetadata::new(
-                    refusal.metadata.phase,
-                    TreeImpact::LexicallyComplete,
-                    refusal.metadata.code,
-                )
+                DiagnosticMetadata { phase: refusal.metadata.phase, impact: TreeImpact::LexicallyComplete, code: refusal.metadata.code }
             } else {
                 refusal.metadata
             };
@@ -178,15 +174,11 @@ fn diagnose_parser_errors(
         // The error's own message: the library's `Display` of the whole error adds the byte range the row already holds.
         languages::diagnose_with_metadata(
             builder,
-            DiagnosticMetadata::new(
-                DiagnosticPhase::Parse,
-                if lexical_complete.0 {
+            DiagnosticMetadata { phase: DiagnosticPhase::Parse, impact: if lexical_complete.0 {
                     TreeImpact::LexicallyComplete
                 } else {
                     TreeImpact::Incomplete
-                },
-                PARSER_ERROR,
-            ),
+                }, code: PARSER_ERROR },
             languages::ReportText(&error.error.to_string()),
             Offset(error.location.start().to_u32()),
             Offset(error.location.end().to_u32()),
@@ -195,11 +187,7 @@ fn diagnose_parser_errors(
     for error in parsed.unsupported_syntax_errors() {
         languages::diagnose_with_metadata(
             builder,
-            DiagnosticMetadata::new(
-                DiagnosticPhase::Validation,
-                TreeImpact::Preserved,
-                UNSUPPORTED_SYNTAX,
-            ),
+            DiagnosticMetadata { phase: DiagnosticPhase::Validation, impact: TreeImpact::Preserved, code: UNSUPPORTED_SYNTAX },
             languages::ReportText(&error.to_string()),
             Offset(error.range.start().to_u32()),
             Offset(error.range.end().to_u32()),
@@ -215,7 +203,7 @@ fn diagnose_semantic_errors(
     for error in errors {
         languages::diagnose_with_metadata(
             builder,
-            DiagnosticMetadata::new(error.phase, error.impact, error.code),
+            DiagnosticMetadata { phase: error.phase, impact: error.impact, code: error.code },
             languages::ReportText(&error.message.0),
             Offset(error.range.start().to_u32()),
             Offset(error.range.end().to_u32()),
@@ -235,11 +223,7 @@ fn diagnose_invalid_utf8(
         if bad > 0 {
             languages::diagnose_with_metadata(
                 builder,
-                DiagnosticMetadata::new(
-                    DiagnosticPhase::Parse,
-                    TreeImpact::Incomplete,
-                    INVALID_UTF8,
-                ),
+                DiagnosticMetadata { phase: DiagnosticPhase::Parse, impact: TreeImpact::Incomplete, code: INVALID_UTF8 },
                 languages::ReportText(NOT_UTF8),
                 offset(ByteIndex(at)),
                 offset(ByteIndex(at + bad)),

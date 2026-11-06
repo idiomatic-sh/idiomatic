@@ -33,6 +33,33 @@ struct Missing;
 impl ParseUseCase for Missing {
     type FileModel = ();
 
+    fn begin_semantics(
+        &self,
+        _request: &ryo_language::inbound::use_cases::parse::types::ParseRequest<'_>,
+        _tree: &ryo_language::domain::elements::types::Elements,
+        _slot: &mut ryo_language::domain::semantics::types::SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(&self) -> ryo_language::domain::elements::types::CompletionRequirement {
+        ryo_language::domain::elements::types::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &ryo_language::domain::elements::types::Tree<'_>,
+        _from: ryo_relations::domain::relations::types::Position,
+        _model: &mut (),
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &ryo_language::inbound::use_cases::parse::types::ParseRequest<'_>,
+    ) -> ryo_language::inbound::use_cases::parse::types::Recognition {
+        ryo_language::inbound::use_cases::parse::types::Recognition::Declines
+    }
+
     fn capabilities(
         &self,
     ) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {

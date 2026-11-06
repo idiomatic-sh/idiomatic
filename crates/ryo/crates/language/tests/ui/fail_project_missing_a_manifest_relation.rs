@@ -3,9 +3,8 @@
 use ryo_language::domain::answers::types::Support;
 use ryo_language::inbound::use_cases::project::errors::ProjectError;
 use ryo_language::inbound::use_cases::project::interface::ProjectUseCase;
-use ryo_language::inbound::use_cases::project::types::{
-    ManifestName, ManifestReader, ProjectRequest,
-};
+use ryo_language::domain::files::types::ManifestName;
+use ryo_language::inbound::use_cases::project::types::{ManifestReader, ProjectRequest};
 use ryo_relations::domain::answers::types::AbsenceCause;
 
 /// Answers every manifest relation of the catalog but `package_dependency`.
@@ -42,7 +41,7 @@ impl ProjectUseCase for Missing {
     ) -> ryo_language::domain::files::types::PrimaryFileRole {
         ryo_language::domain::files::service::primary_role_from_manifests(
             _path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 

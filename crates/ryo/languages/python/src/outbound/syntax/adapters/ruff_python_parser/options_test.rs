@@ -42,9 +42,9 @@ fn target_version_syntax_warning_preserves_the_tree() {
         let diagnostics: Vec<_> = languages::diagnostics(&elements)
             .map(|diagnostic| {
                 (
-                    diagnostic.phase.name().to_owned(),
-                    diagnostic.impact.name().to_owned(),
-                    diagnostic.code.as_str().to_owned(),
+                    languages::phase_name(diagnostic.phase).0.to_owned(),
+                    languages::impact_name(diagnostic.impact).0.to_owned(),
+                    diagnostic.code.0.to_owned(),
                     diagnostic.start.0,
                     diagnostic.end.0,
                 )
@@ -56,7 +56,7 @@ fn target_version_syntax_warning_preserves_the_tree() {
 
     let (py310, unsupported, py310_acceptance) = diagnostics_for(PythonTargetVersion::Py310);
     assert_eq!(py310_acceptance, languages::SyntaxAcceptance::Accepted);
-    assert!(!languages::has_incomplete_syntax(&py310));
+    assert!(languages::has_incomplete_syntax(&py310) == languages::SyntaxCompleteness::Complete);
     assert_eq!(unsupported.len(), 1);
     assert_eq!(unsupported[0].0, "validation");
     assert_eq!(unsupported[0].1, "preserved");

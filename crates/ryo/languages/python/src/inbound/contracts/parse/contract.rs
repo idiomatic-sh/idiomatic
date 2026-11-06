@@ -70,9 +70,12 @@ impl Parse for ParseContract {
         &self,
         request: &languages::ParseRequest<'_>,
         tree: &languages::Elements,
-    ) -> Option<Box<dyn languages::SemanticSession>> {
-        self.syntax
-            .begin_semantics(tree, source_kind(request.path), self.settings)
+        slot: &mut languages::SemanticSlot,
+    ) {
+        let kind = source_kind(request.path);
+        if let Some(session) = self.syntax.begin_semantics(tree, kind, self.settings) {
+            *slot = languages::SemanticSlot::Begun(session);
+        }
     }
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
@@ -112,10 +115,7 @@ impl Parse for ParseContract {
         reads(request.path)
     }
 
-    fn recognizes_explicit(
-        &self,
-        _request: &languages::ParseRequest<'_>,
-    ) -> languages::Recognition {
+    fn recognizes_explicit(&self, _: &languages::ParseRequest<'_>) -> languages::Recognition {
         languages::Recognition::Reads
     }
 

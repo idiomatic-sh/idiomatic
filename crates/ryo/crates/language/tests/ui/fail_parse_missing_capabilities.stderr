@@ -1,7 +1,7 @@
 error[E0046]: not all trait items implemented, missing: `capabilities`
-   --> tests/ui/fail_parse_missing_capabilities.rs:101:1
+   --> tests/ui/fail_parse_missing_capabilities.rs:102:1
     |
-101 | impl ParseUseCase for Language {
+102 | impl ParseUseCase for Language {
     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `capabilities` in implementation
     |
     = help: implement the missing item: `fn capabilities(&self) -> &'static [OptionalCapability] { todo!() }`

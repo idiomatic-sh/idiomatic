@@ -27,13 +27,13 @@ fn bare_starred_loop_target_preserves_accepted_ast_with_validation_error() {
                 languages::syntax_acceptance(&elements),
                 languages::SyntaxAcceptance::Accepted
             );
-            assert!(!languages::has_incomplete_syntax(&elements));
+            assert!(languages::has_incomplete_syntax(&elements) == languages::SyntaxCompleteness::Complete);
             let diagnostics: Vec<_> = languages::diagnostics(&elements).collect();
             assert_eq!(diagnostics.len(), 1);
             let diagnostic = diagnostics.first().expect("one language validation error");
-            assert_eq!(diagnostic.phase.name(), "validation");
-            assert_eq!(diagnostic.impact.name(), "preserved");
-            assert_eq!(diagnostic.code.as_str(), "starred-assignment-target");
+            assert_eq!(languages::phase_name(diagnostic.phase).0, "validation");
+            assert_eq!(languages::impact_name(diagnostic.impact).0, "preserved");
+            assert_eq!(diagnostic.code.0, "starred-assignment-target");
             assert_eq!((diagnostic.start.0, diagnostic.end.0), (20, 24));
         }
     }
@@ -84,14 +84,14 @@ fn starred_targets_require_unpacking_containers_without_affecting_expression_sta
                     assert!(
                         diagnostics
                             .iter()
-                            .any(|row| row.code.as_str() == "starred-assignment-target")
+                            .any(|row| row.code.0 == "starred-assignment-target")
                     );
-                    assert!(!languages::has_incomplete_syntax(&elements));
+                    assert!(languages::has_incomplete_syntax(&elements) == languages::SyntaxCompleteness::Complete);
                 } else {
                     assert!(
                         !diagnostics
                             .iter()
-                            .any(|row| row.code.as_str() == "starred-assignment-target"),
+                            .any(|row| row.code.0 == "starred-assignment-target"),
                         "the parser already refused this input; do not duplicate validation"
                     );
                 }

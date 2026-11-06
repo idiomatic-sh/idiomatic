@@ -6,7 +6,7 @@ use super::expected::SemanticExpected;
 use super::findings::Findings;
 use crate::domain::elements::service::{end_at, positions, start_at};
 use crate::domain::elements::types::Elements;
-use crate::domain::semantics::types::{RenderOutcome, RenderRequest};
+use crate::domain::semantics::types::{RenderOutcome, RenderRequest, SemanticSlot};
 use crate::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::FileId;
@@ -49,7 +49,9 @@ pub(super) fn judge(
             ));
             continue;
         };
-        let Some(mut session) = parse.begin_semantics(&request, &table) else {
+        let mut begun = SemanticSlot::default();
+        parse.begin_semantics(&request, &table, &mut begun);
+        let SemanticSlot::Begun(mut session) = begun else {
             findings.0.push(format!(
                 "{}: no semantic session for declared fixture",
                 case.source.path

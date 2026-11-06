@@ -5,6 +5,9 @@ fn main() {
         &ryo_python::linked(),
         ryo::languages::contract::ManifestDir(env!("CARGO_MANIFEST_DIR")),
         &ryo_python::fixtures::expected(),
-        &ryo_python::fixtures::configuration::select,
+        &|text| {
+            ryo_python::fixtures::configuration::select(text.0)
+                .map_err(ryo::languages::contract::FixtureRefusal)
+        },
     );
 }

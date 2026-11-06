@@ -5,8 +5,9 @@
 //! catalog's one list (`domain/relations/catalog.rs`) and has no default body.
 
 use super::errors::ProjectError;
-use super::types::{ManifestName, ManifestReader, ProjectRequest, Resolved};
+use super::types::{ManifestReader, ProjectRequest, Resolved};
 use crate::domain::answers::types::Support;
+use crate::domain::files::types::ManifestName;
 
 /// What the methods of a trait are made of, one for each manifest relation of the catalog.
 macro_rules! manifest_methods {

@@ -5,13 +5,14 @@ use super::errors::ProjectError;
 use super::fixtures::contract;
 use super::interface::ProjectUseCase;
 use super::types::ProjectEngine;
-use super::types::{ManifestName, ProjectRequest, Resolved, RootPath};
+use super::types::{ProjectRequest, Resolved, RootPath};
 use super::use_case::ProjectUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::selects;
+use crate::domain::files::types::ManifestName;
 use crate::domain::reasons::types::ToolMessage;
 use crate::domain::symbols::types::Symbols;
 use crate::inbound::use_cases::parse::fixtures::contract::Discard;
+use crate::selects;
 use ryo_relations::domain::relations::types::Count;
 
 /// A language without manifest relations whose tools cannot run at all.
@@ -30,7 +31,7 @@ impl ProjectUseCase for Broken {
     ) -> crate::domain::files::types::PrimaryFileRole {
         crate::domain::files::service::primary_role_from_manifests(
             _path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 

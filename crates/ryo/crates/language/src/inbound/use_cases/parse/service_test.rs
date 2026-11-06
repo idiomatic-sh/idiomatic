@@ -14,16 +14,17 @@ use super::interface::ParseUseCase;
 use super::service::{absence, build, walk};
 use super::types::{FieldRequest, NoteRequest, ParseRequest};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::selects;
 use crate::domain::answers::service::{absent, reads};
 use crate::domain::answers::types::{Expansions, ReadItem, Reader, Reads, Support};
-use crate::domain::elements::service::{end_of, enter_node, leave_node, table_builder, token};
+use crate::domain::builders::service::{enter_node, leave_node, table_builder, token};
+use crate::domain::elements::service::end_of;
 use crate::domain::elements::types::{Completion, Elements, TableBuilder, Tree};
 use crate::domain::files::types::SourcePath;
 use crate::domain::reasons::types::ToolMessage;
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
 use crate::inbound::use_cases::parse::fixtures::collect::Collect;
+use crate::selects;
 use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::relations::collections::relations::function::item::{
     Function, FunctionRow,

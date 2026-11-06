@@ -5,20 +5,49 @@ use super::super::{
     rows::rows_of_inputs_with,
 };
 use super::{ConfiguredFixture, Selection};
-use crate::domain::{elements::types::{Completion, TableBuilder, Tree}};
-use ryo_relations::domain::relations::types::{Count, KindBits, Offset};
-use ryo_relations::domain::terms::types::UnknownName;
+use crate::domain::elements::types::{Completion, TableBuilder, Tree};
 use crate::inbound::use_cases::parse::{
     interface::ParseUseCase,
     types::{KindNames, ParseConfigurationIdentity, ParseRequest, Recognition, SkippedDirectory},
 };
+use ryo_relations::domain::relations::types::{Count, KindBits, Offset};
+use ryo_relations::domain::terms::types::UnknownName;
 use std::{cell::RefCell, sync::Arc};
 
 /// Accepts only the source matching its selected immutable setting.
 struct SelectedParser(&'static str);
 impl ParseUseCase for SelectedParser {
     type FileModel = ();
-    fn capabilities(&self) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
+
+    fn begin_semantics(
+        &self,
+        _request: &crate::inbound::use_cases::parse::types::ParseRequest<'_>,
+        _tree: &crate::domain::elements::types::Elements,
+        _slot: &mut crate::domain::semantics::types::SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(&self) -> crate::domain::elements::types::CompletionRequirement {
+        crate::domain::elements::types::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &crate::domain::elements::types::Tree<'_>,
+        _from: ryo_relations::domain::relations::types::Position,
+        _model: &mut (),
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &crate::inbound::use_cases::parse::types::ParseRequest<'_>,
+    ) -> crate::inbound::use_cases::parse::types::Recognition {
+        crate::inbound::use_cases::parse::types::Recognition::Declines
+    }
+    fn capabilities(
+        &self,
+    ) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
         &[]
     }
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_> {

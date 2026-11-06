@@ -341,7 +341,7 @@ fn build(tree: &Tree<'_>, index: &mut TerminalIndex) {
         return;
     }
     index.nodes.resize(length, NodeSummary::default());
-    index.state = if languages::has_incomplete_syntax(tree.elements) {
+    index.state = if languages::has_incomplete_syntax(tree.elements) == languages::SyntaxCompleteness::Incomplete {
         IndexState::Partial
     } else {
         IndexState::Complete

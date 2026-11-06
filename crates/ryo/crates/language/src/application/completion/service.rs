@@ -54,7 +54,7 @@ pub(crate) fn prepare<M>(
     elements: &mut Elements,
     source: ByteSlice<'_>,
     file: FileId,
-    configuration: &str,
+    configuration: ByteSlice<'_>,
     model: &mut M,
     initialize: impl FnOnce(&Tree<'_>, &mut M),
 ) {
@@ -62,14 +62,14 @@ pub(crate) fn prepare<M>(
     let state = &engine(elements).model_preparation;
     if state.ready == ModelReadiness::Ready
         && state.native_count == native_count
-        && state.configuration == configuration
+        && state.configuration.0 == configuration.0
     {
         return;
     }
     self::initialize(elements, source, file, model, initialize);
     let state = &mut engine_mut(elements).model_preparation;
-    state.configuration.clear();
-    state.configuration.push_str(configuration);
+    state.configuration.0.clear();
+    state.configuration.0.extend_from_slice(configuration.0);
     state.native_count = native_count;
     state.ready = ModelReadiness::Ready;
 }
@@ -100,7 +100,7 @@ impl Drop for Phase<'_> {
 /// Complete one generation, lending only an engine-initialized model and retaining no stale proof on unwind.
 pub(crate) fn complete<M: Default + Send + 'static>(
     completion: Completion<'_>,
-    configuration: &str,
+    configuration: ByteSlice<'_>,
     requirement: crate::domain::elements::types::CompletionRequirement,
     initialize: impl FnOnce(&Tree<'_>, &mut M),
     finish: impl FnOnce(&mut Completion<'_>),

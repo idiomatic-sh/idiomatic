@@ -1,10 +1,8 @@
 // Numbers, Elements, TableBuilder and Completion are the engine's element table and the builders that write it, handed to every language: what only the engine may write is a private field holding a crate-private engine part (WrittenColumn in Numbers, ElementsEngine in TableState, BuilderEngine, CompletionEngine), reached by the crate through `AsRef`/`AsMut`, so a language builds a tree only through the SDK's functions and cannot corrupt the table. A public field would hand a language the table's invariants; privacy is the compiler's enforcement.
 //! The types of the `elements` concept: the element table of a file and what builds and reads it.
 
-use super::constants::{
-    INCOMPLETE_IMPACT, LEXICALLY_COMPLETE_IMPACT, PARSE_PHASE, PRESERVED_IMPACT, SCRATCH,
-    UNSPECIFIED_CODE, VALIDATION_PHASE,
-};
+use super::constants::SCRATCH;
+use crate::domain::diagnostics::types::Diagnostics;
 use crate::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::types::Expanded;
 use ryo_relations::domain::relations::types::{
@@ -14,137 +12,6 @@ use ryo_relations::domain::terms::types::ChildOrdinal;
 use ryo_relations::domain::terms::types::Symbol;
 
 use crate::domain::symbols::types::Symbols;
-
-/// The parent of an element about to be added.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Parent {
-    /// The element is a root: it is its own parent.
-    Root,
-    /// The element is a child of this one.
-    Of(Position),
-}
-
-/// Where the next element goes: its parent and its place among the parent's children.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ElementPlacement {
-    /// The parent.
-    pub parent: Parent,
-    /// The element's place among its parent's children.
-    pub ordinal: ChildOrdinal,
-}
-
-/// What parsing and validation reported about a file, with stable metadata and source ranges.
-/// Messages are kept as text, not as names, so reporting them while the table is built leaves the
-/// names of the file's bytes first, as they must be.
-#[derive(Debug, Default)]
-pub(crate) struct Diagnostics {
-    /// The text of every message, one after another.
-    pub text: Bytes,
-    /// Where each message begins in `text`.
-    pub from: Vec<Offset>,
-    /// Where each message ends in `text`.
-    pub to: Vec<Offset>,
-    /// Where each starts.
-    pub start: Vec<Offset>,
-    /// Where each ends.
-    pub end: Vec<Offset>,
-    /// Stable provider-owned codes, one per diagnostic.
-    pub code: Vec<DiagnosticCode>,
-    /// The reporting stage, one per diagnostic.
-    pub phase: Vec<DiagnosticPhase>,
-    /// Whether each diagnostic leaves the parsed tree incomplete.
-    pub impact: Vec<TreeImpact>,
-}
-
-/// Stable diagnostic identity owned by the language provider.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct DiagnosticCode(&'static str);
-
-impl DiagnosticCode {
-    /// Used by existing providers that report messages without a narrower stable code.
-    pub const UNSPECIFIED: Self = Self::provider_owned(UNSPECIFIED_CODE);
-
-    /// Construct a stable diagnostic code owned by a language provider.
-    #[must_use]
-    pub const fn provider_owned(code: &'static str) -> Self {
-        Self(code)
-    }
-
-    /// The stable code text for the provider's relation reader.
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        self.0
-    }
-}
-
-/// Stage that produced a diagnostic.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DiagnosticPhase {
-    /// The parser or recovery machinery reported the diagnostic.
-    Parse,
-    /// A validation pass reported it after producing a tree.
-    Validation,
-}
-
-impl DiagnosticPhase {
-    /// The stable query vocabulary.
-    #[must_use]
-    pub const fn name(self) -> &'static str {
-        match self {
-            Self::Parse => PARSE_PHASE,
-            Self::Validation => VALIDATION_PHASE,
-        }
-    }
-}
-
-/// Whether a diagnostic leaves the syntax tree or the token stream incomplete.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TreeImpact {
-    /// This diagnostic does not indicate missing or recovered syntax.
-    Preserved,
-    /// The syntax tree may be incomplete, but the provider certified tokenization through EOF.
-    /// This includes preserved lexer state: byte coverage alone does not certify
-    /// comments or delimiters after a lost string, interpolation or continuation.
-    /// Readers may still declare individual lexical relations partial.
-    LexicallyComplete,
-    /// The tree may be recovered or incomplete.
-    Incomplete,
-}
-
-/// Typed metadata attached to a parser or validation diagnostic.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct DiagnosticMetadata {
-    /// The stage that reported the diagnostic.
-    pub phase: DiagnosticPhase,
-    /// Whether this diagnostic indicates incomplete syntax or only certifies a complete token stream.
-    pub impact: TreeImpact,
-    /// The stable code owned by the language provider.
-    pub code: DiagnosticCode,
-}
-
-impl DiagnosticMetadata {
-    /// Build metadata for a provider-owned diagnostic.
-    #[must_use]
-    pub const fn new(phase: DiagnosticPhase, impact: TreeImpact, code: DiagnosticCode) -> Self {
-        Self {
-            phase,
-            impact,
-            code,
-        }
-    }
-}
-
-impl TreeImpact {
-    /// The stable query vocabulary.
-    #[must_use]
-    pub const fn name(self) -> &'static str {
-        match self {
-            Self::Preserved => PRESERVED_IMPACT,
-            Self::LexicallyComplete => LEXICALLY_COMPLETE_IMPACT,
-            Self::Incomplete => INCOMPLETE_IMPACT,
-        }
-    }
-}
 
 /// A column of numbers, one for each row, indexed by the row's [`Position`]: the engine writes it, a language only reads it.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -289,7 +156,7 @@ pub(crate) struct ElementsEngine {
     pub decoded: Vec<DecodedProperty>,
     /// Actual decoded-entry visits by the interning algorithm, observed only in tests.
     #[cfg(test)]
-    pub decoded_intern_visits: usize,
+    pub decoded_intern_visits: Count,
     /// The bytes of the decoded texts.
     pub decoded_text: Bytes,
     /// The elements a macro expansion produced, in the order of their positions; none for a file no expansion touched.
@@ -342,7 +209,7 @@ impl std::fmt::Debug for LanguageScratch {
 #[derive(Debug, Default)]
 pub(crate) struct ModelPreparation {
     /// Canonical parser settings, with room reused across generations.
-    pub configuration: String,
+    pub configuration: Bytes,
     /// Only native elements participate; appended expressions do not require a second resolver.
     pub native_count: Count,
     /// Set to `Ready` only by the common preparation boundary after provider initialization returns.
@@ -469,23 +336,6 @@ pub struct Tree<'a> {
     pub file: FileId,
 }
 
-/// What the parser reported at one place of the file.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Diagnostic<'a> {
-    /// What parsing or validation reported.
-    pub message: ByteSlice<'a>,
-    /// Where it was found.
-    pub start: Offset,
-    /// Where it ends.
-    pub end: Offset,
-    /// The stable code supplied by the language provider.
-    pub code: DiagnosticCode,
-    /// The stage that produced this finding.
-    pub phase: DiagnosticPhase,
-    /// Whether this finding affects the completeness of semantic facts.
-    pub impact: TreeImpact,
-}
-
 /// Whether a builder writes what it is given into the table.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TableWriting {
@@ -516,15 +366,6 @@ pub enum SourceOrder {
     Forward,
     /// Tree construction reordered nodes or inserted unlocated nodes.
     Reordered,
-}
-
-/// A formatter writing directly into retained parser-property storage.
-pub(crate) struct PropertyText<'a>(pub &'a mut Vec<u8>);
-impl std::fmt::Write for PropertyText<'_> {
-    fn write_str(&mut self, s: &str) -> std::fmt::Result {
-        self.0.extend_from_slice(s.as_bytes());
-        Ok(())
-    }
 }
 
 /// Semantic input required when completing a provider's native syntax population.

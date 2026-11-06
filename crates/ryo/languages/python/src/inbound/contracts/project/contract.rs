@@ -204,7 +204,7 @@ impl Project for ProjectContract {
             .collect();
         let roots = crate::domain::project_namespace::service::imported_roots(&notes);
         entries.extend(crate::domain::project_namespace::service::candidates(
-            request.search_roots(),
+            languages::search_roots(&request.search_scope),
             &roots,
         ));
     }
@@ -278,13 +278,15 @@ impl Project for ProjectContract {
                 .collect();
             let roots = crate::domain::project_namespace::service::imported_roots(&notes);
             derived.namespace_memberships = crate::domain::project_namespace::service::memberships(
-                request.search_roots(),
+                languages::search_roots(&request.search_scope),
                 &roots,
                 incomplete_notes,
                 |path, shape| {
                     match shape {
-                        EntryShape::File => request.candidate_file(path),
-                        EntryShape::Directory => request.candidate_directory(path),
+                        EntryShape::File => languages::entry_state(&request.observed_entries, path)
+                            .map(|state| state == languages::ObservedEntryState::File),
+                        EntryShape::Directory => languages::entry_state(&request.observed_entries, path)
+                            .map(|state| state == languages::ObservedEntryState::Directory),
                     }
                     .map(Presence::from)
                 },
@@ -295,7 +297,7 @@ impl Project for ProjectContract {
             refused,
             unlisted: Vec::new(),
             consulted,
-            observed_entries: request.observed_entries.receipt(),
+            observed_entries: request.observed_entries.0.to_vec(),
             derived,
         })
     }

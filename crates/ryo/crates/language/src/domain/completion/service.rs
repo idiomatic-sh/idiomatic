@@ -6,7 +6,7 @@ use crate::domain::symbols::service::{hash_in, intern_derived, vocabulary_symbol
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::constants::{NO_FIELD, NO_SYMBOL};
-use ryo_relations::domain::relations::types::{Bytes, FieldId, FileId, KindBits, Position};
+use ryo_relations::domain::relations::types::{Bytes, Count, FieldId, FileId, KindBits, Position};
 use ryo_relations::domain::terms::types::NameText;
 
 /// What a kind's number and name are mixed with before they are added to the vocabulary.
@@ -31,7 +31,7 @@ pub fn completion<'a>(
 
 /// Interns the decoded value of each node, after every token of the file's bytes, and gives the node that text.
 pub fn intern_decoded(elements: &mut Elements, symbols: &mut Symbols, source: ByteSlice<'_>) {
-    intern_decoded_from(elements, symbols, source, 0);
+    intern_decoded_from(elements, symbols, source, Count(0));
 }
 
 /// Intern only decoded entries added after an append, preserving every previous symbol.
@@ -39,14 +39,14 @@ pub(crate) fn intern_decoded_from(
     elements: &mut Elements,
     symbols: &mut Symbols,
     source: ByteSlice<'_>,
-    from: usize,
+    from: Count,
 ) {
     // Source tokens have all been interned; derived node values must follow them.
     let count = engine(elements).decoded.len();
-    for at in from..count {
+    for at in from.0..count {
         #[cfg(test)]
         {
-            engine_mut(elements).decoded_intern_visits += 1;
+            engine_mut(elements).decoded_intern_visits.0 += 1;
         }
         let table = engine(elements);
         let Some(decoded) = table.decoded.get(at).copied() else {

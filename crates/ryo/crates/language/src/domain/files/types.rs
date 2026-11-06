@@ -36,6 +36,10 @@ impl std::fmt::Display for SourcePath<'_> {
     }
 }
 
+/// The name of a file the language reads as a manifest: the last part of its path.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ManifestName(pub &'static str);
+
 /// Which existing language operation owns an explicitly requested primary file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PrimaryFileRole {

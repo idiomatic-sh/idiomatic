@@ -2,15 +2,15 @@
 //! and no inherent impl.
 
 use super::errors::ParseError;
-use ryo_relations::domain::answers::types::AbsenceCause;
 use crate::domain::elements::types::Elements;
 use crate::domain::files::types::SourcePath;
-use ryo_relations::domain::relations::types::FileId;
-use ryo_relations::domain::relations::types::{Count, KindBits, Relation, RowWriter};
+use crate::domain::semantics::types::SemanticSlot;
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::relations::types::FileId;
+use ryo_relations::domain::relations::types::{Count, KindBits, Relation, RowWriter};
 use ryo_relations::domain::terms::types::UnknownName;
-use crate::domain::semantics::interface::SemanticSession;
 
 /// The canonical, immutable identity of parser settings that can change the tree or diagnostics.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -144,17 +144,15 @@ pub struct KindNames(pub Vec<ryo_relations::domain::terms::types::NameText<'stat
 /// out of each file kept inside the call, so that languages of different models are held side by side. Every `ParseUseCase` is one.
 pub trait ParseEngine: Send + Sync {
     /// Explicit optional promises, preserved across the erased provider boundary.
-    fn capabilities(&self) -> &'static [ryo_relations::domain::relations::types::OptionalCapability];
+    fn capabilities(
+        &self,
+    ) -> &'static [ryo_relations::domain::relations::types::OptionalCapability];
 
     /// Canonical parser settings included in persisted-result cache identity.
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_>;
 
     /// Begin this provider's owned semantic session for one built file.
-    fn begin_semantics(
-        &self,
-        request: &ParseRequest<'_>,
-        tree: &Elements,
-    ) -> Option<Box<dyn SemanticSession>>;
+    fn begin_semantics(&self, request: &ParseRequest<'_>, tree: &Elements, slot: &mut SemanticSlot);
 
     /// Whether the language reads the file in `request`.
     fn recognition(&self, request: &ParseRequest<'_>) -> Recognition;
@@ -214,14 +212,12 @@ pub trait ParseEngine: Send + Sync {
     /// `Unsupported` unless the provider supports explicit selection.
     fn read_file_explicit(
         &self,
-        _request: ParseRequest<'_>,
-        _table: &mut Elements,
-        _symbols: &mut Symbols,
-        _wanted: &[Relation],
-        _out: &mut dyn RowWriter,
-    ) -> Result<(), ParseError> {
-        Err(ParseError::Unsupported)
-    }
+        request: ParseRequest<'_>,
+        table: &mut Elements,
+        symbols: &mut Symbols,
+        wanted: &[Relation],
+        out: &mut dyn RowWriter,
+    ) -> Result<(), ParseError>;
 
     /// Writes the rows of the wanted relations for the file whose table is `elements`.
     fn walk_file(
@@ -248,6 +244,33 @@ macro_rules! reader_slots {
             $( $variant(crate::domain::answers::types::Reader<ryo_relations::domain::relations::collections::relations::$module::item::$variant, M>), )*
         }
 
+        /// Which elements the reader in `slot` looks at.
+        pub(super) fn reads_of<M>(slot: &Slot<M>) -> crate::domain::answers::types::Reads {
+            match slot {
+                $( Slot::$variant(reader) => reader.reads, )*
+            }
+        }
+
+        /// Gives the element at `position` to the reader in `slot`, which writes its relation's rows into `out`.
+        pub(super) fn visit<M>(
+            slot: &Slot<M>,
+            tree: &crate::domain::elements::types::Tree<'_>,
+            model: &M,
+            symbols: &mut crate::domain::symbols::types::Symbols,
+            position: ryo_relations::domain::relations::types::Position,
+            out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
+        ) where M: 'static {
+            match slot {
+                $( Slot::$variant(reader) => reader.visit.visit(tree, model, symbols, position, out), )*
+            }
+        }
+
+        /// Whether the reader in `slot` also looks at the elements the language added for reading.
+        pub(super) fn expands<M>(slot: &Slot<M>) -> crate::domain::answers::types::Expansions where M: 'static {
+            match slot {
+                $( Slot::$variant(reader) => reader.expansions, )*
+            }
+        }
     };
 }
 ryo_relations::each_relation!(reader_slots);

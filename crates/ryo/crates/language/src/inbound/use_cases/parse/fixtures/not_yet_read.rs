@@ -7,10 +7,10 @@ use std::path::Path;
 use super::super::service::absence as parse_absence;
 use super::super::types::ParseEngine;
 use super::findings::Findings;
+use crate::inbound::use_cases::project::types::ProjectEngine;
 use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::relations::service::{all, folder_of, provenance_of};
 use ryo_relations::domain::relations::types::{OptionalCapability, Provenance, Relation};
-use crate::inbound::use_cases::project::types::ProjectEngine;
 
 /// Where the command line's manifest is from a language's directory: its default features are the languages that ship.
 const COMMAND_LINE_MANIFEST: &str = "../../cli/Cargo.toml";

@@ -1,23 +1,23 @@
 //! Drive a provider's parse contract, then dispatch each requested relation through its own reader.
 //! The table is traversed once; optional capability promises gate both absence answers and reads.
 
-use super::constants::{COUNT, WORDS};
+use super::constants::COUNT;
 use super::errors::ParseError;
 use super::interface::ParseUseCase;
-use super::types::{ParseEngine, ParseRequest, Slot};
+use super::types::{ParseEngine, ParseRequest, Slot, expands, reads_of, visit};
 use crate::domain::answers::types::{Answer, Expansions, Reads};
-use ryo_relations::domain::answers::types::AbsenceCause;
+use crate::domain::builders::service::{discarding_builder, table_builder};
 use crate::domain::completion::service::completion;
-use crate::domain::elements::service::{discarding_builder, engine_mut, kind_at};
-use crate::domain::elements::service::{expanded_positions, positions, table_builder};
+use crate::domain::elements::service::{engine_mut, kind_at};
+use crate::domain::elements::service::{expanded_positions, positions};
 use crate::domain::elements::types::{Elements, Tree};
-use ryo_relations::domain::relations::service::{KIND_LIMIT, all, number_of, optional_capability};
-use ryo_relations::domain::relations::types::{Count, FileId, KindBits, Relation, RowWriter};
+use crate::domain::relation_masks::service::{add, none, places};
+use crate::domain::relation_masks::types::RelationSet;
 use crate::domain::symbols::types::{ByteSlice, Symbols};
 use crate::inbound::use_cases::parse::types::Recognition;
-
-/// A set of relations, a bit for each, by the relation's number.
-type Mask = [u64; WORDS];
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::relations::service::{KIND_LIMIT, all, number_of, optional_capability};
+use ryo_relations::domain::relations::types::{FileId, KindBits, Relation, RowWriter};
 
 /// What the reading of a file is made of: a slot for each syntax relation holding its reader, and the
 /// functions over a slot. Generated from the catalog's one list.
@@ -49,34 +49,6 @@ macro_rules! syntax_slots {
                     out, file, ryo_relations::domain::relations::types::ReportText(super::constants::UNAVAILABLE_CAPABILITY), ryo_relations::domain::relations::types::Missing::Any), )*
                 $( Relation::$manifest_variant => {}, )*
                 $( Relation::$engine_variant => {}, )*
-            }
-        }
-
-        /// Which elements the reader in `slot` looks at.
-        fn reads_of<M>(slot: &Slot<M>) -> Reads {
-            match slot {
-                $( Slot::$variant(reader) => reader.reads, )*
-            }
-        }
-
-        /// Gives the element at `position` to the reader in `slot`, which writes its relation's rows into `out`.
-        fn visit<M>(
-            slot: &Slot<M>,
-            tree: &Tree<'_>,
-            model: &M,
-            symbols: &mut Symbols,
-            position: ryo_relations::domain::relations::types::Position,
-            out: &mut dyn RowWriter,
-        ) where M: 'static {
-            match slot {
-                $( Slot::$variant(reader) => reader.visit.visit(tree, model, symbols, position, out), )*
-            }
-        }
-
-        /// Whether the reader in `slot` also looks at the elements the language added for reading.
-        fn expands<M>(slot: &Slot<M>) -> Expansions where M: 'static {
-            match slot {
-                $( Slot::$variant(reader) => reader.expansions, )*
             }
         }
 
@@ -118,13 +90,6 @@ where
     found
 }
 
-/// Sets the bit of the relation numbered `place`.
-fn set(mask: &mut Mask, place: Count) {
-    if let Some(word) = mask.get_mut(place.0 / 64) {
-        *word |= 1 << (place.0 % 64);
-    }
-}
-
 /// Builds the tree of the file in `table`, the worker's own: the language reads the file with its library into the builder the
 /// engine makes, and completes the table. The rows are not written here: the engine reads the tree with the readers the language
 /// answers.
@@ -157,7 +122,7 @@ fn build_recognized<L: ParseUseCase + ?Sized>(
     language.read_tree(&request, &mut builder)?;
     crate::application::completion::service::complete::<L::FileModel>(
         completion(table, symbols, request.bytes, request.file),
-        language.configuration_identity().0,
+        ByteSlice(language.configuration_identity().0.as_bytes()),
         language.completion_requirement(),
         |tree, model| language.file_model(tree, model),
         |completed| language.complete(&request, completed),
@@ -282,7 +247,7 @@ fn walk_with<L>(
     L: ParseUseCase + ?Sized,
 {
     let mut slots: [Option<Slot<L::FileModel>>; COUNT] = std::array::from_fn(|_| None);
-    let mut masks: [Mask; KIND_LIMIT] = [[0; WORDS]; KIND_LIMIT];
+    let mut masks: [RelationSet; KIND_LIMIT] = [none(); KIND_LIMIT];
     let mut reads_any = false;
     for relation in wanted {
         if optional_capability(*relation).is_some()
@@ -296,11 +261,11 @@ fn walk_with<L>(
             continue;
         };
         match reads_of(&each) {
-            Reads::Every => masks.iter_mut().for_each(|mask| set(mask, place)),
+            Reads::Every => masks.iter_mut().for_each(|mask| add(mask, place)),
             Reads::Kinds(kinds) => {
                 for kind in kinds {
                     if let Some(mask) = masks.get_mut(usize::from(kind.0)) {
-                        set(mask, place);
+                        add(mask, place);
                     }
                 }
             }
@@ -320,7 +285,7 @@ fn walk_with<L>(
             elements,
             source,
             file,
-            language.configuration_identity().0,
+            ByteSlice(language.configuration_identity().0.as_bytes()),
             model,
             |tree, model| language.file_model(tree, model),
         );
@@ -353,17 +318,11 @@ fn walk_with<L>(
         let Some(mask) = masks.get(usize::from(kind_at(elements, position).0)) else {
             continue;
         };
-        for (word, bits) in mask.iter().enumerate() {
-            let mut bits = *bits;
-            while bits != 0 {
-                let place =
-                    word * 64 + usize::try_from(bits.trailing_zeros()).unwrap_or(usize::MAX);
-                bits &= bits - 1;
-                if let Some(Some(each)) = slots.get(place)
-                    && (!added || expands(each) == Expansions::Included)
-                {
-                    visit(each, &tree, model, symbols, position, out);
-                }
+        for place in places(mask) {
+            if let Some(Some(each)) = slots.get(place.0)
+                && (!added || expands(each) == Expansions::Included)
+            {
+                visit(each, &tree, model, symbols, position, out);
             }
         }
     }

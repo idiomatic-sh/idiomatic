@@ -7,17 +7,19 @@
 use ryo::languages::SourcePath;
 use std::sync::Arc;
 
-use ryo::languages::{self, AbsenceCause, Parse, Reader, Support, UnknownName};
+use ryo::languages::{
+    self, AbsenceCause, CompletionRequirement, Elements, Parse, ParseRequest, Position, Reader,
+    Recognition, SemanticSlot, Support, Tree, UnknownName,
+};
 
 use crate::domain::language::constants::UNKNOWN_REASONS;
 use crate::domain::language::service::reads;
-use crate::domain::relations::collections::relations::comment::item::CommentItem;
-use crate::domain::relations::collections::relations::reference::item::ReferenceItem;
-use crate::domain::relations::collections::relations::static_import::item::StaticImportItem;
-use crate::domain::relations::collections::relations::string_literal::item::StringLiteralItem;
-use crate::domain::relations::collections::relations::syntax_child::item::SyntaxChildItem;
-use crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
-use crate::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeItem;
+use crate::domain::relations::collections::relations::{
+    comment::item::CommentItem, reference::item::ReferenceItem,
+    static_import::item::StaticImportItem, string_literal::item::StringLiteralItem,
+    syntax_child::item::SyntaxChildItem, syntax_error::item::SyntaxErrorItem,
+    syntax_tree::item::SyntaxTreeItem,
+};
 use crate::domain::syntax::constants::NO_CONFIGURATION;
 use crate::domain::syntax::service::{
     field_bits, field_name, fields, kind_bits, kind_name, kinds, role_of,
@@ -25,7 +27,7 @@ use crate::domain::syntax::service::{
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::SourceText;
 
-/// `parse`, implementing `ryo::languages::Parse`.
+/// `parse`, implementing `ryo::Parse`.
 pub(crate) struct ParseContract {
     /// The syntax port the contract reads each file's tree through.
     syntax: Arc<dyn SyntaxPort>,
@@ -42,6 +44,18 @@ impl ParseContract {
 impl Parse for ParseContract {
     type FileModel = ();
 
+    fn begin_semantics(&self, _: &ParseRequest<'_>, _: &Elements, _: &mut SemanticSlot) {}
+
+    fn completion_requirement(&self) -> CompletionRequirement {
+        CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(&self, _: &Tree<'_>, _: Position, _: &mut Self::FileModel) {}
+
+    fn recognizes_explicit(&self, _: &ParseRequest<'_>) -> Recognition {
+        Recognition::Declines
+    }
+
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
         &[]
     }
@@ -50,13 +64,13 @@ impl Parse for ParseContract {
         languages::ParseConfigurationIdentity(NO_CONFIGURATION)
     }
 
-    fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
+    fn file_model(&self, _tree: &Tree<'_>, _model: &mut ()) {}
 
     fn unknown_reasons(&self) -> &'static [UnknownName] {
         UNKNOWN_REASONS
     }
 
-    fn recognizes(&self, request: &languages::ParseRequest<'_>) -> languages::Recognition {
+    fn recognizes(&self, request: &ParseRequest<'_>) -> Recognition {
         reads(request.path)
     }
 
@@ -74,7 +88,7 @@ impl Parse for ParseContract {
 
     fn read_tree(
         &self,
-        request: &languages::ParseRequest<'_>,
+        request: &ParseRequest<'_>,
         builder: &mut languages::TableBuilder<'_>,
     ) -> Result<(), languages::ParseError> {
         self.syntax.read(
@@ -85,11 +99,7 @@ impl Parse for ParseContract {
         Ok(())
     }
 
-    fn complete(
-        &self,
-        request: &languages::ParseRequest<'_>,
-        completion: &mut languages::Completion<'_>,
-    ) {
+    fn complete(&self, request: &ParseRequest<'_>, completion: &mut languages::Completion<'_>) {
         for kind in kinds() {
             languages::name_kind(completion, kind_bits(kind), kind_name(kind));
         }

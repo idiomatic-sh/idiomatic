@@ -8,7 +8,8 @@ use ryo_language::inbound::use_cases::parse::interface::ParseUseCase;
 use ryo_language::inbound::use_cases::parse::types::ParseRequest;
 use ryo_language::inbound::use_cases::project::errors::ProjectError;
 use ryo_language::inbound::use_cases::project::interface::ProjectUseCase;
-use ryo_language::inbound::use_cases::project::types::{ManifestName, ProjectRequest};
+use ryo_language::domain::files::types::ManifestName;
+use ryo_language::inbound::use_cases::project::types::ProjectRequest;
 use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::relations::collections::relations::function::item::{
     Function, FunctionRow,
@@ -108,6 +109,33 @@ struct Language;
 impl ParseUseCase for Language {
     type FileModel = Model;
 
+    fn begin_semantics(
+        &self,
+        _request: &ryo_language::inbound::use_cases::parse::types::ParseRequest<'_>,
+        _tree: &ryo_language::domain::elements::types::Elements,
+        _slot: &mut ryo_language::domain::semantics::types::SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(&self) -> ryo_language::domain::elements::types::CompletionRequirement {
+        ryo_language::domain::elements::types::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &ryo_language::domain::elements::types::Tree<'_>,
+        _from: ryo_relations::domain::relations::types::Position,
+        _model: &mut Model,
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &ryo_language::inbound::use_cases::parse::types::ParseRequest<'_>,
+    ) -> ryo_language::inbound::use_cases::parse::types::Recognition {
+        ryo_language::inbound::use_cases::parse::types::Recognition::Declines
+    }
+
     fn capabilities(
         &self,
     ) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
@@ -180,7 +208,7 @@ impl ProjectUseCase for Language {
     ) -> ryo_language::domain::files::types::PrimaryFileRole {
         ryo_language::domain::files::service::primary_role_from_manifests(
             _path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 

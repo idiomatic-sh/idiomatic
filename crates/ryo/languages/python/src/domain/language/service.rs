@@ -23,5 +23,5 @@ pub(crate) fn primary_role(
     path: languages::SourcePath<'_>,
     manifests: &[languages::ManifestName],
 ) -> languages::PrimaryFileRole {
-    languages::primary_role_from_manifests(path, manifests.iter().map(|manifest| manifest.0))
+    languages::primary_role_from_manifests(path, manifests.iter().copied())
 }

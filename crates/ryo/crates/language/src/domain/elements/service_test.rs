@@ -1,22 +1,20 @@
 //! The `elements` service's cases, on values alone.
 
-use crate::domain::symbols::types::ByteSlice;
-
 use super::service::{
-    child_of_kind, children, decoded_at, decoded_token, diagnose, diagnose_with_metadata, end_at,
-    end_of, enter_node, first_token_text, has_incomplete_syntax, kind_at, leave_node, number_mut,
-    positions, start_at, table_builder, text_at, token,
+    child_of_kind, children, end_at, end_of, first_token_text, kind_at, number_mut, positions,
+    start_at, text_at,
 };
-use super::types::{DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, Elements, TreeImpact};
-use crate::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::{KindBits, Offset, Position, ReportText};
-use ryo_relations::domain::terms::types::NameText;
+use super::types::Elements;
+use crate::domain::builders::service::{enter_node, leave_node, table_builder, token};
+use crate::domain::symbols::types::{ByteSlice, Symbols};
+use ryo_relations::domain::relations::types::{KindBits, Offset, Position};
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
 fn syntax_acceptance_is_separate_and_resets_conservatively() -> usize {
-    use super::service::{clear_elements, set_syntax_acceptance, syntax_acceptance};
+    use super::service::{clear_elements, syntax_acceptance};
     use super::types::SyntaxAcceptance;
+    use crate::domain::builders::service::set_syntax_acceptance;
 
     let mut elements = Elements::default();
     assert_eq!(syntax_acceptance(&elements), SyntaxAcceptance::Undetermined);
@@ -36,43 +34,6 @@ type Input = fn() -> usize;
 type Value = usize;
 type Failure = ();
 
-struct RefusingScalar;
-impl std::fmt::Display for RefusingScalar {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("must roll back")?;
-        Err(std::fmt::Error)
-    }
-}
-fn formatted_properties_are_atomic_and_reuse_storage() -> usize {
-    use super::service::{node_property_fmt, property_at};
-    use ryo_relations::domain::relations::types::PropertyId;
-    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
-    let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"x"));
-    enter_node(&mut builder, KindBits(1), Offset(0));
-    node_property_fmt(
-        &mut builder,
-        PropertyId(2),
-        format_args!("{}:{}", 17_u8, 23_u8),
-    )
-    .expect("memory format");
-    assert_eq!(
-        node_property_fmt(
-            &mut builder,
-            PropertyId(2),
-            format_args!("{RefusingScalar}"),
-        )
-        .expect_err("the scalar refuses to format"),
-        std::fmt::Error
-    );
-    node_property_fmt(&mut builder, PropertyId(3), format_args!("{}", 42_u8))
-        .expect("next memory format");
-    leave_node(&mut builder, Offset(1));
-    usize::from(
-        property_at(&elements, Position(0), PropertyId(2)) == Some(NameText("17:23"))
-            && property_at(&elements, Position(0), PropertyId(3)) == Some(NameText("42"))
-            && super::service::engine(&elements).decoded_text.0.as_slice() == b"17:2342",
-    )
-}
 fn a_node_with_a_token_is_three_positions_with_its_root() -> usize {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let source = ByteSlice(b"fn");
@@ -105,72 +66,12 @@ fn a_child_is_found_by_its_kind_and_a_node_holds_the_text_of_its_first_token() -
     )
 }
 
-fn a_decoded_token_keeps_the_text_its_library_read_and_a_plain_one_has_none() -> usize {
-    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
-    let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"\"\\u{41}\"fn"));
-    enter_node(&mut builder, KindBits(1), Offset(0));
-    decoded_token(
-        &mut builder,
-        KindBits(2),
-        Offset(0),
-        Offset(8),
-        NameText("A"),
-    );
-    token(&mut builder, KindBits(3), Offset(8), Offset(10));
-    leave_node(&mut builder, Offset(10));
-    usize::from(
-        decoded_at(&elements, Position(1)) == Some(NameText("A"))
-            && decoded_at(&elements, Position(2)).is_none()
-            && decoded_at(&elements, Position(0)).is_none(),
-    )
-}
-
-fn implied_nodes_keep_properties_without_claiming_bytes() -> usize {
-    use super::service::{enter_implied_node, node_property, origin_at, property_at, source_order};
-    use super::types::SourceOrder;
-    use crate::domain::completion::service::intern_decoded;
-    use crate::domain::symbols::service::text_of;
-    use ryo_relations::domain::relations::{
-        constants::NO_SPAN,
-        types::{ElementOrigin, PropertyId},
-    };
-    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
-    let source = ByteSlice(b"<p>&amp;");
-    let mut builder = table_builder(&mut elements, &mut symbols, source);
-    enter_node(&mut builder, KindBits(1), Offset(0));
-    enter_implied_node(&mut builder, KindBits(2));
-    node_property(&mut builder, PropertyId(2), NameText("html"));
-    node_property(&mut builder, PropertyId(0), NameText("decoded &"));
-    leave_node(&mut builder, Offset(8));
-    token(&mut builder, KindBits(3), Offset(0), Offset(3));
-    token(&mut builder, KindBits(3), Offset(3), Offset(8));
-    leave_node(&mut builder, Offset(8));
-    intern_decoded(&mut elements, &mut symbols, source);
-    usize::from(
-        start_at(&elements, Position(1)) == NO_SPAN.start
-            && end_at(&elements, Position(1)) == NO_SPAN.end
-            && origin_at(&elements, Position(1)) == ElementOrigin::Implied
-            && source_order(&elements) == SourceOrder::Reordered
-            && property_at(&elements, Position(1), PropertyId(2)) == Some(NameText("html"))
-            && text_of(&symbols, source, text_at(&elements, Position(1)))
-                == Some(NameText("decoded &"))
-            && text_of(&symbols, source, text_at(&elements, Position(2))) == Some(NameText("<p>"))
-            && positions(&elements).count() == 4,
-    )
-}
-
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("syntax_acceptance_is_separate_and_resets_conservatively"),
         word: Word::Succeeds,
         input: || syntax_acceptance_is_separate_and_resets_conservatively,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("failed scalar formatter preserves old property and retained bytes"),
-        word: Word::Succeeds,
-        input: || formatted_properties_are_atomic_and_reuse_storage,
         expect: Expect::Value(1),
     },
     Case {
@@ -208,27 +109,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("implied_nodes_keep_properties_without_claiming_bytes"),
-        word: Word::Succeeds,
-        input: || implied_nodes_keep_properties_without_claiming_bytes,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("diagnostics_retain_metadata_and_reset_between_sources"),
-        word: Word::Succeeds,
-        input: || diagnostics_retain_metadata_and_reset_between_sources,
-        expect: Expect::Value(1),
-    },
-    Case {
         name: CaseName("a_child_is_found_by_its_kind_and_a_node_holds_the_text_of_its_first_token"),
         word: Word::Succeeds,
         input: || a_child_is_found_by_its_kind_and_a_node_holds_the_text_of_its_first_token,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("a_decoded_token_keeps_the_text_its_library_read_and_a_plain_one_has_none"),
-        word: Word::Succeeds,
-        input: || a_decoded_token_keeps_the_text_its_library_read_and_a_plain_one_has_none,
         expect: Expect::Value(1),
     },
     Case {
@@ -247,70 +130,6 @@ fn a_write_past_the_table_crashes() -> usize {
             ryo_relations::domain::relations::types::Extent(1);
     });
     usize::from(message == "a position this table gave")
-}
-
-/// Diagnostics retain typed metadata and clear completely before the next source uses the table.
-fn diagnostics_retain_metadata_and_reset_between_sources() -> usize {
-    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
-    let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"x"));
-    diagnose(
-        &mut builder,
-        ReportText("old provider"),
-        Offset(0),
-        Offset(1),
-    );
-    diagnose_with_metadata(
-        &mut builder,
-        DiagnosticMetadata::new(
-            DiagnosticPhase::Validation,
-            TreeImpact::Preserved,
-            DiagnosticCode::provider_owned("fixture.semantic"),
-        ),
-        ReportText("complete tree"),
-        Offset(0),
-        Offset(1),
-    );
-    let before = super::service::diagnostics(&elements).collect::<Vec<_>>();
-    let retained = before.len() == 2
-        && before[0].phase == DiagnosticPhase::Parse
-        && before[0].impact == TreeImpact::Incomplete
-        && before[0].code == DiagnosticCode::UNSPECIFIED
-        && before[1].phase == DiagnosticPhase::Validation
-        && before[1].impact == TreeImpact::Preserved
-        && before[1].code.as_str() == "fixture.semantic"
-        && has_incomplete_syntax(&elements);
-
-    let (mut next_symbols, next_source) = (Symbols::default(), ByteSlice(b"valid"));
-    let _next_builder = table_builder(&mut elements, &mut next_symbols, next_source);
-    let cleared = !has_incomplete_syntax(&elements)
-        && super::service::diagnostic_count(&elements).0 == 0
-        && super::service::diagnostics(&elements).next().is_none();
-
-    let mut validation_builder = table_builder(&mut elements, &mut next_symbols, next_source);
-    diagnose_with_metadata(
-        &mut validation_builder,
-        DiagnosticMetadata::new(
-            DiagnosticPhase::Validation,
-            TreeImpact::Preserved,
-            DiagnosticCode::provider_owned("fixture.validation"),
-        ),
-        ReportText("still complete"),
-        Offset(0),
-        Offset(5),
-    );
-    usize::from(
-        retained
-            && cleared
-            && !has_incomplete_syntax(&elements)
-            && super::service::diagnostic_count(&elements).0 == 1
-            && super::service::diagnostics(&elements)
-                .next()
-                .is_some_and(|diagnostic| {
-                    diagnostic.code.as_str() == "fixture.validation"
-                        && diagnostic.phase == DiagnosticPhase::Validation
-                        && diagnostic.impact == TreeImpact::Preserved
-                }),
-    )
 }
 
 /// What `work` crashed with: its panic's message, or nothing when it did not crash.

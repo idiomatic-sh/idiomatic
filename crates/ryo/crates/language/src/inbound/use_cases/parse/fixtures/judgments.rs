@@ -4,9 +4,10 @@ use super::super::service::absence as parse_absence;
 use super::super::types::ParseEngine;
 use super::expected::{Cell, Fixtures, Unfilled, Unshown};
 use super::findings::Findings;
-use ryo_relations::domain::relations::service::vocabulary_of;
+use crate::inbound::use_cases::project::types::ProjectEngine;
 use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::relations::constants::{LOWERED, RAISED};
+use ryo_relations::domain::relations::service::vocabulary_of;
 use ryo_relations::domain::relations::service::{
     all, class_of, column_name, columns, folder_of, kind, provenance_of,
 };
@@ -16,7 +17,6 @@ use ryo_relations::domain::relations::types::Provenance;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::terms::service::words_of;
 use ryo_relations::domain::terms::types::Vocabulary;
-use crate::inbound::use_cases::project::types::ProjectEngine;
 
 /// The reasons a language may give for a relation of each class, which is all the engine can tell without knowing the language: the
 /// shape of the tree has none, a manifest relation is absent only because there are no manifests, and `NotCode` and
@@ -210,7 +210,11 @@ pub(super) fn judge_unknowns(
         })
         .collect();
     for reason in semantic_reasons {
-        if let Some(name) = parse.unknown_reasons().iter().find(|name| name.reason == *reason) {
+        if let Some(name) = parse
+            .unknown_reasons()
+            .iter()
+            .find(|name| name.reason == *reason)
+        {
             used.push(name.text.0);
         }
     }
@@ -244,7 +248,10 @@ fn filled(cell: &Cell) -> bool {
 
 /// What the cells of one column of the fixtures do not show: each word of a closed set none holds, `true` or `false` of a flag none
 /// holds, or, for any other column, a value when none is filled.
-fn unshown(column: ryo_relations::domain::relations::types::Column, cells: &[&Cell]) -> Vec<Unshown> {
+fn unshown(
+    column: ryo_relations::domain::relations::types::Column,
+    cells: &[&Cell],
+) -> Vec<Unshown> {
     if let Vocabulary::Closed(block) = vocabulary_of(column) {
         return words_of(block)
             .into_iter()

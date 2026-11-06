@@ -4,9 +4,11 @@ use super::check;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::answers::types::{Expansions, ReadItem, Reader, Reads, Visiting, declared};
 use crate::domain::elements::types::Tree;
-use ryo_relations::domain::relations::collections::relations::comment::item::{Comment, CommentRow};
-use ryo_relations::domain::relations::types::{Position, Rows};
 use crate::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::collections::relations::comment::item::{
+    Comment, CommentRow,
+};
+use ryo_relations::domain::relations::types::{Position, Rows};
 use std::marker::PhantomData;
 
 /// An item that reads `comment` and writes nothing.

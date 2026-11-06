@@ -176,7 +176,7 @@ pub(super) fn actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_
     let mut producing = rule(&producer_query, Vec::new());
     producing.exclude.push(Glob::try_from("**").unwrap());
     let mut request = LintRequest {
-        source_language: None,
+        source_language: ryo::linter::SourceLanguage::Recognized,
         root: root.path().into(),
         project_search_scope: ProjectSearchScope::Declared(vec![RelativePath("".into())]),
         given_project_inventory: GivenProjectInventory {

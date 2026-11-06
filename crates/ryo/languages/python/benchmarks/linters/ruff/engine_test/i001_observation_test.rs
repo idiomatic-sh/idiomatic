@@ -135,7 +135,7 @@ pub(super) fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknow
     ] {
         for (phase, complete) in [true, true, false, false, true].into_iter().enumerate() {
             let request = LintRequest {
-                source_language: None,
+                source_language: ryo::linter::SourceLanguage::Recognized,
                 root: root.path().into(),
                 project_search_scope: ProjectSearchScope::Declared(vec![RelativePath(
                     EMPTY.into(),

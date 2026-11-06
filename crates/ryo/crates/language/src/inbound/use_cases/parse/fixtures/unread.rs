@@ -1,8 +1,8 @@
 //! The unread check of the conformance: a kind the parser produces that no relation reads is a finding, unless the language says
 //! why no relation models it. Which kinds the readers look at is the readers' own declaration (`kinds:`), never a list written beside.
 
-use ryo_relations::domain::relations::types::KindBits;
 use crate::inbound::use_cases::parse::types::{KindSample, Sample};
+use ryo_relations::domain::relations::types::KindBits;
 
 /// What a language says it shows with `sample`, as the finding writes it.
 fn shown(sample: Sample) -> &'static str {

@@ -12,11 +12,11 @@ use super::super::types::{ParseRequest, SourceFile};
 use super::collect::Collect;
 use crate::domain::elements::types::Elements;
 use crate::domain::files::types::SourcePath;
-use ryo_relations::domain::relations::service::all;
-use ryo_relations::domain::relations::types::FileId;
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
 use crate::inbound::use_cases::parse::types::{FieldRequest, NoteRequest};
+use ryo_relations::domain::relations::service::all;
+use ryo_relations::domain::relations::types::FileId;
 use std::path::Path;
 
 /// Runs the allocation row against one implementation: after a warm-up, reading a file allocates

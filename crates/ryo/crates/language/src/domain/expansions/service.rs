@@ -1,6 +1,7 @@
 //! The `expansions` service: free functions named by verb that add the trees a language reads under a macro call, and mark the elements they make, with no IO and no ports.
 
-use crate::domain::elements::service::{builder_engine, children, end_of, engine, engine_mut};
+use crate::domain::builders::service::builder_engine;
+use crate::domain::elements::service::{children, end_of, engine, engine_mut};
 use crate::domain::elements::types::{BuilderEngine, Elements};
 use crate::domain::elements::types::{OpenNode, TableBuilder, TableWriting};
 use crate::domain::symbols::types::ByteSlice;
@@ -153,7 +154,7 @@ pub fn append_embedded(
     write: impl FnOnce(&mut TableBuilder<'_>),
 ) {
     let completion = completion.as_mut();
-    let from = engine(completion.elements).decoded.len();
+    let from = Count(engine(completion.elements).decoded.len());
     {
         let mut builder = TableBuilder::from(BuilderEngine {
             elements: completion.elements,

@@ -37,17 +37,17 @@ pub struct EntryObservation {
     /// Candidate path requested by the project.
     pub path: FilePath,
     /// The observed kind or uncertainty.
-    pub state: EntryState,
+    pub state: ObservedEntryState,
 }
 
 /// One immutable engine-owned batch of entry observations, sorted by exact path.
 /// Duplicate paths remain visible so a malformed batch cannot certify absence.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct ObservedEntries(pub(crate) Arc<[EntryObservation]>);
+pub struct ObservedEntries(pub Arc<[EntryObservation]>);
 
 /// The distinct outcomes of an entry observation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum EntryState {
+pub enum ObservedEntryState {
     /// A regular source file.
     File,
     /// A directory, including a namespace package without an initializer.
