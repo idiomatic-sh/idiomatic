@@ -10,6 +10,7 @@ static ALLOCATOR: dhat::Alloc = dhat::Alloc;
 #[derive(Clone, Copy)]
 enum Input {
     Empty,
+    Sparse,
     Selector,
     Graph,
     Mixed,
@@ -31,6 +32,13 @@ fn same_cost(left: Sample, right: Sample) {
 fn subject(input: Input) -> Result<(), OperatingError> {
     const TOTAL: usize = 131;
     match input {
+        Input::Sparse => {
+            let sparse = measure(TOTAL, &[0]);
+            assert_eq!(
+                sparse.work, [1; 8],
+                "sparse intent must not read dormant rule metadata"
+            );
+        }
         Input::Empty => {
             let small = measure(3, &[]);
             let dormant = measure(TOTAL, &[]);
@@ -43,7 +51,10 @@ fn subject(input: Input) -> Result<(), OperatingError> {
             assert_eq!(small.work, [1; 8]);
             assert_eq!(small.graph_hits, 0);
             assert!(small.blocks > 0 && small.bytes > 0);
-            assert_eq!(small, dormant);
+            assert_eq!(
+                small, dormant,
+                "sparse intent must not allocate dormant metadata"
+            );
         }
         Input::Graph => {
             let small = measure(3, &[1]);
@@ -60,7 +71,10 @@ fn subject(input: Input) -> Result<(), OperatingError> {
             assert_eq!(small.work, [3, 5, 2, 3, 2, 2, 2, 2]);
             assert_eq!(small.rule_sums, [3, 1, 3]);
             assert_eq!(small.graph_hits, 1);
-            assert_eq!(small, dormant);
+            assert_eq!(
+                small, dormant,
+                "sparse intent must not allocate dormant metadata"
+            );
         }
         Input::TailSelectors => {
             let small = measure(3, &[0, 2]);
@@ -77,7 +91,7 @@ fn subject(input: Input) -> Result<(), OperatingError> {
             assert!(dense.blocks > sparse.blocks && dense.bytes > sparse.bytes);
             // The negative control offers the actual all-demand activation to
             // the sparse oracle. It must reject extra work and allocations.
-            // This is the same production entry, not a copied dense scheduler.
+            // This is the same production entry. This is demand sensitivity, not an implementation mutant.
             let sparse_holds = |sample: Sample| {
                 sample.work == sparse.work
                     && sample.blocks <= sparse.blocks
@@ -93,6 +107,12 @@ fn subject(input: Input) -> Result<(), OperatingError> {
     Ok(())
 }
 const CASES: &[Case<Input, (), OperatingError>] = &[
+    Case {
+        name: CaseName("same_131_rule_sparse_intent_reads_only_its_required_metadata"),
+        word: Word::Succeeds,
+        input: || Input::Sparse,
+        expect: Expect::Value(()),
+    },
     Case {
         name: CaseName(
             "rootless_activation_has_zero_work_and_allocations_with_dense_dormant_metadata",
@@ -141,5 +161,18 @@ fn main() {
     // never elapsed time. Request compilation and full intent binding precede
     // the observed derived activation boundary and are outside this claim.
     let _profiler = dhat::Profiler::builder().testing().build();
-    run(CASES, Word::Succeeds, subject);
+    let selected = std::env::args().nth(1);
+    let mut executed = 0;
+    for case in CASES
+        .iter()
+        .filter(|case| selected.as_deref().is_none_or(|name| name == case.name.0))
+    {
+        run(std::slice::from_ref(case), Word::Succeeds, subject);
+        executed += 1;
+    }
+    assert!(
+        executed > 0,
+        "the activation target must execute an actual case"
+    );
+    println!("activation: {executed} actual cases passed");
 }

@@ -10,3 +10,4 @@ pub(super) const SELECTOR: &str = "selector";
 pub(super) const CANDIDATE: &str = "candidate";
 pub(super) const REPETITION: &str = "repetition";
 pub(super) const FANOUT: &str = "fanout";
+pub(super) const GRAPH_HIT: &str = "graph_hit";

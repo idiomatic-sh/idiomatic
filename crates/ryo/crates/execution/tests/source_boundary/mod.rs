@@ -5,3 +5,5 @@ mod derived;
 mod fixtures;
 
 mod publication;
+
+mod activation;

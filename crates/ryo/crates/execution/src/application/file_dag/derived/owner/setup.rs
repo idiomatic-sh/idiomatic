@@ -2,7 +2,8 @@
 use super::super::prepared::PreparedDerived;
 use super::*;
 use crate::application::file_dag::derived::constants as activation;
-use crate::domain::coverage::types::Partial;
+use crate::domain::coverage::types::{Partial, RuleIndex};
+use ryo_relations::domain::relations::types::Relation;
 impl DerivedOwner {
     /// Configure the real installed backend for required-versus-optional controls.
     #[cfg(test)]
@@ -35,22 +36,44 @@ impl DerivedOwner {
             crate::application::file_dag::derived::owner::index::service::LIMIT,
         );
         if let Some(cache) = backend.as_mut() {
+            prepared.bind_views(cache);
             // Request-wide graph eligibility is indexed once. File activation
             // examines only its demanded roots, never the full graph-rule inventory.
-            cache.graph_enabled = demanded
-                .iter()
-                .any(|rule| {
-                    let eligible = prepared.graph_rules.contains(rule);
-                    tracing::trace!(target: activation::TARGET, event = activation::GRAPH_RULE, rule = rule.0, eligible);
-                    eligible
-                });
+            for rule in demanded {
+                if prepared.graph_for(*rule)? {
+                    cache.graph_enabled = true;
+                    break;
+                }
+            }
             crate::application::file_dag::derived::owner::selection::preparation::service::activate_program(
                 cache, prepared, demanded,
-            );
+            )?;
         }
         *self.backend.borrow_mut() = backend;
         self.file_prepared.set(true);
         tracing::trace!(target: activation::TARGET, event = activation::END);
         Ok(())
+    }
+}
+
+impl PreparedDerived {
+    pub(in crate::application::file_dag) fn wanted(
+        &self,
+        demanded: &[RuleIndex],
+    ) -> Result<Vec<Relation>, OperatingError> {
+        if !demanded.windows(2).all(|pair| pair[0] < pair[1]) {
+            return Err(OperatingError::NotRun);
+        }
+        let mut wanted = Vec::new();
+        for rule in demanded {
+            let relations = self.relations_for(*rule)?;
+            for relation in relations.iter() {
+                tracing::trace!(target: activation::TARGET, event = activation::RELATION);
+                if !wanted.contains(relation) {
+                    wanted.push(*relation);
+                }
+            }
+        }
+        Ok(wanted)
     }
 }

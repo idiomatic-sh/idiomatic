@@ -3,6 +3,7 @@
 pub(super) enum Compilation {
     Library,
     LibraryTests,
+    WantedMutation,
 }
 pub(super) struct Probe {
     pub(super) compilation: Compilation,

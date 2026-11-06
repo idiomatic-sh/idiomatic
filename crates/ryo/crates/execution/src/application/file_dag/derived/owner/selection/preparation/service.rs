@@ -155,32 +155,28 @@ pub(in crate::application::file_dag::derived::owner) fn activate_program(
     cache: &mut CacheBackend,
     prepared: &crate::application::file_dag::derived::prepared::PreparedDerived,
     demanded: &[crate::domain::coverage::types::RuleIndex],
-) {
+) -> Result<(), OperatingError> {
     let mut selectors = Vec::new();
-    for use_ in demanded
-        .iter()
-        .flat_map(|rule| {
-            tracing::trace!(target: activation::TARGET, event = activation::SELECTOR_RULE, rule = rule.0);
-            prepared.selectors[prepared.selector_ranges[rule.0].clone()].iter()
-        })
-    {
-        tracing::trace!(target: activation::TARGET, event = activation::SELECTOR);
-        if !cache.eligible.contains(&use_.selector.relation) {
-            continue;
-        }
-        let bytes = (selectors.len() + 1).checked_mul(size_of::<Arc<Selector>>());
-        if bytes
-            .and_then(|bytes| cache.bytes.checked_add(bytes))
-            .is_none_or(|bytes| {
-                bytes
+    'active: for rule in demanded {
+        for use_ in prepared.selectors_for(*rule)? {
+            tracing::trace!(target: activation::TARGET, event = activation::SELECTOR);
+            if !cache.eligible.contains(&use_.selector.relation) {
+                continue;
+            }
+            let bytes = (selectors.len() + 1).checked_mul(size_of::<Arc<Selector>>());
+            if bytes
+                .and_then(|bytes| cache.bytes.checked_add(bytes))
+                .is_none_or(|bytes| {
+                    bytes
                     > crate::application::file_dag::derived::owner::index::service::non_graph_limit(
                         cache,
                     )
-            })
-        {
-            break;
+                })
+            {
+                break 'active;
+            }
+            selectors.push(Arc::clone(&use_.selector));
         }
-        selectors.push(Arc::clone(&use_.selector));
     }
     if let Some(bytes) = selectors
         .capacity()
@@ -198,7 +194,13 @@ pub(in crate::application::file_dag::derived::owner) fn activate_program(
         cache.selectors = selectors;
         crate::application::file_dag::derived::owner::index::service::candidate_columns(cache);
     }
-    install_views(cache, Arc::clone(&prepared.views));
+    let views = cache
+        .selection_views
+        .as_ref()
+        .cloned()
+        .ok_or(OperatingError::NotRun)?;
+    install_views(cache, views);
+    Ok(())
 }
 
 /// Install one immutable request descriptor and prepare active repetition once/file.

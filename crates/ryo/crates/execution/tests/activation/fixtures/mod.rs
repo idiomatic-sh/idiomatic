@@ -53,7 +53,6 @@ struct State {
 struct EventFields {
     event: u8,
     rule: u64,
-    eligible: bool,
 }
 impl tracing::field::Visit for EventFields {
     fn record_debug(&mut self, _: &tracing::field::Field, _: &dyn std::fmt::Debug) {}
@@ -70,6 +69,7 @@ impl tracing::field::Visit for EventFields {
                 "candidate" => 8,
                 "repetition" => 9,
                 "fanout" => 10,
+                "graph_hit" => 11,
                 _ => 0,
             };
         }
@@ -77,11 +77,6 @@ impl tracing::field::Visit for EventFields {
     fn record_u64(&mut self, field: &tracing::field::Field, value: u64) {
         if field.name() == "rule" {
             self.rule = value;
-        }
-    }
-    fn record_bool(&mut self, field: &tracing::field::Field, value: bool) {
-        if field.name() == "eligible" {
-            self.eligible = value;
         }
     }
 }
@@ -123,13 +118,14 @@ impl tracing::Subscriber for Activation {
             state.sample.bytes = heap.total_bytes - state.before.1;
             state.ends += 1;
             state.active = false;
+        } else if state.active && fields.event == 11 {
+            state.sample.graph_hits += 1;
         } else if state.active && (3..=10).contains(&fields.event) {
             state.sample.work[usize::from(fields.event - 3)] += 1;
             match fields.event {
                 3 => state.sample.rule_sums[0] += fields.rule,
                 5 => {
                     state.sample.rule_sums[1] += fields.rule;
-                    state.sample.graph_hits += u64::from(fields.eligible);
                 }
                 6 => state.sample.rule_sums[2] += fields.rule,
                 _ => {}

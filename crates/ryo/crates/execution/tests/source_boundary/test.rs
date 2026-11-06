@@ -4,7 +4,7 @@ use super::fixtures::{Compilation, Expectation, Probe};
 use cargo_metadata::{DependencyKind, Message, MetadataCommand, diagnostic::DiagnosticLevel};
 use std::{fs, io, path::Path, process::Command};
 
-fn copy_sources(source: &Path, target: &Path) -> io::Result<()> {
+pub(super) fn copy_sources(source: &Path, target: &Path) -> io::Result<()> {
     fs::create_dir_all(target)?;
     for entry in fs::read_dir(source)? {
         let entry = entry?;
@@ -20,7 +20,7 @@ fn copy_sources(source: &Path, target: &Path) -> io::Result<()> {
 
 /// Cargo's resolved dependency descriptions preserve workspace inheritance,
 /// renames and feature selections without copying the workspace or token types.
-fn manifest(source: &Path) -> toml::Table {
+pub(super) fn manifest(source: &Path) -> toml::Table {
     let metadata = MetadataCommand::new()
         .manifest_path(source.join("Cargo.toml"))
         .no_deps()
@@ -169,6 +169,7 @@ fn actual_runtime_authority_is_private_to_its_owner() {
     let derived_root = fs::read_to_string(source.join(super::derived::ROOT)).unwrap();
     let derived_module = fs::read_to_string(source.join(super::derived::MODULE)).unwrap();
     let derived_issuer = fs::read_to_string(source.join(super::derived::ISSUER)).unwrap();
+    let activation_setup = fs::read_to_string(source.join(super::activation::SETUP)).unwrap();
     let mut probes = vec![
         Probe {
             compilation: Compilation::Library,
@@ -345,6 +346,7 @@ fn actual_runtime_authority_is_private_to_its_owner() {
         },
     ]);
     probes.extend(controls());
+    probes.extend(super::activation::controls());
     probes.extend(super::publication::controls());
     for Probe {
         compilation,
@@ -368,7 +370,13 @@ fn actual_runtime_authority_is_private_to_its_owner() {
         fs::write(overlay.path().join(super::derived::ROOT), &derived_root).unwrap();
         fs::write(overlay.path().join(super::derived::MODULE), &derived_module).unwrap();
         fs::write(overlay.path().join(super::derived::ISSUER), &derived_issuer).unwrap();
+        fs::write(
+            overlay.path().join(super::activation::SETUP),
+            &activation_setup,
+        )
+        .unwrap();
         let original = match owner {
+            super::activation::SETUP => &activation_setup,
             PROGRAM => &program,
             ADMISSION => &admission,
             RUNTIME => &runtime,
@@ -383,10 +391,27 @@ fn actual_runtime_authority_is_private_to_its_owner() {
             _ => panic!("unclassified production overlay"),
         };
         let probe = match compilation {
-            Compilation::Library => probe,
+            Compilation::Library | Compilation::WantedMutation => probe,
             Compilation::LibraryTests => format!("#[cfg(test)]\n{probe}"),
         };
-        fs::write(overlay.path().join(owner), format!("{original}\n{probe}")).unwrap();
+        let (postimage, first_line, last_line) = if let Compilation::WantedMutation = compilation {
+            let anchor = super::activation::ANCHOR;
+            assert_eq!(original.matches(anchor).count(), 1);
+            let at = original.find(anchor).unwrap();
+            let line = original[..at].bytes().filter(|byte| *byte == b'\n').count() + 1;
+            (
+                original.replacen(anchor, &format!("{probe}\n{anchor}"), 1),
+                line,
+                line + probe.lines().count() - 1,
+            )
+        } else {
+            (
+                format!("{original}\n{probe}"),
+                original.lines().count() + 1,
+                usize::MAX,
+            )
+        };
+        fs::write(overlay.path().join(owner), postimage).unwrap();
         let mut command = Command::new(env!("CARGO"));
         if let Compilation::LibraryTests = compilation {
             command.arg("check").arg("--tests");
@@ -462,7 +487,8 @@ fn actual_runtime_authority_is_private_to_its_owner() {
                     assert!(
                         error.spans.iter().any(|span| span.is_primary
                             && span.file_name.ends_with(owner)
-                            && span.line_start > original.lines().count()),
+                            && span.line_start >= first_line
+                            && span.line_start <= last_line),
                         "{error:#?}"
                     );
                 }
