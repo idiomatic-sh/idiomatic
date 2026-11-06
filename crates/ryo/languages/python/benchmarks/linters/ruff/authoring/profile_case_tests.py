@@ -246,7 +246,7 @@ def reference_discrepancy_self_test() -> None:
         source_digest.update(text.encode())
     assert source_digest.hexdigest() == cross['source_sha256']
     assert json.dumps(cross['output'], sort_keys=True, separators=(',', ':'), ensure_ascii=False) == cross['canonical_utf8']
-    source = profile_config.RUFF_DIR / 'fixtures/reference-discrepancy'
+    source = profile_config.REPOSITORY / 'crates/ryo/crates/benchmark/tests/fixtures/reference-discrepancy-python-f821'
     with tempfile.TemporaryDirectory(prefix='reference-discrepancy-guard-') as temporary:
         profile = Path(temporary)
         shutil.copyfile(source / 'benchmark.toml', profile / 'benchmark.toml')
@@ -348,7 +348,7 @@ def reference_discrepancy_self_test() -> None:
 
 def discrepancy_artifact_staging_self_test() -> None:
     """Declared evidence is shared exactly once and cannot escape or replace inputs."""
-    fixture = profile_config.RUFF_DIR / 'fixtures/reference-discrepancy'
+    fixture = profile_config.REPOSITORY / 'crates/ryo/crates/benchmark/tests/fixtures/reference-discrepancy-python-f821'
     with tempfile.TemporaryDirectory(prefix='ryo-evidence-staging-') as temporary:
         directory = Path(temporary)
         source = directory / 'source'

@@ -3,7 +3,8 @@ use super::super::nodes::types::Node;
 use super::super::syntax::service::kind;
 use super::super::syntax::types::Kind;
 use super::interface::BraceFormatSyntax;
-use super::types::{BraceFormatIndex, BraceFormatOccurrence, BraceFormatResult, BraceFormatState};
+use super::types::{BraceFormatIndex, BraceFormatResult, BraceFormatState};
+use crate::domain::format_syntax::types::FormatOccurrence;
 use crate::domain::format_syntax::types::{
     DecodedInput, FormatOwnedBytes, FormatResultIndex, FormatScratch, FormatVisibility,
     StringOccurrence,
@@ -87,7 +88,7 @@ where
         index.state = BraceFormatState::Partial;
         return;
     }
-    index.occurrences.push(BraceFormatOccurrence {
+    index.occurrences.push(FormatOccurrence {
         node: at,
         cached,
         unknown_input: unknown_input.into(),
@@ -133,7 +134,7 @@ where
 
 /// Occurrences in source order.
 #[must_use]
-pub(crate) fn occurrences(index: &BraceFormatIndex) -> &[BraceFormatOccurrence] {
+pub(crate) fn occurrences(index: &BraceFormatIndex) -> &[FormatOccurrence] {
     &index.occurrences
 }
 
@@ -147,7 +148,7 @@ pub(crate) fn state(index: &BraceFormatIndex) -> BraceFormatState {
 #[must_use]
 pub(crate) fn result<'a>(
     index: &'a BraceFormatIndex,
-    occurrence: &BraceFormatOccurrence,
+    occurrence: &FormatOccurrence,
 ) -> Option<&'a BraceFormatResult> {
     index
         .values

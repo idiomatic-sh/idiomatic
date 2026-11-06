@@ -1,6 +1,7 @@
 //! Lazily intern bottom-up parsed expression keys; source formatting and runtime value equality are separate.
+use crate::domain::constant_keys::types::{KeyRecord, KeyRecordIndex};
 use crate::domain::model::types::{
-    ExpressionShapeIndex, ShapeHash, ShapeRecord, ShapeRecordIndex, ShapeState, ShapeWord,
+    ExpressionShapeIndex, ShapeHash, ShapeState, ShapeWord,
 };
 use crate::domain::{
     extras::types::Extra,
@@ -71,12 +72,12 @@ pub(super) fn intern(index: &mut ExpressionShapeIndex, at: Position, hash: Shape
     }
     let start = index.words.len();
     index.words.extend_from_slice(&index.scratch);
-    let record = ShapeRecord {
+    let record = KeyRecord {
         words: start..index.words.len(),
         representative: at,
         previous: index.buckets.get(&hash).copied(),
     };
-    let place = ShapeRecordIndex(index.records.len());
+    let place = KeyRecordIndex(index.records.len());
     index.records.push(record);
     let _previous_bucket_head = index.buckets.insert(hash, place);
     at

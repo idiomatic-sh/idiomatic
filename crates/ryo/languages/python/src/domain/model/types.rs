@@ -2,7 +2,7 @@
 //! language works out of a file once, before its readers run.
 
 use crate::domain::brace_format::types::BraceFormatIndex;
-use crate::domain::constant_keys::types::ConstantKeyIndex;
+use crate::domain::constant_keys::types::{ConstantKeyIndex, KeyRecord, KeyRecordIndex};
 use crate::domain::expression_types::types::ExpressionTypeIndex;
 use crate::domain::format_syntax::types::FormatParseIndex;
 use crate::domain::indentation::types::IndentationIndex;
@@ -149,19 +149,6 @@ pub(crate) enum ShapeWord {
 /// A hash chooses candidates only; full stored keys establish equality.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct ShapeHash(pub u64);
-/// An index into the retained class records.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ShapeRecordIndex(pub usize);
-/// A canonical key and an original syntax representative.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct ShapeRecord {
-    /// Its complete key in the shared arena.
-    pub words: std::ops::Range<usize>,
-    /// A real syntax occurrence, not a truncated hash.
-    pub representative: Position,
-    /// Another key with the same hash, compared in full on lookup.
-    pub previous: Option<ShapeRecordIndex>,
-}
 /// Whether the retained index belongs to a complete current tree.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) enum ShapeState {
@@ -181,9 +168,9 @@ pub(crate) struct ExpressionShapeIndex {
     /// Full keys, stored once for each unique class.
     pub words: Vec<ShapeWord>,
     /// Canonical classes and collision chains.
-    pub records: Vec<ShapeRecord>,
+    pub records: Vec<KeyRecord>,
     /// Hash bucket heads; equality never relies on this key alone.
-    pub buckets: std::collections::HashMap<ShapeHash, ShapeRecordIndex>,
+    pub buckets: std::collections::HashMap<ShapeHash, KeyRecordIndex>,
     /// One reusable key builder.
     pub scratch: Vec<ShapeWord>,
     /// Current parse validity.

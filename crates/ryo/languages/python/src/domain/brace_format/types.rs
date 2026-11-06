@@ -1,9 +1,8 @@
 //! Plain values for the decoded brace-format parser.
 use crate::domain::format_syntax::types::{
-    DynamicInput, FormatCacheInput, FormatCharacter, FormatFieldOrdinal, FormatResultIndex,
+    FormatCacheInput, FormatCharacter, FormatFieldOrdinal, FormatOccurrence, FormatResultIndex,
 };
 use indexmap::IndexMap;
-use ryo::languages::Position;
 
 /// Stable categories reported by the brace field parser.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -109,17 +108,6 @@ pub(crate) struct CachedBraceFormat {
     pub result: BraceFormatResult,
 }
 
-/// One original literal occurrence and its cached parse result.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct BraceFormatOccurrence {
-    /// Original string-literal node.
-    pub node: Position,
-    /// Index into cached values, absent for dynamic/unknown input.
-    pub cached: Option<FormatResultIndex>,
-    /// Dynamic string content is unknown rather than unavailable.
-    pub unknown_input: DynamicInput,
-}
-
 /// Retained parse state for one source tree; populated only when either brace relation is requested.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct BraceFormatIndex {
@@ -130,7 +118,7 @@ pub(crate) struct BraceFormatIndex {
     /// Distinct decoded input results.
     pub values: Vec<CachedBraceFormat>,
     /// Source occurrences.
-    pub occurrences: Vec<BraceFormatOccurrence>,
+    pub occurrences: Vec<FormatOccurrence>,
     /// Completeness of the current source's brace-format inputs.
     pub state: BraceFormatState,
 }

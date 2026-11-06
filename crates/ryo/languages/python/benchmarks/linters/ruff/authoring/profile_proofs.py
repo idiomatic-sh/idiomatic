@@ -52,7 +52,7 @@ def manifest_paths(manifest: dict[str, object], helper_path: str) -> set[str]:
         paths.add(receipt_path)
         receipt = json.loads((profile_config.REPOSITORY / receipt_path).read_text(encoding='utf-8'))
         paths.update(receipt.get('execution_artifacts', {}))
-    for fixture in [profile_config.RUFF_DIR / 'fixtures/reference-discrepancy', profile_config.RUFF_DIR.parents[2] / 'tests/fixtures/ryoql-fragments/sparse-traversal-guards', profile_config.RUFF_DIR.parents[2] / 'tests/fixtures/ryoql-fragments/pie794-rooted', profile_config.RUFF_DIR.parents[2] / 'tests/fixtures/ryoql-fragments/sparse-descendant-consumers', profile_config.RUFF_DIR.parents[2] / 'tests/fixtures/ryoql-fragments/plr1708-rooted']:
+    for fixture in [profile_config.REPOSITORY / 'crates/ryo/crates/benchmark/tests/fixtures/reference-discrepancy-python-f821', profile_config.RUFF_DIR.parents[2] / 'tests/fixtures/ryoql-fragments/sparse-traversal-guards', profile_config.RUFF_DIR.parents[2] / 'tests/fixtures/ryoql-fragments/pie794-rooted', profile_config.RUFF_DIR.parents[2] / 'tests/fixtures/ryoql-fragments/sparse-descendant-consumers', profile_config.RUFF_DIR.parents[2] / 'tests/fixtures/ryoql-fragments/plr1708-rooted']:
         paths.update((path.relative_to(profile_config.REPOSITORY).as_posix() for path in fixture.rglob('*') if path.is_file()))
     paths.add('crates/ryo/crates/benchmark/tests/fixtures/reference-discrepancy-canonical.json')
     paths.update((path.relative_to(profile_config.REPOSITORY).as_posix() for path in (profile_config.RUFF_DIR / 'authoring').glob('*.py')))
