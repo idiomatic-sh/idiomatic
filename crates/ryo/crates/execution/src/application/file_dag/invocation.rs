@@ -467,18 +467,7 @@ fn partitioned<'f>(
     use ryo_derived::domain::contract::types::DerivedKind;
     let order = prepared(contract, DerivedKind::PartitionOrder)?;
     let closure = prepared(contract, DerivedKind::ClosureAdjacency)?;
-    let proof = admitted.proof(order.inputs[0])?;
-    if !super::relations::same_admitted_rows(input, proof.rows()) {
-        return Err(OperatingError::NotRead);
-    }
-    let storage = admitted.acquire_rows(order, context)?;
-    super::closure_partitions::PartitionedClosure::from_prepared(
-        admitted.proof(order.inputs[0])?.clone(),
-        (order.plan).clone(),
-        (closure.plan).clone(),
-        storage,
-        admitted.owner_handle(),
-    )
+    admitted.partitioned(order, closure, input, context)
 }
 
 use ryo_values::domain::rows::types::Table;

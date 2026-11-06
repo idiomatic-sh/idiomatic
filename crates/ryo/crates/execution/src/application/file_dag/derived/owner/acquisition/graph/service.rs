@@ -7,6 +7,7 @@ use crate::application::file_dag::derived::backend::CacheBackend;
 use crate::application::file_dag::derived::graph_cache::types::handles::{
     DomainHandle, GraphAccess, GraphHandle,
 };
+use crate::application::file_dag::derived::ledger::append_backing;
 use crate::application::file_dag::derived::owner::{
     DerivedOwner, GraphRequirement, GraphSelection, GraphViewIdentity, PopulationId, ViewContext,
 };
@@ -183,20 +184,6 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
     };
     let requirement = owner.canonical_graph_requirement(requirement, admitted.populations());
     let invoked = std::cell::Cell::new(false);
-    let mut build = |cache| {
-        invoked.set(true);
-        let built = build::domain(
-            owner,
-            population,
-            plan,
-            &admitted,
-            access,
-            identity.clone(),
-            rows,
-            cache,
-        )?;
-        Ok((built.storage, built.built, true, false))
-    };
     let acquired = if input.canonical_backing() {
         owner.acquire_shared_with_requirement(
             requirement,
@@ -205,11 +192,35 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
             ViewContext::default(),
             false,
             cache.as_deref_mut(),
-            build,
+            |cache| {
+                invoked.set(true);
+                let built = build::domain(
+                    owner,
+                    population,
+                    plan,
+                    &admitted,
+                    access,
+                    identity.clone(),
+                    rows,
+                    cache,
+                )?;
+                Ok((built.storage, built.built, true, false))
+            },
         )?
     } else {
         owner.acquire_invocation_with(plan, &admitted, &access.backings, || {
-            build(cache.as_deref_mut()).map(|(storage, built, _, _)| (storage, built))
+            invoked.set(true);
+            let built = build::domain(
+                owner,
+                population,
+                plan,
+                &admitted,
+                access,
+                identity.clone(),
+                rows,
+                cache.as_deref_mut(),
+            )?;
+            Ok((built.storage, built.built))
         })?
     };
     let ryo_derived::domain::contract::types::DerivedView::Membership(
@@ -289,20 +300,6 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
         built: acquired.was_built(),
         _lease: owner.required_lease(&backings)?,
     })
-}
-
-pub(super) fn append_backing(
-    backings: &mut Vec<crate::application::file_dag::derived::ledger::Backing>,
-    next: crate::application::file_dag::derived::ledger::Backing,
-) -> Result<(), OperatingError> {
-    if let Some(old) = backings.iter().find(|old| old.key == next.key) {
-        if old.bytes != next.bytes || old.retention_units != next.retention_units {
-            return Err(OperatingError::ShapeMismatch);
-        }
-    } else {
-        backings.push(next);
-    }
-    Ok(())
 }
 
 pub(super) fn validate_input(

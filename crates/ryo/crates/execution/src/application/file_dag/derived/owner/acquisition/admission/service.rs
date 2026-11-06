@@ -80,6 +80,8 @@ impl AcquiredView {
         Arc::ptr_eq(&self.storage, &other.storage)
     }
     pub(in crate::application::file_dag) fn view(&self) -> Result<DerivedView<'_>, OperatingError> {
+        #[cfg(test)]
+        self.lease.assert_required(&self.backings);
         if !self.origin.is_live() {
             return Err(OperatingError::NotRead);
         }

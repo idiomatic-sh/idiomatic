@@ -113,7 +113,7 @@ pub(super) fn fanout_candidates(
         return Ok(None);
     };
     let rows = acquired
-        .storage
+        .storage()
         .payload()
         .share_posting_positions(wanted)
         .ok_or(OperatingError::WrongOperation)?;

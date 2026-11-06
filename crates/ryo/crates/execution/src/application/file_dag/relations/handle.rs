@@ -1,6 +1,7 @@
 //! Worker-local lease capabilities wrap thread-safe immutable publication records.
 use super::RelationResult;
-use crate::application::file_dag::derived::{ledger::ResourceLease, view::ResourceDependency};
+use crate::application::file_dag::derived::ledger::ResourceLease;
+use crate::application::file_dag::derived::owner::acquisition::admission::service::ResourceDependency;
 use std::{cell::RefCell, sync::Arc};
 #[derive(Debug)]
 struct RequiredLeases {

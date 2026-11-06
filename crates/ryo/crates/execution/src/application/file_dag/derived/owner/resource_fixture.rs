@@ -178,8 +178,18 @@ pub(crate) fn weak_storage(
 #[derive(Debug, Default)]
 pub(in crate::application::file_dag) struct RecordedDerived {
     builds: std::sync::Mutex<Vec<ryo_derived::domain::contract::types::ViewRequest>>,
+    raw_failure: Option<ryo_derived::domain::contract::types::DerivedFault>,
 }
 impl RecordedDerived {
+    pub(in crate::application::file_dag) fn refusing_raw(
+        fault: ryo_derived::domain::contract::types::DerivedFault,
+    ) -> Self {
+        Self {
+            raw_failure: Some(fault),
+            ..Self::default()
+        }
+    }
+
     pub(in crate::application::file_dag) fn builds(
         &self,
     ) -> Vec<ryo_derived::domain::contract::types::ViewRequest> {
@@ -214,6 +224,13 @@ impl ryo_derived::inbound::use_cases::derived::interface::DerivedUseCase for Rec
             .lock()
             .expect("recorded semantic calls")
             .push(prepared.request().clone());
+        if matches!(
+            prepared.request(),
+            ryo_derived::domain::contract::types::ViewRequest::RawKeyOrder { .. }
+        ) && let Some(fault) = &self.raw_failure
+        {
+            return Err(fault.clone());
+        }
         DerivedUseCaseImpl::new().build(prepared, inputs, room, recycled)
     }
     fn view<'a>(

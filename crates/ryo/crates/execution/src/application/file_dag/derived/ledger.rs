@@ -304,6 +304,27 @@ pub(in crate::application::file_dag) struct ResourceLease {
     metadata_bytes: usize,
 }
 
+#[cfg(test)]
+impl ResourceLease {
+    pub(in crate::application::file_dag::derived) fn assert_required(&self, backings: &[Backing]) {
+        assert_eq!(self.class, LeaseClass::Required);
+        let ledger = self.ledger.borrow();
+        for backing in backings {
+            assert!(
+                self.keys.contains(&backing.key),
+                "the actual view backing belongs to this lease"
+            );
+            let entry = ledger
+                .entries
+                .get(&backing.key)
+                .expect("a borrowed view has a live ledger entry");
+            assert!(entry.required > 0, "a borrowed view remains required-live");
+            assert_eq!(entry.bytes, backing.bytes);
+            assert_eq!(entry.retention_units, backing.retention_units);
+        }
+    }
+}
+
 impl Drop for ResourceLease {
     fn drop(&mut self) {
         let mut state = self.ledger.borrow_mut();
@@ -382,4 +403,18 @@ fn lease_bytes(key_capacity: usize) -> Result<usize, OperatingError> {
                 .and_then(|keys| base.checked_add(keys))
         })
         .ok_or(OperatingError::ShapeMismatch)
+}
+
+pub(in crate::application::file_dag) fn append_backing(
+    backings: &mut Vec<crate::application::file_dag::derived::ledger::Backing>,
+    next: crate::application::file_dag::derived::ledger::Backing,
+) -> Result<(), OperatingError> {
+    if let Some(old) = backings.iter().find(|old| old.key == next.key) {
+        if old.bytes != next.bytes || old.retention_units != next.retention_units {
+            return Err(OperatingError::ShapeMismatch);
+        }
+    } else {
+        backings.push(next);
+    }
+    Ok(())
 }

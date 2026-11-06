@@ -116,7 +116,7 @@ fn owner_reclaims_the_oldest_complete_index_before_newer_indexes() {
     let first = fixture
         .index(Relation::Function, &rows, &[ColumnIndex(0)])
         .expect("first owner view");
-    let first_storage = Arc::downgrade(&first.storage);
+    let first_storage = Arc::downgrade(first.storage());
     let first_view_bytes = fixture.snapshot().retained_view_bytes;
     assert!(first_view_bytes > 0);
     drop(first);
@@ -124,7 +124,7 @@ fn owner_reclaims_the_oldest_complete_index_before_newer_indexes() {
     let second = fixture
         .index(Relation::Function, &rows, &[ColumnIndex(1)])
         .expect("second owner view");
-    let second_storage = Arc::downgrade(&second.storage);
+    let second_storage = Arc::downgrade(second.storage());
     drop(second);
     let before = fixture.snapshot();
     assert_eq!(before.indexes, 2);

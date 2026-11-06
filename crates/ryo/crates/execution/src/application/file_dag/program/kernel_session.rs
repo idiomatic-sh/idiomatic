@@ -1,7 +1,7 @@
 //! Invocation-scoped resource acquisition followed by the mandatory semantic port.
-use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::service::KernelInvocation;
 use crate::application::file_dag::program::runtime::service::KernelPermit;
+use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
 use crate::{
@@ -263,6 +263,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
             }
             if let Some(prepared) = &order {
                 prepared
+                    .semantic
                     .validate()
                     .map_err(crate::domain::operator::contract::derived::portable_fault)
                     .map_err(InvocationFailure::Semantic)?;

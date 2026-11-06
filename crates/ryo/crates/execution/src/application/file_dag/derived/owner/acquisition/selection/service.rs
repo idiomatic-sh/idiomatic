@@ -2,7 +2,7 @@
 use super::super::super::*;
 use crate::application::file_dag::derived::selection::candidates::candidates;
 use crate::application::file_dag::derived::selection::{
-    CandidateRows, histogram, shared_positions,
+    CandidateRows, SelectionPath, histogram, shared_positions,
 };
 use crate::application::file_dag::relations::{AdmittedInput, RelationOwner};
 use crate::domain::{
@@ -426,3 +426,6 @@ fn build_matches(
     }
     outcome
 }
+
+use crate::domain::{operator::contract::views::BorrowedRows, table_model::types::Verdict};
+use ryo_values::domain::{plan_parts::types::ColumnIndex, query_bindings::types::ParameterBinding};

@@ -498,7 +498,7 @@ impl DerivedOwner {
         let (storage, built) = build()?;
         let mut required = super::super::backings::view(&storage)?.to_vec();
         for backing in backings {
-            super::graph::service::append_backing(&mut required, *backing)?;
+            crate::application::file_dag::derived::ledger::append_backing(&mut required, *backing)?;
         }
         let required: Arc<[Backing]> = required.into();
         self.complete_view(

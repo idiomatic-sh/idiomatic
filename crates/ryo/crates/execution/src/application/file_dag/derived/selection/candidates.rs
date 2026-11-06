@@ -1,7 +1,7 @@
 //! Candidate choice and immutable equality-cache acquisition remain application policy.
 use super::*;
 /// Use a column index only when multiple active descriptors can amortize its build.
-pub(super) fn candidates(
+pub(in crate::application::file_dag::derived) fn candidates(
     cache: &mut CacheBackend,
     resources: super::super::owner::acquisition::selection::service::SelectionSource<'_>,
     program: &Selector,

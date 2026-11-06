@@ -55,7 +55,7 @@ const MIN_FANOUT_LITERALS: usize = 8;
 
 /// Diagnostic reasons are fixed integers so normal selection never formats strings.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum SelectionPath {
+pub(in crate::application::file_dag::derived) enum SelectionPath {
     NoDiscriminator = 0,
     NotRepeated = 1,
     SmallPopulation = 2,
@@ -236,7 +236,7 @@ pub(super) fn shared_positions(
         return Err(OperatingError::ShapeMismatch);
     }
     let rows = acquired
-        .storage
+        .storage()
         .payload()
         .share_positions()
         .ok_or(OperatingError::WrongOperation)?;

@@ -429,6 +429,11 @@ fn execute(
     let owner = Rc::clone(&file.owner);
     file.finish()?;
     assert_eq!(
+        owner.derived.publication_ownership_bytes(),
+        (0, 0, 0),
+        "normal finish releases the actual shared physical ledger, including finite raw orders"
+    );
+    assert_eq!(
         owner.derived.working_bytes(),
         0,
         "actual invocation resources released by normal owner shutdown"
@@ -522,3 +527,6 @@ mod direct;
 
 #[cfg(test)]
 mod generations;
+
+#[cfg(test)]
+mod raw_scope;

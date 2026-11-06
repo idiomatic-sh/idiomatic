@@ -237,6 +237,26 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
         }
         Ok(cell.get().expect("admitted demanded input"))
     }
+    pub(super) fn partitioned(
+        &self,
+        order: &PreparedViewUse,
+        closure: &PreparedViewUse,
+        input: BorrowedRows<'f>,
+        context: &mut OperatorContext<'_>,
+    ) -> Result<super::closure_partitions::PartitionedClosure<'f>, OperatingError> {
+        let proof = self.proof(order.inputs[0])?;
+        if !super::relations::same_admitted_rows(input, proof.rows()) {
+            return Err(OperatingError::NotRead);
+        }
+        let storage = self.acquire_rows(order, context)?;
+        super::closure_partitions::PartitionedClosure::from_prepared(
+            proof.clone(),
+            Arc::clone(&order.plan),
+            Arc::clone(&closure.plan),
+            storage,
+            self.owner_handle(),
+        )
+    }
     pub(super) fn try_native_lookup(
         &self,
         use_: &PreparedViewUse,
