@@ -81,7 +81,7 @@ fn differential(input: Arc<KeptWords>, mode: DecodeMode) {
         DecodeMode::Permissive => Ok(service::decode_combined(&input.0, &mut old_places)),
         DecodeMode::Complete => service::decode_complete(&input.0, &mut old_places),
     };
-    let new = service::admit_compact(input, &mut new_places, mode);
+    let new = service::admit_compact(crate::domain::table_words::types::CompactBacking(input), &mut new_places, mode);
     assert_eq!(old.as_ref().err(), new.as_ref().err());
     assert_eq!(old_places, new_places);
     if let (Ok(old), Ok(Admitted { table: meta, .. })) = (old, new) {
@@ -135,7 +135,7 @@ fn multiple_frames_repeated_columns_and_name_rebase_match_production_decoder() {
     }
     let mut places = vec![];
     let Admitted { table: meta, names } =
-        service::admit_compact(packed(&frames), &mut places, DecodeMode::Complete).unwrap();
+        service::admit_compact(crate::domain::table_words::types::CompactBacking(packed(&frames)), &mut places, DecodeMode::Complete).unwrap();
     assert_eq!(service::compact_rows(&meta), RowCount(4));
     assert_eq!(service::compact_cells(&meta), CellCount(12));
     assert_eq!(
@@ -161,8 +161,7 @@ fn truncated_tail_rolls_back_that_frame_or_complete_input() {
         differential(Arc::new(KeptWords(PackedWords(bytes.clone()))), mode);
     }
     let mut places = vec![];
-    let Admitted { table: meta, .. } = service::admit_compact(
-        Arc::new(KeptWords(PackedWords(bytes))),
+    let Admitted { table: meta, .. } = service::admit_compact(crate::domain::table_words::types::CompactBacking(Arc::new(KeptWords(PackedWords(bytes)))),
         &mut places,
         DecodeMode::Permissive,
     )
@@ -202,8 +201,7 @@ fn empty_bucket_schema_is_metadata_not_unloaded_rows() {
     let mut places = vec![];
     let Admitted {
         table: mut meta, ..
-    } = service::admit_compact(
-        Arc::new(KeptWords(PackedWords::default())),
+    } = service::admit_compact(crate::domain::table_words::types::CompactBacking(Arc::new(KeptWords(PackedWords::default()))),
         &mut places,
         DecodeMode::Complete,
     )
@@ -218,8 +216,8 @@ fn compact_lease_pins_backing_until_metadata_is_retired() {
     let input = packed(&[table()]);
     let weak = Arc::downgrade(&input);
     let Admitted { table: meta, .. } =
-        service::admit_compact(Arc::clone(&input), &mut vec![], DecodeMode::Complete).unwrap();
-    assert!(Arc::ptr_eq(service::compact_backing(&meta), &input));
+        service::admit_compact(crate::domain::table_words::types::CompactBacking(Arc::clone(&input)), &mut vec![], DecodeMode::Complete).unwrap();
+    assert!(Arc::ptr_eq(&service::compact_backing(&meta).0, &input));
     let storage = service::compact_storage(&meta);
     assert_eq!(
         storage.words,
@@ -371,7 +369,7 @@ fn cross_file_symbol_indices_survive_frame_local_rebasing() {
         let Admitted {
             table: compact,
             names,
-        } = service::admit_compact(Arc::clone(&input), &mut compact_places, mode).unwrap();
+        } = service::admit_compact(crate::domain::table_words::types::CompactBacking(Arc::clone(&input)), &mut compact_places, mode).unwrap();
         let compact_cells = (0..2)
             .flat_map(|row| (0..2).map(move |column| (row, column)))
             .map(|(row, column)| {
@@ -550,8 +548,7 @@ fn succeeds() {
 fn incomplete_input() -> Result<(), Failure> {
     let before = vec![place(99)];
     let mut places = before.clone();
-    let result = service::admit_compact(
-        Arc::new(KeptWords(PackedWords(vec![0x80]))),
+    let result = service::admit_compact(crate::domain::table_words::types::CompactBacking(Arc::new(KeptWords(PackedWords(vec![0x80])))),
         &mut places,
         DecodeMode::Complete,
     )

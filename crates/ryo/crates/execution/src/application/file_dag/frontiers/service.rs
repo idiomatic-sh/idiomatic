@@ -206,7 +206,7 @@ pub(crate) fn admit(
             },
         };
     if matches!(input, Input::Step(_)) {
-        return admit_compact(words, places_mut(symbols), mode)
+        return admit_compact(ryo_values::domain::table_words::types::CompactBacking(words), places_mut(symbols), mode)
             .map(
                 |ryo_values::domain::table_words::types::Admitted {
                      table,

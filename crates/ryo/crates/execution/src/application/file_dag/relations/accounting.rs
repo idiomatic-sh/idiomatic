@@ -68,13 +68,13 @@ impl RelationOwner {
                 output.push(Backing {
                     key: BackingKey {
                         tag: BackingTag(22),
-                        address: BackingAddress(Arc::as_ptr(words) as usize),
+                        address: BackingAddress(Arc::as_ptr(&words.0) as usize),
                     },
                     retention_units: UnitCount(0),
                     bytes: ByteCount(
                         size_of::<ryo_values::domain::stored_facts::types::KeptWords>()
                             + 2 * size_of::<usize>()
-                            + words.0.0.capacity(),
+                            + words.0.0.0.capacity(),
                     ),
                 });
                 output.push(Backing {

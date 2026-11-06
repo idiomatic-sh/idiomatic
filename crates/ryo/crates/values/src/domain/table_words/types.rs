@@ -88,6 +88,10 @@ pub struct CompactCursor<'a> {
     pub offset: PackedOffset,
 }
 
+/// The immutable packed words a compact table reads from, shared with its other readers.
+#[derive(Clone, Debug)]
+pub struct CompactBacking(pub std::sync::Arc<crate::domain::stored_facts::types::KeptWords>);
+
 /// Packed bytes, borrowed.
 #[derive(Clone, Copy, Debug)]
 pub struct PackedSlice<'a>(pub &'a [u8]);

@@ -105,8 +105,7 @@ impl<'a> CrossPublications<'a> {
         let backing = std::sync::Arc::new(token.words().clone());
         let ryo_values::domain::table_words::types::Admitted {
             table: metadata, ..
-        } = ryo_values::domain::table_words::service::admit_compact(
-            std::sync::Arc::clone(&backing),
+        } = ryo_values::domain::table_words::service::admit_compact(ryo_values::domain::table_words::types::CompactBacking(std::sync::Arc::clone(&backing)),
             ryo_language::domain::symbols::service::places_mut(&mut symbols),
             ryo_values::domain::table_words::types::DecodeMode::Complete,
         )

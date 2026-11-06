@@ -3,7 +3,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use super::errors::ProgramError;
-use super::types::{QueryBundle, QueryDocumentSource, QuerySourceId, QuerySpelling, SourceText};
+use super::types::{ModuleCatalog, QueryBundle, QueryDocumentSource, QuerySourceId, QuerySpelling, SourceText};
 
 /// Validate and construct a stable source identifier.
 ///
@@ -54,7 +54,7 @@ pub fn query_bundle(
 /// Returns [`ProgramError::DuplicateSourceId`] for repeated module ids.
 pub fn module_catalog(
     modules: impl IntoIterator<Item = QueryDocumentSource>,
-) -> Result<Arc<BTreeMap<QuerySourceId, QueryDocumentSource>>, ProgramError> {
+) -> Result<ModuleCatalog, ProgramError> {
     let mut indexed = BTreeMap::new();
     for module in modules {
         let id = module.id.clone();
@@ -62,7 +62,7 @@ pub fn module_catalog(
             return Err(ProgramError::DuplicateSourceId { id });
         }
     }
-    Ok(Arc::new(indexed))
+    Ok(ModuleCatalog(Arc::new(indexed)))
 }
 
 /// Associate a root with an immutable catalog without copying its documents.
@@ -71,7 +71,7 @@ pub fn module_catalog(
 /// Returns [`ProgramError::DuplicateSourceId`] when the root id is a module id.
 pub fn query_bundle_with_catalog(
     root: QueryDocumentSource,
-    modules: Arc<BTreeMap<QuerySourceId, QueryDocumentSource>>,
+    ModuleCatalog(modules): ModuleCatalog,
 ) -> Result<QueryBundle, ProgramError> {
     if modules.contains_key(&root.id) {
         return Err(ProgramError::DuplicateSourceId { id: root.id });

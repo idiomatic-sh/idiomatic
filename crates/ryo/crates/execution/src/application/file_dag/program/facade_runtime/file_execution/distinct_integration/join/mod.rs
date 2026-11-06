@@ -144,8 +144,7 @@ fn provider<'a>(
     let compact = if representation == RepresentationKind::Compact {
         let mut words = ryo_relations::domain::relations::types::Words::default();
         encode_table(&table, &[], &mut words);
-        let ryo_values::domain::table_words::types::Admitted { table, names } = admit_compact(
-            Arc::new(KeptWords(pack(WordSlice(&words.0)))),
+        let ryo_values::domain::table_words::types::Admitted { table, names } = admit_compact(ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(pack(WordSlice(&words.0))))),
             &mut Vec::new(),
             DecodeMode::Complete,
         )
@@ -418,8 +417,7 @@ fn execute(
                 }
             };
             let ryo_values::domain::table_words::types::Admitted { table: compact, .. } =
-                admit_compact(
-                    Arc::new(KeptWords(capture.words)),
+                admit_compact(ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(capture.words))),
                     &mut vec![],
                     DecodeMode::Complete,
                 )

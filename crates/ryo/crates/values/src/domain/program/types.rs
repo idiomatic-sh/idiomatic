@@ -72,6 +72,10 @@ impl From<std::sync::Arc<str>> for SourceText {
     }
 }
 
+/// Validated immutable module sources, shared by every query that names them.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ModuleCatalog(pub std::sync::Arc<BTreeMap<QuerySourceId, QueryDocumentSource>>);
+
 /// The in-memory root and immutable named module sources for one query.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct QueryBundle {

@@ -37,8 +37,10 @@ fn compact(table: &Table) -> ryo_values::domain::table_words::types::CompactTabl
     };
     let mut words = Words::default();
     service::encode_table(table, &[], &mut words);
-    let (compact, names) = service::admit_compact(
-        Arc::new(KeptWords(service::pack(WordSlice(&words.0)))),
+    let ryo_values::domain::table_words::types::Admitted {
+        table: compact,
+        names,
+    } = service::admit_compact(ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(service::pack(WordSlice(&words.0))))),
         &mut Vec::new(),
         DecodeMode::Complete,
     )

@@ -9,7 +9,7 @@ use ryo_relations::domain::relations::types::{
 };
 
 use super::types::{
-    Admitted, CellCount, ColumnCount, CompactCursor, CompactFrame, CompactStorage, CompactTable,
+    Admitted, CellCount, ColumnCount, CompactBacking, CompactCursor, CompactFrame, CompactStorage, CompactTable,
     Completeness, DecodeMode, DecodePhase, DecodedTables, EncodedSize, Framing, PackedOffset,
     PackedSlice, StorageAddress, StorageLength, StoragePart, TableShape, WordSlice, WordSpelling,
 };
@@ -301,15 +301,15 @@ pub fn single_table_frame(bytes: PackedSlice<'_>) -> Framing {
 /// rollback and Complete's all-or-error name rollback. WordSpelling is checked by
 /// the caller in its existing preparation order, before query execution.
 pub fn admit_compact(
-    backing: std::sync::Arc<crate::domain::stored_facts::types::KeptWords>,
+    backing: CompactBacking,
     places: &mut Vec<NamePlace>,
     mode: DecodeMode,
 ) -> Result<Admitted, super::errors::TableWordsError> {
     let before = places.len();
     let mut complete =
-        mode == DecodeMode::Permissive || canonical_words(&backing.0) == WordSpelling::Canonical;
+        mode == DecodeMode::Permissive || canonical_words(&backing.0.0) == WordSpelling::Canonical;
     let mut cursor = CompactCursor {
-        bytes: PackedSlice(&backing.0.0),
+        bytes: PackedSlice(&backing.0.0.0),
         offset: PackedOffset(0),
     };
     let mut kinds = Vec::new();
@@ -413,10 +413,10 @@ pub fn admit_compact(
         places.truncate(before);
         return Err(super::errors::TableWordsError::Incomplete);
     }
-    tracing::trace!(target: super::constants::LIFECYCLE_TARGET, phase=super::constants::COMPACT_ADMISSION, packed_bytes=backing.0.0.len(), decoded_rows=count, decoded_cells=total_cells, frame_count=frames.len(), spelling_names=names.len(), spelling_capacity_bytes=names.capacity()*size_of::<Name>(), frame_metadata_bytes=frames.capacity()*size_of::<CompactFrame>());
+    tracing::trace!(target: super::constants::LIFECYCLE_TARGET, phase=super::constants::COMPACT_ADMISSION, packed_bytes=backing.0.0.0.len(), decoded_rows=count, decoded_cells=total_cells, frame_count=frames.len(), spelling_names=names.len(), spelling_capacity_bytes=names.capacity()*size_of::<Name>(), frame_metadata_bytes=frames.capacity()*size_of::<CompactFrame>());
     Ok(Admitted {
         table: CompactTable {
-            words: backing,
+            words: backing.0,
             kinds,
             frames,
             rows: RowCount(count),
@@ -540,10 +540,8 @@ pub fn compact_rectangular(input: &CompactTable) -> TableShape {
         TableShape::Ragged
     }
 }
-pub fn compact_backing(
-    input: &CompactTable,
-) -> &std::sync::Arc<crate::domain::stored_facts::types::KeptWords> {
-    &input.words
+pub fn compact_backing(input: &CompactTable) -> CompactBacking {
+    CompactBacking(std::sync::Arc::clone(&input.words))
 }
 pub fn compact_metadata_bytes(input: &CompactTable) -> OwnedBytes {
     OwnedBytes(

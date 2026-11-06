@@ -84,7 +84,7 @@ impl crate::domain::query::types::QueryModuleCatalog {
                 .into_iter()
                 .map(crate::domain::query::types::QueryModuleSource::into_document),
         )
-        .map(Self::from_catalog)
+        .map(|catalog| Self::from_catalog(catalog.0))
         .map_err(QueryBundleError::from_internal)
     }
 }
@@ -115,7 +115,10 @@ impl RyoQlQuery {
         let root_id = source_id(ryo_values::domain::program::types::QuerySpelling(root_id))
             .map_err(QueryBundleError::from_internal)?;
         let root = document_source(root_id, root_text);
-        query_bundle_with_catalog(root, std::sync::Arc::clone(modules.catalog()))
+        query_bundle_with_catalog(
+            root,
+            ryo_values::domain::program::types::ModuleCatalog(std::sync::Arc::clone(modules.catalog())),
+        )
             .map(Self::from_bundle)
             .map_err(QueryBundleError::from_internal)
     }

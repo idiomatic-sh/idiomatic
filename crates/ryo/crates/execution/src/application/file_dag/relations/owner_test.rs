@@ -43,7 +43,7 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     let ryo_values::domain::table_words::types::Admitted {
         table: compact,
         names,
-    } = service::admit_compact(Arc::clone(&words), &mut Vec::new(), DecodeMode::Complete).unwrap();
+    } = service::admit_compact(ryo_values::domain::table_words::types::CompactBacking(Arc::clone(&words)), &mut Vec::new(), DecodeMode::Complete).unwrap();
     assert!(names.is_empty());
     assert_eq!(
         service::compact_rectangular(&compact),

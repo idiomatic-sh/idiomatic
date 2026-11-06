@@ -25,8 +25,7 @@ pub(in super::super) fn encoded(
         let ryo_values::domain::table_words::types::Admitted {
         table: compact,
         names,
-    } = admit_compact(
-            Arc::new(KeptWords(pack(WordSlice(&words.0)))),
+    } = admit_compact(ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(pack(WordSlice(&words.0))))),
             &mut vec![],
             DecodeMode::Complete,
         )
