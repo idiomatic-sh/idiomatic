@@ -47,8 +47,8 @@ Latest runnable reviewed source is `293ca1a9a2`, tree `87b9273be5ff`. The correc
 - [x] Correct restored last-use, physical-row and witness proof fixtures; execute publication controls.
 - [x] Validate the real CLI fixture and all eight import cases.
 - [x] Review the combined corrections against actual results and explicit evidence reuse.
-- [ ] Prove sparse activation work/allocation against dormant roots — Phase 2 agent.
-- [ ] Map remaining barrier, continuation and result-consumer routes to controls — Phase 3 agent.
+- [x] Prove sparse activation work/allocation against dormant roots — Phase 2 agent. (validation310)
+- [x] Map remaining barrier, continuation and result-consumer routes to controls — Phase 3 agent. (validation310)
 - [ ] Resolve structural placement, fixture, template and dependency findings — integrator.
 
 No new performance measurement. Historical failures remain in Git history and the [prior source review](audits/2026-11-06-derived/ownership/review.json).
