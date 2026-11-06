@@ -133,7 +133,20 @@ fn errored_origin_refuses_its_rule() -> Result<Value, Failure> {
         walk.class_of(RuleIndex(rule))
             .is_some_and(|classes| classes.iter().any(Option::is_some))
     };
-    if shared(1) {
+    // The errored step joins no class; its sibling step may keep the head both rules dedupe.
+    let errored_step_shared =
+        program.rules()[1]
+            .original_steps
+            .iter()
+            .enumerate()
+            .any(|(at, origin)| {
+                origin.is_err()
+                    && walk
+                        .class_of(RuleIndex(1))
+                        .and_then(|classes| classes.get(at))
+                        .is_some_and(Option::is_some)
+            });
+    if errored_step_shared {
         return Err(Refusal::ErroredOriginDropped);
     }
     let sibling_head = program.rules()[0]
