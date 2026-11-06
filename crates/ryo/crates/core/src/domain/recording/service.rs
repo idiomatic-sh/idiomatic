@@ -189,7 +189,10 @@ pub(crate) fn made_ran(
         frontier: Vec::new(),
         noted: Digest([0; 16]),
         handed: Handing::Made(Handed {
-            observations: tables.current_observations.clone(),
+            observations: match tables.current_observations.clone() {
+                Some(root) => ryo_values::domain::records::types::NamedReadiness::Recorded(root),
+                None => ryo_values::domain::records::types::NamedReadiness::Unrecorded,
+            },
             buckets: moved
                 .into_iter()
                 .map(|each| HandedWords {

@@ -35,8 +35,8 @@ pub(crate) fn handed_in<W>(
     let covered = rows_of_file(&handed.covered, file, |each| each.file).first();
     Handed {
         observations: match rows_of_file(&handed.observations, file, |each| each.file) {
-            [one] => Some(std::sync::Arc::clone(&one.root)),
-            _ => None, // missing/ambiguous readiness remains unavailable to demanded roots
+            [one] => ryo_values::domain::records::types::NamedReadiness::Recorded(std::sync::Arc::clone(&one.root)),
+            _ => ryo_values::domain::records::types::NamedReadiness::Unrecorded, // missing/ambiguous readiness remains unavailable to demanded roots
         },
         buckets: Vec::new(),
         text: rows_of_file(&handed.texts, file, |each| each.file)
@@ -106,7 +106,7 @@ pub(crate) fn hand_into(
             }
         }
     }
-    if let Some(root) = handed.observations {
+    if let ryo_values::domain::records::types::NamedReadiness::Recorded(root) = handed.observations {
         stored
             .observations
             .push(ryo_values::domain::stores::types::StoredFrontierReadiness { file, root });

@@ -953,7 +953,12 @@ impl FileAnalysis {
                 },
                 governing: &handed.governing,
                 partials: &handed.partials,
-                observations: handed.observations.as_ref(),
+                observations: match &handed.observations {
+                    ryo_values::domain::records::types::NamedReadiness::Recorded(root) => {
+                        Some(root)
+                    }
+                    ryo_values::domain::records::types::NamedReadiness::Unrecorded => None,
+                },
                 buckets: handed
                     .buckets
                     .iter()

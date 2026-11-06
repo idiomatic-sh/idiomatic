@@ -47,7 +47,7 @@ fn stored() -> Stored {
 /// What a file hands: words in the buckets 1 and 2, a text, notes and the rules that govern it.
 fn handed() -> Handed {
     Handed {
-        observations: None,
+        observations: ryo_values::domain::records::types::NamedReadiness::Unrecorded,
         buckets: vec![
             HandedWords {
                 bucket: Bucket(1),
