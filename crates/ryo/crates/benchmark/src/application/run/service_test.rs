@@ -7,8 +7,9 @@ use crate::outbound::{
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
+use ryo_benchmark_contracts::domain::requests::types::CaseSelection;
 use ryo_benchmark_contracts::domain::requests::types::RunRequest;
-use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
+use ryo_benchmark_contracts::domain::workloads::types::{CaseComparison, PreparedCase};
 use std::path::Path;
 
 #[derive(Clone, Copy)]
@@ -22,8 +23,25 @@ enum Scenario {
     FullAgreement,
     MissingFrontend,
     RuleProjection,
+    ReferenceMultiplicity,
+    ReferenceFrontend,
+    ReferenceWrongEnd,
+    ReferenceMiscounted { expected_count: usize },
+    ReferenceNoCases,
+    ReferenceStartup,
+    NativeIntended,
+    NativeWrongOracle,
+    NativeReference,
+    NativeWrongReference,
+    NativeStaleEvidence,
+    ModeDrift { expected: bool, drift: bool },
+    MeasuredPlain,
+    ObservationBearing,
 }
-const CASES: &[Case<Scenario, usize, &'static str>] = &[
+type Input = Scenario;
+type Value = usize;
+type Failure = &'static str;
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("full report preserves distinct frontend and lint identities"),
         word: Word::Succeeds,
@@ -78,33 +96,206 @@ const CASES: &[Case<Scenario, usize, &'static str>] = &[
         input: || Scenario::OmittedInput,
         expect: Expect::Error("input coverage"),
     },
+    Case {
+        name: CaseName("reference only accepts exact full report multiplicity without a candidate"),
+        word: Word::Succeeds,
+        input: || Scenario::ReferenceMultiplicity,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("reference only preserves frontend findings in rule comparison"),
+        word: Word::Succeeds,
+        input: || Scenario::ReferenceFrontend,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("reference only rejects a wrong byte end offset"),
+        word: Word::Refuses,
+        input: || Scenario::ReferenceWrongEnd,
+        expect: Expect::Error("reference mismatch"),
+    },
+    Case {
+        name: CaseName("reference only rejects an unexpected finding in an empty case"),
+        word: Word::Refuses,
+        input: || Scenario::ReferenceMiscounted { expected_count: 0 },
+        expect: Expect::Error("reference mismatch"),
+    },
+    Case {
+        name: CaseName("reference only rejects a duplicate the reference does not report"),
+        word: Word::Refuses,
+        input: || Scenario::ReferenceMiscounted { expected_count: 2 },
+        expect: Expect::Error("reference mismatch"),
+    },
+    Case {
+        name: CaseName("reference only refuses empty cases"),
+        word: Word::Refuses,
+        input: || Scenario::ReferenceNoCases,
+        expect: Expect::Error("no cases"),
+    },
+    Case {
+        name: CaseName("reference only refuses a reference launch failure"),
+        word: Word::Refuses,
+        input: || Scenario::ReferenceStartup,
+        expect: Expect::Error("reference startup"),
+    },
+    Case {
+        name: CaseName("both sides require intended behavior even when a wrong oracle matches"),
+        word: Word::Succeeds,
+        input: || Scenario::NativeIntended,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("agreement with an incorrect oracle fails the intended contract"),
+        word: Word::Refuses,
+        input: || Scenario::NativeWrongOracle,
+        expect: Expect::Error("candidate mismatch"),
+    },
+    Case {
+        name: CaseName("reference only checks the distinct pinned reference expectation"),
+        word: Word::Succeeds,
+        input: || Scenario::NativeReference,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("intended candidate output cannot replace pinned reference behavior"),
+        word: Word::Refuses,
+        input: || Scenario::NativeWrongReference,
+        expect: Expect::Error("reference mismatch"),
+    },
+    Case {
+        name: CaseName("reference only cannot bypass independent evidence"),
+        word: Word::Refuses,
+        input: || Scenario::NativeStaleEvidence,
+        expect: Expect::Error("unproven evidence"),
+    },
+    #[cfg(unix)]
+    Case {
+        name: CaseName("an unchanged non-executable mode lets both cases execute"),
+        word: Word::Succeeds,
+        input: || Scenario::ModeDrift { expected: false, drift: false },
+        expect: Expect::Value(2),
+    },
+    #[cfg(unix)]
+    Case {
+        name: CaseName("an unchanged executable mode lets both cases execute"),
+        word: Word::Succeeds,
+        input: || Scenario::ModeDrift { expected: true, drift: false },
+        expect: Expect::Value(2),
+    },
+    #[cfg(unix)]
+    Case {
+        name: CaseName("a reference that makes a file executable stops the second candidate"),
+        word: Word::Refuses,
+        input: || Scenario::ModeDrift { expected: false, drift: true },
+        expect: Expect::Error("metadata drift"),
+    },
+    #[cfg(unix)]
+    Case {
+        name: CaseName("a reference that clears the executable bit stops the second candidate"),
+        word: Word::Refuses,
+        input: || Scenario::ModeDrift { expected: true, drift: true },
+        expect: Expect::Error("metadata drift"),
+    },
+    Case {
+        name: CaseName("the measurement path runs a request without observations once"),
+        word: Word::Succeeds,
+        input: || Scenario::MeasuredPlain,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("the measurement path refuses observation-bearing requests unexecuted"),
+        word: Word::Refuses,
+        input: || Scenario::ObservationBearing,
+        expect: Expect::Error("verification required"),
+    },
 ];
-fn subject(scenario: Scenario) -> Result<usize, &'static str> {
-    if matches!(scenario, Scenario::OmittedInput) {
-        let request = RunRequest {
-            performance: Default::default(),
-            selected_rules: None,
-            rule_observations: None,
-            rule_context: None,
-            project_search_roots: None,
-            given_project_inventory: Default::default(),
-            staged_sources: None,
-            file_metadata: None,
-            context_manifest: None,
-            root: ".".into(),
-            state: "cache".into(),
-            files: vec![ryo::linter::RelativePath("input.py".into())],
-        };
-        return super::service::run(&Empty, &Empty, &request)
-            .map(|_| 0)
-            .map_err(|error| {
-                assert_eq!(
-                    error.to_string(),
-                    "tool input coverage differs from requested corpus"
-                );
-                "input coverage"
-            });
+
+/// Names what an error means by its message, so rows state the refusal and not its wording.
+fn category(message: &str) -> &'static str {
+    if message.contains("expected-vs-candidate") {
+        "candidate mismatch"
+    } else if message.contains("expected-vs-reference") {
+        "reference mismatch"
+    } else if message == "operational failure" {
+        "candidate startup"
+    } else if message.contains("reference: operational failure") {
+        "reference startup"
+    } else if message.contains("defaults lack implementation or explicit deferral") {
+        "unaccounted default"
+    } else if message == "no executable rule cases" {
+        "no cases"
+    } else if message == "tool input coverage differs from requested corpus" {
+        "input coverage"
+    } else if message.contains("fixture has no independent discrepancy artifacts") {
+        "unproven evidence"
+    } else if message.contains("executable metadata drifted") {
+        "metadata drift"
+    } else if message.contains("require verification preparation") {
+        "verification required"
+    } else {
+        "unexpected error"
     }
+}
+
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    match scenario {
+        Scenario::OmittedInput => omitted_input(),
+        Scenario::ReferenceMultiplicity => reference_multiplicity(),
+        Scenario::ReferenceFrontend => reference_frontend(),
+        Scenario::ReferenceWrongEnd => reference_wrong_end(),
+        Scenario::ReferenceMiscounted { expected_count } => reference_miscounted(expected_count),
+        Scenario::ReferenceNoCases => reference_no_cases(),
+        Scenario::ReferenceStartup => reference_startup(),
+        Scenario::NativeIntended => native_intended(),
+        Scenario::NativeWrongOracle => native_wrong_oracle(),
+        Scenario::NativeReference => native_reference(),
+        Scenario::NativeWrongReference => native_wrong_reference(),
+        Scenario::NativeStaleEvidence => native_stale_evidence(),
+        Scenario::ModeDrift { expected, drift } => mode_drift(expected, drift),
+        Scenario::MeasuredPlain => measured_plain(),
+        Scenario::ObservationBearing => observation_bearing(),
+        Scenario::Agreement
+        | Scenario::MissingCandidate
+        | Scenario::MissingReference
+        | Scenario::NoCases
+        | Scenario::StartupFailure
+        | Scenario::FullAgreement
+        | Scenario::MissingFrontend
+        | Scenario::RuleProjection => shard(scenario),
+    }
+    .map_err(|error| category(&error.to_string()))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+
+fn omitted_input() -> Result<Value, Error> {
+    let request = RunRequest {
+        performance: Default::default(),
+        selected_rules: None,
+        rule_observations: None,
+        rule_context: None,
+        project_search_roots: None,
+        given_project_inventory: Default::default(),
+        staged_sources: None,
+        file_metadata: None,
+        context_manifest: None,
+        root: ".".into(),
+        state: "cache".into(),
+        files: vec![ryo::linter::RelativePath("input.py".into())],
+    };
+    super::service::run(&Empty, &Empty, &request).map(|_| 0)
+}
+
+/// The paired verification of the prepared case, which executes both contestants.
+fn shard(scenario: Scenario) -> Result<Value, Error> {
     let (mut suite, expected) = prepared(scenario);
     let mut reference = LinterFake {
         diagnostics: if matches!(scenario, Scenario::MissingReference) {
@@ -138,81 +329,67 @@ fn subject(scenario: Scenario) -> Result<usize, &'static str> {
         &execution,
         Path::new("rules"),
         suite.prepared.clone(),
-        ryo_benchmark_contracts::domain::requests::types::CaseSelection::default(),
+        CaseSelection::default(),
     );
     if matches!(scenario, Scenario::StartupFailure) {
-        assert_eq!(execution.history.lock().expect("history").len(), 1);
+        assert_eq!(history_len(&execution), Some(1));
     } else if !matches!(scenario, Scenario::NoCases) {
-        assert_eq!(execution.history.lock().expect("history").len(), 2);
+        assert_eq!(history_len(&execution), Some(2));
     } else {
-        assert!(
-            execution.history.lock().expect("history").is_empty(),
+        assert_eq!(
+            history_len(&execution),
+            Some(0),
             "no cases must launch no contestants"
         );
     }
-    result.map(|count| count.0).map_err(|error| {
-        let message = error.to_string();
-        if message.contains("expected-vs-candidate") {
-            "candidate mismatch"
-        } else if message.contains("expected-vs-reference") {
-            "reference mismatch"
-        } else if message == "operational failure" {
-            "candidate startup"
-        } else if message.contains("defaults lack implementation or explicit deferral") {
-            "unaccounted default"
-        } else if message == "no executable rule cases" {
-            "no cases"
-        } else {
-            "unexpected error"
-        }
-    })
-}
-#[test]
-fn succeeds() {
-    run(CASES, Word::Succeeds, subject);
-}
-#[test]
-fn refuses() {
-    run(CASES, Word::Refuses, subject);
+    result.map(|count| count.0)
 }
 
-#[test]
-fn reference_only_accepts_exact_full_report_multiplicity_without_candidate() {
+/// The reference-only verification of `suite` with a reference answering `reference`.
+fn reference_only(
+    suite: &SuiteFake,
+    reference: &LinterFake,
+    execution: &ExecutionFake,
+    rules: &str,
+) -> Result<Value, Error> {
+    super::service::verify_prepared_reference_cases(
+        suite,
+        reference,
+        execution,
+        Path::new(rules),
+        suite.prepared.clone(),
+    )
+    .map(|count| count.0)
+}
+
+fn succeeding() -> ExecutionFake {
+    ExecutionFake {
+        status: 0,
+        ..Default::default()
+    }
+}
+
+/// The first prepared case, compared as a full report.
+fn full_case(suite: &mut SuiteFake) -> &mut PreparedCase {
+    let case = suite.prepared.first_mut().expect("fixture setup must include its case");
+    case.comparison = CaseComparison::Full;
+    case
+}
+
+fn reference_multiplicity() -> Result<Value, Error> {
     let (mut suite, finding) = prepared(Scenario::Agreement);
-    let Some(case) = suite.prepared.first_mut() else {
-        assert_eq!(
-            suite.prepared.len(),
-            1,
-            "fixture setup must include its case"
-        );
-        return;
-    };
-    case.comparison = ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full;
-    case.expected.diagnostics = vec![finding.clone(), finding.clone()];
+    full_case(&mut suite).expected.diagnostics = vec![finding.clone(), finding.clone()];
     let reference = LinterFake {
         diagnostics: vec![finding.clone(), finding],
         ..Default::default()
     };
-    let execution = ExecutionFake {
-        status: 0,
-        ..Default::default()
-    };
-    let result = super::service::verify_prepared_reference_cases(
-        &suite,
-        &reference,
-        &execution,
-        Path::new("rules"),
-        suite.prepared.clone(),
-    );
-    assert!(result.is_ok(), "reference fixtures must match: {result:?}");
-    if let Ok(count) = result {
-        assert_eq!(count.0, 1);
-    }
+    let execution = succeeding();
+    let result = reference_only(&suite, &reference, &execution, "rules");
     assert_eq!(history_len(&execution), Some(1));
+    result
 }
 
-#[test]
-fn reference_only_preserves_frontend_findings_in_rule_comparison() {
+fn reference_frontend() -> Result<Value, Error> {
     let (mut suite, _) = prepared(Scenario::RuleProjection);
     let mut reference = LinterFake {
         diagnostics: vec![
@@ -238,152 +415,260 @@ fn reference_only_preserves_frontend_findings_in_rule_comparison() {
         &mut reference,
         &mut candidate,
     );
-    let execution = ExecutionFake {
-        status: 0,
-        ..Default::default()
-    };
-    let result = super::service::verify_prepared_reference_cases(
-        &suite,
-        &reference,
-        &execution,
-        Path::new("rules"),
-        suite.prepared.clone(),
-    );
-    assert!(
-        result.is_ok(),
-        "rule-scoped reference output differs: {result:?}"
-    );
+    let execution = succeeding();
+    let result = reference_only(&suite, &reference, &execution, "rules");
     assert_eq!(history_len(&execution), Some(1));
+    result
 }
 
-#[test]
-fn reference_only_rejects_wrong_byte_end_offset() {
+fn reference_wrong_end() -> Result<Value, Error> {
     let (mut suite, finding) = prepared(Scenario::Agreement);
-    let Some(case) = suite.prepared.first_mut() else {
-        assert_eq!(
-            suite.prepared.len(),
-            1,
-            "fixture setup must include its case"
-        );
-        return;
+    full_case(&mut suite)
+        .expected
+        .diagnostics
+        .first_mut()
+        .expect("fixture setup must include its finding")
+        .end = ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(7);
+    let reference = LinterFake {
+        diagnostics: vec![finding],
+        ..Default::default()
     };
-    case.comparison = ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full;
-    let Some(expected) = case.expected.diagnostics.first_mut() else {
-        assert_eq!(
-            case.expected.diagnostics.len(),
-            1,
-            "fixture setup must include its finding"
-        );
-        return;
+    reference_only(&suite, &reference, &succeeding(), "rules")
+}
+
+/// An authored case with `expected_count` copies of the finding, against a reference reporting it once.
+fn reference_miscounted(expected_count: usize) -> Result<Value, Error> {
+    let (mut suite, finding) = prepared(Scenario::Agreement);
+    full_case(&mut suite).expected.diagnostics = vec![finding.clone(); expected_count];
+    let reference = LinterFake {
+        diagnostics: vec![finding],
+        ..Default::default()
     };
-    expected.end = ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(7);
+    reference_only(&suite, &reference, &succeeding(), "rules")
+}
+
+fn reference_no_cases() -> Result<Value, Error> {
+    let (empty, _) = prepared(Scenario::NoCases);
+    let execution = succeeding();
+    let result = reference_only(&empty, &LinterFake::default(), &execution, "rules");
+    assert_eq!(history_len(&execution), Some(0));
+    result
+}
+
+fn reference_startup() -> Result<Value, Error> {
+    let (suite, finding) = prepared(Scenario::Agreement);
     let reference = LinterFake {
         diagnostics: vec![finding],
         ..Default::default()
     };
     let execution = ExecutionFake {
-        status: 0,
-        ..Default::default()
-    };
-    let result = super::service::verify_prepared_reference_cases(
-        &suite,
-        &reference,
-        &execution,
-        Path::new("rules"),
-        suite.prepared.clone(),
-    );
-    assert!(result.is_err(), "wrong byte endpoint must fail");
-    if let Err(error) = result {
-        assert!(error.to_string().contains("expected-vs-reference"));
-    }
-}
-
-#[test]
-fn reference_only_rejects_missing_duplicate_and_unexpected_empty_case_finding() {
-    for expected_count in [0, 2] {
-        let (mut suite, finding) = prepared(Scenario::Agreement);
-        let Some(case) = suite.prepared.first_mut() else {
-            assert_eq!(
-                suite.prepared.len(),
-                1,
-                "fixture setup must include its case"
-            );
-            return;
-        };
-        case.comparison = ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full;
-        case.expected.diagnostics = vec![finding.clone(); expected_count];
-        let actual = if expected_count == 0 {
-            vec![finding]
-        } else {
-            vec![finding.clone()]
-        };
-        let reference = LinterFake {
-            diagnostics: actual,
-            ..Default::default()
-        };
-        let execution = ExecutionFake {
-            status: 0,
-            ..Default::default()
-        };
-        let result = super::service::verify_prepared_reference_cases(
-            &suite,
-            &reference,
-            &execution,
-            Path::new("rules"),
-            suite.prepared.clone(),
-        );
-        assert!(
-            result.is_err(),
-            "reference output must match exact authored multiplicity"
-        );
-        if let Err(error) = result {
-            assert!(error.to_string().contains("expected-vs-reference"));
-        }
-    }
-}
-
-#[test]
-fn reference_only_refuses_empty_cases_and_reference_launch_failure() {
-    let (empty, _) = prepared(Scenario::NoCases);
-    let reference = LinterFake::default();
-    let execution = ExecutionFake {
-        status: 0,
-        ..Default::default()
-    };
-    let no_cases = super::service::verify_prepared_reference_cases(
-        &empty,
-        &reference,
-        &execution,
-        Path::new("rules"),
-        empty.prepared.clone(),
-    );
-    let empty_cases_error = no_cases.expect_err("empty reference cases must be refused");
-    assert!(matches!(empty_cases_error, Error::Invalid(_)));
-    assert_eq!(history_len(&execution), Some(0));
-
-    let (suite, finding) = prepared(Scenario::Agreement);
-    let launch_reference = LinterFake {
-        diagnostics: vec![finding],
-        ..Default::default()
-    };
-    let launch_execution = ExecutionFake {
         status: 2,
         ..Default::default()
     };
-    let launch_failure = super::service::verify_prepared_reference_cases(
-        &suite,
-        &launch_reference,
-        &launch_execution,
-        Path::new("rules"),
-        suite.prepared.clone(),
-    );
-    let reference_exit_error = launch_failure.expect_err("nonzero reference exit must be refused");
-    assert!(matches!(reference_exit_error, Error::Invalid(_)));
-    assert_eq!(history_len(&launch_execution), Some(1));
+    let result = reference_only(&suite, &reference, &execution, "rules");
+    assert_eq!(history_len(&execution), Some(1));
+    result
 }
 
 fn history_len(execution: &ExecutionFake) -> Option<usize> {
     execution.history.lock().ok().map(|history| history.len())
+}
+
+/// Paired verification of the discrepancy fixture against the plain reference and `intended`.
+fn native_pair(
+    suite: &SuiteFake,
+    intended: &CoveredCandidate,
+    execution: &ExecutionFake,
+) -> Result<Value, Error> {
+    super::service::verify_prepared_shard(
+        suite,
+        &LinterFake::default(),
+        intended,
+        execution,
+        Path::new("/profile/rules"),
+        suite.prepared.clone(),
+        CaseSelection::default(),
+    )
+    .map(|count| count.0)
+}
+
+fn native_intended() -> Result<Value, Error> {
+    let suite = discrepancy_suite();
+    let intended = CoveredCandidate(LinterFake {
+        diagnostics: suite.prepared[0].expected.diagnostics.clone(),
+        ..Default::default()
+    });
+    let execution = succeeding();
+    let result = native_pair(&suite, &intended, &execution);
+    assert_eq!(history_len(&execution), Some(2), "both actual sides executed");
+    let mut canonical = suite.prepared.clone();
+    super::discrepancy::attach(&suite, Path::new("/profile/rules"), &mut canonical)
+        .expect("application owns wire conversion");
+    assert!(
+        !super::discrepancy::matches_intended(
+            &canonical[0],
+            super::discrepancy::reference_expected(&canonical[0]).expect("diagnostic expectation")
+        ),
+        "JSONL retains raw reference mismatch"
+    );
+    result
+}
+
+fn native_wrong_oracle() -> Result<Value, Error> {
+    let suite = discrepancy_suite();
+    let wrong_oracle = CoveredCandidate(LinterFake::default());
+    native_pair(&suite, &wrong_oracle, &succeeding())
+}
+
+fn native_reference() -> Result<Value, Error> {
+    let suite = discrepancy_suite();
+    reference_only(
+        &suite,
+        &LinterFake::default(),
+        &succeeding(),
+        "/profile/rules",
+    )
+}
+
+fn native_wrong_reference() -> Result<Value, Error> {
+    let suite = discrepancy_suite();
+    let wrong_reference = LinterFake {
+        diagnostics: suite.prepared[0].expected.diagnostics.clone(),
+        ..Default::default()
+    };
+    reference_only(&suite, &wrong_reference, &succeeding(), "/profile/rules")
+}
+
+fn native_stale_evidence() -> Result<Value, Error> {
+    let mut stale = discrepancy_suite();
+    stale.discrepancy_artifacts_valid = false;
+    reference_only(&stale, &LinterFake::default(), &succeeding(), "/profile/rules")
+}
+
+/// Sets the permission bits of `path`; a file system with no modes has none to set.
+#[cfg(unix)]
+fn set_mode(path: &Path, mode: u32) {
+    std::fs::set_permissions(
+        path,
+        <std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(mode),
+    )
+    .unwrap();
+}
+#[cfg(not(unix))]
+fn set_mode(_path: &Path, _mode: u32) {}
+
+/// A reference that, on its second preparation, changes the mode of the case file.
+struct DriftingReference {
+    calls: std::cell::Cell<usize>,
+    expected: bool,
+    drift: bool,
+}
+impl LinterPort for DriftingReference {
+    fn rule_configuration(
+        &self,
+    ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
+        ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Unsupported
+    }
+    fn prepare(
+        &self,
+        request: &RunRequest,
+    ) -> Result<ryo_benchmark_contracts::domain::measurements::types::Invocation, Error> {
+        let calls = self.calls.get() + 1;
+        self.calls.set(calls);
+        if calls == 2 && self.drift {
+            set_mode(
+                &request.root.join("case.py"),
+                if self.expected { 0o644 } else { 0o744 },
+            );
+        }
+        LinterFake::default().prepare(request)
+    }
+    fn decode(
+        &self,
+        request: &RunRequest,
+        output: ryo_benchmark_contracts::domain::measurements::types::ProcessOutput,
+    ) -> Result<RunReport, Error> {
+        LinterFake::default().decode(request, output)
+    }
+}
+
+fn mode_drift(expected: bool, drift: bool) -> Result<Value, Error> {
+    let root = tempfile::tempdir().unwrap();
+    std::fs::write(root.path().join("case.py"), "same bytes").unwrap();
+    set_mode(
+        &root.path().join("case.py"),
+        if expected { 0o744 } else { 0o644 },
+    );
+    let (mut suite, _) = prepared(Scenario::Agreement);
+    let profile = suite.profile.as_mut().unwrap();
+    profile.defaults.truncate(1);
+    profile.file_observation =
+        Some(ryo_benchmark_contracts::domain::workloads::types::FileObservation::PosixExecutable);
+    let case = &mut suite.prepared[0];
+    case.name = "first".into();
+    case.expected.diagnostics.clear();
+    case.request.root = root.path().to_path_buf();
+    case.request.file_metadata = Some(std::collections::BTreeMap::from([(
+        case.request.files[0].clone(),
+        expected,
+    )]));
+    let mut second = case.clone();
+    second.name = "second".into();
+    suite.prepared.push(second);
+    let reference = DriftingReference {
+        calls: std::cell::Cell::new(0),
+        expected,
+        drift,
+    };
+    let execution = succeeding();
+    let result = super::service::verify_prepared_shard(
+        &suite,
+        &reference,
+        &LinterFake::default(),
+        &execution,
+        Path::new("rules"),
+        suite.prepared.clone(),
+        CaseSelection::default(),
+    );
+    assert_eq!(reference.calls.get(), 2);
+    if drift {
+        assert_eq!(
+            history_len(&execution),
+            Some(3),
+            "second candidate must not execute after reference changes mode"
+        );
+    } else {
+        assert_eq!(history_len(&execution), Some(4));
+    }
+    result.map(|count| count.0)
+}
+
+fn measured_plain() -> Result<Value, Error> {
+    let (suite, _) = prepared(Scenario::Agreement);
+    let execution = succeeding();
+    super::service::run(
+        &LinterFake::default(),
+        &execution,
+        &suite.prepared[0].request,
+    )?;
+    Ok(history_len(&execution).unwrap_or_default())
+}
+
+fn observation_bearing() -> Result<Value, Error> {
+    let (suite, _) = prepared(Scenario::Agreement);
+    let mut request = suite.prepared[0].request.clone();
+    request.file_metadata = Some(std::collections::BTreeMap::from([(
+        request.files[0].clone(),
+        false,
+    )]));
+    let execution = succeeding();
+    let result = super::service::run(&LinterFake::default(), &execution, &request);
+    assert_eq!(
+        history_len(&execution),
+        Some(0),
+        "unsupported observation claims must not prepare or execute a measured contestant"
+    );
+    result.map(|_| 0)
 }
 
 use crate::outbound::{execution::interface::ExecutionPort, linter::interface::LinterPort};
@@ -604,11 +889,31 @@ fn discrepancy_suite() -> SuiteFake {
     reference.diagnostics.clear();
     let profile_hash = ArtifactDigest("a".repeat(64));
     let binary_hash = ArtifactDigest("b".repeat(64));
-    let settings = super::discrepancy::json_digest(&serde_json::json!({
-        "arguments": [], "environment": {}, "directory": "$ROOT",
-        "parser_configuration": "python-target=3.10", "project_context_mode": "Isolated",
-        "performance": crate::outbound::worker::schemas::OptionsSchema::from(case.request.performance),
-    }));
+    let profile = Tool {
+        rule_observation_selection:
+            ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
+        supporting_rules: Vec::new(),
+        rule_observations: Default::default(),
+        rule_context: None,
+        file_observation: None,
+        project_context_mode: ProjectContextMode::Isolated,
+        tool: "fixture".into(),
+        version: "1".into(),
+        sha256: vec![binary_hash.0.clone().into()],
+        defaults: vec![case.rule.clone()],
+        deferred: std::collections::BTreeMap::default(),
+        pending: std::collections::BTreeMap::default(),
+        query_modules: std::collections::BTreeMap::default(),
+        rule_applicability: std::collections::BTreeMap::default(),
+        parser_configuration: Some("python-target=3.10".into()),
+        source_language: None,
+        project_search_roots: None,
+    };
+    let invocation = LinterFake::default()
+        .prepare(&case.request)
+        .expect("fixture invocation");
+    let settings = super::invocation_identity::invocation_settings(&invocation, case, &profile)
+        .expect("fixture settings");
     case.reference_discrepancy = Some(PreparedReferenceDiscrepancy {
         basis: ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect,
         identity: ReferenceDiscrepancyIdentity {
@@ -636,26 +941,7 @@ fn discrepancy_suite() -> SuiteFake {
             version_rationale: "exact target independently evaluated".into(),
         }],
     });
-    suite.profile = Some(Tool {
-        rule_observation_selection:
-            ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
-        supporting_rules: Vec::new(),
-        rule_observations: Default::default(),
-        rule_context: None,
-        file_observation: None,
-        project_context_mode: ProjectContextMode::Isolated,
-        tool: "fixture".into(),
-        version: "1".into(),
-        sha256: vec![binary_hash.0.clone().into()],
-        defaults: vec![case.rule.clone()],
-        deferred: std::collections::BTreeMap::default(),
-        pending: std::collections::BTreeMap::default(),
-        query_modules: std::collections::BTreeMap::default(),
-        rule_applicability: std::collections::BTreeMap::default(),
-        parser_configuration: Some("python-target=3.10".into()),
-        source_language: None,
-        project_search_roots: None,
-    });
+    suite.profile = Some(profile);
     let _previous_profile = suite
         .artifact_digests
         .insert("/profile/benchmark.toml".into(), profile_hash);
@@ -685,243 +971,4 @@ fn discrepancy_suite() -> SuiteFake {
         },
     );
     suite
-}
-
-#[test]
-fn native_both_sides_require_intended_behavior_even_when_wrong_oracle_matches() {
-    let suite = discrepancy_suite();
-    let reference = LinterFake::default();
-    let intended = CoveredCandidate(LinterFake {
-        diagnostics: suite.prepared[0].expected.diagnostics.clone(),
-        ..Default::default()
-    });
-    let execution = ExecutionFake {
-        status: 0,
-        ..Default::default()
-    };
-    let rules = Path::new("/profile/rules");
-    assert_eq!(
-        super::service::verify_prepared_shard(
-            &suite,
-            &reference,
-            &intended,
-            &execution,
-            rules,
-            suite.prepared.clone(),
-            ryo_benchmark_contracts::domain::requests::types::CaseSelection::default()
-        )
-        .expect("distinct exact expectations both hold")
-        .0,
-        1
-    );
-    assert_eq!(
-        execution.history.lock().expect("observed calls").len(),
-        2,
-        "both actual sides executed"
-    );
-    let wrong_oracle = CoveredCandidate(LinterFake::default());
-    assert!(
-        super::service::verify_prepared_shard(
-            &suite,
-            &reference,
-            &wrong_oracle,
-            &execution,
-            rules,
-            suite.prepared.clone(),
-            ryo_benchmark_contracts::domain::requests::types::CaseSelection::default()
-        )
-        .is_err(),
-        "agreement with incorrect oracle must fail intended contract"
-    );
-    let mut canonical = suite.prepared.clone();
-    super::discrepancy::attach(&suite, rules, &mut canonical)
-        .expect("application owns wire conversion");
-    assert!(
-        !super::discrepancy::matches_intended(
-            &canonical[0],
-            super::discrepancy::reference_expected(&canonical[0]).expect("diagnostic expectation")
-        ),
-        "JSONL retains raw reference mismatch"
-    );
-}
-
-#[test]
-fn native_reference_only_checks_the_distinct_pinned_reference_expectation() {
-    let suite = discrepancy_suite();
-    let reference = LinterFake::default();
-    let execution = ExecutionFake {
-        status: 0,
-        ..Default::default()
-    };
-    assert_eq!(
-        super::service::verify_prepared_reference_cases(
-            &suite,
-            &reference,
-            &execution,
-            Path::new("/profile/rules"),
-            suite.prepared.clone()
-        )
-        .expect("pinned reference expectation holds")
-        .0,
-        1
-    );
-    let wrong_reference = LinterFake {
-        diagnostics: suite.prepared[0].expected.diagnostics.clone(),
-        ..Default::default()
-    };
-    assert!(
-        super::service::verify_prepared_reference_cases(
-            &suite,
-            &wrong_reference,
-            &execution,
-            Path::new("/profile/rules"),
-            suite.prepared.clone()
-        )
-        .is_err(),
-        "intended candidate output cannot replace pinned reference behavior"
-    );
-    let mut stale = suite;
-    stale.discrepancy_artifacts_valid = false;
-    assert!(
-        super::service::verify_prepared_reference_cases(
-            &stale,
-            &reference,
-            &execution,
-            Path::new("/profile/rules"),
-            stale.prepared.clone()
-        )
-        .is_err(),
-        "reference-only path cannot bypass independent evidence"
-    );
-}
-
-#[cfg(unix)]
-#[test]
-fn production_pair_rechecks_metadata_when_reference_changes_mode_before_candidate() {
-    use crate::outbound::linter::interface::LinterPort;
-    use std::{cell::Cell, os::unix::fs::PermissionsExt as _};
-    struct DriftingReference {
-        calls: Cell<usize>,
-        expected: bool,
-        drift: bool,
-    }
-    impl LinterPort for DriftingReference {
-        fn rule_configuration(
-            &self,
-        ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
-            ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Unsupported
-        }
-        fn prepare(
-            &self,
-            request: &RunRequest,
-        ) -> Result<ryo_benchmark_contracts::domain::measurements::types::Invocation, Error>
-        {
-            let calls = self.calls.get() + 1;
-            self.calls.set(calls);
-            if calls == 2 && self.drift {
-                std::fs::set_permissions(
-                    request.root.join("case.py"),
-                    std::fs::Permissions::from_mode(if self.expected { 0o644 } else { 0o744 }),
-                )?;
-            }
-            LinterFake::default().prepare(request)
-        }
-        fn decode(
-            &self,
-            request: &RunRequest,
-            output: ryo_benchmark_contracts::domain::measurements::types::ProcessOutput,
-        ) -> Result<RunReport, Error> {
-            LinterFake::default().decode(request, output)
-        }
-    }
-    for expected in [false, true] {
-        for drift in [false, true] {
-            let root = tempfile::tempdir().unwrap();
-            std::fs::write(root.path().join("case.py"), "same bytes").unwrap();
-            std::fs::set_permissions(
-                root.path().join("case.py"),
-                std::fs::Permissions::from_mode(if expected { 0o744 } else { 0o644 }),
-            )
-            .unwrap();
-            let (mut suite, _) = prepared(Scenario::Agreement);
-            let profile = suite.profile.as_mut().unwrap();
-            profile.defaults.truncate(1);
-            profile.file_observation = Some(
-                ryo_benchmark_contracts::domain::workloads::types::FileObservation::PosixExecutable,
-            );
-            let case = &mut suite.prepared[0];
-            case.name = "first".into();
-            case.expected.diagnostics.clear();
-            case.request.root = root.path().to_path_buf();
-            case.request.file_metadata = Some(std::collections::BTreeMap::from([(
-                case.request.files[0].clone(),
-                expected,
-            )]));
-            let mut second = case.clone();
-            second.name = "second".into();
-            suite.prepared.push(second);
-            let reference = DriftingReference {
-                calls: Cell::new(0),
-                expected,
-                drift,
-            };
-            let execution = ExecutionFake {
-                status: 0,
-                ..Default::default()
-            };
-            let result = super::service::verify_prepared_shard(
-                &suite,
-                &reference,
-                &LinterFake::default(),
-                &execution,
-                Path::new("rules"),
-                suite.prepared.clone(),
-                ryo_benchmark_contracts::domain::requests::types::CaseSelection::default(),
-            );
-            assert_eq!(reference.calls.get(), 2);
-            if drift {
-                assert!(
-                    result
-                        .unwrap_err()
-                        .to_string()
-                        .contains("executable metadata drifted")
-                );
-                assert_eq!(
-                    history_len(&execution),
-                    Some(3),
-                    "second candidate must not execute after reference changes mode"
-                );
-            } else {
-                assert_eq!(result.unwrap().0, 2);
-                assert_eq!(history_len(&execution), Some(4));
-            }
-        }
-    }
-}
-
-#[test]
-fn measurement_path_does_not_claim_to_validate_observation_bearing_requests() {
-    let (suite, _) = prepared(Scenario::Agreement);
-    let mut request = suite.prepared[0].request.clone();
-    let linter = LinterFake::default();
-    let execution = ExecutionFake {
-        status: 0,
-        ..Default::default()
-    };
-    super::service::run(&linter, &execution, &request).unwrap();
-    request.file_metadata = Some(std::collections::BTreeMap::from([(
-        request.files[0].clone(),
-        false,
-    )]));
-    let error = super::service::run(&linter, &execution, &request).unwrap_err();
-    assert!(
-        error
-            .to_string()
-            .contains("require verification preparation")
-    );
-    assert_eq!(
-        history_len(&execution),
-        Some(1),
-        "unsupported observation claims must not prepare or execute a measured contestant"
-    );
 }

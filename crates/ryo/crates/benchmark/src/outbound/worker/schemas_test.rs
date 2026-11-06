@@ -1,7 +1,7 @@
 //! Exact wire spellings and refusal of undeclared producer metadata.
 use super::ExecutionMetadataSchema;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata;
-#[test]
 fn execution_metadata_roundtrips_exact_wire_without_a_serde_contract_on_neutral_data() {
     for (data, wire) in [
         (ExecutionMetadata::Unknown, r#"{"availability":"unknown"}"#),
@@ -22,7 +22,6 @@ fn execution_metadata_roundtrips_exact_wire_without_a_serde_contract_on_neutral_
         assert_eq!(ExecutionMetadata::from(decoded), data);
     }
 }
-#[test]
 fn missing_reason_unknown_capability_and_extra_wire_fields_are_refused() {
     for wire in [
         r#"{"availability":"unavailable"}"#,
@@ -30,6 +29,43 @@ fn missing_reason_unknown_capability_and_extra_wire_fields_are_refused() {
         r#"{"availability":"complete","extra":true}"#,
         r#"{"availability":"unknown","extra":true}"#,
     ] {
-        assert!(serde_json::from_str::<ExecutionMetadataSchema>(wire).is_err());
+        assert!(matches!(
+            serde_json::from_str::<ExecutionMetadataSchema>(wire),
+            Err(_refused_wire)
+        ));
     }
+}
+
+type Scenario = fn();
+type Input = Scenario;
+type Value = ();
+type Failure = std::convert::Infallible;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(
+            "execution_metadata_roundtrips_exact_wire_without_a_serde_contract_on_neutral_data",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            execution_metadata_roundtrips_exact_wire_without_a_serde_contract_on_neutral_data
+                as fn()
+        },
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("missing_reason_unknown_capability_and_extra_wire_fields_are_refused"),
+        word: Word::Succeeds,
+        input: || {
+            missing_reason_unknown_capability_and_extra_wire_fields_are_refused as fn()
+        },
+        expect: Expect::Value(()),
+    },
+];
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    scenario();
+    Ok(())
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

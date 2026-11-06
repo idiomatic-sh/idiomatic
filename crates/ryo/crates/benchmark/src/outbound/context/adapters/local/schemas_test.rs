@@ -1,11 +1,11 @@
 //! Worker schema round trips preserve context identity and opaque dependency fingerprints.
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::schemas::{ManifestSchema, ModeSchema, ReceiptSchema};
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::context::types::ContextManifest;
 use ryo_benchmark_contracts::domain::context::types::ProjectContextReceipt;
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use std::{collections::BTreeMap, path::PathBuf};
-#[test]
 fn manifests_and_receipts_round_trip_without_synthesizing_missing_paths() {
     let manifest = ContextManifest {
         boundary: PathBuf::from("/snapshot"),
@@ -41,4 +41,23 @@ fn manifests_and_receipts_round_trip_without_synthesizing_missing_paths() {
     assert_eq!(ProjectContextReceipt::from(receipt_decoded), receipt);
     let _verified_1 =
         serde_json::from_str::<ModeSchema>("\"disk-by-default\"").expect_err("expected refusal");
+}
+
+type Scenario = fn();
+type Input = Scenario;
+type Value = ();
+type Failure = std::convert::Infallible;
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("manifests_and_receipts_round_trip_without_synthesizing_missing_paths"),
+    word: Word::Succeeds,
+    input: || manifests_and_receipts_round_trip_without_synthesizing_missing_paths as fn(),
+    expect: Expect::Value(()),
+}];
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    scenario();
+    Ok(())
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

@@ -5,11 +5,18 @@ use super::service::validate;
 use super::types::{ReceiptCounts, Tally};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::registered_inputs::errors::RegisteredInputsError;
-use crate::outbound::inventory::types::case_document::EntryState;
+use crate::outbound::inventory::types::case_document::{
+    CaseContextIdentity, EntryState, ExpectationContract, FileMetadata,
+};
 use crate::outbound::suite::types::{
-    observation_document::{ContextManifest, ContextMode, ExitStatus, ProcessObservation},
+    observation_document::{
+        ContextManifest, ContextMode, ContextRun, ExitStatus, FileMetadataDigest,
+        ProcessObservation, ReferenceExpectation, RuleContextRecord, ToolContractRecord,
+    },
     process::ProcessFailureWire,
-    reference_discrepancy::{DiscrepancyIdentity, ExpectationKind, ReferenceDiscrepancy},
+    reference_discrepancy::{
+        DiscrepancyIdentity, ExpectationKind, ObservedExecutable, ReferenceDiscrepancy,
+    },
     text::{
         CanonicalJson, CaseName as DocumentCaseName, PathText, ReasonText, RuleName, SchemaName,
         Sha256Text, YesNo,
@@ -40,7 +47,7 @@ fn process_discrepancy() -> ReferenceDiscrepancy {
         identity: DiscrepancyIdentity {
             tool: ReasonText("tool".into()),
             version: ReasonText("1".into()),
-            observed_executable_sha256: None,
+            observed_executable_sha256: ObservedExecutable::NotObserved,
             profile: Sha256Text("profile-pin".into()),
             settings: Sha256Text("settings-pin".into()),
             source: Sha256Text("source-pin".into()),
@@ -49,7 +56,7 @@ fn process_discrepancy() -> ReferenceDiscrepancy {
             file_metadata: None,
         },
         approved_executable_sha256: Vec::new(),
-        reference_expected: None,
+        reference_expected: ReferenceExpectation::Underivable,
         intended_expected: Vec::new(),
         reason: ReasonText("process failure".into()),
         process: Some(ProcessFailureWire::ProcessFailure {
@@ -176,7 +183,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             fixtures::edited(
                 || fixtures::with_file_metadata(false),
-                |d| d.0[0].file_metadata = None,
+                |d| d.0[0].file_metadata = FileMetadata::Undeclared,
             )
         },
         expect: Expect::Error(InventoryReceiptsError::Inputs(
@@ -202,7 +209,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 || fixtures::with_file_metadata(false),
                 |d| {
                     for row in &mut d.1 {
-                        row.file_metadata_sha256 = None;
+                        row.file_metadata_sha256 = FileMetadataDigest::Undeclared;
                     }
                 },
             )
@@ -304,7 +311,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::passing, |d| {
-                d.0[0].expectation_contract = Some(ComparisonContract::CompleteReport);
+                d.0[0].expectation_contract =
+                    ExpectationContract::Declared(ComparisonContract::CompleteReport);
                 d.0[0].reference_discrepancy = Some(process_discrepancy());
             })
         },
@@ -329,7 +337,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::passing, |d| {
-                d.1[0].rule_context = Some(CanonicalJson("{\"configured\":true}".into()))
+                d.1[0].rule_context =
+                    RuleContextRecord::Declared(CanonicalJson("{\"configured\":true}".into()))
             })
         },
         expect: Expect::Error(InventoryReceiptsError::RuleContextDiffers),
@@ -390,7 +399,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::passing, |d| {
-                d.1[0].context_manifest = Some(ContextManifest {
+                d.1[0].context_manifest = ContextRun::Listed(ContextManifest {
                     mode: ContextMode::ListedDisk,
                     logical_root: PathText("root".into()),
                     actual_root: PathText("/cases/root".into()),
@@ -406,7 +415,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             fixtures::edited(fixtures::passing, |d| {
                 d.0[0].project_context_mode = ContextMode::ListedDisk;
-                d.0[0].context_identity = Some(fixtures::listed_context());
+                d.0[0].context_identity = CaseContextIdentity::Listed(fixtures::listed_context());
             })
         },
         expect: Expect::Error(InventoryReceiptsError::StaleProjectContext),
@@ -443,7 +452,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 }
                 for row in &mut d.1 {
                     row.documented_reference_discrepancy = YesNo::No;
-                    row.documented_tool_contract_difference = Some(YesNo::Yes);
+                    row.documented_tool_contract_difference =
+                        ToolContractRecord::Recorded(YesNo::Yes);
                 }
             })
         },

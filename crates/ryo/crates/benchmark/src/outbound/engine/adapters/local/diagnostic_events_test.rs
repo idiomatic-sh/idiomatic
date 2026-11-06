@@ -1,9 +1,9 @@
 //! Diagnostic subscriber records only explicitly selected coarse targets.
 use super::{DiagnosticEventWriter, RULE_FILE_TARGET, RULE_STEP_TARGET, subscriber};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use std::io::Write as _;
 use tracing_subscriber::fmt::writer::MakeWriter as _;
 
-#[test]
 fn event_writer_flushes_complete_lines_for_live_diagnostics()
 -> Result<(), Box<dyn std::error::Error>> {
     let directory = tempfile::tempdir()?;
@@ -20,7 +20,6 @@ fn event_writer_flushes_complete_lines_for_live_diagnostics()
     Ok(())
 }
 
-#[test]
 fn diagnostic_subscriber_writes_readable_jsonl_events() -> Result<(), Box<dyn std::error::Error>> {
     let directory = tempfile::tempdir()?;
     let path = directory.path().join("events.jsonl");
@@ -48,7 +47,6 @@ fn diagnostic_subscriber_writes_readable_jsonl_events() -> Result<(), Box<dyn st
     Ok(())
 }
 
-#[test]
 fn diagnostic_subscriber_records_step_events_with_nested_context()
 -> Result<(), Box<dyn std::error::Error>> {
     let directory = tempfile::tempdir()?;
@@ -99,8 +97,8 @@ fn diagnostic_subscriber_records_step_events_with_nested_context()
     Ok(())
 }
 
-#[test]
-fn ordinary_info_subscriber_does_not_enable_diagnostic_step_events() {
+fn ordinary_info_subscriber_does_not_enable_diagnostic_step_events()
+-> Result<(), Box<dyn std::error::Error>> {
     let subscriber = tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
         .finish();
@@ -115,10 +113,10 @@ fn ordinary_info_subscriber_does_not_enable_diagnostic_step_events() {
         || tracing::enabled!(target: super::FILE_PROGRAM_TARGET, tracing::Level::TRACE),
     );
     assert!(!file_program_enabled);
+    Ok(())
 }
 
 /// The same subscriber can expose coarse work without enabling it by default.
-#[test]
 fn aggregate_profile_is_explicit_and_keeps_counter_fields() -> Result<(), Box<dyn std::error::Error>>
 {
     let directory = tempfile::tempdir()?;
@@ -177,7 +175,6 @@ fn aggregate_profile_is_explicit_and_keeps_counter_fields() -> Result<(), Box<dy
     Ok(())
 }
 
-#[test]
 fn lifecycle_profile_excludes_per_file_steps_and_other_aggregates()
 -> Result<(), Box<dyn std::error::Error>> {
     let directory = tempfile::tempdir()?;
@@ -208,7 +205,6 @@ fn lifecycle_profile_excludes_per_file_steps_and_other_aggregates()
     Ok(())
 }
 
-#[test]
 fn resource_route_profile_preserves_generic_aggregate_payload()
 -> Result<(), Box<dyn std::error::Error>> {
     for enabled in [false, true] {
@@ -240,4 +236,61 @@ fn resource_route_profile_preserves_generic_aggregate_payload()
         }
     }
     Ok(())
+}
+
+type Scenario = fn() -> Result<(), Box<dyn std::error::Error>>;
+type Input = Scenario;
+type Value = ();
+type Failure = std::convert::Infallible;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("event_writer_flushes_complete_lines_for_live_diagnostics"),
+        word: Word::Succeeds,
+        input: || event_writer_flushes_complete_lines_for_live_diagnostics as Scenario,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("diagnostic_subscriber_writes_readable_jsonl_events"),
+        word: Word::Succeeds,
+        input: || diagnostic_subscriber_writes_readable_jsonl_events as Scenario,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("diagnostic_subscriber_records_step_events_with_nested_context"),
+        word: Word::Succeeds,
+        input: || diagnostic_subscriber_records_step_events_with_nested_context as Scenario,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("ordinary_info_subscriber_does_not_enable_diagnostic_step_events"),
+        word: Word::Succeeds,
+        input: || ordinary_info_subscriber_does_not_enable_diagnostic_step_events as Scenario,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("aggregate_profile_is_explicit_and_keeps_counter_fields"),
+        word: Word::Succeeds,
+        input: || aggregate_profile_is_explicit_and_keeps_counter_fields as Scenario,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("lifecycle_profile_excludes_per_file_steps_and_other_aggregates"),
+        word: Word::Succeeds,
+        input: || lifecycle_profile_excludes_per_file_steps_and_other_aggregates as Scenario,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("resource_route_profile_preserves_generic_aggregate_payload"),
+        word: Word::Succeeds,
+        input: || resource_route_profile_preserves_generic_aggregate_payload as Scenario,
+        expect: Expect::Value(()),
+    },
+];
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    scenario().expect("the scenario holds");
+    Ok(())
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

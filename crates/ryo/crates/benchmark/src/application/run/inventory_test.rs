@@ -1,5 +1,6 @@
 //! Two unrelated providers exercise the same inventory behavior and native receipt contract.
 use super::*;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::inventory::types::{
     Command, ExecutablePin, FilePin, RegisteredRule, RegistrationAuthority,
 };
@@ -9,7 +10,7 @@ use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
 use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
 use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
 use serde_json::json;
-use std::{path::PathBuf, sync::Mutex, time::Duration};
+use std::{borrow::Cow, path::PathBuf, sync::Mutex, time::Duration};
 
 struct ToyExecution {
     calls: Mutex<Vec<String>>,
@@ -165,24 +166,61 @@ fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
         context,
     )
 }
-#[test]
-fn independent_providers_keep_missing_and_failed_rules_and_continue() {
+/// The registrations the inventory is verified over.
+#[derive(Clone, Copy)]
+enum Scenario {
+    /// Two unrelated providers whose middle rules fail or are empty.
+    IndependentProviders,
+    /// A registration whose first rule is not a pinned default.
+    UnknownRule,
+    /// Rules whose profile declares a module the registration never pinned.
+    UndeclaredModules,
+}
+
+type Input = Scenario;
+type Value = bool;
+type Failure = Cow<'static, str>;
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("independent providers keep missing and failed rules and continue"),
+        word: Word::Succeeds,
+        input: || Scenario::IndependentProviders,
+        expect: Expect::Value(false),
+    },
+    Case {
+        name: CaseName("undeclared module pins fail every rule before each native invocation"),
+        word: Word::Succeeds,
+        input: || Scenario::UndeclaredModules,
+        expect: Expect::Value(false),
+    },
+    Case {
+        name: CaseName("an unknown registered rule never changes the inventory cardinality"),
+        word: Word::Refuses,
+        input: || Scenario::UnknownRule,
+        expect: Expect::Error(Cow::Borrowed(
+            constants::UNKNOWN_OR_DUPLICATE_REGISTERED_RULE,
+        )),
+    },
+];
+
+fn summary_of(root: &std::path::Path) -> serde_json::Value {
+    serde_json::from_slice(&std::fs::read(root.join("summary.json")).unwrap()).unwrap()
+}
+
+fn independent_providers() -> Result<bool, Error> {
+    let mut verified = false;
     for (name, middle) in [("toy-syntax", "bad"), ("toy-style", "empty")] {
         let root = tempfile::tempdir().unwrap();
         let (registration, _context) = provider(name, middle);
         let execution = ToyExecution::for_registration(&registration);
-        assert!(
-            !verify(
-                &registration,
-                root.path(),
-                &execution,
-                &crate::outbound::inventory::factory::local()
-            )
-            .unwrap()
-        );
-        let summary: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(root.path().join("summary.json")).unwrap())
-                .unwrap();
+        verified = verify(
+            &registration,
+            root.path(),
+            &execution,
+            &crate::outbound::inventory::factory::local(),
+        )?;
+        let summary = summary_of(root.path());
         assert_eq!(summary["counts"], json!({"PASS": 1, "FAIL": 2}));
         assert_eq!(summary["rules"].as_array().unwrap().len(), 3);
         assert_eq!(summary["rules"][0]["status"], "FAIL");
@@ -192,31 +230,31 @@ fn independent_providers_keep_missing_and_failed_rules_and_continue() {
             *execution.calls.lock().unwrap(),
             [middle.to_string(), "good".into()]
         );
+        if verified {
+            return Ok(verified);
+        }
     }
+    Ok(verified)
 }
-#[test]
-fn duplicate_and_unknown_registration_never_changes_inventory_cardinality() {
+
+fn unknown_rule() -> Result<bool, Error> {
     let root = tempfile::tempdir().unwrap();
     let (mut registration, _context) = provider("third-provider", "bad");
     registration.rules[0].rule_id = "not-a-pinned-rule".into();
     let execution = ToyExecution::for_registration(&registration);
-    assert!(
-        verify(
-            &registration,
-            root.path(),
-            &execution,
-            &crate::outbound::inventory::factory::local()
-        )
-        .is_err()
+    let answer = verify(
+        &registration,
+        root.path(),
+        &execution,
+        &crate::outbound::inventory::factory::local(),
     );
-    let snapshot: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(root.path().join("summary.json")).unwrap()).unwrap();
+    let snapshot = summary_of(root.path());
     assert_eq!(snapshot["counts"], json!({"PASS": 0, "FAIL": 3}));
     assert!(execution.calls.lock().unwrap().is_empty());
+    answer
 }
 
-#[test]
-fn inventory_rejects_undeclared_module_pins_before_each_native_invocation() {
+fn undeclared_modules() -> Result<bool, Error> {
     use sha2::Digest as _;
     let (mut registration, _context) = provider("module-provider", "bad");
     for entry in &mut registration.rules {
@@ -235,19 +273,14 @@ fn inventory_rejects_undeclared_module_pins_before_each_native_invocation() {
     }
     let output = tempfile::tempdir().unwrap();
     let execution = ToyExecution::for_registration(&registration);
-    assert!(
-        !verify(
-            &registration,
-            output.path(),
-            &execution,
-            &crate::outbound::inventory::factory::local()
-        )
-        .unwrap()
+    let answer = verify(
+        &registration,
+        output.path(),
+        &execution,
+        &crate::outbound::inventory::factory::local(),
     );
     assert!(execution.calls.lock().unwrap().is_empty());
-    let summary: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(output.path().join("summary.json")).unwrap())
-            .unwrap();
+    let summary = summary_of(output.path());
     assert_eq!(summary["counts"], json!({"PASS":0,"FAIL":3}));
     for row in &summary["rules"].as_array().unwrap()[1..] {
         assert!(
@@ -257,4 +290,24 @@ fn inventory_rejects_undeclared_module_pins_before_each_native_invocation() {
                 .contains("registered module inventory differs from pinned context profile")
         );
     }
+    answer
+}
+
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    match scenario {
+        Scenario::IndependentProviders => independent_providers(),
+        Scenario::UnknownRule => unknown_rule(),
+        Scenario::UndeclaredModules => undeclared_modules(),
+    }
+    .map_err(|error| error.to_string().into())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }

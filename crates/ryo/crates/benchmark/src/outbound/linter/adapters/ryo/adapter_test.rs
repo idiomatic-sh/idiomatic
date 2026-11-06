@@ -6,20 +6,7 @@ use crate::outbound::linter::interface::LinterPort as _;
 use ryo::linter::RelativePath;
 use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 use std::collections::BTreeMap;
-type Input = ();
-type Value = ();
-type Failure = ();
-const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("concrete implementation answers the shared contract"),
-    word: Word::Succeeds,
-    input: || (),
-    expect: Expect::Value(()),
-}];
-#[expect(
-    clippy::unnecessary_wraps,
-    reason = "the shared case runner requires a Result-returning subject for every outcome word"
-)]
-fn subject(_: Input) -> Result<Value, Failure> {
+fn concrete_implementation_answers_the_shared_contract() -> Result<(), Box<dyn std::error::Error>> {
     check(&LinterRyoAdapter {
         rule_observation_selection:
             ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
@@ -36,12 +23,6 @@ fn subject(_: Input) -> Result<Value, Failure> {
     });
     Ok(())
 }
-#[test]
-fn succeeds() {
-    run(CASES, Word::Succeeds, subject);
-}
-
-#[test]
 fn oversized_request_is_staged_as_json_file_instead_of_argv()
 -> Result<(), Box<dyn std::error::Error>> {
     let root = tempfile::tempdir()?;
@@ -107,8 +88,8 @@ fn oversized_request_is_staged_as_json_file_instead_of_argv()
     Ok(())
 }
 
-#[test]
-fn authored_observations_survive_actual_parent_to_worker_transport_and_explicit_override() {
+fn authored_observations_survive_actual_parent_to_worker_transport_and_explicit_override()
+-> Result<(), Box<dyn std::error::Error>> {
     use crate::outbound::worker::interface::WorkerPort as _;
     use ryo::linter::{
         ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName,
@@ -214,8 +195,42 @@ fn authored_observations_survive_actual_parent_to_worker_transport_and_explicit_
                     forged.to_string().into(),
                     Box::new(Vec::<u8>::new()),
                 );
-                assert!(worker.receive().is_err());
+                assert!(matches!(worker.receive(), Err(_refused)));
             }
         }
     }
+    Ok(())
+}
+
+type Scenario = fn() -> Result<(), Box<dyn std::error::Error>>;
+type Input = Scenario;
+type Value = ();
+type Failure = std::convert::Infallible;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("concrete_implementation_answers_the_shared_contract"),
+        word: Word::Succeeds,
+        input: || concrete_implementation_answers_the_shared_contract as Scenario,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("oversized_request_is_staged_as_json_file_instead_of_argv"),
+        word: Word::Succeeds,
+        input: || oversized_request_is_staged_as_json_file_instead_of_argv as Scenario,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("authored_observations_survive_actual_parent_to_worker_transport_and_explicit_override"),
+        word: Word::Succeeds,
+        input: || authored_observations_survive_actual_parent_to_worker_transport_and_explicit_override as Scenario,
+        expect: Expect::Value(()),
+    },
+];
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    scenario().expect("the scenario holds");
+    Ok(())
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

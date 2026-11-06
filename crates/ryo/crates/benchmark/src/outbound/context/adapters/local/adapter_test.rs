@@ -1,5 +1,6 @@
 //! Context validation and receipts reject unsealed filesystem state.
 use super::adapter::*;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::context::types::CaseContext;
 use ryo_benchmark_contracts::domain::context::types::ContextManifest;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -18,7 +19,6 @@ fn fixture(root: &Path) -> Result<ContextManifest, Error> {
         )]),
     )
 }
-#[test]
 fn seal_binds_bytes_absences_logical_root_and_observed_dependencies() -> Result<(), Error> {
     let scratch = tempfile::tempdir()?;
     let manifest = fixture(scratch.path())?;
@@ -63,7 +63,6 @@ fn seal_binds_bytes_absences_logical_root_and_observed_dependencies() -> Result<
     let _verified_4 = validate(&manifest, &root).expect_err("expected refusal");
     Ok(())
 }
-#[test]
 fn observed_missing_paths_are_sealed_once_per_corpus_state() -> Result<(), Error> {
     let scratch = tempfile::tempdir()?;
     let root = scratch.path();
@@ -106,19 +105,18 @@ fn observed_missing_paths_are_sealed_once_per_corpus_state() -> Result<(), Error
 
     std::fs::create_dir(root.join("pkg"))?;
     std::fs::write(root.join("pkg/__init__.py"), b"now present")?;
-    assert!(verify_receipt(&initial, root, &cold).is_err());
+    assert!(matches!(verify_receipt(&initial, root, &cold), Err(_refused)));
     std::fs::remove_file(root.join("pkg/__init__.py"))?;
-    assert!(verify_receipt(&initial, root, &cold).is_ok());
+    verify_receipt(&initial, root, &cold)?;
 
     std::fs::write(root.join("source.py"), b"import pkg.more\n")?;
     let edited = seal_existing(root, &selected, &tracked)?;
     let edited_receipt = receipt(&edited, root, absent())?;
     assert_ne!(edited_receipt.manifest_hash, cold.manifest_hash);
     verify_receipt(&edited, root, &edited_receipt)?;
-    assert!(verify_receipt(&initial, root, &edited_receipt).is_err());
+    assert!(matches!(verify_receipt(&initial, root, &edited_receipt), Err(_refused)));
     Ok(())
 }
-#[test]
 fn observed_missing_cannot_hide_present_untracked_or_symlinked_paths() -> Result<(), Error> {
     let scratch = tempfile::tempdir()?;
     let root = scratch.path();
@@ -135,24 +133,23 @@ fn observed_missing_cannot_hide_present_untracked_or_symlinked_paths() -> Result
         }]
     };
     std::fs::write(root.join("untracked.py"), b"present")?;
-    assert!(receipt(&manifest, root, missing("untracked.py")).is_err());
-    assert!(receipt(&manifest, root, missing("source.py")).is_err());
-    assert!(receipt(&manifest, root, missing("pkg/../source.py")).is_err());
-    assert!(receipt(&manifest, root, missing("source.py/../new.py")).is_err());
-    assert!(receipt(&manifest, root, missing("absent/../new.py")).is_err());
-    assert!(receipt(&manifest, root, missing("../escape.py")).is_err());
-    assert!(receipt(&manifest, root, missing("untracked.py/child")).is_err());
+    assert!(matches!(receipt(&manifest, root, missing("untracked.py")), Err(_refused)));
+    assert!(matches!(receipt(&manifest, root, missing("source.py")), Err(_refused)));
+    assert!(matches!(receipt(&manifest, root, missing("pkg/../source.py")), Err(_refused)));
+    assert!(matches!(receipt(&manifest, root, missing("source.py/../new.py")), Err(_refused)));
+    assert!(matches!(receipt(&manifest, root, missing("absent/../new.py")), Err(_refused)));
+    assert!(matches!(receipt(&manifest, root, missing("../escape.py")), Err(_refused)));
+    assert!(matches!(receipt(&manifest, root, missing("untracked.py/child")), Err(_refused)));
     #[cfg(unix)]
     {
         std::os::unix::fs::symlink(root, root.join("linked"))?;
-        assert!(receipt(&manifest, root, missing("linked/absent.py")).is_err());
-        assert!(receipt(&manifest, root, missing("linked/../new.py")).is_err());
+        assert!(matches!(receipt(&manifest, root, missing("linked/absent.py")), Err(_refused)));
+        assert!(matches!(receipt(&manifest, root, missing("linked/../new.py")), Err(_refused)));
         std::os::unix::fs::symlink(root.join("absent-target"), root.join("dangling"))?;
-        assert!(receipt(&manifest, root, missing("dangling")).is_err());
+        assert!(matches!(receipt(&manifest, root, missing("dangling")), Err(_refused)));
     }
     Ok(())
 }
-#[test]
 fn path_roles_and_symlinked_context_are_not_accepted() -> Result<(), Error> {
     let scratch = tempfile::tempdir()?;
     let mut manifest = fixture(scratch.path())?;
@@ -172,4 +169,43 @@ fn path_roles_and_symlinked_context_are_not_accepted() -> Result<(), Error> {
         let _verified_7 = validate(&manifest, &root).expect_err("expected refusal");
     }
     Ok(())
+}
+
+type Scenario = fn() -> Result<(), Error>;
+type Input = Scenario;
+type Value = ();
+type Failure = std::convert::Infallible;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("seal_binds_bytes_absences_logical_root_and_observed_dependencies"),
+        word: Word::Succeeds,
+        input: || seal_binds_bytes_absences_logical_root_and_observed_dependencies as Scenario,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("observed_missing_paths_are_sealed_once_per_corpus_state"),
+        word: Word::Succeeds,
+        input: || observed_missing_paths_are_sealed_once_per_corpus_state as Scenario,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("observed_missing_cannot_hide_present_untracked_or_symlinked_paths"),
+        word: Word::Succeeds,
+        input: || observed_missing_cannot_hide_present_untracked_or_symlinked_paths as Scenario,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("path_roles_and_symlinked_context_are_not_accepted"),
+        word: Word::Succeeds,
+        input: || path_roles_and_symlinked_context_are_not_accepted as Scenario,
+        expect: Expect::Value(()),
+    },
+];
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    scenario().expect("the scenario holds");
+    Ok(())
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }
