@@ -295,11 +295,11 @@ fn acquire(
         (ProducerScope::File, RegionId(0)),
         (ProducerScope::File, RegionId(1)),
     ];
-    owner.bind_producer(producers[0].0, producers[0].1, first.as_ref())?;
-    owner.bind_producer(producers[1].0, producers[1].1, second.as_ref())?;
+    owner.bind_producer(producers[0].0, producers[0].1, publication.as_ref())?;
+    owner.bind_producer(producers[1].0, producers[1].1, other.as_ref())?;
     let baseline = owner.derived.publication_ownership_bytes().0;
-    owner.pin_derived(first.as_ref());
-    owner.pin_derived(second.as_ref());
+    owner.pin_derived(publication.as_ref());
+    owner.pin_derived(other.as_ref());
     // A real lease exists before every exit that is not a success. `RawKeyOrder` is refused
     // on this ordinary route (its admission needs the kernel permit), so it holds none.
     let held = if kind != DerivedKind::RawKeyOrder && matches!(
