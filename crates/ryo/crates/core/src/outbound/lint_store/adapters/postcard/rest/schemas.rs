@@ -87,7 +87,6 @@ pub(in crate::outbound::lint_store::adapters::postcard) struct ObservationSchema
 
 /// What the files handed the steps that read across files and the project but their words.
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-// ignore: idiomatic.arch/no-deep-stored-types - the nesting is the byte layout of the store file already written: flattening it would change the postcard bytes of every kept frontier proof
 pub(in crate::outbound::lint_store::adapters::postcard) struct RestSchema<'a> {
     pub(in crate::outbound::lint_store::adapters::postcard) observations: Vec<ObservationSchema>,
     /// Source identity and coverage for each payload row, in the rest section
@@ -334,3 +333,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn rest_from(bytes: &[u8
         Err(_) => None,
     }
 }
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;

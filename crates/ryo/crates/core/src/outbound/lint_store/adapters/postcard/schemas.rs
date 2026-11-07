@@ -7,7 +7,7 @@ use ryo_values::domain::stored_findings::types::StoredFileNumber;
 
 /// A text, by its place in the table of strings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub(pub(super) super) struct TextSchema(u32);
+pub(super) struct TextSchema(pub(super) u32);
 
 /// Writes `bytes` as one run of bytes, not a byte at a time: the same bytes in the file, written at once.
 pub(super) fn as_bytes<S>(bytes: &[u8], serializer: S) -> Result<S::Ok, S::Error>
@@ -53,3 +53,7 @@ pub(super) fn file_number(files: usize, at: u32) -> Result<StoredFileNumber, pos
         Err(postcard::Error::DeserializeBadEncoding)
     }
 }
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;

@@ -126,3 +126,7 @@ fn proof_row(
         },
     })
 }
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;

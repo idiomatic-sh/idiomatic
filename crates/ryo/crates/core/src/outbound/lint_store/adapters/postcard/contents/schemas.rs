@@ -105,3 +105,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn contents(build: &str,
         buckets: contents.buckets.into_iter().map(BucketSpan::from).collect(),
     })
 }
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;

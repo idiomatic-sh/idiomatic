@@ -86,3 +86,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn file_from(strings: &[
         modified: Nanoseconds(file.modified),
     })
 }
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;

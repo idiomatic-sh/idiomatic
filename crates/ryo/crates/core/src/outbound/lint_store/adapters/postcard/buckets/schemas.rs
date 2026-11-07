@@ -107,3 +107,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn bucket_from(
         })
         .collect::<Option<Vec<_>>>()
 }
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
