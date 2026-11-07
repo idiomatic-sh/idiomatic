@@ -755,7 +755,7 @@ impl FileAnalysis {
                     number,
                     &entry.path,
                     entry.executable,
-                    &reason.0,
+                    FailureDetail(&reason.0),
                     PrimaryFailureKind::Disk,
                     ObservedFile::Observed,
                 );
@@ -767,7 +767,7 @@ impl FileAnalysis {
                     number,
                     path,
                     ExecutablePermission::Unknown,
-                    &reason.0,
+                    FailureDetail(&reason.0),
                     PrimaryFailureKind::Disk,
                     ObservedFile::Unobserved,
                 );
@@ -801,7 +801,7 @@ impl FileAnalysis {
                 number,
                 &file.path,
                 file.executable,
-                &error.to_string(),
+                FailureDetail(&error.to_string()),
                 kind,
                 ObservedFile::Observed,
             );
@@ -844,7 +844,7 @@ impl FileAnalysis {
         number: FileId,
         path: &FilePath,
         executable: ExecutablePermission,
-        detail: &str,
+        detail: FailureDetail<'_>,
         kind: PrimaryFailureKind,
         observed_file: ObservedFile,
     ) -> Result<(), FileAnalysisError> {
@@ -864,7 +864,7 @@ impl FileAnalysis {
         let mut said = failure_partials(
             setting.wanted,
             number,
-            FailureDetail(detail),
+            detail,
             observed_file,
         );
         Self::write_engine_rows(
@@ -884,7 +884,7 @@ impl FileAnalysis {
         )?;
         if asked.read_failure == EngineRows::Asked && kind == PrimaryFailureKind::Disk {
             let detail =
-                intern_derived(&mut worker.tables.symbols, ByteSlice(&[]), NameText(detail));
+                intern_derived(&mut worker.tables.symbols, ByteSlice(&[]), NameText(detail.0));
             worker.facts.columns_mut()?.write(FilesystemReadFailureRow {
                 path: number,
                 detail,
@@ -897,7 +897,7 @@ impl FileAnalysis {
         start_partials(&mut worker.tables, &said, Recovery::Whole, setting.wanted);
         worker.tables.unread.push(Unread {
             path: path.clone(),
-            reason: Unreadable::Failed(ReadFailure(detail.into())),
+            reason: Unreadable::Failed(ReadFailure(detail.0.into())),
         });
         let acceptance = syntax_acceptance(&worker.tables.elements);
         if asked.any == EngineRows::Asked {
