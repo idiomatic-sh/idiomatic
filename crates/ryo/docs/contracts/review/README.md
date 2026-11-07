@@ -7,7 +7,7 @@ red except for the known-red list below.
 
 ## Branch
 
-Checkpoints 310-317 are evidence commits on the branch; each names the batches
+Checkpoints 310-318 are evidence commits on the branch; each names the batches
 it merged and the validation it ran.
 
 | Checkpoint | Sha | Landed |
@@ -20,6 +20,7 @@ it merged and the validation it ran.
 | 315 | `7e93be040a` | Phase 2/3 repairs, rule re-version, Phase 5 fusion and route |
 | 316 | `1e3eba5c90` | Phase 6 reuse and invalidation, Phase 4 census and bypasses |
 | 317 | `d3f16fcd11` | Phase 7 TM batches (whole-tree TM 8,060 to 4,251) |
+| 318 | `80f473c67d` | Phase 1 conformance and syntax poisoning, Phase 2 to 6 review repairs III, blow-up replay repairs, Phase 7 operators/core TM (validated source `c043a6dc68`; whole-tree TM 3,676) |
 
 ## How work lands
 
@@ -67,20 +68,29 @@ enforcement. See "Adversarial pass" and "Architectural enforcement" there.
 
 - `core_allocation` (core `allocation` test, exit 101, about 1,880 blocks per
   file): a Phase 7 measurement.
-- Python `ruff` target, Phase 1: 11 passed / 1 failed,
-  `i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory`
-  (the syntax-poisoning case).
+- Python `ruff` target: green at checkpoint 318 (12 passed / 0 failed,
+  validation318); the syntax-poisoning case passes.
+- Cli `replay` target (validation318): 72 passed / 6 failed, the six being the
+  `(b)` group, named in `validation.json` (`results.cli_replay_reds`): the four
+  behaviour tests `behavior::what_ryo_could_not_decide_over_ruff_is_the_golden_or_a_recorded_difference`,
+  `behavior::ruff_findings_equal_the_expected_findings`,
+  `behavior::every_recorded_rule_gives_the_recorded_rows` and
+  `behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows`, and the cache
+  store size and warm peak tests `cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store`
+  and `peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound`.
 
 ## Verification limits
 
-Not covered by the latest validation (`validation.json`, source `18f96bccd7`,
-checkpoint 317; "not full product acceptance"):
+Not covered by the latest validation (`validation.json`, validated source
+`c043a6dc68`, checkpoint 318, validation318; "not full product acceptance"):
 
-- Whole-tree TM is measured, not clean: 4,251 findings, 0 suppressed.
-- Derived-scope TM findings are deferred (`tm_source`: 53 findings, 21 of them
-  derived-scope bare integers/bool).
+- Whole-tree TM is measured, not clean: 3,676 findings, 0 suppressed. The
+  scoped `tm_source` run is 344 findings over sixteen directories, 213 in
+  production files and 131 in test trees (the split is recorded in
+  `validation.json`).
 - No new performance measurement; the benchmark harness is not part of the set.
-- Cli replay/blocks/lint tests and the core performance bench do not compile.
+- The cli replay target compiles and runs; its six red tests are listed above.
+- Language conformance targets print no pass count; exit 0 is the receipt.
 
 Links: [matrix](../README.md), [execution plan](../execution-plan.md),
 [reviewer instructions](../../../../../.agents/agents/contract-review.md).

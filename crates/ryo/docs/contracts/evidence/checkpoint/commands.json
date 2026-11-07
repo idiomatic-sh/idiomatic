@@ -541,5 +541,16 @@
    "--format",
    "json"
   ]
+ ],
+ [
+  "tm_validate_no_heap_accounting",
+  [
+   "tm",
+   "validate",
+   "rule/no-heap-accounting@0.2.0",
+   "spec/idiomatic-rust@0.1.2",
+   "--format",
+   "json"
+  ]
  ]
 ]

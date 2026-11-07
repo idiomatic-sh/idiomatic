@@ -557,7 +557,79 @@
       ],
       "exit": 1,
       "elapsed_seconds": 15.6,
-      "note": "exit 1: reports its findings; not a pass/fail gate"
+      "note": "exit 1: reports its findings; not a pass/fail gate. 344 findings over 16 directories: 213 in production files, 131 in test trees, zero suppressed; run.py records the same split in tm_source.json",
+      "findings": {
+        "total": 344,
+        "suppressed": 0,
+        "production": 213,
+        "test": 131,
+        "by_directory": {
+          "crates/execution/src/application/file_dag/program": {
+            "production": 5,
+            "test": 1
+          },
+          "crates/execution/src/application/file_dag/invocation": {
+            "production": 0,
+            "test": 0
+          },
+          "crates/execution/src/application/file_dag/derived": {
+            "production": 24,
+            "test": 0
+          },
+          "crates/execution/src/domain/shared_walk": {
+            "production": 0,
+            "test": 0
+          },
+          "crates/execution/tests/shared_walk": {
+            "production": 0,
+            "test": 44
+          },
+          "crates/execution/src/domain/executable_program": {
+            "production": 48,
+            "test": 0
+          },
+          "crates/execution/src/domain/step_classes": {
+            "production": 0,
+            "test": 0
+          },
+          "crates/execution/src/domain/completion": {
+            "production": 3,
+            "test": 7
+          },
+          "crates/execution/src/domain/coverage": {
+            "production": 6,
+            "test": 7
+          },
+          "crates/execution/src/domain/frontiers": {
+            "production": 0,
+            "test": 0
+          },
+          "crates/execution/src/application/file_dag/frontiers": {
+            "production": 25,
+            "test": 0
+          },
+          "crates/core/src/application/file_analysis": {
+            "production": 12,
+            "test": 21
+          },
+          "crates/core/src/inbound/use_cases/lint": {
+            "production": 28,
+            "test": 10
+          },
+          "crates/core/src/domain/storing": {
+            "production": 1,
+            "test": 3
+          },
+          "crates/core/src/outbound/lint_store": {
+            "production": 57,
+            "test": 38
+          },
+          "crates/execution/src/domain/trust": {
+            "production": 4,
+            "test": 0
+          }
+        }
+      }
     },
     "tm_guards": {
       "source": "c043a6dc68b38f11a10f2e8c4d8ef982a38db844",
@@ -596,6 +668,25 @@
       ],
       "exit": 0,
       "elapsed_seconds": 0.9
+    },
+    "tm_validate_no_heap_accounting": {
+      "source": "80f473c67d67767d6c0d7c0718e189a13211da7f",
+      "command": [
+        "tm",
+        "validate",
+        "rule/no-heap-accounting@0.2.0",
+        "spec/idiomatic-rust@0.1.2",
+        "--format",
+        "json"
+      ],
+      "exit": 0,
+      "result": {
+        "proven": 2,
+        "kept": 2,
+        "failed": []
+      },
+      "raw": "tm_validate_no_heap_accounting.{log,json} in the validation318 raw directory",
+      "note": "run on the review-repairs-IV tree after the review of checkpoint 318 found the quoted 0.2.0 validation was not in commands.json; the asset versions, not the engine source, are what it proves, and run.py now runs it with every other command"
     }
   },
   "results": {

@@ -1,4 +1,4 @@
-// the 37 rows each drive the whole lint use case through fakes (warm, edited, deleted and changed-rule runs): a row is one whole run, and its expected rows are the full answer of that run.
+// the 58 rows each drive the whole lint use case through fakes (warm, edited, deleted and changed-rule runs): a row is one whole run, and its expected rows are the full answer of that run.
 //! What the `lint` use case promises, against the fakes of the ports it calls.
 
 use crate::outbound::row_sink;
@@ -95,6 +95,8 @@ enum Scenario {
     Edited,
     /// Lints the files again after two of them were deleted.
     Deleted,
+    /// Lints a file that records a skip or an unknown, then the run without it, in the memory and the postcard store.
+    RemovedFile,
     /// Lints the files again with another rule.
     ChangedRule,
     /// Lints with a store that cannot be written or read.
@@ -770,6 +772,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("deleted_file_drops_its_findings"),
         word: Word::Succeeds,
         input: || Scenario::Deleted,
+        expect: Expect::Value((0, 0)),
+    },
+    Case {
+        name: CaseName("a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store"),
+        word: Word::Succeeds,
+        input: || Scenario::RemovedFile,
         expect: Expect::Value((0, 0)),
     },
     Case {
@@ -1694,6 +1702,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::UnreadableAgain => unreadable_again(),
         Scenario::Consulted(between) => consulted(between),
         Scenario::Deleted => deleted(),
+        Scenario::RemovedFile => removed_file_leaves_nothing(),
         Scenario::ChangedRule => {
             let store = fresh();
             let cold = again(&SOURCES, "root", "a rule", &store);
@@ -2106,6 +2115,57 @@ fn a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_comp
         "a file that is read is not skipped: {}",
         oracle.2
     );
+}
+
+/// A file the store kept an unknown or a skip of and the run no longer lists is gone: nothing the store kept of it is an answer about
+/// this run, so a warm run without it names it in neither what is undecided nor what is skipped, and answers what a run over a store
+/// that keeps nothing answers.
+fn removed_file_leaves_nothing() -> Result<Value, Failure> {
+    use ryo_values::domain::runs::types::RuleApplicability::{AcceptedSyntax, Always};
+    let without = [THREE[0], THREE[2]];
+    for kind in ["memory", "postcard"] {
+        for applicability in [AcceptedSyntax, Always] {
+            let directory = tempfile::tempdir().expect("a directory");
+            let kept_in = store_of(kind, directory.path());
+            let cold = answered(
+                &THREE,
+                &["b.rs"],
+                applicability,
+                AnswerShape::Findings,
+                Arc::clone(&kept_in),
+            );
+            assert!(
+                cold.undecided.contains("b.rs") || cold.skipped.contains("b.rs"),
+                "{kind} {applicability:?}: the cold run records the rejected file: {} {}",
+                cold.undecided,
+                cold.skipped
+            );
+            let oracle = answered(
+                &without,
+                &[],
+                applicability,
+                AnswerShape::Findings,
+                store_of("discard", directory.path()),
+            );
+            let warm = answered(&without, &[], applicability, AnswerShape::Findings, kept_in);
+            assert!(
+                !warm.undecided.contains("b.rs") && !warm.skipped.contains("b.rs"),
+                "{kind} {applicability:?}: the removed file is named: {} {}",
+                warm.undecided,
+                warm.skipped
+            );
+            assert_eq!(warm.rows, oracle.rows, "{kind} {applicability:?}: rows");
+            assert_eq!(
+                warm.undecided, oracle.undecided,
+                "{kind} {applicability:?}: undecided"
+            );
+            assert_eq!(
+                warm.skipped, oracle.skipped,
+                "{kind} {applicability:?}: skipped"
+            );
+        }
+    }
+    Ok((0, 0))
 }
 
 mod inapplicable_identity;

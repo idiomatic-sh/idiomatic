@@ -133,7 +133,8 @@ fn errored_origin_refuses_its_rule() -> Result<Value, Failure> {
         walk.class_of(RuleIndex(rule))
             .is_some_and(|classes| classes.iter().any(Option::is_some))
     };
-    // The errored step joins no class; its sibling step may keep the head both rules dedupe.
+    // The errored step joins no class. Retention is stricter than this control: `resolve_class` drops the whole errored rule from
+    // sharing, and the control asserts only the errored step.
     let errored_step_shared =
         program.rules()[1]
             .original_steps

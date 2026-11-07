@@ -211,3 +211,6 @@ mod contract_timing;
 
 #[cfg(test)]
 mod admission_order;
+
+#[cfg(test)]
+mod errored_rule;

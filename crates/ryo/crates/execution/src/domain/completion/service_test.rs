@@ -422,9 +422,16 @@ fn a_rejected_file_withholds_only_its_own_partition_from_a_join_anchored_by_file
         plan_parts::types::{ColumnIndex, Input, JoinColumn, Side, StepId},
         plans::types::Operation,
     };
+    let read = |at: u32| {
+        Input::Relation(if at == 0 {
+            ryo_relations::domain::relations::types::Relation::Function
+        } else {
+            ryo_relations::domain::relations::types::Relation::Identifier
+        })
+    };
     let join = |left_on: u32, right_on: u32| Operation::Join {
-        left: Input::Step(StepId(0)),
-        right: Input::Step(StepId(1)),
+        left: read(0),
+        right: read(1),
         left_on: vec![ColumnIndex(left_on)],
         right_on: vec![ColumnIndex(right_on)],
         output: vec![
@@ -507,8 +514,8 @@ fn a_rejected_file_withholds_only_its_own_partition_from_an_ordered_match_keyed_
         plans::types::Operation,
     };
     let matched = |key: u32| Operation::OrderedMatch {
-        left: Input::Step(StepId(0)),
-        right: Input::Step(StepId(0)),
+        left: Input::Relation(ryo_relations::domain::relations::types::Relation::Function),
+        right: Input::Relation(ryo_relations::domain::relations::types::Relation::Function),
         left_on: vec![ColumnIndex(key)],
         right_on: vec![ColumnIndex(key)],
         left_order: ColumnIndex(2),

@@ -1,5 +1,7 @@
 //! The steps of a plan that read only the tree of a file run over the positions of its elements (the `fragment` concept of the
-//! core), the only way they run: every rule gives the same rows on every run, over ruff.
+//! core), the only way they run. These are determinism checks over ruff and HTML, not a lowering differential: the operator-form
+//! switch was removed on purpose (its absence is the `compile_fail` doctest of `LintUseCaseImpl`), so no second path exists to
+//! compare. The lowered rows are checked against the recorded rows by `behavior::every_recorded_rule_gives_the_recorded_rows`.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -33,7 +35,7 @@ fn rows_of() -> BTreeMap<String, Vec<Vec<String>>> {
 }
 
 #[test]
-fn every_rule_gives_the_same_rows_on_every_run_when_its_tree_steps_are_lowered() {
+fn every_rule_gives_the_same_rows_on_two_runs_over_ruff() {
     let _alone = crate::alone();
     let first = rows_of();
     let second = rows_of();

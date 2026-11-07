@@ -111,4 +111,7 @@ fn refuses() {
 }
 
 #[cfg(test)]
+mod errored_rule;
+
+#[cfg(test)]
 mod source_partition;

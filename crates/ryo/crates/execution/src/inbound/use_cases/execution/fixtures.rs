@@ -87,33 +87,54 @@ pub(super) fn prepared(
     bindings: Vec<ParameterBinding>,
     hosted: Vec<HostRelation>,
 ) -> Result<(ExecutionUseCaseImpl, PreparedExecutionProgram), OperatingError> {
+    prepared_many(vec![plan], vec![bindings], hosted)
+}
+/// One request of several authored rules, the first named as `prepared` names its only one.
+pub(super) fn prepared_many(
+    plans: Vec<Plan>,
+    bindings: Vec<Vec<ParameterBinding>>,
+    hosted: Vec<HostRelation>,
+) -> Result<(ExecutionUseCaseImpl, PreparedExecutionProgram), OperatingError> {
     let engine = ExecutionUseCaseImpl::new(
         Arc::new(
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
         ),
         Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
     );
-    let prepared = engine.prepare(PreparedRequest {
-        plans: vec![plan],
-        bindings: vec![bindings],
-        hosted,
-        rules: vec![RuleSpec {
-            id: RuleId("authored-operator-contract".into()),
-            query: QueryBundle {
-                root: QueryDocumentSource {
-                    id: QuerySourceId("authored-operator-contract".into()),
-                    text: "".into(),
+    let rules: Vec<RuleSpec> = (0..plans.len())
+        .map(|at| {
+            let id = if at == 0 {
+                "authored-operator-contract".to_string()
+            } else {
+                format!("authored-operator-contract-{at}")
+            };
+            RuleSpec {
+                id: RuleId(id.clone().into()),
+                query: QueryBundle {
+                    root: QueryDocumentSource {
+                        id: QuerySourceId(id.into()),
+                        text: "".into(),
+                    },
+                    modules: BTreeMap::new().into(),
                 },
-                modules: BTreeMap::new().into(),
-            },
-            applicability: RuleApplicability::Always,
-            given: vec![],
-            observations: vec![],
-            spelled: RuleParameters("".into()),
-            include: vec![],
-            exclude: vec![],
-        }],
-        digests: vec![Digest([0; 16])],
+                applicability: RuleApplicability::Always,
+                given: vec![],
+                observations: vec![],
+                spelled: RuleParameters("".into()),
+                include: vec![],
+                exclude: vec![],
+            }
+        })
+        .collect();
+    let digests = (0..plans.len())
+        .map(|at| Digest([u8::try_from(at).unwrap_or(u8::MAX); 16]))
+        .collect();
+    let prepared = engine.prepare(PreparedRequest {
+        plans,
+        bindings,
+        hosted,
+        rules,
+        digests,
         observations: ObservationIdentity::Independent,
     })?;
     Ok((engine, prepared))

@@ -84,10 +84,24 @@ pub(crate) fn filter_contributor_rows(
     }
 }
 
+/// Whether operand `ordinal` of the operation reads a relation ryo owns. Only such an operand's file and node columns lie in the
+/// file its row is partitioned by; a step's columns may carry files and nodes of another operand's rows, and no per-column lineage
+/// says which, so a step operand anchors nothing.
+fn reads_relation(operation: &ryo_values::domain::plans::types::Operation, ordinal: usize) -> bool {
+    use ryo_values::domain::{plan_parts::types::Input, plans::types::Operation};
+    let (Operation::Join { left, right, .. }
+    | Operation::Antijoin { left, right, .. }
+    | Operation::OrderedMatch { left, right, .. }) = operation
+    else {
+        return false;
+    };
+    matches!(if ordinal == 0 { left } else { right }, Input::Relation(_))
+}
+
 /// Transport physical uncertainty through an operator's output file identity.
 /// A missing row may affect a different file after a non-file join. Keep exact
 /// scopes only when every emitted file identity is anchored to the uncertain
-/// operand itself or to an explicitly equal file/node key.
+/// operand itself or to an explicitly equal file/node key of a relation it reads.
 pub(crate) fn output_coverage(
     operation: &ryo_values::domain::plans::types::Operation,
     output_kinds: &[ryo_relations::domain::relations::types::CellKind],
@@ -125,6 +139,7 @@ pub(crate) fn output_coverage(
                 reason: "partial contributor has no affected physical scope".into(),
             });
         }
+        let base = reads_relation(operation, input.ordinal);
         let preserves = match operation {
             Operation::Join {
                 left_on,
@@ -139,7 +154,8 @@ pub(crate) fn output_coverage(
                     right_on
                 };
                 // A relation's rows are partitioned by their file column and its nodes lie in that file, so when the join key
-                // is a file or a node, the rows it matches of the other operand lie in the missing file as well.
+                // is a file or a node of a relation the operand reads, the rows it matches of the other operand lie in the missing
+                // file as well; a step's key says nothing of where its rows came from.
                 let mut file_keyed = false;
                 for own in own {
                     let own = if input.ordinal == 1 && !view.is_empty() {
@@ -167,13 +183,13 @@ pub(crate) fn output_coverage(
                         Side::Right => 1,
                     } != input.ordinal;
                 }
-                file_keyed || !other_identity
+                (base && file_keyed) || !other_identity
             }
             Operation::Antijoin {
                 left_on, right_on, ..
             } if input.ordinal == 1 => {
                 // The rows of the left operand a file or node key matches lie in the missing file, as the join above has it.
-                right_on.iter().any(|right| {
+                base && (right_on.iter().any(|right| {
                     input
                         .kinds
                         .get(right.0 as usize)
@@ -189,7 +205,7 @@ pub(crate) fn output_coverage(
                             left.0 as usize == at
                                 && input.kinds.get(right.0 as usize).copied() == Some(kind)
                         })
-                    })
+                    }))
             }
             // The rows an ordered match pairs agree on every key, so a file or node key keeps them in the missing file.
             Operation::OrderedMatch {
@@ -200,13 +216,15 @@ pub(crate) fn output_coverage(
                 } else {
                     right_on
                 };
-                own.iter().any(|column| {
-                    input
-                        .kinds
-                        .get(column.0 as usize)
-                        .copied()
-                        .is_some_and(file_kind)
-                }) || !output_kinds.iter().copied().any(file_kind)
+                (base
+                    && own.iter().any(|column| {
+                        input
+                            .kinds
+                            .get(column.0 as usize)
+                            .copied()
+                            .is_some_and(file_kind)
+                    }))
+                    || !output_kinds.iter().copied().any(file_kind)
             }
             Operation::OrderedDfs { .. }
             | Operation::Axis { .. }
