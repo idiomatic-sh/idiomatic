@@ -1726,10 +1726,11 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
         },
         store: visit.store,
     };
+    // Once the bucket is selected its staged descriptor is read, and the store refuses a span of another session as unreadable.
     assert!(matches!(
         FileAnalysis::hand_again(&mut replay, &all_visit, FileOrder(0), FileId(0), &record),
-        Err(FileAnalysisError::Execution(
-            ryo_execution::inbound::use_cases::execution::types::OperatingError::ObservationIncomplete { .. }
+        Err(FileAnalysisError::Store(
+            crate::outbound::lint_store::errors::LintStoreError::Unreadable { .. }
         ))
     ));
 
@@ -1815,10 +1816,11 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
             ..old_visit.setting
         },
     };
+    // Once the bucket is selected its old descriptor is resolved, and the store refuses a row of another snapshot as unreadable.
     assert!(matches!(
         FileAnalysis::hand_again(&mut replay, &old_all, FileOrder(0), FileId(0), &old_record),
-        Err(FileAnalysisError::Execution(
-            ryo_execution::inbound::use_cases::execution::types::OperatingError::ObservationIncomplete { .. }
+        Err(FileAnalysisError::Store(
+            crate::outbound::lint_store::errors::LintStoreError::Unreadable { .. }
         ))
     ));
     Ok(1)
