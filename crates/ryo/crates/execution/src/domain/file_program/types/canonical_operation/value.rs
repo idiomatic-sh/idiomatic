@@ -1,4 +1,28 @@
+//! One operation read by its normalized inputs and the node edges it reads.
+use crate::domain::coverage::types::RuleIndex;
+use crate::domain::file_program::types::{
+    BindingOffset, NodeInput, ObservationGraphInputId, ProgramNodeId,
+};
+use ryo_values::domain::plan_parts::service::{binding_place, step_in};
+use ryo_values::domain::plan_parts::types::{Input, StepId};
+use ryo_values::domain::plans::service::{inputs_of, named};
+use ryo_values::domain::plans::types::Operation;
 
+/// One plan input resolved to the node edge it is.
+struct ResolvedInput {
+    /// The plan input, with a step read as the first step.
+    input: Input,
+    /// The node edge the input is.
+    edge: NodeInput,
+}
+
+/// An operation with its step numbers normalized, and the node edges it reads.
+pub(crate) struct CanonicalOperation {
+    /// The operation read by its normalized inputs.
+    pub operation: Operation,
+    /// The node edges, in input order.
+    pub inputs: Vec<NodeInput>,
+}
 
 fn node_input(
     input: Input,

@@ -10,8 +10,8 @@ use crate::outbound::scheduler::types::{JobCount, WorkerCount};
 /// What a row of the cases asks of the adapter.
 #[derive(Clone, Copy)]
 enum Scenario {
-    /// How many workers a run starts when one is asked.
-    Started,
+    /// How many times one job runs over a pool of one worker.
+    OneJobOneWorker,
     /// Runs jobs when no worker was given.
     NoWorkers,
     /// Runs jobs over a pool that could not be built.
@@ -28,9 +28,9 @@ type Failure = SchedulerError;
 /// value or error variant.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("one_worker_asked_is_one_worker_started"),
+        name: CaseName("one_job_over_one_worker_runs_once"),
         word: Word::Succeeds,
-        input: || Scenario::Started,
+        input: || Scenario::OneJobOneWorker,
         expect: Expect::Value(1),
     },
     Case {
@@ -53,7 +53,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let adapter = SchedulerRayonAdapter::owning(WorkerCount(3));
     match scenario {
-        Scenario::Started => {
+        Scenario::OneJobOneWorker => {
             let counter = std::sync::atomic::AtomicUsize::new(0);
             let mut job = |_| {
                 let _before = counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);

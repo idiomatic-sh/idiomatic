@@ -15,22 +15,22 @@ use ryo_values::domain::query_tokens::types::{
     ByteOffset, QuerySpan, StepName, WrittenLiteral, WrittenRelation,
 };
 
-pub(super) const NOWHERE: QuerySpan = QuerySpan {
+pub const NOWHERE: QuerySpan = QuerySpan {
     start: ByteOffset(0),
     end: ByteOffset(0),
 };
 
 
 /// What a row gives the use case: the ports it calls, and the text.
-pub(super) struct Given {
-    pub(super) syntax: SyntaxFake,
-    pub(super) catalog: CatalogFake,
-    pub(super) text: &'static str,
-    pub(super) observations: Vec<BoundObservationInput>,
-    pub(super) hosted: Vec<HostedRelation>,
+pub struct Given {
+    pub syntax: SyntaxFake,
+    pub catalog: CatalogFake,
+    pub text: &'static str,
+    pub observations: Vec<BoundObservationInput>,
+    pub hosted: Vec<HostedRelation>,
 }
 
-pub(super) fn read_function(filters: Vec<Filter>) -> LetStep {
+pub fn read_function(filters: Vec<Filter>) -> LetStep {
     LetStep {
         name: StepName(
             "functions".into(),
@@ -50,7 +50,7 @@ pub(super) fn read_function(filters: Vec<Filter>) -> LetStep {
     }
 }
 
-pub(super) fn program_with(filters: Vec<Filter>) -> WrittenProgram {
+pub fn program_with(filters: Vec<Filter>) -> WrittenProgram {
     WrittenProgram {
         linked: ryo_values::domain::query_tokens::types::Linking::Unlinked,
         imports: Vec::new(),
@@ -73,7 +73,7 @@ pub(super) fn program_with(filters: Vec<Filter>) -> WrittenProgram {
     }
 }
 
-pub(super) fn text_the_fake_reads() -> Given {
+pub fn text_the_fake_reads() -> Given {
     Given {
         syntax: SyntaxFake {
             program: program_with(Vec::new()),
@@ -85,7 +85,7 @@ pub(super) fn text_the_fake_reads() -> Given {
     }
 }
 
-pub(super) fn text_the_fake_refuses() -> Given {
+pub fn text_the_fake_refuses() -> Given {
     Given {
         syntax: SyntaxFake::default(),
         catalog: CatalogFake::default(),
@@ -95,7 +95,7 @@ pub(super) fn text_the_fake_refuses() -> Given {
     }
 }
 
-pub(super) fn catalog_without_relations() -> Given {
+pub fn catalog_without_relations() -> Given {
     Given {
         catalog: CatalogFake {
             relations: Vec::new(),
@@ -105,7 +105,7 @@ pub(super) fn catalog_without_relations() -> Given {
     }
 }
 
-pub(super) fn comparing_text_with_a_number() -> Given {
+pub fn comparing_text_with_a_number() -> Given {
     let filter = Filter {
         left: WrittenOperand::Text(WrittenLiteral("a".into())),
         test: WrittenTest::Equal,
@@ -120,7 +120,7 @@ pub(super) fn comparing_text_with_a_number() -> Given {
     }
 }
 
-pub(super) fn emitting_a_step_nobody_defined() -> Given {
+pub fn emitting_a_step_nobody_defined() -> Given {
     let mut program = program_with(Vec::new());
     program.emit.step = StepName(
         "later".into(),
@@ -132,7 +132,7 @@ pub(super) fn emitting_a_step_nobody_defined() -> Given {
     }
 }
 
-pub(super) fn failing_catalog() -> Given {
+pub fn failing_catalog() -> Given {
     Given {
         catalog: CatalogFake {
             relations: Vec::new(),
@@ -142,6 +142,6 @@ pub(super) fn failing_catalog() -> Given {
     }
 }
 
-pub(super) fn same_text_twice() -> Given {
+pub fn same_text_twice() -> Given {
     text_the_fake_reads()
 }

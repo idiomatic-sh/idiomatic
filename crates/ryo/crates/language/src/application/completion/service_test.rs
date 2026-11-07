@@ -1,5 +1,6 @@
 //! Real preparation/append algorithms: identity, interning, ordinary-provider and failure controls.
 use super::service::*;
+use ryo_relations::domain::elements::types::EmbeddedMapping;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     builders::service::*,

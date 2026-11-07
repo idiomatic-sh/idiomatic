@@ -142,7 +142,7 @@ pub fn describe(payload: &DerivedPayload) -> Result<PayloadFootprint, DerivedFau
         }
         PayloadData::PartitionOrder(value) => vector(value),
         PayloadData::RawKeyOrder(value) => {
-            let buffers = sum([vector(&value.keys), vector(&value.order)])?;
+            let buffers = sum([vector(&value.keys.0), vector(&value.order)])?;
             shared.push(shared_model(value, BackingKind(32), buffers)?);
             AllocationBytes(0)
         }
@@ -159,8 +159,8 @@ pub fn describe(payload: &DerivedPayload) -> Result<PayloadFootprint, DerivedFau
         PayloadData::CycleAdjacency(value) => {
             let buffers = sum([
                 vector(&value.values),
-                vector(&value.starts),
-                vector(&value.leaving),
+                vector(&value.starts.0),
+                vector(&value.leaving.0),
             ])?;
             shared.push(shared_model(value, BackingKind(24), buffers)?);
             AllocationBytes(0)
