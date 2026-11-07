@@ -5,13 +5,10 @@ use crate::outbound::suite::adapters::local::reference::schemas::ReferenceDiscre
 use crate::outbound::suite::errors::SuiteError;
 use crate::outbound::suite::types::ClaimedDiscrepancy;
 use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
-use ryo_benchmark_contracts::domain::requests::types::{
-    DiagnosticOptions, DiagnosticSwitch, PerformanceOptions,
-};
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use crate::outbound::suite::adapters::local::declarations::schemas::{
-    ObservationBindingSchema, RuleConfigurationSchema, RuleContextDeclarationSchema,
+    CaseContextSchema, ObservationBindingSchema, OptionsSchema, ProjectInventorySchema, RuleConfigurationSchema, RuleContextDeclarationSchema,
     observation_declarations,
     project_search_roots,
 };
@@ -20,59 +17,6 @@ use crate::outbound::suite::adapters::local::declarations::schemas::{
 #[path = "schemas_test.rs"]
 mod tests;
 
-/// The execution and diagnostic policy an authored case selects.
-#[derive(Default, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-struct OptionsSchema {
-    /// Which bounded diagnostic targets the case observes.
-    diagnostics: DiagnosticsSchema,
-}
-/// The bounded diagnostic targets an authored case selects.
-#[derive(Default, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-#[expect(
-    clippy::struct_excessive_bools,
-    reason = "the authored spelling is one boolean per bounded diagnostic target"
-)]
-struct DiagnosticsSchema {
-    /// Execution events.
-    execution: bool,
-    /// Lifecycle memory events.
-    lifecycle_memory: bool,
-    /// Resource route events.
-    resource_routes: bool,
-    /// Row progress events.
-    row_progress: bool,
-    /// Step events.
-    steps: bool,
-    /// Join events.
-    joins: bool,
-    /// Prefix events.
-    prefixes: bool,
-    /// Subplan events.
-    subplans: bool,
-    /// Selection detail events.
-    selection_detail: bool,
-}
-impl From<OptionsSchema> for PerformanceOptions {
-    fn from(schema: OptionsSchema) -> Self {
-        let switch = |on: bool| if on { DiagnosticSwitch::On } else { DiagnosticSwitch::Off };
-        let diagnostics = schema.diagnostics;
-        Self {
-            diagnostics: DiagnosticOptions {
-                execution: switch(diagnostics.execution),
-                lifecycle_memory: switch(diagnostics.lifecycle_memory),
-                resource_routes: switch(diagnostics.resource_routes),
-                row_progress: switch(diagnostics.row_progress),
-                steps: switch(diagnostics.steps),
-                joins: switch(diagnostics.joins),
-                prefixes: switch(diagnostics.prefixes),
-                subplans: switch(diagnostics.subplans),
-                selection_detail: switch(diagnostics.selection_detail),
-            },
-        }
-    }
-}
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 /// Independent rule examples and expected findings.
@@ -258,50 +202,6 @@ impl TryFrom<CasesSchema> for types::Cases {
         })
     }
 }
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-/// Authored project context materialized independently for one case.
-struct CaseContextSchema {
-    #[serde(rename = "logical-root")]
-    /// Stable run-root path inside the case boundary.
-    logical_root: std::path::PathBuf,
-    #[serde(default, rename = "auxiliary-files")]
-    /// Explicit auxiliary file paths and contents.
-    auxiliary_files: BTreeMap<std::path::PathBuf, ContextBytesSchema>,
-    #[serde(default)]
-    /// Declared paths that must remain absent.
-    missing: Vec<std::path::PathBuf>,
-}
-#[derive(Deserialize)]
-#[serde(untagged)]
-/// Text or exact byte content for an auxiliary context file.
-enum ContextBytesSchema {
-    /// UTF-8 source content.
-    Text(String),
-    /// Exact bytes, including malformed UTF-8 controls.
-    Bytes(Vec<u8>),
-}
-impl From<CaseContextSchema> for ryo_benchmark_contracts::domain::context::types::CaseContext {
-    fn from(value: CaseContextSchema) -> Self {
-        Self {
-            logical_root: value.logical_root,
-            auxiliary_files: value
-                .auxiliary_files
-                .into_iter()
-                .map(|(path, bytes)| {
-                    (
-                        path,
-                        match bytes {
-                            ContextBytesSchema::Text(text) => text.into_bytes(),
-                            ContextBytesSchema::Bytes(bytes) => bytes,
-                        },
-                    )
-                })
-                .collect(),
-            missing: value.missing,
-        }
-    }
-}
 
 /// Read the authored reference certificates, each with the authority it asserts.
 pub(in super::super) fn case_claims(
@@ -329,72 +229,4 @@ pub(in super::super) fn case_claims(
 /// Validate a rule identifier before it enters the benchmark domain.
 pub(in super::super) fn rule(value: &str) -> Result<ryo::linter::RuleId, Error> {
     ryo::linter::RuleId::try_from(value).map_err(|error| Error::Invalid(error.to_string()))
-}
-
-/// How complete a declared project inventory is.
-#[derive(Clone, Copy, Debug, Default, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-enum ProjectInventoryCompletenessSchema {
-    #[default]
-    Partial,
-    CompleteWithinDeclaredScope,
-}
-
-/// What a declared project entry is.
-#[derive(Clone, Copy, Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-enum ProjectEntryStateSchema {
-    File,
-    Directory,
-    Other,
-    Missing,
-    Unknown,
-}
-
-/// One declared project entry.
-#[derive(Clone, Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ProjectEntrySchema {
-    path: String,
-    state: ProjectEntryStateSchema,
-}
-
-/// The declared project inventory of a case.
-#[derive(Clone, Debug, Default, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ProjectInventorySchema {
-    #[serde(default)]
-    completeness: ProjectInventoryCompletenessSchema,
-    #[serde(default)]
-    entries: Vec<ProjectEntrySchema>,
-}
-impl From<ProjectInventorySchema> for ryo::linter::GivenProjectInventory {
-    fn from(wire: ProjectInventorySchema) -> Self {
-        Self {
-            entries: wire
-                .entries
-                .into_iter()
-                .map(|entry| ryo::linter::ProjectEntryObservation {
-                    path: ryo::linter::RelativePath(entry.path.into_boxed_str()),
-                    state: match entry.state {
-                        ProjectEntryStateSchema::File => ryo::linter::ProjectEntryState::File,
-                        ProjectEntryStateSchema::Directory => {
-                            ryo::linter::ProjectEntryState::Directory
-                        }
-                        ProjectEntryStateSchema::Other => ryo::linter::ProjectEntryState::Other,
-                        ProjectEntryStateSchema::Missing => ryo::linter::ProjectEntryState::Missing,
-                        ProjectEntryStateSchema::Unknown => ryo::linter::ProjectEntryState::Unknown,
-                    },
-                })
-                .collect(),
-            completeness: match wire.completeness {
-                ProjectInventoryCompletenessSchema::Partial => {
-                    ryo::linter::ProjectInventoryCompleteness::Partial
-                }
-                ProjectInventoryCompletenessSchema::CompleteWithinDeclaredScope => {
-                    ryo::linter::ProjectInventoryCompleteness::CompleteWithinDeclaredScope
-                }
-            },
-        }
-    }
 }

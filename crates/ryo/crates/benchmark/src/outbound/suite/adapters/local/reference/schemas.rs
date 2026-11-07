@@ -4,7 +4,7 @@ use crate::outbound::suite::types::{
     ClaimedDiscrepancy, ClaimedEvidence, ClaimedFinding, ClaimedIdentity, ClaimedMetadata,
     ClaimedProcess,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::{PathText, RuleName, Sha256Text};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{PathText, RuleName, Sha256Text};
 use ryo_benchmark_contracts::domain::process::types::ProcessFailure;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::SourceByteOffset;

@@ -23,9 +23,6 @@ pub trait SuitePort {
         request: &ryo_benchmark_contracts::domain::requests::types::RunRequest,
     ) -> Result<(), Error>;
 
-    /// Optional receipt sink chosen at the outer edge; fixtures inject it without global state.
-    fn case_receipt_file(&self) -> Option<std::path::PathBuf>;
-
     /// Read the exact declared source bytes using canonical filename framing.
     ///
     /// # Errors
@@ -48,29 +45,6 @@ pub trait SuitePort {
         std::collections::BTreeMap<std::path::PathBuf, ArtifactBytes>,
         super::errors::SuiteError,
     >;
-    /// Append an application-owned observation and preserve optional raw process bytes.
-    ///
-    /// # Errors
-    /// Refuses unsafe receipt names or failed artifact persistence.
-    fn record_case(
-        &self,
-        receipt: ArtifactPath<'_>,
-        record: ryo_benchmark_contracts::domain::documents::types::observation_document::ObservationDocument,
-        process: Option<super::types::CapturedProcess<'_>>,
-    ) -> Result<(), super::errors::SuiteError>;
-
-    /// Read every observation row of one receipt file.
-    ///
-    /// # Errors
-    /// Refuses unreadable receipts, malformed rows and fields the schema does not name.
-    fn case_observations(
-        &self,
-        receipt: ArtifactPath<'_>,
-    ) -> Result<
-        Vec<ryo_benchmark_contracts::domain::documents::types::observation_document::ObservationDocument>,
-        super::errors::SuiteError,
-    >;
-
     /// Decode the pinned linter profile below its artifact directory.
     ///
     /// # Errors

@@ -1,5 +1,4 @@
 //! Sample requests, cases, inventories and observation rows the suite contract and its fake run over.
-use ryo_benchmark_contracts::domain::documents::types::observation_document::ObservationDocument;
 
 /// A request that declares no file metadata.
 pub fn request(root: &std::path::Path) -> ryo_benchmark_contracts::domain::requests::types::RunRequest {
@@ -64,46 +63,3 @@ pub fn given_file() -> ryo::linter::GivenProjectInventory {
         ..Default::default()
     }
 }
-
-/// One complete observation row of a native side.
-pub fn observation() -> ObservationDocument {
-use ryo_benchmark_contracts::domain::documents::types::{observation_document::{
-            ContextRun, FileMetadataDigest, IntentMatch, ProjectContextRecord,
-            ProjectInputsDigest, ReferenceExpectation, RuleCohort, RuleContextRecord,
-            RuleObservationsRecord, SourceIdentity, ToolContractRecord,
-        }, text::{CaseName, ContestantSide, RuleName, SchemaName, YesNo}};
-    use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
-    ObservationDocument {
-        rule: RuleName("R1".into()),
-        name: CaseName("one".into()),
-        side: ContestantSide::Reference,
-        complete: YesNo::Yes,
-        error: None,
-        case_passed: YesNo::Yes,
-        files: Vec::new(),
-        source_sha256: SourceIdentity::Unavailable,
-        file_metadata_sha256: FileMetadataDigest::Undeclared,
-        project_inputs_sha256: ProjectInputsDigest::Undeclared,
-        expected: Vec::new(),
-        reference_expected: ReferenceExpectation::Underivable,
-        diagnostics: None,
-        skipped: None,
-        observation_schema: SchemaName("benchmark-case/v2".into()),
-        expectation_contract: ComparisonContract::Diagnostics,
-        execution_metadata: None,
-        coverage: None,
-        context_manifest: ContextRun::Isolated,
-        project_context: ProjectContextRecord::NotCarried,
-        rule_context: RuleContextRecord::Undeclared,
-        rule_observations: RuleObservationsRecord::Undeclared,
-        selected_rules: RuleCohort::Undeclared,
-        actual_request_root: None,
-        documented_reference_discrepancy: YesNo::No,
-        documented_tool_contract_difference: ToolContractRecord::Unrecorded,
-        discrepancy_validation: None,
-        raw_parity_matches_intended: None,
-        diagnostics_match_intended: IntentMatch::Unreported,
-        process_observation: None,
-    }
-}
-

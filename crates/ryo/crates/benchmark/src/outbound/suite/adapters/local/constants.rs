@@ -45,33 +45,6 @@ pub(super) const DEFERRED: &str = "deferred";
 pub(super) const RULE_OBSERVATIONS: &str = "rule-observations";
 /// Text of the rule applicability in this part.
 pub(super) const RULE_APPLICABILITY: &str = "rule-applicability";
-/// Text of the receipt filename must be utf8 in this part.
-pub(super) const RECEIPT_FILENAME_MUST_BE_UTF8: &str = "receipt filename must be UTF8";
-/// Text of the dot in this part.
-pub(super) const DOT: &str = ".";
-/// Text of the unsafe receipt file identity in this part.
-pub(super) const UNSAFE_RECEIPT_FILE_IDENTITY: &str = "unsafe receipt file identity";
-/// Text of the invalid framed process case key in this part.
-pub(super) const INVALID_FRAMED_PROCESS_CASE_KEY: &str = "invalid framed process case key";
-/// Text of the stdout in this part.
-pub(super) const STDOUT: &str = "stdout";
-/// Text of the stdout bin in this part.
-pub(super) const STDOUT_BIN: &str =
-    ryo_benchmark_contracts::domain::receipts::constants::STDOUT_BIN;
-/// Text of the stderr in this part.
-pub(super) const STDERR: &str = "stderr";
-/// Text of the stderr bin in this part.
-pub(super) const STDERR_BIN: &str =
-    ryo_benchmark_contracts::domain::receipts::constants::STDERR_BIN;
-/// Text of the invocation in this part.
-pub(super) const INVOCATION: &str = "invocation";
-/// Text of the invocation json in this part.
-pub(super) const INVOCATION_JSON: &str =
-    ryo_benchmark_contracts::domain::receipts::constants::INVOCATION_JSON;
-/// Text of the raw artifact path is not utf8 in this part.
-pub(super) const RAW_ARTIFACT_PATH_IS_NOT_UTF8: &str = "raw artifact path is not UTF8";
-/// Text of the slash in this part.
-pub(super) const SLASH: &str = "/";
 /// Text of the check001 in this part.
 #[cfg(test)]
 pub(super) const CHECK001: &str = "CHECK001";
@@ -265,9 +238,6 @@ pub(super) const GIVEN_PROJECT_MISSING_ENTRY_COLLIDES_WITH: &str =
 /// Text of the given project non file entry requires in this part.
 pub(super) const GIVEN_PROJECT_NON_FILE_ENTRY_REQUIRES: &str =
     "Given project non-file entry requires a materialization contract";
-/// Refuse a process observation that has no raw artifacts to point at.
-pub(super) const PROCESS_OBSERVATION_NEEDS_RAW_ARTIFACTS: &str =
-    "a process observation needs its three raw artifacts";
 /// Text of an identity that is not a lowercase SHA256.
 pub(super) const DISCREPANCY_REQUIRES_LOWERCASE_SHA256_IDENTITIES: &str =
     "discrepancy requires lowercase SHA256 identities";

@@ -1,9 +1,10 @@
 //! Validate pins, cases and rule coverage before running contestants.
-use super::writer::{fingerprint_path, rule_directory, validate_query_modules};
-use super::{constants, discrepancy_artifacts};
+use super::writer::{fingerprint_path, relative, rule_directory, validate_query_modules};
+use super::constants;
 use crate::outbound::suite::interface::{ScopedDirectory, SuitePort};
+use crate::outbound::suite::errors::SuiteError;
 use crate::outbound::suite::types::{
-    ArtifactBytes, ArtifactPath, ArtifactSet, ArtifactSize, ArtifactText, CaseReceipts,
+    ArtifactMetadata, CaseArtifacts, ArtifactBytes, ArtifactPath, ArtifactSet, ArtifactSize, ArtifactText,
     MaterializedCase, MaterializedContext, RetainedDirectory, RuleQuery, SelectedName,
     SourceDigest,
 };
@@ -54,9 +55,7 @@ impl ScopedDirectory for LocalScopedDirectory {
 
 #[derive(Debug)]
 /// Reads and freezes validated benchmark artifacts from the local filesystem.
-pub(crate) struct SuiteLocalAdapter {
-    case_receipts: Option<std::path::PathBuf>,
-}
+pub(crate) struct SuiteLocalAdapter;
 /// Make a fresh directory beneath the parent, or beneath the system temporary directory for an empty parent.
 fn scratch_builder(
     ArtifactPath(parent): ArtifactPath<'_>,
@@ -72,26 +71,12 @@ fn scratch_builder(
     Ok(directory)
 }
 
-impl SuiteLocalAdapter {
-    /// Bind the receipt destination chosen explicitly by executable composition.
-    pub(crate) fn new(case_receipts: CaseReceipts) -> Self {
-        let case_receipts = match case_receipts {
-            CaseReceipts::Unrecorded => None,
-            CaseReceipts::Recorded(path) => Some(path),
-        };
-        Self { case_receipts }
-    }
-}
 impl SuitePort for SuiteLocalAdapter {
     fn validate_file_metadata(
         &self,
         request: &ryo_benchmark_contracts::domain::requests::types::RunRequest,
     ) -> Result<(), Error> {
-        super::input_metadata::validate(request)
-    }
-
-    fn case_receipt_file(&self) -> Option<std::path::PathBuf> {
-        self.case_receipts.clone()
+        super::file_metadata::schemas::validate(request)
     }
 
     fn case_source_digest(
@@ -99,7 +84,7 @@ impl SuitePort for SuiteLocalAdapter {
         root: ArtifactPath<'_>,
         files: ArtifactSet<'_>,
     ) -> Result<SourceDigest, crate::outbound::suite::errors::SuiteError> {
-        discrepancy_artifacts::source_digest(root.0, files.0).map(SourceDigest)
+        source_digest(root.0, files.0)
     }
 
     fn read_discrepancy_artifacts(
@@ -110,31 +95,8 @@ impl SuitePort for SuiteLocalAdapter {
         std::collections::BTreeMap<std::path::PathBuf, ArtifactBytes>,
         crate::outbound::suite::errors::SuiteError,
     > {
-        discrepancy_artifacts::read(profile.0, artifacts).map(|bytes| {
-            bytes
-                .into_iter()
-                .map(|(path, bytes)| (path, ArtifactBytes(bytes)))
-                .collect()
-        })
+        read(profile.0, artifacts)
     }
-    fn record_case(
-        &self,
-        receipt: ArtifactPath<'_>,
-        record: ryo_benchmark_contracts::domain::documents::types::observation_document::ObservationDocument,
-        process: Option<crate::outbound::suite::types::CapturedProcess<'_>>,
-    ) -> Result<(), crate::outbound::suite::errors::SuiteError> {
-        super::case_observations::record(receipt.0, record, process)
-    }
-    fn case_observations(
-        &self,
-        receipt: ArtifactPath<'_>,
-    ) -> Result<
-        Vec<ryo_benchmark_contracts::domain::documents::types::observation_document::ObservationDocument>,
-        crate::outbound::suite::errors::SuiteError,
-    > {
-        super::case_observations::read(receipt.0)
-    }
-
     fn case_claims(
         &self,
         ArtifactPath(profile): ArtifactPath<'_>,
@@ -143,13 +105,13 @@ impl SuitePort for SuiteLocalAdapter {
         Vec<crate::outbound::suite::types::CaseClaim>,
         crate::outbound::suite::errors::SuiteError,
     > {
-        super::discrepancy_artifacts::case_claims(profile, owners)
+        super::writer::case_claims(profile, owners)
     }
     fn verify_discrepancy_artifacts(
         &self,
         artifacts: crate::outbound::suite::types::CaseArtifacts<'_>,
     ) -> Result<(), crate::outbound::suite::errors::SuiteError> {
-        super::discrepancy_artifacts::verify(artifacts)
+        verify(artifacts)
     }
     fn scoped_directory(
         &self,
@@ -240,14 +202,14 @@ impl SuitePort for SuiteLocalAdapter {
         case: &ryo_benchmark_contracts::domain::workloads::types::Case,
         context: &MaterializedContext,
     ) -> Result<MaterializedCase, Error> {
-        super::input_metadata::materialize(destination, case, context)
+        super::writer::materialize(destination, case, context)
     }
     fn materialize_inventory(
         &self,
         ArtifactPath(root): ArtifactPath<'_>,
         inventory: &ryo::linter::GivenProjectInventory,
     ) -> Result<(), Error> {
-        super::input_metadata::materialize_inventory(root, inventory)
+        super::writer::materialize_inventory(root, inventory)
     }
     fn stage_projects(
         &self,
@@ -295,3 +257,109 @@ impl SuitePort for SuiteLocalAdapter {
     }
 }
 
+
+/// Verify exact sources and evidence inside their separately explicit boundaries.
+fn verify(artifacts: CaseArtifacts<'_>) -> Result<(), SuiteError> {
+    if source_digest(artifacts.root, artifacts.files)?.0 != artifacts.source_sha256.0 {
+        return Err(SuiteError::Invalid(
+            constants::STALE_REFERENCE_DISCREPANCY_SOURCE_IDENTITY.into(),
+        ));
+    }
+    if artifacts
+        .file_metadata_files
+        .iter()
+        .any(|file| !artifacts.files.contains(file))
+        || (artifacts.file_metadata == ArtifactMetadata::Undeclared
+            && !artifacts.file_metadata_files.is_empty())
+    {
+        return Err(SuiteError::Invalid(
+            constants::UNDECLARED_REFERENCE_DISCREPANCY_OBSERVATION.into(),
+        ));
+    }
+    if let ArtifactMetadata::Declared(expected) = artifacts.file_metadata {
+        let actual =
+            super::file_metadata::schemas::actual_digest(artifacts.root, artifacts.file_metadata_files)
+                .map_err(|error| SuiteError::Invalid(error.to_string()))?;
+        if actual != expected.0 {
+            return Err(SuiteError::Invalid(
+                constants::STALE_REFERENCE_DISCREPANCY_FILE_METADATA_ID.into(),
+            ));
+        }
+    }
+    let boundary = artifacts.profile.canonicalize()?;
+    for evidence in artifacts.evidence {
+        relative(&evidence.path)?;
+        let path = boundary.join(&evidence.path).canonicalize()?;
+        if !path.starts_with(&boundary) {
+            return Err(SuiteError::Invalid(
+                constants::STALE_OR_EXTERNAL_DISCREPANCY_EVIDENCE.into(),
+            ));
+        }
+        let bytes = std::fs::read(path)?;
+        if format!("{:x}", Sha256::digest(&bytes)) != evidence.sha256.0 {
+            return Err(SuiteError::Invalid(
+                constants::STALE_DISCREPANCY_EVIDENCE_BYTES.into(),
+            ));
+        }
+        verify_requirement(&bytes, &evidence.requirement)?;
+    }
+    Ok(())
+}
+
+/// Read exact declared raw bytes under the profile boundary after validating their digests.
+fn read(
+    profile: &Path,
+    artifacts: &[crate::outbound::suite::types::EvidenceArtifact],
+) -> Result<std::collections::BTreeMap<std::path::PathBuf, ArtifactBytes>, SuiteError> {
+    let boundary = profile.canonicalize()?;
+    let mut result = std::collections::BTreeMap::new();
+    for artifact in artifacts {
+        relative(&artifact.path)?;
+        let path = boundary.join(&artifact.path).canonicalize()?;
+        if !path.starts_with(&boundary) || !path.is_file() {
+            return Err(SuiteError::Invalid(
+                constants::RAW_ARTIFACT_ESCAPES_ITS_PROFILE.into(),
+            ));
+        }
+        let bytes = std::fs::read(path)?;
+        if format!("{:x}", Sha256::digest(&bytes)) != artifact.sha256 {
+            return Err(SuiteError::Invalid(
+                constants::RAW_ARTIFACT_BYTE_IDENTITY_DIFFERS.into(),
+            ));
+        }
+        if result.insert(artifact.path.clone(), ArtifactBytes(bytes)).is_some() {
+            return Err(SuiteError::Invalid(
+                constants::DUPLICATE_RAW_ARTIFACT_PATH.into(),
+            ));
+        }
+    }
+    Ok(result)
+}
+
+/// Canonical source framing shared by fresh observations and discrepancy evidence.
+fn source_digest(
+    root: &Path,
+    files: &[std::path::PathBuf],
+) -> Result<SourceDigest, SuiteError> {
+    let root = root.canonicalize()?;
+    let mut files = files.to_vec();
+    files.sort_by(|left, right| left.to_string_lossy().cmp(&right.to_string_lossy()));
+    let mut source = Sha256::new();
+    for file in files {
+        relative(&file)?;
+        let path = root.join(&file).canonicalize()?;
+        if !path.starts_with(&root) {
+            return Err(SuiteError::Invalid(
+                constants::SOURCE_ARTIFACT_ESCAPES_ITS_BOUNDARY.into(),
+            ));
+        }
+        source.update(
+            file.to_str()
+                .ok_or_else(|| SuiteError::Invalid(constants::NONUTF8_SOURCE_PATH.into()))?
+                .as_bytes(),
+        );
+        source.update([0]);
+        source.update(std::fs::read(path)?);
+    }
+    Ok(SourceDigest(format!("{:x}", source.finalize())))
+}

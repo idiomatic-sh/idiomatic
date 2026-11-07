@@ -1,6 +1,6 @@
 //! Per-operation artifact identities, independent of adapter configuration.
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::documents::types::text::{CaseName, PathText, RuleName, Sha256Text};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{CaseName, PathText, RuleName, Sha256Text};
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::process::types::ProcessFailure;
 use ryo_benchmark_contracts::domain::reports::types::SourceByteOffset;
@@ -39,15 +39,6 @@ pub struct ArtifactSize(pub u64);
 /// A directory the adapter made and keeps after the run, for the caller to inspect.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RetainedDirectory(pub std::path::PathBuf);
-
-/// Where a run appends its raw case receipts, as the edge chose.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum CaseReceipts {
-    /// The run records no case receipts.
-    Unrecorded,
-    /// The run appends its case receipts to this file.
-    Recorded(std::path::PathBuf),
-}
 
 /// The context a materialized case was sealed under.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -274,17 +265,4 @@ pub struct CaseArtifacts<'a> {
     pub file_metadata: ArtifactMetadata<'a>,
     /// Explicit independently authored evidence artifacts.
     pub evidence: &'a [EvidenceArtifact],
-}
-
-/// Captured verification-only bytes to persist beside one receipt file.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct CapturedProcess<'a> {
-    /// Collision-safe key framed from rule/case/side by the application.
-    pub key: &'a ArtifactDigest,
-    /// Actual root/files/normalized settings/executable/status provenance.
-    pub invocation: &'a serde_json::Value,
-    /// Exact unmodified stdout.
-    pub stdout: &'a CapturedBytes,
-    /// Exact unmodified stderr.
-    pub stderr: &'a CapturedBytes,
 }

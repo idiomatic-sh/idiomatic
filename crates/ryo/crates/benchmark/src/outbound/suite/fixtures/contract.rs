@@ -1,7 +1,7 @@
 //! Physical artifact observations shared by suite adapters; audit policy stays in application.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use super::samples::{escaping_case, given_file, observation, request};
+use super::samples::{escaping_case, given_file, request};
 use crate::outbound::suite::{
     interface::SuitePort,
     types::{
@@ -26,13 +26,10 @@ pub enum Operation {
     RuleQuery,
     RuleCases,
     MetadataUndeclared,
-    ReceiptFile,
     SourceDigest,
     ReadArtifacts,
     VerifyArtifacts,
     ReferenceWires,
-    RecordAndRead,
-    ReadMissingReceipt,
     ScratchAndDiscard,
     RetainedDirectory,
     CopyMissing,
@@ -122,12 +119,6 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(0),
     },
     Case {
-        name: CaseName("no case receipt destination is chosen by default"),
-        word: Word::Succeeds,
-        input: || Operation::ReceiptFile,
-        expect: Expect::Value(0),
-    },
-    Case {
         name: CaseName("sources of a missing root have no digest"),
         word: Word::Refuses,
         input: || Operation::SourceDigest,
@@ -150,18 +141,6 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Operation::ReferenceWires,
         expect: Expect::Value(0),
-    },
-    Case {
-        name: CaseName("a recorded observation reads back"),
-        word: Word::Succeeds,
-        input: || Operation::RecordAndRead,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("a missing receipt is refused"),
-        word: Word::Refuses,
-        input: || Operation::ReadMissingReceipt,
-        expect: Expect::Error(Failure::Refused),
     },
     Case {
         name: CaseName("a scratch directory exists until it is discarded"),
@@ -302,7 +281,6 @@ pub fn check(adapter: &impl SuitePort) {
                 .validate_file_metadata(&request(temporary.path()))
                 .map(|()| 0)
                 .map_err(classify),
-            Operation::ReceiptFile => Ok(usize::from(adapter.case_receipt_file().is_some())),
             Operation::SourceDigest => adapter
                 .case_source_digest(ArtifactPath(&missing), ArtifactSet(&[]))
                 .map(|_| 0)
@@ -333,18 +311,6 @@ pub fn check(adapter: &impl SuitePort) {
             Operation::ReferenceWires => adapter
                 .case_claims(ArtifactPath(temporary.path()), &[])
                 .map(|claims| claims.len())
-                .map_err(|error| refused(&error)),
-            Operation::RecordAndRead => {
-                let receipt = temporary.path().join("receipts").join("one.jsonl");
-                adapter
-                    .record_case(ArtifactPath(&receipt), observation(), None)
-                    .and_then(|()| adapter.case_observations(ArtifactPath(&receipt)))
-                    .map(|rows| rows.len())
-                    .map_err(|error| refused(&error))
-            }
-            Operation::ReadMissingReceipt => adapter
-                .case_observations(ArtifactPath(&missing))
-                .map(|rows| rows.len())
                 .map_err(|error| refused(&error)),
             Operation::ScratchAndDiscard => adapter
                 .scoped_directory(ArtifactPath(temporary.path()), ArtifactText("contract-"))

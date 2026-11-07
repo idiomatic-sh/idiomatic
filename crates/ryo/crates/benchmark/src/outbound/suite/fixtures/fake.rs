@@ -1,7 +1,7 @@
 //! Empty in-memory suite preserves the distinction between defaults and implementations.
 use crate::outbound::suite::interface::{ScopedDirectory, SuitePort};
 use crate::outbound::suite::types::{
-    ArtifactBytes, ArtifactPath, ArtifactSet, ArtifactSize, ArtifactText, CaseReceipts,
+    ArtifactBytes, ArtifactPath, ArtifactSet, ArtifactSize, ArtifactText,
     MaterializedCase, MaterializedContext, RetainedDirectory, RuleQuery, SelectedName, SourceDigest,
 };
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
@@ -9,9 +9,17 @@ use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::Suite;
 use ryo_benchmark_contracts::domain::workloads::types::Tool;
 
-/// The local adapter the fake leaves physical operations to, recording no receipts of its own.
+/// The local adapter the fake leaves physical operations to.
 fn local() -> impl SuitePort {
-    crate::outbound::suite::factory::local(CaseReceipts::Unrecorded)
+    crate::outbound::suite::factory::local()
+}
+/// The scratch directory the fake hands out, removed when it drops.
+#[derive(Debug)]
+pub struct ScopedDirectoryFake(tempfile::TempDir);
+impl ScopedDirectory for ScopedDirectoryFake {
+    fn path(&self) -> &std::path::Path {
+        self.0.path()
+    }
 }
 #[expect(
     clippy::partial_pub_fields,
@@ -21,8 +29,6 @@ fn local() -> impl SuitePort {
 #[derive(Clone, Debug, Default)]
 /// Deterministic suite substitute for orchestration and contract tests.
 pub struct SuiteFake {
-    /// Per-instance receipt output selected by orchestration tests.
-    pub(crate) case_receipt: Option<std::path::PathBuf>,
     /// The profile available from this deterministic artifact source.
     pub(crate) profile: Option<Tool>,
     /// The projects available from this deterministic artifact source.
@@ -44,10 +50,6 @@ impl SuitePort for SuiteFake {
         local().validate_file_metadata(request)
     }
 
-    fn case_receipt_file(&self) -> Option<std::path::PathBuf> {
-        self.case_receipt.clone()
-    }
-
     fn case_source_digest(
         &self,
         root: ArtifactPath<'_>,
@@ -64,25 +66,6 @@ impl SuitePort for SuiteFake {
         crate::outbound::suite::errors::SuiteError,
     > {
         local().read_discrepancy_artifacts(profile, artifacts)
-    }
-
-    fn record_case(
-        &self,
-        receipt: ArtifactPath<'_>,
-        record: ryo_benchmark_contracts::domain::documents::types::observation_document::ObservationDocument,
-        process: Option<crate::outbound::suite::types::CapturedProcess<'_>>,
-    ) -> Result<(), crate::outbound::suite::errors::SuiteError> {
-        local().record_case(receipt, record, process)
-    }
-
-    fn case_observations(
-        &self,
-        receipt: ArtifactPath<'_>,
-    ) -> Result<
-        Vec<ryo_benchmark_contracts::domain::documents::types::observation_document::ObservationDocument>,
-        crate::outbound::suite::errors::SuiteError,
-    > {
-        local().case_observations(receipt)
     }
 
     fn case_claims(
@@ -111,10 +94,17 @@ impl SuitePort for SuiteFake {
     }
     fn scoped_directory(
         &self,
-        parent: ArtifactPath<'_>,
-        prefix: ArtifactText<'_>,
+        ArtifactPath(parent): ArtifactPath<'_>,
+        ArtifactText(prefix): ArtifactText<'_>,
     ) -> Result<Box<dyn ScopedDirectory>, Error> {
-        local().scoped_directory(parent, prefix)
+        let mut builder = tempfile::Builder::new();
+        let _prefixed = builder.prefix(prefix);
+        let directory = if parent.as_os_str().is_empty() {
+            builder.tempdir()?
+        } else {
+            builder.tempdir_in(parent)?
+        };
+        Ok(Box::new(ScopedDirectoryFake(directory)))
     }
     fn retained_directory(
         &self,

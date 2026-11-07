@@ -1,11 +1,17 @@
-//! The adapter's traversal and serialization of the suite artifacts it stages and fingerprints.
+//! The adapter's traversal and serialization of the suite artifacts it stages, observes and fingerprints.
 use super::constants;
+use crate::outbound::suite::errors::SuiteError;
+use crate::outbound::suite::types::{
+    CaseClaim, ClaimedEvidence, ClaimedProcess, MaterializedCase, MaterializedContext,
+};
 use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
+use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
+use ryo_benchmark_contracts::domain::documents::types::text::value::{CaseName, RuleName};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::{StagePurpose, Tool};
 use sha2::{Digest as _, Sha256};
 use std::collections::BTreeSet;
-use std::path::Path;
+use std::path::{Component, Path};
 
 /// The directory of one authored rule below the rules directory, refused when it would escape it.
 pub(super) fn rule_directory(
@@ -133,7 +139,7 @@ pub(super) fn stage(
             )?,
         )?;
         if purpose == StagePurpose::Certification {
-            super::discrepancy_artifacts::copy_evidence(
+            copy_evidence(
                 directory,
                 destination,
                 &target.join(constants::CASES),
@@ -178,6 +184,185 @@ pub(super) fn fingerprint_path(path: &Path, hasher: &mut Sha256) -> Result<(), E
         }
     } else {
         return Err(Error::Invalid(constants::INVALID_EVIDENCE_KIND.into()));
+    }
+    Ok(())
+}
+
+/// Read the authored reference certificates; interpretation belongs to application orchestration.
+pub(super) fn case_claims(
+    profile: &Path,
+    owners: &[ryo::linter::RuleId],
+) -> Result<Vec<CaseClaim>, SuiteError> {
+    let mut result = Vec::new();
+    for entry in std::fs::read_dir(profile.join(constants::RULES))? {
+        let entry = entry?;
+        if !entry.path().join(constants::QUERY).is_file() {
+            continue;
+        }
+        let rule = entry
+            .file_name()
+            .into_string()
+            .map_err(|_bytes| SuiteError::Invalid(constants::NON_UTF8_RULE_DIRECTORY.into()))?;
+        let rule = super::rule_cases::schemas::rule(&rule)
+            .map_err(|error| SuiteError::Invalid(error.to_string()))?;
+        if !owners.contains(&rule) {
+            continue;
+        }
+        let text = std::fs::read_to_string(entry.path().join(constants::CASES))?;
+        for (name, discrepancy, basis) in super::rule_cases::schemas::case_claims(&text)? {
+            result.push(CaseClaim {
+                rule: RuleName(rule.to_string()),
+                name: CaseName(name),
+                basis,
+                discrepancy,
+            });
+        }
+    }
+    Ok(result)
+}
+
+/// Snapshot only explicitly declared evidence, preserving exact bytes.
+pub(super) fn copy_evidence(
+    profile: &Path,
+    destination: &Path,
+    cases: &Path,
+) -> std::io::Result<()> {
+    let claims = super::rule_cases::schemas::case_claims(&std::fs::read_to_string(cases)?)
+        .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
+    let boundary = profile.canonicalize()?;
+    for (_, claim, _) in claims {
+        let mut artifacts = claim
+            .evidence
+            .iter()
+            .map(|item| {
+                let (ClaimedEvidence::LanguageSpec { path, sha256, .. }
+                | ClaimedEvidence::IndependentLanguageRun { path, sha256, .. }
+                | ClaimedEvidence::PublicToolContract { path, sha256, .. }
+                | ClaimedEvidence::PriorWorkerRun { path, sha256, .. }) = item;
+                (path.clone(), sha256.0.clone())
+            })
+            .collect::<Vec<_>>();
+        if let ClaimedProcess::Failure(failure) = &claim.discrepancy.process {
+            for observation in &failure.observations {
+                for item in [&observation.invocation, &observation.stdout, &observation.stderr] {
+                    artifacts.push((item.path.clone(), item.sha256.0.clone()));
+                }
+            }
+        }
+        for (path, expected) in artifacts {
+            relative(&path)
+                .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
+            let requested = boundary.join(&path);
+            let contextual = |error: std::io::Error| {
+                std::io::Error::new(
+                    error.kind(),
+                    format!("case evidence {}: {error}", requested.display()),
+                )
+            };
+            let source = requested.canonicalize().map_err(contextual)?;
+            let bytes = std::fs::read(&source).map_err(contextual)?;
+            if !source.starts_with(&boundary)
+                || format!("{:x}", Sha256::digest(&bytes)) != expected
+            {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    constants::STALE_OR_EXTERNAL_DISCREPANCY_EVIDENCE,
+                ));
+            }
+            let target = destination.join(&path);
+            if let Some(parent) = target.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::fs::write(target, bytes)?;
+        }
+    }
+    Ok(())
+}
+
+
+
+/// Write only selected source facts; semantic preparation and expected reports stay above this port.
+pub(super) fn materialize(
+    boundary: &Path,
+    sources: &ryo_benchmark_contracts::domain::workloads::types::Case,
+    context: &MaterializedContext,
+) -> Result<MaterializedCase, Error> {
+    let root = match context {
+        MaterializedContext::Isolated => boundary.to_owned(),
+        MaterializedContext::Sealed(manifest) => manifest.boundary.join(&manifest.logical_root),
+    };
+    std::fs::create_dir_all(&root)?;
+    for (file, source) in &sources.files {
+        let relative = RelativeArtifactPath::try_from(Path::new(file.0.as_ref()))?;
+        let path = root.join(relative.as_ref());
+        std::fs::create_dir_all(
+            path.parent()
+                .ok_or_else(|| Error::Invalid(super::constants::MISSING_CASE_PARENT.into()))?,
+        )?;
+        std::fs::write(&path, source.0.as_bytes())?;
+        if let ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(values) = &sources.file_metadata {
+            if let Some(executable) = values.get(file) {
+                super::file_metadata::schemas::stage_executable(&path, *executable == FileExecutable::Set)?;
+            }
+        }
+    }
+    Ok(MaterializedCase { root })
+}
+
+/// Materialize only the declared Given entries and reject contradictions with written sources.
+pub(super) fn materialize_inventory(
+    root: &Path,
+    inventory: &ryo::linter::GivenProjectInventory,
+) -> Result<(), Error> {
+    for entry in &inventory.entries {
+        let relative = RelativeArtifactPath::try_from(Path::new(entry.path.0.as_ref()))?;
+        let path = root.join(relative.as_ref());
+        match entry.state {
+            ryo::linter::ProjectEntryState::File if !path.is_file() => {
+                return Err(Error::Invalid(
+                    constants::GIVEN_PROJECT_FILE_ENTRY_LACKS_STAGED.into(),
+                ));
+            }
+            ryo::linter::ProjectEntryState::Directory => {
+                if path.is_file() {
+                    return Err(Error::Invalid(
+                        constants::GIVEN_PROJECT_DIRECTORY_COLLIDES_WITH_A.into(),
+                    ));
+                }
+                std::fs::create_dir_all(&path)?;
+            }
+            ryo::linter::ProjectEntryState::Missing if std::fs::metadata(&path).is_ok() => {
+                return Err(Error::Invalid(
+                    constants::GIVEN_PROJECT_MISSING_ENTRY_COLLIDES_WITH.into(),
+                ));
+            }
+            ryo::linter::ProjectEntryState::Other => {
+                return Err(Error::Invalid(
+                    constants::GIVEN_PROJECT_NON_FILE_ENTRY_REQUIRES.into(),
+                ));
+            }
+            ryo::linter::ProjectEntryState::File
+            | ryo::linter::ProjectEntryState::Missing
+            | ryo::linter::ProjectEntryState::Unknown => {}
+        }
+    }
+    Ok(())
+}
+
+/// Refuse platform-specific escape spellings before touching artifact paths.
+pub(super) fn relative(path: &Path) -> Result<(), SuiteError> {
+    let text = path
+        .to_str()
+        .ok_or_else(|| SuiteError::Invalid(constants::NON_UTF8_ARTIFACT_PATH.into()))?;
+    if text.is_empty()
+        || text.contains(['\\', ':'])
+        || !path
+            .components()
+            .all(|item| matches!(item, Component::Normal(_)))
+    {
+        return Err(SuiteError::Invalid(
+            constants::UNSAFE_ARTIFACT_RELATIVE_PATH.into(),
+        ));
     }
     Ok(())
 }
