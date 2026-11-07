@@ -234,136 +234,9 @@ fn replay_under_capture(
     FileAnalysis::hand_again(&mut worker, &visit, FileOrder(0), FileId(0), &record)
 }
 
-#[test]
-fn a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read() {
-    use ryo_values::domain::records::types::FrontierCoverage;
-    use ryo_values::domain::stored_facts::types::{Bucket, Digest};
-    let good = crate::outbound::lint_store::fixtures::proof();
-    let selected = BucketsWanted::These(vec![Bucket(0)]);
-    replay_under(good.clone(), &selected).expect("the proof of the prepared root is accepted");
-    let mut wrong_digest = good.clone();
-    wrong_digest.rule_digest = Digest([9; 16]);
-    let mut wrong_ordinal = good.clone();
-    wrong_ordinal.input = ryo_values::domain::records::types::FrontierOrdinal(1);
-    let mut wrong_coverage = good.clone();
-    wrong_coverage.coverage = FrontierCoverage::Partial(Vec::new());
-    let refused = |result: Result<(), FileAnalysisError>| {
-        matches!(
-            result,
-            Err(FileAnalysisError::Execution(
-                ryo_execution::inbound::use_cases::execution::types::OperatingError::ObservationIncomplete { .. }
-            ))
-        )
-    };
-    assert!(
-        refused(replay_under_capture(good.clone(), &selected, false)),
-        "a bucket whose frontier the prepared root does not capture is refused when selected"
-    );
-    replay_under_capture(good.clone(), &BucketsWanted::These(Vec::new()), false)
-        .expect("the capture flag of a bucket the run does not select is never checked");
-    for stale in [wrong_digest, wrong_ordinal, wrong_coverage] {
-        assert!(
-            matches!(
-                replay_under(stale.clone(), &selected),
-                Err(FileAnalysisError::Execution(
-                    ryo_execution::inbound::use_cases::execution::types::OperatingError::ObservationIncomplete { .. }
-                ))
-            ),
-            "{stale:?} must be refused for a selected bucket"
-        );
-        replay_under(stale, &BucketsWanted::These(Vec::new()))
-            .expect("the proof of a bucket the run does not select is never checked");
-    }
-}
 
-#[test]
-fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
-    let plan = Plan {
-        observation_inputs: Vec::new(),
-        observations: Vec::new(),
-        parameters: Vec::new(),
-        steps: vec![ryo_values::domain::plans::types::PlanStep {
-            scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
-            operation: ryo_values::domain::plans::types::Operation::Select {
-                from: ryo_values::domain::plan_parts::types::Input::Relation(Relation::Function),
-                comparisons: Vec::new(),
-                kept: vec![ColumnIndex(0)],
-            },
-        }],
-        comparison_origins: Vec::new(),
-        emit: Emit {
-            step: StepId(0),
-            subject: ColumnIndex(0),
-            key: Vec::new(),
-            headings: Vec::new(),
-        },
-        frontier: Vec::new(),
-    };
-    let plans = [plan.clone(), plan];
-    let ids = [RuleId("gated".into()), RuleId("always".into())];
-    let paths = [FilePath("source.py".into())];
-    let applicability = [RuleApplicability::AcceptedSyntax, RuleApplicability::Always];
-    let placed = PlacedScopes {
-        placement: ScopePlacement::default(),
-        matcher: ryo_execution::outbound::matching::fixtures::fake::MatchingFake
-            .compile(&[])
-            .expect("empty matcher"),
-    };
-    let metadata = ryo_values::domain::run_metadata::service::from_plans(&plans);
-    let (program, request) = prepared_test_program(&plans, &ids, &[]);
-    let setting = RequestVisitSetting {
-        source_language: None,
-        program,
-        services: &request,
-        domain: crate::domain::workers::types::VisitSetting {
-            metadata: &metadata,
-            wanted: &[Relation::Function, Relation::Identifier],
-            paths: &paths,
-            first_bucket: &[],
-            ids: &ids,
-            applicability: &applicability,
-            applicability_can_gate: crate::domain::workers::types::Gating::MayGate,
-            placed: &placed,
-            records: &[],
-            reuse: &ryo_values::domain::stores::types::Reuse::Whole,
-            stored: &NOTHING_STORED,
-            handed: &NOTHING_HANDED,
-            wanted_buckets: &NOTHING_WANTED,
-            budget: ryo_values::domain::runs::types::MemoryBytes(u64::MAX),
-            noted: crate::domain::visit::types::Noting::Unwanted,
-            roled: crate::domain::visit::types::RoleRead::Skips,
-            needs: &[
-                Needs {
-                    reads: vec![RelationRead {
-                        relation: Relation::Function,
-                        kinds: Vec::new(),
-                    }],
-                    ..Needs::default()
-                },
-                Needs {
-                    reads: vec![RelationRead {
-                        relation: Relation::Identifier,
-                        kinds: Vec::new(),
-                    }],
-                    ..Needs::default()
-                },
-            ],
-            answering: &crate::domain::render::types::Answering::Findings,
-            keeping: crate::domain::visit::types::Keeping::Discards,
-            unknown: &[],
-        },
-    };
-    for (acceptance, expected_reason) in [
-        (SyntaxAcceptance::Rejected, "rule skipped: syntax rejected"),
-        (
-            SyntaxAcceptance::Undetermined,
-            "rule skipped: syntax acceptance undetermined",
-        ),
-    ] {
-        assert_gated_acceptance(&setting, acceptance, expected_reason);
-    }
-    assert_accepted_and_missing_applicability(&setting);
-}
+
+
 
 /// Check a rejected or undetermined source without mixing its owner tables with other cases.
 fn assert_gated_acceptance(
@@ -483,104 +356,7 @@ fn assert_accepted_and_missing_applicability(setting: &RequestVisitSetting<'_>) 
     }));
 }
 
-#[test]
-fn only_incomplete_diagnostics_mark_code_relations_as_recovery() {
-    use crate::outbound::language::types::FileReading;
-    use ryo_execution::inbound::use_cases::metadata::interface::Recovery;
-    use ryo_language::domain::elements::service::{diagnostics, has_incomplete_lexical_stream, has_incomplete_syntax};
-    use ryo_language::domain::builders::service::{diagnose, diagnose_with_metadata, table_builder};
-    use ryo_language::domain::elements::types::Elements;
-    use ryo_language::domain::diagnostics::types::{SyntaxCompleteness, DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, TreeImpact};
-    use ryo_language::domain::symbols::types::ByteSlice;
-    use ryo_relations::domain::relations::types::{Offset, ReportText};
 
-    let source = ByteSlice(b"x");
-    let mut elements = Elements::default();
-    let mut symbols = Symbols::default();
-    {
-        let mut builder = table_builder(&mut elements, &mut symbols, source);
-        diagnose_with_metadata(
-            &mut builder,
-            DiagnosticMetadata { phase: DiagnosticPhase::Validation, impact: TreeImpact::Preserved, code: DiagnosticCode("fixture.target-syntax") },
-            ReportText("syntax is unsupported by this target"),
-            Offset(0),
-            Offset(1),
-        );
-    }
-    let preserved = recovery_of(
-        &FileReading::Read(ryo_values::domain::stored_facts::types::LanguageNumber(0)),
-        &elements,
-    );
-    assert_eq!(preserved, Recovery::Whole);
-    assert_eq!(has_incomplete_syntax(&elements), SyntaxCompleteness::Complete);
-    assert_eq!(
-        diagnostics(&elements).count(),
-        1,
-        "diagnostic remains reportable"
-    );
-    assert!(
-        MetadataUseCaseImpl
-            .partial_of(&[], preserved, &[Relation::Function])
-            .is_empty()
-    );
-
-    let mut lexical_elements = Elements::default();
-    let mut lexical_symbols = Symbols::default();
-    {
-        let mut lexical_builder =
-            table_builder(&mut lexical_elements, &mut lexical_symbols, source);
-        diagnose_with_metadata(
-            &mut lexical_builder,
-            DiagnosticMetadata { phase: DiagnosticPhase::Parse, impact: TreeImpact::LexicallyComplete, code: DiagnosticCode("fixture.parser-recovered") },
-            ReportText("invalid syntax, complete token stream"),
-            Offset(0),
-            Offset(1),
-        );
-    }
-    let lexical_recovery = recovery_of(
-        &FileReading::Read(ryo_values::domain::stored_facts::types::LanguageNumber(0)),
-        &lexical_elements,
-    );
-    assert_eq!(lexical_recovery, Recovery::LexicallyCompleteSyntaxErrors);
-    assert_eq!(has_incomplete_syntax(&lexical_elements), SyntaxCompleteness::Incomplete);
-    assert_eq!(has_incomplete_lexical_stream(&lexical_elements), SyntaxCompleteness::Complete);
-    let lexical_partials = MetadataUseCaseImpl.partial_of(
-        &[],
-        lexical_recovery,
-        &[
-            Relation::Comment,
-            Relation::IndentRegion,
-            Relation::Function,
-        ],
-    );
-    assert_eq!(lexical_partials.len(), 1);
-    assert_eq!(lexical_partials[0].relation, Relation::Function);
-    let mut incomplete_elements = Elements::default();
-    let mut incomplete_symbols = Symbols::default();
-    {
-        let mut validation_builder =
-            table_builder(&mut incomplete_elements, &mut incomplete_symbols, source);
-        diagnose(
-            &mut validation_builder,
-            ReportText("legacy parser diagnostic without impact metadata"),
-            Offset(0),
-            Offset(1),
-        );
-    }
-    let incomplete = recovery_of(
-        &FileReading::Read(ryo_values::domain::stored_facts::types::LanguageNumber(0)),
-        &incomplete_elements,
-    );
-    assert_eq!(incomplete, Recovery::SyntaxErrors);
-    assert_eq!(has_incomplete_syntax(&incomplete_elements), SyntaxCompleteness::Incomplete);
-    assert_eq!(has_incomplete_lexical_stream(&incomplete_elements), SyntaxCompleteness::Incomplete);
-    assert_eq!(diagnostics(&incomplete_elements).count(), 1);
-    assert!(
-        !MetadataUseCaseImpl
-            .partial_of(&[], incomplete, &[Relation::Function])
-            .is_empty()
-    );
-}
 
 /// What the last run kept, for a run that uses nothing of it.
 static NOTHING_STORED: std::sync::LazyLock<ryo_values::domain::stores::types::Stored> =
@@ -599,6 +375,48 @@ type Value = usize;
 type Failure = FileAnalysisError;
 
 fn subject(path: Input) -> Result<Value, Failure> {
+    if path == "a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read" {
+        return a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read();
+    }
+    if path == "syntax_applicability_skips_only_gated_rules_and_names_the_reason" {
+        return syntax_applicability_skips_only_gated_rules_and_names_the_reason();
+    }
+    if path == "only_incomplete_diagnostics_mark_code_relations_as_recovery" {
+        return only_incomplete_diagnostics_mark_code_relations_as_recovery();
+    }
+    if path == "required_dependency_stat_and_read_errors_cannot_disappear" {
+        return required_dependency_stat_and_read_errors_cannot_disappear();
+    }
+    if path == "unstable_same_shape_resident_populations_remain_distinct" {
+        return unstable_same_shape_resident_populations_remain_distinct();
+    }
+    if path == "file_visits_preserve_stable_unstable_and_unread_provider_outcomes" {
+        return file_visits_preserve_stable_unstable_and_unread_provider_outcomes();
+    }
+    if path == "a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket" {
+        return a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket();
+    }
+    if path == "successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads" {
+        return successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads();
+    }
+    if path == "staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops" {
+        return staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops();
+    }
+    if path == "read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes" {
+        return read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes();
+    }
+    if path == "read_failure_demand_is_limited_to_governing_rules" {
+        return read_failure_demand_is_limited_to_governing_rules();
+    }
+    if path == "discovery_failure_runs_without_parser_bytes_or_permission_invention" {
+        return discovery_failure_runs_without_parser_bytes_or_permission_invention();
+    }
+    if path == "primary_manifest_read_failure_retains_real_metadata_without_empty_project_source" {
+        return primary_manifest_read_failure_retains_real_metadata_without_empty_project_source();
+    }
+    if path == "project_entry_acquisition_deduplicates_provider_candidates_before_observing" {
+        return project_entry_acquisition_deduplicates_provider_candidates_before_observing();
+    }
     if path == "invalid-provider.rs" {
         return invalid_provider();
     }
@@ -973,6 +791,90 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             }
         }),
     },
+    Case {
+        name: CaseName("a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read"),
+        word: Word::Succeeds,
+        input: || "a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read",
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("syntax_applicability_skips_only_gated_rules_and_names_the_reason"),
+        word: Word::Succeeds,
+        input: || "syntax_applicability_skips_only_gated_rules_and_names_the_reason",
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("only_incomplete_diagnostics_mark_code_relations_as_recovery"),
+        word: Word::Succeeds,
+        input: || "only_incomplete_diagnostics_mark_code_relations_as_recovery",
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("required_dependency_stat_and_read_errors_cannot_disappear"),
+        word: Word::Succeeds,
+        input: || "required_dependency_stat_and_read_errors_cannot_disappear",
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("unstable_same_shape_resident_populations_remain_distinct"),
+        word: Word::Succeeds,
+        input: || "unstable_same_shape_resident_populations_remain_distinct",
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("file_visits_preserve_stable_unstable_and_unread_provider_outcomes"),
+        word: Word::Succeeds,
+        input: || "file_visits_preserve_stable_unstable_and_unread_provider_outcomes",
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket"),
+        word: Word::Succeeds,
+        input: || "a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket",
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads"),
+        word: Word::Succeeds,
+        input: || "successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads",
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops"),
+        word: Word::Succeeds,
+        input: || "staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops",
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes"),
+        word: Word::Succeeds,
+        input: || "read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes",
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("read_failure_demand_is_limited_to_governing_rules"),
+        word: Word::Succeeds,
+        input: || "read_failure_demand_is_limited_to_governing_rules",
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("discovery_failure_runs_without_parser_bytes_or_permission_invention"),
+        word: Word::Succeeds,
+        input: || "discovery_failure_runs_without_parser_bytes_or_permission_invention",
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("primary_manifest_read_failure_retains_real_metadata_without_empty_project_source"),
+        word: Word::Succeeds,
+        input: || "primary_manifest_read_failure_retains_real_metadata_without_empty_project_source",
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("project_entry_acquisition_deduplicates_provider_candidates_before_observing"),
+        word: Word::Succeeds,
+        input: || "project_entry_acquisition_deduplicates_provider_candidates_before_observing",
+        expect: Expect::Value(1),
+    },
 ];
 
 #[test]
@@ -989,78 +891,7 @@ fn fails() {
     run(CASES, Word::Fails, subject);
 }
 
-#[test]
-fn required_dependency_stat_and_read_errors_cannot_disappear() {
-    use crate::outbound::corpus::{
-        errors::CorpusError,
-        interface::CorpusPort,
-        types::{CorpusInventory, PathStat},
-    };
-    use ryo_values::domain::files::types::{CorpusEntry, FileBytes, FileSize, Nanoseconds};
-    struct Refuses {
-        stat: bool,
-    }
-    impl CorpusPort for Refuses {
-        fn observe_entry(
-            &self,
-            path: &FilePath,
-        ) -> ryo_language::domain::project_context::types::EntryObservation {
-            ryo_language::domain::project_context::types::EntryObservation {
-                path: path.clone(),
-                state: ryo_language::domain::project_context::types::ObservedEntryState::Unknown,
-            }
-        }
-        fn inventory(&self) -> Result<CorpusInventory, CorpusError> {
-            Ok(CorpusInventory(vec![]))
-        }
-        fn read(&self, _: &CorpusEntry, _: &mut FileBytes) -> Result<(), CorpusError> {
-            Err(CorpusError::Unreadable {
-                path: "required".into(),
-                reason: "read denied".into(),
-            })
-        }
-        fn stat(&self, path: &FilePath) -> Result<PathStat, CorpusError> {
-            if self.stat {
-                Err(CorpusError::Unreadable {
-                    path: path.0.to_string(),
-                    reason: "stat denied".into(),
-                })
-            } else {
-                Ok(PathStat::Found(CorpusEntry {
-                    executable: Default::default(),
-                    path: path.clone(),
-                    size: FileSize(1),
-                    modified: Nanoseconds(1),
-                }))
-            }
-        }
-    }
-    for stat in [false, true] {
-        let service = FileAnalysis::new(
-            Arc::new(Refuses { stat }),
-            Arc::new(LanguageFake::default()),
-            Arc::new(DigestFake),
-            Arc::new(MemoryFake::default()),
-        );
-        let mut result = crate::domain::project::types::Projected::default();
-        assert!(matches!(
-            service.consulted(&[FilePath("required".into())], &mut result),
-            Err(FileAnalysisError::Corpus(_))
-        ));
-        assert!(result.consulted.is_empty() && result.consulted_absent.is_empty());
-    }
-    let service = FileAnalysis::new(
-        Arc::new(CorpusFake::default()),
-        Arc::new(LanguageFake::default()),
-        Arc::new(DigestFake),
-        Arc::new(MemoryFake::default()),
-    );
-    let mut result = crate::domain::project::types::Projected::default();
-    service
-        .consulted(&[FilePath("absent".into())], &mut result)
-        .expect("a genuine missing dependency is recordable");
-    assert_eq!(result.consulted_absent, vec![FilePath("absent".into())]);
-}
+
 
 /// A legal unaudited worker whose immutable resident alternatives change between reads.
 struct UnstableResidentFacts {
@@ -1130,8 +961,335 @@ impl ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker
     }
 }
 
-#[test]
-fn unstable_same_shape_resident_populations_remain_distinct() {
+
+
+
+
+
+
+
+
+
+
+use ryo_values::domain::rows::types::{RowCount, Table};
+
+
+
+
+
+
+
+
+
+
+use ryo_execution::inbound::use_cases::metadata::{
+    interface::MetadataUseCase, use_case::MetadataUseCaseImpl,
+};
+
+fn a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read() -> Result<Value, Failure> {
+    use ryo_values::domain::records::types::FrontierCoverage;
+    use ryo_values::domain::stored_facts::types::{Bucket, Digest};
+    let good = crate::outbound::lint_store::fixtures::proof();
+    let selected = BucketsWanted::These(vec![Bucket(0)]);
+    replay_under(good.clone(), &selected).expect("the proof of the prepared root is accepted");
+    let mut wrong_digest = good.clone();
+    wrong_digest.rule_digest = Digest([9; 16]);
+    let mut wrong_ordinal = good.clone();
+    wrong_ordinal.input = ryo_values::domain::records::types::FrontierOrdinal(1);
+    let mut wrong_coverage = good.clone();
+    wrong_coverage.coverage = FrontierCoverage::Partial(Vec::new());
+    let refused = |result: Result<(), FileAnalysisError>| {
+        matches!(
+            result,
+            Err(FileAnalysisError::Execution(
+                ryo_execution::inbound::use_cases::execution::types::OperatingError::ObservationIncomplete { .. }
+            ))
+        )
+    };
+    assert!(
+        refused(replay_under_capture(good.clone(), &selected, false)),
+        "a bucket whose frontier the prepared root does not capture is refused when selected"
+    );
+    replay_under_capture(good.clone(), &BucketsWanted::These(Vec::new()), false)
+        .expect("the capture flag of a bucket the run does not select is never checked");
+    for stale in [wrong_digest, wrong_ordinal, wrong_coverage] {
+        assert!(
+            matches!(
+                replay_under(stale.clone(), &selected),
+                Err(FileAnalysisError::Execution(
+                    ryo_execution::inbound::use_cases::execution::types::OperatingError::ObservationIncomplete { .. }
+                ))
+            ),
+            "{stale:?} must be refused for a selected bucket"
+        );
+        replay_under(stale, &BucketsWanted::These(Vec::new()))
+            .expect("the proof of a bucket the run does not select is never checked");
+    }
+    Ok(1)
+}
+
+fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() -> Result<Value, Failure> {
+    let plan = Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
+        parameters: Vec::new(),
+        steps: vec![ryo_values::domain::plans::types::PlanStep {
+            scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
+            operation: ryo_values::domain::plans::types::Operation::Select {
+                from: ryo_values::domain::plan_parts::types::Input::Relation(Relation::Function),
+                comparisons: Vec::new(),
+                kept: vec![ColumnIndex(0)],
+            },
+        }],
+        comparison_origins: Vec::new(),
+        emit: Emit {
+            step: StepId(0),
+            subject: ColumnIndex(0),
+            key: Vec::new(),
+            headings: Vec::new(),
+        },
+        frontier: Vec::new(),
+    };
+    let plans = [plan.clone(), plan];
+    let ids = [RuleId("gated".into()), RuleId("always".into())];
+    let paths = [FilePath("source.py".into())];
+    let applicability = [RuleApplicability::AcceptedSyntax, RuleApplicability::Always];
+    let placed = PlacedScopes {
+        placement: ScopePlacement::default(),
+        matcher: ryo_execution::outbound::matching::fixtures::fake::MatchingFake
+            .compile(&[])
+            .expect("empty matcher"),
+    };
+    let metadata = ryo_values::domain::run_metadata::service::from_plans(&plans);
+    let (program, request) = prepared_test_program(&plans, &ids, &[]);
+    let setting = RequestVisitSetting {
+        source_language: None,
+        program,
+        services: &request,
+        domain: crate::domain::workers::types::VisitSetting {
+            metadata: &metadata,
+            wanted: &[Relation::Function, Relation::Identifier],
+            paths: &paths,
+            first_bucket: &[],
+            ids: &ids,
+            applicability: &applicability,
+            applicability_can_gate: crate::domain::workers::types::Gating::MayGate,
+            placed: &placed,
+            records: &[],
+            reuse: &ryo_values::domain::stores::types::Reuse::Whole,
+            stored: &NOTHING_STORED,
+            handed: &NOTHING_HANDED,
+            wanted_buckets: &NOTHING_WANTED,
+            budget: ryo_values::domain::runs::types::MemoryBytes(u64::MAX),
+            noted: crate::domain::visit::types::Noting::Unwanted,
+            roled: crate::domain::visit::types::RoleRead::Skips,
+            needs: &[
+                Needs {
+                    reads: vec![RelationRead {
+                        relation: Relation::Function,
+                        kinds: Vec::new(),
+                    }],
+                    ..Needs::default()
+                },
+                Needs {
+                    reads: vec![RelationRead {
+                        relation: Relation::Identifier,
+                        kinds: Vec::new(),
+                    }],
+                    ..Needs::default()
+                },
+            ],
+            answering: &crate::domain::render::types::Answering::Findings,
+            keeping: crate::domain::visit::types::Keeping::Discards,
+            unknown: &[],
+        },
+    };
+    for (acceptance, expected_reason) in [
+        (SyntaxAcceptance::Rejected, "rule skipped: syntax rejected"),
+        (
+            SyntaxAcceptance::Undetermined,
+            "rule skipped: syntax acceptance undetermined",
+        ),
+    ] {
+        assert_gated_acceptance(&setting, acceptance, expected_reason);
+    }
+    assert_accepted_and_missing_applicability(&setting);
+    Ok(1)
+}
+
+fn only_incomplete_diagnostics_mark_code_relations_as_recovery() -> Result<Value, Failure> {
+    use crate::outbound::language::types::FileReading;
+    use ryo_execution::inbound::use_cases::metadata::interface::Recovery;
+    use ryo_language::domain::elements::service::{diagnostics, has_incomplete_lexical_stream, has_incomplete_syntax};
+    use ryo_language::domain::builders::service::{diagnose, diagnose_with_metadata, table_builder};
+    use ryo_language::domain::elements::types::Elements;
+    use ryo_language::domain::diagnostics::types::{SyntaxCompleteness, DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, TreeImpact};
+    use ryo_language::domain::symbols::types::ByteSlice;
+    use ryo_relations::domain::relations::types::{Offset, ReportText};
+
+    let source = ByteSlice(b"x");
+    let mut elements = Elements::default();
+    let mut symbols = Symbols::default();
+    {
+        let mut builder = table_builder(&mut elements, &mut symbols, source);
+        diagnose_with_metadata(
+            &mut builder,
+            DiagnosticMetadata { phase: DiagnosticPhase::Validation, impact: TreeImpact::Preserved, code: DiagnosticCode("fixture.target-syntax") },
+            ReportText("syntax is unsupported by this target"),
+            Offset(0),
+            Offset(1),
+        );
+    }
+    let preserved = recovery_of(
+        &FileReading::Read(ryo_values::domain::stored_facts::types::LanguageNumber(0)),
+        &elements,
+    );
+    assert_eq!(preserved, Recovery::Whole);
+    assert_eq!(has_incomplete_syntax(&elements), SyntaxCompleteness::Complete);
+    assert_eq!(
+        diagnostics(&elements).count(),
+        1,
+        "diagnostic remains reportable"
+    );
+    assert!(
+        MetadataUseCaseImpl
+            .partial_of(&[], preserved, &[Relation::Function])
+            .is_empty()
+    );
+
+    let mut lexical_elements = Elements::default();
+    let mut lexical_symbols = Symbols::default();
+    {
+        let mut lexical_builder =
+            table_builder(&mut lexical_elements, &mut lexical_symbols, source);
+        diagnose_with_metadata(
+            &mut lexical_builder,
+            DiagnosticMetadata { phase: DiagnosticPhase::Parse, impact: TreeImpact::LexicallyComplete, code: DiagnosticCode("fixture.parser-recovered") },
+            ReportText("invalid syntax, complete token stream"),
+            Offset(0),
+            Offset(1),
+        );
+    }
+    let lexical_recovery = recovery_of(
+        &FileReading::Read(ryo_values::domain::stored_facts::types::LanguageNumber(0)),
+        &lexical_elements,
+    );
+    assert_eq!(lexical_recovery, Recovery::LexicallyCompleteSyntaxErrors);
+    assert_eq!(has_incomplete_syntax(&lexical_elements), SyntaxCompleteness::Incomplete);
+    assert_eq!(has_incomplete_lexical_stream(&lexical_elements), SyntaxCompleteness::Complete);
+    let lexical_partials = MetadataUseCaseImpl.partial_of(
+        &[],
+        lexical_recovery,
+        &[
+            Relation::Comment,
+            Relation::IndentRegion,
+            Relation::Function,
+        ],
+    );
+    assert_eq!(lexical_partials.len(), 1);
+    assert_eq!(lexical_partials[0].relation, Relation::Function);
+    let mut incomplete_elements = Elements::default();
+    let mut incomplete_symbols = Symbols::default();
+    {
+        let mut validation_builder =
+            table_builder(&mut incomplete_elements, &mut incomplete_symbols, source);
+        diagnose(
+            &mut validation_builder,
+            ReportText("legacy parser diagnostic without impact metadata"),
+            Offset(0),
+            Offset(1),
+        );
+    }
+    let incomplete = recovery_of(
+        &FileReading::Read(ryo_values::domain::stored_facts::types::LanguageNumber(0)),
+        &incomplete_elements,
+    );
+    assert_eq!(incomplete, Recovery::SyntaxErrors);
+    assert_eq!(has_incomplete_syntax(&incomplete_elements), SyntaxCompleteness::Incomplete);
+    assert_eq!(has_incomplete_lexical_stream(&incomplete_elements), SyntaxCompleteness::Incomplete);
+    assert_eq!(diagnostics(&incomplete_elements).count(), 1);
+    assert!(
+        !MetadataUseCaseImpl
+            .partial_of(&[], incomplete, &[Relation::Function])
+            .is_empty()
+    );
+    Ok(1)
+}
+
+fn required_dependency_stat_and_read_errors_cannot_disappear() -> Result<Value, Failure> {
+    use crate::outbound::corpus::{
+        errors::CorpusError,
+        interface::CorpusPort,
+        types::{CorpusInventory, PathStat},
+    };
+    use ryo_values::domain::files::types::{CorpusEntry, FileBytes, FileSize, Nanoseconds};
+    struct Refuses {
+        stat: bool,
+    }
+    impl CorpusPort for Refuses {
+        fn observe_entry(
+            &self,
+            path: &FilePath,
+        ) -> ryo_language::domain::project_context::types::EntryObservation {
+            ryo_language::domain::project_context::types::EntryObservation {
+                path: path.clone(),
+                state: ryo_language::domain::project_context::types::ObservedEntryState::Unknown,
+            }
+        }
+        fn inventory(&self) -> Result<CorpusInventory, CorpusError> {
+            Ok(CorpusInventory(vec![]))
+        }
+        fn read(&self, _: &CorpusEntry, _: &mut FileBytes) -> Result<(), CorpusError> {
+            Err(CorpusError::Unreadable {
+                path: "required".into(),
+                reason: "read denied".into(),
+            })
+        }
+        fn stat(&self, path: &FilePath) -> Result<PathStat, CorpusError> {
+            if self.stat {
+                Err(CorpusError::Unreadable {
+                    path: path.0.to_string(),
+                    reason: "stat denied".into(),
+                })
+            } else {
+                Ok(PathStat::Found(CorpusEntry {
+                    executable: Default::default(),
+                    path: path.clone(),
+                    size: FileSize(1),
+                    modified: Nanoseconds(1),
+                }))
+            }
+        }
+    }
+    for stat in [false, true] {
+        let service = FileAnalysis::new(
+            Arc::new(Refuses { stat }),
+            Arc::new(LanguageFake::default()),
+            Arc::new(DigestFake),
+            Arc::new(MemoryFake::default()),
+        );
+        let mut result = crate::domain::project::types::Projected::default();
+        assert!(matches!(
+            service.consulted(&[FilePath("required".into())], &mut result),
+            Err(FileAnalysisError::Corpus(_))
+        ));
+        assert!(result.consulted.is_empty() && result.consulted_absent.is_empty());
+    }
+    let service = FileAnalysis::new(
+        Arc::new(CorpusFake::default()),
+        Arc::new(LanguageFake::default()),
+        Arc::new(DigestFake),
+        Arc::new(MemoryFake::default()),
+    );
+    let mut result = crate::domain::project::types::Projected::default();
+    service
+        .consulted(&[FilePath("absent".into())], &mut result)
+        .expect("a genuine missing dependency is recordable");
+    assert_eq!(result.consulted_absent, vec![FilePath("absent".into())]);
+    Ok(1)
+}
+
+fn unstable_same_shape_resident_populations_remain_distinct() -> Result<Value, Failure> {
     use ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker as _;
     use ryo_relations::domain::relations::types::FactColumn;
     let facts = UnstableResidentFacts {
@@ -1176,10 +1334,10 @@ fn unstable_same_shape_resident_populations_remain_distinct() {
         first, second,
         "same relation/schema/count is insufficient without an audited stability promise"
     );
+    Ok(1)
 }
 
-#[test]
-fn file_visits_preserve_stable_unstable_and_unread_provider_outcomes() {
+fn file_visits_preserve_stable_unstable_and_unread_provider_outcomes() -> Result<Value, Failure> {
     use crate::domain::render::types::Answering;
     use crate::domain::visit::types::Keeping;
     use ryo_relations::domain::relations::types::FactColumn;
@@ -1222,10 +1380,10 @@ fn file_visits_preserve_stable_unstable_and_unread_provider_outcomes() {
     .expect("unread file visit");
     assert!(unread.failure.is_none());
     assert_eq!(unread.tables.unread.len(), 1);
+    Ok(1)
 }
 
-#[test]
-fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
+fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() -> Result<Value, Failure> {
     use super::types::{FileVisit, Worker};
 
     use crate::domain::visit::types::{Keeping, Noting, RoleRead};
@@ -1403,11 +1561,11 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
         2,
         "nonvacuous rule-flat then noted digest control"
     );
+    Ok(1)
 }
 
 /// Only post-normalization outcomes can reach the staging boundary; IO failures remain failures.
-#[test]
-fn successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads() {
+fn successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads() -> Result<Value, Failure> {
     use crate::outbound::lint_store::errors::LintStoreError;
     use crate::outbound::lint_store::interface::ReadStore;
     use ryo_values::domain::files::types::FileNumber;
@@ -1531,10 +1689,10 @@ fn successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads() 
         Err(FileAnalysisError::Store(LintStoreError::NothingRead))
     ));
     assert_eq!(failing.calls.load(Ordering::Relaxed), 1);
+    Ok(1)
 }
 
-#[test]
-fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() {
+fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() -> Result<Value, Failure> {
     use super::types::{FileVisit, Worker};
 
     use crate::domain::visit::types::{Keeping, Noting, RoleRead};
@@ -1680,10 +1838,12 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
         },
         store: visit.store,
     };
-    assert!(
-        FileAnalysis::hand_again(&mut replay, &all_visit, FileOrder(0), FileId(0), &record)
-            .is_err()
-    );
+    assert!(matches!(
+        FileAnalysis::hand_again(&mut replay, &all_visit, FileOrder(0), FileId(0), &record),
+        Err(FileAnalysisError::Execution(
+            ryo_execution::inbound::use_cases::execution::types::OperatingError::ObservationIncomplete { .. }
+        ))
+    ));
 
     // The persistent old-row path uses the same filter-before-resolution contract.
     use ryo_values::domain::stored_findings::types::StoredFileNumber;
@@ -1767,15 +1927,16 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
             ..old_visit.setting
         },
     };
-    assert!(
-        FileAnalysis::hand_again(&mut replay, &old_all, FileOrder(0), FileId(0), &old_record)
-            .is_err()
-    );
+    assert!(matches!(
+        FileAnalysis::hand_again(&mut replay, &old_all, FileOrder(0), FileId(0), &old_record),
+        Err(FileAnalysisError::Execution(
+            ryo_execution::inbound::use_cases::execution::types::OperatingError::ObservationIncomplete { .. }
+        ))
+    ));
+    Ok(1)
 }
 
-use ryo_values::domain::rows::types::{RowCount, Table};
-#[test]
-fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes() {
+fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes() -> Result<Value, Failure> {
     use crate::domain::render::types::Answering;
     use crate::domain::visit::types::Keeping;
     use crate::outbound::corpus::{
@@ -1976,10 +2137,10 @@ fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes
             assert_eq!(included.reads.load(Ordering::Relaxed), 1);
         }
     }
+    Ok(1)
 }
 
-#[test]
-fn read_failure_demand_is_limited_to_governing_rules() {
+fn read_failure_demand_is_limited_to_governing_rules() -> Result<Value, Failure> {
     use crate::domain::reading::service::read_failure_demanded;
     use ryo_execution::inbound::use_cases::metadata::interface::{Needs, RelationRead};
     let wanted = [Relation::FilesystemReadFailure];
@@ -1996,10 +2157,10 @@ fn read_failure_demand_is_limited_to_governing_rules() {
     assert_eq!(read_failure_demanded(&wanted, &Mask(vec![1]), &needs, crate::domain::reading::types::RunRuleCount(2)), crate::domain::reading::types::ReadFailureDemand::NotDemanded);
     assert_eq!(read_failure_demanded(&wanted, &Mask(vec![2]), &needs, crate::domain::reading::types::RunRuleCount(2)), crate::domain::reading::types::ReadFailureDemand::Demanded);
     assert_eq!(read_failure_demanded(&wanted, &Mask(vec![1]), &[], crate::domain::reading::types::RunRuleCount(2)), crate::domain::reading::types::ReadFailureDemand::Demanded);
+    Ok(1)
 }
 
-#[test]
-fn discovery_failure_runs_without_parser_bytes_or_permission_invention() {
+fn discovery_failure_runs_without_parser_bytes_or_permission_invention() -> Result<Value, Failure> {
     use crate::domain::{render::types::Answering, visit::types::Keeping};
     use ryo_values::domain::files::types::{CorpusInput, InputReadFailure};
     let corpus = Arc::new(CorpusFake::default());
@@ -2057,10 +2218,10 @@ fn discovery_failure_runs_without_parser_bytes_or_permission_invention() {
     );
     assert!(worker.tables.fresh.is_empty());
     assert_eq!(worker.tables.unrecorded, [FilePath("missing.py".into())]);
+    Ok(1)
 }
 
-#[test]
-fn primary_manifest_read_failure_retains_real_metadata_without_empty_project_source() {
+fn primary_manifest_read_failure_retains_real_metadata_without_empty_project_source() -> Result<Value, Failure> {
     use ryo_values::domain::files::types::{
         CorpusEntry, CorpusInput, FileSize, InputReadFailure, Nanoseconds,
     };
@@ -2109,10 +2270,10 @@ fn primary_manifest_read_failure_retains_real_metadata_without_empty_project_sou
     assert!(!reason.0.is_empty());
     assert!(matches!(&inputs[1], CorpusInput::Available(observed) if observed == &companion));
     assert!(matches!(&inputs[2], CorpusInput::Unreadable { .. }));
+    Ok(1)
 }
 
-#[test]
-fn project_entry_acquisition_deduplicates_provider_candidates_before_observing() {
+fn project_entry_acquisition_deduplicates_provider_candidates_before_observing() -> Result<Value, Failure> {
     use crate::outbound::corpus::{
         errors::CorpusError,
         interface::CorpusPort,
@@ -2187,8 +2348,5 @@ fn project_entry_acquisition_deduplicates_provider_candidates_before_observing()
             .collect::<Vec<_>>(),
         vec!["a.py", "z.py"]
     );
+    Ok(1)
 }
-
-use ryo_execution::inbound::use_cases::metadata::{
-    interface::MetadataUseCase, use_case::MetadataUseCaseImpl,
-};
