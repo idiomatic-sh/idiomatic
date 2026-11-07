@@ -76,7 +76,7 @@ pub(in crate::application::file_dag::program::preparation) fn rules(
                 .clone()
                 .into_boxed_slice(),
             frontier_dependencies:
-                crate::domain::file_program::service::observations::frontier_dependencies(plan)
+                crate::domain::file_program::service::link::frontier_dependencies(plan)
                     .map_err(|error| OperatingError::ObservationIncomplete {
                         reason: error.to_string(),
                     }),

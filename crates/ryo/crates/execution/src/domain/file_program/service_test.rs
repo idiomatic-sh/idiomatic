@@ -1,14 +1,20 @@
 //! Pure request-graph identities and ordered dependency contracts.
-use super::service::compile_prepared;
-use super::types::{NodeInput, RequestGraph};
-use crate::domain::operating::errors::OperatingError;
+use super::fixtures::{binding, bound_input, exporting, export, graph, observing, plan, rule};
+use super::service::link::link;
+use super::service::observations::{schedule, schemas};
+use super::errors::FileProgramError;
+use super::types::{NodeInput, ResolvedObservationBinding};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::observations::types::ObservationProducer;
+use ryo_values::domain::plan_parts::types::ObservationBindingId;
+use ryo_values::domain::rule_requests::types::RuleSpec;
+use ryo_values::domain::runs::types::RuleId;
+use ryo_values::selects;
 use ryo_values::domain::plan_parts::types::*;
 use ryo_values::domain::plans::types::*;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::query_bindings::types::{ParameterType, PlanParameter};
-use std::sync::Arc;
 
 #[derive(Clone, Copy)]
 enum Scenario {
@@ -17,10 +23,19 @@ enum Scenario {
     Duplicates,
     Dependencies,
     InvalidContractShape,
+    UnknownProducer,
+    SelfRead,
+    ExecutableNoQuery,
+    RepeatedBinding,
+    Cycle,
+    NotCompiled,
+    MissingOutput,
+    IncompatibleColumns,
+    DanglingStep,
 }
 type Input = Scenario;
 type Value = ();
-type Failure = OperatingError;
+type Failure = FileProgramError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("caller_origins_do_not_split_pure_identity"),
@@ -52,59 +67,79 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::InvalidContractShape,
         expect: Expect::Value(()),
     },
+    Case {
+        name: CaseName("an_unlisted_producer_is_unknown"),
+        word: Word::Refuses,
+        input: || Scenario::UnknownProducer,
+        expect: Expect::Refusal(|error| {
+            selects!(matches!(error, FileProgramError::UnknownProducer { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("a_rule_cannot_read_its_own_export"),
+        word: Word::Refuses,
+        input: || Scenario::SelfRead,
+        expect: Expect::Refusal(|error| {
+            selects!(matches!(error, FileProgramError::SelfDependency { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("a_listed_rule_cannot_be_declared_without_a_query"),
+        word: Word::Refuses,
+        input: || Scenario::ExecutableNoQuery,
+        expect: Expect::Refusal(|error| {
+            selects!(matches!(error, FileProgramError::ExecutableNoQuery { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("a_name_is_bound_once_per_rule"),
+        word: Word::Refuses,
+        input: || Scenario::RepeatedBinding,
+        expect: Expect::Refusal(|error| {
+            selects!(matches!(error, FileProgramError::DuplicateBinding { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("rules_that_read_each_other_have_no_order"),
+        word: Word::Refuses,
+        input: || Scenario::Cycle,
+        expect: Expect::Error(FileProgramError::Cycle),
+    },
+    Case {
+        name: CaseName("a_producer_without_a_plan_is_not_compiled"),
+        word: Word::Refuses,
+        input: || Scenario::NotCompiled,
+        expect: Expect::Refusal(|error| {
+            selects!(matches!(error, FileProgramError::NotCompiled { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("a_plan_that_exports_no_such_name_misses_the_output"),
+        word: Word::Refuses,
+        input: || Scenario::MissingOutput,
+        expect: Expect::Refusal(|error| {
+            selects!(matches!(error, FileProgramError::MissingOutput { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("an_export_of_other_columns_is_incompatible"),
+        word: Word::Refuses,
+        input: || Scenario::IncompatibleColumns,
+        expect: Expect::Refusal(|error| {
+            selects!(matches!(
+                error,
+                FileProgramError::IncompatibleObservationColumns { .. }
+            ))
+        }),
+    },
+    Case {
+        name: CaseName("a_step_the_plan_does_not_have_is_an_invalid_reference"),
+        word: Word::Refuses,
+        input: || Scenario::DanglingStep,
+        expect: Expect::Error(FileProgramError::InvalidReference),
+    },
 ];
-fn plan() -> Plan {
-    Plan {
-        observation_inputs: vec![],
-        observations: vec![],
-        parameters: vec![],
-        comparison_origins: vec![],
-        frontier: vec![],
-        steps: vec![
-            PlanStep {
-                scope: StepScope::PerFile,
-                operation: Operation::Select {
-                    from: InputSource::Relation(Relation::Function),
-                    kept: vec![ColumnIndex(0), ColumnIndex(2)],
-                    comparisons: vec![PlanComparison {
-                        test: Test::Equal,
-                        left: Operand::Column(ColumnIndex(1)),
-                        right: Operand::Literal(QueryLiteral::Text(LiteralText("main".into()))),
-                        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
-                    }],
-                },
-            },
-            PlanStep {
-                scope: StepScope::PerFile,
-                operation: Operation::Project {
-                    from: InputSource::Step(StepId(0)),
-                    columns: vec![ColumnIndex(1)],
-                    distinct: RepeatedRows::Kept,
-                },
-            },
-        ],
-        emit: Emit {
-            step: StepId(1),
-            subject: ColumnIndex(0),
-            key: vec![],
-            headings: vec![],
-        },
-    }
-}
 use ryo_values::domain::plan_parts::types::Input as InputSource;
-fn graph(
-    plans: &[Plan],
-    bindings: &[Vec<ParameterBinding>],
-) -> Result<RequestGraph, OperatingError> {
-    let operators = crate::application::file_dag::request::prepare_with_schemas(
-        plans,
-        bindings,
-        &[],
-        &ryo_relations::domain::relations::service::kinds,
-        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
-    )?;
-    Ok(compile_prepared(plans, &operators))
-}
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let first = plan();
     match scenario {
@@ -116,7 +151,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                         ryo_values::domain::plan_parts::types::ComparisonOriginId(7),
                     );
             }
-            let graph = graph(&[first, second], &[vec![], vec![]])?;
+            let graph = graph(&[first, second], &[vec![], vec![]]);
             let first = graph.program_nodes[0][0]
                 .as_ref()
                 .expect("first physical producer");
@@ -140,7 +175,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     vec![ParameterBinding::Text(LiteralText("main".into()))],
                     vec![ParameterBinding::Text(LiteralText("other".into()))],
                 ],
-            )?;
+            );
             let first = graph.program_nodes[0][0]
                 .as_ref()
                 .expect("first bound physical producer");
@@ -154,7 +189,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             duplicate.steps.insert(1, duplicate.steps[0].clone());
             duplicate.emit.step = StepId(2);
             duplicate.frontier = vec![InputSource::Step(StepId(1))];
-            let graph = graph(&[duplicate.clone(), duplicate], &[vec![], vec![]])?;
+            let graph = graph(&[duplicate.clone(), duplicate], &[vec![], vec![]]);
             let node = graph.program_nodes[0][0].as_ref().unwrap();
             assert_eq!(graph.program_nodes[0][1].as_ref().unwrap(), node);
             assert_eq!(graph.program_nodes[1][0].as_ref().unwrap(), node);
@@ -200,7 +235,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 keys: vec![ColumnIndex(0)],
                 distinct: None,
             };
-            let graph = graph(&[union, joined, grouped], &[vec![], vec![], vec![]])?;
+            let graph = graph(&[union, joined, grouped], &[vec![], vec![], vec![]]);
             let union_left = *graph.program_nodes[0][0]
                 .as_ref()
                 .expect("first Union producer");
@@ -249,14 +284,83 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             if let Operation::Project { columns, .. } = &mut invalid.steps[1].operation {
                 columns[0] = ColumnIndex(999);
             }
-            let graph = graph(&[invalid], &[vec![]])?;
+            let graph = graph(&[invalid], &[vec![]]);
             let id = graph.program_nodes[0][1].as_ref().unwrap();
             assert!(!graph.nodes[id.0].schema_valid);
+        }
+        Scenario::UnknownProducer => return schedule(&pair("absent")).map(|_| ()),
+        Scenario::SelfRead => {
+            return schedule(&[observing("only", vec![binding("rows", vec![export("only")])])])
+                .map(|_| ());
+        }
+        Scenario::ExecutableNoQuery => {
+            return schedule(&[observing(
+                "only",
+                vec![binding(
+                    "rows",
+                    vec![ObservationProducer::NoQuery {
+                        rule: RuleId("only".into()),
+                    }],
+                )],
+            )])
+            .map(|_| ());
+        }
+        Scenario::RepeatedBinding => {
+            return schedule(&[observing(
+                "only",
+                vec![binding("rows", vec![]), binding("rows", vec![])],
+            )])
+            .map(|_| ());
+        }
+        Scenario::Cycle => {
+            return schedule(&[
+                observing("one", vec![binding("rows", vec![export("two")])]),
+                observing("two", vec![binding("rows", vec![export("one")])]),
+            ])
+            .map(|_| ());
+        }
+        Scenario::NotCompiled => {
+            let rules = pair("first");
+            return schemas::<Plan>(&rules[1], &rules, &[None, None]).map(|_| ());
+        }
+        Scenario::MissingOutput => {
+            let rules = pair("first");
+            return schemas(&rules[1], &rules, &[Some(plan()), None]).map(|_| ());
+        }
+        Scenario::IncompatibleColumns => {
+            let rules = pair("first");
+            return schemas(&rules[1], &rules, &[Some(exporting(vec![])), None]).map(|_| ());
+        }
+        Scenario::DanglingStep => {
+            let mut dangling = plan();
+            dangling.emit.step = StepId(99);
+            let bound = ResolvedObservationBinding {
+                input: ObservationBindingId(0),
+                schema: bound_input("rows"),
+                producers: vec![],
+            };
+            return link(vec![dangling], vec![vec![bound]]).map(|_| ());
         }
     }
     Ok(())
 }
+
+/// The two rules of a request in which `second` reads the export of `reads`.
+fn pair(reads: &str) -> [RuleSpec; 2] {
+    [
+        rule("first"),
+        observing("second", vec![binding("rows", vec![export(reads)])]),
+    ]
+}
+
+/// Run every row that resolves.
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+/// Run every row that is refused.
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }

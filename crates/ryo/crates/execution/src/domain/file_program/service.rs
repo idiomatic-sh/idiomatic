@@ -3,10 +3,16 @@
 pub(crate) mod link;
 pub(crate) mod observations;
 
+use super::constants::{EXPECT_BINDING_SLOTS, ORDERED_EXISTENCE_DECLINED, PREPARATION_TARGET};
 use super::types::{
-    CanonicalOperation, FileProgramNode, NodeId, NodeInput, ObservationRequest, RequestGraph,
-    ResolvedInput,
+    BindingOffset, CanonicalOperation, DerivedSources, FileProgramNode, Fingerprint, NodeId,
+    NodeInput, ObservationRequest, RequestGraph, ResolvedAlternative, ResolvedInput,
+    ResolvedShape,
 };
+use crate::domain::coverage::types::RuleIndex;
+use crate::domain::operator::contract::types::RequestOperators;
+use crate::domain::operator::types::KeptSteps;
+use crate::domain::self_join_recogniser::types::Decline;
 
 use ryo_values::domain::plan_parts::service::{binding_place, step_in};
 use ryo_values::domain::plan_parts::types::StepScope;
@@ -17,25 +23,11 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-struct CanonicalNode {
-    analysis: Vec<super::types::StepAnalysis>,
-    needs: Result<
-        Vec<crate::domain::trust::types::RelationRead>,
-        crate::domain::operating::errors::OperatingError,
-    >,
-    contract: Arc<crate::domain::operator::contract::types::OperatorContract>,
-    scope: Option<usize>,
-    phase: StepScope,
-    operation: Operation,
-    inputs: Vec<NodeInput>,
-    schema_valid: bool,
-}
-
 fn node_input(
     input: Input,
     previous: &[Option<NodeId>],
-    rule: usize,
-    bound_offsets: &[usize],
+    rule: RuleIndex,
+    bound_offsets: &[BindingOffset],
 ) -> Option<ResolvedInput> {
     match input {
         Input::Relation(relation) => Some(ResolvedInput {
@@ -45,7 +37,10 @@ fn node_input(
         Input::BoundObservation(input) => Some(ResolvedInput {
             input: Input::Step(StepId(0)),
             edge: NodeInput::Observation(super::types::ObservationGraphInputId(
-                bound_offsets.get(rule)?.checked_add(binding_place(input))?,
+                bound_offsets
+                    .get(rule.0)?
+                    .0
+                    .checked_add(binding_place(input))?,
             )),
         }),
         Input::Step(step) => Some(ResolvedInput {
@@ -60,8 +55,8 @@ fn node_input(
 fn canonical(
     operation: &Operation,
     previous: &[Option<NodeId>],
-    rule: usize,
-    bound_offsets: &[usize],
+    rule: RuleIndex,
+    bound_offsets: &[BindingOffset],
 ) -> Option<CanonicalOperation> {
     let inputs = named(&inputs_of(operation))
         .iter()
@@ -118,7 +113,7 @@ fn canonical(
     })
 }
 
-pub(crate) fn materialized_steps(plan: &Plan) -> Vec<bool> {
+pub(crate) fn materialized_steps(plan: &Plan) -> KeptSteps {
     let mut readers = vec![0usize; plan.steps.len()];
     for step in &plan.steps {
         if step.scope != StepScope::PerFile {
@@ -146,26 +141,28 @@ pub(crate) fn materialized_steps(plan: &Plan) -> Vec<bool> {
             *root = true;
         }
     }
-    roots
-        .into_iter()
-        .zip(readers)
-        .map(|(root, readers)| root || readers > 1)
-        .collect()
+    KeptSteps(
+        roots
+            .into_iter()
+            .zip(readers)
+            .map(|(root, readers)| root || readers > 1)
+            .collect(),
+    )
 }
 
 /// Hash is an accelerator only: exact typed operation, edges and scope are compared.
 fn fingerprint(
     operation: &Operation,
     inputs: &[NodeInput],
-    scope: Option<usize>,
+    scope: Option<RuleIndex>,
     phase: StepScope,
-) -> u64 {
+) -> Fingerprint {
     let mut hash = std::collections::hash_map::DefaultHasher::new();
     std::mem::discriminant(operation).hash(&mut hash);
     inputs.hash(&mut hash);
     scope.hash(&mut hash);
     std::mem::discriminant(&phase).hash(&mut hash);
-    hash.finish()
+    Fingerprint(hash.finish())
 }
 
 /// Compile one DAG for the entire ordered request. Unsupported descendants
@@ -184,21 +181,7 @@ pub(crate) fn compile_prepared_observations(
     operators: &crate::domain::operator::contract::types::RequestOperators,
     observations: ObservationRequest<'_>,
 ) -> RequestGraph {
-    let bound_offsets = if matches!(observations, ObservationRequest::Bound { .. }) {
-        let mut offset = 0_usize;
-        plans
-            .iter()
-            .map(|plan| {
-                let start = offset;
-                offset = offset
-                    .checked_add(plan.observation_inputs.len())
-                    .expect("request binding slots fit address space");
-                start
-            })
-            .collect::<Vec<_>>()
-    } else {
-        Vec::new()
-    };
+    let bound_offsets = binding_offsets(plans, observations);
     let mut all_mapped = Vec::with_capacity(
         if matches!(observations, ObservationRequest::Bound { .. }) {
             plans.len()
@@ -206,12 +189,14 @@ pub(crate) fn compile_prepared_observations(
             0
         },
     );
-    let mut nodes = Vec::<CanonicalNode>::new();
+    let mut nodes = Vec::<FileProgramNode>::new();
+    let mut scopes = Vec::<Option<RuleIndex>>::new();
     let mut cuts = Vec::with_capacity(plans.len());
     let mut observed_outputs = Vec::new();
-    let mut buckets = HashMap::<u64, Vec<NodeId>>::new();
+    let mut buckets = HashMap::<Fingerprint, Vec<NodeId>>::new();
     for (rule, plan) in plans.iter().enumerate() {
         let kept = materialized_steps(plan);
+        let rule_index = RuleIndex(rule);
         let needs = crate::domain::trust::service::needs_of_contracts(plan, &operators.rules[rule]);
         // The one analysis of the rule: the lowering is made once and the column chains are
         // compiled over it. Nothing of it outlives the loop but the shapes found per step.
@@ -221,7 +206,7 @@ pub(crate) fn compile_prepared_observations(
             .collect::<Result<Vec<_>, _>>()
         {
             Ok(kinds) => Some(crate::domain::operator::types::PlanLayout {
-                kept: crate::domain::operator::types::KeptSteps(kept.clone()),
+                kept: KeptSteps(kept.0.clone()),
                 kinds,
                 lowering: crate::domain::lowering::service::lower(plan),
             }),
@@ -234,14 +219,14 @@ pub(crate) fn compile_prepared_observations(
         let mut mapped = Vec::with_capacity(plan.steps.len());
         let mut rule_cuts = Vec::with_capacity(plan.steps.len());
         for (index, step) in plan.steps.iter().enumerate() {
-            let node = canonical(&step.operation, &mapped, rule, &bound_offsets).and_then(
+            let node = canonical(&step.operation, &mapped, rule_index, &bound_offsets).and_then(
                 |CanonicalOperation { operation, inputs }| {
                     let contract = Arc::clone(operators.rules.get(rule)?.get(index)?);
                     let scope = (contract.reuse
                         == crate::domain::operator::contract::types::ReuseScope::Rule
                         || contract.effects
                             != crate::domain::operator::contract::types::Effects::Pure)
-                        .then_some(rule);
+                        .then_some(rule_index);
                     let region = layout.as_ref().and_then(|layout| {
                         let column = columns
                             .as_ref()
@@ -256,7 +241,7 @@ pub(crate) fn compile_prepared_observations(
                         .flatten()
                         .map(|shape| Arc::new(shape.clone()));
                         (native.is_some() || column.is_some()).then(|| super::types::StepAnalysis {
-                            rule,
+                            rule: rule_index,
                             step: StepId(index as u32),
                             native,
                             column,
@@ -271,7 +256,7 @@ pub(crate) fn compile_prepared_observations(
                             let existing = &nodes[id.0];
                             existing.operation == operation
                                 && existing.inputs == inputs
-                                && existing.scope == scope
+                                && scopes[id.0] == scope
                                 && existing.phase == step.scope
                         })
                     }) {
@@ -286,7 +271,8 @@ pub(crate) fn compile_prepared_observations(
                             NodeInput::Relation(_) | NodeInput::Observation(_) => true,
                         });
                     let id = NodeId(nodes.len());
-                    nodes.push(CanonicalNode {
+                    scopes.push(scope);
+                    nodes.push(FileProgramNode {
                         analysis: region.into_iter().collect(),
                         needs: needs.as_ref().map_err(Clone::clone).and_then(|needs| {
                             needs
@@ -295,7 +281,6 @@ pub(crate) fn compile_prepared_observations(
                                 .ok_or(crate::domain::operating::errors::OperatingError::NotRun)
                         }),
                         contract,
-                        scope,
                         phase: step.scope,
                         operation,
                         inputs,
@@ -323,60 +308,108 @@ pub(crate) fn compile_prepared_observations(
         all_mapped.push(mapped);
         cuts.push(rule_cuts);
     }
-    // Only declared outputs are roots. Dependency traversal and all internal
-    // last-consumer edges belong to the common graph, never an opaque schedule.
-    let boundaries: Vec<Vec<(usize, NodeId)>> = plans
+    let derived_sources = derived_sources_of(plans, operators, &cuts, &nodes);
+    let ordered_existence =
+        ordered_alternatives(plans, operators, &cuts, &nodes, &observed_outputs);
+    let observations = observations::graph_outputs(plans, &all_mapped, observations);
+    let program_nodes = all_mapped
         .iter()
-        .zip(&all_mapped)
-        .map(|(plan, mapped)| {
-            let mut roots = Vec::new();
-            let mut add = |input: Input| {
-                if let Input::Step(step) = input
-                    && let Some(Some(node)) = mapped.get(step.0 as usize)
-                    && !roots.iter().any(|(_, existing)| existing == node)
-                {
-                    roots.push((step.0 as usize, *node));
-                }
-            };
-            add(Input::Step(plan.emit.step));
-            for input in &plan.frontier {
-                add(*input);
-            }
-            for output in &plan.observations {
-                add(output.source);
-            }
-            roots
+        .map(|steps| {
+            steps
+                .iter()
+                .map(|node| node.ok_or(crate::domain::operating::errors::OperatingError::NotRun))
+                .collect()
         })
         .collect();
-    let mut derived_sources = vec![false; nodes.len()];
+    RequestGraph {
+        program_nodes,
+        ordered_existence,
+        observations,
+        derived_sources: derived_sources.0,
+        nodes,
+    }
+}
+
+/// Where the binding slots of each rule start among the slots of the request, when it binds named roots.
+fn binding_offsets(plans: &[Plan], observations: ObservationRequest<'_>) -> Vec<BindingOffset> {
+    if !matches!(observations, ObservationRequest::Bound { .. }) {
+        return Vec::new();
+    }
+    let mut offset = 0_usize;
+    plans
+        .iter()
+        .map(|plan| {
+            let start = offset;
+            offset = offset
+                .checked_add(plan.observation_inputs.len())
+                .expect(EXPECT_BINDING_SLOTS);
+            BindingOffset(start)
+        })
+        .collect()
+}
+
+/// Producers of declared derived inputs, computed once for the whole request.
+fn derived_sources_of(
+    plans: &[Plan],
+    operators: &RequestOperators,
+    cuts: &[Vec<Option<NodeId>>],
+    nodes: &[FileProgramNode],
+) -> DerivedSources {
+    let mut found = DerivedSources(vec![false; nodes.len()]);
     for (rule, plan) in plans.iter().enumerate() {
-        for (step, operation) in plan.steps.iter().enumerate() {
-            let Some(contract) = operators
-                .rules
-                .get(rule)
-                .and_then(|contracts| contracts.get(step))
-            else {
-                continue;
-            };
-            let inputs = inputs_of(&operation.operation);
-            for group in contract.derived.slots.iter().flatten() {
-                for use_ in std::iter::once(&group.primary).chain(group.secondary.iter()) {
-                    for place in &use_.inputs[..usize::from(use_.len)] {
-                        if let Some(Input::Step(id)) = named(&inputs).get(*place)
-                            && let Some(Some(node)) =
-                                cuts.get(rule).and_then(|steps| steps.get(id.0 as usize))
-                        {
-                            derived_sources[node.0] = true;
-                        }
-                    }
+        plan_sources(RuleIndex(rule), plan, operators, cuts, &mut found);
+    }
+    found
+}
+
+/// Mark the nodes that the derived views of one plan's steps read.
+fn plan_sources(
+    rule: RuleIndex,
+    plan: &Plan,
+    operators: &RequestOperators,
+    cuts: &[Vec<Option<NodeId>>],
+    found: &mut DerivedSources,
+) {
+    for (step, operation) in plan.steps.iter().enumerate() {
+        let Some(contract) = operators
+            .rules
+            .get(rule.0)
+            .and_then(|contracts| contracts.get(step))
+        else {
+            continue;
+        };
+        let inputs = inputs_of(&operation.operation);
+        let uses = contract
+            .derived
+            .slots
+            .iter()
+            .flatten()
+            .flat_map(|group| std::iter::once(&group.primary).chain(group.secondary.iter()));
+        for use_ in uses {
+            for place in &use_.inputs[..usize::from(use_.len)] {
+                if let Some(Input::Step(id)) = named(&inputs).get(*place)
+                    && let Some(Some(node)) =
+                        cuts.get(rule.0).and_then(|steps| steps.get(id.0 as usize))
+                {
+                    found.0[node.0] = true;
                 }
             }
         }
     }
+}
+
+/// Reviewed alternatives indexed by their replaced Select producer.
+fn ordered_alternatives(
+    plans: &[Plan],
+    operators: &RequestOperators,
+    cuts: &[Vec<Option<NodeId>>],
+    nodes: &[FileProgramNode],
+    observed_outputs: &[NodeId],
+) -> Vec<Option<ResolvedAlternative>> {
     // Canonical sharing can add consumers absent from any original-plan use
     // count. Include terminal/frontier observations, even where cuts are None.
     let mut resolved_readers = vec![0usize; nodes.len()];
-    for node in &nodes {
+    for node in nodes {
         for input in &node.inputs {
             if let NodeInput::Node(id) = input {
                 resolved_readers[id.0] += 1;
@@ -408,11 +441,8 @@ pub(crate) fn compile_prepared_observations(
                 .iter()
                 .any(|id| resolved_readers[id.0] != 1)
             {
-                ordered_existence[select.0] = Some(
-                    crate::domain::file_program::types::ResolvedAlternative::Declined(
-                        crate::domain::self_join_recogniser::types::Decline::ExtraConsumer,
-                    ),
-                );
+                ordered_existence[select.0] =
+                    Some(ResolvedAlternative::Declined(Decline::ExtraConsumer));
                 continue;
             }
             // Verify canonical edges, not normalized operation-local Step numbers.
@@ -449,53 +479,19 @@ pub(crate) fn compile_prepared_observations(
                 continue;
             }
 
-            ordered_existence[select.0] = Some(
-                crate::domain::file_program::types::ResolvedAlternative::Eligible(
-                    crate::domain::file_program::types::ResolvedShape {
-                        shape: shape.clone(),
-                        source,
-                        join,
-                        select,
-                        output: output.clone(),
-                    },
-                ),
-            );
+            ordered_existence[select.0] = Some(ResolvedAlternative::Eligible(ResolvedShape {
+                shape: shape.clone(),
+                source,
+                join,
+                select,
+                output: output.clone(),
+            }));
         }
     }
     for (node, alternative) in ordered_existence.iter().enumerate() {
-        if let Some(crate::domain::file_program::types::ResolvedAlternative::Declined(reason)) =
-            alternative
-        {
-            tracing::trace!(target: "ryo::diagnostic::preparation", node, ?reason,
-                "ordered existence declined after canonical producer binding");
+        if let Some(ResolvedAlternative::Declined(reason)) = alternative {
+            tracing::trace!(target: PREPARATION_TARGET, event = ORDERED_EXISTENCE_DECLINED, node, ?reason);
         }
     }
-    let observations = observations::graph_outputs(plans, &all_mapped, observations);
-    let program_nodes = all_mapped
-        .iter()
-        .map(|steps| {
-            steps
-                .iter()
-                .map(|node| node.ok_or(crate::domain::operating::errors::OperatingError::NotRun))
-                .collect()
-        })
-        .collect();
-    RequestGraph {
-        program_nodes,
-        ordered_existence,
-        observations,
-        derived_sources,
-        nodes: nodes
-            .into_iter()
-            .map(|node| FileProgramNode {
-                analysis: node.analysis,
-                needs: node.needs,
-                phase: node.phase,
-                contract: node.contract,
-                operation: node.operation,
-                inputs: node.inputs,
-                schema_valid: node.schema_valid,
-            })
-            .collect(),
-    }
+    ordered_existence
 }

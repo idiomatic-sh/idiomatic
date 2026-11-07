@@ -36,7 +36,7 @@ pub(crate) struct CanonicalOperation {
 /// and the column chain it ends. It holds neither the plan nor a layout, and no evaluator.
 #[derive(Debug)]
 pub(crate) struct StepAnalysis {
-    pub rule: usize,
+    pub rule: crate::domain::coverage::types::RuleIndex,
     pub step: ryo_values::domain::plan_parts::types::StepId,
     pub native: Option<Arc<crate::domain::lowering::types::LoweredShape>>,
     pub column: Option<crate::domain::column_kernel::types::Chain>,
@@ -144,7 +144,7 @@ pub(crate) enum GraphObservationRoot {
 #[derive(Clone, Debug)]
 pub(crate) struct GraphObservationOutput {
     pub root: GraphObservationRoot,
-    pub consumers: Vec<usize>,
+    pub consumers: Vec<crate::domain::coverage::types::RuleIndex>,
 }
 /// The existing request graph owns both typed binding edges and root lifetime declarations.
 #[derive(Debug)]
@@ -207,3 +207,44 @@ pub(crate) enum ResolvedAlternative {
     Eligible(ResolvedShape),
     Declined(Decline),
 }
+
+/// Where the binding slots of one rule start among the binding slots of the request.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct BindingOffset(pub usize);
+
+/// How many bound inputs a plan declares.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct BindingCount(pub usize);
+
+/// The hash that sorts canonical operations into buckets; it only accelerates, equality decides.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct Fingerprint(pub u64);
+
+/// The steps of one plan that linking keeps, by the step's place.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct WantedSteps(pub Vec<bool>);
+
+/// The named outputs of one plan that a consumer reads, by the output's place.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ExportedOutputs(pub Vec<bool>);
+
+/// The named outputs of one plan that a cross-file step reads, by the output's place.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct EscapingOutputs(pub Vec<bool>);
+
+/// The bound inputs of one rule that a kept step reads, by the input's place.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct UsedInputs(pub Vec<bool>);
+
+/// A step of one rule that linking has still to follow.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct PendingStep {
+    /// The rule the step belongs to.
+    pub rule: crate::domain::coverage::types::RuleIndex,
+    /// The step to follow.
+    pub step: ryo_values::domain::plan_parts::types::StepId,
+}
+
+/// The nodes of a request graph that a derived view reads, by the node's place.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct DerivedSources(pub Vec<bool>);

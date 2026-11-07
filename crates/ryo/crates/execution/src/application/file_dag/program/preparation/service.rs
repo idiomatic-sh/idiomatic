@@ -256,7 +256,7 @@ pub(crate) fn prepare(
             outputs: named.outputs.iter().map(|outputs| outputs.iter().map(|output| OutputMetadata {
                 root: match output.root { crate::domain::file_program::types::GraphObservationRoot::PerFile(_) => OutputRoot::PerFile,
                     crate::domain::file_program::types::GraphObservationRoot::CrossFile => OutputRoot::CrossFile,
-                    crate::domain::file_program::types::GraphObservationRoot::Unavailable => OutputRoot::Unavailable }, consumers: output.consumers.iter().copied().map(RuleIndex).collect(),
+                    crate::domain::file_program::types::GraphObservationRoot::Unavailable => OutputRoot::Unavailable }, consumers: output.consumers.clone(),
             }).collect()).collect(),
             retire: named.retire.clone(),
             consumers: named
@@ -265,7 +265,7 @@ pub(crate) fn prepare(
                 .map(|outputs| {
                     outputs
                         .iter()
-                        .map(|output| output.consumers.iter().copied().map(RuleIndex).collect())
+                        .map(|output| output.consumers.clone())
                         .collect()
                 })
                 .collect(),

@@ -35,7 +35,7 @@ fn only_the_emitted_native_step_is_a_retention_root_when_each_is_read_once() {
     )
     .unwrap();
     assert_eq!(
-        crate::domain::file_program::service::materialized_steps(&plans[0]),
+        crate::domain::file_program::service::materialized_steps(&plans[0]).0,
         [false, true]
     );
     assert_eq!(
@@ -67,7 +67,7 @@ fn the_step_handed_to_cross_file_steps_is_a_retention_root() {
     )
     .unwrap();
     assert_eq!(
-        crate::domain::file_program::service::materialized_steps(&plans[0]),
+        crate::domain::file_program::service::materialized_steps(&plans[0]).0,
         [true, true]
     );
     assert_eq!(
