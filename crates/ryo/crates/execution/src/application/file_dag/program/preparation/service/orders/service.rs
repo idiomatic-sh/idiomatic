@@ -15,8 +15,7 @@ pub(in crate::application::file_dag::program::preparation) fn prepare(
         .regions()
         .iter()
         .map(|region| {
-            if crate::domain::executable_program::service::native_positions(&region.route).is_none()
-            {
+            if crate::domain::executable_program::service::native_positions(&region.route).is_none() {
                 return Ok(None);
             }
             let stride = match &region.instructions[0].operation {
@@ -25,10 +24,8 @@ pub(in crate::application::file_dag::program::preparation) fn prepare(
                     distinct: RepeatedRows::Dropped,
                     ..
                 } => Some(columns.len().max(1)),
-                Operation::Union { .. } => {
-                    crate::domain::executable_program::service::native_positions(&region.route)
-                        .map(|shape| shape.columns.len().max(1))
-                }
+                Operation::Union { .. } => crate::domain::executable_program::service::native_positions(&region.route)
+                    .map(|shape| shape.columns.len().max(1)),
                 Operation::Antijoin { right_on, .. } | Operation::Join { right_on, .. } => {
                     Some(right_on.len())
                 }

@@ -6,7 +6,9 @@ use super::types::{
 use crate::domain::{operating::errors::OperatingError, operation_schema::types::InputShape};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::{
-    plan_parts::types::RepeatedRows, plans::types::Operation, query_operators::types::OperationKind,
+    plan_parts::types::RepeatedRows,
+    plans::types::Operation,
+    query_operators::types::OperationKind,
 };
 pub(crate) fn prepare(
     operation: &Operation,

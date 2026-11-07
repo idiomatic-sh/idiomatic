@@ -41,7 +41,9 @@ pub(crate) fn evaluate(
         Operation::Antijoin { .. } => sets::antijoin(
             semantics, order, operation, tree, inputs, output, work, counts,
         ),
-        Operation::Union { .. } => sets::union(semantics, order, output, work),
+        Operation::Union { .. } => {
+            sets::union(semantics, order, output, work)
+        }
         Operation::Axis { .. } => {
             axis::axis(operation, tree, inputs, output, context, work, counts)
         }

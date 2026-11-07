@@ -10,7 +10,7 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::{
     hosted::types::HostRelation,
     observations::types::ObservationProducer,
-    plan_parts::types::{HostedNumber, Input, ObservationBindingId, ParameterId, StepScope},
+    plan_parts::types::{HostedNumber, Input, ParameterId, ObservationBindingId, StepScope},
     plans::types::Plan,
 };
 

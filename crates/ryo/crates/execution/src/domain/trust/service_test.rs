@@ -7,9 +7,7 @@ use super::service::{blocked, matters};
 use super::types::{Bearing, Blocking, RelationRead};
 use crate::domain::coverage::types::{Lacking, LackingKind, Partial};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Operand, PlanComparison, QueryLiteral, Test,
-};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison, Operand, QueryLiteral, Test};
 use ryo_values::domain::stored_facts::types::PartialCause;
 
 /// What a row of the cases does.

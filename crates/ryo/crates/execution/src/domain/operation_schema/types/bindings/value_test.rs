@@ -5,8 +5,8 @@ use crate::domain::operation_schema::types::bindings::value::BindingShape;
 use ryo_relations::domain::relations::types::{CellKind, Integer};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, FlagState, LiteralText, Operand, ParameterId, PlanComparison, QueryLiteral,
-    TableKey, Test, WholeNumber,
+    ColumnIndex, PlanComparison, FlagState, LiteralText, Operand, ParameterId, QueryLiteral, TableKey,
+    Test, WholeNumber,
 };
 
 /// Each variant asserts a binding-specific contract, with no operator payload inputs.

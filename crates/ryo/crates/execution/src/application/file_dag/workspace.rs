@@ -1,11 +1,11 @@
 //! The application owns each invocation's mutable allocations and release boundary.
 use super::relations::admission::service::BorrowedInput;
-use crate::application::file_dag::derived::owner::acquisition::selection::types::StoredColumns;
 use crate::domain::{
     derived_views::types::PreparedViewUse,
     operating::{errors::OperatingError, types::OperatorContext},
     operator::contract::views::BorrowedRows,
 };
+use crate::application::file_dag::derived::owner::acquisition::selection::types::StoredColumns;
 use std::sync::Arc;
 
 use crate::domain::operator::contract::{
@@ -422,7 +422,9 @@ impl InvocationWorkspace {
             match rows[0] {
                 BorrowedRows::Stored(source) => relations[0]
                     .or(use_.relations[0])
-                    .map(|relation| StoredColumns { relation }),
+                    .map(|relation| StoredColumns {
+                        relation,
+                    }),
                 _ => None,
             }
         } else {

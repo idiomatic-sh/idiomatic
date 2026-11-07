@@ -80,8 +80,7 @@ pub(crate) fn with_producers(
         ];
         let mut across = own.crossing == Crossing::Across;
         for input in inputs {
-            across |=
-                input.schema.scope == ryo_values::domain::plan_parts::types::StepScope::CrossFile;
+            across |= input.schema.scope == ryo_values::domain::plan_parts::types::StepScope::CrossFile;
             for producer in &input.producers {
                 match producer {
                     ResolvedObservationProducer::Output { rule, .. } => {

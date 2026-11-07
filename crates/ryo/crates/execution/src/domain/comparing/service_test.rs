@@ -17,12 +17,12 @@ use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::Applied;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Function;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
 use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plan_parts::types::Operand;
 use ryo_values::domain::plan_parts::types::ParameterId;
-use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::QueryLiteral;
 use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plans::types::Operation;
@@ -90,8 +90,9 @@ fn tells_a_name_equal_to_a_text_by_its_hash() -> Result<Value, OperatingError> {
         let Operation::Select { comparisons, .. } = operation else {
             unreachable!()
         };
-        let names =
-            NameCount(ryo_language::domain::names::service::name_count(context.symbols.as_ref()).0);
+        let names = NameCount(
+            ryo_language::domain::names::service::name_count(context.symbols.as_ref()).0,
+        );
         let mut answers = Vec::new();
         for row in table.cells.chunks(table.kinds.len()) {
             answers.push(holds_all(
@@ -231,8 +232,9 @@ fn remembers_what_a_text_was_decided_in_another_file() -> Result<Value, Operatin
         let Operation::Select { comparisons, .. } = &operation else {
             unreachable!()
         };
-        let names =
-            NameCount(ryo_language::domain::names::service::name_count(context.symbols.as_ref()).0);
+        let names = NameCount(
+            ryo_language::domain::names::service::name_count(context.symbols.as_ref()).0,
+        );
         let mut answers = Vec::new();
         for row in table.cells.chunks(table.kinds.len()) {
             answers.push(holds_all(

@@ -5,14 +5,14 @@ use crate::domain::{
     operator::contract::types::DemandOrder,
 };
 use ryo_relations::domain::relations::types::{CellKind, Relation};
-use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
         plan_parts::types::{ColumnIndex, Direction, Input as PlanInput},
-        plans::types::Operation,
+        plans::types::{Operation},
     },
 };
+use ryo_values::domain::query_operators::types::OperationKind;
 type Input = (DemandOrder, usize, &'static [usize]);
 type Value = ();
 type Failure = crate::domain::operating::errors::OperatingError;

@@ -23,11 +23,8 @@ use crate::domain::{
         types::{Rows, Verdict},
     },
 };
+use ryo_language::domain::{elements::service::{kind_at, kind_names}, symbols::service::query_reborrow};
 use ryo_language::domain::names::service::name_count;
-use ryo_language::domain::{
-    elements::service::{kind_at, kind_names},
-    symbols::service::query_reborrow,
-};
 use ryo_relations::domain::relations::types::{CellKind, Flag, Position, Relation, Value};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rows::types::RowIndex;

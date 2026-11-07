@@ -18,8 +18,8 @@ use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
         plan_parts::types::{
-            Applied, ColumnIndex, Function, Input as Source, LiteralText, Operand, ParameterId,
-            PlanComparison, QueryLiteral, StepId, StepScope, Test,
+            Applied, ColumnIndex, PlanComparison, Function, Input as Source, LiteralText, Operand,
+            ParameterId, QueryLiteral, StepId, StepScope, Test,
         },
         plans::types::{Operation, PlanStep},
         query_bindings::types::ParameterBinding,

@@ -119,9 +119,9 @@ fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() {
             },
         })
         .collect();
-    let ProjectBatch::Complete(outcomes) =
-        phase.evaluate(tasks, &mut symbols, |_| Ok::<(), OperatingError>(()))
-    else {
+    let ProjectBatch::Complete(outcomes) = phase.evaluate(tasks, &mut symbols, |_| {
+        Ok::<(), OperatingError>(())
+    }) else {
         panic!("the guard admits the declared roots")
     };
     for outcome in outcomes {

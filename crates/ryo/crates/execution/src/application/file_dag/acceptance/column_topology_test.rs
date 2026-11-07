@@ -17,8 +17,8 @@ use ryo_values::domain::{
         ObservationColumn, ObservationColumnName, ObservationName, PlanObservation,
     },
     plan_parts::types::{
-        ColumnIndex, HostedNumber, Input as PlanInput, JoinColumn, LiteralText, Operand,
-        ParameterId, PlanComparison, QueryLiteral, RepeatedRows, Side, StepId, StepScope, Test,
+        ColumnIndex, PlanComparison, HostedNumber, Input as PlanInput, JoinColumn, LiteralText,
+        Operand, ParameterId, QueryLiteral, RepeatedRows, Side, StepId, StepScope, Test,
     },
     plans::types::{Emit, Operation, Plan, PlanStep},
 };

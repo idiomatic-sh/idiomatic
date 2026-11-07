@@ -63,14 +63,7 @@ const METHODS: &[(&str, &str)] = &[
     ),
 ];
 
-const KINDS: &[&str] = &[
-    "Stored",
-    "Selected",
-    "Tree",
-    "Computed",
-    "Compact",
-    "Positioned",
-];
+const KINDS: &[&str] = &["Stored", "Selected", "Tree", "Computed", "Compact", "Positioned"];
 
 fn production(name: &str) -> String {
     fs::read_to_string(
@@ -129,7 +122,9 @@ use domain::table_model::collections::representations::types::*;
 "#;
     let types = production("types.rs").replace(
         "pub(crate) mod registered_representation;",
-        &format!("pub(crate) mod registered_representation {{ pub mod value {{ {value} }} }}"),
+        &format!(
+            "pub(crate) mod registered_representation {{ pub mod value {{ {value} }} }}"
+        ),
     );
     template
         .replace("__INTERFACE__", &production("interface.rs"))
@@ -277,9 +272,10 @@ fn declaration(source: &str, marker: &str) -> String {
 /// The real record and the real published-relation trait, at their real module positions, with a valid owner and a peer client.
 fn private_publication_scaffold() -> String {
     let core = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let record =
-        fs::read_to_string(core.join("src/application/file_dag/relations/publication/types.rs"))
-            .unwrap();
+    let record = fs::read_to_string(
+        core.join("src/application/file_dag/relations/publication/types.rs"),
+    )
+    .unwrap();
     let published = production("publication.rs");
     r#"
 #![allow(dead_code,unused_imports)]

@@ -20,20 +20,20 @@ use ryo_relations::domain::{
     },
     terms::types::{NameText, Symbol},
 };
-use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
         plan_parts::types::{
             ColumnIndex, Input as PlanInput, JoinColumn, RepeatedRows, Side, StepId,
         },
-        plans::types::{Operation, Plan},
+        plans::types::{Operation,  Plan},
         rows::{
             errors::RowsError,
             types::{RowCount, Table},
         },
     },
 };
+use ryo_values::domain::query_operators::types::OperationKind;
 use std::cell::Cell;
 
 type Input = fn();

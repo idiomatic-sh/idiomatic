@@ -29,7 +29,10 @@ fn a_retired_owner_refuses_graph_demand_instead_of_traversing() {
     let fixture = GraphFixture::new(&[Relation::Function], &[], LIMIT);
     assert!(matches!(fixture.cache_ready(), Ok(())));
     fixture.retire();
-    assert!(matches!(fixture.cache_ready(), Err(OperatingError::NotRun)));
+    assert!(matches!(
+        fixture.cache_ready(),
+        Err(OperatingError::NotRun)
+    ));
 }
 
 #[test]

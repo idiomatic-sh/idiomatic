@@ -405,15 +405,13 @@ impl PreparedExecution for PreparedExecutionProgram {
         self.inner.frontiers(rule)
     }
     fn captures_observation(&self, rule: RuleIndex, input: usize) -> Result<bool, OperatingError> {
-        Ok(self.inner.frontier_purpose(
-            rule,
-            ryo_values::domain::plan_parts::types::InputNumber(input),
-        )?
+        Ok(self
+            .inner
+            .frontier_purpose(rule, ryo_values::domain::plan_parts::types::InputNumber(input))?
             == crate::domain::executable_program::file_demand::types::FrontierPurpose::Observation)
     }
     fn semantic_needed(&self) -> bool {
-        self.inner.semantic_needed()
-            == crate::application::file_dag::program::preparation::types::SemanticNeed::Required
+        self.inner.semantic_needed() == crate::application::file_dag::program::preparation::types::SemanticNeed::Required
     }
     fn observation_layout(
         &self,

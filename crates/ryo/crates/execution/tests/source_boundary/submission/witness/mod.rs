@@ -2,8 +2,7 @@
 use ryo_execution::inbound::use_cases::execution::{
     interface::{
         ExecutionRequest, ExecutionUseCase, FileExecution, InvocationStateCounts,
-        ObservationExecution, ObservationPublication, ProjectRootExecution, ProjectStage,
-        ReadinessCounts, WalkCounts,
+        ObservationExecution, ObservationPublication, ProjectRootExecution, ProjectStage, ReadinessCounts, WalkCounts,
     },
     types::*,
 };

@@ -4,8 +4,8 @@ use super::errors::SpellingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 
-use ryo_language::domain::names::service::{derived_of, places_of};
 use ryo_language::domain::symbols::service::place_of;
+use ryo_language::domain::names::service::{derived_of, places_of};
 use ryo_relations::domain::relations::types::{CROSS_FILE, Origin, TextHash, Value};
 
 /// Checks that the names the files handed over are the same entity exactly when they are spelled the same: the cross-file steps

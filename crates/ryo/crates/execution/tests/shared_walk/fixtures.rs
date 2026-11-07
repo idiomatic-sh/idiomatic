@@ -5,16 +5,8 @@ use ryo_execution::inbound::use_cases::execution::{
     types::*,
     use_case::ExecutionUseCaseImpl,
 };
+use ryo_language::domain::{completion::service::{completion, name_kind}, elements::{service::{kind_names, real_count, text_at}, types::Elements}, kind_index::service::index_kinds, symbols::types::{ByteSlice, Symbols}};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
-use ryo_language::domain::{
-    completion::service::{completion, name_kind},
-    elements::{
-        service::{kind_names, real_count, text_at},
-        types::Elements,
-    },
-    kind_index::service::index_kinds,
-    symbols::types::{ByteSlice, Symbols},
-};
 use ryo_operators::inbound::use_cases::operators::{
     interface::{OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault},
     use_case::OperatorsUseCaseImpl,

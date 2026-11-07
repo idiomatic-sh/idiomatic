@@ -10,8 +10,8 @@ use ryo_operators::inbound::use_cases::operators::interface::{
 };
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plans::types::Operation;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::query_operators::types::OperationKind;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 struct Pairing<'a, 'input, 'engine> {
     inputs: &'a [BorrowedRows<'input>],

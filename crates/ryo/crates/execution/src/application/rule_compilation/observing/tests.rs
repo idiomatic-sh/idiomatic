@@ -2,8 +2,8 @@
 use super::prefix;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
-    Applied, ColumnIndex, ComparisonOrigin, ComparisonOriginId, Function, Input, LiteralText,
-    Operand, ParameterId, PlanComparison, QueryLiteral, RepeatedRows, StepId, Test,
+    Applied, ColumnIndex, PlanComparison, ComparisonOrigin, ComparisonOriginId, Function, Input,
+    LiteralText, Operand, ParameterId, QueryLiteral, RepeatedRows, StepId, Test,
 };
 use ryo_values::domain::plans::types::Operation;
 

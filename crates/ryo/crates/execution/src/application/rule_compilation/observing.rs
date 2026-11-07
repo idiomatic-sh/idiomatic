@@ -1,12 +1,12 @@
 //! Explicitly enabled compiled-prefix evidence; this observes plans and never executes or caches them.
 use ryo_relations::domain::relations::{service::kinds, types::Relation};
 use ryo_values::domain::hosted::types::HostRelation;
-use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::{
     service::remapped,
-    types::{ColumnIndex, Input, PlanComparison, RepeatedRows},
+    types::{ColumnIndex, PlanComparison, Input, RepeatedRows},
 };
 use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 

@@ -1,13 +1,7 @@
 //! The workspace entry: families acquired through `InputAdmissions` of an invocation workspace.
-use crate::application::file_dag::derived::owner::acquisition::family::fixtures::request::{
-    observed, request,
-};
-use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{
-    Exit, released,
-};
-use crate::application::file_dag::derived::owner::acquisition::family::fixtures::{
-    SMALL_SOURCE, SmallTree, numbers, small_tree,
-};
+use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{Exit, released};
+use crate::application::file_dag::derived::owner::acquisition::family::fixtures::request::{observed, request};
+use crate::application::file_dag::derived::owner::acquisition::family::fixtures::{SMALL_SOURCE, SmallTree, numbers, small_tree};
 use crate::application::file_dag::{
     derived::owner::{ViewContext, acquisition::admission::service::AcquiredView},
     relations::RelationOwner,
@@ -110,11 +104,7 @@ fn through_workspace(
         }
         Exit::Succeeds => {
             let view = demand(kind, &admissions, &use_, &mut symbols, false)?;
-            assert_eq!(
-                observed(&view)?,
-                kind,
-                "{kind:?}: the leased view reports its family"
-            );
+            assert_eq!(observed(&view)?, kind, "{kind:?}: the leased view reports its family");
             Ok(kind)
         }
         Exit::Errors => {
@@ -175,3 +165,4 @@ fn demand(
         _ => admissions.acquire_derived(use_, context, ViewInputs::Rows),
     }
 }
+

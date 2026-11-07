@@ -2,14 +2,14 @@
 use super::service::registered;
 use crate::domain::{operating::errors::OperatingError, operation_schema::types::InputShape};
 use ryo_relations::domain::relations::types::{CellKind, Relation};
-use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
         plan_parts::types::{ColumnIndex, Input as Source, Operand, RepeatedRows},
-        plans::types::Operation,
+        plans::types::{Operation},
     },
 };
+use ryo_values::domain::query_operators::types::OperationKind;
 #[derive(Clone, Copy)]
 enum Scenario {
     Valid,
@@ -30,10 +30,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
         Scenario::Valid => registered(OperationKind::Project).prepare(
             &project,
-            &[InputShape {
-                kinds: &kinds,
-                tree: None,
-            }],
+            &[InputShape { kinds: &kinds, tree: None }],
             &[],
         ),
         Scenario::Foreign => registered(OperationKind::Project).prepare(

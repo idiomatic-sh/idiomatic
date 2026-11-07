@@ -10,7 +10,7 @@ use ryo_values::domain::{
         ObservationColumn, ObservationColumnName, ObservationName, PlanObservation,
     },
     plan_parts::types::{
-        ColumnIndex, Input, JoinColumn, Operand, PlanComparison, QueryLiteral, RepeatedRows, Side,
+        ColumnIndex, PlanComparison, Input, JoinColumn, Operand, QueryLiteral, RepeatedRows, Side,
         StepId, StepScope, Test,
     },
     plans::types::{Emit, Operation, Plan, PlanStep},

@@ -14,23 +14,14 @@ mod scan;
 
 /// The only lines outside the owner tree that name the builder port, by file.
 const PORT_NAMES: &[(&str, &[&str])] = &[
-    (
-        "outbound/derived/interface.rs",
-        &[
-            "pub trait DerivedPort:",
-            "ryo_derived::inbound::use_cases::derived::interface::DerivedUseCase + Send + Sync + std::fmt::Debug",
-            "> DerivedPort for T",
-            "T: ryo_derived::inbound::use_cases::derived::interface::DerivedUseCase",
-        ],
-    ),
-    (
-        "inbound/use_cases/execution/types.rs",
-        &["pub use crate::outbound::derived::interface::DerivedPort;"],
-    ),
-    (
-        "inbound/use_cases/execution/use_case.rs",
-        &["pub fn new(operators: Arc<dyn OperatorsPort>, derived: Arc<dyn DerivedPort>) -> Self {"],
-    ),
+    ("outbound/derived/interface.rs", &[
+        "pub trait DerivedPort:",
+        "ryo_derived::inbound::use_cases::derived::interface::DerivedUseCase + Send + Sync + std::fmt::Debug",
+        "> DerivedPort for T",
+        "T: ryo_derived::inbound::use_cases::derived::interface::DerivedUseCase",
+    ]),
+    ("inbound/use_cases/execution/types.rs", &["pub use crate::outbound::derived::interface::DerivedPort;"]),
+    ("inbound/use_cases/execution/use_case.rs", &["pub fn new(operators: Arc<dyn OperatorsPort>, derived: Arc<dyn DerivedPort>) -> Self {"]),
 ];
 
 use entry::{Authority, Class, Entry};

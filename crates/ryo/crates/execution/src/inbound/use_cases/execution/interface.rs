@@ -13,8 +13,7 @@ use ryo_values::domain::{
     files::types::CorpusInput, runs::types::Skipped, stored_facts::types::Bucket,
 };
 pub trait ExecutionUseCase {
-    fn prepare(&self, request: PreparedRequest)
-    -> Result<PreparedExecutionProgram, OperatingError>;
+    fn prepare(&self, request: PreparedRequest) -> Result<PreparedExecutionProgram, OperatingError>;
     fn prepare_compiled(
         &self,
         queries: CompiledQueries,
@@ -23,8 +22,7 @@ pub trait ExecutionUseCase {
         hosted: Vec<ryo_values::domain::hosted::types::HostRelation>,
         observations: ObservationIdentity,
     ) -> Result<PreparedExecutionProgram, OperatingError>;
-    fn begin(&self, program: &PreparedExecutionProgram, corpus: &[CorpusInput])
-    -> RequestExecution;
+    fn begin(&self, program: &PreparedExecutionProgram, corpus: &[CorpusInput]) -> RequestExecution;
 }
 pub trait ExecutionRequest {
     fn observations<'a>(

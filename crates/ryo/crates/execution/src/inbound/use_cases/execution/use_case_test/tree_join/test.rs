@@ -8,7 +8,7 @@ use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
         plan_parts::types::{
-            ColumnIndex, Input as PlanInput, JoinColumn, LiteralText, Operand, PlanComparison,
+            ColumnIndex, PlanComparison, Input as PlanInput, JoinColumn, LiteralText, Operand,
             QueryLiteral, Side, StepId, Test,
         },
         plans::types::Operation,

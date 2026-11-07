@@ -48,15 +48,10 @@ impl CachedGraph {
                 }
                 let bindings = (0..=reach.keys.len())
                     .map(|logical| {
-                        join.right_on
-                            .iter()
-                            .position(|column| {
-                                reach.columns.get(column.0 as usize)
-                                    == Some(&ColumnIndex(
-                                        u32::try_from(logical).unwrap_or(u32::MAX),
-                                    ))
-                            })
-                            .map(KeyPosition)
+                        join.right_on.iter().position(|column| {
+                            reach.columns.get(column.0 as usize)
+                                == Some(&ColumnIndex(u32::try_from(logical).unwrap_or(u32::MAX)))
+                        }).map(KeyPosition)
                     })
                     .collect::<Option<Vec<_>>>();
                 let Some(bindings) = bindings else {

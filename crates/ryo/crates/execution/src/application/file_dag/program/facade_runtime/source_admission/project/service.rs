@@ -3,9 +3,7 @@ use super::super::{ProjectSources, observation_slot};
 use crate::application::file_dag::program::admission::AvailableInput;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::constants::BOUND_PRODUCER_UNAVAILABLE;
-use crate::application::file_dag::program::facade_runtime::types::{
-    CachedInput, OrdinaryPlace, Provision,
-};
+use crate::application::file_dag::program::facade_runtime::types::{CachedInput, OrdinaryPlace, Provision};
 use crate::application::file_dag::relations::RelationOwner;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
@@ -129,9 +127,9 @@ impl ProjectSources<'_> {
                 let result = result.map(AvailableInput::published);
                 if let Ok(input) = &result {
                     self.cache.push(CachedInput {
-                        source,
-                        input: input.clone(),
-                    });
+                    source,
+                    input: input.clone(),
+                });
                 }
                 return Some(result);
             }

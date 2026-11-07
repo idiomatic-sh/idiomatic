@@ -8,8 +8,8 @@ use crate::domain::table_dedup::service::first_time;
 use crate::domain::table_model::types::Addition;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plans::types::Operation;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::query_operators::types::OperationKind;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 pub(crate) struct ProjectItem;
 impl OperatorsItem for ProjectItem {
     fn prepare(

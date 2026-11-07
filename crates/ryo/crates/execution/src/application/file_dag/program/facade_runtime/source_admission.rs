@@ -253,9 +253,7 @@ pub(super) fn observation_table<'facts>(
     input: &AdmittedInput,
     read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
 ) -> Result<Table, OperatingError> {
-    if input.observation_ready()?
-        == crate::application::file_dag::program::admission::ObservationReadiness::Waiting
-    {
+    if input.observation_ready()? == crate::application::file_dag::program::admission::ObservationReadiness::Waiting {
         return Err(OperatingError::ObservationIncomplete {
             reason: PRODUCER_COVERAGE_INCOMPLETE.into(),
         });
@@ -267,6 +265,7 @@ pub(super) fn observation_slot(
     program: &PreparedProgram,
     rule: RuleIndex,
     input: ryo_values::domain::plan_parts::types::ObservationBindingId,
+
 ) -> Result<ObservationKey, OperatingError> {
     let slots = &program
         .observation_metadata()

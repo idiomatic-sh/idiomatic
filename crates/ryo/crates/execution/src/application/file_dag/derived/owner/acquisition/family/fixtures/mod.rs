@@ -5,11 +5,9 @@ mod request;
 pub(in crate::application::file_dag) mod route;
 use self::demand::demand;
 use self::request::{observed, request};
-use crate::application::file_dag::relations::publication::types::ProducerScope;
 use crate::application::file_dag::{
     closure_partitions::PartitionedClosure, relations::RelationOwner, testing::program_derived_port,
 };
-use crate::domain::executable_program::types::RegionId;
 use crate::domain::{
     derived_views::types::{DerivedInputs, DerivedScratch, ViewRequest},
     operating::errors::OperatingError,
@@ -19,6 +17,8 @@ use crate::domain::{
     table_cells::types::{TreeForm, TreeRows},
     table_model::types::Rows,
 };
+use crate::application::file_dag::relations::publication::types::ProducerScope;
+use crate::domain::executable_program::types::RegionId;
 use ryo_derived::domain::contract::types::DerivedKind;
 use ryo_language::domain::symbols::{service::intern_derived, types::ByteSlice};
 use ryo_relations::domain::{
@@ -103,8 +103,7 @@ fn drive(
     release: Release,
 ) -> (Result<DerivedKind, OperatingError>, Option<Leaked>) {
     let port = if scenario == Scenario::BuildFails {
-        Arc::new(refusing::RefusingBuild)
-            as Arc<dyn crate::outbound::derived::interface::DerivedPort>
+        Arc::new(refusing::RefusingBuild) as Arc<dyn crate::outbound::derived::interface::DerivedPort>
     } else {
         program_derived_port()
     };
@@ -303,15 +302,14 @@ fn acquire(
     owner.pin_derived(other.as_ref());
     // A real lease exists before every exit that is not a success. `RawKeyOrder` is refused
     // on this ordinary route (its admission needs the kernel permit), so it holds none.
-    let held = if kind != DerivedKind::RawKeyOrder
-        && matches!(
-            scenario,
-            Scenario::Cancelled
-                | Scenario::Stale
-                | Scenario::OtherPlan
-                | Scenario::OtherPopulation
-                | Scenario::RetargetedDescriptor
-        ) {
+    let held = if kind != DerivedKind::RawKeyOrder && matches!(
+        scenario,
+        Scenario::Cancelled
+            | Scenario::Stale
+            | Scenario::OtherPlan
+            | Scenario::OtherPopulation
+            | Scenario::RetargetedDescriptor
+    ) {
         Some(demand(kind, &owner, &plan, &admitted, rows, &mut symbols)?)
     } else {
         None

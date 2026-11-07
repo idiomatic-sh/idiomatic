@@ -12,7 +12,9 @@ use crate::domain::{
         errors::OperatingError,
         types::{NameCount, OperatorContext},
     },
-    operator::contract::types::{PrimitiveSemantics, WorkCounters, join_result},
+    operator::contract::{
+        types::{PrimitiveSemantics, WorkCounters, join_result},
+    },
     positions::{
         service::{count, followed, in_tree, key_into, row, value},
         types::{FoundPositions, Positions, RowPositions, Slots},
@@ -32,7 +34,7 @@ use ryo_operators::inbound::use_cases::operators::interface::{
 };
 use ryo_relations::domain::relations::types::{Position, Relation, Value};
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Input, PlanComparison},
+    plan_parts::types::{ColumnIndex, PlanComparison, Input},
     plans::types::Operation,
     rows::types::RowIndex,
 };

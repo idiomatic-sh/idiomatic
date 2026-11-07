@@ -70,7 +70,7 @@ mod tests {
     use super::*;
     use ryo_relations::domain::relations::types::Relation;
     use ryo_values::domain::plan_parts::types::{
-        Input, LiteralText, Operand, PlanComparison, QueryLiteral, Test,
+        PlanComparison, Input, LiteralText, Operand, QueryLiteral, Test,
     };
     use ryo_values::domain::plans::types::Operation;
     use std::sync::atomic::Ordering;

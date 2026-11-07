@@ -38,8 +38,8 @@ fn negative(directory: &Path, name: &str, source: &str, diagnostic: &str) {
 }
 
 fn backend_scaffold(client: &str) -> String {
-    let backend = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src/application/file_dag/derived/owner/cache/types.rs");
+    let backend =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("src/application/file_dag/derived/owner/cache/types.rs");
     let template = r#"
 #![allow(dead_code,unused_imports,private_interfaces)]
 extern crate self as ryo_language;
