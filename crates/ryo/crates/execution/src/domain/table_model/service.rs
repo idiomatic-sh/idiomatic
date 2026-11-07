@@ -134,6 +134,7 @@ pub(crate) fn check_columns(kinds: &[CellKind], columns: &[ColumnIndex]) -> Resu
     }
 }
 
+#[cfg(test)]
 /// Whether every declared stored column has exactly the first column's row population.
 /// Other views keep the materializing path, including its treatment of incomplete rows.
 pub(crate) fn rectangular(view: ColumnsView<'_>) -> TableShape {
@@ -147,6 +148,7 @@ pub(crate) fn rectangular(view: ColumnsView<'_>) -> TableShape {
     }
 }
 
+#[cfg(test)]
 /// Decode one typed stored cell, preserving normalization such as nonzero flag encodings.
 fn stored_cell(view: ColumnsView<'_>, row: RowIndex, column: ColumnIndex) -> Option<Value> {
     let kind = column_in(view.kinds, column)?;
@@ -154,12 +156,14 @@ fn stored_cell(view: ColumnsView<'_>, row: RowIndex, column: ColumnIndex) -> Opt
     Some(from_bits(*kind, Bits(*bits)))
 }
 
+#[cfg(test)]
 /// Read one typed cell without decoding unused stored payload or allocating a row buffer.
 pub(crate) fn cell_at(rows: &Rows<'_>, row: RowIndex, column: ColumnIndex) -> Option<Value> {
     borrowed(rows)
         .cell(row, column)
 }
 
+#[cfg(test)]
 /// Find original stored rows by typed keys, checking equality after every hash match.
 /// The caller indexes a rectangular view first; payload columns are never read here.
 pub(crate) fn matching_stored<'o, 'k>(

@@ -34,7 +34,6 @@ pub(crate) struct DerivedContract {
     pub request: ViewRequest,
     pub schemas: Vec<Vec<CellKind>>,
     pub metadata: Result<(), crate::domain::operating::errors::OperatingError>,
-    pub needed: crate::domain::table_cells::types::ColumnPlaces,
 }
 
 impl DerivedContract {
@@ -45,7 +44,6 @@ impl DerivedContract {
         semantic: Arc<PreparedDerived>,
         request: ViewRequest,
         schemas: Vec<Vec<CellKind>>,
-        needed: crate::domain::table_cells::types::ColumnPlaces,
     ) -> Self {
         let metadata = semantic
             .validate()
@@ -57,7 +55,6 @@ impl DerivedContract {
             request,
             schemas,
             metadata,
-            needed,
         }
     }
 

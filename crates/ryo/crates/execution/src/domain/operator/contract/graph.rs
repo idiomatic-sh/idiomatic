@@ -4,6 +4,7 @@
 use super::driver::LeaseDriver;
 use super::views::PreparedAdjacency;
 use super::types::PreparedInputs;
+use super::types::{ExaminedCount, ExpandedCount};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_reach::types::{Edges, OrderedVisit};
 use ryo_operators::domain::closure::types::{ClosureDriver, ClosureEvaluation};

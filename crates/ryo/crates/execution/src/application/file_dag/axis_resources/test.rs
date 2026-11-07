@@ -46,7 +46,7 @@ fn program(direction: Direction) -> AxisResources {
 fn acquired(
     kind: ryo_derived::domain::request::types::DerivedKind,
     request: crate::domain::derived_views::types::ViewRequest,
-    rows: BorrowedRows<'_>,
+    rows: RepresentationInput<'_>,
 ) -> crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView {
     let plan = Arc::new(
         crate::application::file_dag::derived::prepare::view(
@@ -67,14 +67,14 @@ fn acquired(
             crate::application::file_dag::fixtures::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
-    let BorrowedRows::Computed(table) = rows else {
+    let RepresentationInput::Computed(table) = rows else {
         panic!("computed fixture")
     };
     let publication = owner.computed(table.clone()).unwrap();
     let held = owner
         .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))
         .unwrap();
-    let rows = BorrowedRows::from(&held);
+    let rows = RepresentationInput::from(&held);
     let proof = owner.admit(publication.as_ref(), rows).unwrap();
     let inputs = [rows];
     let data = if kind == ryo_derived::domain::request::types::DerivedKind::Membership {
@@ -111,27 +111,31 @@ fn borrowed_axis_keeps_duplicate_direct_edges_and_breadth_order() {
     let domain = table(ColumnCount(1), &[&[Integer(2)], &[Integer(3)]]);
     let resource = prepare_axis(
         &program(Direction::Child),
-        BorrowedRows::Computed(&edges),
-        BorrowedRows::Computed(&domain),
+        RepresentationInput::Computed(&edges),
+        RepresentationInput::Computed(&domain),
         Some(acquired(
             ryo_derived::domain::request::types::DerivedKind::Equality,
             crate::domain::derived_views::types::ViewRequest::Equality {
                 columns: vec![ColumnIndex(0)],
             },
-            BorrowedRows::Computed(&edges),
+            RepresentationInput::Computed(&edges),
         )),
         Some(acquired(
             ryo_derived::domain::request::types::DerivedKind::Membership,
             crate::domain::derived_views::types::ViewRequest::Membership {
                 column: ColumnIndex(0),
             },
-            BorrowedRows::Computed(&domain),
+            RepresentationInput::Computed(&domain),
         )),
     )
     .unwrap();
+    #[cfg(feature = "diagnostic-row-progress")]
+    let viewed = resource.view(&crate::domain::operator::contract::views::IgnoredProgress);
+    #[cfg(not(feature = "diagnostic-row-progress"))]
+    let viewed = resource.view();
     let PreparedAxis::Indexed {
         edges: view, to, ..
-    } = resource.view().unwrap()
+    } = viewed.unwrap()
     else {
         panic!("borrowed indexed axis")
     };
@@ -151,8 +155,8 @@ fn unsupported_and_empty_gates_precede_derived_handle_requirement() {
     assert!(matches!(
         prepare_axis(
             &program(Direction::Child),
-            BorrowedRows::Computed(&edges),
-            BorrowedRows::Computed(&domain),
+            RepresentationInput::Computed(&edges),
+            RepresentationInput::Computed(&domain),
             None,
             None,
         ),
@@ -162,8 +166,8 @@ fn unsupported_and_empty_gates_precede_derived_handle_requirement() {
     assert_eq!(
         classify(
             &program(Direction::Deep),
-            BorrowedRows::Computed(&edges),
-            BorrowedRows::Computed(&nonempty),
+            RepresentationInput::Computed(&edges),
+            RepresentationInput::Computed(&nonempty),
         )
         .err(),
         Some(OperatingError::WrongOperation),
@@ -171,3 +175,4 @@ fn unsupported_and_empty_gates_precede_derived_handle_requirement() {
 }
 
 use ryo_values::domain::rows::types::Table;
+use crate::domain::table_model::types::RepresentationInput;

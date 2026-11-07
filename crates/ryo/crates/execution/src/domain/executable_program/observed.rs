@@ -67,11 +67,6 @@ pub(super) fn compile_unions(
                         rule,
                         contract.identity.clone(),
                         Arc::clone(contract),
-                        vec![
-                            OperandSource::Boundary(InputId(0)),
-                            OperandSource::Boundary(InputId(1)),
-                        ]
-                        .into_boxed_slice(),
                         DemandProgram::compiled(
                             contract.semantics,
                             ryo_values::domain::plan_parts::types::InputCount(2),
@@ -79,7 +74,6 @@ pub(super) fn compile_unions(
                         partition,
                     );
                     regions.push(Region::new(
-                        id,
                         rule,
                         Ok(Box::new([])),
                         binding.input.schema.scope,

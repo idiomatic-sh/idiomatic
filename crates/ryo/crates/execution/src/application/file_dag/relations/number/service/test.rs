@@ -13,6 +13,7 @@ use ryo_relations::domain::relations::{
     types::{ColumnsView, FactColumn},
 };
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
+use crate::domain::table_model::types::RepresentationInput;
 #[test]
 fn number_witness_rejects_wrong_producer_and_recycled_generation() {
     let relation = Relation::SourceLocation;
@@ -27,7 +28,7 @@ fn number_witness_rejects_wrong_producer_and_recycled_generation() {
         .iter()
         .map(|_| FactColumn(vec![0]))
         .collect::<Vec<_>>();
-    let rows = BorrowedRows::Stored(ColumnsView {
+    let rows = RepresentationInput::Stored(ColumnsView {
         kinds: schema,
         columns: &columns,
     });
@@ -175,7 +176,7 @@ fn qualified_producers_release_only_their_actual_population() {
             .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))
             .unwrap();
         let proof = owner
-            .admit(publication.as_ref(), BorrowedRows::from(&rows))
+            .admit(publication.as_ref(), RepresentationInput::from(&rows))
             .unwrap();
         let population = proof.identity(owner).unwrap().population;
         let plan = Arc::new(

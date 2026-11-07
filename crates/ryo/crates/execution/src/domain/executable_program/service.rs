@@ -68,14 +68,6 @@ pub(crate) fn compile(
             rule,
             node.operation,
             node.contract,
-            if fuse.is_some() {
-                vec![OperandSource::PreviousRow]
-            } else {
-                (0..node.inputs.len())
-                    .map(|at| OperandSource::Boundary(InputId(at)))
-                    .collect()
-            }
-            .into_boxed_slice(),
             DemandProgram::new(actions.into_boxed_slice()),
             partition,
         );
@@ -154,7 +146,6 @@ pub(crate) fn compile(
             .ok_or(OperatingError::NotRun)?
             .producer();
         regions.push(Region::new(
-            RegionId(dense[at]),
             producer,
             draft.needs.map(Vec::into_boxed_slice),
             draft.phase,
@@ -187,7 +178,10 @@ pub(crate) fn compile(
             output: resolved.output.into_boxed_slice(),
         });
     }
-    let RulePrograms { mut rules } = super::origins::rule_programs(
+    let RulePrograms {
+        mut rules,
+        observed_roots,
+    } = super::origins::rule_programs(
         plans,
         graph.program_nodes,
         graph.observations.as_ref(),

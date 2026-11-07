@@ -98,13 +98,13 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
         equality.primary.len,
         crate::domain::derived_views::types::InputsUsed(1)
     );
-    let crate::domain::executable_program::types::OperandSource::Boundary(input) =
-        join.inputs()[equality.primary.inputs[0].0]
-    else {
-        panic!("observed Equality must have a real upstream publication")
-    };
     assert_eq!(
-        region.inputs()[input.0],
+        region.instructions().first().map(|first| first.logical()),
+        Some(join_logical),
+        "observed Equality must read the region's own inputs, a real upstream publication"
+    );
+    assert_eq!(
+        region.inputs()[equality.primary.inputs[0].0],
         crate::domain::executable_program::types::InputSource::Region(producer),
         "observe the precise population demanded by the compiled Equality contract"
     );

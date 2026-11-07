@@ -5,7 +5,7 @@ use super::{
     merge::merge_equivalent,
     service::ordered_existence,
     types::{
-        DemandAction, DraftIndex, DraftRegion, LogicalInstruction, OperandSource,
+        DemandAction, DraftIndex, DraftRegion, LogicalInstruction,
         PartitionRequirement, ReaderMultiplicity, RegionMerge, Route, demand_program::value::DemandProgram,
         instruction::value::Instruction,
     },
@@ -197,7 +197,6 @@ fn region(contract: &Arc<crate::domain::operator::contract::types::OperatorContr
             crate::domain::coverage::types::RuleIndex(node),
             axis(spec.id),
             Arc::clone(contract),
-            Box::new([OperandSource::PreviousRow]),
             DemandProgram::compiled(contract.semantics, ryo_values::domain::plan_parts::types::InputCount(1)),
             spec.partition,
         )],

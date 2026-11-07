@@ -21,7 +21,6 @@ pub(crate) enum ProgressCounter {
     IndexRowsExamined,
     EqualityMatches,
     JoinCandidatePairs,
-    KernelOutputRows,
 }
 /// How much one profile observation adds to its counter: the bare count inside is named here.
 #[cfg(feature = "diagnostic-row-progress")]

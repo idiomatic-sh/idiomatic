@@ -231,7 +231,6 @@ pub(in crate::application::file_dag::program::runtime::service) struct Poll<'cal
     id: RegionId,
     region: &'call Region,
     completion: &'call crate::domain::completion::types::completion_policy::value::CompletionPolicy,
-    state: &'call RuntimeState,
     kernels: &'call dyn KernelInvocation,
     prepare_only: PollMode,
     inputs: &'call mut dyn Inputs,

@@ -21,8 +21,6 @@ pub(super) enum Residency {
 #[derive(Clone, Copy)]
 pub(super) enum Population {
     Three,
-    Duplicate,
-    Empty,
 }
 
 pub(super) struct Program {
@@ -74,8 +72,6 @@ impl Program {
         ));
         let rows: Vec<[i64; 2]> = match population {
             Population::Three => vec![[1, 5], [2, 9], [3, 7]],
-            Population::Duplicate => vec![[2, 9], [2, 7], [3, 5]],
-            Population::Empty => vec![],
         };
         let columns = vec![
             FactColumn(vec![to_bits(Cell::File(FileId(0))).0; rows.len()]),

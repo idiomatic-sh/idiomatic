@@ -17,9 +17,6 @@ impl WorkCounters {
     pub(crate) fn take(&self) -> WorkTotals {
         WorkTotals(std::array::from_fn(|at| FoundRows(self.0[at].replace(0))))
     }
-    pub(crate) fn snapshot(&self) -> WorkTotals {
-        WorkTotals(std::array::from_fn(|at| FoundRows(self.0[at].get())))
-    }
 }
 
 impl Default for PrimitiveWorkspace {

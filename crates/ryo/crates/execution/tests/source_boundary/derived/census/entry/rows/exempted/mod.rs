@@ -9,11 +9,6 @@ pub(super) fn row(entry: Entry) -> Row {
     let accounting = "accounting: bytes and counts the owner reports, no view crosses";
     match entry {
         Entry::Counts => exempt(owner, "counts", accounting),
-        Entry::ForPredicate => exempt(
-            owner,
-            "for_predicate",
-            "a context key built from a prepared plan; no view crosses",
-        ),
         Entry::MetadataBytes => exempt(owner, "metadata_bytes", accounting),
         Entry::OwnerNew => exempt(
             owner,

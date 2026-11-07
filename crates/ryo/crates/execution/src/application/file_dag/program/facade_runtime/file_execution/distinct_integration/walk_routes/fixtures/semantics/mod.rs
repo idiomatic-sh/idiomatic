@@ -79,7 +79,7 @@ impl crate::outbound::operators::interface::OperatorsPort for Meanings {
 
 #[derive(Debug)]
 pub(in super::super) struct Derived {
-    calls: Mutex<Vec<ViewRequest>>,
+    calls: Mutex<Vec<DerivedRequest>>,
 }
 impl Derived {
     pub(in super::super) fn new() -> Self {

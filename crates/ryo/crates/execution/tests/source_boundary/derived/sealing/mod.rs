@@ -56,20 +56,6 @@ mod contract_prepared {
     const _: fn(Arc<dyn DerivedPort>, &DerivedRequest, &[InputShape<'_>]) -> Result<DerivedContract, OperatingError> = authorized;
 }
 "#;
-const DEPENDENCY_FORGERY: &str = r#"
-mod dependency_forgery {
-    use crate::application::file_dag::derived::owner::acquisition::admission::service::ResourceDependency as Authority;
-    fn forge(value: Authority) -> Authority { Authority { backings: std::sync::Arc::from(value.backings()), ..value } }
-    const _: fn(Authority) -> Authority = forge;
-}
-"#;
-const DEPENDENCY_AUTHORIZED: &str = r#"
-mod dependency_authorized {
-    use crate::application::file_dag::derived::owner::acquisition::admission::service::{AcquiredView, ResourceDependency};
-    fn lease(view: &AcquiredView) -> ResourceDependency { view.dependency() }
-    const _: fn(&AcquiredView) -> ResourceDependency = lease;
-}
-"#;
 const CACHE_MUTATOR: &str = r#"
 mod cache_mutator { use crate::application::file_dag::derived::owner::cache::types::CacheBackend; fn mutate(cache: &mut CacheBackend) { cache.observe_graph_walk(crate::domain::stored_graph::types::ExpandedVertices(1), crate::domain::stored_graph::types::ExaminedVertices(1)); } const _: fn(&mut CacheBackend) = mutate; }
 "#;
@@ -151,8 +137,6 @@ pub(super) fn controls(root: &'static str) -> Vec<Probe> {
         refuse(root, CONTRACT_UPDATE.into(), "E0451", "identity_hash", "private"),
         refuse(root, CONTRACT_READ.into(), "E0616", "identity_hash", "private"),
         Probe { compilation: Compilation::Library, owner: root, source: CONTRACT_PREPARED.into(), expected: Expectation::Accept },
-        refuse(root, DEPENDENCY_FORGERY.into(), "E0451", "backings", "private"),
-        Probe { compilation: Compilation::Library, owner: root, source: DEPENDENCY_AUTHORIZED.into(), expected: Expectation::Accept },
         refuse(root, CACHE_MUTATOR.into(), "E0624", "observe_graph_walk", "private"),
         Probe {
             compilation: Compilation::Library,

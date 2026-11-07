@@ -195,7 +195,6 @@ fn subject(input: Input) -> Result<(), Failure> {
             drop(first);
             assert_eq!(required(), held, "a clone alone keeps the lease");
             clone.view()?;
-            assert_eq!(clone.dependency().backings().len(), clone.backings().len());
             drop(clone);
             assert_eq!(required(), before, "the last drop releases the lease");
             Ok(())

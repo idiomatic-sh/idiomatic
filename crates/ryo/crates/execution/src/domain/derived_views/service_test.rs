@@ -4,7 +4,6 @@ use super::service::validate;
 use super::types::contract::value::DerivedContract;
 use super::types::{IdentityHash, ViewRequest};
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_cells::types::ColumnPlaces;
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_derived::domain::request::types::DerivedRequest as SemanticRequest;
 use ryo_relations::domain::relations::types::CellKind;
@@ -32,7 +31,6 @@ fn equality() -> DerivedContract {
             columns: vec![ColumnIndex(0)],
         },
         schemas,
-        ColumnPlaces::default(),
     )
 }
 

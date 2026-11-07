@@ -1,5 +1,5 @@
 //! The `join_result` cases: error translation tests the production contract without an execution fixture.
-use super::service::join_result;
+use super::service::written_result;
 use crate::domain::operating::errors::OperatingError;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
@@ -19,7 +19,7 @@ type Value = ();
 type Failure = OperatingError;
 
 fn subject(terminal: Input) -> Result<Value, Failure> {
-    join_result(terminal.answer, terminal.recorded)
+    written_result(terminal.answer, terminal.recorded)
 }
 
 /// The rows of this part's cases.

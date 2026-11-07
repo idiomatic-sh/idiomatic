@@ -4,7 +4,7 @@ use super::value::Instruction;
 use crate::domain::{
     coverage::types::RuleIndex,
     executable_program::types::{
-        DemandAction, InputId, LogicalInstruction, OperandSource, PartitionRequirement,
+        DemandAction, InputId, LogicalInstruction, PartitionRequirement,
         demand_program::value::DemandProgram,
     },
     operation_schema::types::InputShape,
@@ -36,7 +36,6 @@ fn an_instruction_answers_what_it_was_compiled_with() {
         RuleIndex(1),
         operation.clone(),
         Arc::clone(&contract),
-        Box::new([OperandSource::Boundary(InputId(0))]),
         DemandProgram::new(Box::new([DemandAction::Admit(InputId(0))])),
         PartitionRequirement::CurrentFile,
     );
@@ -44,7 +43,6 @@ fn an_instruction_answers_what_it_was_compiled_with() {
     assert_eq!(instruction.producer(), RuleIndex(1));
     assert_eq!(instruction.operation(), &operation);
     assert!(Arc::ptr_eq(instruction.contract(), &contract));
-    assert_eq!(instruction.inputs(), [OperandSource::Boundary(InputId(0))]);
     assert_eq!(
         instruction.demand().actions(),
         [DemandAction::Admit(InputId(0))]

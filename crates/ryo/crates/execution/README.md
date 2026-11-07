@@ -191,7 +191,3 @@ Traverses parent and child relations for axis operations.
 ### trust
 
 Tracks relation reads that rely on the absence of missing rows.
-
-### walks
-
-Applies filtered tree walks to admitted position inputs.

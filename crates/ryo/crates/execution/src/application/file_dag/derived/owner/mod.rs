@@ -42,6 +42,7 @@ pub(in crate::application::file_dag) struct ViewContext {
     pub membership_order: Option<MembershipOrder>,
 }
 impl ViewContext {
+    #[cfg(test)]
     pub(in crate::application::file_dag) fn for_predicate(plan: &Arc<DerivedContract>) -> Self {
         Self {
             candidate: Some(graph_key::PreparedIdentity::new(plan)),

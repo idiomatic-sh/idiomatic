@@ -34,6 +34,28 @@ impl Provider<'_> {
         }
     }
 }
+/// A stored provider of `relation` holding `table`, with its columns encoded as the provider's facts.
+pub(crate) fn stored(relation: Relation, table: Table) -> Provider<'static> {
+    let columns = (0..table.kinds.len())
+        .map(|column| {
+            FactColumn(
+                table
+                    .cells
+                    .chunks_exact(table.kinds.len())
+                    .map(|row| to_bits(row[column]).0)
+                    .collect(),
+            )
+        })
+        .collect();
+    Provider {
+        relation,
+        table,
+        columns,
+        compact: None,
+        tree: None,
+        representation: RepresentationKind::Stored,
+    }
+}
 pub(crate) fn defaults(kind: CellKind, row: usize) -> Cell {
     match kind {
         CellKind::Node => Cell::Node(NodeId(row as u64)),

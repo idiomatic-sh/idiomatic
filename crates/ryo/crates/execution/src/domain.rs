@@ -26,7 +26,6 @@ pub(crate) mod table_scratch;
 pub(crate) mod table_texts;
 
 pub(crate) mod trust;
-pub(crate) mod walks;
 
 pub(crate) mod describing;
 pub(crate) mod finish;

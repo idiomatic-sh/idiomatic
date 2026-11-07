@@ -61,7 +61,7 @@ pub(super) fn ordered_sources() -> [Provider<'static>; 2] {
         count: RowCount(0),
     };
     [
-        super::super::column_chain::fixtures::stored(Relation::SourceLocation, source),
-        super::super::column_chain::fixtures::stored(Relation::Function, unused),
+        super::super::fixtures::provider::stored(Relation::SourceLocation, source),
+        super::super::fixtures::provider::stored(Relation::Function, unused),
     ]
 }

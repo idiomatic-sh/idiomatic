@@ -159,7 +159,7 @@ impl KernelInvocation for RuntimeProbe {
                 context,
                 &kinds.iter().copied().map(value).collect::<Vec<_>>(),
             )
-            .map_err(InvocationFailure::Delivery)
+            .map_err(InvocationFailure::Semantic)
     }
 }
 

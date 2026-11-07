@@ -46,8 +46,6 @@ fn identity(keys: Vec<ColumnIndex>, rows: usize) -> GraphIdentity {
             kinds: &[CellKind::Number, CellKind::Number, CellKind::Number],
             rows: ryo_values::domain::rows::types::RowCount(rows),
             native_file: None,
-            selected: None,
-            positions: None,
         },
         endpoints: [ColumnIndex(0), ColumnIndex(1)],
         keys,

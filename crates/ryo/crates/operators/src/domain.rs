@@ -20,11 +20,11 @@ pub mod words;
 
 pub mod reduction;
 
-pub(crate) mod axis;
-pub(crate) mod closure;
+pub mod axis;
+pub mod closure;
 pub mod cycles;
 pub mod evaluation;
-pub(crate) mod ordered_dfs;
+pub mod ordered_dfs;
 pub mod fits_rendered;
 pub mod render_batch;
 pub mod table_rows;

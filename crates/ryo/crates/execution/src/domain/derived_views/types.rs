@@ -72,7 +72,7 @@ pub(crate) enum DerivedInputs<'a, 's> {
         positions: &'a [RowIndex],
         key: &'a [Value],
     },
-    Rows(&'a [BorrowedRows<'a>]),
+    Rows(&'a [RepresentationInput<'a>]),
     Text {
         rows: &'a [RepresentationInput<'a>],
         texts: &'a Texts<'a>,

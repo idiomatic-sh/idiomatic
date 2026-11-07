@@ -50,12 +50,6 @@ pub(crate) enum PartitionRequirement {
 pub(crate) enum DemandAction {
     Admit(InputId),
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum OperandSource {
-    Boundary(InputId),
-    /// Only the immediately preceding instruction's borrowed row; no publication exists.
-    PreviousRow,
-}
 #[derive(Clone, Debug)]
 pub(crate) struct OrderedExistence {
     pub source: RegionId,
@@ -148,6 +142,8 @@ pub(crate) trait ProducerPartitions {
 #[derive(Debug)]
 pub(crate) struct RulePrograms {
     pub rules: Vec<RuleProgram>,
+    /// The region each plan's named output reads, in the plan's own output order: the lineage pass reads it.
+    pub observed_roots: Vec<Vec<Option<RegionId>>>,
 }
 
 /// The compiler's fusion classification of the whole request graph, indexed by original node.

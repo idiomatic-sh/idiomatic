@@ -7,7 +7,6 @@ use ryo_relations::domain::relations::types::Value;
 
 pub(in crate::application::file_dag::program) enum InvocationFailure {
     Semantic(OperatingError),
-    Delivery(OperatingError),
 }
 /// No held inputs/publication or dependency accounting at internal instructions.
 #[derive(Default)]

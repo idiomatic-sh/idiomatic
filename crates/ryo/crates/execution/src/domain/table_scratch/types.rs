@@ -11,31 +11,6 @@ use ryo_relations::domain::relations::types::{KindBits, TextHash, Value};
 use ryo_relations::domain::terms::types::Symbol;
 use ryo_values::domain::plan_parts::types::LiteralText;
 
-/// A word being read out of a text: cleared and grown in place for every word.
-#[derive(Debug, Default)]
-pub(crate) struct ScratchWord(pub String);
-
-impl std::ops::Deref for ScratchWord {
-    type Target = String;
-
-    fn deref(&self) -> &String {
-        &self.0
-    }
-}
-
-impl std::ops::DerefMut for ScratchWord {
-    fn deref_mut(&mut self) -> &mut String {
-        &mut self.0
-    }
-}
-
-impl std::fmt::Write for ScratchWord {
-    fn write_str(&mut self, s: &str) -> std::fmt::Result {
-        self.0.push_str(s);
-        Ok(())
-    }
-}
-
 /// Which kinds a test asked of their names is about: the vocabulary of kinds it asked of, the test, and the hash of the text it is
 /// against.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -61,22 +36,9 @@ pub(crate) struct KindSet {
 #[derive(Debug, Default, PartialEq, Eq)]
 pub(crate) struct ComparisonNumbers(pub Vec<usize>);
 
-/// An element of a tree, by its place among the elements.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ElementIndex(pub usize);
-
 /// A test, by its place among the four that can name a kind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct NamingPlace(pub usize);
-
-/// Whether the sets of kinds have decided the comparisons that name a kind.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum KindsBy {
-    /// The sets decide them.
-    Sets,
-    /// Nothing decides them before the rows are read.
-    Nothing,
-}
 
 /// What a row asks of a name or a file: the hash of the name's text, or the number of the file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -105,10 +67,6 @@ pub(crate) struct MemoPlace {
     pub symbol: Symbol,
 }
 
-/// Stretches of a text or of a list: where each group begins and ends in a list, or where each captured text is in a text.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct Stretches(pub Vec<std::ops::Range<usize>>);
-
 /// What a comparison decided is remembered by the comparison and the hash of the text.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct VerdictKey {
@@ -125,10 +83,6 @@ pub(crate) struct ComparisonSlot(pub usize);
 /// The number of a kind set among the sets of a language's kinds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct KindSetPlace(pub usize);
-
-/// For each text of a file, whether the comparisons hold for it: zero not decided, one yes, two no.
-#[derive(Debug, Default, PartialEq, Eq)]
-pub(crate) struct TextVerdicts(pub Vec<u8>);
 
 /// A bit for each kind of a set, by the number of the kind.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -173,25 +127,8 @@ impl<T: Default> std::ops::DerefMut for LazyScratch<T> {
 /// Cheap row buffers and lazy heavy groups owned only by the current rule.
 #[derive(Debug, Default)]
 pub(crate) struct OperatorScratch {
-    /// The cells of a row that a comparison reads, by their place in the row.
-    pub needed: ColumnPlaces,
-
-    /// A row read from the columns of a relation.
-    pub row: Vec<Value>,
-
-    /// A second row, for the operators that read two at once.
-    pub other: Vec<Value>,
-    /// Lazily constructed join work for this invocation.
-    pub join_scratch: LazyScratch<JoinScratch>,
     /// Lazily constructed select work for this invocation.
     pub select_scratch: LazyScratch<SelectScratch>,
-}
-
-/// Mutable join work, allocated only by operators that use it.
-#[derive(Debug, Default)]
-pub(crate) struct JoinScratch {
-    /// Reused by the engine's prepared Join lookup across rows in this invocation.
-    pub key: Vec<Value>,
 }
 
 /// Mutable select work, allocated only by operators that use it.
@@ -219,14 +156,6 @@ pub(crate) struct SelectScratch {
     /// The comparisons of a filter that name a kind: the set of kinds that satisfy each.
     pub kind_tests: ComparisonNumbers,
 
-    /// The comparisons of a filter that ask of the text of an element something fixed.
-    pub gate: ComparisonNumbers,
-
-    /// For each text of the file, whether those comparisons hold for it: zero not decided, one yes, two no.
-    pub text_ok: TextVerdicts,
-
-    /// The comparisons of a filter that the kind sets and the text gate have not decided already.
-    pub rest: ComparisonNumbers,
 }
 
 /// Compiled patterns, indexed by their exact source text.

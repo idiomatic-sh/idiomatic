@@ -265,10 +265,7 @@ pub(in crate::application::file_dag) fn prepare<'f>(
         }
         ResourceProgram::Axis(program) => {
             use crate::application::file_dag::axis_resources::{AxisMode, classify};
-            use crate::domain::derived_views::{
-                service::slot,
-                types::{DerivedInputs, MembershipSpace},
-            };
+            use crate::domain::derived_views::types::{DerivedInputs, MembershipSpace};
             use ryo_derived::domain::request::types::DerivedKind;
             let edges = input(inputs, InputNumber(1))?;
             let domain = input(inputs, InputNumber(2))?;
@@ -277,7 +274,7 @@ pub(in crate::application::file_dag) fn prepare<'f>(
             let equality = if matches!(mode_axis, AxisMode::Indexed { .. }) {
                 Some(
                     admitted.acquire_rows(
-                        slots[slot(DerivedKind::Equality)]
+                        slots[DerivedKind::Equality.ordinal()]
                             .as_ref()
                             .ok_or(OperatingError::NotRun)?
                             .primary
@@ -292,7 +289,7 @@ pub(in crate::application::file_dag) fn prepare<'f>(
                 AxisMode::Empty | AxisMode::Native { among: Some(_), .. } => None,
                 AxisMode::Native { tree, among: None } => Some(
                     admitted.acquire_derived(
-                        slots[slot(DerivedKind::Membership)]
+                        slots[DerivedKind::Membership.ordinal()]
                             .as_ref()
                             .ok_or(OperatingError::NotRun)?
                             .primary
@@ -308,7 +305,7 @@ pub(in crate::application::file_dag) fn prepare<'f>(
                 ),
                 AxisMode::Indexed { .. } => Some(
                     admitted.acquire_derived(
-                        slots[slot(DerivedKind::Membership)]
+                        slots[DerivedKind::Membership.ordinal()]
                             .as_ref()
                             .ok_or(OperatingError::NotRun)?
                             .primary

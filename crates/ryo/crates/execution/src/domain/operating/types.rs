@@ -127,10 +127,6 @@ pub(crate) enum KindNaming {
     Silent,
 }
 
-/// A column the rows of a tree lack, by its place among the columns the comparisons read.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct MissingColumn(pub usize);
-
 /// Whether the steps run before the files were read, or after: after, the text of the workers is given.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum AfterTheFiles {

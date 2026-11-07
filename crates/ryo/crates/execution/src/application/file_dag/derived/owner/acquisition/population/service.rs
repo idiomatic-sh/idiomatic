@@ -143,7 +143,6 @@ impl DerivedOwner {
         let Acquisition {
             storage,
             construction,
-            backend: _,
             optional,
         } = made;
         let built = construction == Construction::Built;

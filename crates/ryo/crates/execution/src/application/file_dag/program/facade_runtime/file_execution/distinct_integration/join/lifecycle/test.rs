@@ -200,7 +200,6 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
         .borrow(&mut symbols, file.program, RuleIndex(0))?;
     context.memo.clear();
     context.memo.push(Memo::Fails);
-    context.scratch.row = vec![n(654)];
     // Failure resets only the delivery attempt. The retry uses this exact owner,
     // prepared region, admitted providers, cache and invocation implementation.
     let mut published_reads = None;
@@ -222,7 +221,6 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
             assert!(admitted.render_batch(&[], ryo_values::domain::files::types::SourceView(b""))?.is_empty());
             context.memo.clear();
             context.memo.push(Memo::Holds);
-            context.scratch.row = vec![n(987)];
             let mut inputs = SourceInputs {
                 execution: &file.execution,
                 state: file.execution.file_state(),
@@ -256,7 +254,6 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
             assert_eq!(table.cells, expected);
             nested_rows.extend(table.cells.chunks_exact(1).map(<[Cell]>::to_vec));
             assert_eq!(*context.memo, vec![Memo::Holds]);
-            assert_eq!(context.scratch.row, vec![n(987)]);
             if fail_after == Some(prefix.len()) {
                 return Err(OperatingError::NotRead);
             }
@@ -315,7 +312,6 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
             assert_eq!(nested_rows, expected);
         }
         assert_eq!(*context.memo, vec![Memo::Fails]);
-        assert_eq!(context.scratch.row, vec![n(654)]);
         let after_delivery = reads.each_ref().map(|count| count.get());
         if let Some(prepared_reads) = published_reads {
             assert_eq!(

@@ -134,7 +134,7 @@ pub(super) fn controls() -> Vec<Probe> {
         accept(
             PROGRAM,
             format!(
-                "mod compiled_accessors {{ use {COMPILED}::instruction::value::Instruction; use {COMPILED}::region::value::Region; fn count(region: &Region) -> usize {{ region.instructions().len() + region.instructions().iter().map(|instruction: &Instruction| instruction.inputs().len()).sum::<usize>() }} const _: fn(&Region) -> usize = count; }}"
+                "mod compiled_accessors {{ use {COMPILED}::instruction::value::Instruction; use {COMPILED}::region::value::Region; fn count(region: &Region) -> usize {{ region.instructions().len() + region.instructions().iter().map(|instruction: &Instruction| instruction.logical().0).sum::<usize>() }} const _: fn(&Region) -> usize = count; }}"
             ),
         ),
         refuse(

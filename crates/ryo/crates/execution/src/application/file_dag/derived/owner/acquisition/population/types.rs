@@ -15,13 +15,6 @@ pub(in crate::application::file_dag) enum StoredObservation {
     Unobserved,
 }
 
-/// Whether the cache backend already accounts the constructed bytes.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::application::file_dag) enum BackendRetention {
-    Accounted,
-    Unaccounted,
-}
-
 /// Whether the owner may retain the constructed view beyond its required holders.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::application::file_dag) enum OptionalRetention {
@@ -33,7 +26,6 @@ pub(in crate::application::file_dag) enum OptionalRetention {
 pub(in crate::application::file_dag) struct Acquisition<S = DerivedStorage> {
     pub storage: S,
     pub construction: Construction,
-    pub backend: BackendRetention,
     pub optional: OptionalRetention,
 }
 

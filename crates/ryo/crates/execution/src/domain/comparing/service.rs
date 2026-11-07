@@ -367,32 +367,4 @@ pub(crate) fn holds_all(
     Ok(Verdict::Holds)
 }
 
-/// Whether the comparisons numbered `which` hold for the row.
-pub(crate) fn holds_some(
-    comparisons: &[PlanComparison],
-    which: &ComparisonNumbers,
-    row: &[Value],
-    kinds: &[CellKind],
-    names: NameCount,
-    context: &mut OperatorContext<'_>,
-) -> Result<Verdict, OperatingError> {
-    for number in &which.0 {
-        let Some(comparison) = comparisons.get(*number) else {
-            continue;
-        };
-        if holds_one(
-            ComparisonNumber(*number),
-            comparison,
-            row,
-            kinds,
-            names,
-            context,
-        )? == Verdict::Fails
-        {
-            return Ok(Verdict::Fails);
-        }
-    }
-    Ok(Verdict::Holds)
-}
-
 use ryo_values::domain::query_bindings::types::ParameterBinding;

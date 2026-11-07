@@ -1,6 +1,6 @@
 //! A compiled instruction: fields private, made only by the executable-program compiler, read through accessors.
 use super::super::demand_program::value::DemandProgram;
-use super::super::{LogicalInstruction, OperandSource, PartitionRequirement};
+use super::super::{LogicalInstruction, PartitionRequirement};
 use crate::domain::{coverage::types::RuleIndex, operator::contract::types::OperatorContract};
 use ryo_values::domain::plans::types::Operation;
 use std::sync::Arc;
@@ -12,7 +12,6 @@ pub(crate) struct Instruction {
     producer: RuleIndex,
     operation: Operation,
     contract: Arc<OperatorContract>,
-    inputs: Box<[OperandSource]>,
     demand: DemandProgram,
     partition: PartitionRequirement,
 }
@@ -24,7 +23,6 @@ impl Instruction {
         producer: RuleIndex,
         operation: Operation,
         contract: Arc<OperatorContract>,
-        inputs: Box<[OperandSource]>,
         demand: DemandProgram,
         partition: PartitionRequirement,
     ) -> Self {
@@ -33,7 +31,6 @@ impl Instruction {
             producer,
             operation,
             contract,
-            inputs,
             demand,
             partition,
         }
@@ -49,9 +46,6 @@ impl Instruction {
     }
     pub(crate) fn contract(&self) -> &Arc<OperatorContract> {
         &self.contract
-    }
-    pub(crate) fn inputs(&self) -> &[OperandSource] {
-        &self.inputs
     }
     pub(crate) fn demand(&self) -> &DemandProgram {
         &self.demand

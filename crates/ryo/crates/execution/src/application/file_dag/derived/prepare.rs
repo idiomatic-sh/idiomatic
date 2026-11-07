@@ -10,7 +10,6 @@ pub(in crate::application::file_dag) fn view(
 ) -> Result<crate::domain::derived_views::types::contract::value::DerivedContract, OperatingError> {
     use crate::domain::derived_views::types::{contract::value::DerivedContract, ViewRequest};
     use ryo_derived::domain::request::types::DerivedRequest as SemanticRequest;
-    let mut needed = crate::domain::table_cells::types::ColumnPlaces::default();
     let meaning = match request {
         ViewRequest::Equality { columns } => SemanticRequest::Equality {
             columns: columns.clone(),
@@ -89,6 +88,5 @@ pub(in crate::application::file_dag) fn view(
         prepared,
         request,
         schemas,
-        needed,
     ))
 }

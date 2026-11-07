@@ -1,7 +1,7 @@
 //! The engine chooses the physical probe; this kernel owns ordered Join row semantics.
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::{
-    Advance, JoinDriver, JoinRow, PositionSlots, PositionTarget,
+    Advance, JoinDriver, JoinRow, JoinShape, PositionSlots, PositionTarget,
 };
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};

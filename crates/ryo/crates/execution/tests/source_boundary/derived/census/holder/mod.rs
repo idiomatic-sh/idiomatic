@@ -16,8 +16,6 @@ pub(super) enum Holder {
     Invocation,
     InvocationIndex,
     InvocationViews,
-    RelationAccounting,
-    RelationHandle,
     Workspace,
     GraphView,
     DerivedAccessPrepare,
@@ -34,7 +32,7 @@ pub(super) enum Holder {
     AddedWorkspaceService,
 }
 impl Holder {
-    pub(super) const ALL: [Holder; 23] = [
+    pub(super) const ALL: [Holder; 21] = [
         Holder::AxisResources,
         Holder::AxisView,
         Holder::ClosurePartitions,
@@ -42,8 +40,6 @@ impl Holder {
         Holder::Invocation,
         Holder::InvocationIndex,
         Holder::InvocationViews,
-        Holder::RelationAccounting,
-        Holder::RelationHandle,
         Holder::Workspace,
         Holder::GraphView,
         Holder::DerivedAccessPrepare,
@@ -68,8 +64,6 @@ impl Holder {
             Holder::Invocation => file!("invocation.rs"),
             Holder::InvocationIndex => file!("invocation/index.rs"),
             Holder::InvocationViews => file!("invocation/views/mod.rs"),
-            Holder::RelationAccounting => file!("relations/accounting.rs"),
-            Holder::RelationHandle => file!("relations/handle/service.rs"),
             Holder::Workspace => file!("workspace/mod.rs"),
             Holder::GraphView => "domain/operator/contract/graph_view.rs",
             Holder::DerivedAccessPrepare => file!("derived/prepare.rs"),
@@ -97,7 +91,6 @@ impl Holder {
             | Holder::Workspace => &[Authority::AcquiredView],
             Holder::ExecutionLease | Holder::GraphView => &[Authority::CachedGraph],
             Holder::Invocation => &[Authority::AcquiredView, Authority::CachedGraph],
-            Holder::RelationAccounting | Holder::RelationHandle => &[Authority::ResourceDependency],
             Holder::DerivedAccessPrepare
             | Holder::DerivedAccessRequest
             | Holder::DerivedAccessViews

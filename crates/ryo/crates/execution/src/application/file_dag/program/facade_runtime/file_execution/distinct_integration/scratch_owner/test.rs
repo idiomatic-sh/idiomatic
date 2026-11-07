@@ -95,10 +95,6 @@ pub(in super::super) fn execute(
         .borrow(symbols, &prepared, RuleIndex(0))
         .unwrap();
     assert!(
-        context.scratch.join_scratch.0.get().is_none(),
-        "no stale join cluster escapes the actual invocation workspace"
-    );
-    assert!(
         context.scratch.select_scratch.0.get().is_none(),
         "dynamic matcher state belongs to the actual invocation, not reusable rule scratch"
     );

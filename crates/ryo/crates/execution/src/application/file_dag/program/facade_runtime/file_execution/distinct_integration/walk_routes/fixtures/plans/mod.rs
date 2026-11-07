@@ -271,22 +271,4 @@ impl Authored {
             observations: ObservationIdentity::Named(ObservationReadinessLayout(Digest([93; 16]))),
         }
     }
-    pub(in super::super) fn distinct() -> Self {
-        let plans = vec![plan(vec![PlanStep {
-            scope: StepScope::PerFile,
-            operation: Operation::Project {
-                from: PlanInput::Relation(Relation::LanguageTarget),
-                columns: vec![ColumnIndex(1)],
-                distinct: RepeatedRows::Dropped,
-            },
-        }])];
-        Self {
-            rules: rules(&plans),
-            plans,
-            intents: vec![collected()],
-            bindings: vec![],
-            hosts: vec![],
-            observations: ObservationIdentity::Independent,
-        }
-    }
 }

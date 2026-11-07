@@ -40,8 +40,6 @@ struct SourceWork {
 /// Physical delivery must decline before opening any shared predicate work.
 #[derive(Clone, Copy)]
 pub(super) enum WalkDelivery {
-    Positions,
-    Stored,
     Rows,
 }
 pub(super) struct WalkResult {

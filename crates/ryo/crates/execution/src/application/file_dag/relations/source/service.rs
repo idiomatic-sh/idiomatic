@@ -1,17 +1,18 @@
 //! Source custody: publishing supplied inputs as owner-issued publications.
 use crate::application::file_dag::relations::*;
+use crate::domain::table_model::types::RepresentationInput;
 impl RelationOwner {
     pub(in crate::application::file_dag) fn source(
         &self,
         relation: Relation,
         rows: &Rows<'_>,
     ) -> Result<PublishedInput, OperatingError> {
-        self.source_borrowed(relation, BorrowedRows::from(rows))
+        self.source_borrowed(relation, RepresentationInput::from(rows))
     }
     pub(in crate::application::file_dag::relations) fn source_borrowed(
         &self,
         relation: Relation,
-        raw: BorrowedRows<'_>,
+        raw: RepresentationInput<'_>,
     ) -> Result<PublishedInput, OperatingError> {
         let population = match raw {
             other => other,
@@ -86,7 +87,7 @@ impl RelationOwner {
         }))
     }
     pub(in crate::application::file_dag) fn computed(&self, table: Table) -> Result<PublishedInput, OperatingError> {
-        let input = BorrowedRows::Computed(&table);
+        let input = RepresentationInput::Computed(&table);
         let contract = input.contract()?;
         registered(contract.kind).inspect(&contract)?;
         self.publication(Arc::new(RelationResult {

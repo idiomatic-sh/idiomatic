@@ -157,6 +157,7 @@ impl RelationOwner {
             routes,
         }
     }
+    #[cfg(test)]
     pub(super) fn stable(&self) -> ReuseEligibility {
         self.stable
     }

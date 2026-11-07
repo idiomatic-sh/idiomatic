@@ -68,44 +68,13 @@ impl RelationOwner {
             bytes: table_bytes(table),
         }
     }
-    fn resource_backings(
-        resources: &Option<
-            Arc<[super::super::derived::owner::acquisition::admission::service::ResourceDependency]>,
-        >,
-        output: &mut Vec<Backing>,
-    ) {
-        let Some(resources) = resources else {
-            return;
-        };
-        output.push(Backing {
-            key: BackingKey {
-                tag: BackingTag(17),
-                address: BackingAddress(resources.as_ptr() as usize),
-            },
-            retention_units: UnitCount(0),
-            bytes: ByteCount(2 * size_of::<usize>() + std::mem::size_of_val(resources.as_ref())),
-        });
-        for resource in resources.iter() {
-            output.extend(resource.backings().iter().copied());
-        }
-    }
     pub(super) fn publication(
         &self,
         record: Arc<RelationResult>,
     ) -> Result<PublishedInput, OperatingError> {
-        self.leased_publication(record, None)
-    }
-    fn leased_publication(
-        &self,
-        record: Arc<RelationResult>,
-        resources: Option<
-            Arc<[super::super::derived::owner::acquisition::admission::service::ResourceDependency]>,
-        >,
-    ) -> Result<PublishedInput, OperatingError> {
-        let mut backings = self.backings(&record);
-        Self::resource_backings(&resources, &mut backings);
+        let backings = self.backings(&record);
         let lease = self.derived.required_lease(&backings)?;
-        Ok(PublishedInput::new(record, lease, resources))
+        Ok(PublishedInput::new(record, lease))
     }
 }
 

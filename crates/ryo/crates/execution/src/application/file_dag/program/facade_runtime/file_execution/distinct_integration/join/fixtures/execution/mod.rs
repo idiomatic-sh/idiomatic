@@ -3,7 +3,6 @@ use super::super::super::*;
 use super::provider::{Provider, provider};
 use crate::application::file_dag::derived::owner::fixtures::resources::RecordedDerived;
 use crate::domain::operating::fixtures::ExecutionObservation;
-use crate::domain::table_model::service::materialize;
 use ryo_values::domain::compact_table::service::admit_compact;
 use ryo_values::domain::stored_facts::types::KeptWords;
 use ryo_values::domain::table_words::types::DecodeMode;
@@ -21,9 +20,7 @@ pub(crate) struct Observation {
     pub(crate) work: ExecutionObservation,
     pub(crate) counts: (u64, u64, u64),
     pub(crate) derived_builds: Vec<ryo_derived::domain::request::types::DerivedRequest>,
-    pub(crate) fed: Vec<crate::domain::operator::types::RowsFed>,
     pub(crate) instructions: usize,
-    pub(crate) frontiers: Vec<Table>,
     pub(crate) affected: Vec<Option<FileId>>,
 }
 /// Fixture behavior belongs to real external source/sink dependencies only.
@@ -208,11 +205,11 @@ pub(crate) fn execute(
         }
     };
     let work = file.route_observation(RuleIndex(0), target)?;
-    let frontiers = if has_frontier {
+    if has_frontier {
         let mut arena = vec![];
         let mut places = vec![];
         let mut words = ryo_relations::domain::relations::types::Words::default();
-        file.capture_frontiers(
+        let captured = file.capture_frontiers(
             RuleIndex(0),
             ryo_values::domain::stored_facts::types::Bucket(0),
             &read,
@@ -227,30 +224,20 @@ pub(crate) fn execute(
                 },
                 words: &mut words,
             },
-        )?
-        .into_iter()
-        .filter_map(|capture| {
-            // A refused frontier capture contributes no frontier table.
-            let capture = capture.outcome.ok()?;
-            let ryo_values::domain::table_words::types::Admitted { table: compact, .. } =
-                admit_compact(
-                    ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(
-                        capture.words,
-                    ))),
-                    &mut vec![],
-                    DecodeMode::Complete,
-                )
-                .expect("actual captured words decode");
-            let mut table = Table::default();
-            materialize(&Rows::Compact(&compact), &mut table, &mut vec![]);
-            Some(table)
-        })
-        .collect()
-    } else {
-        vec![]
-    };
+        )?;
+        // A refused frontier capture contributes no frontier; an admitted one decodes.
+        for capture in captured.into_iter().filter_map(|capture| capture.outcome.ok()) {
+            admit_compact(
+                ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(
+                    capture.words,
+                ))),
+                &mut vec![],
+                DecodeMode::Complete,
+            )
+            .expect("actual captured words decode");
+        }
+    }
     let counts = file.owner.derived().counts();
-    let fed = file.counts(RuleIndex(0))?.fed.to_vec();
     let owner = Rc::clone(&file.owner);
     file.finish()?;
     assert_eq!(
@@ -276,9 +263,7 @@ pub(crate) fn execute(
         work,
         counts: (counts.0.0, counts.1.0, counts.2.0),
         derived_builds: faults.derived.builds(),
-        fed,
         instructions,
-        frontiers,
         affected,
     })
 }

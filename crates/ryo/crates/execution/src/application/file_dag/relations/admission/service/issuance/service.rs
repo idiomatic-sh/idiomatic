@@ -5,6 +5,7 @@ use crate::application::file_dag::relations::publication::types::*;
 use crate::application::file_dag::relations::types::Sameness;
 use crate::application::file_dag::relations::*;
 use crate::domain::table_model::types::PublishedRelation;
+use crate::domain::table_model::types::RepresentationInput;
 impl<'a> BorrowedInput<'a> {
     pub(in crate::application::file_dag) fn require_publication(
         &self,
@@ -50,7 +51,7 @@ impl<'a> BorrowedInput<'a> {
     pub(in crate::application::file_dag) fn generation_guard(&self) -> Arc<()> {
         Arc::clone(&self.origin.generation)
     }
-    pub(in crate::application::file_dag) fn rows(&self) -> BorrowedRows<'a> {
+    pub(in crate::application::file_dag) fn rows(&self) -> RepresentationInput<'a> {
         self.rows
     }
     pub(in crate::application::file_dag) fn identity(
@@ -74,7 +75,7 @@ impl RelationOwner {
     pub(in crate::application::file_dag) fn admit<'a>(
         &self,
         result: &dyn PublishedRelation,
-        input: BorrowedRows<'a>,
+        input: RepresentationInput<'a>,
     ) -> Result<BorrowedInput<'a>, OperatingError> {
         self.inspect_available(result, input)?
     }
@@ -82,7 +83,7 @@ impl RelationOwner {
     pub(in crate::application::file_dag) fn inspect_available<'a>(
         &self,
         result: &dyn PublishedRelation,
-        input: BorrowedRows<'a>,
+        input: RepresentationInput<'a>,
     ) -> Result<Result<BorrowedInput<'a>, OperatingError>, OperatingError> {
         let result = self.private(result)?;
         if self.matches_current(result, input) == Sameness::Different {

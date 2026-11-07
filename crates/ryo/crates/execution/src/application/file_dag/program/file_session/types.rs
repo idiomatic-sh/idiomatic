@@ -51,7 +51,7 @@ pub struct FileInput<'a, 'facts> {
 }
 pub struct FileSession<'a, 'facts> {
     pub(crate) inner:
-        crate::application::file_dag::program::facade_runtime::file_execution::FileRules<'a>,
+        crate::application::file_dag::program::facade_runtime::file_execution::FileRun<'a>,
     pub(crate) program:
         Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
     pub(crate) file: ryo_relations::domain::relations::types::FileId,

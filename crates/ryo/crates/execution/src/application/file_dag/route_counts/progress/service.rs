@@ -48,7 +48,6 @@ fn counter_label(counter: ProgressCounter) -> RouteLabel {
         ProgressCounter::IndexRowsExamined => constants::COUNTER_INDEX_ROWS_EXAMINED,
         ProgressCounter::EqualityMatches => constants::COUNTER_EQUALITY_MATCHES,
         ProgressCounter::JoinCandidatePairs => constants::COUNTER_JOIN_CANDIDATE_PAIRS,
-        ProgressCounter::KernelOutputRows => constants::COUNTER_KERNEL_OUTPUT_ROWS,
     })
 }
 pub(crate) fn progress(profile: &RouteProfile, counter: ProgressCounter, amount: ProgressAmount) {

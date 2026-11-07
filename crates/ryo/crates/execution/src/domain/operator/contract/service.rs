@@ -283,17 +283,6 @@ pub(crate) fn prepare_for(
     })
 }
 
-/// An engine error takes precedence even if an injected kernel returns a dishonest answer.
-pub(crate) fn join_result(
-    answer: Result<
-        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
-        ryo_operators::domain::contract::types::PortableOperatorFault,
-    >,
-    error: Option<OperatingError>,
-) -> Result<(), OperatingError> {
-    written_result(answer, error)
-}
-
 /// Preserve the engine's original downstream error ahead of a portable interruption marker.
 pub(crate) fn written_result(
     answer: Result<

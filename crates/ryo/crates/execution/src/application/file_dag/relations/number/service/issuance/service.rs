@@ -3,13 +3,14 @@ use super::super::*;
 use crate::application::file_dag::relations::publication::types::*;
 use crate::application::file_dag::relations::*;
 use crate::domain::table_model::types::PublishedRelation;
+use crate::domain::table_model::types::RepresentationInput;
 impl RelationOwner {
     pub(in crate::application::file_dag) fn admit_number<'a>(
         &self,
         publication: &'a PublishedInput,
         producer: RegionId,
         required: &NumberRequirement,
-        rows: BorrowedRows<'_>,
+        rows: RepresentationInput<'_>,
     ) -> Result<Option<AdmittedNumber<'a>>, OperatingError> {
         let record = publication.as_ref();
         let scope = match record.producer_scope.get() {

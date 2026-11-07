@@ -22,15 +22,9 @@ pub(crate) struct AcquiredView {
     storage: Arc<DerivedStorage>,
     lease: Arc<ResourceLease>,
     backings: Arc<[Backing]>,
+    #[cfg(test)]
     construction: Construction,
     origin: AcquisitionOrigin,
-}
-
-/// Immutable payload dependency, independently leased by each publication role.
-#[derive(Clone, Debug)]
-pub(in crate::application::file_dag) struct ResourceDependency {
-    _storage: Arc<DerivedStorage>,
-    backings: Arc<[Backing]>,
 }
 
 impl AcquiredView {
@@ -48,6 +42,7 @@ impl AcquiredView {
             lease,
             backings,
             origin,
+            #[cfg(test)]
             construction,
         }
     }
@@ -59,12 +54,6 @@ impl AcquiredView {
         match Arc::try_unwrap(storage) {
             Ok(storage) => Some(storage),
             Err(_) => None,
-        }
-    }
-    pub(in crate::application::file_dag) fn dependency(&self) -> ResourceDependency {
-        ResourceDependency {
-            _storage: Arc::clone(&self.storage),
-            backings: Arc::clone(&self.backings),
         }
     }
     #[cfg(test)]
@@ -80,6 +69,7 @@ impl AcquiredView {
             .map(|capacity| PartitionCapacity(capacity.0))
             .ok_or(OperatingError::WrongOperation)
     }
+    #[cfg(test)]
     pub(in crate::application::file_dag) fn construction(&self) -> Construction {
         self.construction
     }
@@ -104,11 +94,6 @@ impl AcquiredView {
         &self.storage
     }
     pub(in crate::application::file_dag::derived::owner) fn backings(&self) -> &Arc<[Backing]> {
-        &self.backings
-    }
-}
-impl ResourceDependency {
-    pub(in crate::application::file_dag) fn backings(&self) -> &[Backing] {
         &self.backings
     }
 }

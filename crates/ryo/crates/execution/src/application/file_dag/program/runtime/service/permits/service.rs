@@ -162,15 +162,6 @@ impl<'scope> KernelPermit<'scope> {
             Err(OperatingError::NotRead)
         }
     }
-    pub(in crate::application::file_dag::program) fn output_kinds(
-        &self,
-    ) -> Result<&[ryo_relations::domain::relations::types::CellKind], OperatingError> {
-        self.program.regions()[self.region.0].instructions()[self.instruction.0]
-            .contract()
-            .output_kinds
-            .as_deref()
-            .map_err(Clone::clone)
-    }
     pub(in crate::application::file_dag) fn validate_registered(
         &self,
         operation: &ryo_values::domain::plans::types::Operation,

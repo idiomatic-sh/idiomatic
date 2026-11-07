@@ -21,27 +21,6 @@ pub(super) fn row(entry: Entry) -> Row {
             "AcquiredView",
             ADMISSION,
         ),
-        Entry::ConstructionRead => reads(
-            view,
-            "construction",
-            Authority::AcquiredView,
-            "AcquiredView",
-            ADMISSION,
-        ),
-        Entry::DependencyRead => reads(
-            view,
-            "dependency",
-            Authority::AcquiredView,
-            "AcquiredView",
-            ADMISSION,
-        ),
-        Entry::DependencyBackings => reads(
-            view,
-            "backings",
-            Authority::ResourceDependency,
-            "ResourceDependency",
-            ADMISSION,
-        ),
         Entry::GraphRead => reads(
             handles,
             "graph",

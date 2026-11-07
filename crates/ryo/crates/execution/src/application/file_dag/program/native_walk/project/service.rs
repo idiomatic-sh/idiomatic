@@ -85,12 +85,7 @@ impl WalkPartition<'_> {
         let Some(class) = prepared.walk_class(permit.descriptor()) else {
             return Ok(None);
         };
-        match (delivery, rows) {
-            (WalkDelivery::Positions, Rows::Tree(_))
-            | (WalkDelivery::Stored, Rows::Stored(_))
-            | (WalkDelivery::Rows, _) => {}
-            _ => return Ok(None),
-        }
+        let WalkDelivery::Rows = delivery;
         let relation = relation_of(prepared, permit)?;
         let prepared_batch = match self {
             Self::File(walk) => walk.prepare(prepared, permit, relation, rows, context, kernels)?,

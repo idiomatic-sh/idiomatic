@@ -14,7 +14,6 @@ use ryo_values::domain::plan_parts::types::StepScope;
 
 fn region() -> Region {
     Region::new(
-        RegionId(2),
         RuleIndex(1),
         Ok(Box::new([])),
         StepScope::CrossFile,
@@ -27,7 +26,6 @@ fn region() -> Region {
 #[test]
 fn a_new_region_is_generic_with_no_resolved_dependencies() {
     let region = region();
-    assert_eq!(region.id(), RegionId(2));
     assert_eq!(region.producer(), RuleIndex(1));
     assert_eq!(region.phase(), StepScope::CrossFile);
     assert_eq!(region.inputs(), [InputSource::Relation(Relation::Function)]);

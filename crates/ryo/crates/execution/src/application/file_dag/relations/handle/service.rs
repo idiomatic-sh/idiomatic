@@ -1,6 +1,5 @@
 //! Worker-local lease capabilities wrap thread-safe immutable publication records.
 use crate::application::file_dag::derived::ledger::types::ResourceLease;
-use crate::application::file_dag::derived::owner::acquisition::admission::service::ResourceDependency;
 use crate::application::file_dag::relations::publication::types::RelationResult;
 use crate::application::file_dag::relations::types::NormalizationCharge;
 use std::{cell::RefCell, sync::Arc};
@@ -14,14 +13,11 @@ struct RequiredLeases {
 pub(crate) struct PublishedInput {
     record: Arc<RelationResult>,
     leases: Arc<RequiredLeases>,
-    /// Keep derived backing leases alive until the final publication consumer drops.
-    _resources: Option<Arc<[ResourceDependency]>>,
 }
 impl PublishedInput {
     pub(in crate::application::file_dag::relations) fn new(
         record: Arc<RelationResult>,
         initial: Arc<ResourceLease>,
-        resources: Option<Arc<[ResourceDependency]>>,
     ) -> Self {
         let normalized_in_initial = if record.normalized.get().is_some() {
             NormalizationCharge::Charged
@@ -30,7 +26,6 @@ impl PublishedInput {
         };
         Self {
             record,
-            _resources: resources,
             leases: Arc::new(RequiredLeases {
                 _initial: initial,
                 normalized: RefCell::new(None),
@@ -41,6 +36,7 @@ impl PublishedInput {
     pub(crate) fn as_ref(&self) -> &RelationResult {
         &self.record
     }
+    #[cfg(test)]
     pub(in crate::application::file_dag::relations) fn record(&self) -> &Arc<RelationResult> {
         &self.record
     }

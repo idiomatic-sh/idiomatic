@@ -37,15 +37,6 @@ pub(in crate::application::file_dag) const fn arc_bytes<T>() -> ByteCount {
     ByteCount(size_of::<T>() + 2 * size_of::<usize>() + align_of::<T>() - 1)
 }
 
-/// An Arc-shared vector: allocation header, vector header and reserved room.
-pub(in crate::application::file_dag) fn shared_vector<T>(rows: &Vec<T>) -> ByteCount {
-    ByteCount(
-        size_of::<Vec<T>>()
-            + 2 * size_of::<usize>()
-            + saturating::<T>(SlotCount(rows.capacity())).0,
-    )
-}
-
 /// A compact table's own metadata: its header, its frames, kinds and row offsets by reserved room.
 pub(in crate::application::file_dag) fn compact_table(
     table: &ryo_values::domain::table_words::types::CompactTable,

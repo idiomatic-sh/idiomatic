@@ -35,9 +35,9 @@ impl RowCells for AdmittedRows<'_, '_> {
             return None;
         };
         match rows {
-            BorrowedRows::Stored(source) => Some(ryo_derived::domain::row_cells::types::BulkRows::Stored(source)),
-            BorrowedRows::Computed(table) => Some(ryo_derived::domain::row_cells::types::BulkRows::Computed(table)),
-            BorrowedRows::Tree(_) | BorrowedRows::Compact(_) => None,
+            RepresentationInput::Stored(source) => Some(ryo_derived::domain::row_cells::types::BulkRows::Stored(source)),
+            RepresentationInput::Computed(table) => Some(ryo_derived::domain::row_cells::types::BulkRows::Computed(table)),
+            RepresentationInput::Tree(_) | RepresentationInput::Compact(_) => None,
         }
     }
     fn kinds(&self) -> &[CellKind] {

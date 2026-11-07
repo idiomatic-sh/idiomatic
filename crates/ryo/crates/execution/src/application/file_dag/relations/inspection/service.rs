@@ -1,6 +1,7 @@
 //! Generation checks, identity matches, resolution and physical inspection of publications.
 use crate::application::file_dag::relations::types::NormalizationCharge;
 use crate::application::file_dag::relations::*;
+use crate::domain::table_model::types::RepresentationInput;
 impl RelationOwner {
     pub(in crate::application::file_dag) fn publication_kinds<'a>(
         &self,
@@ -35,21 +36,21 @@ impl RelationOwner {
             Err(OperatingError::NotRead)
         }
     }
-    pub(in crate::application::file_dag::relations) fn matches_current(&self, result: &RelationResult, input: BorrowedRows<'_>) -> Sameness {
+    pub(in crate::application::file_dag::relations) fn matches_current(&self, result: &RelationResult, input: RepresentationInput<'_>) -> Sameness {
         #[cfg(test)]
         self.identity_checks
             .set(CheckCount(self.identity_checks.get().0 + 1));
         // publish_selection verifies its source epoch; private fields preserve
         // that invariant, so the selected chain shares the checked outer epoch.
         if result.normalized.get().is_some_and(|table| {
-            matches!(input, BorrowedRows::Computed(actual) if std::ptr::eq(actual, table.as_ref()))
+            matches!(input, RepresentationInput::Computed(actual) if std::ptr::eq(actual, table.as_ref()))
         }) {
             return Sameness::Same;
         }
         match &result.body {
             RelationBody::Source(source) => identity::matches(source, input),
             RelationBody::Computed(table) => {
-                if matches!(input, BorrowedRows::Computed(actual) if std::ptr::eq(actual, table.as_ref()))
+                if matches!(input, RepresentationInput::Computed(actual) if std::ptr::eq(actual, table.as_ref()))
                 {
                     Sameness::Same
                 } else {
@@ -57,7 +58,7 @@ impl RelationOwner {
                 }
             }
             RelationBody::Compact(table) => {
-                if matches!(input, BorrowedRows::Compact(actual) if std::ptr::eq(actual, table.as_ref()))
+                if matches!(input, RepresentationInput::Compact(actual) if std::ptr::eq(actual, table.as_ref()))
                 {
                     Sameness::Same
                 } else {
@@ -78,7 +79,7 @@ impl RelationOwner {
         match &result.body {
             RelationBody::Source(source) => {
                 let rows = read(source.relation)?;
-                if identity::matches(source, BorrowedRows::from(&rows)) == Sameness::Different {
+                if identity::matches(source, RepresentationInput::from(&rows)) == Sameness::Different {
                     return Err(OperatingError::NotRead);
                 }
                 Ok(rows)
@@ -91,7 +92,7 @@ impl RelationOwner {
     pub(in crate::application::file_dag) fn inspect(
         &self,
         result: &dyn PublishedRelation,
-        input: BorrowedRows<'_>,
+        input: RepresentationInput<'_>,
     ) -> Result<PhysicalShape, OperatingError> {
         let result = self.private(result)?;
         if self.matches_current(result, input) == Sameness::Different {
@@ -102,9 +103,9 @@ impl RelationOwner {
     pub(in crate::application::file_dag::relations) fn inspect_current(
         &self,
         result: &RelationResult,
-        input: BorrowedRows<'_>,
+        input: RepresentationInput<'_>,
     ) -> Result<PhysicalShape, OperatingError> {
-        if result.normalized.get().is_some_and(|table|matches!(input,BorrowedRows::Computed(actual)if std::ptr::eq(actual,table.as_ref()))){self.reuses.set(CheckCount(self.reuses.get().0+1));return Ok(PhysicalShape::Complete)}
+        if result.normalized.get().is_some_and(|table|matches!(input,RepresentationInput::Computed(actual)if std::ptr::eq(actual,table.as_ref()))){self.reuses.set(CheckCount(self.reuses.get().0+1));return Ok(PhysicalShape::Complete)}
         if result.inspected.get().is_some() {
             self.reuses.set(CheckCount(self.reuses.get().0 + 1));
         }
@@ -146,7 +147,7 @@ impl RelationOwner {
         'f: 'r,
     {
         let result = self.private(publication.as_ref())?;
-        match self.inspect(result, BorrowedRows::from(&rows))? {
+        match self.inspect(result, RepresentationInput::from(&rows))? {
             PhysicalShape::Complete => Ok(rows),
             PhysicalShape::ReadablePhysicalFallback => {
                 let table = result.normalized.get_or_init(|| {

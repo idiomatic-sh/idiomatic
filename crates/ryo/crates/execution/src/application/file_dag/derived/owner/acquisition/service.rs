@@ -2,7 +2,7 @@
 use super::super::*;
 use super::admission::service::{AcquiredView, AcquisitionLifetime, AdmittedViewInputs};
 use super::population::types::{
-    Acquisition, BackendRetention, Construction, OptionalRetention, StoredObservation,
+    Acquisition, Construction, OptionalRetention, StoredObservation,
 };
 use super::population::types::StoredColumns;
 use crate::application::file_dag::route_counts::{self, types::BuildRoute};
@@ -126,7 +126,6 @@ impl DerivedOwner {
                 Ok(storage.map(|storage| Acquisition {
                     storage: Arc::new(storage),
                     construction: Construction::Built,
-                    backend: BackendRetention::Unaccounted,
                     optional: if allow_optional {
                         OptionalRetention::Allowed
                     } else {

@@ -80,9 +80,9 @@ pub(super) fn describe(relation: Relation, input: RepresentationInput<'_>) -> So
             vec![],
             view.kinds.to_vec(),
         ),
-        BorrowedRows::Compact(table) => (compact_spans(table), vec![], vec![]),
-        BorrowedRows::Computed(table) => (computed_spans(table), vec![], vec![]),
-        BorrowedRows::Tree(tree) => (tree_spans(&tree), vec![], vec![]),
+        RepresentationInput::Compact(table) => (compact_spans(table), vec![], vec![]),
+        RepresentationInput::Computed(table) => (computed_spans(table), vec![], vec![]),
+        RepresentationInput::Tree(tree) => (tree_spans(&tree), vec![], vec![]),
     };
     SourceDescriptor {
         relation,
@@ -109,9 +109,9 @@ pub(super) fn matches(source: &SourceDescriptor, input: RepresentationInput<'_>)
                 Sameness::Different
             }
         }
-        BorrowedRows::Compact(table) => sameness!(source.storage == compact_spans(table)),
-        BorrowedRows::Computed(table) => sameness!(source.storage == computed_spans(table)),
-        BorrowedRows::Tree(tree) => sameness!(source.storage == tree_spans(&tree)),
+        RepresentationInput::Compact(table) => sameness!(source.storage == compact_spans(table)),
+        RepresentationInput::Computed(table) => sameness!(source.storage == computed_spans(table)),
+        RepresentationInput::Tree(tree) => sameness!(source.storage == tree_spans(&tree)),
     }
 }
 

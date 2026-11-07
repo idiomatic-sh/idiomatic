@@ -15,7 +15,6 @@ macro_rules! file {
 }
 pub(super) enum Authority {
     AcquiredView,
-    ResourceDependency,
     GraphHandle,
     DomainHandle,
     RootAnswer,
@@ -23,9 +22,8 @@ pub(super) enum Authority {
     DerivedAccess,
 }
 impl Authority {
-    pub(super) const ALL: [Authority; 7] = [
+    pub(super) const ALL: [Authority; 6] = [
         Authority::AcquiredView,
-        Authority::ResourceDependency,
         Authority::GraphHandle,
         Authority::DomainHandle,
         Authority::RootAnswer,
@@ -36,7 +34,6 @@ impl Authority {
     pub(super) fn control(&self) -> (&'static str, &'static Negative) {
         match self {
             Authority::AcquiredView => ("AcquiredView", &c::authority::AUTHORITY_ACQUIRED),
-            Authority::ResourceDependency => ("ResourceDependency", &c::authority::AUTHORITY_DEPENDENCY),
             Authority::GraphHandle => ("GraphHandle", &c::authority::AUTHORITY_GRAPH),
             Authority::DomainHandle => ("DomainHandle", &c::authority::AUTHORITY_DOMAIN),
             Authority::RootAnswer => ("RootAnswer", &c::authority::AUTHORITY_ANSWER),
@@ -137,16 +134,12 @@ pub(super) enum Entry {
     PrepareProgramFile,
     ViewRead,
     ContractRead,
-    ConstructionRead,
-    DependencyRead,
-    DependencyBackings,
     GraphRead,
     OrientationRead,
     MembersRead,
     ValidateOwner,
     RootValues,
     Counts,
-    ForPredicate,
     MetadataBytes,
     OwnerNew,
     AccessPrepare,
@@ -168,7 +161,7 @@ pub(super) enum Entry {
     Wanted,
 }
 impl Entry {
-    pub(super) const ALL: [Entry; 46] = [
+    pub(super) const ALL: [Entry; 42] = [
         Entry::AdmitView,
         Entry::AdmitPartition,
         Entry::AcquireStored,
@@ -186,16 +179,12 @@ impl Entry {
         Entry::PrepareProgramFile,
         Entry::ViewRead,
         Entry::ContractRead,
-        Entry::ConstructionRead,
-        Entry::DependencyRead,
-        Entry::DependencyBackings,
         Entry::GraphRead,
         Entry::OrientationRead,
         Entry::MembersRead,
         Entry::ValidateOwner,
         Entry::RootValues,
         Entry::Counts,
-        Entry::ForPredicate,
         Entry::MetadataBytes,
         Entry::OwnerNew,
         Entry::AccessPrepare,

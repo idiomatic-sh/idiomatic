@@ -6,20 +6,8 @@ use super::{Negative, refuses};
 pub(in super::super) static AUTHORITY_ACQUIRED: Negative = refuses(
     r#"
 mod census_authority_acquired {
-    use crate::application::file_dag::derived::owner::acquisition::{admission::service::AcquiredView as Authority, population::types::Construction};
-    fn forge(value: Authority) -> Authority { Authority { construction: Construction::Reused, ..value } }
-    const _: () = { let _ = forge; };
-}
-"#,
-    "E0451",
-    "construction",
-    "private",
-);
-pub(in super::super) static AUTHORITY_DEPENDENCY: Negative = refuses(
-    r#"
-mod census_authority_dependency {
-    use crate::application::file_dag::derived::owner::acquisition::admission::service::ResourceDependency as Authority;
-    fn forge(value: Authority) -> Authority { Authority { backings: std::sync::Arc::from(value.backings()), ..value } }
+    use crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView as Authority;
+    fn forge(value: Authority) -> Authority { Authority { backings: std::sync::Arc::from(Vec::new()), ..value } }
     const _: () = { let _ = forge; };
 }
 "#,

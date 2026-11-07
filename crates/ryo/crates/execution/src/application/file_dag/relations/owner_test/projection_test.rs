@@ -1,5 +1,6 @@
 //! Forged metadata never gains authority it was not issued.
 use super::*;
+use crate::domain::table_model::types::RepresentationInput;
 #[derive(Debug)]
 struct Forged;
 impl PublishedRelation for Forged {
@@ -21,11 +22,11 @@ fn a_foreign_publication_with_correct_kind_has_no_admission_authority() {
         columns: &physical,
     });
     assert!(matches!(
-        owner.inspect(&Forged, BorrowedRows::from(&rows)),
+        owner.inspect(&Forged, RepresentationInput::from(&rows)),
         Err(OperatingError::NotRead)
     ));
     assert!(matches!(
-        owner.admit(&Forged, BorrowedRows::from(&rows)),
+        owner.admit(&Forged, RepresentationInput::from(&rows)),
         Err(OperatingError::NotRead)
     ));
     assert!(matches!(

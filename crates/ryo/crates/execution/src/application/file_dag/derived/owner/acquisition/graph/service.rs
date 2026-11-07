@@ -8,7 +8,7 @@ use crate::application::file_dag::derived::ledger::types::{
     BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount,
 };
 use crate::application::file_dag::derived::owner::acquisition::population::types::{
-    Acquisition, BackendRetention, InvocationStorage, OptionalRetention, StoredObservation,
+    Acquisition, InvocationStorage, OptionalRetention, StoredObservation,
 };
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::owner::graphs::types::handles::service::{
@@ -77,7 +77,6 @@ pub(in crate::application::file_dag::derived::owner) fn acquire(
             Ok(built.map(|built| Acquisition {
                 storage: Arc::clone(&built.storage),
                 construction: built.construction,
-                backend: BackendRetention::Accounted,
                 optional: OptionalRetention::Refused,
             }))
         },
@@ -198,7 +197,6 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
                 Ok(Acquisition {
                     storage: built.storage,
                     construction: built.construction,
-                    backend: BackendRetention::Accounted,
                     optional: OptionalRetention::Refused,
                 })
             },
@@ -251,29 +249,6 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
     let mut backings = acquired.backings().to_vec();
     for backing in access.backings().iter().copied() {
         append_backing(&mut backings, backing)?;
-    }
-    if let Some(rows) = domain
-        .identity
-        .as_ref()
-        .and_then(|identity| {
-            identity
-                .population
-                .positions
-                .as_ref()
-                .map(|positions| &positions.0)
-        })
-    {
-        append_backing(
-            &mut backings,
-            crate::application::file_dag::derived::ledger::types::Backing {
-                key: BackingKey {
-                    tag: BackingTag(1),
-                    address: BackingAddress(Arc::as_ptr(rows) as usize),
-                },
-                bytes: crate::application::file_dag::derived::ledger::capacity::shared_vector(rows),
-                retention_units: UnitCount(rows.capacity()),
-            },
-        )?;
     }
     append_backing(
         &mut backings,

@@ -188,6 +188,7 @@ impl FrontierDecodes {
             count: std::cell::Cell::new(DecodeCount::default()),
         }
     }
+    #[cfg(test)]
     /// How many packed frontiers this scope decoded.
     pub(in crate::application::file_dag) fn count(&self) -> DecodeCount {
         self.count.get()

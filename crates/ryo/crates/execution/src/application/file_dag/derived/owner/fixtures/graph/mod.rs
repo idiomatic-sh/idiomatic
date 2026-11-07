@@ -131,33 +131,6 @@ impl GraphFixture {
             )
             .unwrap();
     }
-    /// Attach observation/policy access to an existing real selection owner;
-    /// request declaration enables graph demand without replacing its backend.
-    pub(in crate::application::file_dag) fn attach(
-        owner: Rc<RelationOwner>,
-        wanted: &[Relation],
-    ) -> Self {
-        let limit = owner.derived().backend.borrow().as_ref().unwrap().limit.0;
-        let fixture = Self {
-            owner,
-            wanted: wanted.to_vec(),
-            partials: vec![],
-            limit,
-        };
-        assert!(
-            fixture
-                .owner
-                .derived()
-                .backend
-                .borrow()
-                .as_ref()
-                .unwrap()
-                .graph_enabled
-                == crate::application::file_dag::derived::owner::cache::types::GraphAdmission::Enabled,
-            "the shared selection owner must declare graph demand before any publication"
-        );
-        fixture
-    }
     fn workspace(
         &self,
         input: Input,

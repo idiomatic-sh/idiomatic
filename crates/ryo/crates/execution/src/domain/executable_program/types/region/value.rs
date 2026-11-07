@@ -10,7 +10,6 @@ use ryo_values::domain::{plan_parts::types::StepScope, plans::types::Operation};
 /// One region of the executable program: what it reads, what it computes and how many readers its publication has.
 #[derive(Clone, Debug)]
 pub(crate) struct Region {
-    id: RegionId,
     producer: RuleIndex,
     needs: Result<Box<[RelationRead]>, OperatingError>,
     phase: StepScope,
@@ -26,7 +25,6 @@ pub(crate) struct Region {
 impl Region {
     /// A region as the compiler drafted it, with the generic route and no resolved dependencies yet.
     pub(in crate::domain::executable_program) fn new(
-        id: RegionId,
         producer: RuleIndex,
         needs: Result<Box<[RelationRead]>, OperatingError>,
         phase: StepScope,
@@ -35,7 +33,6 @@ impl Region {
         consumers: ReaderMultiplicity,
     ) -> Self {
         Self {
-            id,
             producer,
             needs,
             phase,
@@ -74,9 +71,6 @@ impl Region {
         partitions: Box<[SourcePartition]>,
     ) {
         self.source_partitions = partitions;
-    }
-    pub(crate) fn id(&self) -> RegionId {
-        self.id
     }
     pub(crate) fn producer(&self) -> RuleIndex {
         self.producer

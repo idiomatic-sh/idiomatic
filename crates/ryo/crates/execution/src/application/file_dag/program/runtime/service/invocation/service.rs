@@ -108,7 +108,6 @@ impl ProgramExecution {
                 id,
                 region,
                 completion,
-                state,
                 kernels,
                 prepare_only,
                 inputs,
@@ -147,7 +146,7 @@ impl ProgramExecution {
                 self.release_inputs(state, id)?;
                 Ok(InvocationOutcome::Published(input))
             }
-            Err(InvocationFailure::Semantic(error) | InvocationFailure::Delivery(error)) => {
+            Err(InvocationFailure::Semantic(error)) => {
                 if let Some(admission) = cleanup.admission.as_ref() {
                     tracing::trace!(target: EXECUTION_TARGET, event = REGION_FAILURE, region = id.0, producer = region.producer().0, phase = ?region.phase(), logical = ?first.map(|first| first.logical().0), action = admission.action.0, ?error);
                 }
@@ -216,7 +215,7 @@ impl Emit for Continue<'_> {
             self.output,
         )
         .map_err(|failure| match failure {
-            InvocationFailure::Semantic(error) | InvocationFailure::Delivery(error) => error,
+            InvocationFailure::Semantic(error) => error,
         })
     }
 }

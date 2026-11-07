@@ -12,7 +12,6 @@ use crate::domain::operator::contract::types::{AxisWorkspace, DfsWorkspace};
 
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_reach::types::Walk;
-use crate::domain::table_scratch::types::{ScratchWord, Stretches};
 use ryo_relations::domain::relations::types::{Position, Value};
 pub(crate) struct InvocationWorkspace {
     pub work: crate::domain::operator::contract::types::WorkCounters,

@@ -81,7 +81,7 @@ impl SourceInputs<'_, '_> {
                             .map(|source| source.lineage().clone())
                             .unwrap_or_default()
                     } else {
-                        semantic
+                        code
                             .inputs()
                             .get(ordinal)
                             .map(|source| self.program.program().source_lineage(*source))

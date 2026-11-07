@@ -24,7 +24,6 @@ fn build(
         .enumerate()
         .map(|(at, dependencies)| {
             let mut region = Region::new(
-                RegionId(at),
                 RuleIndex(0),
                 Ok(Box::new([])),
                 StepScope::PerFile,

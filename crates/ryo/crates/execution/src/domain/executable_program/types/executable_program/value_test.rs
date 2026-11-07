@@ -14,7 +14,6 @@ use ryo_values::domain::plan_parts::types::StepScope;
 
 fn program() -> ExecutableProgram {
     let mut region = Region::new(
-        RegionId(0),
         RuleIndex(0),
         Ok(Box::new([])),
         StepScope::PerFile,
