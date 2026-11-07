@@ -111,12 +111,16 @@ fn a_second_rules_bag_sensitive_terminal_select_declines_the_shape() -> Result<V
         ),
     )
     .unwrap();
-    assert_eq!(
-        request.ordered_existence[0].shapes.len(),
-        1,
-        "local shape alone is insufficient"
+    assert!(
+        request.ordered_existence.iter().all(|slot| slot.get().is_none()),
+        "no rule's ordered existence is compiled before its regions are resolved"
     );
     let graph = crate::domain::file_program::service::compile_prepared(&plans, &request);
+    assert_eq!(
+        request.ordered_existence[0].get().map(|program| program.shapes.len()),
+        Some(1),
+        "local shape alone is insufficient"
+    );
     use crate::domain::file_program::types::ResolvedAlternative;
     assert!(graph.ordered_existence.iter().any(|alternative| matches!(
         alternative,

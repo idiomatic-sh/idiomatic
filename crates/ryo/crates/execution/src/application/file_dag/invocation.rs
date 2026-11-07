@@ -63,6 +63,9 @@ pub(crate) struct InvocationInputs<'f> {
     pub(crate) dfs: Option<AcquiredView>,
     pub(crate) axis: Option<super::axis_resources::view::AxisResource<'f>>,
     pub(crate) groups: Option<Vec<Group>>,
+    /// The file's profile, the observer the lent indexes report their probes to.
+    #[cfg(feature = "diagnostic-row-progress")]
+    pub(crate) progress: super::route_counts::types::RouteProfile,
 }
 impl<'f> InvocationResources<'f> {
     /// Validate required Join resource metadata without constructing a payload.

@@ -20,10 +20,6 @@ pub(in crate::application::file_dag::program) enum KernelInput<'a> {
     Admitted(&'a [AdmittedInput]),
     Continuation(&'a [Value]),
 }
-pub(in crate::application::file_dag::program) enum StrategyOutcome {
-    Executed,
-    Declined,
-}
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::application::file_dag::program) enum AttemptCheckpoint {

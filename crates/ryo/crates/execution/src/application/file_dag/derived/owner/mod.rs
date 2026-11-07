@@ -104,6 +104,8 @@ pub(crate) struct DerivedOwner {
     file_prepared: std::cell::Cell<FilePreparation>,
     state: RefCell<State>,
     max_entries: EntryLimit,
+    /// The route profile its relation owner hands down.
+    routes: crate::application::file_dag::route_counts::types::RouteProfile,
 }
 impl DerivedOwner {
     #[cfg(test)]
@@ -118,6 +120,7 @@ impl DerivedOwner {
     pub(in crate::application::file_dag) fn new(
         max_entries: EntryLimit,
         semantic: impl Into<types::DerivedAccess>,
+        routes: crate::application::file_dag::route_counts::types::RouteProfile,
     ) -> Self {
         Self {
             identity: Arc::new(()),
@@ -130,6 +133,7 @@ impl DerivedOwner {
             backend: RefCell::new(None),
             file_prepared: std::cell::Cell::new(FilePreparation::Unprepared),
             max_entries,
+            routes,
         }
     }
     pub(in crate::application::file_dag) fn counts(&self) -> BuildCounts {

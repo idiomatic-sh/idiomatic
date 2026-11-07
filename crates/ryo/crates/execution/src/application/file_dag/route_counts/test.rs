@@ -1,12 +1,11 @@
 use super::constants::{
-    KIND_EQUALITY, KIND_MEMBERSHIP, KIND_PREDICATE_MATCHES, MAX_KEYS, OWNER_BUILD,
+    KIND_EQUALITY, KIND_MEMBERSHIP, MAX_KEYS, OWNER_BUILD,
     GRAPH_ADJACENCY_BUILD,
 };
-use super::profile::service::{with_borrow, with_borrow_mut};
 use super::schemas::document;
 use super::types::{
     BuildRoute, RouteCount, RouteNodeIndex, RouteOrigin, RouteOwnerId, RouteOwnership, RoutePlanId,
-    RouteRuleIndex, RouteRuleName, RouteState, RouteTally,
+    RouteProfile, RouteRuleIndex, RouteRuleName, RouteState, RouteTally,
 };
 use super::{event, identity, node, observe, owner, rule};
 use crate::application::file_dag::derived::constants::{OWNER_HIT, OWNER_REQUEST};
@@ -24,33 +23,36 @@ const QUERY_TWO: &str = "query-two";
 const ORIGINAL_FAILURE: &str = "original failure";
 const QUOTED_TEXT: &str = "a\"b\n";
 const QUOTED_JSON: &str = "\"a\\\"b\\n\"";
-fn capture(run: impl FnOnce()) -> RouteState {
-    with_borrow_mut(|state| {
-        assert!(state.is_none());
-        *state = Some(Box::new(RouteState {
-            file: 7.into(),
-            origin: RouteOrigin::default(),
-            counts: HashMap::new(),
-            overflow: RouteTally::default(),
-            rules: HashMap::new(),
-            #[cfg(feature = "diagnostic-row-progress")]
-            progress: super::new_progress(),
-        }));
-    });
-    run();
-    *with_borrow_mut(Option::take).unwrap()
+fn recording() -> RouteState {
+    RouteState {
+        file: 7.into(),
+        origin: RouteOrigin::default(),
+        counts: HashMap::new(),
+        overflow: RouteTally::default(),
+        rules: HashMap::new(),
+        #[cfg(feature = "diagnostic-row-progress")]
+        progress: super::new_progress(),
+    }
+}
+/// Runs `run` with a recording profile handed to it, and answers what it recorded.
+fn capture(run: impl FnOnce(&RouteProfile)) -> RouteState {
+    let profile = RouteProfile(Some(std::sync::Arc::new(std::sync::Mutex::new(recording()))));
+    run(&profile);
+    let state = profile.0.as_ref().expect("a recording profile");
+    let mut state = state.lock().expect("an unpoisoned profile");
+    std::mem::replace(&mut *state, recording())
 }
 #[test]
 fn physical_build_is_once_and_original_error_survives_nested_scopes() {
-    let state = capture(|| {
-        let _rule = rule(3, &RuleId(EXAMPLE_RULE.into()));
-        let _node = node(19);
-        let _owner = owner(7);
-        event(OWNER_REQUEST, KIND_EQUALITY);
+    let state = capture(|profile| {
+        let _rule = rule(profile, 3, &RuleId(EXAMPLE_RULE.into()));
+        let _node = node(profile, 19);
+        let _owner = owner(profile, 7);
+        event(profile, OWNER_REQUEST, KIND_EQUALITY);
         let outcome: Result<(), &str> =
-            observe(SCOPED_BUILD, KIND_EQUALITY, || Err(ORIGINAL_FAILURE));
+            observe(profile, SCOPED_BUILD, KIND_EQUALITY, || Err(ORIGINAL_FAILURE));
         assert_eq!(outcome, Err(ORIGINAL_FAILURE));
-        event(OWNER_HIT, KIND_EQUALITY);
+        event(profile, OWNER_HIT, KIND_EQUALITY);
     });
     assert_eq!(state.origin, RouteOrigin::default());
     let physical = state
@@ -90,11 +92,11 @@ fn physical_build_is_once_and_original_error_survives_nested_scopes() {
 }
 #[test]
 fn cross_rule_origin_is_attributed_and_disabled_recording_allocates_no_state() {
-    let state = capture(|| {
+    let state = capture(|profile| {
         for number in [1, 2] {
-            let _rule = rule(number, &RuleId(EXAMPLE_RULE.into()));
-            let _node = node(41);
-            observe(SCOPED_BUILD, KIND_PREDICATE_MATCHES, || Ok::<_, ()>(())).unwrap();
+            let _rule = rule(profile, number, &RuleId(EXAMPLE_RULE.into()));
+            let _node = node(profile, 41);
+            observe(profile, SCOPED_BUILD, KIND_MEMBERSHIP, || Ok::<_, ()>(())).unwrap();
         }
     });
     assert_eq!(state.counts.len(), 2);
@@ -112,15 +114,16 @@ fn cross_rule_origin_is_attributed_and_disabled_recording_allocates_no_state() {
             .sum::<u64>(),
         2
     );
-    observe(SCOPED_BUILD, KIND_EQUALITY, || Ok::<_, ()>(())).unwrap();
-    assert!(with_borrow(|state| state.is_none()));
+    let disabled = RouteProfile::default();
+    observe(&disabled, SCOPED_BUILD, KIND_EQUALITY, || Ok::<_, ()>(())).unwrap();
+    assert!(disabled.0.is_none());
 }
 #[test]
 fn bounded_capture_reports_overflow_instead_of_claiming_complete_counts() {
-    let state = capture(|| {
+    let state = capture(|profile| {
         for number in 0..MAX_KEYS + 3 {
-            let _node = node(number);
-            event("owner_request", "Equality");
+            let _node = node(profile, number);
+            event(profile, "owner_request", "Equality");
         }
     });
     assert_eq!(state.counts.len(), MAX_KEYS);
@@ -129,13 +132,13 @@ fn bounded_capture_reports_overflow_instead_of_claiming_complete_counts() {
 
 #[test]
 fn owner_identity_distinguishes_live_population_keys_and_rules_are_named_once() {
-    let state = capture(|| {
-        let _rule = rule(2, &RuleId(QUERY_NAME.into()));
-        let _node = node(41);
-        let _owner = owner(17);
+    let state = capture(|profile| {
+        let _rule = rule(profile, 2, &RuleId(QUERY_NAME.into()));
+        let _node = node(profile, 41);
+        let _owner = owner(profile, 17);
         for population in [3, 4] {
-            let _identity = identity(29, [Some(population), None]);
-            event(OWNER_REQUEST, KIND_MEMBERSHIP);
+            let _identity = identity(profile, 29, [Some(population), None]);
+            event(profile, OWNER_REQUEST, KIND_MEMBERSHIP);
         }
     });
     assert_eq!(
@@ -185,12 +188,13 @@ use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
         )
         .unwrap(),
     );
-    let state = capture(|| {
-        let _rule = rule(2, &RuleId(QUERY_TWO.into()));
-        let _node = node(41);
-        let owner = RelationOwner::new(
+    let state = capture(|profile| {
+        let _rule = rule(profile, 2, &RuleId(QUERY_TWO.into()));
+        let _node = node(profile, 41);
+        let owner = RelationOwner::recording(
             crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
             crate::application::file_dag::fixtures::program_derived_port(),
+            profile.clone(),
         );
         let proof = owner
             .admit_relation(
@@ -211,9 +215,10 @@ use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
             )
             .unwrap();
         assert!(matches!(held.view().unwrap(), DerivedView::Equality(_)));
-        let selector_owner = RelationOwner::new(
+        let selector_owner = RelationOwner::recording(
             crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
             crate::application::file_dag::fixtures::program_derived_port(),
+            profile.clone(),
         );
         let proof = selector_owner
             .admit_relation(

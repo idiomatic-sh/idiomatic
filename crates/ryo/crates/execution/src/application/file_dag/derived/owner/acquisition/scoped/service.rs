@@ -27,6 +27,7 @@ impl DerivedOwner {
         }
         let recycled = recycled.and_then(AcquiredView::into_storage);
         let storage = crate::application::file_dag::route_counts::observe(
+            &self.routes,
             route.label(),
             crate::application::file_dag::route_counts::derived(plan.kind),
             || self.build_admitted(plan, admitted, inputs, scratch, recycled),

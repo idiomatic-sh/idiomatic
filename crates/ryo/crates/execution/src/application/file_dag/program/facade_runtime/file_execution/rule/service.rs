@@ -76,11 +76,12 @@ impl FileRun<'_> {
             self.prepare_walk(read, symbols)?;
         }
         let _rule_origin = crate::application::file_dag::route_counts::rule(
+            self.routes.profile(),
             rule.0,
             self.program.rule_id(rule)?,
         );
         let _consumer_origin =
-            crate::application::file_dag::route_counts::consumer(FILE_RULE_CONSUMER);
+            crate::application::file_dag::route_counts::consumer(self.routes.profile(), FILE_RULE_CONSUMER);
         let mut context = self.context.borrow(symbols, self.program, rule)?;
         let context = &mut context;
         let metadata = self.program.rule_metadata(rule)?;

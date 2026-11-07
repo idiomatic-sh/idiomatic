@@ -114,6 +114,7 @@ impl RelationOwner {
                 self.checks.set(CheckCount(self.checks.get().0 + 1));
                 let contract = input.contract()?;
                 crate::application::file_dag::route_counts::observe(
+                    &self.routes,
                     super::constants::REPRESENTATION_INSPECT,
                     crate::application::file_dag::route_counts::representation(contract.kind),
                     || registered(contract.kind).inspect(&contract),

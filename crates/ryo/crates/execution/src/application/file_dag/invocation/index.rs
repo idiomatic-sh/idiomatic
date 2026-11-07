@@ -52,7 +52,11 @@ impl<'f> IndexResource<'f> {
             view: storage,
         })
     }
-    pub(in crate::application::file_dag) fn view(&self) -> IndexedRows<'_> {
+    pub(in crate::application::file_dag) fn view<'s>(
+        &'s self,
+        #[cfg(feature = "diagnostic-row-progress")]
+        progress: &'s dyn crate::domain::operator::contract::views::ProgressObserver,
+    ) -> IndexedRows<'s> {
         match self {
             Self::Derived { rows, view } => {
                 let crate::domain::derived_views::types::ViewRequest::Equality { columns } =
@@ -67,7 +71,7 @@ impl<'f> IndexResource<'f> {
                 };
                 IndexedRows {
                     #[cfg(feature = "diagnostic-row-progress")]
-                    progress: &crate::application::file_dag::route_counts::progress::service::RouteProgress,
+                    progress,
                     rows: *rows,
                     columns,
                     index,
@@ -81,7 +85,7 @@ impl<'f> IndexResource<'f> {
                 };
                 IndexedRows {
                     #[cfg(feature = "diagnostic-row-progress")]
-                    progress: &crate::application::file_dag::route_counts::progress::service::RouteProgress,
+                    progress,
                     rows: *rows,
                     columns,
                     index,

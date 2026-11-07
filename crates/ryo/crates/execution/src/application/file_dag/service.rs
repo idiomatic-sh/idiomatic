@@ -136,22 +136,8 @@ pub(crate) fn prepare_with_schemas<'s>(
         }
         rules.push(contracts);
     }
-    let ordered_existence = Arc::new(
-        plans
-            .iter()
-            .enumerate()
-            .map(|(rule, plan)| {
-                crate::domain::self_join_recogniser::service::compile(plan, &|id| {
-                    match &rules.get(rule)?.get(id.0 as usize)?.schema {
-                        Ok(kinds) => Some(kinds.as_slice()),
-                        Err(_) => None,
-                    }
-                })
-            })
-            .collect(),
-    );
     let request = RequestOperators {
-        ordered_existence,
+        ordered_existence: plans.iter().map(|_| std::sync::OnceLock::new()).collect(),
         rules,
         preparations: crate::domain::operator::contract::types::PreparationCount(preparations),
     };

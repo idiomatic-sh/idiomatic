@@ -62,11 +62,12 @@ impl FileRun<'_> {
         }
         self.prepare_walk(read, symbols)?;
         let _rule_origin = crate::application::file_dag::route_counts::rule(
+            self.routes.profile(),
             rule.0,
             self.program.rule_id(rule)?,
         );
         let _consumer_origin =
-            crate::application::file_dag::route_counts::consumer(FILE_STREAM_CONSUMER);
+            crate::application::file_dag::route_counts::consumer(self.routes.profile(), FILE_STREAM_CONSUMER);
         let mut context = self.context.borrow(symbols, self.program, rule)?;
         let context = &mut context;
         let completion = match &self.partials {

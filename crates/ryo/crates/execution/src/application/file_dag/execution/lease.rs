@@ -70,8 +70,10 @@ fn evaluate_once(
     emit: &mut dyn Emit,
 ) -> Result<(), OperatingError> {
     #[cfg(feature = "diagnostic-row-progress")]
+    let routes = workspace.progress_origin.profile.clone();
+    #[cfg(feature = "diagnostic-row-progress")]
     let _progress_invocation =
-        crate::application::file_dag::route_counts::resume(workspace.progress_origin);
+        crate::application::file_dag::route_counts::resume(&workspace.progress_origin);
     #[cfg(test)]
     resources.observe(workspace);
     let semantic_failure = std::sync::OnceLock::new();
@@ -89,8 +91,13 @@ fn evaluate_once(
     };
     #[cfg(feature = "diagnostic-row-progress")]
     if let Some(row) = row {
-        crate::application::file_dag::route_counts::progress::service::row_file(row, context.paths);
+        crate::application::file_dag::route_counts::progress::service::row_file(
+            &routes,
+            row,
+            context.paths,
+        );
         crate::application::file_dag::route_counts::progress::service::progress(
+            &routes,
             crate::domain::operator::contract::views::ProgressCounter::InputRows,
             crate::domain::operator::contract::views::ProgressAmount(1),
         );
@@ -168,6 +175,8 @@ fn evaluate_once(
         state: &mut workspace.predicates,
         memo: &mut workspace.predicate_memo,
         names: &mut workspace.predicate_names,
+        #[cfg(feature = "diagnostic-row-progress")]
+        progress: &routes,
     };
     resources.inputs.validate_declared()?;
     if matches!(
@@ -206,6 +215,8 @@ fn evaluate_once(
         port: operators,
         permit: permit.semantics(),
         failure: &semantic_failure,
+        #[cfg(feature = "diagnostic-row-progress")]
+        progress: &routes,
         binding: crate::domain::executable_program::physical::PhysicalBinding {
             bindings: context.bindings,
             regex_identity: regex.map(|compiled| {

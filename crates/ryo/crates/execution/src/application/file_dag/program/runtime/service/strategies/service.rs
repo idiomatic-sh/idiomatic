@@ -2,7 +2,7 @@
 use super::super::{InvocationOutcome, Poll, ProgramExecution};
 use super::super::{KernelAdmission, KernelPermit};
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
-use crate::application::file_dag::program::runtime::types::{StageProgress, StrategyOutcome};
+use crate::application::file_dag::program::runtime::types::StageProgress;
 use crate::domain::operating::errors::OperatingError;
 
 impl ProgramExecution {
@@ -111,7 +111,7 @@ impl ProgramExecution {
             let frame = frames
                 .first_mut()
                 .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
-            let outcome = kernels.ordered(
+            kernels.ordered(
                 shape,
                 &permit,
                 &source,
@@ -119,30 +119,28 @@ impl ProgramExecution {
                 frame,
                 &mut crate::domain::replay::types::Collect(&mut rows),
             )?;
-            if matches!(outcome, StrategyOutcome::Executed) {
-                completion.filter_rows(
-                    region
-                        .last_operation()
-                        .map_err(InvocationFailure::Semantic)?,
-                    needs,
-                    &mut rows,
-                );
-                let coverage = source.coverage().map_err(InvocationFailure::Semantic)?;
-                let publication = inputs
-                    .publish(
-                        crate::application::file_dag::program::admission::ProducerRoot::Region(id),
-                        &self.partition,
-                        &[source],
-                        crate::application::file_dag::program::admission::Representation::Computed(
-                            rows,
-                        ),
-                    )
-                    .map_err(InvocationFailure::Semantic)?
-                    .with_coverage(coverage)
-                    .with_coverage(completion.coverage(needs));
+            completion.filter_rows(
+                region
+                    .last_operation()
+                    .map_err(InvocationFailure::Semantic)?,
+                needs,
+                &mut rows,
+            );
+            let coverage = source.coverage().map_err(InvocationFailure::Semantic)?;
+            let publication = inputs
+                .publish(
+                    crate::application::file_dag::program::admission::ProducerRoot::Region(id),
+                    &self.partition,
+                    &[source],
+                    crate::application::file_dag::program::admission::Representation::Computed(
+                        rows,
+                    ),
+                )
+                .map_err(InvocationFailure::Semantic)?
+                .with_coverage(coverage)
+                .with_coverage(completion.coverage(needs));
 
-                return Ok(Some(InvocationOutcome::Published(publication)));
-            }
+            return Ok(Some(InvocationOutcome::Published(publication)));
         }
         progress.ordered_done = StageProgress::Done;
         Ok(None)

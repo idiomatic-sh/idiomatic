@@ -66,6 +66,8 @@ impl super::super::KernelSession<'_, '_> {
         let contract = instruction.contract().as_ref();
         let setup_failure = std::sync::OnceLock::new();
         let setup_semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
+            #[cfg(feature = "diagnostic-row-progress")]
+            progress: self.owner.routes(),
             port: self.kernels,
             permit: permit.semantics(),
             failure: &setup_failure,

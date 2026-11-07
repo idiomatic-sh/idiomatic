@@ -3,6 +3,13 @@ use super::*;
 impl InvocationResources<'_> {
     #[cfg(test)]
     pub(crate) fn observe(&self, workspace: &mut super::super::workspace::InvocationWorkspace) {
+        #[cfg(feature = "diagnostic-row-progress")]
+        let view = self
+            .inputs
+            .index
+            .as_ref()
+            .map(|index| index.view(&self.inputs.progress));
+        #[cfg(not(feature = "diagnostic-row-progress"))]
         let view = self.inputs.index.as_ref().map(IndexResource::view);
         let observed = &mut workspace.observation;
         observed.owners_initialized = usize::from(self.inputs.index.is_some())

@@ -6,7 +6,6 @@ use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
-use crate::application::file_dag::program::runtime::types::StrategyOutcome;
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
 use crate::domain::executable_program::types::instruction::value::Instruction;
 use crate::domain::executable_program::types::RegionId;
@@ -73,7 +72,7 @@ impl KernelInvocation for RuntimeProbe {
         _: &mut OperatorContext<'_>,
         _: &mut KernelScratch,
         _: &mut dyn Emit,
-    ) -> Result<StrategyOutcome, InvocationFailure> {
+    ) -> Result<(), InvocationFailure> {
         Err(InvocationFailure::Semantic(OperatingError::WrongOperation))
     }
     fn evaluate(

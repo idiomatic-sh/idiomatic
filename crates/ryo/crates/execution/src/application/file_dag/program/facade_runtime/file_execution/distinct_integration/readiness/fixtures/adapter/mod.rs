@@ -5,7 +5,7 @@ use crate::application::file_dag::program::runtime::service::{
     KernelInvocation, KernelPermit, ReadySelection,
 };
 use crate::application::file_dag::program::runtime::types::{
-    InvocationFailure, KernelInput, KernelScratch, StrategyOutcome,
+    InvocationFailure, KernelInput, KernelScratch,
 };
 use crate::domain::executable_program::types::{instruction::value::Instruction, LogicalInstruction};
 use crate::domain::operating::types::Emit as RowSink;
@@ -50,7 +50,7 @@ impl KernelInvocation for ReadyAdapter<'_> {
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
         output: &mut dyn RowSink,
-    ) -> Result<StrategyOutcome, InvocationFailure> {
+    ) -> Result<(), InvocationFailure> {
         self.actual
             .ordered(shape, permit, input, context, scratch, output)
     }

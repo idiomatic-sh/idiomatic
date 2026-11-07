@@ -6,6 +6,7 @@ use crate::{
     application::file_dag::workspace::InvocationWorkspace,
     domain::{
         operating::{
+            errors::OperatingError,
             types::{Emit, OperatorContext}}}};
 use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use std::rc::Rc;
@@ -19,10 +20,7 @@ impl super::super::KernelSession<'_, '_> {
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
         output: &mut dyn Emit,
-    ) -> Result<
-        crate::application::file_dag::program::runtime::types::StrategyOutcome,
-        InvocationFailure,
-    > {
+    ) -> Result<(), InvocationFailure> {
         self.walk
             .validate(permit)
             .map_err(InvocationFailure::Semantic)?;
@@ -60,9 +58,9 @@ impl super::super::KernelSession<'_, '_> {
             )
             .map_err(InvocationFailure::Semantic)?
         else {
-            return Ok(
-                crate::application::file_dag::program::runtime::types::StrategyOutcome::Declined,
-            );
+            // The region was classified ordered at compile; a source the number
+            // admission refuses is a refusal, never a run of the other path.
+            return Err(InvocationFailure::Semantic(OperatingError::NotRun));
         };
         let workspace = scratch.workspace.get_or_insert_with(|| {
             InvocationWorkspace::for_contract(
@@ -72,6 +70,8 @@ impl super::super::KernelSession<'_, '_> {
         });
         let failure = std::sync::OnceLock::new();
         let semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
+            #[cfg(feature = "diagnostic-row-progress")]
+            progress: self.owner.routes(),
             port: self.kernels,
             permit: permit.semantics(),
             failure: &failure,
@@ -96,6 +96,6 @@ impl super::super::KernelSession<'_, '_> {
             .into_inner()
             .map_or(result, Err)
             .map_err(InvocationFailure::Semantic)?;
-        Ok(crate::application::file_dag::program::runtime::types::StrategyOutcome::Executed)
+        Ok(())
     }
 }

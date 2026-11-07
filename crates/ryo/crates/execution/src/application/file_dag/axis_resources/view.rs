@@ -31,7 +31,11 @@ pub(crate) enum AxisResource<'f> {
 }
 
 impl AxisResource<'_> {
-    pub(crate) fn view(&self) -> Result<PreparedAxis<'_>, OperatingError> {
+    pub(crate) fn view<'s>(
+        &'s self,
+        #[cfg(feature = "diagnostic-row-progress")]
+        progress: &'s dyn crate::domain::operator::contract::views::ProgressObserver,
+    ) -> Result<PreparedAxis<'s>, OperatingError> {
         match self {
             Self::Empty => Ok(PreparedAxis::Empty),
             Self::Native {
@@ -68,7 +72,7 @@ impl AxisResource<'_> {
                 Ok(PreparedAxis::Indexed {
                     edges: IndexedRows {
                         #[cfg(feature = "diagnostic-row-progress")]
-                        progress: &crate::application::file_dag::route_counts::progress::service::RouteProgress,
+                        progress,
                         rows: *edges,
                         columns: from,
                         index,

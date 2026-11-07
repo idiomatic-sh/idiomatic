@@ -22,11 +22,15 @@ pub(crate) struct BoundPredicate<'a> {
     >,
     pub memo: &'a mut Vec<crate::domain::operating::types::Memo>,
     pub names: &'a mut Option<crate::domain::operating::types::NameCount>,
+    /// The file's profile, which counts the predicates this binding decides.
+    #[cfg(feature = "diagnostic-row-progress")]
+    pub progress: &'a crate::application::file_dag::route_counts::types::RouteProfile,
 }
 impl PredicateProgram for BoundPredicate<'_> {
     fn holds(&mut self, row: &[Value], symbols: &Symbols) -> Result<Verdict, OperatingError> {
         #[cfg(feature = "diagnostic-row-progress")]
         super::route_counts::progress::service::progress(
+            self.progress,
             crate::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
             crate::domain::operator::contract::views::ProgressAmount(1),
         );
@@ -146,6 +150,8 @@ mod tests {
         let mut state = Default::default();
         let mut memo = Vec::new();
         let mut names = None;
+        #[cfg(feature = "diagnostic-row-progress")]
+        let routes = crate::application::file_dag::route_counts::types::RouteProfile::default();
         let mut evaluator = BoundPredicate {
             program: &program,
             bindings: &[],
@@ -156,6 +162,8 @@ mod tests {
             state: &mut state,
             memo: &mut memo,
             names: &mut names,
+            #[cfg(feature = "diagnostic-row-progress")]
+            progress: &routes,
         };
         assert_eq!(
             evaluator.holds(&[Value::Symbol(stop)], &symbols).unwrap(),

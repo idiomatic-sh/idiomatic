@@ -238,10 +238,27 @@ fn ordered_alternatives(
         resolved_readers[root.0] += 1;
     }
     let mut ordered_existence = vec![None; nodes.len()];
-    for (rule, program) in operators.ordered_existence.iter().enumerate() {
-        let Some(plan) = plans.get(rule) else {
+    for (rule, plan) in plans.iter().enumerate() {
+        // Only a rule with an anti-join can hold the shape; its program is compiled the first
+        // time its regions are resolved, never for every rule of the request.
+        if !plan
+            .steps
+            .iter()
+            .any(|step| matches!(step.operation, Operation::Antijoin { .. }))
+        {
+            continue;
+        }
+        let Some(slot) = operators.ordered_existence.get(rule) else {
             continue;
         };
+        let program = slot.get_or_init(|| {
+            crate::domain::self_join_recogniser::service::compile(plan, &|id| {
+                match &operators.rules.get(rule)?.get(id.0 as usize)?.schema {
+                    Ok(kinds) => Some(kinds.as_slice()),
+                    Err(_) => None,
+                }
+            })
+        });
         for shape in &program.shapes {
             if shape.plan.0 != std::ptr::from_ref(plan).addr() {
                 continue;

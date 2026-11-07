@@ -317,8 +317,10 @@ pub(crate) struct PreparationCount(pub usize);
 /// Prepared metadata belongs to the request; workers only borrow this immutable value.
 #[derive(Debug)]
 pub(crate) struct RequestOperators {
-    /// Original-plan shape metadata owned by this exact immutable request, never file state.
-    pub ordered_existence: std::sync::Arc<Vec<crate::domain::self_join_recogniser::types::Program>>,
+    /// Original-plan shape metadata owned by this exact immutable request, never file state:
+    /// one slot per rule, compiled when the request graph first resolves that rule's regions.
+    pub ordered_existence:
+        Vec<std::sync::OnceLock<crate::domain::self_join_recogniser::types::Program>>,
     pub rules: Vec<Vec<std::sync::Arc<OperatorContract>>>,
     pub preparations: PreparationCount,
 }

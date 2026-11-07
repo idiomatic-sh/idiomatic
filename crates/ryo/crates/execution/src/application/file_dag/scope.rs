@@ -24,6 +24,7 @@ pub(in crate::application::file_dag) fn open_program_owner(
     program: &Arc<crate::domain::executable_program::types::executable_program::value::ExecutableProgram>,
     derived: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     reuse: ReuseEligibility,
+    routes: crate::application::file_dag::route_counts::types::RouteProfile,
 ) -> Rc<RelationOwner> {
     Rc::new(RelationOwner::for_scope(
         ScopePermit { reuse },
@@ -35,5 +36,6 @@ pub(in crate::application::file_dag) fn open_program_owner(
                 .saturating_add(1),
         ),
         derived,
+        routes,
     ))
 }

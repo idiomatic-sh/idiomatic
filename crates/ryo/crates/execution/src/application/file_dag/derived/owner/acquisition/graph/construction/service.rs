@@ -49,6 +49,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adja
     }
     let expected_identity = source.identity.clone();
     let storage = crate::application::file_dag::route_counts::observe(
+        &owner.routes,
         crate::application::file_dag::route_counts::types::BuildRoute::GraphAdjacency.label(),
         crate::application::file_dag::route_counts::derived(plan.kind),
         || {
@@ -119,6 +120,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
         });
     }
     let storage = crate::application::file_dag::route_counts::observe(
+        &owner.routes,
         crate::application::file_dag::route_counts::types::BuildRoute::GraphDomain.label(),
         crate::application::file_dag::route_counts::derived(plan.kind),
         || {

@@ -119,7 +119,7 @@ impl DerivedOwner {
                     _ => true,
                 };
                 let storage =
-                    route_counts::observe(route.label(), route_counts::derived(plan.kind), || {
+                    route_counts::observe(&self.routes, route.label(), route_counts::derived(plan.kind), || {
                         self.build_admitted(plan, admitted, inputs, scratch, None)
                     })?;
                 // Optional retention is decided below by this owner, never by the kernel.

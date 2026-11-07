@@ -1,7 +1,7 @@
 //! The sole admitted-program interpreter, authority issuance and physical dispatch.
 use super::types::{
     ActionCursor, Dependencies, InstructionIndex, InvocationFailure, KernelInput,
-    KernelScratch, PollMode, ReaderCount, StageProgress, StrategyOutcome,
+    KernelScratch, PollMode, ReaderCount, StageProgress,
 };
 #[cfg(test)]
 use super::types::{CallCount, ProducerLeaseEvent, ReaderInitializations};
@@ -49,7 +49,7 @@ pub(in crate::application::file_dag::program) trait KernelInvocation {
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
         output: &mut dyn Emit,
-    ) -> Result<StrategyOutcome, InvocationFailure>;
+    ) -> Result<(), InvocationFailure>;
     fn evaluate(
         &self,
         instruction: &Instruction,

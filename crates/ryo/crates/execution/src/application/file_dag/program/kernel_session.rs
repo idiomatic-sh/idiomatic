@@ -79,10 +79,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
         output: &mut dyn Emit,
-    ) -> Result<
-        crate::application::file_dag::program::runtime::types::StrategyOutcome,
-        InvocationFailure,
-    > {
+    ) -> Result<(), InvocationFailure> {
         self.ordered_session(shape, permit, input, context, scratch, output)
     }
     fn evaluate(

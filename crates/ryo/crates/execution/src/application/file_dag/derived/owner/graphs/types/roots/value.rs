@@ -63,6 +63,7 @@ impl<'a> DemandAnswers<'a> {
             cache.graph_counts.roots.0 += 1;
         }
         crate::application::file_dag::route_counts::event(
+            &self.owner.routes,
             constants::REACH_REQUEST,
             constants::ROUTE_GRAPH,
         );
@@ -88,6 +89,7 @@ impl<'a> DemandAnswers<'a> {
                 .find(|answer| answer.root.0 == root && answer.orientation == access.orientation())
         {
             crate::application::file_dag::route_counts::event(
+                &self.owner.routes,
                 constants::REACH_MEMO_HIT,
                 constants::ROUTE_GRAPH,
             );
@@ -95,6 +97,7 @@ impl<'a> DemandAnswers<'a> {
             return completed(self.owner, entry, Arc::clone(&answer.reached)).map(Some);
         }
         crate::application::file_dag::route_counts::event(
+            &self.owner.routes,
             constants::REACH_TRAVERSAL,
             constants::ROUTE_GRAPH,
         );
@@ -153,6 +156,7 @@ impl<'a> DemandAnswers<'a> {
         domain.validate_owner(self.owner, access)?;
         let domain = domain.raw_domain();
         crate::application::file_dag::route_counts::event(
+            &self.owner.routes,
             constants::NEAREST_REQUEST,
             constants::ROUTE_GRAPH,
         );
@@ -162,6 +166,7 @@ impl<'a> DemandAnswers<'a> {
             .is_none()
         {
             crate::application::file_dag::route_counts::event(
+                &self.owner.routes,
                 constants::NEAREST_TRAVERSAL,
                 constants::ROUTE_GRAPH,
             );
@@ -206,6 +211,7 @@ impl<'a> DemandAnswers<'a> {
         {
             let cache = &mut *self.cache;
             crate::application::file_dag::route_counts::event(
+                &self.owner.routes,
                 if hit {
                     constants::NEAREST_MEMO_HIT
                 } else {
