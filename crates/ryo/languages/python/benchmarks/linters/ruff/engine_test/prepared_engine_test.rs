@@ -1,7 +1,9 @@
 //! The prepared engine and the SDK fixtures every engine proof shares, below the proofs that use them.
 use ryo_benchmark::outbound::engine::{factory, interface::EnginePort};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
+use ryo_benchmark::outbound::context::interface::ContextPort as _;
+use ryo_benchmark_contracts::domain::reports::types::ProjectContext;
+use ryo_benchmark_contracts::domain::requests::types::{ContextSeal, WorkerRequest};
 use std::collections::BTreeMap;
 
 /// Reuse the production worker preparation boundary before exercising the SDK adapter.
@@ -18,14 +20,25 @@ impl<T: EnginePort + ?Sized> PreparedEngine for T {
         request: WorkerRequest,
     ) -> Result<ryo_benchmark_contracts::domain::reports::types::RunReport, Error> {
         let prepared = ryo_benchmark::application::worker_request::service::prepare(request)?;
-        {
-            let session = self.load(&prepared.request)?;
-            let configured = ryo_benchmark::application::worker_request::service::configure(
-                &prepared.request,
-                session,
-            )?;
-            configured.execute().map(|run| run.report)
+        let context = ryo_benchmark::outbound::context::factory::local();
+        if let ContextSeal::Sealed(manifest) = &prepared.request.context_manifest {
+            context.validate(manifest, &prepared.request.root)?;
         }
+        let session = self.load(&prepared.request)?;
+        let configured = ryo_benchmark::application::worker_request::service::configure(
+            &prepared.request,
+            session,
+        )?;
+        let run = configured.execute()?;
+        let mut report = run.report;
+        if let ContextSeal::Sealed(manifest) = &prepared.request.context_manifest {
+            report.project_context = ProjectContext::Observed(context.receipt(
+                manifest,
+                &prepared.request.root,
+                run.dependencies,
+            )?);
+        }
+        Ok(report)
     }
 }
 

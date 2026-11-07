@@ -59,7 +59,19 @@ impl LinterPort for LinterFake {
         _case: &PreparedCase,
         _profile: &Tool,
     ) -> Result<CanonicalText, Error> {
-        Ok(CanonicalText(format!("{normalized:?}")))
+        let lossy = |text: &std::ffi::OsStr| text.to_string_lossy().into_owned();
+        Ok(CanonicalText(
+            serde_json::json!({
+                "arguments": normalized.arguments.iter().map(|argument| lossy(argument)).collect::<Vec<_>>(),
+                "directory": lossy(normalized.directory.as_os_str()),
+                "environment": normalized
+                    .environment
+                    .iter()
+                    .map(|(name, value)| (lossy(name), lossy(value)))
+                    .collect::<std::collections::BTreeMap<_, _>>(),
+            })
+            .to_string(),
+        ))
     }
     fn rule_context_text(&self, prepared: &PreparedRuleContext) -> CanonicalText {
         CanonicalText(format!("{prepared:?}"))
