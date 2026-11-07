@@ -3,6 +3,7 @@ use super::{fixtures::*, service::schema_of, types::InputShape};
 use crate::domain::{features::service::catalog, operating::errors::OperatingError};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Relation;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, HostedNumber, Input as Source, JoinColumn, Side},
     plans::{
@@ -14,7 +15,18 @@ use ryo_values::domain::{
 use ryo_values::domain::query_operators::types::OperationKind;
 const FROM: Source = Source::Relation(Relation::Function);
 
-#[test]
+
+#[derive(Clone, Copy)]
+enum Scenario {
+    DeclaredKinds,
+    VirtualJoin,
+    HostedWithoutSource,
+    HostedKinds,
+}
+type Input = Scenario;
+type Value = ();
+type Failure = OperatingError;
+
 fn every_declared_kind_has_one_evaluator_fixture_and_one_feature() {
     let declared: std::collections::HashSet<_> = OperationKind::ALL.iter().copied().collect();
     assert_eq!(
@@ -50,8 +62,8 @@ fn every_declared_kind_has_one_evaluator_fixture_and_one_feature() {
     );
 }
 
-#[test]
-fn demand_join_schema_uses_virtual_partition_source_destination_projection() {
+fn demand_join_schema_uses_virtual_partition_source_destination_projection()
+-> Result<Value, Failure> {
     use ryo_values::domain::plan_parts::types::ReachLookup;
     let operation = Operation::Join {
         left: FROM,
@@ -92,27 +104,25 @@ fn demand_join_schema_uses_virtual_partition_source_destination_projection() {
         },
     ];
     assert_eq!(
-        schema_of(&operation, &inputs, &[]).expect("virtual kinds"),
+        schema_of(&operation, &inputs, &[])?,
         [CellKind::Symbol, CellKind::File, CellKind::Symbol]
     );
+    Ok(())
 }
 
-#[test]
-fn hosted_without_its_request_source_is_missing_not_unsupported() {
-    assert_eq!(
-        schema_of(
-            &Operation::Hosted {
-                relation: HostedNumber(0)
-            },
-            &[],
-            &[]
-        ),
-        Err(OperatingError::MissingInput { position: 1 })
-    );
+fn hosted_without_its_request_source() -> Result<Value, Failure> {
+    schema_of(
+        &Operation::Hosted {
+            relation: HostedNumber(0),
+        },
+        &[],
+        &[],
+    )
+    .map(|_| ())
 }
 
-#[test]
-fn hosted_metadata_preserves_every_supplied_kind_without_constructing_rows() {
+fn hosted_metadata_preserves_every_supplied_kind_without_constructing_rows()
+-> Result<Value, Failure> {
     let supplied = [
         CellKind::Number,
         CellKind::Symbol,
@@ -131,8 +141,62 @@ fn hosted_metadata_preserves_every_supplied_kind_without_constructing_rows() {
                 tree: None
             }],
             &[]
-        )
-        .unwrap(),
+        )?,
         supplied
     );
+    Ok(())
+}
+
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    match scenario {
+        Scenario::DeclaredKinds => {
+            every_declared_kind_has_one_evaluator_fixture_and_one_feature();
+            Ok(())
+        }
+        Scenario::VirtualJoin => {
+            demand_join_schema_uses_virtual_partition_source_destination_projection()
+        }
+        Scenario::HostedWithoutSource => hosted_without_its_request_source(),
+        Scenario::HostedKinds => {
+            hosted_metadata_preserves_every_supplied_kind_without_constructing_rows()
+        }
+    }
+}
+
+/// The rows of this part's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("every_declared_kind_has_one_evaluator_fixture_and_one_feature"),
+        word: Word::Succeeds,
+        input: || Scenario::DeclaredKinds,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_demand_join_schema_uses_the_virtual_partition_source_destination_projection"),
+        word: Word::Succeeds,
+        input: || Scenario::VirtualJoin,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("hosted_metadata_preserves_every_supplied_kind_without_constructing_rows"),
+        word: Word::Succeeds,
+        input: || Scenario::HostedKinds,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("hosted_without_its_request_source_is_missing_not_unsupported"),
+        word: Word::Refuses,
+        input: || Scenario::HostedWithoutSource,
+        expect: Expect::Error(OperatingError::MissingInput { position: 1 }),
+    },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }
