@@ -5,7 +5,7 @@ use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
 use crate::domain::operator::contract::failure::FailureLatch;
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::domain::ordered_match::types::OrderedMatchDriver;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
@@ -16,7 +16,7 @@ use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 struct Pairing<'a, 'input, 'engine> {
-    inputs: &'a [BorrowedRows<'input>],
+    inputs: &'a [RepresentationInput<'input>],
     ordered: &'a ryo_derived::domain::ordered::types::OrderedMatching,
     left_buffer: &'a mut Vec<Value>,
     right_buffer: &'a mut Vec<Value>,

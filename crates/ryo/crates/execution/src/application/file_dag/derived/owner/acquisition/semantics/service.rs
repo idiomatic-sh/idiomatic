@@ -6,7 +6,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::{
     derived::portable_fault, failure::FailureLatch, 
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use crate::outbound::derived::interface::DerivedPort;
 use ryo_language::domain::symbols::types::ByteSlice;
 use std::{cell::RefCell, sync::Arc};
@@ -16,9 +16,9 @@ use super::storage::DerivedStorage;
 use super::types::InputPosition;
 
 fn first<'a>(
-    rows: &[BorrowedRows<'a>],
+    rows: &[RepresentationInput<'a>],
     at: InputPosition,
-) -> Result<BorrowedRows<'a>, OperatingError> {
+) -> Result<RepresentationInput<'a>, OperatingError> {
     rows.get(at.0)
         .copied()
         .ok_or(OperatingError::MissingInput { position: at.0 + 1 })
@@ -48,7 +48,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
         ),
         DerivedInputs::Rows(inputs) => {
             if let ViewRequest::NativeLookup { .. } = &plan.request {
-                let BorrowedRows::Tree(tree) = first(inputs, InputPosition(1))? else {
+                let RepresentationInput::Tree(tree) = first(inputs, InputPosition(1))? else {
                     return Err(OperatingError::WrongOperation);
                 };
                 let form = match tree.form {

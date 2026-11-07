@@ -3,8 +3,8 @@ use crate::outbound::derived::interface::DerivedPort as _;
 use ryo_derived::domain::contract::types::BuildOutcome;
 use ryo_derived::domain::contract::types::BuildWorkspace;
 use ryo_derived::domain::fault::types::DerivedFault;
-use ryo_derived::domain::contract::types::BuildInputs as DerivedInputs;
-use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
+use ryo_derived::domain::contract::types::BuildInputs;
+use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_derived::inbound::use_cases::build::interface::BuildUseCase;
 use ryo_derived::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_derived::inbound::use_cases::view::interface::ViewUseCase;
@@ -22,7 +22,7 @@ fn representatives(
         crate::outbound::derived::factory::semantics(),
     );
     let plan = port.prepare(
-        ViewRequest::DistinctRepresentatives {
+        DerivedRequest::DistinctRepresentatives {
             columns: columns.to_vec(),
         },
         vec![source.kinds.to_vec()],
@@ -32,7 +32,7 @@ fn representatives(
     );
     let BuildOutcome::Built(payload) = port.build(
         &plan,
-        DerivedInputs::Distinct {
+        BuildInputs::Distinct {
             rows: &rows,
             positions: ryo_derived::domain::positions::types::RowSlots(positions),
         },

@@ -105,7 +105,7 @@ fn empty_native_step_join_validates_both_sources_without_sorting_rhs_keys() {
 }
 #[test]
 fn tree_lookup_preflight_preserves_required_support_and_optional_equality_fallback() {
-    use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
+    use ryo_derived::domain::request::types::DerivedRequest;
     use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, Test};
     let (elements, mut symbols) = wide_tree(1, true);
     let right = tree_rows(&elements, TreeForm::Elements);
@@ -167,8 +167,8 @@ fn tree_lookup_preflight_preserves_required_support_and_optional_equality_fallba
                             matches!(
                                 actual.derived_builds.as_slice(),
                                 [
-                                    ViewRequest::NativeLookup { .. },
-                                    ViewRequest::Equality { .. }
+                                    DerivedRequest::NativeLookup { .. },
+                                    DerivedRequest::Equality { .. }
                                 ]
                             ),
                             "{:?}",
@@ -218,7 +218,7 @@ fn tree_lookup_preflight_preserves_required_support_and_optional_equality_fallba
                     actual
                         .derived_builds
                         .iter()
-                        .any(|request| matches!(request, ViewRequest::NativeLookup { .. }))
+                        .any(|request| matches!(request, DerivedRequest::NativeLookup { .. }))
                 );
             }
         }

@@ -14,7 +14,7 @@ use crate::domain::{
     stored_selection::types::Selector,
     table_model::service::check_columns,
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_language::domain::names::service::name_count;
 use ryo_relations::domain::relations::types::ColumnsView;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -107,7 +107,7 @@ fn build_matches(
             resources.build(
                 &views.predicate,
                 DerivedInputs::Predicate {
-                    rows: BorrowedRows::Stored(source),
+                    rows: RepresentationInput::Stored(source),
                     candidates: candidates.as_ref().map(|rows| rows.as_slice()),
                     program: &mut decision,
                     symbols: context.symbols.as_ref(),

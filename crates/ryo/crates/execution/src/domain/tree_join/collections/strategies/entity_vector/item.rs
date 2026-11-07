@@ -10,7 +10,7 @@ use super::super::types::NodeColumns;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::tree_join::collections::strategies::types::Fitting;
-use ryo_derived::domain::native::types::NativeFinding as Finding;
+use ryo_derived::domain::native::types::NativeFinding;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::service::cell;
 
@@ -18,8 +18,8 @@ use ryo_values::domain::rows::service::cell;
 pub(crate) struct EntityVectorItem;
 
 impl StrategiesItem for EntityVectorItem {
-    fn applies(&self, finding: Option<Finding>) -> Fitting {
-        if matches!(finding, Some(Finding::Node(..))) {
+    fn applies(&self, finding: Option<NativeFinding>) -> Fitting {
+        if matches!(finding, Some(NativeFinding::Node(..))) {
             Fitting::Fits
         } else {
             Fitting::Misfits

@@ -5,7 +5,7 @@ use crate::application::file_dag::{
 };
 use crate::domain::{
     derived_views::types::contract::value::DerivedContract, operating::errors::OperatingError};
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use std::{rc::Rc, sync::Arc};
 
 pub(in crate::application::file_dag) fn from_prepared<'f>(
@@ -31,7 +31,7 @@ pub(in crate::application::file_dag) fn from_prepared<'f>(
     {
         return Err(OperatingError::WrongOperation);
     }
-    let input: BorrowedRows<'f> = proof.rows();
+    let input: RepresentationInput<'f> = proof.rows();
     owner
         .derived()
         .admit_partition(&closure_plan, &owner, &proof, &ordered)?;
@@ -55,7 +55,7 @@ pub(in crate::application::file_dag) fn from_prepared<'f>(
 #[cfg(test)]
 pub(crate) fn prepare<'f>(
     publication: &crate::application::file_dag::relations::handle::service::PublishedInput,
-    input: BorrowedRows<'f>,
+    input: RepresentationInput<'f>,
     keys: &[ryo_values::domain::plan_parts::types::ColumnIndex],
     source: ryo_values::domain::plan_parts::types::ColumnIndex,
     destination: ryo_values::domain::plan_parts::types::ColumnIndex,

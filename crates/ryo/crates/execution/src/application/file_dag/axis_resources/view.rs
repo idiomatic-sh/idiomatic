@@ -8,7 +8,7 @@ use crate::domain::{
     },
     table_cells::types::TreeRows,
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_derived::domain::membership::types::MembershipView;
 use ryo_derived::domain::positions::types::DenseMarks;
@@ -22,7 +22,7 @@ pub(crate) enum AxisResource<'f> {
         membership: Option<AcquiredView>,
     },
     Indexed {
-        edges: BorrowedRows<'f>,
+        edges: RepresentationInput<'f>,
         from: [ColumnIndex; 1],
         to: ColumnIndex,
         equality: AcquiredView,

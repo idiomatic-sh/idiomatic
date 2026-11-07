@@ -21,7 +21,7 @@ use crate::{
         },
     },
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_values::domain::rows::types::RowIndex;
 use std::rc::Rc;
 
@@ -154,7 +154,7 @@ impl super::super::KernelSession<'_, '_> {
                             .map_err(InvocationFailure::Semantic);
                         }
                     }
-                    let views: Vec<_> = originals.iter().map(BorrowedRows::from).collect();
+                    let views: Vec<_> = originals.iter().map(RepresentationInput::from).collect();
                     if contract.semantics.preflight
                         == crate::domain::operator::contract::types::PreflightOrder::SchemaFirst
                     {
@@ -279,7 +279,7 @@ impl super::super::KernelSession<'_, '_> {
                                 // Rows semantics consume the exact producer's parameter
                                 // snapshot through the lease, not an external relation.
                                 ryo_values::domain::plans::types::Operation::Rows { .. } => {
-                                    BorrowedRows::Computed(&empty)
+                                    RepresentationInput::Computed(&empty)
                                 }
                                 _ => views.first().copied().ok_or(InvocationFailure::Semantic(
                                     OperatingError::MissingInput { position: 1 },

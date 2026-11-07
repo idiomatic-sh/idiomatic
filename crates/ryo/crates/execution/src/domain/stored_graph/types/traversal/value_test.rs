@@ -9,9 +9,9 @@ use ryo_derived::domain::contract::types::BuildOutcome;
 use ryo_derived::domain::contract::types::BuildWorkspace;
 use ryo_derived::domain::row_cells::types::BulkRows;
 use ryo_derived::domain::fault::types::DerivedFault;
-use ryo_derived::domain::contract::types::BuildInputs as DerivedInputs;
+use ryo_derived::domain::contract::types::BuildInputs;
 use ryo_derived::domain::row_cells::types::RowCells;
-use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
+use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_derived::domain::sharing::types::SharedMarks;
 use ryo_derived::inbound::use_cases::build::interface::BuildUseCase;
 use ryo_derived::inbound::use_cases::prepare::interface::PrepareUseCase;
@@ -65,7 +65,7 @@ fn graph(edges: &[[i64; 2]]) -> Arc<ryo_derived::domain::adjacency::types::compa
     }
     let semantics = crate::outbound::derived::factory::semantics();
     let prepared = semantics.prepare(
-        ViewRequest::Adjacency {
+        DerivedRequest::Adjacency {
             endpoints: [ColumnIndex(0), ColumnIndex(1)],
             keys: vec![],
         },
@@ -74,7 +74,7 @@ fn graph(edges: &[[i64; 2]]) -> Arc<ryo_derived::domain::adjacency::types::compa
     let outcome = semantics
         .build(
             &prepared,
-            DerivedInputs::Rows(&SourceRows(&table)),
+            BuildInputs::Rows(&SourceRows(&table)),
             &mut BuildWorkspace::default(),
             None,
         )

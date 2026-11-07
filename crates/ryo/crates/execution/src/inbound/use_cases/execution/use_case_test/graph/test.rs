@@ -12,8 +12,8 @@ use crate::domain::table_model::types::Rows;
 use ryo_derived::domain::contract::types::BuildOutcome;
 use ryo_derived::domain::contract::types::BuildWorkspace;
 use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
-use ryo_derived::domain::contract::types::BuildInputs as DerivedInputs;
-use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
+use ryo_derived::domain::contract::types::BuildInputs;
+use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value as Cell};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput};
@@ -70,7 +70,7 @@ fn build(
         fixtures::derived(),
     ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>);
     let prepared = semantics.prepare(
-        ViewRequest::Adjacency {
+        DerivedRequest::Adjacency {
             endpoints,
             keys: keys.to_vec(),
         },
@@ -83,7 +83,7 @@ fn build(
     match semantics
         .build(
             &prepared,
-            DerivedInputs::Rows(&complete),
+            BuildInputs::Rows(&complete),
             &mut BuildWorkspace::default(),
             None,
         )

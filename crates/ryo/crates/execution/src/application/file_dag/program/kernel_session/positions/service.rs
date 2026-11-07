@@ -11,7 +11,7 @@ use crate::{
         table_model::{service::count_of, types::Rows},
     },
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use std::rc::Rc;
 
 impl super::super::KernelSession<'_, '_> {
@@ -94,7 +94,7 @@ impl super::super::KernelSession<'_, '_> {
                 .rows(&self.owner, self.read)
                 .map_err(InvocationFailure::Semantic)?;
             self.owner
-                .admit(publication.as_ref(), BorrowedRows::from(&actual))
+                .admit(publication.as_ref(), RepresentationInput::from(&actual))
                 .map_err(InvocationFailure::Semantic)?;
             sources.push(publication.clone());
             rows.push(actual);
@@ -210,7 +210,7 @@ impl super::super::KernelSession<'_, '_> {
             .owner
             .admit(
                 source.as_ref(),
-                BorrowedRows::from(
+                RepresentationInput::from(
                     rows.first()
                         .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?,
                 ),

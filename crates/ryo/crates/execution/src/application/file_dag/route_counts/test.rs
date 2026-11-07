@@ -163,7 +163,7 @@ fn owner_routes_count_each_physical_equality_build_once() {
     use crate::application::file_dag::relations::RelationOwner;
     use crate::domain::{
         derived_views::types::*, operation_schema::types::InputShape};
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
     use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn};
     use ryo_values::domain::plan_parts::types::ColumnIndex;
     use std::sync::Arc;
@@ -196,7 +196,7 @@ use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
         let proof = owner
             .admit_relation(
                 ryo_relations::domain::relations::types::Relation::Function,
-                BorrowedRows::Stored(rows),
+                RepresentationInput::Stored(rows),
             )
             .unwrap();
         let admitted = owner.derived().admit_view(&plan, &owner, &[&proof]).unwrap();
@@ -206,7 +206,7 @@ use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
                 &plan,
                 &admitted,
                 ViewContext::default(),
-                DerivedInputs::Rows(&[BorrowedRows::Stored(rows)]),
+                DerivedInputs::Rows(&[RepresentationInput::Stored(rows)]),
                 &mut DerivedScratch::default(),
                 None,
             )
@@ -219,7 +219,7 @@ use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
         let proof = selector_owner
             .admit_relation(
                 ryo_relations::domain::relations::types::Relation::Function,
-                BorrowedRows::Stored(rows),
+                RepresentationInput::Stored(rows),
             )
             .unwrap();
         let admitted = selector_owner
@@ -233,7 +233,7 @@ use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
                 &plan,
                 &admitted,
                 ViewContext::default(),
-                DerivedInputs::Rows(&[BorrowedRows::Stored(rows)]),
+                DerivedInputs::Rows(&[RepresentationInput::Stored(rows)]),
                 &mut DerivedScratch::default(),
                 None,
             )
@@ -246,7 +246,7 @@ use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
                 &plan,
                 &admitted,
                 ViewContext::default(),
-                DerivedInputs::Rows(&[BorrowedRows::Stored(rows)]),
+                DerivedInputs::Rows(&[RepresentationInput::Stored(rows)]),
                 &mut DerivedScratch::default(),
                 None,
             )

@@ -11,7 +11,7 @@ use crate::domain::operator::contract::{
     types::{PrimitiveSemantics, join_result},
     views::{IndexedRows},
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use crate::domain::operator::types::PlanLayout;
 
 use ryo_operators::domain::equality_join::types::JoinInput;
@@ -200,7 +200,7 @@ pub(crate) fn execute_with_index(
     let indexed = IndexedRows {
         #[cfg(feature = "diagnostic-row-progress")]
         progress: semantics.progress(),
-        rows: BorrowedRows::Stored(right_source),
+        rows: RepresentationInput::Stored(right_source),
         columns: &chain.right_on,
         index,
     };

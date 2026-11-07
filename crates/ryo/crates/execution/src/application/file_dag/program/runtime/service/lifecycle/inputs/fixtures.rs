@@ -14,7 +14,7 @@ use crate::domain::{
     executable_program::types::{InputSource, PartitionRequirement, ProducerPartitions},
     table_model::types::Rows,
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::{
     relations::{
         service::kinds,
@@ -190,7 +190,7 @@ impl TestInputs {
             .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
         let proof = self
             .owner
-            .admit(publication.as_ref(), BorrowedRows::from(&rows))?;
+            .admit(publication.as_ref(), RepresentationInput::from(&rows))?;
         AdmittedInput::from_publication(
             Rc::clone(&self.owner),
             publication.clone(),
@@ -279,7 +279,7 @@ impl Inputs for TestInputs {
             .resolve(publication.as_ref(), &|relation| self.read(relation))?;
         let proof = self
             .owner
-            .admit(publication.as_ref(), BorrowedRows::from(&rows))?;
+            .admit(publication.as_ref(), RepresentationInput::from(&rows))?;
         AdmittedInput::from_publication(
             Rc::clone(&self.owner),
             publication.clone(),

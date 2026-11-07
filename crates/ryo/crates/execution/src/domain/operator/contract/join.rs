@@ -4,11 +4,11 @@ use crate::domain::table_cells::types::TreeRows;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
-use ryo_derived::domain::native::types::NativeFinding as Finding;
+use ryo_derived::domain::native::types::NativeFinding;
 #[derive(Clone, Copy)]
 pub(crate) struct NativeJoin<'a> {
     pub tree: TreeRows<'a>,
-    pub finding: Finding,
+    pub finding: NativeFinding,
 }
 
 /// One logical column of a closure row: a column of the partition's key, the source or the vertex it reaches.

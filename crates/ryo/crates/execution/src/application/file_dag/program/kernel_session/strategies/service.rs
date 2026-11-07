@@ -12,7 +12,7 @@ use crate::{
         table_model::{service::count_of, types::Rows},
     },
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use std::rc::Rc;
 
 impl super::super::KernelSession<'_, '_> {
@@ -61,7 +61,7 @@ impl super::super::KernelSession<'_, '_> {
                 publication,
                 shape.source,
                 &shape.number,
-                BorrowedRows::from(&rows),
+                RepresentationInput::from(&rows),
             )
             .map_err(InvocationFailure::Semantic)?
         else {
@@ -91,7 +91,7 @@ impl super::super::KernelSession<'_, '_> {
             &semantics,
             shape,
             &number,
-            BorrowedRows::from(&rows),
+            RepresentationInput::from(&rows),
             context,
             &mut scratch.ordered_row,
             &mut scratch.ordered,
@@ -229,12 +229,12 @@ impl super::super::KernelSession<'_, '_> {
         use crate::domain::table_model::collections::representations::types::PhysicalShape;
         if self
             .owner
-            .inspect(left_publication.as_ref(), BorrowedRows::from(&left_rows))
+            .inspect(left_publication.as_ref(), RepresentationInput::from(&left_rows))
             .map_err(InvocationFailure::Semantic)?
             != PhysicalShape::Complete
             || self
                 .owner
-                .inspect(right_publication.as_ref(), BorrowedRows::from(&right_rows))
+                .inspect(right_publication.as_ref(), RepresentationInput::from(&right_rows))
                 .map_err(InvocationFailure::Semantic)?
                 != PhysicalShape::Complete
             || index_plan

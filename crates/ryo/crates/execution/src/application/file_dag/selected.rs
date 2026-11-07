@@ -4,7 +4,7 @@
 use super::derived::owner::acquisition::admission::service::AcquiredView;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::views::{IndexedRows};
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use crate::domain::table_model::types::SelectedRows;
 use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -35,7 +35,7 @@ impl<'f> SelectedInput<'f> {
         IndexedRows {
             #[cfg(feature = "diagnostic-row-progress")]
             progress: &crate::application::file_dag::route_counts::progress::service::RouteProgress,
-            rows: BorrowedRows::Selected {
+            rows: RepresentationInput::Selected {
                 source: self.original.source,
                 positions: crate::domain::stored_selection::types::BorrowedPositions(
                     &self.original.selection.rows,

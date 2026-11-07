@@ -1,10 +1,10 @@
 //! Malformed selected populations refuse at the production borrowed-row contract.
 use crate::domain::{operating::errors::OperatingError};
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::types::{CellKind, FactColumn};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-fn borrowed<'a>(columns: &'a [FactColumn], positions: &'a [u32]) -> BorrowedRows<'a> {
-    BorrowedRows::Selected {
+fn borrowed<'a>(columns: &'a [FactColumn], positions: &'a [u32]) -> RepresentationInput<'a> {
+    RepresentationInput::Selected {
         source: ryo_relations::domain::relations::types::ColumnsView {
             kinds: &[CellKind::Node, CellKind::Node],
             columns,

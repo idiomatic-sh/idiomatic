@@ -12,7 +12,7 @@ use crate::domain::operator::contract::{
     types::OperatorContract,
     
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use crate::domain::table_texts::types::Texts;
 use ryo_values::domain::plan_parts::{service::parameter_in, types::InputNumber};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
@@ -49,7 +49,7 @@ pub(in crate::application::file_dag) fn continuation<'f>(
 
 pub(in crate::application::file_dag) fn prepare<'f>(
     contract: &OperatorContract,
-    inputs: &[BorrowedRows<'f>],
+    inputs: &[RepresentationInput<'f>],
     context: &mut OperatorContext<'_>,
     originals: &[crate::domain::table_model::types::Rows<'f>],
     admission: &crate::application::file_dag::workspace::InvocationWorkspace,
@@ -152,7 +152,7 @@ pub(in crate::application::file_dag) fn prepare<'f>(
                     resources.inputs.closure.push(cursor.take_current()?);
                 }
             } else {
-                let native = if let BorrowedRows::Tree(tree) = right {
+                let native = if let RepresentationInput::Tree(tree) = right {
                     let use_ = prepared(
                         contract,
                         ryo_derived::domain::request::types::DerivedKind::NativeLookup,

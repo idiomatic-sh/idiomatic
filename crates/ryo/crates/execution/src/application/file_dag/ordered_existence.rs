@@ -2,7 +2,7 @@
 use crate::domain::operator::contract::{
     failure::FailureLatch, types::portable_fault, 
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use crate::domain::{operating::errors::OperatingError, self_join_recogniser::types::Extremum};
 use ryo_operators::domain::equality_join::errors::EqualityJoinError;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
@@ -16,7 +16,7 @@ use ryo_values::domain::{
 };
 
 struct Driver<'a, 'c> {
-    rows: BorrowedRows<'a>,
+    rows: RepresentationInput<'a>,
     output: &'a [ryo_values::domain::plan_parts::types::JoinColumn],
     row: &'a mut Vec<Value>,
     context: &'a mut crate::domain::operating::types::OperatorContext<'c>,
@@ -81,7 +81,7 @@ pub(super) fn evaluate(
     semantics: &dyn crate::domain::operator::contract::types::PrimitiveSemantics,
     shape: &crate::domain::executable_program::types::OrderedExistence,
     admitted: &super::relations::number::service::AdmittedNumber<'_>,
-    rows: BorrowedRows<'_>,
+    rows: RepresentationInput<'_>,
     context: &mut crate::domain::operating::types::OperatorContext<'_>,
     row: &mut Vec<Value>,
     scratch: &mut OrderedExistenceScratch,

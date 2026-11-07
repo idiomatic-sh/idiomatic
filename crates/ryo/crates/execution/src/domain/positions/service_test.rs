@@ -247,18 +247,18 @@ fn raw_order() -> (
 ) {
     use ryo_derived::domain::contract::types::BuildOutcome;
     use ryo_derived::domain::contract::types::BuildWorkspace;
-    use ryo_derived::domain::contract::types::BuildInputs as DerivedInputs;
-    use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
+    use ryo_derived::domain::contract::types::BuildInputs;
+    use ryo_derived::domain::request::types::DerivedRequest;
     let port: std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> = std::sync::Arc::new(
         crate::outbound::derived::factory::semantics(),
     );
-    let prepared = port.prepare(ViewRequest::RawKeyOrder {
+    let prepared = port.prepare(DerivedRequest::RawKeyOrder {
             stride: ryo_derived::domain::raw_words::types::KeyStride(2),
         }, Vec::new());
     let BuildOutcome::Built(payload) = port
         .build(
             &prepared,
-            DerivedInputs::RawWords(ryo_derived::domain::raw_words::types::RawWords(&keys().0)),
+            BuildInputs::RawWords(ryo_derived::domain::raw_words::types::RawWords(&keys().0)),
             &mut BuildWorkspace::default(),
             None,
         )
@@ -307,7 +307,7 @@ pub(crate) fn prepared_payload(
     use ryo_derived::domain::contract::types::BuildOutcome;
     use ryo_derived::domain::contract::types::BuildWorkspace;
     use ryo_derived::domain::fault::types::DerivedFault;
-    use ryo_derived::domain::contract::types::BuildInputs as DerivedInputs;
+    use ryo_derived::domain::contract::types::BuildInputs;
     let port = std::sync::Arc::new(
         crate::outbound::derived::factory::semantics(),
     );
@@ -318,7 +318,7 @@ pub(crate) fn prepared_payload(
     let input = SemanticRows(rows.clone());
     match port.build(
         &prepared,
-        DerivedInputs::Rows(&input),
+        BuildInputs::Rows(&input),
         &mut BuildWorkspace::default(),
         None,
     ) {
@@ -352,8 +352,8 @@ pub(crate) fn prepared_order(
     columns: &[ColumnIndex],
 ) -> Result<Vec<RowIndex>, RowsError> {
     use ryo_derived::domain::contract::types::DerivedView;
-    use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
-    let request = ViewRequest::PartitionOrder {
+    use ryo_derived::domain::request::types::DerivedRequest;
+    let request = DerivedRequest::PartitionOrder {
         keys: columns.to_vec(),
     };
     let payload = prepared_payload(request.clone(), rows)?;

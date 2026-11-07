@@ -20,7 +20,7 @@ use crate::domain::operator::contract::{
     types::OperatorContract,
     views::{IndexedRows},
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use crate::domain::table_groups::types::Group;
 use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_derived::domain::closure_adjacency::types::ClosurePartition;
@@ -34,9 +34,9 @@ use ryo_values::domain::{
 };
 
 fn input<'f>(
-    inputs: &[BorrowedRows<'f>],
+    inputs: &[RepresentationInput<'f>],
     at: InputNumber,
-) -> Result<BorrowedRows<'f>, OperatingError> {
+) -> Result<RepresentationInput<'f>, OperatingError> {
     inputs
         .get(at.0)
         .copied()
@@ -72,7 +72,7 @@ impl<'f> InvocationResources<'f> {
     /// owner boundaries; an optional unsupported native lookup still declines.
     pub(in crate::application::file_dag) fn validate_row_metadata(
         contract: &OperatorContract,
-        inputs: &[BorrowedRows<'_>],
+        inputs: &[RepresentationInput<'_>],
     ) -> Result<(), OperatingError> {
         use ryo_derived::domain::request::types::DerivedKind;
         let ResourceProgram::Join(join) = &contract.resources else {
@@ -86,7 +86,7 @@ impl<'f> InvocationResources<'f> {
         if join.reach.is_some() {
             validate(DerivedKind::PartitionOrder)?;
             validate(DerivedKind::ClosureAdjacency)
-        } else if let BorrowedRows::Tree(tree) = right {
+        } else if let RepresentationInput::Tree(tree) = right {
             validate(DerivedKind::NativeLookup)?;
             let native = prepared(contract, DerivedKind::NativeLookup)?;
             let form = match tree.form {
@@ -119,7 +119,7 @@ impl<'f> InvocationResources<'f> {
 
 fn partitioned<'f>(
     contract: &OperatorContract,
-    input: BorrowedRows<'f>,
+    input: RepresentationInput<'f>,
     admitted: &super::workspace::InputAdmissions<'_, 'f>,
     context: &mut OperatorContext<'_>,
 ) -> Result<super::closure_partitions::PartitionedClosure<'f>, OperatingError> {

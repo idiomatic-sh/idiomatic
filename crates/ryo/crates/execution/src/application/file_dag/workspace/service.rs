@@ -6,14 +6,14 @@ use crate::application::file_dag::relations::admission::service::BorrowedInput;
 use crate::domain::derived_views::types::contract::value::PreparedViewUse;
 use crate::domain::operating::errors::OperatingError;
 
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::rows::types::Table;
 
 impl InvocationWorkspace {
     pub(in crate::application::file_dag) fn inputs<'a, 'f>(
         &'a self,
-        inputs: &'a [BorrowedRows<'f>],
+        inputs: &'a [RepresentationInput<'f>],
     ) -> InputAdmissions<'a, 'f> {
         InputAdmissions {
             workspace: self,
@@ -24,7 +24,7 @@ impl InvocationWorkspace {
     pub(super) fn admit<'a>(
         &self,
         place: InputNumber,
-        rows: BorrowedRows<'a>,
+        rows: RepresentationInput<'a>,
     ) -> Result<BorrowedInput<'a>, OperatingError> {
         let owner = self.owner();
         if let Some(record) = self.publications.get(place.0).and_then(Option::as_ref) {
@@ -84,7 +84,7 @@ impl InvocationWorkspace {
             proofs[0].as_ref().expect(EXPECT_FIRST_INPUT).rows(),
             proofs[1]
                 .as_ref()
-                .map_or(BorrowedRows::Computed(&EMPTY_DERIVED_INPUT), |proof| {
+                .map_or(RepresentationInput::Computed(&EMPTY_DERIVED_INPUT), |proof| {
                     proof.rows()
                 }),
         ];
@@ -99,7 +99,7 @@ impl InvocationWorkspace {
                 space: MembershipSpace::Values,
             },
             ViewInputs::MembershipNative => {
-                let BorrowedRows::Tree(tree) = rows[1] else {
+                let RepresentationInput::Tree(tree) = rows[1] else {
                     return Err(OperatingError::WrongOperation);
                 };
                 DerivedInputs::Membership {
@@ -123,7 +123,7 @@ impl InvocationWorkspace {
         };
         let stored = if use_.plan.kind == DerivedKind::Equality && count == 1 {
             match rows[0] {
-                BorrowedRows::Stored(source) => relations[0]
+                RepresentationInput::Stored(source) => relations[0]
                     .or(use_.relations[0])
                     .map(|relation| StoredColumns {
                         relation,

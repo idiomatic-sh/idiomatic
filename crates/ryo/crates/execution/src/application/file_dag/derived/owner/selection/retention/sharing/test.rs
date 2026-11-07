@@ -14,7 +14,7 @@ fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> R
         crate::domain::derived_views::types::*, crate::domain::operation_schema::types::InputShape,
         ryo_values::domain::rows::service::push_row,
     };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 
     let mut table = Table {
         kinds: vec![CellKind::Number],
@@ -53,7 +53,7 @@ use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
     );
     let publication = owner.computed(table.clone())?;
     let held = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
-    let rows = BorrowedRows::from(&held);
+    let rows = RepresentationInput::from(&held);
     let proof = owner.admit(publication.as_ref(), rows)?;
     let acquired = owner.derived().acquire_stored(
         &distinct,

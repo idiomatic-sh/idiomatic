@@ -14,7 +14,7 @@ use crate::domain::{
     table_model::service::check_columns,
     tree_walk::service::entity_of,
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 
 #[derive(Clone, Copy)]
@@ -33,8 +33,8 @@ pub(crate) enum AxisMode<'f> {
 /// Preserve the old admission and error gates before acquiring any derived resource.
 pub(crate) fn classify<'f>(
     program: &AxisResources,
-    edges: BorrowedRows<'f>,
-    domain: BorrowedRows<'f>,
+    edges: RepresentationInput<'f>,
+    domain: RepresentationInput<'f>,
 ) -> Result<AxisMode<'f>, OperatingError> {
     let AxisResources {
         parent,
@@ -46,20 +46,20 @@ pub(crate) fn classify<'f>(
         direction,
         ..
     } = program;
-    if matches!(domain, BorrowedRows::Computed(_) | BorrowedRows::Compact(_))
+    if matches!(domain, RepresentationInput::Computed(_) | RepresentationInput::Compact(_))
         && domain.count().0 == 0
         && output.is_empty()
     {
         return Ok(AxisMode::Empty);
     }
-    if let BorrowedRows::Tree(tree) = edges {
-        let domain_of_tree = matches!(domain, BorrowedRows::Tree(each) if each.form == TreeForm::Elements)
+    if let RepresentationInput::Tree(tree) = edges {
+        let domain_of_tree = matches!(domain, RepresentationInput::Tree(each) if each.form == TreeForm::Elements)
             && entity_of(domain_view, *domain_id) == ColumnIndex(0);
         if tree.form == TreeForm::Edges
             && (*parent, *child) == (ColumnIndex(0), ColumnIndex(1))
             && ((*has_filter == crate::domain::operator::contract::resources::Filtering::Unfiltered && domain_view.is_empty()) || domain_of_tree)
         {
-            let among = if let BorrowedRows::Tree(each) = domain {
+            let among = if let RepresentationInput::Tree(each) = domain {
                 (each.form == TreeForm::Elements).then_some(each)
             } else {
                 None
@@ -88,8 +88,8 @@ pub(crate) fn classify<'f>(
 
 pub(crate) fn prepare_axis<'f>(
     program: &AxisResources,
-    edges: BorrowedRows<'f>,
-    domain: BorrowedRows<'f>,
+    edges: RepresentationInput<'f>,
+    domain: RepresentationInput<'f>,
     equality: Option<AcquiredView>,
     membership: Option<AcquiredView>,
 ) -> Result<AxisResource<'f>, OperatingError> {

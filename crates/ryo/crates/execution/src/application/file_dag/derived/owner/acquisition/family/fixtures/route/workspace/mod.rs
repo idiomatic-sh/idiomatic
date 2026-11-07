@@ -16,7 +16,7 @@ use crate::domain::{
     table_model::types::Rows,
     table_texts::types::Texts,
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, FileId, NodeId, Relation, Value};
@@ -61,12 +61,12 @@ fn through_workspace(
     };
     let second_held;
     let second_rows = if native {
-        BorrowedRows::Tree(tree)
+        RepresentationInput::Tree(tree)
     } else {
         second_held = owner.resolve(second.as_ref(), &|_| Err(OperatingError::NotRead))?;
-        BorrowedRows::from(&second_held)
+        RepresentationInput::from(&second_held)
     };
-    let rows = [BorrowedRows::from(&first_held), second_rows];
+    let rows = [RepresentationInput::from(&first_held), second_rows];
     let pair = matches!(
         kind,
         DerivedKind::OrderedKeys | DerivedKind::OrderedDfs | DerivedKind::NativeLookup

@@ -6,7 +6,7 @@ use crate::domain::{
     derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch, ViewRequest},
     operating::errors::OperatingError,
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::closure_adjacency::types::ClosurePartition;
 use ryo_relations::domain::relations::types::Value;
 use std::{rc::Rc, sync::Arc};
@@ -14,7 +14,7 @@ use std::{rc::Rc, sync::Arc};
 /// Ordering metadata can be shared across consumers; only the current partition
 /// owns values/adjacency. Advancing releases the previous partition's logical contents.
 pub(crate) struct PartitionedClosure<'f> {
-    input: BorrowedRows<'f>,
+    input: RepresentationInput<'f>,
     proof: super::relations::admission::service::BorrowedInput<'f>,
     owner: Rc<RelationOwner>,
     partition_plan: Arc<DerivedContract>,

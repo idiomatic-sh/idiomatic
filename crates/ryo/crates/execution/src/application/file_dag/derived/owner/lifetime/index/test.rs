@@ -5,7 +5,7 @@ use ryo_derived::domain::contract::types::DerivedView;
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use crate::domain::table_model::types::Rows;
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Number];
 fn fixture(columns: &[FactColumn]) -> ResourceFixture {
     let fixture = ResourceFixture::new(
@@ -46,7 +46,7 @@ fn hold(
     columns: &[FactColumn],
 ) -> crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView {
     let owner = fixture.owner();
-    let rows = BorrowedRows::Stored(ColumnsView {
+    let rows = RepresentationInput::Stored(ColumnsView {
         kinds: KINDS,
         columns,
     });

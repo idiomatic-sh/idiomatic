@@ -5,7 +5,7 @@ use crate::application::file_dag::{
     relations::RelationOwner, fixtures::program_derived_port,
 };
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::rc::Rc;
@@ -26,7 +26,7 @@ fn through_partition(
     let held = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
     let mut cursor = crate::application::file_dag::closure_partitions::schemas::prepare(
         &publication,
-        BorrowedRows::from(&held),
+        RepresentationInput::from(&held),
         &[ColumnIndex(2)],
         ColumnIndex(0),
         ColumnIndex(1),

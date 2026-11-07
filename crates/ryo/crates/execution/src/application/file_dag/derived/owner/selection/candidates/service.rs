@@ -10,7 +10,7 @@ use crate::domain::{
     stored_selection::types::{CandidateRepeat, Selector},
     table_model::service::matching_stored,
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_language::domain::symbols::{
     service::{find_hashed, hash_of},
@@ -99,7 +99,7 @@ pub(in crate::application::file_dag::derived::owner) fn candidates(
             cache,
             &equality,
             crate::application::file_dag::derived::owner::ViewContext::default(),
-            DerivedInputs::Rows(&[BorrowedRows::Stored(source)]),
+            DerivedInputs::Rows(&[RepresentationInput::Stored(source)]),
             &mut DerivedScratch::default(),
             Some(StoredColumns {
                 relation: program.relation,

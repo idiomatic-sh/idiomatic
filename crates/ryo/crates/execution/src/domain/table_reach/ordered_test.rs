@@ -11,12 +11,12 @@ use ryo_derived::domain::contract::types::BuildWorkspace;
 use ryo_derived::domain::row_cells::types::BulkRows;
 use ryo_derived::domain::row_cells::types::CanonicalTexts;
 use ryo_derived::domain::fault::types::DerivedFault;
-use ryo_derived::domain::contract::types::BuildInputs as DerivedInputs;
+use ryo_derived::domain::contract::types::BuildInputs;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_derived::domain::dfs::types::PreparedDfs;
 use ryo_derived::domain::row_cells::types::RowCells;
 use ryo_derived::domain::row_cells::types::ValueTexts;
-use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
+use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_relations::{
     domain::relations::types::{CellKind, Integer, Name, PlaceNumber, TextHash, Value as Cell},
     domain::terms::types::Symbol,
@@ -84,8 +84,8 @@ impl CanonicalTexts for Texts {
         )))
     }
 }
-fn request(keys: bool) -> ViewRequest {
-    ViewRequest::OrderedDfs {
+fn request(keys: bool) -> DerivedRequest {
+    DerivedRequest::OrderedDfs {
         root: ColumnIndex(0),
         root_keys: if keys { vec![ColumnIndex(1)] } else { vec![] },
         source: ColumnIndex(0),
@@ -109,7 +109,7 @@ fn with_graph<T>(
     );
     let BuildOutcome::Built(payload) = use_case.build(
         &prepared,
-        DerivedInputs::Dfs {
+        BuildInputs::Dfs {
             roots: &Rows(roots),
             edges: &Rows(edges),
             texts,

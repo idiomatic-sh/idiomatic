@@ -7,7 +7,7 @@ use crate::domain::{
     derived_views::types::{DerivedInputs, DerivedScratch, MembershipSpace, ViewRequest},
     operating::errors::OperatingError,
     operation_schema::types::InputShape};
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
@@ -101,7 +101,7 @@ fn subject(input: Input) -> Result<(), Failure> {
     let owner = RelationOwner::new(crate::application::file_dag::relations::types::ReuseEligibility::Eligible, program_derived_port());
     let publication = owner.computed(table())?;
     let rows = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
-    let proof = owner.admit(publication.as_ref(), BorrowedRows::from(&rows))?;
+    let proof = owner.admit(publication.as_ref(), RepresentationInput::from(&rows))?;
     let request = match input {
         Input::UnpermittedRaw => ViewRequest::RawKeyOrder {
             stride: crate::domain::positions::types::Stride(1),
@@ -169,7 +169,7 @@ fn subject(input: Input) -> Result<(), Failure> {
                 &plan,
                 &admitted,
                 Default::default(),
-                DerivedInputs::Rows(&[BorrowedRows::Computed(&table())]),
+                DerivedInputs::Rows(&[RepresentationInput::Computed(&table())]),
                 &mut scratch,
                 None,
             )

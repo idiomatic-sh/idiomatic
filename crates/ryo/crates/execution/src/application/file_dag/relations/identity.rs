@@ -5,7 +5,7 @@ use crate::application::file_dag::relations::publication::types::{
 };
 use crate::application::file_dag::relations::types::Sameness;
 
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use crate::domain::table_model::service::kind;
 use ryo_relations::domain::relations::types::{FactColumn, Relation};
 
@@ -73,14 +73,14 @@ fn same_columns(columns: &[FactColumn], stored: &[StorageSpan]) -> Sameness {
         Sameness::Different
     }
 }
-pub(super) fn describe(relation: Relation, input: BorrowedRows<'_>) -> SourceDescriptor {
+pub(super) fn describe(relation: Relation, input: RepresentationInput<'_>) -> SourceDescriptor {
     let (storage, projection, source_kinds) = match input {
-        BorrowedRows::Stored(view) => (
+        RepresentationInput::Stored(view) => (
             view.columns.iter().map(column_span).collect(),
             vec![],
             view.kinds.to_vec(),
         ),
-        BorrowedRows::Selected {
+        RepresentationInput::Selected {
             source,
             positions,
             columns,
@@ -90,10 +90,10 @@ pub(super) fn describe(relation: Relation, input: BorrowedRows<'_>) -> SourceDes
             addresses.extend(source.columns.iter().map(column_span));
             (addresses, columns.to_vec(), source.kinds.to_vec())
         }
-        BorrowedRows::Compact(table) => (compact_spans(table), vec![], vec![]),
-        BorrowedRows::Computed(table) => (computed_spans(table), vec![], vec![]),
-        BorrowedRows::Positioned(view) => {
-            let tree = describe(relation, BorrowedRows::Tree(view.tree));
+        RepresentationInput::Compact(table) => (compact_spans(table), vec![], vec![]),
+        RepresentationInput::Computed(table) => (computed_spans(table), vec![], vec![]),
+        RepresentationInput::Positioned(view) => {
+            let tree = describe(relation, RepresentationInput::Tree(view.tree));
             let mut storage = tree.storage;
             storage.push(span(
                 view.positions.slots.0.as_ptr(),
@@ -102,7 +102,7 @@ pub(super) fn describe(relation: Relation, input: BorrowedRows<'_>) -> SourceDes
             storage.push(span(view.shape, SpanLength(view.positions.width.0)));
             (storage, vec![], vec![])
         }
-        BorrowedRows::Tree(tree) => (tree_spans(&tree), vec![], vec![]),
+        RepresentationInput::Tree(tree) => (tree_spans(&tree), vec![], vec![]),
     };
     SourceDescriptor {
         relation,
@@ -114,7 +114,7 @@ pub(super) fn describe(relation: Relation, input: BorrowedRows<'_>) -> SourceDes
         source_kinds,
     }
 }
-pub(super) fn matches(source: &SourceDescriptor, input: BorrowedRows<'_>) -> Sameness {
+pub(super) fn matches(source: &SourceDescriptor, input: RepresentationInput<'_>) -> Sameness {
     if source.kind != kind(input)
         || source.kinds != input.kinds()
         || source.rows != input.count()
@@ -122,14 +122,14 @@ pub(super) fn matches(source: &SourceDescriptor, input: BorrowedRows<'_>) -> Sam
         return Sameness::Different;
     }
     match input {
-        BorrowedRows::Stored(view) => {
+        RepresentationInput::Stored(view) => {
             if source.source_kinds == view.kinds {
                 same_columns(view.columns, &source.storage)
             } else {
                 Sameness::Different
             }
         }
-        BorrowedRows::Selected {
+        RepresentationInput::Selected {
             source: view,
             positions,
             columns,
@@ -141,18 +141,18 @@ pub(super) fn matches(source: &SourceDescriptor, input: BorrowedRows<'_>) -> Sam
                     == Some(&span(positions.0.as_ptr(), SpanLength(positions.0.len())))
                 && same_columns(view.columns, &source.storage[1..]) == Sameness::Same
         }),
-        BorrowedRows::Compact(table) => sameness!(source.storage == compact_spans(table)),
-        BorrowedRows::Computed(table) => sameness!(source.storage == computed_spans(table)),
-        BorrowedRows::Positioned(view) => {
-            let actual = describe(source.relation, BorrowedRows::Positioned(view));
+        RepresentationInput::Compact(table) => sameness!(source.storage == compact_spans(table)),
+        RepresentationInput::Computed(table) => sameness!(source.storage == computed_spans(table)),
+        RepresentationInput::Positioned(view) => {
+            let actual = describe(source.relation, RepresentationInput::Positioned(view));
             sameness!(source.storage == actual.storage)
         }
-        BorrowedRows::Tree(tree) => sameness!(source.storage == tree_spans(&tree)),
+        RepresentationInput::Tree(tree) => sameness!(source.storage == tree_spans(&tree)),
     }
 }
 
 /// Compare an admitted borrow without replacing its identity with caller-provided keys.
-pub(super) fn same(left: BorrowedRows<'_>, right: BorrowedRows<'_>) -> Sameness {
+pub(super) fn same(left: RepresentationInput<'_>, right: RepresentationInput<'_>) -> Sameness {
     fn columns(
         left: ryo_relations::domain::relations::types::ColumnsView<'_>,
         right: ryo_relations::domain::relations::types::ColumnsView<'_>,
@@ -166,26 +166,26 @@ pub(super) fn same(left: BorrowedRows<'_>, right: BorrowedRows<'_>) -> Sameness 
         })
     }
     match (left, right) {
-        (BorrowedRows::Stored(left), BorrowedRows::Stored(right)) => columns(left, right),
-        (BorrowedRows::Computed(left), BorrowedRows::Computed(right)) => {
+        (RepresentationInput::Stored(left), RepresentationInput::Stored(right)) => columns(left, right),
+        (RepresentationInput::Computed(left), RepresentationInput::Computed(right)) => {
             sameness!(std::ptr::eq(left, right))
         }
-        (BorrowedRows::Compact(left), BorrowedRows::Compact(right)) => {
+        (RepresentationInput::Compact(left), RepresentationInput::Compact(right)) => {
             sameness!(std::ptr::eq(left, right))
         }
-        (BorrowedRows::Tree(left), BorrowedRows::Tree(right)) => sameness!({
+        (RepresentationInput::Tree(left), RepresentationInput::Tree(right)) => sameness!({
             left.file == right.file
                 && left.form == right.form
                 && std::ptr::eq(left.elements, right.elements)
         }),
         (
-            BorrowedRows::Selected {
+            RepresentationInput::Selected {
                 source: left,
                 positions: lp,
                 columns: lc,
                 kinds: lk,
             },
-            BorrowedRows::Selected {
+            RepresentationInput::Selected {
                 source: right,
                 positions: rp,
                 columns: rc,
@@ -197,13 +197,13 @@ pub(super) fn same(left: BorrowedRows<'_>, right: BorrowedRows<'_>) -> Sameness 
                 && lc == rc
                 && lk == rk
         }),
-        (BorrowedRows::Positioned(left), BorrowedRows::Positioned(right)) => sameness!({
+        (RepresentationInput::Positioned(left), RepresentationInput::Positioned(right)) => sameness!({
             std::ptr::eq(left.positions, right.positions)
                 && std::ptr::eq(left.shape, right.shape)
                 && left.kinds == right.kinds
                 && same(
-                    BorrowedRows::Tree(left.tree),
-                    BorrowedRows::Tree(right.tree),
+                    RepresentationInput::Tree(left.tree),
+                    RepresentationInput::Tree(right.tree),
                 ) == Sameness::Same
         }),
         _ => Sameness::Different,

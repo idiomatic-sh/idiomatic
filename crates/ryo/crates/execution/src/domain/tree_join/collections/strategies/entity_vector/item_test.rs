@@ -14,7 +14,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::tree_join::collections::strategies::interface::StrategiesItem as _;
 use crate::domain::tree_join::collections::strategies::types::Fitting;
-use ryo_derived::domain::native::types::NativeFinding as Finding;
+use ryo_derived::domain::native::types::NativeFinding;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::errors::RowsError;
@@ -103,8 +103,8 @@ fn a_row_without_the_column_is_refused() -> Result<[u32; 4], OperatingError> {
 }
 
 fn it_applies_to_a_finding_by_node_alone() -> [u32; 4] {
-    let by_node = Some(Finding::Node(ColumnIndex(0), ColumnIndex(0)));
-    let by_span = Some(Finding::Span(ColumnIndex(0)));
+    let by_node = Some(NativeFinding::Node(ColumnIndex(0), ColumnIndex(0)));
+    let by_span = Some(NativeFinding::Span(ColumnIndex(0)));
     four(vec![
         u32::from(EntityVectorItem.applies(by_node) == Fitting::Fits),
         u32::from(EntityVectorItem.applies(by_span) == Fitting::Fits),

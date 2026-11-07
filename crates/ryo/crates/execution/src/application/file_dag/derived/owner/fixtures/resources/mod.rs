@@ -6,7 +6,7 @@ use crate::domain::{
     coverage::types::Partial, operating::errors::OperatingError,
     table_model::types::Rows,
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -76,7 +76,7 @@ impl ResourceFixture {
         );
         let proof = self
             .owner
-            .admit_relation(relation, BorrowedRows::from(rows))?;
+            .admit_relation(relation, RepresentationInput::from(rows))?;
         let Rows::Stored(source) = rows else {
             return Err(OperatingError::WrongOperation);
         };

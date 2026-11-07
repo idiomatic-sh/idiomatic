@@ -13,7 +13,7 @@ use crate::domain::{
     coverage::types::RuleIndex,
     executable_program::types::InputSource,
     operating::{errors::OperatingError, types::OperatorContext}};
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_values::domain::{
     plan_parts::types::InputNumber,
     stored_facts::types::{Bucket, KeptWords},
@@ -165,7 +165,7 @@ impl ValidatedFrontier {
             let rows = scope.owner().resolve(publication.as_ref(), &unread)?;
             let proof = scope
                 .owner()
-                .admit(publication.as_ref(), BorrowedRows::from(&rows))?;
+                .admit(publication.as_ref(), RepresentationInput::from(&rows))?;
             AdmittedInput::from_publication(
                 std::rc::Rc::clone(scope.owner()),
                 publication.clone(),
