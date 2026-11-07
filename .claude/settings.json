@@ -6,6 +6,12 @@
         "hooks": [
           { "type": "command", "command": "python3 -I \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard_shell.py" }
         ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          { "type": "command", "command": "python3 -I \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/no_subagent_builders.py" }
+        ]
       }
     ],
     "SubagentStop": [
@@ -13,6 +19,14 @@
         "matcher": "*",
         "hooks": [
           { "type": "command", "command": "python3 -I \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/acceptance_on_stop.py" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "python3 -I \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check_in_on_stop.py" }
         ]
       }
     ]

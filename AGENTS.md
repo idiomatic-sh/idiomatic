@@ -30,6 +30,10 @@ A test whose checked property changes is renamed in the same commit, and its mat
 
 A review request carries three receipts (`tm check` over the review's scope at 0 findings and 0 suppressed, `run.py --check` exit 0, and the `no_print` target green with file-level cycles 0 in `validation.json`), and a request without them is refused by the reviewer, because what a linter or check catches is resolved before a person reads the source.
 
+## PM check-in
+
+The main session posts a message starting `**CHECK-IN HH:MM UTC**` at least every 60 minutes, holding eight tables under bold numbered headings in this order: 1. Roadmap, 2. Running, 3. Changed since last check-in, 4. Cycle metrics, 5. Decisions I took without you, and anything outside what we agreed, 6. Suggested process improvements, 7. Needs you, 8. Next; `.claude/hooks/check_in_on_stop.py` (a `Stop` hook) blocks the main session's stop when the last check-in is older than 60 minutes or the one posted lacks a table or has them out of order.
+
 ## Builder brief contract
 
 A builder stops in exactly two states, and `.claude/hooks/acceptance_on_stop.py` enforces both; `.claude/hooks/guard_shell.py` refuses the shell habits listed in its source.
@@ -40,7 +44,8 @@ A builder stops in exactly two states, and `.claude/hooks/acceptance_on_stop.py`
 - The bead's notes carry an `ACCEPTANCE:` ... `END ACCEPTANCE` block of shell lines that must exit 0 in the worktree.
 - The report starts with `DONE:` (the acceptance output pasted, each R-number answered) or `BLOCKED:` (exactly one question the Decisions table does not answer). No other stop state exists.
 - The integrator runs the acceptance block before merging.
-- Builders run tm continuously and `cargo check -p <their crate> --target-dir /workspaces/idiomatic-check-target` before each count they append and before they stop; they never run tests, builds or clippy; the integrator compiles once.
+- Builders never spawn subagents; the Agent tool is refused for them by a hook. One builder, one worktree; a scope too big for one builder is split by the PM into beads.
+- Builders run tm continuously and `cargo check -p <their crate> --target-dir /workspaces/idiomatic-check-target/<worktree name>` before each count they append and before they stop; they never run tests, builds or clippy; the integrator compiles once.
 
 The integrator's cadence: merge everything first; run ONE `cargo check --workspace --all-features --message-format=json` under the build lock; fix every error the pass reports, bottom-up by crate dependency, before checking again; run the full test build only when check is clean. The checkpoint record carries the pass count and the error count per pass, so a pass that fixed fewer errors than it reported is visible. Four passes (resolution, types, borrows, lints) is the floor rustc imposes; any pass beyond that is the integrator's.
 
