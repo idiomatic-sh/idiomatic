@@ -176,6 +176,8 @@ pub(crate) struct ElementsEngine {
     pub scratch: LanguageScratch,
     /// Engine-owned initialization identity for the current native population.
     pub model_preparation: ModelPreparation,
+    /// What the language kept of its read of the file for a semantic session, its parsed tree; emptied with the table.
+    pub retained: LanguageScratch,
     /// What the language wrote of the file besides its tree, bytes only it reads, when the request asked for them.
     pub notes: Bytes,
     /// What the parser reported.
@@ -293,6 +295,8 @@ pub(crate) struct CompletionEngine<'a> {
     pub source: ByteSlice<'a>,
     /// The number the run gave the file.
     pub file: FileId,
+    /// What this completion was given: a prepared model only when the request's demand reads what completion adds.
+    pub requirement: CompletionRequirement,
 }
 
 impl<'a> From<CompletionEngine<'a>> for Completion<'a> {

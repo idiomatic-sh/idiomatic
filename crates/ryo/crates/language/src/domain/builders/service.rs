@@ -128,6 +128,16 @@ pub fn discarding_builder<'a>(
     })
 }
 
+/// Keeps what the language read of the file, its parsed tree, for the semantic session it may begin for the file: the session
+/// takes it instead of parsing the file again. A builder that discards keeps nothing.
+pub fn retain_for_semantics(builder: &mut TableBuilder<'_>, kept: Box<dyn std::any::Any + Send>) {
+    let builder = builder_engine(builder);
+    if builder.writing == TableWriting::Discards {
+        return;
+    }
+    engine_mut(builder.elements).retained.0 = Some(kept);
+}
+
 /// Opens a node of `kind` that starts at `start`; its children follow until [`leave_node`].
 pub fn enter_node(builder: &mut TableBuilder<'_>, kind: KindBits, start: Offset) {
     let builder = builder_engine(builder);

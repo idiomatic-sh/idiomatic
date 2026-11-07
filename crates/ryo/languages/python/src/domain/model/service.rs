@@ -13,6 +13,7 @@ pub(crate) fn redirect_of(
 ) -> Option<BindingRedirect> {
     model
         .declared
+        .borrow()
         .iter()
         .find(|each| each.scope == scope && each.name == name)
         .map(|each| each.redirect)

@@ -19,6 +19,8 @@ pub(crate) mod types;
 mod adapter_test;
 
 mod semantic;
+#[cfg(test)]
+mod semantic_test;
 mod writer;
 
 #[cfg(test)]

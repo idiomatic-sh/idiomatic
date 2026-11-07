@@ -89,6 +89,10 @@ pub use ryo_language::domain::diagnostics::types::{
 
 pub use ryo_language::domain::elements::service::syntax_acceptance;
 pub use ryo_language::domain::builders::service::set_syntax_acceptance;
+/// Keep the parsed tree of a read for the semantic session the language may begin for the file.
+pub use ryo_language::domain::builders::service::retain_for_semantics;
+/// Take what a read kept for a semantic session out of the table.
+pub use ryo_language::domain::elements::service::take_semantics;
 
 pub use ryo_language::domain::elements::types::Children;
 
@@ -324,6 +328,8 @@ pub use ryo_relations::domain::capabilities::types::OptionalCapability;
 
 /// Lend the file model prepared by the common completion boundary; it cannot initialize or mark readiness.
 pub use ryo_language::application::completion::service::with_file_model;
+/// What a completion was given: a prepared model only when the request reads what completion adds.
+pub use ryo_language::application::completion::service::completion_requirement;
 /// Append embedded syntax without resetting the native population.
 pub use ryo_language::domain::expansions::service::append_embedded;
 

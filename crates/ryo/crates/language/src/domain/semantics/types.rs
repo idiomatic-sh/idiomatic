@@ -26,6 +26,9 @@ pub enum SemanticSlot {
     /// No language has begun a session for the file.
     #[default]
     Empty,
+    /// What the language kept of its read of the file for a session it may begin, its parsed tree: the session takes it and
+    /// never parses the file again. Only the language that kept it knows what it is.
+    Retained(Box<dyn std::any::Any + Send>),
     /// The session the language begun.
     Begun(Box<dyn SemanticSession>),
 }
