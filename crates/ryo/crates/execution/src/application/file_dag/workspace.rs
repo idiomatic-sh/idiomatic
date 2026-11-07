@@ -24,7 +24,7 @@ pub(crate) struct InvocationWorkspace {
     pub publications:
         Vec<Option<crate::application::file_dag::relations::handle::service::PublishedInput>>,
     #[cfg(test)]
-    pub observation: crate::domain::operating::types::ExecutionObservation,
+    pub observation: crate::domain::operating::fixtures::ExecutionObservation,
     pub downstream_scratch: crate::domain::table_scratch::types::OperatorScratch,
     pub downstream_memo: Vec<crate::domain::operating::types::Memo>,
     pub predicates: crate::domain::table_scratch::types::LazyScratch<
@@ -70,7 +70,7 @@ impl InvocationWorkspace {
     }
 
     #[cfg(test)]
-    pub(crate) fn measured(&self) -> crate::domain::operating::types::ExecutionObservation {
+    pub(crate) fn measured(&self) -> crate::domain::operating::fixtures::ExecutionObservation {
         let mut observed = self.observation;
         observed.regexes = self
             .predicates
@@ -96,8 +96,8 @@ impl InvocationWorkspace {
                     .as_ref()
                     .map_or(0, |axis| axis.walk.visited.len()),
             );
-        observed.dfs_expanded = self.primitive.dfs.as_ref().map_or(0, |dfs| dfs.expanded);
-        observed.dfs_examined = self.primitive.dfs.as_ref().map_or(0, |dfs| dfs.examined);
+        observed.dfs_expanded = self.primitive.dfs.as_ref().map_or(0, |dfs| dfs.expanded.0);
+        observed.dfs_examined = self.primitive.dfs.as_ref().map_or(0, |dfs| dfs.examined.0);
         observed.dfs_frames_len = self
             .primitive
             .dfs

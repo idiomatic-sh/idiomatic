@@ -24,7 +24,7 @@ pub trait SemanticLookup: std::fmt::Debug {
     fn render_batch(
         &self,
         requests: &[RenderRequest],
-        source: &[u8],
+        source: SourceView<'_>,
     ) -> Result<Vec<RenderOutcome>, OperatingError>;
 }
 
@@ -159,37 +159,6 @@ pub(crate) enum AfterTheFiles {
     Before,
     /// After the files were read.
     After,
-}
-/// Test-only observations captured from real engine-owned resources before release.
-#[cfg(test)]
-#[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct ExecutionObservation {
-    /// Successful real native-position evaluations.
-    pub native_positions: usize,
-    /// Calls to the real registered operator dispatch.
-    pub registered_calls: usize,
-    pub regexes: usize,
-    pub globs: usize,
-    pub owners_initialized: usize,
-    pub row_capacity: usize,
-    pub other_capacity: usize,
-    pub index_rows: usize,
-    /// Actual borrowed representation behind the acquired equality resource.
-    pub index_representation:
-        Option<crate::domain::table_model::collections::representations::types::RepresentationKind>,
-    pub index_cells: usize,
-    pub index_capacity: usize,
-    pub closure_partition_rows: usize,
-    pub closure_partition_capacity: usize,
-    pub closure_visited: usize,
-    pub dfs_expanded: usize,
-    pub dfs_examined: usize,
-    pub dfs_adjacency_len: usize,
-    pub dfs_frames_len: usize,
-    pub dfs_visited_len: usize,
-    pub traversal_queue_len: usize,
-    /// Set only after a real weak file-owner handle is observed dead at file finish.
-    pub file_owner_released: bool,
 }
 
 use ryo_values::domain::rows::types::{RowCount, Table};

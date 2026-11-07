@@ -74,7 +74,7 @@ impl OperatorsItem for RenderSyntaxItem {
                     .ok_or_else(|| OperatingError::SemanticIncomplete {
                         reason: super::constants::NO_SEMANTIC_SESSION.into(),
                     })?;
-            let answers = lookup.render_batch(&requests, lease.views.source.0)?;
+            let answers = lookup.render_batch(&requests, lease.views.source)?;
             if answers.len() != requests.len() {
                 return Err(OperatingError::SemanticBatchShape);
             }

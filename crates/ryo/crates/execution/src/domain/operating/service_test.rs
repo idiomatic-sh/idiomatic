@@ -1,20 +1,24 @@
 //! Comparison-family classification and project text identity are pure operating contracts.
 use super::{
+    errors::OperatingError,
     service::{family_of, minted},
     types::{AfterTheFiles, Family},
 };
+use crate::domain::operator::contract::derived::portable_fault;
+use ryo_derived::domain::contract::types::DerivedFault;
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::plan_parts::types::Test,
 };
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 enum Scenario {
     Family,
     ProjectName,
+    Fault(DerivedFault),
 }
 type Input = Scenario;
 type Value = ();
-type Failure = std::convert::Infallible;
+type Failure = OperatingError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_test_belongs_to_its_family"),
@@ -28,9 +32,22 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::ProjectName,
         expect: Expect::Value(()),
     },
+    Case {
+        name: CaseName("a_duplicate_order_fault_is_refused_as_a_duplicate_order"),
+        word: Word::Refuses,
+        input: || Scenario::Fault(DerivedFault::DuplicateOrder),
+        expect: Expect::Error(OperatingError::DuplicateOrder),
+    },
+    Case {
+        name: CaseName("a_duplicate_dfs_order_fault_is_refused_as_a_duplicate_dfs_order"),
+        word: Word::Refuses,
+        input: || Scenario::Fault(DerivedFault::DuplicateDfsOrder),
+        expect: Expect::Error(OperatingError::DuplicateDfsOrder),
+    },
 ];
 fn subject(input: Input) -> Result<Value, Failure> {
     match input {
+        Scenario::Fault(fault) => return Err(portable_fault(fault)),
         Scenario::Family => assert_eq!(family_of(Test::NotGlobAny), Family::Glob),
         Scenario::ProjectName => {
             use ryo_language::domain::symbols::{
@@ -74,4 +91,8 @@ fn subject(input: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }

@@ -3,7 +3,7 @@ use super::super::super::*;
 use super::super::fixtures::{
     column, execute_request, expected, host, hosted_plan, numbers, operation,
 };
-use crate::domain::operating::types::ExecutionObservation;
+use crate::domain::operating::fixtures::ExecutionObservation;
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
 };

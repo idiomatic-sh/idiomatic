@@ -5,8 +5,8 @@ use super::super::super::{
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::*;
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::values::KnownSyntax;
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::expectations::{SOURCE, assert_expected};
-use crate::domain::operating::types::ExecutionObservation;
-use crate::domain::operator::service::registered;
+use crate::domain::operating::fixtures::ExecutionObservation;
+use crate::domain::operator::service::prepare_operator;
 use ryo_language::domain::{
     elements::types::Elements,
     semantics::types::{RenderOutcome, RenderRequest},
@@ -421,7 +421,7 @@ fn unsupported_semantic_batch_publishes_no_prefix() {
         fn render_batch(
             &self,
             _: &[RenderRequest],
-            _: &[u8],
+            _: ryo_values::domain::files::types::SourceView<'_>,
         ) -> Result<Vec<RenderOutcome>, OperatingError> {
             Ok(vec![
                 RenderOutcome::Known(ryo_language::domain::semantics::types::RenderedNode(Arc::from("a"))),
@@ -466,7 +466,7 @@ fn all_registrations_refuse_a_foreign_variant() {
     for (at, kind) in OperationKind::ALL.iter().enumerate() {
         let foreign = fixture(OperationKind::ALL[(at + 1) % OperationKind::ALL.len()]);
         assert!(matches!(
-            registered(*kind).prepare(&foreign.operation, &[], &[]),
+            prepare_operator(*kind, &foreign.operation, &[], &[]),
             Err(OperatingError::WrongOperation)
         ));
     }

@@ -1,7 +1,7 @@
 //! File partitions keep identical node values separate and deliver rows in exact order.
 use super::super::super::*;
 use super::super::fixtures::{column, execute_request, host, hosted_plan, numbers, operation};
-use crate::domain::operating::types::ExecutionObservation;
+use crate::domain::operating::fixtures::ExecutionObservation;
 #[test]
 fn file_partition_keys_keep_identical_node_values_separate() {
     use ryo_relations::domain::relations::types::NodeId;

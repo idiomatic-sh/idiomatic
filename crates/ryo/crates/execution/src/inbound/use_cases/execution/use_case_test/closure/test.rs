@@ -7,7 +7,7 @@ use ryo_relations::domain::relations::types::{CellKind, Relation, Value as Cell}
 use ryo_language::domain::symbols::types::Symbols;
 
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::ExecutionObservation;
+use crate::domain::operating::fixtures::ExecutionObservation;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;

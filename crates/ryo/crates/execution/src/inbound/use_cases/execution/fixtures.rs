@@ -78,7 +78,7 @@ pub(super) fn published_observed<'facts>(
     elements: &Elements,
     symbols: &mut Symbols,
     read: &dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
-) -> Result<(Table, crate::domain::operating::types::ExecutionObservation), OperatingError> {
+) -> Result<(Table, crate::domain::operating::fixtures::ExecutionObservation), OperatingError> {
     let (engine, prepared) = prepared(plan, bindings, hosted)?;
     run_prepared(&engine, &prepared, source, elements, symbols, read)
 }
@@ -147,7 +147,7 @@ pub(super) fn run_prepared<'facts>(
     elements: &Elements,
     symbols: &mut Symbols,
     read: &dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
-) -> Result<(Table, crate::domain::operating::types::ExecutionObservation), OperatingError> {
+) -> Result<(Table, crate::domain::operating::fixtures::ExecutionObservation), OperatingError> {
     run_prepared_context(engine, prepared, source, elements, symbols, read, None)
 }
 
@@ -160,7 +160,7 @@ pub(super) fn run_prepared_context<'facts>(
     symbols: &mut Symbols,
     read: &dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
     semantic: Option<&dyn crate::domain::operating::types::SemanticLookup>,
-) -> Result<(Table, crate::domain::operating::types::ExecutionObservation), OperatingError> {
+) -> Result<(Table, crate::domain::operating::fixtures::ExecutionObservation), OperatingError> {
     let last = super::interface::PreparedExecution::emit(prepared, RuleIndex(0))?.step;
     let corpus = [CorpusInput::Available(CorpusEntry {
         path: ryo_language::domain::files::types::FilePath("operator-contract.py".into()),
@@ -347,7 +347,7 @@ pub(super) fn table_request(
     inputs: &[&Table],
     bindings: Vec<ParameterBinding>,
     symbols: &mut Symbols,
-) -> Result<(Table, crate::domain::operating::types::ExecutionObservation), OperatingError> {
+) -> Result<(Table, crate::domain::operating::fixtures::ExecutionObservation), OperatingError> {
     table_request_context(operation, inputs, bindings, symbols, b"", None)
 }
 
@@ -359,7 +359,7 @@ pub(super) fn table_request_context(
     symbols: &mut Symbols,
     source: &[u8],
     semantic: Option<&dyn crate::domain::operating::types::SemanticLookup>,
-) -> Result<(Table, crate::domain::operating::types::ExecutionObservation), OperatingError> {
+) -> Result<(Table, crate::domain::operating::fixtures::ExecutionObservation), OperatingError> {
     let authored = table_inputs(operation, inputs, &bindings, symbols);
     let read = |relation| {
         authored

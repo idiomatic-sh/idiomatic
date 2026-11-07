@@ -178,7 +178,7 @@ impl FileRun<'_> {
         &self,
         rule: RuleIndex,
         step: ryo_values::domain::plan_parts::types::StepId,
-    ) -> Result<crate::domain::operating::types::ExecutionObservation, OperatingError> {
+    ) -> Result<crate::domain::operating::fixtures::ExecutionObservation, OperatingError> {
         self.execution
             .route_observation(self.execution.file_state(), rule, step)
     }
@@ -192,7 +192,7 @@ impl FileRun<'_> {
     pub(crate) fn observation_routes(
         &self,
         slot: ryo_values::domain::records::types::ObservationIndex,
-    ) -> Result<crate::domain::operating::types::ExecutionObservation, OperatingError> {
+    ) -> Result<crate::domain::operating::fixtures::ExecutionObservation, OperatingError> {
         let region = self
             .program
             .program()
@@ -277,9 +277,9 @@ fn readiness_of(
 
 pub(super) fn classify(error: OperatingError) -> RootOutcome {
     match error {
-        OperatingError::ObservationIncomplete { .. }
-        | OperatingError::FrontierUnavailable { .. }
-        | OperatingError::SemanticIncomplete { .. } => RootOutcome::Unknown(error),
+        OperatingError::ObservationIncomplete { .. } | OperatingError::SemanticIncomplete { .. } => {
+            RootOutcome::Unknown(error)
+        }
         other => RootOutcome::Failed(other),
     }
 }
@@ -301,7 +301,7 @@ pub(super) fn outcome_of<'facts>(
                     }),
                 ) => RootOutcome::Partial {
                     table,
-                    affected: crate::domain::completion::service::affected_files(&coverage)
+                    affected: crate::domain::frontier_coverage::service::affected_files(&coverage)
                         .unwrap_or_default(),
                 },
                 Err(error) => classify(error),

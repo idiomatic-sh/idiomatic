@@ -24,10 +24,10 @@ impl crate::domain::operating::types::SemanticLookup for DeliveryLookup {
     fn render_batch(
         &self,
         requests: &[ryo_language::domain::semantics::types::RenderRequest],
-        source: &[u8],
+        source: ryo_values::domain::files::types::SourceView<'_>,
     ) -> Result<Vec<ryo_language::domain::semantics::types::RenderOutcome>, OperatingError> {
         assert!(requests.is_empty());
-        assert!(source.is_empty());
+        assert!(source.0.is_empty());
         self.calls.set(self.calls.get() + 1);
         Ok(Vec::new())
     }
@@ -219,7 +219,7 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
                 std::ptr::from_ref(&lookup) as *const (),
                 "the frame borrows the exact existing lookup, without replacing or extending its session"
             );
-            assert!(admitted.render_batch(&[], b"")?.is_empty());
+            assert!(admitted.render_batch(&[], ryo_values::domain::files::types::SourceView(b""))?.is_empty());
             context.memo.clear();
             context.memo.push(Memo::Holds);
             context.scratch.row = vec![n(987)];

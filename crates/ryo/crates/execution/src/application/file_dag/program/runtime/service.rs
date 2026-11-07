@@ -139,7 +139,7 @@ struct ProducerLeaseProbe {
 }
 struct Slot {
     #[cfg(test)]
-    observed: crate::domain::operating::types::ExecutionObservation,
+    observed: crate::domain::operating::fixtures::ExecutionObservation,
     #[cfg(test)]
     native_positions: CallCount,
     #[cfg(test)]
