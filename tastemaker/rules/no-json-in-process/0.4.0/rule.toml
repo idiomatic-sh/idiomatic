@@ -1,0 +1,423 @@
+description = "`serde_json` is named and depended on only where JSON crosses the process boundary: no `serde_json` identifier, in a path, an import or another macro's arguments, and no normal dependency on it outside a boundary package."
+why = "JSON is a command's output format and another tool's input, not how a process talks to itself. The process presentation boundary is the CLI spec's placed output template, which prints, and its placed output schemas, the wire shapes every command prints the same way, and each command's placed `schemas.rs`, which encodes its own answer; a file merely named output.rs or schemas.rs is not. Other boundary adapters, tests and benches are the entry's `exclude`. The crate is matched by its name as written, token by token, so a path inside another macro's arguments (`format!(\"{}\", serde_json::json!(..))`) counts. A package that depends on `serde_json` as a normal dependency, one a build that names no feature links, is a finding at that dependency's line, unless it is a boundary package: the one that holds the CLI spec's placed output module or a command's placed schemas, or one whose manifest the entry's `exclude` leaves out. The dependency is matched by the package depended on, so a crate renamed in the manifest (`json = { package = \"serde_json\" }`) counts. A package that holds an adapter's `schemas.rs` (`outbound/<port>/adapters/<adapter>/schemas.rs`), where the wire shape of an outside file is decoded (a language's `package.json` reader), is a boundary package whatever spec places it, and an optional dependency (the `fixtures` feature's test oracle) is no part of the process. Not seen: JSON reached through a re-export of `serde_json` by another crate."
+
+query = '''
+let placed-files = select l."path" as "file", l."entry" as "entry", l."package" as "package", l."template" as "template", l."version" as "version", l."spec" as "spec" from "tastemaker.placed" as l;
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let names = select * from tree-tokens where text = "serde_json";
+let idents = select * from names where kind = "ident";
+let json = project(from=idents, columns=["file", "span", "text"]);
+let cli = select * from placed-files where spec = "cli";
+let outputs = select * from cli where glob_any(template, "{output,schemas,*/schemas}");
+let commands = select * from placed-files where spec = "command" and glob_any(template, "{schemas,*/schemas}");
+let presentation = union(left=outputs, right=commands);
+let adapters = select * from placed-files where spec = "adapter" and glob_any(template, "{schemas,*/schemas}");
+let placed-edges = union(left=presentation, right=adapters);
+let placed-edge-files = project(from=placed-edges, columns=["file"]);
+let adapter-schemas = select l."path" as "file" from "filesystem.file" as l where glob_any(l."path", "**/outbound/*/adapters/*/schemas.rs");
+let edges = union(left=placed-edge-files, right=adapter-schemas);
+let internal = antijoin(left=json, right=edges, left-on=["file"], right-on=["file"]);
+let boundary-packages = select r."package" as "file" from edges as l join "file-package" as r on l."file" = r."path";
+let json-dependencies = select l."source" as "file", l."binding" as "binding", l."package" as "text" from "package-dependency" as l where l."package" = "serde_json" and l."kind" = "normal" and l."optional" = "false";
+let inside-dependencies = antijoin(left=json-dependencies, right=boundary-packages, left-on=["file"], right-on=["file"]);
+let tables = select l."occurrence" as "table" from "entry" as l where l."key" = "dependencies";
+let table-mappings = select r."id" as "mapping" from tables as l join "mapping" as r on l."table" = r."owner";
+let dependency-entries = select r."file" as "file", r."key" as "key", r."span" as "span" from table-mappings as l join "entry" as r on l."mapping" = r."owner";
+let declared = select l."file" as "file", r."span" as "span", l."text" as "text" from inside-dependencies as l join dependency-entries as r on l."file" = r."file" and l."binding" = r."key";
+let in-process = union(left=internal, right=declared);
+emit in-process subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`{text}` is JSON in process"
+help = "Keep the value typed (a struct or enum with serde derives) and pass it through a port; serialize it in a command's `schemas.rs`, the CLI spec's output module or the adapter where JSON crosses the process boundary, and depend on `serde_json` only from that package or from a boundary package the entry's `exclude` names. Inside the process an ignore is never the fix."
+
+[[scenarios]]
+id = 'no-json'
+scenario = 'No JSON: nothing is reported.'
+given.include = ['**']
+given.exclude = ['**/adapters/**', '**/*_test.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod plain;
+'''
+given.files.'src/plain.rs' = '''
+use std::fmt;
+'''
+
+[[scenarios]]
+id = 'domain-value'
+scenario = 'A domain file holds a JSON value.'
+given.include = ['**']
+given.exclude = ['**/adapters/**', '**/*_test.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/domain.rs' = '''
+use serde_json::Value;
+'''
+given.files.'src/lib.rs' = '''
+mod domain;
+'''
+then.findings = [
+  { path = 'src/domain.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'output-adapter'
+scenario = 'An output adapter writes JSON.'
+given.include = ['**']
+given.exclude = ['**/adapters/**', '**/*_test.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+mod output;
+'''
+given.files.'src/output.rs' = '''
+mod adapters;
+'''
+given.files.'src/output/adapters.rs' = '''
+mod json;
+'''
+given.files.'src/output/adapters/json.rs' = '''
+mod adapter;
+'''
+given.files.'src/output/adapters/json/adapter.rs' = '''
+use serde_json::to_string;
+'''
+
+[[scenarios]]
+id = 'qualified-call'
+scenario = 'A domain file serializes by full path.'
+given.include = ['**']
+given.exclude = ['**/adapters/**', '**/*_test.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/domain.rs' = '''
+pub fn text() -> String {
+    serde_json::to_string(&1).unwrap_or_default()
+}
+'''
+given.files.'src/lib.rs' = '''
+mod domain;
+'''
+then.findings = [
+  { path = 'src/domain.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'json-in-macro-arguments'
+scenario = "A domain file builds JSON inside another macro's arguments."
+given.include = ['**']
+given.exclude = ['**/adapters/**', '**/*_test.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/domain.rs' = '''
+pub fn describe() -> String {
+    format!("{}", serde_json::json!({ "greeting": "hello" }))
+}
+'''
+given.files.'src/lib.rs' = '''
+mod domain;
+'''
+then.findings = [
+  { path = 'src/domain.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'placed-cli-output'
+scenario = 'The CLI spec places the process output module.'
+given.files.'app/Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "src/output.rs"
+
+[dependencies]
+serde = "1"
+serde_json = "1"
+'''
+given.files.'app/src/output.rs' = '''
+pub fn print(answer: &impl serde::Serialize) {
+    serde_json::to_writer(std::io::stdout().lock(), answer).unwrap();
+}
+'''
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+rules = [{ rule = "idiomatic.arch/no-json-in-process", include = ["**"] }]
+specs = [{ spec = "idiomatic.arch/cli", include = ["app"], params = { library = "fixture", markdown = "absent", product = "fixture", writes = [] } }]
+'''
+then.only = ['idiomatic.arch/no-json-in-process', 'idiomatic.arch/no-json-in-process#unknown']
+
+[[scenarios]]
+id = 'placed-cli-output-schemas'
+scenario = "The CLI spec's output schemas, the wire shapes every command prints the same way, are the output boundary too."
+given.files.'app/Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "src/output.rs"
+
+[dependencies]
+serde = "1"
+serde_json = "1"
+'''
+given.files.'app/src/output.rs' = '''
+pub mod schemas;
+'''
+given.files.'app/src/output/schemas.rs' = '''
+pub fn columns(out: &mut impl std::io::Write, names: &[&str]) {
+    serde_json::to_writer(out, names).unwrap();
+}
+'''
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+rules = [{ rule = "idiomatic.arch/no-json-in-process", include = ["**"] }]
+specs = [{ spec = "idiomatic.arch/cli", include = ["app"], params = { library = "fixture", markdown = "absent", product = "fixture", writes = [] } }]
+'''
+then.only = ['idiomatic.arch/no-json-in-process', 'idiomatic.arch/no-json-in-process#unknown']
+
+[[scenarios]]
+id = 'placed-cli-non-output'
+scenario = 'Another CLI role is not the output boundary.'
+given.files.'app/Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "src/output.rs"
+
+[dependencies]
+serde = "1"
+serde_json = "1"
+'''
+given.files.'app/src/outcome.rs' = '''
+pub fn value() -> serde_json::Value {
+    Default::default()
+}
+'''
+given.files.'app/src/output.rs' = '''
+pub fn print(answer: &impl serde::Serialize) {
+    serde_json::to_writer(std::io::stdout().lock(), answer).unwrap();
+}
+'''
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+rules = [{ rule = "idiomatic.arch/no-json-in-process", include = ["**"] }]
+specs = [{ spec = "idiomatic.arch/cli", include = ["app"], params = { library = "fixture", markdown = "absent", product = "fixture", writes = [] } }]
+'''
+then.only = ['idiomatic.arch/no-json-in-process', 'idiomatic.arch/no-json-in-process#unknown']
+then.findings = [
+  { path = 'app/src/outcome.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'unplaced-output'
+scenario = 'An unplaced file named output is still in process.'
+given.include = ['**']
+given.exclude = ['**/adapters/**', '**/*_test.rs']
+given.files.'src/output.rs' = '''
+pub fn value() -> serde_json::Value {
+    Default::default()
+}
+'''
+then.findings = [
+  { path = 'src/output.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'normal-dependency-in-process'
+scenario = 'A package that holds no boundary depends on serde_json.'
+given.include = ['**']
+given.exclude = ['**/adapters/**', '**/*_test.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde_json = "1"
+'''
+given.files.'src/lib.rs' = '''
+pub fn answer() -> u8 {
+    1
+}
+'''
+then.findings = [
+  { path = 'Cargo.toml', line = 7 },
+]
+
+[[scenarios]]
+id = 'dev-dependency-and-boundary-package'
+scenario = 'A dev-dependency, and a boundary package the entry leaves out.'
+given.include = ['**']
+given.exclude = ['adapters/**', '**/*_test.rs']
+given.files.'Cargo.toml' = '''
+[workspace]
+resolver = "3"
+members = ["app", "adapters/json"]
+'''
+given.files.'app/Cargo.toml' = '''
+[package]
+name = "app"
+version = "0.1.0"
+edition = "2024"
+
+[dev-dependencies]
+serde_json = "1"
+'''
+given.files.'app/src/lib.rs' = '''
+pub fn answer() -> u8 {
+    1
+}
+'''
+given.files.'adapters/json/Cargo.toml' = '''
+[package]
+name = "json"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde_json = "1"
+'''
+given.files.'adapters/json/src/lib.rs' = '''
+pub fn write(value: u8) -> String {
+    serde_json::to_string(&value).unwrap_or_default()
+}
+'''
+
+[[scenarios]]
+id = 'placed-command-schemas'
+scenario = 'A command`s placed schemas encode its own answer: the presentation boundary, as the output module is.'
+given.files.'app/Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "src/run/schemas.rs"
+
+[dependencies]
+serde = "1"
+serde_json = "1"
+'''
+given.files.'app/src/run/schemas.rs' = '''
+pub fn json(answer: &impl serde::Serialize, to: &mut dyn std::io::Write) -> std::io::Result<()> {
+    serde_json::to_writer(to, answer).map_err(std::io::Error::from)
+}
+'''
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+rules = [{ rule = "idiomatic.arch/no-json-in-process", include = ["**"] }]
+specs = [{ spec = "idiomatic.arch/command", include = ["app/src/run"] }]
+'''
+then.only = ['idiomatic.arch/no-json-in-process', 'idiomatic.arch/no-json-in-process#unknown']
+
+[[scenarios]]
+id = 'placed-adapter-schemas-package'
+scenario = 'A governed external adapter schema permits its package dependency, but not JSON in its domain.'
+given.files.'app/Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+[lib]
+path = "src/lib.rs"
+[dependencies]
+serde_json = "1"
+'''
+given.files.'app/src/lib.rs' = ''
+given.files.'app/src/outbound/process/adapters/tool/schemas.rs' = '''
+fn encode() { let _ = serde_json::json!({}); }
+'''
+given.files.'app/src/domain/value.rs' = '''
+fn internal() { let _ = serde_json::json!({}); }
+'''
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+rules = [{ rule = "idiomatic.arch/no-json-in-process", include = ["**"] }]
+specs = [{ spec = "idiomatic.arch/adapter", params = { core = "crate", port = "process" }, include = ["app/src/outbound/process/adapters/tool"] }]
+'''
+then.only = ['idiomatic.arch/no-json-in-process', 'idiomatic.arch/no-json-in-process#unknown']
+then.findings = [{ path = 'app/src/domain/value.rs', line = 1 }]
+
+[[scenarios]]
+id = 'input-parsing-adapter-schemas'
+scenario = "A language package reads a manifest that is a JSON file (input parsing, not exchange between its own parts): its adapter's schemas.rs and its dependency are not reported, while a domain file of the same package is."
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde_json = "1"
+'''
+given.files.'src/lib.rs' = ''
+given.files.'src/outbound/manifest_reading/adapters/npm/schemas.rs' = '''
+fn read(text: &str) { let _ = serde_json::from_str::<u8>(text); }
+'''
+given.files.'src/domain/value.rs' = '''
+fn internal() { let _ = serde_json::json!({}); }
+'''
+then.findings = [{ path = 'src/domain/value.rs', line = 1 }]
+
+[[scenarios]]
+id = 'optional-oracle-dependency'
+scenario = "A test oracle's reader of JSON, an optional dependency a feature enables for the fixtures: no part of a build that names no feature, so not reported; the same dependency not optional is."
+given.include = ['**']
+given.files.'optional/Cargo.toml' = '''
+[package]
+name = "optional"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde_json = { version = "1", optional = true }
+
+[features]
+fixtures = ["dep:serde_json"]
+'''
+given.files.'optional/src/lib.rs' = ''
+given.files.'linked/Cargo.toml' = '''
+[package]
+name = "linked"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde_json = "1"
+'''
+given.files.'linked/src/lib.rs' = ''
+then.findings = [{ path = 'linked/Cargo.toml', line = 7 }]

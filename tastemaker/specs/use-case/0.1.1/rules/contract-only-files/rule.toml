@@ -1,0 +1,103 @@
+description = "A use case has nested test support files anywhere under `fixtures/` only when it has a `fixtures/contract.rs`, the contract that other crates run."
+why = "Private orchestration helpers may live in service.rs without a separate contract. Nested fixture trees remain contract-owned; a `constants.rs` is any use case's, for its named bounds and the names its service uses. A kernel crate's use case that is an SDK-facing contract (`parse`, `project`) is the one thing other crates implement, so it drives their implementations with free functions of its own (`service.rs`, proven by `service_test.rs`, with the `constants.rs` those functions use) and holds the samples and conformance they run in `fixtures/` beside `contract.rs`, in files and directories of any depth. The file that proves a part is a contract is `fixtures/contract.rs`, which `use-case-contract` already places for a use case other crates implement, so the trigger is mechanical and no flag is passed."
+
+query = '''
+let services = capture(from="filesystem.file", path="path", pattern="{*dir}/{part}/service.rs", captures=["dir", "part"]);
+let service-tests = capture(from="filesystem.file", path="path", pattern="{*dir}/{part}/service_test.rs", captures=["dir", "part"]);
+let fixture-files = capture(from="filesystem.file", path="path", pattern="{*dir}/{part}/fixtures/{*name}", captures=["dir", "part", "name"]);
+let contracts = capture(from="filesystem.file", path="path", pattern="{*dir}/{part}/fixtures/contract.rs", captures=["dir", "part"]);
+let service-rows = project(from=services, columns=["path", "dir", "part"]);
+let test-rows = project(from=service-tests, columns=["path", "dir", "part"]);
+let fixture-rows = project(from=fixture-files, columns=["path", "dir", "part"]);
+let contract-keys = project(from=contracts, columns=["dir", "part"]);
+let loose = antijoin(left=fixture-rows, right=contract-keys, left-on=["dir", "part"], right-on=["dir", "part"]);
+let findings = project(from=loose, columns=["path", "part"]);
+emit findings subject "path" key("path");
+'''
+
+[diagnostic]
+primary = "path"
+message = "`{path}` belongs to a contract use case, and use case `{part}` has no `fixtures/contract.rs`"
+help = "Keep nested fixtures with the contract that owns them. Private service.rs helpers need no contract. A use case that other crates implement is the exception, and it says so with `fixtures/contract.rs`, the rows every implementation runs."
+
+[given]
+include = ['src/inbound/use_cases/*/service.rs', 'src/inbound/use_cases/*/service_test.rs', 'src/inbound/use_cases/*/fixtures/**/*.rs']
+
+[[scenarios]]
+id = 'contract-with-service'
+scenario = "A contract use case with its service, the service's test and its test support."
+given.files.'src/inbound/use_cases/greet/constants.rs' = '''
+//! The names of the `greet` use case.
+
+/// The greeting a call starts with.
+pub const GREETING: &str = "hello";
+'''
+given.files.'src/inbound/use_cases/greet/fixtures/contract.rs' = '''
+//! x
+'''
+given.files.'src/inbound/use_cases/greet/fixtures/rows.rs' = '''
+//! x
+'''
+given.files.'src/inbound/use_cases/greet/fixtures/rows/detail.rs' = '''
+//! A file of the contract's rows beside the rows file.
+'''
+given.files.'src/inbound/use_cases/greet/fixtures/rows_test.rs' = '''
+//! x
+'''
+given.files.'src/inbound/use_cases/greet/service.rs' = '''
+//! x
+'''
+given.files.'src/inbound/use_cases/greet/service_test.rs' = '''
+//! x
+'''
+
+[[scenarios]]
+id = 'use-case-no-contract-no-extras'
+scenario = 'A use case with no contract and no extras.'
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! x
+'''
+
+[[scenarios]]
+id = 'service-without-contract'
+scenario = 'A use case with a service and no contract.'
+given.files.'src/inbound/use_cases/greet/service.rs' = '''
+//! x
+'''
+
+[[scenarios]]
+id = 'service-test-without-contract'
+scenario = 'A use case with a service test and no contract.'
+given.files.'src/inbound/use_cases/greet/service_test.rs' = '''
+//! x
+'''
+
+[[scenarios]]
+id = 'fixture-without-contract'
+scenario = 'A use case with a test support file and no contract.'
+given.files.'src/inbound/use_cases/greet/fixtures/rows.rs' = '''
+//! x
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/greet/fixtures/rows.rs' },
+]
+
+[[scenarios]]
+id = 'constants-without-contract'
+scenario = 'A use case with constants and no contract is not reported: any use case names its bounds in constants.rs.'
+given.files.'src/inbound/use_cases/greet/constants.rs' = '''
+//! The names of the `greet` use case.
+
+/// The greeting a call starts with.
+pub const GREETING: &str = "hello";
+'''
+
+[[scenarios]]
+id = 'nested-fixture-without-contract'
+scenario = 'A use case with a test support file in a directory of fixtures and no contract.'
+given.files.'src/inbound/use_cases/greet/fixtures/rows/detail.rs' = '''
+//! A file of the rows, in a directory of its own.
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/greet/fixtures/rows/detail.rs' },
+]

@@ -90,6 +90,10 @@ impl<R: RelationsItem, M: 'static> Copy for Reader<R, M> {}
 /// What a language does for a relation: it reads it, or it says the relation is not in the language. A language can say it
 /// reads a relation only through the item that reads it (`reads::<Item>()`), which implements the trait ryo owns for it;
 /// there is no way to make the answer from a reader written beside the item.
+///
+/// ```compile_fail
+/// let forged = ryo_language::domain::answers::types::Support::<u8>(todo!());
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Support<R>(Answer<R>);
 

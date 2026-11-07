@@ -1,0 +1,96 @@
+description = "One file of a use case's `fixtures/` directory: `contract.rs`, the rows every implementation must pass, the core's fake and each of its adapters alike, or another file of an SDK-facing contract's test support (samples, expectations, conformance), at any depth beneath `fixtures/`, of which the template asks nothing."
+why = "Holds every implementation of the use case to one promise: each adapter of the use case runs it from its own `adapter_test.rs`, so an adapter cannot pass by skipping the promised behavior. It exuse cases its rows, `CASES`, and `check`, which runs them, as `pub`: every implementation reaches them through the use case's `fixtures` module, and a failing row names its case. The row types are private aliases: a public alias would be a re-exuse case."
+content = '''
+{% if fixture == "contract" -%}
+//! What every implementation of the `{{ part }}` use case's trait must pass.
+
+use super::super::interface::{{ part | pascal }}UseCase;
+use crate::cases::Case;
+
+/// What a row of the contract is given.
+type Input = ();
+/// What a row of the contract expects when it succeeds.
+type Value = ();
+/// What a row of the contract expects when it is refused.
+type Failure = ();
+
+/// The contract's rows: a name, one case word, an input and the expected value or error variant. Every implementation runs them.
+pub const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Runs the contract's rows against one implementation, in the crate that implements the trait.
+pub fn check(subject: &impl {{ part | pascal }}UseCase) {
+    let _ = subject;
+    todo!("run the contract's rows against the implementation")
+}
+{%- else -%}
+//! A file of the `{{ part }}` contract's test support.
+{%- endif %}
+'''
+
+[params]
+part = { type = "identifier", from = "directory-name", description = "The part's directory name: the stem of every name in it." }
+fixture = { type = "string", description = "The file's path beneath `fixtures/` with its extension, captured from its path: `contract` holds the rows every implementation runs, any other (`expected_rows/function.rs`, a file in a directory of its own, as much as `rows`) is the contract's own test support." }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'fixtures/contract.rs'
+given.params = { part = 'names', fixture = 'contract' }
+given.files.'fixtures/contract.rs' = '''
+//! What every implementation of the `names` use case's trait must pass.
+
+use super::super::interface::NamesUseCase;
+use crate::cases::Case;
+
+/// What a row of the contract is given.
+type Input = ();
+/// What a row of the contract expects when it succeeds.
+type Value = ();
+/// What a row of the contract expects when it is refused.
+type Failure = ();
+
+/// The contract's rows: a name, one case word, an input and the expected value or error variant. Every implementation runs them.
+pub const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Runs the contract's rows against one implementation, in the crate that implements the trait.
+pub fn check(subject: &impl NamesUseCase) {
+    let _ = subject;
+    todo!("run the contract's rows against the implementation")
+}
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'fixtures/contract.rs'
+given.params = { part = 'names', fixture = 'contract' }
+then.findings = [
+  { rule = 'use-case-fixture#count', path = '.' },
+]
+
+[[scenarios]]
+id = 'support-file'
+scenario = 'A support file of the contract needs only its doc comment.'
+given.file = 'fixtures/rows.rs'
+given.params = { part = 'names', fixture = 'rows' }
+given.files.'fixtures/rows.rs' = '''
+//! A file of the `names` contract's test support.
+'''
+
+[[scenarios]]
+id = 'support-file-missing'
+scenario = 'A support file is missing.'
+given.file = 'fixtures/rows.rs'
+given.params = { part = 'names', fixture = 'rows' }
+then.findings = [
+  { rule = 'use-case-fixture#count', path = '.' },
+]
+
+[[scenarios]]
+id = 'nested-support-file'
+scenario = 'A support file in a directory of fixtures needs only its doc comment.'
+given.file = 'fixtures/rows/detail.rs'
+given.params = { part = 'names', fixture = 'rows/detail.rs' }
+given.files.'fixtures/rows/detail.rs' = '''
+//! A file of the `names` contract's test support.
+'''

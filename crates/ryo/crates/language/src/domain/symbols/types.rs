@@ -23,12 +23,21 @@ pub(crate) struct Notes {
 /// and a hash of its text, so reading a name allocates nothing. The names are cleared with the
 /// element table. A name that is not in the file (a piece of a path, a joined list) is derived: its
 /// text is kept in `derived`, after the names of the file.
+///
+/// ```compile_fail
+/// let forged = ryo_language::domain::symbols::types::Symbols(Default::default());
+/// ```
 #[derive(Debug, Default)]
 pub struct Symbols(SymbolsEngine);
 
 /// The symbols a query operator may read and the derived names it may add. The
 /// source-name boundary belongs to language fact readers, not query operators.
 /// This borrow has no mutable access to `Symbols` and cannot call `intern`.
+///
+/// ```compile_fail
+/// let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
+/// let forged = ryo_language::domain::symbols::types::QuerySymbols(&mut symbols);
+/// ```
 #[derive(Debug)]
 pub struct QuerySymbols<'a>(pub(super) &'a mut Symbols);
 

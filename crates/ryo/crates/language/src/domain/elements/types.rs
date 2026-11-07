@@ -14,6 +14,10 @@ use ryo_relations::domain::terms::types::Symbol;
 use crate::domain::symbols::types::Symbols;
 
 /// A column of numbers, one for each row, indexed by the row's [`Position`]: the engine writes it, a language only reads it.
+///
+/// ```compile_fail
+/// let forged = ryo_language::domain::elements::types::Numbers::<u32>(Default::default());
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Numbers<T>(WrittenColumn<T>);
 
@@ -129,6 +133,10 @@ pub struct Elements {
 }
 
 /// What the engine keeps of a file's element table beside its columns, opaque to a language, which holds it with the table.
+///
+/// ```compile_fail
+/// let forged = ryo_language::domain::elements::types::TableState(Default::default());
+/// ```
 #[derive(Debug, Default)]
 pub struct TableState(ElementsEngine);
 
@@ -228,6 +236,10 @@ pub(crate) enum ModelReadiness {
 
 /// What a language's syntax adapter builds a file's table through: the table, and the file's bytes
 /// the names are read from. The adapter opens a node, adds a token, closes a node, reports what the parser found (`enter_node`, `leave_node`, `token`, `diagnose`); its fields are the engine's, so it reaches nothing else.
+///
+/// ```compile_fail
+/// let forged = ryo_language::domain::elements::types::TableBuilder(todo!());
+/// ```
 #[derive(Debug)]
 pub struct TableBuilder<'a>(BuilderEngine<'a>);
 
@@ -264,6 +276,10 @@ impl<'a> AsMut<BuilderEngine<'a>> for TableBuilder<'a> {
 
 /// What a language completes the table of a file through, once its tree is built: it names its kinds and writes its notes, and reaches
 /// nothing else of the table (`name_kind`, `write_notes`); its fields are the engine's.
+///
+/// ```compile_fail
+/// let forged = ryo_language::domain::elements::types::Completion(todo!());
+/// ```
 #[derive(Debug)]
 pub struct Completion<'a>(CompletionEngine<'a>);
 
