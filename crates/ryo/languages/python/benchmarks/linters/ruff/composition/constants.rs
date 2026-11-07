@@ -166,3 +166,12 @@ pub(crate) const CONTAINER: &str = "/container";
 pub(crate) const LXC: &str = "/lxc";
 /// Text `kubepods`.
 pub(crate) const KUBEPODS: &str = "kubepods";
+
+/// Name prefix of the scratch directory one fixture verification stages into.
+pub(crate) const VERIFY_CASES_SCRATCH: &str = "verify-cases-";
+/// Name prefix of the scratch directory one reference-only verification stages into.
+pub(crate) const VERIFY_REFERENCE_SCRATCH: &str = "verify-reference-";
+/// Name prefix of the scratch directory one certification stages its cases into.
+pub(crate) const CASE_SCRATCH: &str = "case-scratch-";
+/// The suite boundary's own default location for a scratch directory.
+pub(crate) const DEFAULT_SCRATCH_ROOT: &str = "";

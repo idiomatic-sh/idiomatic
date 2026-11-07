@@ -179,7 +179,7 @@ pub(super) fn materialize_inventory(
                 }
                 std::fs::create_dir_all(&path)?;
             }
-            ryo::linter::ProjectEntryState::Missing if path.exists() => {
+            ryo::linter::ProjectEntryState::Missing if std::fs::metadata(&path).is_ok() => {
                 return Err(Error::Invalid(
                     constants::GIVEN_PROJECT_MISSING_ENTRY_COLLIDES_WITH.into(),
                 ));

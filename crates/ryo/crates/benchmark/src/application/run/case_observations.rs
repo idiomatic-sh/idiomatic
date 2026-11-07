@@ -140,14 +140,19 @@ pub(super) fn write(
         case.request.project_search_roots.as_deref(),
         &case.request.given_project_inventory,
     );
-    let metadata_error = metadata_identity.as_ref().err().map(ToString::to_string);
-    let metadata_sha256 = metadata_identity.ok().flatten().map(|value| value.0);
-    let project_error = project_identity.as_ref().err().map(ToString::to_string);
-    let project_inputs_sha256 = project_identity.ok().flatten().map(|value| value.0);
-    let source_error = source_identity
-        .as_ref()
-        .err()
-        .map(ToString::to_string)
+    let (metadata_sha256, metadata_error) = match metadata_identity {
+        Ok(identity) => (identity.map(|value| value.0), None),
+        Err(failure) => (None, Some(failure.to_string())),
+    };
+    let (project_inputs_sha256, project_error) = match project_identity {
+        Ok(identity) => (identity.map(|value| value.0), None),
+        Err(failure) => (None, Some(failure.to_string())),
+    };
+    let (source_sha256, source_failure) = match source_identity {
+        Ok(identity) => (Some(identity), None),
+        Err(failure) => (None, Some(failure.to_string())),
+    };
+    let source_error = source_failure
         .or_else(|| {
             metadata_error
                 .map(|reason| format!("file metadata identity unavailable: {reason}"))
@@ -156,7 +161,6 @@ pub(super) fn write(
                         .map(|reason| format!("project input identity unavailable: {reason}"))
                 })
         });
-    let source_sha256 = source_identity.ok();
     let source_text = source_sha256.clone();
     let recorded_error = match (error, source_error.as_deref()) {
         (Some(error), Some(source)) => {
@@ -197,7 +201,6 @@ pub(super) fn write(
         project_inputs_sha256: ProjectInputsDigest::from(project_inputs_sha256.map(Sha256Text)),
         expected: findings(&case.expected.diagnostics),
         reference_expected: crate::domain::discrepancy::service::reference_expected(case)
-            .ok()
             .map_or(ReferenceExpectation::Underivable, |report| {
                 ReferenceExpectation::Derived(findings(&report.diagnostics))
             }),

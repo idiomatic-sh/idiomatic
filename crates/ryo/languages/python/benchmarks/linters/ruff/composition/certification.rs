@@ -60,6 +60,14 @@ pub(super) fn paths(
     })
 }
 
+/// Make a scratch directory under the suite boundary's default location.
+pub(super) fn scratch(suite: &dyn SuitePort, prefix: &str) -> Result<PathBuf, Error> {
+    suite.scratch(
+        ArtifactPath(std::path::Path::new(constants::DEFAULT_SCRATCH_ROOT)),
+        prefix,
+    )
+}
+
 /// The registered case inventory an accounted measurement is held to, with the scratch directory for its results.
 fn registered_cases(
     selection_or_inventory: Option<Selection<'_>>,
@@ -173,7 +181,7 @@ fn measurement_mode(
 }
 
 /// How many rules the tool ships, defers and leaves pending, and how many of the shipped ones are authored.
-pub(super) struct Tally {
+pub(super) struct RuleTally {
     defaults: Counted,
     deferred: Counted,
     pending: Counted,
@@ -202,12 +210,12 @@ pub(super) struct Certifying {
 pub(super) fn announce(
     observations: &mut dyn std::io::Write,
     scope: BenchmarkCoverage,
-    tally: &Tally,
+    tally: &RuleTally,
     audit: &Audit,
     certificate: &Certificate,
     profile: &Path,
 ) -> Result<(), Error> {
-    let Tally {
+    let RuleTally {
         defaults,
         deferred,
         pending,
@@ -252,7 +260,7 @@ pub(super) fn held_to(
     Ok(mode)
 }
 
-impl Tally {
+impl RuleTally {
     /// Count the tool's defaults, deferrals and pending rules beside the authored total.
     pub(super) fn of(tool: &Tool, authored: RuleCount) -> Self {
         Self {

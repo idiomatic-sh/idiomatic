@@ -198,10 +198,10 @@ pub(crate) fn verify_prepared_shard(
             } else {
                 super::case_execution::run(suite, tool, execution, &case, rules)
             };
-            let full_report = result
-                .as_ref()
-                .ok()
-                .map(|measurement| measurement.report.clone());
+            let full_report = match &result {
+                Ok(measurement) => Some(measurement.report.clone()),
+                Err(_failed) => None,
+            };
             match result {
                 Ok(mut result) => {
                     if name == super::constants::REFERENCE
