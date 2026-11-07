@@ -13,15 +13,6 @@ impl CompareUseCaseImpl {
     }
 }
 impl CompareUseCase for CompareUseCaseImpl {
-    fn compare_with_contract(
-        &self,
-        reference: &RunReport,
-        candidate: &RunReport,
-        contract: ryo_benchmark_contracts::domain::reports::types::ComparisonContract,
-    ) -> Result<ryo_benchmark_contracts::domain::reports::types::ReportComparison, Difference> {
-        crate::domain::diagnostics::service::compare_with_contract(reference, candidate, contract)
-    }
-
     fn compare(&self, reference: &RunReport, candidate: &RunReport) -> Result<(), Difference> {
         super::service::compare(reference, candidate)
     }

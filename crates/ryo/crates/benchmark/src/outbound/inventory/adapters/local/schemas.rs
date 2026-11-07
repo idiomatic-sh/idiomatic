@@ -1,32 +1,29 @@
 //! The wire shapes of the registration and of the native receipt rows. Unknown fields are refused:
-//! the documents are a contract, and the python authoring is its source of truth.
+//! the documents are a contract, and the registration authoring is its source of truth.
 use super::constants;
 use crate::outbound::inventory::types::{
-    ArgumentText, Command, CompleteInvocation, EnvironmentName, EnvironmentValue, ExecutablePin,
-    FailedInvocation, FilePin, InvocationDocument, NormalizedSettings, Pin, RegisteredRule,
-    Registration, RegistrationAuthority, Signal,
-    case_document::{
-        CaseContextIdentity, CaseDocument, Comparison, ContextIdentity,
-        EntryState, ExpectationContract, FileMetadata, FileObservation, InventoryCompleteness,
-        ProjectEntry, ProjectInventory, ProjectInventoryDocument, ProjectScope,
-    },
+    ArgumentText, CaseContextIdentity, CaseDocument, CaseReference, Command, CompleteInvocation,
+    ContextIdentity, DeclaredScope, EntryState, EnvironmentName, EnvironmentValue,
+    ExecutablePin, ExpectationContract, FailedInvocation, FileMetadata, FilePin,
+    IdentityKey, InventoryCompleteness, InvocationDocument, RegisteredModuleName, NormalizedSettings, Pin,
+    ProjectEntry, ProjectInventory, ProjectInventoryDocument, ProviderName, ReceiptDigest,
+    RegisteredRule, Registration, RegistrationAuthority, RowInstance, RowReason, RowStatus,
+    RuleCommand, RuleDefinition, RuleInstance, RuleReason, RunState, Row, Signal, Summary,
 };
-use crate::outbound::suite::types::{
-    finding::{FindingOffset, Finding},
-    observation_document::{
+use crate::outbound::suite::types::{process::ProcessFailureWire};
+use ryo_benchmark_contracts::domain::documents::types::{finding::{FindingOffset, Finding}, observation_document::{
         ContextMode, ExitStatus, FileMetadataDigest, ProjectInputsDigest, ReferenceExpectation, RuleCohort,
         RuleContextRecord, RuleObservationsRecord,
-    },
-    process::ProcessFailureWire,
-    reference_discrepancy::{
+    }, reference_discrepancy::{
         DiscrepancyIdentity, ObservedExecutable, ReferenceDiscrepancy,
-    },
-    text::{CanonicalJson, CaseName, PathText, ReasonText, RuleName, Sha256Text, YesNo},
-};
+    }, text::{CanonicalJson, CaseName, PathText, ReasonText, RuleName, Sha256Text, YesNo}};
 use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
 use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
-use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
-use serde::Deserialize;
+use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
+use ryo_benchmark_contracts::domain::receipts::types::ReceiptAudit;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::workloads::types::{CaseComparison, DiscrepancyBasis, FileObservation};
+use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::PathBuf};
 
 fn sha(value: Option<String>) -> Option<Sha256Text> {
@@ -108,9 +105,9 @@ impl From<RegistrationSchema> for Registration {
         Self {
             authority: match wire.authority {
                 AuthoritySchema::ReceiptOnly => RegistrationAuthority::ReceiptOnly,
-                AuthoritySchema::Unavailable { reason } => {
-                    RegistrationAuthority::Unavailable { reason }
-                }
+                AuthoritySchema::Unavailable { reason } => RegistrationAuthority::Unavailable {
+                    reason: ReasonText(reason),
+                },
                 AuthoritySchema::Execution {
                     profile,
                     profile_sha256,
@@ -118,21 +115,25 @@ impl From<RegistrationSchema> for Registration {
                     worker,
                 } => RegistrationAuthority::Execution {
                     profile,
-                    profile_sha256,
+                    profile_sha256: Sha256Text(profile_sha256),
                     reference: ExecutablePin {
                         path: reference.path,
-                        sha256: reference.sha256,
+                        sha256: Sha256Text(reference.sha256),
                     },
                     worker: ExecutablePin {
                         path: worker.path,
-                        sha256: worker.sha256,
+                        sha256: Sha256Text(worker.sha256),
                     },
                 },
             },
-            provider: wire.provider,
-            defaults: wire.defaults,
+            provider: ProviderName(wire.provider),
+            defaults: wire.defaults.into_iter().map(RuleName).collect(),
             rules: wire.rules.into_iter().map(RegisteredRule::from).collect(),
-            identity: wire.identity,
+            identity: wire
+                .identity
+                .into_iter()
+                .map(|(key, value)| (IdentityKey(key), CanonicalJson(value.to_string())))
+                .collect(),
         }
     }
 }
@@ -141,25 +142,39 @@ impl From<RegisteredRuleSchema> for RegisteredRule {
     fn from(wire: RegisteredRuleSchema) -> Self {
         let pin = |pin: FilePinSchema| FilePin {
             path: pin.path,
-            sha256: pin.sha256,
+            sha256: Sha256Text(pin.sha256),
         };
         Self {
-            definition: wire.definition.map(pin),
+            definition: wire
+                .definition
+                .map_or(RuleDefinition::Unpinned, |value| {
+                    RuleDefinition::Pinned(pin(value))
+                }),
             modules: wire
                 .modules
                 .into_iter()
-                .map(|(name, value)| (name, pin(value)))
+                .map(|(name, value)| (RegisteredModuleName(name), pin(value)))
                 .collect(),
-            artifacts: wire.artifacts,
-            rule_id: wire.rule_id,
-            command: wire.command.map(|command| match command {
-                CommandSchema::CaseVerification { context } => {
-                    Command::CaseVerification { context }
-                }
+            artifacts: wire
+                .artifacts
+                .into_iter()
+                .map(|(path, digest)| (path, Sha256Text(digest)))
+                .collect(),
+            rule_id: RuleName(wire.rule_id),
+            command: wire.command.map_or(RuleCommand::Unregistered, |command| {
+                RuleCommand::Registered(match command {
+                    CommandSchema::CaseVerification { context } => {
+                        Command::CaseVerification { context }
+                    }
+                })
             }),
-            reason: wire.reason,
+            reason: wire
+                .reason
+                .map_or(RuleReason::Unstated, |reason| RuleReason::Stated(ReasonText(reason))),
             cases: wire.cases.into_iter().map(CaseDocument::from).collect(),
-            instance: wire.instance,
+            instance: wire.instance.map_or(RuleInstance::Undeclared, |value| {
+                RuleInstance::Declared(CanonicalJson(value.to_string()))
+            }),
         }
     }
 }
@@ -386,8 +401,8 @@ impl From<CaseSchema> for CaseDocument {
             source_sha256: Sha256Text(wire.source_sha256),
             files: wire.files.into_iter().map(path).collect(),
             comparison: match wire.comparison {
-                ComparisonSchema::Full => Comparison::Full,
-                ComparisonSchema::Rule => Comparison::Rule,
+                ComparisonSchema::Full => CaseComparison::Full,
+                ComparisonSchema::Rule => CaseComparison::Rule,
             },
             expected: findings(wire.expected),
             project_context_mode: wire.project_context_mode.into(),
@@ -403,7 +418,9 @@ impl From<CaseSchema> for CaseDocument {
                     })
                 },
             ),
-            reference_discrepancy: wire.reference_discrepancy.map(Into::into),
+            reference_discrepancy: wire
+                .reference_discrepancy
+                .map_or(CaseReference::Agrees, |wire| CaseReference::Differs(wire.into())),
             expectation_contract: wire
                 .expectation_contract
                 .map_or(ExpectationContract::Unwritten, |wire| {
@@ -440,11 +457,11 @@ impl From<CaseSchema> for CaseDocument {
                     .collect(),
                 )
             }),
-            file_metadata_sha256: sha(wire.file_metadata_sha256),
+            file_metadata_sha256: FileMetadataDigest::from(sha(wire.file_metadata_sha256)),
             project_search_roots: wire
                 .project_search_roots
-                .map_or(ProjectScope::Undeclared, |roots| {
-                    ProjectScope::Roots(roots.into_iter().map(path).collect())
+                .map_or(DeclaredScope::Undeclared, |roots| {
+                    DeclaredScope::Roots(roots.into_iter().map(path).collect())
                 }),
             given_project_inventory: wire.given_project_inventory.map_or(ProjectInventory::Undeclared, |inventory| {
                 ProjectInventory::Declared(ProjectInventoryDocument {
@@ -460,7 +477,7 @@ impl From<CaseSchema> for CaseDocument {
                         .map(|entry| ProjectEntry {
                             path: path(entry.path),
                             state: match entry.state {
-                                EntryStateSchema::File => EntryState::File,
+                                EntryStateSchema::File => EntryState::Regular,
                                 EntryStateSchema::Directory => EntryState::Directory,
                                 EntryStateSchema::Other => EntryState::Other,
                                 EntryStateSchema::Missing => EntryState::Missing,
@@ -525,9 +542,9 @@ fn pin(value: Option<String>) -> Pin {
 }
 
 impl TryFrom<InvocationSchema> for InvocationDocument {
-    type Error = String;
+    type Error = Error;
 
-    fn try_from(wire: InvocationSchema) -> Result<Self, String> {
+    fn try_from(wire: InvocationSchema) -> Result<Self, Error> {
         let signal = wire
             .signal
             .map_or(Signal::Absent, |number| Signal::Number(ExitStatus(number)));
@@ -567,10 +584,10 @@ impl TryFrom<InvocationSchema> for InvocationDocument {
             wire.state,
         )
         else {
-            return Err(constants::INVOCATION_LACKS_PROCESS_IDENTITY.into());
+            return Err(Error::Invalid(constants::INVOCATION_LACKS_PROCESS_IDENTITY.into()));
         };
-        let parts: SettingsSchema =
-            serde_json::from_value(normalized.clone()).map_err(|error| error.to_string())?;
+        let parts: SettingsSchema = serde_json::from_value(normalized.clone())
+            .map_err(|error| Error::Json(Box::new(error)))?;
         Ok(Self::Complete(CompleteInvocation {
             actual_request_root: PathText(wire.actual_request_root),
             files,
@@ -599,8 +616,152 @@ impl TryFrom<InvocationSchema> for InvocationDocument {
 }
 
 /// Decode one raw invocation record.
-pub(super) fn invocation(bytes: &[u8]) -> Result<InvocationDocument, String> {
-    let wire =
-        serde_json::from_slice::<InvocationSchema>(bytes).map_err(|error| error.to_string())?;
+pub(super) fn invocation(bytes: &CapturedBytes) -> Result<InvocationDocument, Error> {
+    let wire = serde_json::from_slice::<InvocationSchema>(&bytes.0)
+        .map_err(|error| Error::Json(Box::new(error)))?;
     InvocationDocument::try_from(wire)
 }
+
+/// Decode the generated registration.
+pub(super) fn registration(bytes: &CapturedBytes) -> Result<Registration, Error> {
+    serde_json::from_slice::<RegistrationSchema>(&bytes.0)
+        .map(Registration::from)
+        .map_err(|error| Error::Json(Box::new(error)))
+}
+
+/// The one-line JSON answer of an offline receipt audit, newline included.
+pub(super) fn audit(audit: &ReceiptAudit) -> Result<CapturedBytes, Error> {
+    use ryo_benchmark_contracts::domain::receipts::types::CaseKey;
+    let case = |key: &CaseKey| serde_json::json!({"rule": key.rule.0, "name": key.name.0});
+    let mut result = serde_json::json!({
+        "schema": "benchmark-case-receipt-audit/v1",
+        "case_count": audit.case_count.0,
+        "validated_case_ids": audit.verified.iter().map(case).collect::<Vec<_>>(),
+        "raw_exact": audit.raw_exact.0,
+        "documented_discrepancies": audit.documented_discrepancies.0,
+        "contract_only": audit.contract_only.0,
+        "errors": audit.errors.iter().map(|error| error.0.as_str()).collect::<Vec<_>>(),
+    });
+    if !audit.metadata_verified.is_empty() {
+        result["file_metadata_verified_cases"] = serde_json::json!(
+            audit
+                .metadata_verified
+                .iter()
+                .map(|verified| serde_json::json!({"rule": verified.case.rule.0, "name": verified.case.name.0, "sha256": verified.digest.0}))
+                .collect::<Vec<_>>()
+        );
+    }
+    if !audit.tool_contract_differences.is_empty() {
+        result["tool_contract_difference_case_ids"] = serde_json::json!(
+            audit
+                .tool_contract_differences
+                .iter()
+                .map(case)
+                .collect::<Vec<_>>()
+        );
+    }
+    let mut bytes =
+        serde_json::to_vec(&result).map_err(|error| Error::Json(Box::new(error)))?;
+    bytes.push(b'\n');
+    Ok(CapturedBytes(bytes))
+}
+
+/// One result row as the public summary and the per-rule result file write it.
+#[derive(Serialize)]
+struct RowSchema {
+    rule_id: String,
+    status: &'static str,
+    reason: Option<String>,
+    instance: Option<serde_json::Value>,
+    case_results_sha256: Option<String>,
+    case_count: usize,
+    raw_exact: usize,
+    documented_discrepancies: usize,
+    contract_only: usize,
+}
+
+/// The atomic public inventory snapshot.
+#[derive(Serialize)]
+struct SummarySchema {
+    schema: &'static str,
+    provider: String,
+    run_state: &'static str,
+    identity: BTreeMap<String, serde_json::Value>,
+    counts: BTreeMap<&'static str, usize>,
+    rules: Vec<RowSchema>,
+}
+
+/// The JSON value a canonical JSON text spells.
+fn value(text: &CanonicalJson) -> Result<serde_json::Value, Error> {
+    serde_json::from_str(&text.0).map_err(|error| Error::Json(Box::new(error)))
+}
+
+/// The wire shape of a row.
+fn row_schema(row: &Row) -> Result<RowSchema, Error> {
+    {
+        Ok(RowSchema {
+            rule_id: row.rule_id.0.clone(),
+            status: match row.status {
+                RowStatus::Pass => constants::PASS,
+                RowStatus::Fail => constants::FAIL,
+            },
+            reason: match &row.reason {
+                RowReason::Failed(reason) => Some(reason.0.clone()),
+                RowReason::Passed => None,
+            },
+            instance: match &row.instance {
+                RowInstance::Carried(text) => Some(value(text)?),
+                RowInstance::Absent => None,
+            },
+            case_results_sha256: match &row.case_results_sha256 {
+                ReceiptDigest::Recorded(digest) => Some(digest.0.clone()),
+                ReceiptDigest::Unrecorded => None,
+            },
+            case_count: row.case_count.0,
+            raw_exact: row.raw_exact.0,
+            documented_discrepancies: row.documented_discrepancies.0,
+            contract_only: row.contract_only.0,
+        })
+    }
+}
+
+/// Encode one result row, pretty printed.
+pub(super) fn row(row: &Row) -> Result<CapturedBytes, Error> {
+    serde_json::to_vec_pretty(&row_schema(row)?)
+        .map(CapturedBytes)
+        .map_err(|error| Error::Json(Box::new(error)))
+}
+
+/// Encode a whole summary, pretty printed, with its final newline.
+pub(super) fn summary(summary: &Summary) -> Result<CapturedBytes, Error> {
+    let wire = SummarySchema {
+        schema: constants::BENCHMARK_INVENTORY_V1,
+        provider: summary.provider.0.clone(),
+        run_state: match summary.run_state {
+            RunState::Running => constants::RUNNING,
+            RunState::Complete => constants::COMPLETE,
+            RunState::Failed => constants::FAILED,
+        },
+        identity: summary
+            .identity
+            .iter()
+            .map(|(key, text)| Ok((key.0.clone(), value(text)?)))
+            .collect::<Result<_, Error>>()?,
+        counts: BTreeMap::from([
+            (constants::PASS, summary.passed.0),
+            (constants::FAIL, summary.failed.0),
+        ]),
+        rules: summary
+            .rules
+            .iter()
+            .map(row_schema)
+            .collect::<Result<_, _>>()?,
+    };
+    let mut bytes = serde_json::to_vec_pretty(&wire).map_err(|error| Error::Json(Box::new(error)))?;
+    bytes.extend_from_slice(constants::NEWLINE);
+    Ok(CapturedBytes(bytes))
+}
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;

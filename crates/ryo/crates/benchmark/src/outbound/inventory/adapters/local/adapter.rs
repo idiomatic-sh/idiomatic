@@ -1,236 +1,263 @@
 //! Filesystem encoding and atomic publication of complete inventory snapshots.
-use crate::outbound::inventory::adapters::local::constants;
-use crate::outbound::inventory::{
-    interface::InventoryPort,
-    types::{CapturedObservation, InvocationDocument, Registration, Row, Summary},
+use super::constants;
+use ryo_benchmark_contracts::domain::receipts::constants::{
+    CASES_JSONL, INVOCATION_JSON, STDERR_BIN, STDOUT_BIN,
 };
-use std::{io::Write as _, path::Path};
+use super::schemas;
+use crate::outbound::inventory::interface::InventoryPort;
+use crate::outbound::inventory::types::{
+    ContextFiles, InvocationDocument, RawArtifacts, ReceiptFile, Registration, Row, Summary,
+};
+use crate::outbound::suite::types::{
+    observation_document::ObservationDocument, reference_discrepancy::ArtifactPointer,
+};
+use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
+use ryo_benchmark_contracts::domain::receipts::types::ReceiptAudit;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use sha2::{Digest as _, Sha256};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    io::Write as _,
+    path::{Component, Path, PathBuf},
+};
 
-/// Decode the adapter's generated native invocation registration.
-fn load(path: &Path) -> Result<Registration, String> {
-    let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
-    serde_json::from_slice::<super::schemas::RegistrationSchema>(&bytes)
-        .map(Registration::from)
-        .map_err(|e| e.to_string())
-}
 /// Publish a whole snapshot atomically, retaining the previous valid snapshot on failure.
-fn publish(output: &Path, summary: &Summary) -> Result<(), String> {
-    std::fs::create_dir_all(output).map_err(|e| e.to_string())?;
-    let mut temporary = tempfile::NamedTempFile::new_in(output).map_err(|e| e.to_string())?;
-    serde_json::to_writer_pretty(&mut temporary, summary).map_err(|e| e.to_string())?;
-    temporary
-        .write_all(constants::NEWLINE)
-        .map_err(|e| e.to_string())?;
-    temporary.as_file().sync_all().map_err(|e| e.to_string())?;
+fn publish(output: &Path, summary: &Summary) -> Result<(), Error> {
+    std::fs::create_dir_all(output)?;
+    let mut temporary = tempfile::NamedTempFile::new_in(output)?;
+    temporary.write_all(&schemas::summary(summary)?.0)?;
+    temporary.as_file().sync_all()?;
     let _persisted = temporary
         .persist(output.join(constants::SUMMARY_JSON))
-        .map_err(|e| e.to_string())?;
+        .map_err(|error| error.error)?;
     Ok(())
-}
-/// Keep the exact child streams before interpreting its result.
-fn streams(directory: &Path, stdout: &[u8], stderr: &[u8]) -> Result<(), String> {
-    std::fs::create_dir_all(directory).map_err(|e| e.to_string())?;
-    std::fs::write(directory.join(constants::STDOUT_BIN), stdout).map_err(|e| e.to_string())?;
-    std::fs::write(directory.join(constants::STDERR_BIN), stderr).map_err(|e| e.to_string())
-}
-/// Persist one terminal row beside its raw receipts.
-fn result(directory: &Path, row: &Row) -> Result<(), String> {
-    std::fs::create_dir_all(directory).map_err(|e| e.to_string())?;
-    let bytes = serde_json::to_vec_pretty(row).map_err(|e| e.to_string())?;
-    std::fs::write(directory.join(constants::RESULT_JSON), bytes).map_err(|e| e.to_string())
 }
 
 /// Refuse stale result reuse while allowing the provider's already staged reproductions.
-fn begin(output: &Path) -> Result<(), String> {
+fn begin(output: &Path) -> Result<(), Error> {
     if std::fs::metadata(output.join(constants::SUMMARY_JSON)).is_ok() {
-        return Err(constants::INVENTORY_OUTPUT_ALREADY_CONTAINS_A_SUMMARY.into());
+        return Err(Error::Invalid(
+            constants::INVENTORY_OUTPUT_ALREADY_CONTAINS_A_SUMMARY.into(),
+        ));
     }
-    std::fs::create_dir_all(output).map_err(|e| e.to_string())
+    Ok(std::fs::create_dir_all(output)?)
 }
+
 /// Each invocation owns fresh native case receipts.
-fn prepare(directory: &Path) -> Result<(), String> {
+fn prepare(observations: &Path) -> Result<(), Error> {
     if [
-        constants::CASES_JSONL,
-        constants::STDOUT_BIN,
-        constants::STDERR_BIN,
+        CASES_JSONL,
+        STDOUT_BIN,
+        STDERR_BIN,
         constants::RESULT_JSON,
     ]
     .iter()
-    .any(|name| std::fs::metadata(directory.join(name)).is_ok())
+    .any(|name| std::fs::metadata(observations.join(name)).is_ok())
     {
-        return Err(constants::INVENTORY_RULE_OUTPUT_ALREADY_CONTAINS_RECEI.into());
+        return Err(Error::Invalid(
+            constants::INVENTORY_RULE_OUTPUT_ALREADY_CONTAINS_RECEI.into(),
+        ));
     }
-    std::fs::create_dir_all(directory).map_err(|e| e.to_string())
+    Ok(std::fs::create_dir_all(observations)?)
 }
 
-/// Hash an actual receipt's exact bytes at the filesystem boundary.
-fn digest(path: &Path) -> Result<String, String> {
-    use sha2::Digest as _;
-    Ok(format!(
-        "{:x}",
-        sha2::Sha256::digest(std::fs::read(path).map_err(|e| e.to_string())?)
-    ))
+/// Keep the exact child streams before interpreting its result.
+fn capture(
+    observations: &Path,
+    stdout: &CapturedBytes,
+    stderr: &CapturedBytes,
+) -> Result<ReceiptFile, Error> {
+    std::fs::create_dir_all(observations)?;
+    std::fs::write(observations.join(STDOUT_BIN), &stdout.0)?;
+    std::fs::write(observations.join(STDERR_BIN), &stderr.0)?;
+    let receipt = observations.join(CASES_JSONL);
+    Ok(if receipt.is_file() {
+        ReceiptFile::Present(receipt)
+    } else {
+        ReceiptFile::Absent
+    })
 }
 
-/// Local registrations and atomic verification artifacts.
-pub(crate) struct InventoryLocalAdapter {
-    suite: std::sync::Arc<dyn crate::outbound::suite::interface::SuitePort>,
-}
-impl InventoryLocalAdapter {
-    pub(crate) fn new(
-        suite: std::sync::Arc<dyn crate::outbound::suite::interface::SuitePort>,
-    ) -> Self {
-        Self { suite }
-    }
+/// Persist one terminal row beside its raw receipts.
+fn result(observations: &Path, row: &Row) -> Result<(), Error> {
+    std::fs::create_dir_all(observations)?;
+    Ok(std::fs::write(
+        observations.join(constants::RESULT_JSON),
+        schemas::row(row)?.0,
+    )?)
 }
 
-impl InventoryPort for InventoryLocalAdapter {
-    fn canonical(
-        &self,
-        authority: &crate::outbound::inventory::types::RegistrationAuthority,
-    ) -> Result<crate::outbound::inventory::types::CanonicalFacts, String> {
-        use crate::outbound::inventory::types::{CanonicalFacts, RegistrationAuthority};
-        use crate::outbound::suite::types::ArtifactPath;
-        let RegistrationAuthority::Execution {
-            profile,
-            reference,
-            worker,
-            ..
-        } = authority
-        else {
-            return Err(constants::RECEIPT_ONLY_REGISTRATION_CANNOT_EXECUTE.into());
-        };
-        let tool = self
-            .suite
-            .profile(ArtifactPath(profile))
-            .map_err(|e| format!("canonical profile {}: {e}", profile.display()))?;
-        let read = |path: &Path| {
-            self.suite
-                .digest(ArtifactPath(path))
-                .map(|d| d.0)
-                .map_err(|e| format!("inventory artifact {}: {e}", path.display()))
-        };
-        Ok(CanonicalFacts {
-            profile_sha256: read(&profile.join(constants::BENCHMARK_TOML))?,
-            reference_sha256: read(&reference.path)?,
-            worker_sha256: read(&worker.path)?,
-            defaults: tool.defaults.iter().map(ToString::to_string).collect(),
-            deferred: tool.deferred.keys().map(ToString::to_string).collect(),
-            pending: tool.pending.keys().map(ToString::to_string).collect(),
-            approved_reference: tool.sha256.iter().map(|s| s.0.clone()).collect(),
-        })
+/// List the regular files of a canonical registered context.
+fn context_files(context: &Path) -> Result<ContextFiles, Error> {
+    let root = context.canonicalize()?;
+    if root != context {
+        return Err(Error::Invalid(
+            constants::REGISTERED_CONTEXT_MUST_BE_CANONICAL_AND.into(),
+        ));
     }
-    fn inspect_context(
-        &self,
-        context: &Path,
-        artifacts: &std::collections::BTreeMap<std::path::PathBuf, String>,
-    ) -> Result<crate::outbound::inventory::types::ContextFacts, String> {
-        if artifacts.is_empty() {
-            return Err(constants::REGISTERED_CASE_CONTEXT_IS_EMPTY.into());
-        }
-        let root = context
-            .canonicalize()
-            .map_err(|e| format!("registered context {}: {e}", context.display()))?;
-        if root != context {
-            return Err(constants::REGISTERED_CONTEXT_MUST_BE_CANONICAL_AND.into());
-        }
-        let mut pending = vec![root.clone()];
-        let mut files = std::collections::BTreeSet::new();
-        while let Some(directory) = pending.pop() {
-            for entry in std::fs::read_dir(directory).map_err(|e| e.to_string())? {
-                let entry = entry.map_err(|e| e.to_string())?;
-                let kind = entry.file_type().map_err(|e| e.to_string())?;
-                if kind.is_dir() {
-                    pending.push(entry.path());
-                } else if kind.is_file() {
-                    files.insert(entry.path());
-                } else {
-                    return Err(constants::REGISTERED_CONTEXT_CONTAINS_NON_REGULAR_ENTR.into());
-                }
-            }
-        }
-        if files != artifacts.keys().cloned().collect() {
-            return Err(constants::REGISTERED_CONTEXT_NAMESPACE_DIFFERS_FROM_PI.into());
-        }
-        for (path, expected) in artifacts {
-            let actual = self
-                .suite
-                .digest(crate::outbound::suite::types::ArtifactPath(path))
-                .map_err(|e| format!("registered case artifact {}: {e}", path.display()))?;
-            if actual.0 != *expected {
-                return Err(format!(
-                    "registered case artifact changed: {}",
-                    path.display()
+    let mut pending = vec![root];
+    let mut files = BTreeSet::new();
+    while let Some(directory) = pending.pop() {
+        for entry in std::fs::read_dir(directory)? {
+            let entry = entry?;
+            let kind = entry.file_type()?;
+            if kind.is_dir() {
+                pending.push(entry.path());
+            } else if kind.is_file() {
+                let _new = files.insert(entry.path());
+            } else {
+                return Err(Error::Invalid(
+                    constants::REGISTERED_CONTEXT_CONTAINS_NON_REGULAR_ENTR.into(),
                 ));
             }
         }
-        let tool = self
-            .suite
-            .profile(crate::outbound::suite::types::ArtifactPath(context))
-            .map_err(|error| {
-                format!("registered context profile {}: {error}", context.display())
-            })?;
-        Ok(crate::outbound::inventory::types::ContextFacts {
-            modules: tool.query_modules,
-        })
     }
+    Ok(ContextFiles { files })
+}
 
-    fn observations(&self, receipt: &Path) -> Result<CapturedObservation, String> {
-        let records = self
-            .suite
-            .case_observations(crate::outbound::suite::types::ArtifactPath(receipt))
-            .map_err(|error| error.to_string())?;
-        let raw = super::case_artifacts::read(receipt, &records)?;
-        Ok(CapturedObservation {
-            artifacts: raw.bytes,
-            invocations: raw.invocations,
-            records,
-            sha256: Some(digest(receipt)?),
-        })
+/// Read only referenced receipt-file attempts; retain unreferenced resume history untouched.
+fn raw_artifacts(receipt: &Path, rows: &[ObservationDocument]) -> Result<RawArtifacts, Error> {
+    let name = receipt
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| Error::Invalid(constants::RECEIPT_FILENAME_IS_NOT_UTF8.into()))?;
+    let parent = receipt
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or(Path::new(Component::CurDir.as_os_str()))
+        .canonicalize()?;
+    let prefix = format!("{name}.process-");
+    let mut bytes = BTreeMap::new();
+    let mut invocations = BTreeMap::new();
+    let mut directories = BTreeSet::new();
+    for row in rows {
+        let Some(artifacts) = row
+            .process_observation
+            .as_ref()
+            .and_then(|process| process.artifacts.as_ref())
+        else {
+            continue;
+        };
+        for (raw, filename) in [
+            (&artifacts.stdout, STDOUT_BIN),
+            (&artifacts.stderr, STDERR_BIN),
+            (&artifacts.invocation, INVOCATION_JSON),
+        ] {
+            let ArtifactPointer { path: text, sha256 } = raw;
+            let text = text.0.as_str();
+            let path = PathBuf::from(text);
+            let components = path.components().collect::<Vec<_>>();
+            if text.contains(['\\', ':'])
+                || components.len() != 3
+                || !components
+                    .iter()
+                    .all(|part| matches!(part, Component::Normal(_)))
+            {
+                return Err(Error::Invalid(constants::UNSAFE_RAW_PROCESS_ARTIFACT_PATH.into()));
+            }
+            let attempt = components[0]
+                .as_os_str()
+                .to_str()
+                .ok_or_else(|| Error::Invalid(constants::NONUTF8_ATTEMPT.into()))?;
+            let key = components[1]
+                .as_os_str()
+                .to_str()
+                .ok_or_else(|| Error::Invalid(constants::NONUTF8_CASE_KEY.into()))?;
+            if !attempt.starts_with(&prefix)
+                || attempt.len() == prefix.len()
+                || key.len() != constants::DIGEST_HEX_LENGTH
+                || !key
+                    .bytes()
+                    .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+                || components[2].as_os_str() != filename
+            {
+                return Err(Error::Invalid(constants::RAW_ARTIFACT_IS_OUTSIDE_ITS_RECEIPT.into()));
+            }
+            let full = parent.join(&path).canonicalize()?;
+            if !full.starts_with(&parent) || !full.is_file() {
+                return Err(Error::Invalid(constants::RAW_ARTIFACT_ESCAPES_ITS_RECEIPT_BOUNDARY.into()));
+            }
+            let data = std::fs::read(&full)?;
+            if sha256.0 != format!("{:x}", Sha256::digest(&data)) {
+                return Err(Error::Invalid(constants::RAW_PROCESS_ARTIFACT_IS_STALE_OR.into()));
+            }
+            if filename == INVOCATION_JSON {
+                let _previous = invocations.insert(
+                    path.clone(),
+                    schemas::invocation(&CapturedBytes(data.clone()))?,
+                );
+            }
+            if bytes.insert(path.clone(), CapturedBytes(data)).is_some() {
+                return Err(Error::Invalid(constants::RAW_PROCESS_ARTIFACT_IS_STALE_OR.into()));
+            }
+            let _new = directories.insert(
+                full.parent()
+                    .ok_or_else(|| Error::Invalid(constants::RAW_ARTIFACT_HAS_NO_CASE_DIRECTORY.into()))?
+                    .to_path_buf(),
+            );
+        }
     }
+    for directory in directories {
+        let mut names = std::fs::read_dir(directory)?
+            .map(|entry| entry.map(|entry| entry.file_name()))
+            .collect::<Result<Vec<_>, _>>()?;
+        names.sort();
+        if names
+            != [
+                INVOCATION_JSON,
+                STDERR_BIN,
+                STDOUT_BIN,
+            ]
+            .map(std::ffi::OsString::from)
+        {
+            return Err(Error::Invalid(constants::EXTRA_RAW_ARTIFACTS_IN_REFERENCED_CASE.into()));
+        }
+    }
+    Ok(RawArtifacts { bytes, invocations })
+}
 
-    fn decode_invocation(&self, bytes: &[u8]) -> Result<InvocationDocument, String> {
-        super::schemas::invocation(bytes)
-    }
+/// Local registrations and atomic verification artifacts.
+#[derive(Debug)]
+pub(crate) struct InventoryLocalAdapter;
 
-    fn load(&self, path: &Path) -> Result<Registration, String> {
-        load(path)
+impl InventoryPort for InventoryLocalAdapter {
+    fn load(&self, path: &Path) -> Result<Registration, Error> {
+        schemas::registration(&CapturedBytes(std::fs::read(path)?))
     }
-    fn begin(&self, output: &Path) -> Result<(), String> {
+    fn begin(&self, output: &Path) -> Result<(), Error> {
         begin(output)
     }
-    fn publish(&self, output: &Path, summary: &Summary) -> Result<(), String> {
+    fn publish(&self, output: &Path, summary: &Summary) -> Result<(), Error> {
         publish(output, summary)
     }
-    fn prepare(&self, directory: &Path) -> Result<(), String> {
-        prepare(directory)
+    fn prepare(&self, observations: &Path) -> Result<(), Error> {
+        prepare(observations)
     }
     fn capture(
         &self,
-        directory: &Path,
-        stdout: &[u8],
-        stderr: &[u8],
-    ) -> Result<CapturedObservation, String> {
-        streams(directory, stdout, stderr)?;
-        let path = directory.join(constants::CASES_JSONL);
-        if !path.is_file() {
-            return Ok(CapturedObservation {
-                artifacts: std::collections::BTreeMap::new(),
-                invocations: std::collections::BTreeMap::new(),
-                records: Vec::new(),
-                sha256: None,
-            });
-        }
-        self.observations(&path)
+        observations: &Path,
+        stdout: &CapturedBytes,
+        stderr: &CapturedBytes,
+    ) -> Result<ReceiptFile, Error> {
+        capture(observations, stdout, stderr)
     }
-    fn result(&self, directory: &Path, row: &Row) -> Result<(), String> {
-        result(directory, row)
+    fn result(&self, observations: &Path, row: &Row) -> Result<(), Error> {
+        result(observations, row)
     }
-}
-
-impl std::fmt::Debug for InventoryLocalAdapter {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct(constants::INVENTORYLOCALADAPTER)
-            .finish_non_exhaustive()
+    fn decode_invocation(&self, bytes: &CapturedBytes) -> Result<InvocationDocument, Error> {
+        schemas::invocation(bytes)
+    }
+    fn raw_artifacts(
+        &self,
+        receipt: &Path,
+        records: &[ObservationDocument],
+    ) -> Result<RawArtifacts, Error> {
+        raw_artifacts(receipt, records)
+    }
+    fn context_files(&self, context: &Path) -> Result<ContextFiles, Error> {
+        context_files(context)
+    }
+    fn audit_report(&self, audit: &ReceiptAudit) -> Result<CapturedBytes, Error> {
+        schemas::audit(audit)
     }
 }

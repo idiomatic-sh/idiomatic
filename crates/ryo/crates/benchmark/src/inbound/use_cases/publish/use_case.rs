@@ -17,7 +17,7 @@ impl PublishUseCaseImpl {
 }
 impl PublishUseCase for PublishUseCaseImpl {
     fn publish(&self, samples: &[BenchmarkSample]) -> Result<(), ReportsError> {
-        crate::application::run::publication::publish(self.evidence.as_ref(), samples)
+        crate::application::publication::service::publish(self.evidence.as_ref(), samples)
     }
 }
 

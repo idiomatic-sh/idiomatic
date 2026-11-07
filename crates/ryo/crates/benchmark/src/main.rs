@@ -18,8 +18,24 @@
 //!
 //! For authoring tools that delegate process-receipt checks, set both `RYO_BENCHMARK_RECEIPT_VALIDATOR` to the absolute path of this collector and `RYO_BENCHMARK_RECEIPT_VALIDATOR_SHA256` to the independently recorded SHA256 of its bytes. Missing or incorrect configuration fails receipt validation and is retained in the shard error; it never falls back to local matching. A shard with no receipt is unfinished and is rerun on resume.
 use ryo_benchmark::{
-    inbound::use_cases::collect::{interface::CollectUseCase as _, use_case::CollectUseCaseImpl},
-    outbound::{collection, execution},
+    inbound::use_cases::{
+        collect::{
+            constants as collect_constants, interface::CollectUseCase as _,
+            use_case::CollectUseCaseImpl,
+        },
+        validate_case_receipts::{
+            constants as validate_constants, interface::ValidateCaseReceiptsUseCase as _,
+            use_case::ValidateCaseReceiptsUseCaseImpl,
+        },
+        verify_inventory::{
+            constants as inventory_constants, interface::VerifyInventoryUseCase as _,
+            types::InventoryVerdict, use_case::VerifyInventoryUseCaseImpl,
+        },
+    },
+    outbound::{
+        collection, execution,
+        inventory::{self, interface::InventoryPort as _},
+    },
 };
 use std::{
     io::{Read as _, Write as _},
@@ -29,82 +45,56 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let arguments = std::env::args_os().skip(1).collect::<Vec<_>>();
     if arguments
         .first()
-        .is_some_and(|argument| argument == "validate-case-receipts")
+        .is_some_and(|argument| argument == validate_constants::COMMAND)
     {
-        use ryo_benchmark::inbound::use_cases::validate_case_receipts::{
-            interface::ValidateCaseReceiptsUseCase as _, use_case::ValidateCaseReceiptsUseCaseImpl,
-        };
         if arguments.len() != 3 {
-            return Err("usage: validate-case-receipts <registration.json> <receipt.jsonl>".into());
+            return Err(validate_constants::USAGE.into());
         }
-        let validate = ValidateCaseReceiptsUseCaseImpl::new(Arc::new(
-            ryo_benchmark::outbound::inventory::factory::local(),
-        ));
+        let store = inventory::factory::local();
+        let validate = ValidateCaseReceiptsUseCaseImpl::new(Arc::new(inventory::factory::local()));
         let audit = validate.validate_case_receipts(
             std::path::Path::new(&arguments[1]),
             std::path::Path::new(&arguments[2]),
         )?;
-        let mut result = serde_json::json!({
-            "schema":"benchmark-case-receipt-audit/v1", "case_count":audit.case_count,
-            "validated_case_ids":audit.verified.iter().map(|(rule,name)|serde_json::json!({"rule":rule,"name":name})).collect::<Vec<_>>(),
-            "raw_exact":audit.raw_exact,"documented_discrepancies":audit.documented_discrepancies,"contract_only":audit.contract_only,"errors":audit.errors,
-        });
-        if !audit.metadata_verified.is_empty() {
-            result["file_metadata_verified_cases"] = serde_json::json!(audit.metadata_verified.iter().map(|(rule,name,digest)|serde_json::json!({"rule":rule,"name":name,"sha256":digest.0})).collect::<Vec<_>>());
-        }
-        if !audit.tool_contract_differences.is_empty() {
-            result["tool_contract_difference_case_ids"] = serde_json::json!(
-                audit
-                    .tool_contract_differences
-                    .iter()
-                    .map(|(rule, name)| serde_json::json!({"rule":rule,"name":name}))
-                    .collect::<Vec<_>>()
-            );
-        }
-        serde_json::to_writer(std::io::stdout(), &result)?;
-        std::io::stdout().write_all(b"\n")?;
-        return if audit.errors.is_empty() && audit.verified.len() == audit.case_count {
+        std::io::stdout().write_all(&store.audit_report(&audit)?)?;
+        return if audit.errors.is_empty() && audit.verified.len() == audit.case_count.0 {
             Ok(())
         } else {
-            Err("case receipts failed strict verification".into())
+            Err(validate_constants::FAILED.into())
         };
     }
     if arguments
         .first()
-        .is_some_and(|argument| argument == "verify-inventory")
+        .is_some_and(|argument| argument == inventory_constants::COMMAND)
     {
-        use ryo_benchmark::inbound::use_cases::verify_inventory::{
-            interface::VerifyInventoryUseCase as _, use_case::VerifyInventoryUseCaseImpl,
-        };
         if arguments.len() != 4 {
-            return Err(
-                "usage: verify-inventory <registration.json> <output> <timeout-seconds>".into(),
-            );
+            return Err(inventory_constants::USAGE.into());
         }
         let seconds = arguments[3]
             .to_str()
-            .ok_or("timeout is not UTF-8")?
+            .ok_or(inventory_constants::TIMEOUT_NOT_UTF8)?
             .parse::<f64>()?;
         if !seconds.is_finite() || seconds <= 0.0 {
-            return Err("timeout must be finite and positive".into());
+            return Err(inventory_constants::TIMEOUT_INVALID.into());
         }
         let verify = VerifyInventoryUseCaseImpl::new(
             Arc::new(execution::factory::bounded(
                 std::time::Duration::try_from_secs_f64(seconds)?,
             )),
-            Arc::new(ryo_benchmark::outbound::inventory::factory::local()),
+            Arc::new(inventory::factory::local()),
         );
         return if verify.verify_inventory(
             std::path::Path::new(&arguments[1]),
             std::path::Path::new(&arguments[2]),
-        )? {
+        )? == InventoryVerdict::Passed
+        {
             Ok(())
         } else {
-            Err("inventory contains failed rules; see summary.json".into())
+            Err(inventory_constants::FAILED.into())
         };
     }
     if !arguments.is_empty() {
-        return Err("unknown benchmark command".into());
+        return Err(collect_constants::UNKNOWN_COMMAND.into());
     }
     let mut request = Vec::new();
     let _read = std::io::stdin().read_to_end(&mut request)?;

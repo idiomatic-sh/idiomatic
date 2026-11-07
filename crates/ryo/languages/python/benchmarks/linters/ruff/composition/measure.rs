@@ -24,7 +24,6 @@ use ryo_benchmark::outbound::execution::interface::ExecutionPort;
 use ryo_benchmark::outbound::linter::interface::LinterPort;
 use ryo_benchmark::outbound::suite::interface::SuitePort;
 use ryo_benchmark::outbound::suite::types::ArtifactPath;
-use ryo_benchmark_contracts::domain::context::types::RuleContextDeclaration;
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use ryo_benchmark_contracts::domain::measurements::types::MeasurementMode;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -76,7 +75,7 @@ pub(super) fn measure(
     let project_search_roots = tool.project_search_roots.clone();
     tool.defaults = audit.authored().to_vec();
     let declared_rule_context = tool.rule_context.clone();
-    let configured_cohort = Some(tool.defaults.clone());
+    let configured_cohort = ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(tool.defaults.clone());
     let StagedSuite {
         scratch: selected_scratch,
         profile: selected_profile,
@@ -96,6 +95,7 @@ pub(super) fn measure(
     let case_scratch = scratch(suite_source.as_ref(), constants::CASE_SCRATCH)?;
     let certificate = CertifyUseCaseImpl::new(
         Arc::<_>::clone(&suite_source),
+        Arc::new(ryo_benchmark::outbound::context::factory::local()),
         Arc::<super::super::adapter::LinterRuffAdapter>::clone(&reference),
         Arc::<_>::clone(&candidate),
         Arc::<_>::clone(&execution),
@@ -189,9 +189,9 @@ struct Certified {
     candidate: Arc<dyn LinterPort>,
     execution: Arc<dyn ExecutionPort>,
     certificate: Certificate,
-    cohort: Option<Vec<ryo::linter::RuleId>>,
-    rule_context: Option<RuleContextDeclaration>,
-    search_roots: Option<Vec<ryo::linter::RelativePath>>,
+    cohort: ryo_benchmark_contracts::domain::requests::types::CohortSelection,
+    rule_context: ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile,
+    search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots,
     context_mode: ProjectContextMode,
     mode: MeasurementMode,
     cache: PathBuf,
@@ -224,15 +224,17 @@ fn compare(
     if suite.language.0 != constants::PYTHON || !(2..=3).contains(&suite.projects.len()) {
         return Err(Error::Invalid(constants::PROJECT_COUNT_ERROR.into()));
     }
+    let evidence: Arc<dyn EvidencePort> = Arc::new(
+        ryo_benchmark::outbound::evidence::factory::bmf(Box::new(std::io::stdout())),
+    );
     let measurements = MeasureUseCaseImpl::new(
         Arc::<super::super::adapter::LinterRuffAdapter>::clone(&reference),
         Arc::<_>::clone(&candidate),
         Arc::<_>::clone(&execution),
         Arc::<_>::clone(&suite_source),
+        Arc::new(ryo_benchmark::outbound::context::factory::local()),
+        Arc::clone(&evidence),
         mode,
-    );
-    let evidence: Arc<dyn EvidencePort> = Arc::new(
-        ryo_benchmark::outbound::evidence::factory::bmf(Box::new(std::io::stdout())),
     );
     let comparison = CompareUseCaseImpl::new();
     let profile = if matches!(

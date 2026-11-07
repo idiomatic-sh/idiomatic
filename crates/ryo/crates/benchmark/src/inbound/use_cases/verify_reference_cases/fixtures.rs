@@ -1,5 +1,13 @@
 //! Independent source inputs through the actual public use case and real process boundary.
-use super::interface::VerifyReferenceCasesUseCase as _;
+use crate::outbound::{
+    execution::interface::ExecutionPort, linter::interface::LinterPort, suite::interface::SuitePort,
+};
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use std::path::Path;
+
+/// The public operation under test, given the ports, the rules and the scratch directory.
+pub type Operate =
+    fn(&dyn SuitePort, &dyn LinterPort, &dyn ExecutionPort, &Path, &Path) -> Result<usize, ReportsError>;
 #[derive(Clone, Copy, Debug)]
 pub enum Scenario {
     Complete,
@@ -11,19 +19,14 @@ pub enum Refusal {
     Unexpected,
 }
 /// Run one public operation over independently authored source facts.
-pub fn exercise(scenario: Scenario) -> Result<usize, Refusal> {
-    crate::inbound::use_cases::certify::fixtures::with_verification_sources(
+pub fn exercise(scenario: Scenario, operate: Operate) -> Result<usize, Refusal> {
+    crate::inbound::use_cases::prepare_cases::fixtures::with_verification_sources(
         |suite, reference, _candidate, execution, rules, scratch, launches| {
             let input = match scenario {
                 Scenario::Complete => rules.to_owned(),
                 Scenario::Missing => rules.join("missing"),
             };
-            let inventory = crate::outbound::inventory::factory::local();
-            let result = super::use_case::VerifyReferenceCasesUseCaseImpl::new(
-                suite, reference, execution, &inventory,
-            )
-            .verify_reference_cases(&input, scratch)
-            .map(|count| count.0);
+            let result = operate(suite, reference, execution, &input, scratch);
             match scenario {
                 Scenario::Complete => {
                     let actual = std::fs::read_to_string(launches);

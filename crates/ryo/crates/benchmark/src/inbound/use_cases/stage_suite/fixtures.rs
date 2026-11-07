@@ -3,7 +3,7 @@ use super::interface::StageSuiteUseCase as _;
 use crate::outbound::suite::{
     factory::local,
     interface::SuitePort as _,
-    types::{ArtifactPath, ArtifactSet},
+    types::{ArtifactPath, ArtifactSet, CaseReceipts},
 };
 fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path) {
     std::fs::create_dir_all(directory.join("fragments")).expect("fragment directory");
@@ -25,7 +25,7 @@ fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path)
     }
     let selected = vec![ryo::linter::RuleId::try_from("E722").expect("rule identifier")];
     let snapshot = destination.join("profile");
-    crate::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(&local())
+    crate::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(&local(CaseReceipts::Unrecorded))
         .stage_suite(
             directory,
             &snapshot,
@@ -38,7 +38,7 @@ fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path)
         .map(|entry| entry.expect("entry").file_name())
         .collect();
     assert_eq!(children, [std::ffi::OsString::from("E722")]);
-    let fingerprint = local()
+    let fingerprint = local(CaseReceipts::Unrecorded)
         .fingerprint(ArtifactSet(std::slice::from_ref(&snapshot)))
         .expect("seal");
     assert_eq!(
@@ -52,7 +52,7 @@ fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path)
     .expect("source module edit");
     assert_eq!(
         fingerprint,
-        local()
+        local(CaseReceipts::Unrecorded)
             .fingerprint(ArtifactSet(std::slice::from_ref(&snapshot)))
             .expect("unchanged staged module seal")
     );
@@ -63,18 +63,18 @@ fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path)
     .expect("staged module edit");
     assert_ne!(
         fingerprint,
-        local()
+        local(CaseReceipts::Unrecorded)
             .fingerprint(ArtifactSet(std::slice::from_ref(&snapshot)))
             .expect("changed staged module seal")
     );
-    let changed_module_fingerprint = local()
+    let changed_module_fingerprint = local(CaseReceipts::Unrecorded)
         .fingerprint(ArtifactSet(std::slice::from_ref(&snapshot)))
         .expect("seal after staged module edit");
     std::fs::write(directory.join("rules/F704/query.ryoql"), "concurrent work")
         .expect("unselected edit");
     assert_eq!(
         changed_module_fingerprint,
-        local()
+        local(CaseReceipts::Unrecorded)
             .fingerprint(ArtifactSet(std::slice::from_ref(&snapshot)))
             .expect("unchanged seal")
     );
@@ -85,7 +85,7 @@ fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path)
     .expect("selected edit");
     assert_ne!(
         fingerprint,
-        local()
+        local(CaseReceipts::Unrecorded)
             .fingerprint(ArtifactSet(&[snapshot]))
             .expect("changed seal")
     );
@@ -107,10 +107,10 @@ patch = "patches/project.patch"
     .expect("shared manifest");
     std::fs::write(shared.join("patches/project.patch"), "original patch").expect("patch");
     let frozen = destination.join("workload");
-    local()
+    local(CaseReceipts::Unrecorded)
         .stage_projects(ArtifactPath(&shared), ArtifactPath(&frozen))
         .expect("freeze workload");
-    let seal = local()
+    let seal = local(CaseReceipts::Unrecorded)
         .fingerprint(ArtifactSet(std::slice::from_ref(&frozen)))
         .expect("workload seal");
     std::fs::write(shared.join("patches/project.patch"), "concurrent edit").expect("source edit");
@@ -120,17 +120,17 @@ patch = "patches/project.patch"
     );
     assert_eq!(
         seal,
-        local()
+        local(CaseReceipts::Unrecorded)
             .fingerprint(ArtifactSet(std::slice::from_ref(&frozen)))
             .unwrap()
     );
     std::fs::write(frozen.join("patches/project.patch"), "tampered snapshot")
         .expect("snapshot edit");
-    assert_ne!(seal, local().fingerprint(ArtifactSet(&[frozen])).unwrap());
+    assert_ne!(seal, local(CaseReceipts::Unrecorded).fingerprint(ArtifactSet(&[frozen])).unwrap());
 }
 
 fn supporting_queries_are_staged_but_never_receive_default_or_case_owner_credit() {
-    let suite = local();
+    let suite = local(CaseReceipts::Unrecorded);
     let source = tempfile::tempdir().unwrap();
     let destination = tempfile::tempdir().unwrap();
     let root = source.path();
@@ -153,13 +153,13 @@ expected = []
 "#,
     )
     .unwrap();
-    let tool = local().profile(ArtifactPath(root)).unwrap();
+    let tool = local(CaseReceipts::Unrecorded).profile(ArtifactPath(root)).unwrap();
     let audited =
-        crate::application::suite_auditing::service::audit(&local(), root, &tool).unwrap();
+        crate::application::suite_auditing::service::audit(&local(CaseReceipts::Unrecorded), root, &tool).unwrap();
     assert_eq!(audited.implemented, vec!["A001".try_into().unwrap()]);
     assert!(audited.missing.is_empty());
     let snapshot = destination.path().join("profile");
-    crate::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(&local())
+    crate::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(&local(CaseReceipts::Unrecorded))
         .stage_suite(
             root,
             &snapshot,
@@ -172,7 +172,7 @@ expected = []
         "actual support query"
     );
     let cases = crate::application::case_preparation::service::cases(
-        &local(),
+        &local(CaseReceipts::Unrecorded),
         &snapshot.join("rules"),
         &destination.path().join("scratch"),
     )
@@ -214,7 +214,7 @@ expected = []
             .is_err()
     );
     std::fs::remove_file(root.join("rules/B002/query.ryoql")).unwrap();
-    assert!(crate::application::suite_auditing::service::audit(&local(), root, &tool).is_err());
+    assert!(crate::application::suite_auditing::service::audit(&local(CaseReceipts::Unrecorded), root, &tool).is_err());
 }
 fn discrepancy_artifacts_survive_staging_and_refuse_source_or_evidence_edits() {
     use sha2::{Digest as _, Sha256};
@@ -255,7 +255,7 @@ expected = [{{ rule = "T001", file = "positive.txt", start = 0, end = 1 }}]
     );
     std::fs::write(source.join("rules/T001/cases.toml"), cases).unwrap();
     let staged = parent.path().join("staged");
-    let adapter = local();
+    let adapter = local(CaseReceipts::Unrecorded);
     let tool = adapter
         .profile(ArtifactPath(&source))
         .expect("neutral profile");
@@ -362,15 +362,16 @@ pub enum Scenario {
     Workload,
     Supporting,
     Discrepancy,
-    Missing,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Refusal {
+    /// The profile directory does not exist.
     MissingProfile,
+    /// Any other failure.
     Unexpected,
 }
 /// Exercise real source fixtures through the public staging operation.
-pub fn exercise(scenario: Scenario) -> Result<(), Refusal> {
+pub fn exercise(scenario: Scenario) {
     match scenario {
         Scenario::Subset => selected_snapshot_preserves_exact_sources(),
         Scenario::Workload => workload_snapshot_preserves_exact_patch(),
@@ -380,29 +381,5 @@ pub fn exercise(scenario: Scenario) -> Result<(), Refusal> {
         Scenario::Discrepancy => {
             discrepancy_artifacts_survive_staging_and_refuse_source_or_evidence_edits()
         }
-        Scenario::Missing => {
-            let root = tempfile::tempdir().unwrap();
-            let destination = root.path().join("snapshot");
-            let suite = local();
-            let result = super::use_case::StageSuiteUseCaseImpl::new(&suite).stage_suite(
-                &root.path().join("missing"),
-                &destination,
-                &[],
-                ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
-            );
-            assert_eq!(
-                std::fs::symlink_metadata(&destination).unwrap_err().kind(),
-                std::io::ErrorKind::NotFound
-            );
-            return result.map_err(|error| match error {
-                ryo_benchmark_contracts::domain::reports::errors::ReportsError::Io(error)
-                    if error.kind() == std::io::ErrorKind::NotFound =>
-                {
-                    Refusal::MissingProfile
-                }
-                _ => Refusal::Unexpected,
-            });
-        }
     }
-    Ok(())
 }

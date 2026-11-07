@@ -9,7 +9,7 @@ pub mod workspace;
 
 pub mod collection;
 
-pub(crate) mod context;
+pub mod context;
 
 /// External registration and inventory-result files.
 pub mod inventory;

@@ -64,3 +64,15 @@ pub(crate) const QUERY_RYOQL: &str = "query.ryoql";
 pub(crate) const MISSING_VERIFICATION_COMMAND: &str = "missing verification command";
 /// The schema every written observation row follows.
 pub(crate) const BENCHMARK_CASE_V2: &str = "benchmark-case/v2";
+/// Refuse certification without executable cases.
+pub(crate) const NO_CASES: &str = "no executable rule cases";
+/// Separate complete fixture failure records.
+pub(crate) const LINE_SEPARATOR: &str = "\n";
+/// A process-failure reference can only be verified by a direct no-deadline observer.
+pub(crate) const PROCESS_FAILURE_VERIFICATION_REQUIRES_A_DIRE: &str =
+    "process-failure verification requires a direct no-deadline observer";
+/// A reference that decodes a report did not fail as its case declares.
+pub(crate) const REFERENCE_RETURNED_A_DECODED_REPORT_INSTEAD: &str =
+    "reference returned a decoded report instead of the declared process failure";
+/// The authored rule directory inside a linter profile.
+pub(crate) const RULES: &str = "rules";
