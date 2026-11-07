@@ -1,5 +1,9 @@
 # language
 
+## 0.4.0
+
+Places `contract` 0.3.0, whose scaffolded `parse` contract renders `begin_semantics`, `completion_requirement`, `extend_file_model` and `recognizes_explicit` beside the readers, and whose scaffolded `project` contract renders `project_entries` and `observed_entries`. The embedded renderings of the contracts follow, and the three `*-reaches-a-contract-part` scenarios move to the lines the longer contract gives.
+
 ## 0.3.0
 
 Places `contract` 0.2.0, whose parse part may hold readers, and `readers-in-items` 0.2.0, which takes the homes of a reader from the `homes` param: the item folders of the collections and `inbound/contracts/parse/readers/<concept>/composition.rs`.

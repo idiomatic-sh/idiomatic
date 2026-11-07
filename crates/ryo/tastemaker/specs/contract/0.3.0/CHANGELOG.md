@@ -1,5 +1,9 @@
 # contract
 
+## 0.3.0
+
+A scaffolded contract compiles against the engine's traits as they are. `Parse` renders the explicit `ParseUseCase` methods `begin_semantics` (the buffer-filling `SemanticSlot` the language leaves empty), `completion_requirement` (`Independent`), `extend_file_model` and `recognizes_explicit` (`Declines`), and answers the relations `standard_library_import` and `token_link` as `NotYetRead`. `Project` renders `project_entries` (which fills the engine's buffer), takes the `observed_entries` of its request into `Resolved`, iterates `manifests()` by copy and answers `project_namespace_membership` as `NotYetRead`. The rendered fixtures carry them, and the scenarios that mutate a rendering expect one more finding for each member it lacks. A throwaway language scaffolded from `language` 0.4.0 compiles with `cargo check --all-targets`.
+
 ## 0.2.0
 
 A contract part may hold readers: `readers.rs` (the list of concepts), `readers/<concept>.rs`, and for each concept `composition.rs` (the readers bound to the grammar adapters that serve them, the one place that may name an adapter), `service.rs`, `types.rs`, `constants.rs`, the proof `composition_test.rs` (and its groups) or `service_test.rs`, and `fixtures.rs` with `fixtures/<file>.rs`. The part may also hold `constants.rs` and `service.rs` of its own. All are optional (`count = { min = 0 }`), so a contract without readers is unchanged. New templates `reader-list`, `reader-module`, `reader-composition`, `reader-fixtures`, `reader-fixture`. Fixtures: `contract-with-readers`, `reader-composition-without-its-role`.

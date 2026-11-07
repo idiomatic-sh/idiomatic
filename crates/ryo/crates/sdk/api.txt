@@ -105,6 +105,9 @@ pub use ryo::languages::FilesystemFileRow
 pub use ryo::languages::FilesystemLineCount
 pub use ryo::languages::FilesystemLineCountColumn
 pub use ryo::languages::FilesystemLineCountRow
+pub use ryo::languages::FilesystemReadFailure
+pub use ryo::languages::FilesystemReadFailureColumn
+pub use ryo::languages::FilesystemReadFailureRow
 pub use ryo::languages::Flag
 pub use ryo::languages::Flags
 pub use ryo::languages::Folder
@@ -155,6 +158,9 @@ pub use ryo::languages::LiteralPropertiesColumn
 pub use ryo::languages::LiteralPropertiesRow
 pub use ryo::languages::Locatedness
 pub use ryo::languages::Lossless
+pub use ryo::languages::ManifestDiagnostic
+pub use ryo::languages::ManifestDiagnosticColumn
+pub use ryo::languages::ManifestDiagnosticRow
 pub use ryo::languages::ManifestFile
 pub use ryo::languages::ManifestInput
 pub use ryo::languages::ManifestItem
@@ -185,6 +191,7 @@ pub use ryo::languages::Noted
 pub use ryo::languages::NumericLiteral
 pub use ryo::languages::NumericLiteralColumn
 pub use ryo::languages::NumericLiteralRow
+pub use ryo::languages::ObservedEntryState
 pub use ryo::languages::Offset
 pub use ryo::languages::OptionalCapability
 pub use ryo::languages::Optionality
@@ -200,8 +207,12 @@ pub use ryo::languages::ParseConfigurationIdentity
 pub use ryo::languages::ParseError
 pub use ryo::languages::ParseRequest
 pub use ryo::languages::Position
+pub use ryo::languages::PrimaryFileRole
 pub use ryo::languages::Project
 pub use ryo::languages::ProjectError
+pub use ryo::languages::ProjectNamespaceMembership
+pub use ryo::languages::ProjectNamespaceMembershipColumn
+pub use ryo::languages::ProjectNamespaceMembershipRow
 pub use ryo::languages::ProjectRequest
 pub use ryo::languages::PropertyId
 pub use ryo::languages::Prose
@@ -229,9 +240,9 @@ pub use ryo::languages::ReferenceRow
 pub use ryo::languages::Refused
 pub use ryo::languages::Relation
 pub use ryo::languages::RenderContext
-pub use ryo::languages::RenderError
 pub use ryo::languages::RenderOutcome
 pub use ryo::languages::RenderRequest
+pub use ryo::languages::RenderedNode
 pub use ryo::languages::ReportText
 pub use ryo::languages::Repository
 pub use ryo::languages::Resolved
@@ -251,9 +262,11 @@ pub use ryo::languages::SemanticChild
 pub use ryo::languages::SemanticChildColumn
 pub use ryo::languages::SemanticChildRow
 pub use ryo::languages::SemanticSession
+pub use ryo::languages::SemanticSlot
 pub use ryo::languages::SemanticSyntax
 pub use ryo::languages::SemanticSyntaxColumn
 pub use ryo::languages::SemanticSyntaxRow
+pub use ryo::languages::SemanticsError
 pub use ryo::languages::SequenceElement
 pub use ryo::languages::SequenceElementColumn
 pub use ryo::languages::SequenceElementRow
@@ -268,6 +281,9 @@ pub use ryo::languages::SourceLocationRow
 pub use ryo::languages::SourceOrder
 pub use ryo::languages::SourcePath
 pub use ryo::languages::Span
+pub use ryo::languages::StandardLibraryImport
+pub use ryo::languages::StandardLibraryImportColumn
+pub use ryo::languages::StandardLibraryImportRow
 pub use ryo::languages::StaticCall
 pub use ryo::languages::StaticCallColumn
 pub use ryo::languages::StaticCallRow
@@ -284,6 +300,7 @@ pub use ryo::languages::SyntaxAcceptance
 pub use ryo::languages::SyntaxChild
 pub use ryo::languages::SyntaxChildColumn
 pub use ryo::languages::SyntaxChildRow
+pub use ryo::languages::SyntaxCompleteness
 pub use ryo::languages::SyntaxError
 pub use ryo::languages::SyntaxErrorColumn
 pub use ryo::languages::SyntaxErrorRow
@@ -336,6 +353,7 @@ pub use ryo::languages::end_name
 pub use ryo::languages::end_of
 pub use ryo::languages::enter_implied_node
 pub use ryo::languages::enter_node
+pub use ryo::languages::entry_state
 pub use ryo::languages::field_at
 pub use ryo::languages::field_name_at
 pub use ryo::languages::fill_to
@@ -344,6 +362,7 @@ pub use ryo::languages::flags_at
 pub use ryo::languages::has_incomplete_lexical_stream
 pub use ryo::languages::has_incomplete_syntax
 pub use ryo::languages::has_noted_words
+pub use ryo::languages::impact_name
 pub use ryo::languages::intern_derived
 pub use ryo::languages::kind_at
 pub use ryo::languages::kinds
@@ -370,7 +389,9 @@ pub use ryo::languages::note_word
 pub use ryo::languages::ordinal_at
 pub use ryo::languages::origin_at
 pub use ryo::languages::parent_at
+pub use ryo::languages::phase_name
 pub use ryo::languages::positions
+pub use ryo::languages::primary_role_from_manifests
 pub use ryo::languages::property_at
 pub use ryo::languages::provenance_of
 pub use ryo::languages::push_name
@@ -383,6 +404,7 @@ pub use ryo::languages::reads_manifests
 pub use ryo::languages::relation_named
 pub use ryo::languages::release
 pub use ryo::languages::resolve_target
+pub use ryo::languages::search_roots
 pub use ryo::languages::set_note
 pub use ryo::languages::set_syntax_acceptance
 pub use ryo::languages::size_at
@@ -406,6 +428,7 @@ impl ryo::languages::Language
 pub fn ryo::languages::Language::build(&self) -> &ryo::languages::LanguageBuild
 pub fn ryo::languages::Language::configuration_identity(&self) -> ryo_language::inbound::use_cases::parse::types::ParseConfigurationIdentity<'_>
 pub fn ryo::languages::Language::name(&self) -> &ryo::languages::LanguageName
+pub fn ryo::languages::Language::primary_role(&self, ryo_language::domain::files::types::SourcePath<'_>) -> ryo_language::domain::files::types::PrimaryFileRole
 pub fn ryo::languages::Language::skips(&self) -> &'static [ryo_language::inbound::use_cases::parse::types::SkippedDirectory]
 impl core::clone::Clone for ryo::languages::Language
 pub fn ryo::languages::Language::clone(&self) -> ryo::languages::Language
@@ -445,13 +468,14 @@ pub mod ryo::linter
 pub use ryo::linter::ExecutablePermission
 pub mod ryo::linter::lint
 pub mod ryo::linter::lint::entry
-pub fn ryo::linter::lint::entry::dependency_fingerprint(&[u8]) -> ryo::linter::DependencyFingerprint
 pub fn ryo::linter::lint::entry::lint(ryo::linter::Languages, &ryo::linter::WorkerPool, ryo::linter::MemoryBudget, ryo::linter::Cache, ryo::linter::LintRequest) -> core::result::Result<ryo::linter::LintReport, ryo::linter::LintError>
 pub fn ryo::linter::lint::entry::lint_with(&ryo::linter::Linter, ryo::linter::LintRequest) -> core::result::Result<ryo::linter::LintReport, ryo::linter::LintError>
 pub mod ryo::linter::lint::errors
 #[non_exhaustive] pub enum ryo::linter::lint::errors::LintError
 pub ryo::linter::lint::errors::LintError::DuplicateHostRelation
 pub ryo::linter::lint::errors::LintError::DuplicateHostRelation::name: ryo::linter::HostRelationName
+pub ryo::linter::lint::errors::LintError::Execution
+pub ryo::linter::lint::errors::LintError::Execution::reason: alloc::string::String
 pub ryo::linter::lint::errors::LintError::HostCellKind
 pub ryo::linter::lint::errors::LintError::HostCellKind::column: ryo::linter::HostColumnName
 pub ryo::linter::lint::errors::LintError::HostCellKind::expected: ryo::linter::HostKind
@@ -471,8 +495,14 @@ pub ryo::linter::lint::errors::LintError::MemoryBudgetExceeded::plans: alloc::ve
 pub ryo::linter::lint::errors::LintError::MemoryBudgetExceeded::used: u64
 pub ryo::linter::lint::errors::LintError::MissingParameter
 pub ryo::linter::lint::errors::LintError::MissingParameter::id: ryo::linter::RuleId
+pub ryo::linter::lint::errors::LintError::ObservationBindings
+pub ryo::linter::lint::errors::LintError::ObservationBindings::reason: alloc::string::String
+pub ryo::linter::lint::errors::LintError::ObservationExecution
+pub ryo::linter::lint::errors::LintError::ObservationExecution::reason: alloc::string::String
 pub ryo::linter::lint::errors::LintError::PathNotText
 pub ryo::linter::lint::errors::LintError::PathNotText::path: std::path::PathBuf
+pub ryo::linter::lint::errors::LintError::ProjectPath
+pub ryo::linter::lint::errors::LintError::ProjectPath::path: ryo::linter::RelativePath
 pub ryo::linter::lint::errors::LintError::Provider
 pub ryo::linter::lint::errors::LintError::Provider::code: ryo::linter::ProviderCode
 pub ryo::linter::lint::errors::LintError::Provider::provider: ryo::linter::ProviderName
@@ -516,7 +546,6 @@ pub fn ryo::linter::ProviderCode::fmt(&self, &mut core::fmt::Formatter<'_>) -> c
 impl core::marker::Copy for ryo::linter::ProviderCode
 impl core::marker::StructuralPartialEq for ryo::linter::ProviderCode
 pub mod ryo::linter::lint::types
-pub use ryo::linter::lint::types::ExecutablePermission
 #[non_exhaustive] pub enum ryo::linter::lint::types::Cache
 pub ryo::linter::lint::types::Cache::At(std::path::PathBuf)
 pub ryo::linter::lint::types::Cache::None
@@ -558,6 +587,20 @@ impl core::hash::Hash for ryo::linter::FlagState
 pub fn ryo::linter::FlagState::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for ryo::linter::FlagState
 impl core::marker::StructuralPartialEq for ryo::linter::FlagState
+pub enum ryo::linter::lint::types::ObservationProducer
+pub ryo::linter::lint::types::ObservationProducer::NoQuery
+pub ryo::linter::lint::types::ObservationProducer::NoQuery::rule: ryo::linter::RuleId
+pub ryo::linter::lint::types::ObservationProducer::Output
+pub ryo::linter::lint::types::ObservationProducer::Output::output: ryo::linter::ObservationName
+pub ryo::linter::lint::types::ObservationProducer::Output::rule: ryo::linter::RuleId
+impl core::clone::Clone for ryo::linter::ObservationProducer
+pub fn ryo::linter::ObservationProducer::clone(&self) -> ryo::linter::ObservationProducer
+impl core::cmp::Eq for ryo::linter::ObservationProducer
+impl core::cmp::PartialEq for ryo::linter::ObservationProducer
+pub fn ryo::linter::ObservationProducer::eq(&self, &ryo::linter::ObservationProducer) -> bool
+impl core::fmt::Debug for ryo::linter::ObservationProducer
+pub fn ryo::linter::ObservationProducer::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::linter::ObservationProducer
 #[non_exhaustive] pub enum ryo::linter::lint::types::ParameterValue
 pub ryo::linter::lint::types::ParameterValue::Flag(ryo::linter::FlagState)
 pub ryo::linter::lint::types::ParameterValue::Number(ryo::linter::ParameterNumber)
@@ -617,6 +660,48 @@ impl core::fmt::Debug for ryo::linter::ProjectDependencyState
 pub fn ryo::linter::ProjectDependencyState::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for ryo::linter::ProjectDependencyState
 impl core::marker::StructuralPartialEq for ryo::linter::ProjectDependencyState
+pub enum ryo::linter::lint::types::ProjectEntryState
+pub ryo::linter::lint::types::ProjectEntryState::Directory
+pub ryo::linter::lint::types::ProjectEntryState::File
+pub ryo::linter::lint::types::ProjectEntryState::Missing
+pub ryo::linter::lint::types::ProjectEntryState::Other
+pub ryo::linter::lint::types::ProjectEntryState::Unknown
+impl core::clone::Clone for ryo::linter::ProjectEntryState
+pub fn ryo::linter::ProjectEntryState::clone(&self) -> ryo::linter::ProjectEntryState
+impl core::cmp::Eq for ryo::linter::ProjectEntryState
+impl core::cmp::PartialEq for ryo::linter::ProjectEntryState
+pub fn ryo::linter::ProjectEntryState::eq(&self, &ryo::linter::ProjectEntryState) -> bool
+impl core::fmt::Debug for ryo::linter::ProjectEntryState
+pub fn ryo::linter::ProjectEntryState::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for ryo::linter::ProjectEntryState
+impl core::marker::StructuralPartialEq for ryo::linter::ProjectEntryState
+pub enum ryo::linter::lint::types::ProjectInventoryCompleteness
+pub ryo::linter::lint::types::ProjectInventoryCompleteness::CompleteWithinDeclaredScope
+pub ryo::linter::lint::types::ProjectInventoryCompleteness::Partial
+impl core::clone::Clone for ryo::linter::ProjectInventoryCompleteness
+pub fn ryo::linter::ProjectInventoryCompleteness::clone(&self) -> ryo::linter::ProjectInventoryCompleteness
+impl core::cmp::Eq for ryo::linter::ProjectInventoryCompleteness
+impl core::cmp::PartialEq for ryo::linter::ProjectInventoryCompleteness
+pub fn ryo::linter::ProjectInventoryCompleteness::eq(&self, &ryo::linter::ProjectInventoryCompleteness) -> bool
+impl core::default::Default for ryo::linter::ProjectInventoryCompleteness
+pub fn ryo::linter::ProjectInventoryCompleteness::default() -> ryo::linter::ProjectInventoryCompleteness
+impl core::fmt::Debug for ryo::linter::ProjectInventoryCompleteness
+pub fn ryo::linter::ProjectInventoryCompleteness::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for ryo::linter::ProjectInventoryCompleteness
+impl core::marker::StructuralPartialEq for ryo::linter::ProjectInventoryCompleteness
+pub enum ryo::linter::lint::types::ProjectSearchScope
+pub ryo::linter::lint::types::ProjectSearchScope::Declared(alloc::vec::Vec<ryo::linter::RelativePath>)
+pub ryo::linter::lint::types::ProjectSearchScope::Undeclared
+impl core::clone::Clone for ryo::linter::ProjectSearchScope
+pub fn ryo::linter::ProjectSearchScope::clone(&self) -> ryo::linter::ProjectSearchScope
+impl core::cmp::Eq for ryo::linter::ProjectSearchScope
+impl core::cmp::PartialEq for ryo::linter::ProjectSearchScope
+pub fn ryo::linter::ProjectSearchScope::eq(&self, &ryo::linter::ProjectSearchScope) -> bool
+impl core::default::Default for ryo::linter::ProjectSearchScope
+pub fn ryo::linter::ProjectSearchScope::default() -> ryo::linter::ProjectSearchScope
+impl core::fmt::Debug for ryo::linter::ProjectSearchScope
+pub fn ryo::linter::ProjectSearchScope::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::linter::ProjectSearchScope
 pub enum ryo::linter::lint::types::RuleApplicability
 pub ryo::linter::lint::types::RuleApplicability::AcceptedSyntax
 pub ryo::linter::lint::types::RuleApplicability::Always
@@ -678,6 +763,18 @@ impl core::hash::Hash for ryo::linter::Column
 pub fn ryo::linter::Column::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for ryo::linter::Column
 impl core::marker::StructuralPartialEq for ryo::linter::Column
+pub struct ryo::linter::lint::types::DependencyBytes<'a>(pub &'a [u8])
+impl core::convert::From<ryo::linter::DependencyBytes<'_>> for ryo::linter::DependencyFingerprint
+pub fn ryo::linter::DependencyFingerprint::from(ryo::linter::DependencyBytes<'_>) -> Self
+impl<'a> core::clone::Clone for ryo::linter::DependencyBytes<'a>
+pub fn ryo::linter::DependencyBytes<'a>::clone(&self) -> ryo::linter::DependencyBytes<'a>
+impl<'a> core::cmp::Eq for ryo::linter::DependencyBytes<'a>
+impl<'a> core::cmp::PartialEq for ryo::linter::DependencyBytes<'a>
+pub fn ryo::linter::DependencyBytes<'a>::eq(&self, &ryo::linter::DependencyBytes<'a>) -> bool
+impl<'a> core::fmt::Debug for ryo::linter::DependencyBytes<'a>
+pub fn ryo::linter::DependencyBytes<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for ryo::linter::DependencyBytes<'a>
+impl<'a> core::marker::StructuralPartialEq for ryo::linter::DependencyBytes<'a>
 pub struct ryo::linter::lint::types::DependencyFingerprint(pub [u8; 16])
 impl core::clone::Clone for ryo::linter::DependencyFingerprint
 pub fn ryo::linter::DependencyFingerprint::clone(&self) -> ryo::linter::DependencyFingerprint
@@ -688,6 +785,8 @@ impl core::cmp::PartialEq for ryo::linter::DependencyFingerprint
 pub fn ryo::linter::DependencyFingerprint::eq(&self, &ryo::linter::DependencyFingerprint) -> bool
 impl core::cmp::PartialOrd for ryo::linter::DependencyFingerprint
 pub fn ryo::linter::DependencyFingerprint::partial_cmp(&self, &ryo::linter::DependencyFingerprint) -> core::option::Option<core::cmp::Ordering>
+impl core::convert::From<ryo::linter::DependencyBytes<'_>> for ryo::linter::DependencyFingerprint
+pub fn ryo::linter::DependencyFingerprint::from(ryo::linter::DependencyBytes<'_>) -> Self
 impl core::fmt::Debug for ryo::linter::DependencyFingerprint
 pub fn ryo::linter::DependencyFingerprint::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for ryo::linter::DependencyFingerprint
@@ -732,6 +831,19 @@ pub fn ryo::linter::FindingKey::fmt(&self, &mut core::fmt::Formatter<'_>) -> cor
 impl core::hash::Hash for ryo::linter::FindingKey
 pub fn ryo::linter::FindingKey::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::StructuralPartialEq for ryo::linter::FindingKey
+pub struct ryo::linter::lint::types::GivenProjectInventory
+pub ryo::linter::lint::types::GivenProjectInventory::completeness: ryo::linter::ProjectInventoryCompleteness
+pub ryo::linter::lint::types::GivenProjectInventory::entries: alloc::vec::Vec<ryo::linter::ProjectEntryObservation>
+impl core::clone::Clone for ryo::linter::GivenProjectInventory
+pub fn ryo::linter::GivenProjectInventory::clone(&self) -> ryo::linter::GivenProjectInventory
+impl core::cmp::Eq for ryo::linter::GivenProjectInventory
+impl core::cmp::PartialEq for ryo::linter::GivenProjectInventory
+pub fn ryo::linter::GivenProjectInventory::eq(&self, &ryo::linter::GivenProjectInventory) -> bool
+impl core::default::Default for ryo::linter::GivenProjectInventory
+pub fn ryo::linter::GivenProjectInventory::default() -> ryo::linter::GivenProjectInventory
+impl core::fmt::Debug for ryo::linter::GivenProjectInventory
+pub fn ryo::linter::GivenProjectInventory::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::linter::GivenProjectInventory
 pub struct ryo::linter::lint::types::Glob(_)
 impl core::clone::Clone for ryo::linter::Glob
 pub fn ryo::linter::Glob::clone(&self) -> ryo::linter::Glob
@@ -809,10 +921,12 @@ pub struct ryo::linter::lint::types::LintRequest
 pub ryo::linter::lint::types::LintRequest::beside: alloc::vec::Vec<ryo::linter::CaseSource>
 pub ryo::linter::lint::types::LintRequest::corpus: ryo::linter::Corpus
 pub ryo::linter::lint::types::LintRequest::files: alloc::vec::Vec<ryo::linter::Glob>
+pub ryo::linter::lint::types::LintRequest::given_project_inventory: ryo::linter::GivenProjectInventory
 pub ryo::linter::lint::types::LintRequest::hosted: alloc::vec::Vec<ryo::linter::HostRelation>
+pub ryo::linter::lint::types::LintRequest::project_search_scope: ryo::linter::ProjectSearchScope
 pub ryo::linter::lint::types::LintRequest::root: std::path::PathBuf
 pub ryo::linter::lint::types::LintRequest::rules: alloc::collections::btree::map::BTreeMap<ryo::linter::RuleId, ryo::linter::Rule>
-pub ryo::linter::lint::types::LintRequest::source_language: core::option::Option<ryo::languages::LanguageName>
+pub ryo::linter::lint::types::LintRequest::source_language: ryo::linter::SourceLanguage
 impl core::clone::Clone for ryo::linter::LintRequest
 pub fn ryo::linter::LintRequest::clone(&self) -> ryo::linter::LintRequest
 impl core::cmp::Eq for ryo::linter::LintRequest
@@ -841,6 +955,18 @@ pub fn ryo::linter::Message::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::
 impl core::hash::Hash for ryo::linter::Message
 pub fn ryo::linter::Message::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::StructuralPartialEq for ryo::linter::Message
+pub struct ryo::linter::lint::types::ObservationBinding
+pub ryo::linter::lint::types::ObservationBinding::columns: alloc::vec::Vec<ryo::linter::ObservationColumn>
+pub ryo::linter::lint::types::ObservationBinding::name: ryo::linter::ObservationBindingName
+pub ryo::linter::lint::types::ObservationBinding::producers: alloc::vec::Vec<ryo::linter::ObservationProducer>
+impl core::clone::Clone for ryo::linter::ObservationBinding
+pub fn ryo::linter::ObservationBinding::clone(&self) -> ryo::linter::ObservationBinding
+impl core::cmp::Eq for ryo::linter::ObservationBinding
+impl core::cmp::PartialEq for ryo::linter::ObservationBinding
+pub fn ryo::linter::ObservationBinding::eq(&self, &ryo::linter::ObservationBinding) -> bool
+impl core::fmt::Debug for ryo::linter::ObservationBinding
+pub fn ryo::linter::ObservationBinding::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::linter::ObservationBinding
 pub struct ryo::linter::lint::types::ParameterCell
 pub ryo::linter::lint::types::ParameterCell::key: ryo::linter::ParameterText
 pub ryo::linter::lint::types::ParameterCell::value: ryo::linter::ParameterText
@@ -933,6 +1059,17 @@ pub fn ryo::linter::ProjectDependency::eq(&self, &ryo::linter::ProjectDependency
 impl core::fmt::Debug for ryo::linter::ProjectDependency
 pub fn ryo::linter::ProjectDependency::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for ryo::linter::ProjectDependency
+pub struct ryo::linter::lint::types::ProjectEntryObservation
+pub ryo::linter::lint::types::ProjectEntryObservation::path: ryo::linter::RelativePath
+pub ryo::linter::lint::types::ProjectEntryObservation::state: ryo::linter::ProjectEntryState
+impl core::clone::Clone for ryo::linter::ProjectEntryObservation
+pub fn ryo::linter::ProjectEntryObservation::clone(&self) -> ryo::linter::ProjectEntryObservation
+impl core::cmp::Eq for ryo::linter::ProjectEntryObservation
+impl core::cmp::PartialEq for ryo::linter::ProjectEntryObservation
+pub fn ryo::linter::ProjectEntryObservation::eq(&self, &ryo::linter::ProjectEntryObservation) -> bool
+impl core::fmt::Debug for ryo::linter::ProjectEntryObservation
+pub fn ryo::linter::ProjectEntryObservation::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::linter::ProjectEntryObservation
 pub struct ryo::linter::lint::types::ProviderName(pub alloc::boxed::Box<str>)
 impl core::clone::Clone for ryo::linter::ProviderName
 pub fn ryo::linter::ProviderName::clone(&self) -> ryo::linter::ProviderName
@@ -964,6 +1101,7 @@ pub struct ryo::linter::lint::types::Rule
 pub ryo::linter::lint::types::Rule::applicability: ryo::linter::RuleApplicability
 pub ryo::linter::lint::types::Rule::exclude: alloc::vec::Vec<ryo::linter::Glob>
 pub ryo::linter::lint::types::Rule::include: alloc::vec::Vec<ryo::linter::Glob>
+pub ryo::linter::lint::types::Rule::observations: alloc::vec::Vec<ryo::linter::ObservationBinding>
 pub ryo::linter::lint::types::Rule::parameters: alloc::collections::btree::map::BTreeMap<ryo::linter::ParameterName, ryo::linter::ParameterValue>
 pub ryo::linter::lint::types::Rule::query: ryo::query::RyoQlQuery
 impl core::clone::Clone for ryo::linter::Rule
@@ -1117,6 +1255,8 @@ impl core::marker::StructuralPartialEq for ryo::linter::HostKind
 #[non_exhaustive] pub enum ryo::linter::LintError
 pub ryo::linter::LintError::DuplicateHostRelation
 pub ryo::linter::LintError::DuplicateHostRelation::name: ryo::linter::HostRelationName
+pub ryo::linter::LintError::Execution
+pub ryo::linter::LintError::Execution::reason: alloc::string::String
 pub ryo::linter::LintError::HostCellKind
 pub ryo::linter::LintError::HostCellKind::column: ryo::linter::HostColumnName
 pub ryo::linter::LintError::HostCellKind::expected: ryo::linter::HostKind
@@ -1136,8 +1276,14 @@ pub ryo::linter::LintError::MemoryBudgetExceeded::plans: alloc::vec::Vec<ryo::li
 pub ryo::linter::LintError::MemoryBudgetExceeded::used: u64
 pub ryo::linter::LintError::MissingParameter
 pub ryo::linter::LintError::MissingParameter::id: ryo::linter::RuleId
+pub ryo::linter::LintError::ObservationBindings
+pub ryo::linter::LintError::ObservationBindings::reason: alloc::string::String
+pub ryo::linter::LintError::ObservationExecution
+pub ryo::linter::LintError::ObservationExecution::reason: alloc::string::String
 pub ryo::linter::LintError::PathNotText
 pub ryo::linter::LintError::PathNotText::path: std::path::PathBuf
+pub ryo::linter::LintError::ProjectPath
+pub ryo::linter::LintError::ProjectPath::path: ryo::linter::RelativePath
 pub ryo::linter::LintError::Provider
 pub ryo::linter::LintError::Provider::code: ryo::linter::ProviderCode
 pub ryo::linter::LintError::Provider::provider: ryo::linter::ProviderName
@@ -1175,6 +1321,38 @@ impl core::fmt::Debug for ryo::linter::MemoryBudget
 pub fn ryo::linter::MemoryBudget::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for ryo::linter::MemoryBudget
 impl core::marker::StructuralPartialEq for ryo::linter::MemoryBudget
+pub enum ryo::linter::ObservationKind
+pub ryo::linter::ObservationKind::File
+pub ryo::linter::ObservationKind::Flag
+pub ryo::linter::ObservationKind::Node
+pub ryo::linter::ObservationKind::Number
+pub ryo::linter::ObservationKind::Span
+pub ryo::linter::ObservationKind::Symbol
+impl core::clone::Clone for ryo::linter::ObservationKind
+pub fn ryo::linter::ObservationKind::clone(&self) -> ryo::linter::ObservationKind
+impl core::cmp::Eq for ryo::linter::ObservationKind
+impl core::cmp::PartialEq for ryo::linter::ObservationKind
+pub fn ryo::linter::ObservationKind::eq(&self, &ryo::linter::ObservationKind) -> bool
+impl core::convert::From<ryo::linter::ObservationKind> for ryo_relations::domain::relations::types::CellKind
+pub fn ryo_relations::domain::relations::types::CellKind::from(ryo::linter::ObservationKind) -> Self
+impl core::fmt::Debug for ryo::linter::ObservationKind
+pub fn ryo::linter::ObservationKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for ryo::linter::ObservationKind
+impl core::marker::StructuralPartialEq for ryo::linter::ObservationKind
+pub enum ryo::linter::ObservationProducer
+pub ryo::linter::ObservationProducer::NoQuery
+pub ryo::linter::ObservationProducer::NoQuery::rule: ryo::linter::RuleId
+pub ryo::linter::ObservationProducer::Output
+pub ryo::linter::ObservationProducer::Output::output: ryo::linter::ObservationName
+pub ryo::linter::ObservationProducer::Output::rule: ryo::linter::RuleId
+impl core::clone::Clone for ryo::linter::ObservationProducer
+pub fn ryo::linter::ObservationProducer::clone(&self) -> ryo::linter::ObservationProducer
+impl core::cmp::Eq for ryo::linter::ObservationProducer
+impl core::cmp::PartialEq for ryo::linter::ObservationProducer
+pub fn ryo::linter::ObservationProducer::eq(&self, &ryo::linter::ObservationProducer) -> bool
+impl core::fmt::Debug for ryo::linter::ObservationProducer
+pub fn ryo::linter::ObservationProducer::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::linter::ObservationProducer
 #[non_exhaustive] pub enum ryo::linter::ParameterValue
 pub ryo::linter::ParameterValue::Flag(ryo::linter::FlagState)
 pub ryo::linter::ParameterValue::Number(ryo::linter::ParameterNumber)
@@ -1234,6 +1412,48 @@ impl core::fmt::Debug for ryo::linter::ProjectDependencyState
 pub fn ryo::linter::ProjectDependencyState::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for ryo::linter::ProjectDependencyState
 impl core::marker::StructuralPartialEq for ryo::linter::ProjectDependencyState
+pub enum ryo::linter::ProjectEntryState
+pub ryo::linter::ProjectEntryState::Directory
+pub ryo::linter::ProjectEntryState::File
+pub ryo::linter::ProjectEntryState::Missing
+pub ryo::linter::ProjectEntryState::Other
+pub ryo::linter::ProjectEntryState::Unknown
+impl core::clone::Clone for ryo::linter::ProjectEntryState
+pub fn ryo::linter::ProjectEntryState::clone(&self) -> ryo::linter::ProjectEntryState
+impl core::cmp::Eq for ryo::linter::ProjectEntryState
+impl core::cmp::PartialEq for ryo::linter::ProjectEntryState
+pub fn ryo::linter::ProjectEntryState::eq(&self, &ryo::linter::ProjectEntryState) -> bool
+impl core::fmt::Debug for ryo::linter::ProjectEntryState
+pub fn ryo::linter::ProjectEntryState::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for ryo::linter::ProjectEntryState
+impl core::marker::StructuralPartialEq for ryo::linter::ProjectEntryState
+pub enum ryo::linter::ProjectInventoryCompleteness
+pub ryo::linter::ProjectInventoryCompleteness::CompleteWithinDeclaredScope
+pub ryo::linter::ProjectInventoryCompleteness::Partial
+impl core::clone::Clone for ryo::linter::ProjectInventoryCompleteness
+pub fn ryo::linter::ProjectInventoryCompleteness::clone(&self) -> ryo::linter::ProjectInventoryCompleteness
+impl core::cmp::Eq for ryo::linter::ProjectInventoryCompleteness
+impl core::cmp::PartialEq for ryo::linter::ProjectInventoryCompleteness
+pub fn ryo::linter::ProjectInventoryCompleteness::eq(&self, &ryo::linter::ProjectInventoryCompleteness) -> bool
+impl core::default::Default for ryo::linter::ProjectInventoryCompleteness
+pub fn ryo::linter::ProjectInventoryCompleteness::default() -> ryo::linter::ProjectInventoryCompleteness
+impl core::fmt::Debug for ryo::linter::ProjectInventoryCompleteness
+pub fn ryo::linter::ProjectInventoryCompleteness::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for ryo::linter::ProjectInventoryCompleteness
+impl core::marker::StructuralPartialEq for ryo::linter::ProjectInventoryCompleteness
+pub enum ryo::linter::ProjectSearchScope
+pub ryo::linter::ProjectSearchScope::Declared(alloc::vec::Vec<ryo::linter::RelativePath>)
+pub ryo::linter::ProjectSearchScope::Undeclared
+impl core::clone::Clone for ryo::linter::ProjectSearchScope
+pub fn ryo::linter::ProjectSearchScope::clone(&self) -> ryo::linter::ProjectSearchScope
+impl core::cmp::Eq for ryo::linter::ProjectSearchScope
+impl core::cmp::PartialEq for ryo::linter::ProjectSearchScope
+pub fn ryo::linter::ProjectSearchScope::eq(&self, &ryo::linter::ProjectSearchScope) -> bool
+impl core::default::Default for ryo::linter::ProjectSearchScope
+pub fn ryo::linter::ProjectSearchScope::default() -> ryo::linter::ProjectSearchScope
+impl core::fmt::Debug for ryo::linter::ProjectSearchScope
+pub fn ryo::linter::ProjectSearchScope::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::linter::ProjectSearchScope
 #[non_exhaustive] pub enum ryo::linter::ProviderCode
 pub ryo::linter::ProviderCode::FileNotVisited
 pub ryo::linter::ProviderCode::NodeOfAnotherFile
@@ -1303,6 +1523,19 @@ pub fn ryo::linter::Slot::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt
 impl core::hash::Hash for ryo::linter::Slot
 pub fn ryo::linter::Slot::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::StructuralPartialEq for ryo::linter::Slot
+pub enum ryo::linter::SourceLanguage
+pub ryo::linter::SourceLanguage::Named(ryo::languages::LanguageName)
+pub ryo::linter::SourceLanguage::Recognized
+impl core::clone::Clone for ryo::linter::SourceLanguage
+pub fn ryo::linter::SourceLanguage::clone(&self) -> ryo::linter::SourceLanguage
+impl core::cmp::Eq for ryo::linter::SourceLanguage
+impl core::cmp::PartialEq for ryo::linter::SourceLanguage
+pub fn ryo::linter::SourceLanguage::eq(&self, &ryo::linter::SourceLanguage) -> bool
+impl core::default::Default for ryo::linter::SourceLanguage
+pub fn ryo::linter::SourceLanguage::default() -> ryo::linter::SourceLanguage
+impl core::fmt::Debug for ryo::linter::SourceLanguage
+pub fn ryo::linter::SourceLanguage::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::linter::SourceLanguage
 #[non_exhaustive] pub enum ryo::linter::Unreadable
 pub ryo::linter::Unreadable::Failed(ryo::linter::ReadFailure)
 pub ryo::linter::Unreadable::NoLanguage
@@ -1357,6 +1590,18 @@ pub fn ryo::linter::ColumnName::fmt(&self, &mut core::fmt::Formatter<'_>) -> cor
 impl core::hash::Hash for ryo::linter::ColumnName
 pub fn ryo::linter::ColumnName::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::StructuralPartialEq for ryo::linter::ColumnName
+pub struct ryo::linter::DependencyBytes<'a>(pub &'a [u8])
+impl core::convert::From<ryo::linter::DependencyBytes<'_>> for ryo::linter::DependencyFingerprint
+pub fn ryo::linter::DependencyFingerprint::from(ryo::linter::DependencyBytes<'_>) -> Self
+impl<'a> core::clone::Clone for ryo::linter::DependencyBytes<'a>
+pub fn ryo::linter::DependencyBytes<'a>::clone(&self) -> ryo::linter::DependencyBytes<'a>
+impl<'a> core::cmp::Eq for ryo::linter::DependencyBytes<'a>
+impl<'a> core::cmp::PartialEq for ryo::linter::DependencyBytes<'a>
+pub fn ryo::linter::DependencyBytes<'a>::eq(&self, &ryo::linter::DependencyBytes<'a>) -> bool
+impl<'a> core::fmt::Debug for ryo::linter::DependencyBytes<'a>
+pub fn ryo::linter::DependencyBytes<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for ryo::linter::DependencyBytes<'a>
+impl<'a> core::marker::StructuralPartialEq for ryo::linter::DependencyBytes<'a>
 pub struct ryo::linter::DependencyFingerprint(pub [u8; 16])
 impl core::clone::Clone for ryo::linter::DependencyFingerprint
 pub fn ryo::linter::DependencyFingerprint::clone(&self) -> ryo::linter::DependencyFingerprint
@@ -1367,6 +1612,8 @@ impl core::cmp::PartialEq for ryo::linter::DependencyFingerprint
 pub fn ryo::linter::DependencyFingerprint::eq(&self, &ryo::linter::DependencyFingerprint) -> bool
 impl core::cmp::PartialOrd for ryo::linter::DependencyFingerprint
 pub fn ryo::linter::DependencyFingerprint::partial_cmp(&self, &ryo::linter::DependencyFingerprint) -> core::option::Option<core::cmp::Ordering>
+impl core::convert::From<ryo::linter::DependencyBytes<'_>> for ryo::linter::DependencyFingerprint
+pub fn ryo::linter::DependencyFingerprint::from(ryo::linter::DependencyBytes<'_>) -> Self
 impl core::fmt::Debug for ryo::linter::DependencyFingerprint
 pub fn ryo::linter::DependencyFingerprint::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for ryo::linter::DependencyFingerprint
@@ -1411,6 +1658,19 @@ pub fn ryo::linter::FindingKey::fmt(&self, &mut core::fmt::Formatter<'_>) -> cor
 impl core::hash::Hash for ryo::linter::FindingKey
 pub fn ryo::linter::FindingKey::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::StructuralPartialEq for ryo::linter::FindingKey
+pub struct ryo::linter::GivenProjectInventory
+pub ryo::linter::GivenProjectInventory::completeness: ryo::linter::ProjectInventoryCompleteness
+pub ryo::linter::GivenProjectInventory::entries: alloc::vec::Vec<ryo::linter::ProjectEntryObservation>
+impl core::clone::Clone for ryo::linter::GivenProjectInventory
+pub fn ryo::linter::GivenProjectInventory::clone(&self) -> ryo::linter::GivenProjectInventory
+impl core::cmp::Eq for ryo::linter::GivenProjectInventory
+impl core::cmp::PartialEq for ryo::linter::GivenProjectInventory
+pub fn ryo::linter::GivenProjectInventory::eq(&self, &ryo::linter::GivenProjectInventory) -> bool
+impl core::default::Default for ryo::linter::GivenProjectInventory
+pub fn ryo::linter::GivenProjectInventory::default() -> ryo::linter::GivenProjectInventory
+impl core::fmt::Debug for ryo::linter::GivenProjectInventory
+pub fn ryo::linter::GivenProjectInventory::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::linter::GivenProjectInventory
 pub struct ryo::linter::Glob(_)
 impl core::clone::Clone for ryo::linter::Glob
 pub fn ryo::linter::Glob::clone(&self) -> ryo::linter::Glob
@@ -1596,10 +1856,12 @@ pub struct ryo::linter::LintRequest
 pub ryo::linter::LintRequest::beside: alloc::vec::Vec<ryo::linter::CaseSource>
 pub ryo::linter::LintRequest::corpus: ryo::linter::Corpus
 pub ryo::linter::LintRequest::files: alloc::vec::Vec<ryo::linter::Glob>
+pub ryo::linter::LintRequest::given_project_inventory: ryo::linter::GivenProjectInventory
 pub ryo::linter::LintRequest::hosted: alloc::vec::Vec<ryo::linter::HostRelation>
+pub ryo::linter::LintRequest::project_search_scope: ryo::linter::ProjectSearchScope
 pub ryo::linter::LintRequest::root: std::path::PathBuf
 pub ryo::linter::LintRequest::rules: alloc::collections::btree::map::BTreeMap<ryo::linter::RuleId, ryo::linter::Rule>
-pub ryo::linter::LintRequest::source_language: core::option::Option<ryo::languages::LanguageName>
+pub ryo::linter::LintRequest::source_language: ryo::linter::SourceLanguage
 impl core::clone::Clone for ryo::linter::LintRequest
 pub fn ryo::linter::LintRequest::clone(&self) -> ryo::linter::LintRequest
 impl core::cmp::Eq for ryo::linter::LintRequest
@@ -1628,6 +1890,70 @@ pub fn ryo::linter::Message::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::
 impl core::hash::Hash for ryo::linter::Message
 pub fn ryo::linter::Message::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::StructuralPartialEq for ryo::linter::Message
+pub struct ryo::linter::ObservationBinding
+pub ryo::linter::ObservationBinding::columns: alloc::vec::Vec<ryo::linter::ObservationColumn>
+pub ryo::linter::ObservationBinding::name: ryo::linter::ObservationBindingName
+pub ryo::linter::ObservationBinding::producers: alloc::vec::Vec<ryo::linter::ObservationProducer>
+impl core::clone::Clone for ryo::linter::ObservationBinding
+pub fn ryo::linter::ObservationBinding::clone(&self) -> ryo::linter::ObservationBinding
+impl core::cmp::Eq for ryo::linter::ObservationBinding
+impl core::cmp::PartialEq for ryo::linter::ObservationBinding
+pub fn ryo::linter::ObservationBinding::eq(&self, &ryo::linter::ObservationBinding) -> bool
+impl core::fmt::Debug for ryo::linter::ObservationBinding
+pub fn ryo::linter::ObservationBinding::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::linter::ObservationBinding
+pub struct ryo::linter::ObservationBindingName(pub alloc::boxed::Box<str>)
+impl core::clone::Clone for ryo::linter::ObservationBindingName
+pub fn ryo::linter::ObservationBindingName::clone(&self) -> ryo::linter::ObservationBindingName
+impl core::cmp::Eq for ryo::linter::ObservationBindingName
+impl core::cmp::Ord for ryo::linter::ObservationBindingName
+pub fn ryo::linter::ObservationBindingName::cmp(&self, &ryo::linter::ObservationBindingName) -> core::cmp::Ordering
+impl core::cmp::PartialEq for ryo::linter::ObservationBindingName
+pub fn ryo::linter::ObservationBindingName::eq(&self, &ryo::linter::ObservationBindingName) -> bool
+impl core::cmp::PartialOrd for ryo::linter::ObservationBindingName
+pub fn ryo::linter::ObservationBindingName::partial_cmp(&self, &ryo::linter::ObservationBindingName) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for ryo::linter::ObservationBindingName
+pub fn ryo::linter::ObservationBindingName::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for ryo::linter::ObservationBindingName
+pub fn ryo::linter::ObservationBindingName::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for ryo::linter::ObservationBindingName
+pub struct ryo::linter::ObservationColumn
+pub ryo::linter::ObservationColumn::kind: ryo::linter::ObservationKind
+pub ryo::linter::ObservationColumn::name: ryo::linter::ObservationColumnName
+impl core::clone::Clone for ryo::linter::ObservationColumn
+pub fn ryo::linter::ObservationColumn::clone(&self) -> ryo::linter::ObservationColumn
+impl core::cmp::Eq for ryo::linter::ObservationColumn
+impl core::cmp::PartialEq for ryo::linter::ObservationColumn
+pub fn ryo::linter::ObservationColumn::eq(&self, &ryo::linter::ObservationColumn) -> bool
+impl core::convert::From<ryo::linter::ObservationColumn> for ryo_values::domain::observations::types::ObservationColumn
+pub fn ryo_values::domain::observations::types::ObservationColumn::from(ryo::linter::ObservationColumn) -> Self
+impl core::fmt::Debug for ryo::linter::ObservationColumn
+pub fn ryo::linter::ObservationColumn::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::linter::ObservationColumn
+pub struct ryo::linter::ObservationColumnName(pub alloc::boxed::Box<str>)
+impl core::clone::Clone for ryo::linter::ObservationColumnName
+pub fn ryo::linter::ObservationColumnName::clone(&self) -> ryo::linter::ObservationColumnName
+impl core::cmp::Eq for ryo::linter::ObservationColumnName
+impl core::cmp::PartialEq for ryo::linter::ObservationColumnName
+pub fn ryo::linter::ObservationColumnName::eq(&self, &ryo::linter::ObservationColumnName) -> bool
+impl core::fmt::Debug for ryo::linter::ObservationColumnName
+pub fn ryo::linter::ObservationColumnName::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::linter::ObservationColumnName
+pub struct ryo::linter::ObservationName(pub alloc::boxed::Box<str>)
+impl core::clone::Clone for ryo::linter::ObservationName
+pub fn ryo::linter::ObservationName::clone(&self) -> ryo::linter::ObservationName
+impl core::cmp::Eq for ryo::linter::ObservationName
+impl core::cmp::Ord for ryo::linter::ObservationName
+pub fn ryo::linter::ObservationName::cmp(&self, &ryo::linter::ObservationName) -> core::cmp::Ordering
+impl core::cmp::PartialEq for ryo::linter::ObservationName
+pub fn ryo::linter::ObservationName::eq(&self, &ryo::linter::ObservationName) -> bool
+impl core::cmp::PartialOrd for ryo::linter::ObservationName
+pub fn ryo::linter::ObservationName::partial_cmp(&self, &ryo::linter::ObservationName) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for ryo::linter::ObservationName
+pub fn ryo::linter::ObservationName::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for ryo::linter::ObservationName
+pub fn ryo::linter::ObservationName::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for ryo::linter::ObservationName
 pub struct ryo::linter::ParameterCell
 pub ryo::linter::ParameterCell::key: ryo::linter::ParameterText
 pub ryo::linter::ParameterCell::value: ryo::linter::ParameterText
@@ -1720,6 +2046,17 @@ pub fn ryo::linter::ProjectDependency::eq(&self, &ryo::linter::ProjectDependency
 impl core::fmt::Debug for ryo::linter::ProjectDependency
 pub fn ryo::linter::ProjectDependency::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for ryo::linter::ProjectDependency
+pub struct ryo::linter::ProjectEntryObservation
+pub ryo::linter::ProjectEntryObservation::path: ryo::linter::RelativePath
+pub ryo::linter::ProjectEntryObservation::state: ryo::linter::ProjectEntryState
+impl core::clone::Clone for ryo::linter::ProjectEntryObservation
+pub fn ryo::linter::ProjectEntryObservation::clone(&self) -> ryo::linter::ProjectEntryObservation
+impl core::cmp::Eq for ryo::linter::ProjectEntryObservation
+impl core::cmp::PartialEq for ryo::linter::ProjectEntryObservation
+pub fn ryo::linter::ProjectEntryObservation::eq(&self, &ryo::linter::ProjectEntryObservation) -> bool
+impl core::fmt::Debug for ryo::linter::ProjectEntryObservation
+pub fn ryo::linter::ProjectEntryObservation::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::linter::ProjectEntryObservation
 pub struct ryo::linter::ProviderName(pub alloc::boxed::Box<str>)
 impl core::clone::Clone for ryo::linter::ProviderName
 pub fn ryo::linter::ProviderName::clone(&self) -> ryo::linter::ProviderName
@@ -1781,6 +2118,7 @@ pub struct ryo::linter::Rule
 pub ryo::linter::Rule::applicability: ryo::linter::RuleApplicability
 pub ryo::linter::Rule::exclude: alloc::vec::Vec<ryo::linter::Glob>
 pub ryo::linter::Rule::include: alloc::vec::Vec<ryo::linter::Glob>
+pub ryo::linter::Rule::observations: alloc::vec::Vec<ryo::linter::ObservationBinding>
 pub ryo::linter::Rule::parameters: alloc::collections::btree::map::BTreeMap<ryo::linter::ParameterName, ryo::linter::ParameterValue>
 pub ryo::linter::Rule::query: ryo::query::RyoQlQuery
 impl core::clone::Clone for ryo::linter::Rule
@@ -1890,7 +2228,6 @@ impl core::fmt::Debug for ryo::linter::Workers
 pub fn ryo::linter::Workers::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for ryo::linter::Workers
 impl core::marker::StructuralPartialEq for ryo::linter::Workers
-pub fn ryo::linter::dependency_fingerprint(&[u8]) -> ryo::linter::DependencyFingerprint
 pub fn ryo::linter::lint(ryo::linter::Languages, &ryo::linter::WorkerPool, ryo::linter::MemoryBudget, ryo::linter::Cache, ryo::linter::LintRequest) -> core::result::Result<ryo::linter::LintReport, ryo::linter::LintError>
 pub fn ryo::linter::lint_with(&ryo::linter::Linter, ryo::linter::LintRequest) -> core::result::Result<ryo::linter::LintReport, ryo::linter::LintError>
 pub mod ryo::operator
@@ -2403,6 +2740,7 @@ pub fn ryo::query::ValidateReport::fmt(&self, &mut core::fmt::Formatter<'_>) -> 
 impl core::marker::StructuralPartialEq for ryo::query::ValidateReport
 pub struct ryo::query::validate::types::ValidateRequest
 pub ryo::query::validate::types::ValidateRequest::hosted: alloc::vec::Vec<ryo::linter::HostDeclaration>
+pub ryo::query::validate::types::ValidateRequest::observations: alloc::vec::Vec<ryo::query::BoundObservationInput>
 pub ryo::query::validate::types::ValidateRequest::query: ryo::query::RyoQlQuery
 impl core::clone::Clone for ryo::query::ValidateRequest
 pub fn ryo::query::ValidateRequest::clone(&self) -> ryo::query::ValidateRequest
@@ -2412,6 +2750,18 @@ pub fn ryo::query::ValidateRequest::eq(&self, &ryo::query::ValidateRequest) -> b
 impl core::fmt::Debug for ryo::query::ValidateRequest
 pub fn ryo::query::ValidateRequest::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for ryo::query::ValidateRequest
+pub enum ryo::query::CatalogContent
+pub ryo::query::CatalogContent::Empty
+pub ryo::query::CatalogContent::Modules
+impl core::clone::Clone for ryo::query::CatalogContent
+pub fn ryo::query::CatalogContent::clone(&self) -> ryo::query::CatalogContent
+impl core::cmp::Eq for ryo::query::CatalogContent
+impl core::cmp::PartialEq for ryo::query::CatalogContent
+pub fn ryo::query::CatalogContent::eq(&self, &ryo::query::CatalogContent) -> bool
+impl core::fmt::Debug for ryo::query::CatalogContent
+pub fn ryo::query::CatalogContent::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for ryo::query::CatalogContent
+impl core::marker::StructuralPartialEq for ryo::query::CatalogContent
 #[non_exhaustive] pub enum ryo::query::Cell
 pub ryo::query::Cell::File(ryo::linter::RelativePath)
 pub ryo::query::Cell::Number(ryo::linter::HostNumber)
@@ -2443,6 +2793,38 @@ pub fn ryo::query::DescribeError::fmt(&self, &mut core::fmt::Formatter<'_>) -> c
 impl core::fmt::Display for ryo::query::DescribeError
 pub fn ryo::query::DescribeError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for ryo::query::DescribeError
+pub enum ryo::query::ObservationKind
+pub ryo::query::ObservationKind::File
+pub ryo::query::ObservationKind::Flag
+pub ryo::query::ObservationKind::Node
+pub ryo::query::ObservationKind::Number
+pub ryo::query::ObservationKind::Span
+pub ryo::query::ObservationKind::Symbol
+impl core::clone::Clone for ryo::linter::ObservationKind
+pub fn ryo::linter::ObservationKind::clone(&self) -> ryo::linter::ObservationKind
+impl core::cmp::Eq for ryo::linter::ObservationKind
+impl core::cmp::PartialEq for ryo::linter::ObservationKind
+pub fn ryo::linter::ObservationKind::eq(&self, &ryo::linter::ObservationKind) -> bool
+impl core::convert::From<ryo::linter::ObservationKind> for ryo_relations::domain::relations::types::CellKind
+pub fn ryo_relations::domain::relations::types::CellKind::from(ryo::linter::ObservationKind) -> Self
+impl core::fmt::Debug for ryo::linter::ObservationKind
+pub fn ryo::linter::ObservationKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for ryo::linter::ObservationKind
+impl core::marker::StructuralPartialEq for ryo::linter::ObservationKind
+pub enum ryo::query::ObservationScope
+pub ryo::query::ObservationScope::CrossFile
+pub ryo::query::ObservationScope::PerFile
+impl core::clone::Clone for ryo::query::ObservationScope
+pub fn ryo::query::ObservationScope::clone(&self) -> ryo::query::ObservationScope
+impl core::cmp::Eq for ryo::query::ObservationScope
+impl core::cmp::PartialEq for ryo::query::ObservationScope
+pub fn ryo::query::ObservationScope::eq(&self, &ryo::query::ObservationScope) -> bool
+impl core::convert::From<ryo::query::ObservationScope> for ryo_values::domain::plan_parts::types::StepScope
+pub fn ryo_values::domain::plan_parts::types::StepScope::from(ryo::query::ObservationScope) -> Self
+impl core::fmt::Debug for ryo::query::ObservationScope
+pub fn ryo::query::ObservationScope::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for ryo::query::ObservationScope
+impl core::marker::StructuralPartialEq for ryo::query::ObservationScope
 #[non_exhaustive] pub enum ryo::query::QueryBundleError
 pub ryo::query::QueryBundleError::BlankRootText
 pub ryo::query::QueryBundleError::BlankSourceId
@@ -2544,6 +2926,20 @@ pub fn ryo::query::ValidateError::fmt(&self, &mut core::fmt::Formatter<'_>) -> c
 impl core::fmt::Display for ryo::query::ValidateError
 pub fn ryo::query::ValidateError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for ryo::query::ValidateError
+pub struct ryo::query::BoundObservationInput
+pub ryo::query::BoundObservationInput::columns: alloc::vec::Vec<ryo::linter::ObservationColumn>
+pub ryo::query::BoundObservationInput::name: ryo::linter::ObservationBindingName
+pub ryo::query::BoundObservationInput::scope: ryo::query::ObservationScope
+impl core::clone::Clone for ryo::query::BoundObservationInput
+pub fn ryo::query::BoundObservationInput::clone(&self) -> ryo::query::BoundObservationInput
+impl core::cmp::Eq for ryo::query::BoundObservationInput
+impl core::cmp::PartialEq for ryo::query::BoundObservationInput
+pub fn ryo::query::BoundObservationInput::eq(&self, &ryo::query::BoundObservationInput) -> bool
+impl core::convert::From<ryo::query::BoundObservationInput> for ryo_values::domain::observations::types::BoundObservationInput
+pub fn ryo_values::domain::observations::types::BoundObservationInput::from(ryo::query::BoundObservationInput) -> Self
+impl core::fmt::Debug for ryo::query::BoundObservationInput
+pub fn ryo::query::BoundObservationInput::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::query::BoundObservationInput
 pub struct ryo::query::ByteOffset(pub usize)
 impl core::clone::Clone for ryo::query::ByteOffset
 pub fn ryo::query::ByteOffset::clone(&self) -> ryo::query::ByteOffset
@@ -2592,6 +2988,43 @@ pub fn ryo::query::Heading::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::f
 impl core::hash::Hash for ryo::query::Heading
 pub fn ryo::query::Heading::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::StructuralPartialEq for ryo::query::Heading
+pub struct ryo::query::ObservationBindingName(pub alloc::boxed::Box<str>)
+impl core::clone::Clone for ryo::linter::ObservationBindingName
+pub fn ryo::linter::ObservationBindingName::clone(&self) -> ryo::linter::ObservationBindingName
+impl core::cmp::Eq for ryo::linter::ObservationBindingName
+impl core::cmp::Ord for ryo::linter::ObservationBindingName
+pub fn ryo::linter::ObservationBindingName::cmp(&self, &ryo::linter::ObservationBindingName) -> core::cmp::Ordering
+impl core::cmp::PartialEq for ryo::linter::ObservationBindingName
+pub fn ryo::linter::ObservationBindingName::eq(&self, &ryo::linter::ObservationBindingName) -> bool
+impl core::cmp::PartialOrd for ryo::linter::ObservationBindingName
+pub fn ryo::linter::ObservationBindingName::partial_cmp(&self, &ryo::linter::ObservationBindingName) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for ryo::linter::ObservationBindingName
+pub fn ryo::linter::ObservationBindingName::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for ryo::linter::ObservationBindingName
+pub fn ryo::linter::ObservationBindingName::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for ryo::linter::ObservationBindingName
+pub struct ryo::query::ObservationColumn
+pub ryo::query::ObservationColumn::kind: ryo::linter::ObservationKind
+pub ryo::query::ObservationColumn::name: ryo::linter::ObservationColumnName
+impl core::clone::Clone for ryo::linter::ObservationColumn
+pub fn ryo::linter::ObservationColumn::clone(&self) -> ryo::linter::ObservationColumn
+impl core::cmp::Eq for ryo::linter::ObservationColumn
+impl core::cmp::PartialEq for ryo::linter::ObservationColumn
+pub fn ryo::linter::ObservationColumn::eq(&self, &ryo::linter::ObservationColumn) -> bool
+impl core::convert::From<ryo::linter::ObservationColumn> for ryo_values::domain::observations::types::ObservationColumn
+pub fn ryo_values::domain::observations::types::ObservationColumn::from(ryo::linter::ObservationColumn) -> Self
+impl core::fmt::Debug for ryo::linter::ObservationColumn
+pub fn ryo::linter::ObservationColumn::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::linter::ObservationColumn
+pub struct ryo::query::ObservationColumnName(pub alloc::boxed::Box<str>)
+impl core::clone::Clone for ryo::linter::ObservationColumnName
+pub fn ryo::linter::ObservationColumnName::clone(&self) -> ryo::linter::ObservationColumnName
+impl core::cmp::Eq for ryo::linter::ObservationColumnName
+impl core::cmp::PartialEq for ryo::linter::ObservationColumnName
+pub fn ryo::linter::ObservationColumnName::eq(&self, &ryo::linter::ObservationColumnName) -> bool
+impl core::fmt::Debug for ryo::linter::ObservationColumnName
+pub fn ryo::linter::ObservationColumnName::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::linter::ObservationColumnName
 pub struct ryo::query::OperatorName(pub alloc::boxed::Box<str>)
 impl core::clone::Clone for ryo::query::OperatorName
 pub fn ryo::query::OperatorName::clone(&self) -> ryo::query::OperatorName
@@ -2630,10 +3063,29 @@ pub fn ryo::query::ProductionName::fmt(&self, &mut core::fmt::Formatter<'_>) -> 
 impl core::hash::Hash for ryo::query::ProductionName
 pub fn ryo::query::ProductionName::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::StructuralPartialEq for ryo::query::ProductionName
+pub struct ryo::query::QueryModuleCatalog(_)
+impl ryo::query::QueryModuleCatalog
+pub fn ryo::query::QueryModuleCatalog::content(&self) -> ryo::query::CatalogContent
+impl ryo::query::QueryModuleCatalog
+pub fn ryo::query::QueryModuleCatalog::try_new(impl core::iter::traits::collect::IntoIterator<Item = ryo::query::QueryModuleSource>) -> core::result::Result<Self, ryo::query::QueryBundleError>
+impl core::clone::Clone for ryo::query::QueryModuleCatalog
+pub fn ryo::query::QueryModuleCatalog::clone(&self) -> ryo::query::QueryModuleCatalog
+impl core::cmp::Eq for ryo::query::QueryModuleCatalog
+impl core::cmp::Ord for ryo::query::QueryModuleCatalog
+pub fn ryo::query::QueryModuleCatalog::cmp(&self, &ryo::query::QueryModuleCatalog) -> core::cmp::Ordering
+impl core::cmp::PartialEq for ryo::query::QueryModuleCatalog
+pub fn ryo::query::QueryModuleCatalog::eq(&self, &ryo::query::QueryModuleCatalog) -> bool
+impl core::cmp::PartialOrd for ryo::query::QueryModuleCatalog
+pub fn ryo::query::QueryModuleCatalog::partial_cmp(&self, &ryo::query::QueryModuleCatalog) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for ryo::query::QueryModuleCatalog
+pub fn ryo::query::QueryModuleCatalog::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for ryo::query::QueryModuleCatalog
+pub fn ryo::query::QueryModuleCatalog::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for ryo::query::QueryModuleCatalog
 pub struct ryo::query::QueryModuleSource
 impl ryo::query::QueryModuleSource
-pub fn ryo::query::QueryModuleSource::id(&self) -> &str
-pub fn ryo::query::QueryModuleSource::text(&self) -> &str
+pub fn ryo::query::QueryModuleSource::id(&self) -> &ryo_values::domain::query_tokens::types::QuerySourceId
+pub fn ryo::query::QueryModuleSource::text(&self) -> &ryo_values::domain::query_tokens::types::QuerySourceText
 impl ryo::query::QueryModuleSource
 pub fn ryo::query::QueryModuleSource::try_new(&str, &str) -> core::result::Result<Self, ryo::query::QueryBundleError>
 impl core::clone::Clone for ryo::query::QueryModuleSource
@@ -2778,9 +3230,9 @@ pub fn ryo::query::RunRequest::fmt(&self, &mut core::fmt::Formatter<'_>) -> core
 impl core::marker::StructuralPartialEq for ryo::query::RunRequest
 pub struct ryo::query::RyoQlQuery(_)
 impl ryo::query::RyoQlQuery
-pub fn ryo::query::RyoQlQuery::root_text(&self) -> &str
+pub fn ryo::query::RyoQlQuery::root_text(&self) -> &ryo_values::domain::query_tokens::types::QuerySourceText
 impl ryo::query::RyoQlQuery
-pub fn ryo::query::RyoQlQuery::with_modules(&str, &str, impl core::iter::traits::collect::IntoIterator<Item = ryo::query::QueryModuleSource>) -> core::result::Result<Self, ryo::query::QueryBundleError>
+pub fn ryo::query::RyoQlQuery::with_modules(&str, &str, &ryo::query::QueryModuleCatalog) -> core::result::Result<Self, ryo::query::QueryBundleError>
 impl core::clone::Clone for ryo::query::RyoQlQuery
 pub fn ryo::query::RyoQlQuery::clone(&self) -> ryo::query::RyoQlQuery
 impl core::cmp::Eq for ryo::query::RyoQlQuery
@@ -2838,6 +3290,7 @@ pub fn ryo::query::ValidateReport::fmt(&self, &mut core::fmt::Formatter<'_>) -> 
 impl core::marker::StructuralPartialEq for ryo::query::ValidateReport
 pub struct ryo::query::ValidateRequest
 pub ryo::query::ValidateRequest::hosted: alloc::vec::Vec<ryo::linter::HostDeclaration>
+pub ryo::query::ValidateRequest::observations: alloc::vec::Vec<ryo::query::BoundObservationInput>
 pub ryo::query::ValidateRequest::query: ryo::query::RyoQlQuery
 impl core::clone::Clone for ryo::query::ValidateRequest
 pub fn ryo::query::ValidateRequest::clone(&self) -> ryo::query::ValidateRequest

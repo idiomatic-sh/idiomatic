@@ -462,6 +462,10 @@
    "crates/execution/src/domain/frontiers",
    "crates/execution/src/application/file_dag/frontiers",
    "crates/core/src/application/file_analysis",
+   "crates/core/src/inbound/use_cases/lint",
+   "crates/core/src/domain/storing",
+   "crates/core/src/outbound/lint_store",
+   "crates/execution/src/domain/trust",
    "--format",
    "json"
   ]

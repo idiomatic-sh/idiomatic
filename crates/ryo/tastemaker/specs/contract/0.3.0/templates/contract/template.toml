@@ -32,6 +32,33 @@ impl {{ part | pascal }}Contract {
 impl Parse for {{ part | pascal }}Contract {
     type FileModel = ();
 
+    fn begin_semantics(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+        _tree: &languages::Elements,
+        _slot: &mut languages::SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(&self) -> languages::CompletionRequirement {
+        languages::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &languages::Tree<'_>,
+        _from: languages::Position,
+        _model: &mut (),
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+    ) -> languages::Recognition {
+        languages::Recognition::Declines
+    }
+
     fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
         languages::ParseConfigurationIdentity("")
     }
@@ -301,6 +328,14 @@ impl Parse for {{ part | pascal }}Contract {
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 }
 {%- else -%}
 //! The `{{ part }}` contract: the language's implementation of `{{ trait }}`. It names no manifest and reads nothing, and answers
@@ -333,12 +368,20 @@ impl Project for {{ part | pascal }}Contract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -350,6 +393,12 @@ impl Project for {{ part | pascal }}Contract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 {% for relation in ["package_dependency", "workspace_member", "source_dependency", "file_package", "analyzed_source"] %}
@@ -401,6 +450,33 @@ impl ParseContract {
 impl Parse for ParseContract {
     type FileModel = ();
 
+    fn begin_semantics(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+        _tree: &languages::Elements,
+        _slot: &mut languages::SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(&self) -> languages::CompletionRequirement {
+        languages::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &languages::Tree<'_>,
+        _from: languages::Position,
+        _model: &mut (),
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+    ) -> languages::Recognition {
+        languages::Recognition::Declines
+    }
+
     fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
         languages::ParseConfigurationIdentity("")
     }
@@ -670,6 +746,14 @@ impl Parse for ParseContract {
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 }
 '''
 
@@ -708,6 +792,33 @@ impl ParseContract {
 
 impl Parse for ParseContract {
     type FileModel = ();
+
+    fn begin_semantics(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+        _tree: &languages::Elements,
+        _slot: &mut languages::SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(&self) -> languages::CompletionRequirement {
+        languages::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &languages::Tree<'_>,
+        _from: languages::Position,
+        _model: &mut (),
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+    ) -> languages::Recognition {
+        languages::Recognition::Declines
+    }
 
     fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
         languages::ParseConfigurationIdentity("")
@@ -980,6 +1091,14 @@ impl Parse for ParseContract {
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 }
 '''
 
@@ -1027,6 +1146,33 @@ impl OtherContract {
 
 impl Parse for OtherContract {
     type FileModel = ();
+
+    fn begin_semantics(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+        _tree: &languages::Elements,
+        _slot: &mut languages::SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(&self) -> languages::CompletionRequirement {
+        languages::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &languages::Tree<'_>,
+        _from: languages::Position,
+        _model: &mut (),
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+    ) -> languages::Recognition {
+        languages::Recognition::Declines
+    }
 
     fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
         languages::ParseConfigurationIdentity("")
@@ -1297,10 +1443,24 @@ impl Parse for OtherContract {
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 }
 '''
 # The Parse template now requires numeric_literal; this deliberate negative mutation rejects that member too.
 then.findings = [
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
@@ -1408,6 +1568,33 @@ impl ParseContract {
 impl Different for ParseContract {
     type FileModel = ();
 
+    fn begin_semantics(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+        _tree: &languages::Elements,
+        _slot: &mut languages::SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(&self) -> languages::CompletionRequirement {
+        languages::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &languages::Tree<'_>,
+        _from: languages::Position,
+        _model: &mut (),
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+    ) -> languages::Recognition {
+        languages::Recognition::Declines
+    }
+
     fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
         languages::ParseConfigurationIdentity("")
     }
@@ -1677,10 +1864,24 @@ impl Different for ParseContract {
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 }
 '''
 # The Parse template now requires numeric_literal; this deliberate negative mutation rejects that member too.
 then.findings = [
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
@@ -1851,6 +2052,12 @@ then.findings = [
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
 ]
 [[scenarios]]
 id = 'example-project'
@@ -1888,12 +2095,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -1918,6 +2133,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -1967,6 +2188,33 @@ impl ParseContract {
 
 impl Parse for ParseContract {
     type FileModel = ();
+
+    fn begin_semantics(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+        _tree: &languages::Elements,
+        _slot: &mut languages::SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(&self) -> languages::CompletionRequirement {
+        languages::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &languages::Tree<'_>,
+        _from: languages::Position,
+        _model: &mut (),
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+    ) -> languages::Recognition {
+        languages::Recognition::Declines
+    }
 
     fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
         languages::ParseConfigurationIdentity("")
@@ -2237,6 +2485,14 @@ impl Parse for ParseContract {
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 }
 '''
 then.findings = [
@@ -2278,6 +2534,33 @@ impl ParseContract {
 
 impl Parse for ParseContract {
     type FileModel = ();
+
+    fn begin_semantics(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+        _tree: &languages::Elements,
+        _slot: &mut languages::SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(&self) -> languages::CompletionRequirement {
+        languages::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &languages::Tree<'_>,
+        _from: languages::Position,
+        _model: &mut (),
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+    ) -> languages::Recognition {
+        languages::Recognition::Declines
+    }
 
     fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
         languages::ParseConfigurationIdentity("")
@@ -2542,6 +2825,14 @@ impl Parse for ParseContract {
     }
 
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 }

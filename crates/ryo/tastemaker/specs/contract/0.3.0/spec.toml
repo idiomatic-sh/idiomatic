@@ -74,6 +74,33 @@ impl ParseContract {
 impl Parse for ParseContract {
     type FileModel = ();
 
+    fn begin_semantics(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+        _tree: &languages::Elements,
+        _slot: &mut languages::SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(&self) -> languages::CompletionRequirement {
+        languages::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &languages::Tree<'_>,
+        _from: languages::Position,
+        _model: &mut (),
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+    ) -> languages::Recognition {
+        languages::Recognition::Declines
+    }
+
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
@@ -341,6 +368,14 @@ impl Parse for ParseContract {
     }
 
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 }
@@ -470,6 +505,33 @@ impl ParseContract {
 impl Parse for ParseContract {
     type FileModel = ();
 
+    fn begin_semantics(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+        _tree: &languages::Elements,
+        _slot: &mut languages::SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(&self) -> languages::CompletionRequirement {
+        languages::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &languages::Tree<'_>,
+        _from: languages::Position,
+        _model: &mut (),
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+    ) -> languages::Recognition {
+        languages::Recognition::Declines
+    }
+
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
@@ -737,6 +799,14 @@ impl Parse for ParseContract {
     }
 
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 }
@@ -869,6 +939,33 @@ impl ParseContract {
 impl Parse for ParseContract {
     type FileModel = ();
 
+    fn begin_semantics(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+        _tree: &languages::Elements,
+        _slot: &mut languages::SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(&self) -> languages::CompletionRequirement {
+        languages::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &languages::Tree<'_>,
+        _from: languages::Position,
+        _model: &mut (),
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+    ) -> languages::Recognition {
+        languages::Recognition::Declines
+    }
+
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
@@ -1136,6 +1233,14 @@ impl Parse for ParseContract {
     }
 
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 }
@@ -1255,6 +1360,33 @@ impl ParseContract {
 impl Parse for ParseContract {
     type FileModel = ();
 
+    fn begin_semantics(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+        _tree: &languages::Elements,
+        _slot: &mut languages::SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(&self) -> languages::CompletionRequirement {
+        languages::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &languages::Tree<'_>,
+        _from: languages::Position,
+        _model: &mut (),
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+    ) -> languages::Recognition {
+        languages::Recognition::Declines
+    }
+
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
@@ -1522,6 +1654,14 @@ impl Parse for ParseContract {
     }
 
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 }
@@ -1777,6 +1917,12 @@ then.findings = [
   { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
   { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
   { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'src/inbound/contracts/parse/contract.rs' },
 ]
 
 [[scenarios]]
@@ -1812,6 +1958,33 @@ impl ParseContract {
 
 impl Parse for ParseContract {
     type FileModel = ();
+
+    fn begin_semantics(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+        _tree: &languages::Elements,
+        _slot: &mut languages::SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(&self) -> languages::CompletionRequirement {
+        languages::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &languages::Tree<'_>,
+        _from: languages::Position,
+        _model: &mut (),
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+    ) -> languages::Recognition {
+        languages::Recognition::Declines
+    }
 
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
 
@@ -2080,6 +2253,14 @@ impl Parse for ParseContract {
     }
 
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 }
@@ -2205,6 +2386,33 @@ impl ParseContract {
 impl Parse for ParseContract {
     type FileModel = ();
 
+    fn begin_semantics(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+        _tree: &languages::Elements,
+        _slot: &mut languages::SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(&self) -> languages::CompletionRequirement {
+        languages::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &languages::Tree<'_>,
+        _from: languages::Position,
+        _model: &mut (),
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+    ) -> languages::Recognition {
+        languages::Recognition::Declines
+    }
+
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
@@ -2472,6 +2680,14 @@ impl Parse for ParseContract {
     }
 
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 }

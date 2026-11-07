@@ -1033,7 +1033,7 @@ mod replace {
 mod span_between {
     include!("../../../../../tests/fixtures/operators/span_between/expected.rs");
 }
-/// Independent physical occurrence spans, including the duplicate nested occurrence.
+/// Independent physical occurrence spans; the duplicate nested occurrence is one row, as rows of an identical rule, subject and key collapse.
 mod source_matches {
     include!("../../../../../tests/fixtures/operators/source_matches/expected.rs");
 }

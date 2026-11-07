@@ -3,8 +3,8 @@ why = "Ryo owns the concepts, the language fulfils them. The compiler holds that
 closed = false
 specs = [
   { alias = "benchmark", spec = "idiomatic.ryo/benchmark@0.2.0", include = ["benchmarks"], count = { min = 1 }, params = { lang = { param = "lang" } }, description = "Comparative lint benchmarks, when this language has begun its rollout; the shared harness audits completeness." },
-  { alias = "parse-contract", spec = "idiomatic.ryo/contract@0.2.0", include = ["src/inbound/contracts/parse"], params = { trait = "ryo::languages::Parse" }, description = "The parse contract: the language's implementation of `ryo::languages::Parse`, which answers every syntax relation of the catalog." },
-  { alias = "project-contract", spec = "idiomatic.ryo/contract@0.2.0", include = ["src/inbound/contracts/project"], params = { trait = "ryo::languages::Project" }, description = "The project contract: the language's implementation of `ryo::languages::Project`, which answers every manifest relation of the catalog." },
+  { alias = "parse-contract", spec = "idiomatic.ryo/contract@0.3.0", include = ["src/inbound/contracts/parse"], params = { trait = "ryo::languages::Parse" }, description = "The parse contract: the language's implementation of `ryo::languages::Parse`, which answers every syntax relation of the catalog." },
+  { alias = "project-contract", spec = "idiomatic.ryo/contract@0.3.0", include = ["src/inbound/contracts/project"], params = { trait = "ryo::languages::Project" }, description = "The project contract: the language's implementation of `ryo::languages::Project`, which answers every manifest relation of the catalog." },
 ]
 templates = [
   { template = "idiomatic.arch/adapter-writer@0.1.0", alias = "writer", file = "src/outbound/syntax/adapters/{library}/writer.rs", count = { min = 0 }, description = "Optional parser-library traversal and serialization, owned by the syntax adapter and using its schemas and plain types." },
@@ -1253,6 +1253,33 @@ impl ParseContract {
 impl Parse for ParseContract {
     type FileModel = ();
 
+    fn begin_semantics(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+        _tree: &languages::Elements,
+        _slot: &mut languages::SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(&self) -> languages::CompletionRequirement {
+        languages::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &languages::Tree<'_>,
+        _from: languages::Position,
+        _model: &mut (),
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+    ) -> languages::Recognition {
+        languages::Recognition::Declines
+    }
+
     fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
         languages::ParseConfigurationIdentity("")
     }
@@ -1520,6 +1547,14 @@ impl Parse for ParseContract {
     }
 
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 }
@@ -2418,12 +2453,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -2448,6 +2491,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -2486,6 +2535,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -2680,12 +2732,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -2710,6 +2770,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -2748,6 +2814,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -2997,12 +3066,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -3027,6 +3104,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -3065,6 +3148,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -3301,12 +3387,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -3331,6 +3425,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -3369,6 +3469,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -3580,12 +3683,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -3610,6 +3721,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -3648,6 +3765,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -3873,12 +3993,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -3903,6 +4031,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -3941,6 +4075,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -4253,12 +4390,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -4283,6 +4428,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -4321,6 +4472,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -4891,6 +5045,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -5012,6 +5169,8 @@ then.findings = [
   { rule = 'idiomatic.ryo/contract/contract#template', path = 'demo/src/inbound/contracts/project/contract.rs' },
   { rule = 'idiomatic.ryo/contract/contract#template', path = 'demo/src/inbound/contracts/project/contract.rs' },
   { rule = 'idiomatic.ryo/contract/contract-implements', path = 'demo/src/inbound/contracts/project/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'demo/src/inbound/contracts/project/contract.rs' },
+  { rule = 'idiomatic.ryo/contract/contract#template', path = 'demo/src/inbound/contracts/project/contract.rs' },
   { rule = 'idiomatic.ryo/contract/contract#template', path = 'demo/src/inbound/contracts/project/contract.rs' },
   { rule = 'idiomatic.ryo/contract/contract#template', path = 'demo/src/inbound/contracts/project/contract.rs' },
   { rule = 'idiomatic.ryo/contract/contract#template', path = 'demo/src/inbound/contracts/project/contract.rs' },
@@ -5212,12 +5371,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -5242,6 +5409,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -5280,6 +5453,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -5512,12 +5688,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -5542,6 +5726,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -5580,6 +5770,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -5889,12 +6082,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -5919,6 +6120,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -5957,6 +6164,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -6263,12 +6473,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -6293,6 +6511,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -6331,6 +6555,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -6637,12 +6864,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -6667,6 +6902,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -6705,6 +6946,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -6967,12 +7211,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -6997,6 +7249,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -7035,6 +7293,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -7330,12 +7591,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -7360,6 +7629,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -7398,6 +7673,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -7752,12 +8030,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -7782,6 +8068,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -7820,6 +8112,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -8133,12 +8428,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -8163,6 +8466,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -8201,6 +8510,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -8604,12 +8916,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -8634,6 +8954,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -8672,6 +8998,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -9024,12 +9353,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -9054,6 +9391,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -9092,6 +9435,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -9389,12 +9735,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -9419,6 +9773,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -9457,6 +9817,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -9762,12 +10125,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -9792,6 +10163,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -9830,6 +10207,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -10129,12 +10509,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -10159,6 +10547,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -10197,6 +10591,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -10578,12 +10975,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -10608,6 +11013,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -10646,6 +11057,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -10955,12 +11369,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -10985,6 +11407,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -11023,6 +11451,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -11454,12 +11885,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -11484,6 +11923,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -11522,6 +11967,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -11923,12 +12371,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -11953,6 +12409,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -11991,6 +12453,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -12301,12 +12766,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -12331,6 +12804,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -12369,6 +12848,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -12719,12 +13201,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -12749,6 +13239,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -12787,6 +13283,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -13113,12 +13612,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -13143,6 +13650,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -13181,6 +13694,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -13531,12 +14047,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -13561,6 +14085,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -13599,6 +14129,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -13949,12 +14482,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -13979,6 +14520,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -14017,6 +14564,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -14430,6 +14980,33 @@ impl ParseContract {
 impl Parse for ParseContract {
     type FileModel = ();
 
+    fn begin_semantics(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+        _tree: &languages::Elements,
+        _slot: &mut languages::SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(&self) -> languages::CompletionRequirement {
+        languages::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &languages::Tree<'_>,
+        _from: languages::Position,
+        _model: &mut (),
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+    ) -> languages::Recognition {
+        languages::Recognition::Declines
+    }
+
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
@@ -14687,6 +15264,14 @@ impl Parse for ParseContract {
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 }
 
 /// Why the contract refused a file.
@@ -14733,12 +15318,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -14763,6 +15356,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -14801,6 +15400,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -15189,7 +15791,7 @@ The release or commit of the suite that is pinned here.
 '''
 then.only = ['idiomatic.ryo/language/thiserror-in-errors']
 then.findings = [
-  { rule = 'idiomatic.ryo/language/thiserror-in-errors', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 291 },
+  { rule = 'idiomatic.ryo/language/thiserror-in-errors', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 326 },
 ]
 
 [[scenarios]]
@@ -15474,6 +16076,33 @@ impl ParseContract {
 impl Parse for ParseContract {
     type FileModel = ();
 
+    fn begin_semantics(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+        _tree: &languages::Elements,
+        _slot: &mut languages::SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(&self) -> languages::CompletionRequirement {
+        languages::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &languages::Tree<'_>,
+        _from: languages::Position,
+        _model: &mut (),
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+    ) -> languages::Recognition {
+        languages::Recognition::Declines
+    }
+
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
@@ -15731,6 +16360,14 @@ impl Parse for ParseContract {
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 }
 
 /// Why the contract refused a file.
@@ -15778,12 +16415,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -15808,6 +16453,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -15846,6 +16497,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -16234,7 +16888,7 @@ The release or commit of the suite that is pinned here.
 '''
 then.only = ['idiomatic.ryo/language/error-shape']
 then.findings = [
-  { rule = 'idiomatic.ryo/language/error-shape', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 294 },
+  { rule = 'idiomatic.ryo/language/error-shape', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 329 },
 ]
 
 [[scenarios]]
@@ -16776,6 +17430,14 @@ impl Parse for ParseContract {
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 }
 '''
 given.files.'demo/src/inbound/contracts/project.rs' = '''
@@ -16817,12 +17479,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -16847,6 +17517,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -16885,6 +17561,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -17560,6 +18239,33 @@ impl ParseContract {
 impl Parse for ParseContract {
     type FileModel = ();
 
+    fn begin_semantics(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+        _tree: &languages::Elements,
+        _slot: &mut languages::SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(&self) -> languages::CompletionRequirement {
+        languages::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &languages::Tree<'_>,
+        _from: languages::Position,
+        _model: &mut (),
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+    ) -> languages::Recognition {
+        languages::Recognition::Declines
+    }
+
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
@@ -17817,6 +18523,14 @@ impl Parse for ParseContract {
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 }
 
 /// The reader slot of a hand-written item.
@@ -17861,12 +18575,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -17891,6 +18613,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -17929,6 +18657,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -18602,6 +19333,33 @@ impl ParseContract {
 impl Parse for ParseContract {
     type FileModel = ();
 
+    fn begin_semantics(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+        _tree: &languages::Elements,
+        _slot: &mut languages::SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(&self) -> languages::CompletionRequirement {
+        languages::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &languages::Tree<'_>,
+        _from: languages::Position,
+        _model: &mut (),
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &languages::ParseRequest<'_>,
+    ) -> languages::Recognition {
+        languages::Recognition::Declines
+    }
+
     fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
@@ -18859,6 +19617,14 @@ impl Parse for ParseContract {
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 }
 
 /// Reads a sample file.
@@ -18905,12 +19671,20 @@ impl Project for ProjectContract {
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
         languages::primary_role_from_manifests(
             path,
-            self.manifests().iter().map(|manifest| manifest.0),
+            self.manifests().iter().copied(),
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -18935,6 +19709,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -18973,6 +19753,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let language = ProjectContract::new();
     contract::project(&language);
     let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: Vec::new(),
@@ -19361,5 +20144,5 @@ The release or commit of the suite that is pinned here.
 '''
 then.only = ['idiomatic.arch/io-at-boundary']
 then.findings = [
-  { rule = 'idiomatic.arch/io-at-boundary', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 292 },
+  { rule = 'idiomatic.arch/io-at-boundary', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 327 },
 ]
