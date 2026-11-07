@@ -54,4 +54,7 @@ pub(crate) mod completion;
 
 pub(crate) mod source_partitions;
 
+pub(crate) mod rule_intent;
+pub(crate) mod frontier_capture;
+pub(crate) mod row_emission;
 pub(crate) mod readiness;

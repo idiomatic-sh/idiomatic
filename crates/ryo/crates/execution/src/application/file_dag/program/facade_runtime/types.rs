@@ -40,9 +40,9 @@ pub(super) struct PreparedNamed {
 #[derive(Clone, Copy, Debug)]
 pub(super) struct DeclaredIntent {
     pub(super) delivery:
-        crate::application::file_dag::program::protocol::types::DiagnosticDelivery,
-    pub(super) demand: crate::application::file_dag::program::protocol::types::ObservationDemand,
-    pub(super) capture_intent: crate::application::file_dag::program::protocol::types::CaptureIntent,
+        crate::domain::rule_intent::types::DiagnosticDelivery,
+    pub(super) demand: crate::domain::rule_intent::types::ObservationDemand,
+    pub(super) capture_intent: crate::domain::rule_intent::types::CaptureIntent,
 }
 /// The slot of a bound observation among the observation regions of a program.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

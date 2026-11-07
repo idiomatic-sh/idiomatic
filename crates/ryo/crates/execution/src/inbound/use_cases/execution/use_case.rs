@@ -261,7 +261,7 @@ impl FileExecution for FileSession<'_, '_> {
         capture: CaptureContext<'_>,
     ) -> Result<Vec<FrontierCapture>, OperatingError> {
         let read = |relation| source_rows(self.read, self.elements, self.file, relation);
-        let bound = crate::application::file_dag::program::protocol::types::CaptureScope {
+        let bound = crate::domain::frontier_capture::types::CaptureScope {
             file: self.file,
             rule_digest: self.program.rule_digest(rule)?,
             worker: capture.worker,

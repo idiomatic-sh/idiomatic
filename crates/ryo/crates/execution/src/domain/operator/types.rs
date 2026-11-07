@@ -5,6 +5,11 @@ use ryo_relations::domain::relations::types::CellKind;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct RowsFed(pub [u64; 3]);
 
+/// How many rows each step of a rule was fed, by the step's place.
+pub struct LogicalCounts {
+    pub fed: Box<[RowsFed]>,
+}
+
 /// How a plan is laid out for the worker that runs it: which steps keep their rows in a table, and what columns each step answers.
 #[derive(Debug, Default)]
 pub(crate) struct PlanLayout {

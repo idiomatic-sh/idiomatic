@@ -14,11 +14,11 @@ use crate::application::file_dag::program::facade_runtime::types::{
     DeclaredIntent, FileRoot, FrontierCommit, NamedReadiness, PreparedNamed, WalkPreparation,
 };
 use crate::application::file_dag::program::native_walk::Deliveries;
-use crate::application::file_dag::program::protocol::types::ApplicabilityRefusal;
-use crate::application::file_dag::program::protocol::types::CaptureIntent;
-use crate::application::file_dag::program::protocol::types::DiagnosticDelivery;
-use crate::application::file_dag::program::protocol::types::FileRuleIntent;
-use crate::application::file_dag::program::protocol::types::ObservationDemand;
+use crate::domain::rule_intent::types::ApplicabilityRefusal;
+use crate::domain::rule_intent::types::CaptureIntent;
+use crate::domain::rule_intent::types::DiagnosticDelivery;
+use crate::domain::rule_intent::types::FileRuleIntent;
+use crate::domain::rule_intent::types::ObservationDemand;
 use crate::application::file_dag::scope::ScopePartials;
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
 use crate::domain::coverage::types::RuleIndex;

@@ -228,7 +228,7 @@ pub(crate) fn execute(
             ryo_values::domain::stored_facts::types::Bucket(0),
             &read,
             symbols,
-            crate::application::file_dag::program::protocol::types::CaptureScope {
+            crate::domain::frontier_capture::types::CaptureScope {
                 file: FileId(0),
                 rule_digest: Digest([0; 16]),
                 worker: ryo_relations::domain::relations::types::WorkerNumber(0),

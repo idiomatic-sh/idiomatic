@@ -10,11 +10,11 @@ use crate::application::file_dag::program::facade_runtime::file_execution::readi
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
 use crate::application::file_dag::program::facade_runtime::source_admission::observation_table;
 use crate::application::file_dag::program::facade_runtime::types::DeclaredIntent;
-use crate::application::file_dag::program::protocol::types::DiagnosticDelivery;
-use crate::application::file_dag::program::protocol::types::EmitDemand;
-use crate::application::file_dag::program::protocol::types::ObservationDemand;
+use crate::domain::rule_intent::types::DiagnosticDelivery;
+use crate::domain::rule_intent::types::EmitDemand;
+use crate::domain::rule_intent::types::ObservationDemand;
 use crate::application::file_dag::program::protocol::types::RootOutcome;
-use crate::application::file_dag::program::protocol::types::RuleDemand;
+use crate::domain::rule_intent::types::RuleDemand;
 use crate::application::file_dag::program::protocol::types::RuleOutcome;
 use crate::application::file_dag::scope::ScopePartials;
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;

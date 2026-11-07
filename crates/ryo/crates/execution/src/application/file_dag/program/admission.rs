@@ -17,6 +17,7 @@ use crate::domain::{
     coverage::types::RuleIndex,
     executable_program::types::{InputSource, RegionId},
     operating::errors::OperatingError,
+    rule_intent::types::ApplicabilityReason,
 };
 use ryo_relations::domain::relations::types::FileId;
 use std::{rc::Rc, sync::Arc};
@@ -58,11 +59,6 @@ pub struct ApplicabilityProof {
     producer: RuleIndex,
     file: FileGeneration,
     reason: ApplicabilityReason,
-}
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ApplicabilityReason {
-    SyntaxRejected,
-    DiagnosticNotApplicable,
 }
 /// Whether an admitted input has no rows in a given representation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

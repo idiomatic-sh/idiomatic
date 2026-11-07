@@ -5,13 +5,13 @@ use crate::application::file_dag::program::facade_runtime::project_execution::Pr
 use crate::application::file_dag::program::facade_runtime::source_admission::ProjectSources;
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
 use crate::application::file_dag::program::facade_runtime::source_admission::table_of;
-use crate::application::file_dag::program::protocol::types::EmitDemand;
-use crate::application::file_dag::program::protocol::types::ObservationDemand;
+use crate::domain::rule_intent::types::EmitDemand;
+use crate::domain::rule_intent::types::ObservationDemand;
 use crate::application::file_dag::program::protocol::types::ObservedPublication;
 use crate::application::file_dag::program::protocol::types::ProjectObservation;
 use crate::application::file_dag::program::protocol::types::ProjectRuleOutcome;
 use crate::application::file_dag::program::protocol::types::RootOutcome;
-use crate::application::file_dag::program::protocol::types::RuleDemand;
+use crate::domain::rule_intent::types::RuleDemand;
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::operating::errors::OperatingError;
 use std::collections::HashMap;

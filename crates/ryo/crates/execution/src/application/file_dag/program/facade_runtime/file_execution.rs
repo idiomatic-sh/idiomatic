@@ -12,8 +12,8 @@ use crate::application::file_dag::program::facade_runtime::types::{
     FileRoot, FrontierCommit, ObservationKey, PreparedNamed, ReuseEligibility, WalkPreparation,
 };
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
-use crate::application::file_dag::program::protocol::types::FileRuleIntent;
-use crate::application::file_dag::program::protocol::types::LogicalCounts;
+use crate::domain::rule_intent::types::FileRuleIntent;
+use crate::domain::operator::types::LogicalCounts;
 #[cfg(test)]
 use crate::application::file_dag::program::protocol::types::ProjectObservation;
 use crate::application::file_dag::program::protocol::types::RootOutcome;
@@ -41,15 +41,15 @@ use crate::application::file_dag::program::admission::Inputs;
 #[cfg(test)]
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
 #[cfg(test)]
-use crate::application::file_dag::program::protocol::types::CaptureIntent;
+use crate::domain::rule_intent::types::CaptureIntent;
 #[cfg(test)]
-use crate::application::file_dag::program::protocol::types::DiagnosticDelivery;
+use crate::domain::rule_intent::types::DiagnosticDelivery;
 #[cfg(test)]
-use crate::application::file_dag::program::protocol::types::EmitDemand;
+use crate::domain::rule_intent::types::EmitDemand;
 #[cfg(test)]
-use crate::application::file_dag::program::protocol::types::ObservationDemand;
+use crate::domain::rule_intent::types::ObservationDemand;
 #[cfg(test)]
-use crate::application::file_dag::program::protocol::types::RuleDemand;
+use crate::domain::rule_intent::types::RuleDemand;
 #[cfg(test)]
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
 #[cfg(test)]

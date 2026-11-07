@@ -6,10 +6,10 @@ use crate::application::file_dag::program::facade_runtime::source_admission::tab
 use crate::application::file_dag::program::facade_runtime::types::{
     DeclaredIntent, FrontierCommit,
 };
-use crate::application::file_dag::program::protocol::types::CaptureIntent;
-use crate::application::file_dag::program::protocol::types::CaptureScope;
-use crate::application::file_dag::program::protocol::types::CapturedFrontier;
-use crate::application::file_dag::program::protocol::types::FrontierCapture;
+use crate::domain::rule_intent::types::CaptureIntent;
+use crate::domain::frontier_capture::types::CaptureScope;
+use crate::domain::frontier_capture::types::CapturedFrontier;
+use crate::domain::frontier_capture::types::FrontierCapture;
 use crate::application::file_dag::scope::ScopePartials;
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
 use crate::domain::coverage::types::RuleIndex;

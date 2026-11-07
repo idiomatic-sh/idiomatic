@@ -4,9 +4,9 @@ use super::scenario::Scenario;
 use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::file_execution::open_file;
 use crate::application::file_dag::program::facade_runtime::types::ProgramServices;
-use crate::application::file_dag::program::protocol::types::{
-    CaptureIntent, DiagnosticDelivery, EmitDemand, FileRuleIntent, ObservationDemand, RootOutcome,
-    RuleDemand,
+use crate::application::file_dag::program::protocol::types::RootOutcome;
+use crate::domain::rule_intent::types::{
+    CaptureIntent, DiagnosticDelivery, EmitDemand, FileRuleIntent, ObservationDemand, RuleDemand,
 };
 use crate::application::file_dag::scope::ScopePartials;
 use crate::domain::file_program::types::RuleSchedule;
