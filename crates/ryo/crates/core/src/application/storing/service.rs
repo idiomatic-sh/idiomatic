@@ -242,10 +242,6 @@ impl Storing {
     /// of the files as the store kept them (with those of the changed files read `alone` before the run, when they stand), what the
     /// rules could not decide in those, and the files whose stored rows are theirs no more, in the order of their paths. `consulted`
     /// says whether the files the project's lookup read are as they were.
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "the decision, the files read alone and the freshness of the lookup are made by three different owners before this"
-    )]
     pub(crate) fn reused(
         decided: Decided,
         consulted: Freshness,
