@@ -39,8 +39,8 @@ fn number_witness_rejects_wrong_producer_and_recycled_generation() {
         }],
     };
     let owner = RelationOwner::for_request(
-        true,
-        64,
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::relations::types::PinnedViewCount(64),
         (std::sync::Arc::new(
             ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
@@ -119,7 +119,10 @@ fn producer_scope_rebinding_refuses_before_registering_an_alias() {
         !owner
             .producer_populations
             .borrow()
-            .contains_key(&(foreign, 8))
+            .contains_key(&crate::application::file_dag::relations::types::ProducerKey {
+                scope: foreign,
+                region: RegionId(8),
+            })
     );
     let independent = owner.computed(Table::default()).unwrap();
     owner

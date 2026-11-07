@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn many_selected_consumers_reacquire_one_generation_proof() {
     let owner = RelationOwner::new(
-        true,
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
             ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
@@ -27,7 +27,7 @@ fn many_selected_consumers_reacquire_one_generation_proof() {
     let first = owner.source(relation, &rows).unwrap();
     for _ in 0..128 {
         let reacquired = owner.source(relation, &rows).unwrap();
-        assert!(first.same_record(&reacquired));
+        assert_eq!(first.same_record(&reacquired), crate::application::file_dag::relations::types::Sameness::Same);
         let resolved = owner
             .resolve(reacquired.as_ref(), &|_| Ok(rows.clone()))
             .unwrap();
@@ -44,17 +44,17 @@ fn many_selected_consumers_reacquire_one_generation_proof() {
             ]
         );
     }
-    assert_eq!(owner.checks.get(), 1);
-    assert_eq!(owner.reuses.get(), 127);
+    assert_eq!(owner.checks.get(), crate::application::file_dag::relations::types::CheckCount(1));
+    assert_eq!(owner.reuses.get(), crate::application::file_dag::relations::types::CheckCount(127));
     owner.release_population();
     assert!(matches!(
         owner.resolve(first.as_ref(), &|_| Ok(rows.clone())),
         Err(OperatingError::NotRead)
     ));
     let next = owner.source(relation, &rows).unwrap();
-    assert!(!first.same_record(&next));
+    assert_eq!(first.same_record(&next), crate::application::file_dag::relations::types::Sameness::Different);
     owner
         .inspect(next.as_ref(), BorrowedRows::from(&rows))
         .unwrap();
-    assert_eq!(owner.checks.get(), 2);
+    assert_eq!(owner.checks.get(), crate::application::file_dag::relations::types::CheckCount(2));
 }

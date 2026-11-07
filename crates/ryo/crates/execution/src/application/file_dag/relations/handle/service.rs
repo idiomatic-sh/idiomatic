@@ -2,12 +2,13 @@
 use crate::application::file_dag::derived::ledger::types::ResourceLease;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::ResourceDependency;
 use crate::application::file_dag::relations::publication::types::RelationResult;
+use crate::application::file_dag::relations::types::NormalizationCharge;
 use std::{cell::RefCell, sync::Arc};
 #[derive(Debug)]
 struct RequiredLeases {
     _initial: Arc<ResourceLease>,
     normalized: RefCell<Option<Arc<ResourceLease>>>,
-    normalized_in_initial: bool,
+    normalized_in_initial: NormalizationCharge,
 }
 #[derive(Clone, Debug)]
 pub(crate) struct PublishedInput {
@@ -22,7 +23,11 @@ impl PublishedInput {
         initial: Arc<ResourceLease>,
         resources: Option<Arc<[ResourceDependency]>>,
     ) -> Self {
-        let normalized_in_initial = record.normalized.get().is_some();
+        let normalized_in_initial = if record.normalized.get().is_some() {
+            NormalizationCharge::Charged
+        } else {
+            NormalizationCharge::Uncharged
+        };
         Self {
             record,
             _resources: resources,
@@ -39,8 +44,14 @@ impl PublishedInput {
     pub(in crate::application::file_dag::relations) fn record(&self) -> &Arc<RelationResult> {
         &self.record
     }
-    pub(in crate::application::file_dag::relations) fn normalization_charged(&self) -> bool {
-        self.leases.normalized_in_initial || self.leases.normalized.borrow().is_some()
+    pub(in crate::application::file_dag::relations) fn normalization_charged(&self) -> NormalizationCharge {
+        if self.leases.normalized_in_initial == NormalizationCharge::Charged
+            || self.leases.normalized.borrow().is_some()
+        {
+            NormalizationCharge::Charged
+        } else {
+            NormalizationCharge::Uncharged
+        }
     }
     pub(in crate::application::file_dag::relations) fn hold_normalization(
         &self,
@@ -49,8 +60,12 @@ impl PublishedInput {
         *self.leases.normalized.borrow_mut() = Some(lease);
     }
     #[cfg(test)]
-    pub(crate) fn same_record(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.record, &other.record)
+    pub(crate) fn same_record(&self, other: &Self) -> crate::application::file_dag::relations::types::Sameness {
+        if Arc::ptr_eq(&self.record, &other.record) {
+            crate::application::file_dag::relations::types::Sameness::Same
+        } else {
+            crate::application::file_dag::relations::types::Sameness::Different
+        }
     }
 }
 impl std::ops::Deref for PublishedInput {

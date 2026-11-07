@@ -13,7 +13,7 @@ impl RelationOwner {
             return Err(OperatingError::WrongOperation);
         };
         self.generation(source)?;
-        if !self.matches_current(source, BorrowedRows::Stored(source_rows)) {
+        if self.matches_current(source, BorrowedRows::Stored(source_rows)) == Sameness::Different {
             return Err(OperatingError::NotRead);
         }
         Ok(Rows::Selected(SelectedRows {
@@ -34,7 +34,7 @@ impl RelationOwner {
         let proof = self.admit_relation(relation, BorrowedRows::Stored(source))?;
         let admitted = self.derived.admit_view(plan, self, &[&proof])?;
         self.derived.acquire_stored_with_route(
-            crate::application::file_dag::route_counts::BuildRoute::Column,
+            crate::application::file_dag::route_counts::types::BuildRoute::Column,
             plan,
             &admitted,
             Default::default(),

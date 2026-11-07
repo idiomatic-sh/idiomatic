@@ -1,6 +1,8 @@
 //! Owner-dependent admission logic lives below its private data representation.
 use super::super::*;
+use crate::application::file_dag::relations::admission::types::AdmissionOrigin;
 use crate::application::file_dag::relations::publication::types::*;
+use crate::application::file_dag::relations::types::Sameness;
 use crate::application::file_dag::relations::*;
 use crate::domain::table_model::collections::representations::publication::PublishedRelation;
 impl<'a> BorrowedInput<'a> {
@@ -11,9 +13,9 @@ impl<'a> BorrowedInput<'a> {
     ) -> Result<(), OperatingError> {
         let (population, _) = self.identity(owner)?;
         let actual = owner.private(publication)?;
-        if self.publication_population != PopulationId(actual.population)
+        if self.publication_population != actual.population
             || population != owner.result_population(actual)
-            || !Arc::ptr_eq(&self.origin.2, &actual.generation)
+            || !Arc::ptr_eq(&self.origin.generation, &actual.generation)
         {
             return Err(OperatingError::NotRead);
         }
@@ -44,7 +46,7 @@ impl<'a> BorrowedInput<'a> {
         self.shape
     }
     pub(in crate::application::file_dag) fn generation_guard(&self) -> Arc<()> {
-        Arc::clone(&self.origin.2)
+        Arc::clone(&self.origin.generation)
     }
     pub(in crate::application::file_dag) fn rows(&self) -> BorrowedRows<'a> {
         self.rows
@@ -53,14 +55,13 @@ impl<'a> BorrowedInput<'a> {
         &self,
         owner: &RelationOwner,
     ) -> Result<(PopulationId, Option<Relation>), OperatingError> {
-        let (population, relation, generation) = &self.origin;
-        if !Arc::ptr_eq(generation, &owner.generation.borrow()) {
+        if !Arc::ptr_eq(&self.origin.generation, &owner.generation.borrow()) {
             return Err(OperatingError::NotRead);
         }
         if self.shape != PhysicalShape::Complete {
             return Err(OperatingError::ShapeMismatch);
         }
-        Ok((*population, *relation))
+        Ok((self.origin.population, self.origin.relation))
     }
 }
 
@@ -79,7 +80,7 @@ impl RelationOwner {
         input: BorrowedRows<'a>,
     ) -> Result<Result<BorrowedInput<'a>, OperatingError>, OperatingError> {
         let result = self.private(result)?;
-        if !self.matches_current(result, input) {
+        if self.matches_current(result, input) == Sameness::Different {
             return Err(OperatingError::NotRead);
         }
         // Identity is an availability refusal. Geometry is computed on the
@@ -87,21 +88,21 @@ impl RelationOwner {
         Ok(self
             .inspect_current(result, input)
             .map(|shape| BorrowedInput {
-                publication_population: PopulationId(result.population),
+                publication_population: result.population,
                 rows: input,
                 shape,
                 backing_population: self.backing_population(result),
                 backing_relation: Self::backing_relation(result),
                 canonical_backing: Self::backing_relation(result)
                     .is_some_and(|relation| self.sources.borrow().contains_key(&relation)),
-                origin: (
-                    self.result_population(result),
-                    match &result.body {
+                origin: AdmissionOrigin {
+                    population: self.result_population(result),
+                    relation: match &result.body {
                         RelationBody::Source(source) => Some(source.relation),
                         _ => None,
                     },
-                    Arc::clone(&result.generation),
-                ),
+                    generation: Arc::clone(&result.generation),
+                },
             }))
     }
 }

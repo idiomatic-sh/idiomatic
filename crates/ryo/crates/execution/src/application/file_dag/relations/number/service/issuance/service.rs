@@ -12,21 +12,22 @@ impl RelationOwner {
         rows: BorrowedRows<'_>,
     ) -> Result<Option<AdmittedNumber<'a>>, OperatingError> {
         let record = publication.as_ref();
-        let expected: Option<(PopulationId, PopulationId)> = self
+        let scope = match record.producer_scope.get() {
+            Some(scope) => *scope,
+            None => return Ok(None),
+        };
+        let expected = self
             .producer_populations
             .borrow()
-            .get(&(
-                match record.producer_scope.get() {
-                    Some(scope) => *scope,
-                    None => return Ok(None),
-                },
-                producer.0,
-            ))
-            .map(|(population, backing)| (PopulationId(*population), *backing));
-        let actual = (
-            self.result_population(record),
-            self.backing_population(record),
-        );
+            .get(&ProducerKey {
+                scope,
+                region: producer,
+            })
+            .copied();
+        let actual = ProducerPopulation {
+            population: self.result_population(record),
+            backing: self.backing_population(record),
+        };
         if !Arc::ptr_eq(&record.generation, &self.generation.borrow()) || expected != Some(actual) {
             return Ok(None);
         }
@@ -43,7 +44,7 @@ impl RelationOwner {
                 source.kind != RepresentationKind::Stored
                     || source.kinds.get(origin.column.0 as usize) != Some(&CellKind::Number)
                     || source.storage.len() != source.kinds.len()
-                    || source.storage.iter().any(|(_, len)| *len != source.rows)
+                    || source.storage.iter().any(|span| span.length.0 != source.rows.0)
             })
         {
             return Ok(None);
@@ -60,8 +61,6 @@ impl RelationOwner {
         }
         Ok(Some(AdmittedNumber {
             publication,
-            _producer: producer,
-            _population: actual.0,
             column: required.column,
         }))
     }

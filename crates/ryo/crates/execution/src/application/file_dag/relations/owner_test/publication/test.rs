@@ -4,7 +4,7 @@ use super::super::*;
 #[test]
 fn lazy_source_normalization_is_shared_and_lives_until_the_last_consumer() {
     let owner = RelationOwner::new(
-        true,
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
             ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
@@ -22,7 +22,7 @@ fn lazy_source_normalization_is_shared_and_lives_until_the_last_consumer() {
     let weak = Arc::downgrade(publication.record());
     assert_eq!(
         owner.checks.get(),
-        0,
+        crate::application::file_dag::relations::types::CheckCount(0),
         "publication does not inspect undemanded source rows"
     );
     assert!(publication.normalized.get().is_none());
@@ -46,7 +46,7 @@ fn lazy_source_normalization_is_shared_and_lives_until_the_last_consumer() {
         panic!("same demanded fallback")
     };
     assert_eq!(normalized_address, table as *const _);
-    assert_eq!(owner.checks.get(), 1);
+    assert_eq!(owner.checks.get(), crate::application::file_dag::relations::types::CheckCount(1));
     assert_eq!(
         owner.derived.publication_ownership_bytes(),
         charged,
@@ -61,7 +61,7 @@ fn lazy_source_normalization_is_shared_and_lives_until_the_last_consumer() {
 fn computed_publication_clones_keep_required_backing_until_last_handle_in_live_generation() {
     use ryo_values::domain::rows::types::{RowCount, Table};
     let owner = RelationOwner::new(
-        true,
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         crate::application::file_dag::testing::program_derived_port(),
     );
     let generation = owner.generation_guard();
@@ -74,7 +74,7 @@ fn computed_publication_clones_keep_required_backing_until_last_handle_in_live_g
         .unwrap();
     let record = Arc::downgrade(publication.record());
     let alias = publication.clone();
-    assert!(alias.same_record(&publication));
+    assert_eq!(alias.same_record(&publication), crate::application::file_dag::relations::types::Sameness::Same);
     let charged = owner.derived.publication_ownership_bytes();
     assert!(
         charged.0 > 0,
@@ -98,7 +98,7 @@ fn computed_publication_clones_keep_required_backing_until_last_handle_in_live_g
         );
         assert_eq!(owner.derived.publication_ownership_bytes(), charged);
     }
-    assert!(owner.matches_generation(&generation));
+    assert_eq!(owner.matches_generation(&generation), crate::application::file_dag::relations::types::Sameness::Same);
     assert!(owner.generation_liveness().is_live());
     drop(alias);
     assert!(
@@ -106,8 +106,9 @@ fn computed_publication_clones_keep_required_backing_until_last_handle_in_live_g
         "last leased handle releases the actual record"
     );
     assert_eq!(owner.derived.publication_ownership_bytes(), (0, 0, 0));
-    assert!(
+    assert_eq!(
         owner.matches_generation(&generation),
+        crate::application::file_dag::relations::types::Sameness::Same,
         "release did not rely on retiring the generation"
     );
     assert!(owner.generation_liveness().is_live());

@@ -1,18 +1,15 @@
 //! The scope namespace alone issues production owner-creation authority.
+use crate::application::file_dag::relations::types::ReuseEligibility;
+
 /// A permit's private field prevents unrelated application code from creating a
-/// RelationOwner directly. Only this cohesive outer scope constructor mints it.
+/// RelationOwner directly. Only the outer scope constructor mints it; the owner
+/// reads the reuse eligibility it carries.
 pub(in crate::application::file_dag) struct ScopePermit {
-    _private: (),
-}
-#[cfg(test)]
-impl ScopePermit {
-    pub(in crate::application::file_dag) fn fixture() -> Self {
-        Self { _private: () }
-    }
+    pub(super) reuse: ReuseEligibility,
 }
 
-impl ScopePermit {
-    pub(super) fn new() -> Self {
-        Self { _private: () }
+impl From<ScopePermit> for ReuseEligibility {
+    fn from(permit: ScopePermit) -> Self {
+        permit.reuse
     }
 }
