@@ -38,7 +38,7 @@ fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
     let engine = engine();
     let raw = authored_request(2);
     let compiler =
-        QueryCompilation::new(Arc::new(AuthoredQueryProvider(crate::boundary_fixture::plans(&mut raw)[0].clone())));
+        QueryCompilation::new(Arc::new(AuthoredQueryProvider(crate::boundary_fixture::plans_of(&raw)[0].clone())));
     let compiled = compiler
         .compile(&raw.rules, &raw.hosted, &ryo_execution::outbound::digest::fixtures::fake::DigestFake)
         .expect("compile independent rules");

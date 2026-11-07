@@ -80,7 +80,7 @@ pub(crate) fn build(
                 Arc::clone(&digests),
                 Arc::clone(&memory),
             ),
-            CrossFile::new(Arc::clone(&files), std::sync::Arc::new(ryo_core::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())))),
+            CrossFile::new(Arc::clone(&files), std::sync::Arc::new(ryo_core::outbound::publication::factory::execution())),
             Arc::clone(&files),
             Arc::new(facts::factory::memory()),
             language,
