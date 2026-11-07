@@ -1,7 +1,8 @@
 //! A project submission answers exactly the roots it names, and refuses by name the ones it did not declare.
 use super::super::fixtures::{Entry, Root, submit};
 use crate::boundary_fixture::engine;
-use ryo_execution::inbound::use_cases::execution::types::*;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 
 fn root(rule: usize) -> Root {
     Root {

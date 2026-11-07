@@ -655,7 +655,8 @@ fn normalized_staging_preserves_store_bytes_and_snapshot_lifetime() -> Result<Va
 }
 
 fn warm_partial_frontier_keeps_exact_proof_through_facts_handover() -> Result<Value, Failure> {
-    use ryo_execution::inbound::use_cases::execution::types::facts::{FactsPort as _, WordsToKeep};
+    use ryo_execution::outbound::facts::interface::FactsPort as _;
+    use ryo_execution::outbound::facts::types::WordsToKeep;
     use ryo_relations::domain::relations::types::FileId;
     use ryo_values::domain::{
         records::types::{FrontierAffected, FrontierCoverage, FrontierMissing},

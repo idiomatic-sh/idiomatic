@@ -9,9 +9,9 @@
 )]
 
 use ryo_execution::outbound::facts::factory::{memory, spill, spill_scratch};
-use ryo_execution::inbound::use_cases::execution::types::facts::{
-    FactsPort, FactsWorker, WordsToKeep,
-};
+use ryo_execution::outbound::facts::interface::FactsPort;
+use ryo_execution::outbound::facts::interface::FactsWorker;
+use ryo_execution::outbound::facts::types::WordsToKeep;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::records::types::{
     FrontierCoverage, FrontierOrdinal, FrontierProof, ProducerRule,

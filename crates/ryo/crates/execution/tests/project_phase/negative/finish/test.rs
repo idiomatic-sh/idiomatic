@@ -2,10 +2,16 @@
 use super::super::super::source_facts::fixtures::ProjectFacts;
 use super::super::fixtures::NoFileFrontiers;
 use crate::boundary_fixture::{corpus, demand, engine, prepared, project_root};
-use ryo_execution::inbound::use_cases::execution::{
-    interface::{ExecutionRequest, ExecutionUseCase, ProjectStage},
-    types::*,
-};
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
+use ryo_execution::application::file_dag::program::project_phase::types::ProjectInput;
+use ryo_execution::application::file_dag::program::request_execution::types::FrontierDemand;
+use ryo_execution::application::file_dag::program::request_execution::types::FrontierRequest;
+use ryo_execution::inbound::use_cases::execution::interface::Covered;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, Relation};
 use ryo_values::domain::stored_facts::types::Bucket;
@@ -28,7 +34,7 @@ fn finish_refuses_while_a_scope_still_shares_the_publication() {
             &corpus,
             &covered,
             &[],
-            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
         )
         .unwrap();
     let project = ProjectFacts::new(Relation::ModuleIdentity);

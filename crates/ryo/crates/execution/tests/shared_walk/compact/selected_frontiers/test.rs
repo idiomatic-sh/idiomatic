@@ -1,8 +1,15 @@
 //! A selected join shares work, keeps counts and exports owned frontiers.
 use super::super::super::fixtures::{complete, input};
 use crate::boundary_fixture::{authored_request, corpus, demand, engine};
-use ryo_execution::inbound::use_cases::execution::interface::*;
-use ryo_execution::inbound::use_cases::execution::types::*;
+use ryo_execution::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::fixtures::intern_derived;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};

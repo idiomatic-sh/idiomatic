@@ -1,13 +1,36 @@
 //! One project submission through the public phase, with the roots its guard was asked about.
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use crate::boundary_fixture::corpus;
-use ryo_execution::inbound::use_cases::execution::{
-    interface::{
-        ExecutionRequest, ExecutionUseCase, ObservationExecution, ProjectRootExecution,
-        ProjectStage,
-    },
-    types::*,
-    use_case::ExecutionUseCaseImpl,
-};
+use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationExecution;
+use ryo_execution::application::file_dag::program::project_phase::interface::ProjectRootExecution;
+use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
+use ryo_execution::application::file_dag::frontiers::errors::PreparationError;
+use ryo_execution::application::file_dag::frontiers::types::PreparedFrontiers;
+use ryo_execution::application::file_dag::program::observation_stage::types::ObservationStage;
+use ryo_execution::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+use ryo_execution::application::file_dag::program::project_phase::types::ProjectInput;
+use ryo_execution::application::file_dag::program::project_phase::types::ProjectPhase;
+use ryo_execution::application::file_dag::program::project_phase::types::ProjectScope;
+use ryo_execution::application::file_dag::program::project_phase::types::ProjectTask;
+use ryo_execution::application::file_dag::program::request_execution::types::FrontierDemand;
+use ryo_execution::application::file_dag::program::request_execution::types::FrontierRequest;
+use ryo_execution::application::file_dag::program::request_execution::types::RequestExecution;
+use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectBatch;
+use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectRuleOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::Covered;
+use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, FileId};
 use ryo_values::domain::{
@@ -78,14 +101,14 @@ impl Held<'_> {
                 corpus,
                 covered,
                 &[],
-                &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+                &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
             ),
             Held::Stage(stage) => stage.project_scope(
                 rule,
                 corpus,
                 covered,
                 &[],
-                &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+                &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
             ),
         }
     }
@@ -113,7 +136,7 @@ impl Held<'_> {
 
 /// The prepared program of `rule_count` rules; the stage entry declares one closed named binding.
 fn program(
-    engine: &ExecutionUseCaseImpl,
+    engine: &PrepareUseCaseImpl,
     entry: Entry,
     rule_count: usize,
 ) -> PreparedExecutionProgram {
@@ -165,7 +188,7 @@ pub(crate) struct Submitted {
 /// Evaluate `roots` through the real project phase of a request over `rule_count` rules.
 /// `refuse` is the rule the guard rejects, if any.
 pub(crate) fn submit(
-    engine: &ExecutionUseCaseImpl,
+    engine: &PrepareUseCaseImpl,
     entry: Entry,
     rule_count: usize,
     roots: &[Root],
@@ -173,7 +196,7 @@ pub(crate) fn submit(
 ) -> Submitted {
     let prepared = program(engine, entry, rule_count);
     let corpus = corpus();
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let covered = [Covered {
         file: FileId(0),
         rules: (0..rule_count).map(RuleIndex).collect(),
@@ -255,14 +278,14 @@ pub(crate) fn submit(
 /// Open the request and its phase (or observation stage) for `entry`, hand them to `check`,
 /// and release everything once `check` has dropped every scope it made.
 pub(crate) fn with_held<T>(
-    engine: &ExecutionUseCaseImpl,
+    engine: &PrepareUseCaseImpl,
     entry: Entry,
     rule_count: usize,
     check: impl FnOnce(&RequestExecution, &mut Held<'_>, &[CorpusInput], &[Covered]) -> T,
 ) -> T {
     let prepared = program(engine, entry, rule_count);
     let corpus = corpus();
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let covered = [Covered {
         file: FileId(0),
         rules: (0..rule_count).map(RuleIndex).collect(),
@@ -299,11 +322,11 @@ pub(crate) fn prepare_for(
 }
 /// A scope opened by one phase of the request, evaluated through another phase of it.
 pub(crate) fn foreign_phase_outcome(
-    engine: &ExecutionUseCaseImpl,
+    engine: &PrepareUseCaseImpl,
 ) -> Result<ProjectRuleOutcome, OperatingError> {
     let prepared = program(engine, Entry::Phase, 1);
     let corpus = corpus();
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let covered = [Covered {
         file: FileId(0),
         rules: vec![RuleIndex(0)],
@@ -319,7 +342,7 @@ pub(crate) fn foreign_phase_outcome(
             &corpus,
             &covered,
             &[],
-            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
         )
         .unwrap();
     let ordinary = prepare_for(&request, &scope, RuleIndex(0)).unwrap();

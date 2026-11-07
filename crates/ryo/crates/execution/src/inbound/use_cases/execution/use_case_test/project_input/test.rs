@@ -1,5 +1,18 @@
 //! A project root cannot reconstruct an unhanded per-file step from a provider.
-use super::super::super::{fixtures, interface::*, types::*};
+use super::super::super::fixtures;
+use crate::application::file_dag::program::project_phase::types::ProjectInput;
+use crate::application::file_dag::program::project_phase::types::ProjectTask;
+use crate::application::file_dag::program::request_execution::types::FrontierDemand;
+use crate::application::file_dag::program::request_execution::types::FrontierRequest;
+use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use crate::inbound::use_cases::execution::interface::Covered;
+use crate::inbound::use_cases::execution::interface::EmitDemand;
+use crate::inbound::use_cases::execution::interface::ObservationDemand;
+use crate::inbound::use_cases::execution::interface::OperatingError;
+use crate::inbound::use_cases::execution::interface::Partials;
+use crate::inbound::use_cases::execution::interface::RuleDemand;
+use crate::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{ColumnsView, FileId, Relation};
 use ryo_values::domain::{
@@ -81,7 +94,7 @@ fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() {
             &corpus,
             &covered,
             &[],
-            &crate::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            &crate::inbound::use_cases::execution::interface::InapplicableFiles::default(),
         )
         .unwrap();
     let facts = UnavailableFacts::default();

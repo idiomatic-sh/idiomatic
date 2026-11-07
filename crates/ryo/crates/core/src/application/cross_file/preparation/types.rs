@@ -1,7 +1,8 @@
 //! Owned resources for one declared project occurrence, before engine admission.
-use ryo_execution::inbound::use_cases::execution::types::{
-    BoundInput, PreparedFrontiers, ProjectScope, PublicationSlot,
-};
+use ryo_execution::application::file_dag::frontiers::types::BoundInput;
+use ryo_execution::application::file_dag::frontiers::types::PreparedFrontiers;
+use ryo_execution::application::file_dag::program::project_phase::types::ProjectScope;
+use ryo_execution::application::file_dag::frontiers::types::PublicationSlot;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Occurrence(pub usize);

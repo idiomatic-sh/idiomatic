@@ -1,5 +1,6 @@
 //! Both authored union associations must publish the same exact distinct findings.
-use super::super::super::{fixtures, types::OperatingError};
+use super::super::super::fixtures;
+use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 use ryo_values::{

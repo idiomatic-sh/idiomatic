@@ -1,5 +1,6 @@
 //! Rank binding and row-retention contracts through the compiled public owner.
-use super::super::super::{fixtures, types::OperatingError};
+use super::super::super::fixtures;
+use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Value as Cell;
 use ryo_values::{

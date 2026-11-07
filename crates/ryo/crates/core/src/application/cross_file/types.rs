@@ -2,11 +2,16 @@
 use super::completion::types::CrossedWithPublications;
 use super::errors::CrossFileError;
 use crate::domain::answering::types::Todo;
-use ryo_execution::inbound::use_cases::execution::types::{
-    BoundInput, Partials, PreparedExecutionProgram, PreparedFrontiers, ProjectScope,
-    PublicationSlot, RequestExecution, RuleIndex,
-};
-use ryo_execution::inbound::use_cases::execution::types::facts::{FactsFinish, FactsWorker};
+use ryo_execution::application::file_dag::frontiers::types::BoundInput;
+use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+use ryo_execution::application::file_dag::frontiers::types::PreparedFrontiers;
+use ryo_execution::application::file_dag::program::project_phase::types::ProjectScope;
+use ryo_execution::application::file_dag::frontiers::types::PublicationSlot;
+use ryo_execution::application::file_dag::program::request_execution::types::RequestExecution;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::outbound::facts::interface::FactsFinish;
+use ryo_execution::outbound::facts::interface::FactsWorker;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::stored_facts::types::{ArenaBytes, Bucket};
 use std::ops::Deref;

@@ -1,5 +1,6 @@
 //! Conflicting metadata, population and resource failures through the actual execution owner.
-use super::super::super::{fixtures, types::SourceRows};
+use super::super::super::fixtures;
+use crate::application::file_dag::program::file_session::types::SourceRows;
 use crate::domain::operating::errors::OperatingError;
 use ryo_language::{domain::elements::types::Elements, domain::symbols::types::Symbols};
 use ryo_relations::domain::relations::{

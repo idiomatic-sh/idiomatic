@@ -1,5 +1,6 @@
 //! Injected immutable source rows and the exact file frontier captured by the public owner.
-use ryo_execution::inbound::use_cases::execution::types::{CapturedFrontier, facts};
+use ryo_execution::inbound::use_cases::execution::types::facts;
+use ryo_execution::inbound::use_cases::execution::interface::CapturedFrontier;
 use ryo_relations::domain::relations::{
     fixtures::kinds,
     types::{CellKind, FileId, Offset, Relation, Span, Value},

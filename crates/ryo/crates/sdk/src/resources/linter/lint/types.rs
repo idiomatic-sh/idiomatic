@@ -9,8 +9,8 @@ use std::sync::Arc;
 
 use ryo_core::outbound::language::interface::LanguagePort;
 use ryo_core::outbound::scheduler::{interface::SchedulerPort, types::WorkerCount};
-use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort;
-use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
+use ryo_execution::outbound::matching::interface::MatchingPort;
+use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 
 use crate::domain::capacity::types::MemoryBudget;
 use crate::domain::cell::types::{Cell, Slot};
@@ -168,7 +168,7 @@ pub(crate) struct LinterLintEngine {
     /// The matching every run checks its globs with: a set made once is not made again.
     pub matching: Arc<dyn MatchingPort>,
     /// The plans compiled so far, by rule id.
-    pub plans: ryo_execution::inbound::use_cases::execution::types::CompiledPlans,
+    pub plans: ryo_execution::application::rule_compilation::types::CompiledPlans,
     /// The scheduler over the pool the caller built and injected once: every run's work is spread over it.
     pub scheduler: Arc<dyn SchedulerPort>,
     /// How many workers the scheduler runs jobs on.
@@ -181,7 +181,7 @@ pub(crate) struct LinterLintEngine {
     pub cache: Cache,
     /// The execution strategies every run over the engine may use.
     #[cfg(feature = "fixtures")]
-    pub routes: ryo_execution::inbound::use_cases::execution::types::RoutePolicy,
+    pub routes: ryo_execution::inbound::use_cases::prepare::interface::RoutePolicy,
 }
 
 impl Linter {

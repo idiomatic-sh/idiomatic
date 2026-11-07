@@ -240,7 +240,7 @@ pub(crate) static COUNTING: std::sync::atomic::AtomicBool =
 pub(crate) fn lint_with(
     root: &Path,
     rules: Vec<Rule>,
-    store: Arc<dyn ryo_execution::inbound::use_cases::execution::types::facts::FactsPort>,
+    store: Arc<dyn ryo_execution::outbound::facts::interface::FactsPort>,
     lint_store: Arc<dyn ryo_core::outbound::lint_store::interface::LintStorePort>,
 ) -> Result<(Vec<Vec<String>>, Vec<String>), String> {
     let (rows, report) = lint_report(root, rules, store, lint_store)?;
@@ -262,7 +262,7 @@ pub(crate) fn lint_with(
 pub(crate) fn lint_report(
     root: &Path,
     rules: Vec<Rule>,
-    store: Arc<dyn ryo_execution::inbound::use_cases::execution::types::facts::FactsPort>,
+    store: Arc<dyn ryo_execution::outbound::facts::interface::FactsPort>,
     lint_store: Arc<dyn ryo_core::outbound::lint_store::interface::LintStorePort>,
 ) -> Result<
     (
@@ -283,7 +283,7 @@ pub(crate) fn lint_report(
 pub(crate) fn lint_report_hosted(
     root: &Path,
     rules: Vec<Rule>,
-    store: Arc<dyn ryo_execution::inbound::use_cases::execution::types::facts::FactsPort>,
+    store: Arc<dyn ryo_execution::outbound::facts::interface::FactsPort>,
     lint_store: Arc<dyn ryo_core::outbound::lint_store::interface::LintStorePort>,
     hosted: Vec<ryo_values::domain::hosted::types::HostRelation>,
     manifests_read: bool,
@@ -313,7 +313,7 @@ pub(crate) fn lint_report_hosted(
 pub(crate) fn lint_report_with_languages(
     root: &Path,
     rules: Vec<Rule>,
-    store: Arc<dyn ryo_execution::inbound::use_cases::execution::types::facts::FactsPort>,
+    store: Arc<dyn ryo_execution::outbound::facts::interface::FactsPort>,
     lint_store: Arc<dyn ryo_core::outbound::lint_store::interface::LintStorePort>,
     hosted: Vec<ryo_values::domain::hosted::types::HostRelation>,
     manifests_read: bool,
@@ -352,7 +352,7 @@ pub(crate) fn lint_report_with_languages(
         let analysis_memory: Arc<dyn memory::interface::MemoryPort> =
             Arc::new(memory::factory::sysinfo(Budget::Machine));
         let analysis_digest: Arc<
-            dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
+            dyn ryo_execution::outbound::digest::interface::DigestPort,
         > = Arc::new(digest::factory::blake3());
         LintUseCaseImpl::new(
             ryo_core::application::file_analysis::service::FileAnalysis::new(

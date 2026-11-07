@@ -1,5 +1,6 @@
 //! Extend resolves values through the real request compiler and file owner.
-use super::super::super::{fixtures, types::OperatingError};
+use super::super::super::fixtures;
+use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer};
 use ryo_values::{

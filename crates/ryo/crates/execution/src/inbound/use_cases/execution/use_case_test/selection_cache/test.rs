@@ -1,5 +1,6 @@
 //! Public-owner selection oracles stay at the inbound boundary.
-use super::super::super::{fixtures as public_owner, types::SourceRows};
+use super::super::super::fixtures as public_owner;
+use crate::application::file_dag::program::file_session::types::SourceRows;
 use crate::domain::{
     operating::errors::OperatingError,
     stored_selection::{

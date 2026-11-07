@@ -7,8 +7,8 @@ use ryo_core::inbound::use_cases::lint::types::{
     Rule as CoreRule, RuleParameter,
 };
 use ryo_core::inbound::use_cases::open::errors::OpenError;
-use ryo_execution::inbound::use_cases::execution::types::matching::MatchingError;
-use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort as _;
+use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
+use ryo_execution::outbound::matching::interface::MatchingPort as _;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::inbound::use_cases::project::types::Repository;
 use ryo_language::inbound::use_cases::project::types::RootPath;

@@ -13,10 +13,13 @@ use crate::application::cross_file::{
     },
 };
 use crate::domain::answering::types::Todo;
-use ryo_execution::inbound::use_cases::execution::{
-    interface::{ExecutionRequest, ProjectRootExecution, ProjectStage, ReadinessCounts},
-    types::{ProjectBatch, PublicationSlot, RuleIndex},
-};
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::application::file_dag::program::project_phase::interface::ProjectRootExecution;
+use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::ReadinessCounts;
+use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectBatch;
+use ryo_execution::application::file_dag::frontiers::types::PublicationSlot;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
 use std::sync::Arc;
 /// Observes the production project entry, then delegates to that same engine.
@@ -27,13 +30,13 @@ struct CountedProject<'a, T> {
 impl<T: ProjectRootExecution> ProjectRootExecution for CountedProject<'_, T> {
     fn evaluate<E>(
         &self,
-        tasks: Vec<ryo_execution::inbound::use_cases::execution::types::ProjectTask<'_>>,
+        tasks: Vec<ryo_execution::application::file_dag::program::project_phase::types::ProjectTask<'_>>,
         symbols: &mut Symbols,
         guard: impl FnMut(RuleIndex) -> Result<(), E>,
     ) -> ProjectBatch<
         Result<
-            ryo_execution::inbound::use_cases::execution::types::ProjectRuleOutcome,
-            ryo_execution::inbound::use_cases::execution::types::OperatingError,
+            ryo_execution::application::file_dag::program::rule_outcome::types::ProjectRuleOutcome,
+            ryo_execution::inbound::use_cases::execution::interface::OperatingError,
         >,
         E,
     > {
@@ -60,7 +63,7 @@ pub(in crate::application::cross_file::preparation) enum BatchControl {
 pub(in crate::application::cross_file::preparation) fn sealed_batch_control(
     control: BatchControl,
 ) -> Result<(), BatchPreparationError> {
-    use ryo_execution::inbound::use_cases::execution::types::OperatingError;
+    use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
     use std::sync::atomic::Ordering;
     let calls = Arc::new(ProjectCalls::default());
     let plan = counting_plan(1, vec![]);

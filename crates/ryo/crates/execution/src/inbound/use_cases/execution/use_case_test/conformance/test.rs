@@ -1,7 +1,26 @@
 //! Every operation executes through the real prepare/open_file/collect-or-deliver protocol.
-use super::super::super::{
-    fixtures as owner_fixtures, interface::*, types::*, use_case::ExecutionUseCaseImpl,
-};
+use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use crate::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use crate::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
+use crate::inbound::use_cases::prepare::interface::PrepareUseCase;
+use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
+use super::super::super::{fixtures as owner_fixtures, use_case::ExecutionUseCaseImpl};
+use crate::application::file_dag::program::file_session::types::FileInput;
+use crate::application::file_dag::program::file_session::types::SourceLanguage;
+use crate::application::file_dag::program::file_session::types::SourceRows;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use crate::inbound::use_cases::execution::interface::CaptureIntent;
+use crate::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use crate::inbound::use_cases::execution::interface::EmitDemand;
+use crate::inbound::use_cases::execution::interface::FileRuleIntent;
+use crate::inbound::use_cases::execution::interface::ObservationDemand;
+use crate::inbound::use_cases::execution::interface::OperatingError;
+use crate::inbound::use_cases::execution::interface::RuleDemand;
+use crate::inbound::use_cases::execution::interface::RuleIndex;
+use crate::inbound::use_cases::execution::interface::SemanticLookup;
+use crate::inbound::use_cases::prepare::interface::ObservationIdentity;
+use crate::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
+use crate::outbound::operators::interface::OperatorsPort;
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::*;
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::values::KnownSyntax;
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::expectations::{SOURCE, assert_expected};
@@ -166,15 +185,11 @@ pub(in super::super) fn compare_delivery_with_port(
         owner_fixtures::table_inputs(operation.clone(), &refs, bindings, symbols)
     };
     let emit = authored.plan.emit.step;
-    let engine = ExecutionUseCaseImpl::new(
+    let engine = PrepareUseCaseImpl::new(
         port,
         Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
     );
-    let preparation = engine.prepare(PreparedRequest {
-        plans: vec![authored.plan],
-        bindings: vec![bindings.to_vec()],
-        hosted: authored.hosted,
-        rules: vec![RuleSpec {
+    let preparation = engine.prepare(PrepareRequest { plans: PlanSource::Authored { plans: vec![authored.plan], bindings: vec![bindings.to_vec()] }, rules: vec![RuleSpec {
             id: RuleId("operation-conformance".into()),
             query: QueryBundle {
                 root: QueryDocumentSource {
@@ -189,10 +204,7 @@ pub(in super::super) fn compare_delivery_with_port(
             spelled: RuleParameters("".into()),
             include: vec![],
             exclude: vec![],
-        }],
-        digests: vec![Digest([0; 16])],
-        observations: ObservationIdentity::Independent,
-    });
+        }], digests: vec![Digest([0; 16])], hosted: authored.hosted, observations: ObservationIdentity::Independent });
     let program = match preparation {
         Ok(program) => program,
         Err(error) => {
@@ -225,7 +237,7 @@ pub(in super::super) fn compare_delivery_with_port(
             .map(|(_, table)| SourceRows::Computed(table))
             .ok_or(OperatingError::NotRead)
     };
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let elements = Elements::default();
     let input = |diagnostic| FileInput {
         language: SourceLanguage::Recognized,

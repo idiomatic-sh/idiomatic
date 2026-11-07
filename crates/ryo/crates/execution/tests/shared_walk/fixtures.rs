@@ -1,10 +1,20 @@
 //! Completed source data and authored requests; every execution enters the public owner.
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use crate::boundary_fixture::authored_request;
-use ryo_execution::inbound::use_cases::execution::{
-    interface::{ExecutionUseCase, FileExecution, WalkPassCount, WalkSourceRows},
-    types::*,
-    use_case::ExecutionUseCaseImpl,
-};
+use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution::inbound::use_cases::execution::interface::WalkPassCount;
+use ryo_execution::inbound::use_cases::execution::interface::WalkSourceRows;
+use ryo_execution::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+use ryo_execution::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution::application::file_dag::program::rule_outcome::types::RuleOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_language::domain::{completion::fixtures::{completion, name_kind}, elements::{fixtures::{kind_names, real_count, text_at}, types::Elements}, kind_index::fixtures::index_kinds, symbols::types::{ByteSlice, Symbols}};
 use ryo_language::domain::builders::fixtures::{enter_node, leave_node, table_builder, token};
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
@@ -48,10 +58,10 @@ impl SemanticCalls {
         self.0.load(Ordering::Relaxed)
     }
 }
-pub(super) fn engine() -> (ExecutionUseCaseImpl, Arc<SemanticCalls>) {
+pub(super) fn engine() -> (PrepareUseCaseImpl, Arc<SemanticCalls>) {
     let semantics = Arc::new(SemanticCalls::default());
     (
-        ExecutionUseCaseImpl::new(
+        PrepareUseCaseImpl::new(
             semantics.clone(),
             Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
         ),
@@ -93,7 +103,7 @@ pub(super) fn selection(selector: Selector) -> Vec<PlanComparison> {
     }
 }
 pub(super) fn prepared(
-    engine: &ExecutionUseCaseImpl,
+    engine: &PrepareUseCaseImpl,
     selectors: &[Selector],
 ) -> PreparedExecutionProgram {
     let mut input = authored_request(selectors.len());

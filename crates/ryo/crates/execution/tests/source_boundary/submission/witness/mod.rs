@@ -1,11 +1,45 @@
 //! The witness that implements every method of each entry trait.
-use ryo_execution::inbound::use_cases::execution::{
-    interface::{
-        ExecutionRequest, ExecutionUseCase, FileExecution, InvocationStateCounts,
-        ObservationExecution, ObservationPublication, ProjectRootExecution, ProjectStage, ReadinessCounts, WalkCounts,
-    },
-    types::*,
-};
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution::inbound::use_cases::execution::interface::InvocationStateCounts;
+use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationExecution;
+use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationPublication;
+use ryo_execution::application::file_dag::program::project_phase::interface::ProjectRootExecution;
+use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::ReadinessCounts;
+use ryo_execution::inbound::use_cases::execution::interface::WalkCounts;
+use ryo_execution::application::file_dag::frontiers::errors::PreparationError;
+use ryo_execution::application::file_dag::frontiers::types::BoundInput;
+use ryo_execution::application::file_dag::frontiers::types::PreparedFrontiers;
+use ryo_execution::application::file_dag::frontiers::types::PublicationSlot;
+use ryo_execution::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution::application::file_dag::program::file_session::types::FileFinished;
+use ryo_execution::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution::application::file_dag::program::file_session::types::FileSession;
+use ryo_execution::application::file_dag::program::observation_stage::types::ObservationStage;
+use ryo_execution::application::file_dag::program::observed_publication::types::ObservedPublication;
+use ryo_execution::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+use ryo_execution::application::file_dag::program::project_phase::types::ProjectPhase;
+use ryo_execution::application::file_dag::program::project_phase::types::ProjectScope;
+use ryo_execution::application::file_dag::program::project_phase::types::ProjectTask;
+use ryo_execution::application::file_dag::program::request_execution::types::FrontierRequest;
+use ryo_execution::application::file_dag::program::request_execution::types::RequestExecution;
+use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectBatch;
+use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectRuleOutcome;
+use ryo_execution::application::file_dag::program::rule_outcome::types::RuleOutcome;
+use ryo_execution::application::rule_compilation::types::CompiledQueries;
+use ryo_execution::inbound::use_cases::execution::interface::Covered;
+use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
+use ryo_execution::inbound::use_cases::execution::interface::FrontierCapture;
+use ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles;
+use ryo_execution::inbound::use_cases::execution::interface::LogicalCounts;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::RowEmission;
+use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
+use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::{
     files::types::CorpusInput,
@@ -75,7 +109,7 @@ pub(super) fn witness(method: Method) -> ! {
     unreachable!("{method:?} is a compile-time witness only")
 }
 impl ExecutionUseCase for Witness {
-    fn prepare(&self, _: PreparedRequest) -> Result<PreparedExecutionProgram, OperatingError> {
+    fn prepare(&self, _: PrepareRequest) -> Result<PreparedExecutionProgram, OperatingError> {
         witness(Method::UseCasePrepare)
     }
     fn prepare_compiled(
@@ -143,7 +177,7 @@ impl ProjectStage for Witness {
         _: &[CorpusInput],
         _: &[Covered],
         _: &[Skipped],
-        _: &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles,
+        _: &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles,
     ) -> Result<ProjectScope, OperatingError> {
         witness(Method::StageProjectScope)
     }
@@ -173,7 +207,7 @@ impl ObservationExecution for Witness {
         _: &[CorpusInput],
         _: &[Covered],
         _: &[Skipped],
-        _: &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles,
+        _: &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles,
     ) -> Result<ProjectScope, OperatingError> {
         witness(Method::ObservedProjectScope)
     }

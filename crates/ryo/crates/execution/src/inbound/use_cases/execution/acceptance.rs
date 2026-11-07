@@ -1,10 +1,15 @@
 //! The execution feature enters the real public request owner.
+use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use crate::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use crate::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
+use crate::inbound::use_cases::prepare::interface::PrepareUseCase;
+use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::Behavior;
 use cucumber::{given, then, when};
 use ryo_execution::inbound::use_cases::execution::{
     interface::{ExecutionRequest, ExecutionUseCase},
     types::{ObservationIdentity, PreparedRequest},
-    use_case::ExecutionUseCaseImpl,
+    use_case::PrepareUseCaseImpl,
 };
 use std::sync::Arc;
 
@@ -15,7 +20,7 @@ fn request(world: &mut Behavior, input: String) {
 
 #[when(expr = "execution runs")]
 fn runs(world: &mut Behavior) {
-    let engine = ExecutionUseCaseImpl::new(
+    let engine = PrepareUseCaseImpl::new(
         Arc::new(
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
         ),
@@ -36,7 +41,7 @@ fn runs(world: &mut Behavior) {
     });
     world.answer = match prepared {
         Ok(prepared) => {
-            engine.begin(&prepared, &[]).finish();
+            ExecutionUseCaseImpl::new().execution(&prepared, &[]).finish();
             "complete"
         }
         Err(_) => "refused",

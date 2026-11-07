@@ -1,5 +1,5 @@
 //! Public canonical error/delivery parity and independent ordered-bag controls.
-use super::super::super::types::OperatingError;
+use crate::inbound::use_cases::execution::interface::OperatingError;
 use super::super::conformance::test::{compare_delivery, repeated, same_rows};
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::*;
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::values::n;

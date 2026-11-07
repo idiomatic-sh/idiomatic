@@ -1,5 +1,6 @@
 //! Required row bindings are materialized only by the actual public request owner.
-use super::super::super::{fixtures, types::OperatingError};
+use super::super::super::fixtures;
+use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},

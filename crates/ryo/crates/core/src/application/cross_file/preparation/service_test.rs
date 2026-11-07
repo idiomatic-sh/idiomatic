@@ -3,7 +3,8 @@ use super::{errors::BatchPreparationError, service::Preparation, types::Occurren
 use crate::application::cross_file::errors::CrossFileError;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::answering::types::Todo;
-use ryo_execution::inbound::use_cases::execution::types::{OperatingError, RuleIndex};
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_values::domain::runs::types::RuleId;
 #[derive(Clone, Copy)]
 enum Scenario {

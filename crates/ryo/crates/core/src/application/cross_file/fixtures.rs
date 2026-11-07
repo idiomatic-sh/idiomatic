@@ -1,20 +1,24 @@
 //! Test support for `cross_file`: the worlds, plans and frontier rows its cases are stated over.
 #![cfg(test)]
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use super::service::CrossFile;
 use super::types::ProjectCrossing;
 use crate::domain::answering::types::Todo;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
-use ryo_execution::inbound::use_cases::execution::types::FrontierDemand;
-use ryo_execution::inbound::use_cases::execution::types::FrontierRequest;
-use ryo_execution::inbound::use_cases::execution::types::ObservationIdentity;
-use ryo_execution::inbound::use_cases::execution::types::PreparedFrontiers;
-use ryo_execution::inbound::use_cases::execution::types::PreparedRequest;
-use ryo_execution::inbound::use_cases::execution::types::ProjectPhase;
-use ryo_execution::inbound::use_cases::execution::types::ProjectScope;
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution;
+use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
+use ryo_execution::application::file_dag::program::request_execution::types::FrontierDemand;
+use ryo_execution::application::file_dag::program::request_execution::types::FrontierRequest;
+use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
+use ryo_execution::application::file_dag::frontiers::types::PreparedFrontiers;
+use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
+use ryo_execution::application::file_dag::program::project_phase::types::ProjectPhase;
+use ryo_execution::application::file_dag::program::project_phase::types::ProjectScope;
+use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::metadata::interface::Covered;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::interface::Needs;
@@ -51,8 +55,8 @@ use std::sync::Arc;
 pub(super) struct World {
     pub(super) placed: ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes,
     pub(super) program:
-        Arc<ryo_execution::inbound::use_cases::execution::types::PreparedExecutionProgram>,
-    pub(super) request: ryo_execution::inbound::use_cases::execution::types::RequestExecution,
+        Arc<ryo_execution::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram>,
+    pub(super) request: ryo_execution::application::file_dag::program::request_execution::types::RequestExecution,
     pub(super) metadata: Vec<ryo_values::domain::run_metadata::types::RuleRunMetadata>,
     pub(super) ids: Vec<RuleId>,
     pub(super) paths: Vec<ryo_language::domain::files::types::FilePath>,
@@ -110,7 +114,7 @@ pub(super) fn world(plan: Plan) -> World {
 
 pub(super) fn world_with(
     plans: Vec<Plan>,
-    operators: Arc<dyn ryo_execution::inbound::use_cases::execution::types::OperatorsPort>,
+    operators: Arc<dyn ryo_execution::outbound::operators::interface::OperatorsPort>,
 ) -> World {
     let applicability =
         vec![ryo_values::domain::runs::types::RuleApplicability::Always; plans.len()];
@@ -119,10 +123,10 @@ pub(super) fn world_with(
 
 pub(super) fn world_with_applicability(
     plans: Vec<Plan>,
-    operators: Arc<dyn ryo_execution::inbound::use_cases::execution::types::OperatorsPort>,
+    operators: Arc<dyn ryo_execution::outbound::operators::interface::OperatorsPort>,
     applicability: &[ryo_values::domain::runs::types::RuleApplicability],
 ) -> World {
-    use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort as _;
+    use ryo_execution::outbound::matching::interface::MatchingPort as _;
     use ryo_values::domain::{
         files::types::{CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
         query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
@@ -166,15 +170,13 @@ pub(super) fn world_with_applicability(
         })
         .collect::<Vec<_>>();
     let metadata = ryo_values::domain::run_metadata::service::from_plans(&plans);
-    let engine = ExecutionUseCaseImpl::new(
+    let engine = PrepareUseCaseImpl::new(
         operators,
         Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
     );
     let program = Arc::new(
         engine
-            .prepare(PreparedRequest {
-                bindings: vec![Vec::new(); plans.len()],
-                rules: ids
+            .prepare(PrepareRequest { plans: PlanSource::Authored { plans: plans, bindings: vec![Vec::new(); plans.len()] }, rules: ids
                     .iter()
                     .enumerate()
                     .map(|(rule, id)| RuleSpec {
@@ -193,15 +195,10 @@ pub(super) fn world_with_applicability(
                         include: Vec::new(),
                         exclude: Vec::new(),
                     })
-                    .collect(),
-                digests: vec![Digest([0; 16]); plans.len()],
-                plans,
-                hosted: Vec::new(),
-                observations: ObservationIdentity::Independent,
-            })
+                    .collect(), digests: vec![Digest([0; 16]); plans.len()], hosted: Vec::new(), observations: ObservationIdentity::Independent })
             .expect("prepared cross rule"),
     );
-    let request = engine.begin(&program, &files);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &files);
     World {
         placed: ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes {
             placement,
@@ -262,7 +259,8 @@ pub(super) fn prepared_in(
     rows: &[(FileId, Table)],
     symbols: &mut Symbols,
 ) -> Result<(ProjectScope, PreparedFrontiers), RuleRequestsError> {
-    use ryo_execution::inbound::use_cases::execution::types::facts::{FactsPort as _, WordsToKeep};
+    use ryo_execution::outbound::facts::interface::FactsPort as _;
+    use ryo_execution::outbound::facts::types::WordsToKeep;
     use ryo_values::domain::{
         records::types::{FrontierCoverage, FrontierProof},
         stored_facts::types::Bucket,
@@ -302,7 +300,7 @@ pub(super) fn prepared_in(
             &world.files,
             covered,
             &world.skipped,
-            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
         )
         .expect("project scope");
     let frontiers = world

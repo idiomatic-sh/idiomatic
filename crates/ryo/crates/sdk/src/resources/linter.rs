@@ -15,7 +15,8 @@ pub use lint::types::Linter;
 
 /// Which execution strategies a linter may use, for a differential run against the generic evaluation.
 #[cfg(feature = "fixtures")]
-pub use ryo_execution::inbound::use_cases::execution::types::{RoutePolicy, RouteWiring};
+pub use ryo_execution::inbound::use_cases::prepare::interface::RoutePolicy;
+pub use ryo_execution::inbound::use_cases::prepare::interface::RouteWiring;
 
 pub use crate::domain::capacity::types::WorkerPool;
 

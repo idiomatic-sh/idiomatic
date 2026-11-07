@@ -8,11 +8,11 @@ pub(crate) enum CrossFileError {
     #[error(transparent)]
     Memory(#[from] crate::outbound::memory::errors::MemoryError),
     #[error(transparent)]
-    Operating(#[from] ryo_execution::inbound::use_cases::execution::types::OperatingError),
+    Operating(#[from] ryo_execution::inbound::use_cases::execution::interface::OperatingError),
     #[error(transparent)]
     Rules(#[from] ryo_values::domain::rule_requests::errors::RuleRequestsError),
     #[error(transparent)]
-    Facts(#[from] ryo_execution::inbound::use_cases::execution::types::facts::FactsError),
+    Facts(#[from] ryo_execution::outbound::facts::errors::FactsError),
     #[error(transparent)]
     Scheduler(#[from] crate::outbound::scheduler::errors::SchedulerError),
 }

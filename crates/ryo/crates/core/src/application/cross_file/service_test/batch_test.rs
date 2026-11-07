@@ -6,10 +6,10 @@ use crate::application::cross_file::preparation::service::SealedBatch;
 use crate::application::cross_file::types::ProjectCrossing;
 use crate::application::cross_file::types::ProjectOutcome;
 use crate::domain::answering::types::Todo;
-use ryo_execution::inbound::use_cases::execution::types::PreparedFrontiers;
-use ryo_execution::inbound::use_cases::execution::types::ProjectBatch;
-use ryo_execution::inbound::use_cases::execution::types::ProjectScope;
-use ryo_execution::inbound::use_cases::execution::types::PublicationSlot;
+use ryo_execution::application::file_dag::frontiers::types::PreparedFrontiers;
+use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectBatch;
+use ryo_execution::application::file_dag::program::project_phase::types::ProjectScope;
+use ryo_execution::application::file_dag::frontiers::types::PublicationSlot;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
@@ -64,7 +64,7 @@ pub(super) fn evaluate_fixture(
     frontier: PreparedFrontiers,
     symbols: &mut Symbols,
     scope: ProjectScope,
-    phase: &impl ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution,
+    phase: &impl ryo_execution::application::file_dag::program::project_phase::interface::ProjectRootExecution,
 ) -> Result<crate::domain::answering::types::Crossed, RuleRequestsError> {
     let batch = sealed_fixture_batch(std::slice::from_ref(todo), vec![scope], vec![frontier]);
     let ProjectBatch::Complete(mut results) =

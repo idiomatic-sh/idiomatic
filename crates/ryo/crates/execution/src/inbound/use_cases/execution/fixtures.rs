@@ -1,5 +1,24 @@
 //! Authored request assembly; every operation runs through the public execution owner.
-use super::{interface::*, types::*, use_case::ExecutionUseCaseImpl};
+use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use crate::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use crate::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
+use crate::inbound::use_cases::prepare::interface::PrepareUseCase;
+use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
+use super::use_case::PrepareUseCaseImpl;
+use crate::application::file_dag::program::file_session::types::FileInput;
+use crate::application::file_dag::program::file_session::types::SourceLanguage;
+use crate::application::file_dag::program::file_session::types::SourceRows;
+use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use crate::inbound::use_cases::execution::interface::CaptureIntent;
+use crate::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use crate::inbound::use_cases::execution::interface::EmitDemand;
+use crate::inbound::use_cases::execution::interface::FileRuleIntent;
+use crate::inbound::use_cases::execution::interface::ObservationDemand;
+use crate::inbound::use_cases::execution::interface::RuleDemand;
+use crate::inbound::use_cases::execution::interface::RuleIndex;
+use crate::inbound::use_cases::prepare::interface::ObservationIdentity;
+use crate::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::{
@@ -86,7 +105,7 @@ pub(super) fn prepared(
     plan: Plan,
     bindings: Vec<ParameterBinding>,
     hosted: Vec<HostRelation>,
-) -> Result<(ExecutionUseCaseImpl, PreparedExecutionProgram), OperatingError> {
+) -> Result<(PrepareUseCaseImpl, PreparedExecutionProgram), OperatingError> {
     prepared_many(vec![plan], vec![bindings], hosted)
 }
 /// One request of several authored rules, the first named as `prepared` names its only one.
@@ -94,8 +113,8 @@ pub(super) fn prepared_many(
     plans: Vec<Plan>,
     bindings: Vec<Vec<ParameterBinding>>,
     hosted: Vec<HostRelation>,
-) -> Result<(ExecutionUseCaseImpl, PreparedExecutionProgram), OperatingError> {
-    let engine = ExecutionUseCaseImpl::new(
+) -> Result<(PrepareUseCaseImpl, PreparedExecutionProgram), OperatingError> {
+    let engine = PrepareUseCaseImpl::new(
         Arc::new(
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
         ),
@@ -129,19 +148,12 @@ pub(super) fn prepared_many(
     let digests = (0..plans.len())
         .map(|at| Digest([u8::try_from(at).unwrap_or(u8::MAX); 16]))
         .collect();
-    let prepared = engine.prepare(PreparedRequest {
-        plans,
-        bindings,
-        hosted,
-        rules,
-        digests,
-        observations: ObservationIdentity::Independent,
-    })?;
+    let prepared = engine.prepare(PrepareRequest { plans: PlanSource::Authored { plans, bindings }, rules, digests, hosted, observations: ObservationIdentity::Independent })?;
     Ok((engine, prepared))
 }
 /// Repeat the supported public owner protocol over the same immutable compiled request.
 pub(super) fn run_prepared<'facts>(
-    engine: &ExecutionUseCaseImpl,
+    engine: &PrepareUseCaseImpl,
     prepared: &PreparedExecutionProgram,
     source: &[u8],
     elements: &Elements,
@@ -153,7 +165,7 @@ pub(super) fn run_prepared<'facts>(
 
 /// The same public owner with its real borrowed rendering capability.
 pub(super) fn run_prepared_context<'facts>(
-    engine: &ExecutionUseCaseImpl,
+    engine: &PrepareUseCaseImpl,
     prepared: &PreparedExecutionProgram,
     source: &[u8],
     elements: &Elements,
@@ -168,7 +180,7 @@ pub(super) fn run_prepared_context<'facts>(
         size: FileSize(source.len() as u64),
         modified: Nanoseconds(0),
     })];
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let mut file = request.open_file(
         FileInput {
             language: SourceLanguage::Recognized,

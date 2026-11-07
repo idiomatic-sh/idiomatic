@@ -182,7 +182,7 @@ pub(crate) fn lint_observing<T>(
         let analysis_memory: Arc<dyn memory::interface::MemoryPort> =
             Arc::new(memory::factory::sysinfo(Budget::Machine));
         let analysis_digest: Arc<
-            dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
+            dyn ryo_execution::outbound::digest::interface::DigestPort,
         > = Arc::new(digest::factory::blake3());
         LintUseCaseImpl::new(
             ryo_core::application::file_analysis::service::FileAnalysis::new(

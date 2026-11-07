@@ -1,4 +1,7 @@
 //! One rule evaluated beside the project: its result, its skipped source and a foreign request.
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
 use super::batch_test::evaluate_fixture;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::crossing;
@@ -7,11 +10,11 @@ use crate::application::cross_file::fixtures::prepared;
 use crate::application::cross_file::fixtures::todo;
 use crate::application::cross_file::fixtures::world;
 use crate::domain::crossing::service::partials_for;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
-use ryo_execution::inbound::use_cases::execution::types::ProjectBatch;
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
+use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectBatch;
+use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::metadata::interface::RelationRead;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
@@ -22,14 +25,14 @@ use std::sync::Arc;
 
 pub(super) fn current_project_roots_keep_the_original_two_group_four_cell_result()
 -> Result<(), RuleRequestsError> {
-    use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
-    use ryo_execution::inbound::use_cases::execution::types::EmitDemand;
-    use ryo_execution::inbound::use_cases::execution::types::ObservationDemand;
-    use ryo_execution::inbound::use_cases::execution::types::Partials;
-    use ryo_execution::inbound::use_cases::execution::types::ProjectInput;
-    use ryo_execution::inbound::use_cases::execution::types::ProjectTask;
-    use ryo_execution::inbound::use_cases::execution::types::RootOutcome;
-    use ryo_execution::inbound::use_cases::execution::types::RuleDemand;
+    use ryo_execution::application::file_dag::program::project_phase::interface::ProjectRootExecution;
+    use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
+    use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+    use ryo_execution::inbound::use_cases::execution::interface::Partials;
+    use ryo_execution::application::file_dag::program::project_phase::types::ProjectInput;
+    use ryo_execution::application::file_dag::program::project_phase::types::ProjectTask;
+    use ryo_execution::application::file_dag::program::rule_outcome::types::RootOutcome;
+    use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
     let world = world(counting_plan(1, Vec::new()));
     let mut symbols = Symbols::default();
     let (phase, scope, ordinary) =
@@ -52,7 +55,7 @@ pub(super) fn current_project_roots_keep_the_original_two_group_four_cell_result
             },
         }],
         &mut symbols,
-        |_| Ok::<(), ryo_execution::inbound::use_cases::execution::types::OperatingError>(()),
+        |_| Ok::<(), ryo_execution::inbound::use_cases::execution::interface::OperatingError>(()),
     ) else {
         panic!("the guard admits the declared root")
     };
@@ -96,18 +99,18 @@ pub(super) fn rejected_syntax_blocks_cross_file_complements_without_inventing_pa
 
 pub(super) fn project_evaluation_rejects_frontiers_from_another_request()
 -> Result<(), RuleRequestsError> {
-    use ryo_execution::inbound::use_cases::execution::types::OperatingError;
+    use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
     let rules = world(counting_plan(1, Vec::new()));
     let mut symbols = Symbols::default();
     let (_phase, _scope, frontier) = prepared(&rules, &frontier_rows(), &mut symbols)
         .expect("frontiers admitted by the original request");
-    let engine = ExecutionUseCaseImpl::new(
+    let engine = PrepareUseCaseImpl::new(
         Arc::new(ryo_execution::outbound::operators::factory::use_case(
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
         )),
         Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
     );
-    let next = engine.begin(&rules.program, &rules.files);
+    let next = ExecutionUseCaseImpl::new().execution(&rules.program, &rules.files);
     let next_phase = next.project_phase().expect("independent project phase");
     let foreign = next_phase
         .project_scope(
@@ -115,7 +118,7 @@ pub(super) fn project_evaluation_rejects_frontiers_from_another_request()
             &rules.files,
             &rules.covered,
             &[],
-            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
         )
         .expect("independent request over the same program and corpus");
     let result = evaluate_fixture(

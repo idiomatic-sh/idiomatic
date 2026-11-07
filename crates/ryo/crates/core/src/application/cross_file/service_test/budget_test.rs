@@ -12,9 +12,9 @@ use crate::domain::answering::types::Todo;
 use crate::domain::crossing::service::partials_for;
 use crate::outbound::memory::errors::MemoryError;
 use crate::outbound::memory::interface::MemoryPort;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
-use ryo_execution::inbound::use_cases::execution::types::ProjectBatch;
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
+use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
@@ -130,13 +130,14 @@ pub(super) fn project_budget_stops_a_later_population_after_actual_work_and_rele
 
 pub(super) fn refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_cohort()
 -> Result<(), RuleRequestsError> {
-    use ryo_execution::inbound::use_cases::execution::{
-        interface::ProjectRootExecution,
-        types::{
-            EmitDemand, ObservationDemand, OperatingError, ProjectInput, ProjectTask, RootOutcome,
-            RuleDemand,
-        },
-    };
+    use ryo_execution::application::file_dag::program::project_phase::interface::ProjectRootExecution;
+    use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
+    use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+    use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+    use ryo_execution::application::file_dag::program::project_phase::types::ProjectInput;
+    use ryo_execution::application::file_dag::program::project_phase::types::ProjectTask;
+    use ryo_execution::application::file_dag::program::rule_outcome::types::RootOutcome;
+    use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
     use ryo_values::domain::runs::types::{RuleApplicability, SkipReason, Skipped};
     for order in [[0, 1], [1, 0]] {
         let calls = Arc::new(ProjectCalls::default());

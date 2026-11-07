@@ -1,8 +1,7 @@
 //! Exact conflicting failures through the mandatory public execution owner.
-use super::super::super::{
-    fixtures,
-    types::{OperatingError, SourceRows},
-};
+use super::super::super::fixtures;
+use crate::inbound::use_cases::execution::interface::OperatingError;
+use crate::application::file_dag::program::file_session::types::SourceRows;
 use crate::domain::operator::contract::{service::semantics, types::PreflightOrder};
 use ryo_language::domain::{
     elements::types::Elements,

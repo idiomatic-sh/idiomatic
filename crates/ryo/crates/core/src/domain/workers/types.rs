@@ -3,7 +3,8 @@
 use crate::domain::finish::types::LineStarts;
 use crate::domain::render::types::{Answering, Rendered};
 use crate::domain::visit::types::{Keeping, Noting, RoleRead};
-use ryo_execution::inbound::use_cases::execution::types::{PreparedVocabulary, RowsFed};
+use ryo_execution::inbound::use_cases::execution::interface::PreparedVocabulary;
+use ryo_execution::inbound::use_cases::execution::interface::RowsFed;
 use ryo_execution::inbound::use_cases::metadata::interface::Needs;
 use ryo_execution::inbound::use_cases::metadata::interface::{Covered, Partial, Unknown};
 use ryo_execution::inbound::use_cases::metadata::interface::{Mask, PlacedScopes};

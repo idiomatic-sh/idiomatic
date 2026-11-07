@@ -1,4 +1,10 @@
 //! Declared schema/resource and transport ordering through the real public owner.
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::*;
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::{
@@ -9,7 +15,7 @@ use ryo_values::domain::{
 };
 
 fn evaluate<'facts>(
-    input: PreparedRequest,
+    input: PrepareRequest,
     read: &dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
 ) -> RootOutcome {
     let engine = engine();
@@ -17,7 +23,7 @@ fn evaluate<'facts>(
         .prepare(input)
         .expect("prepare actual owner policy case");
     let corpus = corpus();
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut symbols = Symbols::default();
     let mut file = request
@@ -102,7 +108,7 @@ struct Forwarded {
     rows: Vec<Vec<Value>>,
 }
 fn deliver<'facts>(
-    input: PreparedRequest,
+    input: PrepareRequest,
     read: &dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
 ) -> Forwarded {
     let engine = engine();
@@ -110,7 +116,7 @@ fn deliver<'facts>(
         .prepare(input)
         .expect("prepare actual forward policy case");
     let corpus = corpus();
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut symbols = Symbols::default();
     let mut file = request

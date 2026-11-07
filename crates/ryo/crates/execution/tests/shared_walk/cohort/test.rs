@@ -1,10 +1,14 @@
 //! Dormant declarations cannot allocate cohort scratch or retained result slots.
 use super::super::{fixtures::*, no_catalog};
 use crate::boundary_fixture::{authored_request, corpus, demand};
-use ryo_execution::inbound::use_cases::execution::{
-    interface::{ExecutionRequest, ExecutionUseCase, FileExecution},
-    types::*,
-};
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_relations::domain::relations::types::{FileId, Integer, Relation};
 use ryo_values::domain::{
     plan_parts::types::{Input, Operand, QueryLiteral, StepId, StepScope, Test},

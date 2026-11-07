@@ -1,11 +1,21 @@
 //! Shared tree positions keep native join projection refusal and replay, and pure projections share one scan.
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use super::super::super::fixtures::*;
 use super::super::super::no_catalog;
 use crate::boundary_fixture::{authored_request, corpus, demand};
-use ryo_execution::inbound::use_cases::execution::interface::{
-    ExecutionRequest, ExecutionUseCase, FileExecution,
-};
-use ryo_execution::inbound::use_cases::execution::types::*;
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_relations::domain::relations::fixtures::node_id;
 use ryo_relations::domain::relations::types::{FileId, Position, Relation, Value};
 use ryo_values::domain::plan_parts::types::StepScope;
@@ -13,7 +23,7 @@ use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, StepId, Test};
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 #[test]
 fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
-    use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+    use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
     use ryo_operators::domain::equality_join::types::JoinInput;
     use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
     use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
@@ -55,7 +65,7 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
                 calls: AtomicUsize::new(0),
                 refuse,
             });
-            let engine = ExecutionUseCaseImpl::new(
+            let engine = PrepareUseCaseImpl::new(
                 semantics.clone(),
                 Arc::new(
                     ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
@@ -112,7 +122,7 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
             authored.plans[0].emit.step = StepId(1);
             let program = engine.prepare(authored).unwrap();
             let corpus = corpus();
-            let request = engine.begin(&program, &corpus);
+            let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
             let (elements, mut symbols) = tree(FileId(0), b"abc");
             let intents = [FileRuleIntent::Run {
                 diagnostic: DiagnosticDelivery::Collected,
@@ -209,7 +219,7 @@ fn direct_pure_projections_share_source_scan_including_zero_columns_and_repeats(
     }
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let intents = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,

@@ -3,7 +3,7 @@ mod fixtures;
 use fixtures::file::measure;
 use fixtures::project::measure_project;
 use fixtures::subscriber::{Access, Sample};
-use ryo_execution::inbound::use_cases::execution::types::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 
 #[global_allocator]

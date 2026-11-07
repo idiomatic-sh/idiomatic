@@ -1,6 +1,26 @@
 //! Real relation, region, observation and member roots, including direct bound capture.
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::boundary_fixture::{authored_request, corpus, engine, source};
-use ryo_execution::inbound::use_cases::execution::{interface::*, types::*};
+use ryo_execution::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityRefusal;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
+use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::{fixtures::node_id, types::*};
 use ryo_values::domain::{
@@ -14,7 +34,7 @@ use ryo_values::domain::{
 };
 use std::cell::Cell;
 
-fn named() -> PreparedRequest {
+fn named() -> PrepareRequest {
     let mut authored = authored_request(3);
     let columns = vec![ObservationColumn {
         name: ObservationColumnName("node".into()),
@@ -123,7 +143,7 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
         assert!(program.captures_observation(RuleIndex(1), 0).unwrap());
         assert!(program.captures_observation(RuleIndex(1), 1).unwrap());
         let corpus = corpus();
-        let request = engine.begin(&program, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
         let table = source();
         let reads = Cell::new(0);
         let read = |relation| {
@@ -244,7 +264,7 @@ fn a_refused_named_member_cannot_be_replaced_with_a_typed_empty_or_provider_retr
     assert!(program.captures_observation(RuleIndex(1), 0).unwrap());
     assert!(program.captures_observation(RuleIndex(1), 1).unwrap());
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let read = |_| panic!("refused member cannot acquire a relation");
     let elements = Elements::default();
     let mut symbols = Symbols::default();

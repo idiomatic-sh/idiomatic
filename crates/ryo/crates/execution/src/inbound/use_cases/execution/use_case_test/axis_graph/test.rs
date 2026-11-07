@@ -1,5 +1,24 @@
 //! Canonical stored graph acquisition and hosted ordinary traversal publish identical ordered bags.
-use super::super::super::{fixtures, interface::*, types::*, use_case::ExecutionUseCaseImpl};
+use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use crate::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use crate::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
+use crate::inbound::use_cases::prepare::interface::PrepareUseCase;
+use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
+use super::super::super::{fixtures, use_case::ExecutionUseCaseImpl};
+use crate::application::file_dag::program::file_session::types::FileInput;
+use crate::application::file_dag::program::file_session::types::SourceLanguage;
+use crate::application::file_dag::program::file_session::types::SourceRows;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use crate::inbound::use_cases::execution::interface::CaptureIntent;
+use crate::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use crate::inbound::use_cases::execution::interface::EmitDemand;
+use crate::inbound::use_cases::execution::interface::FileRuleIntent;
+use crate::inbound::use_cases::execution::interface::ObservationDemand;
+use crate::inbound::use_cases::execution::interface::OperatingError;
+use crate::inbound::use_cases::execution::interface::RuleDemand;
+use crate::inbound::use_cases::execution::interface::RuleIndex;
+use crate::inbound::use_cases::prepare::interface::ObservationIdentity;
+use crate::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::{
     service::{kinds, to_bits},
@@ -75,7 +94,7 @@ fn plan(direction: Direction, stored: bool, projected: bool) -> Plan {
     ])
 }
 fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> {
-    let engine = ExecutionUseCaseImpl::new(
+    let engine = PrepareUseCaseImpl::new(
         Arc::new(
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
         ),
@@ -85,15 +104,7 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
         .into_iter()
         .map(|d| plan(d, stored, projected))
         .collect();
-    let prepared = engine.prepare(PreparedRequest {
-        plans,
-        bindings: vec![vec![]; 5],
-        hosted: vec![
-            fixtures::numbers("starts", 1, &[&[1], &[1], &[4], &[999]]),
-            fixtures::numbers("domain", 1, &[&[1], &[2], &[9], &[9], &[4], &[91]]),
-            fixtures::numbers("edges", 2, EDGES),
-        ],
-        rules: AXES
+    let prepared = engine.prepare(PrepareRequest { plans: PlanSource::Authored { plans: plans, bindings: vec![vec![]; 5] }, rules: AXES
             .iter()
             .map(|axis| RuleSpec {
                 id: RuleId((*axis).into()),
@@ -111,10 +122,11 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
                 include: vec![],
                 exclude: vec![],
             })
-            .collect(),
-        digests: vec![Digest([0; 16]); 5],
-        observations: ObservationIdentity::Independent,
-    })?;
+            .collect(), digests: vec![Digest([0; 16]); 5], hosted: vec![
+            fixtures::numbers("starts", 1, &[&[1], &[1], &[4], &[999]]),
+            fixtures::numbers("domain", 1, &[&[1], &[2], &[9], &[9], &[4], &[91]]),
+            fixtures::numbers("edges", 2, EDGES),
+        ], observations: ObservationIdentity::Independent })?;
     let columns = [
         FactColumn(vec![to_bits(Cell::File(FileId(0))).0; 7]),
         FactColumn(
@@ -147,7 +159,7 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
         size: FileSize(0),
         modified: Nanoseconds(0),
     })];
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let mut symbols = Symbols::default();
     let elements = Elements::default();
     let intents = vec![

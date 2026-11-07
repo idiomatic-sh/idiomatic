@@ -1,5 +1,6 @@
 //! A native tree on either side of an actual compiled Join publishes the same exact cells.
-use super::super::super::{fixtures, types::OperatingError};
+use super::super::super::fixtures;
+use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_relations::domain::relations::{
     service::node_id,
     types::{FileId, Position, Relation, Value as Cell},

@@ -1,8 +1,7 @@
 //! Two rules of one request, one producing a named observation and one consuming it, of which one skips the file the language rejects.
 use super::super::*;
-use ryo_execution::inbound::use_cases::execution::types::query_language::{
-    QueryLanguageError, QueryLanguagePort,
-};
+use ryo_execution::outbound::query_language::errors::QueryLanguageError;
+use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::{
     descriptions::types::ValidateReport,

@@ -1,5 +1,14 @@
 //! Binary operators must demand the refusing RHS after a real nonempty successful LHS.
-use super::super::super::{fixtures, interface::*, types::*};
+use super::super::super::fixtures;
+use crate::application::file_dag::program::file_session::types::FileInput;
+use crate::application::file_dag::program::file_session::types::SourceLanguage;
+use crate::application::file_dag::program::file_session::types::SourceRows;
+use crate::inbound::use_cases::execution::interface::CaptureIntent;
+use crate::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use crate::inbound::use_cases::execution::interface::FileRuleIntent;
+use crate::inbound::use_cases::execution::interface::ObservationDemand;
+use crate::inbound::use_cases::execution::interface::OperatingError;
+use crate::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_relations::domain::relations::{
     service::{kinds, node_id},
     types::{FileId, Offset, Position, Relation, Span, Value as Cell},

@@ -1,9 +1,8 @@
 //! Actual lint dependencies; memory changes only after successful semantic reduction.
 use super::super::*;
 use crate::outbound::memory::{errors::MemoryError, interface::MemoryPort};
-use ryo_execution::inbound::use_cases::execution::types::query_language::{
-    QueryLanguageError, QueryLanguagePort,
-};
+use ryo_execution::outbound::query_language::errors::QueryLanguageError;
+use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;

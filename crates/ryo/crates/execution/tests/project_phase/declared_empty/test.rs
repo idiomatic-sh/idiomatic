@@ -1,6 +1,12 @@
 //! Closed empty declarations remain typed populations; absent declarations remain refusals.
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::*;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
+use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationExecution;
 use ryo_values::domain::{
     observations::types::{
         BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
@@ -11,7 +17,7 @@ use ryo_values::domain::{
     stored_facts::types::Digest,
 };
 
-fn declared() -> PreparedRequest {
+fn declared() -> PrepareRequest {
     let mut input = authored_request(1);
     let columns = vec![ObservationColumn {
         name: ObservationColumnName("code".into()),
@@ -51,7 +57,7 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
         .prepare(declared())
         .expect("closed empty declaration");
     let corpus = corpus();
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let reads = Cell::new(0);
     let read = |_| {
         reads.set(reads.get() + 1);
@@ -139,7 +145,7 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
             &corpus,
             &covered,
             &[],
-            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
         )
         .unwrap();
     let project_symbols = Symbols::default();
@@ -192,13 +198,13 @@ fn no_query_is_unavailable_rather_than_an_empty_population() {
     project_refuses(input, "observation producer has no executable query", false);
 }
 
-fn project_refuses(input: PreparedRequest, expected: &str, ready: bool) {
+fn project_refuses(input: PrepareRequest, expected: &str, ready: bool) {
     let engine = engine();
     let prepared = engine
         .prepare(input)
         .expect("valid declaration with deferred admission refusal");
     let corpus = corpus();
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let stored = CapturedFacts {
         captures: vec![],
         reads: AtomicUsize::new(0),
@@ -225,7 +231,7 @@ fn project_refuses(input: PreparedRequest, expected: &str, ready: bool) {
             &corpus,
             &covered,
             &[],
-            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
         )
         .unwrap();
     let mut symbols = Symbols::default();

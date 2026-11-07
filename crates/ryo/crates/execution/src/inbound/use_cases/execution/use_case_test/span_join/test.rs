@@ -1,5 +1,7 @@
 //! File/span key order preserves exact native span matches through the public owner.
-use super::super::super::{fixtures, types::*};
+use super::super::super::fixtures;
+use crate::application::file_dag::program::file_session::types::SourceRows;
+use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_relations::domain::relations::{
     service::{kinds, node_id},
     types::{CellKind, FileId, Flag, Integer, Offset, Position, Relation, Span, Value as Cell},

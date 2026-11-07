@@ -1,9 +1,8 @@
 //! Actual two-file named restoration and absence publication, including a
 //! downstream projection that would erase the completeness key if fused early.
 use super::super::super::*;
-use ryo_execution::inbound::use_cases::execution::interface::{
-    ObservationExecution, ObservationPublication,
-};
+use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationExecution;
+use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationPublication;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::{
@@ -538,7 +537,7 @@ fn exercise_with(
             &corpus,
             &[],
             &skipped,
-            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
         )
         .unwrap();
     let slot = stage.reserve(RuleIndex(1)).unwrap();
@@ -652,7 +651,7 @@ fn exercise_with(
             &corpus,
             &[],
             &skipped,
-            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles(
+            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles(
                 inapplicable.to_vec(),
             ),
         )

@@ -100,8 +100,8 @@ use ryo_values::domain::rows::types::Table;
 #[must_use]
 pub(crate) fn inapplicable_files(
     crossing: &CrossingInput<'_>,
-) -> Vec<ryo_execution::inbound::use_cases::execution::types::InapplicableFiles> {
-    use ryo_execution::inbound::use_cases::execution::types::InapplicableFiles;
+) -> Vec<ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles> {
+    use ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles;
     use ryo_execution::inbound::use_cases::metadata::interface::{Governing, Mask};
     use ryo_values::domain::files::types::Hits;
     use ryo_values::domain::records::types::Unreadable;

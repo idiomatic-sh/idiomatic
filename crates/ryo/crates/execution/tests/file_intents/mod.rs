@@ -1,6 +1,12 @@
 //! File-start declarations are enforced through every public execution route.
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::*;
-use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
+use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution;
 use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 
 fn input<'a, 'facts>(
@@ -28,7 +34,7 @@ fn every_prepared_rule_requires_exactly_one_file_start_intent() {
     let engine = engine();
     let program = prepared_rules(&engine, 2);
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let read = |_| panic!("malformed intent vectors cannot read a provider");
     let mut symbols = Symbols::default();
@@ -50,7 +56,7 @@ fn absent_skipped_and_refused_rules_cannot_acquire_any_root() {
     let engine = engine();
     let program = prepared(&engine);
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let read = |_| panic!("undeclared roots cannot read a provider");
     for intent in [
@@ -104,7 +110,7 @@ fn rule_demand_is_immutable_and_capture_cannot_be_added_after_open() {
     let engine = engine();
     let program = prepared(&engine);
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let reads = Cell::new(0);
     let table = source();
@@ -164,7 +170,7 @@ fn rule_demand_is_immutable_and_capture_cannot_be_added_after_open() {
     request.finish();
 }
 
-pub(crate) fn named_request() -> PreparedRequest {
+pub(crate) fn named_request() -> PrepareRequest {
     use ryo_values::domain::observations::types::{
         BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
         ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
@@ -237,7 +243,7 @@ fn diagnostic_disabled_observation_producer_runs_and_captures_only_named_frontie
         .expect("named producer and consumer");
     assert_eq!(program.demanded_rules(|place| place == 1), [true, true]);
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let table = source();
     let read = |relation| {
@@ -324,7 +330,7 @@ fn file_start_refusal_preserves_unknown_readiness_without_a_skip_proof() {
     let engine = engine();
     let program = engine.prepare(named_request()).unwrap();
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let read = |_| panic!("applicability refusal cannot read a provider");
     for reason in [
@@ -360,7 +366,7 @@ fn diagnostic_delivery_is_bound_before_admission_and_cannot_switch_after_publica
     let engine = engine();
     let program = prepared(&engine);
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let table = source();
     for diagnostic in [DiagnosticDelivery::Collected, DiagnosticDelivery::Forwarded] {

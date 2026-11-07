@@ -1,11 +1,15 @@
 //! Analysis uses its injected language and propagates required failures.
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use super::errors::FileAnalysisError;
 use super::service::{FileAnalysis, recovery_of};
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
 use crate::outbound::corpus::fixtures::fake::CorpusFake;
 use ryo_execution::outbound::digest::fixtures::fake::DigestFake;
 use ryo_execution::outbound::facts::fixtures::fake::FactsFake;
-use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort as _;
+use ryo_execution::outbound::facts::interface::FactsPort as _;
 
 use crate::outbound::language::fixtures::fake::LanguageFake;
 use crate::outbound::language::types::{ProjectToRead, ProjectNotes};
@@ -19,13 +23,12 @@ use std::sync::{Arc, atomic::Ordering};
 use super::types::{RequestVisitSetting, RuleGate};
 use crate::domain::workers::types::Gating;
 use crate::domain::workers::service::tables_for;
-use ryo_execution::inbound::use_cases::execution::types::Counting;
-use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort as _;
-use ryo_execution::inbound::use_cases::execution::{
-    interface::ExecutionUseCase,
-    types::{ObservationIdentity, PreparedRequest},
-    use_case::ExecutionUseCaseImpl,
-};
+use ryo_execution::inbound::use_cases::execution::interface::Counting;
+use ryo_execution::outbound::matching::interface::MatchingPort as _;
+use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
+use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_execution::inbound::use_cases::metadata::interface::{Mask, PlacedScopes, ScopePlacement};
 use ryo_execution::inbound::use_cases::metadata::interface::{Needs, RelationRead};
 use ryo_language::domain::elements::types::SyntaxAcceptance;
@@ -39,15 +42,15 @@ fn prepared_test_program(
     ids: &[RuleId],
     corpus: &[ryo_values::domain::files::types::CorpusInput],
 ) -> (
-    Arc<ryo_execution::inbound::use_cases::execution::types::PreparedExecutionProgram>,
-    ryo_execution::inbound::use_cases::execution::types::RequestExecution,
+    Arc<ryo_execution::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram>,
+    ryo_execution::application::file_dag::program::request_execution::types::RequestExecution,
 ) {
     use ryo_values::domain::{
         query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
         rule_requests::types::{RuleParameters, RuleSpec},
         stored_facts::types::Digest,
     };
-    let engine = ExecutionUseCaseImpl::new(
+    let engine = PrepareUseCaseImpl::new(
         Arc::new(
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
         ),
@@ -55,10 +58,7 @@ fn prepared_test_program(
     );
     let program = Arc::new(
         engine
-            .prepare(PreparedRequest {
-                plans: plans.to_vec(),
-                bindings: vec![Vec::new(); plans.len()],
-                rules: ids
+            .prepare(PrepareRequest { plans: PlanSource::Authored { plans: plans.to_vec(), bindings: vec![Vec::new(); plans.len()] }, rules: ids
                     .iter()
                     .map(|id| RuleSpec {
                         id: id.clone(),
@@ -76,14 +76,10 @@ fn prepared_test_program(
                         include: Vec::new(),
                         exclude: Vec::new(),
                     })
-                    .collect(),
-                digests: vec![Digest([0; 16]); plans.len()],
-                hosted: Vec::new(),
-                observations: ObservationIdentity::Independent,
-            })
+                    .collect(), digests: vec![Digest([0; 16]); plans.len()], hosted: Vec::new(), observations: ObservationIdentity::Independent })
             .expect("valid prepared test request"),
     );
-    let request = engine.begin(&program, corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, corpus);
     (program, request)
 }
 
@@ -496,7 +492,7 @@ fn visited_as(
     language: LanguageFake,
     answering: &crate::domain::render::types::Answering,
     keeping: crate::domain::visit::types::Keeping,
-    digest: Arc<dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort>,
+    digest: Arc<dyn ryo_execution::outbound::digest::interface::DigestPort>,
 ) -> Result<(super::types::Worker, Arc<LanguageFake>), Failure> {
     visited_as_with_facts(
         paths,
@@ -513,8 +509,8 @@ fn visited_as_with_facts(
     language: LanguageFake,
     answering: &crate::domain::render::types::Answering,
     keeping: crate::domain::visit::types::Keeping,
-    digest: Arc<dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort>,
-    facts: Box<dyn ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker>,
+    digest: Arc<dyn ryo_execution::outbound::digest::interface::DigestPort>,
+    facts: Box<dyn ryo_execution::outbound::facts::interface::FactsWorker>,
 ) -> Result<(super::types::Worker, Arc<LanguageFake>), Failure> {
     use crate::outbound::corpus::interface::CorpusPort as _;
     use ryo_values::domain::files::types::{CorpusFile, FileBytes};
@@ -552,8 +548,8 @@ fn visited_inputs(
     language: LanguageFake,
     answering: &crate::domain::render::types::Answering,
     keeping: crate::domain::visit::types::Keeping,
-    digest: Arc<dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort>,
-    facts: Box<dyn ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker>,
+    digest: Arc<dyn ryo_execution::outbound::digest::interface::DigestPort>,
+    facts: Box<dyn ryo_execution::outbound::facts::interface::FactsWorker>,
     kept: Option<&ryo_values::domain::records::types::Record>,
     repetitions: usize,
 ) -> Result<(super::types::Worker, Arc<LanguageFake>), Failure> {
@@ -581,8 +577,8 @@ fn visited_inputs_with_rule_demands(
     language: LanguageFake,
     answering: &crate::domain::render::types::Answering,
     keeping: crate::domain::visit::types::Keeping,
-    digest: Arc<dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort>,
-    facts: Box<dyn ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker>,
+    digest: Arc<dyn ryo_execution::outbound::digest::interface::DigestPort>,
+    facts: Box<dyn ryo_execution::outbound::facts::interface::FactsWorker>,
     kept: Option<&ryo_values::domain::records::types::Record>,
     repetitions: usize,
     ids: &[ryo_values::domain::runs::types::RuleId],
@@ -896,25 +892,25 @@ fn fails() {
 /// A legal unaudited worker whose immutable resident alternatives change between reads.
 struct UnstableResidentFacts {
     /// Delegate mutation/retained-word operations without promising resident identity.
-    inner: Box<dyn ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker>,
+    inner: Box<dyn ryo_execution::outbound::facts::interface::FactsWorker>,
     /// Distinguishable same-shape populations selected by read order.
     alternatives: [Vec<ryo_relations::domain::relations::types::FactColumn>; 2],
     /// Source reads remain observable even when their shapes agree.
     reads: std::sync::atomic::AtomicUsize,
 }
-impl ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker
+impl ryo_execution::outbound::facts::interface::FactsWorker
     for UnstableResidentFacts
 {
     fn resident_stability(
         &self,
-    ) -> ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability {
-        ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability::Unstable
+    ) -> ryo_execution::outbound::facts::types::ResidentStability {
+        ryo_execution::outbound::facts::types::ResidentStability::Unstable
     }
     fn columns_mut(
         &mut self,
     ) -> Result<
-        ryo_execution::inbound::use_cases::execution::types::facts::ColumnsMut<'_>,
-        ryo_execution::inbound::use_cases::execution::types::facts::FactsError,
+        ryo_execution::outbound::facts::types::ColumnsMut<'_>,
+        ryo_execution::outbound::facts::errors::FactsError,
     > {
         self.inner.columns_mut()
     }
@@ -923,7 +919,7 @@ impl ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker
         relation: Relation,
     ) -> Result<
         ryo_relations::domain::relations::types::ColumnsView<'_>,
-        ryo_execution::inbound::use_cases::execution::types::facts::FactsError,
+        ryo_execution::outbound::facts::errors::FactsError,
     > {
         use ryo_relations::domain::relations::{service::kinds, types::ColumnsView};
         if relation != Relation::Function {
@@ -942,20 +938,20 @@ impl ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker
     fn keep(
         &self,
         bucket: ryo_values::domain::stored_facts::types::Bucket,
-        words: ryo_execution::inbound::use_cases::execution::types::facts::WordsToKeep<'_>,
-    ) -> Result<(), ryo_execution::inbound::use_cases::execution::types::facts::FactsError> {
+        words: ryo_execution::outbound::facts::types::WordsToKeep<'_>,
+    ) -> Result<(), ryo_execution::outbound::facts::errors::FactsError> {
         self.inner.keep(bucket, words)
     }
     fn release(
         &mut self,
-    ) -> Result<(), ryo_execution::inbound::use_cases::execution::types::facts::FactsError> {
+    ) -> Result<(), ryo_execution::outbound::facts::errors::FactsError> {
         self.inner.release()
     }
     fn finished(
         self: Box<Self>,
     ) -> Result<
-        Box<dyn ryo_execution::inbound::use_cases::execution::types::facts::FactsFinish>,
-        ryo_execution::inbound::use_cases::execution::types::facts::FactsError,
+        Box<dyn ryo_execution::outbound::facts::interface::FactsFinish>,
+        ryo_execution::outbound::facts::errors::FactsError,
     > {
         self.inner.finished()
     }
@@ -1002,7 +998,7 @@ fn a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not
         matches!(
             result,
             Err(FileAnalysisError::Execution(
-                ryo_execution::inbound::use_cases::execution::types::OperatingError::ObservationIncomplete { .. }
+                ryo_execution::inbound::use_cases::execution::interface::OperatingError::ObservationIncomplete { .. }
             ))
         )
     };
@@ -1017,7 +1013,7 @@ fn a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not
             matches!(
                 replay_under(stale.clone(), &selected),
                 Err(FileAnalysisError::Execution(
-                    ryo_execution::inbound::use_cases::execution::types::OperatingError::ObservationIncomplete { .. }
+                    ryo_execution::inbound::use_cases::execution::interface::OperatingError::ObservationIncomplete { .. }
                 ))
             ),
             "{stale:?} must be refused for a selected bucket"
@@ -1246,7 +1242,7 @@ fn required_dependency_stat_and_read_errors_cannot_disappear() -> Result<Value, 
 }
 
 fn unstable_same_shape_resident_populations_remain_distinct() -> Result<Value, Failure> {
-    use ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker as _;
+    use ryo_execution::outbound::facts::interface::FactsWorker as _;
     use ryo_relations::domain::relations::types::FactColumn;
     let facts = UnstableResidentFacts {
         inner: FactsFake::default().worker().expect("inner"),
@@ -1276,7 +1272,7 @@ fn unstable_same_shape_resident_populations_remain_distinct() -> Result<Value, F
         .clone();
     assert_eq!(
         facts.resident_stability(),
-        ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability::Unstable
+        ryo_execution::outbound::facts::types::ResidentStability::Unstable
     );
     let second = facts
         .rows(Relation::Function)
@@ -1729,7 +1725,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     assert!(matches!(
         FileAnalysis::hand_again(&mut replay, &all_visit, FileOrder(0), FileId(0), &record),
         Err(FileAnalysisError::Execution(
-            ryo_execution::inbound::use_cases::execution::types::OperatingError::ObservationIncomplete { .. }
+            ryo_execution::inbound::use_cases::execution::interface::OperatingError::ObservationIncomplete { .. }
         ))
     ));
 
@@ -1818,7 +1814,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     assert!(matches!(
         FileAnalysis::hand_again(&mut replay, &old_all, FileOrder(0), FileId(0), &old_record),
         Err(FileAnalysisError::Execution(
-            ryo_execution::inbound::use_cases::execution::types::OperatingError::ObservationIncomplete { .. }
+            ryo_execution::inbound::use_cases::execution::interface::OperatingError::ObservationIncomplete { .. }
         ))
     ));
     Ok(1)

@@ -1,5 +1,6 @@
 //! Selection predicates and projections run through a genuine hosted input and file owner.
-use super::super::super::{fixtures, types::OperatingError};
+use super::super::super::fixtures;
+use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};

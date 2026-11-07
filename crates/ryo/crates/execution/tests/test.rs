@@ -1,9 +1,27 @@
 //! The public protocol is the only execution entry used by these controls.
-use ryo_execution::inbound::use_cases::execution::{
-    interface::{ExecutionRequest, ExecutionUseCase, FileExecution},
-    types::*,
-    use_case::ExecutionUseCaseImpl,
-};
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution::application::rule_compilation::service::QueryCompilation;
+use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     fixtures::{kinds, node_id},
@@ -27,7 +45,7 @@ fn public_file_run_publishes_once_and_finishes() {
     let engine = engine();
     let program = prepared(&engine);
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let table = source();
     let reads = Cell::new(0);
     let read = |relation| {
@@ -92,7 +110,7 @@ fn public_file_run_refuses_replaced_symbol_population_before_reading() {
     let engine = engine();
     let program = prepared(&engine);
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let reads = Cell::new(0);
     let read = |_| {
         reads.set(reads.get() + 1);
@@ -134,7 +152,7 @@ fn public_open_refuses_file_outside_request() {
     let engine = engine();
     let program = prepared(&engine);
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let read = |_| Err(OperatingError::NotRead);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut symbols = Symbols::default();
@@ -168,7 +186,7 @@ fn public_file_start_skipped_rule_cannot_be_executed() {
     let engine = engine();
     let program = prepared(&engine);
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let table = source();
     let reads = Cell::new(0);
     let read = |relation| {
@@ -217,7 +235,7 @@ fn public_skip_of_one_shared_rule_preserves_the_other_rules_reader() {
     // digests and logical applicability remain distinct.
     let program = prepared_rules(&engine, 2);
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let table = source();
     let reads = Cell::new(0);
     let read = |relation| {
@@ -336,27 +354,20 @@ impl query_language::QueryLanguagePort for AuthoredQueryProvider {
 }
 #[test]
 fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
-    use ryo_execution::inbound::use_cases::execution::{
-        interface::ExecutionCompilation, use_case::CompilationUseCaseImpl,
-    };
+    use ryo_execution::application::rule_compilation::service::ExecutionCompilation;
+    use ryo_execution::application::rule_compilation::service::QueryCompilation;
     let engine = engine();
     let raw = authored_request(2);
     let compiler =
-        CompilationUseCaseImpl::new(Arc::new(AuthoredQueryProvider(raw.plans[0].clone())));
+        QueryCompilation::new(Arc::new(AuthoredQueryProvider(raw.plans[0].clone())));
     let compiled = compiler
         .compile(&raw.rules, &raw.hosted)
         .expect("compile independent rules");
     let program = engine
-        .prepare_compiled(
-            compiled,
-            raw.rules,
-            raw.digests,
-            raw.hosted,
-            ObservationIdentity::Independent,
-        )
+        .prepare(PrepareRequest { plans: PlanSource::Compiled(compiled), rules: raw.rules, digests: raw.digests, hosted: raw.hosted, observations: ObservationIdentity::Independent })
         .expect("exact compiled declarations accepted");
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let table = source();
     let read = |relation| {
         if relation == Relation::Function {
@@ -417,13 +428,7 @@ fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
     substituted.pop();
     assert!(
         matches!(
-            engine.prepare_compiled(
-                compiled,
-                substituted,
-                vec![Digest([0; 16])],
-                vec![],
-                ObservationIdentity::Independent
-            ),
+            engine.prepare(PrepareRequest { plans: PlanSource::Compiled(compiled), rules: substituted, digests: vec![Digest([0; 16])], hosted: vec![], observations: ObservationIdentity::Independent }),
             Err(OperatingError::ShapeMismatch)
         ),
         "a consumer cannot relabel the two-rule provider result"
@@ -484,7 +489,7 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
         }];
         let program = engine.prepare(input).expect("closure plan");
         let corpus = corpus();
-        let request = engine.begin(&program, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
         let elements = ryo_language::domain::elements::types::Elements::default();
         let read = |_| Err::<SourceRows<'_>, _>(OperatingError::NotRead);
         for delivery in [0, 1, 2] {
@@ -580,10 +585,10 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
 
 #[test]
 fn independent_compilation_preserves_unused_steps_and_original_frontier_order() {
-    use ryo_execution::inbound::use_cases::execution::{
-        interface::{ExecutionCompilation, PreparedExecution, PreparedQueries},
-        use_case::CompilationUseCaseImpl,
-    };
+    use ryo_execution::application::rule_compilation::service::ExecutionCompilation;
+    use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution;
+    use ryo_execution::application::rule_compilation::service::PreparedQueries;
+    use ryo_execution::application::rule_compilation::service::QueryCompilation;
     use ryo_values::domain::plan_parts::types::RepeatedRows;
     let engine = engine();
     let mut raw = authored_request(1);
@@ -611,7 +616,7 @@ fn independent_compilation_preserves_unused_steps_and_original_frontier_order() 
         Input::Step(StepId(2)),
     ];
     let original = raw.plans[0].clone();
-    let compiler = CompilationUseCaseImpl::new(Arc::new(AuthoredQueryProvider(original.clone())));
+    let compiler = QueryCompilation::new(Arc::new(AuthoredQueryProvider(original.clone())));
     let compiled = compiler
         .compile(&raw.rules, &raw.hosted)
         .expect("independent compile");
@@ -621,13 +626,7 @@ fn independent_compilation_preserves_unused_steps_and_original_frontier_order() 
         "independent preparation must not perform observation pruning/remapping"
     );
     let program = engine
-        .prepare_compiled(
-            compiled,
-            raw.rules,
-            raw.digests,
-            raw.hosted,
-            ObservationIdentity::Independent,
-        )
+        .prepare(PrepareRequest { plans: PlanSource::Compiled(compiled), rules: raw.rules, digests: raw.digests, hosted: raw.hosted, observations: ObservationIdentity::Independent })
         .expect("prepare exact handover");
     assert_eq!(
         program.frontiers(RuleIndex(0)).expect("frontier metadata"),
@@ -672,7 +671,7 @@ impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase f
 #[test]
 fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
     let semantics = Arc::new(ReductionAudit::default());
-    let engine = ExecutionUseCaseImpl::new(
+    let engine = PrepareUseCaseImpl::new(
         semantics.clone(),
         Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
     );
@@ -688,7 +687,7 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
     input.plans[0].emit.step = StepId(1);
     let program = engine.prepare(input).expect("prepare real count");
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let table = source();
     let read = |relation| {
         if relation == Relation::Function {

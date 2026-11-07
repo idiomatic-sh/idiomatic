@@ -1,5 +1,23 @@
 //! Recursive producers and roots use the actual injected semantic capability, with terminal refusal.
-use super::super::super::{fixtures, interface::*, types::*, use_case::ExecutionUseCaseImpl};
+use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use crate::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use crate::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
+use crate::inbound::use_cases::prepare::interface::PrepareUseCase;
+use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
+use super::super::super::{fixtures, use_case::ExecutionUseCaseImpl};
+use crate::application::file_dag::program::file_session::types::FileInput;
+use crate::application::file_dag::program::file_session::types::SourceLanguage;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use crate::inbound::use_cases::execution::interface::CaptureIntent;
+use crate::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use crate::inbound::use_cases::execution::interface::EmitDemand;
+use crate::inbound::use_cases::execution::interface::FileRuleIntent;
+use crate::inbound::use_cases::execution::interface::ObservationDemand;
+use crate::inbound::use_cases::execution::interface::OperatingError;
+use crate::inbound::use_cases::execution::interface::RuleDemand;
+use crate::inbound::use_cases::execution::interface::RuleIndex;
+use crate::inbound::use_cases::prepare::interface::ObservationIdentity;
+use crate::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
@@ -70,7 +88,7 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
         projects: AtomicUsize::new(0),
         appends: AtomicUsize::new(0),
     });
-    let engine = ExecutionUseCaseImpl::new(
+    let engine = PrepareUseCaseImpl::new(
         port.clone(),
         Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
     );
@@ -103,14 +121,7 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
     }
     // An authored identity boundary keeps the union a genuine recursive producer.
     plan.frontier.push(Source::Step(StepId(2)));
-    let prepared = engine.prepare(PreparedRequest {
-        plans: vec![plan],
-        bindings: vec![vec![]],
-        hosted: vec![
-            fixtures::numbers("left", 1, &[&[1], &[1], &[2]]),
-            fixtures::numbers("right", 1, &[&[2], &[3]]),
-        ],
-        rules: vec![RuleSpec {
+    let prepared = engine.prepare(PrepareRequest { plans: PlanSource::Authored { plans: vec![plan], bindings: vec![vec![]] }, rules: vec![RuleSpec {
             id: RuleId("injected-semantics".into()),
             query: QueryBundle {
                 root: QueryDocumentSource {
@@ -125,17 +136,17 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
             spelled: RuleParameters("".into()),
             include: vec![],
             exclude: vec![],
-        }],
-        digests: vec![Digest([0; 16])],
-        observations: ObservationIdentity::Independent,
-    })?;
+        }], digests: vec![Digest([0; 16])], hosted: vec![
+            fixtures::numbers("left", 1, &[&[1], &[1], &[2]]),
+            fixtures::numbers("right", 1, &[&[2], &[3]]),
+        ], observations: ObservationIdentity::Independent })?;
     let corpus = [CorpusInput::Available(CorpusEntry {
         path: ryo_language::domain::files::types::FilePath("injected.py".into()),
         executable: ExecutablePermission::Unknown,
         size: FileSize(0),
         modified: Nanoseconds(0),
     })];
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let elements = Elements::default();
     let mut symbols = Symbols::default();
     let no_provider = |_| Err(OperatingError::NotRead);

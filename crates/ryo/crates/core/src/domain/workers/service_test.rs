@@ -19,7 +19,7 @@ use crate::domain::workers::types::VisitSetting;
 use crate::domain::workers::types::{
     Checking, FileOrder, FilesRead, FreshRecord, Tables, WorkersMet,
 };
-use ryo_execution::inbound::use_cases::execution::types::RowsFed;
+use ryo_execution::inbound::use_cases::execution::interface::RowsFed;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::metadata::interface::{
     Governing, Mask, PlacedScopes, RuleScope,

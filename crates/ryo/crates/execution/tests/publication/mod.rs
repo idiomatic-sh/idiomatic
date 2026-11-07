@@ -1,8 +1,13 @@
 //! Publication policy is enforced by fresh public delivery, never a pre-collected root.
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::*;
 use ryo_values::domain::plan_parts::types::LiteralText;
 
-fn program(engine: &ExecutionUseCaseImpl) -> PreparedExecutionProgram {
+fn program(engine: &PrepareUseCaseImpl) -> PreparedExecutionProgram {
     let mut input = authored_request(1);
     input.plans[0].steps = vec![PlanStep {
         scope: StepScope::PerFile,
@@ -44,7 +49,7 @@ fn semantic_failure_discards_every_after_success_row() {
             let engine = engine();
             let prepared = program(&engine);
             let corpus = corpus();
-            let request = engine.begin(&prepared, &corpus);
+            let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
             let table = rows(second);
             let elements = ryo_language::domain::elements::types::Elements::default();
             let read = |relation| {
@@ -113,7 +118,7 @@ fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
         let engine = engine();
         let prepared = program(&engine);
         let corpus = corpus();
-        let request = engine.begin(&prepared, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
         let table = rows((1, 2));
         let elements = ryo_language::domain::elements::types::Elements::default();
         let read = |relation| {
@@ -245,7 +250,7 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
         input.plans[0].frontier = vec![Input::Step(StepId(1))];
         let program = engine.prepare(input).expect("valid symbol frontier");
         let corpus = corpus();
-        let request = engine.begin(&program, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
         let mut symbols = Symbols::default();
         let symbol = if representation == "cross_name" {
             ryo_language::domain::symbols::fixtures::intern_derived(

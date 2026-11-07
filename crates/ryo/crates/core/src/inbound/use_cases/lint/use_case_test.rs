@@ -332,7 +332,7 @@ fn request(given: &Given) -> LintRequest {
 fn world(mut given: Given) -> World {
     let scheduler = Arc::new(std::mem::take(&mut given.scheduler));
     let query_language: Arc<
-        dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort,
+        dyn ryo_execution::outbound::query_language::interface::QueryLanguagePort,
     > = Arc::<QueryLanguageFake>::clone(&given.query);
     scheduled_world_with_query(given, scheduler, WorkerCount(1), query_language)
 }
@@ -340,7 +340,7 @@ fn world(mut given: Given) -> World {
 /// The same fixture over an explicitly injected production scheduler.
 fn scheduled_world(given: Given, scheduler: Arc<dyn SchedulerPort>, workers: WorkerCount) -> World {
     let query_language: Arc<
-        dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort,
+        dyn ryo_execution::outbound::query_language::interface::QueryLanguagePort,
     > = Arc::<QueryLanguageFake>::clone(&given.query);
     scheduled_world_with_query(given, scheduler, workers, query_language)
 }
@@ -351,7 +351,7 @@ fn scheduled_world_with_query(
     scheduler: Arc<dyn SchedulerPort>,
     workers: WorkerCount,
     query_language: Arc<
-        dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort,
+        dyn ryo_execution::outbound::query_language::interface::QueryLanguagePort,
     >,
 ) -> World {
     let memory = Arc::new(given.memory);
@@ -373,10 +373,10 @@ fn scheduled_world_with_query_resources(
     scheduler: Arc<dyn SchedulerPort>,
     workers: WorkerCount,
     query_language: Arc<
-        dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort,
+        dyn ryo_execution::outbound::query_language::interface::QueryLanguagePort,
     >,
     analysis_memory: Arc<dyn crate::outbound::memory::interface::MemoryPort>,
-    operators: Arc<dyn ryo_execution::inbound::use_cases::execution::types::OperatorsPort>,
+    operators: Arc<dyn ryo_execution::outbound::operators::interface::OperatorsPort>,
 ) -> World {
     let collected = row_sink::types::Collector::default();
     let kept: Arc<dyn RowSinkPort> = Arc::new(row_sink::factory::collect(collected.clone()));
@@ -421,7 +421,7 @@ fn scheduled_world_with_query_resources(
         let analysis_language: Arc<dyn crate::outbound::language::interface::LanguagePort> =
             Arc::<LanguageFake>::clone(&language);
         let analysis_digest: Arc<
-            dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
+            dyn ryo_execution::outbound::digest::interface::DigestPort,
         > = Arc::new(DigestFake);
         LintUseCaseImpl::new(
             crate::application::file_analysis::service::FileAnalysis::new(
@@ -1527,8 +1527,8 @@ fn changed_nested_module() -> Result<Value, Failure> {
 /// A module-only predicate edit changes actual findings through a retained real compiler plan.
 fn changed_fragment_plan() -> Result<Value, Failure> {
     use ryo_execution::outbound::query_language::factory;
-    use ryo_execution::inbound::use_cases::execution::types::CompiledPlans;
-    use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
+    use ryo_execution::application::rule_compilation::types::CompiledPlans;
+    use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 
     let make_bundle = |prefix: &str| {
         let module = format!(
@@ -1714,7 +1714,7 @@ fn succeeds() {
         let analysis_memory: Arc<dyn crate::outbound::memory::interface::MemoryPort> =
             Arc::new(MemoryFake::default());
         let analysis_digest: Arc<
-            dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
+            dyn ryo_execution::outbound::digest::interface::DigestPort,
         > = Arc::new(DigestFake);
         LintUseCaseImpl::new(
             crate::application::file_analysis::service::FileAnalysis::new(

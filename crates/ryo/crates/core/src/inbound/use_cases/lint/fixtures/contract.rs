@@ -56,7 +56,7 @@ use crate::outbound::scheduler::fixtures::fake::{CountingSchedulerFake, Schedule
 use crate::outbound::scheduler::interface::SchedulerPort;
 use crate::outbound::row_sink;
 use ryo_execution::outbound::{facts, matching, query_language};
-use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort;
+use ryo_execution::outbound::facts::interface::FactsPort;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_values::domain::query_operators::types::QueryOperator;
@@ -562,7 +562,7 @@ fn use_case_over(
         let analysis_memory: Arc<dyn crate::outbound::memory::interface::MemoryPort> =
             Arc::new(MemoryFake::default());
         let analysis_digest: Arc<
-            dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
+            dyn ryo_execution::outbound::digest::interface::DigestPort,
         > = Arc::new(ryo_execution::outbound::digest::fixtures::fake::DigestFake);
         LintUseCaseImpl::new(
             crate::application::file_analysis::service::FileAnalysis::new(

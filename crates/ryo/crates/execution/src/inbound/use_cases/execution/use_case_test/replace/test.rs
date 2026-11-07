@@ -1,5 +1,6 @@
 //! Literal replacement and regex preparation errors use the real owner and matching contract.
-use super::super::super::{fixtures, types::OperatingError};
+use super::super::super::fixtures;
+use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::selects;
 use ryo_values::{

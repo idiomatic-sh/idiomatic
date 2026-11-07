@@ -1,11 +1,38 @@
 //! A compiled project emit defers at file scope while real file frontiers remain available.
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use crate::boundary_fixture::{authored_request, corpus, demand, engine, source};
-use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
-use ryo_execution::inbound::use_cases::execution::{
-    interface::{ExecutionRequest, ExecutionUseCase, FileExecution},
-    types::*,
-    use_case::ExecutionUseCaseImpl,
-};
+use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution::application::file_dag::frontiers::types::PublicationSlot;
+use ryo_execution::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+use ryo_execution::application::file_dag::program::project_phase::types::ProjectInput;
+use ryo_execution::application::file_dag::program::request_execution::types::FrontierDemand;
+use ryo_execution::application::file_dag::program::request_execution::types::FrontierRequest;
+use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectObservation;
+use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
+use ryo_execution::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::Covered;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::inbound::use_cases::execution::interface::RowEmission;
+use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_relations::domain::relations::{
@@ -33,7 +60,7 @@ mod restoration;
 mod source_facts;
 use self::source_facts::fixtures::{CapturedFacts, ProjectFacts};
 
-fn mixed_program(engine: &ExecutionUseCaseImpl, relation: Relation) -> PreparedExecutionProgram {
+fn mixed_program(engine: &PrepareUseCaseImpl, relation: Relation) -> PreparedExecutionProgram {
     let mut input = authored_request(1);
     let file_column = kinds(Relation::Function)
         .iter()
@@ -90,7 +117,7 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
         let engine = engine();
         let prepared = mixed_program(&engine, relation);
         let corpus = corpus();
-        let request = engine.begin(&prepared, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
         let table = source();
         let file_reads = Cell::new(0);
         let read = |actual| {
@@ -244,7 +271,7 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
                 &corpus,
                 &covered,
                 &[],
-                &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+                &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
             )
             .unwrap();
         let project_symbols = Symbols::default();
@@ -386,7 +413,7 @@ fn project_grouping_reads_only_actual_captured_function_names() {
         entry.path = ryo_language::domain::files::types::FilePath("second.py".into());
     }
     corpus.push(second);
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let mut arena = vec![];
     let mut places = vec![];
     let mut words = Words::default();
@@ -482,7 +509,7 @@ fn project_grouping_reads_only_actual_captured_function_names() {
             &corpus,
             &covered,
             &[],
-            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
         )
         .unwrap();
     let project_symbols = Symbols::default();
@@ -606,7 +633,7 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
         if let ryo_values::domain::files::types::CorpusInput::Available(entry) = &mut corpus[0] {
             entry.size = ryo_values::domain::files::types::FileSize(9);
         }
-        let request = engine.begin(&program, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
         let mut symbols = Symbols::default();
         let table = crate::boundary_fixture::named_functions(&mut symbols);
         let reads = Cell::new(0);
@@ -740,9 +767,9 @@ fn project_hosted_text_joins_named_publication_text_by_spelling() {
 }
 
 fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>) {
-    use ryo_execution::inbound::use_cases::execution::interface::{
-        ObservationExecution, ObservationPublication, PreparedExecution,
-    };
+    use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationExecution;
+    use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationPublication;
+    use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution;
     use ryo_values::domain::observations::types::{
         BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
         ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
@@ -792,7 +819,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
         }
     }
     let union_semantic_calls = Arc::new(UnionSemanticCalls::default());
-    let engine = ExecutionUseCaseImpl::new(
+    let engine = PrepareUseCaseImpl::new(
         union_semantic_calls.clone(),
         Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
     );
@@ -912,7 +939,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
         [Input::BoundObservation(ObservationBindingId(0))]
     );
     let corpus = corpus();
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let covered = [Covered {
         file: FileId(0),
         rules: vec![RuleIndex(0), RuleIndex(1)],
@@ -933,7 +960,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
             &corpus,
             &covered,
             &[],
-            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
         )
         .unwrap();
     let slot = stage.reserve(RuleIndex(0)).unwrap();
@@ -1050,7 +1077,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
             &corpus,
             &covered,
             &[],
-            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
         )
         .unwrap();
     let bound = stage.bindings(RuleIndex(1)).unwrap();
@@ -1243,7 +1270,7 @@ fn project_text_identity_does_not_depend_on_inherited_arenas() {
                 authored.plans[0].emit.step = StepId(3);
                 let prepared = engine.prepare(authored).unwrap();
                 let corpus = corpus();
-                let request = engine.begin(&prepared, &corpus);
+                let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
                 let covered = [Covered {
                     file: FileId(0),
                     rules: vec![RuleIndex(0)],
@@ -1251,7 +1278,7 @@ fn project_text_identity_does_not_depend_on_inherited_arenas() {
                 }];
                 let phase = request.project_phase().unwrap();
                 let scope = phase
-                    .project_scope(RuleIndex(0), &corpus, &covered, &[], &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default())
+                    .project_scope(RuleIndex(0), &corpus, &covered, &[], &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default())
                     .unwrap();
                 let stored = CapturedFacts {
                     captures: vec![],

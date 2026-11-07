@@ -201,7 +201,7 @@ fn exercise(case: Case) {
             &corpus,
             &[],
             &skipped,
-            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles(
+            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles(
                 if matches!(case, Case::MissingWhileAnotherFileIsInapplicable) {
                     vec![FileId(0)]
                 } else {
@@ -315,7 +315,7 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
             &corpus,
             &[],
             &skipped,
-            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
         )
         .unwrap();
     let stored = CapturedFacts {

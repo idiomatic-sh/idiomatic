@@ -7,11 +7,12 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use ryo_core::outbound::lint_store::errors::LintStoreError;
 use ryo_core::outbound::lint_store::interface::{LintStorePort, ReadStore};
-use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
-use ryo_execution::inbound::use_cases::execution::types::facts::{ColumnsMut, WordsToKeep};
-use ryo_execution::inbound::use_cases::execution::types::facts::{
-    FactsFinish, FactsPort, FactsWorker,
-};
+use ryo_execution::outbound::facts::errors::FactsError;
+use ryo_execution::outbound::facts::types::ColumnsMut;
+use ryo_execution::outbound::facts::types::WordsToKeep;
+use ryo_execution::outbound::facts::interface::FactsFinish;
+use ryo_execution::outbound::facts::interface::FactsPort;
+use ryo_execution::outbound::facts::interface::FactsWorker;
 use ryo_relations::domain::relations::types::ColumnsView;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::stored_facts::types::Bucket;
@@ -34,7 +35,7 @@ pub(crate) struct CountingWorker {
 impl FactsWorker for CountingWorker {
     fn resident_stability(
         &self,
-    ) -> ryo_execution::inbound::use_cases::execution::types::facts::ResidentStability {
+    ) -> ryo_execution::outbound::facts::types::ResidentStability {
         self.inner.resident_stability()
     }
 
