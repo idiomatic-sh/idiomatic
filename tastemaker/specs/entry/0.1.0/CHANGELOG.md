@@ -1,6 +1,3 @@
-# entry 0.1.1
-
-The directory form of three single-file roles: `schemas/<concept>.rs`, `fixtures/<concept>.rs` and `entry_test/<scenario>.rs`, beside the role's own file, which declares them. It is placed only with two or more files (`directory-form`) and splits along concept or scenario, never by size: file-length says when a file is too long, and a long file is a prompt to look for the pattern it splits along. The rules that read `schemas.rs`, the tests and the fixtures read their directory forms as well.
 # entry
 
 ## 0.1.0
