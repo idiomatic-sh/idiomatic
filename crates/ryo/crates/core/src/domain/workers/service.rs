@@ -16,6 +16,7 @@ use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_values::domain::files::types::{CorpusInput, FileBytes, FileSize, Hits};
+use ryo_values::domain::records::types::Record;
 use ryo_values::domain::run_metadata::types::RuleRunMetadata;
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_facts::types::{ArenaBytes, FileNotes};
@@ -163,4 +164,57 @@ pub(crate) fn note_slots(fresh: &mut FreshNotes, files: FileTotal) -> Vec<Option
         }
     }
     slots
+}
+
+/// The record kept of each of `files`, in their order; none for a file with no record.
+pub(crate) fn records_of<'a>(files: &[CorpusInput], kept: &'a [Record]) -> Vec<Option<&'a Record>> {
+    files
+        .iter()
+        .map(|file| {
+            let CorpusInput::Available(entry) = file else {
+                return None;
+            };
+            match kept.binary_search_by(|record| record.path.cmp(&entry.path)) {
+                Ok(at) => kept.get(at),
+                // The search answers where the path would go: the file has no record.
+                Err(_) => None,
+            }
+        })
+        .collect()
+}
+
+/// Whether the applicability of the rules may gate which of them run on a file: it may unless every plan has a policy and every
+/// policy is to run always.
+pub(crate) fn gating_of(
+    applicability: &[ryo_values::domain::runs::types::RuleApplicability],
+    plans: &[ryo_values::domain::plans::types::Plan],
+) -> super::types::Gating {
+    if applicability.len() != plans.len()
+        || applicability
+            .iter()
+            .any(|policy| *policy != ryo_values::domain::runs::types::RuleApplicability::Always)
+    {
+        super::types::Gating::MayGate
+    } else {
+        super::types::Gating::NeverGates
+    }
+}
+
+/// The records the store kept, with those of `fresh` in place of the ones of the same path and among them by path: both in the order
+/// of their paths.
+#[must_use]
+pub(crate) fn with_fresh(kept: Vec<Record>, fresh: Vec<Record>) -> Vec<Record> {
+    let mut merged = Vec::with_capacity(kept.len() + fresh.len());
+    let mut fresh = fresh.into_iter().peekable();
+    for record in kept {
+        while let Some(new) = fresh.next_if(|new| new.path < record.path) {
+            merged.push(new);
+        }
+        match fresh.next_if(|new| new.path == record.path) {
+            Some(new) => merged.push(new),
+            None => merged.push(record),
+        }
+    }
+    merged.extend(fresh);
+    merged
 }

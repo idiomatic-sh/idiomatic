@@ -14,6 +14,23 @@ use ryo_values::domain::runs::types::Session;
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::StoredFile;
 
+/// What the manifests come to, as one digest: each manifest's path and text, so a rule that reads the project is made
+/// again when a manifest changed. Nothing to digest when no rule of `plans` reads what the project writes.
+pub(crate) fn resolution(
+    manifests: &[ManifestFile],
+    plans: &[ryo_values::domain::plans::types::Plan],
+    session: &Session,
+    digest: &dyn DigestPort,
+) -> std::io::Result<Digest> {
+    if crate::domain::project::service::reads_any(
+        &ryo_values::domain::run_metadata::service::from_plans(plans),
+    ) == crate::domain::project::types::PlanReads::DoesNotRead
+    {
+        return Ok(Digest([0; 16]));
+    }
+    identity(manifests, session, digest)
+}
+
 /// Digest the host's ordered search authority, Given inventory and project manifests.
 pub(crate) fn identity(
     manifests: &[ManifestFile],

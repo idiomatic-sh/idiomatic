@@ -4,6 +4,5 @@ pub mod corpus;
 pub mod language;
 pub mod lint_store;
 pub mod memory;
-pub mod publication;
 pub mod row_sink;
 pub mod scheduler;

@@ -2,37 +2,30 @@
 
 use super::constants::PHYSICAL_FACTS_INCOMPLETE;
 use super::types::{BucketWords, Flat, InterfaceBytes, WordCount};
-use crate::domain::keeping::service::{remap_packed, rendered_of, rows_of};
+use crate::domain::keeping::service::{remap_packed, rows_of};
 use crate::domain::keeping::types::{ArenaStart, Remap};
 use crate::domain::render::types::Answering;
 use crate::domain::visit::types::{Keeping, Noting};
+use crate::domain::handing::service::stored_of;
 use crate::domain::workers::types::{
     FileOrder, FreshRecord, Gating, PlacedNotes, Tables, VisitSetting,
 };
 use ryo_execution::inbound::use_cases::metadata::interface::Covered;
 use ryo_execution::inbound::use_cases::metadata::interface::Governing;
 use ryo_execution::inbound::use_cases::metadata::interface::{Bearing, Blocking};
-use ryo_execution::inbound::use_cases::metadata::interface::{
-    CoverageScope, Lacking, Partial, RuleIndex, Unknown,
-};
+use ryo_execution::inbound::use_cases::metadata::interface::{CoverageScope, Partial, RuleIndex, Unknown};
 use ryo_language::domain::elements::service::{notes_of, take_notes};
 use ryo_language::domain::elements::types::SyntaxAcceptance;
 use ryo_language::domain::files::types::FilePath;
-use ryo_relations::domain::relations::service::name;
 use ryo_relations::domain::relations::types::{FileId, Words, WorkerNumber};
-use ryo_values::domain::descriptions::types::RelationName;
 use ryo_values::domain::files::types::{CorpusEntry, FileNumber};
 use ryo_values::domain::records::types::HandedNotes;
-use ryo_values::domain::records::types::Unread;
 use ryo_values::domain::records::types::{
     FileOutcome, GoverningRules, Handed, HandedWords, Handing, Ran, Record,
 };
 use ryo_values::domain::runs::types::RuleApplicability;
 use ryo_values::domain::runs::types::RuleNumber;
-use ryo_values::domain::stored_facts::types::{
-    ArenaBase, ArenaBytes, Digest, FileNotes, NoteBytes, PartialAt, PartialCause, PartialKind,
-    PartialScope, StoredPartial,
-};
+use ryo_values::domain::stored_facts::types::{ArenaBase, ArenaBytes, Digest, FileNotes, NoteBytes};
 use ryo_values::domain::table_words::service::{pack, unpacked};
 use ryo_values::domain::table_words::types::WordSlice;
 
@@ -83,30 +76,6 @@ pub(crate) fn partial_root(
             PHYSICAL_FACTS_INCOMPLETE.into(),
         ),
     });
-}
-
-/// The relations read in part, as a record keeps them.
-#[must_use]
-pub(crate) fn stored_of(partials: &[Partial]) -> Vec<StoredPartial> {
-    partials
-        .iter()
-        .map(|each| StoredPartial {
-            relation_name: RelationName(name(each.relation).0.into()),
-            cause: PartialCause(each.cause.0.clone()),
-            at: match each.at {
-                ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::File(at) => {
-                    PartialScope::OneFile(PartialAt(at.0))
-                }
-                ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::Repository => {
-                    PartialScope::Repository
-                }
-            },
-            lacking_kind: PartialKind(match &each.lacking {
-                Lacking::Any => Box::default(),
-                Lacking::Kind(kind) => kind.0.clone(),
-            }),
-        })
-        .collect()
 }
 
 /// What the file handed to the cross-file steps with the numbers that differ from run to run taken out, to say whether they are
@@ -344,52 +313,6 @@ pub(crate) fn cover(
             partial: tables.partials.clone(),
         });
     }
-}
-
-/// Puts the findings the store kept of a file where the report takes them from.
-fn restore(tables: &mut Tables, ran: &Ran) -> Ran {
-    tables.rendered = rendered_of(&ran.rows);
-    ran.clone()
-}
-
-/// Uses what the store kept of a file again, instead of reading it: its findings leave as they were, renumbered for this run in the
-/// record the run keeps. What the rules could not decide in it is what the store kept of that.
-pub(crate) fn replay(
-    tables: &mut Tables,
-    number: FileId,
-    at: FileOrder,
-    record: &Record,
-    file: &CorpusEntry,
-    digest: Digest,
-) {
-    let renewed = |outcome: FileOutcome| Record {
-        executable: file.executable,
-        path: record.path.clone(),
-        size: file.size,
-        modified: file.modified,
-        digest,
-        number: FileNumber(number.0),
-        outcome,
-    };
-    tables.partials.clear();
-    let outcome = match &record.outcome {
-        FileOutcome::Unread { reason, ran } => {
-            let renewed_ran = ran.as_ref().map(|ran| restore(tables, ran));
-            tables.unread.push(Unread {
-                path: file.path.clone(),
-                reason: reason.clone(),
-            });
-            FileOutcome::Unread {
-                reason: reason.clone(),
-                ran: renewed_ran,
-            }
-        }
-        FileOutcome::Read(ran) => FileOutcome::Read(restore(tables, ran)),
-    };
-    tables.fresh.push(FreshRecord {
-        place: at,
-        record: renewed(outcome),
-    });
 }
 
 /// Ends the visit of a file: the file's notes wait for the project, and its record for the store, when the run keeps one.

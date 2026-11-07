@@ -2,8 +2,8 @@
 use super::errors::FileAnalysisError;
 use crate::domain::workers::types::Tables;
 use ryo_execution::outbound::facts::interface::FactsWorker;
-use ryo_execution::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use ryo_execution::application::file_dag::program::request_execution::types::RequestExecution;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
+use ryo_execution::inbound::use_cases::execution::interface::RequestExecution;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 /// Whether the rule results of one file generation are all there.
@@ -87,4 +87,57 @@ impl DerefMut for RequestVisitSetting<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.domain
     }
+}
+
+/// What the visits of a run read that is the same for every file: the files, how the rows are answered, the files whose findings
+/// are written and what each rule is.
+pub(crate) struct StreamRun<'a> {
+    /// The files, in the order of their paths.
+    pub files: &'a [ryo_values::domain::files::types::CorpusInput],
+    /// How the rows the rules emit are answered.
+    pub answering: &'a crate::domain::render::types::Answering,
+    /// Only findings in these files are written; none means every file.
+    pub only: &'a [ryo_language::domain::files::types::FilePath],
+    /// Pure rule facts retained for source demand, frontier and work accounting.
+    pub metadata: &'a [ryo_values::domain::run_metadata::types::RuleRunMetadata],
+}
+
+/// The findings waiting for their turn to leave, and the workers waiting for it.
+pub(crate) struct Streaming {
+    /// What waits, and how much is being read.
+    pub ordered: std::sync::Mutex<crate::domain::ordering::types::Ordered>,
+    /// Signalled when a file's findings left or its bytes were released.
+    pub turn: std::sync::Condvar,
+}
+
+/// What the workers read together while the files are visited: the files, what every visit reads, where the findings wait for their
+/// turn and how many were written.
+pub(crate) struct Course<'a> {
+    /// The files, in the order of their paths.
+    pub files: &'a [ryo_values::domain::files::types::CorpusInput],
+    /// What every visit reads.
+    pub visit: &'a FileVisit<'a>,
+    /// Where the findings wait for their turn.
+    pub streaming: &'a Streaming,
+    /// Only findings in these files are written; none means every file.
+    pub only: &'a [ryo_language::domain::files::types::FilePath],
+    /// How many findings the workers wrote.
+    pub counted: &'a std::sync::atomic::AtomicU64,
+}
+
+/// What the project is made from: the files listed, the session, the manifests, the relations the rules read, and what the rules
+/// need of the project's partly read relations.
+pub(crate) struct ProjectMaking<'a> {
+    /// The files, in the order of their paths.
+    pub files: &'a [ryo_values::domain::files::types::CorpusInput],
+    /// Where the run reads the repository.
+    pub session: &'a ryo_values::domain::runs::types::Session,
+    /// The manifests the project reads.
+    pub manifests: &'a [ryo_language::inbound::use_cases::project::types::ManifestFile],
+    /// The relations the rules read.
+    pub wanted: &'a [ryo_relations::domain::relations::types::Relation],
+    /// What each rule needs of the files.
+    pub needs: &'a [ryo_execution::inbound::use_cases::metadata::interface::Needs],
+    /// The rules' ids.
+    pub ids: &'a [ryo_values::domain::runs::types::RuleId],
 }

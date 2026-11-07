@@ -1,7 +1,8 @@
 //! What a visit comes to once it ends: the record of a file the store kept is used again, and the record a visit keeps is made.
 
 use super::*;
-use crate::domain::recording::service::{finish_file, replay};
+use crate::domain::handing::service::replay;
+use crate::domain::recording::service::finish_file;
 use crate::domain::workers::types::FileOrder;
 use ryo_language::domain::elements::service::notes_mut;
 use ryo_values::domain::files::types::{CorpusEntry, FileNumber, FileSize, Nanoseconds};

@@ -1,16 +1,20 @@
 //! The engine's compilation and execution as the use cases call them: the kernel's implementations, held here where an application
 //! service may name them, so a use case builds none.
 
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase as _;
+use super::types::KindRefused;
+use crate::outbound::language::interface::LanguagePort;
+use ryo_execution::inbound::use_cases::metadata::interface::{MetadataUseCase as _, RuleIndex};
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use std::sync::Arc;
 
-use ryo_execution::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use ryo_execution::application::file_dag::program::request_execution::types::RequestExecution;
-use ryo_execution::application::rule_compilation::errors::RuleCompilationError;
-use ryo_execution::application::rule_compilation::service::{
-    CompiledPlans, CompiledQueries, ExecutionCompilation, QueryCompilation,
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
+use ryo_execution::inbound::use_cases::execution::interface::RequestExecution;
+use ryo_execution::inbound::use_cases::prepare::interface::RuleCompilationError;
+use ryo_execution::inbound::use_cases::prepare::interface::{
+    CompiledPlans, CompiledQueries, ExecutionCompilation, PreparedQueries as _, QueryCompilation,
 };
-use ryo_execution::application::rule_compilation::types::PreparedRuleIdentities;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::prepare::interface::PreparedRuleIdentities;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
@@ -36,6 +40,44 @@ impl Compilation {
     #[must_use]
     pub fn new(compiler: Arc<dyn QueryLanguagePort>) -> Self {
         Self(QueryCompilation::new(compiler))
+    }
+}
+
+impl Compilation {
+    /// The rules compiled, and refused before any file is read when one writes a word for a kind no linked language has: the
+    /// inner answer is that refusal, the outer one the compilation's.
+    pub(crate) fn checked(
+        &self,
+        rules: &[ryo_values::domain::rule_requests::types::RuleSpec],
+        hosted: &[ryo_values::domain::hosted::types::HostRelation],
+        digest: &dyn DigestPort,
+        language: &dyn LanguagePort,
+    ) -> Result<Result<CompiledQueries, KindRefused>, RuleCompilationError> {
+        let compiled = self.0.compile(rules, hosted, digest)?;
+        // Rules that write no word for a kind need no vocabulary.
+        if compiled
+            .plans()
+            .iter()
+            .zip(compiled.bindings())
+            .all(|(plan, bound)| MetadataUseCaseImpl.kinds_asked(plan, bound).is_empty())
+        {
+            return Ok(Ok(compiled));
+        }
+        let vocabularies = language.kind_vocabularies();
+        Ok(match MetadataUseCaseImpl.first_unknown(
+            compiled.plans(),
+            compiled.bindings(),
+            &vocabularies,
+            &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl::new(),
+        ) {
+            Some(unknown) => Err(KindRefused {
+                rule: RuleIndex(unknown.rule.0),
+                reason: MetadataUseCaseImpl
+                    .unknown_kind_message(&unknown.word, &vocabularies)
+                    .message,
+            }),
+            None => Ok(compiled),
+        })
     }
 }
 

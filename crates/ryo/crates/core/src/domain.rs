@@ -13,6 +13,7 @@ pub(crate) mod finish;
 pub(crate) mod handing;
 pub(crate) mod keeping;
 pub(crate) mod listing;
+pub(crate) mod memory_diagnostics;
 pub(crate) mod ordering;
 
 pub(crate) mod project;

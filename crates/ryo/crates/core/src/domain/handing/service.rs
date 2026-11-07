@@ -2,7 +2,7 @@
 //! store keeps of it, with no IO and no ports.
 
 use crate::domain::keeping::types::{ArenaStart, Remap};
-use crate::domain::workers::types::{FileOrder, PlacedNotes, Tables};
+use crate::domain::workers::types::{FileOrder, FreshRecord, PlacedNotes, Tables};
 use ryo_execution::inbound::use_cases::metadata::interface::{
     Covered, Lacking, LackingKind, Partial, RuleIndex,
 };
@@ -18,6 +18,18 @@ use ryo_values::domain::stored_findings::types::StoredFileNumber;
 use ryo_values::domain::stores::types::{
     BucketsWanted, Stored, StoredCovered, StoredHanded, StoredNotes, StoredText, StoredWords,
 };
+use crate::domain::keeping::service::rendered_of;
+use ryo_relations::domain::relations::service::name;
+use ryo_values::domain::descriptions::types::RelationName;
+use ryo_values::domain::files::types::CorpusEntry;
+use ryo_values::domain::files::types::FileNumber;
+use ryo_values::domain::records::types::FileOutcome;
+use ryo_values::domain::records::types::Ran;
+use ryo_values::domain::records::types::Record;
+use ryo_values::domain::records::types::Unread;
+use ryo_values::domain::stored_facts::types::Digest;
+use ryo_values::domain::stored_facts::types::PartialAt;
+use ryo_values::domain::stored_facts::types::PartialKind;
 
 /// The rows of `rows` of the stored file `file`: the tables keep each file's rows together, in the order of the files.
 pub(crate) fn rows_of_file<T>(
@@ -219,4 +231,74 @@ pub(crate) fn hand_rest_again(
             partial: partials_of(partials),
         });
     }
+}
+
+/// The relations read in part, as a record keeps them.
+#[must_use]
+pub(crate) fn stored_of(partials: &[Partial]) -> Vec<StoredPartial> {
+    partials
+        .iter()
+        .map(|each| StoredPartial {
+            relation_name: RelationName(name(each.relation).0.into()),
+            cause: PartialCause(each.cause.0.clone()),
+            at: match each.at {
+                ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::File(at) => {
+                    PartialScope::OneFile(PartialAt(at.0))
+                }
+                ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::Repository => {
+                    PartialScope::Repository
+                }
+            },
+            lacking_kind: PartialKind(match &each.lacking {
+                Lacking::Any => Box::default(),
+                Lacking::Kind(kind) => kind.0.clone(),
+            }),
+        })
+        .collect()
+}
+
+/// Puts the findings the store kept of a file where the report takes them from.
+fn restore(tables: &mut Tables, ran: &Ran) -> Ran {
+    tables.rendered = rendered_of(&ran.rows);
+    ran.clone()
+}
+
+/// Uses what the store kept of a file again, instead of reading it: its findings leave as they were, renumbered for this run in the
+/// record the run keeps. What the rules could not decide in it is what the store kept of that.
+pub(crate) fn replay(
+    tables: &mut Tables,
+    number: FileId,
+    at: FileOrder,
+    record: &Record,
+    file: &CorpusEntry,
+    digest: Digest,
+) {
+    let renewed = |outcome: FileOutcome| Record {
+        executable: file.executable,
+        path: record.path.clone(),
+        size: file.size,
+        modified: file.modified,
+        digest,
+        number: FileNumber(number.0),
+        outcome,
+    };
+    tables.partials.clear();
+    let outcome = match &record.outcome {
+        FileOutcome::Unread { reason, ran } => {
+            let renewed_ran = ran.as_ref().map(|ran| restore(tables, ran));
+            tables.unread.push(Unread {
+                path: file.path.clone(),
+                reason: reason.clone(),
+            });
+            FileOutcome::Unread {
+                reason: reason.clone(),
+                ran: renewed_ran,
+            }
+        }
+        FileOutcome::Read(ran) => FileOutcome::Read(restore(tables, ran)),
+    };
+    tables.fresh.push(FreshRecord {
+        place: at,
+        record: renewed(outcome),
+    });
 }

@@ -22,24 +22,24 @@ use crate::domain::crossing::service::partials_for;
 use crate::domain::crossing::service::partials_for_reads;
 use crate::domain::render::types::Answering;
 use crate::outbound::corpus::interface::CorpusPort;
-use crate::outbound::publication::interface::PublicationPort;
-use ryo_execution::application::file_dag::frontiers::types::InputReadiness;
-use ryo_execution::application::file_dag::observations::types::{AdmittedOutput, RuleSelection};
-use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
-use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationExecution;
-use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationPublication;
-use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution;
-use ryo_execution::application::file_dag::program::project_phase::interface::ProjectRootExecution;
+use ryo_execution::outbound::publication::interface::PublicationPort;
+use ryo_execution::inbound::use_cases::execution::interface::InputReadiness;
+use ryo_execution::inbound::use_cases::execution::interface::{AdmittedOutput, RuleSelection};
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
 use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
 use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
-use ryo_execution::application::file_dag::program::project_phase::types::FrontierDemand;
-use ryo_execution::application::file_dag::program::project_phase::types::FrontierRequest;
+use ryo_execution::inbound::use_cases::execution::interface::FrontierDemand;
+use ryo_execution::inbound::use_cases::execution::interface::FrontierRequest;
 use ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectBatch;
-use ryo_execution::application::file_dag::program::project_phase::types::ProjectInput;
-use ryo_execution::application::file_dag::program::project_phase::types::ProjectTask;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectInput;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectTask;
 use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
@@ -76,7 +76,7 @@ impl CrossFile {
         stage: &impl ProjectRootExecution,
         symbols: &mut Symbols,
         guard: impl FnMut(RuleIndex) -> Result<(), CrossFileError>,
-    ) -> ryo_execution::application::file_dag::program::rule_outcome::types::ProjectBatch<
+    ) -> ryo_execution::inbound::use_cases::execution::interface::ProjectBatch<
         ProjectOutcome,
         CrossFileError,
     > {

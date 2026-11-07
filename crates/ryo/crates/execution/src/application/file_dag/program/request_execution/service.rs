@@ -2,7 +2,25 @@
 use crate::application::file_dag::frontiers::errors::PreparationError;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::program::facade_runtime;
+use crate::application::file_dag::program::file_session::interface::FileExecution;
+use crate::application::file_dag::program::file_session::types::CaptureContext;
+use crate::application::file_dag::program::file_session::types::EmittedRoot;
+use crate::application::file_dag::program::file_session::types::FileEnd;
 use crate::application::file_dag::program::file_session::types::FileInput;
+use crate::application::file_dag::program::file_session::types::FileRules;
+use crate::application::file_dag::program::file_session::types::FileRunInput;
+use crate::application::file_dag::program::file_session::types::FileStop;
+use crate::application::file_dag::program::file_session::types::RuleAfter;
+use crate::application::file_dag::program::file_session::types::RuleFile;
+use crate::application::file_dag::program::file_session::types::RanRule;
+use crate::application::file_dag::program::file_session::types::SourceRows;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use crate::domain::finish::types::Arena;
+use crate::domain::rule_intent::types::{DiagnosticDelivery, EmitDemand, FileRuleIntent, RuleDemand};
+use crate::outbound::facts::errors::FactsError;
+use crate::outbound::facts::interface::FactsWorker;
+use crate::outbound::facts::types::WordsToKeep;
+use std::cell::RefCell;
 use crate::application::file_dag::program::file_session::types::KindSupport;
 use crate::application::file_dag::program::file_session::types::SemanticSupport;
 use crate::application::file_dag::program::file_session::types::FileSession;
@@ -124,6 +142,15 @@ impl ExecutionRequest for RequestExecution {
             file: input.file,
         })
     }
+    fn run_file(
+        &self,
+        input: FileRunInput<'_>,
+        symbols: &mut Symbols,
+        capture: CaptureContext<'_>,
+        facts: &dyn FactsWorker,
+    ) -> FileRules {
+        run_file(self, input, symbols, capture, facts)
+    }
     fn project_phase(&self) -> Result<ProjectPhase<'_>, OperatingError> {
         Ok(ProjectPhase {
             request: self,
@@ -161,6 +188,180 @@ impl RequestExecution {
         )?;
         Ok(inner)
     }
+}
+
+/// The rules of one file, one after another in the program's rule order, in one session over the worker's facts. A read of the
+/// facts the engine refused is answered as the facts' own refusal, and stops the file where it happened.
+fn run_file(
+    request: &RequestExecution,
+    input: FileRunInput<'_>,
+    symbols: &mut Symbols,
+    capture: CaptureContext<'_>,
+    facts: &dyn FactsWorker,
+) -> FileRules {
+    let FileRunInput {
+        language,
+        file,
+        evaluation,
+        publication,
+        intents,
+        source,
+        elements,
+        semantic,
+        kinds,
+        first,
+    } = input;
+    let refused = RefCell::new(None);
+    let read = |relation| {
+        facts
+            .rows(relation)
+            .map(SourceRows::Stored)
+            .map_err(|error| {
+                *refused.borrow_mut() = Some(error);
+                OperatingError::NotRead
+            })
+    };
+    let CaptureContext {
+        worker,
+        arena: Arena(arena),
+        places,
+        words,
+    } = capture;
+    let mut rules = Vec::new();
+    let opened = request.open_file(
+        FileInput {
+            language,
+            resident_stability: facts.resident_stability(),
+            file,
+            evaluation,
+            publication,
+            intents,
+            source,
+            elements,
+            read: &read,
+            semantic,
+            kinds,
+        },
+        symbols,
+    );
+    let mut session = match opened {
+        Ok(session) => session,
+        Err(error) => {
+            return FileRules {
+                rules,
+                end: FileEnd::Refused(FileStop::Operating(error)),
+            };
+        }
+    };
+    for rule in request.program.rule_order() {
+        let Some(FileRuleIntent::Run {
+            diagnostic,
+            observations,
+            ..
+        }) = intents.get(rule.0)
+        else {
+            continue;
+        };
+        let emits = *diagnostic != DiagnosticDelivery::Disabled;
+        let demand = RuleDemand {
+            emit: if emits {
+                EmitDemand::Enabled
+            } else {
+                EmitDemand::Disabled
+            },
+            observations: *observations,
+        };
+        let outcome = session.rule(rule, demand, symbols);
+        let (emit, after) = match outcome {
+            Err(error) => (EmittedRoot::Withheld, stopped(error, &refused)),
+            Ok(_) if refused.borrow().is_some() => {
+                (EmittedRoot::Withheld, stopped(OperatingError::NotRead, &refused))
+            }
+            Ok(outcome) => {
+                let emit = if emits {
+                    EmittedRoot::Delivered(outcome.emit)
+                } else {
+                    EmittedRoot::Withheld
+                };
+                let after = if matches!(emit, EmittedRoot::Delivered(RootOutcome::Failed(_))) {
+                    RuleAfter::Unreached
+                } else {
+                    rest_of_rule(
+                        &mut session,
+                        RuleFile { rule, file, first },
+                        symbols,
+                        CaptureContext {
+                            worker,
+                            arena: Arena(&mut *arena),
+                            places: &mut *places,
+                            words: &mut *words,
+                        },
+                        facts,
+                        &refused,
+                    )
+                    .unwrap_or_else(|error| stopped(error, &refused))
+                };
+                (emit, after)
+            }
+        };
+        let ran = matches!(after, RuleAfter::Ran { .. });
+        rules.push(RanRule { rule, emit, after });
+        if !ran {
+            return FileRules {
+                rules,
+                end: FileEnd::Unfinished,
+            };
+        }
+    }
+    let end = match session.finish() {
+        Ok(finished) => FileEnd::Finished(finished.readiness),
+        Err(error) => FileEnd::Refused(FileStop::Operating(error)),
+    };
+    FileRules { rules, end }
+}
+
+/// The stop of a rule: the facts' own refusal when a read of them was refused, else the engine's `error`.
+fn stopped(error: OperatingError, refused: &RefCell<Option<FactsError>>) -> RuleAfter {
+    RuleAfter::Stopped(refused.take().map_or(FileStop::Operating(error), FileStop::Facts))
+}
+
+/// What a rule does after its emitted root: its frontiers captured, each one captured kept in `facts` and committed, and its steps
+/// counted. A capture the engine could not make is answered as it is, for the caller to note.
+fn rest_of_rule(
+    session: &mut FileSession<'_, '_>,
+    at: RuleFile<'_>,
+    symbols: &mut Symbols,
+    capture: CaptureContext<'_>,
+    facts: &dyn FactsWorker,
+    refused: &RefCell<Option<FactsError>>,
+) -> Result<RuleAfter, OperatingError> {
+    let first = *at.first.get(at.rule.0).ok_or(OperatingError::NotRun)?;
+    let captured = session.capture_frontiers(at.rule, first, symbols, capture)?;
+    if let Some(error) = refused.take() {
+        return Ok(RuleAfter::Stopped(FileStop::Facts(error)));
+    }
+    let mut captures = Vec::with_capacity(captured.len());
+    for each in captured {
+        if let Ok(kept) = &each.outcome {
+            if let Err(error) = facts.keep(
+                kept.bucket,
+                WordsToKeep {
+                    words: &kept.words,
+                    file: at.file,
+                    proof: &kept.proof,
+                },
+            ) {
+                return Ok(RuleAfter::Stopped(FileStop::Facts(error)));
+            }
+            session.commit_frontier(at.rule, kept.input)?;
+        }
+        captures.push(each);
+    }
+    let counts = session.counts(at.rule)?;
+    Ok(RuleAfter::Ran {
+        captures,
+        fed: counts.fed,
+    })
 }
 
 /// A request begins over the prepared program's kernels and shared services.

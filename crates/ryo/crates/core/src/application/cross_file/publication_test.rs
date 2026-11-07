@@ -1,8 +1,7 @@
 //! Portable publication keeps earlier roots when a later root refuses.
 use super::publication::pack_roots;
-use crate::{
-    domain::crossing::types::ObservedRoot, outbound::publication::interface::PublicationPort,
-};
+use crate::domain::crossing::types::ObservedRoot;
+use ryo_execution::outbound::publication::interface::PublicationPort;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, NamePlace, Value, WorkerNumber};
 use ryo_values::{

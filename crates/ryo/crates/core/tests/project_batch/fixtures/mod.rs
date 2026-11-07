@@ -27,7 +27,7 @@ mod authorized_seal {
 mod authorized_service {
  use crate::application::cross_file::{service::CrossFile, preparation::service::SealedBatch};
  use crate::application::cross_file::types::ProjectCrossing;
- use ryo_execution::application::file_dag::program::project_phase::types::ProjectPhase;
+ use ryo_execution::inbound::use_cases::execution::interface::ProjectPhase;
  use ryo_language::domain::symbols::types::Symbols;
  fn submit<'phase>(service: &CrossFile, crossing: &ProjectCrossing<'_>, batch: SealedBatch, stage: &ProjectPhase<'phase>, symbols: &mut Symbols) {
   let _ = service.evaluate_batch(crossing, batch, stage, symbols, |_| Ok(()));
@@ -87,7 +87,7 @@ mod retarget_sealed {
 mod raw_vector_submission {
  use crate::application::cross_file::service::CrossFile;
  use crate::application::cross_file::types::ProjectCrossing;
- use ryo_execution::application::file_dag::program::project_phase::types::ProjectPhase;
+ use ryo_execution::inbound::use_cases::execution::interface::ProjectPhase;
  use ryo_language::domain::symbols::types::Symbols;
  fn submit<'phase>(service: &CrossFile, crossing: &ProjectCrossing<'_>, stage: &ProjectPhase<'phase>, symbols: &mut Symbols) {
   let _ = service.evaluate_batch(crossing, Vec::new(), stage, symbols, |_| Ok(()));
@@ -101,9 +101,9 @@ mod raw_vector_submission {
         expected: None,
         client: r#"
 mod public_sdk_singleton {
- use ryo_execution::application::file_dag::program::project_phase::interface::ProjectRootExecution;
- use ryo_execution::application::file_dag::program::project_phase::types::ProjectPhase;
- use ryo_execution::application::file_dag::program::project_phase::types::ProjectTask;
+ use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
+ use ryo_execution::inbound::use_cases::execution::interface::ProjectPhase;
+ use ryo_execution::inbound::use_cases::execution::interface::ProjectTask;
  use ryo_language::domain::symbols::types::Symbols;
  fn singleton<'phase>(stage: &ProjectPhase<'phase>, task: ProjectTask<'_>, symbols: &mut Symbols) {
   let _ = stage.evaluate(vec![task], symbols, |_| Ok::<(), std::convert::Infallible>(()));

@@ -1,6 +1,6 @@
 //! The publication port, implemented with the execution use case.
 use crate::outbound::publication::interface::PublicationPort;
-use ryo_execution::application::publication::{service::publication, types::PublicationInput};
+use crate::application::publication::{service::publication, types::PublicationInput};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{NamePlace, WorkerNumber};
 use ryo_values::domain::{

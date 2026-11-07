@@ -12,8 +12,8 @@ use crate::application::cross_file::fixtures::todo;
 use crate::application::cross_file::fixtures::world_with;
 use crate::application::cross_file::fixtures::world_with_applicability;
 use crate::domain::answering::types::Todo;
-use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
-use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
 use ryo_execution::inbound::use_cases::metadata::interface::Covered;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
@@ -23,7 +23,7 @@ use std::sync::Arc;
 
 pub(super) fn project_root_set_prepares_shared_publications_once_before_ordered_delivery()
 -> Result<(), RuleRequestsError> {
-    use ryo_execution::application::file_dag::program::project_phase::interface::ProjectRootExecution;
+    use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
     use std::sync::atomic::Ordering;
     for order in [[0, 1, 0], [1, 0, 1]] {
         let calls = Arc::new(ProjectCalls::default());
@@ -119,7 +119,7 @@ pub(super) fn project_root_set_prepares_shared_publications_once_before_ordered_
 
 pub(super) fn project_root_set_preserves_distinct_actual_population_policy_in_both_orders()
 -> Result<(), RuleRequestsError> {
-    use ryo_execution::application::file_dag::program::project_phase::interface::ProjectRootExecution;
+    use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
     use ryo_values::domain::runs::types::{RuleApplicability, SkipReason, Skipped};
     use std::sync::atomic::Ordering;
     for order in [[0, 1], [1, 0]] {

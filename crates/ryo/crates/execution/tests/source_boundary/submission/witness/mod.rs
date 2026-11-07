@@ -18,6 +18,9 @@ use ryo_execution::application::file_dag::frontiers::types::PublicationSlot;
 use ryo_execution::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_execution::application::file_dag::program::file_session::types::FileFinished;
 use ryo_execution::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution::application::file_dag::program::file_session::types::FileRules;
+use ryo_execution::application::file_dag::program::file_session::types::FileRunInput;
+use ryo_execution::outbound::facts::interface::FactsWorker;
 use ryo_execution::application::file_dag::program::file_session::types::FileSession;
 use ryo_execution::application::file_dag::program::observation_stage::types::ObservationStage;
 use ryo_execution::application::file_dag::program::observed_publication::types::ObservedPublication;
@@ -66,6 +69,7 @@ methods!(
     RequestPrepareFrontiers,
     RequestFinish,
     RequestOpenFile,
+    RequestRunFile,
     RequestProjectPhase,
     RootsEvaluate,
     RootsReadinessCounts,
@@ -141,6 +145,15 @@ impl ExecutionRequest for Witness {
         _: &mut Symbols,
     ) -> Result<FileSession<'a, 'facts>, OperatingError> {
         witness(Method::RequestOpenFile)
+    }
+    fn run_file(
+        &self,
+        _: FileRunInput<'_>,
+        _: &mut Symbols,
+        _: CaptureContext<'_>,
+        _: &dyn FactsWorker,
+    ) -> FileRules {
+        witness(Method::RequestRunFile)
     }
     fn project_phase(&self) -> Result<ProjectPhase<'_>, OperatingError> {
         witness(Method::RequestProjectPhase)

@@ -298,20 +298,20 @@ impl std::fmt::Display for ProviderFault {
     }
 }
 
-impl From<ryo_execution::application::rule_compilation::errors::RuleCompilationError> for LintError {
+impl From<ryo_execution::inbound::use_cases::prepare::interface::RuleCompilationError> for LintError {
     fn from(
-        error: ryo_execution::application::rule_compilation::errors::RuleCompilationError,
+        error: ryo_execution::inbound::use_cases::prepare::interface::RuleCompilationError,
     ) -> Self {
         match error {
-            ryo_execution::application::rule_compilation::errors::RuleCompilationError::Observations(
+            ryo_execution::inbound::use_cases::prepare::interface::RuleCompilationError::Observations(
                 reason,
             ) => Self::ObservationBindings {
                 reason: reason.to_string(),
             },
-            ryo_execution::application::rule_compilation::errors::RuleCompilationError::Rules(reason) => {
+            ryo_execution::inbound::use_cases::prepare::interface::RuleCompilationError::Rules(reason) => {
                 reason.into()
             }
-            ryo_execution::application::rule_compilation::errors::RuleCompilationError::Query {
+            ryo_execution::inbound::use_cases::prepare::interface::RuleCompilationError::Query {
                 id,
                 error,
             } => Self::Query { id, error },

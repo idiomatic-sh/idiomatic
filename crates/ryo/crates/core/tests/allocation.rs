@@ -4,7 +4,7 @@
 //! measuring and the comparison are the core's contract, the same for every product. It runs alone in its process,
 //! with `dhat` as the global allocator, so nothing else counts.
 
-use ryo_core::inbound::use_cases::lint::fixtures::contract;
+use ryo_core::inbound::use_cases::lint::fixtures::{corpus, measures};
 
 /// The allocator that counts every block, so the row measures what the path allocates.
 #[global_allocator]
@@ -14,5 +14,5 @@ static ALLOCATOR: dhat::Alloc = dhat::Alloc;
 fn library(_bytes: &[u8]) {}
 
 fn main() {
-    contract::allocation(&contract::fake_corpus(), &library);
+    measures::allocation(&corpus::fake_corpus(), &library);
 }

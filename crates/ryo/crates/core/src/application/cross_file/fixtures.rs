@@ -7,17 +7,17 @@ use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use super::service::CrossFile;
 use super::types::ProjectCrossing;
 use crate::domain::answering::types::Todo;
-use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution;
-use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
-use ryo_execution::application::file_dag::program::project_phase::types::FrontierDemand;
-use ryo_execution::application::file_dag::program::project_phase::types::FrontierRequest;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::FrontierDemand;
+use ryo_execution::inbound::use_cases::execution::interface::FrontierRequest;
 use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
-use ryo_execution::application::file_dag::frontiers::types::PreparedFrontiers;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedFrontiers;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
-use ryo_execution::application::file_dag::program::project_phase::types::ProjectPhase;
-use ryo_execution::application::file_dag::program::project_phase::types::PhaseScope;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectPhase;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseScope;
 use ryo_execution::inbound::use_cases::metadata::interface::Covered;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::interface::Needs;
@@ -54,8 +54,8 @@ use std::sync::Arc;
 pub(super) struct World {
     pub(super) placed: ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes,
     pub(super) program:
-        Arc<ryo_execution::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram>,
-    pub(super) request: ryo_execution::application::file_dag::program::request_execution::types::RequestExecution,
+        Arc<ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram>,
+    pub(super) request: ryo_execution::inbound::use_cases::execution::interface::RequestExecution,
     pub(super) metadata: Vec<ryo_values::domain::run_metadata::types::RuleRunMetadata>,
     pub(super) ids: Vec<RuleId>,
     pub(super) paths: Vec<ryo_language::domain::files::types::FilePath>,
@@ -383,5 +383,5 @@ impl ryo_execution::outbound::operators::interface::OperatorsPort for ProjectCal
 pub(super) fn service() -> CrossFile {
     CrossFile::new(std::sync::Arc::new(
         crate::outbound::corpus::fixtures::fake::CorpusFake::default(),
-    ), std::sync::Arc::new(crate::outbound::publication::factory::execution()))
+    ), std::sync::Arc::new(ryo_execution::outbound::publication::factory::execution()))
 }
