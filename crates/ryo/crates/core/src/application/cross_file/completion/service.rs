@@ -105,7 +105,7 @@ impl ProjectCompletion {
                         && crate::domain::recording::service::names_at_file(
                             &each.partial,
                             crossing.needs.get(todo.rule.0),
-                        )
+                        ) == ryo_execution::inbound::use_cases::metadata::interface::Bearing::Matters
                 }) {
                     continue;
                 }

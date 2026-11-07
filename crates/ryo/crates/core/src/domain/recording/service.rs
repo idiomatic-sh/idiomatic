@@ -1,5 +1,6 @@
 //! The `recording` service: free functions named by verb over what a visit of a file comes to for the store, with no IO and no ports.
 
+use super::constants::PHYSICAL_FACTS_INCOMPLETE;
 use super::types::{BucketWords, Flat, InterfaceBytes, WordCount};
 use crate::domain::keeping::service::{remap_packed, rendered_of, rows_of};
 use crate::domain::keeping::types::{ArenaStart, Remap};
@@ -40,15 +41,20 @@ use ryo_values::domain::table_words::types::WordSlice;
 pub(crate) fn names_at_file(
     partials: &[Partial],
     needs: Option<&ryo_execution::inbound::use_cases::metadata::interface::Needs>,
-) -> bool {
-    needs.is_some_and(|needs| {
+) -> Bearing {
+    let named = needs.is_some_and(|needs| {
         partials.iter().any(|partial| {
             needs
                 .reads
                 .iter()
                 .any(|read| MetadataUseCaseImpl.matters(read, partial) == Bearing::Matters)
         })
-    })
+    });
+    if named {
+        Bearing::Matters
+    } else {
+        Bearing::DoesNotMatter
+    }
 }
 
 /// What a rule could not decide because the engine answered its root in the file `at` only in part, the partitions still uncertain
@@ -65,14 +71,14 @@ pub(crate) fn partial_root(
     affected: &[Option<FileId>],
 ) {
     let own = !affected.is_empty() && affected.iter().all(|file| *file == Some(at));
-    if own && names_at_file(partials, setting.needs.get(rule.0)) {
+    if own && names_at_file(partials, setting.needs.get(rule.0)) == Bearing::Matters {
         return;
     }
     unknowns.push(Unknown {
         rule: MetadataUseCaseImpl.rule_id(setting.ids, rule),
         path: path.clone(),
         message: ryo_execution::inbound::use_cases::metadata::interface::Message(
-            "physical source facts are incomplete".into(),
+            PHYSICAL_FACTS_INCOMPLETE.into(),
         ),
     });
 }

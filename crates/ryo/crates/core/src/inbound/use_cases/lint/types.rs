@@ -28,6 +28,15 @@ use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded, Stored, Store
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Condvar, Mutex};
 
+/// Whether the opt-in lifecycle memory diagnostics are on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MemoryDiagnostics {
+    /// The diagnostics are written.
+    Enabled,
+    /// No capacity traversal and no diagnostic span is made.
+    Disabled,
+}
+
 /// The rules to check in a session.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LintRequest {

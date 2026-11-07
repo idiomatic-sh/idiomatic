@@ -16,7 +16,8 @@ use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_language::inbound::use_cases::project::types::{ManifestFile, ManifestText};
 use std::sync::{Arc, atomic::Ordering};
 
-use super::types::RequestVisitSetting;
+use super::types::{RequestVisitSetting, RuleGate};
+use crate::domain::workers::types::Gating;
 use crate::domain::workers::service::tables_for;
 use ryo_execution::inbound::use_cases::execution::types::Counting;
 use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort as _;
@@ -378,7 +379,7 @@ fn assert_gated_acceptance(
         ryo_relations::domain::relations::types::FileId(0),
         acceptance,
     );
-    assert_eq!(skipped, [true, false]);
+    assert_eq!(skipped, [RuleGate::Blocked, RuleGate::Open]);
     assert_eq!(tables.mask.0, [0b10]);
     assert_eq!(
         FileAnalysis::active_wanted(&tables, setting, acceptance).as_ref(),
@@ -414,7 +415,7 @@ fn assert_accepted_and_missing_applicability(setting: &RequestVisitSetting<'_>) 
             ryo_relations::domain::relations::types::FileId(0),
             SyntaxAcceptance::Accepted,
         ),
-        [false, false]
+        [RuleGate::Open, RuleGate::Open]
     );
     assert_eq!(tables.mask.0, [0b11]);
     assert_eq!(
@@ -437,14 +438,14 @@ fn assert_accepted_and_missing_applicability(setting: &RequestVisitSetting<'_>) 
         FileAnalysis::active_wanted(&tables, &always_setting, SyntaxAcceptance::Rejected),
         std::borrow::Cow::Borrowed(_)
     ));
-    assert!(!FileAnalysis::may_gate_rules(
-        setting,
-        SyntaxAcceptance::Accepted
-    ));
-    assert!(FileAnalysis::may_gate_rules(
-        setting,
-        SyntaxAcceptance::Rejected
-    ));
+    assert_eq!(
+        FileAnalysis::may_gate_rules(setting, SyntaxAcceptance::Accepted),
+        Gating::NeverGates
+    );
+    assert_eq!(
+        FileAnalysis::may_gate_rules(setting, SyntaxAcceptance::Rejected),
+        Gating::MayGate
+    );
     assert!(tables.unknowns.is_empty());
 
     let missing_policy = RequestVisitSetting {
@@ -455,10 +456,10 @@ fn assert_accepted_and_missing_applicability(setting: &RequestVisitSetting<'_>) 
         },
         ..setting.clone()
     };
-    assert!(FileAnalysis::may_gate_rules(
-        &missing_policy,
-        SyntaxAcceptance::Accepted
-    ));
+    assert_eq!(
+        FileAnalysis::may_gate_rules(&missing_policy, SyntaxAcceptance::Accepted),
+        Gating::MayGate
+    );
     let mut missing_tables = tables_for(WorkerNumber(0), setting.metadata);
     missing_tables.mask = Mask(vec![0b11]);
     assert_eq!(
@@ -468,7 +469,7 @@ fn assert_accepted_and_missing_applicability(setting: &RequestVisitSetting<'_>) 
             ryo_relations::domain::relations::types::FileId(0),
             SyntaxAcceptance::Accepted,
         ),
-        [true, true]
+        [RuleGate::Blocked, RuleGate::Blocked]
     );
     assert_eq!(missing_tables.mask.0, [0]);
     assert!(

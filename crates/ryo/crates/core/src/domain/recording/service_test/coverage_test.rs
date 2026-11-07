@@ -3,7 +3,7 @@ use super::*;
 fn rejected_syntax_coverage_ignores_partials_for_gated_rules_after_mask_restore() {
     use crate::domain::workers::types::VisitSetting;
     use ryo_execution::inbound::use_cases::metadata::interface::Mask;
-    use ryo_execution::inbound::use_cases::metadata::interface::{Needs, RelationRead};
+    use ryo_execution::inbound::use_cases::metadata::interface::{Bearing, Needs, RelationRead};
     use ryo_language::domain::elements::types::SyntaxAcceptance;
     use ryo_relations::domain::relations::types::Relation;
     use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
@@ -115,7 +115,7 @@ fn own_partiality_is_one_unknown_and_foreign_partiality_is_its_own() {
     use crate::domain::recording::service::names_at_file;
     use ryo_execution::inbound::use_cases::metadata::interface::{Needs, RelationRead};
     use ryo_relations::domain::relations::types::Relation;
-    assert!(names_at_file(&[partial()], Some(&needs())));
+    assert_eq!(names_at_file(&[partial()], Some(&needs())), Bearing::Matters);
     let elsewhere = Needs {
         reads: vec![RelationRead {
             relation: Relation::Function,
@@ -123,8 +123,8 @@ fn own_partiality_is_one_unknown_and_foreign_partiality_is_its_own() {
         }],
         ..Needs::default()
     };
-    assert!(!names_at_file(&[partial()], Some(&elsewhere)));
-    assert!(!names_at_file(&[partial()], None));
+    assert_eq!(names_at_file(&[partial()], Some(&elsewhere)), Bearing::DoesNotMatter);
+    assert_eq!(names_at_file(&[partial()], None), Bearing::DoesNotMatter);
 }
 
 type Input = fn();
