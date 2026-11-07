@@ -415,7 +415,33 @@
    "command_tree",
    "--test",
    "readme",
-   "--no-fail-fast"
+   "--no-fail-fast",
+   "--",
+   "--skip",
+   "cost::"
+  ]
+ ],
+ [
+  "cli_cost",
+  [
+   "cargo",
+   "test",
+   "--manifest-path",
+   "crates/ryo/Cargo.toml",
+   "--target-dir",
+   "/workspaces/idiomatic-benchmark-guards/target",
+   "--locked",
+   "--offline",
+   "-j6",
+   "--all-features",
+   "-p",
+   "idiomatic-sh-ryo",
+   "--test",
+   "replay",
+   "cost::",
+   "--",
+   "--test-threads=1",
+   "--nocapture"
   ]
  ],
  [

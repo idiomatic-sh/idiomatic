@@ -42,6 +42,8 @@ mod counting;
 #[cfg(feature = "python")]
 #[path = "../fixtures/replay/feature_contracts.rs"]
 mod feature_contracts;
+#[path = "../fixtures/replay/ratchet.rs"]
+mod ratchet;
 #[path = "../fixtures/replay/ruff.rs"]
 mod ruff;
 #[path = "../fixtures/replay/stores.rs"]
@@ -50,9 +52,12 @@ mod stores;
 mod tables;
 #[path = "../fixtures/replay/tools.rs"]
 mod tools;
+#[path = "../fixtures/replay/workload.rs"]
+mod workload;
 
 mod behavior;
 mod cache;
+mod cost;
 mod coverage;
 mod damage;
 mod filesystem;

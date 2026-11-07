@@ -1,0 +1,79 @@
+# The ratchet of what ryo costs (decisions PE108, PE143 and PE191 of the October design history, owner, 2026-10-17: "yeah we should ratchet
+# the perf metrics, sure").
+#
+# `best` is the best a run has done, per metric; a run may stray from it by `tolerance-percent` and no more. A run over the tolerance is a
+# regression and fails; a run under it beats the ratchet and fails too, saying to lower `best` to what it measured, so the ratchet only goes
+# down. It is never raised without an owner-approved row. The `[budget]` is the owner's target, unchanged since PE143: every run reports its
+# gap to it. The rows are tests/replay/cost.rs; they time the process and run on a quiet lock.
+
+[budget]
+cold-milliseconds = 750
+cold-cpu-milliseconds = 2600
+warm-milliseconds = 200
+edit-milliseconds = 200
+peak-megabytes = 500
+workers = 10
+
+[ruff.cold-milliseconds]
+best = 1
+tolerance-percent = 5
+
+[ruff.cold-cpu-milliseconds]
+best = 1
+tolerance-percent = 5
+
+[ruff.warm-milliseconds]
+best = 1
+tolerance-percent = 5
+
+[ruff.edit-milliseconds]
+best = 1
+tolerance-percent = 5
+
+[ruff.peak-megabytes]
+best = 1
+tolerance-percent = 5
+
+[django-n999.wall-milliseconds]
+best = 1
+tolerance-percent = 5
+
+[django-n999.cpu-milliseconds]
+best = 1
+tolerance-percent = 5
+
+[django-n999.peak-megabytes]
+best = 1
+tolerance-percent = 5
+
+[django-one-file-413.wall-milliseconds]
+best = 1
+tolerance-percent = 5
+
+[django-one-file-413.peak-megabytes]
+best = 1
+tolerance-percent = 5
+
+[django-413-cold.wall-milliseconds]
+best = 1
+tolerance-percent = 5
+
+[django-413-cold.cpu-milliseconds]
+best = 1
+tolerance-percent = 5
+
+[django-413-cold.peak-megabytes]
+best = 1
+tolerance-percent = 5
+
+[django-413-warm.wall-milliseconds]
+best = 1
+tolerance-percent = 5
+
+[django-413-warm.cpu-milliseconds]
+best = 1
+tolerance-percent = 5
+
+[django-413-warm.peak-megabytes]
+best = 1
+tolerance-percent = 5
