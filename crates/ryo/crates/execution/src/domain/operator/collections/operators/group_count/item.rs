@@ -52,7 +52,7 @@ impl OperatorsItem for GroupCountItem {
                 // The rows the group counts are the rows this step is fed: the engine reads them as the step's input count.
                 lease.found(0, u64::try_from(group.counted.0).unwrap_or(u64::MAX));
                 let semantic = lease.semantics().operators(
-                    ryo_operators::inbound::use_cases::operators::interface::OperatorCall::Aggregate {
+                    ryo_operators::domain::contract::types::OperatorCall::Aggregate {
                         row: first, keys, count: group.counted.0, digest: None, target: &mut answer,
                     },
                 );

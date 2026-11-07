@@ -4,9 +4,10 @@ use crate::outbound::memory::{errors::MemoryError, interface::MemoryPort};
 use ryo_execution::inbound::use_cases::execution::types::query_language::{
     QueryLanguageError, QueryLanguagePort,
 };
-use ryo_operators::inbound::use_cases::operators::interface::{
-    OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault,
-};
+use ryo_operators::domain::contract::types::OperatorAnswer;
+use ryo_operators::domain::contract::types::OperatorCall;
+use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
+use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::{
     descriptions::types::ValidateReport,

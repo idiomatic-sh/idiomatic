@@ -39,7 +39,7 @@ impl OperatorsItem for SelectItem {
         let holds = lease.holds(row)? != Verdict::Fails;
         let mut projected = std::mem::take(&mut lease.workspace.other);
         let answer = lease.semantics().operators(
-            ryo_operators::inbound::use_cases::operators::interface::OperatorCall::Select {
+            ryo_operators::domain::contract::types::OperatorCall::Select {
                 row,
                 kept,
                 holds,
@@ -48,12 +48,12 @@ impl OperatorsItem for SelectItem {
         );
         let outcome = match answer {
             Ok(
-                ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Selected(
+                ryo_operators::domain::contract::types::OperatorAnswer::Selected(
                     false,
                 ),
             ) => Ok(()),
             Ok(
-                ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Selected(
+                ryo_operators::domain::contract::types::OperatorAnswer::Selected(
                     true,
                 ),
             ) => sink.row(lease, if kept.is_empty() { row } else { &projected }),

@@ -68,7 +68,7 @@ impl OperatorsItem for CaptureItem {
         let mut slots = std::mem::take(&mut lease.workspace.stretches);
         slots.0.clear();
         let answer = lease.semantics().operators(
-            ryo_operators::inbound::use_cases::operators::interface::OperatorCall::Capture {
+            ryo_operators::domain::contract::types::OperatorCall::Capture {
                 pattern: &pattern.0,
                 text: &text,
                 slots: &mut slots.0,

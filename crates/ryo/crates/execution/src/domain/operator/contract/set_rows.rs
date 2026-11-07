@@ -4,9 +4,11 @@ use super::types::{PrimitiveLease, RowSink, written_result};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_dedup::service::first_time;
 use crate::domain::table_model::types::Addition;
-use ryo_operators::inbound::use_cases::operators::interface::{
-    OperatorCall, SetInput, SetInterrupted, SetKind, SetRowDriver,
-};
+use ryo_operators::domain::contract::types::OperatorCall;
+use ryo_operators::domain::set_rows::types::SetInput;
+use ryo_operators::domain::set_rows::types::SetInterrupted;
+use ryo_operators::domain::set_rows::types::SetKind;
+use ryo_operators::domain::set_rows::types::SetRowDriver;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 

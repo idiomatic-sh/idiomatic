@@ -13,9 +13,9 @@ use crate::domain::tree_join::{
     service::driver::tree_value,
 };
 use ryo_derived::domain::contract::types::Finding;
-use ryo_operators::inbound::use_cases::operators::interface::{
-    JoinDriver, JoinInterrupted, OperatorCall,
-};
+use ryo_operators::domain::equality_join::types::JoinDriver;
+use ryo_operators::domain::equality_join::types::JoinInterrupted;
+use ryo_operators::domain::contract::types::OperatorCall;
 use ryo_relations::domain::relations::types::{Position, Value};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn};
 
@@ -165,8 +165,8 @@ pub(super) fn evaluate(
         error: None,
     };
     let answer = semantics.operators(OperatorCall::EqualityJoin {
-        input: ryo_operators::inbound::use_cases::operators::interface::JoinInput::Values {
-            left: ryo_operators::inbound::use_cases::operators::interface::JoinRow::Values(left),
+        input: ryo_operators::domain::equality_join::types::JoinInput::Values {
+            left: ryo_operators::domain::equality_join::types::JoinRow::Values(left),
             left_on,
             output,
             view,

@@ -15,7 +15,7 @@ pub(in crate::application::file_dag::program) struct KernelScratch {
     pub positions: crate::domain::native_positions::types::PositionWork,
     pub workspace: Option<crate::application::file_dag::workspace::InvocationWorkspace>,
     pub ordered_row: Vec<Value>,
-    pub ordered: ryo_operators::inbound::use_cases::operators::interface::OrderedExistenceScratch,
+    pub ordered: ryo_operators::domain::ordered_existence::types::OrderedExistenceScratch,
 }
 pub(in crate::application::file_dag::program) enum KernelInput<'a> {
     Admitted(&'a [AdmittedInput]),

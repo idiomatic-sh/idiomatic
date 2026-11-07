@@ -1,9 +1,9 @@
 //! Behavioral contract shared by the injected operator adapter and test fake.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution::inbound::use_cases::execution::types::OperatorsPort;
-use ryo_operators::inbound::use_cases::operators::interface::{
-    OperatorAnswer, OperatorCall, PortableOperatorFault,
-};
+use ryo_operators::domain::contract::types::OperatorAnswer;
+use ryo_operators::domain::contract::types::OperatorCall;
+use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::types::{Integer, Value as CellValue};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 

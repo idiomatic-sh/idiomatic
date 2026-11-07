@@ -361,14 +361,13 @@ pub(super) struct ProjectCalls {
 impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase for ProjectCalls {
     fn operators(
         &self,
-        call: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'_>,
+        call: ryo_operators::domain::contract::types::OperatorCall<'_>,
     ) -> Result<
-        ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer,
-        ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault,
+        ryo_operators::domain::contract::types::OperatorAnswer,
+        ryo_operators::domain::contract::types::PortableOperatorFault,
     > {
-        use ryo_operators::inbound::use_cases::operators::interface::{
-            OperatorCall, OperatorsUseCase,
-        };
+        use ryo_operators::domain::contract::types::OperatorCall;
+        use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
         use std::sync::atomic::Ordering;
         match &call {
             OperatorCall::ReduceCount { .. } => {

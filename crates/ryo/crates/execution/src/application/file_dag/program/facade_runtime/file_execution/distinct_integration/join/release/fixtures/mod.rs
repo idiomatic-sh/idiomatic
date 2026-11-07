@@ -1,10 +1,11 @@
 //! Strategy inputs and the one real semantic dependency whose answers are refused.
 use super::super::capability::fixtures::REFUSAL;
 use super::super::*;
-use ryo_operators::inbound::use_cases::operators::{
-    interface::{OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault},
-    use_case::OperatorsUseCaseImpl,
-};
+use ryo_operators::domain::contract::types::OperatorAnswer;
+use ryo_operators::domain::contract::types::OperatorCall;
+use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
+use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Counts the ordered-existence meaning and refuses it on request; every other call is real.

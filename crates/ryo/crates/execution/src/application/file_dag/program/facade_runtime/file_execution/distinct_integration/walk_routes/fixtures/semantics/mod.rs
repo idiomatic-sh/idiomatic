@@ -6,10 +6,11 @@ use ryo_derived::domain::contract::types::{
 use ryo_derived::inbound::use_cases::derived::{
     interface::DerivedUseCase, use_case::DerivedUseCaseImpl,
 };
-use ryo_operators::inbound::use_cases::operators::{
-    interface::{OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault},
-    use_case::OperatorsUseCaseImpl,
-};
+use ryo_operators::domain::contract::types::OperatorAnswer;
+use ryo_operators::domain::contract::types::OperatorCall;
+use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
+use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use std::sync::{
     Arc, Mutex,

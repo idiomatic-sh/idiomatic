@@ -17,9 +17,10 @@ use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
 use ryo_execution::inbound::use_cases::execution::types::ProjectBatch;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_operators::inbound::use_cases::operators::interface::{
-    OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault,
-};
+use ryo_operators::domain::contract::types::OperatorAnswer;
+use ryo_operators::domain::contract::types::OperatorCall;
+use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
+use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Position;

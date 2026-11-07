@@ -1,2 +1,2 @@
 //! Portable semantic request and answer vocabulary.
-pub(crate) mod types;
+pub mod types;

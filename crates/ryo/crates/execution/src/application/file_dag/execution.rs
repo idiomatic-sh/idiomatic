@@ -49,12 +49,12 @@ impl PrimitiveSemantics for PrimitiveSemanticsBridge<'_> {
     }
     fn operators(
         &self,
-        meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'_>,
+        meaning: ryo_operators::domain::contract::types::OperatorCall<'_>,
     ) -> Result<
-        ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer,
-        ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault,
+        ryo_operators::domain::contract::types::OperatorAnswer,
+        ryo_operators::domain::contract::types::PortableOperatorFault,
     > {
-        use ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault;
+        use ryo_operators::domain::contract::types::PortableOperatorFault;
         let request = match self.permit.physical(&self.binding, meaning) {
             Ok(request) => request,
             Err(error) => {

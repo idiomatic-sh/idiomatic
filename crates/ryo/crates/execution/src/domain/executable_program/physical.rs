@@ -1,9 +1,11 @@
 //! Pure physical-meaning authorization against the compiled semantic descriptor.
 use super::types::OrderedExistence;
 use crate::domain::operating::errors::OperatingError;
-use ryo_operators::inbound::use_cases::operators::interface::{
-    JoinInput, OperatorCall, PartitionExtremum, SetInput, SetKind,
-};
+use ryo_operators::domain::equality_join::types::JoinInput;
+use ryo_operators::domain::contract::types::OperatorCall;
+use ryo_operators::domain::ordered_existence::types::PartitionExtremum;
+use ryo_operators::domain::set_rows::types::SetInput;
+use ryo_operators::domain::set_rows::types::SetKind;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_operators::types::OperationKind;
 
@@ -133,7 +135,7 @@ pub(crate) fn authorize(
         ),
         OperatorCall::ReduceCount { keys, distinct, .. } => (
             REDUCTION,
-            matches!((operation, keys), (Operation::GroupCount { keys: expected, distinct: expected_distinct, .. }, ryo_operators::inbound::use_cases::operators::interface::GroupColumns::Columns(actual)) if *actual == expected.as_slice() && distinct == expected_distinct),
+            matches!((operation, keys), (Operation::GroupCount { keys: expected, distinct: expected_distinct, .. }, ryo_operators::domain::reduction::types::GroupColumns::Columns(actual)) if *actual == expected.as_slice() && distinct == expected_distinct),
         ),
         OperatorCall::ReduceDigest { keys, over, .. } => (
             REDUCTION,
@@ -288,9 +290,9 @@ pub(crate) fn authorize(
 
 fn aggregation_matches(
     operation: &Operation,
-    program: &ryo_operators::inbound::use_cases::operators::interface::AggregationPlan<'_>,
+    program: &ryo_operators::domain::reduction::types::AggregationPlan<'_>,
 ) -> bool {
-    use ryo_operators::inbound::use_cases::operators::interface::AggregationPlan;
+    use ryo_operators::domain::reduction::types::AggregationPlan;
     match (operation, program) {
         (
             Operation::GroupCount { keys, distinct, .. },

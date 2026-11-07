@@ -1,9 +1,10 @@
 //! Real semantic refusal at one compiled root cannot erase the independent root.
 use super::super::*;
-use ryo_operators::inbound::use_cases::operators::{
-    interface::{OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault},
-    use_case::OperatorsUseCaseImpl,
-};
+use ryo_operators::domain::contract::types::OperatorAnswer;
+use ryo_operators::domain::contract::types::OperatorCall;
+use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
+use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
 use ryo_values::domain::observations::types::{
     BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
     ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,

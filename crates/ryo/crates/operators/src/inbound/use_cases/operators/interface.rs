@@ -1,31 +1,12 @@
 //! The sole public contract for portable operator semantics.
-pub use crate::domain::capture::types::CaptureOutput;
-pub use crate::domain::contract::types::{
-    OperatorAnswer, OperatorCall, PortableOperatorFault, SemanticInterrupted, SourceByteLength,
-};
-pub use crate::domain::equality_join::types::{
-    JoinCells, JoinDriver, JoinInput, JoinInterrupted, JoinRow, PositionJoinDriver,
-};
-pub use crate::domain::ordered_existence::types::{
-    OrderedExistenceDriver, OrderedExistenceScratch, PartitionExtremum,
-};
-pub use crate::domain::ordered_match::types::OrderedMatchDriver;
-pub use crate::domain::reduction::types::{
-    AggregationCheckOrder, AggregationHash, AggregationPlan, DigestDatum, DigestValues,
-    GroupColumns, GroupOutput, StreamingReduction,
-};
-pub use crate::domain::set_rows::types::{
-    SetInput, SetInterrupted, SetKind, SetPositionsDriver, SetRowDriver,
-};
-pub use crate::domain::source_matches::types::{SourceMatchesInput, TextRowDriver};
-pub use crate::domain::words::types::WordOutput;
+use crate::domain::contract::types::{OperatorAnswer, OperatorCall, PortableOperatorFault};
 
 /// The public capability accepts borrowed rows and caller-owned scratch.
 ///
 /// ```
+/// use ryo_operators::domain::contract::types::{OperatorAnswer, OperatorCall};
 /// use ryo_operators::inbound::use_cases::operators::{
-///     interface::{OperatorAnswer, OperatorCall, OperatorsUseCase},
-///     use_case::OperatorsUseCaseImpl,
+///     interface::OperatorsUseCase, use_case::OperatorsUseCaseImpl,
 /// };
 /// use ryo_relations::domain::relations::types::{Integer, Value};
 /// use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -45,13 +26,6 @@ pub use crate::domain::words::types::WordOutput;
 /// project(&[], &[], &mut output).unwrap();
 /// ```
 ///
-/// Private request backing cannot become a parallel public entry point.
-///
-/// ```compile_fail,E0603
-/// use ryo_operators::domain::contract::types::OperatorCall;
-/// let _: Option<OperatorCall<'static>> = None;
-/// ```
-///
 /// The semantic package has no execution dependency or access to engine authority.
 ///
 /// ```compile_fail,E0432
@@ -69,7 +43,7 @@ pub use crate::domain::words::types::WordOutput;
 /// A borrowed request cannot retain its input beyond the invocation.
 ///
 /// ```compile_fail
-/// use ryo_operators::inbound::use_cases::operators::interface::OperatorCall;
+/// use ryo_operators::domain::contract::types::OperatorCall;
 /// use ryo_relations::domain::relations::types::Value;
 /// fn retain(call: OperatorCall<'_>) -> &'static [Value] {
 ///     match call {

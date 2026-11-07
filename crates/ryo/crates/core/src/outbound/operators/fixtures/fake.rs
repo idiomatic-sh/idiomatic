@@ -1,8 +1,8 @@
 //! Controlled stand-in for the operator port; records and can refuse calls.
 use ryo_execution::inbound::use_cases::execution::types::OperatorsPort;
-use ryo_operators::inbound::use_cases::operators::interface::{
-    OperatorAnswer, OperatorCall, PortableOperatorFault,
-};
+use ryo_operators::domain::contract::types::OperatorAnswer;
+use ryo_operators::domain::contract::types::OperatorCall;
+use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::inbound::use_cases::operators::{
     interface::OperatorsUseCase, use_case::OperatorsUseCaseImpl,
 };

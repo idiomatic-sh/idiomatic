@@ -1,10 +1,11 @@
 //! Recursive producers and roots use the actual injected semantic capability, with terminal refusal.
 use super::super::super::{fixtures, interface::*, types::*, use_case::ExecutionUseCaseImpl};
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
-use ryo_operators::inbound::use_cases::operators::{
-    interface::{OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault},
-    use_case::OperatorsUseCaseImpl,
-};
+use ryo_operators::domain::contract::types::OperatorAnswer;
+use ryo_operators::domain::contract::types::OperatorCall;
+use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
+use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{

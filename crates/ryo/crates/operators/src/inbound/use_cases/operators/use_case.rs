@@ -7,9 +7,9 @@ use crate::domain::reduction::types::{Finishing, GroupCounts, HashScratch};
 use crate::domain::replace::types::{ReplacedText, ReplacementText};
 use crate::domain::select::types::{PredicateOutcome, RowSelection};
 use crate::domain::words::types::WordScratch;
-use crate::inbound::use_cases::operators::interface::{
-    OperatorAnswer, OperatorCall, PortableOperatorFault,
-};
+use crate::domain::contract::types::OperatorAnswer;
+use crate::domain::contract::types::OperatorCall;
+use crate::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::types::{Count, Integer};
 use ryo_values::domain::row_texts::types::CellText;
 
@@ -199,14 +199,14 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
             }
             OperatorCall::SetRow { input } => {
                 match input {
-                    crate::inbound::use_cases::operators::interface::SetInput::Values {
+                    crate::domain::set_rows::types::SetInput::Values {
                         kind,
                         row,
                         left_on,
                         driver,
                         key,
                     } => crate::domain::set_rows::service::values(kind, row, left_on, driver, key)?,
-                    crate::inbound::use_cases::operators::interface::SetInput::Positions {
+                    crate::domain::set_rows::types::SetInput::Positions {
                         kind,
                         driver,
                     } => crate::domain::set_rows::service::positions(kind, driver)?,
@@ -215,7 +215,7 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
             }
             OperatorCall::EqualityJoin { input } => {
                 match input {
-                    crate::inbound::use_cases::operators::interface::JoinInput::Values {
+                    crate::domain::equality_join::types::JoinInput::Values {
                         left,
                         left_on,
                         output,
@@ -226,7 +226,7 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                     } => crate::domain::equality_join::service::join_row(
                         left, left_on, output, view, driver, key, target,
                     )?,
-                    crate::inbound::use_cases::operators::interface::JoinInput::Positions {
+                    crate::domain::equality_join::types::JoinInput::Positions {
                         left,
                         driver,
                         target,

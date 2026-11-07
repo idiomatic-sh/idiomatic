@@ -758,13 +758,13 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
         types::WordSlice,
     };
 
-    use ryo_operators::inbound::use_cases::operators::{
-        interface::{
-            OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault, SetInput,
-            SetKind,
-        },
-        use_case::OperatorsUseCaseImpl,
-    };
+    use ryo_operators::domain::contract::types::OperatorAnswer;
+    use ryo_operators::domain::contract::types::OperatorCall;
+    use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
+    use ryo_operators::domain::contract::types::PortableOperatorFault;
+    use ryo_operators::domain::set_rows::types::SetInput;
+    use ryo_operators::domain::set_rows::types::SetKind;
+    use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
     #[derive(Debug, Default)]
     struct UnionSemanticCalls(AtomicUsize);
     impl OperatorsUseCase for UnionSemanticCalls {

@@ -9,9 +9,11 @@ use crate::domain::{
     },
 };
 use ryo_derived::domain::contract::types::On;
-use ryo_operators::inbound::use_cases::operators::interface::{
-    DigestDatum, DigestValues, GroupColumns, GroupOutput, OperatorCall,
-};
+use ryo_operators::domain::reduction::types::DigestDatum;
+use ryo_operators::domain::reduction::types::DigestValues;
+use ryo_operators::domain::reduction::types::GroupColumns;
+use ryo_operators::domain::reduction::types::GroupOutput;
+use ryo_operators::domain::contract::types::OperatorCall;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,

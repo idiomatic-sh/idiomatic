@@ -57,7 +57,7 @@ impl OperatorsItem for ReplaceItem {
         let regex = lease.views.regex.ok_or(OperatingError::WrongBinding)?;
         let mut changed = std::mem::take(&mut lease.workspace.text);
         let answer = lease.semantics().operators(
-            ryo_operators::inbound::use_cases::operators::interface::OperatorCall::Replace {
+            ryo_operators::domain::contract::types::OperatorCall::Replace {
                 regex,
                 text: value.0,
                 replacement: &replacement.0,

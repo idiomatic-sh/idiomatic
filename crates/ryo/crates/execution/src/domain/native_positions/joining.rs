@@ -29,9 +29,10 @@ use crate::domain::{
 use ryo_derived::domain::contract::types::RawOrder;
 use ryo_language::domain::elements::service::children;
 use ryo_language::domain::names::service::name_count;
-use ryo_operators::inbound::use_cases::operators::interface::{
-    JoinInput, JoinInterrupted, OperatorCall, PositionJoinDriver,
-};
+use ryo_operators::domain::equality_join::types::JoinInput;
+use ryo_operators::domain::equality_join::types::JoinInterrupted;
+use ryo_operators::domain::contract::types::OperatorCall;
+use ryo_operators::domain::equality_join::types::PositionJoinDriver;
 use ryo_relations::domain::relations::types::{Position, Relation, Value};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, PlanComparison, Input},

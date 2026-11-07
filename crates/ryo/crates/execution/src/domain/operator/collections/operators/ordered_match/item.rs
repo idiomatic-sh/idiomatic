@@ -5,9 +5,10 @@ use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
 use crate::domain::operator::contract::{failure::FailureLatch, views::BorrowedRows};
-use ryo_operators::inbound::use_cases::operators::interface::{
-    OperatorCall, OrderedMatchDriver, PortableOperatorFault, SemanticInterrupted,
-};
+use ryo_operators::domain::contract::types::OperatorCall;
+use ryo_operators::domain::ordered_match::types::OrderedMatchDriver;
+use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::domain::contract::types::SemanticInterrupted;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_operators::types::OperationKind;

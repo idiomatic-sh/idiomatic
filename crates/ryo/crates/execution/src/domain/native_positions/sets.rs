@@ -15,9 +15,11 @@ use crate::domain::{
     table_cells::types::TreeRows,
 };
 use ryo_derived::domain::contract::types::RawOrder;
-use ryo_operators::inbound::use_cases::operators::interface::{
-    OperatorCall, SetInput, SetInterrupted, SetKind, SetPositionsDriver,
-};
+use ryo_operators::domain::contract::types::OperatorCall;
+use ryo_operators::domain::set_rows::types::SetInput;
+use ryo_operators::domain::set_rows::types::SetInterrupted;
+use ryo_operators::domain::set_rows::types::SetKind;
+use ryo_operators::domain::set_rows::types::SetPositionsDriver;
 use ryo_relations::domain::relations::{service::to_bits, types::Position};
 use ryo_values::domain::{
     plans::types::Operation,

@@ -6,9 +6,9 @@ use crate::domain::table_model::service::cell_at;
 use crate::domain::table_model::types::Rows;
 use ryo_language::domain::symbols::service::{hash_in, hash_of, text_of};
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
-use ryo_operators::inbound::use_cases::operators::interface::{
-    JoinCells, JoinDriver, JoinInterrupted,
-};
+use ryo_operators::domain::equality_join::types::JoinCells;
+use ryo_operators::domain::equality_join::types::JoinDriver;
+use ryo_operators::domain::equality_join::types::JoinInterrupted;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
 use ryo_values::domain::rows::service::push_row;
