@@ -1,5 +1,4 @@
-//! One shared value with its existing behaviour.
-mod constants;
+//! One shared value.
 pub mod value;
 #[cfg(test)]
 mod value_test;

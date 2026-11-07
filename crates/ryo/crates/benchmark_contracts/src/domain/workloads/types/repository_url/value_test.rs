@@ -1,6 +1,6 @@
 //! The moved value preserves construction and exact display spelling.
 use super::value::RepositoryUrl;
-use ryo::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use std::borrow::Cow;
 const CASES: &[Case<&'static str, Cow<'static, str>, ()>] = &[Case {
     name: CaseName("construction preserves display spelling"),

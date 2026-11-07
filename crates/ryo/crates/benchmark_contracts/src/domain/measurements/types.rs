@@ -32,7 +32,7 @@ pub struct Invocation {
 #[derive(Clone, Debug)]
 pub struct ProcessOutput {
     /// Unix terminating signal, absent for numeric exits and non-Unix platforms.
-    pub signal: Option<i32>,
+    pub signal: TerminationSignal,
     /// Numeric process exit status.
     pub status: ProcessExitCode,
     /// Raw bytes captured from standard output.
@@ -44,6 +44,22 @@ pub struct ProcessOutput {
     /// Explicitly absent for portable wall-only execution.
     pub resources: ResourceObservation,
 }
+
+/// How a launched process ended, beyond its numeric exit status.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TerminationSignal {
+    /// The process exited numerically, or the platform has no signals.
+    Exited,
+    /// The operating system terminated the process with this signal.
+    Signalled(SignalNumber),
+}
+
+/// Unix signal number that terminated a process.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SignalNumber(
+    /// Signal number reported by the operating system.
+    pub i32,
+);
 
 /// OS observations for the child command, excluding the parent harness.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -136,11 +152,20 @@ pub enum MeasurementMode {
     Diagnostic,
 }
 
+/// Whether a sample covers the complete rule inventory.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InventoryStatus {
+    /// Every declared rule was measured.
+    Complete,
+    /// Only a scoped subset was measured.
+    Diagnostic,
+}
+
 /// Borrowed output data projected from an application's checked measurement sample.
 #[derive(Clone, Copy, Debug)]
 pub struct PublicationSample<'a> {
     /// Explicit complete-inventory status; a diagnostic cannot become a metric.
-    pub complete_inventory: bool,
+    pub inventory: InventoryStatus,
     /// Stable project, contestant and cache-condition identity.
     pub name: &'a SampleName,
     /// Original observation; output adapters must not clone or replace its report.

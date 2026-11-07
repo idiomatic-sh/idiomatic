@@ -2,8 +2,6 @@
 pub mod errors;
 pub mod types;
 
-#[cfg(test)]
-mod errors_test;
 
 /// Pure invariants shared by report producers, decoders and comparisons.
 pub mod service;

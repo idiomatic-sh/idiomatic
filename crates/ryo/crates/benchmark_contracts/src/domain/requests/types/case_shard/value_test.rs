@@ -1,6 +1,6 @@
 //! The original coordinate assertions now belong to their validated value.
-use super::value::CaseShard;
-use ryo::cases::{Case, CaseName, Expect, Word, run};
+use super::value::{CaseShard, ShardCount, ShardIndex};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 type Input = (usize, usize);
 type Value = (usize, usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -35,8 +35,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 fn subject((index, count): Input) -> Result<Value, Failure> {
-    CaseShard::new(index, count)
-        .map(|shard| (shard.index(), shard.count()))
+    CaseShard::new(ShardIndex(index), ShardCount(count))
+        .map(|shard| (shard.index().0, shard.count().0))
         .map_err(|error| {
             assert_eq!(error.to_string(), "invalid case shard coordinates");
             Refusal::InvalidCoordinates

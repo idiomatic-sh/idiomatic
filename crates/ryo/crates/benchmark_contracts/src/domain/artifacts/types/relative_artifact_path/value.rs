@@ -1,5 +1,5 @@
 //! A borrowed artifact address whose components stay inside its selected root.
-use crate::domain::reports::errors::ReportsError;
+use crate::domain::artifacts::errors::ArtifactsError;
 use std::path::{Component, Path};
 
 /// A nonempty relative artifact path containing only normal components.
@@ -13,7 +13,7 @@ use std::path::{Component, Path};
 pub struct RelativeArtifactPath<'a>(&'a Path);
 
 impl<'a> TryFrom<&'a Path> for RelativeArtifactPath<'a> {
-    type Error = ReportsError;
+    type Error = ArtifactsError;
 
     fn try_from(path: &'a Path) -> Result<Self, Self::Error> {
         if path.as_os_str().is_empty()
@@ -21,7 +21,7 @@ impl<'a> TryFrom<&'a Path> for RelativeArtifactPath<'a> {
                 .components()
                 .any(|part| !matches!(part, Component::Normal(_)))
         {
-            return Err(ReportsError::Invalid(format!(
+            return Err(ArtifactsError::Invalid(format!(
                 "unsafe corpus path {}",
                 path.display()
             )));

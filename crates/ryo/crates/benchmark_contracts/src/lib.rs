@@ -19,3 +19,6 @@
 //! let _ = serde_json::to_string(&ExecutionMetadata::Complete);
 //! ```
 pub mod domain;
+
+#[cfg(any(test, feature = "fixtures"))]
+pub mod cases;

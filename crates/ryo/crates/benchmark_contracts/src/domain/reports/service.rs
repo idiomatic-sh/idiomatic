@@ -1,6 +1,6 @@
 //! Execution completeness is an invariant of the shared report, independent of transport.
 use super::errors::ReportsError;
-use super::types::{ExecutionMetadata, RunReport};
+use super::types::{CoverageAccounting, ExecutionMetadata, RunReport};
 
 /// Validate explicitly complete candidate execution without inferring skipped work from diagnostics.
 ///
@@ -12,19 +12,21 @@ pub fn require_complete_execution(report: &RunReport) -> Result<(), ReportsError
             super::constants::INCOMPLETE_METADATA.into(),
         ));
     }
-    let coverage = report
-        .coverage
-        .ok_or_else(|| ReportsError::Invalid(super::constants::MISSING_COVERAGE.into()))?;
+    let CoverageAccounting::Accounted(coverage) = report.coverage else {
+        return Err(ReportsError::Invalid(
+            super::constants::MISSING_COVERAGE.into(),
+        ));
+    };
     let files = report
         .files
         .iter()
         .collect::<std::collections::BTreeSet<_>>();
     if files.is_empty()
         || files.len() != report.files.len()
-        || coverage.selected < files.len()
-        || coverage.unknown_or_unread != 0
-        || coverage.evaluated.checked_add(coverage.skipped) != Some(coverage.selected)
-        || coverage.skipped != report.skipped.len()
+        || coverage.selected.0 < files.len()
+        || coverage.unknown_or_unread.0 != 0
+        || coverage.evaluated.0.checked_add(coverage.skipped.0) != Some(coverage.selected.0)
+        || coverage.skipped.0 != report.skipped.len()
     {
         return Err(ReportsError::Invalid(
             super::constants::INCONSISTENT_COVERAGE.into(),
