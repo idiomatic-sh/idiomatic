@@ -134,7 +134,7 @@ impl FileRun<'_> {
             | crate::domain::completion::types::CoverageState::Inapplicable {
                 ..
             }) => crate::application::file_dag::program::protocol::types::RowEmission::Partial {
-                affected: crate::domain::completion::service::affected_files(&affected)
+                affected: crate::domain::frontier_coverage::service::affected_files(&affected)
                     .unwrap_or_default(),
             },
         })

@@ -1,11 +1,14 @@
 //! The replay of a selection class result: the accepted prefix first, then the terminal error.
 
 use crate::domain::{
-    operating::{errors::OperatingError, types::OperatorContext},
+    operating::{
+        errors::OperatingError,
+        types::{Emit, OperatorContext},
+    },
     positions::types::ClassPlace,
+    replay::{service::selected, types::SelectionColumns},
     shared_walk::{
-        service::evaluate,
-        service_test::{relation_plan, with_context},
+        service_test::{evaluate_rows, relation_plan, with_context},
         types::{WalkWork, prepared_walk::value::PreparedWalk},
     },
     table_model::types::Rows,
@@ -15,14 +18,33 @@ use ryo_relations::domain::{
     relations::types::{FileId, NodeId, Offset, Relation, Span, Value as CellValue},
     terms::types::NameText,
 };
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, PlanComparison, LiteralText, Operand, QueryLiteral, Test},
+    plan_parts::types::{ColumnIndex, LiteralText, Operand, PlanComparison, QueryLiteral, Test},
     rows::types::RowCount,
 };
 
+/// What a row of the cases replays.
+#[derive(Clone, Copy)]
+enum Scenario {
+    /// The accepted prefix of a result whose terminal predicate failed, projected to columns.
+    PrefixBeforeTheError,
+    /// The same result, asked for the error that follows the prefix.
+    TheTerminalError,
+    /// The same result into a sink that refuses the first row.
+    ASinkThatRefuses,
+}
+
+/// What a row of the cases asks.
+type Input = Scenario;
+/// How many rows the sink was handed.
+type Value = usize;
+/// What the replay refuses with.
+type Failure = OperatingError;
+
 #[derive(Default)]
 struct Collected(Vec<Vec<CellValue>>);
-impl crate::domain::operating::types::Emit for Collected {
+impl Emit for Collected {
     fn row(
         &mut self,
         _: &mut OperatorContext<'_>,
@@ -33,8 +55,14 @@ impl crate::domain::operating::types::Emit for Collected {
     }
 }
 
-#[test]
-fn generic_late_error_replays_exact_accepted_prefix_and_sink_refusal() {
+struct Refuse;
+impl Emit for Refuse {
+    fn row(&mut self, _: &mut OperatorContext<'_>, _: &[CellValue]) -> Result<(), OperatingError> {
+        Err(OperatingError::NotRead)
+    }
+}
+
+fn subject(scenario: Input) -> Result<Value, Failure> {
     let comparison = PlanComparison {
         test: Test::Matches,
         left: Operand::Literal(QueryLiteral::Text(LiteralText("x".into()))),
@@ -76,7 +104,7 @@ fn generic_late_error_replays_exact_accepted_prefix_and_sink_refusal() {
     };
     let source = Rows::Computed(&table);
     with_context(&mut symbols, |context| {
-        let batch = evaluate(
+        let batch = evaluate_rows(
             &prepared,
             Relation::SemanticSyntax,
             &source,
@@ -92,46 +120,78 @@ fn generic_late_error_replays_exact_accepted_prefix_and_sink_refusal() {
             &result.completion,
             Err(OperatingError::InvalidRegex { .. })
         ));
+        let columns = [ColumnIndex(2), ColumnIndex(0), ColumnIndex(2)];
         let mut collected = Collected::default();
-        let replayed = crate::domain::replay::service::selected(
-            result,
-            &source,
-            crate::domain::replay::types::SelectionColumns::Columns(&[
-                ColumnIndex(2),
-                ColumnIndex(0),
-                ColumnIndex(2),
-            ]),
-            context,
-            &mut collected,
-        );
-        assert!(matches!(replayed, Err(OperatingError::InvalidRegex { .. })));
-        assert_eq!(
-            collected.0,
-            vec![vec![
-                CellValue::Symbol(valid),
-                CellValue::Node(NodeId(0)),
-                CellValue::Symbol(valid)
-            ]]
-        );
-        struct Refuse;
-        impl crate::domain::operating::types::Emit for Refuse {
-            fn row(
-                &mut self,
-                _: &mut OperatorContext<'_>,
-                _: &[CellValue],
-            ) -> Result<(), OperatingError> {
-                Err(OperatingError::NotRead)
+        match scenario {
+            Scenario::PrefixBeforeTheError => {
+                let replayed = selected(
+                    result,
+                    &source,
+                    SelectionColumns::Columns(&columns),
+                    context,
+                    &mut collected,
+                );
+                assert!(matches!(replayed, Err(OperatingError::InvalidRegex { .. })));
+                assert_eq!(
+                    collected.0,
+                    vec![vec![
+                        CellValue::Symbol(valid),
+                        CellValue::Node(NodeId(0)),
+                        CellValue::Symbol(valid)
+                    ]]
+                );
+                Ok(collected.0.len())
             }
-        }
-        assert!(matches!(
-            crate::domain::replay::service::selected(
+            Scenario::TheTerminalError => selected(
                 result,
                 &source,
-                crate::domain::replay::types::SelectionColumns::All,
+                SelectionColumns::Columns(&columns),
                 context,
-                &mut Refuse
-            ),
-            Err(OperatingError::NotRead)
-        ));
-    });
+                &mut collected,
+            )
+            .map(|()| collected.0.len()),
+            Scenario::ASinkThatRefuses => {
+                selected(result, &source, SelectionColumns::All, context, &mut Refuse)
+                    .map(|()| collected.0.len())
+            }
+        }
+    })
 }
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn fails() {
+    run(CASES, Word::Fails, subject);
+}
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("the_accepted_prefix_is_replayed_in_the_projected_columns_before_the_error"),
+        word: Word::Succeeds,
+        input: || Scenario::PrefixBeforeTheError,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("the_terminal_predicate_error_follows_the_accepted_prefix"),
+        word: Word::Refuses,
+        input: || Scenario::TheTerminalError,
+        expect: Expect::Refusal(|error| {
+            ryo_values::selects!(matches!(error, OperatingError::InvalidRegex { .. }))
+        }),
+    },
+    Case {
+        name: CaseName("a_sink_that_refuses_a_row_ends_the_replay_with_its_refusal"),
+        word: Word::Fails,
+        input: || Scenario::ASinkThatRefuses,
+        expect: Expect::Error(OperatingError::NotRead),
+    },
+];

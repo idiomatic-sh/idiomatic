@@ -5,7 +5,8 @@ use crate::domain::functions::service::apply;
 use crate::domain::functions::types::MadeText;
 use crate::domain::kind_check::constants::LANGUAGE_SEPARATOR;
 use crate::domain::kind_check::types::{
-    AskedKind, KindMatch, KindRefusal, LanguageList, RulePlace, UnknownKind,
+    AskedKind, KindMatch, KindMessage, KindOrigin, KindRefusal, LanguageList, RulePlace,
+    UnknownKind,
 };
 use crate::domain::kind_sets::service::satisfies;
 use crate::domain::table_model::types::Verdict;
@@ -88,8 +89,11 @@ fn asked_in(
         let origin = match comparison.origin {
             ryo_values::domain::plan_parts::types::ComparisonOrigin::Recorded(id) => origins
                 .get(usize::try_from(id.0).unwrap_or(usize::MAX))
-                .cloned(),
-            ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded => None,
+                .cloned()
+                .map_or(KindOrigin::Unrecorded, KindOrigin::Recorded),
+            ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded => {
+                KindOrigin::Unrecorded
+            }
         };
         asked.extend(words.into_iter().map(|word| AskedKind {
             test,
@@ -195,15 +199,17 @@ pub(crate) fn first_unknown(
 /// What is said of a word that names no kind: the word and the languages that were looked in.
 #[must_use]
 pub(crate) fn unknown_message(word: &KindWord, vocabularies: &KindVocabularies) -> KindRefusal {
-    KindRefusal(
-        format!(
-            "kind `{}` names no kind of {}",
-            word.0,
-            languages_of(vocabularies).0
-        )
-        .into(),
-        None,
-    )
+    KindRefusal {
+        message: KindMessage(
+            format!(
+                "kind `{}` names no kind of {}",
+                word.0,
+                languages_of(vocabularies).0
+            )
+            .into(),
+        ),
+        origin: KindOrigin::Unrecorded,
+    }
 }
 
 /// Why a query refuses to name a kind: the message for the first word it writes for a kind that no language of `vocabularies` has,
@@ -212,7 +218,7 @@ pub(crate) fn unknown_message(word: &KindWord, vocabularies: &KindVocabularies) 
 pub fn refusal(plan: &Plan, vocabularies: &KindVocabularies) -> Option<KindRefusal> {
     first_unknown(std::slice::from_ref(plan), &[Vec::new()], vocabularies).map(|unknown| {
         let mut refusal = unknown_message(&unknown.word, vocabularies);
-        refusal.1 = unknown.origin;
+        refusal.origin = unknown.origin;
         refusal
     })
 }

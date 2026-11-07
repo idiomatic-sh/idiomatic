@@ -114,7 +114,7 @@ impl FileRun<'_> {
                     &Partition::File(self.generation.clone()),
                     context,
                 )?;
-                let coverage = crate::domain::completion::service::file_frontier_coverage(
+                let coverage = crate::domain::frontier_coverage::service::file_frontier_coverage(
                     admitted.coverage()?,
                     file,
                 )?;

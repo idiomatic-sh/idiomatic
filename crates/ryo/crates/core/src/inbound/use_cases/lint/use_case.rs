@@ -756,6 +756,7 @@ impl LintUseCaseImpl {
                     .unwrap_or_default(),
                 reason: MetadataUseCaseImpl
                     .unknown_kind_message(&unknown.word, &vocabularies)
+                    .message
                     .0
                     .into(),
             });

@@ -85,29 +85,29 @@ impl SourceInputs<'_, '_> {
                             .get(ordinal)
                             .ok_or(OperatingError::NotRun)?
                     };
-                    Ok(crate::domain::completion::types::InputCoverage {
-                        ordinal,
+                    Ok(crate::domain::output_coverage::types::InputCoverage {
+                        ordinal: crate::domain::output_coverage::types::OperandOrdinal(ordinal),
                         kinds,
                         coverage: input.coverage()?,
                     })
                 })
                 .collect::<Result<Vec<_>, OperatingError>>()?;
-            crate::domain::completion::service::filter_contributor_rows(
+            crate::domain::contributor_rows::service::filter_contributor_rows(
                 &instruction.operation(),
-                instruction.contract().absence_inputs,
+                crate::domain::contributor_rows::types::AbsenceMask(instruction.contract().absence_inputs),
                 &contributions,
                 rows,
             );
             let coverage = match &instruction.contract().output_kinds {
                 Ok(kinds) => {
                     if let Some(shape) = ordered {
-                        crate::domain::completion::service::ordered_output_coverage(
+                        crate::domain::output_coverage::service::ordered_output_coverage(
                             &shape.partition,
                             kinds,
                             &contributions[0],
                         )
                     } else {
-                        crate::domain::completion::service::output_coverage(
+                        crate::domain::output_coverage::service::output_coverage(
                             &instruction.operation(),
                             kinds,
                             &contributions,

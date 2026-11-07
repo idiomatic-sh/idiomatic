@@ -123,3 +123,15 @@ pub struct FileObservationReadiness {
 /// The edge that composes the languages and knows the governing mask names them; the engine discharges a missing source only for these.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct InapplicableFiles(pub Vec<FileId>);
+
+/// How many files a run declares, among which the files of a partial source are placed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DeclaredFiles(pub usize);
+
+/// The place of a file among the files a run declares.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct FileOrdinal(pub usize);
+
+/// The column of an answer that says which file a row is in.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct KeyColumn(pub usize);

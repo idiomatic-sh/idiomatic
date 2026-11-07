@@ -288,7 +288,7 @@ pub(crate) fn validate_bucket(
                 if !ryo_values::domain::records::service::is_well_formed(scopes) {
                     return Err(refuse());
                 }
-                affected.extend(crate::domain::completion::service::restored_lacks(
+                affected.extend(crate::domain::frontier_coverage::service::restored_lacks(
                     source.file,
                     scopes,
                 ));

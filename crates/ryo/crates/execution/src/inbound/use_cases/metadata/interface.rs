@@ -29,6 +29,8 @@ pub use crate::domain::features::types::FeatureRows;
 pub use crate::domain::features::types::StepWork;
 pub use crate::domain::kind_check::types::AskedKind;
 pub use crate::domain::kind_check::types::KindMatch;
+pub use crate::domain::kind_check::types::KindMessage;
+pub use crate::domain::kind_check::types::KindOrigin;
 pub use crate::domain::kind_check::types::KindRefusal;
 pub use crate::domain::kind_check::types::LanguageList;
 pub use crate::domain::kind_check::types::RulePlace;

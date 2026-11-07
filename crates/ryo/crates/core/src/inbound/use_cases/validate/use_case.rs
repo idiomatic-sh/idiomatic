@@ -1,7 +1,7 @@
 //! The `validate` use case: it checks the text through the query language, then, when a language is linked, the kinds the query
 //! names against the kinds the linked languages have.
 
-use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use ryo_execution::inbound::use_cases::metadata::interface::{KindOrigin, MetadataUseCase};
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use std::sync::Arc;
 
@@ -64,8 +64,11 @@ impl ValidateUseCase for ValidateUseCaseImpl {
             })?;
         match MetadataUseCaseImpl.kind_refusal(&plan, &vocabularies) {
             Some(message) => Err(ValidateError::UnknownKind {
-                reason: message.0.into(),
-                origin: message.1,
+                reason: message.message.0.into(),
+                origin: match message.origin {
+                    KindOrigin::Recorded(origin) => Some(origin),
+                    KindOrigin::Unrecorded => None,
+                },
             }),
             None => Ok(report),
         }
