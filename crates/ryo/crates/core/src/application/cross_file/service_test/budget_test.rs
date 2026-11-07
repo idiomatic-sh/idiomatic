@@ -1,4 +1,5 @@
 //! The memory budget stops a later population, and a refused frontier keeps its compiled source.
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use super::batch_test::sealed_fixture_batch;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
@@ -178,7 +179,7 @@ pub(super) fn refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_
             .unwrap();
             scopes.push(scope);
             frontiers.push(frontier);
-            policies.push(partials_for(&crossing(&rules).domain, RuleIndex(rule)));
+            policies.push(partials_for(&MetadataUseCaseImpl, &crossing(&rules).domain, RuleIndex(rule)));
         }
         let tasks = order
             .into_iter()

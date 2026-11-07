@@ -110,21 +110,18 @@ fn runs(world: &mut Behavior) {
                 Arc::clone(&analysis_digest),
                 Arc::clone(&analysis_memory),
             ),
-            ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(
-                &analysis_corpus,
-            ), std::sync::Arc::new(ryo_core::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())))),
+            ryo_core::application::cross_file::service::CrossFile::new(
+                Arc::clone(&analysis_corpus),
+                ryo_core::inbound::use_cases::lint::fixtures::engine::publication(),
+            ),
             Arc::clone(&analysis_corpus),
             Arc::new(ryo_execution::outbound::facts::factory::memory()),
             Arc::clone(&analysis_language),
             Arc::new(MatchingFake),
             Arc::new(query_language),
             Arc::clone(&analysis_memory),
-            Arc::new(ryo_execution::outbound::operators::factory::use_case(
-                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
-            )),
-            std::sync::Arc::new(ryo_execution::outbound::derived::factory::use_case(
-                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-            )),
+            ryo_core::inbound::use_cases::lint::fixtures::engine::operators(),
+            ryo_core::inbound::use_cases::lint::fixtures::engine::derived(),
             Arc::new(SchedulerFake::default()),
             ryo_core::outbound::scheduler::types::WorkerCount(1),
             Arc::clone(&kept),

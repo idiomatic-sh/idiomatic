@@ -1,5 +1,6 @@
 //! The `recording` service's cases, on values alone.
 
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::{
     CellKind, FileId, Integer, Relation, Value as Cell, Words, WorkerNumber,
@@ -175,7 +176,7 @@ fn cover_scenario(partials: Vec<Partial>, mask: Mask) -> Result<Value, Failure> 
     let mut worker = tables();
     worker.partials = partials;
     worker.mask = mask;
-    cover(
+    cover(&MetadataUseCaseImpl, 
         &mut worker,
         &setting,
         FileId(3),

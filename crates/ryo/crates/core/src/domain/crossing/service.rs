@@ -3,7 +3,6 @@
 use super::types::{CrossingInput, Placeability};
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::interface::{FilePartial, Partials, RuleIndex};
-use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 
 use ryo_execution::inbound::use_cases::metadata::interface::Bearing;
 use ryo_relations::domain::relations::types::CellKind;
@@ -34,16 +33,17 @@ pub(crate) fn placeable(emit: &Emit, table: &Table) -> Placeability {
 
 /// The files that govern a rule, in which a relation its cross-file steps trust the absence of rows of is read in part.
 #[must_use]
-pub(crate) fn partials_for(crossing: &CrossingInput<'_>, rule: RuleIndex) -> Partials {
+pub(crate) fn partials_for(metadata: &impl MetadataUseCase, crossing: &CrossingInput<'_>, rule: RuleIndex) -> Partials {
     let trusted = crossing
         .needs
         .get(rule.0)
         .map_or(&[][..], |needs| needs.cross.as_slice());
-    partials_for_reads(crossing, rule, trusted)
+    partials_for_reads(metadata, crossing, rule, trusted)
 }
 
 /// Publication completeness uses actual root reads, not only absence-sensitive diagnostic Needs.
 pub(crate) fn partials_for_reads(
+    metadata: &impl MetadataUseCase,
     crossing: &CrossingInput<'_>,
     rule: RuleIndex,
     trusted: &[ryo_execution::inbound::use_cases::metadata::interface::RelationRead],
@@ -51,7 +51,7 @@ pub(crate) fn partials_for_reads(
     let matter = |partial: &&ryo_execution::inbound::use_cases::metadata::interface::Partial| {
         trusted
             .iter()
-            .any(|read| MetadataUseCaseImpl.matters(read, partial) == Bearing::Matters)
+            .any(|read| metadata.matters(read, partial) == Bearing::Matters)
     };
     Partials {
         entries: crossing
@@ -99,6 +99,7 @@ use ryo_values::domain::rows::types::Table;
 /// For each rule, the files of the run it has no frame for: those its scopes do not place it on, and those no language read.
 #[must_use]
 pub(crate) fn inapplicable_files(
+    metadata: &impl MetadataUseCase,
     crossing: &CrossingInput<'_>,
 ) -> Vec<ryo_execution::inbound::use_cases::execution::types::InapplicableFiles> {
     use ryo_execution::inbound::use_cases::execution::types::InapplicableFiles;
@@ -119,9 +120,9 @@ pub(crate) fn inapplicable_files(
         let Ok(number) = u32::try_from(index) else {
             break;
         };
-        MetadataUseCaseImpl.place(crossing.placed, path, &mut mask, &mut hits);
+        metadata.place(crossing.placed, path, &mut mask, &mut hits);
         for (rule, files) in inapplicable.iter_mut().enumerate() {
-            let governs = MetadataUseCaseImpl
+            let governs = metadata
                 .governs(&mask, RuleNumber(u32::try_from(rule).unwrap_or(u32::MAX)))
                 == Governing::Governs;
             if !governs || no_language.contains(path) {

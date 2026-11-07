@@ -65,6 +65,3 @@ pub(crate) fn settle(
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::plan_parts::types::StepScope;
 
-use ryo_execution::inbound::use_cases::metadata::{
-    interface::MetadataUseCase, use_case::MetadataUseCaseImpl,
-};

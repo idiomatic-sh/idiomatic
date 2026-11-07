@@ -102,7 +102,7 @@ impl ProjectCompletion {
                 if crossing.covered.iter().any(|each| {
                     usize::try_from(each.file.0) == Ok(index)
                         && each.rules.contains(&todo.rule)
-                        && crate::domain::recording::service::names_at_file(
+                        && crate::domain::recording::service::names_at_file(&MetadataUseCaseImpl, 
                             &each.partial,
                             crossing.needs.get(todo.rule.0),
                         ) == ryo_execution::inbound::use_cases::metadata::interface::Bearing::Matters

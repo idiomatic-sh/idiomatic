@@ -4,17 +4,26 @@ use super::errors::DescribeOperatorError;
 use super::interface::DescribeOperatorUseCase;
 use super::types::{DescribeOperatorReport, DescribeOperatorRequest};
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
-use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
+use std::sync::Arc;
 
-/// `describe_operator`; the operators are the domain's own, so it calls no port.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct DescribeOperatorUseCaseImpl;
+/// `describe_operator`, over the metadata use case that knows the operators.
+pub struct DescribeOperatorUseCaseImpl {
+    /// Knows the operators and describes each.
+    metadata: Arc<dyn MetadataUseCase + Send + Sync>,
+}
+
+impl std::fmt::Debug for DescribeOperatorUseCaseImpl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(std::any::type_name::<Self>())
+            .finish_non_exhaustive()
+    }
+}
 
 impl DescribeOperatorUseCaseImpl {
-    /// `describe_operator`, which calls no port.
+    /// `describe_operator` over the metadata use case the edge injects.
     #[must_use]
-    pub fn new() -> Self {
-        Self
+    pub fn new(metadata: Arc<dyn MetadataUseCase + Send + Sync>) -> Self {
+        Self { metadata }
     }
 }
 
@@ -23,10 +32,10 @@ impl DescribeOperatorUseCase for DescribeOperatorUseCaseImpl {
         &self,
         request: DescribeOperatorRequest,
     ) -> Result<DescribeOperatorReport, DescribeOperatorError> {
-        MetadataUseCaseImpl
+        self.metadata
             .operators()
             .into_iter()
-            .map(|operator| MetadataUseCaseImpl.describe(*operator))
+            .map(|operator| self.metadata.describe(*operator))
             .find(|description| description.name == request.name)
             .map(|operator| DescribeOperatorReport { operator })
             .ok_or_else(|| DescribeOperatorError::UnknownOperator {

@@ -40,6 +40,7 @@ pub(crate) fn build() -> impl ValidateUseCase {
                 compile, typecheck,
             )),
             Arc::new(crate::languages::linked()),
+            std::sync::Arc::new(ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl),
         ),
     })
 }

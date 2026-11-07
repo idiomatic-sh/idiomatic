@@ -1,7 +1,6 @@
 //! The `rules` service: free functions named by verb over the rules of a run, with no IO and no ports.
 
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
-use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::metadata::interface::{
@@ -43,11 +42,11 @@ pub(crate) fn owner_of<'a>(
 
 /// The ids of the rules that govern the file the mask was made for.
 #[must_use]
-pub(crate) fn governing(mask: &Mask, ids: &[RuleId]) -> Vec<RuleId> {
+pub(crate) fn governing(metadata: &impl MetadataUseCase, mask: &Mask, ids: &[RuleId]) -> Vec<RuleId> {
     ids.iter()
         .enumerate()
         .filter(|(rule, _)| {
-            MetadataUseCaseImpl.governs(mask, RuleNumber(u32::try_from(*rule).unwrap_or(u32::MAX)))
+            metadata.governs(mask, RuleNumber(u32::try_from(*rule).unwrap_or(u32::MAX)))
                 == Governing::Governs
         })
         .map(|(_, id)| id.clone())

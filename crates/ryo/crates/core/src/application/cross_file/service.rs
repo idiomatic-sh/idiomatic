@@ -1,4 +1,5 @@
 //! Cross-file evaluation of the project batches over injected ports.
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use super::completion::service::ProjectCompletion;
 use super::completion::service::collected;
 use super::completion::types::CrossedWithPublications;
@@ -90,14 +91,14 @@ impl CrossFile {
                          slot,
                      }| {
                         let evaluation = match crossing.answering {
-                            Answering::Findings => partials_for(&crossing.domain, todo.rule),
+                            Answering::Findings => partials_for(&MetadataUseCaseImpl, &crossing.domain, todo.rule),
                             Answering::Rows(_) => Default::default(),
                         };
                         let reads = crossing
                             .program
                             .observation_reads(todo.rule)
                             .map_err(|error| CrossFileError::from(failed(&todo.id, &error)))?;
-                        let publication = partials_for_reads(&crossing.domain, todo.rule, &reads);
+                        let publication = partials_for_reads(&MetadataUseCaseImpl, &crossing.domain, todo.rule, &reads);
                         Ok(ReadyProject {
                             scope,
                             frontier: Some(frontier),
@@ -205,7 +206,7 @@ impl CrossFile {
                 root: Arc::clone(&frame.root),
             })
             .collect::<Vec<_>>();
-        let inapplicable = inapplicable_files(&run.domain);
+        let inapplicable = inapplicable_files(&MetadataUseCaseImpl, &run.domain);
         stage.restore_frontiers(
             run.facts,
             run.domain.files,

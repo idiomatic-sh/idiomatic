@@ -22,7 +22,7 @@ where
 pub(crate) fn build() -> impl DescribeOperatorUseCase {
     compose(OperatorDescribeParts {
         service: || {
-            ryo_core::inbound::use_cases::describe_operator::use_case::DescribeOperatorUseCaseImpl::new()
+            ryo_core::inbound::use_cases::describe_operator::use_case::DescribeOperatorUseCaseImpl::new(std::sync::Arc::new(ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl))
         },
     })
 }

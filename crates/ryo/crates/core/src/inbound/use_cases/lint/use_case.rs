@@ -104,7 +104,7 @@ use ryo_relations::domain::relations::types::WorkerNumber;
 use ryo_language::domain::symbols::types::Symbols;
 
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
-use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
+use crate::application::metadata::service::kernel_metadata;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::service::input_path;
 use ryo_values::domain::files::types::{CorpusInput, Glob};
@@ -262,7 +262,7 @@ impl LintUseCaseImpl {
         plans: &[Plan],
         ids: &[RuleId],
     ) -> Result<Wanting, LintError> {
-        let placement = MetadataUseCaseImpl.decide(&scopes_of(rules));
+        let placement = kernel_metadata().decide(&scopes_of(rules));
         let matcher = self.matching.compile(&placement.globs).map_err(
             |error| match error {
                 MatchingError::BadGlob { glob, reason } => LintError::Rule {
@@ -741,20 +741,20 @@ impl LintUseCaseImpl {
             .plans()
             .iter()
             .zip(compiled.bindings())
-            .all(|(plan, bound)| MetadataUseCaseImpl.kinds_asked(plan, bound).is_empty())
+            .all(|(plan, bound)| kernel_metadata().kinds_asked(plan, bound).is_empty())
         {
             return Ok(compiled);
         }
         let vocabularies = self.language.kind_vocabularies();
         if let Some(unknown) =
-            MetadataUseCaseImpl.first_unknown(compiled.plans(), compiled.bindings(), &vocabularies)
+            kernel_metadata().first_unknown(compiled.plans(), compiled.bindings(), &vocabularies)
         {
             return Err(LintError::UnknownKind {
                 id: rules
                     .get(unknown.rule.0)
                     .map(|rule| rule.id.0.to_string())
                     .unwrap_or_default(),
-                reason: MetadataUseCaseImpl
+                reason: kernel_metadata()
                     .unknown_kind_message(&unknown.word, &vocabularies)
                     .0
                     .into(),
@@ -977,7 +977,7 @@ impl LintUseCaseImpl {
             errors::CrossFileError,
             preparation::{service::Preparation, types::PreparedProject},
         };
-        let inapplicable = crate::domain::crossing::service::inapplicable_files(&crossing.domain);
+        let inapplicable = crate::domain::crossing::service::inapplicable_files(&kernel_metadata(), &crossing.domain);
         let prepared = Preparation::ordinary(todo).prepare_all(|occurrence, each| {
             if occurrence.0 != 0 {
                 within(self.memory.resident_bytes()?, listing.budget, || {
@@ -1134,7 +1134,7 @@ impl LintUseCaseImpl {
     /// What the report says each feature of the rules was fed, when the run counts the rows.
     fn features_of(&self, run: &LintRun<'_>, fed: &[Vec<RowsFed>]) -> Vec<FeatureFed> {
         match self.counting {
-            Counting::Counts => MetadataUseCaseImpl
+            Counting::Counts => kernel_metadata()
                 .fed_over(run.metadata, fed)
                 .into_iter()
                 .map(FeatureFed::from)
@@ -1146,7 +1146,7 @@ impl LintUseCaseImpl {
     /// What the report says each step of each rule was fed, when the run counts the rows.
     fn work_of(&self, run: &LintRun<'_>, fed: &[Vec<RowsFed>]) -> Vec<RuleWork> {
         match self.counting {
-            Counting::Counts => MetadataUseCaseImpl
+            Counting::Counts => kernel_metadata()
                 .work_over(run.metadata, fed)
                 .into_iter()
                 .zip(run.rules)
@@ -1200,7 +1200,7 @@ impl LintUseCaseImpl {
             .chain(now.unlisted.iter().cloned())
             .collect();
         now.unknowns =
-            MetadataUseCaseImpl.project_unknowns(&now.partials, &named, run.needs, run.ids);
+            kernel_metadata().project_unknowns(&now.partials, &named, run.needs, run.ids);
         Ok(now)
     }
 
@@ -1420,7 +1420,7 @@ impl LintUseCase for LintUseCaseImpl {
         };
         let needs: Vec<Needs> = plans
             .iter()
-            .map(|plan| MetadataUseCaseImpl.scoped_needs(plan))
+            .map(|plan| kernel_metadata().scoped_needs(plan))
             .collect();
         let resolved = self.resolution(&manifests, &plans, &request.session)?;
         let stored_rules = self.stored_rules(

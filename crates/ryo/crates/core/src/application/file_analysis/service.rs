@@ -203,7 +203,7 @@ impl FileAnalysis {
         }
         let demanded = setting
             .program
-            .demanded_rules(|place| governs_rule(tables, RuleIndex(place)) == Governing::Governs);
+            .demanded_rules(|place| governs_rule(&MetadataUseCaseImpl, tables, RuleIndex(place)) == Governing::Governs);
         Cow::Owned(
             setting
                 .wanted
@@ -294,7 +294,7 @@ impl FileAnalysis {
     ) -> Vec<RuleGate> {
         let demanded = setting
             .program
-            .demanded_rules(|place| governs_rule(tables, RuleIndex(place)) == Governing::Governs);
+            .demanded_rules(|place| governs_rule(&MetadataUseCaseImpl, tables, RuleIndex(place)) == Governing::Governs);
         let mut skipped = vec![RuleGate::Open; setting.metadata.len()];
         for (place, blocked) in skipped.iter_mut().enumerate() {
             if !demanded.get(place).copied().unwrap_or(false) {
@@ -391,7 +391,7 @@ impl FileAnalysis {
         let demanded = visit
             .setting
             .program
-            .demanded_rules(|place| governs_rule(tables, RuleIndex(place)) == Governing::Governs);
+            .demanded_rules(|place| governs_rule(&MetadataUseCaseImpl, tables, RuleIndex(place)) == Governing::Governs);
         let intents = demanded
             .iter()
             .enumerate()
@@ -410,7 +410,7 @@ impl FileAnalysis {
                         _ => FileRuleIntent::Refused(ApplicabilityRefusal::MetadataUnavailable),
                     };
                 }
-                let emit = governs_rule(tables, RuleIndex(place)) == Governing::Governs;
+                let emit = governs_rule(&MetadataUseCaseImpl, tables, RuleIndex(place)) == Governing::Governs;
                 FileRuleIntent::Run {
                     diagnostic: if emit {
                         DiagnosticDelivery::Collected
@@ -533,7 +533,7 @@ impl FileAnalysis {
                             )
                         })?;
                         if let Some(affected) = &affected {
-                            crate::domain::recording::service::partial_root(
+                            crate::domain::recording::service::partial_root(&MetadataUseCaseImpl, 
                                 &mut tables.unknowns,
                                 &tables.partials,
                                 &visit.setting,
@@ -737,13 +737,13 @@ impl FileAnalysis {
             return Ok(());
         };
         let number = FileId(job.0);
-        if govern(setting, &mut worker.tables, input_path(file)) == Governing::DoesNotGovern {
+        if govern(&MetadataUseCaseImpl, setting, &mut worker.tables, input_path(file)) == Governing::DoesNotGovern {
             return Ok(());
         }
         if checking(at) == Checking::Now {
             let mask = &worker.tables.mask;
             within(self.memory.resident_bytes()?, setting.budget, || {
-                governing(mask, setting.ids)
+                governing(&MetadataUseCaseImpl, mask, setting.ids)
             })?;
         }
         let file = match file {
@@ -776,7 +776,7 @@ impl FileAnalysis {
         let kept = setting.records.get(at.0).copied().flatten();
         // A file the system says is as it was is not read: what came of it is used again.
         if let Some(record) = kept.filter(|record| {
-            read_failure_demanded(
+            read_failure_demanded(&MetadataUseCaseImpl, 
                 setting.wanted,
                 &worker.tables.mask,
                 setting.needs,
@@ -823,7 +823,7 @@ impl FileAnalysis {
         let outcome = self.parse_file(worker, visit, file, number)?;
         let outcome = Self::stage_outcome(visit.store, outcome)?;
         let acceptance = syntax_acceptance(&worker.tables.elements);
-        cover(&mut worker.tables, setting, number, &file.path, acceptance);
+        cover(&MetadataUseCaseImpl, &mut worker.tables, setting, number, &file.path, acceptance);
         finish_file(
             &mut worker.tables,
             setting,
@@ -894,7 +894,7 @@ impl FileAnalysis {
                 },
             });
         }
-        start_partials(&mut worker.tables, &said, Recovery::Whole, setting.wanted);
+        start_partials(&MetadataUseCaseImpl, &mut worker.tables, &said, Recovery::Whole, setting.wanted);
         worker.tables.unread.push(Unread {
             path: path.clone(),
             reason: Unreadable::Failed(ReadFailure(detail.0.into())),
@@ -913,7 +913,7 @@ impl FileAnalysis {
                 acceptance,
             ));
         }
-        cover(&mut worker.tables, setting, number, path, acceptance);
+        cover(&MetadataUseCaseImpl, &mut worker.tables, setting, number, path, acceptance);
         // Failure facts are invocation-local: retry the real input next time even if metadata is unchanged.
         if matches!(setting.answering, Answering::Findings) {
             worker.tables.unrecorded.push(path.clone());
@@ -1223,7 +1223,7 @@ impl FileAnalysis {
         Self::write_engine_rows(worker, asked, number, file.executable, &mut said)?;
         // The relations this file is read in part: those a reader said so of, and all of code if what was read is a recovery.
         let everything = recovery_of(&reading, &worker.tables.elements);
-        start_partials(
+        start_partials(&MetadataUseCaseImpl, 
             &mut worker.tables,
             &said,
             everything,

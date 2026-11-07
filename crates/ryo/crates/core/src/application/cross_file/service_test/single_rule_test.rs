@@ -1,4 +1,5 @@
 //! One rule evaluated beside the project: its result, its skipped source and a foreign request.
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use super::batch_test::evaluate_fixture;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::crossing;
@@ -84,7 +85,7 @@ pub(super) fn rejected_syntax_blocks_cross_file_complements_without_inventing_pa
     }];
     let mut input = crossing(&world);
     input.domain.skipped = &skipped;
-    let partials = partials_for(&input, RuleIndex(0));
+    let partials = partials_for(&MetadataUseCaseImpl, &input, RuleIndex(0));
     assert!(partials.entries.is_empty(), "no provider partial invented");
     assert_eq!(
         partials.unavailable_files,

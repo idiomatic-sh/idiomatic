@@ -1,4 +1,5 @@
 //! Project populations stay separate by rule, payload and reached region.
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use super::batch_test::assert_count_findings;
 use super::batch_test::evaluate_fixture;
 use crate::application::cross_file::fixtures::ProjectCalls;
@@ -147,9 +148,9 @@ pub(super) fn equal_policies_do_not_alias_distinct_admitted_frontier_payloads()
                     RootOutcome, RuleDemand,
                 },
             };
-            let evaluation = partials_for(&crossing(&rules).domain, RuleIndex(rule));
+            let evaluation = partials_for(&MetadataUseCaseImpl, &crossing(&rules).domain, RuleIndex(rule));
             let reads = rules.program.observation_reads(RuleIndex(rule)).unwrap();
-            let publication = crate::domain::crossing::service::partials_for_reads(
+            let publication = crate::domain::crossing::service::partials_for_reads(&MetadataUseCaseImpl, 
                 &crossing(&rules).domain,
                 RuleIndex(rule),
                 &reads,

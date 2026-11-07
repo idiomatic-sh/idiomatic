@@ -1,4 +1,5 @@
 //! Rejected syntax preserves coverage for independently applicable rules.
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use super::*;
 fn rejected_syntax_coverage_ignores_partials_for_gated_rules_after_mask_restore() {
     use crate::domain::workers::types::VisitSetting;
@@ -45,7 +46,7 @@ fn rejected_syntax_coverage_ignores_partials_for_gated_rules_after_mask_restore(
 
     // `read_file` restores the original cross-rule mask before `cover` runs.
     worker.mask = Mask(vec![0b11]);
-    cover(
+    cover(&MetadataUseCaseImpl, 
         &mut worker,
         &setting,
         FileId(0),
@@ -77,7 +78,7 @@ fn unknowns_after(affected: &[Option<FileId>]) -> Vec<(String, String)> {
     let mut worker = tables();
     worker.partials = vec![partial()];
     worker.mask = Mask(vec![0b1]);
-    partial_root(
+    partial_root(&MetadataUseCaseImpl, 
         &mut worker.unknowns,
         &worker.partials,
         &setting,
@@ -86,7 +87,7 @@ fn unknowns_after(affected: &[Option<FileId>]) -> Vec<(String, String)> {
         &path,
         affected,
     );
-    cover(
+    cover(&MetadataUseCaseImpl, 
         &mut worker,
         &setting,
         FileId(3),
@@ -115,7 +116,7 @@ fn own_partiality_is_one_unknown_and_foreign_partiality_is_its_own() {
     use crate::domain::recording::service::names_at_file;
     use ryo_execution::inbound::use_cases::metadata::interface::{Bearing, Needs, RelationRead};
     use ryo_relations::domain::relations::types::Relation;
-    assert_eq!(names_at_file(&[partial()], Some(&needs())), Bearing::Matters);
+    assert_eq!(names_at_file(&MetadataUseCaseImpl, &[partial()], Some(&needs())), Bearing::Matters);
     let elsewhere = Needs {
         reads: vec![RelationRead {
             relation: Relation::Function,
@@ -123,8 +124,8 @@ fn own_partiality_is_one_unknown_and_foreign_partiality_is_its_own() {
         }],
         ..Needs::default()
     };
-    assert_eq!(names_at_file(&[partial()], Some(&elsewhere)), Bearing::DoesNotMatter);
-    assert_eq!(names_at_file(&[partial()], None), Bearing::DoesNotMatter);
+    assert_eq!(names_at_file(&MetadataUseCaseImpl, &[partial()], Some(&elsewhere)), Bearing::DoesNotMatter);
+    assert_eq!(names_at_file(&MetadataUseCaseImpl, &[partial()], None), Bearing::DoesNotMatter);
 }
 
 type Input = fn();
