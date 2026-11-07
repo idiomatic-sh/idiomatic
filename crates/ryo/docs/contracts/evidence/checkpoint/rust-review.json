@@ -1,0 +1,44 @@
+{
+ "checkpoint": 322,
+ "source": "abec7028bde0cd9adc2d44af4fbce4c888a0d3ab",
+ "verdict": "PASS",
+ "items": [
+  {
+   "item": 1,
+   "verdict": "PASS",
+   "evidence": "abec7028bd touches no production file (fixtures.rs, hardening/mod.rs, contracts README only); execution/src Arc::ptr_eq, RefCell< 33, Mutex< 12 equal at c46511bdba and abec7028bd."
+  },
+  {
+   "item": 2,
+   "verdict": "PASS",
+   "evidence": "Metric per the PM ruling recorded on the charter bead: item 2 counts source-reading and compile-probe tests and their assertion lines (census scans, probes, allowlist assertions, path-pinned reads); formatting lines in fixture plumbing do not count. Probes: production_runs_a_file and production_opens_a_file, added at 04eedb5236, are deleted (-2 from 04eedb5236; net +0 against 0015475b6e, as within the source-reading suites the cumulative diff touches only fixtures.rs); the #[cfg(any(test, feature = \"fixtures\"))] seal on ExecutionRequest::open_file is the enforcement. The manifest overlay guard is on the existing Development arm (fixtures.rs:88-90). hardening/mod.rs:3 is back to its base text, and compile_fail is unchanged. The suite's raw line count is 5,648 against 5,646; the +2 is the rustfmt-wrapped guard in fixtures.rs, which the metric excludes."
+  },
+  {
+   "item": 3,
+   "verdict": "PASS",
+   "evidence": "No production file changed in c46511bdba..abec7028bd."
+  },
+  {
+   "item": 4,
+   "verdict": "PASS",
+   "evidence": "No type added or changed in c46511bdba..abec7028bd."
+  },
+  {
+   "item": 5,
+   "verdict": "PASS",
+   "evidence": "No runner or mechanism added; cases.rs files 27 -> 27 (whole-tree count of files named cases.rs); hand FxHash 0 -> 0."
+  },
+  {
+   "item": 6,
+   "verdict": "PASS",
+   "evidence": "No test expectation changed in c46511bdba..abec7028bd; Expect::Value(()) unchanged (572 by the second review's method; 883 -> 883 whole-repo)."
+  },
+  {
+   "item": 7,
+   "verdict": "PASS",
+   "evidence": "execution/src .unwrap() 885, .expect( 232, unreachable! 34, pub(in 882, unsafe 0; #[allow in crates/ryo 6: all equal at c46511bdba and abec7028bd."
+  }
+ ],
+ "reviewer": "rust-principal-review",
+ "date": "2026-11-07T23:15:00Z"
+}
