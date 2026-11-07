@@ -1,9 +1,10 @@
 //! Boundary values for the actual borrowed graph preparation and traversal APIs.
 use super::{
     service::{begin_ordered, next_ordered},
-    types::{Edges, OrderedWalk},
+    types::{Edges, OrderedVisit, OrderedWalk},
 };
 use crate::domain::operating::errors::OperatingError;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_derived::{
     domain::contract::types::{
         BuildOutcome, BuildWorkspace, BulkRows, CanonicalTexts, DerivedFault, DerivedInputs,
@@ -12,7 +13,7 @@ use ryo_derived::{
     inbound::use_cases::derived::{interface::DerivedUseCase, use_case::DerivedUseCaseImpl},
 };
 use ryo_relations::{
-    domain::relations::types::{CellKind, Integer, Name, PlaceNumber, TextHash, Value},
+    domain::relations::types::{CellKind, Integer, Name, PlaceNumber, TextHash, Cell},
     domain::terms::types::Symbol,
 };
 use ryo_values::domain::{
@@ -40,7 +41,7 @@ impl RowCells for Rows<'_> {
     fn count(&self) -> usize {
         self.0.count.0
     }
-    fn cell(&self, row: usize, column: ColumnIndex) -> Option<Value> {
+    fn cell(&self, row: usize, column: ColumnIndex) -> Option<Cell> {
         row_in(self.0, RowIndex(row))?
             .get(column.0 as usize)
             .copied()
@@ -51,25 +52,25 @@ struct Texts {
     canonical: Vec<String>,
 }
 impl ValueTexts for Texts {
-    fn text(&self, value: Value) -> Option<&str> {
+    fn text(&self, value: Cell) -> Option<&str> {
         match value {
-            Value::Name(name) => ["a", "b", "c", "ctx", "edge"]
+            Cell::Name(name) => ["a", "b", "c", "ctx", "edge"]
                 .get(name.place.0 as usize)
                 .copied(),
-            Value::Symbol(symbol) => self.canonical.get(symbol.0 as usize).map(String::as_str),
+            Cell::Symbol(symbol) => self.canonical.get(symbol.0 as usize).map(String::as_str),
             _ => None,
         }
     }
 }
 impl CanonicalTexts for Texts {
-    fn intern(&mut self, text: &str) -> Result<Value, DerivedFault> {
+    fn intern(&mut self, text: &str) -> Result<Cell, DerivedFault> {
         let at = if let Some(at) = self.canonical.iter().position(|value| value == text) {
             at
         } else {
             self.canonical.push(text.into());
             self.canonical.len() - 1
         };
-        Ok(Value::Symbol(Symbol(
+        Ok(Cell::Symbol(Symbol(
             u32::try_from(at).map_err(|_| DerivedFault::ShapeMismatch)?,
         )))
     }
@@ -120,13 +121,12 @@ fn numbers(width: usize, rows: &[&[i64]]) -> Table {
         kinds: vec![CellKind::Number; width],
         cells: rows
             .iter()
-            .flat_map(|row| row.iter().map(|n| Value::Number(Integer(*n))))
+            .flat_map(|row| row.iter().map(|n| Cell::Number(Integer(*n))))
             .collect(),
         count: RowCount(rows.len()),
     }
 }
-#[test]
-fn ordinal_overflow_follows_the_last_representable_visit() {
+fn ordinal_overflow_follows_the_last_representable_visit() -> Value {
     let roots = numbers(1, &[&[1]]);
     let edges = numbers(4, &[&[1, 2, 0, 12], &[1, 3, 1, 13]]);
     with_graph(&roots, &edges, false, &mut Texts::default(), |graph| {
@@ -139,14 +139,14 @@ fn ordinal_overflow_follows_the_last_representable_visit() {
             to: target,
         };
         let mut walk = OrderedWalk::default();
-        begin_ordered(&edges, graph, &[], Value::Number(Integer(1)), &mut walk);
-        walk.ordinal = Some(i64::MAX);
+        begin_ordered(&edges, graph, &[], Cell::Number(Integer(1)), &mut walk);
+        walk.ordinal = Some(Integer(i64::MAX));
         let first = next_ordered(&edges, graph, &[], &mut walk)
             .unwrap()
             .unwrap();
-        assert_eq!(first.1, Integer(i64::MAX));
+        assert_eq!(first.ordinal, Integer(i64::MAX));
         assert!(
-            !walk.visited.contains(&Value::Number(Integer(2))),
+            !walk.visited.contains(&Cell::Number(Integer(2))),
             "yield before destination expansion"
         );
         assert_eq!(
@@ -155,30 +155,30 @@ fn ordinal_overflow_follows_the_last_representable_visit() {
         );
     })
     .unwrap();
+    1
 }
-#[test]
-fn nonnumeric_order_cell_is_refused_by_actual_derived_preparation() {
+fn nonnumeric_order_cell_is_refused_by_actual_derived_preparation() -> Value {
     let roots = numbers(1, &[&[1]]);
     let mut edges = numbers(4, &[&[1, 2, 0, 12]]);
-    edges.cells[2] = Value::Flag(ryo_relations::domain::relations::types::Flag::Raised);
+    edges.cells[2] = Cell::Flag(ryo_relations::domain::relations::types::Flag::Raised);
     assert_eq!(
         with_graph(&roots, &edges, false, &mut Texts::default(), |_| ()),
         Err(DerivedFault::ShapeMismatch)
     );
+    1
 }
-#[test]
-fn equal_retained_hashes_use_exact_text_and_preserve_original_cells() {
+fn equal_retained_hashes_use_exact_text_and_preserve_original_cells() -> Value {
     let retained = |place| {
-        Value::Name(Name {
+        Cell::Name(Name {
             hash: TextHash(99),
             place: PlaceNumber(place),
         })
     };
-    let a = Value::Symbol(Symbol(0));
-    let b = Value::Symbol(Symbol(1));
-    let ctx = Value::Symbol(Symbol(2));
-    let zero = Value::Number(Integer(0));
-    let one = Value::Number(Integer(1));
+    let a = Cell::Symbol(Symbol(0));
+    let b = Cell::Symbol(Symbol(1));
+    let ctx = Cell::Symbol(Symbol(2));
+    let zero = Cell::Number(Integer(0));
+    let one = Cell::Number(Integer(1));
     let mut roots = Table {
         kinds: vec![CellKind::Symbol; 2],
         ..Table::default()
@@ -261,17 +261,17 @@ fn equal_retained_hashes_use_exact_text_and_preserve_original_cells() {
             (
                 a,
                 vec![
-                    (RowIndex(0), Integer(0)),
-                    (RowIndex(1), Integer(1)),
-                    (RowIndex(2), Integer(2)),
+                    OrderedVisit { edge: RowIndex(0), ordinal: Integer(0) },
+                    OrderedVisit { edge: RowIndex(1), ordinal: Integer(1) },
+                    OrderedVisit { edge: RowIndex(2), ordinal: Integer(2) },
                 ],
             ),
             (
                 b,
                 vec![
-                    (RowIndex(1), Integer(0)),
-                    (RowIndex(2), Integer(1)),
-                    (RowIndex(0), Integer(2)),
+                    OrderedVisit { edge: RowIndex(1), ordinal: Integer(0) },
+                    OrderedVisit { edge: RowIndex(2), ordinal: Integer(1) },
+                    OrderedVisit { edge: RowIndex(0), ordinal: Integer(2) },
                 ],
             ),
         ] {
@@ -282,11 +282,50 @@ fn equal_retained_hashes_use_exact_text_and_preserve_original_cells() {
                 actual.push(visit);
             }
             assert_eq!(actual, expected);
-            total_expanded += walk.expanded;
-            total_examined += walk.examined;
+            total_expanded += walk.expanded.0;
+            total_examined += walk.examined.0;
         }
         assert_eq!(total_expanded, 6);
         assert_eq!(total_examined, 6);
     })
     .unwrap();
+    1
+}
+
+/// A scenario: what a row asks of the part.
+type Input = fn() -> Value;
+/// What a scenario answers: a yes as one.
+type Value = usize;
+/// A scenario that checks its own claims never fails as a whole.
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("ordinal_overflow_follows_the_last_representable_visit"),
+        word: Word::Succeeds,
+        input: || ordinal_overflow_follows_the_last_representable_visit,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("nonnumeric_order_cell_is_refused_by_actual_derived_preparation"),
+        word: Word::Succeeds,
+        input: || nonnumeric_order_cell_is_refused_by_actual_derived_preparation,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("equal_retained_hashes_use_exact_text_and_preserve_original_cells"),
+        word: Word::Succeeds,
+        input: || equal_retained_hashes_use_exact_text_and_preserve_original_cells,
+        expect: Expect::Value(1),
+    },
+];
+
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    Ok(scenario())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

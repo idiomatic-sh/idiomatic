@@ -121,7 +121,7 @@ pub(crate) fn kind_tests(
         let asked = KindTest {
             vocabulary,
             test: NamingTest(u8::try_from(which.0).unwrap_or(u8::MAX)),
-            text: named.0.clone(),
+            text: named.clone(),
         };
         let set = if let Some(set) = scratch.names.get(&asked) {
             *set

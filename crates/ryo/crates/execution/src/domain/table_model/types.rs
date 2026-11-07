@@ -109,7 +109,7 @@ pub(crate) struct Frontier {
 
 /// The hash of the cells that make a key.
 
-/// Whether a kind is in a set of kinds.
+/// Whether a value, a kind or an entity, is in a set of them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum SetMembership {
     /// It is in the set.

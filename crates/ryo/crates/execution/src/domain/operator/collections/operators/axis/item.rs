@@ -20,7 +20,10 @@ use ryo_values::domain::plan_parts::types::{Direction, Side};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
-use {crate::domain::table_model::types::Verdict, ryo_values::domain::rows::service::cell};
+use {
+    crate::domain::table_model::types::{SetMembership, Verdict},
+    ryo_values::domain::rows::service::cell,
+};
 pub(crate) struct AxisItem;
 impl OperatorsItem for AxisItem {
     fn prepare(
@@ -95,7 +98,11 @@ impl OperatorsItem for AxisItem {
                         let MembershipView::Values(members) = domain else {
                             return Err(OperatingError::WrongBinding);
                         };
-                        Ok(members.contains(&entity))
+                        Ok(if members.contains(&entity) {
+                            SetMembership::In
+                        } else {
+                            SetMembership::Out
+                        })
                     })?;
                 } else {
                     reach_breadth(edges, *to, start, &mut work.walk);

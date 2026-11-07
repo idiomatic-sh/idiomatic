@@ -1,5 +1,6 @@
 //! Differential traversal behavior over an actual prepared equality index.
 use super::*;
+use ryo_relations::domain::relations::types::Value as Cell;
 use crate::domain::operator::contract::views::BorrowedRows;
 use ryo_derived::domain::contract::types::{
     BuildOutcome, BuildWorkspace, BulkRows, DerivedFault, DerivedInputs, DerivedView, KeyIndex,
@@ -7,10 +8,18 @@ use ryo_derived::domain::contract::types::{
 };
 use ryo_derived::inbound::use_cases::derived::interface::DerivedUseCase;
 use ryo_relations::domain::relations::types::{CellKind, Integer};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::rows::types::{RowCount, Table};
 
-fn number(value: i64) -> Value {
-    Value::Number(Integer(value))
+fn membership(held: bool) -> SetMembership {
+    if held {
+        SetMembership::In
+    } else {
+        SetMembership::Out
+    }
+}
+fn number(value: i64) -> Cell {
+    Cell::Number(Integer(value))
 }
 struct Cells<'a>(&'a Table);
 impl RowCells for Cells<'_> {
@@ -30,7 +39,7 @@ impl RowCells for Cells<'_> {
     fn count(&self) -> usize {
         self.0.count.0
     }
-    fn cell(&self, row: usize, column: ColumnIndex) -> Option<Value> {
+    fn cell(&self, row: usize, column: ColumnIndex) -> Option<Cell> {
         self.0
             .cells
             .get(row * self.0.kinds.len() + column.0 as usize)
@@ -82,8 +91,7 @@ fn view<'a>(table: &'a Table, index: &'a KeyIndex, columns: &'a [ColumnIndex]) -
     }
 }
 
-#[test]
-fn nearest_matches_first_admitted_breadth_vertex_for_branches_duplicates_cycles_and_ties() {
+fn nearest_matches_first_admitted_breadth_vertex_for_branches_duplicates_cycles_and_ties() -> Value {
     for rows in [
         vec![[1, 2], [2, 3], [3, 4]],
         vec![[1, 2], [1, 3], [2, 4], [3, 5]],
@@ -110,7 +118,7 @@ fn nearest_matches_first_admitted_breadth_vertex_for_branches_duplicates_cycles_
                         ColumnIndex(1),
                         number(start),
                         &mut nearest,
-                        |value| Ok::<_, ()>(admitted.iter().any(|n| number(*n) == value)),
+                        |value| Ok::<_, ()>(membership(admitted.iter().any(|n| number(*n) == value))),
                     )
                     .expect("infallible membership");
                     assert_eq!(
@@ -122,16 +130,16 @@ fn nearest_matches_first_admitted_breadth_vertex_for_branches_duplicates_cycles_
             }
         });
     }
+    1
 }
 
-#[test]
-fn reused_walk_nearest_hit_then_no_path_then_full_walk_clears_previous_work() {
+fn reused_walk_nearest_hit_then_no_path_then_full_walk_clears_previous_work() -> Value {
     with_edges(&[[1, 2], [1, 3], [2, 4], [3, 5]], |table, index| {
         let columns = [ColumnIndex(0)];
         let edges = view(table, index, &columns);
         let mut walk = Walk::default();
         reach_nearest(&edges, ColumnIndex(1), number(1), &mut walk, |value| {
-            Ok::<_, ()>(value == number(3))
+            Ok::<_, ()>(membership(value == number(3)))
         })
         .expect("hit");
         assert_eq!(walk.reached, vec![number(3)]);
@@ -151,10 +159,10 @@ fn reused_walk_nearest_hit_then_no_path_then_full_walk_clears_previous_work() {
             vec![number(2), number(3), number(4), number(5)]
         );
     });
+    1
 }
 
-#[test]
-fn admission_fault_is_deferred_until_first_reached_vertex_and_stops_further_admission() {
+fn admission_fault_is_deferred_until_first_reached_vertex_and_stops_further_admission() -> Value {
     with_edges(&[[1, 2], [2, 3]], |table, index| {
         let columns = [ColumnIndex(0)];
         let edges = view(table, index, &columns);
@@ -168,10 +176,10 @@ fn admission_fault_is_deferred_until_first_reached_vertex_and_stops_further_admi
         assert_eq!(called, vec![number(2)]);
         assert!(walk.reached.is_empty());
     });
+    1
 }
 
-#[test]
-fn missing_destination_cells_are_skipped_as_in_full_traversal() {
+fn missing_destination_cells_are_skipped_as_in_full_traversal() -> Value {
     with_edges(&[[1, 2], [2, 3]], |table, index| {
         let mut ragged = table.clone();
         ragged.cells.pop();
@@ -182,9 +190,54 @@ fn missing_destination_cells_are_skipped_as_in_full_traversal() {
         assert_eq!(full.reached, vec![number(2)]);
         let mut nearest = Walk::default();
         reach_nearest(&edges, ColumnIndex(1), number(1), &mut nearest, |value| {
-            Ok::<_, ()>(value == number(3))
+            Ok::<_, ()>(membership(value == number(3)))
         })
         .expect("missing destination is not a new error");
         assert!(nearest.reached.is_empty());
     });
+    1
+}
+
+/// A scenario: what a row asks of the part.
+type Input = fn() -> Value;
+/// What a scenario answers: a yes as one.
+type Value = usize;
+/// A scenario that checks its own claims never fails as a whole.
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("nearest_matches_first_admitted_breadth_vertex_for_branches_duplicates_cycles_and_ties"),
+        word: Word::Succeeds,
+        input: || nearest_matches_first_admitted_breadth_vertex_for_branches_duplicates_cycles_and_ties,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("reused_walk_nearest_hit_then_no_path_then_full_walk_clears_previous_work"),
+        word: Word::Succeeds,
+        input: || reused_walk_nearest_hit_then_no_path_then_full_walk_clears_previous_work,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("admission_fault_is_deferred_until_first_reached_vertex_and_stops_further_admission"),
+        word: Word::Succeeds,
+        input: || admission_fault_is_deferred_until_first_reached_vertex_and_stops_further_admission,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("missing_destination_cells_are_skipped_as_in_full_traversal"),
+        word: Word::Succeeds,
+        input: || missing_destination_cells_are_skipped_as_in_full_traversal,
+        expect: Expect::Value(1),
+    },
+];
+
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    Ok(scenario())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }
