@@ -2,7 +2,7 @@
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::source_matches::types::{
     BaseLine, CaptureRequest, CarriageReturn, LineBytes, LineCursor, SourceBase,
-    SourceMatchesInput, TextRowDriver,
+    SourceMatchesInput, OccurrenceByte, TextRowDriver, OccurrenceSpan,
 };
 use ryo_values::domain::query_operators::types::{LineOutput, TextOutput};
 use ryo_values::domain::row_texts::types::CellText;
@@ -89,10 +89,9 @@ pub(crate) fn occurrences(
     }
     let mut cursor = LineCursor(0);
     let mut pending_cr = CarriageReturn::Clear;
-    let mut emit_one = |whole: std::ops::Range<usize>,
-                        captured: Option<std::ops::Range<usize>>|
+    let mut emit_one = |whole: OccurrenceSpan, captured: Option<OccurrenceSpan>|
      -> Result<(), PortableOperatorFault> {
-        let (start_at, end_at) = (whole.start, whole.end);
+        let (start_at, end_at) = (whole.start.0, whole.end.0);
         let mut whole_line = None;
         if let Some(current) = line.as_mut() {
             advance_line(
@@ -111,7 +110,7 @@ pub(crate) fn occurrences(
                     LineBytes(source),
                     base,
                     &mut cursor,
-                    LineCursor(group.start),
+                    LineCursor(group.start.0),
                     current,
                     &mut pending_cr,
                 )?;
@@ -138,7 +137,7 @@ pub(crate) fn occurrences(
             joined.push(Value::Number(current));
         }
         if let Some(group) = captured {
-            let (capture_start, capture_end) = (group.start, group.end);
+            let (capture_start, capture_end) = (group.start.0, group.end.0);
             let absolute_start = u32::try_from(
                 base.0
                     .checked_add(capture_start)
@@ -176,7 +175,16 @@ pub(crate) fn occurrences(
         Ok(())
     };
     let mut failure = None;
-    let _flow = visit(&mut |whole, group| match emit_one(whole, group) {
+    let _flow = visit(&mut |whole, group| match emit_one(
+        OccurrenceSpan {
+            start: OccurrenceByte(whole.start),
+            end: OccurrenceByte(whole.end),
+        },
+        group.map(|group| OccurrenceSpan {
+            start: OccurrenceByte(group.start),
+            end: OccurrenceByte(group.end),
+        }),
+    ) {
         Ok(()) => ControlFlow::Continue(()),
         Err(error) => {
             failure = Some(error);

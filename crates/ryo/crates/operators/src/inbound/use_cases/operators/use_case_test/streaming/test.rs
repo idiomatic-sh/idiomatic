@@ -1,6 +1,6 @@
 //! Public streaming and metadata calls borrow engine-owned reduction state and keep fault order.
 use crate::domain::contract::errors::ContractError;
-use crate::domain::set_rows::types::Occurrence;
+use crate::domain::set_rows::types::FirstOccurrence;
 use crate::inbound::use_cases::operators::{fixtures, interface::OperatorsUseCase};
 use crate::domain::capture::types::*;
 use crate::domain::contract::types::*;
@@ -168,11 +168,11 @@ impl StreamingReduction for State {
         };
         Ok(RowIndex(group))
     }
-    fn insert_value(&mut self, group: RowIndex, value: Cell) -> Occurrence {
+    fn insert_value(&mut self, group: RowIndex, value: Cell) -> FirstOccurrence {
         if self.values.insert((group.0, value)) {
-            Occurrence::First
+            FirstOccurrence::First
         } else {
-            Occurrence::Repeat
+            FirstOccurrence::Repeat
         }
     }
     fn count(&mut self, group: RowIndex) -> Option<&mut RowCount> {

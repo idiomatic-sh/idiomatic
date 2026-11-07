@@ -9,7 +9,7 @@ use ryo_operators::domain::set_rows::types::SetInput;
 use ryo_operators::domain::set_rows::errors::SetRowsError;
 use ryo_operators::domain::set_rows::types::SetKind;
 use ryo_operators::domain::set_rows::types::SetRowDriver;
-use ryo_operators::domain::set_rows::types::{Membership, Occurrence, Population};
+use ryo_operators::domain::set_rows::types::{FirstOccurrence, RightMembership, RightPopulation};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
@@ -20,7 +20,7 @@ struct EngineRows<'a, 'b> {
 }
 
 impl SetRowDriver for EngineRows<'_, '_> {
-    fn right_empty(&mut self) -> Result<Population, SetRowsError> {
+    fn right_empty(&mut self) -> Result<RightPopulation, SetRowsError> {
         self.failure
             .run(|| {
                 let index = self
@@ -29,12 +29,12 @@ impl SetRowDriver for EngineRows<'_, '_> {
                     .resources
                     .index()
                     .ok_or(OperatingError::WrongBinding)?;
-                Ok(Population::from(index.rows.count() == 0))
+                Ok(RightPopulation::from(index.rows.count() == 0))
             })
             .map_err(|()| SetRowsError::Interrupted)
     }
 
-    fn contains_right(&mut self, key: &[Value]) -> Result<Membership, SetRowsError> {
+    fn contains_right(&mut self, key: &[Value]) -> Result<RightMembership, SetRowsError> {
         self.failure
             .run(|| {
                 let index = self
@@ -43,16 +43,16 @@ impl SetRowDriver for EngineRows<'_, '_> {
                     .resources
                     .index()
                     .ok_or(OperatingError::WrongBinding)?;
-                Ok(Membership::from(index.contains(key)))
+                Ok(RightMembership::from(index.contains(key)))
             })
             .map_err(|()| SetRowsError::Interrupted)
     }
 
-    fn first_time(&mut self, row: &[Value]) -> Result<Occurrence, SetRowsError> {
+    fn first_time(&mut self, row: &[Value]) -> Result<FirstOccurrence, SetRowsError> {
         self.failure
             .run(|| {
                 let state = self.lease.distinct()?;
-                Ok(Occurrence::from(
+                Ok(FirstOccurrence::from(
                     first_time(&mut state.rows, &mut state.seen, row) == Addition::Added,
                 ))
             })

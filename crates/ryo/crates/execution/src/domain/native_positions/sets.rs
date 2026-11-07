@@ -21,7 +21,7 @@ use ryo_operators::domain::set_rows::errors::SetRowsError;
 use ryo_operators::domain::set_rows::types::SetKind;
 use ryo_operators::domain::equality_join::types::Advance;
 use ryo_operators::domain::set_rows::types::SetPositionsDriver;
-use ryo_operators::domain::set_rows::types::{Membership, Occurrence, Population};
+use ryo_operators::domain::set_rows::types::{FirstOccurrence, RightMembership, RightPopulation};
 use ryo_relations::domain::relations::{service::to_bits, types::Position};
 use ryo_values::domain::{
     plans::types::Operation,
@@ -47,23 +47,23 @@ impl SetPositionsDriver for UnionDriver<'_> {
             })
             .map_err(|()| SetRowsError::Interrupted)
     }
-    fn right_empty(&mut self) -> Result<Population, SetRowsError> {
+    fn right_empty(&mut self) -> Result<RightPopulation, SetRowsError> {
         self.failure
             .run(|| Err(OperatingError::WrongOperation))
             .map_err(|()| SetRowsError::Interrupted)
     }
-    fn contains_right(&mut self) -> Result<Membership, SetRowsError> {
+    fn contains_right(&mut self) -> Result<RightMembership, SetRowsError> {
         self.failure
             .run(|| Err(OperatingError::WrongOperation))
             .map_err(|()| SetRowsError::Interrupted)
     }
-    fn first_time(&mut self) -> Result<Occurrence, SetRowsError> {
+    fn first_time(&mut self) -> Result<FirstOccurrence, SetRowsError> {
         self.failure
             .run(|| {
                 self.current
                     .and_then(|at| self.keep.0.get(at.0))
                     .copied()
-                    .map(Occurrence::from)
+                    .map(FirstOccurrence::from)
                     .ok_or(OperatingError::ShapeMismatch)
             })
             .map_err(|()| SetRowsError::Interrupted)
@@ -205,12 +205,12 @@ impl SetPositionsDriver for AntiDriver<'_, '_> {
             })
             .map_err(|()| SetRowsError::Interrupted)
     }
-    fn right_empty(&mut self) -> Result<Population, SetRowsError> {
+    fn right_empty(&mut self) -> Result<RightPopulation, SetRowsError> {
         self.failure
-            .run(|| Ok(Population::from(self.right_count.0 == 0)))
+            .run(|| Ok(RightPopulation::from(self.right_count.0 == 0)))
             .map_err(|()| SetRowsError::Interrupted)
     }
-    fn contains_right(&mut self) -> Result<Membership, SetRowsError> {
+    fn contains_right(&mut self) -> Result<RightMembership, SetRowsError> {
         self.failure
             .run(|| {
                 let at = self.current.ok_or(OperatingError::WrongOperation)?;
@@ -222,11 +222,11 @@ impl SetPositionsDriver for AntiDriver<'_, '_> {
                     self.left_on,
                     self.probe,
                 );
-                Ok(Membership::from(!self.order.hits(&self.probe.0).is_empty()))
+                Ok(RightMembership::from(!self.order.hits(&self.probe.0).is_empty()))
             })
             .map_err(|()| SetRowsError::Interrupted)
     }
-    fn first_time(&mut self) -> Result<Occurrence, SetRowsError> {
+    fn first_time(&mut self) -> Result<FirstOccurrence, SetRowsError> {
         self.failure
             .run(|| Err(OperatingError::WrongOperation))
             .map_err(|()| SetRowsError::Interrupted)

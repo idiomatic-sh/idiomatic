@@ -7,7 +7,7 @@ use crate::domain::reduction::types::{
     GroupColumns, GroupCoordinate, GroupCounts, GroupDigest, GroupOutput, HashScratch,
     StreamingReduction, ValueHash,
 };
-use crate::domain::set_rows::types::Occurrence;
+use crate::domain::set_rows::types::FirstOccurrence;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
@@ -140,8 +140,8 @@ impl StreamingReduction for State {
         };
         Ok(RowIndex(at))
     }
-    fn insert_value(&mut self, group: RowIndex, value: Cell) -> Occurrence {
-        Occurrence::from(self.pairs.insert((group.0, value)))
+    fn insert_value(&mut self, group: RowIndex, value: Cell) -> FirstOccurrence {
+        FirstOccurrence::from(self.pairs.insert((group.0, value)))
     }
     fn count(&mut self, group: RowIndex) -> Option<&mut RowCount> {
         self.counts.get_mut(group.0)

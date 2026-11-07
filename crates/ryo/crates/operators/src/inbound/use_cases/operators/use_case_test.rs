@@ -27,6 +27,8 @@ mod positions;
 #[cfg(test)]
 mod source;
 #[cfg(test)]
+mod source_optional;
+#[cfg(test)]
 mod streaming;
 #[cfg(test)]
 mod text;

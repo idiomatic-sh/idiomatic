@@ -117,13 +117,13 @@ struct Poisoned {
     rows: Vec<Vec<ValueCell>>,
 }
 impl SetRowDriver for Poisoned {
-    fn right_empty(&mut self) -> Result<Population, SetRowsError> {
-        Ok(Population::from(self.keys.is_empty()))
+    fn right_empty(&mut self) -> Result<RightPopulation, SetRowsError> {
+        Ok(RightPopulation::from(self.keys.is_empty()))
     }
-    fn contains_right(&mut self, key: &[ValueCell]) -> Result<Membership, SetRowsError> {
-        Ok(Membership::from(self.keys.contains(&key[0])))
+    fn contains_right(&mut self, key: &[ValueCell]) -> Result<RightMembership, SetRowsError> {
+        Ok(RightMembership::from(self.keys.contains(&key[0])))
     }
-    fn first_time(&mut self, _: &[ValueCell]) -> Result<Occurrence, SetRowsError> {
+    fn first_time(&mut self, _: &[ValueCell]) -> Result<FirstOccurrence, SetRowsError> {
         panic!("antijoin must preserve left bags")
     }
     fn emit(&mut self, row: &[ValueCell]) -> Result<(), SetRowsError> {
@@ -137,13 +137,13 @@ struct Reordered {
     emitted: Vec<Vec<ValueCell>>,
 }
 impl SetRowDriver for Reordered {
-    fn right_empty(&mut self) -> Result<Population, SetRowsError> {
-        Ok(Population::from(self.dropped.is_empty()))
+    fn right_empty(&mut self) -> Result<RightPopulation, SetRowsError> {
+        Ok(RightPopulation::from(self.dropped.is_empty()))
     }
-    fn contains_right(&mut self, key: &[ValueCell]) -> Result<Membership, SetRowsError> {
-        Ok(Membership::from(self.dropped.iter().any(|row| row == key)))
+    fn contains_right(&mut self, key: &[ValueCell]) -> Result<RightMembership, SetRowsError> {
+        Ok(RightMembership::from(self.dropped.iter().any(|row| row == key)))
     }
-    fn first_time(&mut self, _: &[ValueCell]) -> Result<Occurrence, SetRowsError> {
+    fn first_time(&mut self, _: &[ValueCell]) -> Result<FirstOccurrence, SetRowsError> {
         panic!("bag-preserving antijoin")
     }
     fn emit(&mut self, row: &[ValueCell]) -> Result<(), SetRowsError> {
