@@ -9,11 +9,14 @@ import sys
 
 LOCK = "/workspaces/.cargo-build.lock"
 TARGET = "/workspaces/idiomatic-benchmark-guards/target"
+CHECK_TARGET = "/workspaces/idiomatic-check-target"
 FIXTURE_FIX = "cli/tests/replay/imports.rs"
 CARGO_BUILDS = {"build", "test", "bench", "clippy", "run", "check", "doc"}
 INTEGRATION = re.compile(r"claude/(checkpoint-\d+|ryo-consolidation)")
 MEASUREMENT = "/workspaces/ryo-perf-"
-BUILDERS_AUTHOR = "Builders author; the integrator compiles. cargo is allowed only in an integration worktree (branch claude/checkpoint-N)"
+CHECK_FORM = "cargo check -p <crate> --target-dir " + CHECK_TARGET
+BUILDERS_AUTHOR = ("Builders author; the integrator compiles. cargo builds only in an integration worktree "
+                   "(branch claude/checkpoint-N); builders may run " + CHECK_FORM)
 COMMENT = re.compile(r"(^|\s)#.*$", re.MULTILINE)
 
 
@@ -114,19 +117,57 @@ def cargo_index(words):
     return 0 if words[0] == "cargo" else None
 
 
+def target_dir(rest):
+    """The --target-dir value the cargo arguments name, or None."""
+    for i, w in enumerate(rest):
+        if w.startswith("--target-dir="):
+            return w.split("=", 1)[1]
+        if w == "--target-dir":
+            return rest[i + 1] if i + 1 < len(rest) else ""
+    return None
+
+
 def cargo_rules(words, before):
     at = cargo_index(words)
     if at is None:
         return None
     rest = [w for w in words[at + 1:] if not w.startswith("+")]
-    if "--target-dir" in rest or any(w.startswith("--target-dir=") for w in rest):
-        for i, w in enumerate(rest):
-            value = w.split("=", 1)[1] if w.startswith("--target-dir=") else (rest[i + 1] if w == "--target-dir" and i + 1 < len(rest) else None)
-            if (w == "--target-dir" or w.startswith("--target-dir=")) and value != TARGET:
-                return "cargo --target-dir must be " + TARGET
     sub = next((w for w in rest if not w.startswith("-")), "")
-    if sub in CARGO_BUILDS and LOCK not in " ".join(words[:at]) and LOCK not in before:
+    target = target_dir(rest)
+    checking = sub == "check" and target == CHECK_TARGET
+    if target is not None and target != TARGET and not checking:
+        return "cargo --target-dir must be " + TARGET + " (or " + CHECK_TARGET + " for cargo check)"
+    if sub in CARGO_BUILDS and not checking and LOCK not in " ".join(words[:at]) and LOCK not in before:
         return "cargo " + sub + " must run as: flock " + LOCK + " cargo " + sub
+    return None
+
+
+def one_crate_manifest(path):
+    try:
+        with open(path, encoding="utf-8") as handle:
+            return any(line.strip() == "[package]" for line in handle)
+    except OSError:
+        return False
+
+
+def builder_check(words, here):
+    """Outside an integration tree only a package-scoped cargo check into the check-only target dir runs."""
+    at = cargo_index(words)
+    if at is None:
+        return BUILDERS_AUTHOR
+    rest = [w for w in words[at + 1:] if not w.startswith("+")]
+    if next((w for w in rest if not w.startswith("-")), "") != "check":
+        return BUILDERS_AUTHOR
+    if target_dir(rest) != CHECK_TARGET:
+        return "cargo check outside an integration tree must run as: " + CHECK_FORM
+    if any(w in ("--workspace", "--all") for w in rest):
+        return "a workspace-wide cargo check is the integrator's; run: " + CHECK_FORM
+    packaged = any(w in ("-p", "--package") or w.startswith("--package=") or (w.startswith("-p") and len(w) > 2)
+                   for w in rest)
+    manifests = [rest[i + 1] if w == "--manifest-path" and i + 1 < len(rest) else w.split("=", 1)[1]
+                 for i, w in enumerate(rest) if w == "--manifest-path" or w.startswith("--manifest-path=")]
+    if not packaged and not (manifests and all(one_crate_manifest(os.path.join(here, m)) for m in manifests)):
+        return "a workspace-wide cargo check is the integrator's; run: " + CHECK_FORM
     return None
 
 
@@ -167,7 +208,12 @@ def reason(command, cwd=None):
     if re.search(r"\b(while|until|for)\b", clean) and re.search(r"\b(pgrep|pkill)\b[^;&|\n]*\s-[A-Za-z]*f", clean):
         return "self-matching wait loop (pgrep/pkill -f in a loop); use pid files or pgrep -x"
     if has_cargo_command(clean) and not all(integration_tree(d) for d in working_dirs(clean, cwd)):
-        return BUILDERS_AUTHOR
+        here = working_dirs(clean, cwd)[0]
+        for segment in segments(clean):
+            words = tokens(segment)
+            found = builder_check(words, here) if runs_cargo_verb(words) else None
+            if found:
+                return found
     before = ""
     for segment in segments(clean):
         words = tokens(segment)
