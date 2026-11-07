@@ -1,4 +1,5 @@
 //! Auditing precedes correctness; correctness precedes measurement.
+pub mod account_defaults;
 pub mod admit_measurement;
 pub mod audit;
 pub mod compare;

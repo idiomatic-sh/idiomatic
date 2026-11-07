@@ -359,6 +359,10 @@ mod project_context;
 #[path = "compiler_feature_test.rs"]
 mod compiler_features;
 
+mod context_case_test;
+
+mod scope_test;
+
 mod future_directives_test;
 
 mod project_inputs_test;

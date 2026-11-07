@@ -1,5 +1,5 @@
 //! The declared context cases and the check of each against the real SDK.
-use super::super::prepared_engine_test::PreparedEngine as _;
+use super::prepared_engine_test::PreparedEngine as _;
 use ryo_benchmark::outbound::engine::factory;
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -119,7 +119,7 @@ pub(super) fn check_case(
     )
     .run_prepared(WorkerRequest {
         performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(super::super::prepared_engine_test::fixture_cohort(&[
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(super::prepared_engine_test::fixture_cohort(&[
             "INPUT",
             "FLAG",
             "EAGER",

@@ -1,4 +1,7 @@
 //! Executable acceptance scenarios colocated with the shared benchmark operations.
+#[path = "../src/inbound/use_cases/account_defaults/acceptance.rs"]
+mod account_defaults;
+
 #[path = "../src/inbound/use_cases/admit_measurement/acceptance.rs"]
 mod admit_measurement;
 

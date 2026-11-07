@@ -9,6 +9,9 @@ use super::diagnostic_protocol::WorkerTracing;
 use super::locations::{default_scratch, directory};
 use super::request_input::{BenchmarkArgument, WorkerInput, worker_expectation, worker_input};
 use super::targets::{ReferenceSpelling, TargetConfiguration};
+use ryo_benchmark::inbound::use_cases::account_defaults::{
+    interface::AccountDefaultsUseCase as _, use_case::AccountDefaultsUseCaseImpl,
+};
 use ryo_benchmark::inbound::use_cases::audit::interface::AuditUseCase as _;
 use ryo_benchmark::inbound::use_cases::check_worker_request::{
     interface::CheckWorkerRequestUseCase as _, use_case::CheckWorkerRequestUseCaseImpl,
@@ -157,7 +160,7 @@ pub(super) fn verify_cases(
         Arc::clone(&suite_source),
     )
     .audit(&source, &tool)?;
-    ryo_benchmark::domain::suite::service::require_accounted(&audit, &tool)?;
+    AccountDefaultsUseCaseImpl::new().account_defaults(&audit, &tool)?;
     tool.defaults = audit.authored().to_vec();
     let candidate_defaults = tool.defaults.clone();
     let candidate_observations = tool.rule_observations.clone();
@@ -345,5 +348,5 @@ pub(super) fn audit(
         result.authored_count(),
         tool.defaults.len()
     )?;
-    ryo_benchmark::domain::suite::service::require_accounted(&result, &tool)
+    AccountDefaultsUseCaseImpl::new().account_defaults(&result, &tool)
 }

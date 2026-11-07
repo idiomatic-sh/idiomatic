@@ -1,5 +1,5 @@
 //! Declared configuration, hosted inputs and authored suppression cohorts through the public SDK contracts.
-use super::super::prepared_engine_test::PreparedEngine as _;
+use super::prepared_engine_test::PreparedEngine as _;
 use ryo_benchmark::outbound::engine::factory;
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -84,7 +84,7 @@ pub(super) fn declared_configuration_uses_real_sdk_scope_and_hosted_inputs_on_un
             files: files.clone(),
             state: WorkerState::Retained(root.path().join("cache")),
         };
-        let report = factory::local(super::super::prepared_engine_test::python_310(), None)
+        let report = factory::local(super::prepared_engine_test::python_310(), None)
             .run_prepared(request)?;
         assert_eq!(
             report
@@ -219,13 +219,13 @@ pub(super) fn authored_suppression_cohort_queries_validate_through_public_sdk_co
             observations: Vec::new(),
         });
         let answer =
-            ryo::query::validate(&super::super::prepared_engine_test::python_310(), request);
+            ryo::query::validate(&super::prepared_engine_test::python_310(), request);
         if let Err(error) = answer {
             failures.push(format!("{code}: {error:?}"));
         }
         if let Some(request) = undeclared {
             if let Ok(accepted) =
-                ryo::query::validate(&super::super::prepared_engine_test::python_310(), request)
+                ryo::query::validate(&super::prepared_engine_test::python_310(), request)
             {
                 drop(accepted);
                 failures.push("RUF100 undeclared root input was accepted".into());
