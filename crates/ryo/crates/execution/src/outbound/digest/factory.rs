@@ -5,6 +5,6 @@
 
 /// The blake3 digest adapter, from what the edge passes.
 #[must_use]
-pub fn blake3() -> impl crate::inbound::use_cases::execution::types::digest::DigestPort {
+pub fn blake3() -> impl crate::outbound::digest::interface::DigestPort {
     super::adapters::blake3::adapter::DigestBlake3Adapter
 }

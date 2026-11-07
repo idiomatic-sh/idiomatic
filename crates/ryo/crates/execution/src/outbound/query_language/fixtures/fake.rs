@@ -2,8 +2,8 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::inbound::use_cases::execution::types::query_language::QueryLanguageError;
-use crate::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
+use crate::outbound::query_language::errors::QueryLanguageError;
+use crate::outbound::query_language::interface::QueryLanguagePort;
 use ryo_relations::domain::relations::types::{Integer, Offset, Relation, Span};
 use ryo_values::domain::descriptions::types::{RelationName, StepCount, ValidateReport};
 use ryo_values::domain::hosted::types::HostedRelation;

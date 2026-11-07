@@ -4,8 +4,8 @@ use super::super::contract::check;
 use super::FactsFake;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::selects;
-use crate::inbound::use_cases::execution::types::facts::FactsError;
-use crate::inbound::use_cases::execution::types::facts::FactsPort as _;
+use crate::outbound::facts::errors::FactsError;
+use crate::outbound::facts::interface::FactsPort as _;
 
 /// What a row of the cases asks of the fake.
 #[derive(Clone, Copy)]

@@ -7,7 +7,7 @@ use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
 
 type Input = (&'static [&'static str], &'static str);
 type Value = usize;
-type Failure = crate::inbound::use_cases::execution::types::matching::MatchingError;
+type Failure = crate::outbound::matching::errors::MatchingError;
 
 /// The rows of what is specific to this adapter.
 const CASES: &[Case<Input, Value, Failure>] = &[Case {

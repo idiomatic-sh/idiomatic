@@ -3,8 +3,8 @@
 use super::adapter::DigestBlake3Adapter;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::digest::fixtures::contract::check;
-use crate::inbound::use_cases::execution::types::digest::DigestBytes;
-use crate::inbound::use_cases::execution::types::digest::DigestPort as _;
+use crate::outbound::digest::types::DigestBytes;
+use crate::outbound::digest::interface::DigestPort as _;
 
 type Input = ();
 type Value = bool;

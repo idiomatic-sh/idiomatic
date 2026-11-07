@@ -3,8 +3,8 @@
 use super::adapter::FactsMemoryAdapter;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::facts::fixtures::contract::check;
-use crate::inbound::use_cases::execution::types::facts::FactsError;
-use crate::inbound::use_cases::execution::types::facts::FactsPort as _;
+use crate::outbound::facts::errors::FactsError;
+use crate::outbound::facts::interface::FactsPort as _;
 use ryo_relations::domain::relations::types::Relation;
 
 /// What a row of the cases asks of the adapter.

@@ -1,6 +1,6 @@
 //! The words the `facts` port's contract and its adapters' tests keep: the proof every kept stretch carries and the words to keep.
 
-use crate::inbound::use_cases::execution::types::facts::WordsToKeep;
+use crate::outbound::facts::types::WordsToKeep;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::stored_facts::types::PackedWords;
 

@@ -5,8 +5,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use rustc_hash::FxHasher;
 
-use crate::inbound::use_cases::execution::types::digest::DigestPort;
-use crate::inbound::use_cases::execution::types::digest::{DigestBytes, DigestWords};
+use crate::outbound::digest::interface::DigestPort;
+use crate::outbound::digest::types::{DigestBytes, DigestWords};
 use ryo_values::domain::stored_facts::types::Digest;
 
 /// What the core's tests stand in for `digest` with: a fast hash, not a strong one.

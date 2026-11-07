@@ -6,9 +6,9 @@ use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Relation;
 
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use crate::inbound::use_cases::execution::types::facts::FactsError;
-use crate::inbound::use_cases::execution::types::facts::FactsPort;
-use crate::inbound::use_cases::execution::types::facts::WordsToKeep;
+use crate::outbound::facts::errors::FactsError;
+use crate::outbound::facts::interface::FactsPort;
+use crate::outbound::facts::types::WordsToKeep;
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::table_words::service::{pack, unpacked};
@@ -172,7 +172,7 @@ fn frontier_proofs_follow_their_bytes(facts: &dyn FactsPort) -> Result<Value, Fa
 fn resident_rows_survive_other_reads_and_word_flushes(
     facts: &dyn FactsPort,
 ) -> Result<Value, FactsError> {
-    use crate::inbound::use_cases::execution::types::facts::ResidentStability;
+    use crate::outbound::facts::types::ResidentStability;
     let mut worker = facts.worker()?;
     if worker.resident_stability() == ResidentStability::Unstable {
         return Ok(1);
@@ -187,7 +187,7 @@ fn resident_rows_survive_other_reads_and_word_flushes(
             }
         }
     }
-    let snapshot = |resident: &dyn crate::inbound::use_cases::execution::types::facts::FactsWorker| -> Result<_, FactsError> {
+    let snapshot = |resident: &dyn crate::outbound::facts::interface::FactsWorker| -> Result<_, FactsError> {
         let rows = resident.rows(Relation::Function)?;
         Ok((
             rows.kinds.to_vec(),

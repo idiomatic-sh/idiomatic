@@ -8,8 +8,8 @@ use ryo_query_language::inbound::use_cases::compile::types::CompileRequest;
 use ryo_query_language::inbound::use_cases::typecheck::interface::TypecheckUseCase;
 use ryo_query_language::inbound::use_cases::typecheck::types::TypecheckRequest;
 
-use crate::inbound::use_cases::execution::types::query_language::QueryLanguageError;
-use crate::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
+use crate::outbound::query_language::errors::QueryLanguageError;
+use crate::outbound::query_language::interface::QueryLanguagePort;
 use ryo_relations::domain::relations::types::{Offset, Span};
 use ryo_values::domain::descriptions::types::ValidateReport;
 use ryo_values::domain::hosted::types as hosted;

@@ -1,6 +1,6 @@
 //! Behavioral contract shared by the injected operator adapter and test fake.
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use crate::inbound::use_cases::execution::types::OperatorsPort;
+use crate::outbound::operators::interface::OperatorsPort;
 use ryo_operators::inbound::use_cases::operators::interface::{
     OperatorAnswer, OperatorCall, PortableOperatorFault,
 };

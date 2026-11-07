@@ -8,8 +8,8 @@ use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::selects;
 use crate::outbound::facts::fixtures::contract::check;
 use crate::outbound::facts::fixtures::words::test_words;
-use crate::inbound::use_cases::execution::types::facts::FactsError;
-use crate::inbound::use_cases::execution::types::facts::FactsPort as _;
+use crate::outbound::facts::errors::FactsError;
+use crate::outbound::facts::interface::FactsPort as _;
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::PackedWords;
 

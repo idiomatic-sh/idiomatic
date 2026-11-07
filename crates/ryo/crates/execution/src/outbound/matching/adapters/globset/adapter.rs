@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use crate::inbound::use_cases::execution::types::matching::{MatchingError, MatchingPort};
+use crate::outbound::matching::{errors::MatchingError, interface::MatchingPort};
 use ryo_matching::inbound::use_cases::matching::errors::MatchingError as SemanticError;
 use ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase;
 use ryo_matching::inbound::use_cases::matching::types::{GlobHits, GlobPattern};
