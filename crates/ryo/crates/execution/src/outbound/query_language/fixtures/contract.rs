@@ -4,6 +4,7 @@ use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::interface::QueryLanguagePort;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::QueryText;
+use ryo_values::domain::program::types::ParsedModules;
 use ryo_values::domain::query_tokens::types::QueryBundle;
 use ryo_values::selects;
 
@@ -47,6 +48,17 @@ pub fn check(adapter: &impl QueryLanguagePort) {
     let subject = |text| adapter.compile(&text, &[], &[]).map(|_| true);
     run(CASES, Word::Succeeds, subject);
     run(CASES, Word::Refuses, subject);
+    // Inside a compilation session the first compile over a catalog answers as `compile` does, and so does a later one handed
+    // the modules the first left parsed.
+    let in_session = |text| {
+        let mut modules = ParsedModules::default();
+        let first = adapter.compile_parsed(&text, &mut modules, &[], &[]).map(|_| true);
+        let again = adapter.compile_parsed(&text, &mut modules, &[], &[]).map(|_| true);
+        assert_eq!(first.is_ok(), again.is_ok(), "a later compile of the session answers as the first");
+        first
+    };
+    run(CASES, Word::Succeeds, in_session);
+    run(CASES, Word::Refuses, in_session);
     let validated = |text| adapter.validate(&text, &[], &[]).map(|_| true);
     run(CASES, Word::Succeeds, validated);
     run(CASES, Word::Refuses, validated);

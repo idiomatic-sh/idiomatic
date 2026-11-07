@@ -30,7 +30,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("returning_key_runs_sort_by_hash_then_row"),
         word: Word::Succeeds,
         input: || Scenario::ReturningRunsSortByHash,
-        expect: Expect::Value(Cow::Borrowed(&[0, 2, 1])),
+        // Keys 1, 2, 1: under `mix` (one `FxHasher` step) key 2 hashes to 0x5173_154e_2b89_abd7, below key 1's
+        // 0xa8b9_8aa7_17c4_d5eb, so the run of key 2 (row 1) comes first, then key 1's rows in row order.
+        expect: Expect::Value(Cow::Borrowed(&[1, 0, 2])),
     },
     Case {
         name: CaseName("a_key_column_the_rows_lack_is_refused"),

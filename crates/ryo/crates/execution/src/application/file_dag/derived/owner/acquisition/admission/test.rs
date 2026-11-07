@@ -227,7 +227,8 @@ fn subject(input: Input) -> Result<(), Failure> {
             else {
                 return Err(OperatingError::WrongOperation);
             };
-            assert_eq!(order.iter().map(|row| row.0).collect::<Vec<_>>(), [1, 0, 2]);
+            // Keys 2, 1, 2: key 2 hashes below key 1 under the derived key hash (one `FxHasher` step), so its rows come first.
+            assert_eq!(order.iter().map(|row| row.0).collect::<Vec<_>>(), [0, 2, 1]);
             Ok(())
         }
     }

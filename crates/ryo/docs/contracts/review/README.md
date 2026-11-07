@@ -77,7 +77,7 @@ enforcement. See "Adversarial pass" and "Architectural enforcement" there.
 ## Known red
 
 Each is named with its reason in `validation.json` (`results`) and in the
-checkpoint 319 integration record of [the matrix](../README.md).
+checkpoint 319 integration record in [the records](../records.md).
 
 - `core_allocation` (core `allocation` test, exit 101, about 1,880 blocks per
   file): a Phase 7 measurement.

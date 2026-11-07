@@ -72,26 +72,35 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
 ///
 /// When the implementation breaks the contract.
 pub fn check(adapter: &impl SyntaxPort) {
+    let bundle_of = |text: &str| QueryBundle {
+        root: QueryDocumentSource {
+            id: QuerySourceId(ROOT_SOURCE.into()),
+            text: text.into(),
+        },
+        modules: Default::default(),
+    };
     let subject = |input| match input {
         Scenario::Query(text) => adapter
             .read(QueryView(text))
             .map(|program| program.steps.len()),
-        Scenario::Bundle(text) => {
-            let bundle = QueryBundle {
-                root: QueryDocumentSource {
-                    id: QuerySourceId(ROOT_SOURCE.into()),
-                    text: text.into(),
-                },
-                modules: Default::default(),
-            };
-            adapter.read_bundle(&bundle).map(|parsed| {
-                assert!(parsed.fragments.is_empty());
-                parsed.root.steps.len()
-            })
-        }
+        Scenario::Bundle(text) => adapter.read_bundle(&bundle_of(text)).map(|parsed| {
+            assert!(parsed.fragments.is_empty());
+            parsed.root.steps.len()
+        }),
     };
     run(CASES, Word::Succeeds, subject);
     run(CASES, Word::Refuses, subject);
+    // The root alone reads as `read_bundle` reads it first: the same steps, and the same refusal located in the root's source.
+    let root = |input| match input {
+        Scenario::Query(text) => adapter
+            .read(QueryView(text))
+            .map(|program| program.steps.len()),
+        Scenario::Bundle(text) => adapter
+            .read_root(&bundle_of(text))
+            .map(|program| program.steps.len()),
+    };
+    run(CASES, Word::Succeeds, root);
+    run(CASES, Word::Refuses, root);
     let grammar = adapter.grammar();
     let blank = grammar
         .0

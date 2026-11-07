@@ -237,14 +237,16 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
             }
             assert_eq!(cells.len() % 3, 0, "no incomplete published row");
             let rows: Vec<_> = cells.chunks_exact(3).map(|row| row.to_vec()).collect();
+            // The key partitions come in key-hash order: under the derived key hash (one `FxHasher` step) key 5 hashes to
+            // 0x4b9f_b543_66d8_2d9a, below key 7's 0x9d12_ca91_8e61_d971, so the partition of key 5 comes first.
             let expected: Vec<Vec<_>> = if populated {
                 [
-                    [7, 9, 10],
-                    [7, 9, 11],
-                    [7, 10, 11],
                     [5, 1, 2],
                     [5, 1, 3],
                     [5, 2, 3],
+                    [7, 9, 10],
+                    [7, 9, 11],
+                    [7, 10, 11],
                 ]
                 .into_iter()
                 .map(|row| row.into_iter().map(|n| Value::Number(Integer(n))).collect())
