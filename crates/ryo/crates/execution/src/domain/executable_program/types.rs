@@ -58,13 +58,13 @@ pub(crate) enum OperandSource {
 }
 #[derive(Clone, Debug)]
 pub(crate) struct Instruction {
-    pub logical: LogicalInstruction,
-    pub producer: RuleIndex,
-    pub operation: Operation,
-    pub contract: Arc<OperatorContract>,
-    pub inputs: Box<[OperandSource]>,
-    pub demand: DemandProgram,
-    pub partition: PartitionRequirement,
+    pub(super) logical: LogicalInstruction,
+    pub(super) producer: RuleIndex,
+    pub(super) operation: Operation,
+    pub(super) contract: Arc<OperatorContract>,
+    pub(super) inputs: Box<[OperandSource]>,
+    pub(super) demand: DemandProgram,
+    pub(super) partition: PartitionRequirement,
 }
 #[derive(Clone, Debug)]
 pub(crate) struct OrderedExistence {
@@ -113,16 +113,16 @@ pub(crate) struct RouteOffers {
 }
 #[derive(Clone, Debug)]
 pub(crate) struct Region {
-    pub id: RegionId,
-    pub producer: RuleIndex,
-    pub needs: Result<Box<[crate::domain::trust::types::RelationRead]>, OperatingError>,
-    pub phase: StepScope,
-    pub instructions: Box<[Instruction]>,
-    pub inputs: Box<[InputSource]>,
-    pub source_partitions: Box<[SourcePartition]>,
-    pub consumers: usize,
-    pub dependencies: Box<[RegionId]>,
-    pub route: Route,
+    pub(super) id: RegionId,
+    pub(super) producer: RuleIndex,
+    pub(super) needs: Result<Box<[crate::domain::trust::types::RelationRead]>, OperatingError>,
+    pub(super) phase: StepScope,
+    pub(super) instructions: Box<[Instruction]>,
+    pub(super) inputs: Box<[InputSource]>,
+    pub(super) source_partitions: Box<[SourcePartition]>,
+    pub(super) consumers: usize,
+    pub(super) dependencies: Box<[RegionId]>,
+    pub(super) route: Route,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Origin {
@@ -254,7 +254,63 @@ pub(crate) trait ProducerPartitions {
     ) -> Result<PartitionRequirement, OperatingError>;
 }
 
+impl Instruction {
+    pub(crate) fn logical(&self) -> LogicalInstruction {
+        self.logical
+    }
+    pub(crate) fn producer(&self) -> RuleIndex {
+        self.producer
+    }
+    pub(crate) fn operation(&self) -> &Operation {
+        &self.operation
+    }
+    pub(crate) fn contract(&self) -> &Arc<OperatorContract> {
+        &self.contract
+    }
+    pub(crate) fn inputs(&self) -> &[OperandSource] {
+        &self.inputs
+    }
+    pub(crate) fn demand(&self) -> &DemandProgram {
+        &self.demand
+    }
+    pub(crate) fn partition(&self) -> PartitionRequirement {
+        self.partition
+    }
+}
+
 impl Region {
+    pub(crate) fn id(&self) -> RegionId {
+        self.id
+    }
+    pub(crate) fn producer(&self) -> RuleIndex {
+        self.producer
+    }
+    pub(crate) fn needs(
+        &self,
+    ) -> &Result<Box<[crate::domain::trust::types::RelationRead]>, OperatingError> {
+        &self.needs
+    }
+    pub(crate) fn phase(&self) -> StepScope {
+        self.phase
+    }
+    pub(crate) fn instructions(&self) -> &[Instruction] {
+        &self.instructions
+    }
+    pub(crate) fn inputs(&self) -> &[InputSource] {
+        &self.inputs
+    }
+    pub(crate) fn source_partitions(&self) -> &[SourcePartition] {
+        &self.source_partitions
+    }
+    pub(crate) fn consumers(&self) -> usize {
+        self.consumers
+    }
+    pub(crate) fn dependencies(&self) -> &[RegionId] {
+        &self.dependencies
+    }
+    pub(crate) fn route(&self) -> &Route {
+        &self.route
+    }
     pub(crate) fn last_operation(&self) -> Result<&Operation, OperatingError> {
         self.instructions
             .last()
