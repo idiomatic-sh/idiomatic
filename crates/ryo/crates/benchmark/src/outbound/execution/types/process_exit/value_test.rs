@@ -12,7 +12,6 @@ enum Child {
     /// A shell run to completion with this script.
     Shell(&'static str),
     /// A child that is stopped, not ended: neither an exit code nor a signal.
-    #[cfg(unix)]
     Stopped,
 }
 type Input = Child;
@@ -46,6 +45,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(ExecutionError::UnobservedExit),
     },
 ];
+/// A status that is a stopped child on unix; no platform without signals has one.
+#[cfg(unix)]
+fn stopped() -> std::process::ExitStatus {
+    use std::os::unix::process::ExitStatusExt as _;
+    std::process::ExitStatus::from_raw(0x137f)
+}
+/// A status that is a stopped child on unix; no platform without signals has one.
+#[cfg(not(unix))]
+fn stopped() -> std::process::ExitStatus {
+    use std::os::windows::process::ExitStatusExt as _;
+    std::process::ExitStatus::from_raw(0)
+}
 #[expect(
     clippy::expect_used,
     reason = "a shell fixture that cannot start must fail the test"
@@ -58,11 +69,7 @@ fn subject(child: Input) -> Result<Value, Failure> {
                 .status()
                 .expect("shell fixture"),
         ),
-        #[cfg(unix)]
-        Child::Stopped => {
-            use std::os::unix::process::ExitStatusExt as _;
-            decode(std::process::ExitStatus::from_raw(0x137f))
-        }
+        Child::Stopped => decode(stopped()),
     }
 }
 #[test]

@@ -6,6 +6,17 @@ use ryo_benchmark_contracts::domain::requests::types::{ApplicabilityPolicy, Quer
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use std::{collections::BTreeMap, path::PathBuf};
 
+/// Create a symbolic link to a file where the platform supports it.
+#[cfg(unix)]
+fn link(target: &std::path::Path, path: &std::path::Path) {
+    std::os::unix::fs::symlink(target, path).expect("symlink fixture");
+}
+/// Create a symbolic link to a file where the platform supports it.
+#[cfg(not(unix))]
+fn link(target: &std::path::Path, path: &std::path::Path) {
+    std::os::windows::fs::symlink_file(target, path).expect("symlink fixture");
+}
+
 fn profile() -> (tempfile::TempDir, PathBuf) {
     let root = tempfile::tempdir().expect("profile root");
     let rules = root.path().join("rules");
@@ -139,14 +150,12 @@ fn worker_refuses_module_paths_outside_the_profile() {
     assert!(error.to_string().contains("unsafe corpus path"));
 }
 
-#[cfg(unix)]
 fn worker_refuses_symlinked_module_paths() {
     let (root, rules) = profile();
     std::fs::create_dir_all(root.path().join("fragments")).expect("module folder");
     let target = root.path().join("outside.ryoql");
     std::fs::write(&target, "module bytes").expect(constants::MODULE_SOURCE);
-    std::os::unix::fs::symlink(&target, root.path().join("fragments/suppress.ryoql"))
-        .expect("symlink fixture");
+    link(&target, &root.path().join("fragments/suppress.ryoql"));
     let registry = BTreeMap::from([(
         QueryModuleName("python/ruff/suppress".to_owned()),
         PathBuf::from("fragments/suppress.ryoql"),
@@ -237,7 +246,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || worker_refuses_module_paths_outside_the_profile as Scenario,
         expect: Expect::Value(()),
     },
-    #[cfg(unix)]
     Case {
         name: CaseName("worker_refuses_symlinked_module_paths"),
         word: Word::Succeeds,

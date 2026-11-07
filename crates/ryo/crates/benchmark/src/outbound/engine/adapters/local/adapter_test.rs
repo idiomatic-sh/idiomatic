@@ -260,7 +260,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || concrete_implementation_answers_the_shared_contract as Scenario,
         expect: Expect::Value(()),
     },
-Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("event_writer_flushes_complete_lines_for_live_diagnostics"),
         word: Word::Succeeds,
