@@ -131,11 +131,10 @@ fn raw_artifacts(receipt: &Path, rows: &[ObservationDocument]) -> Result<RawArti
     let mut invocations = BTreeMap::new();
     let mut directories = BTreeSet::new();
     for row in rows {
-        let Some(artifacts) = row
-            .process_observation
-            .as_ref()
-            .and_then(|process| process.artifacts.as_ref())
-        else {
+        let ryo_benchmark_contracts::domain::documents::types::observation_document::value::ReferenceProcess::Observed(process) = &row.process_observation else {
+            continue;
+        };
+        let ryo_benchmark_contracts::domain::documents::types::observation_document::value::ProcessArtifactsRecord::Attached(artifacts) = &process.artifacts else {
             continue;
         };
         for (raw, filename) in [
