@@ -34,6 +34,7 @@ fn runs(world: &mut Behavior) {
         observations: Vec::new(),
         text: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(text.into())),
         hosted: Vec::new(),
+        modules: ryo_values::domain::program::types::ParsedModules::default(),
     }) {
         Ok(report) => format!("{} steps", report.plan.steps.len()),
         Err(error) => error.to_string(),

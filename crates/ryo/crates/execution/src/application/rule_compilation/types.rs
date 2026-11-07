@@ -11,6 +11,10 @@ pub(crate) struct PlanCache {
     pub plans: std::collections::HashMap<RuleId, CachedPlan>,
     /// The rule ids of `plans`, the one kept longest first, each once.
     pub order: std::collections::VecDeque<RuleId>,
+    /// The module catalog the session parsed last, the one the latest rule over modules named.
+    pub catalog: ryo_values::domain::query_tokens::types::ModuleCatalog,
+    /// The modules of `catalog` as the query language parsed them, so the rules over one catalog parse it once.
+    pub parsed: ryo_values::domain::program::types::ParsedModules,
 }
 
 /// The plan a rule's query compiled to, kept with the query it was compiled from: a rule whose query changed is compiled again.

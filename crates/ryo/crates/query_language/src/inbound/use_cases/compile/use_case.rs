@@ -4,14 +4,13 @@ use std::sync::Arc;
 
 use super::errors::CompileError;
 use super::interface::CompileUseCase;
-use super::service::{invalid, unresolved};
+use super::service::{invalid, syntax_refused, unresolved};
 use super::types::CompileReport;
 use ryo_values::domain::plans::types::QueryRequest;
 use crate::domain::assembling::service::lower_with_observations;
 use crate::domain::linking::errors::LinkingError;
 use crate::domain::validation::service::validate_with_observations;
 use crate::outbound::catalog::interface::CatalogPort;
-use crate::outbound::syntax::errors::SyntaxError;
 use crate::outbound::syntax::interface::SyntaxPort;
 
 /// `compile`, over the syntax and the catalog it calls.
@@ -40,23 +39,26 @@ impl CompileUseCaseImpl {
 
 impl CompileUseCase for CompileUseCaseImpl {
     fn compile(&self, request: QueryRequest) -> Result<CompileReport, CompileError> {
-        let parsed = self
-            .syntax
-            .read_bundle(&request.text)
-            .map_err(|error| match error {
-                SyntaxError::Unreadable { span, message } => CompileError::Syntax { span, message },
-                SyntaxError::Located { origin, message } => CompileError::Located {
-                    error: Box::new(CompileError::Syntax {
-                        span: origin.span,
-                        message,
-                    }),
-                    origin,
-                },
-            })?;
+        // Modules parsed earlier in the session from the same catalog are not parsed again: the root alone is read.
+        let (root, modules) = if request.modules.0.is_empty() {
+            let parsed = self
+                .syntax
+                .read_bundle(&request.text)
+                .map_err(syntax_refused)?;
+            (
+                parsed.root,
+                ryo_values::domain::program::types::ParsedModules(Arc::new(parsed.fragments)),
+            )
+        } else {
+            (
+                self.syntax.read_root(&request.text).map_err(syntax_refused)?,
+                request.modules.clone(),
+            )
+        };
         let program = crate::domain::expanding::service::link_with_observations(
             &request.text,
-            parsed.root,
-            &parsed.fragments,
+            root,
+            &modules.0,
             &request.observations,
         )
         .map_err(|error| match error {
@@ -96,6 +98,6 @@ impl CompileUseCase for CompileUseCaseImpl {
             &request.observations,
         )
         .map_err(unresolved)?;
-        Ok(CompileReport { plan })
+        Ok(CompileReport { plan, modules })
     }
 }

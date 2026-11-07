@@ -72,6 +72,7 @@ fn fragment_contract_compiles_against_real_relation_columns() {
             observations: Vec::new(),
             text: root,
             hosted: Vec::new(),
+            modules: ryo_values::domain::program::types::ParsedModules::default(),
         })
         .expect("the fragment input and output contracts match syntax-tree.id");
     assert_eq!(report.plan.emit.headings.len(), 1);
@@ -106,6 +107,7 @@ fn fragment_relation_contracts_reject_input_and_output_shape_mismatches() {
                 observations: Vec::new(),
                 text: bundle,
                 hosted: Vec::new(),
+                modules: ryo_values::domain::program::types::ParsedModules::default(),
             })
             .expect_err("a mismatched relation signature is refused");
         assert!(
@@ -128,6 +130,7 @@ fn fragment_relation_contracts_reject_input_and_output_shape_mismatches() {
             observations: Vec::new(),
             text: invalid_body,
             hosted: Vec::new(),
+            modules: ryo_values::domain::program::types::ParsedModules::default(),
         })
         .expect_err("module body name errors retain their source location");
     assert!(
@@ -159,6 +162,7 @@ fn nested_fragment_validation_error_keeps_the_inner_source_and_import_trace() {
             observations: Vec::new(),
             text: bundle,
             hosted: Vec::new(),
+            modules: ryo_values::domain::program::types::ParsedModules::default(),
         })
         .expect_err("the inner fragment reads an unknown column");
     assert!(matches!(
@@ -234,6 +238,7 @@ fn fragment_calls_cannot_capture_caller_or_nested_private_steps() {
                 observations: Vec::new(),
                 text: bundle,
                 hosted: Vec::new(),
+                modules: ryo_values::domain::program::types::ParsedModules::default(),
             })
             .expect_err("caller and nested private step spellings are not visible");
         assert!(
@@ -263,6 +268,7 @@ fn a_fused_fragment_comparison_keeps_its_original_source_span() {
             observations: Vec::new(),
             text: bundle,
             hosted: Vec::new(),
+            modules: ryo_values::domain::program::types::ParsedModules::default(),
         })
         .expect("the filter lowers to a plan")
         .plan;

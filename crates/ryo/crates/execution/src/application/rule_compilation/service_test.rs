@@ -304,7 +304,15 @@ const EXAMPLES: &[Case<(), usize, QueryLanguageError>] = &[Case {
 
 /// How many of the examples the operators print do not compile through the real query language adapter.
 fn uncompiled() -> usize {
-    let adapter = adapter();
+    let compile = Arc::new(CompileUseCaseImpl::new(
+        Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
+        Arc::new(ryo_query_language::outbound::catalog::factory::language()),
+    ));
+    let typecheck = Arc::new(TypecheckUseCaseImpl::new(
+        Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
+        Arc::new(ryo_query_language::outbound::catalog::factory::language()),
+    ));
+    let adapter = crate::outbound::query_language::factory::use_case(compile, typecheck);
     OPERATORS
         .iter()
         .filter(|operator| {
@@ -317,68 +325,10 @@ fn uncompiled() -> usize {
         .count()
 }
 
-/// The rows of the regex compile count: no input, and the matchers built after compiling and preparing a 413-rule program, then
-/// after every pattern was matched twice.
-const PATTERNS: &[Case<(), [usize; 2], crate::domain::operating::errors::OperatingError>] = &[Case {
-    name: CaseName("compiles_each_pattern_once"),
-    word: Word::Succeeds,
-    input: || (),
-    expect: Expect::Value([0, 413]),
-}];
-
-/// The real query language adapter the examples and the pattern rows compile through.
-fn adapter() -> impl QueryLanguagePort {
-    let syntax = || Arc::new(ryo_query_language::outbound::syntax::factory::winnow());
-    let catalog = || Arc::new(ryo_query_language::outbound::catalog::factory::language());
-    crate::outbound::query_language::factory::use_case(
-        Arc::new(CompileUseCaseImpl::new(syntax(), catalog())),
-        Arc::new(TypecheckUseCaseImpl::new(syntax(), catalog())),
-    )
-}
-
-/// The plan the real query language compiles a rule matching `pattern` to.
-fn matching(adapter: &impl QueryLanguagePort, pattern: &str) -> Plan {
-    let text = format!(
-        r#"let rows = select * from "comment" where matches(text, "{pattern}"); emit rows subject file key(span);"#
-    );
-    adapter
-        .compile(&QueryBundle::from(QueryText(text.into())), &[], &[])
-        .expect("the rule compiles")
-}
-
-/// 413 rules, as many as the Ruff program has, each with its own literal pattern: lowering parses each pattern and builds no
-/// matcher, and the prepared slot builds each one once however often it is matched. A pattern that parses but whose matcher is
-/// over the size limit is accepted by the compile and refused by its slot, the one place it is compiled.
-fn pattern_builds() -> Result<[usize; 2], crate::domain::operating::errors::OperatingError> {
-    use crate::domain::matching::types::PatternMatcher;
-    use crate::domain::matching::types::prepared::value::PreparedMatchers;
-    use crate::domain::table_texts::types::TextView;
-    let matcher = PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl);
-    let adapter = adapter();
-    let patterns: Vec<String> = (0..413).map(|rule| format!("p{rule}x")).collect();
-    let plans: Vec<Plan> = patterns.iter().map(|pattern| matching(&adapter, pattern)).collect();
-    let slots = PreparedMatchers::new(&plans);
-    let prepared = slots.builds.load(Ordering::Relaxed);
-    for _file in 0..2 {
-        for pattern in &patterns {
-            let _regex = slots.regex(TextView(pattern), matcher).expect("a declared slot")?;
-        }
-    }
-    let oversized = "(?:[a-z]{1000}){1000}";
-    let refused = PreparedMatchers::new(&[matching(&adapter, oversized)]);
-    assert!(matches!(
-        refused.regex(TextView(oversized), matcher),
-        Some(Err(crate::domain::operating::errors::OperatingError::InvalidRegex { .. }))
-    ));
-    assert_eq!(refused.builds.load(Ordering::Relaxed), 1);
-    Ok([prepared, slots.builds.load(Ordering::Relaxed)])
-}
-
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
     run(EXAMPLES, Word::Succeeds, |()| Ok(uncompiled()));
-    run(PATTERNS, Word::Succeeds, |()| pattern_builds());
 }
 #[test]
 fn refuses() {

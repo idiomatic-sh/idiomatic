@@ -356,6 +356,7 @@ fn subject(given: fn() -> Given) -> Result<Value, Failure> {
                 given.text.into(),
             )),
             hosted: given.hosted,
+            modules: ryo_values::domain::program::types::ParsedModules::default(),
         })
         .map(|report| report.relations.len())
 }

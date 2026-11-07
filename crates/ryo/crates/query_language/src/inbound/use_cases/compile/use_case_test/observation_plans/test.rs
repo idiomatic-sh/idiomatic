@@ -85,6 +85,7 @@ fn raw_tree_file_joins_keep_single_and_and_or_filters_outside_the_join() {
                     observations: Vec::new(),
                     text: QueryBundle::from(QueryText(text.into())),
                     hosted: Vec::new(),
+                    modules: ryo_values::domain::program::types::ParsedModules::default(),
                 })
                 .expect("both equivalent predicate spellings compile");
             let mut joins = 0_usize;
@@ -117,6 +118,7 @@ fn authored_observation_keeps_independent_root_through_optimization() {
         .compile(QueryRequest {
             observations: Vec::new(),
             hosted: Vec::new(),
+            modules: ryo_values::domain::program::types::ParsedModules::default(),
             text: QueryBundle::from(QueryText(
                 "let diagnostic = select file, span from \"function\"; \
              let usage = select file, id from \"function\"; \
@@ -157,6 +159,7 @@ fn bound_observation_preserves_declared_schema_and_phase() {
     let compiler = compiler_over_the_language();
     let report = compiler.compile(QueryRequest {
         hosted: Vec::new(),
+        modules: ryo_values::domain::program::types::ParsedModules::default(),
         observations: vec![BoundObservationInput {
             name: ObservationBindingName("published".into()),
             columns: vec![ObservationColumn { name: ObservationColumnName("file".into()), kind: CellKind::File }, ObservationColumn { name: ObservationColumnName("span".into()), kind: CellKind::Span }],

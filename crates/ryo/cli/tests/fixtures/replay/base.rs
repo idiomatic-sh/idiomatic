@@ -129,6 +129,7 @@ pub(crate) fn compile(query: &str) -> Result<Vec<PlanParameter>, String> {
                 query.into(),
             )),
             hosted: Vec::new(),
+            modules: ryo_values::domain::program::types::ParsedModules::default(),
         },
     )
     .map(|report| report.plan.parameters)

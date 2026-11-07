@@ -88,20 +88,7 @@ impl SyntaxPort for SyntaxWinnowAdapter {
     ) -> Result<ryo_values::domain::program::types::ParsedQueryBundle, SyntaxError> {
         use ryo_values::domain::program::types::ParsedQueryBundle;
         use ryo_values::domain::query_tokens::types::QueryOrigin;
-        let root_id = bundle.root.id.clone();
-        let root = self
-            .read(QueryView(&bundle.root.text))
-            .map_err(|error| match error {
-                SyntaxError::Unreadable { span, message } => SyntaxError::Located {
-                    origin: QueryOrigin {
-                        source_id: root_id.clone(),
-                        span,
-                        trace: Vec::new(),
-                    },
-                    message,
-                },
-                SyntaxError::Located { .. } => error,
-            })?;
+        let root = self.read_root(bundle)?;
         let mut fragments = std::collections::BTreeMap::new();
         for (source_id, source) in bundle.modules.iter() {
             let fragment = fragment_program
@@ -127,6 +114,25 @@ impl SyntaxPort for SyntaxWinnowAdapter {
             let _previous_fragment = fragments.insert(source_id.clone(), fragment);
         }
         Ok(ParsedQueryBundle { root, fragments })
+    }
+
+    fn read_root(
+        &self,
+        bundle: &ryo_values::domain::query_tokens::types::QueryBundle,
+    ) -> Result<WrittenProgram, SyntaxError> {
+        use ryo_values::domain::query_tokens::types::QueryOrigin;
+        self.read(QueryView(&bundle.root.text))
+            .map_err(|error| match error {
+                SyntaxError::Unreadable { span, message } => SyntaxError::Located {
+                    origin: QueryOrigin {
+                        source_id: bundle.root.id.clone(),
+                        span,
+                        trace: Vec::new(),
+                    },
+                    message,
+                },
+                SyntaxError::Located { .. } => error,
+            })
     }
 
     fn grammar(&self) -> Grammar {

@@ -167,6 +167,7 @@ fn compile_twice(given: Given) -> Result<Value, Failure> {
             given.text.into(),
         )),
         hosted: given.hosted,
+        modules: ryo_values::domain::program::types::ParsedModules::default(),
     };
     let first = use_case.compile(request.clone())?;
     let second = use_case.compile(request)?;
