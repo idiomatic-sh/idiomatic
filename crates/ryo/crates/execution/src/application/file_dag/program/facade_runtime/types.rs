@@ -122,6 +122,8 @@ pub(crate) struct PublicationScope {
         >,
     >,
     pub(super) symbols: std::cell::OnceCell<ryo_language::domain::symbols::types::TransportPermit>,
+    /// The scope's frontier decodes: the packed words of one population are decoded once.
+    pub(super) decodes: crate::application::file_dag::frontiers::types::FrontierDecodes,
 }
 impl PublicationScope {
     pub(crate) fn readiness_counts(&self) -> crate::domain::readiness::types::ReadinessCounts {
@@ -134,6 +136,12 @@ impl PublicationScope {
     #[cfg(test)]
     pub(crate) fn walk_counts(&self) -> crate::domain::shared_walk::types::WalkCounts {
         self.walk.counts()
+    }
+
+    /// How many packed frontiers the scope decoded.
+    #[cfg(test)]
+    pub(crate) fn frontier_decodes(&self) -> crate::application::file_dag::frontiers::types::DecodeCount {
+        self.decodes.count()
     }
 
     pub(crate) fn state_counts(&self) -> crate::domain::readiness::types::InvocationStateCounts {
