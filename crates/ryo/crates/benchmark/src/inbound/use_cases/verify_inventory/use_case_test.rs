@@ -1,8 +1,6 @@
 //! A registration lists every default; a missing implementation fails its row and an empty list is refused.
-use super::{
-    interface::VerifyInventoryUseCase as _, types::InventoryVerdict,
-    use_case::VerifyInventoryUseCaseImpl,
-};
+use super::{interface::VerifyInventoryUseCase as _, use_case::VerifyInventoryUseCaseImpl};
+use crate::domain::suite::types::inventory::value::InventoryVerdict;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::{execution::fixtures::fake::ExecutionFake, inventory::factory::local};
 use std::sync::Arc;

@@ -1,5 +1,5 @@
 //! One complete inventory operation, with strict all-rule success.
-use super::types::InventoryVerdict;
+use crate::domain::suite::types::inventory::value::InventoryVerdict;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use std::path::Path;
 /// Verify all declared defaults and preserve their outcomes.

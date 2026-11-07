@@ -15,16 +15,13 @@ use super::super::{
     types::ReceiptCounts,
 };
 use super::{counts, process_discrepancy, process_observation};
-use crate::{
-    cases::{Case, CaseName, Expect, Word, run},
-    domain::{
-        process_receipts::errors::ProcessReceiptsError, registered_inputs::types::RefusalText,
-    },
-    outbound::{
-        inventory::types::case_document::ExpectationContract,
-        suite::types::process::ProcessFailureWire,
-    },
-};
+use crate::cases::Case;
+use crate::cases::CaseName;
+use crate::cases::Expect;
+use crate::cases::Word;
+use crate::cases::run;
+use crate::domain::process_receipts::errors::ProcessReceiptsError;
+use crate::outbound::inventory::types::case_document::ExpectationContract;
 
 type Input = Documents;
 type Value = ReceiptCounts;
@@ -48,19 +45,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(InventoryReceiptsError::StaleDiscrepancyEvidence),
     },
     Case {
-        name: CaseName(
-            "a registered process failure without a positive exit is refused with its own words",
-        ),
+        name: CaseName("a registered process failure without an observed process is refused"),
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::passing, |d| {
                 d.0[0].reference_discrepancy = Some(ReferenceDiscrepancy {
-                    process: Some(ProcessFailureWire::ProcessFailure {
-                        exit: 0,
-                        stdout: Vec::new(),
-                        stderr: Vec::new(),
-                        observations: Vec::new(),
-                    }),
                     ..process_discrepancy()
                 });
                 for row in &mut d.1 {
@@ -70,7 +59,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             })
         },
         expect: Expect::Error(InventoryReceiptsError::Process(
-            ProcessReceiptsError::Refused(RefusalText(String::new())),
+            ProcessReceiptsError::ReferenceVariantDiffers,
         )),
     },
     Case {

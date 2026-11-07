@@ -6,9 +6,6 @@ use crate::outbound::inventory::types::{
     ArgumentText, CompleteInvocation, InvocationDocument, NormalizedSettings, Pin, Signal,
     case_document::{CaseDocument, Comparison},
 };
-use crate::outbound::suite::types::process::{
-    OutputPartWire, ProcessArtifactWire, ProcessFailureWire, ProcessObservationWire,
-};
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::documents::types::{
     observation_document::{
@@ -23,7 +20,10 @@ use ryo_benchmark_contracts::domain::documents::types::{
     },
 };
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
-use ryo_benchmark_contracts::domain::process::types::ProcessFailure;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
+use ryo_benchmark_contracts::domain::process::types::{
+    OutputPart, OutputText, ProcessArtifact, ProcessFailure, ProcessObservation as ProcessCapture,
+};
 use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 use sha2::Digest as _;
 use std::collections::BTreeMap;
@@ -63,14 +63,14 @@ fn bytes_digest(bytes: &[u8]) -> Sha256Text {
     Sha256Text(format!("{:x}", sha2::Sha256::digest(bytes)))
 }
 
-fn archived(attempt: usize) -> ProcessObservationWire {
-    let artifact = |file: &str, letter: char| ProcessArtifactWire {
+fn archived(attempt: usize) -> ProcessCapture {
+    let artifact = |file: &str, letter: char| ProcessArtifact {
         path: format!("archive-{attempt}/{file}").into(),
-        sha256: repeated(letter),
+        sha256: ArtifactDigest(repeated(letter)),
     };
     let letters = ['1', '2', '3', '4', '5', '6'];
-    ProcessObservationWire {
-        executable_sha256: repeated('a'),
+    ProcessCapture {
+        executable_sha256: ArtifactDigest(repeated('a')),
         invocation: artifact("invocation.json", letters[attempt * 3]),
         stdout: artifact("stdout.bin", letters[attempt * 3 + 1]),
         stderr: artifact("stderr.bin", letters[attempt * 3 + 2]),
@@ -78,15 +78,11 @@ fn archived(attempt: usize) -> ProcessObservationWire {
 }
 
 /// The registered completed failure: literal streams and two archived captures of one binary.
-pub(crate) fn wire() -> ProcessFailureWire {
-    ProcessFailureWire::ProcessFailure {
-        exit: 2,
-        stdout: vec![OutputPartWire::Literal {
-            value: "payload".into(),
-        }],
-        stderr: vec![OutputPartWire::Literal {
-            value: "issue".into(),
-        }],
+pub(crate) fn failure() -> ProcessFailure {
+    ProcessFailure {
+        exit: ProcessExitCode(2),
+        stdout: vec![OutputPart::Literal(OutputText("payload".into()))],
+        stderr: vec![OutputPart::Literal(OutputText("issue".into()))],
         observations: vec![archived(0), archived(1)],
     }
 }
@@ -100,7 +96,7 @@ fn pointer(location: &str, bytes: &[u8]) -> ArtifactPointer {
 
 /// The documents of a reference process receipt that validates.
 pub(crate) fn passing() -> Documents {
-    let process = ProcessFailure::try_from(wire()).expect("registered process failure");
+    let process = failure();
     let key = crate::domain::process_output::service::observation_key(
         &crate::domain::process_output::types::ReceiptKeyParts {
             rule: crate::domain::canonical_text::types::Label::from("A001"),
@@ -139,7 +135,7 @@ pub(crate) fn passing() -> Documents {
             reference_expected: ReferenceExpectation::Underivable,
             intended_expected: Vec::new(),
             reason: ReasonText("independent semantic authority".into()),
-            process: Some(wire()),
+            process: Some(failure()),
         }),
         ..registered_case("A001", "matched")
     };

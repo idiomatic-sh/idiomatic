@@ -27,7 +27,7 @@ pub(crate) fn closure<'a>(
 pub(crate) fn project_profile(
     declarations: &RuleObservationDeclarations,
     selected: &[ryo::linter::RuleId],
-    policy: ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy,
+    policy: ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy,
 ) -> RuleObservationDeclarations {
     if !selected.iter().any(|id| declarations.contains_key(id)) {
         return RuleObservationDeclarations::default();
@@ -48,7 +48,7 @@ pub(crate) fn project_profile(
         };
         let mut bindings = authored.clone();
         if policy
-            == ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Selected
+            == ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Selected
         {
             for binding in &mut bindings {
                 binding.producers.retain(|producer| match producer {

@@ -11,9 +11,10 @@ use ryo_benchmark_contracts::domain::requests::types::{
     ParserConfigurationName, ParserSelection, ProviderSelection, RuleContextPreparation,
     RunRequest, SearchRoots, StagedSources,
 };
+use ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy;
 use ryo_benchmark_contracts::domain::workloads::types::{
     CaseComparison, DiscrepancyBasis, DiscrepancyReason, FileObservation,
-    MetadataDigestDeclaration, ObservationSelectionPolicy, PreparedCase, PreparedReferenceBehavior,
+    MetadataDigestDeclaration, PreparedCase, PreparedReferenceBehavior,
     PreparedReferenceDiscrepancy, ReferenceDiscrepancyIdentity, RuleContextProfile, Tool,
     discrepancy_evidence::value::{
         DiscrepancyEvidence, DiscrepancyEvidenceKind, LanguageVersion, ParserTarget, Rationale,

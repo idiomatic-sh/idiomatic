@@ -1,7 +1,6 @@
 //! Why a reference process receipt is refused.
 use crate::domain::process_failure::errors::ProcessFailureError;
-use crate::domain::registered_inputs::types::RefusalText;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use crate::domain::process_output::errors::ProcessOutputError;
 
 /// A refused reference process receipt: each refusal of the registered and captured documents is its own variant.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -90,21 +89,9 @@ pub(crate) enum ProcessReceiptsError {
     /// Refuses: the process failure archive is not reproducible.
     #[error(transparent)]
     Archive(#[from] ProcessFailureError),
-    /// A library or a neighbour refused with these words.
-    #[error("{}", .0.0)]
-    Refused(RefusalText),
-}
-
-impl From<String> for ProcessReceiptsError {
-    fn from(text: String) -> Self {
-        Self::Refused(RefusalText(text))
-    }
-}
-
-impl From<ReportsError> for ProcessReceiptsError {
-    fn from(error: ReportsError) -> Self {
-        Self::Refused(RefusalText(error.to_string()))
-    }
+    /// The registered output templates cannot be expanded from the receipt's root.
+    #[error(transparent)]
+    Output(#[from] ProcessOutputError),
 }
 
 impl From<ProcessReceiptsError> for String {

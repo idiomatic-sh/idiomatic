@@ -1,6 +1,6 @@
 //! Thin composition of external registration with the shared inventory loop.
 use super::interface::VerifyInventoryUseCase;
-use super::types::InventoryVerdict;
+use crate::domain::suite::types::inventory::value::InventoryVerdict;
 use crate::application::inventory_verification::service as inventory;
 use crate::outbound::execution::interface::ExecutionPort;
 use crate::outbound::inventory::interface::InventoryPort;

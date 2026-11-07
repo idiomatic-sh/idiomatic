@@ -72,7 +72,7 @@ fn inventory(implemented: &[&str], missing: &[&str]) -> Input {
 fn tool() -> Tool {
     Tool {
         rule_observation_selection:
-            ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
+            ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
         supporting_rules: vec![],
         rule_observations: Default::default(),
         rule_context: RuleContextProfile::Undeclared,

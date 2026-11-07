@@ -15,12 +15,11 @@ use super::{
 };
 use crate::{
     cases::{Case, CaseName, Expect, Word, run},
-    domain::{process_failure::errors::ProcessFailureError, registered_inputs::types::RefusalText},
-    outbound::{
-        inventory::types::{
-            FailedInvocation, InvocationDocument, Pin, Signal, case_document::Comparison,
-        },
-        suite::types::process::ProcessFailureWire,
+    domain::{
+        process_failure::errors::ProcessFailureError, process_output::errors::ProcessOutputError,
+    },
+    outbound::inventory::types::{
+        FailedInvocation, InvocationDocument, Pin, Signal, case_document::Comparison,
     },
 };
 
@@ -77,25 +76,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(ProcessReceiptsError::ProcessRegistrationMissing),
     },
     Case {
-        name: CaseName(
-            "a registered failure without a positive exit is refused with its own words",
-        ),
+        name: CaseName("output templates that cannot expand from a relative root are refused"),
         word: Word::Refuses,
         input: || {
             edited(passing, |d| {
-                if let Some(ProcessFailureWire::ProcessFailure { exit, .. }) = d
-                    .case
-                    .reference_discrepancy
-                    .as_mut()
-                    .unwrap()
-                    .process
-                    .as_mut()
-                {
-                    *exit = 0;
+                let relative = PathText("relative".into());
+                d.row.actual_request_root = Some(relative.clone());
+                if let Some(captured) = d.row.process_observation.as_mut() {
+                    captured.actual_request_root = relative;
                 }
             })
         },
-        expect: Expect::Error(ProcessReceiptsError::Refused(RefusalText(String::new()))),
+        expect: Expect::Error(ProcessReceiptsError::Output(
+            ProcessOutputError::RootNotAbsoluteUtf8,
+        )),
     },
     Case {
         name: CaseName("a reference side without an observed process is refused"),
@@ -263,7 +257,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             edited(passing, |d| {
-                if let Some(ProcessFailureWire::ProcessFailure { observations, .. }) = d
+                if let Some(process) = d
                     .case
                     .reference_discrepancy
                     .as_mut()
@@ -271,7 +265,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     .process
                     .as_mut()
                 {
-                    observations[1] = observations[0].clone();
+                    process.observations[1] = process.observations[0].clone();
                 }
             })
         },
@@ -281,16 +275,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-/// A refusal in a library's words is one kind of refusal, whatever the words.
-fn words_dropped(error: Failure) -> Failure {
-    match error {
-        ProcessReceiptsError::Refused(_) => {
-            ProcessReceiptsError::Refused(RefusalText(String::new()))
-        }
-        other => other,
-    }
-}
-
 fn subject(input: Input) -> Result<Value, Failure> {
     validate(
         &input.case,
@@ -299,7 +283,6 @@ fn subject(input: Input) -> Result<Value, Failure> {
         &input.invocations,
     )
     .map(|()| Outcome::Accepted)
-    .map_err(words_dropped)
 }
 
 #[test]

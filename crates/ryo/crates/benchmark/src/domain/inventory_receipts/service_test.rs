@@ -16,20 +16,22 @@ use ryo_benchmark_contracts::domain::{
     workloads::types::DiscrepancyBasis,
 };
 
+use ryo_benchmark_contracts::domain::{
+    measurements::types::ProcessExitCode, process::types::ProcessFailure,
+};
+
 use super::{
     errors::InventoryReceiptsError,
     fixtures::{self, Documents},
     service::validate,
     types::{ReceiptCounts, Tally},
 };
-use crate::{
-    cases::{Case, CaseName, Expect, Word, run},
-    domain::{
-        inventory_comparison::errors::InventoryComparisonError,
-        process_receipts::errors::ProcessReceiptsError, registered_inputs::types::RefusalText,
-    },
-    outbound::suite::types::process::ProcessFailureWire,
-};
+use crate::cases::Case;
+use crate::cases::CaseName;
+use crate::cases::Expect;
+use crate::cases::Word;
+use crate::cases::run;
+use crate::domain::inventory_comparison::errors::InventoryComparisonError;
 
 type Input = Documents;
 type Value = ReceiptCounts;
@@ -65,8 +67,8 @@ fn process_discrepancy() -> ReferenceDiscrepancy {
         reference_expected: ReferenceExpectation::Underivable,
         intended_expected: Vec::new(),
         reason: ReasonText("process failure".into()),
-        process: Some(ProcessFailureWire::ProcessFailure {
-            exit: 1,
+        process: Some(ProcessFailure {
+            exit: ProcessExitCode(1),
             stdout: Vec::new(),
             stderr: Vec::new(),
             observations: Vec::new(),
@@ -253,20 +255,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-/// A refusal in a library's words is one kind of refusal, whatever the words.
-fn words_dropped(error: Failure) -> Failure {
-    match error {
-        InventoryReceiptsError::Process(ProcessReceiptsError::Refused(_)) => {
-            InventoryReceiptsError::Process(ProcessReceiptsError::Refused(RefusalText(
-                String::new(),
-            )))
-        }
-        other => other,
-    }
-}
-
 fn subject((cases, rows): Input) -> Result<Value, Failure> {
-    validate(&cases, &rows).map_err(words_dropped)
+    validate(&cases, &rows)
 }
 
 #[test]

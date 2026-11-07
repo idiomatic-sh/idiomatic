@@ -6,9 +6,9 @@
 use cucumber::then;
 use ryo_benchmark::{
     inbound::use_cases::verify_inventory::{
-        interface::VerifyInventoryUseCase as _, types::InventoryVerdict,
-        use_case::VerifyInventoryUseCaseImpl,
+        interface::VerifyInventoryUseCase as _, use_case::VerifyInventoryUseCaseImpl,
     },
+    domain::suite::types::inventory::value::InventoryVerdict,
     outbound::{execution::fixtures::fake::ExecutionFake, inventory::factory::local},
 };
 use std::sync::Arc;

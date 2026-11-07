@@ -192,12 +192,11 @@ pub(crate) fn validate(
     artifacts: &BTreeMap<PathBuf, CapturedBytes>,
     invocations: &BTreeMap<PathBuf, InvocationDocument>,
 ) -> Result<(), Failure> {
-    let wire = case
+    let process = case
         .reference_discrepancy
         .as_ref()
         .and_then(|certificate| certificate.process.clone())
         .ok_or(Failure::ProcessRegistrationMissing)?;
-    let process = ProcessFailure::try_from(wire)?;
     let (Some(captured), Some(proof)) = (
         reference.process_observation.as_ref(),
         reference.discrepancy_validation.as_ref(),
@@ -228,12 +227,16 @@ pub(crate) fn validate(
         .iter()
         .map(|file| PathBuf::from(&file.0))
         .collect::<Vec<_>>();
-    let stdout =
-        crate::domain::process_output::service::expand(&process.stdout, Path::new(&root.0), &files)
-            .map_err(|error| error.to_string())?;
-    let stderr =
-        crate::domain::process_output::service::expand(&process.stderr, Path::new(&root.0), &files)
-            .map_err(|error| error.to_string())?;
+    let stdout = crate::domain::process_output::service::expand(
+        &process.stdout,
+        Path::new(&root.0),
+        &files,
+    )?;
+    let stderr = crate::domain::process_output::service::expand(
+        &process.stderr,
+        Path::new(&root.0),
+        &files,
+    )?;
     let expected_key = crate::domain::process_output::service::observation_key(
         &crate::domain::process_output::types::ReceiptKeyParts {
             rule: crate::domain::canonical_text::types::Label::from(case.rule.0.as_str()),
