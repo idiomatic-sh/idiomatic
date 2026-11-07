@@ -1,13 +1,15 @@
 //! A reference that changes a declared file mode stops the second candidate before it prepares.
-use super::super::shard::fixtures::{Refusal, Shape, category, history_len, prepared, succeeding};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::inbound::use_cases::verify_cases::service::verify_prepared_shard;
+use crate::inbound::use_cases::verify_cases::fixtures::shard::{
+    Refusal, Shape, category, history_len, prepared, set_mode, staged_case, succeeding, verify_shard,
+};
 use crate::outbound::linter::{fixtures::fake::LinterFake, interface::LinterPort};
+use crate::outbound::receipts::fixtures::fake::ReceiptsFake;
 use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
 use ryo_benchmark_contracts::domain::measurements::types::{Invocation, ProcessOutput};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
-use ryo_benchmark_contracts::domain::requests::types::{CaseSelection, FileMetadataDeclaration, RunRequest};
+use ryo_benchmark_contracts::domain::requests::types::{FileMetadataDeclaration, RunRequest};
 use ryo_benchmark_contracts::domain::workloads::types::FileObservation;
 use std::path::Path;
 
@@ -83,18 +85,6 @@ fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
 
-/// Sets the permission bits of `path`; a file system with no modes has none to set.
-#[cfg(unix)]
-fn set_mode(path: &Path, mode: u32) {
-    std::fs::set_permissions(
-        path,
-        <std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(mode),
-    )
-    .unwrap();
-}
-#[cfg(not(unix))]
-fn set_mode(_path: &Path, _mode: u32) {}
-
 /// A reference that, on its second preparation, changes the mode of the case file.
 struct DriftingReference {
     calls: std::cell::Cell<usize>,
@@ -125,12 +115,7 @@ impl LinterPort for DriftingReference {
 
 fn mode_drift(scenario: Scenario) -> Result<Value, Error> {
     let Scenario { declared, drift } = scenario;
-    let root = tempfile::tempdir().unwrap();
-    std::fs::write(root.path().join("case.py"), "same bytes").unwrap();
-    set_mode(
-        &root.path().join("case.py"),
-        if declared == Declared::Executable { 0o744 } else { 0o644 },
-    );
+    let root = staged_case(if declared == Declared::Executable { 0o744 } else { 0o644 });
     let (mut suite, _) = prepared(Shape::Agreement);
     let profile = suite.profile.as_mut().unwrap();
     profile.defaults.truncate(1);
@@ -152,16 +137,13 @@ fn mode_drift(scenario: Scenario) -> Result<Value, Error> {
         drift,
     };
     let execution = succeeding();
-    let result = verify_prepared_shard(
+    let result = verify_shard(
         &suite,
-        &crate::outbound::context::factory::local(),
+        &ReceiptsFake::default(),
         &reference,
         &LinterFake::default(),
         &execution,
-        &crate::outbound::inventory::factory::local(),
         Path::new("rules"),
-        suite.prepared.clone(),
-        CaseSelection::default(),
     );
     assert_eq!(reference.calls.get(), 2);
     if drift == Drift::Changes {
@@ -173,5 +155,5 @@ fn mode_drift(scenario: Scenario) -> Result<Value, Error> {
     } else {
         assert_eq!(history_len(&execution), Some(4));
     }
-    result.map(|count| count.0)
+    result
 }

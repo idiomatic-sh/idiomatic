@@ -1,18 +1,24 @@
 //! Exercise the actual verifier orchestration and its fail-closed observer gate.
-use super::super::super::service::verify_prepared_shard;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::inbound::use_cases::verify_reference_cases::use_case_test::process_capture::fixtures::Fixture;
+use crate::domain::inventory_receipts::types::{ReceiptCounts, Tally};
+use crate::inbound::use_cases::verify_cases::fixtures::{
+    process_capture::Fixture,
+    shard::{Refusal, category, forget_receipts, verify_shard},
+};
+use crate::outbound::execution::fixtures::fake::ExecutionFake;
 use crate::outbound::execution::interface::ExecutionPort;
+use crate::outbound::linter::fixtures::fake::LinterFake;
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::measurements::types::{ExecutionProfile, Invocation, ProcessOutput};
+use ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior;
 use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::{
-    DiscrepancyEvidence, DiscrepancyEvidenceKind,
+    DiscrepancyEvidence, DiscrepancyEvidenceKind, LanguageVersion, ParserTarget, Rationale,
 };
 
 const ORCHESTRATION: &str = "orchestration";
 const SEMANTIC_AUTHORITY_TXT: &str = "semantic-authority.txt";
 const LETTER: &str = "f";
-const TOY_LANGUAGE: &str = "toy-v1";
+const TOY_LANGUAGE: &str = "toy";
 const TARGET_CONFIGURATION: &str = "python3.10";
 const VERSION_RATIONALE: &str = "toy fixture contract independent of process output";
 const NO_DEADLINE: &str = "no-deadline";
@@ -25,16 +31,19 @@ enum Outcome {
 }
 
 type Input = ();
+type Value = Outcome;
 type Failure = ();
 
-const CASES: &[Case<Input, Outcome, Failure>] = &[Case {
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("the production verifier rejects unavailable observers and accepts only the declared reference failure"),
     word: Word::Succeeds,
     input: || (),
     expect: Expect::Value(Outcome::Holds),
 }];
 
-fn subject(_input: Input) -> Result<Outcome, Failure> {
+/// Calls the verifier on one input.
+fn subject(_input: Input) -> Result<Value, Failure> {
     production_verifier_gates_observers_and_accepts_only_the_declared_reference_failure();
     Ok(Outcome::Holds)
 }
@@ -66,7 +75,7 @@ impl ExecutionPort for PairExecution {
         } else {
             2
         };
-        crate::outbound::execution::fixtures::fake::ExecutionFake {
+        ExecutionFake {
             status,
             ..Default::default()
         }
@@ -74,51 +83,36 @@ impl ExecutionPort for PairExecution {
     }
 }
 
-/// The receipt file a recording fixture appends to.
-fn receipt_path(receipts: &crate::outbound::receipts::fixtures::fake::ReceiptsFake) -> std::path::PathBuf {
-    match &receipts.case_receipts {
-        crate::outbound::receipts::types::CaseReceipts::Recorded(path) => path.clone(),
-        crate::outbound::receipts::types::CaseReceipts::Unrecorded => unreachable!("fixture records receipts"),
-    }
-}
-
 fn production_verifier_gates_observers_and_accepts_only_the_declared_reference_failure() {
     let fixture = Fixture::new(ORCHESTRATION);
-    let context = crate::outbound::context::factory::local();
     let mut suite = fixture.suite.clone();
     let mut prepared = fixture.prepared.clone();
-    prepared
-        .reference_discrepancy
-        .as_mut()
-        .unwrap()
-        .evidence
-        .push(DiscrepancyEvidence::Language {
-            path: SEMANTIC_AUTHORITY_TXT.into(),
-            sha256: ArtifactDigest(LETTER.repeat(64)),
-            kind: DiscrepancyEvidenceKind::LanguageSpec,
-            language_version: TOY_LANGUAGE.into(),
-            target_configuration: TARGET_CONFIGURATION.into(),
-            version_rationale: VERSION_RATIONALE.into(),
-        });
+    let PreparedReferenceBehavior::Differs(discrepancy) = &mut prepared.reference_discrepancy else {
+        unreachable!("the fixture documents a reference failure")
+    };
+    discrepancy.evidence.push(DiscrepancyEvidence::Language {
+        path: SEMANTIC_AUTHORITY_TXT.into(),
+        sha256: ArtifactDigest(LETTER.repeat(64)),
+        kind: DiscrepancyEvidenceKind::LanguageSpec,
+        language_version: LanguageVersion(TOY_LANGUAGE.into()),
+        target_configuration: ParserTarget(TARGET_CONFIGURATION.into()),
+        version_rationale: Rationale(VERSION_RATIONALE.into()),
+    });
     suite.prepared = vec![prepared];
-    let reference = crate::outbound::linter::fixtures::fake::LinterFake::default();
-    let candidate = crate::outbound::linter::fixtures::fake::LinterFake {
+    let reference = LinterFake::default();
+    let candidate = LinterFake {
         arguments: vec![CANDIDATE.into()],
         ..Default::default()
     };
-    let bounded = crate::outbound::execution::fixtures::fake::ExecutionFake::default();
+    let bounded = ExecutionFake::default();
     assert!(
-        verify_prepared_shard(
+        verify_shard(
             &suite,
             &fixture.receipts,
-            &context,
             &reference,
             &candidate,
             &bounded,
-            &crate::outbound::inventory::factory::local(),
             &fixture.rules,
-            suite.prepared.clone(),
-            ryo_benchmark_contracts::domain::requests::types::CaseSelection::default()
         )
         .unwrap_err()
         .to_string()
@@ -128,56 +122,47 @@ fn production_verifier_gates_observers_and_accepts_only_the_declared_reference_f
         bounded.history.lock().unwrap().is_empty(),
         "unsupported observer must refuse before launching either contestant"
     );
-    std::fs::remove_file(receipt_path(&fixture.receipts)).unwrap();
+    forget_receipts(&fixture.receipts);
     assert_eq!(
-        verify_prepared_shard(
+        verify_shard(
             &suite,
             &fixture.receipts,
-            &context,
             &reference,
             &candidate,
             &PairExecution,
-            &crate::outbound::inventory::factory::local(),
             &fixture.rules,
-            suite.prepared.clone(),
-            ryo_benchmark_contracts::domain::requests::types::CaseSelection::default()
         )
-        .unwrap()
-        .0,
+        .unwrap(),
         1
     );
-    let captured = fixture.load();
+    let loaded = fixture.load();
     assert_eq!(
         crate::domain::inventory_receipts::service::validate_with_artifacts(
             &[fixture.document.clone()],
-            &captured.records,
-            &captured.artifacts,
-            &captured.invocations
+            &loaded.records,
+            &loaded.artifacts,
+            &loaded.invocations
         ),
-        Ok(
-            crate::domain::inventory_receipts::types::ReceiptCounts {
-                raw_exact: crate::domain::inventory_receipts::types::Tally(0),
-                documented: crate::domain::inventory_receipts::types::Tally(1),
-                contract_only: crate::domain::inventory_receipts::types::Tally(0)
-            }
-        )
+        Ok(ReceiptCounts {
+            raw_exact: Tally(0),
+            documented: Tally(1),
+            contract_only: Tally(0)
+        })
     );
-    suite.prepared[0].reference_discrepancy = ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees;
-    std::fs::remove_file(receipt_path(&fixture.receipts)).unwrap();
-    assert!(
-        verify_prepared_shard(
-            &suite,
-            &fixture.receipts,
-            &context,
-            &reference,
-            &candidate,
-            &PairExecution,
-            &crate::outbound::inventory::factory::local(),
-            &fixture.rules,
-            suite.prepared.clone(),
-            ryo_benchmark_contracts::domain::requests::types::CaseSelection::default()
-        )
-        .is_err(),
+    suite.prepared[0].reference_discrepancy = PreparedReferenceBehavior::Agrees;
+    forget_receipts(&fixture.receipts);
+    let untagged = verify_shard(
+        &suite,
+        &fixture.receipts,
+        &reference,
+        &candidate,
+        &PairExecution,
+        &fixture.rules,
+    )
+    .unwrap_err();
+    assert_eq!(
+        category(&untagged.to_string()),
+        Refusal::ReferenceStartup,
         "an untagged process failure remains a failure"
     );
 }

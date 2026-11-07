@@ -62,7 +62,9 @@ fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
 
-pub(crate) mod discrepancy;
+mod discrepancy;
 mod metadata;
+mod process_capture;
+mod process_identity;
 mod process_orchestration;
-pub(crate) mod shard;
+mod shard;

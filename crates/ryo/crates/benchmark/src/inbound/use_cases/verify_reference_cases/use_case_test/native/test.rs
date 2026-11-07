@@ -1,11 +1,13 @@
 //! Reference-only verification cannot bypass the pinned reference expectation or its evidence.
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::inbound::use_cases::verify_cases::use_case_test::{
-    discrepancy::fixtures::discrepancy_suite,
-    shard::fixtures::{Refusal, category, succeeding},
+use crate::inbound::use_cases::verify_reference_cases::fixtures::{
+    authored::{Refusal, category, succeeding, verify_reference},
+    discrepancy::discrepancy_suite,
 };
-use crate::inbound::use_cases::verify_reference_cases::service::verify_prepared_reference_cases;
-use crate::outbound::{linter::fixtures::fake::LinterFake, suite::fixtures::fake::SuiteFake, execution::fixtures::fake::ExecutionFake};
+use crate::outbound::{
+    execution::fixtures::fake::ExecutionFake, linter::fixtures::fake::LinterFake,
+    suite::fixtures::fake::SuiteFake,
+};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::Path;
 
@@ -67,16 +69,7 @@ fn reference_only(
     reference: &LinterFake,
     execution: &ExecutionFake,
 ) -> Result<Value, Error> {
-    verify_prepared_reference_cases(
-        suite,
-        &crate::outbound::context::factory::local(),
-        reference,
-        execution,
-        &crate::outbound::inventory::factory::local(),
-        Path::new("/profile/rules"),
-        suite.prepared.clone(),
-    )
-    .map(|count| count.0)
+    verify_reference(suite, reference, execution, Path::new("/profile/rules"))
 }
 
 fn pinned() -> Result<Value, Error> {

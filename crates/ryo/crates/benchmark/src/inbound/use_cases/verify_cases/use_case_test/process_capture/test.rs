@@ -1,19 +1,27 @@
 //! Real verification capture, boundary archive loading, and strict offline comparison.
-use ryo_benchmark_contracts::domain::documents::types::text::value::{ReasonText, YesNo};
-use super::fixtures::Fixture;
-use crate::application::case_execution::{service::run as run_case, types::Capture};
+use crate::application::case_execution::service::run as run_case;
 use crate::application::case_observation::service::write as record;
+use crate::application::process_discrepancy::errors::ProcessDiscrepancyError;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::discrepancy::types::Contestant;
-use crate::outbound::{
-    inventory::{interface::InventoryPort as _, types::InvocationDocument},
+use crate::domain::inventory_receipts::types::{ReceiptCounts, Tally};
+use crate::domain::process_failure::types::{CaptureRecord, ProcessCapture};
+use crate::inbound::use_cases::verify_cases::fixtures::{
+    process_capture::{Fixture, context, file_member},
+    process_identity::{Observer, complete_of},
 };
-use super::super::process_identity::fixtures::{Observer, complete_of};
+use crate::outbound::execution::fixtures::fake::ExecutionFake;
+use crate::outbound::linter::fixtures::fake::LinterFake;
+use crate::outbound::receipts::{fixtures::fake::ReceiptsFake, types::CaseReceipts};
+use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
+use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+    IntentMatch, RecordedReason, ReportedFindings,
+};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{ReasonText, YesNo};
 use ryo_benchmark_contracts::domain::measurements::types::{SignalNumber, TerminationSignal};
 use ryo_benchmark_contracts::domain::receipts::types::CaseKey;
 use ryo_benchmark_contracts::domain::requests::types::RuleLabel;
 use ryo_benchmark_contracts::domain::workloads::types::benchmark_case_name::value::BenchmarkCaseName;
-use serde_json::Value;
 
 /// What a capture scenario establishes once its assertions hold.
 #[derive(Debug, PartialEq, Eq)]
@@ -30,9 +38,11 @@ enum Scenario {
 }
 
 type Input = Scenario;
+type Value = Outcome;
 type Failure = ();
 
-const CASES: &[Case<Input, Outcome, Failure>] = &[
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("two tool neutral providers capture, archive and validate without a report"),
         word: Word::Succeeds,
@@ -53,7 +63,8 @@ const CASES: &[Case<Input, Outcome, Failure>] = &[
     },
 ];
 
-fn subject(scenario: Input) -> Result<Outcome, Failure> {
+/// Calls the scenario on one input.
+fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
         Scenario::ProvidersArchiveAndValidate => providers_archive_and_validate(),
         Scenario::MetadataFailureKeepsBytes => metadata_failure_keeps_bytes(),
@@ -68,10 +79,7 @@ fn succeeds() {
 }
 
 /// The captured reference process matched against the fixture's declared failure and its proof.
-fn matches_capture(
-    fixture: &Fixture,
-    capture: &Capture,
-) -> Result<(), crate::application::process_discrepancy::errors::ProcessDiscrepancyError> {
+fn matches_capture(fixture: &Fixture, capture: &ProcessCapture) -> Result<(), ProcessDiscrepancyError> {
     crate::application::process_discrepancy::service::matches(
         &fixture.prepared,
         &capture.invocation,
@@ -93,16 +101,9 @@ fn providers_archive_and_validate() {
         assert_eq!(captured.records.len(), 2);
         assert_eq!(captured.artifacts.len(), 3);
         if provider == "provider-two" {
-            let ryo_benchmark_contracts::domain::documents::types::observation_document::value::ReferenceProcess::Observed(observed) = &captured.records[0].process_observation else {
-                panic!("the reference process is observed");
-            };
-            let ryo_benchmark_contracts::domain::documents::types::observation_document::value::ProcessArtifactsRecord::Attached(pointers) = &observed.artifacts else {
-                panic!("the observed process points at artifacts");
-            };
-            let stdout = &captured.artifacts[std::path::Path::new(&pointers.stdout.path.0)];
-            let decoded: Value = serde_json::from_slice(stdout).unwrap();
+            let (stdout, stderr) = captured.reference_streams();
             assert_eq!(
-                decoded["file"],
+                file_member(stdout),
                 fixture
                     .prepared
                     .request
@@ -111,20 +112,19 @@ fn providers_archive_and_validate() {
                     .to_str()
                     .unwrap()
             );
-            assert!(String::from_utf8_lossy(stdout).contains("日本"));
+            assert!(String::from_utf8_lossy(&stdout.0).contains("日本"));
             if cfg!(unix) {
                 assert!(
-                    String::from_utf8_lossy(stdout).contains("\\\\"),
+                    String::from_utf8_lossy(&stdout.0).contains("\\\\"),
                     "JSON encoding must preserve and escape a real backslash in the root"
                 );
                 assert!(
-                    String::from_utf8_lossy(stdout).contains("\\\""),
+                    String::from_utf8_lossy(&stdout.0).contains("\\\""),
                     "JSON encoding must escape a real quote in the root"
                 );
             }
-            let stderr = &captured.artifacts[std::path::Path::new(&pointers.stderr.path.0)];
             assert_eq!(
-                stderr,
+                stderr.0,
                 format!(
                     "open {}\n",
                     fixture.prepared.request.root.join("case.py").display()
@@ -132,15 +132,10 @@ fn providers_archive_and_validate() {
                 .as_bytes()
             );
         }
-        assert_eq!(
-            captured.records[0].diagnostics,
-            ryo_benchmark_contracts::domain::documents::types::observation_document::value::ReportedFindings::Unreported
-        );
+        assert_eq!(captured.records[0].diagnostics, ReportedFindings::Unreported);
         assert_eq!(
             captured.records[0].raw_parity_matches_intended,
-            ryo_benchmark_contracts::domain::documents::types::observation_document::value::IntentMatch::Matched(
-                ryo_benchmark_contracts::domain::documents::types::text::value::YesNo::No
-            )
+            IntentMatch::Matched(YesNo::No)
         );
         assert_eq!(
             crate::domain::inventory_receipts::service::validate_with_artifacts(
@@ -149,15 +144,18 @@ fn providers_archive_and_validate() {
                 &captured.artifacts,
                 &captured.invocations
             ),
-            Ok(
-                crate::domain::inventory_receipts::types::ReceiptCounts {
-                    raw_exact: crate::domain::inventory_receipts::types::Tally(0),
-                    documented: crate::domain::inventory_receipts::types::Tally(1),
-                    contract_only: crate::domain::inventory_receipts::types::Tally(0)
-                }
-            )
+            Ok(ReceiptCounts {
+                raw_exact: Tally(0),
+                documented: Tally(1),
+                contract_only: Tally(0)
+            })
         );
-        let audit = crate::application::receipt_validation::service::validate(&fixture.registration(), &captured).unwrap();
+        let audit = crate::application::receipt_validation::service::validate(
+            &fixture.registration(),
+            &captured.records,
+            &captured.raw(),
+        )
+        .unwrap();
         assert!(audit.errors.is_empty());
         assert_eq!(
             audit.verified,
@@ -181,12 +179,12 @@ fn metadata_failure_keeps_bytes() {
     let fixture = Fixture::new("metadata");
     let mut suite = fixture.suite.clone();
     suite.artifact_digests.clear();
-    let linter = crate::outbound::linter::fixtures::fake::LinterFake::default();
-    let execution = Observer(crate::outbound::execution::fixtures::fake::ExecutionFake {
+    let linter = LinterFake::default();
+    let execution = Observer(ExecutionFake {
         status: 2,
         ..Default::default()
     });
-    let context = crate::outbound::context::factory::local();
+    let context = context();
     let outcome = run_case(
         &suite,
         &context,
@@ -195,13 +193,15 @@ fn metadata_failure_keeps_bytes() {
         &fixture.prepared,
         &fixture.rules,
     );
-    assert!(outcome.result.is_err());
-    let capture = outcome.capture.unwrap();
-    assert_eq!(capture.output.stdout.0, b"payload");
-    assert!(matches!(capture.invocation, InvocationDocument::Failed(_)));
+    assert_eq!(outcome.result.unwrap_err().to_string(), "operational failure");
+    let CaptureRecord::Kept(kept) = &outcome.capture else {
+        panic!("an undecodable output keeps its raw bytes");
+    };
+    assert_eq!(kept.output.stdout.0, b"payload");
+    assert!(matches!(kept.invocation, InvocationDocument::Failed(_)));
     let receipt = fixture.root.path().join("failed.jsonl");
-    let receipts = crate::outbound::receipts::fixtures::fake::ReceiptsFake {
-        case_receipts: crate::outbound::receipts::types::CaseReceipts::Recorded(receipt.clone()),
+    let receipts = ReceiptsFake {
+        case_receipts: CaseReceipts::Recorded(receipt.clone()),
     };
     record(
         &suite,
@@ -213,29 +213,21 @@ fn metadata_failure_keeps_bytes() {
         Some(&ReasonText("metadata unavailable".into())),
         YesNo::No,
         None,
-        Some(&capture),
+        &outcome.capture,
     )
     .unwrap();
-    let loaded = crate::outbound::inventory::factory::local()
-        .observations(&receipt)
-        .unwrap();
+    let loaded = fixture.load_file(&receipt);
     assert_eq!(loaded.artifacts.len(), 3);
-    assert_eq!(
-        loaded.records[0].case_passed,
-        YesNo::No
-    );
-    assert!(matches!(
-        loaded.records[0].error,
-        ryo_benchmark_contracts::domain::documents::types::observation_document::value::RecordedReason::Stated(_)
-    ));
+    assert_eq!(loaded.records[0].case_passed, YesNo::No);
+    assert!(matches!(loaded.records[0].error, RecordedReason::Stated(_)));
 }
 
 fn terminations_are_not_expected_failures() {
     let fixture = Fixture::new("termination");
-    let linter = crate::outbound::linter::fixtures::fake::LinterFake::default();
-    let context = crate::outbound::context::factory::local();
+    let linter = LinterFake::default();
+    let context = context();
     for status in [0, 1] {
-        let execution = Observer(crate::outbound::execution::fixtures::fake::ExecutionFake {
+        let execution = Observer(ExecutionFake {
             status,
             ..Default::default()
         });
@@ -247,17 +239,17 @@ fn terminations_are_not_expected_failures() {
             &fixture.prepared,
             &fixture.rules,
         );
-        assert!(outcome.result.is_ok());
+        outcome.result.unwrap();
         assert!(
-            outcome.capture.is_none(),
+            matches!(outcome.capture, CaptureRecord::Absent),
             "a decoded report cannot satisfy a process expectation"
         );
     }
-    let bounded = crate::outbound::execution::fixtures::fake::ExecutionFake {
+    let bounded = ExecutionFake {
         status: 2,
         ..Default::default()
     };
-    let mut capture = run_case(
+    let CaptureRecord::Kept(mut capture) = run_case(
         &fixture.suite,
         &context,
         &linter,
@@ -266,17 +258,28 @@ fn terminations_are_not_expected_failures() {
         &fixture.rules,
     )
     .capture
-    .unwrap();
-    assert!(matches_capture(&fixture, &capture).is_err());
+    else {
+        panic!("an undecodable output keeps its raw bytes");
+    };
+    assert_eq!(
+        matches_capture(&fixture, &capture),
+        Err(ProcessDiscrepancyError::TerminationDiffers)
+    );
     complete_of(&mut capture.invocation).observer_no_deadline = YesNo::Yes;
-    assert!(matches_capture(&fixture, &capture).is_ok());
-    capture.output.signal = TerminationSignal::Signalled(ryo_benchmark_contracts::domain::measurements::types::SignalNumber(15));
-    assert!(matches_capture(&fixture, &capture).is_err());
+    assert_eq!(matches_capture(&fixture, &capture), Ok(()));
+    capture.output.signal = TerminationSignal::Signalled(SignalNumber(15));
+    assert_eq!(
+        matches_capture(&fixture, &capture),
+        Err(ProcessDiscrepancyError::TerminationDiffers)
+    );
     capture.output.signal = TerminationSignal::Exited;
     capture
         .output
         .stderr
         .0
         .extend_from_slice(b"\nstack backtrace\n");
-    assert!(matches_capture(&fixture, &capture).is_err());
+    assert_eq!(
+        matches_capture(&fixture, &capture),
+        Err(ProcessDiscrepancyError::BytesDiffer)
+    );
 }

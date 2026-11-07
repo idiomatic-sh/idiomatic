@@ -1,14 +1,15 @@
 //! Both sides require intended behavior even when a wrong oracle matches the reference.
-use super::super::shard::fixtures::{Refusal, category, history_len, succeeding};
-use super::fixtures::{CoveredCandidate, discrepancy_suite};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::inbound::use_cases::verify_cases::service::verify_prepared_shard;
+use crate::domain::discrepancy::types::IntentAgreement;
+use crate::inbound::use_cases::verify_cases::fixtures::{
+    discrepancy::{CoveredCandidate, discrepancy_suite},
+    shard::{Refusal, category, history_len, succeeding, verify_shard},
+};
 use crate::outbound::{
     execution::fixtures::fake::ExecutionFake, linter::fixtures::fake::LinterFake,
-    suite::fixtures::fake::SuiteFake,
+    receipts::fixtures::fake::ReceiptsFake, suite::fixtures::fake::SuiteFake,
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::CaseSelection;
 use std::path::Path;
 
 /// Which candidate answers the documented reference difference.
@@ -61,18 +62,14 @@ fn native_pair(
     intended: &CoveredCandidate,
     execution: &ExecutionFake,
 ) -> Result<Value, Error> {
-    verify_prepared_shard(
+    verify_shard(
         suite,
-        &crate::outbound::context::factory::local(),
+        &ReceiptsFake::default(),
         &LinterFake::default(),
         intended,
         execution,
-        &crate::outbound::inventory::factory::local(),
         Path::new("/profile/rules"),
-        suite.prepared.clone(),
-        CaseSelection::default(),
     )
-    .map(|count| count.0)
 }
 
 fn native_intended() -> Result<Value, Error> {
@@ -92,7 +89,7 @@ fn native_intended() -> Result<Value, Error> {
             &canonical[0],
             crate::domain::discrepancy::service::reference_expected(&canonical[0])
                 .expect("diagnostic expectation")
-        ) == crate::domain::discrepancy::types::IntentMatch::Differs,
+        ) == IntentAgreement::Differs,
         "JSONL retains raw reference mismatch"
     );
     result

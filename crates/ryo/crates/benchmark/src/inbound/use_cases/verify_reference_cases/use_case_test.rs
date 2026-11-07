@@ -53,6 +53,4 @@ fn refuses() {
 }
 
 mod native;
-pub(crate) mod process_capture;
-pub(crate) mod process_identity;
 mod reference;

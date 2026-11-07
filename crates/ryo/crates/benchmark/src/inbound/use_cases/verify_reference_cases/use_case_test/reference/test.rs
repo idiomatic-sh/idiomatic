@@ -1,9 +1,9 @@
 //! Reference-only verification holds the reference to its exact derived expectation.
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::inbound::use_cases::verify_cases::use_case_test::shard::fixtures::{
-    Refusal, Shape, category, finding, history_len, prepared, report_scope, succeeding,
+use crate::inbound::use_cases::verify_reference_cases::fixtures::authored::{
+    Refusal, Shape, category, finding, history_len, prepared, project_rules, succeeding,
+    verify_reference,
 };
-use crate::inbound::use_cases::verify_reference_cases::service::verify_prepared_reference_cases;
 use crate::outbound::{
     execution::fixtures::fake::ExecutionFake,
     linter::fixtures::fake::LinterFake, suite::fixtures::fake::SuiteFake,
@@ -102,16 +102,7 @@ fn reference_only(
     execution: &ExecutionFake,
     rules: &str,
 ) -> Result<Value, Error> {
-    verify_prepared_reference_cases(
-        suite,
-        &crate::outbound::context::factory::local(),
-        reference,
-        execution,
-        &crate::outbound::inventory::factory::local(),
-        Path::new(rules),
-        suite.prepared.clone(),
-    )
-    .map(|count| count.0)
+    verify_reference(suite, reference, execution, Path::new(rules))
 }
 
 /// The first prepared case, compared as a full report.
@@ -140,8 +131,7 @@ fn frontend() -> Result<Value, Error> {
         diagnostics: vec![finding("E722", 0, 6), finding("F401", 20, 24)],
         ..Default::default()
     };
-    let mut candidate = LinterFake::default();
-    report_scope(Shape::RuleProjection, &mut suite, &mut reference, &mut candidate);
+    project_rules(&mut suite, &mut reference);
     let execution = succeeding();
     let result = reference_only(&suite, &reference, &execution, "rules");
     assert_eq!(history_len(&execution), Some(1));

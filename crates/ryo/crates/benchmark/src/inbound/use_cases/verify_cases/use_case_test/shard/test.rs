@@ -1,11 +1,12 @@
 //! Neither contestant can certify a case by silently dropping its expected finding.
-use super::fixtures::{Refusal, Shape, category, history_len, prepared, report_scope};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::inbound::use_cases::verify_cases::service::verify_prepared_shard;
+use crate::inbound::use_cases::verify_cases::fixtures::shard::{
+    Refusal, Shape, category, history_len, prepared, report_scope, verify_shard,
+};
 use crate::outbound::{
     execution::fixtures::fake::ExecutionFake, linter::fixtures::fake::LinterFake,
+    receipts::fixtures::fake::ReceiptsFake,
 };
-use ryo_benchmark_contracts::domain::requests::types::CaseSelection;
 use std::path::Path;
 
 type Input = Shape;
@@ -105,16 +106,13 @@ fn shard(shape: Shape) -> Result<Value, ryo_benchmark_contracts::domain::reports
         },
         ..Default::default()
     };
-    let result = verify_prepared_shard(
+    let result = verify_shard(
         &suite,
-        &crate::outbound::context::factory::local(),
+        &ReceiptsFake::default(),
         &reference,
         &candidate,
         &execution,
-        &crate::outbound::inventory::factory::local(),
         Path::new("rules"),
-        suite.prepared.clone(),
-        CaseSelection::default(),
     );
     if matches!(shape, Shape::StartupFailure) {
         assert_eq!(history_len(&execution), Some(1));
@@ -127,5 +125,5 @@ fn shard(shape: Shape) -> Result<Value, ryo_benchmark_contracts::domain::reports
             "no cases must launch no contestants"
         );
     }
-    result.map(|count| count.0)
+    result
 }
