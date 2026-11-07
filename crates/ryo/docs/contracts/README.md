@@ -224,27 +224,27 @@ Branch `claude/w2-review-v` from checkpoint 319 `f2d8aaf1db` (the Phase 1 re-own
 - **R4, hardening-1 placement:** `Region`, `Instruction`, `DemandProgram` and `ExecutableProgram` are sealed values, each in `domain/executable_program/types/<value>/value.rs` with a `value_test.rs`; only the compiler constructs and writes them (`pub(in crate::domain::executable_program)`). `ColumnAlternative` (now one definition over original nodes and regions, which removes the mirrored `OriginalColumn`) and `SelectionAlternative` are plain route payloads in `types.rs`: the route lives in the sealed `Region`. Bare integers and bools are typed (`ObservationPlace`, `ProducerMember`, `DraftIndex`, `RegexIdentity`, `JoinLease`, `RowGate`, `Equivalence`, `StepUse`, `AbsenceInputs`); `service.rs` is split into `merge.rs`, `origins.rs` and `aliases.rs`, and `trust/service.rs` into `trust/reads.rs`. The observation slot proofs moved from the domain to `application/file_dag/acceptance/{observations_test.rs, observation_census_test.rs}` because they prepare through the application request preparation. Weak closures kept and closed by the store and runtime crates (hardening steps 2 and 3): `FrontierCache::new` stays `pub(crate)`, and `ReadProof::complete` stays callable within the program. Controls: `types::region::value_test`, `types::instruction::value_test`, `types::demand_program::value_test`, `types::executable_program::value_test`; `tm` over `domain/executable_program` and `domain/trust` is 0.
 - **R5:** this record.
 
-### Current ownership checkpoint — source `05d5c56a83`, validation322
+### Current ownership checkpoint — source `c5772f1c91`, validation323
 
 Written by `evidence/checkpoint/run.py` from [validation.json](evidence/checkpoint/validation.json); do not edit by hand. Review: [checkpoint](audits/2026-11-06-derived/ownership/checkpoint.json).
 
 | Check | Result |
 |---|---|
-| Source | `05d5c56a83` |
-| Validation | validation322 (raw logs in the directory named `ryo-contract-validation322-20261107`, kept outside the repository) |
-| execution library | 486 PASS / 0 failed (every row of every table ran (collected runners); the five 321 reds pass (compiled parity, axis graph, operator census, output_coverage lineage)) |
-| core library | 120 PASS / 1 failed (lint::use_case_test::succeeds, one red row a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store: the narrow instrumented run (narrow-removed_file-instrumented.log) shows the red call is the row's oracle run over the discard store (a.rs and c.rs), whose project phase receives an empty bucket (0 sources) for two required files; hand_words_again and remap_packed are not on that path; the store replay row; the two cross_file rows of 321 pass) |
+| Source | `c5772f1c91` |
+| Validation | validation323 (raw logs in the directory named `ryo-contract-validation323-20261107`, kept outside the repository) |
+| execution library | 485 PASS / 1 failed (admission::test::succeeds, one red row actual_publication_reuses_same_physical_view: the partition order of keys 2, 1, 2 is [0, 2, 1] where the row expects [1, 0, 2]; the derived key hash is now one FxHasher step (rustc-hash 2), which orders key 2 below key 1: the premise is corrected after validation (perf iteration 1b)) |
+| core library | 120 PASS / 1 failed (lint::use_case_test::succeeds, one red row a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store: the narrow instrumented run (narrow-removed_file-instrumented.log) shows the red call is the row's oracle run over the discard store (a.rs and c.rs), whose project phase receives an empty bucket (0 sources) for two required files; hand_words_again and remap_packed are not on that path; the store replay row) |
 | benchmark library | 221 PASS / 1 failed (verify_cases process_capture succeeds, one red row (a metadata failure preserves the process bytes and cannot be admitted): the failure text carries the raw process identity error (entity not found) where the row expects the bare operational failure, the benchmark TM row) |
 | sdk passed | 29 |
-| other libraries passed | 222 |
-| libraries total | 1078 PASS / 2 failed |
-| execution boundary | 101 PASS / 2 failed (source_boundary::derived::census (inbound/use_cases/prepare/use_case.rs names the derived port DerivedPort since the digest is threaded through the prepare use case: the join leftovers row); source_boundary::activation::test::rejects (the open_file mutant no longer compiles: E0599, open_file is sealed under fixtures; the probe must certify a runtime mutant: the join leftovers row); the five partition rows and selected_frontiers of 321 pass) |
-| activation | 10 PASS / 0 failed |
+| other libraries passed | 187 |
+| libraries total | 1076 PASS / 4 failed |
+| execution boundary | 100 PASS / 2 failed (compiled_rules::test::closure_runs_every_partition_and_empty_input_through_the_owner (the key partitions come in key-hash order: key 5 before key 7 under the FxHasher step, perf iteration 1b; premise corrected after validation); source_boundary::activation::test::rejects (the open_file mutant does not compile, E0599: the join leftovers row, repaired on the review repairs VII branch merged after validation); source_boundary::derived::census passes (the enforcement rules branch)) |
+| activation | 11 PASS / 0 failed (11 actual cases, the facts-finish dhat control among them) |
 | bdd | scenarios 7, failed 0 |
 | core bdd | scenarios 18, failed 0 |
 | core project boundary | 1 PASS / 0 failed |
 | ruff sharing | 1 PASS / 0 failed (sharing::test::succeeds without the canary in its process) |
-| ruff canary | 1 PASS / 0 failed (the_one_path_answers_the_django_canary_as_recorded alone: 112 = 110 N999 + 2 invalid-syntax, as recorded) |
+| ruff canary | 1 PASS / 0 failed (the_one_path_answers_the_django_canary_as_recorded alone: 112 = 110 N999 + 2 invalid-syntax, unchanged by perf iteration 1) |
 | ruff | 11 PASS / 1 failed (engine_test::succeeds, two red rows collected: a_rejected_file_leaves_i001_plw0406_and_ruf100_answering_the_valid_file (I001 answers the valid file 0 where Ruff answers 1; what it could not decide: [] so I001 answers no finding, not Unknown) and i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory (the valid file keeps its I001 answer: 0 against 1), the per-column lineage row; project_context passes) |
 | ruff rule phases | exit 1, note registry and base-profile guards and the native standalone guards pass; the staging guard exits 1 (durable verifier output or identities were not preserved), red at 321 too, the benchmark TM row |
 | execution program authority | 9 PASS / 0 failed |
@@ -255,19 +255,22 @@ Written by `evidence/checkpoint/run.py` from [validation.json](evidence/checkpoi
 | core allocation | exit 101, phase 7 |
 | cli replay | 75 PASS / 3 failed |
 | cli replay reds | 3: `behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows`; `cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store`; `peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound` |
-| cli replay note | feed: 3 features fed fewer than 1,000 rows (operation:Closure, Cycles, Scope: the graph drivers record no WorkCounters::found, the fold area); cache: the store of ruff 78,525,063 bytes against 75,000,000 = tables 5,840,171 + rest 34,393,894 (texts 18,752,067, proofs 8,800,035, notes 6,841,785) + 38 bucket sections 38,290,563 (narrow-cache_size-per_table.log), the coverage missing-kinds row; warm peak 114,180,096 bytes against 100,000,000 with the packed words released after decode: the walk extension C row |
-| cli cost | 4 PASS / 3 failed (the ruff rows of the ratchet still hold placeholder bests (cold, warm/edit, peak): perf 321 pending) |
+| cli replay note | feed: 3 features fed fewer than 1,000 rows (operation:Closure, Cycles, Scope: the graph drivers record no WorkCounters::found, the fold area); cache: the store of ruff 78,525,063 bytes against 75,000,000 (unchanged from 322), the coverage missing-kinds row; warm peak 113,815,552 bytes against 100,000,000 (114,180,096 at 322): the walk extension C row |
+| cli cost | 4 PASS / 3 failed (the ruff rows of ratchet.toml still hold best 1 (cold 10,101 ms / CPU 60,157 ms, peak 583 MB, warm 551 ms, edit 2,738 ms measured): the ruff rows are not seeded; the Django and one-file rows report not available without RYO_PREFLIGHT_WORKER, so perf iteration 1 is not measured by this target) |
 | cli other targets | blocks (dhat run, no panic), call_count 1/1, command_line 7/7, command_tree 11/11, readme 1/1 |
 | conformance | targets 10, exit 0 |
-| harness hooks | 15 PASS / 0 failed (27 / 0 after the hook branches merged on 6e8b1a8c88 (harness_hooks-rerun-6e8b1a8c88.log)) |
+| harness hooks | 43 PASS / 0 failed |
 | checkpoint check | 9 PASS / 0 failed |
+| derived library | 34 PASS / 1 failed (partition::service_test::succeeds, one red row returning_key_runs_sort_by_hash_then_row: [1, 0, 2] answered where [0, 2, 1] is expected; the same hash change (perf iteration 1b), premise corrected after validation) |
 | tm_cli_source findings | 0 (0 production, 0 test), 0 suppressed, 1 scoped directories |
 | tm_source findings | 0 (0 production, 0 test), 2 suppressed, 16 scoped directories |
 | Whole-tree TM | 24 findings, 6 suppressed (3676 at 318) |
 | File-level ownership cycles | 0 (0 targeted) |
 | Red test | libraries inbound::use_cases::verify_cases::use_case_test::process_capture::test::succeeds: red rows 1: a metadata failure preserves the process bytes and cannot be admitted |
 | Red test | libraries inbound::use_cases::lint::use_case_test::succeeds: red rows 1: a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store |
-| Red test | boundary source_boundary::derived::census::every_derived_consumer_is_censused_and_every_kind_names_its_controls: red; its failure names no case row |
+| Red test | libraries domain::partition::service_test::succeeds: red rows 1: returning_key_runs_sort_by_hash_then_row |
+| Red test | libraries application::file_dag::derived::owner::acquisition::admission::test::succeeds: red rows 1: actual_publication_reuses_same_physical_view |
+| Red test | boundary compiled_rules::test::closure_runs_every_partition_and_empty_input_through_the_owner: red; its failure names no case row |
 | Red test | boundary source_boundary::activation::test::rejects: red; its failure names no case row |
 | Red test | ruff engine_test::succeeds: red rows 2: a_rejected_file_leaves_i001_plw0406_and_ruf100_answering_the_valid_file, i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory |
 | Red test | cli_tests cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store: red; its failure names no case row |
