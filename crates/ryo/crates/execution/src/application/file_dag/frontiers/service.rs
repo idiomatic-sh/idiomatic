@@ -1,7 +1,7 @@
 //! One compact admission operation for diagnostic and observed project phases.
 //! Store reads and name/spelling preparation keep their existing eager order;
 //! row-cell allocation belongs to the shared executable invocation owner.
-use super::types::{FrontierInput, FrontierSource, PackedFrontier, PreparedFrontiers};
+use super::types::{FrontierCache, FrontierInput, FrontierSource, PackedFrontier, PreparedFrontiers};
 use crate::outbound::facts::{
     errors::FactsError,
     interface::{FactsFinish, FactsWorker},
@@ -354,5 +354,43 @@ mod source_proof_test {
         assert!(!exact_required_files(&required, &[0].into()));
         assert!(exact_required_files(&required, &[0, 1].into()));
         assert!(!exact_required_files(&required, &[0, 1, 2].into()));
+    }
+}
+
+impl FrontierCache {
+    /// The only route to a provider read: the cache keys the population, then prepares it once.
+    pub(crate) fn prepared(
+        &self,
+        program: &crate::application::file_dag::program::preparation::types::PreparedProgram,
+        rule: crate::domain::coverage::types::RuleIndex,
+        first: ryo_values::domain::stored_facts::types::Bucket,
+        facts: &dyn crate::outbound::facts::interface::FactsFinish,
+        project: &dyn crate::outbound::facts::interface::FactsWorker,
+        project_symbols: &ryo_language::domain::symbols::types::Symbols,
+        symbols: &mut ryo_language::domain::symbols::types::Symbols,
+        required: &crate::application::file_dag::program::admission::RequiredPartitions,
+        policy: PreparationPolicy<'_>,
+    ) -> Result<PreparedFrontiers, PreparationError> {
+        let ready = match policy {
+            PreparationPolicy::Diagnostic => None,
+            PreparationPolicy::Observations { ready } => Some(ready),
+        };
+        let providers = (
+            std::ptr::from_ref(facts).cast::<()>().addr(),
+            std::ptr::from_ref(project).cast::<()>().addr(),
+        );
+        self.shared(rule, first, ready, required, providers, || {
+            prepare(
+                program,
+                rule,
+                first,
+                facts,
+                project,
+                project_symbols,
+                symbols,
+                required,
+                policy,
+            )
+        })
     }
 }

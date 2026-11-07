@@ -72,43 +72,7 @@ struct FrontierEntry {
 pub(crate) struct FrontierCache(std::sync::Mutex<Vec<FrontierEntry>>);
 
 impl FrontierCache {
-    /// The only route to a provider read: the cache keys the population, then prepares it once.
-    pub(crate) fn prepared(
-        &self,
-        program: &crate::application::file_dag::program::preparation::types::PreparedProgram,
-        rule: crate::domain::coverage::types::RuleIndex,
-        first: ryo_values::domain::stored_facts::types::Bucket,
-        facts: &dyn crate::outbound::facts::interface::FactsFinish,
-        project: &dyn crate::outbound::facts::interface::FactsWorker,
-        project_symbols: &ryo_language::domain::symbols::types::Symbols,
-        symbols: &mut ryo_language::domain::symbols::types::Symbols,
-        required: &crate::application::file_dag::program::admission::RequiredPartitions,
-        policy: super::service::PreparationPolicy<'_>,
-    ) -> Result<PreparedFrontiers, super::service::PreparationError> {
-        let ready = match policy {
-            super::service::PreparationPolicy::Diagnostic => None,
-            super::service::PreparationPolicy::Observations { ready } => Some(ready),
-        };
-        let providers = (
-            std::ptr::from_ref(facts).cast::<()>().addr(),
-            std::ptr::from_ref(project).cast::<()>().addr(),
-        );
-        self.shared(rule, first, ready, required, providers, || {
-            super::service::prepare(
-                program,
-                rule,
-                first,
-                facts,
-                project,
-                project_symbols,
-                symbols,
-                required,
-                policy,
-            )
-        })
-    }
-
-    fn shared<E>(
+    pub(super) fn shared<E>(
         &self,
         rule: crate::domain::coverage::types::RuleIndex,
         first: ryo_values::domain::stored_facts::types::Bucket,
