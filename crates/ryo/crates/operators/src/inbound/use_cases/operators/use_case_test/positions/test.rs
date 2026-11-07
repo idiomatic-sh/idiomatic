@@ -16,7 +16,7 @@ struct Positions {
     rows: Vec<Vec<u32>>,
 }
 impl PositionJoinDriver for Positions {
-    fn next(&mut self) -> Result<bool, JoinInterrupted> {
+    fn next(&mut self) -> Result<bool, JoinError> {
         self.at += 1;
         Ok(self.at <= self.rows.len())
     }

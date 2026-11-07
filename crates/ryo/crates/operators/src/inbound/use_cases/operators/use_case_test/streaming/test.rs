@@ -150,10 +150,10 @@ struct State {
     refuses_group: bool,
 }
 impl StreamingReduction for State {
-    fn group(&mut self, key: &[Cell], row: &[Cell]) -> Result<RowIndex, SemanticInterrupted> {
+    fn group(&mut self, key: &[Cell], row: &[Cell]) -> Result<RowIndex, ContractError> {
         self.group_calls += 1;
         if self.refuses_group {
-            return Err(SemanticInterrupted);
+            return Err(ContractError::Interrupted);
         }
         let group = if let Some(group) = self.keys.iter().position(|stored| stored == key) {
             group

@@ -8,7 +8,7 @@ use ryo_language::domain::symbols::service::{hash_in, hash_of, text_of};
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_operators::domain::equality_join::types::JoinCells;
 use ryo_operators::domain::equality_join::types::JoinDriver;
-use ryo_operators::domain::equality_join::types::JoinInterrupted;
+use ryo_operators::domain::equality_join::errors::JoinError;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
 use ryo_values::domain::rows::service::push_row;
@@ -42,9 +42,9 @@ pub(super) struct Driver<'a, 'f> {
     pub(super) error: Option<OperatingError>,
 }
 impl JoinDriver for Driver<'_, '_> {
-    fn next(&mut self, key: &[Value]) -> Result<bool, JoinInterrupted> {
+    fn next(&mut self, key: &[Value]) -> Result<bool, JoinError> {
         if self.error.is_some() {
-            return Err(JoinInterrupted);
+            return Err(JoinError::Interrupted);
         }
         let mut probe = self.probe.take().unwrap_or_else(|| self.index.probe(key));
         self.current = None;
@@ -64,7 +64,7 @@ impl JoinDriver for Driver<'_, '_> {
                 self.decoded,
             ) else {
                 self.error = Some(OperatingError::ShapeMismatch);
-                return Err(JoinInterrupted);
+                return Err(JoinError::Interrupted);
             };
             #[cfg(feature = "diagnostic-row-progress")]
             (self.index.progress)(
@@ -91,9 +91,9 @@ impl JoinDriver for Driver<'_, '_> {
         self.decoded.set(self.decoded.get().saturating_add(1));
         Some(value)
     }
-    fn emit(&mut self, row: &[Value]) -> Result<(), JoinInterrupted> {
+    fn emit(&mut self, row: &[Value]) -> Result<(), JoinError> {
         if self.error.is_some() {
-            return Err(JoinInterrupted);
+            return Err(JoinError::Interrupted);
         }
         #[cfg(feature = "diagnostic-row-progress")]
         (self.index.progress)(

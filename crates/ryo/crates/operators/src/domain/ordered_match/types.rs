@@ -18,7 +18,8 @@ pub trait OrderedMatchDriver {
     fn emit(
         &mut self,
         row: &[ryo_relations::domain::relations::types::Value],
-    ) -> Result<(), SemanticInterrupted>;
+    ) -> Result<(), ContractError>;
 }
 
-use crate::domain::contract::types::{PortableOperatorFault, SemanticInterrupted};
+use crate::domain::contract::types::{PortableOperatorFault};
+use crate::domain::contract::errors::ContractError;

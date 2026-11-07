@@ -8,7 +8,7 @@ use crate::domain::operator::contract::{failure::FailureLatch, views::BorrowedRo
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::domain::ordered_match::types::OrderedMatchDriver;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::domain::contract::types::SemanticInterrupted;
+use ryo_operators::domain::contract::errors::ContractError;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_operators::types::OperationKind;
@@ -58,10 +58,10 @@ impl OrderedMatchDriver for Pairing<'_, '_, '_> {
             .map_err(|()| PortableOperatorFault::Interrupted)?;
         pair
     }
-    fn emit(&mut self, row: &[Value]) -> Result<(), SemanticInterrupted> {
+    fn emit(&mut self, row: &[Value]) -> Result<(), ContractError> {
         self.error
             .run(|| self.sink.row(self.lease, row))
-            .map_err(|()| SemanticInterrupted)
+            .map_err(|()| ContractError::Interrupted)
     }
 }
 

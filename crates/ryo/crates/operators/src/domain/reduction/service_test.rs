@@ -1,6 +1,7 @@
 //! Reduction invariants use explicit independent group descriptors and competing column faults.
 use super::service as reduction;
-use crate::domain::contract::types::{PortableOperatorFault, SemanticInterrupted};
+use crate::domain::contract::types::{PortableOperatorFault};
+use crate::domain::contract::errors::ContractError;
 use crate::domain::reduction::types::{
     AggregationCheckOrder, AggregationHash, AggregationPlan, DigestDatum, DigestValues, Finishing,
     GroupColumns, GroupCounts, GroupOutput, HashScratch, StreamingReduction,
@@ -124,7 +125,7 @@ struct State {
     group_calls: usize,
 }
 impl StreamingReduction for State {
-    fn group(&mut self, key: &[Cell], row: &[Cell]) -> Result<RowIndex, SemanticInterrupted> {
+    fn group(&mut self, key: &[Cell], row: &[Cell]) -> Result<RowIndex, ContractError> {
         self.group_calls += 1;
         let at = if let Some(at) = self.keys.iter().position(|each| each == key) {
             at

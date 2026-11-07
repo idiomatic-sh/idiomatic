@@ -24,20 +24,20 @@ impl OrderedExistenceDriver for Driver {
     fn len(&self) -> usize {
         self.rows.len()
     }
-    fn key_cell(&mut self, row: usize, column: ColumnIndex) -> Result<ValueCell, JoinInterrupted> {
+    fn key_cell(&mut self, row: usize, column: ColumnIndex) -> Result<ValueCell, JoinError> {
         if self.failed {
-            return Err(JoinInterrupted);
+            return Err(JoinError::Interrupted);
         }
         self.rows
             .get(row)
             .and_then(|row| row.get(column.0 as usize))
             .copied()
-            .ok_or(JoinInterrupted)
+            .ok_or(JoinError::Interrupted)
     }
-    fn number(&mut self, row: usize, column: ColumnIndex) -> Result<Integer, JoinInterrupted> {
+    fn number(&mut self, row: usize, column: ColumnIndex) -> Result<Integer, JoinError> {
         if self.failed || self.fail_read == Some(row) {
             self.failed = true;
-            return Err(JoinInterrupted);
+            return Err(JoinError::Interrupted);
         }
         match self
             .rows
@@ -47,14 +47,14 @@ impl OrderedExistenceDriver for Driver {
             Some(ValueCell::Number(value)) => Ok(*value),
             _ => {
                 self.failed = true;
-                Err(JoinInterrupted)
+                Err(JoinError::Interrupted)
             }
         }
     }
-    fn emit_dominated(&mut self, row: usize, witness: usize) -> Result<(), JoinInterrupted> {
+    fn emit_dominated(&mut self, row: usize, witness: usize) -> Result<(), JoinError> {
         if self.failed || self.fail_emit {
             self.failed = true;
-            return Err(JoinInterrupted);
+            return Err(JoinError::Interrupted);
         }
         assert_eq!(self.rows[row][0], self.rows[witness][0]);
         assert_ne!(self.rows[row][2], self.rows[witness][2]);
@@ -114,16 +114,16 @@ struct Poisoned {
     rows: Vec<Vec<ValueCell>>,
 }
 impl SetRowDriver for Poisoned {
-    fn right_empty(&mut self) -> Result<bool, SetInterrupted> {
+    fn right_empty(&mut self) -> Result<bool, SetError> {
         Ok(self.keys.is_empty())
     }
-    fn contains_right(&mut self, key: &[ValueCell]) -> Result<bool, SetInterrupted> {
+    fn contains_right(&mut self, key: &[ValueCell]) -> Result<bool, SetError> {
         Ok(self.keys.contains(&key[0]))
     }
-    fn first_time(&mut self, _: &[ValueCell]) -> Result<bool, SetInterrupted> {
+    fn first_time(&mut self, _: &[ValueCell]) -> Result<bool, SetError> {
         panic!("antijoin must preserve left bags")
     }
-    fn emit(&mut self, row: &[ValueCell]) -> Result<(), SetInterrupted> {
+    fn emit(&mut self, row: &[ValueCell]) -> Result<(), SetError> {
         self.rows.push(row.to_vec());
         Ok(())
     }
@@ -134,16 +134,16 @@ struct Reordered {
     emitted: Vec<Vec<ValueCell>>,
 }
 impl SetRowDriver for Reordered {
-    fn right_empty(&mut self) -> Result<bool, SetInterrupted> {
+    fn right_empty(&mut self) -> Result<bool, SetError> {
         Ok(self.dropped.is_empty())
     }
-    fn contains_right(&mut self, key: &[ValueCell]) -> Result<bool, SetInterrupted> {
+    fn contains_right(&mut self, key: &[ValueCell]) -> Result<bool, SetError> {
         Ok(self.dropped.iter().any(|row| row == key))
     }
-    fn first_time(&mut self, _: &[ValueCell]) -> Result<bool, SetInterrupted> {
+    fn first_time(&mut self, _: &[ValueCell]) -> Result<bool, SetError> {
         panic!("bag-preserving antijoin")
     }
-    fn emit(&mut self, row: &[ValueCell]) -> Result<(), SetInterrupted> {
+    fn emit(&mut self, row: &[ValueCell]) -> Result<(), SetError> {
         self.emitted.push(row.to_vec());
         Ok(())
     }

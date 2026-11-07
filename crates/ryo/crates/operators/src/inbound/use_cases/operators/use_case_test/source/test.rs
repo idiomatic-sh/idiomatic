@@ -176,10 +176,10 @@ impl TextRowDriver for Delivery {
         self.names.push(text.to_owned());
         Cell::Symbol(Symbol(u32::try_from(self.interns).unwrap()))
     }
-    fn emit(&mut self, row: &[Cell]) -> Result<(), SemanticInterrupted> {
+    fn emit(&mut self, row: &[Cell]) -> Result<(), ContractError> {
         self.attempts += 1;
         if self.fail_second && self.attempts == 2 {
-            return Err(SemanticInterrupted);
+            return Err(ContractError::Interrupted);
         }
         self.rows.push(row.to_vec());
         Ok(())

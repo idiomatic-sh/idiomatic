@@ -12,30 +12,27 @@ pub enum SetKind {
     Antijoin,
 }
 
-/// The original engine error remains with the finite driver after interruption.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct SetInterrupted;
 
 /// Finite access to acquired typed membership, invocation distinct state and delivery.
 /// The semantic capability cannot select an index, retain a row or publish independently.
 pub trait SetRowDriver {
     /// Whether the acquired right population has no rows.
-    fn right_empty(&mut self) -> Result<bool, SetInterrupted>;
+    fn right_empty(&mut self) -> Result<bool, SetError>;
     /// Test a full row or projected left key against the acquired right index.
     fn contains_right(
         &mut self,
         key: &[ryo_relations::domain::relations::types::Value],
-    ) -> Result<bool, SetInterrupted>;
+    ) -> Result<bool, SetError>;
     /// Record an invocation-scoped first occurrence of a full row.
     fn first_time(
         &mut self,
         row: &[ryo_relations::domain::relations::types::Value],
-    ) -> Result<bool, SetInterrupted>;
+    ) -> Result<bool, SetError>;
     /// Deliver one retained row in original encounter order.
     fn emit(
         &mut self,
         row: &[ryo_relations::domain::relations::types::Value],
-    ) -> Result<(), SetInterrupted>;
+    ) -> Result<(), SetError>;
 }
 
 /// Borrowed set input: typed rows or deferred tree positions selected by the engine.
@@ -65,13 +62,13 @@ pub enum SetInput<'a> {
 /// Finite deferred rows; the engine owns raw ordering, decoding and output slots.
 pub trait SetPositionsDriver {
     /// Advance to the next candidate in encounter order.
-    fn next(&mut self) -> Result<bool, SetInterrupted>;
+    fn next(&mut self) -> Result<bool, SetError>;
     /// Whether the acquired right population has no rows.
-    fn right_empty(&mut self) -> Result<bool, SetInterrupted>;
+    fn right_empty(&mut self) -> Result<bool, SetError>;
     /// Probe the current left row's key only when semantic policy asks.
-    fn contains_right(&mut self) -> Result<bool, SetInterrupted>;
+    fn contains_right(&mut self) -> Result<bool, SetError>;
     /// Whether the current row is the first occurrence in this invocation.
-    fn first_time(&mut self) -> Result<bool, SetInterrupted>;
+    fn first_time(&mut self) -> Result<bool, SetError>;
     /// Deliver current positions without decoding unused cells.
-    fn emit(&mut self) -> Result<(), SetInterrupted>;
+    fn emit(&mut self) -> Result<(), SetError>;
 }

@@ -103,10 +103,10 @@ impl OrderedMatchDriver for Driver {
             &[number(i64::try_from(right).unwrap())],
         )
     }
-    fn emit(&mut self, row: &[Cell]) -> Result<(), SemanticInterrupted> {
+    fn emit(&mut self, row: &[Cell]) -> Result<(), ContractError> {
         self.attempts += 1;
         if self.fail_second && self.attempts == 2 {
-            return Err(SemanticInterrupted);
+            return Err(ContractError::Interrupted);
         }
         self.rows.extend_from_slice(row);
         Ok(())

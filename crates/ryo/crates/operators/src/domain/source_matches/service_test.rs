@@ -1,6 +1,7 @@
 //! Exact physical spans, CRLF lines, capture refusals and interruption prefixes.
 use super::service::occurrences;
-use crate::domain::contract::types::{PortableOperatorFault, SemanticInterrupted};
+use crate::domain::contract::types::{PortableOperatorFault};
+use crate::domain::contract::errors::ContractError;
 use crate::domain::source_matches::types::{SourceMatchesInput, TextRowDriver};
 use ryo_matching::inbound::use_cases::matching::{
     interface::MatchingUseCase, types::{GroupName, RegexSource, SearchText},
@@ -86,10 +87,10 @@ impl TextRowDriver for Driver {
         assert!(text == "b" || text == "c");
         Cell::Number(Integer(i64::try_from(text.len()).unwrap()))
     }
-    fn emit(&mut self, row: &[Cell]) -> Result<(), SemanticInterrupted> {
+    fn emit(&mut self, row: &[Cell]) -> Result<(), ContractError> {
         self.deliveries += 1;
         if matches!(self.scenario, Scenario::Interrupted) {
-            return Err(SemanticInterrupted);
+            return Err(ContractError::Interrupted);
         }
         self.rows.extend_from_slice(row);
         Ok(())

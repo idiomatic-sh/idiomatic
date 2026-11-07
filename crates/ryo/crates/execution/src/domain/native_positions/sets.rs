@@ -17,7 +17,7 @@ use crate::domain::{
 use ryo_derived::domain::contract::types::RawOrder;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::domain::set_rows::types::SetInput;
-use ryo_operators::domain::set_rows::types::SetInterrupted;
+use ryo_operators::domain::set_rows::errors::SetError;
 use ryo_operators::domain::set_rows::types::SetKind;
 use ryo_operators::domain::set_rows::types::SetPositionsDriver;
 use ryo_relations::domain::relations::{service::to_bits, types::Position};
@@ -36,26 +36,26 @@ struct UnionDriver<'a> {
     failure: FailureLatch,
 }
 impl SetPositionsDriver for UnionDriver<'_> {
-    fn next(&mut self) -> Result<bool, SetInterrupted> {
+    fn next(&mut self) -> Result<bool, SetError> {
         self.failure
             .run(|| {
                 self.current = (self.next.0 < self.keep.0.len()).then_some(self.next);
                 self.next.0 += usize::from(self.current.is_some());
                 Ok(self.current.is_some())
             })
-            .map_err(|()| SetInterrupted)
+            .map_err(|()| SetError::Interrupted)
     }
-    fn right_empty(&mut self) -> Result<bool, SetInterrupted> {
+    fn right_empty(&mut self) -> Result<bool, SetError> {
         self.failure
             .run(|| Err(OperatingError::WrongOperation))
-            .map_err(|()| SetInterrupted)
+            .map_err(|()| SetError::Interrupted)
     }
-    fn contains_right(&mut self) -> Result<bool, SetInterrupted> {
+    fn contains_right(&mut self) -> Result<bool, SetError> {
         self.failure
             .run(|| Err(OperatingError::WrongOperation))
-            .map_err(|()| SetInterrupted)
+            .map_err(|()| SetError::Interrupted)
     }
-    fn first_time(&mut self) -> Result<bool, SetInterrupted> {
+    fn first_time(&mut self) -> Result<bool, SetError> {
         self.failure
             .run(|| {
                 self.current
@@ -63,9 +63,9 @@ impl SetPositionsDriver for UnionDriver<'_> {
                     .copied()
                     .ok_or(OperatingError::ShapeMismatch)
             })
-            .map_err(|()| SetInterrupted)
+            .map_err(|()| SetError::Interrupted)
     }
-    fn emit(&mut self) -> Result<(), SetInterrupted> {
+    fn emit(&mut self) -> Result<(), SetError> {
         self.failure
             .run(|| {
                 let at = self.current.ok_or(OperatingError::WrongOperation)?;
@@ -76,7 +76,7 @@ impl SetPositionsDriver for UnionDriver<'_> {
                 self.written.0 += 1;
                 Ok(())
             })
-            .map_err(|()| SetInterrupted)
+            .map_err(|()| SetError::Interrupted)
     }
 }
 
@@ -190,7 +190,7 @@ struct AntiDriver<'a, 't> {
     counts: &'a WorkCounters,
 }
 impl SetPositionsDriver for AntiDriver<'_, '_> {
-    fn next(&mut self) -> Result<bool, SetInterrupted> {
+    fn next(&mut self) -> Result<bool, SetError> {
         self.failure
             .run(|| {
                 self.current = (self.next.0 < count(self.left).0).then_some(self.next);
@@ -200,14 +200,14 @@ impl SetPositionsDriver for AntiDriver<'_, '_> {
                 }
                 Ok(self.current.is_some())
             })
-            .map_err(|()| SetInterrupted)
+            .map_err(|()| SetError::Interrupted)
     }
-    fn right_empty(&mut self) -> Result<bool, SetInterrupted> {
+    fn right_empty(&mut self) -> Result<bool, SetError> {
         self.failure
             .run(|| Ok(self.right_count.0 == 0))
-            .map_err(|()| SetInterrupted)
+            .map_err(|()| SetError::Interrupted)
     }
-    fn contains_right(&mut self) -> Result<bool, SetInterrupted> {
+    fn contains_right(&mut self) -> Result<bool, SetError> {
         self.failure
             .run(|| {
                 let at = self.current.ok_or(OperatingError::WrongOperation)?;
@@ -221,21 +221,21 @@ impl SetPositionsDriver for AntiDriver<'_, '_> {
                 );
                 Ok(!self.order.hits(&self.probe.0).is_empty())
             })
-            .map_err(|()| SetInterrupted)
+            .map_err(|()| SetError::Interrupted)
     }
-    fn first_time(&mut self) -> Result<bool, SetInterrupted> {
+    fn first_time(&mut self) -> Result<bool, SetError> {
         self.failure
             .run(|| Err(OperatingError::WrongOperation))
-            .map_err(|()| SetInterrupted)
+            .map_err(|()| SetError::Interrupted)
     }
-    fn emit(&mut self) -> Result<(), SetInterrupted> {
+    fn emit(&mut self) -> Result<(), SetError> {
         self.failure
             .run(|| {
                 let at = self.current.ok_or(OperatingError::WrongOperation)?;
                 self.out.0.extend_from_slice(row(self.left, at).0);
                 Ok(())
             })
-            .map_err(|()| SetInterrupted)
+            .map_err(|()| SetError::Interrupted)
     }
 }
 

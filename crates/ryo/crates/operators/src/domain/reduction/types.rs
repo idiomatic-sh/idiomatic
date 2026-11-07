@@ -60,7 +60,7 @@ pub trait StreamingReduction {
         &mut self,
         key: &[ryo_relations::domain::relations::types::Value],
         row: &[ryo_relations::domain::relations::types::Value],
-    ) -> Result<ryo_values::domain::rows::types::RowIndex, SemanticInterrupted>;
+    ) -> Result<ryo_values::domain::rows::types::RowIndex, ContractError>;
     fn insert_value(
         &mut self,
         group: ryo_values::domain::rows::types::RowIndex,
@@ -71,7 +71,7 @@ pub trait StreamingReduction {
     fn append_hash(&mut self, hash: AggregationHash);
 }
 
-use crate::domain::contract::types::SemanticInterrupted;
+use crate::domain::contract::errors::ContractError;
 
 /// Whether two rows belong to the same group.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

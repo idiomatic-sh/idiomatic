@@ -18,10 +18,10 @@ pub trait TextRowDriver {
     fn emit(
         &mut self,
         row: &[ryo_relations::domain::relations::types::Value],
-    ) -> Result<(), SemanticInterrupted>;
+    ) -> Result<(), ContractError>;
 }
 
-use crate::domain::contract::types::SemanticInterrupted;
+use crate::domain::contract::errors::ContractError;
 
 /// Bytes of the searched text or of the physical source it was cut from.
 #[derive(Clone, Copy, Debug)]

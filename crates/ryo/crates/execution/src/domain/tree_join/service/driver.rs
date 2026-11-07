@@ -14,7 +14,7 @@ use crate::domain::text_gate::service::text_admitted;
 use crate::domain::tree_join::types::TreeState;
 use ryo_language::domain::elements::service::{field_name_at, kind_at, parent_at, text_at};
 use ryo_operators::domain::equality_join::types::JoinDriver;
-use ryo_operators::domain::equality_join::types::JoinInterrupted;
+use ryo_operators::domain::equality_join::errors::JoinError;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{Flag, Position, Value};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison};
@@ -102,13 +102,13 @@ impl Driver<'_, '_, '_> {
     }
 }
 impl JoinDriver for Driver<'_, '_, '_> {
-    fn next(&mut self, _key: &[Value]) -> Result<bool, JoinInterrupted> {
+    fn next(&mut self, _key: &[Value]) -> Result<bool, JoinError> {
         if self.error.is_some() {
-            return Err(JoinInterrupted);
+            return Err(JoinError::Interrupted);
         }
         self.advance().map_err(|error| {
             self.error = Some(error);
-            JoinInterrupted
+            JoinError::Interrupted
         })
     }
     fn right_cell(&self, column: ColumnIndex) -> Option<Value> {
@@ -118,13 +118,13 @@ impl JoinDriver for Driver<'_, '_, '_> {
         self.current
             .map(|position| tree_value(self.tree, position, column))
     }
-    fn emit(&mut self, row: &[Value]) -> Result<(), JoinInterrupted> {
+    fn emit(&mut self, row: &[Value]) -> Result<(), JoinError> {
         if self.error.is_some() {
-            return Err(JoinInterrupted);
+            return Err(JoinError::Interrupted);
         }
         self.emit.row(self.context, row).map_err(|error| {
             self.error = Some(error);
-            JoinInterrupted
+            JoinError::Interrupted
         })
     }
 }

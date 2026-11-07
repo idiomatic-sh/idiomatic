@@ -1,7 +1,4 @@
 //! Borrowed equality join contracts; no engine authority.
-/// An interruption is retained as the engine's original error outside the capability.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct JoinInterrupted;
 
 /// Finite borrowed access to already acquired matching rows, in their original bag order.
 /// Implementations cannot be selected or retained by the semantic kernel. One object
@@ -13,7 +10,7 @@ pub trait JoinDriver {
     fn next(
         &mut self,
         key: &[ryo_relations::domain::relations::types::Value],
-    ) -> Result<bool, JoinInterrupted>;
+    ) -> Result<bool, JoinError>;
     /// Decode one current right cell; no full-width row is required.
     fn right_cell(
         &self,
@@ -23,7 +20,7 @@ pub trait JoinDriver {
     fn emit(
         &mut self,
         row: &[ryo_relations::domain::relations::types::Value],
-    ) -> Result<(), JoinInterrupted>;
+    ) -> Result<(), JoinError>;
 }
 
 /// Ordinary Join representations. Dispatch is exhaustive at the single capability boundary.
@@ -58,7 +55,7 @@ pub enum JoinInput<'a> {
 /// Borrowed matching position rows. No semantic cell is decoded by this interface.
 pub trait PositionJoinDriver {
     /// Advance in the original bag order. The first error is sticky.
-    fn next(&mut self) -> Result<bool, JoinInterrupted>;
+    fn next(&mut self) -> Result<bool, JoinError>;
     /// File-local position slots of the current already matching RHS row.
     fn right_positions(&self) -> &[u32];
 }

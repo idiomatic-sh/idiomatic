@@ -28,6 +28,3 @@ pub enum PortableOperatorFault {
     WrongOperation,
 }
 
-/// An engine-retained error interrupted a finite semantic callback.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct SemanticInterrupted;

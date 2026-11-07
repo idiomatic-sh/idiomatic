@@ -5,3 +5,4 @@ pub(crate) mod service;
 mod service_test;
 
 pub mod types;
+pub mod errors;

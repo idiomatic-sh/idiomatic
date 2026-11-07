@@ -1,6 +1,7 @@
 //! FIFO witnesses, repeated projections and first-failure delivery use independent expected pairs.
 use super::service::pairs;
-use crate::domain::contract::types::{PortableOperatorFault, SemanticInterrupted};
+use crate::domain::contract::types::{PortableOperatorFault};
+use crate::domain::contract::errors::ContractError;
 use crate::domain::ordered_match::types::OrderedMatchDriver;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -80,10 +81,10 @@ impl OrderedMatchDriver for Driver {
             &[Cell::Number(Integer(i64::try_from(right).unwrap()))],
         )
     }
-    fn emit(&mut self, row: &[Cell]) -> Result<(), SemanticInterrupted> {
+    fn emit(&mut self, row: &[Cell]) -> Result<(), ContractError> {
         self.deliveries += 1;
         if matches!(self.scenario, Scenario::Interrupted) {
-            return Err(SemanticInterrupted);
+            return Err(ContractError::Interrupted);
         }
         self.rows.extend_from_slice(row);
         Ok(())
