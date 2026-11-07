@@ -33,7 +33,7 @@ impl crate::outbound::operators::interface::OperatorsPort for MeaningCalls {
             }
             _ => {}
         }
-        crate::outbound::operators::fixtures::fake::OperatorsFake::default().operators(call)
+        crate::application::file_dag::testing::operators().operators(call)
     }
 }
 fn run(

@@ -140,7 +140,7 @@ fn project_into(column: u32, sink: &mut dyn RowSink) -> Result<(), OperatingErro
     )?;
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
-            crate::outbound::operators::fixtures::fake::OperatorsFake::default(),
+            crate::application::file_dag::testing::operators(),
         ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {
@@ -299,7 +299,7 @@ fn indexed_join(key: i64, column: u32) -> Result<Table, OperatingError> {
     )?;
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
-            crate::outbound::operators::fixtures::fake::OperatorsFake::default(),
+            crate::application::file_dag::testing::operators(),
         ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {

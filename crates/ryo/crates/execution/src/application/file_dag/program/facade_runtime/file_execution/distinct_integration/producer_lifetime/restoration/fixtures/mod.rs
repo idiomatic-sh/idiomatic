@@ -188,7 +188,7 @@ impl CapturedProject {
         })];
         let services = Arc::new(ProgramServices::new(
             Arc::new(CommonOperatorEngine::new(Arc::new(
-                crate::outbound::operators::fixtures::fake::OperatorsFake::default(),
+                crate::application::file_dag::testing::operators(),
             ))),
             derived,
             &corpus,

@@ -200,7 +200,7 @@ fn one_file_owner_resets_dfs_across_closure_empty_and_different_graph() {
     .unwrap();
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(Arc::new(
-            crate::outbound::operators::fixtures::fake::OperatorsFake::default(),
+            crate::application::file_dag::testing::operators(),
         ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {

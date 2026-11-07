@@ -26,7 +26,7 @@ impl crate::outbound::operators::interface::OperatorsPort for RefuseCount {
         ) {
             return Err(PortableOperatorFault::WrongOperation);
         }
-        crate::outbound::operators::fixtures::fake::OperatorsFake::default().operators(call)
+        crate::application::file_dag::testing::operators().operators(call)
     }
 }
 fn columns(failed_emit: bool) -> Vec<ObservationColumn> {

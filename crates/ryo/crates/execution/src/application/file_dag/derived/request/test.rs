@@ -15,7 +15,7 @@ fn kinds() -> Vec<Vec<CellKind>> {
 fn missing_input_is_prepared_but_refused_only_when_the_view_is_demanded() {
     let mut views = RequestViews::new(
         (std::sync::Arc::new(
-            crate::outbound::derived::fixtures::fake::DerivedFake::default(),
+            crate::application::file_dag::testing::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let program = ResourceProgram::Index {
@@ -51,7 +51,7 @@ fn missing_input_is_prepared_but_refused_only_when_the_view_is_demanded() {
 fn plain_join_and_axis_bind_finite_ordered_inputs_and_share_identical_plans() {
     let mut views = RequestViews::new(
         (std::sync::Arc::new(
-            crate::outbound::derived::fixtures::fake::DerivedFake::default(),
+            crate::application::file_dag::testing::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let kinds = kinds();
@@ -124,7 +124,7 @@ fn family_slots_hold_compact_shared_binding_handles() {
     );
     let mut views = RequestViews::new(
         (std::sync::Arc::new(
-            crate::outbound::derived::fixtures::fake::DerivedFake::default(),
+            crate::application::file_dag::testing::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let schema = kinds();

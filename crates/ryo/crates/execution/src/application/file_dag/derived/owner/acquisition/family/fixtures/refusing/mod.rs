@@ -15,7 +15,7 @@ use std::sync::Arc;
 pub(super) struct RefusingBuild;
 impl DerivedPort for RefusingBuild {
     fn prepare(&self, request: ViewRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived {
-        crate::outbound::derived::fixtures::fake::DerivedFake::default().prepare(request, schemas)
+        crate::application::file_dag::testing::derived().prepare(request, schemas)
     }
     fn build(
         &self,
@@ -31,7 +31,7 @@ impl DerivedPort for RefusingBuild {
         prepared: &PreparedDerived,
         payload: &'a DerivedPayload,
     ) -> Result<DerivedView<'a>, DerivedFault> {
-        crate::outbound::derived::fixtures::fake::DerivedFake::default().view(prepared, payload)
+        crate::application::file_dag::testing::derived().view(prepared, payload)
     }
 }
 

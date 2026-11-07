@@ -14,7 +14,7 @@ impl crate::outbound::operators::interface::OperatorsPort for JoinReads {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         let before = matches!(&call, OperatorCall::EqualityJoin { .. }).then(read_row_counts);
         let answer =
-            crate::outbound::operators::fixtures::fake::OperatorsFake::default()
+            crate::application::file_dag::testing::operators()
                 .operators(call);
         if let Some(before) = before {
             let after = read_row_counts();

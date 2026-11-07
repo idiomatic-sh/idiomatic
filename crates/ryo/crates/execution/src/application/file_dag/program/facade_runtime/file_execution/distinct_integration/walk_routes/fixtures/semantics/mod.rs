@@ -100,7 +100,7 @@ impl Derived {
 }
 impl DerivedPort for Derived {
     fn prepare(&self, request: ViewRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived {
-        crate::outbound::derived::fixtures::fake::DerivedFake::default().prepare(request, schemas)
+        crate::application::file_dag::testing::derived().prepare(request, schemas)
     }
     fn build(
         &self,
@@ -118,14 +118,14 @@ impl DerivedPort for Derived {
         {
             return Err(DerivedFault::DuplicateOrder);
         }
-        crate::outbound::derived::fixtures::fake::DerivedFake::default().build(prepared, inputs, room, recycled)
+        crate::application::file_dag::testing::derived().build(prepared, inputs, room, recycled)
     }
     fn view<'a>(
         &self,
         prepared: &PreparedDerived,
         payload: &'a DerivedPayload,
     ) -> Result<DerivedView<'a>, DerivedFault> {
-        crate::outbound::derived::fixtures::fake::DerivedFake::default().view(prepared, payload)
+        crate::application::file_dag::testing::derived().view(prepared, payload)
     }
 }
 

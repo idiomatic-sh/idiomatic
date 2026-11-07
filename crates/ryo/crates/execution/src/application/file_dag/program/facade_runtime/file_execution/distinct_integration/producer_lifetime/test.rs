@@ -49,7 +49,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
     assert_eq!(prepared.program().regions()[producer.0].consumers(), 2);
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
-            crate::outbound::operators::fixtures::fake::OperatorsFake::default(),
+            crate::application::file_dag::testing::operators(),
         ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {

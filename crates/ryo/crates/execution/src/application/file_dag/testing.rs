@@ -3,9 +3,15 @@ use ryo_relations::domain::relations::types::{CellKind, Value};
 /// Composition of the actual portable derived use case for current engine tests.
 pub(crate) fn program_derived_port()
 -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
-    std::sync::Arc::new(
-        crate::outbound::derived::fixtures::fake::DerivedFake::default(),
-    )
+    std::sync::Arc::new(derived())
+}
+/// The operators capability behind its port, with the call counter the port's fake keeps.
+pub(crate) fn operators() -> crate::outbound::operators::fixtures::fake::OperatorsFake {
+    crate::outbound::operators::fixtures::fake::OperatorsFake::default()
+}
+/// The derived capability behind its port, with the call counter the port's fake keeps.
+pub(crate) fn derived() -> crate::outbound::derived::fixtures::fake::DerivedFake {
+    crate::outbound::derived::fixtures::fake::DerivedFake::default()
 }
 /// Complete computed fixture rows for portable derived semantics controls.
 pub(crate) struct CompleteTableRows<'a>(pub &'a ryo_values::domain::rows::types::Table);

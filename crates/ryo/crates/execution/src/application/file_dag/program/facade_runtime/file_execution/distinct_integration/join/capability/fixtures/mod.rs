@@ -44,7 +44,7 @@ impl crate::outbound::operators::interface::OperatorsPort for Witness {
                 return Err(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(REFUSAL) });
             }
         }
-        crate::outbound::operators::fixtures::fake::OperatorsFake::default()
+        crate::application::file_dag::testing::operators()
             .operators(call)
     }
 }

@@ -149,7 +149,7 @@ fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_a
     );
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(Arc::new(
-            crate::outbound::operators::fixtures::fake::OperatorsFake::default(),
+            crate::application::file_dag::testing::operators(),
         ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {
