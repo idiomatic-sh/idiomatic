@@ -24,7 +24,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 fn subject(_: Input) -> Result<Value, Failure> {
     let compilation = Compilation::new(std::sync::Arc::new(QueryLanguageFake::default()));
     Ok(compilation
-        .compile(&[], &[], &ryo_execution::outbound::digest::fixtures::fake::DigestFake::default())
+        .compile(&[], &[], &ryo_execution::outbound::digest::fixtures::fake::DigestFake)
         .expect("no rules compile")
         .plans()
         .is_empty())

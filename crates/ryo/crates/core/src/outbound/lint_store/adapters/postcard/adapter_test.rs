@@ -830,7 +830,7 @@ fn old_descriptor_enumeration_skips_huge_payloads_and_resolution_reads_one() -> 
         snapshot: StoreSnapshot(91),
         bucket: Bucket(3),
         file: rows[1].file,
-        header: ryo_values::domain::records::types::HeaderOffset(rows[1].header),
+        header: rows[1].header,
         offset: ryo_values::domain::records::types::PayloadOffset(rows[1].span.start.0),
         length: ryo_values::domain::records::types::PayloadLength(rows[1].span.length.0),
     };
@@ -929,7 +929,7 @@ fn old_payloads_and_headers_share_one_exact_read_without_neighbor_prefetch() -> 
                 snapshot: StoreSnapshot(81),
                 bucket: Bucket(3),
                 file: first.file,
-                header: ryo_values::domain::records::types::HeaderOffset(first.header),
+                header: first.header,
                 offset: ryo_values::domain::records::types::PayloadOffset(first.span.start.0),
                 length: ryo_values::domain::records::types::PayloadLength(first.span.length.0),
             };
@@ -1007,7 +1007,7 @@ fn positional_old_payload_read_preserves_cursor_and_refuses_late_truncation() ->
         snapshot: StoreSnapshot(81),
         bucket: Bucket(3),
         file: first.file,
-        header: ryo_values::domain::records::types::HeaderOffset(first.header),
+        header: first.header,
         offset: ryo_values::domain::records::types::PayloadOffset(first.span.start.0),
         length: ryo_values::domain::records::types::PayloadLength(first.span.length.0),
     };
@@ -1276,14 +1276,14 @@ fn failed_creation_write_flush_and_read_do_not_commit_a_descriptor() -> Result<V
     file.read_fails = false;
     file.flush_fails = true;
     let _refusal = read(&mut file, StagingSession(1), held, &span, &mut out).expect_err("a refusal");
-    let mut impossible = u64::MAX;
+    let mut impossible = ryo_values::domain::records::types::PayloadLength(u64::MAX);
     let _refusal = append(
             &mut file,
             StagingSession(1),
             &mut impossible,
             &PackedWords(vec![0])
         ).expect_err("a refusal");
-    assert_eq!(impossible, u64::MAX);
+    assert_eq!(impossible.0, u64::MAX);
     Ok(true)
 }
 

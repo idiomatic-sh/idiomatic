@@ -220,3 +220,16 @@ impl Observed for ryo_execution::application::file_dag::program::file_session::t
         }
     }
 }
+
+/// The authored plans and bindings of a request together, for a control that edits both in one pass.
+pub(crate) fn authored_parts(
+    request: &mut PrepareRequest,
+) -> (
+    &mut Vec<ryo_values::domain::plans::types::Plan>,
+    &mut Vec<Vec<ryo_values::domain::query_bindings::types::ParameterBinding>>,
+) {
+    match &mut request.plans {
+        PlanSource::Authored { plans, bindings } => (plans, bindings),
+        PlanSource::Compiled(_) => panic!("a control edits only the request it authored"),
+    }
+}

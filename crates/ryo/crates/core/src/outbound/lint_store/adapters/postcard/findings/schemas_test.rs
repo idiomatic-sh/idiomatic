@@ -25,7 +25,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 /// Writes a text cell and a file cell through the table of strings and reads each back.
 fn subject() -> Value {
-    let cells = [Cell::File("src/a.rs".into()), Cell::Number(7.into())];
+    let cells = [Cell::File("src/a.rs".into()), Cell::Number(ryo_relations::domain::relations::types::Integer(7))];
     let mut strings = StringsSchema::default();
     let schemas: Vec<_> = cells
         .iter()

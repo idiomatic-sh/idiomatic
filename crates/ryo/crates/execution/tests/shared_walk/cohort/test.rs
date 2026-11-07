@@ -22,7 +22,8 @@ fn only_admitted_classes_allocate_scratch_and_result_slots() {
     for declarations in [1, 257] {
         let (engine, semantics) = engine();
         let mut authored = authored_request(declarations);
-        for (index, plan) in crate::boundary_fixture::plans(&mut authored).iter_mut().enumerate() {
+        let (plans, bindings) = crate::boundary_fixture::authored_parts(&mut authored);
+    for (index, plan) in plans.iter_mut().enumerate() {
             let (relation, comparisons) = if index == 0 {
                 (Relation::SyntaxTree, selection(Selector::Kind("word")))
             } else if index % 2 == 0 {
@@ -211,7 +212,8 @@ fn full_rule_count_shares_source_decoding_and_ordered_predicate_prefixes() {
     const RULES: usize = 413;
     let (engine, semantics) = engine();
     let mut authored = authored_request(RULES);
-    for (index, plan) in crate::boundary_fixture::plans(&mut authored).iter_mut().enumerate() {
+    let (plans, bindings) = crate::boundary_fixture::authored_parts(&mut authored);
+    for (index, plan) in plans.iter_mut().enumerate() {
         let mut comparisons = selection(Selector::Kind("word"));
         comparisons.push(compared(
             Test::NotEqual,
@@ -272,12 +274,13 @@ fn shared_prefixes_preserve_distinct_parameter_bindings_and_first_errors() {
     };
     let (engine, semantics) = engine();
     let mut authored = authored_request(3);
-    for (index, plan) in crate::boundary_fixture::plans(&mut authored).iter_mut().enumerate() {
+    let (plans, bindings) = crate::boundary_fixture::authored_parts(&mut authored);
+    for (index, plan) in plans.iter_mut().enumerate() {
         plan.parameters.push(PlanParameter {
             name: ParameterName("pattern".into()),
             kind: ParameterType::Text,
         });
-        crate::boundary_fixture::bindings(&mut authored)[index] = vec![ParameterBinding::Text(
+        bindings[index] = vec![ParameterBinding::Text(
             ryo_values::domain::plan_parts::types::LiteralText(
                 if index == 0 { "[" } else { "a" }.into(),
             ),

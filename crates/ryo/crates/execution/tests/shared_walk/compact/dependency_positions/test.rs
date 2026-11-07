@@ -1,4 +1,5 @@
 //! A grouped dependency and the original source join in both input positions.
+use ryo_execution::application::file_dag::program::file_session::interface::FileExecution as _;
 use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;

@@ -1,4 +1,5 @@
 //! Real relation, region, observation and member roots, including direct bound capture.
+use ryo_execution::application::file_dag::program::file_session::interface::FileExecution as _;
 use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution as _;
 use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use ryo_execution::outbound::facts::types::ResidentStability;

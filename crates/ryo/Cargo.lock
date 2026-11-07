@@ -1642,6 +1642,7 @@ dependencies = [
  "idiomatic-sh-ryo-core",
  "idiomatic-sh-ryo-execution",
  "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-matching",
  "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-query_language",
  "idiomatic-sh-ryo-relations",

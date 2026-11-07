@@ -175,7 +175,7 @@ pub(super) fn world_with_applicability(
     );
     let program = Arc::new(
         engine
-            .prepare(PrepareRequest { plans: PlanSource::Authored { plans: plans, bindings: vec![Vec::new(); plans.len()] }, rules: ids
+            .prepare(PrepareRequest { plans: PlanSource::Authored { bindings: vec![Vec::new(); plans.len()], plans }, rules: ids
                     .iter()
                     .enumerate()
                     .map(|(rule, id)| RuleSpec {
