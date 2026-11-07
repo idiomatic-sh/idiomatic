@@ -66,30 +66,36 @@ enforcement. See "Adversarial pass" and "Architectural enforcement" there.
 
 ## Known red
 
+Each is named with its reason in `validation.json` (`results`) and in the
+checkpoint 319 integration record of [the matrix](../README.md).
+
 - `core_allocation` (core `allocation` test, exit 101, about 1,880 blocks per
   file): a Phase 7 measurement.
-- Python `ruff` target: green at checkpoint 318 (12 passed / 0 failed,
-  validation318); the syntax-poisoning case passes.
-- Cli `replay` target (validation318): 72 passed / 6 failed, the six being the
-  `(b)` group, named in `validation.json` (`results.cli_replay_reds`): the four
-  behaviour tests `behavior::what_ryo_could_not_decide_over_ruff_is_the_golden_or_a_recorded_difference`,
-  `behavior::ruff_findings_equal_the_expected_findings`,
-  `behavior::every_recorded_rule_gives_the_recorded_rows` and
-  `behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows`, and the cache
-  store size and warm peak tests `cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store`
-  and `peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound`.
+- Cli `replay` target (validation319): 73 passed / 5 failed, the five being
+  `results.cli_replay_reds`: three behaviour tests, the cache store size test and
+  the warm peak test. The sixth red of checkpoint 318,
+  `behavior::ruff_findings_equal_the_expected_findings`, passes.
+- Cli `cli_cost`: 3 of 7 ratchet rows fail until the perf ratchet is seeded on a quiet machine.
+- Python `ruff` target: 11 passed / 1 failed, the I001 observation row of
+  `engine_test`, which was green at checkpoint 318; the same step-key anchoring
+  fails five `project_phase::restoration::partition` rows of `boundary_contract`
+  (98 passed / 5 failed).
+- Execution library 549 / 2 and core library 108 / 2: the two `errored_rule` rows
+  and two review-repair rows named in the record.
 
 ## Verification limits
 
 Not covered by the latest validation (`validation.json`, validated source
-`c043a6dc68`, checkpoint 318, validation318; "not full product acceptance"):
+`da1fe3eff3`, checkpoint 319, validation319; "not full product acceptance"):
 
-- Whole-tree TM is measured, not clean: 3,676 findings, 0 suppressed. The
-  scoped `tm_source` run is 344 findings over sixteen directories, 213 in
-  production files and 131 in test trees (the split is recorded in
-  `validation.json`).
-- No new performance measurement; the benchmark harness is not part of the set.
-- The cli replay target compiles and runs; its six red tests are listed above.
+- Whole-tree TM is measured, not clean: 2,762 findings, 0 suppressed (3,676 at
+  checkpoint 318). The scoped `tm_source` run is 250 findings over sixteen
+  directories, 200 in production files and 50 in test trees (the split is
+  recorded in `validation.json`).
+- No new performance measurement; the benchmark harness is not part of the set,
+  and the route differential of the kernel consolidation is left to its
+  quiet-machine run.
+- The cli replay target compiles and runs; its five red tests are listed above.
 - Language conformance targets print no pass count; exit 0 is the receipt.
 
 Links: [matrix](../README.md), [execution plan](../execution-plan.md),

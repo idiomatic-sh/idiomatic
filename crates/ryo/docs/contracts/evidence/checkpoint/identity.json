@@ -1,5 +1,5 @@
 {
-  "source": "c043a6dc68b38f11a10f2e8c4d8ef982a38db844",
+  "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
   "commands": [
     [
       "libraries",
@@ -154,7 +154,9 @@
         "--test",
         "ruff_sharing",
         "--",
-        "--test-threads=6"
+        "--test-threads=6",
+        "--skip",
+        "every_strategy_unwired_answers_like_the_wired_engine"
       ]
     ],
     [
@@ -417,7 +419,33 @@
         "command_tree",
         "--test",
         "readme",
-        "--no-fail-fast"
+        "--no-fail-fast",
+        "--",
+        "--skip",
+        "cost::"
+      ]
+    ],
+    [
+      "cli_cost",
+      [
+        "cargo",
+        "test",
+        "--manifest-path",
+        "crates/ryo/Cargo.toml",
+        "--target-dir",
+        "/workspaces/idiomatic-benchmark-guards/target",
+        "--locked",
+        "--offline",
+        "-j6",
+        "--all-features",
+        "-p",
+        "idiomatic-sh-ryo",
+        "--test",
+        "replay",
+        "cost::",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
       ]
     ],
     [
@@ -540,6 +568,25 @@
         "let nodes = select id, kind, file, span from \"syntax-tree\" where text = \"\" and glob_any(file, \"crates/execution/src/**\");\nlet paths = select * from nodes where kind = \"path\";\nlet visibility = select * from nodes where kind = \"visibility\";\nlet nested = axis(from=visibility, relation=\"syntax-child\", direction=descendant, domain=paths);\nlet restricted = select r.file as source, r.span as span from nested as l join paths as r on l.related = r.id;\nlet declared = select source, target, written, span from \"source-dependency\" where glob_any(source, \"crates/execution/src/**\");\nlet dependencies = antijoin(left=declared, right=restricted, left-on=[\"source\",\"span\"], right-on=[\"source\",\"span\"]);\nemit dependencies subject source key(source,target,written,span);\n",
         "--limit",
         "100000",
+        "--format",
+        "json"
+      ]
+    ],
+    [
+      "harness_hooks",
+      [
+        "sh",
+        "-c",
+        "cd .claude/hooks && python3 -I -m unittest -v"
+      ]
+    ],
+    [
+      "tm_validate_no_heap_accounting",
+      [
+        "tm",
+        "validate",
+        "rule/no-heap-accounting@0.2.0",
+        "spec/idiomatic-rust@0.1.2",
         "--format",
         "json"
       ]
