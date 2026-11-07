@@ -72,7 +72,7 @@ impl OperatorsItem for RenderSyntaxItem {
                     .views
                     .semantic
                     .ok_or_else(|| OperatingError::SemanticIncomplete {
-                        reason: "no file semantic session was admitted".into(),
+                        reason: super::constants::NO_SEMANTIC_SESSION.into(),
                     })?;
             let answers = lookup.render_batch(&requests, lease.views.source.0)?;
             if answers.len() != requests.len() {

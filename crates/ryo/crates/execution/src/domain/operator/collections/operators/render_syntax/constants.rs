@@ -26,3 +26,6 @@ pub(crate) fn description() -> OperatorDescription {
         r#"let example = render-syntax(from="syntax-tree", node="id", context="assignment-target", output="rendered"); emit example subject file key(id);"#,
     )
 }
+
+/// What a render demand says when the file admitted no semantic session.
+pub(super) const NO_SEMANTIC_SESSION: &str = "no file semantic session was admitted";

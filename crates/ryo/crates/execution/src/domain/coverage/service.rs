@@ -23,7 +23,7 @@ pub(crate) fn affected_ordinals(
 ) -> Result<Vec<usize>, crate::domain::operating::errors::OperatingError> {
     use crate::domain::operating::errors::OperatingError;
     let refuse = || OperatingError::ObservationIncomplete {
-        reason: "partial project coverage cannot be placed on its declared files".into(),
+        reason: super::constants::UNPLACEABLE_COVERAGE.into(),
     };
     if affected.is_empty() || file_count == 0 {
         return Err(refuse());

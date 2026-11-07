@@ -1,7 +1,7 @@
 //! The `trust` service: which reads of the relations a plan trusts the absence of rows of (an antijoin, a difference, a count), and
 //! whether a relation read in part could change what such a read makes, with no IO and no ports.
 
-use super::constants::READS_OF_EARLIER_STEP;
+use super::constants::{BOUND_INDEX_FITS, BOUND_INPUT_SCHEMA, READS_OF_EARLIER_STEP};
 use ryo_relations::domain::relations::service::columns;
 use ryo_relations::domain::relations::service::kind_column;
 use ryo_relations::domain::relations::types::Relation;
@@ -113,9 +113,9 @@ fn uses_of(plan: &Plan) -> Vec<StepReads> {
                         plan.observation_inputs
                             .get(
                                 usize::try_from(id.0)
-                                    .expect("compiled bound input index fits usize")
+                                    .expect(BOUND_INDEX_FITS)
                             )
-                            .expect("compiled bound input has its schema")
+                            .expect(BOUND_INPUT_SCHEMA)
                             .columns
                             .len()
                     ],
