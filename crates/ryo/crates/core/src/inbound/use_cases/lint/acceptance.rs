@@ -115,7 +115,7 @@ fn runs(world: &mut Behavior) {
                 ryo_core::inbound::use_cases::lint::fixtures::engine::publication(),
             ),
             Arc::clone(&analysis_corpus),
-            Arc::new(ryo_execution::outbound::facts::factory::memory()),
+            ryo_core::inbound::use_cases::lint::fixtures::engine::facts(),
             Arc::clone(&analysis_language),
             Arc::new(MatchingFake),
             Arc::new(query_language),
