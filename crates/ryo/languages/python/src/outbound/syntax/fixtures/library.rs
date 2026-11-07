@@ -24,3 +24,16 @@ pub(crate) fn walk_for<const MINOR: u8>() -> LibraryWalk {
 pub(crate) fn oracle_for<const MINOR: u8>() -> Oracle {
     crate::outbound::syntax::adapters::ruff_python_parser::fixtures::oracle::oracle_target::<MINOR>
 }
+
+/// The adapter observed: it counts the actual carrier parses it makes into the counter the caller holds, which is no process-global
+/// counter, and reads under `settings`.
+#[cfg(test)]
+pub(crate) fn observed(
+    settings: crate::settings::PythonParserSettings,
+    count: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+) -> impl crate::outbound::syntax::interface::SyntaxPort {
+    crate::outbound::syntax::adapters::ruff_python_parser::adapter::SyntaxRuffPythonParserAdapter {
+        settings,
+        expansion_parses: count,
+    }
+}

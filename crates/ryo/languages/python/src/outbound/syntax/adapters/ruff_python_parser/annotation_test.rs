@@ -14,12 +14,11 @@ fn named_expression_annotation_validity_does_not_depend_on_filename() {
         let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
         let mut builder =
             languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-        SyntaxRuffPythonParserAdapter::default().read(
-            SourceText(source.as_bytes()),
-            source_kind,
-            &PythonParserSettings::new(PythonTargetVersion::Py310),
-            &mut builder,
-        );
+        SyntaxRuffPythonParserAdapter {
+            settings: PythonParserSettings::new(PythonTargetVersion::Py310),
+            ..Default::default()
+        }
+        .read(SourceText(source.as_bytes()), source_kind, &mut builder);
         let diagnostics: Vec<_> = languages::diagnostics(&elements)
             .map(|diagnostic| {
                 (
@@ -33,7 +32,8 @@ fn named_expression_annotation_validity_does_not_depend_on_filename() {
             .collect();
         (
             languages::syntax_acceptance(&elements),
-            languages::has_incomplete_syntax(&elements) == languages::SyntaxCompleteness::Incomplete,
+            languages::has_incomplete_syntax(&elements)
+                == languages::SyntaxCompleteness::Incomplete,
             diagnostics,
         )
     };
@@ -81,10 +81,13 @@ fn native_annotation_scopes_are_version_sensitive() {
         let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
         let mut builder =
             languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-        SyntaxRuffPythonParserAdapter::default().read(
+        SyntaxRuffPythonParserAdapter {
+            settings: PythonParserSettings::new(target),
+            ..Default::default()
+        }
+        .read(
             SourceText(source.as_bytes()),
             PythonSourceKind::Python,
-            &PythonParserSettings::new(target),
             &mut builder,
         );
         let actual = languages::diagnostics(&elements)
@@ -113,7 +116,7 @@ fn a_module_without_annotations_reports_no_named_expression_error() {
             PythonVersion::PY314,
             super::types::FutureAnnotations(false),
         )
-            .is_empty()
+        .is_empty()
     );
 }
 

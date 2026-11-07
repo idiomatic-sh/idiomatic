@@ -89,3 +89,5 @@ Scenarios named `*-reaches-a-contract-part` prove the language's rules read the 
 Places `no-serde-in-domain` over the language's sources: serde only in an outbound adapter's schemas.
 
 **A scaffolded language compiles warning-free**: `language-outbound-syntax-fixtures-contract` no longer imports the unused `Position`, and `language-lib` names `domain::language::constants::NAME` without the unneeded `crate::`; the rendered fixtures follow. Edited in place.
+
+The benchmark contract crate is allowed as a development dependency by `language-depends-on-ryo-only@0.2.0`.

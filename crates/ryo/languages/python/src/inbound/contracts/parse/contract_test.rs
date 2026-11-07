@@ -60,7 +60,9 @@ fn subject(given: Input) -> Result<Value, Failure> {
         Given::Contract => {
             let language = ParseContract::new(
                 PythonParserSettings::default(),
-                Arc::new(crate::outbound::syntax::factory::ruff_python_parser()),
+                Arc::new(crate::outbound::syntax::factory::ruff_python_parser(
+                    PythonParserSettings::default(),
+                )),
                 Arc::new(crate::outbound::notes::factory::postcard()),
             );
             parse(&language);
@@ -294,7 +296,10 @@ fn explicit_source_selection_preserves_paths_and_default_recognition() {
             )
             .expect("explicitly selected Python source");
         assert_eq!(out.count(languages::Relation::Comment), 1);
-        assert!(languages::has_incomplete_lexical_stream(&elements) == languages::SyntaxCompleteness::Complete);
+        assert!(
+            languages::has_incomplete_lexical_stream(&elements)
+                == languages::SyntaxCompleteness::Complete
+        );
         assert_eq!(request.path.0, path);
     }
     let request = languages::ParseRequest {
@@ -317,13 +322,18 @@ fn explicit_source_selection_preserves_paths_and_default_recognition() {
             &mut languages::contract::Collect::default(),
         )
         .expect("invalid bytes are diagnosed");
-    assert!(languages::has_incomplete_lexical_stream(&elements) == languages::SyntaxCompleteness::Incomplete);
+    assert!(
+        languages::has_incomplete_lexical_stream(&elements)
+            == languages::SyntaxCompleteness::Incomplete
+    );
 }
 
 fn byte_literal_recovery_uses_original_source_acceptance_and_diagnostic_readiness() {
     let provider = ParseContract::new(
         PythonParserSettings::default(),
-        Arc::new(crate::outbound::syntax::factory::ruff_python_parser()),
+        Arc::new(crate::outbound::syntax::factory::ruff_python_parser(
+            PythonParserSettings::default(),
+        )),
         Arc::new(crate::outbound::notes::factory::postcard()),
     );
     // Preserve invalid original UTF-8 and truncated escapes; an escaped high byte is valid UTF-8 source.
@@ -353,12 +363,14 @@ fn byte_literal_recovery_uses_original_source_acceptance_and_diagnostic_readines
         )
         .expect("recovered original bytes remain readable with honest diagnostic metadata");
         assert_eq!(
-            languages::has_incomplete_syntax(&elements) == languages::SyntaxCompleteness::Incomplete,
+            languages::has_incomplete_syntax(&elements)
+                == languages::SyntaxCompleteness::Incomplete,
             incomplete,
             "{bytes:?}"
         );
         assert_eq!(
-            languages::has_incomplete_lexical_stream(&elements) == languages::SyntaxCompleteness::Incomplete,
+            languages::has_incomplete_lexical_stream(&elements)
+                == languages::SyntaxCompleteness::Incomplete,
             incomplete,
             "{bytes:?}"
         );

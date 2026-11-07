@@ -94,7 +94,9 @@ fn subject(source: Input) -> Result<Value, Failure> {
     };
     let parser = ParseContract::new(
         crate::settings::PythonParserSettings::default(),
-        Arc::new(ruff_python_parser()),
+        Arc::new(ruff_python_parser(
+            crate::settings::PythonParserSettings::default(),
+        )),
         Arc::new(postcard()),
     );
     let mut model = Declarations::default();
@@ -192,7 +194,7 @@ fn future_annotation_timing_uses_validated_module_activation() {
         for target in [PythonTargetVersion::Py313, PythonTargetVersion::Py314] {
             let parser = ParseContract::new(
                 PythonParserSettings::new(target),
-                Arc::new(ruff_python_parser()),
+                Arc::new(ruff_python_parser(PythonParserSettings::new(target))),
                 Arc::new(postcard()),
             );
             let (mut elements, mut symbols) = (
@@ -242,11 +244,9 @@ fn future_annotation_timing_uses_validated_module_activation() {
 }
 
 /// Each check below states its own source and asserts its own outcome.
-const CHECKS: &[Case<fn(), (), ()>] = &[
-    Case {
-        name: CaseName("future_annotation_timing_uses_validated_module_activation"),
-        word: Word::Succeeds,
-        input: || future_annotation_timing_uses_validated_module_activation,
-        expect: Expect::Value(()),
-    },
-];
+const CHECKS: &[Case<fn(), (), ()>] = &[Case {
+    name: CaseName("future_annotation_timing_uses_validated_module_activation"),
+    word: Word::Succeeds,
+    input: || future_annotation_timing_uses_validated_module_activation,
+    expect: Expect::Value(()),
+}];

@@ -1,5 +1,4 @@
 //! Parse native source, report frontend diagnostics, and schedule embedded expression writing.
-use ruff_text_size::Ranged;
 use super::constants::{INVALID_UTF8, NOT_UTF8, PARSER_ERROR, UNSUPPORTED_SYNTAX};
 use super::declaration::semantic_syntax_errors;
 use super::future::module_future_annotations;
@@ -15,12 +14,15 @@ use crate::settings::PythonParserSettings;
 use ruff_python_ast::Mod;
 use ruff_python_ast::visitor::source_order::SourceOrderVisitor as _;
 use ruff_python_parser::parse_unchecked;
+use ruff_text_size::Ranged;
 use ryo::languages::{self, DiagnosticMetadata, DiagnosticPhase, Offset, TreeImpact};
 use std::borrow::Cow;
 
 /// The `ruff_python_parser` syntax adapter.
 #[derive(Debug, Default)]
 pub(crate) struct SyntaxRuffPythonParserAdapter {
+    /// The settings the factory injects: the target version the parser reads under.
+    pub(crate) settings: PythonParserSettings,
     /// Actual new carrier parse attempts, observed per adapter only in tests.
     #[cfg(test)]
     pub(crate) expansion_parses: std::sync::Arc<std::sync::atomic::AtomicUsize>,
@@ -31,12 +33,11 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
         &self,
         tree: &languages::Elements,
         source_kind: PythonSourceKind,
-        settings: PythonParserSettings,
     ) -> Option<Box<dyn languages::SemanticSession>> {
         Some(Box::new(super::semantic::PythonSemanticSession::new(
             tree,
             source_kind,
-            settings,
+            self.settings,
         )))
     }
 
@@ -83,11 +84,10 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
         &self,
         text: SourceText<'_>,
         source_kind: PythonSourceKind,
-        settings: &PythonParserSettings,
         builder: &mut languages::TableBuilder<'_>,
     ) {
         let Readable(source) = readable(text);
-        let parsed = parse_unchecked(&source, options(source_kind, settings));
+        let parsed = parse_unchecked(&source, options(source_kind, &self.settings));
         languages::set_syntax_acceptance(
             builder,
             if matches!(&source, Cow::Borrowed(_)) && parsed.errors().is_empty() {
@@ -122,7 +122,7 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
         let mut semantic_errors = if parsed.errors().is_empty() {
             semantic_syntax_errors(
                 parsed.syntax(),
-                options(source_kind, settings).target_version(),
+                options(source_kind, &self.settings).target_version(),
                 future_annotations,
             )
         } else {
@@ -140,7 +140,11 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
                 && refusal.metadata.impact == TreeImpact::Incomplete
                 && refusal.metadata.phase == DiagnosticPhase::Parse
             {
-                DiagnosticMetadata { phase: refusal.metadata.phase, impact: TreeImpact::LexicallyComplete, code: refusal.metadata.code }
+                DiagnosticMetadata {
+                    phase: refusal.metadata.phase,
+                    impact: TreeImpact::LexicallyComplete,
+                    code: refusal.metadata.code,
+                }
             } else {
                 refusal.metadata
             };
@@ -174,11 +178,15 @@ fn diagnose_parser_errors(
         // The error's own message: the library's `Display` of the whole error adds the byte range the row already holds.
         languages::diagnose_with_metadata(
             builder,
-            DiagnosticMetadata { phase: DiagnosticPhase::Parse, impact: if lexical_complete.0 {
+            DiagnosticMetadata {
+                phase: DiagnosticPhase::Parse,
+                impact: if lexical_complete.0 {
                     TreeImpact::LexicallyComplete
                 } else {
                     TreeImpact::Incomplete
-                }, code: PARSER_ERROR },
+                },
+                code: PARSER_ERROR,
+            },
             languages::ReportText(&error.error.to_string()),
             Offset(error.location.start().to_u32()),
             Offset(error.location.end().to_u32()),
@@ -187,7 +195,11 @@ fn diagnose_parser_errors(
     for error in parsed.unsupported_syntax_errors() {
         languages::diagnose_with_metadata(
             builder,
-            DiagnosticMetadata { phase: DiagnosticPhase::Validation, impact: TreeImpact::Preserved, code: UNSUPPORTED_SYNTAX },
+            DiagnosticMetadata {
+                phase: DiagnosticPhase::Validation,
+                impact: TreeImpact::Preserved,
+                code: UNSUPPORTED_SYNTAX,
+            },
             languages::ReportText(&error.to_string()),
             Offset(error.range.start().to_u32()),
             Offset(error.range.end().to_u32()),
@@ -203,7 +215,11 @@ fn diagnose_semantic_errors(
     for error in errors {
         languages::diagnose_with_metadata(
             builder,
-            DiagnosticMetadata { phase: error.phase, impact: error.impact, code: error.code },
+            DiagnosticMetadata {
+                phase: error.phase,
+                impact: error.impact,
+                code: error.code,
+            },
             languages::ReportText(&error.message.0),
             Offset(error.range.start().to_u32()),
             Offset(error.range.end().to_u32()),
@@ -223,7 +239,11 @@ fn diagnose_invalid_utf8(
         if bad > 0 {
             languages::diagnose_with_metadata(
                 builder,
-                DiagnosticMetadata { phase: DiagnosticPhase::Parse, impact: TreeImpact::Incomplete, code: INVALID_UTF8 },
+                DiagnosticMetadata {
+                    phase: DiagnosticPhase::Parse,
+                    impact: TreeImpact::Incomplete,
+                    code: INVALID_UTF8,
+                },
                 languages::ReportText(NOT_UTF8),
                 offset(ByteIndex(at)),
                 offset(ByteIndex(at + bad)),

@@ -73,7 +73,7 @@ impl Parse for ParseContract {
         slot: &mut languages::SemanticSlot,
     ) {
         let kind = source_kind(request.path);
-        if let Some(session) = self.syntax.begin_semantics(tree, kind, self.settings) {
+        if let Some(session) = self.syntax.begin_semantics(tree, kind) {
             *slot = languages::SemanticSlot::Begun(session);
         }
     }
@@ -136,7 +136,7 @@ impl Parse for ParseContract {
         request: &languages::ParseRequest<'_>,
         builder: &mut languages::TableBuilder<'_>,
     ) -> Result<(), languages::ParseError> {
-        read_file(self.syntax.as_ref(), &self.settings, request, builder);
+        read_file(self.syntax.as_ref(), request, builder);
         Ok(())
     }
 

@@ -16,7 +16,9 @@ pub(super) fn reparse(
     use std::sync::Arc;
     let parser = ParseContract::new(
         crate::settings::PythonParserSettings::default(),
-        Arc::new(ruff_python_parser()),
+        Arc::new(ruff_python_parser(
+            crate::settings::PythonParserSettings::default(),
+        )),
         Arc::new(postcard()),
     );
     let mut elements = languages::Elements::default();

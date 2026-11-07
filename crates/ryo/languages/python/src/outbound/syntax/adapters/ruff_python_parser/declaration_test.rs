@@ -50,10 +50,13 @@ fn semantic_syntax_checks_only_run_after_an_accepted_parse() {
         let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
         let mut builder =
             languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-        SyntaxRuffPythonParserAdapter::default().read(
+        SyntaxRuffPythonParserAdapter {
+            settings: PythonParserSettings::new(PythonTargetVersion::Py310),
+            ..Default::default()
+        }
+        .read(
             SourceText(source.as_bytes()),
             PythonSourceKind::Python,
-            &PythonParserSettings::new(PythonTargetVersion::Py310),
             &mut builder,
         );
         let diagnostics: Vec<_> = languages::diagnostics(&elements)
@@ -113,10 +116,13 @@ fn comprehension_rebinding_preserves_ast_and_respects_lambda_scope() {
         let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
         let mut builder =
             languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-        SyntaxRuffPythonParserAdapter::default().read(
+        SyntaxRuffPythonParserAdapter {
+            settings: PythonParserSettings::new(PythonTargetVersion::Py310),
+            ..Default::default()
+        }
+        .read(
             SourceText(source.as_bytes()),
             PythonSourceKind::Python,
-            &PythonParserSettings::new(PythonTargetVersion::Py310),
             &mut builder,
         );
         assert_eq!(
@@ -124,11 +130,22 @@ fn comprehension_rebinding_preserves_ast_and_respects_lambda_scope() {
             languages::SyntaxAcceptance::Accepted,
             "{source}"
         );
-        assert!(languages::has_incomplete_syntax(&elements) == languages::SyntaxCompleteness::Complete, "{source}");
+        assert!(
+            languages::has_incomplete_syntax(&elements) == languages::SyntaxCompleteness::Complete,
+            "{source}"
+        );
         let diagnostics: Vec<_> = languages::diagnostics(&elements)
             .map(|diagnostic| {
-                assert_eq!(languages::phase_name(diagnostic.phase).0, "validation", "{source}");
-                assert_eq!(languages::impact_name(diagnostic.impact).0, "preserved", "{source}");
+                assert_eq!(
+                    languages::phase_name(diagnostic.phase).0,
+                    "validation",
+                    "{source}"
+                );
+                assert_eq!(
+                    languages::impact_name(diagnostic.impact).0,
+                    "preserved",
+                    "{source}"
+                );
                 assert_eq!(diagnostic.code.0, "comprehension-rebind", "{source}");
                 (diagnostic.start.0, diagnostic.end.0)
             })

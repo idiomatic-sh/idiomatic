@@ -170,7 +170,9 @@ fn subject((source, wanted, environment): Input) -> Result<Value, Failure> {
     };
     let parser = ParseContract::new(
         crate::settings::PythonParserSettings::default(),
-        Arc::new(ruff_python_parser()),
+        Arc::new(ruff_python_parser(
+            crate::settings::PythonParserSettings::default(),
+        )),
         Arc::new(postcard()),
     );
     let mut model = Declarations::default();

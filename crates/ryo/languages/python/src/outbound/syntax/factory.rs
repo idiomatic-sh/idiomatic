@@ -2,18 +2,13 @@
 //! parameter from the edge that composes. A factory builds nothing else, chooses nothing, and is called
 //! only by an edge.
 
-/// The `ruff_python_parser` syntax adapter: the parser ruff and ty run.
+/// The `ruff_python_parser` syntax adapter: the parser ruff and ty run, reading under the settings the edge injects.
 #[must_use]
-pub(crate) fn ruff_python_parser() -> impl crate::outbound::syntax::interface::SyntaxPort {
-    super::adapters::ruff_python_parser::adapter::SyntaxRuffPythonParserAdapter::default()
-}
-
-/// Observe actual carrier parsing on this adapter instance, counting into the counter the caller holds, without a process-global counter.
-#[cfg(test)]
-pub(crate) fn observed_ruff_python_parser(
-    count: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+pub(crate) fn ruff_python_parser(
+    settings: crate::settings::PythonParserSettings,
 ) -> impl crate::outbound::syntax::interface::SyntaxPort {
     super::adapters::ruff_python_parser::adapter::SyntaxRuffPythonParserAdapter {
-        expansion_parses: count,
+        settings,
+        ..Default::default()
     }
 }

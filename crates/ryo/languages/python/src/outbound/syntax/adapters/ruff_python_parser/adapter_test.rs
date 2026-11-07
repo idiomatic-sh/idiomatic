@@ -63,12 +63,11 @@ enum Seen {
 fn round_trip(bytes: &'static [u8]) -> Seen {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder = languages::table_builder(&mut elements, &mut symbols, ByteSlice(bytes));
-    SyntaxRuffPythonParserAdapter::default().read(
-        SourceText(bytes),
-        PythonSourceKind::Python,
-        &PythonParserSettings::default(),
-        &mut builder,
-    );
+    SyntaxRuffPythonParserAdapter {
+        settings: PythonParserSettings::default(),
+        ..Default::default()
+    }
+    .read(SourceText(bytes), PythonSourceKind::Python, &mut builder);
     let mut joined = Vec::new();
     let mut decoded = Vec::new();
     for at in languages::positions(&elements) {
@@ -307,10 +306,13 @@ fn subject(given: Input) -> Result<Value, Failure> {
             let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
             let mut builder =
                 languages::table_builder(&mut elements, &mut symbols, ByteSlice(text.as_bytes()));
-            SyntaxRuffPythonParserAdapter::default().read(
+            SyntaxRuffPythonParserAdapter {
+                settings: PythonParserSettings::default(),
+                ..Default::default()
+            }
+            .read(
                 SourceText(text.as_bytes()),
                 PythonSourceKind::Python,
-                &PythonParserSettings::default(),
                 &mut builder,
             );
             let reported = languages::diagnostics(&elements).any(|each| {

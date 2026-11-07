@@ -223,7 +223,9 @@ fn subject((source, wanted): Input) -> Result<Value, Failure> {
     };
     let parser = ParseContract::new(
         crate::settings::PythonParserSettings::default(),
-        Arc::new(ruff_python_parser()),
+        Arc::new(ruff_python_parser(
+            crate::settings::PythonParserSettings::default(),
+        )),
         Arc::new(postcard()),
     );
     let mut model = Declarations::default();
@@ -286,7 +288,9 @@ fn retained_source_revisions_invalidate_complete_incomplete_and_empty_binding_re
     use std::sync::Arc;
     let parser = ParseContract::new(
         crate::settings::PythonParserSettings::default(),
-        Arc::new(ruff_python_parser()),
+        Arc::new(ruff_python_parser(
+            crate::settings::PythonParserSettings::default(),
+        )),
         Arc::new(postcard()),
     );
     let mut model = Declarations::default();
@@ -329,7 +333,9 @@ fn retained_source_revisions_invalidate_complete_incomplete_and_empty_binding_re
 
 /// Each check below states its own source and asserts its own outcome.
 const CHECKS: &[Case<fn(), (), ()>] = &[Case {
-    name: CaseName("retained source revisions invalidate complete incomplete and empty binding results"),
+    name: CaseName(
+        "retained source revisions invalidate complete incomplete and empty binding results",
+    ),
     word: Word::Succeeds,
     input: || retained_source_revisions_invalidate_complete_incomplete_and_empty_binding_results,
     expect: Expect::Value(()),

@@ -1,11 +1,11 @@
 //! The scopes a file declares: each name a `global` or `nonlocal` binds, and the parameters and type parameters beside them, as the adapter reports them.
 
+use super::adapter::SyntaxRuffPythonParserAdapter;
 use super::fixtures::diagnostics::diagnostics_of;
 use super::scopes::ScopeKind;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::syntax::types::PythonSourceKind;
-use super::adapter::SyntaxRuffPythonParserAdapter;
 use crate::outbound::syntax::interface::SyntaxPort as _;
+use crate::outbound::syntax::types::PythonSourceKind;
 use crate::outbound::syntax::types::SourceText;
 use crate::settings::{PythonParserSettings, PythonTargetVersion};
 use ryo::languages::{self, ByteSlice, Elements, Symbols};
@@ -17,17 +17,19 @@ fn bare_starred_loop_target_preserves_accepted_ast_with_validation_error() {
             let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
             let mut builder =
                 languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-            SyntaxRuffPythonParserAdapter::default().read(
-                SourceText(source.as_bytes()),
-                source_kind,
-                &PythonParserSettings::new(target),
-                &mut builder,
-            );
+            SyntaxRuffPythonParserAdapter {
+                settings: PythonParserSettings::new(target),
+                ..Default::default()
+            }
+            .read(SourceText(source.as_bytes()), source_kind, &mut builder);
             assert_eq!(
                 languages::syntax_acceptance(&elements),
                 languages::SyntaxAcceptance::Accepted
             );
-            assert!(languages::has_incomplete_syntax(&elements) == languages::SyntaxCompleteness::Complete);
+            assert!(
+                languages::has_incomplete_syntax(&elements)
+                    == languages::SyntaxCompleteness::Complete
+            );
             let diagnostics: Vec<_> = languages::diagnostics(&elements).collect();
             assert_eq!(diagnostics.len(), 1);
             let diagnostic = diagnostics.first().expect("one language validation error");
@@ -61,10 +63,13 @@ fn starred_targets_require_unpacking_containers_without_affecting_expression_sta
             let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
             let mut builder =
                 languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-            SyntaxRuffPythonParserAdapter::default().read(
+            SyntaxRuffPythonParserAdapter {
+                settings: PythonParserSettings::new(target),
+                ..Default::default()
+            }
+            .read(
                 SourceText(source.as_bytes()),
                 PythonSourceKind::Python,
-                &PythonParserSettings::new(target),
                 &mut builder,
             );
             let diagnostics: Vec<_> = languages::diagnostics(&elements).collect();
@@ -86,7 +91,10 @@ fn starred_targets_require_unpacking_containers_without_affecting_expression_sta
                             .iter()
                             .any(|row| row.code.0 == "starred-assignment-target")
                     );
-                    assert!(languages::has_incomplete_syntax(&elements) == languages::SyntaxCompleteness::Complete);
+                    assert!(
+                        languages::has_incomplete_syntax(&elements)
+                            == languages::SyntaxCompleteness::Complete
+                    );
                 } else {
                     assert!(
                         !diagnostics
