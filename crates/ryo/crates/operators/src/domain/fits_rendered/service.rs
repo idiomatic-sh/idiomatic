@@ -72,11 +72,18 @@ pub(crate) fn evaluate(
     row: &[ryo_relations::domain::relations::types::Value],
     shape: super::types::RenderedShape<'_>,
     source: crate::domain::source_matches::types::LineBytes<'_>,
-    driver: &mut dyn crate::domain::evaluation::types::InvocationDriver,
+    driver: &mut dyn crate::domain::contract::types::RowDriver,
     rendered: &mut String,
 ) -> Result<(), PortableOperatorFault> {
-    use crate::domain::evaluation::service::cell;
-    let ryo_relations::domain::relations::types::Value::Span(span) = cell(row, shape.span)? else {
+    let ryo_relations::domain::relations::types::Value::Span(span) =
+        ryo_values::domain::rows::service::column_in(row, shape.span)
+            .copied()
+            .ok_or(
+                crate::domain::contract::types::PortableOperatorFault::NoSuchColumn {
+                    index: shape.span,
+                },
+            )?
+    else {
         return Err(PortableOperatorFault::ShapeMismatch);
     };
     let source = std::str::from_utf8(source.0).map_err(|_| PortableOperatorFault::InvalidSpan)?;
@@ -99,8 +106,16 @@ pub(crate) fn evaluate(
     rendered.clear();
     for (literal, column) in shape.literals.iter().zip(shape.texts) {
         rendered.push_str(&literal.0);
-        if driver.text(cell(row, *column)?, rendered)
-            == crate::domain::evaluation::types::TextFound::NotText
+        if driver.text(
+            ryo_values::domain::rows::service::column_in(row, *column)
+                .copied()
+                .ok_or(
+                    crate::domain::contract::types::PortableOperatorFault::NoSuchColumn {
+                        index: *column,
+                    },
+                )?,
+            rendered,
+        ) == crate::domain::contract::types::TextFound::NotText
         {
             return Err(PortableOperatorFault::ShapeMismatch);
         }

@@ -34,29 +34,20 @@ pub(crate) fn split(
     }
 }
 
-/// Interns each word as derived text.
-struct WordMinting<'a> {
-    driver: &'a mut dyn crate::domain::evaluation::types::InvocationDriver,
-    captured: &'a mut Vec<ryo_relations::domain::relations::types::Value>,
-}
-
-impl crate::domain::words::types::WordOutput for WordMinting<'_> {
-    fn word(&mut self, text: CellText<'_>) {
-        let made = self.driver.mint(text);
-        self.captured.push(made);
-    }
-}
-
 /// Splits the text of a scheduled row's column into words and emits the row once for each word, with the
 /// word appended; a cell that is not text has no row.
 pub(crate) fn evaluate(
     row: &[ryo_relations::domain::relations::types::Value],
     column: ryo_values::domain::plan_parts::types::ColumnIndex,
-    driver: &mut dyn crate::domain::evaluation::types::InvocationDriver,
-    scratch: &mut crate::domain::evaluation::types::EvaluationScratch,
+    driver: &mut dyn crate::domain::contract::types::RowDriver,
+    scratch: &mut crate::domain::contract::types::RowScratch,
 ) -> Result<(), crate::domain::contract::types::PortableOperatorFault> {
-    let value = crate::domain::evaluation::service::cell(row, column)?;
-    let crate::domain::evaluation::types::EvaluationScratch {
+    let value = ryo_values::domain::rows::service::column_in(row, column)
+        .copied()
+        .ok_or(
+            crate::domain::contract::types::PortableOperatorFault::NoSuchColumn { index: column },
+        )?;
+    let crate::domain::contract::types::RowScratch {
         row: joined,
         captured,
         text,
@@ -64,14 +55,14 @@ pub(crate) fn evaluate(
         ..
     } = scratch;
     text.clear();
-    if driver.text(value, text) == crate::domain::evaluation::types::TextFound::NotText {
+    if driver.text(value, text) == crate::domain::contract::types::TextFound::NotText {
         return Ok(());
     }
     captured.clear();
     split(
         CellText(text.as_str()),
         WordScratch(word),
-        &mut WordMinting {
+        &mut crate::domain::words::types::WordMinting {
             driver: &mut *driver,
             captured: &mut *captured,
         },

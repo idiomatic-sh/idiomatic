@@ -195,8 +195,8 @@ pub(crate) trait PrimitiveResources {
     fn index(&self) -> Option<IndexedRows<'_>>;
     fn appended(&self) -> Option<&[Value]>;
     fn rank_layers(&self) -> Option<&[Vec<ryo_values::domain::plan_parts::types::LiteralText>]>;
-    fn axis(&self) -> Result<Option<super::axis::PreparedAxis<'_>>, OperatingError>;
-    fn native_join(&self) -> Option<super::join::NativeJoin<'_>>;
+    fn axis(&self) -> Result<Option<super::views::PreparedAxis<'_>>, OperatingError>;
+    fn native_join(&self) -> Option<super::views::NativeJoin<'_>>;
     fn dfs(
         &self,
     ) -> Result<Option<&ryo_derived::domain::dfs::types::PreparedDfs>, OperatingError>;
@@ -231,9 +231,9 @@ pub(crate) struct PrimitiveViews<'a> {
 pub(crate) struct PrimitiveWorkspace {
     /// The buffers the operators fill while they evaluate a kind.
     pub evaluation: ryo_operators::domain::evaluation::types::EvaluationScratch,
-    pub axis: Option<super::axis::AxisWorkspace>,
+    pub axis: Option<AxisWorkspace>,
     pub positions: Vec<ryo_relations::domain::relations::types::Position>,
-    pub dfs: Option<super::graph::DfsWorkspace>,
+    pub dfs: Option<DfsWorkspace>,
     pub closure_walk: Option<crate::domain::table_reach::types::Walk>,
     pub distinct: Option<DistinctWorkspace>,
 }
@@ -351,33 +351,25 @@ pub(crate) struct EmptyResult {
     pub kinds: Result<Vec<CellKind>, OperatingError>,
 }
 
-/// An engine error takes precedence even if an injected kernel returns a dishonest answer.
-pub(crate) fn join_result(
-    answer: Result<
-        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
-        ryo_operators::domain::contract::types::PortableOperatorFault,
-    >,
-    error: Option<OperatingError>,
-) -> Result<(), OperatingError> {
-    written_result(answer, error)
+/// The work of one invocation of an axis walk.
+#[derive(Debug, Default)]
+pub(crate) struct AxisWorkspace {
+    pub(crate) walk: crate::domain::table_reach::types::Walk,
+    pub(crate) found: Vec<ryo_relations::domain::relations::types::Position>,
 }
 
-/// Preserve the engine's original downstream error ahead of a portable interruption marker.
-pub(crate) fn written_result(
-    answer: Result<
-        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
-        ryo_operators::domain::contract::types::PortableOperatorFault,
-    >,
-    error: Option<OperatingError>,
-) -> Result<(), OperatingError> {
-    if let Some(error) = error {
-        return Err(error);
-    }
-    match answer {
-        Ok(ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Written) => {
-            Ok(())
-        }
-        Ok(_) => Err(OperatingError::WrongOperation),
-        Err(error) => Err(portable_fault(error)),
-    }
+/// The vertices one invocation of the ordered depth-first search has expanded.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct ExpandedCount(pub(crate) usize);
+
+/// The edges one invocation of the ordered depth-first search has examined.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct ExaminedCount(pub(crate) usize);
+
+/// The work of one invocation of the ordered depth-first search, with what its walks expanded and examined.
+#[derive(Debug, Default)]
+pub(crate) struct DfsWorkspace {
+    pub(crate) walk: crate::domain::table_reach::types::OrderedWalk,
+    pub(crate) expanded: ExpandedCount,
+    pub(crate) examined: ExaminedCount,
 }

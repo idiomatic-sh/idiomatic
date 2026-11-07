@@ -2,7 +2,7 @@
 use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{Exit, released};
 use crate::application::file_dag::derived::owner::acquisition::family::fixtures::request::{observed, request};
 use crate::application::file_dag::derived::owner::acquisition::family::fixtures::{SmallTree, numbers, small_tree};
-use crate::domain::table_cells::fixtures::SMALL_SOURCE;
+use crate::domain::table_cells::service_test::SMALL_SOURCE;
 use crate::application::file_dag::{
     derived::owner::{ViewContext, acquisition::admission::service::AcquiredView},
     relations::RelationOwner,

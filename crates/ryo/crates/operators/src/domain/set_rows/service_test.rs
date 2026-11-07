@@ -2,9 +2,8 @@
 use super::service::{positions, values};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::Advance;
-use crate::domain::set_rows::types::{
-    FirstOccurrence, RightMembership, RightPopulation, SetKind, SetPositionsDriver, SetRowDriver,
-};
+use crate::domain::contract::types::FirstOccurrence;
+use crate::domain::set_rows::types::{RightMembership, RightPopulation, SetKind, SetPositionsDriver, SetRowDriver};
 use crate::domain::set_rows::errors::SetRowsError;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 use crate::cases::{Case, CaseName, Expect, Word, run};

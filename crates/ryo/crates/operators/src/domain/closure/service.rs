@@ -1,16 +1,17 @@
 //! One row for each vertex a walk reaches from each source, partition by partition, in walk order.
+use crate::domain::closure::types::ClosureEvaluation;
+use crate::domain::closure::types::PartitionPlace;
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::evaluation::types::{
-    EvaluationScratch, InvocationDriver, PartitionPlace, VertexPlace,
-};
+use crate::domain::contract::types::RowScratch;
+use crate::domain::contract::types::VertexPlace;
 
 /// Emits, for each partition of the engine's closure and each of its sources, the partition's key, the
 /// source and each vertex the source reaches.
 pub(crate) fn evaluate(
-    driver: &mut dyn InvocationDriver,
-    scratch: &mut EvaluationScratch,
+    driver: &mut dyn ClosureEvaluation,
+    scratch: &mut RowScratch,
 ) -> Result<(), PortableOperatorFault> {
-    let EvaluationScratch {
+    let RowScratch {
         row: joined,
         partition: key,
         ..

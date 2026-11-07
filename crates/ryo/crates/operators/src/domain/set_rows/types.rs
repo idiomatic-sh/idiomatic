@@ -1,5 +1,6 @@
 //! Borrowed set rows contracts; no engine authority.
 use super::errors::SetRowsError;
+use crate::domain::contract::types::FirstOccurrence;
 /// The four set and antijoin meanings; input acquisition and delivery stay with the engine.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SetKind {
@@ -107,18 +108,8 @@ impl From<bool> for RightMembership {
     }
 }
 
-/// Whether a row or value was seen before in this invocation.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum FirstOccurrence {
-    /// This is the first time it is seen.
-    First,
-    /// It was seen before.
-    Repeat,
-}
-
-impl From<bool> for FirstOccurrence {
-    /// A row reported first-time is `First`.
-    fn from(first: bool) -> Self {
-        if first { Self::First } else { Self::Repeat }
-    }
+/// An engine driver that lends its set-row boundary.
+pub trait SetRowsEvaluation: crate::domain::contract::types::RowDriver {
+    /// The engine's membership, distinct and delivery boundary of a set row.
+    fn set_rows(&mut self) -> &mut dyn SetRowDriver;
 }

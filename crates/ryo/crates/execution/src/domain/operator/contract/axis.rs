@@ -2,49 +2,22 @@
 //! over them (a tree of elements, or an index of edges with its domain) is its strategy behind the
 //! operators' axis driver port.
 use super::driver::LeaseDriver;
+use super::views::PreparedAxis;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_cells::service::{element_of, tree_value};
 use crate::domain::table_model::types::{SetMembership, Verdict};
-use crate::domain::{
-    operator::contract::views::IndexedRows, table_cells::types::TreeRows, table_reach::types::Walk,
-};
 use ryo_derived::domain::membership::types::MembershipView;
 use ryo_language::domain::elements::service::{
     children, next_sibling, parent_at, previous_sibling, size_at,
 };
-use ryo_operators::domain::contract::types::PortableOperatorFault as Fault;
-use ryo_operators::domain::evaluation::types::{
-    Admission, AxisCandidates, AxisDriver, VertexPlace,
+use ryo_operators::domain::axis::types::{
+    AxisAdmission, AxisCandidates, AxisDriver, AxisEvaluation,
 };
+use ryo_operators::domain::contract::types::PortableOperatorFault as Fault;
+use ryo_operators::domain::contract::types::VertexPlace;
 use ryo_relations::domain::relations::service::{node_file, node_id, node_position};
 use ryo_relations::domain::relations::types::{Count, Position, Value};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
-#[derive(Clone, Copy)]
-pub(crate) enum PreparedAxis<'a> {
-    Empty,
-    Native {
-        tree: TreeRows<'a>,
-        among: Option<TreeRows<'a>>,
-        marks: ryo_derived::domain::positions::types::DenseMarks<'a>,
-    },
-    Indexed {
-        edges: IndexedRows<'a>,
-        to: ColumnIndex,
-        domain: ryo_derived::domain::membership::types::MembershipView<'a>,
-    },
-}
-#[derive(Debug, Default)]
-pub(crate) struct AxisWorkspace {
-    pub(crate) walk: Walk,
-    pub(crate) found: Vec<Position>,
-}
-
-/// The axis resources the last walk ran over.
-#[derive(Default)]
-pub(crate) struct AxisCursor<'f> {
-    prepared: Option<PreparedAxis<'f>>,
-}
-
 impl LeaseDriver<'_, '_> {
     /// The walk of one axis request over the bound resources, into the workspace's walk or found elements.
     fn walk_axis(
@@ -141,7 +114,7 @@ impl LeaseDriver<'_, '_> {
     }
 
     /// Whether a candidate of the last walk is admitted.
-    fn admit(&mut self, at: VertexPlace) -> Result<Admission, OperatingError> {
+    fn admit(&mut self, at: VertexPlace) -> Result<AxisAdmission, OperatingError> {
         let admitted = match self.axis.prepared.ok_or(OperatingError::WrongBinding)? {
             PreparedAxis::Empty => false,
             PreparedAxis::Indexed { domain, .. } => {
@@ -172,9 +145,9 @@ impl LeaseDriver<'_, '_> {
             }
         };
         Ok(if admitted {
-            Admission::In
+            AxisAdmission::In
         } else {
-            Admission::Out
+            AxisAdmission::Out
         })
     }
 }
@@ -192,7 +165,7 @@ impl AxisDriver for LeaseDriver<'_, '_> {
         let walked = self.walk_axis(direction, row, id);
         self.hold(walked)
     }
-    fn admits(&mut self, at: VertexPlace) -> Result<Admission, Fault> {
+    fn admits(&mut self, at: VertexPlace) -> Result<AxisAdmission, Fault> {
         if self.interrupted() {
             return Err(Fault::Interrupted);
         }
@@ -223,5 +196,11 @@ impl AxisDriver for LeaseDriver<'_, '_> {
         let reached = among.unwrap_or(tree);
         self.element(at)
             .map(|position| tree_value(&reached, position, column))
+    }
+}
+
+impl AxisEvaluation for LeaseDriver<'_, '_> {
+    fn axis(&mut self) -> &mut dyn AxisDriver {
+        self
     }
 }

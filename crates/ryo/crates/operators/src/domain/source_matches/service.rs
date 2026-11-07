@@ -204,19 +204,22 @@ pub(crate) fn occurrences(
 pub(crate) fn evaluate(
     row: &[Value],
     shape: super::types::SearchShape<'_>,
-    views: crate::domain::evaluation::types::EvaluationViews<'_>,
-    driver: &mut dyn crate::domain::evaluation::types::InvocationDriver,
+    views: super::types::SearchViews<'_>,
+    driver: &mut dyn crate::domain::source_matches::types::TextRowsEvaluation,
     joined: &mut Vec<Value>,
-    matching: &dyn crate::domain::evaluation::service::Occurrences,
+    matching: &dyn crate::domain::contract::types::Occurrences,
 ) -> Result<(), PortableOperatorFault> {
-    let checked = views.checked.ok_or(PortableOperatorFault::WrongBinding)?;
-    let regex = views.regex.ok_or(PortableOperatorFault::WrongBinding)?;
+    let super::types::SearchViews {
+        source,
+        checked,
+        regex,
+    } = views;
     let text = checked.text.0;
     let capture = shape.capture;
     occurrences(
         SourceMatchesInput {
             row,
-            source: views.source,
+            source,
             base: checked.base,
             text: checked.text,
             line: checked.line,

@@ -13,7 +13,7 @@ use prepared_use::service::prepared;
 mod observation;
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::operator::contract::{
-    join::NativeJoin,
+    views::NativeJoin,
     resources::ResourceProgram,
     types::OperatorContract,
     views::{IndexedRows},

@@ -1,7 +1,9 @@
 //! Each admitted candidate of an axis walk is one row, in walk order; the nearest ancestor is the first.
+use crate::domain::axis::types::AxisAdmission;
+use crate::domain::axis::types::AxisCandidates;
+use crate::domain::axis::types::AxisEvaluation;
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::evaluation::service::cell;
-use crate::domain::evaluation::types::{Admission, AxisCandidates, InvocationDriver, VertexPlace};
+use crate::domain::contract::types::VertexPlace;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, JoinColumn, Side};
 
@@ -14,7 +16,7 @@ pub(crate) fn evaluate(
     direction: Direction,
     output: &[JoinColumn],
     cached: Option<&[Value]>,
-    driver: &mut dyn InvocationDriver,
+    driver: &mut dyn AxisEvaluation,
     answer: &mut Vec<Value>,
 ) -> Result<(), PortableOperatorFault> {
     if let Some(destinations) = cached {
@@ -31,7 +33,7 @@ pub(crate) fn evaluate(
         AxisCandidates::Elements(count) => (count, true),
     };
     for at in (0..count.0).map(VertexPlace) {
-        if driver.axis().admits(at)? == Admission::Out {
+        if driver.axis().admits(at)? == AxisAdmission::Out {
             continue;
         }
         answer.clear();
@@ -46,7 +48,13 @@ pub(crate) fn evaluate(
         } else {
             for column in output {
                 answer.push(match column.side {
-                    Side::Left => cell(row, column.column)?,
+                    Side::Left => ryo_values::domain::rows::service::column_in(row, column.column)
+                        .copied()
+                        .ok_or(
+                            crate::domain::contract::types::PortableOperatorFault::NoSuchColumn {
+                                index: column.column,
+                            },
+                        )?,
                     Side::Right => driver
                         .axis()
                         .element_cell(at, column.column)

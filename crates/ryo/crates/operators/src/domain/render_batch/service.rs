@@ -20,49 +20,16 @@ pub(crate) fn deliver(
     Ok(())
 }
 
-/// Interns each known rendering as derived text and emits its candidate row with it appended.
-struct RenderMinting<'a> {
-    driver: &'a mut dyn crate::domain::evaluation::types::InvocationDriver,
-    row: &'a mut Vec<ryo_relations::domain::relations::types::Value>,
-    joined: &'a mut Vec<ryo_relations::domain::relations::types::Value>,
-    failure: Option<PortableOperatorFault>,
-}
-
-impl RenderedOutput for RenderMinting<'_> {
-    fn text(
-        &mut self,
-        position: RowIndex,
-        text: ryo_values::domain::row_texts::types::CellText<'_>,
-    ) -> Result<(), crate::domain::contract::errors::ContractError> {
-        use ryo_values::domain::plan_parts::types::InputNumber;
-        if self
-            .driver
-            .population_row(InputNumber(0), position, self.row)
-            != crate::domain::evaluation::types::RowRead::Read
-        {
-            self.failure = Some(PortableOperatorFault::NotRun);
-            return Err(crate::domain::contract::errors::ContractError::Interrupted);
-        }
-        let made = self.driver.mint(text);
-        self.joined.clear();
-        self.joined.extend_from_slice(self.row);
-        self.joined.push(made);
-        self.driver
-            .emit(self.joined)
-            .map_err(|_| crate::domain::contract::errors::ContractError::Interrupted)
-    }
-}
-
 /// Renders the node of every candidate row in one batch and emits each candidate whose node has a known
 /// rendering, with the rendering appended; a batch holding an unsupported answer emits nothing.
 pub(crate) fn evaluate(
     node: ryo_values::domain::plan_parts::types::ColumnIndex,
-    driver: &mut dyn crate::domain::evaluation::types::InvocationDriver,
-    scratch: &mut crate::domain::evaluation::types::EvaluationScratch,
+    driver: &mut dyn crate::domain::contract::types::RowDriver,
+    scratch: &mut crate::domain::contract::types::RowScratch,
 ) -> Result<(), PortableOperatorFault> {
-    use crate::domain::evaluation::types::RowRead;
+    use crate::domain::contract::types::RowRead;
     use ryo_values::domain::plan_parts::types::InputNumber;
-    let crate::domain::evaluation::types::EvaluationScratch {
+    let crate::domain::contract::types::RowScratch {
         row,
         other,
         text,
@@ -78,7 +45,13 @@ pub(crate) fn evaluate(
             return Err(PortableOperatorFault::NotRun);
         }
         let ryo_relations::domain::relations::types::Value::Node(found) =
-            crate::domain::evaluation::service::cell(row, node)?
+            ryo_values::domain::rows::service::column_in(row, node)
+                .copied()
+                .ok_or(
+                    crate::domain::contract::types::PortableOperatorFault::NoSuchColumn {
+                        index: node,
+                    },
+                )?
         else {
             return Err(PortableOperatorFault::ShapeMismatch);
         };
@@ -100,21 +73,23 @@ pub(crate) fn evaluate(
         .iter()
         .zip(slots.iter())
         .map(|(kind, place)| match kind {
-            super::types::RenderKind::Known => {
+            crate::domain::contract::types::RenderKind::Known => {
                 RenderAnswer::Known(ryo_values::domain::row_texts::types::CellText(
                     text.get(place.clone()).unwrap_or_default(),
                 ))
             }
-            super::types::RenderKind::NotApplicable => RenderAnswer::NotApplicable,
-            super::types::RenderKind::Unsupported => RenderAnswer::Unsupported,
+            crate::domain::contract::types::RenderKind::NotApplicable => {
+                RenderAnswer::NotApplicable
+            }
+            crate::domain::contract::types::RenderKind::Unsupported => RenderAnswer::Unsupported,
         })
         .collect();
-    let mut minting = RenderMinting {
+    let mut minting = crate::domain::render_batch::types::RenderMinting {
         driver,
         row,
         joined: other,
-        failure: None,
+        outcome: Ok(()),
     };
     let delivered = deliver(&answers, &mut minting);
-    minting.failure.map_or(delivered, Err)
+    minting.outcome.and(delivered)
 }

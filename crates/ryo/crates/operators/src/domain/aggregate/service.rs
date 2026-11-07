@@ -25,10 +25,11 @@ pub(crate) fn aggregate(
 pub(crate) fn evaluate(
     keys: &[ColumnIndex],
     aggregation: super::types::Aggregation,
-    driver: &mut dyn crate::domain::evaluation::types::InvocationDriver,
-    scratch: &mut crate::domain::evaluation::types::EvaluationScratch,
+    driver: &mut dyn crate::domain::contract::types::RowDriver,
+    scratch: &mut crate::domain::contract::types::RowScratch,
 ) -> Result<(), PortableOperatorFault> {
-    use crate::domain::evaluation::types::{RowRead, VertexPlace};
+    use crate::domain::contract::types::RowRead;
+    use crate::domain::contract::types::VertexPlace;
     use ryo_values::domain::plan_parts::types::InputNumber;
     let groups = driver.groups()?;
     for at in 0..groups.0 {

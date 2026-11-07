@@ -26,7 +26,7 @@ impl PrimitiveResources for InvocationInputs<'_> {
     }
     fn axis(
         &self,
-    ) -> Result<Option<crate::domain::operator::contract::axis::PreparedAxis<'_>>, OperatingError>
+    ) -> Result<Option<crate::domain::operator::contract::views::PreparedAxis<'_>>, OperatingError>
     {
         #[cfg(feature = "diagnostic-row-progress")]
         let axis = self.axis.as_ref().map(|axis| axis.view(&self.progress));

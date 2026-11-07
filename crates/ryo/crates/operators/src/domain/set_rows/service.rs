@@ -1,8 +1,9 @@
 //! Set policy controls membership, distinctness, laziness and emission order.
+use crate::domain::contract::types::FirstOccurrence;
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::Advance;
 use crate::domain::set_rows::types::{
-    FirstOccurrence, RightMembership, RightPopulation, SetKind, SetPositionsDriver, SetRowDriver,
+    RightMembership, RightPopulation, SetKind, SetPositionsDriver, SetRowDriver,
 };
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -135,7 +136,7 @@ pub(crate) fn evaluate(
     kind: SetKind,
     row: &[Value],
     left_on: &[ColumnIndex],
-    driver: &mut dyn crate::domain::evaluation::types::InvocationDriver,
+    driver: &mut dyn crate::domain::set_rows::types::SetRowsEvaluation,
     key: &mut Vec<Value>,
 ) -> Result<(), PortableOperatorFault> {
     values(kind, row, left_on, driver.set_rows(), key)

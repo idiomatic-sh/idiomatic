@@ -88,3 +88,32 @@ pub(crate) struct SearchShape<'a> {
     /// Whether the occurrence's line is emitted.
     pub capture_line: ryo_values::domain::query_operators::types::LineOutput,
 }
+
+/// What the engine lent an occurrence search: the physical source, the span text it validated before it
+/// acquired the matcher, and the matcher.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SearchViews<'a> {
+    /// The physical source of the file being read.
+    pub source: LineBytes<'a>,
+    /// The span text the search was validated against.
+    pub checked: CheckedSource<'a>,
+    /// The matcher the engine acquired.
+    pub regex: &'a ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
+}
+
+/// The source text an occurrence search was validated against, before any matcher was acquired.
+#[derive(Clone, Copy, Debug)]
+pub struct CheckedSource<'a> {
+    /// Where the checked text starts inside the physical source.
+    pub base: SourceBase,
+    /// The checked text.
+    pub text: ryo_values::domain::row_texts::types::CellText<'a>,
+    /// The line the text starts on.
+    pub line: BaseLine,
+}
+
+/// An engine driver that lends its symbol and delivery boundary of an occurrence search.
+pub trait TextRowsEvaluation: crate::domain::contract::types::RowDriver {
+    /// The engine's symbol and delivery boundary of an occurrence search.
+    fn text_rows(&mut self) -> &mut dyn TextRowDriver;
+}

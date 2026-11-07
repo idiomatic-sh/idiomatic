@@ -11,20 +11,12 @@ use ryo_language::domain::symbols::service::query_intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_operators::domain::contract::errors::ContractError;
 use ryo_operators::domain::contract::types::PortableOperatorFault as Fault;
-use ryo_operators::domain::cycles::types::CycleDriver;
-use ryo_operators::domain::equality_join::types::JoinDriver;
-use ryo_operators::domain::evaluation::types::{
-    AxisDriver, ClosureDriver, DfsDriver, EvaluationInput, EvaluationViews, GroupSummary,
-    InvocationDriver, RightColumns, RowRead, TextFound, VertexPlace,
+use ryo_operators::domain::contract::types::{
+    FirstOccurrence, GroupSummary, PredicateOutcome, RenderKind, RightColumns, RowDriver, RowRead,
+    TextFound, VertexPlace,
 };
-use ryo_operators::domain::ordered_match::types::OrderedMatchDriver;
-use ryo_operators::domain::render_batch::types::RenderKind;
-use ryo_operators::domain::select::types::PredicateOutcome;
-use ryo_operators::domain::set_rows::errors::SetRowsError;
-use ryo_operators::domain::set_rows::types::{
-    FirstOccurrence, RightMembership, RightPopulation, SetRowDriver,
-};
-use ryo_operators::domain::source_matches::types::TextRowDriver;
+use ryo_operators::domain::evaluation::types::{EvaluationInput, EvaluationViews};
+use ryo_operators::domain::source_matches::types::{TextRowDriver, TextRowsEvaluation};
 use ryo_relations::domain::relations::types::{Count, Integer, NodeId, Value};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::InputNumber;
@@ -40,9 +32,9 @@ pub(crate) struct LeaseDriver<'a, 'f> {
     pub(super) inputs: PreparedInputs<'a>,
     pub(super) resources: &'f dyn PrimitiveResources,
     pub(super) failure: FailureLatch,
-    pub(super) join: super::join::JoinCursor<'f>,
-    pub(super) axis: super::axis::AxisCursor<'f>,
-    pub(super) graph: super::graph::GraphCursor<'f>,
+    pub(super) join: super::views::JoinCursor<'f>,
+    pub(super) axis: super::views::AxisCursor<'f>,
+    pub(super) graph: super::views::GraphCursor<'f>,
     pub(super) rendered: Vec<ryo_language::domain::semantics::types::RenderOutcome>,
     pub(super) left_buffer: Vec<Value>,
     pub(super) right_buffer: Vec<Value>,
@@ -98,7 +90,7 @@ pub(crate) fn evaluate(
         bindings: lease.views.bindings,
         regex: lease.views.regex,
         checked: lease.views.validated_source.map(|checked| {
-            ryo_operators::domain::evaluation::types::CheckedSource {
+            ryo_operators::domain::source_matches::types::CheckedSource {
                 base: checked.base,
                 text: checked.text,
                 line: checked.line,
@@ -107,7 +99,7 @@ pub(crate) fn evaluate(
         appended: resources.appended(),
         layers: resources.rank_layers(),
         cached_reach: lease.views.cached_reach.map(|reach| {
-            ryo_operators::domain::evaluation::types::CachedReach {
+            ryo_operators::domain::equality_join::types::CachedReach {
                 request: reach.request,
                 destinations: reach.destinations,
             }
@@ -127,9 +119,9 @@ pub(crate) fn evaluate(
         inputs,
         resources,
         failure: FailureLatch::default(),
-        join: super::join::JoinCursor::new(resources, operation, positions),
-        axis: super::axis::AxisCursor::default(),
-        graph: super::graph::GraphCursor::default(),
+        join: super::views::JoinCursor::new(resources, operation, positions),
+        axis: super::views::AxisCursor::default(),
+        graph: super::views::GraphCursor::default(),
         rendered: Vec::new(),
         left_buffer: Vec::new(),
         right_buffer: Vec::new(),
@@ -157,7 +149,7 @@ pub(crate) fn evaluate(
     if let Some(refusal) = refusal {
         return Err(refusal);
     }
-    super::types::written_result(answer, latched)
+    super::service::written_result(answer, latched)
 }
 
 /// A named capture the matcher does not have is an invalid regular expression of the operation.
@@ -190,7 +182,7 @@ fn unsupported_render(
     }
 }
 
-impl InvocationDriver for LeaseDriver<'_, '_> {
+impl RowDriver for LeaseDriver<'_, '_> {
     fn emit(&mut self, row: &[Value]) -> Result<(), Fault> {
         if self.interrupted() {
             return Err(Fault::Interrupted);
@@ -344,87 +336,6 @@ impl InvocationDriver for LeaseDriver<'_, '_> {
             RightColumns::Logical
         }
     }
-    fn join(&mut self) -> &mut dyn JoinDriver {
-        self
-    }
-    fn set_rows(&mut self) -> &mut dyn SetRowDriver {
-        self
-    }
-    fn text_rows(&mut self) -> &mut dyn TextRowDriver {
-        self
-    }
-    fn ordered_match(&mut self) -> Result<&mut dyn OrderedMatchDriver, Fault> {
-        let checked = match self.inputs {
-            PreparedInputs::Views(inputs) => inputs
-                .first()
-                .ok_or(OperatingError::MissingInput { position: 1 })
-                .and_then(|_| {
-                    inputs
-                        .get(1)
-                        .ok_or(OperatingError::MissingInput { position: 2 })
-                })
-                .and_then(|_| self.resources.ordered())
-                .and_then(|ordered| ordered.ok_or(OperatingError::WrongBinding)),
-            PreparedInputs::Row { .. } | PreparedInputs::RequestSource(_) => {
-                Err(OperatingError::WrongOperation)
-            }
-        };
-        self.graph.ordered = Some(self.hold(checked)?);
-        Ok(self)
-    }
-    fn cycles(&mut self) -> Result<&dyn CycleDriver, Fault> {
-        let graph = self
-            .resources
-            .cycles()
-            .and_then(|graph| graph.ok_or(OperatingError::WrongBinding));
-        let graph = self.hold(graph)?;
-        self.graph.cycles = Some(super::graph::Adjacency(graph));
-        self.graph
-            .cycles
-            .as_ref()
-            .map(|graph| graph as &dyn CycleDriver)
-            .ok_or(Fault::WrongBinding)
-    }
-    fn closure(&mut self) -> &mut dyn ClosureDriver {
-        self
-    }
-    fn axis(&mut self) -> &mut dyn AxisDriver {
-        self
-    }
-    fn dfs(&mut self) -> &mut dyn DfsDriver {
-        self
-    }
-}
-
-impl SetRowDriver for LeaseDriver<'_, '_> {
-    fn right_empty(&mut self) -> Result<RightPopulation, SetRowsError> {
-        if self.interrupted() {
-            return Err(SetRowsError::Interrupted);
-        }
-        let empty = self
-            .resources
-            .index()
-            .map(|index| RightPopulation::from(index.rows.count().0 == 0))
-            .ok_or(OperatingError::WrongBinding);
-        self.hold(empty).map_err(|_| SetRowsError::Interrupted)
-    }
-    fn contains_right(&mut self, key: &[Value]) -> Result<RightMembership, SetRowsError> {
-        if self.interrupted() {
-            return Err(SetRowsError::Interrupted);
-        }
-        let contained = self
-            .resources
-            .index()
-            .map(|index| index.contains(key))
-            .ok_or(OperatingError::WrongBinding);
-        self.hold(contained).map_err(|_| SetRowsError::Interrupted)
-    }
-    fn first_time(&mut self, row: &[Value]) -> Result<FirstOccurrence, SetRowsError> {
-        InvocationDriver::first_time(self, row).map_err(|_| SetRowsError::Interrupted)
-    }
-    fn emit(&mut self, row: &[Value]) -> Result<(), SetRowsError> {
-        InvocationDriver::emit(self, row).map_err(|_| SetRowsError::Interrupted)
-    }
 }
 
 impl TextRowDriver for LeaseDriver<'_, '_> {
@@ -436,66 +347,12 @@ impl TextRowDriver for LeaseDriver<'_, '_> {
         ))
     }
     fn emit(&mut self, row: &[Value]) -> Result<(), ContractError> {
-        InvocationDriver::emit(self, row).map_err(|_| ContractError::Interrupted)
+        RowDriver::emit(self, row).map_err(|_| ContractError::Interrupted)
     }
 }
 
-impl OrderedMatchDriver for LeaseDriver<'_, '_> {
-    fn left_len(&self) -> RowCount {
-        RowCount(self.graph.ordered.map_or(0, |ordered| ordered.left.len()))
-    }
-    fn right_len(&self) -> RowCount {
-        RowCount(self.graph.ordered.map_or(0, |ordered| ordered.right.len()))
-    }
-    fn compare_keys(&self, left: RowIndex, right: RowIndex) -> std::cmp::Ordering {
-        self.graph
-            .ordered
-            .map_or(std::cmp::Ordering::Equal, |ordered| {
-                ordered.left[left.0].keys.cmp(&ordered.right[right.0].keys)
-            })
-    }
-    fn right_order_before_or_equal(
-        &self,
-        left: RowIndex,
-        right: RowIndex,
-    ) -> ryo_operators::domain::ordered_match::types::KeyOrder {
-        use ryo_operators::domain::ordered_match::types::KeyOrder;
-        match self.graph.ordered {
-            Some(ordered) if ordered.right[right.0].order <= ordered.left[left.0].order => {
-                KeyOrder::BeforeOrEqual
-            }
-            Some(_) | None => KeyOrder::After,
-        }
-    }
-    fn visit_pair(
-        &mut self,
-        left: RowIndex,
-        right: RowIndex,
-        project: &mut dyn FnMut(&[Value], &[Value]) -> Result<(), Fault>,
-    ) -> Result<(), Fault> {
-        if self.interrupted() {
-            return Err(Fault::Interrupted);
-        }
-        let (Some(ordered), PreparedInputs::Views(inputs)) = (self.graph.ordered, self.inputs)
-        else {
-            return self.hold(Err(OperatingError::WrongBinding));
-        };
-        let (Some(left_rows), Some(right_rows)) = (inputs.first(), inputs.get(1)) else {
-            return self.hold(Err(OperatingError::ShapeMismatch));
-        };
-        let (left_buffer, right_buffer) = (&mut self.left_buffer, &mut self.right_buffer);
-        let pair = left_rows
-            .read(ordered.left[left.0].row, left_buffer)
-            .ok_or(OperatingError::ShapeMismatch)
-            .and_then(|left| {
-                right_rows
-                    .read(ordered.right[right.0].row, right_buffer)
-                    .ok_or(OperatingError::ShapeMismatch)
-                    .map(|right| project(left, right))
-            });
-        self.hold(pair)?
-    }
-    fn emit(&mut self, row: &[Value]) -> Result<(), ContractError> {
-        InvocationDriver::emit(self, row).map_err(|_| ContractError::Interrupted)
+impl TextRowsEvaluation for LeaseDriver<'_, '_> {
+    fn text_rows(&mut self) -> &mut dyn TextRowDriver {
+        self
     }
 }

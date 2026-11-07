@@ -11,7 +11,7 @@ use crate::application::file_dag::program::facade_runtime::types::ProgramService
 use crate::domain::{
     file_program::types::RuleSchedule,
     operating::errors::OperatingError,
-    table_cells::fixtures::{SMALL_SOURCE, SmallTree, rows_over, small_tree},
+    table_cells::service_test::{SMALL_SOURCE, SmallTree, rows_over, small_tree},
     prepared_request::types::{Compiled, ObservationIdentity},
     table_model::types::Rows,
 };

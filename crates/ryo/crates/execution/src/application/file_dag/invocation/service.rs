@@ -7,7 +7,7 @@ use crate::application::file_dag::axis_resources::prepare_axis;
 use crate::application::file_dag::resources::appended_values;
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::operator::contract::{
-    join::NativeJoin,
+    views::NativeJoin,
     resources::{IndexColumns, JoinResources, ResourceProgram},
     types::OperatorContract,
     

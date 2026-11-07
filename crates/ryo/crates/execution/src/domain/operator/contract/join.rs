@@ -4,49 +4,20 @@
 use super::driver::LeaseDriver;
 use super::resources::Filtering;
 use super::types::{FoundRows, PrimitiveResources};
-use super::views::{IndexedRows, KeyProbe};
+use super::views::{JoinCursor, NativeCursor, NativeJoin, Started};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_cells::service::{find_native, tree_value};
-use crate::domain::table_cells::types::TreeRows;
 use crate::domain::table_model::types::Verdict;
+use ryo_operators::domain::contract::types::{FirstOccurrence, RowDriver};
 use ryo_operators::domain::equality_join::errors::EqualityJoinError;
-use ryo_operators::domain::equality_join::types::{Advance, JoinDriver};
+use ryo_operators::domain::equality_join::types::{Advance, JoinDriver, JoinEvaluation};
+use ryo_operators::domain::set_rows::errors::SetRowsError;
+use ryo_operators::domain::set_rows::types::{
+    RightMembership, RightPopulation, SetRowDriver, SetRowsEvaluation,
+};
 use ryo_relations::domain::relations::types::{Position, Value};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, InputNumber};
 use ryo_values::domain::plans::types::Operation;
-use ryo_values::domain::rows::types::RowIndex;
-
-use ryo_derived::domain::native::types::NativeFinding as Finding;
-#[derive(Clone, Copy)]
-pub(crate) struct NativeJoin<'a> {
-    pub tree: TreeRows<'a>,
-    pub finding: Finding,
-}
-
-/// Whether the native candidates of the left row have been found.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum Started {
-    Yes,
-    No,
-}
-
-/// Where the walk over the native candidates has reached.
-#[derive(Clone, Copy, Debug, Default)]
-pub(super) struct PositionCursor(pub(super) usize);
-
-/// The join candidates of one left row: the native tree candidates when a native lookup is bound, else the
-/// index probe; a filtered native join admits only the elements its bound predicate holds for.
-pub(crate) struct JoinCursor<'f> {
-    native: Option<NativeJoin<'f>>,
-    index: Option<IndexedRows<'f>>,
-    probe: Option<KeyProbe>,
-    current: Option<RowIndex>,
-    positions: Vec<Position>,
-    at: PositionCursor,
-    started: Started,
-    position: Option<Position>,
-    filtered: Filtering,
-}
 
 impl<'f> JoinCursor<'f> {
     /// The cursor of an evaluation, with the positions buffer the workspace keeps.
@@ -65,7 +36,7 @@ impl<'f> JoinCursor<'f> {
             probe: None,
             current: None,
             positions,
-            at: PositionCursor(0),
+            at: NativeCursor(0),
             started: Started::No,
             position: None,
             filtered,
@@ -159,7 +130,49 @@ impl JoinDriver for LeaseDriver<'_, '_> {
         }
     }
     fn emit(&mut self, row: &[Value]) -> Result<(), EqualityJoinError> {
-        ryo_operators::domain::evaluation::types::InvocationDriver::emit(self, row)
-            .map_err(|_| EqualityJoinError::Interrupted)
+        RowDriver::emit(self, row).map_err(|_| EqualityJoinError::Interrupted)
+    }
+}
+
+impl JoinEvaluation for LeaseDriver<'_, '_> {
+    fn join(&mut self) -> &mut dyn JoinDriver {
+        self
+    }
+}
+
+impl SetRowsEvaluation for LeaseDriver<'_, '_> {
+    fn set_rows(&mut self) -> &mut dyn SetRowDriver {
+        self
+    }
+}
+
+impl SetRowDriver for LeaseDriver<'_, '_> {
+    fn right_empty(&mut self) -> Result<RightPopulation, SetRowsError> {
+        if self.interrupted() {
+            return Err(SetRowsError::Interrupted);
+        }
+        let empty = self
+            .resources
+            .index()
+            .map(|index| RightPopulation::from(index.rows.count().0 == 0))
+            .ok_or(OperatingError::WrongBinding);
+        self.hold(empty).map_err(|_| SetRowsError::Interrupted)
+    }
+    fn contains_right(&mut self, key: &[Value]) -> Result<RightMembership, SetRowsError> {
+        if self.interrupted() {
+            return Err(SetRowsError::Interrupted);
+        }
+        let contained = self
+            .resources
+            .index()
+            .map(|index| index.contains(key))
+            .ok_or(OperatingError::WrongBinding);
+        self.hold(contained).map_err(|_| SetRowsError::Interrupted)
+    }
+    fn first_time(&mut self, row: &[Value]) -> Result<FirstOccurrence, SetRowsError> {
+        RowDriver::first_time(self, row).map_err(|_| SetRowsError::Interrupted)
+    }
+    fn emit(&mut self, row: &[Value]) -> Result<(), SetRowsError> {
+        RowDriver::emit(self, row).map_err(|_| SetRowsError::Interrupted)
     }
 }

@@ -83,12 +83,23 @@ fn joined(
     right: &[Value],
     answer: &mut Vec<Value>,
 ) -> Result<(), PortableOperatorFault> {
-    use crate::domain::evaluation::service::cell;
     answer.clear();
     for column in output {
         answer.push(match column.side {
-            Side::Left => cell(left, column.column)?,
-            Side::Right => cell(right, column.column)?,
+            Side::Left => ryo_values::domain::rows::service::column_in(left, column.column)
+                .copied()
+                .ok_or(
+                    crate::domain::contract::types::PortableOperatorFault::NoSuchColumn {
+                        index: column.column,
+                    },
+                )?,
+            Side::Right => ryo_values::domain::rows::service::column_in(right, column.column)
+                .copied()
+                .ok_or(
+                    crate::domain::contract::types::PortableOperatorFault::NoSuchColumn {
+                        index: column.column,
+                    },
+                )?,
         });
     }
     Ok(())
@@ -127,13 +138,14 @@ fn reach_join(
     left: &[Value],
     shape: JoinShape<'_>,
     reach: &ryo_values::domain::plan_parts::types::ReachLookup,
-    cached: Option<crate::domain::evaluation::types::CachedReach<'_>>,
-    driver: &mut dyn crate::domain::evaluation::types::InvocationDriver,
-    scratch: &mut crate::domain::evaluation::types::EvaluationScratch,
+    cached: Option<crate::domain::equality_join::types::CachedReach<'_>>,
+    driver: &mut dyn crate::domain::equality_join::types::JoinEvaluation,
+    scratch: &mut crate::domain::contract::types::RowScratch,
 ) -> Result<(), PortableOperatorFault> {
-    use crate::domain::evaluation::types::{PartitionPlace, VertexPlace};
-    use crate::domain::set_rows::types::FirstOccurrence;
-    let crate::domain::evaluation::types::EvaluationScratch {
+    use crate::domain::contract::types::FirstOccurrence;
+    use crate::domain::closure::types::PartitionPlace;
+    use crate::domain::contract::types::VertexPlace;
+    let crate::domain::contract::types::RowScratch {
         row: right,
         other: answer,
         key,
@@ -142,7 +154,15 @@ fn reach_join(
     } = scratch;
     key.clear();
     for column in shape.left_on {
-        key.push(crate::domain::evaluation::service::cell(left, *column)?);
+        key.push(
+            ryo_values::domain::rows::service::column_in(left, *column)
+                .copied()
+                .ok_or(
+                    crate::domain::contract::types::PortableOperatorFault::NoSuchColumn {
+                        index: *column,
+                    },
+                )?,
+        );
     }
     if let Some(graph) = cached {
         for destination in graph.destinations {
@@ -230,9 +250,9 @@ fn reach_join(
 pub(crate) fn evaluate(
     left: &[Value],
     shape: JoinShape<'_>,
-    cached: Option<crate::domain::evaluation::types::CachedReach<'_>>,
-    driver: &mut dyn crate::domain::evaluation::types::InvocationDriver,
-    scratch: &mut crate::domain::evaluation::types::EvaluationScratch,
+    cached: Option<crate::domain::equality_join::types::CachedReach<'_>>,
+    driver: &mut dyn crate::domain::equality_join::types::JoinEvaluation,
+    scratch: &mut crate::domain::contract::types::RowScratch,
 ) -> Result<(), PortableOperatorFault> {
     if let Some(reach) = shape.reach {
         return reach_join(left, shape, reach, cached, driver, scratch);
@@ -240,8 +260,8 @@ pub(crate) fn evaluate(
     // Indexed candidates already answer the requested logical view; native tree candidates answer
     // physical tree columns, which the declared view remaps.
     let view = match driver.right_columns() {
-        crate::domain::evaluation::types::RightColumns::Physical => shape.view,
-        crate::domain::evaluation::types::RightColumns::Logical => &[],
+        crate::domain::contract::types::RightColumns::Physical => shape.view,
+        crate::domain::contract::types::RightColumns::Logical => &[],
     };
     join_row(
         JoinRow::Values(left),

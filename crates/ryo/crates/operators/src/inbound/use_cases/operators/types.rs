@@ -1,6 +1,7 @@
 //! The request and answer of the operators capability: one borrowed call in, one pure meaning out.
 
 use crate::domain::capture::types::{CaptureOutput, CaptureSlots, SlotPattern, SlotSubject};
+use crate::domain::contract::types::PredicateOutcome;
 use crate::domain::contract::types::SourceByteLength;
 use crate::domain::equality_join::types::JoinInput;
 use crate::domain::ordered_existence::types::{
@@ -12,7 +13,7 @@ use crate::domain::reduction::types::{
     GroupColumns, GroupCounts, GroupOutput, HashScratch, StreamingReduction, ValueHash,
 };
 use crate::domain::replace::types::{ReplacedText, ReplacementText};
-use crate::domain::select::types::{PredicateOutcome, RowSelection};
+use crate::domain::select::types::RowSelection;
 use crate::domain::set_rows::types::SetInput;
 use crate::domain::source_matches::types::{SourceMatchesInput, TextRowDriver};
 use crate::domain::words::types::WordOutput;

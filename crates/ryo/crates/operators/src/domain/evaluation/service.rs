@@ -1,47 +1,12 @@
 //! The one evaluation of every operation kind: each arm calls the kind's own meaning, once, over the
 //! engine's driver port. No kind is evaluated anywhere else.
-use super::types::{
-    EvaluationInput, EvaluationScratch, EvaluationViews, InvocationDriver, RowRead,
-};
-use crate::domain::contract::types::PortableOperatorFault;
+use super::types::{EvaluationInput, EvaluationScratch, EvaluationViews, InvocationDriver};
+use crate::domain::contract::types::{Occurrences, PortableOperatorFault, RowDriver, RowRead};
 use crate::domain::set_rows::types::SetKind;
 use ryo_relations::domain::relations::types::Value;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, InputNumber};
+use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::types::RowIndex;
-use std::ops::ControlFlow;
-
-/// The occurrences of a prepared matcher in a text, found through the matching port the edge composed.
-pub(crate) trait Occurrences {
-    /// Visits each match of `regex` in `text`, stopping when `each` breaks.
-    fn matches(
-        &self,
-        regex: &ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
-        text: &str,
-        each: &mut dyn FnMut(std::ops::Range<usize>) -> ControlFlow<()>,
-    ) -> ControlFlow<()>;
-    /// Visits each match of `regex` in `text` with the span of its named group, stopping when `each` breaks.
-    ///
-    /// # Errors
-    ///
-    /// `MissingCapture` when the matcher has no group of that name.
-    fn captures(
-        &self,
-        regex: &ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
-        text: &str,
-        group: &str,
-        each: &mut dyn FnMut(std::ops::Range<usize>, std::ops::Range<usize>) -> ControlFlow<()>,
-    ) -> Result<ControlFlow<()>, PortableOperatorFault>;
-}
-
-/// One cell of a row, refused as a missing column when the row is narrower.
-pub(crate) fn cell(row: &[Value], column: ColumnIndex) -> Result<Value, PortableOperatorFault> {
-    usize::try_from(column.0)
-        .ok()
-        .and_then(|at| row.get(at))
-        .copied()
-        .ok_or(PortableOperatorFault::NoSuchColumn { index: column })
-}
 
 /// The scheduled row of a row-mode evaluation; a population-mode call is not this operation's.
 fn row_of(input: EvaluationInput<'_>) -> Result<&[Value], PortableOperatorFault> {
@@ -60,10 +25,7 @@ fn populations(input: EvaluationInput<'_>) -> Result<(), PortableOperatorFault> 
 }
 
 /// Copies every row of the request's own source, in order: the host materialized them.
-fn hosted(
-    driver: &mut dyn InvocationDriver,
-    row: &mut Vec<Value>,
-) -> Result<(), PortableOperatorFault> {
+fn hosted(driver: &mut dyn RowDriver, row: &mut Vec<Value>) -> Result<(), PortableOperatorFault> {
     let rows = driver.population(InputNumber(0))?;
     for at in 0..rows.0 {
         if driver.population_row(InputNumber(0), RowIndex(at), row) == RowRead::Read {
@@ -96,7 +58,7 @@ pub(crate) fn evaluate(
             row_of(input)?,
             kept,
             driver,
-            &mut scratch.other,
+            &mut scratch.rows.other,
         ),
         Operation::Project {
             columns, distinct, ..
@@ -105,13 +67,13 @@ pub(crate) fn evaluate(
             columns,
             *distinct,
             driver,
-            &mut scratch.other,
+            &mut scratch.rows.other,
         ),
         Operation::Extend { .. } => crate::domain::append::service::evaluate(
             row_of(input)?,
             views.appended,
             driver,
-            &mut scratch.row,
+            &mut scratch.rows.row,
         ),
         Operation::Join {
             left_on,
@@ -131,35 +93,35 @@ pub(crate) fn evaluate(
             },
             views.cached_reach,
             driver,
-            scratch,
+            &mut scratch.rows,
         ),
         Operation::Union { .. } => crate::domain::set_rows::service::evaluate(
             SetKind::Union,
             row_of(input)?,
             &[],
             driver,
-            &mut scratch.row,
+            &mut scratch.rows.row,
         ),
         Operation::Intersection { .. } => crate::domain::set_rows::service::evaluate(
             SetKind::Intersection,
             row_of(input)?,
             &[],
             driver,
-            &mut scratch.row,
+            &mut scratch.rows.row,
         ),
         Operation::Difference { .. } => crate::domain::set_rows::service::evaluate(
             SetKind::Difference,
             row_of(input)?,
             &[],
             driver,
-            &mut scratch.row,
+            &mut scratch.rows.row,
         ),
         Operation::Antijoin { left_on, .. } => crate::domain::set_rows::service::evaluate(
             SetKind::Antijoin,
             row_of(input)?,
             left_on,
             driver,
-            &mut scratch.row,
+            &mut scratch.rows.row,
         ),
         Operation::GroupCount { keys, .. } => {
             populations(input)?;
@@ -167,7 +129,7 @@ pub(crate) fn evaluate(
                 keys,
                 crate::domain::aggregate::types::Aggregation::Counted,
                 driver,
-                scratch,
+                &mut scratch.rows,
             )
         }
         Operation::GroupDigest { keys, .. } => {
@@ -176,7 +138,7 @@ pub(crate) fn evaluate(
                 keys,
                 crate::domain::aggregate::types::Aggregation::Digested,
                 driver,
-                scratch,
+                &mut scratch.rows,
             )
         }
         Operation::Capture { path, pattern, .. } => crate::domain::capture::service::evaluate(
@@ -184,14 +146,14 @@ pub(crate) fn evaluate(
             *path,
             crate::domain::capture::types::SlotPattern(&pattern.0),
             driver,
-            scratch,
+            &mut scratch.rows,
         ),
         Operation::Rank { column, .. } => crate::domain::rank::service::evaluate(
             row_of(input)?,
             *column,
             views.layers,
             driver,
-            scratch,
+            &mut scratch.rows,
         ),
         Operation::Replace {
             text, replacement, ..
@@ -201,16 +163,23 @@ pub(crate) fn evaluate(
             crate::domain::replace::types::ReplacementText(&replacement.0),
             views.regex,
             driver,
-            scratch,
+            &mut scratch.rows,
             occurrences,
         ),
         Operation::OrderedMatch { output, .. } => {
             populations(input)?;
-            crate::domain::ordered_match::service::evaluate(output, driver, &mut scratch.captured)
+            crate::domain::ordered_match::service::evaluate(
+                output,
+                driver,
+                &mut scratch.rows.captured,
+            )
         }
-        Operation::Words { text, .. } => {
-            crate::domain::words::service::evaluate(row_of(input)?, *text, driver, scratch)
-        }
+        Operation::Words { text, .. } => crate::domain::words::service::evaluate(
+            row_of(input)?,
+            *text,
+            driver,
+            &mut scratch.rows,
+        ),
         Operation::Axis {
             id,
             direction,
@@ -223,11 +192,11 @@ pub(crate) fn evaluate(
             output,
             views.cached_axis,
             driver,
-            &mut scratch.row,
+            &mut scratch.rows.row,
         ),
         Operation::Closure { .. } => {
             populations(input)?;
-            crate::domain::closure::service::evaluate(driver, scratch)
+            crate::domain::closure::service::evaluate(driver, &mut scratch.rows)
         }
         Operation::OrderedDfs {
             root,
@@ -245,7 +214,7 @@ pub(crate) fn evaluate(
                     root_keys,
                 },
                 driver,
-                scratch,
+                &mut scratch.rows,
             )
         }
         Operation::Cycles { .. } => {
@@ -259,12 +228,12 @@ pub(crate) fn evaluate(
                 keys,
                 views.bindings,
                 driver,
-                &mut scratch.row,
+                &mut scratch.rows.row,
             )
         }
         Operation::Hosted { .. } => {
             populations(input)?;
-            hosted(driver, &mut scratch.row)
+            hosted(driver, &mut scratch.rows.row)
         }
         Operation::SpanBetween { start, end, .. } => {
             let row = row_of(input)?;
@@ -277,15 +246,15 @@ pub(crate) fn evaluate(
             crate::domain::append::service::append(
                 row,
                 std::slice::from_ref(&span),
-                &mut scratch.row,
+                &mut scratch.rows.row,
             );
-            driver.emit(&scratch.row)
+            driver.emit(&scratch.rows.row)
         }
         Operation::SpanBounds { span, .. } => {
             let row = row_of(input)?;
             let bounds = crate::domain::span_bounds::service::bounds(row, *span)?;
-            crate::domain::append::service::append(row, &bounds, &mut scratch.row);
-            driver.emit(&scratch.row)
+            crate::domain::append::service::append(row, &bounds, &mut scratch.rows.row);
+            driver.emit(&scratch.rows.row)
         }
         Operation::SourceMatches {
             capture,
@@ -306,14 +275,18 @@ pub(crate) fn evaluate(
                 capture_text: *capture_text,
                 capture_line: *capture_line,
             },
-            views,
+            crate::domain::source_matches::types::SearchViews {
+                source: views.source,
+                checked: views.checked.ok_or(PortableOperatorFault::WrongBinding)?,
+                regex: views.regex.ok_or(PortableOperatorFault::WrongBinding)?,
+            },
             driver,
-            &mut scratch.row,
+            &mut scratch.rows.row,
             occurrences,
         ),
         Operation::RenderSyntax { node, .. } => {
             populations(input)?;
-            crate::domain::render_batch::service::evaluate(*node, driver, scratch)
+            crate::domain::render_batch::service::evaluate(*node, driver, &mut scratch.rows)
         }
         Operation::FitsRendered {
             texts,
@@ -333,7 +306,7 @@ pub(crate) fn evaluate(
             },
             views.source,
             driver,
-            &mut scratch.text,
+            &mut scratch.rows.text,
         ),
     }
 }

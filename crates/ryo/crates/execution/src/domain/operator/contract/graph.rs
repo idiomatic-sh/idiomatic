@@ -2,39 +2,25 @@
 //! closure partitions and its ordered depth-first graph, and its prepared adjacency and ordered keys, are
 //! its strategies behind the operators' closure, depth-first, cycle and ordered-match driver ports.
 use super::driver::LeaseDriver;
-use super::views::ClosureViews;
+use super::views::PreparedAdjacency;
+use super::types::PreparedInputs;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_reach::types::{Edges, OrderedVisit};
-use ryo_derived::domain::cycle_adjacency::types::CycleGraph;
+use ryo_operators::domain::closure::types::{ClosureDriver, ClosureEvaluation};
+use ryo_operators::domain::contract::errors::ContractError;
 use ryo_operators::domain::contract::types::PortableOperatorFault as Fault;
-use ryo_operators::domain::cycles::types::{CycleDriver, EdgePlace, NodeCount, NodeNumber};
-use ryo_operators::domain::evaluation::types::{
-    ClosureDriver, DfsDriver, OrderedEdge, PartitionPlace, RowRead, VertexPlace,
+use ryo_operators::domain::contract::types::{RowDriver, RowRead, VertexPlace};
+use ryo_operators::domain::closure::types::PartitionPlace;
+use ryo_operators::domain::cycles::types::{
+    CycleDriver, CyclesEvaluation, EdgePlace, NodeCount, NodeNumber,
 };
+use ryo_operators::domain::ordered_dfs::types::{DfsDriver, DfsEvaluation, OrderedEdge};
+use ryo_operators::domain::ordered_match::types::{OrderedMatchDriver, OrderedMatchEvaluation};
 use ryo_relations::domain::relations::types::{Count, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, RowIndex};
 
-/// The vertices one invocation of the ordered depth-first search has expanded.
-#[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct ExpandedCount(pub(crate) usize);
-
-/// The edges one invocation of the ordered depth-first search has examined.
-#[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct ExaminedCount(pub(crate) usize);
-
-/// The work of one invocation of the ordered depth-first search, with what its walks expanded and examined.
-#[derive(Debug, Default)]
-pub(crate) struct DfsWorkspace {
-    pub(crate) walk: crate::domain::table_reach::types::OrderedWalk,
-    pub(crate) expanded: ExpandedCount,
-    pub(crate) examined: ExaminedCount,
-}
-
-/// The prepared adjacency of the derived resource, read through the operators' port.
-pub(super) struct Adjacency<'a>(pub(super) &'a CycleGraph);
-
-impl CycleDriver for Adjacency<'_> {
+impl CycleDriver for PreparedAdjacency<'_> {
     fn nodes(&self) -> NodeCount {
         NodeCount(self.0.values.len())
     }
@@ -48,16 +34,6 @@ impl CycleDriver for Adjacency<'_> {
             .then(|| self.0.leaving.0.get(at).copied().map(NodeNumber))
             .flatten()
     }
-}
-
-/// The graph resources an evaluation acquired: its ordered keys, adjacency, closure partitions and depth-first
-/// graph.
-#[derive(Default)]
-pub(crate) struct GraphCursor<'f> {
-    pub(super) ordered: Option<&'f ryo_derived::domain::ordered::types::OrderedMatching>,
-    pub(super) cycles: Option<Adjacency<'f>>,
-    closure: ClosureViews<'f>,
-    dfs: Option<&'f ryo_derived::domain::dfs::types::PreparedDfs>,
 }
 
 impl<'f> LeaseDriver<'_, 'f> {
@@ -289,5 +265,115 @@ impl DfsDriver for LeaseDriver<'_, '_> {
         row.clear();
         row.extend_from_slice(edge);
         RowRead::Read
+    }
+}
+
+impl ClosureEvaluation for LeaseDriver<'_, '_> {
+    fn closure(&mut self) -> &mut dyn ClosureDriver {
+        self
+    }
+}
+
+impl DfsEvaluation for LeaseDriver<'_, '_> {
+    fn dfs(&mut self) -> &mut dyn DfsDriver {
+        self
+    }
+}
+
+impl CyclesEvaluation for LeaseDriver<'_, '_> {
+    fn cycles(&mut self) -> Result<&dyn CycleDriver, Fault> {
+        let graph = self
+            .resources
+            .cycles()
+            .and_then(|graph| graph.ok_or(OperatingError::WrongBinding));
+        let graph = self.hold(graph)?;
+        self.graph.cycles = Some(super::views::PreparedAdjacency(graph));
+        self.graph
+            .cycles
+            .as_ref()
+            .map(|graph| graph as &dyn CycleDriver)
+            .ok_or(Fault::WrongBinding)
+    }
+}
+
+impl OrderedMatchEvaluation for LeaseDriver<'_, '_> {
+    fn ordered_match(&mut self) -> Result<&mut dyn OrderedMatchDriver, Fault> {
+        let checked = match self.inputs {
+            PreparedInputs::Views(inputs) => inputs
+                .first()
+                .ok_or(OperatingError::MissingInput { position: 1 })
+                .and_then(|_| {
+                    inputs
+                        .get(1)
+                        .ok_or(OperatingError::MissingInput { position: 2 })
+                })
+                .and_then(|_| self.resources.ordered())
+                .and_then(|ordered| ordered.ok_or(OperatingError::WrongBinding)),
+            PreparedInputs::Row { .. } | PreparedInputs::RequestSource(_) => {
+                Err(OperatingError::WrongOperation)
+            }
+        };
+        self.graph.ordered = Some(self.hold(checked)?);
+        Ok(self)
+    }
+}
+
+impl OrderedMatchDriver for LeaseDriver<'_, '_> {
+    fn left_len(&self) -> RowCount {
+        RowCount(self.graph.ordered.map_or(0, |ordered| ordered.left.len()))
+    }
+    fn right_len(&self) -> RowCount {
+        RowCount(self.graph.ordered.map_or(0, |ordered| ordered.right.len()))
+    }
+    fn compare_keys(&self, left: RowIndex, right: RowIndex) -> std::cmp::Ordering {
+        self.graph
+            .ordered
+            .map_or(std::cmp::Ordering::Equal, |ordered| {
+                ordered.left[left.0].keys.cmp(&ordered.right[right.0].keys)
+            })
+    }
+    fn right_order_before_or_equal(
+        &self,
+        left: RowIndex,
+        right: RowIndex,
+    ) -> ryo_operators::domain::ordered_match::types::KeyOrder {
+        use ryo_operators::domain::ordered_match::types::KeyOrder;
+        match self.graph.ordered {
+            Some(ordered) if ordered.right[right.0].order <= ordered.left[left.0].order => {
+                KeyOrder::BeforeOrEqual
+            }
+            Some(_) | None => KeyOrder::After,
+        }
+    }
+    fn visit_pair(
+        &mut self,
+        left: RowIndex,
+        right: RowIndex,
+        project: &mut dyn FnMut(&[Value], &[Value]) -> Result<(), Fault>,
+    ) -> Result<(), Fault> {
+        if self.interrupted() {
+            return Err(Fault::Interrupted);
+        }
+        let (Some(ordered), PreparedInputs::Views(inputs)) = (self.graph.ordered, self.inputs)
+        else {
+            return self.hold(Err(OperatingError::WrongBinding));
+        };
+        let (Some(left_rows), Some(right_rows)) = (inputs.first(), inputs.get(1)) else {
+            return self.hold(Err(OperatingError::ShapeMismatch));
+        };
+        let (left_buffer, right_buffer) = (&mut self.left_buffer, &mut self.right_buffer);
+        let pair = left_rows
+            .read(ordered.left[left.0].row, left_buffer)
+            .ok_or(OperatingError::ShapeMismatch)
+            .and_then(|left| {
+                right_rows
+                    .read(ordered.right[right.0].row, right_buffer)
+                    .ok_or(OperatingError::ShapeMismatch)
+                    .map(|right| project(left, right))
+            });
+        self.hold(pair)?
+    }
+    fn emit(&mut self, row: &[Value]) -> Result<(), ContractError> {
+        RowDriver::emit(self, row).map_err(|_| ContractError::Interrupted)
     }
 }

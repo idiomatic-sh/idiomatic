@@ -119,7 +119,7 @@ pub(crate) fn cycles(graph: &dyn CycleDriver, scratch: &mut CycleScratch) {
 /// Marks the nodes on a cycle of the engine's prepared adjacency and emits each, ascending, as both the
 /// source and the destination of its row.
 pub(crate) fn evaluate(
-    driver: &mut dyn crate::domain::evaluation::types::InvocationDriver,
+    driver: &mut dyn crate::domain::cycles::types::CyclesEvaluation,
     scratch: &mut CycleScratch,
 ) -> Result<(), crate::domain::contract::types::PortableOperatorFault> {
     cycles(driver.cycles()?, scratch);

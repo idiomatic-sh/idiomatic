@@ -301,7 +301,7 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
     }
 }
 
-impl crate::domain::evaluation::service::Occurrences for OperatorsUseCaseImpl {
+impl crate::domain::contract::types::Occurrences for OperatorsUseCaseImpl {
     fn matches(
         &self,
         regex: &ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,

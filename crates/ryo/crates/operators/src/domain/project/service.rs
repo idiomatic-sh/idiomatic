@@ -28,13 +28,13 @@ pub(crate) fn evaluate(
     row: &[Value],
     columns: &[ColumnIndex],
     distinct: ryo_values::domain::plan_parts::types::RepeatedRows,
-    driver: &mut dyn crate::domain::evaluation::types::InvocationDriver,
+    driver: &mut dyn crate::domain::contract::types::RowDriver,
     projected: &mut Vec<Value>,
 ) -> Result<(), PortableOperatorFault> {
     projected.clear();
     project(row, columns, projected)?;
     if distinct == ryo_values::domain::plan_parts::types::RepeatedRows::Dropped
-        && driver.first_time(projected)? != crate::domain::set_rows::types::FirstOccurrence::First
+        && driver.first_time(projected)? != crate::domain::contract::types::FirstOccurrence::First
     {
         return Ok(());
     }

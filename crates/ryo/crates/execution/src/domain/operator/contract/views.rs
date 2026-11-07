@@ -284,3 +284,72 @@ pub(crate) fn validate<'a>(
     };
     Ok(Some(ValidatedSource { base, text, line }))
 }
+
+/// A native lookup bound to a join: the tree it finds candidates in, and how it finds them.
+#[derive(Clone, Copy)]
+pub(crate) struct NativeJoin<'a> {
+    pub tree: crate::domain::table_cells::types::TreeRows<'a>,
+    pub finding: ryo_derived::domain::native::types::NativeFinding,
+}
+
+/// Whether the native candidates of the left row have been found.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Started {
+    Yes,
+    No,
+}
+
+/// Where the walk over the native candidates has reached.
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct NativeCursor(pub(super) usize);
+
+/// The join candidates of one left row: the native tree candidates when a native lookup is bound, else the
+/// index probe; a filtered native join admits only the elements its bound predicate holds for.
+pub(crate) struct JoinCursor<'f> {
+    pub(super) native: Option<NativeJoin<'f>>,
+    pub(super) index: Option<IndexedRows<'f>>,
+    pub(super) probe: Option<KeyProbe>,
+    pub(super) current: Option<ryo_values::domain::rows::types::RowIndex>,
+    pub(super) positions: Vec<ryo_relations::domain::relations::types::Position>,
+    pub(super) at: NativeCursor,
+    pub(super) started: Started,
+    pub(super) position: Option<ryo_relations::domain::relations::types::Position>,
+    pub(super) filtered: super::resources::Filtering,
+}
+
+/// The axis resources one walk runs over: none, a tree of elements, or an index of edges with its domain.
+#[derive(Clone, Copy)]
+pub(crate) enum PreparedAxis<'a> {
+    Empty,
+    Native {
+        tree: crate::domain::table_cells::types::TreeRows<'a>,
+        among: Option<crate::domain::table_cells::types::TreeRows<'a>>,
+        marks: ryo_derived::domain::positions::types::DenseMarks<'a>,
+    },
+    Indexed {
+        edges: IndexedRows<'a>,
+        to: ryo_values::domain::plan_parts::types::ColumnIndex,
+        domain: ryo_derived::domain::membership::types::MembershipView<'a>,
+    },
+}
+
+/// The axis resources the last walk ran over.
+#[derive(Default)]
+pub(crate) struct AxisCursor<'f> {
+    pub(super) prepared: Option<PreparedAxis<'f>>,
+}
+
+/// The prepared adjacency of the derived resource, read through the operators' port.
+pub(super) struct PreparedAdjacency<'a>(
+    pub(super) &'a ryo_derived::domain::cycle_adjacency::types::CycleGraph,
+);
+
+/// The graph resources an evaluation acquired: its ordered keys, adjacency, closure partitions and depth-first
+/// graph.
+#[derive(Default)]
+pub(crate) struct GraphCursor<'f> {
+    pub(super) ordered: Option<&'f ryo_derived::domain::ordered::types::OrderedMatching>,
+    pub(super) cycles: Option<PreparedAdjacency<'f>>,
+    pub(super) closure: ClosureViews<'f>,
+    pub(super) dfs: Option<&'f ryo_derived::domain::dfs::types::PreparedDfs>,
+}

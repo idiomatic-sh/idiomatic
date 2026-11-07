@@ -19,7 +19,7 @@ mod rows_test;
 mod stored_keys_test;
 
 use super::types::Rows;
-use crate::domain::table_cells::fixtures::prepared_index;
+use crate::domain::table_cells::service_test::prepared_index;
 use ryo_derived::domain::key::types::On;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;

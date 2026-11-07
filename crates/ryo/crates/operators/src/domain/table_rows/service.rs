@@ -27,35 +27,13 @@ pub(crate) fn rows(
     Ok(())
 }
 
-/// Interns each delivered text as derived text and emits the row.
-struct RowMinting<'a> {
-    driver: &'a mut dyn crate::domain::evaluation::types::InvocationDriver,
-    row: &'a mut Vec<ryo_relations::domain::relations::types::Value>,
-}
-
-impl TableRowOutput for RowMinting<'_> {
-    fn row(
-        &mut self,
-        texts: RowTexts<'_>,
-    ) -> Result<(), crate::domain::contract::errors::ContractError> {
-        self.row.clear();
-        for text in texts.0 {
-            let made = self.driver.mint(*text);
-            self.row.push(made);
-        }
-        self.driver
-            .emit(self.row)
-            .map_err(|_| crate::domain::contract::errors::ContractError::Interrupted)
-    }
-}
-
 /// Emits one row of interned texts for each table of a table-list parameter; an empty list of any kind is
 /// no tables.
 pub(crate) fn evaluate(
     parameter: ryo_values::domain::plan_parts::types::ParameterId,
     keys: &[TableKey],
     bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
-    driver: &mut dyn crate::domain::evaluation::types::InvocationDriver,
+    driver: &mut dyn crate::domain::contract::types::RowDriver,
     row: &mut Vec<ryo_relations::domain::relations::types::Value>,
 ) -> Result<(), PortableOperatorFault> {
     use ryo_values::domain::query_bindings::types::ParameterBinding;
@@ -73,5 +51,9 @@ pub(crate) fn evaluate(
         | ParameterBinding::Texts(_)
         | ParameterBinding::TextSets(_) => return Err(PortableOperatorFault::WrongBinding),
     };
-    rows(tables, keys, &mut RowMinting { driver, row })
+    rows(
+        tables,
+        keys,
+        &mut crate::domain::table_rows::types::RowMinting { driver, row },
+    )
 }

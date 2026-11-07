@@ -78,6 +78,7 @@ templates = [
   { template = "idiomatic.arch/service", file = "src/domain/operator/contract/axis.rs", params = { concept = "contract" }, description = "One part of the concept's service: pure functions over the domain's types." },
   { template = "idiomatic.arch/service", file = "src/domain/operator/contract/derived.rs", params = { concept = "contract" }, description = "One part of the concept's service: pure functions over the domain's types." },
   { template = "idiomatic.arch/service", file = "src/domain/operator/contract/failure.rs", params = { concept = "contract" }, description = "One part of the concept's service: pure functions over the domain's types." },
+  { template = "idiomatic.arch/service", file = "src/domain/operator/contract/driver.rs", params = { concept = "contract" }, description = "The engine's side of one evaluation: the lease, sink and inputs behind the operators' driver ports." },
   { template = "idiomatic.arch/service", file = "src/domain/operator/contract/graph.rs", params = { concept = "contract" }, description = "One part of the concept's service: pure functions over the domain's types." },
   { template = "idiomatic.arch/service", file = "src/domain/operator/contract/lease.rs", params = { concept = "contract" }, description = "The primitive lease and its counters: the borrowed context a primitive reaches its capabilities through." },
   { template = "idiomatic.ryo/executable-lowering", file = "src/domain/operator/contract.rs", description = "The operator contract part: module declarations of its parts." },

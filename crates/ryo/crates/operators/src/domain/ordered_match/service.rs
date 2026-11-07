@@ -58,7 +58,7 @@ pub(crate) fn pairs(
 /// Pairs the engine's prepared ordered keys of both inputs in FIFO order.
 pub(crate) fn evaluate(
     output: &[JoinColumn],
-    driver: &mut dyn crate::domain::evaluation::types::InvocationDriver,
+    driver: &mut dyn crate::domain::ordered_match::types::OrderedMatchEvaluation,
     target: &mut Vec<Value>,
 ) -> Result<(), PortableOperatorFault> {
     pairs(output, driver.ordered_match()?, target)

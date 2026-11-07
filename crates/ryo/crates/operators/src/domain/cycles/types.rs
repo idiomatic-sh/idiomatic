@@ -66,3 +66,15 @@ pub struct CycleScratch {
     /// The values of the nodes on a cycle, ascending: the answer.
     pub ordered: Vec<Value>,
 }
+
+/// An engine driver that lends the prepared adjacency of a cycle search.
+pub trait CyclesEvaluation: crate::domain::contract::types::RowDriver {
+    /// The engine's prepared adjacency of a cycle search.
+    ///
+    /// # Errors
+    ///
+    /// The engine retained an error: no adjacency is bound.
+    fn cycles(
+        &mut self,
+    ) -> Result<&dyn CycleDriver, crate::domain::contract::types::PortableOperatorFault>;
+}

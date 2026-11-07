@@ -12,7 +12,7 @@ pub fn append(row: &[Value], appended: &[Value], target: &mut Vec<Value>) {
 pub(crate) fn evaluate(
     row: &[Value],
     appended: Option<&[Value]>,
-    driver: &mut dyn crate::domain::evaluation::types::InvocationDriver,
+    driver: &mut dyn crate::domain::contract::types::RowDriver,
     joined: &mut Vec<Value>,
 ) -> Result<(), crate::domain::contract::types::PortableOperatorFault> {
     let appended =

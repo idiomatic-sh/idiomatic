@@ -1,6 +1,6 @@
 //! The `table_model` service's cases for the keys of stored rows, on values alone.
 
-use crate::domain::table_cells::fixtures::prepared_index;
+use crate::domain::table_cells::service_test::prepared_index;
 use crate::domain::table_model::service::{matching, matching_stored, materialize, rectangular};
 use crate::domain::table_model::types::Rows;
 use ryo_derived::domain::key::types::On;

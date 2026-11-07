@@ -2,7 +2,7 @@
 use super::types::{CountRoom, GroupTarget, Hashes, ResolvedValues};
 use crate::domain::{
     operating::errors::OperatingError,
-    operator::contract::types::{PrimitiveSemantics, written_result},
+    operator::contract::{service::written_result, types::PrimitiveSemantics},
     table_texts::types::Texts,
 };
 use ryo_derived::domain::key::types::On;

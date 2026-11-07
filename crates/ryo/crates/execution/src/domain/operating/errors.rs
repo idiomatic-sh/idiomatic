@@ -56,9 +56,6 @@ pub enum OperatingError {
     /// A step reads a step that has not run.
     #[error("a step reads a step that has not run")]
     NotRun,
-    /// A step reads a relation where only a step's rows can be read.
-    #[error("a step reads a relation where it can read only a step")]
-    NotAStep,
     /// A step reads a relation nobody read.
     #[error("a step reads a relation that was not read")]
     NotRead,

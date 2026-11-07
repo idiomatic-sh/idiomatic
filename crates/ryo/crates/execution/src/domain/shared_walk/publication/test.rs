@@ -7,7 +7,7 @@ use crate::domain::shared_walk::service_test::{
 use crate::domain::shared_walk::types::WalkWork;
 use crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk;
 use crate::domain::step_classes::types::ClassPlace;
-use crate::domain::table_cells::fixtures::{SMALL_SOURCE, SmallTree, small_tree};
+use crate::domain::table_cells::service_test::{SMALL_SOURCE, SmallTree, small_tree};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;

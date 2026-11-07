@@ -15,15 +15,18 @@ pub(crate) fn evaluate(
     row: &[ryo_relations::domain::relations::types::Value],
     column: ryo_values::domain::plan_parts::types::ColumnIndex,
     layers: Option<&[Vec<LiteralText>]>,
-    driver: &mut dyn crate::domain::evaluation::types::InvocationDriver,
-    scratch: &mut crate::domain::evaluation::types::EvaluationScratch,
+    driver: &mut dyn crate::domain::contract::types::RowDriver,
+    scratch: &mut crate::domain::contract::types::RowScratch,
 ) -> Result<(), crate::domain::contract::types::PortableOperatorFault> {
     let layers =
         layers.ok_or(crate::domain::contract::types::PortableOperatorFault::WrongBinding)?;
-    let value = crate::domain::evaluation::service::cell(row, column)?;
+    let value = ryo_values::domain::rows::service::column_in(row, column)
+        .copied()
+        .ok_or(
+            crate::domain::contract::types::PortableOperatorFault::NoSuchColumn { index: column },
+        )?;
     scratch.text.clear();
-    if driver.text(value, &mut scratch.text) == crate::domain::evaluation::types::TextFound::NotText
-    {
+    if driver.text(value, &mut scratch.text) == crate::domain::contract::types::TextFound::NotText {
         return Ok(());
     }
     let Some(found) = rank(CellText(&scratch.text), layers) else {

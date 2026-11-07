@@ -3,7 +3,7 @@ use super::super::derived::owner::acquisition::admission::service::AcquiredView;
 use crate::domain::{
     operating::errors::OperatingError,
     operator::contract::{
-        axis::PreparedAxis,
+        views::PreparedAxis,
         views::{IndexedRows},
     },
     table_cells::types::TreeRows,

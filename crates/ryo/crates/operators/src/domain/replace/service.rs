@@ -45,14 +45,17 @@ pub(crate) fn evaluate(
     column: ryo_values::domain::plan_parts::types::ColumnIndex,
     replacement: ReplacementText<'_>,
     regex: Option<&ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex>,
-    driver: &mut dyn crate::domain::evaluation::types::InvocationDriver,
-    scratch: &mut crate::domain::evaluation::types::EvaluationScratch,
-    occurrences: &dyn crate::domain::evaluation::service::Occurrences,
+    driver: &mut dyn crate::domain::contract::types::RowDriver,
+    scratch: &mut crate::domain::contract::types::RowScratch,
+    occurrences: &dyn crate::domain::contract::types::Occurrences,
 ) -> Result<(), PortableOperatorFault> {
-    let value = crate::domain::evaluation::service::cell(row, column)?;
+    let value = ryo_values::domain::rows::service::column_in(row, column)
+        .copied()
+        .ok_or(
+            crate::domain::contract::types::PortableOperatorFault::NoSuchColumn { index: column },
+        )?;
     scratch.text.clear();
-    if driver.text(value, &mut scratch.text) == crate::domain::evaluation::types::TextFound::NotText
-    {
+    if driver.text(value, &mut scratch.text) == crate::domain::contract::types::TextFound::NotText {
         return Err(PortableOperatorFault::ShapeMismatch);
     }
     let regex = regex.ok_or(PortableOperatorFault::WrongBinding)?;
