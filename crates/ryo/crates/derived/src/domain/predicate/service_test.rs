@@ -3,7 +3,7 @@
 use super::service::{distinct, matches, postings};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::fault::types::DerivedFault;
-use crate::domain::positions::types::RowSlot;
+use crate::domain::positions::types::RowSlots;
 use crate::domain::row_cells::types::{PredicateRows, PredicateVerdict};
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
@@ -71,8 +71,8 @@ impl PredicateRows for EvenRows {
     }
 }
 
-fn positions(found: &crate::domain::sharing::types::shared_positions::value::SharedPositions) -> Value {
-    Cow::Owned(found.as_slice().iter().map(|at| at.0).collect())
+fn positions(found: &crate::domain::sharing::types::SharedPositions) -> Value {
+    Cow::Owned(found.0.as_slice().to_vec())
 }
 
 /// Calls the part on one input.
@@ -86,16 +86,16 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Scenario::EvenRowsHold => Ok(positions(&matches(&mut EvenRows(RowCount(4)), None)?)),
         Scenario::CandidatesSelectRows => Ok(positions(&matches(
             &mut EvenRows(RowCount(4)),
-            Some(&[RowSlot(1), RowSlot(2)]),
+            Some(RowSlots(&[1, 2])),
         )?)),
         Scenario::UnorderedCandidates => Ok(positions(&matches(
             &mut EvenRows(RowCount(4)),
-            Some(&[RowSlot(2), RowSlot(1)]),
+            Some(RowSlots(&[2, 1])),
         )?)),
         Scenario::DistinctKeepsFirstOfEachKey => Ok(positions(&distinct(
             &keys,
             &[ColumnIndex(0)],
-            &[RowSlot(0), RowSlot(1), RowSlot(2), RowSlot(3)],
+            RowSlots(&[0, 1, 2, 3]),
         )?)),
         Scenario::UnknownLiteral => postings(
             &keys,

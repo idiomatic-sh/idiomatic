@@ -6,7 +6,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace, DerivedView};
 use crate::domain::fault::types::DerivedFault;
 use crate::domain::preparation::service::prepare;
-use crate::domain::raw_words::types::{RawWord, KeyStride};
+use crate::domain::raw_words::types::{KeyStride, RawWords};
 use crate::domain::request::types::DerivedRequest;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -59,7 +59,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         )?,
         Scenario::PayloadOfAnotherKind => crate::domain::dispatch::service::build(
             &raw,
-            BuildInputs::RawWords(&[RawWord(1)]),
+            BuildInputs::RawWords(RawWords(&[1])),
             &mut room,
             None,
         )?,

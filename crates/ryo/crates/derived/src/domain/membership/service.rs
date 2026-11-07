@@ -1,9 +1,9 @@
 //! Duplicate-insensitive membership; no domain cache identity or admission policy.
 use super::types::{DerivedMembership, MarkSpace};
 use crate::domain::fault::types::DerivedFault;
-use crate::domain::positions::types::MemberMark;
 use crate::domain::row_cells::types::RowCells;
-use crate::domain::sharing::types::shared_marks::value::SharedMarks;
+use crate::domain::sharing::types::SharedMarks;
+use std::sync::Arc;
 use ryo_relations::domain::relations::{
     service::{node_file, node_position},
     types::Value,
@@ -26,30 +26,24 @@ pub(crate) fn build(
     }
     Ok(match space {
         MarkSpace::Values => DerivedMembership::Values(values),
-        MarkSpace::Dense(vertices) => DerivedMembership::Dense(SharedMarks::new(
+        MarkSpace::Dense(vertices) => DerivedMembership::Dense(SharedMarks(Arc::new(
             vertices
                 .iter()
-                .map(|value| {
-                    if values.contains(value) {
-                        MemberMark::Member
-                    } else {
-                        MemberMark::Absent
-                    }
-                })
+                .map(|value| values.contains(value))
                 .collect(),
-        )),
+        ))),
         MarkSpace::Native { file, elements } => {
-            let mut marks = vec![MemberMark::Absent; elements.0];
+            let mut marks = vec![false; elements.0];
             for value in values {
                 if let Value::Node(node) = value {
                     if node_file(node) == file {
                         if let Some(mark) = marks.get_mut(node_position(node).0 as usize) {
-                            *mark = MemberMark::Member;
+                            *mark = true;
                         }
                     }
                 }
             }
-            DerivedMembership::Dense(SharedMarks::new(marks))
+            DerivedMembership::Dense(SharedMarks(Arc::new(marks)))
         }
     })
 }

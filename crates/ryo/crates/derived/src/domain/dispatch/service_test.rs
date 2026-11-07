@@ -4,6 +4,7 @@ use super::service::{build, native_finding, view};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace, DerivedView};
 use crate::domain::fault::types::DerivedFault;
+use crate::domain::raw_words::types::RawWords;
 use crate::domain::native::types::NativeForm;
 use crate::domain::preparation::service::prepare;
 use crate::domain::request::types::DerivedRequest;
@@ -80,7 +81,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
             Ok(usize::from(native_finding(&native, NativeForm::Edges)?.is_some()))
         }
         Scenario::InputsOfAnotherKindAreRefused => {
-            build(&equality, BuildInputs::RawWords(&[]), &mut room, None).map(|_| 0)
+            build(&equality, BuildInputs::RawWords(RawWords(&[])), &mut room, None).map(|_| 0)
         }
     }
 }

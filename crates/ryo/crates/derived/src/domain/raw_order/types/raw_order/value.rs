@@ -1,7 +1,7 @@
 //! Raw lowered key ordering: the value and its behaviour, owned together.
 use crate::domain::allocation::types::ElementCapacity;
 use crate::domain::raw_words::types::{
-    Keep, OrderCapacities, OrderPlace, RawWord, RowRun, KeyStride,
+    KeepFlags, KeyStride, OrderCapacities, OrderPlace, RawKeys, RawWords, RowRun,
 };
 use ryo_values::domain::rows::types::RowIndex;
 
@@ -9,40 +9,46 @@ use ryo_values::domain::rows::types::RowIndex;
 #[derive(Clone, Debug)]
 pub struct RawOrder {
     pub(crate) stride: KeyStride,
-    pub(crate) keys: Vec<RawWord>,
+    pub(crate) keys: RawKeys,
     pub(crate) order: Vec<RowIndex>,
 }
 
 impl RawOrder {
-    fn key_of(&self, row: RowIndex) -> Option<&[RawWord]> {
-        self.keys
-            .get(row.0 * self.stride.0..(row.0 + 1) * self.stride.0)
-    }
     /// The places of the rows whose key is the probe.
     #[must_use]
-    pub fn hits(&self, probe: &[RawWord]) -> RowRun {
-        let probe = Some(probe);
-        let from = self.order.partition_point(|row| self.key_of(*row) < probe);
+    pub fn hits(&self, probe: RawWords<'_>) -> RowRun {
+        let key_of = |row: RowIndex| {
+            self.keys
+                .0
+                .get(row.0 * self.stride.0..(row.0 + 1) * self.stride.0)
+        };
+        let probe = Some(probe.0);
+        let from = self.order.partition_point(|row| key_of(*row) < probe);
         let to = from
             + self
                 .order
                 .get(from..)
                 .unwrap_or_default()
-                .partition_point(|row| self.key_of(*row) == probe);
+                .partition_point(|row| key_of(*row) == probe);
         RowRun {
             start: OrderPlace(from),
             end: OrderPlace(to),
         }
     }
     /// Marks the first row of each key, in ordering places.
-    pub fn firsts(&self, keep: &mut Vec<Keep>) {
-        keep.clear();
-        keep.resize(self.order.len(), Keep::No);
+    pub fn firsts(&self, keep: &mut KeepFlags) {
+        let key_of = |row: RowIndex| {
+            self.keys
+                .0
+                .get(row.0 * self.stride.0..(row.0 + 1) * self.stride.0)
+        };
+        keep.0.clear();
+        keep.0.resize(self.order.len(), false);
         let mut last: Option<RowIndex> = None;
         for row in &self.order {
-            if last.is_none_or(|before| self.key_of(before) != self.key_of(*row)) {
-                if let Some(mark) = keep.get_mut(row.0) {
-                    *mark = Keep::Yes;
+            if last.is_none_or(|before| key_of(before) != key_of(*row)) {
+                if let Some(mark) = keep.0.get_mut(row.0) {
+                    *mark = true;
                 }
                 last = Some(*row);
             }
@@ -57,7 +63,7 @@ impl RawOrder {
     #[must_use]
     pub fn capacities(&self) -> OrderCapacities {
         OrderCapacities {
-            keys: ElementCapacity(self.keys.capacity()),
+            keys: ElementCapacity(self.keys.0.capacity()),
             order: ElementCapacity(self.order.capacity()),
         }
     }

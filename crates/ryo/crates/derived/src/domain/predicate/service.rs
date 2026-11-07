@@ -3,9 +3,10 @@ use super::types::LiteralPostings;
 use crate::domain::fault::types::DerivedFault;
 use crate::domain::key::service::{mix, word_of};
 use crate::domain::key::types::KeyCellsHash;
-use crate::domain::positions::types::RowSlot;
+use crate::domain::positions::types::RowSlots;
 use crate::domain::row_cells::types::{PredicateRows, RowCells, PredicateVerdict};
-use crate::domain::sharing::types::shared_positions::value::SharedPositions;
+use crate::domain::sharing::types::SharedPositions;
+use std::sync::Arc;
 use ryo_language::domain::symbols::{
     service::text_of,
     types::{ByteSlice, Symbols},
@@ -17,62 +18,60 @@ use ryo_values::domain::rows::types::RowIndex;
 /// The positions of the rows that satisfy the predicate, in ascending order.
 pub(crate) fn matches(
     rows: &mut dyn PredicateRows,
-    candidates: Option<&[RowSlot]>,
+    candidates: Option<RowSlots<'_>>,
 ) -> Result<SharedPositions, DerivedFault> {
     let count = rows.count();
     let mut output = Vec::new();
     let mut decide = |at: RowIndex| -> Result<(), DerivedFault> {
         if rows.holds(at)? == PredicateVerdict::Holds {
-            output.push(RowSlot(
-                u32::try_from(at.0).map_err(|_| DerivedFault::ShapeMismatch)?,
-            ));
+            output.push(u32::try_from(at.0).map_err(|_| DerivedFault::ShapeMismatch)?);
         }
         Ok(())
     };
     if let Some(candidates) = candidates {
         let mut previous = None;
-        for &at in candidates {
+        for &at in candidates.0 {
             if previous.is_some_and(|before| before >= at) {
                 return Err(DerivedFault::ShapeMismatch);
             }
             previous = Some(at);
-            decide(RowIndex(at.0 as usize))?;
+            decide(RowIndex(at as usize))?;
         }
     } else {
         for at in 0..count.0 {
             decide(RowIndex(at))?;
         }
     }
-    Ok(SharedPositions::new(output))
+    Ok(SharedPositions(Arc::new(output)))
 }
 
 /// The first position of each distinct key among the given positions.
 pub(crate) fn distinct(
     rows: &dyn RowCells,
     columns: &[ColumnIndex],
-    positions: &[RowSlot],
+    positions: RowSlots<'_>,
 ) -> Result<SharedPositions, DerivedFault> {
-    let mut seen = std::collections::HashMap::<KeyCellsHash, Vec<RowSlot>>::new();
+    let mut seen = std::collections::HashMap::<KeyCellsHash, Vec<u32>>::new();
     let mut output = Vec::new();
-    for &at in positions {
+    for &at in positions.0 {
         let hash = columns.iter().try_fold(KeyCellsHash(0), |hash, column| {
             let value = rows
-                .cell(RowIndex(at.0 as usize), *column)
+                .cell(RowIndex(at as usize), *column)
                 .ok_or(DerivedFault::ShapeMismatch)?;
             Ok::<_, DerivedFault>(mix(hash, word_of(&value)))
         })?;
         let bucket = seen.entry(hash).or_default();
         if !bucket.iter().any(|&prior| {
             columns.iter().all(|column| {
-                rows.cell(RowIndex(prior.0 as usize), *column)
-                    == rows.cell(RowIndex(at.0 as usize), *column)
+                rows.cell(RowIndex(prior as usize), *column)
+                    == rows.cell(RowIndex(at as usize), *column)
             })
         }) {
             bucket.push(at);
             output.push(at);
         }
     }
-    Ok(SharedPositions::new(output))
+    Ok(SharedPositions(Arc::new(output)))
 }
 
 /// The positions of the rows whose symbol stands for each active literal.
@@ -105,9 +104,7 @@ pub(crate) fn postings(
             collected
                 .get_mut(place)
                 .ok_or(DerivedFault::NotRun)?
-                .push(RowSlot(
-                    u32::try_from(at).map_err(|_| DerivedFault::ShapeMismatch)?,
-                ));
+                .push(u32::try_from(at).map_err(|_| DerivedFault::ShapeMismatch)?);
         }
     }
     Ok(active
@@ -116,7 +113,7 @@ pub(crate) fn postings(
         .zip(collected)
         .map(|(text, rows)| LiteralPostings {
             text,
-            rows: SharedPositions::new(rows),
+            rows: SharedPositions(Arc::new(rows)),
         })
         .collect())
 }

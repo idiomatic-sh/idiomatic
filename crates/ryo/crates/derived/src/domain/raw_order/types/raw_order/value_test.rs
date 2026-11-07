@@ -1,7 +1,7 @@
 //! The raw ordering answers the places of a key's run and the first row of each key.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::raw_order::service::build;
-use crate::domain::raw_words::types::{Keep, KeyStride, RawWord};
+use crate::domain::raw_words::types::{KeepFlags, KeyStride, RawWords};
 use std::borrow::Cow;
 
 #[derive(Clone, Copy)]
@@ -38,16 +38,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 /// Calls the part on one input.
 fn subject(input: Input) -> Result<Value, Failure> {
-    let order = build(&[1, 1, 2].map(RawWord), KeyStride(1), None);
+    let order = build(RawWords(&[1, 1, 2]), KeyStride(1), None);
     Ok(Cow::Owned(match input {
         Scenario::RunOfARepeatedKey => {
-            let hit = order.hits(&[RawWord(1)]);
+            let hit = order.hits(RawWords(&[1]));
             vec![hit.start.0, hit.end.0]
         }
         Scenario::FirstOfEachKey => {
-            let mut keep = Vec::new();
+            let mut keep = KeepFlags::default();
             order.firsts(&mut keep);
-            keep.iter().map(|mark| usize::from(*mark == Keep::Yes)).collect()
+            keep.0.iter().map(|mark| usize::from(*mark)).collect()
         }
         Scenario::ABufferSizedForTheWords => {
             let capacities = order.capacities();

@@ -8,8 +8,8 @@ use crate::domain::fault::types::DerivedFault;
 use crate::domain::key::types::KeyCellsHash;
 use crate::domain::membership::types::DerivedMembership;
 use crate::domain::ordered::types::{OrderedText, OwnedOrderedKey, OwnedOrderedRow};
-use crate::domain::positions::types::{MemberMark, RowSlot};
-use crate::domain::sharing::types::shared_positions::value::SharedPositions;
+use crate::domain::sharing::service::{marks_capacity, marks_key, positions_capacity, positions_key};
+use crate::domain::sharing::types::SharedPositions;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::rows::types::Table;
 use std::mem::size_of;
@@ -89,13 +89,13 @@ fn shared_model<T>(
 fn positions(value: &SharedPositions) -> SharedBacking {
     SharedBacking {
         tag: BackingKind(1),
-        allocation_key: value.allocation_key(),
+        allocation_key: positions_key(value),
         bytes: AllocationBytes(
-            size_of::<Vec<RowSlot>>()
+            size_of::<Vec<u32>>()
                 + 2 * size_of::<usize>()
-                + value.capacity().0 * size_of::<RowSlot>(),
+                + positions_capacity(value).0 * size_of::<u32>(),
         ),
-        position_capacity: value.capacity(),
+        position_capacity: positions_capacity(value),
     }
 }
 
@@ -124,11 +124,11 @@ pub fn describe(payload: &DerivedPayload) -> Result<PayloadFootprint, DerivedFau
         PayloadData::Membership(DerivedMembership::Dense(value)) => {
             shared.push(SharedBacking {
                 tag: BackingKind(10),
-                allocation_key: value.allocation_key(),
+                allocation_key: marks_key(value),
                 bytes: AllocationBytes(
-                    size_of::<Vec<MemberMark>>()
+                    size_of::<Vec<bool>>()
                         + 2 * size_of::<usize>()
-                        + value.capacity().0 * size_of::<MemberMark>(),
+                        + marks_capacity(value).0 * size_of::<bool>(),
                 ),
                 position_capacity: ElementCapacity(0),
             });

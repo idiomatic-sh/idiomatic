@@ -1,6 +1,6 @@
 //! The types of the `rows` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 use crate::domain::fault::types::DerivedFault;
-use crate::domain::positions::types::RowSlot;
+use crate::domain::positions::types::RowSlots;
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::row_texts::types::CellText;
@@ -16,7 +16,7 @@ pub enum BulkRows<'a> {
         /// The stored columns.
         source: ColumnsView<'a>,
         /// The selected rows.
-        positions: &'a [RowSlot],
+        positions: RowSlots<'a>,
         /// The projected columns.
         columns: &'a [ColumnIndex],
     },

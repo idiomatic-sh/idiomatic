@@ -7,10 +7,10 @@ use crate::domain::equality::types::KeyIndex;
 use crate::domain::membership::types::{MarkSpace, MembershipView};
 use crate::domain::native::types::{NativeFinding, NativeForm};
 use crate::domain::ordered::types::OrderedMatching;
-use crate::domain::positions::types::RowSlot;
+use crate::domain::positions::types::RowSlots;
 use crate::domain::predicate::types::LiteralPostings;
 use crate::domain::raw_order::types::raw_order::value::RawOrder;
-use crate::domain::raw_words::types::RawWord;
+use crate::domain::raw_words::types::RawWords;
 use crate::domain::row_cells::types::{CanonicalTexts, PredicateRows, RowCells, ValueTexts};
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::types::Value;
@@ -31,7 +31,7 @@ pub enum DerivedView<'a> {
     /// The key index.
     Equality(&'a KeyIndex),
     /// Row positions.
-    RowIds(&'a [RowSlot]),
+    RowIds(RowSlots<'a>),
     /// Literal postings.
     Postings(&'a [LiteralPostings]),
     /// The compact graph.
@@ -63,7 +63,7 @@ pub enum BuildInputs<'a> {
         /// The predicate rows.
         rows: &'a mut dyn PredicateRows,
         /// The candidate positions.
-        candidates: Option<&'a [RowSlot]>,
+        candidates: Option<RowSlots<'a>>,
     },
     /// Rows, symbols and the literals asked for.
     Postings {
@@ -81,7 +81,7 @@ pub enum BuildInputs<'a> {
         /// The rows.
         rows: &'a dyn RowCells,
         /// The positions to deduplicate.
-        positions: &'a [RowSlot],
+        positions: RowSlots<'a>,
     },
     /// Rows and the space to mark members in.
     Membership {
@@ -120,7 +120,7 @@ pub enum BuildInputs<'a> {
     /// The native table to look in.
     Native(NativeForm),
     /// Lowered key words.
-    RawWords(&'a [RawWord]),
+    RawWords(RawWords<'a>),
 }
 
 /// Scratch the caller lends one build.

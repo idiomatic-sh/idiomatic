@@ -1,9 +1,13 @@
 //! The types of the `raw_words` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 use crate::domain::allocation::types::ElementCapacity;
 
-/// One lowered key word.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub struct RawWord(pub u64);
+/// Borrowed lowered key words: the bare words inside are named here.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RawWords<'a>(pub &'a [u64]);
+
+/// Owned lowered key words: the bare words inside are named here.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct RawKeys(pub Vec<u64>);
 
 /// How many words make one key.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -22,14 +26,9 @@ pub struct RowRun {
     pub end: OrderPlace,
 }
 
-/// Whether a row is the first of its key.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Keep {
-    /// The row is the first of its key.
-    Yes,
-    /// An earlier row has the key.
-    No,
-}
+/// For each place of an ordering, whether the row there is the first of its key: the bare flags inside are named here.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct KeepFlags(pub Vec<bool>);
 
 /// The capacity of each buffer of a raw ordering.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

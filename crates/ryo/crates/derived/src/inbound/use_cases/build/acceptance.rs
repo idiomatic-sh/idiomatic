@@ -3,6 +3,7 @@ use crate::Behavior;
 use cucumber::{given, then, when};
 use ryo_derived::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace};
 use ryo_derived::domain::fault::types::DerivedFault;
+use ryo_derived::domain::raw_words::types::RawWords;
 use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_derived::inbound::use_cases::build::interface::BuildUseCase as _;
 use ryo_derived::inbound::use_cases::build::use_case::BuildUseCaseImpl;
@@ -31,7 +32,7 @@ fn runs(world: &mut Behavior) {
         vec![vec![CellKind::Number]],
     );
     let inputs = if world.input == "raw words" {
-        BuildInputs::RawWords(&[])
+        BuildInputs::RawWords(RawWords(&[]))
     } else {
         BuildInputs::Rows(&rows)
     };

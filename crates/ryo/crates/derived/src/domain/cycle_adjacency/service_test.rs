@@ -60,7 +60,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Scenario::AbsentDestination => (edges(&[[1, 2]]), ColumnIndex(3)),
     };
     let graph = build(&rows, ColumnIndex(0), destination, &mut Vec::new())?;
-    Ok(Cow::Owned(graph.leaving.iter().map(|node| node.0).collect()))
+    Ok(Cow::Owned(graph.leaving.0.clone()))
 }
 
 #[test]

@@ -5,6 +5,7 @@ use super::use_case::BuildUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace};
 use crate::domain::fault::types::DerivedFault;
+use crate::domain::raw_words::types::RawWords;
 use crate::domain::native::types::NativeForm;
 use crate::domain::preparation::service::prepare;
 use crate::domain::request::types::DerivedRequest;
@@ -81,7 +82,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 DerivedRequest::Equality { columns: vec![ColumnIndex(0)] },
                 vec![schema],
             ),
-            BuildInputs::RawWords(&[]),
+            BuildInputs::RawWords(RawWords(&[])),
             &mut room,
             None,
         )?,

@@ -2,8 +2,8 @@
 use super::value::{DerivedPayload, PayloadData};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::native::types::NativeFinding;
-use crate::domain::positions::types::RowSlot;
-use crate::domain::sharing::types::shared_positions::value::SharedPositions;
+use crate::domain::sharing::types::SharedPositions;
+use std::sync::Arc;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 #[derive(Clone, Copy)]
@@ -36,7 +36,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
     let payload = DerivedPayload {
         data: match input {
             Scenario::PredicatePayloadSharesPositions => PayloadData::PredicateMatches(
-                SharedPositions::new(vec![RowSlot(0), RowSlot(4)]),
+                SharedPositions(Arc::new(vec![0, 4])),
             ),
             Scenario::NativePayloadSharesNothing => {
                 PayloadData::NativeLookup(NativeFinding::Span(ColumnIndex(0)))
@@ -45,7 +45,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
     };
     Ok(payload
         .share_positions()
-        .map_or(0, |rows| rows.as_slice().len()))
+        .map_or(0, |rows| rows.0.len()))
 }
 
 #[test]

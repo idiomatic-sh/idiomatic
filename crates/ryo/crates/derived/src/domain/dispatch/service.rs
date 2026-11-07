@@ -8,6 +8,7 @@ use crate::domain::dfs::types::DfsColumns;
 use crate::domain::fault::types::DerivedFault;
 use crate::domain::membership::types::{DerivedMembership, MembershipView};
 use crate::domain::native::types::{NativeFinding, NativeForm};
+use crate::domain::positions::types::{DenseMarks, RowSlots};
 use crate::domain::request::types::{DerivedKind, DerivedRequest};
 use std::sync::Arc;
 
@@ -203,7 +204,7 @@ pub fn view<'a>(
         (DerivedKind::Equality, PayloadData::Equality(data)) => Ok(DerivedView::Equality(data)),
         (DerivedKind::PredicateMatches, PayloadData::PredicateMatches(data))
         | (DerivedKind::DistinctRepresentatives, PayloadData::DistinctRepresentatives(data)) => {
-            Ok(DerivedView::RowIds(data.as_slice()))
+            Ok(DerivedView::RowIds(RowSlots(data.0.as_slice())))
         }
         (DerivedKind::CandidatePostings, PayloadData::CandidatePostings(data)) => {
             Ok(DerivedView::Postings(data))
@@ -212,7 +213,7 @@ pub fn view<'a>(
         (DerivedKind::Membership, PayloadData::Membership(data)) => {
             Ok(DerivedView::Membership(match data {
                 DerivedMembership::Values(values) => MembershipView::Values(values),
-                DerivedMembership::Dense(values) => MembershipView::Dense(values.as_slice()),
+                DerivedMembership::Dense(values) => MembershipView::Dense(DenseMarks(values.0.as_slice())),
             }))
         }
         (DerivedKind::PartitionOrder, PayloadData::PartitionOrder(data)) => {

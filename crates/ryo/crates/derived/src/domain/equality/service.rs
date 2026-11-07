@@ -31,7 +31,7 @@ pub(crate) fn build(
             positions,
             columns: projection,
         }) => fill(count, columns, &mut out, |row, column| {
-            let physical = RowIndex(positions.get(row.0)?.0 as usize);
+            let physical = RowIndex(*positions.0.get(row.0)? as usize);
             stored_cell(source, physical, *projection.get(column.0 as usize)?)
         }),
         Some(BulkRows::Computed(table)) => fill(count, columns, &mut out, |row, column| {

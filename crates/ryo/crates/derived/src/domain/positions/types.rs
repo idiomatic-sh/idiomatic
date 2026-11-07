@@ -1,14 +1,9 @@
 //! The types of the `positions` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-/// The position of one row in a shared list of positions.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct RowSlot(pub u32);
-
-/// Whether one element is marked.
+/// Borrowed row positions: the bare positions inside are named here.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum MemberMark {
-    /// The element is a member.
-    Member,
-    /// The element is not a member.
-    Absent,
-}
+pub struct RowSlots<'a>(pub &'a [u32]);
+
+/// Borrowed membership marks over a dense element space: the bare marks inside are named here.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DenseMarks<'a>(pub &'a [bool]);

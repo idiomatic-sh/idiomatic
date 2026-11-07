@@ -2,7 +2,7 @@
 
 use super::service::build;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::raw_words::types::{Keep, OrderPlace, RawWord, KeyStride};
+use crate::domain::raw_words::types::{KeepFlags, KeyStride, OrderPlace, RawWords};
 use std::borrow::Cow;
 
 #[derive(Clone, Copy)]
@@ -74,13 +74,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-fn words(raw: &[u64]) -> Vec<RawWord> {
-    raw.iter().copied().map(RawWord).collect()
-}
 
 /// Calls the part on one input.
 fn subject(input: Input) -> Result<Value, Failure> {
-    let order = build(&words(&WORDS), KeyStride(2), None);
+    let order = build(RawWords(&WORDS), KeyStride(2), None);
     let span = |hit: crate::domain::raw_words::types::RowRun| {
         let OrderPlace(start) = hit.start;
         let OrderPlace(end) = hit.end;
@@ -91,31 +88,31 @@ fn subject(input: Input) -> Result<Value, Failure> {
     };
     Ok(Cow::Owned(match input {
         Scenario::DuplicatesKeepOriginalOrder => rows(&order),
-        Scenario::HitsOfAPresentKey => span(order.hits(&words(&[9, 4]))),
-        Scenario::HitsOfAReversedKey => span(order.hits(&words(&[4, 9]))),
+        Scenario::HitsOfAPresentKey => span(order.hits(RawWords(&[9, 4]))),
+        Scenario::HitsOfAReversedKey => span(order.hits(RawWords(&[4, 9]))),
         Scenario::FirstsSkipDuplicates => {
-            let mut keep = Vec::new();
+            let mut keep = KeepFlags::default();
             order.firsts(&mut keep);
-            keep.iter().map(|mark| usize::from(*mark == Keep::Yes)).collect()
+            keep.0.iter().map(|mark| usize::from(*mark)).collect()
         }
         Scenario::RecycledOrdering => {
-            let old = build(&words(&[u64::MAX, 0, u64::MAX]), KeyStride(1), None);
-            rows(&build(&words(&[7, 2]), KeyStride(1), Some(old)))
+            let old = build(RawWords(&[u64::MAX, 0, u64::MAX]), KeyStride(1), None);
+            rows(&build(RawWords(&[7, 2]), KeyStride(1), Some(old)))
         }
         Scenario::RecycledProbe => {
-            let old = build(&words(&[u64::MAX, 0, u64::MAX]), KeyStride(1), None);
-            span(build(&words(&[7, 2]), KeyStride(1), Some(old)).hits(&words(&[u64::MAX])))
+            let old = build(RawWords(&[u64::MAX, 0, u64::MAX]), KeyStride(1), None);
+            span(build(RawWords(&[7, 2]), KeyStride(1), Some(old)).hits(RawWords(&[u64::MAX])))
         }
         Scenario::ZeroStrideIsEmpty => {
-            let empty = build(&words(&[1, 2]), KeyStride(0), None);
-            let mut place = span(empty.hits(&[]));
+            let empty = build(RawWords(&[1, 2]), KeyStride(0), None);
+            let mut place = span(empty.hits(RawWords(&[])));
             place.extend(rows(&empty));
             place
         }
         Scenario::RecycledCapacity => {
-            let old = build(&words(&[u64::MAX, 0, u64::MAX]), KeyStride(1), None);
+            let old = build(RawWords(&[u64::MAX, 0, u64::MAX]), KeyStride(1), None);
             let capacities = old.capacities();
-            vec![usize::from(build(&words(&[7, 2]), KeyStride(1), Some(old)).capacities() == capacities)]
+            vec![usize::from(build(RawWords(&[7, 2]), KeyStride(1), Some(old)).capacities() == capacities)]
         }
     }))
 }

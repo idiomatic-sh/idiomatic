@@ -1,6 +1,6 @@
 //! The types of the `membership` concept: plain data, public fields and derives, with no constructor and no inherent impl.
-use crate::domain::positions::types::MemberMark;
-use crate::domain::sharing::types::shared_marks::value::SharedMarks;
+use crate::domain::positions::types::DenseMarks;
+use crate::domain::sharing::types::SharedMarks;
 use ryo_relations::domain::relations::types::{FileId, Value};
 
 /// The number of elements of a native element space.
@@ -37,5 +37,5 @@ pub enum MembershipView<'a> {
     /// The member values.
     Values(&'a hashbrown::HashSet<Value>),
     /// The marks of a dense space.
-    Dense(&'a [MemberMark]),
+    Dense(DenseMarks<'a>),
 }

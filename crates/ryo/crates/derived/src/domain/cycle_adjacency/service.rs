@@ -1,5 +1,5 @@
 //! Existing dense cycle adjacency, preserving first-seen IDs and duplicate edges.
-use super::types::{CycleGraph, LeavingStart, NodeSlot};
+use super::types::CycleGraph;
 use crate::domain::fault::types::DerivedFault;
 use crate::domain::row_cells::types::RowCells;
 use ryo_relations::domain::relations::types::Value;
@@ -42,7 +42,7 @@ pub(crate) fn build(
         let mut number = |value: Value| {
             *numbers.entry(value).or_insert_with(|| {
                 graph.values.push(value);
-                NodeSlot(graph.values.len() - 1)
+                graph.values.len() - 1
             })
         };
         pairs.push((
@@ -50,31 +50,32 @@ pub(crate) fn build(
             number(cell(edge, destination)?),
         ));
     }
-    graph.starts.resize(graph.values.len() + 1, LeavingStart(0));
+    graph.starts.0.resize(graph.values.len() + 1, 0);
     for (from, _) in &pairs {
-        graph
+        *graph
             .starts
-            .get_mut(from.0 + 1)
-            .ok_or(DerivedFault::ShapeMismatch)?
-            .0 += 1;
+            .0
+            .get_mut(from + 1)
+            .ok_or(DerivedFault::ShapeMismatch)? += 1;
     }
     for at in 0..graph.values.len() {
-        let before = graph.starts.get(at).ok_or(DerivedFault::ShapeMismatch)?.0;
-        graph
+        let before = *graph.starts.0.get(at).ok_or(DerivedFault::ShapeMismatch)?;
+        *graph
             .starts
+            .0
             .get_mut(at + 1)
-            .ok_or(DerivedFault::ShapeMismatch)?
-            .0 += before;
+            .ok_or(DerivedFault::ShapeMismatch)? += before;
     }
-    let mut filled = graph.starts.clone();
-    graph.leaving.resize(pairs.len(), NodeSlot(0));
+    let mut filled = graph.starts.0.clone();
+    graph.leaving.0.resize(pairs.len(), 0);
     for (from, to) in pairs {
-        let place = filled.get_mut(from.0).ok_or(DerivedFault::ShapeMismatch)?;
+        let place = filled.get_mut(from).ok_or(DerivedFault::ShapeMismatch)?;
         *graph
             .leaving
-            .get_mut(place.0)
+            .0
+            .get_mut(*place)
             .ok_or(DerivedFault::ShapeMismatch)? = to;
-        place.0 += 1;
+        *place += 1;
     }
     Ok(graph)
 }
