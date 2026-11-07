@@ -60,6 +60,7 @@ Passes 3 to 7 add `--all-targets` so test-target errors surface in a check pass,
 - **Whole-tree TM:** 24 findings, 6 suppressed (the six admitted ignores), all `no-domain-concept-cycles` in `crates/execution/src/domain` (the ring row); every other crate 0 (24 at 322). File-level ownership cycles 0 over 6,888 edge occurrences. The five new rules' seeded-violation scenarios pass in `tm validate`.
 - **Un-ticked by the check:** repairs VII's `run.py --check` reads every `[x]` and `☑` of the README, `matrix.md` and `checklist.md`; at validation322 it un-ticked 92 rows (the repairs VII record lists them). At validation323 it un-ticks no further row and exits 0.
 - **Review 322 findings at 323:** P4 derived census: repaired (the census passes at validation323). P2 open_file seal: repaired, `fixtures-only-in-tests` 0.1.0 and the activation mutant built with the fixtures feature (boundary 102 / 0 rerun). P7 the check binds only rows citing tests: repaired (repairs VII, 92 rows un-ticked). P2 ticked rows 303 to 305 and 307, P3 count every physical instruction: un-ticked by machine. P1 RUF100 pin and I001, P1 removed_file, P6 warm peak: open, red as named above. P1 row text, P3 and P5 rows text, P4 rows text and row (c), P6 stale citations: open, matrix upkeep. P7 deleted tests unlisted 320 to 321, inventory 8 to 9, review README upkeep: open. P7 report card: the table carries the 323 row below, filled when the gate review returns.
+- **Principal Rust review:** the gate review of the diff `d13686afb5..aa54b1472a` is PASS on all seven items on its first pass (`evidence/checkpoint/rust-review.json`). Reviewer note, no verdict impact: the Python `Declarations` lazy `RefCell` and `Cell` state pairs could become `OnceCell` later.
 - **Owner-visible:** perf iteration 1 lands unmeasured; the enforcement rules hold eight invariants that source-reading tests held (602 test lines out); the ratchet's one-file bests are lowered (10,157 to 10,143 ms, 1,182 to 1,139 MB) and its N999 and Django rows are unchanged.
 
 **Cycle metrics:**
@@ -74,7 +75,7 @@ Passes 3 to 7 add `--all-targets` so test-target errors surface in a check pass,
 | Rows ticked by machine | 0 (none re-ticked) |
 | Lines under `crates/ryo` | +1,737 / -1,257 |
 | Contract review | pending |
-| Rust gate review | pending |
+| Rust gate review | PASS on the first pass (diff `d13686afb5..aa54b1472a`, `evidence/checkpoint/rust-review.json`) |
 
 ### Review repairs VII
 
@@ -262,7 +263,7 @@ One row per checkpoint, landing and perf branch, copied from its `rust-review.js
 | Unit | Source | 1 | 2 | 3 | 4 | 5 | 6 | 7 | Verdict |
 |---|---|---|---|---|---|---|---|---|---|
 | Checkpoint 322 | `05d5c56a83` | FAIL | FAIL | FAIL | FAIL | FAIL | FAIL | FAIL | FAIL |
-| Checkpoint 323 | pending: the gate review of the final head | pending | pending | pending | pending | pending | pending | pending | pending |
+| Checkpoint 323 | diff `d13686afb5..aa54b1472a` | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 
 Earlier `36b0cdbea`/validation297 and300 findings remain source-bound in the [initial](audits/2026-11-06-derived/review.json) and [successor](audits/2026-11-06-derived/successor.json) reviews. The current checkpoint supersedes their repaired functional blockers without approving a whole phase or category.
 

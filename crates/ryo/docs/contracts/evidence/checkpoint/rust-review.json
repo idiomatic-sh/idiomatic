@@ -1,44 +1,11 @@
-{
- "checkpoint": 322,
- "source": "abec7028bde0cd9adc2d44af4fbce4c888a0d3ab",
- "verdict": "PASS",
+{"checkpoint": 323, "source": "aa54b1472a8b31013e539ee7c03b1dda35b9e882", "base": "d13686afb51b96e3971645bb26b107f691f6fee9", "verdict": "PASS",
  "items": [
-  {
-   "item": 1,
-   "verdict": "PASS",
-   "evidence": "abec7028bd touches no production file (fixtures.rs, hardening/mod.rs, contracts README only); execution/src Arc::ptr_eq, RefCell< 33, Mutex< 12 equal at c46511bdba and abec7028bd."
-  },
-  {
-   "item": 2,
-   "verdict": "PASS",
-   "evidence": "Metric per the PM ruling recorded on the charter bead: item 2 counts source-reading and compile-probe tests and their assertion lines (census scans, probes, allowlist assertions, path-pinned reads); formatting lines in fixture plumbing do not count. Probes: production_runs_a_file and production_opens_a_file, added at 04eedb5236, are deleted (-2 from 04eedb5236; net +0 against 0015475b6e, as within the source-reading suites the cumulative diff touches only fixtures.rs); the #[cfg(any(test, feature = \"fixtures\"))] seal on ExecutionRequest::open_file is the enforcement. The manifest overlay guard is on the existing Development arm (fixtures.rs:88-90). hardening/mod.rs:3 is back to its base text, and compile_fail is unchanged. The suite's raw line count is 5,648 against 5,646; the +2 is the rustfmt-wrapped guard in fixtures.rs, which the metric excludes."
-  },
-  {
-   "item": 3,
-   "verdict": "PASS",
-   "evidence": "No production file changed in c46511bdba..abec7028bd."
-  },
-  {
-   "item": 4,
-   "verdict": "PASS",
-   "evidence": "No type added or changed in c46511bdba..abec7028bd."
-  },
-  {
-   "item": 5,
-   "verdict": "PASS",
-   "evidence": "No runner or mechanism added; cases.rs files 27 -> 27 (whole-tree count of files named cases.rs); hand FxHash 0 -> 0."
-  },
-  {
-   "item": 6,
-   "verdict": "PASS",
-   "evidence": "No test expectation changed in c46511bdba..abec7028bd; Expect::Value(()) unchanged (572 by the second review's method; 883 -> 883 whole-repo)."
-  },
-  {
-   "item": 7,
-   "verdict": "PASS",
-   "evidence": "execution/src .unwrap() 885, .expect( 232, unreachable! 34, pub(in 882, unsafe 0; #[allow in crates/ryo 6: all equal at c46511bdba and abec7028bd."
-  }
+  {"item": 1, "verdict": "PASS", "evidence": "outbound/facts/types.rs:50 KeptBucket.words becomes Arc<KeptWords>; the Arc that frontiers/service.rs built downstream is removed, so this moves an existing Arc to the producer and drops a copy; memory adapter.rs:84 uses Arc::make_mut while the worker is the only holder. ruff_python_parser/types.rs:26 AnnotationCandidate<'t> borrows &'t ExprStringLiteral, threaded through the Writer's 't with no clone and no Arc. SemanticSlot::Retained(Box<dyn Any+Send>) is moved, not shared: retain_for_semantics (builders/service.rs:133) puts it in, take_semantics (elements/service.rs:22) takes it out, and begin_semantics now takes &mut Elements so the handoff is a borrow-checked take. ParsedModules(Arc<BTreeMap>) is shared by the session's PlanCache, which already sits behind its existing Mutex. Census: Arc::ptr_eq 62->62, RefCell< (execution/src) 33->33, Mutex< 12->12. Note: python Declarations gains 2 RefCell and 2 Cell<QualificationState> (python RefCell< 21->23, model/types.rs:79-86), the same lazy-index form as its 12 sibling fields, because readers hold &Declarations."},
+  {"item": 2, "verdict": "PASS", "evidence": "No source-reading or compile probe is added: the only added read_to_string, at tests/submission/controls/census/test.rs:95, is the moved every_trait_method_has_its_own_variant with its path updated. Deleted: B1 NoSecondImplementation and B2 DriversAreImplementedByStrategiesOnly (operator/service_test.rs, -125), B3/B4 census holder/scan/PORT_NAMES, B5 every_public_trait_is_an_entry..., B6 the_catalog_lists_exactly_the_folders_of_its_items, and B7 every_parser_fn_has_one_production; each is named with its replacing rule in README.md:236-243. Source-reading suites: +40/-595 lines, 5,646 -> about 5,091. compile_fail 0 added. Expect::Value(()) 573->574 (+1 behavioural dhat row, +1 demand row, -1 operator scan row by this method; 572->573 by the base method)."},
+  {"item": 3, "verdict": "PASS", "evidence": "rustc-hash's FxHashMap/FxHashSet replace std SipHash in 20+ execution maps (ledger, runtime slots, native_walk batches, relations views), and derived equality/types.rs:22 uses FxBuildHasher. key/service.rs:22 mix is one FxHasher step on the stack, with no allocation. Spill adapter.rs:241 sizes the bucket buffer once, with no growth. Joined::kept (memory adapter.rs:139, spill adapter.rs:299) passes one worker's bucket through and allocates per bucket, not per row. memory/spill rows() use number_of(relation) in place of a linear position scan. Regex lowering parses with regex_automata::util::syntax::parse and builds no matcher at compile time (comparing/service.rs:300, substituting/service.rs:156). The Box<dyn Any> handoff costs one box per file, not per node. HashMap< (execution/src) 51->51. Release lto = \"fat\"."},
+  {"item": 4, "verdict": "PASS", "evidence": "values/program/types.rs:130 ParsedModules is the only session form of a catalog's parsed modules: compile/use_case.rs:50 moves ParsedQueryBundle.fragments into it (Arc::new, no copy), and QueryRequest.modules, CompileReport.modules and PlanCache.parsed all hold that one Arc. PlanCache.catalog is the existing ModuleCatalog Arc, the key. 1b adds no type and deletes the second hand-copied hash fold: equality/service.rs:87 now calls key::service::mix."},
+  {"item": 5, "verdict": "PASS", "evidence": "rustc-hash =2.1.3 (already in the lock) replaces the hand-copied 0x517c_c1b7 fold: production occurrences 2->0 (derived equality/service.rs, key/service.rs). regex-syntax =0.8.11 is the version regex-automata already locks, and the lock adds edges only. names_capture (substituting/service.rs:282) walks regex-syntax's Hir, the crate's own representation; it is not a hand-written parser."},
+  {"item": 6, "verdict": "PASS", "evidence": "Every changed expectation states how it was obtained. Hash-order rows: partition/service_test.rs:33-35 keys 1,2,1 -> [1,0,2] (key 2 0x5173_154e_2b89_abd7 < key 1 0xa8b9_8aa7_17c4_d5eb); admission/test.rs keys 2,1,2 -> [0,2,1]; compiled_rules/test.rs:240 key 5 0x4b9f_b543_66d8_2d9a < key 7 0x9d12_ca91_8e61_d971. I recomputed each value from rustc-hash 2.1.3's source (K=0xf1357aea2e62a9c5, rotl 26) and all match. Each row was red at validation323 and green on rerun f8659b91f6 (validation.json). Collision premises (index/test.rs, stored_keys_test.rs) are derived from mix with the reason stated. demand_test.rs (1,2) is stated as the outer and the nested expression the preseal row reads, red at e8bd9bc9b3 and 138/0 at f8659b91f6. Perf controls (prepare/use_case_test.rs:76-90): 0 builds because lowering only parses, 413 because there are 413 distinct patterns and each slot compiles once, 60 because CountingSyntax counts bundle.modules.len() on the one read_bundle; libraries 486/0 on the rerun. Deleted class-(b) tests are named B1-B7 with their rules (README.md:236-243)."},
+  {"item": 7, "verdict": "PASS", "evidence": "The diff adds no unwrap/expect/unreachable in a production path: the new .expect( (execution/src 232->235) are in prepare/use_case_test.rs, and demand_test.rs has one .unwrap(). unreachable! 34->34 (execution) and 88->88 (all), unsafe 22->22, #[allow 7->7, pub(in 882->882. Spill uses usize::try_from(..).unwrap_or(usize::MAX) as before; memory/spill Joined use unwrap_or_default. The PlanCache lock uses unwrap_or_else(PoisonError::into_inner), the existing pattern. The integrator's cadence table is present (README.md:41-49: 7 check passes, errors 1,0,1,4,1,0,0, one full test build at exit 0)."}
  ],
- "reviewer": "rust-principal-review",
- "date": "2026-11-07T23:15:00Z"
-}
+ "reviewer": "rust-principal-review", "date": "2026-11-07T00:00:00Z"}
