@@ -54,22 +54,22 @@ pub use lint::types::Finding;
 
 pub use lint::types::Glob;
 
-pub use lint::types::LintReport;
-pub use lint::types::Skipped;
-pub use lint::types::{
+pub use crate::domain::project::types::{
     DependencyBytes, DependencyFingerprint, ProjectDependency, ProjectDependencyState,
 };
+pub use lint::types::LintReport;
+pub use lint::types::Skipped;
 
 pub use crate::domain::language::types::SourceLanguage;
-pub use lint::types::LintRequest;
-pub use lint::types::{
+pub use crate::domain::project::types::{
     GivenProjectInventory, ProjectEntryObservation, ProjectEntryState,
     ProjectInventoryCompleteness, ProjectSearchScope,
 };
+pub use lint::types::LintRequest;
 
 pub use crate::domain::capacity::types::MemoryBudget;
 
-pub use lint::types::ParameterValue;
+pub use crate::domain::parameter::types::ParameterValue;
 
 pub use lint::types::Port;
 
@@ -90,13 +90,13 @@ pub use crate::domain::file::types::Unread;
 
 pub use crate::domain::file::types::Unreadable;
 
-pub use lint::types::Column;
+pub use crate::domain::place::types::Column;
 
 pub use lint::types::FindingKey;
 
-pub use lint::types::Line;
+pub use crate::domain::place::types::Line;
 
-pub use lint::types::Place;
+pub use crate::domain::place::types::Place;
 
 pub use lint::types::Workers;
 
