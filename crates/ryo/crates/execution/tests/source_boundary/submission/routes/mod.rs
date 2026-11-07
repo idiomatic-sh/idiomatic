@@ -12,7 +12,12 @@ use ryo_execution::application::file_dag::program::file_session::interface::File
 use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationExecution;
 use ryo_execution::application::file_dag::program::project_phase::interface::ProjectRootExecution;
 use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
+use ryo_execution::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution::application::file_dag::program::file_session::types::FileEnd;
 use ryo_execution::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution::application::file_dag::program::file_session::types::FileRunInput;
+use ryo_execution::application::file_dag::program::file_session::types::FileStop;
+use ryo_execution::outbound::facts::interface::FactsPort as _;
 use ryo_execution::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution::application::file_dag::program::request_execution::types::RequestExecution;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
@@ -75,6 +80,64 @@ pub(super) fn file_route() {
                 ),
                 "{intent:?} x 2 intents is the complete declared set"
             );
+            request.finish();
+        }
+    }
+}
+/// The one-call file route: the same declared intent set as `file_route`, over the worker's facts; an incomplete or extra set
+/// is refused before any rule runs.
+pub(super) fn run_file_route() {
+    let engine = engine();
+    let programs = [
+        prepared_rules(&engine, 2),
+        engine.prepare(named_request()).expect("named request"),
+    ];
+    let corpus = corpus();
+    let elements = Elements::default();
+    let facts = ryo_execution::outbound::facts::fixtures::fake::FactsFake::default();
+    let run = |request: &RequestExecution, intents: &[FileRuleIntent]| {
+        let mut symbols = Symbols::default();
+        let mut arena = Vec::new();
+        let mut places = Vec::new();
+        let mut words = ryo_relations::domain::relations::types::Words::default();
+        let worker = facts.worker().expect("a fake worker");
+        request
+            .run_file(
+                FileRunInput {
+                    language: SourceLanguage::Recognized,
+                    file: FileId(0),
+                    evaluation: &[],
+                    publication: &[],
+                    intents,
+                    source: ryo_values::domain::files::types::SourceView(b"abc"),
+                    elements: &elements,
+                    semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                    kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
+                    first: &[],
+                },
+                &mut symbols,
+                CaptureContext {
+                    worker: ryo_relations::domain::relations::types::WorkerNumber(0),
+                    arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
+                    places: &mut places,
+                    words: &mut words,
+                },
+                worker.as_ref(),
+            )
+            .end
+    };
+    for program in &programs {
+        for intent in every_intent() {
+            let request = ExecutionUseCaseImpl::new().execution(program, &corpus);
+            for length in [0, 1, 3] {
+                assert!(
+                    matches!(
+                        run(&request, &vec![intent; length]),
+                        FileEnd::Refused(FileStop::Operating(OperatingError::ShapeMismatch))
+                    ),
+                    "{intent:?} x {length} intents must be refused as incomplete or extra"
+                );
+            }
             request.finish();
         }
     }

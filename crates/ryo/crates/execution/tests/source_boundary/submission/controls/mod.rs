@@ -6,7 +6,7 @@ use super::inventory::{
 };
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::outbound::facts::types::ResidentStability;
-use super::routes::{file_route, project_route};
+use super::routes::{file_route, project_route, run_file_route};
 use super::witness::{ALL, Method, Witness, implements_every_entry_trait};
 use crate::boundary_fixture::{corpus, demand, engine, prepared_rules};
 use crate::file_intents::named_request;
@@ -53,6 +53,7 @@ pub(super) fn control(method: Method) -> Control {
         Method::UseCasePrepare => Control::Refuses(observations_need_a_named_program),
         Method::UseCaseExecution => Control::Refuses(file_session_undeclared_rule),
         Method::RequestOpenFile => Control::Refuses(file_route),
+        Method::RequestRunFile => Control::Refuses(run_file_route),
         Method::RequestObservations => Control::Refuses(observations_need_a_named_program),
         Method::RequestPrepareFrontiers => Control::Refuses(frontiers_of_an_undeclared_rule),
         Method::RequestProjectPhase => Control::Refuses(a_scope_belongs_to_its_own_phase),
