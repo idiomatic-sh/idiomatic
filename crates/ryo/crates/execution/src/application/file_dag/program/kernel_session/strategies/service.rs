@@ -292,10 +292,10 @@ impl super::super::KernelSession<'_, '_> {
             &permit.output_kinds().map_err(InvocationFailure::Semantic)?,
             &mut measured,
         );
-        counts.join.found(0, measured.covered_rows);
-        counts.join.found(1, measured.joined_hits);
-        counts.filter.found(0, measured.joined_hits);
-        counts.project.found(0, measured.filtered_rows);
+        counts.join.found(0, measured.covered_rows.0);
+        counts.join.found(1, measured.joined_hits.0);
+        counts.filter.found(0, measured.joined_hits.0);
+        counts.project.found(0, measured.filtered_rows.0);
         if let Some(error) = failure.get() {
             return Err(InvocationFailure::Semantic(error.clone()));
         }

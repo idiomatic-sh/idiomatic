@@ -1,5 +1,7 @@
 //! Pre-acquired matching rows and the already-proven total filter of a fused chain.
-use crate::domain::column_kernel::types::Chain;
+use crate::domain::column_kernel::types::{
+    CellsDecoded, Chain, JoinedHits, RowsFiltered, SymbolVerdict,
+};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::views::{IndexedRows, KeyProbe};
 use crate::domain::table_model::service::cell_at;
@@ -10,22 +12,22 @@ use ryo_operators::domain::equality_join::types::JoinCells;
 use ryo_operators::domain::equality_join::types::{Advance, JoinDriver};
 use ryo_operators::domain::equality_join::errors::EqualityJoinError;
 use ryo_relations::domain::relations::types::Value;
-use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
+use ryo_values::domain::plan_parts::types::{JoinColumn, LiteralText, Side};
 use ryo_values::domain::rows::service::push_row;
 use ryo_values::domain::rows::types::{RowIndex, Table};
 pub(super) struct Left<'a, 'f> {
     pub(super) rows: &'a Rows<'f>,
     pub(super) row: RowIndex,
-    pub(super) decoded: &'a std::cell::Cell<u64>,
+    pub(super) decoded: &'a std::cell::Cell<CellsDecoded>,
 }
 impl JoinCells for Left<'_, '_> {
     fn cell(&self, column: ryo_values::domain::plan_parts::types::ColumnIndex) -> Option<Value> {
         let value = cell_at(self.rows, self.row, column)?;
-        self.decoded.set(self.decoded.get().saturating_add(1));
+        self.decoded.set(CellsDecoded(self.decoded.get().0.saturating_add(1)));
         Some(value)
     }
 }
-pub(super) struct Driver<'a, 'f> {
+pub(super) struct ChainDriver<'a, 'f> {
     pub(super) chain: &'a Chain,
     pub(super) left: &'a Rows<'f>,
     pub(super) left_row: RowIndex,
@@ -36,12 +38,12 @@ pub(super) struct Driver<'a, 'f> {
     pub(super) symbols: &'a Symbols,
     pub(super) source: ByteSlice<'a>,
     pub(super) target: &'a mut Table,
-    pub(super) decoded: &'a std::cell::Cell<u64>,
-    pub(super) hits: &'a std::cell::Cell<u64>,
-    pub(super) emitted: &'a std::cell::Cell<u64>,
+    pub(super) decoded: &'a std::cell::Cell<CellsDecoded>,
+    pub(super) hits: &'a std::cell::Cell<JoinedHits>,
+    pub(super) emitted: &'a std::cell::Cell<RowsFiltered>,
     pub(super) error: Option<OperatingError>,
 }
-impl JoinDriver for Driver<'_, '_> {
+impl JoinDriver for ChainDriver<'_, '_> {
     fn next(&mut self, key: &[Value]) -> Result<Advance, EqualityJoinError> {
         if self.error.is_some() {
             return Err(EqualityJoinError::Interrupted);
@@ -54,7 +56,7 @@ impl JoinDriver for Driver<'_, '_> {
                 crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,
                 1,
             );
-            self.hits.set(self.hits.get().saturating_add(1));
+            self.hits.set(JoinedHits(self.hits.get().0.saturating_add(1)));
             let Some(value) = cell(
                 self.left,
                 self.right,
@@ -71,7 +73,9 @@ impl JoinDriver for Driver<'_, '_> {
                 crate::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
                 1,
             );
-            if !symbol_holds(value, &self.chain.literal.0, self.symbols, self.source) {
+            if symbol_holds(value, &self.chain.literal, self.symbols, self.source)
+                == SymbolVerdict::Differs
+            {
                 continue;
             }
             self.current = Some(right_row);
@@ -88,7 +92,7 @@ impl JoinDriver for Driver<'_, '_> {
             return None;
         }
         let value = self.index.rows.cell(self.current?, column)?;
-        self.decoded.set(self.decoded.get().saturating_add(1));
+        self.decoded.set(CellsDecoded(self.decoded.get().0.saturating_add(1)));
         Some(value)
     }
     fn emit(&mut self, row: &[Value]) -> Result<(), EqualityJoinError> {
@@ -101,7 +105,7 @@ impl JoinDriver for Driver<'_, '_> {
             1,
         );
         push_row(self.target, row);
-        self.emitted.set(self.emitted.get().saturating_add(1));
+        self.emitted.set(RowsFiltered(self.emitted.get().0.saturating_add(1)));
         Ok(())
     }
 }
@@ -113,28 +117,29 @@ pub(super) fn cell(
     left_row: RowIndex,
     right_row: RowIndex,
     source: JoinColumn,
-    decoded: &std::cell::Cell<u64>,
+    decoded: &std::cell::Cell<CellsDecoded>,
 ) -> Option<Value> {
     let value = match source.side {
         Side::Left => cell_at(left, left_row, source.column),
         Side::Right => cell_at(right, right_row, source.column),
     }?;
-    decoded.set(decoded.get().saturating_add(1));
+    decoded.set(CellsDecoded(decoded.get().0.saturating_add(1)));
     Some(value)
 }
 
 /// Match the ordinary literal-Text fast path, including exact hash/text checks.
 pub(super) fn symbol_holds(
     value: Value,
-    literal: &str,
+    literal: &LiteralText,
     symbols: &Symbols,
     source: ByteSlice<'_>,
-) -> bool {
+) -> SymbolVerdict {
+    let literal: &str = &literal.0;
     let Value::Symbol(symbol) = value else {
-        return false;
+        return SymbolVerdict::Differs;
     };
     let found = text_of(symbols, source, symbol);
-    match hash_in(symbols, symbol) {
+    let holds = match hash_in(symbols, symbol) {
         Some(hash) => {
             hash == hash_of(ByteSlice(literal.as_bytes()))
                 && found.is_some_and(|text| text.0 == literal)
@@ -142,5 +147,10 @@ pub(super) fn symbol_holds(
         // The ordinary evaluator falls through to its Datum text path when
         // a Symbol has no hash. Keep that behavior for malformed registrations.
         None => found.is_some_and(|text| text.0 == literal),
+    };
+    if holds {
+        SymbolVerdict::Holds
+    } else {
+        SymbolVerdict::Differs
     }
 }
