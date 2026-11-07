@@ -37,8 +37,6 @@ pub(in crate::application::file_dag) const EVENT_ADJACENCY: &str = "adjacency";
 pub(in crate::application::file_dag) const EVENT_DOMAIN: &str = "graph_domain";
 pub(in crate::application::file_dag) const PHASE_SELECTOR_ACTIVATION: &str = "selector_activation";
 pub(in crate::application::file_dag) const ROUTE_GRAPH: &str = "graph";
-pub(in crate::application::file_dag) const GRAPH_POSITIONS_COMPARE: &str =
-    "graph_positions_compare";
 pub(in crate::application::file_dag) const REACH_REQUEST: &str = "reach_request";
 pub(in crate::application::file_dag) const REACH_MEMO_HIT: &str = "reach_memo_hit";
 pub(in crate::application::file_dag) const REACH_TRAVERSAL: &str = "reach_traversal";
@@ -49,7 +47,6 @@ pub(in crate::application::file_dag) const OWNER_REQUEST: &str = "owner_request"
 pub(in crate::application::file_dag) const OWNER_HIT: &str = "owner_hit";
 pub(in crate::application::file_dag) const EXPECT_REVERSE_LIST: &str = "installed reverse list";
 pub(in crate::application::file_dag) const EXPECT_KNOWN_POPULATION: &str = "known population";
-pub(in crate::application::file_dag) const RAW_SCOPE_NAME: &str = "RawScope";
 pub(in crate::application::file_dag) const EXPECT_EXISTING_VIEW: &str = "existing view";
 #[cfg(test)]
 pub(in crate::application::file_dag) const EXPECT_GRAPH_LEASE: &str =

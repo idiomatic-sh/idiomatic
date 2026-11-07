@@ -17,3 +17,13 @@ pub(crate) struct StepPlace(pub usize);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct PlanIdentity(pub usize);
 
+
+/// Whether the rows each step is fed are counted.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Counting {
+    /// The rows each step is fed are counted.
+    Counts,
+    /// They are not.
+    #[default]
+    DoesNotCount,
+}

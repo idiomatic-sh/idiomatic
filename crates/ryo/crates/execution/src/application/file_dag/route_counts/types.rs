@@ -95,11 +95,6 @@ pub(crate) enum RouteOutcome {
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum BuildRoute {
     OwnerAcquire,
-    SelectorCandidate,
-    Column,
-    SelectorPredicate,
-    SelectorPostings,
-    SelectorDistinct,
     ClosurePartition,
     GraphAdjacency,
     GraphDomain,

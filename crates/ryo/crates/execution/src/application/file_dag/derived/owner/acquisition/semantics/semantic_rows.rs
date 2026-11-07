@@ -1,5 +1,4 @@
 //! Borrowed adapters that present admitted rows and texts to the injected semantic port.
-use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::{failure::FailureLatch, };
 use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use crate::domain::table_texts::service::{datum, name_text, symbol_text};
@@ -7,7 +6,7 @@ use crate::domain::table_texts::types::{Datum, Texts};
 use ryo_derived::domain::row_cells::types::RowCells;
 use ryo_language::domain::symbols::{
     service::query_intern_derived,
-    types::{ByteSlice, QuerySymbols, Symbols},
+    types::{ByteSlice, QuerySymbols},
 };
 use ryo_relations::domain::{
     relations::types::{CellKind, Value},
@@ -37,18 +36,8 @@ impl RowCells for AdmittedRows<'_, '_> {
         };
         match rows {
             BorrowedRows::Stored(source) => Some(ryo_derived::domain::row_cells::types::BulkRows::Stored(source)),
-            BorrowedRows::Selected {
-                source,
-                positions,
-                columns,
-                ..
-            } => Some(ryo_derived::domain::row_cells::types::BulkRows::Selected {
-                source,
-                positions: ryo_derived::domain::positions::types::RowSlots(positions.0),
-                columns,
-            }),
             BorrowedRows::Computed(table) => Some(ryo_derived::domain::row_cells::types::BulkRows::Computed(table)),
-            BorrowedRows::Tree(_) | BorrowedRows::Compact(_) | BorrowedRows::Positioned(_) => None,
+            BorrowedRows::Tree(_) | BorrowedRows::Compact(_) => None,
         }
     }
     fn kinds(&self) -> &[CellKind] {
@@ -78,68 +67,6 @@ impl RowCells for AdmittedRows<'_, '_> {
             return None;
         }
         self.rows.read(row, buffer)
-    }
-}
-pub(super) struct Predicate<'a, 'f> {
-    pub(super) rows: BorrowedRows<'f>,
-    pub(super) program: &'a mut dyn crate::domain::operator::contract::views::PredicateProgram,
-    pub(super) symbols: &'a Symbols,
-    pub(super) needed: &'a crate::domain::table_cells::types::ColumnPlaces,
-    pub(super) row: &'a mut Vec<Value>,
-    pub(super) failure: &'a RefCell<FailureLatch>,
-}
-impl ryo_derived::domain::row_cells::types::PredicateRows for Predicate<'_, '_> {
-    fn count(&self) -> RowCount {
-        self.rows.count()
-    }
-    fn holds(
-        &mut self,
-        at: RowIndex,
-    ) -> Result<
-        ryo_derived::domain::row_cells::types::PredicateVerdict,
-        ryo_derived::domain::fault::types::DerivedFault,
-    > {
-        let Self {
-            rows,
-            program,
-            symbols,
-            needed,
-            row,
-            failure,
-        } = self;
-        failure
-            .borrow_mut()
-            .run(|| {
-                let row = if let BorrowedRows::Stored(source) = rows {
-                    row.resize(
-                        source.kinds.len(),
-                        Value::Flag(ryo_relations::domain::relations::types::Flag::Lowered),
-                    );
-                    if crate::domain::table_cells::service::read_cells(
-                        source,
-                        at,
-                        row,
-                        needed,
-                    ) != crate::domain::table_cells::types::CellsRead::Read
-                    {
-                        return Err(OperatingError::ShapeMismatch);
-                    }
-                    row.as_slice()
-                } else {
-                    rows.read(at, row)
-                        .ok_or(OperatingError::ShapeMismatch)?
-                };
-                Ok(
-                    if program.holds(row, symbols)?
-                        == crate::domain::table_model::types::Verdict::Holds
-                    {
-                        ryo_derived::domain::row_cells::types::PredicateVerdict::Holds
-                    } else {
-                        ryo_derived::domain::row_cells::types::PredicateVerdict::Fails
-                    },
-                )
-            })
-            .map_err(|()| ryo_derived::domain::fault::types::DerivedFault::Interrupted)
     }
 }
 impl ryo_derived::domain::row_cells::types::ValueTexts for Texts<'_> {

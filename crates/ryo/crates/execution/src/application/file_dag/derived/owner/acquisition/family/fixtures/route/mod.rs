@@ -8,7 +8,6 @@ use self::exit::{Entry, Exit, entry};
 pub(in crate::application::file_dag) mod exit;
 mod graph;
 mod partition;
-mod selection;
 mod workspace;
 
 /// Drive one exit of `kind` through its production entry. `RawKeyOrder` is not driven here.

@@ -2,7 +2,7 @@
 
 use crate::domain::{
     operating::errors::OperatingError,
-    positions::types::ClassPlace,
+    step_classes::types::ClassPlace,
     shared_walk::types::{ClassCount, ClassLease, RowsVisited, prepared_walk::value::PreparedWalk},
 };
 

@@ -179,8 +179,6 @@ mod conformance_boundary;
 #[cfg(test)]
 mod conformance_scale;
 
-#[cfg(test)]
-mod selection_view;
 
 #[cfg(test)]
 mod dispatch;
@@ -200,11 +198,7 @@ mod prepared_matching;
 #[cfg(test)]
 mod project_input;
 
-#[cfg(test)]
-mod selection_cache;
 
-#[cfg(test)]
-mod selection_cache_literals;
 
 #[cfg(test)]
 mod contract_timing;

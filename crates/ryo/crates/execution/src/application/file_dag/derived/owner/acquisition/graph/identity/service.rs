@@ -5,7 +5,6 @@ use crate::domain::stored_graph::types::{self as graph, GraphIdentity};
 use crate::domain::table_model::{service::count_of, types::Rows};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::RowCount;
-use std::sync::Arc;
 /// Prove an eligible physical population and compose selected columns before sharing graph data.
 pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn source(
     input: &GraphInput<'_>,
@@ -76,35 +75,16 @@ fn population(
         return None;
     }
     let rows = input.rows();
-    let (relation, kinds, count, native_file, selected, positions, columns) = match rows {
+    let (relation, kinds, count, native_file, columns) = match rows {
         Rows::Stored(view) => (
             relation,
             view.kinds,
             count_of(rows),
             None,
-            None,
-            None,
             (0..view.kinds.len())
                 .map(|column| ColumnIndex(u32::try_from(column).unwrap_or(u32::MAX)))
                 .collect(),
         ),
-        Rows::Selected(view) => {
-            let count = RowCount(
-                view.source
-                    .columns
-                    .first()
-                    .map_or(0, |column| column.0.len()),
-            );
-            (
-                relation,
-                view.source.kinds,
-                count,
-                None,
-                Some(Arc::clone(&view.selection.identity)),
-                Some(view.selection.rows.clone()),
-                view.selection.columns.clone(),
-            )
-        }
         Rows::Tree(tree) if scope == PopulationScope::Native => {
             let native_relation = match tree.form {
                 TreeForm::Elements => Relation::SyntaxTree,
@@ -119,14 +99,12 @@ fn population(
                 schema,
                 count_of(rows),
                 Some(tree.file),
-                None,
-                None,
                 (0..schema.len())
                     .map(|column| ColumnIndex(u32::try_from(column).unwrap_or(u32::MAX)))
                     .collect(),
             )
         }
-        Rows::Tree(_) | Rows::Computed(_) | Rows::Compact(_) | Rows::Positioned(_) => return None,
+        Rows::Tree(_) | Rows::Computed(_) | Rows::Compact(_) => return None,
     };
     Some(ProvenPopulation {
         population: graph::RelationPopulation {
@@ -134,8 +112,6 @@ fn population(
             kinds,
             rows: count,
             native_file,
-            selected,
-            positions,
         },
         columns,
     })

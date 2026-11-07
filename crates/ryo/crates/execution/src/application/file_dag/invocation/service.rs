@@ -131,7 +131,6 @@ pub(in crate::application::file_dag) fn prepare<'f>(
             };
             resources.inputs.index = Some(IndexResource::acquired(
                 contract,
-                originals.get(place.0),
                 &admitted,
                 context,
                 empty,
@@ -181,7 +180,6 @@ pub(in crate::application::file_dag) fn prepare<'f>(
                     }
                     resources.inputs.index = Some(IndexResource::acquired(
                         contract,
-                        originals.get(1),
                         &admitted,
                         context,
                         EmptyInput::Keep,

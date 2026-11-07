@@ -319,16 +319,8 @@ pub(crate) struct PreparationCount(pub usize);
 pub(crate) struct RequestOperators {
     /// Original-plan shape metadata owned by this exact immutable request, never file state.
     pub ordered_existence: std::sync::Arc<Vec<crate::domain::self_join_recogniser::types::Program>>,
-    pub selection_plans: std::sync::Arc<Vec<crate::domain::stored_selection::types::PreparedPlan>>,
-    pub selection_views:
-        std::sync::Arc<crate::domain::derived_views::types::contract::value::PreparedSelectionViews>,
     pub rules: Vec<Vec<std::sync::Arc<OperatorContract>>>,
     pub preparations: PreparationCount,
-    pub physical: Vec<
-        Vec<
-            crate::domain::table_model::types::PreparedPhysical,
-        >,
-    >,
 }
 
 /// Exact semantic program bound once; a primitive cannot substitute comparisons.

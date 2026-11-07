@@ -15,7 +15,7 @@ macro_rules! kinds {
         }
     };
 }
-kinds!(Stored, Selected, Tree, Computed, Compact, Positioned);
+kinds!(Stored, Tree, Computed, Compact);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PhysicalShape {
     Complete,

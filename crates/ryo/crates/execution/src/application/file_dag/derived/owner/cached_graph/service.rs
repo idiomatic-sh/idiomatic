@@ -62,7 +62,7 @@ impl CachedGraph {
                 let Some(rows) = original_inputs.get(1) else {
                     return Ok(None);
                 };
-                if !matches!(rows, Rows::Stored(_) | Rows::Selected(_)) {
+                if !matches!(rows, Rows::Stored(_)) {
                     return Ok(None);
                 }
                 let Some(source) = admission.graph_input(InputNumber(1), rows)? else {
@@ -102,7 +102,7 @@ impl CachedGraph {
                 else {
                     return Ok(None);
                 };
-                if !matches!(edges, Rows::Stored(_) | Rows::Selected(_)) {
+                if !matches!(edges, Rows::Stored(_)) {
                     return Ok(None);
                 }
                 let Some(source) = admission.graph_input(InputNumber(1), edges)? else {

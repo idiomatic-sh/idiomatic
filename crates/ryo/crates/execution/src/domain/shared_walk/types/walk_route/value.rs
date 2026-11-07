@@ -1,6 +1,6 @@
 //! The route a physical instruction takes relative to the shared source walk.
 
-use crate::domain::positions::types::ClassPlace;
+use crate::domain::step_classes::types::ClassPlace;
 use ryo_values::domain::plan_parts::types::Input;
 
 /// Explicit source boundaries remain in request metadata. Adding an operation

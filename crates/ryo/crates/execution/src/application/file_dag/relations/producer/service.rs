@@ -67,9 +67,6 @@ impl RelationOwner {
     pub(in crate::application::file_dag::relations) fn backing_relation(result: &RelationResult) -> Option<Relation> {
         match &result.body {
             RelationBody::Source(source) => Some(source.relation),
-            RelationBody::Selected { source, .. } | RelationBody::Positioned { source, .. } => {
-                Self::backing_relation(source)
-            }
             RelationBody::Computed(_) | RelationBody::Compact(_) => None,
         }
     }
@@ -80,9 +77,6 @@ impl RelationOwner {
                     || self.result_population(result),
                     |source| source.canonical_population,
                 )
-            }
-            RelationBody::Selected { source, .. } | RelationBody::Positioned { source, .. } => {
-                self.backing_population(source)
             }
             RelationBody::Computed(_) | RelationBody::Compact(_) => self.result_population(result),
         }

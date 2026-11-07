@@ -3,7 +3,7 @@ use self::plans::Authored;
 use self::semantics::{Calls, Derived, Meanings};
 use super::super::*;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
-use crate::domain::positions::types::ClassPlace;
+use crate::domain::step_classes::types::ClassPlace;
 use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn},

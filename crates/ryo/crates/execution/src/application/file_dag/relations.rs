@@ -7,7 +7,7 @@ use crate::domain::table_model::collections::representations::types::{
 };
 use crate::domain::table_model::{
     service::{kind, materialize, registered},
-    types::{PublishedRelation, Rows, SelectedRows, StoredSelection},
+    types::{PublishedRelation, Rows},
 };
 use crate::domain::{executable_program::types::RegionId, operating::errors::OperatingError};
 use ryo_relations::domain::relations::types::{CellKind, Relation};
@@ -37,9 +37,6 @@ pub(in crate::application::file_dag) mod admission;
 mod external;
 pub(in crate::application::file_dag) mod handle;
 mod identity;
-pub(super) mod positioned;
-mod selected_access;
-pub(super) mod selection;
 
 pub(in crate::application::file_dag) mod number;
 pub(in crate::application::file_dag) mod packed;

@@ -145,7 +145,6 @@ enum AcquisitionSources<'a> {
         rows: Vec<crate::domain::table_model::types::RepresentationInput<'a>>,
         graph: Arc<ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph>,
     },
-    Raw,
 }
 
 impl std::fmt::Debug for AcquisitionOrigin {

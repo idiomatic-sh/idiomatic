@@ -2,7 +2,7 @@
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::positions::service_test::{SMALL_SOURCE, SmallTree, small_tree};
-use crate::domain::positions::types::ClassPlace;
+use crate::domain::step_classes::types::ClassPlace;
 use crate::domain::shared_walk::service_test::{
     add_pattern, evaluate_plans, evaluate_rows, plan, plans, relation_plan, with_context,
 };

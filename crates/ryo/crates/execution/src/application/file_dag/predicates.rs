@@ -110,9 +110,23 @@ mod tests {
             comparisons: comparisons.clone(),
             kept: vec![],
         };
-        let mut plan = crate::domain::stored_selection::fixtures::plan();
-        plan.steps.truncate(1);
-        plan.steps[0].operation = operation;
+        let plan = ryo_values::domain::plans::types::Plan {
+            parameters: vec![],
+            observation_inputs: vec![],
+            observations: vec![],
+            comparison_origins: vec![],
+            frontier: vec![],
+            steps: vec![ryo_values::domain::plans::types::PlanStep {
+                scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
+                operation,
+            }],
+            emit: ryo_values::domain::plans::types::Emit {
+                step: ryo_values::domain::plan_parts::types::StepId(0),
+                subject: ryo_values::domain::plan_parts::types::ColumnIndex(0),
+                key: vec![],
+                headings: vec![],
+            },
+        };
         let prepared = PreparedMatchers::new(&[plan]);
         let program = PreparedPredicates {
             comparisons,

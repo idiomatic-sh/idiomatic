@@ -4,8 +4,6 @@ use crate::domain::table_model::collections::representations::{
     compact::item::CompactItem,
     computed::item::ComputedItem,
     interface::RepresentationsItem,
-    positioned::item::PositionedItem,
-    selected::item::SelectedItem,
     stored::item::StoredItem,
     tree::item::TreeItem,
     types::{CellRead, PhysicalShape, RelationContract, RepresentationKind, RowRead},
@@ -34,11 +32,9 @@ impl RegisteredRepresentation {
     ) -> RepresentationKind {
         match input {
             RepresentationInput::Stored(_) => RepresentationKind::Stored,
-            RepresentationInput::Selected { .. } => RepresentationKind::Selected,
             RepresentationInput::Tree(_) => RepresentationKind::Tree,
             RepresentationInput::Computed(_) => RepresentationKind::Computed,
             RepresentationInput::Compact(_) => RepresentationKind::Compact,
-            RepresentationInput::Positioned(_) => RepresentationKind::Positioned,
         }
     }
 }
@@ -101,11 +97,9 @@ impl RegisteredRepresentation {
     fn item(&self) -> &'static dyn RepresentationsItem {
         match self.kind {
             RepresentationKind::Stored => &StoredItem,
-            RepresentationKind::Selected => &SelectedItem,
             RepresentationKind::Tree => &TreeItem,
             RepresentationKind::Computed => &ComputedItem,
             RepresentationKind::Compact => &CompactItem,
-            RepresentationKind::Positioned => &PositionedItem,
         }
     }
 }
@@ -169,27 +163,16 @@ impl<'f> RepresentationInput<'f> {
     pub(crate) fn count(self) -> RowCount {
         match self {
             Self::Stored(view) => RowCount(view.columns.first().map_or(0, |column| column.0.len())),
-            Self::Selected { positions, .. } => RowCount(positions.0.len()),
             Self::Tree(tree) => RowCount(tree.elements.kind.len().saturating_sub(usize::from(
                 tree.form == TreeForm::Edges,
             ))),
             Self::Computed(table) => table.count,
             Self::Compact(table) => ryo_values::domain::compact_table::service::compact_rows(table),
-            Self::Positioned(view) => RowCount(
-                view.positions
-                    .slots
-                    .0
-                    .len()
-                    .checked_div(view.positions.width.0)
-                    .unwrap_or(0),
-            ),
         }
     }
     pub(crate) fn kinds(self) -> &'f [CellKind] {
         match self {
             Self::Stored(view) => view.kinds,
-            Self::Selected { kinds, .. } => kinds,
-            Self::Positioned(view) => view.kinds,
             Self::Computed(table) => &table.kinds,
             Self::Compact(table) => {
                 ryo_values::domain::compact_table::service::compact_kinds(table)

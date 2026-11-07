@@ -12,38 +12,9 @@ pub(in crate::application::file_dag) fn view(
     use ryo_derived::domain::request::types::DerivedRequest as SemanticRequest;
     let mut needed = crate::domain::table_cells::types::ColumnPlaces::default();
     let meaning = match request {
-        ViewRequest::RawKeyOrder { stride } => SemanticRequest::RawKeyOrder {
-            stride: ryo_derived::domain::raw_words::types::KeyStride(stride.0),
-        },
         ViewRequest::Equality { columns } => SemanticRequest::Equality {
             columns: columns.clone(),
         },
-        ViewRequest::PredicateMatches(selector) => {
-            crate::domain::text_gate::service::needed_of(
-                &selector.identity.comparisons,
-                &mut needed,
-            );
-            SemanticRequest::PredicateMatches {
-                needed: needed
-                    .0
-                    .iter()
-                    .map(|at| {
-                        ryo_values::domain::plan_parts::types::ColumnIndex(
-                            u32::try_from(*at).unwrap_or(u32::MAX),
-                        )
-                    })
-                    .collect(),
-            }
-        }
-        ViewRequest::CandidatePostings { column, literals } => SemanticRequest::CandidatePostings {
-            column: *column,
-            literals: literals.clone(),
-        },
-        ViewRequest::DistinctRepresentatives { columns } => {
-            SemanticRequest::DistinctRepresentatives {
-                columns: columns.clone(),
-            }
-        }
         ViewRequest::Adjacency { endpoints, keys } => SemanticRequest::Adjacency {
             endpoints: *endpoints,
             keys: keys.clone(),
@@ -102,18 +73,7 @@ pub(in crate::application::file_dag) fn view(
         meaning,
         schemas.iter().map(|schema| schema.kinds.to_vec()).collect(),
     );
-    // The engine's identity descriptor must describe the canonical literal slots produced by
-    // semantic preparation, including duplicate elimination and ordering.
-    let request = match (request, prepared.request()) {
-        (
-            ViewRequest::CandidatePostings { .. },
-            SemanticRequest::CandidatePostings { column, literals },
-        ) => ViewRequest::CandidatePostings {
-            column: *column,
-            literals: literals.clone(),
-        },
-        _ => request.clone(),
-    };
+    let request = request.clone();
     use std::hash::{Hash, Hasher};
     let mut identity = std::collections::hash_map::DefaultHasher::new();
     let kind = crate::domain::derived_views::types::contract::value::kind_of(&request);

@@ -4,7 +4,7 @@ use super::admission::service::{AcquiredView, AcquisitionLifetime, AdmittedViewI
 use super::population::types::{
     Acquisition, BackendRetention, Construction, OptionalRetention, StoredObservation,
 };
-use super::selection::types::StoredColumns;
+use super::population::types::StoredColumns;
 use crate::application::file_dag::route_counts::{self, types::BuildRoute};
 
 impl DerivedOwner {

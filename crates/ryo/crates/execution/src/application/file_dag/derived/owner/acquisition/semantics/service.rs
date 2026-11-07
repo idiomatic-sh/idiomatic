@@ -8,10 +8,9 @@ use crate::domain::operator::contract::{
 };
 use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use crate::outbound::derived::interface::DerivedPort;
-use ryo_language::domain::symbols::types::ByteSlice;
 use std::{cell::RefCell, sync::Arc};
 
-use super::semantic_rows::{AdmittedRows, CanonicalTexts, Predicate};
+use super::semantic_rows::{AdmittedRows, CanonicalTexts};
 use super::storage::DerivedStorage;
 use super::types::InputPosition;
 
@@ -38,14 +37,6 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
     let mut graph_identity = None;
     let mut built_plan = Arc::clone(&plan.semantic);
     let answer = match inputs {
-        DerivedInputs::RawWords(keys) => port.build(
-            &plan.semantic,
-            ryo_derived::domain::contract::types::BuildInputs::RawWords(
-                ryo_derived::domain::raw_words::types::RawWords(&keys.0),
-            ),
-            &mut scratch.semantic,
-            recycled,
-        ),
         DerivedInputs::Rows(inputs) => {
             if let ViewRequest::NativeLookup { .. } = &plan.request {
                 let BorrowedRows::Tree(tree) = first(inputs, InputPosition(1))? else {
@@ -78,83 +69,12 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
                 )
             }
         }
-        DerivedInputs::Predicate {
-            rows,
-            candidates,
-            program,
-            symbols,
-        } => {
-            let mut predicate = Predicate {
-                rows,
-                program,
-                symbols,
-                needed: &plan.needed,
-                row: &mut scratch.row,
-                failure: &failure,
-            };
-            port.build(
-                &plan.semantic,
-                ryo_derived::domain::contract::types::BuildInputs::Predicate {
-                    rows: &mut predicate,
-                    candidates: candidates.map(|rows| ryo_derived::domain::positions::types::RowSlots(rows.0)),
-                },
-                &mut scratch.semantic,
-                recycled,
-            )
-        }
-        DerivedInputs::Distinct { rows, positions } => {
-            let source = AdmittedRows {
-                rows,
-                failure: &failure,
-            };
-            port.build(
-                &plan.semantic,
-                ryo_derived::domain::contract::types::BuildInputs::Distinct {
-                    rows: &source,
-                    positions: ryo_derived::domain::positions::types::RowSlots(positions.0),
-                },
-                &mut scratch.semantic,
-                recycled,
-            )
-        }
-        DerivedInputs::Postings {
-            rows,
-            texts,
-            active,
-        } => {
-            let source = AdmittedRows {
-                rows,
-                failure: &failure,
-            };
-            port.build(
-                &plan.semantic,
-                ryo_derived::domain::contract::types::BuildInputs::Postings {
-                    rows: &source,
-                    symbols: texts.symbols,
-                    source: ByteSlice(texts.source.0),
-                    active,
-                },
-                &mut scratch.semantic,
-                recycled,
-            )
-        }
         DerivedInputs::Text { rows, texts } => {
             let left = AdmittedRows {
                 rows: first(rows, InputPosition(0))?,
                 failure: &failure,
             };
             match &plan.request {
-                ViewRequest::CandidatePostings { literals, .. } => port.build(
-                    &plan.semantic,
-                    ryo_derived::domain::contract::types::BuildInputs::Postings {
-                        rows: &left,
-                        symbols: texts.symbols,
-                        source: ByteSlice(texts.source.0),
-                        active: literals,
-                    },
-                    &mut scratch.semantic,
-                    recycled,
-                ),
                 ViewRequest::OrderedKeys { .. } => {
                     let right = AdmittedRows {
                         rows: first(rows, InputPosition(1))?,

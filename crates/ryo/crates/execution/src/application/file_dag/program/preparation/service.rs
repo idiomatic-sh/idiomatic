@@ -58,7 +58,7 @@ impl PreparedProgram {
     pub(in crate::application::file_dag::program) fn walk_class(
         &self,
         instruction: &crate::domain::executable_program::types::instruction::value::Instruction,
-    ) -> Option<crate::domain::positions::types::ClassPlace> {
+    ) -> Option<crate::domain::step_classes::types::ClassPlace> {
         self.walk.class_for(instruction)
     }
     pub(in crate::application::file_dag::program) fn rule_id(
@@ -275,9 +275,7 @@ pub(crate) fn prepare(
     )?);
     walk.retain_program_consumers(&program)?;
     census::service::trace(rules, &walk, &program);
-    let derived = crate::application::file_dag::derived::prepared::RequestDerived::compile(
-        &program, &operators,
-    )?;
+    let derived = crate::application::file_dag::derived::prepared::RequestDerived::compile(&program)?;
     let metadata =
         metadata::service::rules(&program, named.as_ref(), &plans, &observation_frontiers)?;
     let matchers = Arc::new(

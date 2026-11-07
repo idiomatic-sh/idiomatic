@@ -1,6 +1,6 @@
 use super::constants::{
     KIND_EQUALITY, KIND_MEMBERSHIP, KIND_PREDICATE_MATCHES, MAX_KEYS, OWNER_BUILD,
-    SELECTOR_CANDIDATE_BUILD,
+    GRAPH_ADJACENCY_BUILD,
 };
 use super::profile::service::{with_borrow, with_borrow_mut};
 use super::schemas::document;
@@ -228,7 +228,7 @@ use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
         let first = selector_owner
             .derived()
             .acquire_stored_with_route(
-                BuildRoute::SelectorCandidate,
+                BuildRoute::GraphAdjacency,
                 &plan,
                 &admitted,
                 ViewContext::default(),
@@ -241,7 +241,7 @@ use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
         let second = selector_owner
             .derived()
             .acquire_stored_with_route(
-                BuildRoute::SelectorCandidate,
+                BuildRoute::GraphAdjacency,
                 &plan,
                 &admitted,
                 ViewContext::default(),
@@ -258,7 +258,7 @@ use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
         .filter(|(key, _)| key.route.0.ends_with(BUILD_ROUTE_SUFFIX))
         .collect::<Vec<_>>();
     assert_eq!(builds.len(), 2);
-    for route in [OWNER_BUILD, SELECTOR_CANDIDATE_BUILD] {
+    for route in [OWNER_BUILD, GRAPH_ADJACENCY_BUILD] {
         let (key, count) = builds.iter().find(|(key, _)| key.route.0 == route).unwrap();
         assert_eq!(key.origin.owner, RouteOwnership::Owned);
         assert_eq!(count.calls, RouteTally(1));

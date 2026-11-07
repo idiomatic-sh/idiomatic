@@ -16,7 +16,7 @@ use crate::application::file_dag::program::runtime::service::{KernelPermit, Read
 use crate::domain::{
     coverage::types::RuleIndex,
     operating::{errors::OperatingError, types::OperatorContext},
-    positions::types::ClassPlace,
+    step_classes::types::ClassPlace,
     shared_walk::types::{WalkCounts, WalkWork, native_batch::value::NativeBatch},
     table_model::types::Rows,
 };

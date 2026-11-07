@@ -4,7 +4,7 @@ use crate::application::file_dag::program::{
 };
 use crate::domain::{
     operating::{errors::OperatingError, types::OperatorContext},
-    positions::types::ClassPlace,
+    step_classes::types::ClassPlace,
     shared_walk::types::{WalkWork, native_batch::value::NativeBatch},
 };
 /// Only the live engine permit can bind these borrowed, already-admitted rows.

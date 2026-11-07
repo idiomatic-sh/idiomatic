@@ -42,3 +42,8 @@ pub(in crate::application::file_dag) struct InvocationStorage {
     pub storage: std::sync::Arc<DerivedStorage>,
     pub construction: Construction,
 }
+
+/// The stored relation a build reads, when the build is for a stored relation.
+pub(in crate::application::file_dag) struct StoredColumns {
+    pub relation: ryo_relations::domain::relations::types::Relation,
+}

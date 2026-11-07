@@ -97,20 +97,10 @@ pub(in crate::application::file_dag::derived) struct ReclaimOutlook {
     pub pinned: PinState,
 }
 
-/// Whether an equality index over the asked columns is already live in the owner.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum EqualityLiveness {
-    Live,
-    Absent,
-}
 
 /// Required views live at once.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ViewCount(pub usize);
-
-/// Retained predicate selections.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub struct PredicateCount(pub usize);
 
 /// The exact dense ordering of a membership view.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -226,12 +216,6 @@ impl std::ops::AddAssign<u64> for ReuseCount {
 }
 
 impl std::ops::AddAssign<usize> for ViewCount {
-    fn add_assign(&mut self, other: usize) {
-        self.0 += other;
-    }
-}
-
-impl std::ops::AddAssign<usize> for PredicateCount {
     fn add_assign(&mut self, other: usize) {
         self.0 += other;
     }

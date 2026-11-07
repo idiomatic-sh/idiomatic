@@ -1,4 +1,4 @@
-//! Application-owned equality handles and direct selected projection views.
+//! Application-owned equality handles.
 use ryo_values::domain::plan_parts::types::InputNumber;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 use crate::application::file_dag::invocation::prepared_use::service::prepared;
@@ -25,12 +25,10 @@ pub(in crate::application::file_dag) enum IndexResource<'f> {
         plan: std::sync::Arc<crate::domain::derived_views::types::contract::value::DerivedContract>,
         index: KeyIndex,
     },
-    Selected(super::super::selected::SelectedInput<'f>),
 }
 impl<'f> IndexResource<'f> {
     pub(super) fn acquired(
         contract: &OperatorContract,
-        original: Option<&crate::domain::table_model::types::Rows<'f>>,
         admission: &super::super::workspace::InputAdmissions<'_, 'f>,
         context: &mut OperatorContext<'_>,
         empty: EmptyInput,
@@ -40,10 +38,7 @@ impl<'f> IndexResource<'f> {
         let place = use_.inputs[0];
         let source = admission.input(place)?;
         // Absence's established empty-RHS gate precedes key interpretation.
-        if empty == EmptyInput::Skip
-            && source.count().0 == 0
-            && !matches!(source, BorrowedRows::Selected { .. })
-        {
+        if empty == EmptyInput::Skip && source.count().0 == 0 {
             return Ok(Self::Empty {
                 rows: source,
                 plan: use_.plan.clone(),
@@ -52,11 +47,6 @@ impl<'f> IndexResource<'f> {
         }
         let source = admission.rows(place)?;
         let storage = admission.acquire_rows(use_, context)?;
-        if let Some(crate::domain::table_model::types::Rows::Selected(selected)) = original {
-            return Ok(Self::Selected(
-                super::super::selected::schemas::from_derived(selected, storage)?,
-            ));
-        }
         Ok(Self::Derived {
             rows: source,
             view: storage,
@@ -64,7 +54,6 @@ impl<'f> IndexResource<'f> {
     }
     pub(in crate::application::file_dag) fn view(&self) -> IndexedRows<'_> {
         match self {
-            Self::Selected(selected) => selected.view(),
             Self::Derived { rows, view } => {
                 let crate::domain::derived_views::types::ViewRequest::Equality { columns } =
                     &view.contract().request

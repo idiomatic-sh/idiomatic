@@ -30,11 +30,6 @@ impl BuildRoute {
     pub(crate) fn label(self) -> RouteLabel {
         RouteLabel(match self {
             Self::OwnerAcquire => constants::OWNER_BUILD,
-            Self::SelectorCandidate => constants::SELECTOR_CANDIDATE_BUILD,
-            Self::Column => constants::COLUMN_BUILD,
-            Self::SelectorPredicate => constants::SELECTOR_PREDICATE_BUILD,
-            Self::SelectorPostings => constants::SELECTOR_POSTINGS_BUILD,
-            Self::SelectorDistinct => constants::SELECTOR_DISTINCT_BUILD,
             Self::ClosurePartition => constants::CLOSURE_PARTITION_BUILD,
             Self::GraphAdjacency => constants::GRAPH_ADJACENCY_BUILD,
             Self::GraphDomain => constants::GRAPH_DOMAIN_BUILD,
@@ -280,9 +275,6 @@ pub(crate) fn derived(kind: ryo_derived::domain::request::types::DerivedKind) ->
     use ryo_derived::domain::request::types::DerivedKind::*;
     RouteLabel(match kind {
         Equality => constants::KIND_EQUALITY,
-        PredicateMatches => constants::KIND_PREDICATE_MATCHES,
-        CandidatePostings => constants::KIND_CANDIDATE_POSTINGS,
-        DistinctRepresentatives => constants::KIND_DISTINCT_REPRESENTATIVES,
         Adjacency => constants::KIND_ADJACENCY,
         Membership => constants::KIND_MEMBERSHIP,
         PartitionOrder => constants::KIND_PARTITION_ORDER,
@@ -291,7 +283,6 @@ pub(crate) fn derived(kind: ryo_derived::domain::request::types::DerivedKind) ->
         OrderedKeys => constants::KIND_ORDERED_KEYS,
         OrderedDfs => constants::KIND_ORDERED_DFS,
         NativeLookup => constants::KIND_NATIVE_LOOKUP,
-        RawKeyOrder => constants::KIND_RAW_KEY_ORDER,
     })
 }
 pub(crate) fn representation(
@@ -300,10 +291,8 @@ pub(crate) fn representation(
     use crate::domain::table_model::collections::representations::types::RepresentationKind::*;
     RouteLabel(match kind {
         Stored => constants::REPRESENTATION_STORED,
-        Selected => constants::REPRESENTATION_SELECTED,
         Tree => constants::REPRESENTATION_TREE,
         Computed => constants::REPRESENTATION_COMPUTED,
         Compact => constants::REPRESENTATION_COMPACT,
-        Positioned => constants::REPRESENTATION_POSITIONED,
     })
 }

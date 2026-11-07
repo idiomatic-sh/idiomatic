@@ -3,7 +3,7 @@
 use super::value::PreparedWalk;
 use crate::domain::{
     coverage::types::RuleIndex,
-    positions::types::ClassPlace,
+    step_classes::types::ClassPlace,
     shared_walk::service_test::{add_pattern, evaluate_plans, plans},
 };
 use ryo_values::domain::plan_parts::types::LiteralText;

@@ -90,7 +90,7 @@ impl ResourceFixture {
             ViewContext::default(),
             DerivedInputs::Rows(&[proof.rows()]),
             &mut DerivedScratch::default(),
-            Some(crate::application::file_dag::derived::owner::acquisition::selection::types::StoredColumns {
+            Some(crate::application::file_dag::derived::owner::acquisition::population::types::StoredColumns {
                 relation,
             }),
         )

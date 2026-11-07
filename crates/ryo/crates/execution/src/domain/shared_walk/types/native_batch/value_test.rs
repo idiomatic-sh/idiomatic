@@ -2,7 +2,7 @@
 
 use super::value::NativeBatch;
 use crate::domain::{
-    positions::types::ClassPlace,
+    step_classes::types::ClassPlace,
     shared_walk::{
         service_test::{evaluate_plans, plans},
         types::prepared_walk::value::PreparedWalk,

@@ -16,7 +16,7 @@ use crate::application::file_dag::derived::owner::graphs::types::handles::servic
 };
 use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
 use crate::application::file_dag::derived::owner::{
-    GraphRequirement, GraphSelection, GraphViewIdentity, ViewContext,
+    GraphRequirement, GraphViewIdentity, ViewContext,
 };
 use crate::application::file_dag::workspace::GraphInput;
 use crate::domain::{
@@ -123,24 +123,8 @@ pub(super) fn graph_requirement(
     GraphRequirement {
         endpoints: identity.endpoints,
         keys: identity.keys.clone().into(),
-        selection: graph_selection(&identity.population),
     }
 }
-pub(super) fn graph_selection(
-    population: &crate::domain::stored_graph::types::RelationPopulation,
-) -> Option<GraphSelection> {
-    population
-        .positions
-        .as_ref()
-        .zip(population.selected.as_ref())
-        .map(|(rows, identity)| {
-            GraphSelection::new(
-                &crate::application::file_dag::derived::owner::graph_key::SelectionRows(Arc::clone(rows)),
-                identity,
-            )
-        })
-}
-
 pub(in crate::application::file_dag::derived::owner) fn domain(
     plan: &Arc<crate::domain::derived_views::types::contract::value::DerivedContract>,
     access: &GraphHandle,
@@ -186,9 +170,6 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
                 .as_ref(),
         ),
         column: physical_column,
-        selection: identity
-            .as_ref()
-            .and_then(|identity| graph_selection(&identity.population)),
     };
     let requirement = owner.canonical_graph_requirement(requirement, admitted.populations());
     let invoked = std::cell::Cell::new(false);

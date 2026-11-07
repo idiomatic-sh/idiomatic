@@ -59,7 +59,7 @@ pub(crate) fn prepared_sources(
     let program =
         crate::domain::executable_program::service::compile(plans, graph, &partitions, &request)
             .unwrap();
-    super::super::prepared::RequestDerived::compile(&program, &request).unwrap()
+    super::super::prepared::RequestDerived::compile(&program).unwrap()
 }
 pub(crate) fn source_plan(relation: Relation) -> Plan {
     use ryo_values::domain::{

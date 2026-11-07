@@ -5,7 +5,6 @@ use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::{
     AcquiredView, AcquisitionLifetime, AdmittedViewInputs,
 };
-use crate::application::file_dag::derived::owner::selection;
 use crate::application::file_dag::derived::owner::*;
 use crate::application::file_dag::route_counts;
 
@@ -179,9 +178,6 @@ impl DerivedOwner {
                     {
                         cache.reuses += 1_u64;
                     }
-                    if plan.kind == DerivedKind::PredicateMatches {
-                        cache.selection_counts.reuses.0 += 1;
-                    }
                 }
                 return Ok(Some(handle));
             }
@@ -227,7 +223,7 @@ impl DerivedOwner {
         let positions = self.ledger.borrow().snapshot().optional_units.0;
         let positions_within_bound = positions
             .checked_add(additional_positions)
-            .is_some_and(|n| n <= selection::types::MAX_RETAINED_POSITION_CAPACITY);
+            .is_some_and(|n| n <= crate::application::file_dag::derived::owner::cache::types::MAX_RETAINED_POSITION_CAPACITY);
         let mut state = self.state.borrow_mut();
         state.builds += u64::from(built);
         state.hits += u64::from(!built);
@@ -240,11 +236,8 @@ impl DerivedOwner {
             state.refusals += 1_u64;
             return Ok(Some(handle));
         }
-        let predicate_room = plan.kind != DerivedKind::PredicateMatches
-            || state.retained_predicates.0 < selection::types::MAX_RETAINED_SELECTIONS;
         let retained = if let Some(cache) = cache.as_deref_mut().filter(|cache| {
             optional_room
-                && predicate_room
                 && allow_optional
                 && positions_within_bound
                 && optional_bytes
@@ -260,7 +253,6 @@ impl DerivedOwner {
             cache.bytes.0 += additional_bytes;
             cache.graph_counts.peak_bytes.0 = cache.graph_counts.peak_bytes.0.max(cache.bytes.0);
             state.retained_bytes += bytes;
-            state.retained_predicates += usize::from(plan.kind == DerivedKind::PredicateMatches);
             Some(OwnedView {
                 storage: Arc::clone(&storage),
                 _lease: lease,
@@ -278,12 +270,6 @@ impl DerivedOwner {
                 && retained.is_none()
             {
                 cache.refusals += 1_u64;
-            }
-            if plan.kind == DerivedKind::PredicateMatches {
-                cache.selection_counts.builds.0 += u64::from(built);
-                cache.selection_counts.reuses.0 += u64::from(!built);
-                cache.selection_counts.refusals.0 +=
-                    u64::from(allow_optional && retained.is_none());
             }
         }
         if required {

@@ -10,8 +10,6 @@ impl RelationOwner {
         self.generation(record)?;
         Ok(match &record.body {
             RelationBody::Source(source) => &source.kinds,
-            RelationBody::Selected { selection, .. } => &selection.kinds,
-            RelationBody::Positioned { kinds, .. } => kinds,
             RelationBody::Computed(table) => &table.kinds,
             RelationBody::Compact(table) => {
                 ryo_values::domain::compact_table::service::compact_kinds(table)
@@ -66,35 +64,6 @@ impl RelationOwner {
                     Sameness::Different
                 }
             }
-            RelationBody::Positioned {
-                source,
-                positions,
-                shape,
-                kinds,
-            } => match input {
-                BorrowedRows::Positioned(actual)
-                    if std::ptr::eq(actual.positions, positions.as_ref())
-                        && std::ptr::eq(actual.shape, shape.as_ref())
-                        && actual.kinds == kinds.as_ref() =>
-                {
-                    self.matches_current(source, BorrowedRows::Tree(actual.tree))
-                }
-                _ => Sameness::Different,
-            },
-            RelationBody::Selected { selection, source } => match input {
-                BorrowedRows::Selected {
-                    source: actual,
-                    positions,
-                    columns,
-                    kinds,
-                } if std::ptr::eq(positions.0, selection.rows.as_slice())
-                    && columns == selection.columns
-                    && kinds == selection.kinds =>
-                {
-                    self.matches_current(source, BorrowedRows::Stored(actual))
-                }
-                _ => Sameness::Different,
-            },
         }
     }
     pub(in crate::application::file_dag) fn resolve<'r, 'f>(
@@ -116,33 +85,6 @@ impl RelationOwner {
             }
             RelationBody::Computed(table) => Ok(Rows::Computed(table)),
             RelationBody::Compact(table) => Ok(Rows::Compact(table)),
-            RelationBody::Positioned {
-                source,
-                positions,
-                shape,
-                kinds,
-            } => {
-                let Rows::Tree(tree) = self.resolve(source.as_ref(), read)? else {
-                    return Err(OperatingError::WrongOperation);
-                };
-                Ok(Rows::Positioned(
-                    crate::domain::table_model::types::PositionedRows {
-                        tree,
-                        positions,
-                        shape,
-                        kinds,
-                    },
-                ))
-            }
-            RelationBody::Selected { source, selection } => {
-                let Rows::Stored(columns) = self.resolve(source.as_ref(), read)? else {
-                    return Err(OperatingError::WrongOperation);
-                };
-                Ok(Rows::Selected(SelectedRows {
-                    source: columns,
-                    selection: Arc::clone(selection),
-                }))
-            }
         }
     }
     /// The caller invokes this only at its already declared physical demand gate.

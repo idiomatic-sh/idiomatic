@@ -6,19 +6,11 @@ pub(super) const RESOURCE_ROUTES_EVENT: &str = "resource_routes";
 pub(super) const UNCLASSIFIED: &str = "unclassified";
 
 pub(super) const OWNER_BUILD: &str = "owner_build";
-pub(super) const SELECTOR_CANDIDATE_BUILD: &str = "selector_candidate_build";
-pub(super) const COLUMN_BUILD: &str = "column_build";
-pub(super) const SELECTOR_PREDICATE_BUILD: &str = "selector_predicate_build";
-pub(super) const SELECTOR_POSTINGS_BUILD: &str = "selector_postings_build";
-pub(super) const SELECTOR_DISTINCT_BUILD: &str = "selector_distinct_build";
 pub(super) const CLOSURE_PARTITION_BUILD: &str = "closure_partition_build";
 pub(super) const GRAPH_ADJACENCY_BUILD: &str = "graph_adjacency_build";
 pub(super) const GRAPH_DOMAIN_BUILD: &str = "graph_domain_build";
 
 pub(super) const KIND_EQUALITY: &str = "Equality";
-pub(super) const KIND_PREDICATE_MATCHES: &str = "PredicateMatches";
-pub(super) const KIND_CANDIDATE_POSTINGS: &str = "CandidatePostings";
-pub(super) const KIND_DISTINCT_REPRESENTATIVES: &str = "DistinctRepresentatives";
 pub(super) const KIND_ADJACENCY: &str = "Adjacency";
 pub(super) const KIND_MEMBERSHIP: &str = "Membership";
 pub(super) const KIND_PARTITION_ORDER: &str = "PartitionOrder";
@@ -27,14 +19,11 @@ pub(super) const KIND_CYCLE_ADJACENCY: &str = "CycleAdjacency";
 pub(super) const KIND_ORDERED_KEYS: &str = "OrderedKeys";
 pub(super) const KIND_ORDERED_DFS: &str = "OrderedDfs";
 pub(super) const KIND_NATIVE_LOOKUP: &str = "NativeLookup";
-pub(super) const KIND_RAW_KEY_ORDER: &str = "RawKeyOrder";
 
 pub(super) const REPRESENTATION_STORED: &str = "Stored";
-pub(super) const REPRESENTATION_SELECTED: &str = "Selected";
 pub(super) const REPRESENTATION_TREE: &str = "Tree";
 pub(super) const REPRESENTATION_COMPUTED: &str = "Computed";
 pub(super) const REPRESENTATION_COMPACT: &str = "Compact";
-pub(super) const REPRESENTATION_POSITIONED: &str = "Positioned";
 
 #[cfg(feature = "diagnostic-row-progress")]
 pub(super) const ROW_PROGRESS: &str = "row_progress";

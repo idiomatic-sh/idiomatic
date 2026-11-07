@@ -18,7 +18,6 @@ pub(crate) mod workspace;
 mod service_test;
 
 pub(crate) mod closure_partitions;
-pub(crate) mod selected;
 
 pub(crate) mod relations;
 
