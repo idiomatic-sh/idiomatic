@@ -30,7 +30,7 @@ pub trait GroupOutput {
         &mut self,
         first: ryo_values::domain::rows::types::RowIndex,
         counted: ryo_values::domain::rows::types::RowCount,
-        digest: i64,
+        digest: GroupDigest,
     );
     fn sort_first(&mut self);
 }
@@ -42,7 +42,7 @@ pub trait DigestValues {
 #[derive(Clone, Copy, Debug)]
 pub enum DigestDatum<'a> {
     Unlocated,
-    Text(&'a str),
+    Text(ryo_values::domain::row_texts::types::CellText<'a>),
     Number(ryo_values::domain::plan_parts::types::WholeNumber),
     Flag(ryo_values::domain::plan_parts::types::FlagState),
     Numbers(&'a [ryo_values::domain::plan_parts::types::WholeNumber]),
@@ -51,27 +51,39 @@ pub enum DigestDatum<'a> {
 /// A value hash in a saturated original group coordinate.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct AggregationHash {
-    pub group: u32,
-    pub hash: u64,
+    pub group: GroupCoordinate,
+    pub hash: ValueHash,
 }
+
+/// A group's original coordinate, saturated to 32 bits.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct GroupCoordinate(pub u32);
+
+/// The folded digest a group finishes with; zero for a counted group.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct GroupDigest(pub i64);
 /// Mutable reduction storage is borrowed from one engine invocation, never retained by semantics.
 pub trait StreamingReduction {
     fn group(
         &mut self,
         key: &[ryo_relations::domain::relations::types::Value],
         row: &[ryo_relations::domain::relations::types::Value],
-    ) -> Result<ryo_values::domain::rows::types::RowIndex, SemanticInterrupted>;
+    ) -> Result<ryo_values::domain::rows::types::RowIndex, ContractError>;
     fn insert_value(
         &mut self,
         group: ryo_values::domain::rows::types::RowIndex,
         value: ryo_relations::domain::relations::types::Value,
-    ) -> bool;
-    fn count(&mut self, group: ryo_values::domain::rows::types::RowIndex) -> Option<&mut usize>;
+    ) -> Occurrence;
+    fn count(
+        &mut self,
+        group: ryo_values::domain::rows::types::RowIndex,
+    ) -> Option<&mut ryo_values::domain::rows::types::RowCount>;
     fn datum(&self, value: ryo_relations::domain::relations::types::Value) -> DigestDatum<'_>;
     fn append_hash(&mut self, hash: AggregationHash);
 }
 
-use crate::domain::contract::types::SemanticInterrupted;
+use crate::domain::contract::errors::ContractError;
+use crate::domain::set_rows::types::Occurrence;
 
 /// Whether two rows belong to the same group.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -84,18 +96,18 @@ pub(crate) enum GroupMembership {
 
 /// The stable hash of one resolved value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct ValueHash(pub u64);
+pub struct ValueHash(pub u64);
 
 /// The engine-owned scratch the distinct value hashes of one group are collected in.
-pub(crate) struct HashScratch<'a>(pub &'a mut Vec<u64>);
+pub struct HashScratch<'a>(pub &'a mut Vec<u64>);
 
 /// The row count each group of a streamed reduction reached, in group order.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct GroupCounts<'a>(pub &'a [usize]);
+pub struct GroupCounts<'a>(pub &'a [usize]);
 
 /// What a streamed reduction finishes into.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Finishing {
+pub enum Finishing {
     /// Each group keeps its counted rows.
     Counted,
     /// Each group keeps its folded value hashes.

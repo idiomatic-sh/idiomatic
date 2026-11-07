@@ -175,7 +175,7 @@ pub struct HandedWords {
     /// Source-bound coverage and root identity for this exact bucket.
     pub proof: FrontierProof,
     /// The words.
-    pub words: RecordWords,
+    pub handed: RecordWords,
 }
 
 /// Which rows a frontier's incomplete scope could be missing, as the reader names them.

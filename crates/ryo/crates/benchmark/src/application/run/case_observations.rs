@@ -2,7 +2,7 @@
 use crate::application::run::constants;
 use crate::outbound::suite::interface::SuitePort;
 use crate::outbound::suite::types::{
-    finding::{ByteOffset, Finding, SkippedPair},
+    finding::{FindingOffset, Finding, SkippedPair},
     observation_document::{
         ContextManifest, ContextMode, ContextRun, ExitStatus, FileMetadataDigest, IntentMatch,
         ObservationDocument, ProcessObservation, ProjectContextRecord, ProjectInputsDigest,
@@ -11,7 +11,7 @@ use crate::outbound::suite::types::{
     },
     reference_discrepancy::{DiscrepancyValidation, ExpectationKind},
     text::{
-        CanonicalJson, CaseName, PathText, ReasonText, RuleName, SchemaName, Sha256Text, Side,
+        CanonicalJson, CaseName, PathText, ReasonText, RuleName, SchemaName, Sha256Text, ContestantSide,
         YesNo,
     },
 };
@@ -28,8 +28,8 @@ fn findings(rows: &[BenchmarkFinding]) -> Vec<Finding> {
         .map(|row| Finding {
             rule: RuleName(row.rule.as_ref().to_owned()),
             file: PathText(row.file.0.as_ref().to_owned()),
-            start: ByteOffset(u64::try_from(row.start.0).unwrap_or(u64::MAX)),
-            end: ByteOffset(u64::try_from(row.end.0).unwrap_or(u64::MAX)),
+            start: FindingOffset(u64::try_from(row.start.0).unwrap_or(u64::MAX)),
+            end: FindingOffset(u64::try_from(row.end.0).unwrap_or(u64::MAX)),
         })
         .collect()
 }
@@ -101,8 +101,8 @@ pub(super) fn write(
         return Ok(());
     };
     let side = match side {
-        constants::REFERENCE => Side::Reference,
-        constants::CANDIDATE => Side::Candidate,
+        constants::REFERENCE => ContestantSide::Reference,
+        constants::CANDIDATE => ContestantSide::Candidate,
         _ => return Err(Error::Invalid(constants::UNKNOWN_OBSERVATION_SIDE.into())),
     };
     let files = report
@@ -280,8 +280,8 @@ pub(super) fn write(
         case.rule.as_ref(),
         &case.name.to_string(),
         match side {
-            Side::Reference => constants::REFERENCE,
-            Side::Candidate => constants::CANDIDATE,
+            ContestantSide::Reference => constants::REFERENCE,
+            ContestantSide::Candidate => constants::CANDIDATE,
         },
     )
     .map_err(Error::Invalid)?;

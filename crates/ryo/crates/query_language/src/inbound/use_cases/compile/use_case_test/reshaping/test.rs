@@ -1,5 +1,7 @@
 //! The `reshaping` service's cases, on query text read by the real syntax adapter: the calls that count, digest, capture and read rows.
 
+use crate::inbound::use_cases::compile::use_case_test::SELECT_GROUP_COUNT_STAR;
+use crate::inbound::use_cases::compile::use_case_test::DISTINCT_COUNT;
 use ryo_relations::domain::relations::types::Relation;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -31,8 +33,6 @@ type Failure = LoweringError;
 const PER_FILE_COUNT: &str = "let f = select * from \"function\"; let c = group-count(from=f, keys=[\"file\"], count=\"n\"); emit c subject file key(n);";
 const PER_FILE_DIGEST: &str = "let f = select * from \"function\"; let d = group-digest(from=f, keys=[\"file\"], distinct=\"name\", digest=\"d\", count=\"n\"); emit d subject file key(n);";
 const CROSS_DIGEST: &str = "let f = select * from \"function\"; let d = group-digest(from=f, keys=[\"name\"], distinct=\"file\", digest=\"d\", count=\"n\"); emit d subject name key(n);";
-/// The functions of each name counted by the files they are in: only the name and the file are asked of the rows.
-const DISTINCT_COUNT: &str = "let f = select * from \"function\"; let c = group-count(from=f, keys=[\"name\"], count=\"n\", distinct=\"file\"); emit c subject name key(n);";
 /// The tables a parameter holds, as rows.
 const TABLES_AS_ROWS: &str = "param tables: list<table>; let r = rows(from=$tables, columns=[\"name\"]); emit r subject name key(name);";
 /// A parameter that holds no tables, read as rows.
@@ -62,7 +62,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_count_of_the_distinct_values_of_a_column_is_one_step_after_the_files"),
         word: Word::Succeeds,
         input: || DISTINCT_COUNT,
-        expect: Expect::Value("select group-count*"),
+        expect: Expect::Value(SELECT_GROUP_COUNT_STAR),
     },
     Case {
         name: CaseName("the_tables_of_a_parameter_are_one_step_after_the_files"),

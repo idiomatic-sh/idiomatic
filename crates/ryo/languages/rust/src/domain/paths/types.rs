@@ -184,7 +184,7 @@ pub(crate) enum Supply {
 
 /// Whether a run asks for relations that link the source files to one another.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Linking {
+pub(crate) enum PathLinking {
     /// It does.
     Asked,
     /// It does not.

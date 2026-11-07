@@ -59,10 +59,10 @@ where
 }
 
 /// Only glob requests enter this port; preserve the semantic refusal verbatim.
-fn matching_error(error: SemanticError) -> MatchingError {
+fn matching_error(error: MatchingError) -> MatchingError {
     match error {
-        SemanticError::BadGlob { glob, reason } => MatchingError::BadGlob { glob, reason },
-        SemanticError::InvalidRegex { reason } => MatchingError::BadGlob {
+        MatchingError::BadGlob { glob, reason } => MatchingError::BadGlob { glob, reason },
+        MatchingError::InvalidRegex { reason } => MatchingError::BadGlob {
             glob: String::new(),
             reason,
         },

@@ -10,7 +10,9 @@ use crate::domain::operator::contract::{
 };
 use crate::domain::operator::types::PlanLayout;
 
-use ryo_operators::inbound::use_cases::operators::interface::{JoinInput, JoinRow, OperatorCall};
+use ryo_operators::domain::equality_join::types::JoinInput;
+use ryo_operators::domain::equality_join::types::JoinRow;
+use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use {ryo_values::domain::rows::service::column_in, ryo_values::domain::rows::service::reset};
 mod driver;
 use crate::domain::table_model::types::Rows;

@@ -54,16 +54,16 @@ impl OperatorsItem for RankItem {
             return Ok(());
         };
         let answer = lease.semantics().operators(
-            ryo_operators::inbound::use_cases::operators::interface::OperatorCall::Rank {
-                text: named.0,
+            ryo_operators::inbound::use_cases::operators::types::OperatorCall::Rank {
+                text: ryo_values::domain::row_texts::types::CellText(named.0),
                 layers,
             },
         );
         let rank = match answer {
-            Ok(ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Rank(
+            Ok(ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Rank(
                 Some(rank),
             )) => rank,
-            Ok(ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Rank(
+            Ok(ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Rank(
                 None,
             )) => return Ok(()),
             Err(error) => {

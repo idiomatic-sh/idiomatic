@@ -20,7 +20,7 @@ use crate::outbound::suite::types::{
         ContextMode, ContextRun, FileMetadataDigest, ObservationDocument, ProjectContextRecord,
         ProjectInputsDigest, ReferenceExpectation, SourceIdentity, ToolContractRecord,
     },
-    text::{PathText, Sha256Text, Side, YesNo},
+    text::{PathText, Sha256Text, ContestantSide, YesNo},
 };
 use ryo::linter::{
     GivenProjectInventory, ProjectEntryObservation, ProjectEntryState,
@@ -200,7 +200,7 @@ pub(crate) fn validate_with_artifacts(
             }
         };
         let mut sides = Vec::new();
-        for side in [Side::Reference, Side::Candidate] {
+        for side in [ContestantSide::Reference, ContestantSide::Candidate] {
             let row = observations
                 .iter()
                 .find(|row| row.rule == case.rule && row.name == case.name && row.side == side)
@@ -242,7 +242,7 @@ pub(crate) fn validate_with_artifacts(
             {
                 return Err(Failure::DiscrepancyAuthorityDiffers);
             }
-            if process && side == Side::Reference {
+            if process && side == ContestantSide::Reference {
                 process_receipts::validate(case, row, artifacts, invocations)
                     .map_err(String::from)?;
             } else {
@@ -250,7 +250,7 @@ pub(crate) fn validate_with_artifacts(
                     return Err(Failure::UnexpectedProcessObservation);
                 }
                 let actual = normalized(row.diagnostics.as_ref())?;
-                let required = if side == Side::Reference {
+                let required = if side == ContestantSide::Reference {
                     &reference_expected
                 } else {
                     &expected
@@ -259,7 +259,7 @@ pub(crate) fn validate_with_artifacts(
                     return Err(Failure::DiagnosticsDiffer);
                 }
             }
-            if side == Side::Candidate {
+            if side == ContestantSide::Candidate {
                 let accounted = row.coverage.is_some_and(|coverage| {
                     coverage.selected != 0
                         && coverage.evaluated.checked_add(coverage.skipped)

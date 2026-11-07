@@ -1,7 +1,17 @@
 //! Public grouping requests borrow fixture-owned storage; fixtures implement storage, never reductions.
-use crate::inbound::use_cases::operators::{fixtures, interface::*};
+use crate::inbound::use_cases::operators::{fixtures, interface::OperatorsUseCase};
+use crate::domain::capture::types::*;
+use crate::domain::contract::types::*;
+use crate::inbound::use_cases::operators::types::*;
+use crate::domain::equality_join::types::*;
+use crate::domain::ordered_existence::types::*;
+use crate::domain::ordered_match::types::*;
+use crate::domain::reduction::types::*;
+use crate::domain::set_rows::types::*;
+use crate::domain::source_matches::types::*;
+use crate::domain::words::types::*;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::WholeNumber;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
@@ -43,7 +53,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("collected_count_operand_fault_precedes_key_fault"),
         word: Word::Refuses,
         input: || Scenario::CountOperandFirst,
-        expect: Expect::Error(Failure::NoSuchColumn { index: 98 }),
+        expect: Expect::Error(Failure::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(98) }),
     },
     Case {
         name: CaseName("digest_dispatch_uses_resolved_text_not_handles_repeats_or_order"),
@@ -81,8 +91,8 @@ impl GroupOutput for Groups {
         self.clears += 1;
         self.rows.clear();
     }
-    fn push(&mut self, first: RowIndex, counted: RowCount, digest: i64) {
-        self.rows.push((first, counted, digest));
+    fn push(&mut self, first: RowIndex, counted: RowCount, digest: GroupDigest) {
+        self.rows.push((first, counted, digest.0));
     }
     fn sort_first(&mut self) {
         self.rows.sort_unstable_by_key(|group| group.0);
@@ -131,7 +141,7 @@ fn digest(rows: &[[i64; 2]], renamed: bool) -> Result<Groups, Failure> {
         keys: &[ColumnIndex(0)],
         over: ColumnIndex(1),
         order: &order,
-        hashes: &mut Vec::new(),
+        hashes: HashScratch(&mut Vec::new()),
         hasher: &Resolved { renamed },
         target: &mut output,
     })?;

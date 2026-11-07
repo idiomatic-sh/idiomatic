@@ -4,9 +4,12 @@ use super::types::{PrimitiveLease, RowSink, written_result};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_dedup::service::first_time;
 use crate::domain::table_model::types::Addition;
-use ryo_operators::inbound::use_cases::operators::interface::{
-    OperatorCall, SetInput, SetInterrupted, SetKind, SetRowDriver,
-};
+use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
+use ryo_operators::domain::set_rows::types::SetInput;
+use ryo_operators::domain::set_rows::errors::SetRowsError;
+use ryo_operators::domain::set_rows::types::SetKind;
+use ryo_operators::domain::set_rows::types::SetRowDriver;
+use ryo_operators::domain::set_rows::types::{Membership, Occurrence, Population};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
@@ -17,7 +20,7 @@ struct EngineRows<'a, 'b> {
 }
 
 impl SetRowDriver for EngineRows<'_, '_> {
-    fn right_empty(&mut self) -> Result<bool, SetInterrupted> {
+    fn right_empty(&mut self) -> Result<Population, SetRowsError> {
         self.failure
             .run(|| {
                 let index = self
@@ -26,12 +29,12 @@ impl SetRowDriver for EngineRows<'_, '_> {
                     .resources
                     .index()
                     .ok_or(OperatingError::WrongBinding)?;
-                Ok(index.rows.count() == 0)
+                Ok(Population::from(index.rows.count() == 0))
             })
-            .map_err(|()| SetInterrupted)
+            .map_err(|()| SetRowsError::Interrupted)
     }
 
-    fn contains_right(&mut self, key: &[Value]) -> Result<bool, SetInterrupted> {
+    fn contains_right(&mut self, key: &[Value]) -> Result<Membership, SetRowsError> {
         self.failure
             .run(|| {
                 let index = self
@@ -40,24 +43,26 @@ impl SetRowDriver for EngineRows<'_, '_> {
                     .resources
                     .index()
                     .ok_or(OperatingError::WrongBinding)?;
-                Ok(index.contains(key))
+                Ok(Membership::from(index.contains(key)))
             })
-            .map_err(|()| SetInterrupted)
+            .map_err(|()| SetRowsError::Interrupted)
     }
 
-    fn first_time(&mut self, row: &[Value]) -> Result<bool, SetInterrupted> {
+    fn first_time(&mut self, row: &[Value]) -> Result<Occurrence, SetRowsError> {
         self.failure
             .run(|| {
                 let state = self.lease.distinct()?;
-                Ok(first_time(&mut state.rows, &mut state.seen, row) == Addition::Added)
+                Ok(Occurrence::from(
+                    first_time(&mut state.rows, &mut state.seen, row) == Addition::Added,
+                ))
             })
-            .map_err(|()| SetInterrupted)
+            .map_err(|()| SetRowsError::Interrupted)
     }
 
-    fn emit(&mut self, row: &[Value]) -> Result<(), SetInterrupted> {
+    fn emit(&mut self, row: &[Value]) -> Result<(), SetRowsError> {
         self.failure
             .run(|| self.emit.row(self.lease, row))
-            .map_err(|()| SetInterrupted)
+            .map_err(|()| SetRowsError::Interrupted)
     }
 }
 

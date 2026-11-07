@@ -4,4 +4,5 @@ pub(crate) mod service;
 #[cfg(test)]
 mod service_test;
 
-pub(crate) mod types;
+pub mod types;
+pub mod errors;

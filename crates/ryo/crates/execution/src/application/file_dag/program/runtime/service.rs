@@ -268,7 +268,7 @@ pub(in crate::application::file_dag) struct SemanticPermit<'scope> {
 /// The request and its validated authority cannot be separated or rewritten.
 pub(crate) struct PermittedPhysical<'permit, 'meaning, 'scope> {
     permit: &'permit SemanticPermit<'scope>,
-    meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'meaning>,
+    meaning: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'meaning>,
     authority: crate::domain::executable_program::physical::PhysicalAuthorization,
 }
 

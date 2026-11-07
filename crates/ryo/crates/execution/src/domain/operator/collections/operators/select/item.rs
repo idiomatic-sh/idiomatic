@@ -36,10 +36,14 @@ impl OperatorsItem for SelectItem {
         let PreparedInputs::Row { row, .. } = inputs else {
             return Err(OperatingError::WrongOperation);
         };
-        let holds = lease.holds(row)? != Verdict::Fails;
+        let holds = if lease.holds(row)? == Verdict::Fails {
+            ryo_operators::domain::select::types::PredicateOutcome::Fails
+        } else {
+            ryo_operators::domain::select::types::PredicateOutcome::Holds
+        };
         let mut projected = std::mem::take(&mut lease.workspace.other);
         let answer = lease.semantics().operators(
-            ryo_operators::inbound::use_cases::operators::interface::OperatorCall::Select {
+            ryo_operators::inbound::use_cases::operators::types::OperatorCall::Select {
                 row,
                 kept,
                 holds,
@@ -48,13 +52,13 @@ impl OperatorsItem for SelectItem {
         );
         let outcome = match answer {
             Ok(
-                ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Selected(
-                    false,
+                ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Selected(
+                    ryo_operators::domain::select::types::RowSelection::Dropped,
                 ),
             ) => Ok(()),
             Ok(
-                ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Selected(
-                    true,
+                ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Selected(
+                    ryo_operators::domain::select::types::RowSelection::Kept,
                 ),
             ) => sink.row(lease, if kept.is_empty() { row } else { &projected }),
             Err(error) => Err(crate::domain::operator::contract::types::portable_fault(

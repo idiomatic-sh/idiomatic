@@ -12,11 +12,11 @@ pub fn project(
 ) -> Result<(), PortableOperatorFault> {
     for column in columns {
         let index = usize::try_from(column.0)
-            .map_err(|_| PortableOperatorFault::NoSuchColumn { index: column.0 })?;
+            .map_err(|_| PortableOperatorFault::NoSuchColumn { index: column })?;
         projected.push(
             row.get(index)
                 .copied()
-                .ok_or(PortableOperatorFault::NoSuchColumn { index: column.0 })?,
+                .ok_or(PortableOperatorFault::NoSuchColumn { index: column })?,
         );
     }
     Ok(())

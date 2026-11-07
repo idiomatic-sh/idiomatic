@@ -30,7 +30,7 @@ pub fn hash_row(row: &[Value], on: On<'_>) -> KeyCellsHash {
         On::Columns(columns) => hash_key(
             columns
                 .iter()
-                .map(|column| usize::try_from(column.0).ok().and_then(|at| row.get(at))),
+                .map(|column| row.get(column.0 as usize)),
         ),
     }
 }

@@ -61,9 +61,9 @@ impl OperatorsItem for WordsItem {
         let width = 1;
         let mut word = std::mem::take(&mut lease.workspace.word);
         let answer = lease.semantics().operators(
-            ryo_operators::inbound::use_cases::operators::interface::OperatorCall::Words {
-                text: &text,
-                word: &mut word.0,
+            ryo_operators::inbound::use_cases::operators::types::OperatorCall::Words {
+                text: ryo_values::domain::row_texts::types::CellText(&text),
+                word: ryo_operators::domain::words::types::WordScratch(&mut word.0),
                 each: &mut |each: &str| {
                     let made = query_intern_derived(
                         &mut lease.derived,

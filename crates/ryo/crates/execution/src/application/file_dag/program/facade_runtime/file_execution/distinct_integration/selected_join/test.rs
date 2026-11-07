@@ -1,9 +1,10 @@
 //! Selected RHS projection and duplicate order through the real compiled Join.
 use super::super::*;
 use crate::domain::table_model::service::{read_row_counts, take_read_row_counts};
-use ryo_operators::inbound::use_cases::operators::interface::{
-    OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault,
-};
+use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
+use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
+use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
+use ryo_operators::domain::contract::types::PortableOperatorFault;
 
 /// Observe only actual Join driver work, excluding prepared walks and publication delivery.
 #[derive(Debug, Default)]
@@ -12,7 +13,7 @@ impl OperatorsUseCase for JoinReads {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         let before = matches!(&call, OperatorCall::EqualityJoin { .. }).then(read_row_counts);
         let answer =
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new()
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))
                 .operators(call);
         if let Some(before) = before {
             let after = read_row_counts();

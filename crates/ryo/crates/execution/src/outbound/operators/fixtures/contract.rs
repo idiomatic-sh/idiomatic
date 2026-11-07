@@ -1,9 +1,8 @@
 //! Behavioral contract shared by the injected operator adapter and test fake.
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::operators::interface::OperatorsPort;
-use ryo_operators::inbound::use_cases::operators::interface::{
-    OperatorAnswer, OperatorCall, PortableOperatorFault,
-};
+use ryo_operators::inbound::use_cases::operators::types::{OperatorAnswer, OperatorCall};
+use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::types::{Integer, Value as CellValue};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
@@ -37,7 +36,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
                 vec![ColumnIndex(3), ColumnIndex(2)],
             )
         },
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: 3 }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(3) }),
     },
 ];
 

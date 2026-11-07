@@ -1,12 +1,18 @@
 //! Exact physical spans, CRLF lines, capture refusals and interruption prefixes.
 use super::service::occurrences;
-use crate::domain::contract::types::{PortableOperatorFault, SemanticInterrupted};
-use crate::domain::source_matches::types::{SourceMatchesInput, TextRowDriver};
+use crate::domain::contract::types::{PortableOperatorFault};
+use crate::domain::contract::errors::ContractError;
+use crate::domain::source_matches::types::{
+    BaseLine, CaptureRequest, LineBytes, SourceBase, SourceMatchesInput, TextRowDriver,
+};
+use ryo_values::domain::query_operators::types::{LineOutput, TextOutput};
+use ryo_values::domain::row_texts::types::CellText;
 use ryo_matching::inbound::use_cases::matching::{
-    interface::MatchingUseCase, types::RegexSource, use_case::MatchingUseCaseImpl,
+    interface::MatchingUseCase, types::{GroupName, RegexSource, SearchText},
+    use_case::MatchingUseCaseImpl,
 };
 use ryo_relations::domain::relations::types::{Integer, Offset, Span, Value as Cell};
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 #[derive(Clone, Copy)]
 enum Scenario {
     Lines,
@@ -80,15 +86,15 @@ struct Driver {
     rows: Vec<Cell>,
 }
 impl TextRowDriver for Driver {
-    fn intern(&mut self, text: &str) -> Cell {
+    fn intern(&mut self, text: CellText<'_>) -> Cell {
         self.interns += 1;
-        assert!(text == "b" || text == "c");
-        Cell::Number(Integer(i64::try_from(text.len()).unwrap()))
+        assert!(text.0 == "b" || text.0 == "c");
+        Cell::Number(Integer(i64::try_from(text.0.len()).unwrap()))
     }
-    fn emit(&mut self, row: &[Cell]) -> Result<(), SemanticInterrupted> {
+    fn emit(&mut self, row: &[Cell]) -> Result<(), ContractError> {
         self.deliveries += 1;
         if matches!(self.scenario, Scenario::Interrupted) {
-            return Err(SemanticInterrupted);
+            return Err(ContractError::Interrupted);
         }
         self.rows.extend_from_slice(row);
         Ok(())
@@ -115,17 +121,40 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let result = occurrences(
         SourceMatchesInput {
             row: &[],
-            source: source.as_bytes(),
-            base,
-            text: source,
-            line,
+            source: LineBytes(source.as_bytes()),
+            base: SourceBase(base),
+            text: CellText(source),
+            line: line.map_or(BaseLine::Unnumbered, |first| {
+                BaseLine::Starts(Integer(first))
+            }),
             regex: &regex,
-            capture,
-            capture_text: true,
-            capture_line: !matches!(scenario, Scenario::Overflow),
+            capture: capture.map_or(CaptureRequest::Whole, |name| {
+                CaptureRequest::Group(CellText(name))
+            }),
+            capture_text: TextOutput::Appended,
+            capture_line: if matches!(scenario, Scenario::Overflow) {
+                LineOutput::Omitted
+            } else {
+                LineOutput::Appended
+            },
         },
         &mut driver,
         &mut output,
+        &|each| match capture {
+            Some(name) => MatchingUseCaseImpl::new()
+                .visit_regex_captures(
+                    &regex,
+                    SearchText(source),
+                    GroupName(name),
+                    &mut |found, group| each(found.0, Some(group.0)),
+                )
+                .map_err(|_| PortableOperatorFault::MissingCapture),
+            None => Ok(MatchingUseCaseImpl::new().visit_regex_matches(
+                &regex,
+                SearchText(source),
+                &mut |found| each(found.0, None),
+            )),
+        },
     );
     match scenario {
         Scenario::Lines => {
@@ -135,6 +164,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::Interrupted => {
             assert_eq!(driver.interns, 1);
             assert_eq!(driver.deliveries, 1);
+            assert!(
+                matches!(driver.emit(&[]), Err(ContractError::Interrupted)),
+                "an interrupted delivery keeps refusing"
+            );
         }
         _ => {
             assert_eq!(driver.interns, 0);

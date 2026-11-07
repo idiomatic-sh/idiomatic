@@ -57,12 +57,12 @@ fn records() -> RetainedBytes {
     buckets.push(HandedWords {
         bucket: Bucket(0),
         proof: proof(),
-        words: RecordWords::Inline(PackedWords(packed)),
+        handed: RecordWords::Inline(PackedWords(packed)),
     });
     buckets.push(HandedWords {
         bucket: Bucket(1),
         proof: proof(),
-        words: RecordWords::Staged(StagedWords {
+        handed: RecordWords::Staged(StagedWords {
             session: StagingSession(1),
             offset: crate::domain::records::types::PayloadOffset(0),
             length: crate::domain::records::types::PayloadLength(11),

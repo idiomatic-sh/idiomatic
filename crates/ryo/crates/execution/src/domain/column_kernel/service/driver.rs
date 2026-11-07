@@ -6,9 +6,9 @@ use crate::domain::table_model::service::cell_at;
 use crate::domain::table_model::types::Rows;
 use ryo_language::domain::symbols::service::{hash_in, hash_of, text_of};
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
-use ryo_operators::inbound::use_cases::operators::interface::{
-    JoinCells, JoinDriver, JoinInterrupted,
-};
+use ryo_operators::domain::equality_join::types::JoinCells;
+use ryo_operators::domain::equality_join::types::{Advance, JoinDriver};
+use ryo_operators::domain::equality_join::errors::EqualityJoinError;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
 use ryo_values::domain::rows::service::push_row;
@@ -42,9 +42,9 @@ pub(super) struct Driver<'a, 'f> {
     pub(super) error: Option<OperatingError>,
 }
 impl JoinDriver for Driver<'_, '_> {
-    fn next(&mut self, key: &[Value]) -> Result<bool, JoinInterrupted> {
+    fn next(&mut self, key: &[Value]) -> Result<Advance, EqualityJoinError> {
         if self.error.is_some() {
-            return Err(JoinInterrupted);
+            return Err(EqualityJoinError::Interrupted);
         }
         let mut probe = self.probe.take().unwrap_or_else(|| self.index.probe(key));
         self.current = None;
@@ -64,7 +64,7 @@ impl JoinDriver for Driver<'_, '_> {
                 self.decoded,
             ) else {
                 self.error = Some(OperatingError::ShapeMismatch);
-                return Err(JoinInterrupted);
+                return Err(EqualityJoinError::Interrupted);
             };
             #[cfg(feature = "diagnostic-row-progress")]
             (self.index.progress)(
@@ -78,7 +78,7 @@ impl JoinDriver for Driver<'_, '_> {
             break;
         }
         self.probe = Some(probe);
-        Ok(self.current.is_some())
+        Ok(Advance::from(self.current.is_some()))
     }
     fn right_cell(
         &self,
@@ -91,9 +91,9 @@ impl JoinDriver for Driver<'_, '_> {
         self.decoded.set(self.decoded.get().saturating_add(1));
         Some(value)
     }
-    fn emit(&mut self, row: &[Value]) -> Result<(), JoinInterrupted> {
+    fn emit(&mut self, row: &[Value]) -> Result<(), EqualityJoinError> {
         if self.error.is_some() {
-            return Err(JoinInterrupted);
+            return Err(EqualityJoinError::Interrupted);
         }
         #[cfg(feature = "diagnostic-row-progress")]
         (self.index.progress)(

@@ -1,7 +1,7 @@
 //! What the `typecheck` use case promises its callers.
 
 use super::errors::TypecheckError;
-use super::types::TypecheckRequest;
+use ryo_values::domain::plans::types::QueryRequest;
 use ryo_values::domain::descriptions::types::ValidateReport;
 
 /// What `typecheck` offers its callers.
@@ -12,5 +12,5 @@ pub trait TypecheckUseCase: Send + Sync {
     /// # Errors
     ///
     /// `Syntax`, `UnknownRelation`, `Type` or `Invalid`, with the place where the text is wrong.
-    fn typecheck(&self, request: TypecheckRequest) -> Result<ValidateReport, TypecheckError>;
+    fn typecheck(&self, request: QueryRequest) -> Result<ValidateReport, TypecheckError>;
 }

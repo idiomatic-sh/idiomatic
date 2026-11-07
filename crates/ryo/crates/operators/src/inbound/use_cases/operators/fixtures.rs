@@ -9,7 +9,7 @@ use ryo_matching::inbound::use_cases::matching::{
 /// The operators capability composed as an edge composes it.
 #[must_use]
 pub fn operators() -> impl OperatorsUseCase {
-    OperatorsUseCaseImpl::new()
+    OperatorsUseCaseImpl::new(std::sync::Arc::new(crate::outbound::matching::factory::use_case()))
 }
 
 /// A compiled regex of an authored pattern the tests know to be valid.

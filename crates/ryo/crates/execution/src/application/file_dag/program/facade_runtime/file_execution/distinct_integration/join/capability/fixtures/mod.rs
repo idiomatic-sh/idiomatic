@@ -1,8 +1,11 @@
 //! The operators-port witness and refusal the capability proofs share with the join proofs beside them.
 use super::super::*;
-use ryo_operators::inbound::use_cases::operators::interface::{
-    JoinInput, JoinRow, OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault,
-};
+use ryo_operators::domain::equality_join::types::JoinInput;
+use ryo_operators::domain::equality_join::types::JoinRow;
+use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
+use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
+use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
+use ryo_operators::domain::contract::types::PortableOperatorFault;
 use std::sync::atomic::{AtomicUsize, Ordering};
 pub(in super::super) const REFUSAL: u32 = 60001;
 #[derive(Debug, Default)]
@@ -37,10 +40,10 @@ impl OperatorsUseCase for Witness {
                 _ => {}
             }
             if self.refuse && (!self.only_columns || columnar) {
-                return Err(PortableOperatorFault::NoSuchColumn { index: REFUSAL });
+                return Err(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(REFUSAL) });
             }
         }
-        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new()
+        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))
             .operators(call)
     }
 }
@@ -49,7 +52,7 @@ pub(crate) fn refusal(result: Result<Table, OperatingError>) {
         matches!(
             result,
             Err(OperatingError::Table(
-                ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: REFUSAL }
+                ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(REFUSAL) }
             ))
         ),
         "{result:?}"

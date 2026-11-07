@@ -17,7 +17,7 @@ pub fn read_handed(stored: StoredHanded) -> ReadHanded {
                 file: row.file,
                 bucket: row.bucket,
                 proof: row.proof,
-                words: ReadWordPayload::Inline(row.words),
+                payload: ReadWordPayload::Inline(row.words),
             })
             .collect(),
         texts: stored.texts,

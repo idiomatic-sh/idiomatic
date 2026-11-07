@@ -1,27 +1,35 @@
 //! Inbound implementation delegates projection to the pure domain algorithm.
 use super::interface::OperatorsUseCase;
-use crate::domain::capture::types::{CaptureSlots, SlotPattern, SlotSubject};
-use crate::domain::equality_join::types::{PositionSlots, PositionTarget};
+use std::sync::Arc;
+use crate::outbound::matching::interface::MatchingPort;
+use ryo_matching::inbound::use_cases::matching::types::{GroupName, SearchText};
 use crate::domain::project::service;
-use crate::domain::reduction::types::{Finishing, GroupCounts, HashScratch};
-use crate::domain::replace::types::{ReplacedText, ReplacementText};
-use crate::domain::select::types::{PredicateOutcome, RowSelection};
-use crate::domain::words::types::WordScratch;
-use crate::inbound::use_cases::operators::interface::{
-    OperatorAnswer, OperatorCall, PortableOperatorFault,
-};
-use ryo_relations::domain::relations::types::{Count, Integer};
+use crate::domain::source_matches::types::CaptureRequest;
+use crate::inbound::use_cases::operators::types::OperatorAnswer;
+use crate::inbound::use_cases::operators::types::OperatorCall;
+use crate::domain::contract::types::PortableOperatorFault;
 use ryo_values::domain::row_texts::types::CellText;
 
-/// Stateless capability implementation; the adapter is composed once by the engine.
-#[derive(Clone, Copy, Debug)]
-pub struct OperatorsUseCaseImpl;
+/// Capability implementation over the matching port; the edge composes it once.
+#[derive(Clone)]
+pub struct OperatorsUseCaseImpl {
+    /// Finds the occurrences of a prepared regex in a text.
+    matching: Arc<dyn MatchingPort>,
+}
+
+impl std::fmt::Debug for OperatorsUseCaseImpl {
+    /// The use case for a debug print: its port is a trait object with no `Debug`, so it names only itself.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(std::any::type_name::<Self>())
+            .finish_non_exhaustive()
+    }
+}
 
 impl OperatorsUseCaseImpl {
-    /// A stateless semantic capability composed once at an edge.
+    /// A semantic capability composed once at an edge, with the port that finds regex occurrences.
     #[must_use]
-    pub const fn new() -> Self {
-        Self
+    pub fn new(matching: Arc<dyn MatchingPort>) -> Self {
+        Self { matching }
     }
 }
 
@@ -55,14 +63,14 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                     keys,
                     over,
                     order,
-                    HashScratch(hashes),
+                    hashes,
                     hasher,
                     target,
                 )?;
                 Ok(OperatorAnswer::Written)
             }
             OperatorCall::HashValue { datum } => Ok(OperatorAnswer::ValueHash(
-                crate::domain::reduction::service::hash_of(datum).0,
+                crate::domain::reduction::service::hash_of(datum),
             )),
             OperatorCall::CheckAggregation {
                 program,
@@ -88,16 +96,7 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 digest,
                 target,
             } => {
-                crate::domain::reduction::service::finish(
-                    GroupCounts(counts),
-                    hashes,
-                    if digest {
-                        Finishing::Digested
-                    } else {
-                        Finishing::Counted
-                    },
-                    target,
-                );
+                crate::domain::reduction::service::finish(counts, hashes, digest, target);
                 Ok(OperatorAnswer::Written)
             }
 
@@ -109,16 +108,12 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
             } => crate::domain::select::service::select(
                 row,
                 kept,
-                if holds {
-                    PredicateOutcome::Holds
-                } else {
-                    PredicateOutcome::Fails
-                },
+                holds,
                 target,
             )
-            .map(|selection| OperatorAnswer::Selected(selection == RowSelection::Kept)),
+            .map(OperatorAnswer::Selected),
             OperatorCall::Words { text, word, each } => {
-                crate::domain::words::service::split(CellText(text), WordScratch(word), each);
+                crate::domain::words::service::split(text, word, each);
                 Ok(OperatorAnswer::Written)
             }
             OperatorCall::Capture {
@@ -128,16 +123,12 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 each,
             } => {
                 crate::domain::capture::service::matches(
-                    SlotPattern(pattern),
-                    SlotSubject(text),
-                    SlotSubject(text),
-                    CaptureSlots(slots),
-                    each,
+                    pattern, text, text, slots, each,
                 );
                 Ok(OperatorAnswer::Written)
             }
             OperatorCall::Rank { text, layers } => Ok(OperatorAnswer::Rank(
-                crate::domain::rank::service::rank(CellText(text), layers),
+                crate::domain::rank::service::rank(text, layers),
             )),
             OperatorCall::Replace {
                 regex,
@@ -146,10 +137,13 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 target,
             } => {
                 crate::domain::replace::service::replace_compiled(
-                    regex,
-                    CellText(text),
-                    ReplacementText(replacement),
-                    ReplacedText(target),
+                    &|each| {
+                        self.matching
+                            .visit_regex_matches(regex, SearchText(text.0), &mut |found| each(found.0))
+                    },
+                    text,
+                    replacement,
+                    target,
                 )?;
                 Ok(OperatorAnswer::Written)
             }
@@ -163,8 +157,8 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 crate::domain::aggregate::service::aggregate(
                     row,
                     keys,
-                    Count(count),
-                    digest.map(Integer),
+                    count,
+                    digest,
                     target,
                 )?;
                 Ok(OperatorAnswer::Written)
@@ -182,7 +176,28 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 driver,
                 target,
             } => {
-                crate::domain::source_matches::service::occurrences(input, driver, target)?;
+                let (regex, text, capture) = (input.regex, input.text.0, input.capture);
+                crate::domain::source_matches::service::occurrences(
+                    input,
+                    driver,
+                    target,
+                    &|each| match capture {
+                        CaptureRequest::Group(name) => self
+                            .matching
+                            .visit_regex_captures(
+                                regex,
+                                SearchText(text),
+                                GroupName(name.0),
+                                &mut |found, group| each(found.0, Some(group.0)),
+                            )
+                            .map_err(|_| PortableOperatorFault::MissingCapture),
+                        CaptureRequest::Whole => Ok(self.matching.visit_regex_matches(
+                            regex,
+                            SearchText(text),
+                            &mut |found| each(found.0, None),
+                        )),
+                    },
+                )?;
                 Ok(OperatorAnswer::Written)
             }
             OperatorCall::OrderedExistence {
@@ -199,14 +214,14 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
             }
             OperatorCall::SetRow { input } => {
                 match input {
-                    crate::inbound::use_cases::operators::interface::SetInput::Values {
+                    crate::domain::set_rows::types::SetInput::Values {
                         kind,
                         row,
                         left_on,
                         driver,
                         key,
                     } => crate::domain::set_rows::service::values(kind, row, left_on, driver, key)?,
-                    crate::inbound::use_cases::operators::interface::SetInput::Positions {
+                    crate::domain::set_rows::types::SetInput::Positions {
                         kind,
                         driver,
                     } => crate::domain::set_rows::service::positions(kind, driver)?,
@@ -215,7 +230,7 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
             }
             OperatorCall::EqualityJoin { input } => {
                 match input {
-                    crate::inbound::use_cases::operators::interface::JoinInput::Values {
+                    crate::domain::equality_join::types::JoinInput::Values {
                         left,
                         left_on,
                         output,
@@ -226,14 +241,14 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                     } => crate::domain::equality_join::service::join_row(
                         left, left_on, output, view, driver, key, target,
                     )?,
-                    crate::inbound::use_cases::operators::interface::JoinInput::Positions {
+                    crate::domain::equality_join::types::JoinInput::Positions {
                         left,
                         driver,
                         target,
                     } => crate::domain::equality_join::service::positions(
-                        PositionSlots(left),
+    left,
                         driver,
-                        PositionTarget(target),
+                        target,
                     )?,
                 }
                 Ok(OperatorAnswer::Written)
@@ -270,12 +285,12 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
 }
 
 impl<F: FnMut(&str)> crate::domain::words::types::WordOutput for F {
-    fn word(&mut self, text: &str) {
-        self(text);
+    fn word(&mut self, text: CellText<'_>) {
+        self(text.0);
     }
 }
 impl<F: FnMut(&[std::ops::Range<usize>])> crate::domain::capture::types::CaptureOutput for F {
-    fn captures(&mut self, ranges: &[std::ops::Range<usize>]) {
-        self(ranges);
+    fn captures(&mut self, ranges: crate::domain::capture::types::CaptureSpans<'_>) {
+        self(ranges.0);
     }
 }

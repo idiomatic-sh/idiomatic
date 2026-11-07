@@ -142,7 +142,7 @@ pub fn validate_frontiers<'a>(
     map: &'a crate::domain::records::types::FrontierReadiness,
     layout: crate::domain::records::types::ObservationReadinessLayout,
     slots: crate::domain::records::types::ObservationReadinessCount,
-) -> Result<super::types::ValidatedFrontiers<'a>, ObservationsError> {
+) -> Result<super::validated::ValidatedFrontiers<'a>, ObservationsError> {
     use ObservationsError::Invalid;
     let words = (slots.0 as usize).div_ceil(64);
     if map.version != super::constants::READINESS_VERSION
@@ -174,11 +174,11 @@ pub fn validate_frontiers<'a>(
         }
         previous = Some(refusal.slot);
     }
-    Ok(super::types::ValidatedFrontiers(map))
+    Ok(super::validated::ValidatedFrontiers(map))
 }
 /// Read the already-validated generation. Missing state is an explicit Unknown, not complete-empty.
 pub fn frontier_state(
-    map: super::types::ValidatedFrontiers<'_>,
+    map: super::validated::ValidatedFrontiers<'_>,
     slot: crate::domain::records::types::ObservationReadinessSlot,
 ) -> Result<crate::domain::records::types::ProducerReadiness, ObservationsError> {
     use crate::domain::records::types::FrontierRefusalReason;
@@ -230,7 +230,7 @@ fn bit(
 }
 /// Digest one original producer's slot range without walking unrelated roots or allocating rows.
 pub fn frontier_identity(
-    validated: super::types::ValidatedFrontiers<'_>,
+    validated: super::validated::ValidatedFrontiers<'_>,
     range: super::types::ObservationReadinessRange,
 ) -> Result<ObservationIdentityBytes, ObservationsError> {
     use crate::domain::records::types::ObservationReadinessSlot;

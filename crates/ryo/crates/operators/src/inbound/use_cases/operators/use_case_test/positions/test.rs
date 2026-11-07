@@ -1,17 +1,27 @@
 //! Public acceptance of deferred position rows and bag order.
-use crate::inbound::use_cases::operators::{fixtures, interface::*};
+use crate::inbound::use_cases::operators::{fixtures, interface::OperatorsUseCase};
+use crate::domain::capture::types::*;
+use crate::domain::contract::types::*;
+use crate::inbound::use_cases::operators::types::*;
+use crate::domain::equality_join::types::*;
+use crate::domain::ordered_existence::types::*;
+use crate::domain::ordered_match::types::*;
+use crate::domain::reduction::types::*;
+use crate::domain::set_rows::types::*;
+use crate::domain::source_matches::types::*;
+use crate::domain::words::types::*;
 
 struct Positions {
     at: usize,
     rows: Vec<Vec<u32>>,
 }
 impl PositionJoinDriver for Positions {
-    fn next(&mut self) -> Result<bool, JoinInterrupted> {
+    fn next(&mut self) -> Result<Advance, EqualityJoinError> {
         self.at += 1;
-        Ok(self.at <= self.rows.len())
+        Ok(Advance::from(self.at <= self.rows.len()))
     }
-    fn right_positions(&self) -> &[u32] {
-        &self.rows[self.at - 1]
+    fn right_positions(&self) -> PositionSlots<'_> {
+        PositionSlots(&self.rows[self.at - 1])
     }
 }
 fn position_representation_keeps_slots_deferred_ordered_and_duplicate() {
@@ -23,9 +33,9 @@ fn position_representation_keeps_slots_deferred_ordered_and_duplicate() {
     assert_eq!(
         fixtures::operators().operators(OperatorCall::EqualityJoin {
             input: JoinInput::Positions {
-                left: &[4, 2],
+                left: PositionSlots(&[4, 2]),
                 driver: &mut driver,
-                target: &mut target
+                target: PositionTarget(&mut target)
             }
         }),
         Ok(OperatorAnswer::Written)
@@ -33,7 +43,7 @@ fn position_representation_keeps_slots_deferred_ordered_and_duplicate() {
     assert_eq!(target, vec![99, 4, 2, 9, 3, 4, 2, 1, 7, 4, 2, 9, 3]);
 }
 
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 type Input = fn();
 type Value = ();
 type Failure = std::convert::Infallible;

@@ -175,7 +175,7 @@ fn exercise(given: &[&[i64]], expected: Option<&[i64]>, registered_calls: usize)
     .expect("prepared named request");
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
         ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {

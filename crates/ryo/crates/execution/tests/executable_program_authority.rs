@@ -214,7 +214,7 @@ pub mod application { pub mod file_dag {
       }
       pub fn physical<'p, 'm, 's>(
         permit: &'p SemanticPermit<'s>,
-        meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'m>,
+        meaning: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'m>,
       ) -> PermittedPhysical<'p, 'm, 's> {
         PermittedPhysical {
           permit, meaning,
@@ -269,7 +269,7 @@ fn physical_permits_are_minted_only_by_admission() {
         &permit_source(
             "pub fn forge<'p, 'm, 's>(
               permit: &'p SemanticPermit<'s>,
-              meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'m>,
+              meaning: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'m>,
             ) -> PermittedPhysical<'p, 'm, 's> {
               PermittedPhysical {
                 permit, meaning,

@@ -78,7 +78,7 @@ pub(in super::super) fn compare_delivery_with_semantic(
         semantic,
         refusal,
         Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
         ),
     )
 }
@@ -314,14 +314,16 @@ impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase
 {
     fn operators(
         &self,
-        call: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'_>,
+        call: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,
     ) -> Result<
-        ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer,
-        ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault,
+        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
+        ryo_operators::domain::contract::types::PortableOperatorFault,
     > {
-        use ryo_operators::inbound::use_cases::operators::interface::{
-            OperatorAnswer, OperatorCall, OperatorsUseCase, SetInput, SetKind,
-        };
+        use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
+        use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
+        use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
+        use ryo_operators::domain::set_rows::types::SetInput;
+        use ryo_operators::domain::set_rows::types::SetKind;
         match call {
             OperatorCall::SetRow {
                 input:
@@ -344,7 +346,7 @@ impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase
                 Ok(OperatorAnswer::Written)
             }
             other => {
-                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new()
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))
                     .operators(other)
             }
         }

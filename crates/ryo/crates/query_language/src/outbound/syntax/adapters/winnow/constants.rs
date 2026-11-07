@@ -96,7 +96,7 @@ pub(crate) fn keyword_text(keyword: Keyword) -> &'static str {
         Keyword::Input => "input",
         Keyword::Output => ryo_values::domain::descriptions::constants::OUTPUT,
         Keyword::Return => "return",
-        Keyword::Relation => "relation",
+        Keyword::Relation => ryo_values::domain::descriptions::constants::RELATION,
         Keyword::Let => "let",
         Keyword::Emit => "emit",
         Keyword::Observe => "observe",

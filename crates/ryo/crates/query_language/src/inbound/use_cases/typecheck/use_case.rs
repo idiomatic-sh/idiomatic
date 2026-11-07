@@ -5,7 +5,7 @@ use std::sync::Arc;
 use super::errors::TypecheckError;
 use super::interface::TypecheckUseCase;
 use super::service::{invalid, unresolved};
-use super::types::TypecheckRequest;
+use ryo_values::domain::plans::types::QueryRequest;
 use crate::domain::assembling::service::lower_with_observations;
 use crate::domain::linking::errors::LinkingError;
 use crate::domain::syntax::constants::operator_name;
@@ -44,7 +44,7 @@ impl TypecheckUseCaseImpl {
 }
 
 impl TypecheckUseCase for TypecheckUseCaseImpl {
-    fn typecheck(&self, request: TypecheckRequest) -> Result<ValidateReport, TypecheckError> {
+    fn typecheck(&self, request: QueryRequest) -> Result<ValidateReport, TypecheckError> {
         let parsed = self
             .syntax
             .read_bundle(&request.text)

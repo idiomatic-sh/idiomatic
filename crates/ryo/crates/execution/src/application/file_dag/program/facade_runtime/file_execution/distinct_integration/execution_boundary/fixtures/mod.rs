@@ -25,7 +25,7 @@ pub(crate) fn source(rows: Rows<'_>) -> Result<Table, OperatingError> {
     )?;
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
         ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {

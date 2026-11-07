@@ -1,5 +1,6 @@
 //! The `calling` service's cases, on query text read by the real syntax adapter: the calls that shape rows.
 
+use crate::inbound::use_cases::compile::use_case_test::SELECT_PROJECT;
 use ryo_relations::domain::relations::types::Relation;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -29,7 +30,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("a_call_is_one_step_of_its_own_operation"),
     word: Word::Succeeds,
     input: || CALLED,
-    expect: Expect::Value("select project"),
+    expect: Expect::Value(SELECT_PROJECT),
 }];
 
 /// The relations the rows may read.

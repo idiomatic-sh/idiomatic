@@ -103,7 +103,7 @@ pub(super) fn world(plan: Plan) -> World {
     world_with(
         vec![plan],
         Arc::new(ryo_execution::outbound::operators::factory::use_case(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
         )),
     )
 }
@@ -361,14 +361,13 @@ pub(super) struct ProjectCalls {
 impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase for ProjectCalls {
     fn operators(
         &self,
-        call: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'_>,
+        call: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,
     ) -> Result<
-        ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer,
-        ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault,
+        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
+        ryo_operators::domain::contract::types::PortableOperatorFault,
     > {
-        use ryo_operators::inbound::use_cases::operators::interface::{
-            OperatorCall, OperatorsUseCase,
-        };
+        use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
+        use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
         use std::sync::atomic::Ordering;
         match &call {
             OperatorCall::ReduceCount { .. } => {
@@ -379,7 +378,7 @@ impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase f
             }
             _ => {}
         }
-        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new()
+        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))
             .operators(call)
     }
 }

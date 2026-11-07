@@ -5,7 +5,7 @@ use ryo_relations::domain::relations::{
     constants::NO_SPAN,
     types::{Integer, Offset, Span, Value as Cell},
 };
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 type Input = (Vec<Cell>, u32, u32, usize);
 type Value = Cell;
@@ -134,7 +134,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("missing_right_column_is_reported_by_index"),
         word: Word::Refuses,
         input: || (vec![number(1)], 0, 1, 0),
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: 1 }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(1) }),
     },
     Case {
         name: CaseName("lookups_precede_the_type_check"),
@@ -146,7 +146,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("leftmost_missing_column_is_reported_first"),
         word: Word::Refuses,
         input: || (vec![], 8, 9, 0),
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: 8 }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(8) }),
     },
     Case {
         name: CaseName("inverted_left_does_not_hide_a_wrong_right_type"),

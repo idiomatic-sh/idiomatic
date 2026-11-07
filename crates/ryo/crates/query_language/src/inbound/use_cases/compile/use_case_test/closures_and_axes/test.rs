@@ -1,5 +1,6 @@
 //! The `closure` and `axis` calls, on query text read by the real syntax adapter.
 
+use crate::inbound::use_cases::compile::use_case_test::SELECT_CLOSURE;
 use crate::domain::lowering::types::Builder;
 use crate::domain::selecting::service::lower_select;
 use crate::domain::syntax::constants::operator_named;
@@ -204,25 +205,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("closure_omitted"),
         word: Word::Succeeds,
         input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child); emit c subject parent key(child);",
-        expect: Expect::Value("select closure"),
+        expect: Expect::Value(SELECT_CLOSURE),
     },
     Case {
         name: CaseName("closure_empty"),
         word: Word::Succeeds,
         input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child, keys=[]); emit c subject parent key(child);",
-        expect: Expect::Value("select closure"),
+        expect: Expect::Value(SELECT_CLOSURE),
     },
     Case {
         name: CaseName("closure_one_key"),
         word: Word::Succeeds,
         input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child, keys=[file]); emit c subject parent key(child);",
-        expect: Expect::Value("select closure"),
+        expect: Expect::Value(SELECT_CLOSURE),
     },
     Case {
         name: CaseName("closure_multiple_keys"),
         word: Word::Succeeds,
         input: || "let e = select * from \"syntax-child\"; let c = closure(edges=e, source=parent, destination=child, keys=[file, ordinal]); emit c subject parent key(child);",
-        expect: Expect::Value("select closure"),
+        expect: Expect::Value(SELECT_CLOSURE),
     },
     Case {
         name: CaseName("closure_refuses_repeated_key"),

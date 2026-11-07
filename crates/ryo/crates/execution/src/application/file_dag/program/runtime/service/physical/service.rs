@@ -21,7 +21,7 @@ impl<'scope> SemanticPermit<'scope> {
     pub(in crate::application::file_dag) fn physical<'call, 'meaning>(
         &'call self,
         binding: &crate::domain::executable_program::physical::PhysicalBinding<'_>,
-        meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'meaning>,
+        meaning: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'meaning>,
     ) -> Result<PermittedPhysical<'call, 'meaning, 'scope>, OperatingError> {
         self.validate_live()?;
         use crate::domain::executable_program::physical::{self, PhysicalRoute};
@@ -59,7 +59,7 @@ impl PermittedPhysical<'_, '_, '_> {
         self,
         port: &dyn crate::outbound::operators::interface::OperatorsPort,
     ) -> Result<
-        ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer,
+        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
         crate::application::file_dag::executor::KernelFault,
     > {
         if !self.permit.live.is_live() {

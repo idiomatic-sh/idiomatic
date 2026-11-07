@@ -123,7 +123,7 @@ pub(crate) fn compile(query: &str) -> Result<Vec<PlanParameter>, String> {
     );
     ryo_query_language::inbound::use_cases::compile::interface::CompileUseCase::compile(
         &compiler,
-        ryo_query_language::inbound::use_cases::compile::types::CompileRequest {
+        ryo_values::domain::plans::types::QueryRequest {
             observations: Vec::new(),
             text: ryo_values::domain::query_tokens::types::QueryBundle::from(CoreQueryText(
                 query.into(),
@@ -377,7 +377,7 @@ pub(crate) fn lint_report_with_languages(
             )),
             Arc::clone(&analysis_memory),
             Arc::new(ryo_execution::outbound::operators::factory::use_case(
-                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
             )),
             std::sync::Arc::new(ryo_execution::outbound::derived::factory::use_case(
                 ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),

@@ -1,9 +1,13 @@
 //! Set semantics preserve membership order, duplicates and lazy antijoin keys.
 use super::service::{positions, values};
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::set_rows::types::{SetInterrupted, SetKind, SetPositionsDriver, SetRowDriver};
+use crate::domain::equality_join::types::Advance;
+use crate::domain::set_rows::types::{
+    Membership, Occurrence, Population, SetKind, SetPositionsDriver, SetRowDriver,
+};
+use crate::domain::set_rows::errors::SetRowsError;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 #[derive(Clone, Copy)]
@@ -71,7 +75,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("nonempty_right_antijoin_checks_first_missing_key"),
         word: Word::Refuses,
         input: || Scenario::AntijoinInvalidKey,
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: 2 }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(2) }),
     },
     Case {
         name: CaseName("deferred_union_keeps_only_first_position_row"),
@@ -107,29 +111,29 @@ struct PositionProbe {
     calls: Value,
 }
 impl SetPositionsDriver for PositionProbe {
-    fn next(&mut self) -> Result<bool, SetInterrupted> {
+    fn next(&mut self) -> Result<Advance, SetRowsError> {
         if self.next == 2 {
-            return Ok(false);
+            return Ok(Advance::Exhausted);
         }
         self.current = self.next;
         self.next += 1;
-        Ok(true)
+        Ok(Advance::Admitted)
     }
-    fn right_empty(&mut self) -> Result<bool, SetInterrupted> {
-        Ok(self.right_empty)
+    fn right_empty(&mut self) -> Result<Population, SetRowsError> {
+        Ok(Population::from(self.right_empty))
     }
-    fn contains_right(&mut self) -> Result<bool, SetInterrupted> {
+    fn contains_right(&mut self) -> Result<Membership, SetRowsError> {
         self.calls[0] += 1;
-        Ok(self.current == 0)
+        Ok(Membership::from(self.current == 0))
     }
-    fn first_time(&mut self) -> Result<bool, SetInterrupted> {
+    fn first_time(&mut self) -> Result<Occurrence, SetRowsError> {
         self.calls[1] += 1;
-        Ok(self.current == 0)
+        Ok(Occurrence::from(self.current == 0))
     }
-    fn emit(&mut self) -> Result<(), SetInterrupted> {
+    fn emit(&mut self) -> Result<(), SetRowsError> {
         self.calls[2] += 1;
         if self.fail_emit {
-            return Err(SetInterrupted);
+            return Err(SetRowsError::Interrupted);
         }
         Ok(())
     }
@@ -142,20 +146,20 @@ struct Probe {
     calls: Value,
 }
 impl SetRowDriver for Probe {
-    fn right_empty(&mut self) -> Result<bool, SetInterrupted> {
-        Ok(self.right_empty)
+    fn right_empty(&mut self) -> Result<Population, SetRowsError> {
+        Ok(Population::from(self.right_empty))
     }
-    fn contains_right(&mut self, key: &[Cell]) -> Result<bool, SetInterrupted> {
+    fn contains_right(&mut self, key: &[Cell]) -> Result<Membership, SetRowsError> {
         assert_eq!(key, &[Cell::Number(Integer(7))]);
         self.calls[0] += 1;
-        Ok(self.contains)
+        Ok(Membership::from(self.contains))
     }
-    fn first_time(&mut self, row: &[Cell]) -> Result<bool, SetInterrupted> {
+    fn first_time(&mut self, row: &[Cell]) -> Result<Occurrence, SetRowsError> {
         assert_eq!(row, &[Cell::Number(Integer(7))]);
         self.calls[1] += 1;
-        Ok(self.first)
+        Ok(Occurrence::from(self.first))
     }
-    fn emit(&mut self, row: &[Cell]) -> Result<(), SetInterrupted> {
+    fn emit(&mut self, row: &[Cell]) -> Result<(), SetRowsError> {
         assert_eq!(row, &[Cell::Number(Integer(7))]);
         self.calls[2] += 1;
         Ok(())
@@ -185,7 +189,14 @@ fn subject(input: Input) -> Result<Value, Failure> {
         } else {
             SetKind::Antijoin
         };
-        positions(kind, &mut probe)?;
+        let outcome = positions(kind, &mut probe);
+        if matches!(input, Scenario::PositionInterrupted) {
+            assert!(
+                matches!(probe.emit(), Err(SetRowsError::Interrupted)),
+                "a driver whose emit failed keeps failing"
+            );
+        }
+        outcome?;
         return Ok(probe.calls);
     }
     let mut probe = Probe {

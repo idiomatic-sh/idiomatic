@@ -1,0 +1,206 @@
+//! Exhaustive semantic dispatcher. No caching, publication or admission decisions.
+use crate::domain::contract::types::*;
+use std::sync::Arc;
+pub(crate) fn build(
+    prepared: &PreparedDerived,
+    inputs: DerivedInputs<'_>,
+    room: &mut BuildWorkspace,
+    recycled: Option<DerivedPayload>,
+) -> Result<BuildOutcome, DerivedFault> {
+    prepared.validate()?;
+    let recycled = recycled.map(|payload| payload.data);
+    let data = match (&prepared.request, inputs) {
+        (ViewRequest::Equality { columns }, DerivedInputs::Rows(rows)) => {
+            let previous = match recycled {
+                Some(PayloadData::Equality(value)) => match Arc::try_unwrap(value) {
+                    Ok(owned) => Some(owned),
+                    Err(_) => None,
+                },
+                _ => None,
+            };
+            PayloadData::Equality(Arc::new(crate::domain::equality::service::build(
+                rows, columns, previous,
+            )?))
+        }
+        (ViewRequest::PredicateMatches { .. }, DerivedInputs::Predicate { rows, candidates }) => {
+            PayloadData::PredicateMatches(crate::domain::predicate::service::matches(
+                rows, candidates,
+            )?)
+        }
+        (
+            ViewRequest::CandidatePostings { column, literals },
+            DerivedInputs::Postings {
+                rows,
+                symbols,
+                source,
+                active,
+            },
+        ) => PayloadData::CandidatePostings(crate::domain::predicate::service::postings(
+            rows, *column, literals, active, symbols, source,
+        )?),
+        (
+            ViewRequest::DistinctRepresentatives { columns },
+            DerivedInputs::Distinct { rows, positions },
+        ) => PayloadData::DistinctRepresentatives(crate::domain::predicate::service::distinct(
+            rows, columns, positions,
+        )?),
+        (ViewRequest::Adjacency { endpoints, keys }, DerivedInputs::Rows(rows)) => {
+            let Some(graph) =
+                crate::domain::adjacency::service::build_borrowed(rows, *endpoints, keys)?
+            else {
+                return Ok(BuildOutcome::Declined);
+            };
+            PayloadData::Adjacency(Arc::new(graph))
+        }
+        (ViewRequest::Membership { column }, DerivedInputs::Membership { rows, space }) => {
+            PayloadData::Membership(crate::domain::membership::service::build(
+                rows, *column, space,
+            )?)
+        }
+        (ViewRequest::PartitionOrder { keys }, DerivedInputs::Rows(rows)) => {
+            PayloadData::PartitionOrder(crate::domain::partition::service::ordered_positions(
+                rows, keys,
+            )?)
+        }
+        (
+            ViewRequest::ClosureAdjacency {
+                source,
+                destination,
+            },
+            DerivedInputs::Partition {
+                rows,
+                positions,
+                key,
+            },
+        ) => {
+            let previous = match recycled {
+                Some(PayloadData::ClosureAdjacency(value)) => match Arc::try_unwrap(value) {
+                    Ok(owned) => Some(owned),
+                    Err(_) => None,
+                },
+                _ => None,
+            };
+            PayloadData::ClosureAdjacency(Arc::new(crate::domain::closure::service::build(
+                rows,
+                positions,
+                key,
+                *source,
+                *destination,
+                previous,
+                &mut room.row,
+            )?))
+        }
+        (
+            ViewRequest::CycleAdjacency {
+                source,
+                destination,
+            },
+            DerivedInputs::Rows(rows),
+        ) => PayloadData::CycleAdjacency(Arc::new(crate::domain::cycles::service::build(
+            rows,
+            *source,
+            *destination,
+            &mut room.row,
+        )?)),
+        (
+            ViewRequest::OrderedKeys {
+                left_on,
+                right_on,
+                left_order,
+                right_order,
+            },
+            DerivedInputs::Ordered { left, right, texts },
+        ) => PayloadData::OrderedKeys(Arc::new(crate::domain::ordered::service::build(
+            left,
+            right,
+            left_on,
+            right_on,
+            *left_order,
+            *right_order,
+            texts,
+            &mut room.row,
+        )?)),
+        (
+            ViewRequest::OrderedDfs { .. },
+            DerivedInputs::Dfs {
+                roots,
+                edges,
+                texts,
+            },
+        ) => PayloadData::OrderedDfs(Arc::new(crate::domain::dfs::service::build(
+            &prepared.request,
+            roots,
+            edges,
+            texts,
+            &mut room.row,
+        )?)),
+        (ViewRequest::NativeLookup { .. }, DerivedInputs::Native(form)) => {
+            let Some(finding) = prepared.native_finding(form)? else {
+                return Ok(BuildOutcome::Declined);
+            };
+            PayloadData::NativeLookup(finding)
+        }
+        (ViewRequest::RawKeyOrder { stride }, DerivedInputs::RawWords(keys)) => {
+            let previous = match recycled {
+                Some(PayloadData::RawKeyOrder(value)) => match Arc::try_unwrap(value) {
+                    Ok(owned) => Some(owned),
+                    Err(_) => None,
+                },
+                _ => None,
+            };
+            PayloadData::RawKeyOrder(Arc::new(crate::domain::raw_order::service::build(
+                keys, *stride, previous,
+            )))
+        }
+        _ => return Err(DerivedFault::WrongOperation),
+    };
+    Ok(BuildOutcome::Built(DerivedPayload { data }))
+}
+pub(crate) fn view<'a>(
+    prepared: &PreparedDerived,
+    payload: &'a DerivedPayload,
+) -> Result<DerivedView<'a>, DerivedFault> {
+    prepared.validate()?;
+    match (
+        crate::domain::preparation::service::kind(&prepared.request),
+        &payload.data,
+    ) {
+        (DerivedKind::Equality, PayloadData::Equality(data)) => Ok(DerivedView::Equality(data)),
+        (DerivedKind::PredicateMatches, PayloadData::PredicateMatches(data))
+        | (DerivedKind::DistinctRepresentatives, PayloadData::DistinctRepresentatives(data)) => {
+            Ok(DerivedView::RowIds(data.as_slice()))
+        }
+        (DerivedKind::CandidatePostings, PayloadData::CandidatePostings(data)) => {
+            Ok(DerivedView::Postings(data))
+        }
+        (DerivedKind::Adjacency, PayloadData::Adjacency(data)) => Ok(DerivedView::Adjacency(data)),
+        (DerivedKind::Membership, PayloadData::Membership(data)) => {
+            Ok(DerivedView::Membership(match data {
+                Membership::Values(values) => MembershipView::Values(values),
+                Membership::Dense(values) => MembershipView::Dense(values.as_slice()),
+            }))
+        }
+        (DerivedKind::PartitionOrder, PayloadData::PartitionOrder(data)) => {
+            Ok(DerivedView::PartitionOrder(data))
+        }
+        (DerivedKind::ClosureAdjacency, PayloadData::ClosureAdjacency(data)) => {
+            Ok(DerivedView::ClosureAdjacency(data))
+        }
+        (DerivedKind::CycleAdjacency, PayloadData::CycleAdjacency(data)) => {
+            Ok(DerivedView::CycleAdjacency(data))
+        }
+        (DerivedKind::OrderedKeys, PayloadData::OrderedKeys(data)) => {
+            Ok(DerivedView::OrderedKeys(data))
+        }
+        (DerivedKind::OrderedDfs, PayloadData::OrderedDfs(data)) => {
+            Ok(DerivedView::OrderedDfs(data))
+        }
+        (DerivedKind::NativeLookup, PayloadData::NativeLookup(data)) => {
+            Ok(DerivedView::NativeLookup(data))
+        }
+        (DerivedKind::RawKeyOrder, PayloadData::RawKeyOrder(data)) => {
+            Ok(DerivedView::RawKeyOrder(data))
+        }
+        _ => Err(DerivedFault::WrongOperation),
+    }
+}

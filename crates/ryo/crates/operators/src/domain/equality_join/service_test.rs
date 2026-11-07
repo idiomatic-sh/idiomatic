@@ -1,9 +1,10 @@
 //! Ordered Join meaning: bag order, view mapping, refusal order and the prefix a downstream refusal keeps.
 use super::service::join_row;
-use super::types::{JoinCells, JoinDriver, JoinInterrupted, JoinRow};
+use super::types::{Advance, JoinCells, JoinDriver, JoinRow};
+use super::errors::EqualityJoinError;
 use crate::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 
 #[derive(Clone, Copy)]
@@ -55,13 +56,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("missing_left_key_is_refused_before_candidate_access"),
         word: Word::Refuses,
         input: || Scenario::MissingLeftKey,
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: 3 }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(3) }),
     },
     Case {
         name: CaseName("first_output_fault_stops_before_any_delivery"),
         word: Word::Refuses,
         input: || Scenario::FirstOutputFault,
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: 99 }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(99) }),
     },
     Case {
         name: CaseName("downstream_interruption_preserves_delivered_prefix_and_stops_scanning"),
@@ -83,14 +84,14 @@ struct Driver {
     stopped: bool,
 }
 impl JoinDriver for Driver {
-    fn next(&mut self, key: &[Cell]) -> Result<bool, JoinInterrupted> {
+    fn next(&mut self, key: &[Cell]) -> Result<Advance, EqualityJoinError> {
         if self.stopped {
-            return Err(JoinInterrupted);
+            return Err(EqualityJoinError::Interrupted);
         }
         assert_eq!(key, &[number(7)]);
         self.next_calls += 1;
         self.at += 1;
-        Ok(self.at <= self.rows.len())
+        Ok(Advance::from(self.at <= self.rows.len()))
     }
     fn right_cell(&self, column: ColumnIndex) -> Option<Cell> {
         self.reads.set(self.reads.get() + 1);
@@ -99,13 +100,13 @@ impl JoinDriver for Driver {
             .get(usize::try_from(column.0).unwrap_or(usize::MAX))
             .copied()
     }
-    fn emit(&mut self, row: &[Cell]) -> Result<(), JoinInterrupted> {
+    fn emit(&mut self, row: &[Cell]) -> Result<(), EqualityJoinError> {
         if self.stopped {
-            return Err(JoinInterrupted);
+            return Err(EqualityJoinError::Interrupted);
         }
         if self.interrupt == Some(self.outputs.len()) {
             self.stopped = true;
-            return Err(JoinInterrupted);
+            return Err(EqualityJoinError::Interrupted);
         }
         self.outputs.push(row.to_vec());
         Ok(())
@@ -207,6 +208,10 @@ fn subject(input: Input) -> Result<Value, Failure> {
             let result = join(&[number(7)], &[ColumnIndex(0)], &[right(1)], &[], &mut d);
             assert_eq!(d.outputs, vec![vec![number(1)]]);
             assert_eq!(d.next_calls, 2);
+            assert!(
+                matches!(d.emit(&[]), Err(EqualityJoinError::Interrupted)),
+                "an interrupted driver keeps refusing"
+            );
             result?;
         }
         Scenario::ColumnarLeft => {

@@ -1,9 +1,21 @@
 //! Public source-match calls keep matcher construction at the edge and preserve exact delivery prefixes.
-use crate::inbound::use_cases::operators::{fixtures, interface::*};
+use crate::inbound::use_cases::operators::{fixtures, interface::OperatorsUseCase};
+use crate::domain::capture::types::*;
+use crate::domain::contract::types::*;
+use crate::inbound::use_cases::operators::types::*;
+use crate::domain::equality_join::types::*;
+use crate::domain::ordered_existence::types::*;
+use crate::domain::ordered_match::types::*;
+use crate::domain::reduction::types::*;
+use crate::domain::set_rows::types::*;
+use crate::domain::source_matches::types::*;
+use crate::domain::words::types::*;
 use ryo_relations::domain::relations::types::{Integer, Offset, Span, Value as Cell};
 use ryo_relations::domain::terms::types::Symbol;
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use std::borrow::Cow;
+use ryo_values::domain::query_operators::types::{LineOutput, TextOutput};
+use ryo_values::domain::row_texts::types::CellText;
 
 #[derive(Clone, Copy)]
 enum Scenario {
@@ -157,19 +169,19 @@ struct Delivery {
     fail_second: bool,
 }
 impl TextRowDriver for Delivery {
-    fn intern(&mut self, text: &str) -> Cell {
+    fn intern(&mut self, text: CellText<'_>) -> Cell {
         self.interns += 1;
         assert!(
-            matches!(text, "b" | "c" | "d"),
+            matches!(text.0, "b" | "c" | "d"),
             "capture resolves the original physical text"
         );
-        self.names.push(text.to_owned());
+        self.names.push(text.0.to_owned());
         Cell::Symbol(Symbol(u32::try_from(self.interns).unwrap()))
     }
-    fn emit(&mut self, row: &[Cell]) -> Result<(), SemanticInterrupted> {
+    fn emit(&mut self, row: &[Cell]) -> Result<(), ContractError> {
         self.attempts += 1;
         if self.fail_second && self.attempts == 2 {
-            return Err(SemanticInterrupted);
+            return Err(ContractError::Interrupted);
         }
         self.rows.push(row.to_vec());
         Ok(())
@@ -195,18 +207,26 @@ fn source_optional(input: Input) -> Result<Value, Failure> {
     let result = written(OperatorCall::SourceMatches {
         input: SourceMatchesInput {
             row: &[Cell::Number(Integer(7))],
-            source: source.as_bytes(),
-            base: 0,
-            text: source,
+            source: LineBytes(source.as_bytes()),
+            base: SourceBase(0),
+            text: CellText(source),
             line: if matches!(input, Scenario::SourceSpanOnly) {
-                Some(1)
+                BaseLine::Starts(Integer(1))
             } else {
-                None
+                BaseLine::Unnumbered
             },
             regex: &regex,
-            capture: if ordinary { None } else { Some("cap") },
-            capture_text: matches!(input, Scenario::SourceNoLine),
-            capture_line: false,
+            capture: if ordinary {
+                CaptureRequest::Whole
+            } else {
+                CaptureRequest::Group(CellText("cap"))
+            },
+            capture_text: if matches!(input, Scenario::SourceNoLine) {
+                TextOutput::Appended
+            } else {
+                TextOutput::Omitted
+            },
+            capture_line: LineOutput::Omitted,
         },
         driver: &mut delivery,
         target: &mut output,
@@ -283,14 +303,16 @@ fn source(input: Input) -> Result<Value, Failure> {
     let result = written(OperatorCall::SourceMatches {
         input: SourceMatchesInput {
             row: &[],
-            source: source.as_bytes(),
-            base: 0,
-            text: source,
-            line: Some(1),
+            source: LineBytes(source.as_bytes()),
+            base: SourceBase(0),
+            text: CellText(source),
+            line: BaseLine::Starts(Integer(1)),
             regex: &regex,
-            capture,
-            capture_text: true,
-            capture_line: true,
+            capture: capture.map_or(CaptureRequest::Whole, |name| {
+                CaptureRequest::Group(CellText(name))
+            }),
+            capture_text: TextOutput::Appended,
+            capture_line: LineOutput::Appended,
         },
         driver: &mut delivery,
         target: &mut output,

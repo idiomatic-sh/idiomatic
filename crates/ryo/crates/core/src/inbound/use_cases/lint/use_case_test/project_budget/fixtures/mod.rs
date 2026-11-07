@@ -4,9 +4,10 @@ use crate::outbound::memory::{errors::MemoryError, interface::MemoryPort};
 use ryo_execution::inbound::use_cases::execution::types::query_language::{
     QueryLanguageError, QueryLanguagePort,
 };
-use ryo_operators::inbound::use_cases::operators::interface::{
-    OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault,
-};
+use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
+use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
+use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
+use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::{
     descriptions::types::ValidateReport,
@@ -29,7 +30,7 @@ impl OperatorsUseCase for ProjectPressure {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         let reduction = matches!(&call, OperatorCall::ReduceCount { .. });
         let answer =
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new()
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))
                 .operators(call)?;
         if reduction {
             self.reductions.fetch_add(1, Ordering::SeqCst);

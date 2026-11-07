@@ -1,5 +1,6 @@
 //! The `traversing` service's cases, on query text read by the real syntax adapter: the calls that walk an axis.
 
+use crate::inbound::use_cases::compile::use_case_test::ORDERED_DFS;
 use ryo_relations::domain::relations::types::Relation;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -32,25 +33,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("ordered_dfs_keys"),
         word: Word::Succeeds,
         input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[file],output=visit); emit visits subject id key(visit);",
-        expect: Expect::Value("ordered-dfs"),
+        expect: Expect::Value(ORDERED_DFS),
     },
     Case {
         name: CaseName("ordered_dfs_without_keys"),
         word: Word::Succeeds,
         input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,output=visit); emit visits subject id key(visit);",
-        expect: Expect::Value("ordered-dfs"),
+        expect: Expect::Value(ORDERED_DFS),
     },
     Case {
         name: CaseName("ordered_dfs_empty_keys"),
         word: Word::Succeeds,
         input: || "let visits = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,keys=[],output=visit); emit visits subject id key(visit);",
-        expect: Expect::Value("ordered-dfs"),
+        expect: Expect::Value(ORDERED_DFS),
     },
     Case {
         name: CaseName("ordered_dfs_multiple_keys"),
         word: Word::Succeeds,
         input: || "let roots = select child as root, file, field from \"syntax-child\"; let visits = ordered-dfs(from=roots,root=root,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=ordinal,keys=[file,field],output=visit); emit visits subject id key(visit);",
-        expect: Expect::Value("ordered-dfs"),
+        expect: Expect::Value(ORDERED_DFS),
     },
     Case {
         name: CaseName("ordered_dfs_refuses_missing_root"),

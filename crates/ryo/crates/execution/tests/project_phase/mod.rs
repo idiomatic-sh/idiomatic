@@ -758,13 +758,13 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
         types::WordSlice,
     };
 
-    use ryo_operators::inbound::use_cases::operators::{
-        interface::{
-            OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault, SetInput,
-            SetKind,
-        },
-        use_case::OperatorsUseCaseImpl,
-    };
+    use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
+    use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
+    use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
+    use ryo_operators::domain::contract::types::PortableOperatorFault;
+    use ryo_operators::domain::set_rows::types::SetInput;
+    use ryo_operators::domain::set_rows::types::SetKind;
+    use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
     #[derive(Debug, Default)]
     struct UnionSemanticCalls(AtomicUsize);
     impl OperatorsUseCase for UnionSemanticCalls {
@@ -788,7 +788,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
             ) {
                 let _previous = self.0.fetch_add(1, Ordering::SeqCst);
             }
-            OperatorsUseCaseImpl::new().operators(call)
+            OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)
         }
     }
     let union_semantic_calls = Arc::new(UnionSemanticCalls::default());

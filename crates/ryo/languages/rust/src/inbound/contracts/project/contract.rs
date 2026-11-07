@@ -37,7 +37,7 @@ use crate::domain::paths::types::EntryName;
 use crate::domain::paths::types::RepoPath;
 use crate::domain::paths::types::Section;
 use crate::domain::paths::types::{FileText, Settlement};
-use crate::domain::paths::types::{Linking, Supply};
+use crate::domain::paths::types::{PathLinking, Supply};
 use crate::domain::targets::types::Manifest as TargetManifest;
 use crate::domain::workspaces::service::settled;
 use crate::domain::workspaces::types::{Looking, Reason, WorkspaceConfiguration};
@@ -332,7 +332,7 @@ impl Project for ProjectContract {
                 reason: languages::ToolMessage(each.reason.0.clone()),
             })
             .collect();
-        let mut derived = if linking_of(&request.wanted) == Linking::Asked {
+        let mut derived = if linking_of(&request.wanted) == PathLinking::Asked {
             self.linked(request, &packages)
         } else {
             Linked::default()

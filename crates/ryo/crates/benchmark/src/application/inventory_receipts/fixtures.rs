@@ -6,7 +6,7 @@ use crate::outbound::inventory::types::case_document::{
     ProjectInventory, ProjectInventoryDocument, ProjectScope,
 };
 use crate::outbound::suite::types::{
-    finding::{ByteOffset, Finding},
+    finding::{FindingOffset, Finding},
     observation_document::{
         ContextMode, ContextRun, FileMetadataDigest, IntentMatch, ObservationDocument,
         ProjectContextRecord, ProjectInputsDigest, ReferenceExpectation, RuleCohort,
@@ -17,7 +17,7 @@ use crate::outbound::suite::types::{
         ReferenceDiscrepancy,
     },
     text::{
-        CanonicalJson, CaseName, PathText, ReasonText, RuleName, SchemaName, Sha256Text, Side,
+        CanonicalJson, CaseName, PathText, ReasonText, RuleName, SchemaName, Sha256Text, ContestantSide,
         YesNo,
     },
 };
@@ -42,8 +42,8 @@ pub fn finding(rule: &str, file: &str, start: u64, end: u64) -> Finding {
     Finding {
         rule: RuleName(rule.into()),
         file: PathText(file.into()),
-        start: ByteOffset(start),
-        end: ByteOffset(end),
+        start: FindingOffset(start),
+        end: FindingOffset(end),
     }
 }
 
@@ -78,7 +78,7 @@ fn registered(name: &str) -> CaseDocument {
 }
 
 /// A complete, passing native observation of one side of one case.
-pub fn observed_row(rule: &str, name: &str, side: Side) -> ObservationDocument {
+pub fn observed_row(rule: &str, name: &str, side: ContestantSide) -> ObservationDocument {
     ObservationDocument {
         rule: RuleName(rule.into()),
         name: CaseName(name.into()),
@@ -119,12 +119,12 @@ pub fn observed_row(rule: &str, name: &str, side: Side) -> ObservationDocument {
 }
 
 fn observed(name: &str) -> ObservationDocument {
-    observed_row("A001", name, Side::Reference)
+    observed_row("A001", name, ContestantSide::Reference)
 }
 
 /// Both native sides of one named case.
 fn sides(base: &ObservationDocument) -> Vec<ObservationDocument> {
-    [Side::Reference, Side::Candidate]
+    [ContestantSide::Reference, ContestantSide::Candidate]
         .into_iter()
         .map(|side| ObservationDocument {
             side,

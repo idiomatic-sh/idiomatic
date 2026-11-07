@@ -2,9 +2,11 @@
 use super::super::super::cases::test::table_of;
 use super::super::super::*;
 use super::super::fixtures::{REFUSAL, refusal};
-use ryo_operators::inbound::use_cases::operators::interface::{
-    JoinInput, OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault,
-};
+use ryo_operators::domain::equality_join::types::JoinInput;
+use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
+use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
+use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
+use ryo_operators::domain::contract::types::PortableOperatorFault;
 #[derive(Debug)]
 struct KeepsCalling {
     refuse_project: bool,
@@ -13,7 +15,7 @@ impl OperatorsUseCase for KeepsCalling {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         match call {
             OperatorCall::Project { .. } if self.refuse_project => {
-                Err(PortableOperatorFault::NoSuchColumn { index: REFUSAL })
+                Err(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(REFUSAL) })
             }
             OperatorCall::EqualityJoin {
                 input: JoinInput::Values { driver, .. },
@@ -31,7 +33,7 @@ impl OperatorsUseCase for KeepsCalling {
                 Ok(OperatorAnswer::Written)
             }
             call => {
-                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new()
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))
                     .operators(call)
             }
         }

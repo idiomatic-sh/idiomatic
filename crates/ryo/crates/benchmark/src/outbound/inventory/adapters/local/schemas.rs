@@ -12,7 +12,7 @@ use crate::outbound::inventory::types::{
     },
 };
 use crate::outbound::suite::types::{
-    finding::{ByteOffset, Finding},
+    finding::{FindingOffset, Finding},
     observation_document::{
         ContextMode, ExitStatus, FileMetadataDigest, ProjectInputsDigest, ReferenceExpectation, RuleCohort,
         RuleContextRecord, RuleObservationsRecord,
@@ -178,8 +178,8 @@ impl From<FindingSchema> for Finding {
         Self {
             rule: RuleName(wire.rule),
             file: PathText(wire.file),
-            start: ByteOffset(wire.start),
-            end: ByteOffset(wire.end),
+            start: FindingOffset(wire.start),
+            end: FindingOffset(wire.end),
         }
     }
 }

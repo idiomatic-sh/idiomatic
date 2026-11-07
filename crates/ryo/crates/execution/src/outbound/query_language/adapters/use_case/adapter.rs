@@ -4,9 +4,8 @@
 use std::sync::Arc;
 
 use ryo_query_language::inbound::use_cases::compile::interface::CompileUseCase;
-use ryo_query_language::inbound::use_cases::compile::types::CompileRequest;
+use ryo_values::domain::plans::types::QueryRequest;
 use ryo_query_language::inbound::use_cases::typecheck::interface::TypecheckUseCase;
-use ryo_query_language::inbound::use_cases::typecheck::types::TypecheckRequest;
 
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::interface::QueryLanguagePort;
@@ -49,7 +48,7 @@ impl QueryLanguagePort for QueryLanguageUseCaseAdapter {
     ) -> Result<ValidateReport, QueryLanguageError> {
         self.typecheck
             .0
-            .typecheck(TypecheckRequest {
+            .typecheck(QueryRequest {
                 text: bundle.clone(),
                 hosted: hosted.to_vec(),
                 observations: observations.to_vec(),
@@ -68,7 +67,7 @@ impl QueryLanguagePort for QueryLanguageUseCaseAdapter {
         let report = self
             .compile
             .0
-            .compile(CompileRequest {
+            .compile(QueryRequest {
                 text: bundle.clone(),
                 hosted: hosted.to_vec(),
                 observations: observations.to_vec(),

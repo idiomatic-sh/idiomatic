@@ -1,7 +1,17 @@
 //! Public streaming and metadata calls borrow engine-owned reduction state and keep fault order.
-use crate::inbound::use_cases::operators::{fixtures, interface::*};
+use crate::inbound::use_cases::operators::{fixtures, interface::OperatorsUseCase};
+use crate::domain::capture::types::*;
+use crate::domain::contract::types::*;
+use crate::inbound::use_cases::operators::types::*;
+use crate::domain::equality_join::types::*;
+use crate::domain::ordered_existence::types::*;
+use crate::domain::ordered_match::types::*;
+use crate::domain::reduction::types::*;
+use crate::domain::set_rows::types::*;
+use crate::domain::source_matches::types::*;
+use crate::domain::words::types::*;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::WholeNumber;
 use ryo_values::domain::rows::types::{RowCount, RowIndex};
@@ -48,19 +58,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("streamed_count_metadata_checks_keys_first"),
         word: Word::Refuses,
         input: || Scenario::CheckStreamCountOrder,
-        expect: Expect::Error(Failure::NoSuchColumn { index: 99 }),
+        expect: Expect::Error(Failure::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(99) }),
     },
     Case {
         name: CaseName("collected_count_metadata_checks_operand_first"),
         word: Word::Refuses,
         input: || Scenario::CheckCollectedCountOrder,
-        expect: Expect::Error(Failure::NoSuchColumn { index: 98 }),
+        expect: Expect::Error(Failure::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(98) }),
     },
     Case {
         name: CaseName("streamed_digest_metadata_checks_operand_first"),
         word: Word::Refuses,
         input: || Scenario::CheckStreamDigestOrder,
-        expect: Expect::Error(Failure::NoSuchColumn { index: 98 }),
+        expect: Expect::Error(Failure::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(98) }),
     },
     Case {
         name: CaseName("stream_count_and_finish_keep_original_representatives"),
@@ -78,7 +88,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("stream_bad_early_row_prevents_later_upstream_demand"),
         word: Word::Refuses,
         input: || Scenario::StreamEarlyFault,
-        expect: Expect::Error(Failure::NoSuchColumn { index: 1 }),
+        expect: Expect::Error(Failure::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(1) }),
     },
     Case {
         name: CaseName("stream_group_storage_refusal_prevents_value_access"),
@@ -113,8 +123,8 @@ impl GroupOutput for Groups {
         self.clears += 1;
         self.rows.clear();
     }
-    fn push(&mut self, first: RowIndex, counted: RowCount, digest: i64) {
-        self.rows.push((first, counted, digest));
+    fn push(&mut self, first: RowIndex, counted: RowCount, digest: GroupDigest) {
+        self.rows.push((first, counted, digest.0));
     }
     fn sort_first(&mut self) {
         self.rows.sort_unstable_by_key(|group| group.0);
@@ -133,17 +143,17 @@ fn observation(groups: Groups) -> Observation {
 struct State {
     keys: Vec<Vec<Cell>>,
     first_rows: Vec<Vec<Cell>>,
-    counts: Vec<usize>,
+    counts: Vec<RowCount>,
     values: std::collections::HashSet<(usize, Cell)>,
     hashes: Vec<AggregationHash>,
     group_calls: usize,
     refuses_group: bool,
 }
 impl StreamingReduction for State {
-    fn group(&mut self, key: &[Cell], row: &[Cell]) -> Result<RowIndex, SemanticInterrupted> {
+    fn group(&mut self, key: &[Cell], row: &[Cell]) -> Result<RowIndex, ContractError> {
         self.group_calls += 1;
         if self.refuses_group {
-            return Err(SemanticInterrupted);
+            return Err(ContractError::Interrupted);
         }
         let group = if let Some(group) = self.keys.iter().position(|stored| stored == key) {
             group
@@ -151,7 +161,7 @@ impl StreamingReduction for State {
             let group = self.keys.len();
             self.keys.push(key.to_vec());
             self.first_rows.push(row.to_vec());
-            self.counts.push(0);
+            self.counts.push(RowCount(0));
             group
         };
         Ok(RowIndex(group))
@@ -159,7 +169,7 @@ impl StreamingReduction for State {
     fn insert_value(&mut self, group: RowIndex, value: Cell) -> bool {
         self.values.insert((group.0, value))
     }
-    fn count(&mut self, group: RowIndex) -> Option<&mut usize> {
+    fn count(&mut self, group: RowIndex) -> Option<&mut RowCount> {
         self.counts.get_mut(group.0)
     }
     fn datum(&self, value: Cell) -> DigestDatum<'_> {
@@ -253,10 +263,15 @@ fn stream(input: Input) -> Result<Value, Failure> {
         "original columns survive representative retention"
     );
     let mut output = Groups::default();
+    let counts: Vec<usize> = state.counts.iter().map(|count| count.0).collect();
     written(OperatorCall::FinishAggregation {
-        counts: &state.counts,
+        counts: GroupCounts(&counts),
         hashes: &mut state.hashes,
-        digest,
+        digest: if digest {
+            Finishing::Digested
+        } else {
+            Finishing::Counted
+        },
         target: &mut output,
     })?;
     Ok(observation(output))
@@ -323,36 +338,36 @@ fn subject(input: Input) -> Result<Value, Failure> {
         | Scenario::StreamStorageFailure => stream(input),
         Scenario::FinishDigest => {
             let mut hashes = vec![
-                AggregationHash { group: 1, hash: 9 },
-                AggregationHash { group: 0, hash: 5 },
-                AggregationHash { group: 0, hash: 3 },
-                AggregationHash { group: 0, hash: 5 },
+                AggregationHash { group: GroupCoordinate(1), hash: ValueHash(9) },
+                AggregationHash { group: GroupCoordinate(0), hash: ValueHash(5) },
+                AggregationHash { group: GroupCoordinate(0), hash: ValueHash(3) },
+                AggregationHash { group: GroupCoordinate(0), hash: ValueHash(5) },
             ];
             let mut output = Groups::default();
             written(OperatorCall::FinishAggregation {
-                counts: &[0, 0],
+                counts: GroupCounts(&[0, 0]),
                 hashes: &mut hashes,
-                digest: true,
+                digest: Finishing::Digested,
                 target: &mut output,
             })?;
             assert_eq!(
                 hashes,
                 vec![
-                    AggregationHash { group: 0, hash: 3 },
-                    AggregationHash { group: 0, hash: 5 },
-                    AggregationHash { group: 1, hash: 9 }
+                    AggregationHash { group: GroupCoordinate(0), hash: ValueHash(3) },
+                    AggregationHash { group: GroupCoordinate(0), hash: ValueHash(5) },
+                    AggregationHash { group: GroupCoordinate(1), hash: ValueHash(9) }
                 ]
             );
             let mut reordered = vec![
-                AggregationHash { group: 0, hash: 5 },
-                AggregationHash { group: 1, hash: 9 },
-                AggregationHash { group: 0, hash: 3 },
+                AggregationHash { group: GroupCoordinate(0), hash: ValueHash(5) },
+                AggregationHash { group: GroupCoordinate(1), hash: ValueHash(9) },
+                AggregationHash { group: GroupCoordinate(0), hash: ValueHash(3) },
             ];
             let mut repeated = Groups::default();
             written(OperatorCall::FinishAggregation {
-                counts: &[0, 0],
+                counts: GroupCounts(&[0, 0]),
                 hashes: &mut reordered,
-                digest: true,
+                digest: Finishing::Digested,
                 target: &mut repeated,
             })?;
             assert_eq!(

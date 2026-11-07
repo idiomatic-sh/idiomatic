@@ -292,21 +292,21 @@ pub(crate) trait PrimitiveSemantics: Sync {
 
     fn operators(
         &self,
-        call: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'_>,
+        call: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,
     ) -> Result<
-        ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer,
-        ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault,
+        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
+        ryo_operators::domain::contract::types::PortableOperatorFault,
     >;
 }
 
 pub(crate) fn portable_fault(
-    error: ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault,
+    error: ryo_operators::domain::contract::types::PortableOperatorFault,
 ) -> OperatingError {
-    use ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault;
+    use ryo_operators::domain::contract::types::PortableOperatorFault;
     match error {
         PortableOperatorFault::Interrupted => OperatingError::WrongOperation,
         PortableOperatorFault::NoSuchColumn { index } => {
-            ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index }.into()
+            ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: index.0 }.into()
         }
         PortableOperatorFault::ShapeMismatch => OperatingError::ShapeMismatch,
         PortableOperatorFault::InvalidSpanBounds => OperatingError::InvalidSpanBounds,
@@ -399,14 +399,14 @@ impl<'a> PrimitiveLease<'a> {
         projected: &mut Vec<Value>,
     ) -> Result<(), OperatingError> {
         match self.semantics.operators(
-            ryo_operators::inbound::use_cases::operators::interface::OperatorCall::Project {
+            ryo_operators::inbound::use_cases::operators::types::OperatorCall::Project {
                 row,
                 columns,
                 target: projected,
             },
         ) {
             Ok(
-                ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Written,
+                ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Written,
             ) => Ok(()),
             Err(error) => Err(portable_fault(error)),
             _ => Err(OperatingError::WrongOperation),
@@ -419,14 +419,14 @@ impl<'a> PrimitiveLease<'a> {
         joined: &mut Vec<Value>,
     ) -> Result<(), OperatingError> {
         match self.semantics.operators(
-            ryo_operators::inbound::use_cases::operators::interface::OperatorCall::Append {
+            ryo_operators::inbound::use_cases::operators::types::OperatorCall::Append {
                 row,
                 appended,
                 target: joined,
             },
         ) {
             Ok(
-                ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Written,
+                ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Written,
             ) => Ok(()),
             Err(error) => Err(portable_fault(error)),
             _ => Err(OperatingError::WrongOperation),
@@ -437,9 +437,8 @@ impl<'a> PrimitiveLease<'a> {
         row: &[Value],
         column: ryo_values::domain::plan_parts::types::ColumnIndex,
     ) -> Result<[Value; 2], OperatingError> {
-        use ryo_operators::inbound::use_cases::operators::interface::{
-            OperatorAnswer, OperatorCall,
-        };
+        use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
+        use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
         match self
             .semantics
             .operators(OperatorCall::SpanBounds { row, column })
@@ -456,9 +455,9 @@ impl<'a> PrimitiveLease<'a> {
         end: ryo_values::domain::plan_parts::types::ColumnIndex,
         source_len: usize,
     ) -> Result<Value, OperatingError> {
-        use ryo_operators::inbound::use_cases::operators::interface::{
-            OperatorAnswer, OperatorCall, SourceByteLength,
-        };
+        use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
+        use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
+        use ryo_operators::domain::contract::types::SourceByteLength;
         match self.semantics.operators(OperatorCall::SpanBetween {
             row,
             start,
@@ -508,8 +507,8 @@ pub(crate) struct EmptyResult {
 /// An engine error takes precedence even if an injected kernel returns a dishonest answer.
 pub(crate) fn join_result(
     answer: Result<
-        ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer,
-        ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault,
+        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
+        ryo_operators::domain::contract::types::PortableOperatorFault,
     >,
     error: Option<OperatingError>,
 ) -> Result<(), OperatingError> {
@@ -519,8 +518,8 @@ pub(crate) fn join_result(
 /// Preserve the engine's original downstream error ahead of a portable interruption marker.
 pub(crate) fn written_result(
     answer: Result<
-        ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer,
-        ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault,
+        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
+        ryo_operators::domain::contract::types::PortableOperatorFault,
     >,
     error: Option<OperatingError>,
 ) -> Result<(), OperatingError> {
@@ -528,7 +527,7 @@ pub(crate) fn written_result(
         return Err(error);
     }
     match answer {
-        Ok(ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Written) => {
+        Ok(ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Written) => {
             Ok(())
         }
         Ok(_) => Err(OperatingError::WrongOperation),

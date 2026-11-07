@@ -1,15 +1,15 @@
 //! Literal replacement over a borrowed prepared matcher.
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::replace::types::{ReplacedText, ReplacementText};
-use ryo_matching::inbound::use_cases::matching::{
-    compiled::CompiledRegex, interface::MatchingUseCase, types::SearchText,
-    use_case::MatchingUseCaseImpl,
-};
 use ryo_values::domain::row_texts::types::CellText;
 use std::ops::ControlFlow;
 
+/// Visits the occurrences of the replaced pattern in the text, stopping when the callback breaks.
+pub(crate) type VisitMatches<'visit> =
+    &'visit dyn Fn(&mut dyn FnMut(std::ops::Range<usize>) -> ControlFlow<()>) -> ControlFlow<()>;
+
 pub(crate) fn replace_compiled(
-    regex: &CompiledRegex,
+    visit: VisitMatches<'_>,
     text: CellText<'_>,
     replacement: ReplacementText<'_>,
     replaced: ReplacedText<'_>,
@@ -18,9 +18,7 @@ pub(crate) fn replace_compiled(
     output.clear();
     let mut end = 0;
     let mut failure = None;
-    let _flow =
-        MatchingUseCaseImpl::new().visit_regex_matches(regex, SearchText(text), &mut |found| {
-            let found = found.0;
+    let _flow = visit(&mut |found| {
             let Some(prefix) = text.get(end..found.start) else {
                 failure = Some(PortableOperatorFault::ShapeMismatch);
                 return ControlFlow::Break(());

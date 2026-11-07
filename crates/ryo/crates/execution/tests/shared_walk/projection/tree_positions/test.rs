@@ -14,12 +14,12 @@ use ryo_values::domain::plans::types::{Operation, PlanStep};
 #[test]
 fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
     use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-    use ryo_operators::inbound::use_cases::operators::{
-        interface::{
-            JoinInput, OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault,
-        },
-        use_case::OperatorsUseCaseImpl,
-    };
+    use ryo_operators::domain::equality_join::types::JoinInput;
+    use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
+    use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
+    use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
+    use ryo_operators::domain::contract::types::PortableOperatorFault;
+    use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
     use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
     use std::sync::{
         Arc,
@@ -46,7 +46,7 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
                     return Err(PortableOperatorFault::ShapeMismatch);
                 }
             }
-            OperatorsUseCaseImpl::new().operators(call)
+            OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)
         }
     }
     for relation in [Relation::SyntaxTree, Relation::SyntaxChild] {

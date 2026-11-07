@@ -7,10 +7,11 @@ use ryo_execution::inbound::use_cases::execution::{
 };
 use ryo_language::domain::{completion::fixtures::{completion, name_kind}, elements::{fixtures::{kind_names, real_count, text_at}, types::Elements}, kind_index::fixtures::index_kinds, symbols::types::{ByteSlice, Symbols}};
 use ryo_language::domain::builders::fixtures::{enter_node, leave_node, table_builder, token};
-use ryo_operators::inbound::use_cases::operators::{
-    interface::{OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault},
-    use_case::OperatorsUseCaseImpl,
-};
+use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
+use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
+use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
+use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
 use ryo_relations::domain::{
     relations::{
         fixtures::{kinds, node_id},
@@ -39,7 +40,7 @@ impl OperatorsUseCase for SemanticCalls {
         if matches!(&call, OperatorCall::Select { .. }) {
             let _previous = self.0.fetch_add(1, Ordering::Relaxed);
         }
-        OperatorsUseCaseImpl::new().operators(call)
+        OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)
     }
 }
 impl SemanticCalls {

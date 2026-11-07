@@ -1,5 +1,7 @@
 //! The `assembling` service's cases, on query text read by the real syntax adapter.
 
+use crate::inbound::use_cases::compile::use_case_test::SELECT_PROJECT;
+use crate::inbound::use_cases::compile::use_case_test::DISTINCT_COUNT;
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -56,9 +58,6 @@ const CAPTURED_THEN_FILTERED_ON_THE_CAPTURE: &str = "let c = capture(from=\"func
 const COLUMNS_ASKED_ACROSS_FILES: &str = "let a = select name, file from \"function\"; let b = select name, file from \"function\"; let j = select l.\"file\" as \"file\" from a as l join b as r on l.\"name\" = r.\"name\"; emit j subject file key(file);";
 const COLUMNS_OF_A_TREE_ASKED_ACROSS_FILES: &str = "let a = select name, id from \"function\"; let m = select l.\"id\" as \"id\", r.\"child\" as \"child\" from a as l join \"syntax-child\" as r on l.\"name\" = r.\"parent\"; emit m subject id key(child);";
 
-/// The functions of each name counted by the files they are in: only the name and the file are asked of the rows.
-const DISTINCT_COUNT: &str = "let f = select * from \"function\"; let c = group-count(from=f, keys=[\"name\"], count=\"n\", distinct=\"file\"); emit c subject name key(n);";
-
 /// The rows of this part's cases.
 fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
@@ -75,7 +74,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_filter_and_a_projection_are_two_steps"),
         word: Word::Succeeds,
         input: || Scenario::Text(PROJECTED),
-        expect: Expect::Value(Answer::Lowered("select project")),
+        expect: Expect::Value(Answer::Lowered(SELECT_PROJECT)),
     },
     Case {
         name: CaseName("a_relation_the_host_declared_is_a_step_that_runs_once_after_the_files"),

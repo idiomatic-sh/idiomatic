@@ -1,7 +1,18 @@
 //! Public acceptance of extrema, projection, antijoin and interruption semantics.
-use crate::inbound::use_cases::operators::{fixtures, interface::*};
+use crate::inbound::use_cases::operators::{fixtures, interface::OperatorsUseCase};
+use crate::domain::capture::types::*;
+use crate::domain::contract::types::*;
+use crate::inbound::use_cases::operators::types::*;
+use crate::domain::equality_join::types::*;
+use crate::domain::ordered_existence::types::*;
+use crate::domain::ordered_match::types::*;
+use crate::domain::reduction::types::*;
+use crate::domain::set_rows::types::*;
+use crate::domain::source_matches::types::*;
+use crate::domain::words::types::*;
 use ryo_relations::domain::relations::types::{Integer, Value as ValueCell};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::rows::types::{RowCount, RowIndex};
 
 struct Driver {
     rows: Vec<[ValueCell; 3]>,
@@ -11,44 +22,44 @@ struct Driver {
     failed: bool,
 }
 impl OrderedExistenceDriver for Driver {
-    fn len(&self) -> usize {
-        self.rows.len()
+    fn len(&self) -> RowCount {
+        RowCount(self.rows.len())
     }
-    fn key_cell(&mut self, row: usize, column: ColumnIndex) -> Result<ValueCell, JoinInterrupted> {
+    fn key_cell(&mut self, row: RowIndex, column: ColumnIndex) -> Result<ValueCell, EqualityJoinError> {
         if self.failed {
-            return Err(JoinInterrupted);
+            return Err(EqualityJoinError::Interrupted);
         }
         self.rows
-            .get(row)
+            .get(row.0)
             .and_then(|row| row.get(column.0 as usize))
             .copied()
-            .ok_or(JoinInterrupted)
+            .ok_or(EqualityJoinError::Interrupted)
     }
-    fn number(&mut self, row: usize, column: ColumnIndex) -> Result<Integer, JoinInterrupted> {
-        if self.failed || self.fail_read == Some(row) {
+    fn number(&mut self, row: RowIndex, column: ColumnIndex) -> Result<Integer, EqualityJoinError> {
+        if self.failed || self.fail_read == Some(row.0) {
             self.failed = true;
-            return Err(JoinInterrupted);
+            return Err(EqualityJoinError::Interrupted);
         }
         match self
             .rows
-            .get(row)
+            .get(row.0)
             .and_then(|row| row.get(column.0 as usize))
         {
             Some(ValueCell::Number(value)) => Ok(*value),
             _ => {
                 self.failed = true;
-                Err(JoinInterrupted)
+                Err(EqualityJoinError::Interrupted)
             }
         }
     }
-    fn emit_dominated(&mut self, row: usize, witness: usize) -> Result<(), JoinInterrupted> {
+    fn emit_dominated(&mut self, row: RowIndex, witness: RowIndex) -> Result<(), EqualityJoinError> {
         if self.failed || self.fail_emit {
             self.failed = true;
-            return Err(JoinInterrupted);
+            return Err(EqualityJoinError::Interrupted);
         }
-        assert_eq!(self.rows[row][0], self.rows[witness][0]);
-        assert_ne!(self.rows[row][2], self.rows[witness][2]);
-        self.emitted.push(row);
+        assert_eq!(self.rows[row.0][0], self.rows[witness.0][0]);
+        assert_ne!(self.rows[row.0][2], self.rows[witness.0][2]);
+        self.emitted.push(row.0);
         Ok(())
     }
 }
@@ -104,16 +115,16 @@ struct Poisoned {
     rows: Vec<Vec<ValueCell>>,
 }
 impl SetRowDriver for Poisoned {
-    fn right_empty(&mut self) -> Result<bool, SetInterrupted> {
-        Ok(self.keys.is_empty())
+    fn right_empty(&mut self) -> Result<Population, SetRowsError> {
+        Ok(Population::from(self.keys.is_empty()))
     }
-    fn contains_right(&mut self, key: &[ValueCell]) -> Result<bool, SetInterrupted> {
-        Ok(self.keys.contains(&key[0]))
+    fn contains_right(&mut self, key: &[ValueCell]) -> Result<Membership, SetRowsError> {
+        Ok(Membership::from(self.keys.contains(&key[0])))
     }
-    fn first_time(&mut self, _: &[ValueCell]) -> Result<bool, SetInterrupted> {
+    fn first_time(&mut self, _: &[ValueCell]) -> Result<Occurrence, SetRowsError> {
         panic!("antijoin must preserve left bags")
     }
-    fn emit(&mut self, row: &[ValueCell]) -> Result<(), SetInterrupted> {
+    fn emit(&mut self, row: &[ValueCell]) -> Result<(), SetRowsError> {
         self.rows.push(row.to_vec());
         Ok(())
     }
@@ -124,16 +135,16 @@ struct Reordered {
     emitted: Vec<Vec<ValueCell>>,
 }
 impl SetRowDriver for Reordered {
-    fn right_empty(&mut self) -> Result<bool, SetInterrupted> {
-        Ok(self.dropped.is_empty())
+    fn right_empty(&mut self) -> Result<Population, SetRowsError> {
+        Ok(Population::from(self.dropped.is_empty()))
     }
-    fn contains_right(&mut self, key: &[ValueCell]) -> Result<bool, SetInterrupted> {
-        Ok(self.dropped.iter().any(|row| row == key))
+    fn contains_right(&mut self, key: &[ValueCell]) -> Result<Membership, SetRowsError> {
+        Ok(Membership::from(self.dropped.iter().any(|row| row == key)))
     }
-    fn first_time(&mut self, _: &[ValueCell]) -> Result<bool, SetInterrupted> {
+    fn first_time(&mut self, _: &[ValueCell]) -> Result<Occurrence, SetRowsError> {
         panic!("bag-preserving antijoin")
     }
-    fn emit(&mut self, row: &[ValueCell]) -> Result<(), SetInterrupted> {
+    fn emit(&mut self, row: &[ValueCell]) -> Result<(), SetRowsError> {
         self.emitted.push(row.to_vec());
         Ok(())
     }
@@ -275,7 +286,7 @@ fn original_project_reads_join_coordinates_with_reordered_repeated_left_columns(
     );
 }
 
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 type Input = fn();
 type Value = ();
 type Failure = std::convert::Infallible;

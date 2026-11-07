@@ -154,7 +154,10 @@ pub trait RowCells {
         }
         buffer.clear();
         for column in 0..self.kinds().len() {
-            buffer.push(self.cell(row, ColumnIndex(u32::try_from(column).ok()?))?);
+            let Ok(index) = u32::try_from(column) else {
+                return None;
+            };
+            buffer.push(self.cell(row, ColumnIndex(index))?);
         }
         Some(buffer.as_slice())
     }
@@ -503,7 +506,7 @@ impl RowCells for Table {
         if row >= self.count.0 {
             return None;
         }
-        let column = usize::try_from(column.0).ok()?;
+        let column = column.0 as usize;
         if column >= self.kinds.len() {
             return None;
         }
@@ -800,11 +803,10 @@ impl DerivedPayload {
         let PayloadData::CandidatePostings(values) = &self.data else {
             return None;
         };
-        values
-            .binary_search_by(|entry| entry.text.as_str().cmp(text))
-            .ok()
-            .and_then(|at| values.get(at))
-            .map(|entry| entry.rows.clone())
+        let Ok(at) = values.binary_search_by(|entry| entry.text.as_str().cmp(text)) else {
+            return None;
+        };
+        values.get(at).map(|entry| entry.rows.clone())
     }
     #[must_use]
     pub fn share_marks(&self) -> Option<SharedMarks> {

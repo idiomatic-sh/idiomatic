@@ -99,10 +99,6 @@ pub struct ObservationReadinessRange {
     /// Number of slots borrowed by this producer.
     pub length: ObservationReadinessCount,
 }
-/// Only the common pure validation boundary can lend this checked view.
-#[derive(Clone, Copy, Debug)]
-pub struct ValidatedFrontiers<'a>(pub(super) &'a crate::domain::records::types::FrontierReadiness);
-
 #[derive(Clone, Debug, PartialEq)]
 /// Whether a rule defines persistent publication readiness in this request.
 pub enum ObservationOutputLayout {

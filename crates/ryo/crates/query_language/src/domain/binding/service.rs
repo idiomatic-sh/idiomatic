@@ -53,7 +53,7 @@ pub(crate) fn bind_arguments(
             fragment
                 .parameters
                 .iter()
-                .map(|parameter| parameter.name.0.as_ref()),
+                .map(|parameter| parameter.parameter.0.as_ref()),
         )
         .collect::<BTreeSet<_>>();
     if let Some(unexpected) = given.keys().find(|name| !expected.contains(name.as_ref())) {
@@ -95,12 +95,12 @@ pub(crate) fn bind_arguments(
     }
     let mut parameters = Bindings::default();
     for parameter in &fragment.parameters {
-        let value = given.get(parameter.name.0.as_ref()).ok_or_else(|| {
+        let value = given.get(parameter.parameter.0.as_ref()).ok_or_else(|| {
             located(
                 source,
                 call.span,
                 trace.to_vec(),
-                format!("missing scalar parameter `{}`", parameter.name.0),
+                format!("missing scalar parameter `{}`", parameter.parameter.0),
             )
         })?;
         let value = substitute_value(value, inherited_parameters);
@@ -111,13 +111,13 @@ pub(crate) fn bind_arguments(
                 trace.to_vec(),
                 format!(
                     "parameter `{}` has a value of the wrong type",
-                    parameter.name.0
+                    parameter.parameter.0
                 ),
             ));
         }
         let _previous_parameter = parameters
             .0
-            .insert(FragmentBindingKey(parameter.name.0.clone()), value);
+            .insert(FragmentBindingKey(parameter.parameter.0.clone()), value);
     }
     Ok(BoundArguments { inputs, parameters })
 }
@@ -165,7 +165,7 @@ pub(crate) fn scalar_matches(
         }
         ArgumentValue::Parameter(parameter) => root_parameters
             .iter()
-            .find(|declared| declared.name.0.as_ref() == parameter.0.as_ref())
+            .find(|declared| declared.parameter.0.as_ref() == parameter.0.as_ref())
             .and_then(|declared| fragment_scalar_kind_named(&declared.kind.0)),
         ArgumentValue::Word(_)
         | ArgumentValue::Step(_)

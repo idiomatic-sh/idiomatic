@@ -66,7 +66,7 @@ pub(super) fn prepare_case(exit: PhaseExit) -> Result<PreparedCase, OperatingErr
     })];
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
         ))),
         derived,
         &corpus,

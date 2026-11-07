@@ -179,7 +179,7 @@ pub(crate) fn call_rank(
         ));
     };
     let sets = find_parameter(builder.parameters, |each| {
-        if each.name == *declared {
+        if each.parameter == *declared {
             SearchMatch::Matches
         } else {
             SearchMatch::Differs
@@ -226,7 +226,7 @@ pub(crate) fn call_rows(
         ));
     };
     let parameter = find_parameter(builder.parameters, |each| {
-        if each.name == *declared {
+        if each.parameter == *declared {
             SearchMatch::Matches
         } else {
             SearchMatch::Differs

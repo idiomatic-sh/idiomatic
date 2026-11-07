@@ -1,9 +1,11 @@
 //! Pure physical-meaning authorization against the compiled semantic descriptor.
 use super::types::OrderedExistence;
 use crate::domain::operating::errors::OperatingError;
-use ryo_operators::inbound::use_cases::operators::interface::{
-    JoinInput, OperatorCall, PartitionExtremum, SetInput, SetKind,
-};
+use ryo_operators::domain::equality_join::types::JoinInput;
+use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
+use ryo_operators::domain::ordered_existence::types::PartitionExtremum;
+use ryo_operators::domain::set_rows::types::SetInput;
+use ryo_operators::domain::set_rows::types::SetKind;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_operators::types::OperationKind;
 
@@ -92,7 +94,7 @@ pub(crate) fn authorize(
         OperatorCall::Words { .. } => (WORDS, matches!(operation, Operation::Words { .. })),
         OperatorCall::Capture { pattern, .. } => (
             CAPTURE,
-            matches!(operation, Operation::Capture { pattern: expected, .. } if *pattern == expected.0.as_ref()),
+            matches!(operation, Operation::Capture { pattern: expected, .. } if pattern.0 == expected.0.as_ref()),
         ),
         OperatorCall::Rank { layers, .. } => (
             RANK,
@@ -107,7 +109,7 @@ pub(crate) fn authorize(
             regex, replacement, ..
         } => (
             REPLACE,
-            matches!(operation, Operation::Replace { replacement: expected, .. } if *replacement == expected.0.as_ref())
+            matches!(operation, Operation::Replace { replacement: expected, .. } if replacement.0 == expected.0.as_ref())
                 && binding.regex_identity == Some(*regex as *const _ as usize),
         ),
         OperatorCall::Aggregate { keys, digest, .. } => (
@@ -128,12 +130,12 @@ pub(crate) fn authorize(
         ),
         OperatorCall::SourceMatches { input, .. } => (
             SOURCE_MATCHES,
-            matches!(operation, Operation::SourceMatches { capture, capture_text, capture_line, .. } if input.capture == capture.as_ref().map(|name| name.0.as_ref()) && (input.capture_text == (*capture_text == ryo_values::domain::query_operators::types::TextOutput::Appended)) && (input.capture_line == (*capture_line == ryo_values::domain::query_operators::types::LineOutput::Appended)))
+            matches!(operation, Operation::SourceMatches { capture, capture_text, capture_line, .. } if input.capture == capture.as_ref().map_or(ryo_operators::domain::source_matches::types::CaptureRequest::Whole, |name| ryo_operators::domain::source_matches::types::CaptureRequest::Group(ryo_values::domain::row_texts::types::CellText(name.0.as_ref()))) && input.capture_text == *capture_text && input.capture_line == *capture_line)
                 && binding.regex_identity == Some(input.regex as *const _ as usize),
         ),
         OperatorCall::ReduceCount { keys, distinct, .. } => (
             REDUCTION,
-            matches!((operation, keys), (Operation::GroupCount { keys: expected, distinct: expected_distinct, .. }, ryo_operators::inbound::use_cases::operators::interface::GroupColumns::Columns(actual)) if *actual == expected.as_slice() && distinct == expected_distinct),
+            matches!((operation, keys), (Operation::GroupCount { keys: expected, distinct: expected_distinct, .. }, ryo_operators::domain::reduction::types::GroupColumns::Columns(actual)) if *actual == expected.as_slice() && distinct == expected_distinct),
         ),
         OperatorCall::ReduceDigest { keys, over, .. } => (
             REDUCTION,
@@ -146,8 +148,8 @@ pub(crate) fn authorize(
         OperatorCall::FinishAggregation { digest, .. } => (
             REDUCTION,
             match operation {
-                Operation::GroupCount { .. } => !*digest,
-                Operation::GroupDigest { .. } => *digest,
+                Operation::GroupCount { .. } => *digest == ryo_operators::domain::reduction::types::Finishing::Counted,
+                Operation::GroupDigest { .. } => *digest == ryo_operators::domain::reduction::types::Finishing::Digested,
                 _ => false,
             },
         ),
@@ -288,9 +290,9 @@ pub(crate) fn authorize(
 
 fn aggregation_matches(
     operation: &Operation,
-    program: &ryo_operators::inbound::use_cases::operators::interface::AggregationPlan<'_>,
+    program: &ryo_operators::domain::reduction::types::AggregationPlan<'_>,
 ) -> bool {
-    use ryo_operators::inbound::use_cases::operators::interface::AggregationPlan;
+    use ryo_operators::domain::reduction::types::AggregationPlan;
     match (operation, program) {
         (
             Operation::GroupCount { keys, distinct, .. },

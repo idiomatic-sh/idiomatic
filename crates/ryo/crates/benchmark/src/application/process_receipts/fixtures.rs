@@ -15,7 +15,7 @@ use crate::outbound::suite::types::{
         ArtifactPointer, DiscrepancyIdentity, DiscrepancyValidation, ExpectationKind,
         ObservedExecutable, ReferenceDiscrepancy,
     },
-    text::{CanonicalJson, CaseName, PathText, ReasonText, RuleName, Sha256Text, Side, YesNo},
+    text::{CanonicalJson, CaseName, PathText, ReasonText, RuleName, Sha256Text, ContestantSide, YesNo},
 };
 use crate::outbound::suite::types::process::{
     OutputPartWire, ProcessArtifactWire, ProcessFailureWire, ProcessObservationWire,
@@ -171,7 +171,7 @@ pub(crate) fn passing() -> Documents {
                 invocation: pointer(&location("invocation.json"), &record),
             }),
         }),
-        ..observed_row("A001", "matched", Side::Reference)
+        ..observed_row("A001", "matched", ContestantSide::Reference)
     };
     let invocation = CompleteInvocation {
         actual_request_root: path(ROOT),

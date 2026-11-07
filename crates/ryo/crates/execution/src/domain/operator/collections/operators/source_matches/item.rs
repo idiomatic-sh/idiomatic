@@ -7,9 +7,11 @@ use crate::domain::operator::contract::types::{
 };
 use ryo_language::domain::symbols::service::query_intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_operators::inbound::use_cases::operators::interface::{
-    OperatorCall, PortableOperatorFault, SemanticInterrupted, SourceMatchesInput, TextRowDriver,
-};
+use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
+use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::domain::contract::errors::ContractError;
+use ryo_operators::domain::source_matches::types::SourceMatchesInput;
+use ryo_operators::domain::source_matches::types::TextRowDriver;
 use ryo_relations::domain::relations::types::Value;
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plans::types::Operation;
@@ -29,10 +31,10 @@ impl TextRowDriver for Delivery<'_, '_> {
             NameText(text),
         ))
     }
-    fn emit(&mut self, row: &[Value]) -> Result<(), SemanticInterrupted> {
+    fn emit(&mut self, row: &[Value]) -> Result<(), ContractError> {
         self.error
             .run(|| self.sink.row(self.lease, row))
-            .map_err(|()| SemanticInterrupted)
+            .map_err(|()| ContractError::Interrupted)
     }
 }
 

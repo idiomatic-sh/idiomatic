@@ -10,10 +10,10 @@ use ryo_values::domain::query_bindings::types::ParameterType;
 use ryo_values::domain::query_operators::types::QueryOperator;
 
 /// The text of the relation argument, and of the relation keyword.
-pub(crate) const RELATION: &str = "relation";
+pub(crate) const RELATION: &str = ryo_values::domain::descriptions::constants::RELATION;
 
 /// The text of the destination argument.
-pub(crate) const DESTINATION: &str = "destination";
+pub(crate) const DESTINATION: &str = ryo_values::domain::descriptions::constants::DESTINATION;
 
 /// The word a declaration writes for a flag.
 pub(crate) const BOOLEAN: &str = "boolean";

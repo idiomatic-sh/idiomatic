@@ -1,6 +1,6 @@
 //! What the `matching` port asks of the outside: globs made ready once, to be matched against many paths.
 
-use super::errors::MatchingError;
+use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::files::types::GlobsMatcher;
 

@@ -1,5 +1,8 @@
 //! The `planning` service's cases, on query text read by the real syntax adapter: where each step of the plan runs.
 
+use crate::inbound::use_cases::compile::use_case_test::ORDERED_DFS;
+use crate::inbound::use_cases::compile::use_case_test::SELECT_CLOSURE;
+use crate::inbound::use_cases::compile::use_case_test::SELECT_GROUP_COUNT_STAR;
 use ryo_relations::domain::relations::types::Relation;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -37,7 +40,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("ordered_dfs_node_root_and_source_are_per_file"),
         word: Word::Succeeds,
         input: || "let d = ordered-dfs(from=\"function\",root=id,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,edge=field,output=visit); emit d subject id key(visit);",
-        expect: Expect::Value(("ordered-dfs", 0)),
+        expect: Expect::Value((ORDERED_DFS, 0)),
     },
     Case {
         name: CaseName("ordered_dfs_matching_file_keys_keep_scalar_entities_per_file"),
@@ -61,7 +64,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("file_key_keeps_scalar_endpoints_per_file"),
         word: Word::Succeeds,
         input: || "let e = select * from \"syntax-tree\"; let c = closure(edges=e,source=kind,destination=text,keys=[file]); emit c subject kind key(text);",
-        expect: Expect::Value(("select closure", 0)),
+        expect: Expect::Value((SELECT_CLOSURE, 0)),
     },
     Case {
         name: CaseName("scalar_endpoint_without_keys_is_cross_file"),
@@ -97,7 +100,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_count_grouped_by_name_needs_several_files"),
         word: Word::Succeeds,
         input: || CROSS_COUNT,
-        expect: Expect::Value(("select group-count*", 1)),
+        expect: Expect::Value((SELECT_GROUP_COUNT_STAR, 1)),
     },
 ];
 
