@@ -6,8 +6,8 @@ use ryo_execution::application::file_dag::program::request_execution::interface:
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
 use ryo_execution::application::file_dag::program::project_phase::types::ProjectInput;
-use ryo_execution::application::file_dag::program::request_execution::types::FrontierDemand;
-use ryo_execution::application::file_dag::program::request_execution::types::FrontierRequest;
+use ryo_execution::application::file_dag::program::project_phase::types::FrontierDemand;
+use ryo_execution::application::file_dag::program::project_phase::types::FrontierRequest;
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;

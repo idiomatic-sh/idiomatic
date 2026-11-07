@@ -1,5 +1,5 @@
 //! Thin public orchestration over the one private execution owner.
-use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
+use super::interface::ExecutionUseCase;
 use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use crate::application::file_dag::program::request_execution::service::begin;
 use crate::application::file_dag::program::request_execution::types::RequestExecution;

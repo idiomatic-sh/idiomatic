@@ -1,5 +1,5 @@
 //! What a project phase offers a caller.
-use crate::application::file_dag::program::project_phase::types::ProjectScope;
+use crate::application::file_dag::program::project_phase::types::PhaseScope;
 use crate::application::file_dag::program::project_phase::types::ProjectTask;
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use crate::application::file_dag::program::rule_outcome::types::ProjectRuleOutcome;
@@ -59,6 +59,6 @@ pub trait ProjectStage: ProjectRootExecution {
         covered: &[Covered],
         skipped: &[Skipped],
         inapplicable: &InapplicableFiles,
-    ) -> Result<ProjectScope, OperatingError>;
+    ) -> Result<PhaseScope, OperatingError>;
     fn finish(self) -> Result<(), OperatingError>;
 }

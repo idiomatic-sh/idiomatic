@@ -3,7 +3,7 @@ use crate::application::file_dag::program::facade_runtime;
 use crate::application::file_dag::program::project_phase::interface::ProjectRootExecution;
 use crate::application::file_dag::program::project_phase::interface::ProjectStage;
 use crate::application::file_dag::program::project_phase::types::ProjectPhase;
-use crate::application::file_dag::program::project_phase::types::ProjectScope;
+use crate::application::file_dag::program::project_phase::types::PhaseScope;
 use crate::application::file_dag::program::project_phase::types::ProjectTask;
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use crate::application::file_dag::program::rule_outcome::types::ProjectRuleOutcome;
@@ -53,7 +53,7 @@ impl ProjectStage for ProjectPhase<'_> {
         covered: &[Covered],
         skipped: &[Skipped],
         inapplicable: &InapplicableFiles,
-    ) -> Result<ProjectScope, OperatingError> {
+    ) -> Result<PhaseScope, OperatingError> {
         let required = facade_runtime::service::required_partitions(
             &self.request.program,
             rule,
@@ -63,7 +63,7 @@ impl ProjectStage for ProjectPhase<'_> {
             &inapplicable.0,
             &self.request.services,
         )?;
-        Ok(ProjectScope {
+        Ok(PhaseScope {
             required,
             publication: std::rc::Rc::clone(&self.publication),
         })

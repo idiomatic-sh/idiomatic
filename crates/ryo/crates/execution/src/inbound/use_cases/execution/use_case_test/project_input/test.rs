@@ -2,8 +2,8 @@
 use super::super::super::fixtures;
 use crate::application::file_dag::program::project_phase::types::ProjectInput;
 use crate::application::file_dag::program::project_phase::types::ProjectTask;
-use crate::application::file_dag::program::request_execution::types::FrontierDemand;
-use crate::application::file_dag::program::request_execution::types::FrontierRequest;
+use crate::application::file_dag::program::project_phase::types::FrontierDemand;
+use crate::application::file_dag::program::project_phase::types::FrontierRequest;
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::inbound::use_cases::execution::interface::Covered;

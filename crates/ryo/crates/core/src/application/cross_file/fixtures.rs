@@ -11,13 +11,13 @@ use ryo_execution::application::file_dag::program::request_execution::interface:
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution;
 use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
-use ryo_execution::application::file_dag::program::request_execution::types::FrontierDemand;
-use ryo_execution::application::file_dag::program::request_execution::types::FrontierRequest;
+use ryo_execution::application::file_dag::program::project_phase::types::FrontierDemand;
+use ryo_execution::application::file_dag::program::project_phase::types::FrontierRequest;
 use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution::application::file_dag::frontiers::types::PreparedFrontiers;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_execution::application::file_dag::program::project_phase::types::ProjectPhase;
-use ryo_execution::application::file_dag::program::project_phase::types::ProjectScope;
+use ryo_execution::application::file_dag::program::project_phase::types::PhaseScope;
 use ryo_execution::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::metadata::interface::Covered;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
@@ -244,7 +244,7 @@ pub(super) fn prepared<'a>(
     world: &'a World,
     rows: &[(FileId, ryo_values::domain::rows::types::Table)],
     symbols: &mut Symbols,
-) -> Result<(ProjectPhase<'a>, ProjectScope, PreparedFrontiers), RuleRequestsError> {
+) -> Result<(ProjectPhase<'a>, PhaseScope, PreparedFrontiers), RuleRequestsError> {
     let phase = world.request.project_phase().expect("one project phase");
     let (scope, frontiers) =
         prepared_in(world, &phase, RuleIndex(0), &world.covered, rows, symbols)?;
@@ -258,7 +258,7 @@ pub(super) fn prepared_in(
     covered: &[Covered],
     rows: &[(FileId, Table)],
     symbols: &mut Symbols,
-) -> Result<(ProjectScope, PreparedFrontiers), RuleRequestsError> {
+) -> Result<(PhaseScope, PreparedFrontiers), RuleRequestsError> {
     use ryo_execution::outbound::facts::interface::FactsPort as _;
     use ryo_execution::outbound::facts::types::WordsToKeep;
     use ryo_values::domain::{

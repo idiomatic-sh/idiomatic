@@ -29,8 +29,8 @@ use ryo_execution::application::file_dag::program::prepared_execution::interface
 use ryo_execution::application::file_dag::program::project_phase::interface::ProjectRootExecution;
 use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
 use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
-use ryo_execution::application::file_dag::program::request_execution::types::FrontierDemand;
-use ryo_execution::application::file_dag::program::request_execution::types::FrontierRequest;
+use ryo_execution::application::file_dag::program::project_phase::types::FrontierDemand;
+use ryo_execution::application::file_dag::program::project_phase::types::FrontierRequest;
 use ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;

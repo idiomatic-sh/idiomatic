@@ -1,7 +1,7 @@
 //! What an observation stage offers a caller.
 use crate::application::file_dag::frontiers::types::BoundInput;
 use crate::application::file_dag::frontiers::types::PublicationSlot;
-use crate::application::file_dag::program::project_phase::types::ProjectScope;
+use crate::application::file_dag::program::project_phase::types::PhaseScope;
 use crate::application::file_dag::program::observed_publication::types::ObservedPublication;
 use crate::domain::coverage::types::Covered;
 use crate::domain::coverage::types::FileObservationReadiness;
@@ -34,7 +34,7 @@ pub trait ObservationExecution {
         covered: &[Covered],
         skipped: &[Skipped],
         inapplicable: &InapplicableFiles,
-    ) -> Result<ProjectScope, OperatingError>;
+    ) -> Result<PhaseScope, OperatingError>;
     fn finish(&mut self, rule: RuleIndex) -> Result<(), OperatingError>;
     fn finish_stage(self) -> Result<(), OperatingError>;
 }

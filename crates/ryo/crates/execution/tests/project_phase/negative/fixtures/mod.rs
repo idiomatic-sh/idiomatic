@@ -16,10 +16,10 @@ use ryo_execution::application::file_dag::program::observation_stage::types::Obs
 use ryo_execution::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_execution::application::file_dag::program::project_phase::types::ProjectInput;
 use ryo_execution::application::file_dag::program::project_phase::types::ProjectPhase;
-use ryo_execution::application::file_dag::program::project_phase::types::ProjectScope;
+use ryo_execution::application::file_dag::program::project_phase::types::PhaseScope;
 use ryo_execution::application::file_dag::program::project_phase::types::ProjectTask;
-use ryo_execution::application::file_dag::program::request_execution::types::FrontierDemand;
-use ryo_execution::application::file_dag::program::request_execution::types::FrontierRequest;
+use ryo_execution::application::file_dag::program::project_phase::types::FrontierDemand;
+use ryo_execution::application::file_dag::program::project_phase::types::FrontierRequest;
 use ryo_execution::application::file_dag::program::request_execution::types::RequestExecution;
 use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectRuleOutcome;
@@ -94,7 +94,7 @@ impl Held<'_> {
         rule: RuleIndex,
         corpus: &[CorpusInput],
         covered: &[Covered],
-    ) -> Result<ProjectScope, OperatingError> {
+    ) -> Result<PhaseScope, OperatingError> {
         match self {
             Held::Phase(phase) => phase.project_scope(
                 rule,
@@ -112,7 +112,7 @@ impl Held<'_> {
             ),
         }
     }
-    fn scope(&self, rule: RuleIndex, corpus: &[CorpusInput], covered: &[Covered]) -> ProjectScope {
+    fn scope(&self, rule: RuleIndex, corpus: &[CorpusInput], covered: &[Covered]) -> PhaseScope {
         self.try_scope(rule, corpus, covered).unwrap()
     }
     fn evaluate<E>(
@@ -304,7 +304,7 @@ pub(crate) fn with_held<T>(
 /// Prepare the frontiers of `rule` against a scope that declared another rule.
 pub(crate) fn prepare_for(
     request: &RequestExecution,
-    scope: &ProjectScope,
+    scope: &PhaseScope,
     rule: RuleIndex,
 ) -> Result<PreparedFrontiers, PreparationError> {
     request.prepare_frontiers(

@@ -16,8 +16,8 @@ use ryo_execution::application::file_dag::program::file_session::types::SourceLa
 use ryo_execution::application::file_dag::program::file_session::types::SourceRows;
 use ryo_execution::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_execution::application::file_dag::program::project_phase::types::ProjectInput;
-use ryo_execution::application::file_dag::program::request_execution::types::FrontierDemand;
-use ryo_execution::application::file_dag::program::request_execution::types::FrontierRequest;
+use ryo_execution::application::file_dag::program::project_phase::types::FrontierDemand;
+use ryo_execution::application::file_dag::program::project_phase::types::FrontierRequest;
 use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectObservation;
 use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use ryo_execution::application::file_dag::program::rule_outcome::types::RootOutcome;

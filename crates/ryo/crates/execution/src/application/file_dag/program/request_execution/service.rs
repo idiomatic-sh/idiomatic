@@ -9,8 +9,8 @@ use crate::application::file_dag::program::observation_stage::types::Observation
 use crate::application::file_dag::program::project_phase::types::ProjectInput;
 use crate::application::file_dag::program::project_phase::types::ProjectPhase;
 use crate::application::file_dag::program::request_execution::interface::ExecutionRequest;
-use crate::application::file_dag::program::request_execution::types::FrontierDemand;
-use crate::application::file_dag::program::request_execution::types::FrontierRequest;
+use crate::application::file_dag::program::project_phase::types::FrontierDemand;
+use crate::application::file_dag::program::project_phase::types::FrontierRequest;
 use crate::application::file_dag::program::request_execution::types::RequestExecution;
 use crate::application::file_dag::scope::ScopePartials;
 use crate::domain::operating::errors::OperatingError;

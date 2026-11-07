@@ -13,8 +13,8 @@ use ryo_execution::application::file_dag::program::file_session::types::FileInpu
 use ryo_execution::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution::application::file_dag::program::file_session::types::SourceRows;
 use ryo_execution::application::file_dag::program::project_phase::types::ProjectInput;
-use ryo_execution::application::file_dag::program::request_execution::types::FrontierDemand;
-use ryo_execution::application::file_dag::program::request_execution::types::FrontierRequest;
+use ryo_execution::application::file_dag::program::project_phase::types::FrontierDemand;
+use ryo_execution::application::file_dag::program::project_phase::types::FrontierRequest;
 use ryo_execution::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::Covered;

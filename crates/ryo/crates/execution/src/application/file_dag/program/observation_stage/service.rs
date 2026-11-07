@@ -5,7 +5,7 @@ use crate::application::file_dag::program::observation_stage::interface::Observa
 use crate::application::file_dag::program::observation_stage::interface::ObservationPublication;
 use crate::application::file_dag::program::observation_stage::types::ObservationStage;
 use crate::application::file_dag::program::project_phase::interface::ProjectRootExecution;
-use crate::application::file_dag::program::project_phase::types::ProjectScope;
+use crate::application::file_dag::program::project_phase::types::PhaseScope;
 use crate::application::file_dag::program::project_phase::types::ProjectTask;
 use crate::application::file_dag::program::observed_publication::types::ObservedPublication;
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
@@ -74,7 +74,7 @@ impl ObservationExecution for ObservationStage<'_> {
         covered: &[Covered],
         skipped: &[Skipped],
         inapplicable: &InapplicableFiles,
-    ) -> Result<ProjectScope, OperatingError> {
+    ) -> Result<PhaseScope, OperatingError> {
         self.phase
             .project_scope(rule, corpus, covered, skipped, inapplicable)
     }

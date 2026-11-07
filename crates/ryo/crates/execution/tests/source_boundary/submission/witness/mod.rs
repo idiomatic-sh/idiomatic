@@ -22,9 +22,9 @@ use ryo_execution::application::file_dag::program::observation_stage::types::Obs
 use ryo_execution::application::file_dag::program::observed_publication::types::ObservedPublication;
 use ryo_execution::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_execution::application::file_dag::program::project_phase::types::ProjectPhase;
-use ryo_execution::application::file_dag::program::project_phase::types::ProjectScope;
+use ryo_execution::application::file_dag::program::project_phase::types::PhaseScope;
 use ryo_execution::application::file_dag::program::project_phase::types::ProjectTask;
-use ryo_execution::application::file_dag::program::request_execution::types::FrontierRequest;
+use ryo_execution::application::file_dag::program::project_phase::types::FrontierRequest;
 use ryo_execution::application::file_dag::program::request_execution::types::RequestExecution;
 use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectRuleOutcome;
@@ -169,7 +169,7 @@ impl ProjectStage for Witness {
         _: &[Covered],
         _: &[Skipped],
         _: &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles,
-    ) -> Result<ProjectScope, OperatingError> {
+    ) -> Result<PhaseScope, OperatingError> {
         witness(Method::StageProjectScope)
     }
     fn finish(self) -> Result<(), OperatingError> {
@@ -199,7 +199,7 @@ impl ObservationExecution for Witness {
         _: &[Covered],
         _: &[Skipped],
         _: &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles,
-    ) -> Result<ProjectScope, OperatingError> {
+    ) -> Result<PhaseScope, OperatingError> {
         witness(Method::ObservedProjectScope)
     }
     fn finish(&mut self, _: RuleIndex) -> Result<(), OperatingError> {

@@ -6,7 +6,7 @@ use ryo_execution::application::file_dag::frontiers::types::BoundInput;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
 use ryo_execution::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_execution::application::file_dag::frontiers::types::PreparedFrontiers;
-use ryo_execution::application::file_dag::program::project_phase::types::ProjectScope;
+use ryo_execution::application::file_dag::program::project_phase::types::PhaseScope;
 use ryo_execution::application::file_dag::frontiers::types::PublicationSlot;
 use ryo_execution::application::file_dag::program::request_execution::types::RequestExecution;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
@@ -68,7 +68,7 @@ pub(crate) struct ProjectOutcome {
 /// The resources one occurrence is evaluated from, once its preparation succeeded.
 pub(crate) struct ReadyProject {
     /// The occurrence's project scope.
-    pub scope: ProjectScope,
+    pub scope: PhaseScope,
     /// The prepared frontiers, taken once when the task is built.
     pub frontier: Option<PreparedFrontiers>,
     /// The bound inputs of the occurrence.

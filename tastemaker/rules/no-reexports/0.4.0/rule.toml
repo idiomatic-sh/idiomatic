@@ -1,5 +1,5 @@
 description = "Imports, external-crate bindings and type aliases of a path have inherited visibility outside the product’s placed SDK surface."
-why = "Consumers use the defining module. Public use, extern crate and type declarations forward another module’s item under a second path. A canonical inbound use-case interface may expose private domain */types signature vocabulary only; service/implementation exports remain forbidden. A port factory may expose its adapter connection module's named `Connection` handle for edge construction and injection; mixed exports or adapter implementations are not exempt. Only such a factory may also carry a local `clippy::pub_use` allowance that Clippy requires; `clippy::restriction` remains forbidden. This exception checks the factory location and imported path, not runtime ownership. The product excludes only the src tree of its actual SDK spec placement; CLI and ordinary crate roots receive no exception. The former derive-facade switch is removed. Syntax checking includes inactive cfg code and macro_rules bodies, but not procedural-macro expansion; the compiler construction boundary independently resolves aliases when checking composition."
+why = "Consumers use the defining module. Public use, extern crate and type declarations forward another module’s item under a second path. A canonical inbound use-case interface may expose private domain */types and */errors signature vocabulary only (the error a use case's signature carries is vocabulary as much as its data); service/implementation exports remain forbidden. A port factory may expose its adapter connection module's named `Connection` handle for edge construction and injection; mixed exports or adapter implementations are not exempt. Only such a factory may also carry a local `clippy::pub_use` allowance that Clippy requires; `clippy::restriction` remains forbidden. This exception checks the factory location and imported path, not runtime ownership. The product excludes only the src tree of its actual SDK spec placement; CLI and ordinary crate roots receive no exception. The former derive-facade switch is removed. Syntax checking includes inactive cfg code and macro_rules bodies, but not procedural-macro expansion; the compiler construction boundary independently resolves aliases when checking composition."
 
 query = '''
 let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
@@ -56,7 +56,7 @@ let signature-interfaces = select * from visible-imports where glob_any(file, "*
 let signature-paths = select l."id" as "id", r."path" as "path" from signature-interfaces as l join resource-use-paths as r on l."id" = r."id";
 let signature-item-prefix = select l."id" as "id", r."prefix" as "path" from signature-paths as l join resource-path-parents as r on l."path" = r."path";
 let signature-type-paths-step = select l."id" as "id", l."path" as "path", r."text" as "text" from signature-item-prefix as l join resource-path-names as r on l."path" = r."path";
-let signature-type-paths = select "id", "path" from signature-type-paths-step where text = "types";
+let signature-type-paths = select "id", "path" from signature-type-paths-step where glob_any(text, "{types,errors}");
 let signature-concept = select l."id" as "id", r."prefix" as "path" from signature-type-paths as l join resource-path-parents as r on l."path" = r."path";
 let signature-domain-path = select l."id" as "id", r."prefix" as "path" from signature-concept as l join resource-path-parents as r on l."path" = r."path";
 let signature-domain-step = select l."id" as "id", l."path" as "path", r."text" as "text" from signature-domain-path as l join resource-path-names as r on l."path" = r."path";
@@ -1569,6 +1569,26 @@ given.files.'src/inbound/use_cases/operators/interface.rs' = '''
 pub use crate::domain::contract::types::OperatorCall;
 pub use crate::domain::capture::types::CaptureOutput;
 '''
+
+[[scenarios]]
+id = 'inbound-signature-error'
+scenario = 'The canonical inbound contract may forward the nominal private domain error its signatures carry.'
+given.files.'src/domain/operating/errors.rs' = '''
+pub enum OperatingError { NotRun }
+'''
+given.files.'src/inbound/use_cases/operators/interface.rs' = '''
+pub use crate::domain::operating::errors::OperatingError;
+'''
+
+[[scenarios]]
+id = 'inbound-error-wrong-place'
+scenario = 'A sibling application module cannot forward a domain error.'
+given.files.'src/application/operators/service.rs' = '''
+pub use crate::domain::operating::errors::OperatingError;
+'''
+then.findings = [
+  { path = 'src/application/operators/service.rs', line = 1 },
+]
 
 [[scenarios]]
 id = 'inbound-signature-grouped'
