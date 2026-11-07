@@ -5,7 +5,7 @@ use crate::application::file_dag::relations::*;
 use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::application::file_dag::relations::handle::service::PublishedInput;
 use crate::domain::executable_program::types::RegionId;
-use crate::domain::ordered_existence::types::{NumberRequirement, StoredNumberOrigin};
+use crate::domain::self_join_recogniser::types::{NumberRequirement, StoredNumberOrigin};
 use ryo_relations::domain::relations::{
     service::kinds,
     types::{ColumnsView, FactColumn},

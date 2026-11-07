@@ -62,7 +62,7 @@ fn output_requests(
         &vec![Digest([0; 16]); outputs.len()],
         &hosts,
         Arc::clone(&derived),
-        ObservationIdentity::Independent,
+        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
     )
     .unwrap();
     let services = Arc::new(ProgramServices::new(

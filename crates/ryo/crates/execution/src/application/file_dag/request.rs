@@ -168,7 +168,7 @@ pub(crate) fn prepare_with_schemas<'s>(
             .iter()
             .enumerate()
             .map(|(rule, plan)| {
-                crate::domain::ordered_existence::service::compile(plan, &|id| {
+                crate::domain::self_join_recogniser::service::compile(plan, &|id| {
                     match &rules.get(rule)?.get(id.0 as usize)?.schema {
                         Ok(kinds) => Some(kinds.as_slice()),
                         Err(_) => None,

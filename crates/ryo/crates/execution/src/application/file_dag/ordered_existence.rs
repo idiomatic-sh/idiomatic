@@ -2,7 +2,7 @@
 use crate::domain::operator::contract::{
     failure::FailureLatch, types::portable_fault, views::BorrowedRows,
 };
-use crate::domain::{operating::errors::OperatingError, ordered_existence::types::Extremum};
+use crate::domain::{operating::errors::OperatingError, self_join_recogniser::types::Extremum};
 use ryo_operators::domain::equality_join::errors::EqualityJoinError;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::domain::ordered_existence::types::OrderedExistenceDriver;

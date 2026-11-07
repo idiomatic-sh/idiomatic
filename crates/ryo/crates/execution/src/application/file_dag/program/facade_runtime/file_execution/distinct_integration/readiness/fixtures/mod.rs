@@ -190,7 +190,7 @@ pub(crate) fn observe(omit: bool) -> Coverage {
             &[Digest([0; 16]); 5],
             &[],
             Arc::clone(&derived),
-            ObservationIdentity::Independent,
+            ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
         )
         .unwrap();
         // Expected physical IDs come from all five authored emit roots, not

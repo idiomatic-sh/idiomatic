@@ -47,7 +47,7 @@ pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
         &[Digest([0; 16])],
         &[],
         Arc::clone(&derived),
-        ObservationIdentity::Independent,
+        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
     )?;
     let target = StepId((plan(scenario).steps.len() - 1) as u32);
     let target_region = {

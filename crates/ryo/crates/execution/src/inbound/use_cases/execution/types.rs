@@ -1,4 +1,5 @@
 //! Public request data and opaque prepared-program handle.
+pub use crate::domain::executable_program::types::{RoutePolicy, RouteWiring};
 pub use crate::domain::prepared_request::types::ObservationIdentity;
 pub use crate::outbound::derived::interface::DerivedPort;
 pub use crate::outbound::operators::interface::OperatorsPort;

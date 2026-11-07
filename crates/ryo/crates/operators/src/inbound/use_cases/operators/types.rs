@@ -179,6 +179,40 @@ pub enum OperatorCall<'a> {
         /// Declared span column.
         column: ryo_values::domain::plan_parts::types::ColumnIndex,
     },
+    /// Whether a rendered candidate, after its source prefix, stays within the line width.
+    FitsRendered {
+        /// The rendered candidate.
+        rendered: crate::domain::fits_rendered::types::CandidateText<'a>,
+        /// The source text on the candidate's first line before it.
+        prefix: crate::domain::fits_rendered::types::LinePrefix<'a>,
+        /// The widest permitted line.
+        maximum: crate::domain::fits_rendered::types::LineWidth,
+        /// Columns between tab stops, never zero.
+        tab_width: crate::domain::fits_rendered::types::TabStop,
+    },
+    /// Mark the nodes on a cycle of engine-prepared adjacency.
+    Cycles {
+        /// The adjacency.
+        graph: &'a dyn crate::domain::cycles::types::CycleDriver,
+        /// Caller-owned work arrays; the answer is left in them.
+        scratch: &'a mut crate::domain::cycles::types::CycleScratch,
+    },
+    /// One row of texts for each table of a table-list parameter.
+    TableRows {
+        /// The tables.
+        tables: &'a [ryo_values::domain::query_bindings::types::BindingTable],
+        /// The keys whose texts fill the columns, in order.
+        keys: &'a [ryo_values::domain::plan_parts::types::TableKey],
+        /// Engine-owned delivery.
+        each: &'a mut dyn crate::domain::table_rows::types::TableRowOutput,
+    },
+    /// Deliver the known renderings of a provider's batch, refusing the batch first if any is unsupported.
+    RenderBatch {
+        /// One answer per request.
+        answers: &'a [crate::domain::render_batch::types::RenderAnswer<'a>],
+        /// Engine-owned delivery.
+        each: &'a mut dyn crate::domain::render_batch::types::RenderedOutput,
+    },
     /// Compose the start of one span with the end of another.
     SpanBetween {
         /// Input row.

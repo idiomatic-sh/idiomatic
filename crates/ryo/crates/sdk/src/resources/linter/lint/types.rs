@@ -147,7 +147,8 @@ pub(crate) enum Spill {
 /// The engine a program builds once, with the languages it linked, and lints many repositories with: the compiler of
 /// queries, the plans compiled so far and the globs made so far are shared by every run over it. Made by `linter`.
 ///
-/// A linter takes no physical-strategy options: the removed execution options and their builder no longer resolve.
+/// A linter takes no physical-strategy options beyond `routing`, which only unwires strategies for a differential run: the
+/// removed execution options and their builder no longer resolve.
 /// ```compile_fail,E0432
 /// use ryo::linter::ExecutionOptions;
 /// ```
@@ -179,6 +180,8 @@ pub(crate) struct LinterLintEngine {
     pub memory: MemoryBudget,
     /// Where the runs keep what they leave for the next.
     pub cache: Cache,
+    /// The execution strategies every run over the engine may use.
+    pub routes: ryo_execution::inbound::use_cases::execution::types::RoutePolicy,
 }
 
 impl Linter {
@@ -190,6 +193,11 @@ impl Linter {
     /// The engine it runs over, for its sibling entry.
     pub(super) const fn engine(&self) -> &LinterLintEngine {
         &self.0
+    }
+
+    /// The engine it runs over, changed by its sibling entry before any run.
+    pub(super) const fn engine_mut(&mut self) -> &mut LinterLintEngine {
+        &mut self.0
     }
 }
 

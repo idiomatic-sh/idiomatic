@@ -1,5 +1,5 @@
 //! Actual configured classes and explicit barriers, through the production SDK.
-use super::fixtures::{Observation, expected_routes, observe};
+use super::fixtures::{Inventory, Measured, Observation, configurations, django, expected_routes, is_baseline, observe, record};
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 use std::collections::BTreeSet;
 type Input = ();
@@ -349,4 +349,38 @@ fn verify(observed: Observation) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+/// Each strategy unwired alone, and all of them: the 413-rule corpus run and the Django canary answer like the wired engine.
+#[test]
+fn every_strategy_unwired_answers_like_the_wired_engine() -> Result<(), Box<dyn std::error::Error>> {
+    let inventory = Inventory::stage()?;
+    let all = configurations();
+    let mut runs: Vec<Measured> = Vec::new();
+    for configuration in &all {
+        runs.push(inventory.run(*configuration)?);
+        runs.push(django(*configuration)?);
+    }
+    let mut baselines = std::collections::BTreeMap::new();
+    for run in runs.iter().filter(|run| {
+        all.iter()
+            .any(|each| each.name == run.configuration && is_baseline(each))
+    }) {
+        assert!(run.output.is_ok(), "the wired engine must answer {}: {:?}", run.workload, run.output);
+        let _first = baselines.insert(run.workload, run.output.clone());
+    }
+    assert!(
+        runs.iter().all(|run| {
+            run.wall_seconds > 0.0 && run.cpu_seconds.is_some() && run.peak_rss_bytes.is_some()
+        }),
+        "every run records its wall, CPU and peak resident size"
+    );
+    record(&runs, &baselines)?;
+    let different: Vec<String> = runs
+        .iter()
+        .filter(|run| baselines.get(run.workload) != Some(&run.output))
+        .map(|run| format!("{} on {}", run.configuration, run.workload))
+        .collect();
+    assert!(different.is_empty(), "differs from the wired engine: {different:?}");
+    Ok(())
 }

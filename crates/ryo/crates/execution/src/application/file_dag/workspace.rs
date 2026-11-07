@@ -9,10 +9,7 @@ use std::sync::Arc;
 use self::constants::EXPECT_DEMANDED_INPUT;
 use ryo_values::domain::plan_parts::types::InputNumber;
 
-use crate::domain::operator::contract::{
-    axis::AxisWorkspace,
-    graph::{CycleMarks, DfsWorkspace},
-};
+use crate::domain::operator::contract::{axis::AxisWorkspace, graph::DfsWorkspace};
 
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_reach::types::Walk;

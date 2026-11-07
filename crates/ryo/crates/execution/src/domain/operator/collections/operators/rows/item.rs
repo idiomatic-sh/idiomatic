@@ -37,24 +37,40 @@ fn tables_rows(
         | ParameterBinding::TextSets(_) => return Err(OperatingError::WrongBinding),
     };
     let after = lease.views.phase;
-    for table in tables {
-        row.clear();
-        for key in keys {
-            let cell = table
-                .0
-                .iter()
-                .find(|cell| *cell.key.0 == *key.0)
-                .ok_or(OperatingError::WrongBinding)?;
-            let made = query_intern_derived(
-                &mut lease.derived,
-                ByteSlice(lease.views.source.0),
-                NameText(&cell.value.0),
-            );
-            row.push(minted(lease.derived.as_ref(), made, after));
-        }
-        emit.row(lease, row)?;
+    let mut failure: Option<OperatingError> = None;
+    let delivered = lease.semantics().operators(
+        ryo_operators::inbound::use_cases::operators::interface::OperatorCall::TableRows {
+            tables,
+            keys,
+            each: &mut |each: ryo_operators::domain::table_rows::types::RowTexts<'_>| {
+                let step = (|| {
+                    row.clear();
+                    for text in each.0 {
+                        let made = query_intern_derived(
+                            &mut lease.derived,
+                            ByteSlice(lease.views.source.0),
+                            NameText(text.0),
+                        );
+                        row.push(minted(lease.derived.as_ref(), made, after));
+                    }
+                    emit.row(lease, row)
+                })();
+                step.map_err(|error| {
+                    failure = Some(error);
+                    ryo_operators::inbound::use_cases::operators::interface::SemanticInterrupted
+                })
+            },
+        },
+    );
+    if let Some(error) = failure {
+        return Err(error);
     }
-    Ok(())
+    match delivered {
+        Err(ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault::UnboundKey) => {
+            Err(OperatingError::WrongBinding)
+        }
+        other => crate::domain::operator::contract::types::written_result(other, None),
+    }
 }
 
 impl OperatorsItem for RowsItem {

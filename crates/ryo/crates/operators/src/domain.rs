@@ -19,3 +19,8 @@ pub mod source_matches;
 pub mod words;
 
 pub mod reduction;
+
+pub mod cycles;
+pub mod fits_rendered;
+pub mod render_batch;
+pub mod table_rows;

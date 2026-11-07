@@ -95,6 +95,7 @@ pub(crate) fn build_engine(
         build,
         memory,
         cache,
+        routes: ryo_execution::inbound::use_cases::execution::types::RoutePolicy::default(),
     }
 }
 
@@ -137,6 +138,7 @@ pub(crate) fn build(
     let plans = engine.plans.clone();
     let pool = Arc::clone(&engine.scheduler);
     let workers = engine.workers;
+    let routes = engine.routes;
     compose(LinterLintParts {
         service: move || {
             let files: Arc<dyn corpus::interface::CorpusPort> = match reading {
@@ -180,6 +182,7 @@ std::sync::Arc::new(ryo_execution::outbound::derived::factory::use_case(ryo_deri
                 store,
             )
             .compiling_into(plans)
+            .routing(routes)
         },
     })
 }

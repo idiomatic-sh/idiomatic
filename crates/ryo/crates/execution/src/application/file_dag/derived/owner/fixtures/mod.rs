@@ -57,7 +57,7 @@ pub(crate) fn prepared_sources(
         crate::domain::file_program::types::ObservationRequest::Independent,
     );
     let program =
-        crate::domain::executable_program::service::compile(plans, graph, &partitions, &request)
+        crate::domain::executable_program::service::compile(plans, graph, &partitions, &request, crate::domain::executable_program::types::RoutePolicy::default())
             .unwrap();
     super::super::prepared::RequestDerived::compile(&program, &request).unwrap()
 }

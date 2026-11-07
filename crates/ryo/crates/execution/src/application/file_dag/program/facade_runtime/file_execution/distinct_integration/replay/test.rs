@@ -136,7 +136,7 @@ fn project_into(column: u32, sink: &mut dyn RowSink) -> Result<(), OperatingErro
         &[Digest([0; 16])],
         &[],
         Arc::clone(&derived),
-        ObservationIdentity::Independent,
+        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
     )?;
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
@@ -295,7 +295,7 @@ fn indexed_join(key: i64, column: u32) -> Result<Table, OperatingError> {
         &[Digest([0; 16])],
         &hosts,
         Arc::clone(&derived),
-        ObservationIdentity::Independent,
+        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
     )?;
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(

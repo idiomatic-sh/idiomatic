@@ -226,7 +226,7 @@ fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
         &[Digest([0; 16])],
         &[],
         Arc::clone(&derived),
-        ObservationIdentity::Independent,
+        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
     )?;
     let engine = Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
         ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),

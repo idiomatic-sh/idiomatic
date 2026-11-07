@@ -90,7 +90,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
         &[Digest([0; 16])],
         &hosted,
         Arc::clone(&derived),
-        ObservationIdentity::Independent,
+        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
     )?;
     let engine: Arc<dyn crate::application::file_dag::executor::PrimitiveExecutor + Send> =
         Arc::new(CommonOperatorEngine::new(

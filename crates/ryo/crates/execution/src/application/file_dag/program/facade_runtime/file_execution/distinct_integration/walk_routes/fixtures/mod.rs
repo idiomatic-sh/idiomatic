@@ -60,7 +60,7 @@ impl Program {
             &vec![Digest([0; 16]); authored.rules.len()],
             &authored.hosts,
             derived.clone(),
-            authored.observations,
+            authored.observations, crate::domain::executable_program::types::RoutePolicy::default(),
         )?;
         let services = Arc::new(ProgramServices::new(
             Arc::new(CommonOperatorEngine::new(meanings)),

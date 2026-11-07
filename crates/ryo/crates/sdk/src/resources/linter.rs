@@ -13,6 +13,9 @@ pub use lint::entry::lint_with;
 
 pub use lint::types::Linter;
 
+/// Which execution strategies a linter may use, for a differential run against the generic evaluation.
+pub use ryo_execution::inbound::use_cases::execution::types::{RoutePolicy, RouteWiring};
+
 pub use crate::domain::capacity::types::WorkerPool;
 
 pub use lint::errors::LintError;

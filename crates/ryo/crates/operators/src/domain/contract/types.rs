@@ -26,5 +26,9 @@ pub enum PortableOperatorFault {
     MissingCapture,
     /// The supplied semantic options are not a valid operation.
     WrongOperation,
+    /// A requested table key is absent from a table.
+    UnboundKey,
+    /// A language provider cannot render the requested syntax.
+    UnsupportedRender,
 }
 

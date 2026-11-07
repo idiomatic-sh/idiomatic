@@ -20,7 +20,7 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
         &[Digest([0; 16])],
         &[],
         Arc::clone(&derived),
-        ObservationIdentity::Independent,
+        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
     )
     .unwrap();
     let services = Arc::new(ProgramServices::new(

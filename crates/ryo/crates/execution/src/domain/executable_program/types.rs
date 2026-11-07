@@ -69,10 +69,10 @@ pub(crate) struct Instruction {
 #[derive(Clone, Debug)]
 pub(crate) struct OrderedExistence {
     pub source: RegionId,
-    pub number: crate::domain::ordered_existence::types::NumberRequirement,
+    pub number: crate::domain::self_join_recogniser::types::NumberRequirement,
     pub partition: Box<[ryo_values::domain::plan_parts::types::ColumnIndex]>,
     pub order: ryo_values::domain::plan_parts::types::ColumnIndex,
-    pub extremum: crate::domain::ordered_existence::types::Extremum,
+    pub extremum: crate::domain::self_join_recogniser::types::Extremum,
     pub output: Box<[ryo_values::domain::plan_parts::types::JoinColumn]>,
 }
 #[derive(Clone, Copy, Debug)]
@@ -94,6 +94,32 @@ pub(crate) enum Route {
     Selection(SelectionAlternative),
     /// The native positions of a step that reads only the tree.
     NativePositions(Arc<crate::domain::lowering::types::LoweredShape>),
+}
+/// Whether the composition wires one strategy: an unwired strategy offers no route, so the generic
+/// evaluation of the operators serves what it would have served.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum RouteWiring {
+    /// The strategy is offered to the one selection rule.
+    #[default]
+    Wired,
+    /// The strategy is never offered.
+    Unwired,
+}
+/// Which strategies the composition wires, every one by default. Each strategy implements a driver
+/// port of `ryo_operators`; the policy only chooses which implementations a program may use, so a
+/// differential run can compare an engine with a strategy and the same engine without it.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct RoutePolicy {
+    /// The ordered-existence replacement of a self-join anti-join select.
+    pub ordered_existence: RouteWiring,
+    /// The column kernel over a stored equality index.
+    pub column_kernel: RouteWiring,
+    /// The stored (compact) selection of a direct select or project.
+    pub stored_selection: RouteWiring,
+    /// The lowered native positions of a step that reads only the tree.
+    pub native_positions: RouteWiring,
+    /// The tree join cursor that serves a native join without the generic join item.
+    pub tree_join: RouteWiring,
 }
 /// A route without its payload: what a permit is issued for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -148,6 +174,8 @@ pub(crate) struct ExecutableProgram {
     pub(super) rules: Box<[RuleProgram]>,
     pub(super) logical_regions: Box<[RegionId]>,
     pub(super) observation_regions: Box<[Result<RegionId, OperatingError>]>,
+    /// The strategies the composition wired when this program was compiled.
+    pub(super) routes: RoutePolicy,
     /// The fusion classification of every instruction, indexed by its logical number.
     #[cfg(test)]
     pub fusibility: Box<[super::fusion::types::Fusibility]>,
@@ -225,6 +253,10 @@ impl ExecutableProgram {
     }
     pub(crate) fn observation_regions(&self) -> &[Result<RegionId, OperatingError>] {
         &self.observation_regions
+    }
+    /// The strategies the composition wired for this program.
+    pub(crate) fn routes(&self) -> RoutePolicy {
+        self.routes
     }
 }
 impl DemandProgram {

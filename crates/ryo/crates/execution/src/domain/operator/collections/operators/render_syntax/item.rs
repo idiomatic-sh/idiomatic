@@ -78,39 +78,73 @@ impl OperatorsItem for RenderSyntaxItem {
             if answers.len() != requests.len() {
                 return Err(OperatingError::SemanticBatchShape);
             }
-            // A provider's unsupported result invalidates this consuming rule.
-            // Check the whole batch before publishing any derived row.
-            for answer in &answers {
-                if let RenderOutcome::Unsupported(reason) = answer {
-                    return Err(OperatingError::SemanticIncomplete {
+            // A provider's unsupported result invalidates this consuming rule; the operators
+            // check the whole batch before any derived row is published.
+            let after = lease.views.phase;
+            let mapped: Vec<
+                ryo_operators::domain::render_batch::types::RenderAnswer<'_>,
+            > = answers
+                .iter()
+                .map(|answer| match answer {
+                    RenderOutcome::Known(text) => {
+                        ryo_operators::domain::render_batch::types::RenderAnswer::Known(
+                            ryo_values::domain::row_texts::types::CellText(&text.0),
+                        )
+                    }
+                    RenderOutcome::NotApplicable => {
+                        ryo_operators::domain::render_batch::types::RenderAnswer::NotApplicable
+                    }
+                    RenderOutcome::Unsupported(_) => {
+                        ryo_operators::domain::render_batch::types::RenderAnswer::Unsupported
+                    }
+                })
+                .collect();
+            let mut failure: Option<OperatingError> = None;
+            let delivered = lease.semantics().operators(
+                ryo_operators::inbound::use_cases::operators::interface::OperatorCall::RenderBatch {
+                    answers: &mapped,
+                    each: &mut |position: RowIndex, text: ryo_values::domain::row_texts::types::CellText<'_>| {
+                        let step = (|| {
+                            let values = source
+                                .read(position, &mut row)
+                                .ok_or(OperatingError::NotRun)?;
+                            let made = query_intern_derived(
+                                &mut lease.derived,
+                                ByteSlice(lease.views.source.0),
+                                NameText(text.0),
+                            );
+                            joined.clear();
+                            joined.extend_from_slice(values);
+                            joined.push(minted(lease.derived.as_ref(), made, after));
+                            emit.row(lease, &joined)
+                        })();
+                        step.map_err(|error| {
+                            failure = Some(error);
+                            ryo_operators::inbound::use_cases::operators::interface::SemanticInterrupted
+                        })
+                    },
+                },
+            );
+            if let Some(error) = failure {
+                return Err(error);
+            }
+            match delivered {
+                Err(ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault::UnsupportedRender) => {
+                    let reason = answers
+                        .iter()
+                        .find_map(|answer| match answer {
+                            RenderOutcome::Unsupported(reason) => Some(reason.0),
+                            _ => None,
+                        });
+                    Err(OperatingError::SemanticIncomplete {
                         reason: format!(
                             "selected language cannot render this syntax (reason {})",
-                            reason.0
+                            reason.map_or_else(String::new, |reason| reason.to_string())
                         ),
-                    });
+                    })
                 }
+                other => crate::domain::operator::contract::types::written_result(other, None),
             }
-            let after = lease.views.phase;
-            for (position, answer) in answers.into_iter().enumerate() {
-                let text = match answer {
-                    RenderOutcome::Known(text) => text.0,
-                    RenderOutcome::NotApplicable => continue,
-                    RenderOutcome::Unsupported(_) => unreachable!("checked before publication"),
-                };
-                let values = source
-                    .read(RowIndex(position), &mut row)
-                    .ok_or(OperatingError::NotRun)?;
-                let made = query_intern_derived(
-                    &mut lease.derived,
-                    ByteSlice(lease.views.source.0),
-                    NameText(&text),
-                );
-                joined.clear();
-                joined.extend_from_slice(values);
-                joined.push(minted(lease.derived.as_ref(), made, after));
-                emit.row(lease, &joined)?;
-            }
-            Ok(())
         })();
         lease.workspace.row = row;
         lease.workspace.other = joined;

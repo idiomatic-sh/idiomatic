@@ -88,3 +88,4 @@ metrics = ["median-ns"]
 [[test]]
 name = "ruff_sharing"
 path = "benchmarks/linters/ruff/mod.rs"
+

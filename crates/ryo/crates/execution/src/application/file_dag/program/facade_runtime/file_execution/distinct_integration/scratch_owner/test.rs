@@ -42,7 +42,7 @@ pub(in super::super) fn execute(
         &[Digest([0; 16])],
         &[host],
         Arc::clone(&derived),
-        ObservationIdentity::Independent,
+        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
     )
     .unwrap();
     let services = Arc::new(ProgramServices::new(

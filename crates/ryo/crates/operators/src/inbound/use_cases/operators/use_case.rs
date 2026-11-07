@@ -269,6 +269,27 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 crate::domain::append::service::append(row, appended, target);
                 Ok(OperatorAnswer::Written)
             }
+            OperatorCall::FitsRendered {
+                rendered,
+                prefix,
+                maximum,
+                tab_width,
+            } => crate::domain::fits_rendered::service::fits(rendered, prefix, maximum, tab_width)
+                .map(|fit| {
+                    OperatorAnswer::Selected(fit == crate::domain::fits_rendered::types::Fit::Within)
+                }),
+            OperatorCall::Cycles { graph, scratch } => {
+                crate::domain::cycles::service::cycles(graph, scratch);
+                Ok(OperatorAnswer::Written)
+            }
+            OperatorCall::TableRows { tables, keys, each } => {
+                crate::domain::table_rows::service::rows(tables, keys, each)?;
+                Ok(OperatorAnswer::Written)
+            }
+            OperatorCall::RenderBatch { answers, each } => {
+                crate::domain::render_batch::service::deliver(answers, each)?;
+                Ok(OperatorAnswer::Written)
+            }
             OperatorCall::SpanBounds { row, column } => {
                 crate::domain::span_bounds::service::bounds(row, column)
                     .map(OperatorAnswer::SpanBounds)
@@ -292,5 +313,33 @@ impl<F: FnMut(&str)> crate::domain::words::types::WordOutput for F {
 impl<F: FnMut(&[std::ops::Range<usize>])> crate::domain::capture::types::CaptureOutput for F {
     fn captures(&mut self, ranges: crate::domain::capture::types::CaptureSpans<'_>) {
         self(ranges.0);
+    }
+}
+impl<
+    F: FnMut(
+        ryo_values::domain::rows::types::RowIndex,
+        ryo_values::domain::row_texts::types::CellText<'_>,
+    ) -> Result<(), crate::domain::contract::types::SemanticInterrupted>,
+> crate::domain::render_batch::types::RenderedOutput for F
+{
+    fn text(
+        &mut self,
+        position: ryo_values::domain::rows::types::RowIndex,
+        text: ryo_values::domain::row_texts::types::CellText<'_>,
+    ) -> Result<(), crate::domain::contract::types::SemanticInterrupted> {
+        self(position, text)
+    }
+}
+impl<
+    F: FnMut(
+        crate::domain::table_rows::types::RowTexts<'_>,
+    ) -> Result<(), crate::domain::contract::types::SemanticInterrupted>,
+> crate::domain::table_rows::types::TableRowOutput for F
+{
+    fn row(
+        &mut self,
+        texts: crate::domain::table_rows::types::RowTexts<'_>,
+    ) -> Result<(), crate::domain::contract::types::SemanticInterrupted> {
+        self(texts)
     }
 }

@@ -56,7 +56,7 @@ pub(super) fn prepare_case(exit: PhaseExit) -> Result<PreparedCase, OperatingErr
         &vec![Digest([0; 16]); 4],
         &[],
         Arc::clone(&derived),
-        ObservationIdentity::Independent,
+        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
     )?;
     let corpus = [CorpusInput::Available(CorpusEntry {
         executable: ExecutablePermission::Unknown,

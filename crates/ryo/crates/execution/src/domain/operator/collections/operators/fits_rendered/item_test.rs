@@ -1,6 +1,5 @@
 //! The `fits_rendered` item's cases.
 
-use super::item::fits;
 use crate::domain::operating::errors::OperatingError;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 
@@ -22,12 +21,25 @@ type Value = bool;
 type Failure = OperatingError;
 
 fn subject(candidate: Input) -> Result<Value, Failure> {
-    fits(
-        candidate.text,
-        candidate.prefix,
-        candidate.maximum,
-        candidate.tab_width,
-    )
+    use ryo_operators::domain::fits_rendered::types::{CandidateText, LinePrefix, LineWidth, TabStop};
+    use ryo_operators::inbound::use_cases::operators::{
+        interface::OperatorsUseCase,
+        types::{OperatorAnswer, OperatorCall},
+        use_case::OperatorsUseCaseImpl,
+    };
+    let operators = OperatorsUseCaseImpl::new(std::sync::Arc::new(
+        ryo_operators::outbound::matching::factory::use_case(),
+    ));
+    match operators.operators(OperatorCall::FitsRendered {
+        rendered: CandidateText(candidate.text),
+        prefix: LinePrefix(candidate.prefix),
+        maximum: LineWidth(candidate.maximum),
+        tab_width: TabStop(candidate.tab_width),
+    }) {
+        Ok(OperatorAnswer::Selected(fits)) => Ok(fits),
+        Ok(_) => Err(OperatingError::WrongOperation),
+        Err(fault) => Err(crate::domain::operator::contract::types::portable_fault(fault)),
+    }
 }
 
 /// The rows of this part's cases.
