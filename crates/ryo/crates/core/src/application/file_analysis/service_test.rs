@@ -1434,6 +1434,29 @@ fn successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads() 
         ) -> Result<ryo_values::domain::stores::types::ReadHanded, LintStoreError> {
             Ok(ryo_values::domain::stores::types::ReadHanded::default())
         }
+        fn read_old(
+            &self,
+            _words: &ryo_values::domain::stores::types::OldWords,
+            _into: &mut ryo_values::domain::stored_facts::types::PackedWords,
+        ) -> Result<(), LintStoreError> {
+            Err(LintStoreError::NothingRead)
+        }
+
+        fn begin_old_rows(
+            &self,
+            _wanted: &ryo_values::domain::stores::types::BucketsWanted,
+        ) -> Result<Option<Box<dyn crate::outbound::lint_store::interface::OldRowBatch>>, LintStoreError> {
+            Ok(None)
+        }
+
+        fn read_staged(
+            &self,
+            _words: &ryo_values::domain::records::types::StagedWords,
+            _into: &mut ryo_values::domain::stored_facts::types::PackedWords,
+        ) -> Result<(), LintStoreError> {
+            Err(LintStoreError::NothingRead)
+        }
+
         fn keep(&self, _: Stored, _: &KeptRows) -> Result<(), LintStoreError> {
             Ok(())
         }
