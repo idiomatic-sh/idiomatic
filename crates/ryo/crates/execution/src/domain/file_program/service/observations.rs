@@ -161,7 +161,7 @@ pub(crate) fn schemas<P: std::borrow::Borrow<Plan>>(
 /// Bind every output to the existing graph's actual node identity, with explicit unsupported admission.
 pub(crate) fn graph_outputs(
     plans: &[Plan],
-    nodes: &[Vec<Option<crate::domain::file_program::types::NodeId>>],
+    nodes: &[Vec<Option<crate::domain::file_program::types::GraphNodeId>>],
     request: crate::domain::file_program::types::ObservationRequest<'_>,
 ) -> Option<crate::domain::file_program::types::GraphObservations> {
     use crate::domain::file_program::types::{

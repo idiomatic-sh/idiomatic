@@ -3,7 +3,7 @@
 use super::super::interface::RelationsItem;
 use crate::domain::relations::types::{FileId, Integer, NodeId};
 use crate::domain::terms::service::term_symbol;
-use crate::domain::terms::types::MappingKind;
+use crate::domain::mapping_kind::types::MappingKind;
 
 /// `mapping`, one item of the `relations` collection.
 #[derive(Clone, Copy, Debug)]

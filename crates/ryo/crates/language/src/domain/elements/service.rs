@@ -11,9 +11,9 @@ use crate::domain::diagnostics::service::{
 };
 use crate::domain::diagnostics::types::{Diagnostic, SyntaxCompleteness};
 use ryo_relations::domain::relations::constants::{IMPLIED, NO_FIELD, NO_SYMBOL, TOKEN};
-use ryo_relations::domain::relations::types::{
-    Bytes, Count, ElementOrigin, Extent, FieldId, Flags, KindBits, Offset, Position,
-};
+use ryo_relations::domain::relations::types::{Bytes, Count, Extent, Flags, KindBits, Offset, Position};
+use ryo_relations::domain::elements::types::ElementOrigin;
+use ryo_relations::domain::relations::types::FieldId;
 use ryo_relations::domain::terms::types::ChildOrdinal;
 use ryo_relations::domain::terms::types::Symbol;
 
@@ -332,7 +332,7 @@ pub fn origin_at(elements: &Elements, at: Position) -> ElementOrigin {
 pub fn embedded_source_at(
     elements: &Elements,
     at: Position,
-) -> Option<ryo_relations::domain::relations::types::EmbeddedSource> {
+) -> Option<ryo_relations::domain::elements::types::EmbeddedSource> {
     let sources = &engine(elements).embedded;
     let next = sources.partition_point(|source| source.root <= at);
     next.checked_sub(1)

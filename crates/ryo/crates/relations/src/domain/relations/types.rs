@@ -289,66 +289,6 @@ pub enum Missing {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RowKind(pub &'static str);
 
-/// The name a relation or a column is called in the query language, borrowed.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct NameRef<'a>(pub &'a str);
-
-/// What a relation holds, in a sentence.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Holds(pub &'static str);
-
-/// The name of a relation as a file system names it: the folder of its item, of its fixtures.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Folder(pub &'static str);
-
-impl std::ops::Deref for Folder {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        self.0
-    }
-}
-
-impl std::fmt::Display for Folder {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.0)
-    }
-}
-
-impl AsRef<std::path::Path> for Folder {
-    fn as_ref(&self) -> &std::path::Path {
-        std::path::Path::new(self.0)
-    }
-}
-
-impl std::ops::Deref for Holds {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        self.0
-    }
-}
-
-impl std::fmt::Display for Holds {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.0)
-    }
-}
-
-impl std::ops::Deref for NameRef<'_> {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        self.0
-    }
-}
-
-impl std::fmt::Display for NameRef<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.0)
-    }
-}
-
 /// Where a relation's rows come from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Provenance {
@@ -402,64 +342,6 @@ pub enum ColumnKeyness {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ReportText<'a>(pub &'a str);
 
-/// The role of an element under its parent, in the language's own closed vocabulary of roles: a number, the same in every file. The
-/// vocabulary lists the role of an edge that has none first, so `NO_FIELD` is the number `0`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct FieldId(pub u16);
-
-/// A scalar property supplied by a parser, separate from a child-edge role.
-/// Zero is reserved for the element's decoded value; other keys belong to the language.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct PropertyId(pub u16);
-
-/// The macro expansion that produced an element.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ExpansionId(pub u32);
-
-/// Where an element comes from: the file itself, or the expansion of a macro call.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum ElementOrigin {
-    /// The file wrote it.
-    #[default]
-    File,
-    /// The parser implied this node; no source location was reported.
-    Implied,
-    /// A separately parsed expression carried by a source element, not a macro expansion.
-    Embedded {
-        /// The native element containing the expression's logical source.
-        host: Position,
-    },
-    /// A macro expansion produced it: it has the span of its call site, and the identity of the call site beside the expansion.
-    Expansion {
-        /// The element of the file that is the call.
-        call_site: Position,
-        /// The expansion.
-        expansion: ExpansionId,
-    },
-}
-
-/// How logical offsets in an embedded expression map to the containing source.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum EmbeddedMapping {
-    /// Logical offsets are shifted by this physical content start.
-    Exact(Offset),
-    /// Decoding or concatenation prevents precise subexpression locations.
-    WholeHost,
-}
-
-/// One contiguous, separately parsed expression in a file's element table.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct EmbeddedSource {
-    /// The native string or other carrier of the logical source.
-    pub host: Position,
-    /// The first appended element, normally the expression root.
-    pub root: Position,
-    /// The exclusive end of the appended elements.
-    pub end: Position,
-    /// The physical source mapping; token text remains logical text.
-    pub mapping: EmbeddedMapping,
-}
-
 /// One column of the rows a worker's file wrote to a relation: the numbers of the cells, in row order.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct FactColumn(pub Vec<u64>);
@@ -474,6 +356,16 @@ pub struct ColumnsView<'a> {
     pub columns: &'a [FactColumn],
 }
 
+/// The role of an element under its parent, in the language's own closed vocabulary of roles: a number, the same in every file. The
+/// vocabulary lists the role of an edge that has none first, so `NO_FIELD` is the number `0`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct FieldId(pub u16);
+
+/// A scalar property supplied by a parser, separate from a child-edge role.
+/// Zero is reserved for the element's decoded value; other keys belong to the language.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PropertyId(pub u16);
+
 /// Whether the parser assigned a real source location.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Locatedness {
@@ -481,80 +373,4 @@ pub enum Locatedness {
     Located,
     /// The parser supplied no source interval.
     Absent,
-}
-
-/// An element that a macro expansion produced.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Expanded {
-    /// The element.
-    pub element: Position,
-    /// The element of the file that is the call.
-    pub call_site: Position,
-    /// The expansion.
-    pub expansion: ExpansionId,
-}
-
-/// Opt-in semantic promises beyond the required language relation baseline.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum OptionalCapability {
-    /// Project-established importable module identity.
-    ModuleIdentity,
-    /// Project membership of an imported root under declared search roots.
-    ProjectNamespaceMembership,
-    /// Canonical language identifier spellings.
-    Identifier,
-    /// Static qualified import and builtin provenance.
-    QualifiedName,
-    /// Explicit parsed expressions embedded in source carriers.
-    EmbeddedExpression,
-    /// Collision-safe structural classes of parsed expression occurrences.
-    ExpressionShape,
-    /// Ordered static name events within explicit evaluation phases.
-    BindingEvent,
-    /// Static reference classification; definite absence, possible absence and unsupported knowledge are distinct.
-    BindingRead,
-    /// Known real declaration candidates for a semantic reference; unresolved references have no fake target edge.
-    BindingUse,
-    /// Concrete replacement and lexical-shadow associations between distinct declaration occurrences.
-    BindingShadow,
-    /// Canonical builtin catalog without requiring a matching source occurrence.
-    ImplicitSymbol,
-    /// Parsed primitive category and narrowly defined zero/empty/true predicates.
-    LiteralProperties,
-    /// Parser-decoded literal fragments belonging to interpolated strings.
-    InterpolatedStringLiteral,
-    /// Decoded byte-string literals in canonical lowercase hexadecimal.
-    BytesLiteral,
-    /// Standard mini-language observations for decoded format specifications.
-    FormatSpecification,
-    /// Parser target version attached to each source file.
-    LanguageTarget,
-    /// Positive standard-library membership for imported modules at the selected language target.
-    StandardLibraryImport,
-    /// Explicit known file-wide compiler-language feature flags.
-    CompilerFeature,
-    /// Collision-checked keys for supported parsed constant expressions.
-    ConstantKey,
-    /// Parsed percent-format strings and their format fields.
-    FormatParse,
-    /// Parsed percent-format strings and their format fields.
-    FormatField,
-    /// Parsed brace-format strings, kept separate from percent-format demand.
-    BraceFormatParse,
-    /// Ordered brace-format fields, including nested format-spec fields.
-    BraceFormatField,
-    /// Basic structured terminal outcomes of function bodies.
-    FunctionTerminal,
-    /// Basic parser-derived types of individual expressions.
-    ExpressionType,
-    /// Per-token raw percent-format parser outcomes.
-    RawFormatSegment,
-    /// Ordered conversion fields from individual successful raw-token parses.
-    RawFormatField,
-    /// Syntactic parse outcomes of original string carriers.
-    LiteralExpressionParse,
-    /// Parser-decoded integer or binary64 literal payloads.
-    NumericLiteral,
-    /// Physical native lexer-token successor and matching-delimiter edges.
-    TokenLink,
 }

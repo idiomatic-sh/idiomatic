@@ -9,7 +9,7 @@ use crate::resources::linter::lint::types::LintRequest;
 use crate::resources::linter::lint::types::Rule;
 use crate::resources::linter::lint::types::RuleId;
 use crate::resources::linter::lint::types::Workers;
-use ryo_relations::domain::relations::types::OptionalCapability;
+use ryo_relations::domain::capabilities::types::OptionalCapability;
 use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
 use super::outcome::Outcome;
@@ -18,7 +18,7 @@ use super::capability_provider::CapabilityProvider;
 use super::rules::ordinary;
 
 pub(crate) fn capability_cache(query: &str) -> Outcome {
-    use ryo_relations::domain::relations::types::OptionalCapability;
+    use ryo_relations::domain::capabilities::types::OptionalCapability;
     let advertised_capabilities: &'static [OptionalCapability] = if query == RAW_FORMAT_POSITIVE
     {
         &[

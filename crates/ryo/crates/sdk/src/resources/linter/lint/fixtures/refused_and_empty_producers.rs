@@ -3,7 +3,7 @@
 use crate::domain::observation::types::ObservationKind;
 use crate::resources::linter::lint::entry::lint_with;
 use crate::resources::linter::lint::types::Cache;
-use ryo_relations::domain::relations::types::OptionalCapability;
+use ryo_relations::domain::capabilities::types::OptionalCapability;
 use std::collections::BTreeMap;
 use super::outcome::{Outcome, summary};
 use super::capability_provider::provider_linter;

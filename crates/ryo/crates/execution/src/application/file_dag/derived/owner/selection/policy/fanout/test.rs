@@ -16,7 +16,8 @@ use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Relation, Value as Cell,
 };
 use ryo_relations::domain::terms::service::term_symbol;
-use ryo_relations::domain::terms::types::{DeclarationKind, NameText, Symbol};
+use ryo_relations::domain::declaration_kind::types::DeclarationKind;
+use ryo_relations::domain::terms::types::{NameText, Symbol};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, PlanComparison, LiteralText, Operand, ParameterId, QueryLiteral, Test,

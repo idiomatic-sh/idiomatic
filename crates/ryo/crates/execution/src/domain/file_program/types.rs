@@ -5,12 +5,12 @@ use ryo_relations::domain::relations::types::Relation;
 use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct NodeId(pub usize);
+pub(crate) struct GraphNodeId(pub usize);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum NodeInput {
     Relation(Relation),
-    Node(NodeId),
+    Node(GraphNodeId),
     /// A named input reads already-published producer roots, never demands them under this rule.
     Observation(ObservationGraphInputId),
 }
@@ -63,7 +63,7 @@ pub(crate) struct FileProgramNode {
 pub(crate) struct RequestGraph {
     /// Every original step, including terminal and project steps. Invalid
     /// references are deferred faults, never a choice of another scheduler.
-    pub program_nodes: Vec<Vec<Result<NodeId, crate::domain::operating::errors::OperatingError>>>,
+    pub program_nodes: Vec<Vec<Result<GraphNodeId, crate::domain::operating::errors::OperatingError>>>,
     /// Reviewed alternatives indexed by their replaced Select producer.
     pub ordered_existence: Vec<Option<ResolvedAlternative>>,
     /// Named roots extend this request graph; ordinary requests retain no observation allocation.
@@ -136,7 +136,7 @@ pub(crate) struct ObservationSlot {
 /// Actual prepared root location; unsupported admission never becomes complete-empty.
 #[derive(Clone, Debug)]
 pub(crate) enum GraphObservationRoot {
-    PerFile(NodeId),
+    PerFile(GraphNodeId),
     CrossFile,
     Unavailable,
 }
@@ -187,7 +187,7 @@ pub struct ObservedFrontierRoot {
     pub frontier: ryo_values::domain::plan_parts::types::InputNumber,
 }
 
-/// One request-wide binding slot; its payload is the same width as an ordinary NodeId edge.
+/// One request-wide binding slot; its payload is the same width as an ordinary GraphNodeId edge.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct ObservationGraphInputId(pub usize);
 
@@ -195,9 +195,9 @@ pub(crate) struct ObservationGraphInputId(pub usize);
 #[derive(Clone, Debug)]
 pub(crate) struct ResolvedShape {
     pub shape: Shape,
-    pub source: NodeId,
-    pub join: NodeId,
-    pub select: NodeId,
+    pub source: GraphNodeId,
+    pub join: GraphNodeId,
+    pub select: GraphNodeId,
     /// Exact logical output layout consumed by the unchanged Project.
     pub output: Vec<ryo_values::domain::plan_parts::types::JoinColumn>,
 }

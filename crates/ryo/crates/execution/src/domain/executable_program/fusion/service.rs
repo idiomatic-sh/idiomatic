@@ -7,7 +7,7 @@ use crate::domain::{
         column::{ColumnCandidates, ReplacementUse},
         types::ReaderMultiplicity,
     },
-    file_program::types::{FileProgramNode, GraphObservationRoot, NodeId, NodeInput, RequestGraph},
+    file_program::types::{FileProgramNode, GraphObservationRoot, GraphNodeId, NodeInput, RequestGraph},
     operator::contract::{
         resources::ResourceProgram,
         types::{Effects, InputShape, ReuseScope},
@@ -91,13 +91,13 @@ pub(crate) fn region_sharing(node: &FileProgramNode, held: Option<Barrier>) -> R
     }
 }
 
-fn hold(held: &mut [Option<Barrier>], node: NodeId, barrier: Barrier) {
+fn hold(held: &mut [Option<Barrier>], node: GraphNodeId, barrier: Barrier) {
     if let Some(slot) = held.get_mut(node.0) {
         slot.get_or_insert(barrier);
     }
 }
 
-fn root(graph: &RequestGraph, rule: RuleIndex, step: StepId) -> Option<NodeId> {
+fn root(graph: &RequestGraph, rule: RuleIndex, step: StepId) -> Option<GraphNodeId> {
     match graph.program_nodes.get(rule.0)?.get(step.0 as usize)? {
         Ok(id) => Some(*id),
         Err(_) => None,
@@ -197,7 +197,7 @@ pub(crate) fn classify(
     }
     for (node, derived) in graph.derived_sources.iter().enumerate() {
         if *derived {
-            hold(&mut held, NodeId(node), Barrier::Derived);
+            hold(&mut held, GraphNodeId(node), Barrier::Derived);
         }
     }
     for alternative in graph.ordered_existence.iter().flatten() {

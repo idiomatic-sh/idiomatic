@@ -4,7 +4,7 @@ pub(crate) mod link;
 pub(crate) mod observations;
 
 use super::types::{
-    CanonicalOperation, FileProgramNode, NodeId, NodeInput, ObservationRequest, RequestGraph,
+    CanonicalOperation, FileProgramNode, GraphNodeId, NodeInput, ObservationRequest, RequestGraph,
     ResolvedInput,
 };
 
@@ -33,7 +33,7 @@ struct CanonicalNode {
 
 fn node_input(
     input: Input,
-    previous: &[Option<NodeId>],
+    previous: &[Option<GraphNodeId>],
     rule: usize,
     bound_offsets: &[usize],
 ) -> Option<ResolvedInput> {
@@ -59,7 +59,7 @@ fn node_input(
 /// numbers. Operation equality itself ignores diagnostic Comparison.origin.
 fn canonical(
     operation: &Operation,
-    previous: &[Option<NodeId>],
+    previous: &[Option<GraphNodeId>],
     rule: usize,
     bound_offsets: &[usize],
 ) -> Option<CanonicalOperation> {
@@ -209,7 +209,7 @@ pub(crate) fn compile_prepared_observations(
     let mut nodes = Vec::<CanonicalNode>::new();
     let mut cuts = Vec::with_capacity(plans.len());
     let mut observed_outputs = Vec::new();
-    let mut buckets = HashMap::<u64, Vec<NodeId>>::new();
+    let mut buckets = HashMap::<u64, Vec<GraphNodeId>>::new();
     for (rule, plan) in plans.iter().enumerate() {
         let kept = materialized_steps(plan);
         let needs = crate::domain::trust::service::needs_of_contracts(plan, &operators.rules[rule]);
@@ -285,7 +285,7 @@ pub(crate) fn compile_prepared_observations(
                             NodeInput::Node(id) => nodes[id.0].schema_valid,
                             NodeInput::Relation(_) | NodeInput::Observation(_) => true,
                         });
-                    let id = NodeId(nodes.len());
+                    let id = GraphNodeId(nodes.len());
                     nodes.push(CanonicalNode {
                         analysis: region.into_iter().collect(),
                         needs: needs.as_ref().map_err(Clone::clone).and_then(|needs| {
@@ -325,7 +325,7 @@ pub(crate) fn compile_prepared_observations(
     }
     // Only declared outputs are roots. Dependency traversal and all internal
     // last-consumer edges belong to the common graph, never an opaque schedule.
-    let boundaries: Vec<Vec<(usize, NodeId)>> = plans
+    let boundaries: Vec<Vec<(usize, GraphNodeId)>> = plans
         .iter()
         .zip(&all_mapped)
         .map(|(plan, mapped)| {

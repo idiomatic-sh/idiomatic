@@ -6,7 +6,7 @@ use crate::domain::executable_program::types::ExecutableProgram;
 use crate::domain::executable_program::types::PartitionRequirement;
 use crate::domain::executable_program::types::ProducerPartitions;
 use crate::domain::executable_program::types::Route;
-use crate::domain::file_program::types::NodeId;
+use crate::domain::file_program::types::GraphNodeId;
 use crate::domain::file_program::types::RequestGraph;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::types::RequestOperators;
@@ -194,7 +194,7 @@ pub(super) fn graph(plans: &[Plan]) -> (RequestOperators, RequestGraph) {
     (operators, graph)
 }
 
-pub(super) fn node(graph: &RequestGraph, rule: usize, step: usize) -> NodeId {
+pub(super) fn node(graph: &RequestGraph, rule: usize, step: usize) -> GraphNodeId {
     *graph.program_nodes[rule][step].as_ref().unwrap()
 }
 

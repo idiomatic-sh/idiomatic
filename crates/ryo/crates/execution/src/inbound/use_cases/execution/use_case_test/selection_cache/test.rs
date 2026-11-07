@@ -211,10 +211,9 @@ fn ordered_duplicate_matches_share_one_index_and_selection() -> Result<(), Failu
 #[test]
 fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<(), Failure> {
     use ryo_language::domain::symbols::{service::intern_derived, types::ByteSlice};
-    use ryo_relations::domain::terms::{
-        service::term_symbol,
-        types::{DeclarationKind, NameText},
-    };
+    use ryo_relations::domain::terms::service::term_symbol;
+    use ryo_relations::domain::declaration_kind::types::DeclarationKind;
+    use ryo_relations::domain::terms::types::NameText;
     let mut symbols = Symbols::default();
     let dynamic = intern_derived(&mut symbols, ByteSlice(b""), NameText("class"));
     let rare = intern_derived(&mut symbols, ByteSlice(b""), NameText("rare"));
@@ -277,10 +276,9 @@ fn literal(text: &str, columns: Vec<ColumnIndex>) -> Selector {
 #[test]
 fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<(), Failure> {
     use ryo_language::domain::symbols::{service::intern_derived, types::ByteSlice};
-    use ryo_relations::domain::terms::{
-        service::term_symbol,
-        types::{DeclarationKind, NameText, Symbol},
-    };
+    use ryo_relations::domain::terms::service::term_symbol;
+    use ryo_relations::domain::declaration_kind::types::DeclarationKind;
+    use ryo_relations::domain::terms::types::{NameText, Symbol};
     let mut symbols = Symbols::default();
     let dynamic = intern_derived(&mut symbols, ByteSlice(b""), NameText("class"));
     let extras = (0..7)

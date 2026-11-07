@@ -1,6 +1,7 @@
 //! The types of the `repository` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use ryo_relations::domain::relations::types::{CellKind, NameRef};
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::labels::types::NameRef;
 
 /// A column of a relation as the digest of the catalog sees it: its name and what it holds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

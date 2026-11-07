@@ -9,12 +9,12 @@ use crate::domain::language::types::Languages;
 use crate::resources::linter::lint::types::Cache;
 use crate::resources::linter::lint::types::Linter;
 use crate::resources::linter::lint::types::Workers;
-use ryo_relations::domain::relations::types::OptionalCapability;
+use ryo_relations::domain::capabilities::types::OptionalCapability;
 use std::num::NonZeroUsize;
 
 /// A provider with the same name/build whose advertised optional contract changes.
 pub(crate) struct CapabilityProvider(
-    pub(crate) &'static [ryo_relations::domain::relations::types::OptionalCapability],
+    pub(crate) &'static [ryo_relations::domain::capabilities::types::OptionalCapability],
     pub(crate) &'static str,
     pub(crate) &'static str,
 );
@@ -29,7 +29,7 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
     }
     fn capabilities(
         &self,
-    ) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
+    ) -> &'static [ryo_relations::domain::capabilities::types::OptionalCapability] {
         self.0
     }
     fn configuration_identity(
@@ -125,12 +125,9 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
         wanted: &[ryo_relations::domain::relations::types::Relation],
         out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
     ) {
-        use ryo_relations::domain::relations::{
-            collections::relations::identifier::item::IdentifierRow,
-            types::{
-                Missing, Offset, OptionalCapability, Position, Relation, ReportText, Rows, Span,
-            },
-        };
+        use ryo_relations::domain::relations::collections::relations::identifier::item::IdentifierRow;
+        use ryo_relations::domain::relations::types::{Missing, Offset, Position, Relation, ReportText, Rows, Span};
+        use ryo_relations::domain::capabilities::types::OptionalCapability;
         use ryo_relations::domain::terms::types::NameText;
         if wanted.contains(&Relation::Identifier) {
             if self.0.contains(&OptionalCapability::Identifier) {
@@ -215,10 +212,9 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
         &self,
         relation: ryo_relations::domain::relations::types::Relation,
     ) -> Option<ryo_relations::domain::answers::types::AbsenceCause> {
-        use ryo_relations::domain::{
-            answers::types::AbsenceCause,
-            relations::types::{OptionalCapability, Relation},
-        };
+        use ryo_relations::domain::answers::types::AbsenceCause;
+        use ryo_relations::domain::capabilities::types::OptionalCapability;
+        use ryo_relations::domain::relations::types::Relation;
         ((relation == Relation::Identifier
             && !self.0.contains(&OptionalCapability::Identifier))
             || (relation == Relation::RawFormatSegment

@@ -152,7 +152,7 @@ pub(crate) struct Region {
     pub(super) route: Route,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Origin {
+pub(crate) struct InstructionOrigin {
     pub rule: RuleIndex,
     pub step: StepId,
     pub logical: LogicalInstruction,
@@ -161,7 +161,7 @@ pub(crate) struct Origin {
 pub(crate) struct RuleProgram {
     /// External root-reader obligations, including repeated aliases.
     pub root_readers: Box<[RegionId]>,
-    pub original_steps: Box<[Result<Origin, OperatingError>]>,
+    pub original_steps: Box<[Result<InstructionOrigin, OperatingError>]>,
     /// Collected semantic root shared only with collected frontier/observation aliases.
     pub emit: Result<RegionId, OperatingError>,
     /// Private diagnostic delivery boundary; no ordinary dependency or persisted alias targets it.

@@ -16,7 +16,7 @@ use ryo_relations::domain::relations::types::{
     FileId, Flag, Integer, KindBits, Offset, Position, Relation, Rows as _, Span,
 };
 use ryo_relations::domain::terms::types::NameText;
-use ryo_relations::domain::terms::types::ValueKind;
+use ryo_relations::domain::value_kind::types::ValueKind;
 
 /// A scenario: what a row asks of the rendering.
 type Input = fn() -> usize;

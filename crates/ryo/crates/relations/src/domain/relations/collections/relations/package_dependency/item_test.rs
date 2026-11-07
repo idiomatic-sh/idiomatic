@@ -4,7 +4,9 @@ use super::super::interface::RelationsItem as _;
 use super::item::{PackageDependency, PackageDependencyRow};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::relations::types::{Bits, FileId, Flag, Optionality};
-use crate::domain::terms::types::{DependencyKind, DependencyOrigin, Symbol};
+use crate::domain::dependency_kind::types::DependencyKind;
+use crate::domain::dependency_origin::types::DependencyOrigin;
+use crate::domain::terms::types::Symbol;
 
 /// A row to write: every column holds a number of its own, so that a column moved is a column found.
 type Input = ();

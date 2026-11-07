@@ -26,7 +26,7 @@ impl ParseUseCase for ParseUseCaseImpl {
 
     fn capabilities(
         &self,
-    ) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
+    ) -> &'static [ryo_relations::domain::capabilities::types::OptionalCapability] {
         &[]
     }
 
@@ -91,7 +91,7 @@ impl ParseUseCase for ParseUseCaseImpl {
 impl<P: ParseUseCase> ParseEngine for P {
     fn capabilities(
         &self,
-    ) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
+    ) -> &'static [ryo_relations::domain::capabilities::types::OptionalCapability] {
         ParseUseCase::capabilities(self)
     }
 
