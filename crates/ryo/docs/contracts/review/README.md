@@ -44,6 +44,18 @@ reviewer. Each phase writes a verdict JSON (`contract-review-verdict/v1`) under
 rows, not the merge. Source changes invalidate a verdict; pin fresh
 base/head/tree each round.
 
+## Requesting a review
+
+A request carries three receipts, and a request without all three is refused by
+the reviewer, because what a linter or check catches is resolved before a
+person reads the source:
+
+1. `tm --root crates/ryo check <the review's scope directories> --format json`
+   reports 0 findings and 0 suppressed.
+2. `python3 crates/ryo/docs/contracts/evidence/checkpoint/run.py --check` exits 0.
+3. `validation.json` records the `no_print` clippy target green and file-level
+   ownership cycles 0.
+
 ## Review priorities
 
 The five adversarial bullets in the agent file apply unchanged: callers and
