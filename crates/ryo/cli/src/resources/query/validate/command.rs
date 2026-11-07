@@ -21,13 +21,7 @@ pub struct ValidateArguments {
 
 /// Checks the arguments, composes the service, calls it once and shapes its answer; when it cannot
 /// answer, the error is said on stderr and the outcome the command ends with is returned.
-<<<<<<< HEAD
-pub(super) fn answer(
-    arguments: ValidateArguments,
-) -> Result<impl crate::output::Encoded, CommandOutcome> {
-=======
 pub(super) fn answer(arguments: ValidateArguments) -> Result<impl crate::output::Encoded, Outcome> {
->>>>>>> parent of ba83445f80 (refactor(cli): the command's ending is CommandOutcome, one type name in the project)
     let request = super::schemas::request(arguments.text)
         .map_err(|error| crate::output::fail(&error, Outcome::Failure))?;
     super::composition::build()

@@ -23,11 +23,6 @@ fn error_refuses_with_exit_code_two() {
 /// Each ending has an exit code of its own, so a caller can tell them apart.
 #[test]
 fn outcomes_succeed_with_distinct_exit_codes() {
-    let codes = [
-        Outcome::Success,
-        Outcome::Failure,
-        Outcome::Error,
-    ]
-    .map(Outcome::code);
+    let codes = [Outcome::Success, Outcome::Failure, Outcome::Error].map(Outcome::code);
     assert_eq!(codes, [0, 1, 2]);
 }
