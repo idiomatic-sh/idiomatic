@@ -1,5 +1,5 @@
 {
-  "source": "4f0a08dd7db4a49a5328e093665e6db6669e364b",
+  "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
   "scope": "Ownership consolidation checkpoint 321 (wave 3 and the benchmark branch merged, one compile, repair passes, lint step); not full product acceptance",
   "checks": {
     "libraries": {
@@ -263,8 +263,8 @@
   "evidence_reuse": [],
   "review": "../../audits/2026-11-06-derived/ownership/checkpoint.json",
   "new_performance_measurement": false,
-  "validation": 321,
-  "raw_identity": "/tmp/ryo-contract-validation321-20261107",
+  "validation": 322,
+  "raw_identity": "/tmp/ryo-contract-validation322-20261107",
   "tm_whole_tree": {
     "command": "tm --root crates/ryo check --format json (no --fix; git status unchanged)",
     "total": 34,

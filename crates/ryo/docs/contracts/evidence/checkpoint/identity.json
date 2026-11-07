@@ -1,5 +1,5 @@
 {
-  "source": "4f0a08dd7db4a49a5328e093665e6db6669e364b",
+  "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
   "commands": [
     [
       "libraries",
@@ -27,11 +27,19 @@
     ],
     [
       "ruff_sharing",
-      ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-python", "--test", "ruff_sharing", "--", "--test-threads=6"]
+      ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-python", "--test", "ruff_sharing", "--", "--test-threads=6", "--skip", "the_one_path_answers_the_django_canary_as_recorded"]
+    ],
+    [
+      "ruff_canary",
+      ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-python", "--test", "ruff_sharing", "--", "the_one_path_answers_the_django_canary_as_recorded"]
     ],
     [
       "ruff",
       ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-python", "--test", "ruff", "--no-fail-fast", "--", "--test-threads=6"]
+    ],
+    [
+      "ruff_rule_phases",
+      ["python3", "-I", "crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py", "--self-test"]
     ],
     [
       "core_bdd",
@@ -108,6 +116,10 @@
     [
       "tm_validate_no_heap_accounting",
       ["tm", "validate", "rule/no-heap-accounting@0.2.0", "spec/idiomatic-rust@0.1.2", "--format", "json"]
+    ],
+    [
+      "checkpoint_check",
+      ["python3", "-I", "crates/ryo/docs/contracts/evidence/checkpoint/run_test.py", "-v"]
     ]
   ]
 }

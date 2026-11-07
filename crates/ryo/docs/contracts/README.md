@@ -191,14 +191,14 @@ Branch `claude/w2-review-v` from checkpoint 319 `f2d8aaf1db` (the Phase 1 re-own
 - **R4, hardening-1 placement:** `Region`, `Instruction`, `DemandProgram` and `ExecutableProgram` are sealed values, each in `domain/executable_program/types/<value>/value.rs` with a `value_test.rs`; only the compiler constructs and writes them (`pub(in crate::domain::executable_program)`). `ColumnAlternative` (now one definition over original nodes and regions, which removes the mirrored `OriginalColumn`) and `SelectionAlternative` are plain route payloads in `types.rs`: the route lives in the sealed `Region`. Bare integers and bools are typed (`ObservationPlace`, `ProducerMember`, `DraftIndex`, `RegexIdentity`, `JoinLease`, `RowGate`, `Equivalence`, `StepUse`, `AbsenceInputs`); `service.rs` is split into `merge.rs`, `origins.rs` and `aliases.rs`, and `trust/service.rs` into `trust/reads.rs`. The observation slot proofs moved from the domain to `application/file_dag/acceptance/{observations_test.rs, observation_census_test.rs}` because they prepare through the application request preparation. Weak closures kept and closed by the store and runtime crates (hardening steps 2 and 3): `FrontierCache::new` stays `pub(crate)`, and `ReadProof::complete` stays callable within the program. Controls: `types::region::value_test`, `types::instruction::value_test`, `types::demand_program::value_test`, `types::executable_program::value_test`; `tm` over `domain/executable_program` and `domain/trust` is 0.
 - **R5:** this record.
 
-### Current ownership checkpoint — source `4f0a08dd7d`, validation321
+### Current ownership checkpoint — source `05d5c56a83`, validation322
 
 Written by `evidence/checkpoint/run.py` from [validation.json](evidence/checkpoint/validation.json); do not edit by hand. Review: [checkpoint](audits/2026-11-06-derived/ownership/checkpoint.json).
 
 | Check | Result |
 |---|---|
-| Source | `4f0a08dd7d` |
-| Validation | validation321 (raw logs in the directory named `ryo-contract-validation321-20261107`, kept outside the repository) |
+| Source | `05d5c56a83` |
+| Validation | validation322 (raw logs in the directory named `ryo-contract-validation322-20261107`, kept outside the repository) |
 | execution library | 479 PASS / 5 failed (compiled_parity succeeds/refuses ("the target must execute its registered operator"), use_case_test::axis_graph (0 against 1) and domain::operator::service_test (the census reads contract/axis.rs and contract/join.rs as kind modules): the kernel fold, the kernel consolidation row; output_coverage::service_test (the lineage row answers WrongOperation where Anywhere is expected): per-column lineage, the per-column lineage row) |
 | core library | 119 PASS / 2 failed (lint::use_case_test::succeeds (a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store: frontier source proof refused, as at 320), the store replay row of review repairs V; cross_file::service_test::succeeds (population_test and root_set_test expect rule 0 to report one unknown and it reports none: the skipped syntax-rejected file is no longer Unknown), the six-rule unknowns row) |
 | benchmark library | 216 PASS / 5 failed (rule_context::service_test (disabled pairs 1 where 3 is expected), validate_case_receipts refuses (a receipt lacks the field authority), verify_cases process_capture/process_identity/process_orchestration (the registrations fixture reads no JSON): the benchmark branch, the benchmark TM row) |
@@ -229,29 +229,11 @@ Written by `evidence/checkpoint/run.py` from [validation.json](evidence/checkpoi
 | tm_source findings | 0 (0 production, 0 test), 2 suppressed, 16 scoped directories |
 | Whole-tree TM | 34 findings, 6 suppressed (3676 at 318) |
 | File-level ownership cycles | 0 (0 targeted) |
-| Red test | libraries domain::rule_context::service_test::succeeds: red at row disabled pairs are subtracted from the selected pairs; the rows after it did not run |
-| Red test | libraries inbound::use_cases::validate_case_receipts::use_case_test::refuses: red; its failure names no case row |
-| Red test | libraries inbound::use_cases::verify_cases::use_case_test::process_capture::test::succeeds: red; its failure names no case row |
-| Red test | libraries inbound::use_cases::verify_cases::use_case_test::process_identity::test::succeeds: red; its failure names no case row |
-| Red test | libraries inbound::use_cases::verify_cases::use_case_test::process_orchestration::test::succeeds: red; its failure names no case row |
-| Red test | libraries application::cross_file::service_test::succeeds: red rows 2: ordinary_phase_keeps_valid_rule_populations_and_partiality_separate, project_root_set_preserves_distinct_actual_population_policy_in_both_orders |
+| Red test | libraries inbound::use_cases::verify_cases::use_case_test::process_capture::test::succeeds: red rows 1: a metadata failure preserves the process bytes and cannot be admitted |
 | Red test | libraries inbound::use_cases::lint::use_case_test::succeeds: red rows 1: a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store |
-| Red test | libraries application::file_dag::program::facade_runtime::compiled_parity::refuses: red; its failure names no case row |
-| Red test | libraries application::file_dag::program::facade_runtime::compiled_parity::succeeds: red; its failure names no case row |
-| Red test | libraries domain::output_coverage::service_test::succeeds: red; its failure names no case row |
-| Red test | libraries inbound::use_cases::execution::use_case_test::axis_graph::test::succeeds: red; its failure names no case row |
-| Red test | libraries domain::operator::service_test::succeeds: red; its failure names no case row |
-| Red test | boundary project_phase::restoration::partition::modes::test::a_rule_with_inapplicable_files_reads_a_restored_observation_as_a_rule_without: red; its failure names no case row |
-| Red test | boundary project_phase::restoration::partition::modes::test::current_partial_project_publication_retains_owner_provenance_through_real_consumer: red; its failure names no case row |
-| Red test | boundary project_phase::restoration::partition::modes::test::named_absence_keeps_good_file_bags_and_orders_while_bad_file_stays_unknown: red; its failure names no case row |
-| Red test | boundary project_phase::restoration::partition::modes::test::empty_rekeying_join_widens_uncertainty_but_file_equality_keeps_good_files_known: red; its failure names no case row |
-| Red test | boundary project_phase::restoration::partition::modes::test::current_project_relation_coverage_precedes_rekeying_and_survives_named_handover: red; its failure names no case row |
-| Red test | boundary shared_walk::compact::selected_frontiers::test::selected_join_shares_work_preserves_counts_and_exports_owned_frontiers: red; its failure names no case row |
-| Red test | boundary source_boundary::test::actual_runtime_authority_is_private_to_its_owner: red; its failure names no case row |
-| Red test | ruff_sharing sharing::test::the_one_path_answers_the_django_canary_as_recorded: red; its failure names no case row |
-| Red test | ruff_sharing sharing::test::succeeds: red; its failure names no case row |
-| Red test | ruff engine_test::project_context::succeeds: red; its failure names no case row |
-| Red test | ruff engine_test::succeeds: red; its failure names no case row |
+| Red test | boundary source_boundary::derived::census::every_derived_consumer_is_censused_and_every_kind_names_its_controls: red; its failure names no case row |
+| Red test | boundary source_boundary::activation::test::rejects: red; its failure names no case row |
+| Red test | ruff engine_test::succeeds: red rows 2: a_rejected_file_leaves_i001_plw0406_and_ruf100_answering_the_valid_file, i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory |
 | Red test | cli_tests cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store: red; its failure names no case row |
 | Red test | cli_tests behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows: red; its failure names no case row |
 | Red test | cli_tests peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound: red; its failure names no case row |
