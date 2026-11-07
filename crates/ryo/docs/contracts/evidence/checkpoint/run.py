@@ -1,7 +1,82 @@
-import json,os,subprocess,sys,time,fcntl
+import json,os,re,subprocess,sys,time,fcntl
 from datetime import date
 from pathlib import Path
 p=Path(__file__).resolve().parent
+contracts=p.parents[1]
+readme=contracts/'README.md'
+validation_json=p/'validation.json'
+TM_TARGETS=('tm_source','tm_cli_source')
+def is_test_path(path): return '/test' in path or '_test.rs' in path
+def tm_target(command,log):
+ """Finding count, production/test split and findings per scoped directory of one `tm check` log."""
+ report=json.loads(Path(log).read_text())
+ root=command[command.index('--root')+1]
+ skip=set(); words=[]
+ for i,w in enumerate(command[command.index('check')+1:]):
+  if w in ('--format',): skip.add(i+1)
+  if not w.startswith('--') and i not in skip: words.append(w)
+ findings=[f['path'] for f in report['findings']]
+ directories={d:sum(1 for f in findings if f.startswith(root+'/'+d.rstrip('/')+'/') or f==root+'/'+d) for d in words}
+ test=sum(1 for f in findings if is_test_path(f))
+ return {'findings':len(findings),'suppressed':len(report.get('suppressed',[])),'production':len(findings)-test,'test':test,'scoped_directories':directories}
+def record(v,commands,out_dir):
+ v['tm_targets']={n:tm_target(c,out_dir/(n+'.log')) for n,c in commands if n in TM_TARGETS and (out_dir/(n+'.log')).exists()}
+def scope_delta(v):
+ """The scoped directories that are new since the validation.json at HEAD, each with its finding count."""
+ r=subprocess.run(['git','-C',str(p),'show','HEAD:./validation.json'],capture_output=True,text=True)
+ old=json.loads(r.stdout).get('tm_targets',{}) if r.returncode==0 else {}
+ lines=[]
+ for n,t in v.get('tm_targets',{}).items():
+  before=old.get(n,{}).get('scoped_directories',{})
+  for d,c in t['scoped_directories'].items():
+   if d not in before: lines.append('newly scoped for '+n+': '+d+' ('+str(c)+' findings)')
+  for d in before:
+   if d not in t['scoped_directories']: lines.append('no longer scoped for '+n+': '+d)
+ return lines or ['scoped directories unchanged since HEAD']
+def fmt(x):
+ if isinstance(x,dict) and 'passed' in x: return str(x['passed'])+' PASS / '+str(x['failed'])+' failed'+(' ('+x['note']+')' if 'note' in x else '')
+ if isinstance(x,dict): return ', '.join(k.replace('_',' ')+' '+fmt(y) for k,y in x.items())
+ if isinstance(x,list): return str(len(x))+': '+'; '.join('`'+str(y)+'`' for y in x) if x else '0'
+ return str(x)
+def render(v):
+ rows=[('Source','`'+v['source'][:10]+'`'),('Validation','validation'+str(v['validation'])+' (raw logs `'+v['raw_identity']+'`)')]
+ rows+=[(k.replace('_',' '),fmt(x)) for k,x in v['results'].items()]
+ for n,t in v.get('tm_targets',{}).items():
+  rows.append((n+' findings',str(t['findings'])+' ('+str(t['production'])+' production, '+str(t['test'])+' test), '+str(t['suppressed'])+' suppressed, '+str(len(t['scoped_directories']))+' scoped directories'))
+ w=v['tm_whole_tree']
+ rows.append(('Whole-tree TM',str(w['total'])+' findings, '+str(w['suppressed'])+' suppressed ('+str(w['at_checkpoint_317'])+' at 317)'))
+ g=v['ownership_graph']
+ rows.append(('File-level ownership cycles',str(g['other_cycles'])+' ('+fmt(g['targeted_cycles'])+' targeted)'))
+ table=['| Check | Result |','|---|---|']+['| '+k+' | '+fmt(x).replace('|','\\|')+' |' for k,x in rows]
+ head='### Current ownership checkpoint — source `'+v['source'][:10]+'`, validation'+str(v['validation'])
+ return '\n'.join([head,'','Written by `evidence/checkpoint/run.py` from [validation.json](evidence/checkpoint/validation.json); do not edit by hand. Review: [checkpoint](audits/2026-11-06-derived/ownership/checkpoint.json).','']+table)+'\n\n'
+TICKED=re.compile(r'^(- \[x\]|\|[^|]*\|\s*\[x\]|\|\s*☑\s*\|)',re.I)
+CITED=re.compile(r'(?:validation|proof|review|reviewed|pass|runtime|reuse|reused)\s?(\d{3})\b|\b(?:in|at)(\d{3})\b',re.I)
+def ticked_rows_without_proof(text,produced):
+ """Ticked rows citing no validation, or one newer than the validation produced."""
+ bad=[]
+ for n,line in enumerate(text.splitlines(),1):
+  if not TICKED.match(line): continue
+  cited=[int(a or b) for a,b in CITED.findall(line)]
+  if not cited: bad.append(str(n)+': cites no validation: '+line[:110])
+  elif max(cited)>produced: bad.append(str(n)+': cites validation'+str(max(cited))+' beyond '+str(produced)+': '+line[:110])
+ return bad
+def write_block(text,v):
+ """Replace the block from the `### Current ownership checkpoint` heading to the first following bullet."""
+ lines=text.splitlines(keepends=True)
+ start=next(i for i,l in enumerate(lines) if l.startswith('### Current ownership checkpoint'))
+ end=next(i for i in range(start+1,len(lines)) if lines[i].startswith('- ['))
+ return ''.join(lines[:start])+render(v)+''.join(lines[end:])
+def finish(v):
+ """Write the matrix numbers block from validation.json, print the scope delta, check the ticked rows. Returns the exit code."""
+ old=readme.read_text(); text=write_block(old,v)
+ readme.write_text(text)
+ for line in scope_delta(v): print(line)
+ bad=ticked_rows_without_proof(text,v['validation'])
+ for line in bad: print('TICKED ROW '+line)
+ if text!=old: print('matrix numbers block rewritten from validation.json; stage the README')
+ return 1 if bad or text!=old else 0
+if __name__=='__main__' and sys.argv[1:]==['--check']: sys.exit(finish(json.loads(validation_json.read_text())))
 locks=[open('/workspaces/.cargo-build.lock','a'),open('/tmp/ryo-cargo-serial.lock','a')]
 for lock in locks: fcntl.flock(lock,fcntl.LOCK_EX)
 assert not subprocess.check_output(['git','status','--porcelain'],text=True).strip(), 'freeze source before validation'
@@ -28,3 +103,8 @@ for name,cmd in commands:
  print('END '+name+' exit='+str(r.returncode),flush=True)
  if name=='build' and r.returncode: break
 print('BATCH COMPLETE',flush=True)
+v=json.loads(validation_json.read_text())
+v.update({'source':head,'validation':v['validation']+1,'raw_identity':str(out_dir)})
+record(v,commands,out_dir)
+validation_json.write_text(json.dumps(v,indent=2)+'\n')
+sys.exit(finish(v))

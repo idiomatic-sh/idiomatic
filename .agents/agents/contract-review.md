@@ -26,6 +26,7 @@ rule inventories, corpus, and settings; singleton runs are diagnostic only.
 Record HEAD/status before and after; discard source-mutating passes.
 Check source/evidence hashes; reuse only proven-identical executed postimages.
 A bounded review never closes wider architecture categories.
+Refuse a request that lacks the three receipts of the [review README](../../crates/ryo/docs/contracts/review/README.md): `tm check` over its scope at 0 findings and 0 suppressed, `run.py --check` exit 0, and the `no_print` target green with file-level cycles 0 in `validation.json`.
 ## Adversarial pass
 - Prioritize correctness and authority findings with a concrete falsifier and owner; batch mechanical TM fixes without waiving findings.
 - Verify affected matrix rows and the current checkpoint against frozen source and evidence each batch; the author edits them and the independent reviewer verifies the result.

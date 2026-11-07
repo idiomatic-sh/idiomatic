@@ -1,7 +1,7 @@
 # Engine consolidation review
 
 Reviewer brief for the integration branch `claude/ryo-consolidation`, which
-carries the engine consolidation (epic ryo-9ukc) toward the phases in
+carries the engine consolidation toward the phases in
 [the matrix](../README.md). One phase is active at a time; integration is never
 red except for the known-red list below.
 
@@ -44,6 +44,18 @@ reviewer. Each phase writes a verdict JSON (`contract-review-verdict/v1`) under
 rows, not the merge. Source changes invalidate a verdict; pin fresh
 base/head/tree each round.
 
+## Requesting a review
+
+A request carries three receipts, and a request without all three is refused by
+the reviewer, because what a linter or check catches is resolved before a
+person reads the source:
+
+1. `tm --root crates/ryo check <the review's scope directories> --format json`
+   reports 0 findings and 0 suppressed.
+2. `python3 crates/ryo/docs/contracts/evidence/checkpoint/run.py --check` exits 0.
+3. `validation.json` records the `no_print` clippy target green and file-level
+   ownership cycles 0.
+
 ## Review priorities
 
 The five adversarial bullets in the agent file apply unchanged: callers and
@@ -54,10 +66,10 @@ enforcement. See "Adversarial pass" and "Architectural enforcement" there.
 ## Known red
 
 - `core_allocation` (core `allocation` test, exit 101, about 1,880 blocks per
-  file): a Phase 7 measurement, bead ryo-l3mj.
+  file): a Phase 7 measurement.
 - Python `ruff` target, Phase 1: 11 passed / 1 failed,
   `i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory`
-  (the syntax-poisoning case), bead ryo-xqxb.
+  (the syntax-poisoning case).
 
 ## Verification limits
 
@@ -68,8 +80,7 @@ checkpoint 317; "not full product acceptance"):
 - Derived-scope TM findings are deferred (`tm_source`: 53 findings, 21 of them
   derived-scope bare integers/bool).
 - No new performance measurement; the benchmark harness is not part of the set.
-- Cli replay/blocks/lint tests and the core performance bench do not compile
-  (bead ryo-4i09).
+- Cli replay/blocks/lint tests and the core performance bench do not compile.
 
 Links: [matrix](../README.md), [execution plan](../execution-plan.md),
 [reviewer instructions](../../../../../.agents/agents/contract-review.md).

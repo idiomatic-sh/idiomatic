@@ -21,3 +21,11 @@ Never run bare `git stash` or `git stash pop`: the stash stack is shared across 
 Use zero suppressions (no `// ignore:` comments, no `#[ignore]`, no allow attributes), because a suppressed finding is a hidden defect; split or fix the code instead.
 
 A wait loop must never match its own command line with `pgrep -f`, because it finds itself and never exits; wait on a file or an exit code.
+
+A census of code items (variants, kinds, routes, entry points) is a test that derives the list from the source, never a hand-kept list, because a list kept by hand drifts from the code it counts.
+
+Every new branch or refusal path names its positive and negative control in the batch report, so a reviewer finds both tests without searching.
+
+A test whose checked property changes is renamed in the same commit, and its matrix row says what it checks now, because a name that states the old property misleads every later reader.
+
+A review request carries three receipts (`tm check` over the review's scope at 0 findings and 0 suppressed, `run.py --check` exit 0, and the `no_print` target green with file-level cycles 0 in `validation.json`), and a request without them is refused by the reviewer, because what a linter or check catches is resolved before a person reads the source.
