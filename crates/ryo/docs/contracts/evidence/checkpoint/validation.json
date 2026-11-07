@@ -738,5 +738,40 @@
       "crates/operators and crates/derived": "ryo-1c4e remainder",
       "crates/benchmark and benchmark_contracts": "ryo-v73i part 5"
     }
+  },
+  "tm_targets": {
+    "tm_cli_source": {
+      "findings": 0,
+      "suppressed": 0,
+      "production": 0,
+      "test": 0,
+      "scoped_directories": {
+        "cli/tests/replay/imports.rs": 0
+      }
+    },
+    "tm_source": {
+      "findings": 344,
+      "suppressed": 0,
+      "production": 220,
+      "test": 124,
+      "scoped_directories": {
+        "crates/execution/src/application/file_dag/program": 6,
+        "crates/execution/src/application/file_dag/invocation": 0,
+        "crates/execution/src/application/file_dag/derived": 24,
+        "crates/execution/src/domain/shared_walk": 0,
+        "crates/execution/tests/shared_walk": 44,
+        "crates/execution/src/domain/executable_program": 48,
+        "crates/execution/src/domain/step_classes": 0,
+        "crates/execution/src/domain/completion": 10,
+        "crates/execution/src/domain/coverage": 13,
+        "crates/execution/src/domain/frontiers": 0,
+        "crates/execution/src/application/file_dag/frontiers": 25,
+        "crates/core/src/application/file_analysis": 33,
+        "crates/core/src/inbound/use_cases/lint": 38,
+        "crates/core/src/domain/storing": 4,
+        "crates/core/src/outbound/lint_store": 95,
+        "crates/execution/src/domain/trust": 4
+      }
+    }
   }
 }

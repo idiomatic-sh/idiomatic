@@ -32,3 +32,28 @@ committed; `validation.json` and `identity.json` are.
 
 The matrix's numbers come from `validation.json`, which records the exact
 sources and approved reuse of those runs.
+
+## What `run.py` writes and checks
+
+After the commands, `run.py` raises `validation` by one, records the source and
+the raw directory, and writes `tm_targets` into `validation.json`: for each
+`tm check` command (`tm_source`, `tm_cli_source`) the finding count, the
+suppressed count, the production/test split (a path containing `/test` or
+`_test.rs` counts as test) and `scoped_directories`, each scoped path with its
+finding count. It then rewrites the matrix's "Current ownership checkpoint"
+block (heading to the first bullet) from `validation.json`: source, validation
+number, per-target pass/fail counts, TM findings and suppressed, cycles. Nobody
+types those cells.
+
+`python3 crates/ryo/docs/contracts/evidence/checkpoint/run.py --check` runs no
+cargo and takes no lock. It rewrites the block from the committed
+`validation.json` and exits 1 when the file changed (stage it and run again),
+so a stale block cannot pass. Both modes also exit 1 when a ticked row (`☑`,
+`[x]`) of the matrix cites no validation (`validationNNN`, `proofNNN`,
+`reviewNNN`, `passNNN`, `runtimeNNN`, `reuseNNN`, `inNNN`, `atNNN`) or cites one
+greater than `validation`; each offending row is printed with its line number.
+Unticked rows are not checked.
+
+Both modes print the scope delta against `validation.json` at `HEAD`: each
+newly scoped directory with its finding count, and each directory no longer
+scoped. The checkpoint commit message carries these lines.
