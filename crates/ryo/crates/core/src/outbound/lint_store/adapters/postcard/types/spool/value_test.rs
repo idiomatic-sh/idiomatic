@@ -165,41 +165,7 @@ fn failed_creation_write_flush_and_read_do_not_commit_a_descriptor() {
 
 #[test]
 fn contiguous_tiny_payloads_use_chunk_io_instead_of_row_io() {
-    use super::value::{BUFFER_BYTES, copy_buffered};
-    use std::cell::Cell;
-    use std::io::{BufReader, BufWriter};
-    use std::rc::Rc;
-    #[derive(Default)]
-    struct Counts {
-        reads: Cell<usize>,
-        writes: Cell<usize>,
-        seeks: Cell<usize>,
-    }
-    struct Counted {
-        inner: Cursor<Vec<u8>>,
-        counts: Rc<Counts>,
-    }
-    impl Read for Counted {
-        fn read(&mut self, bytes: &mut [u8]) -> std::io::Result<usize> {
-            self.counts.reads.set(self.counts.reads.get() + 1);
-            self.inner.read(bytes)
-        }
-    }
-    impl Write for Counted {
-        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
-            self.counts.writes.set(self.counts.writes.get() + 1);
-            self.inner.write(bytes)
-        }
-        fn flush(&mut self) -> std::io::Result<()> {
-            Ok(())
-        }
-    }
-    impl Seek for Counted {
-        fn seek(&mut self, at: SeekFrom) -> std::io::Result<u64> {
-            self.counts.seeks.set(self.counts.seeks.get() + 1);
-            self.inner.seek(at)
-        }
-    }
+    use contiguous_tiny_payloads_use_chunk_io_instead_of_row_io_doubles::{Counts, Counted};
     let rows = 10_000;
     let width = 13;
     let payload = vec![7; rows * width];
@@ -239,4 +205,48 @@ fn contiguous_tiny_payloads_use_chunk_io_instead_of_row_io() {
         .write_all(b"accepted only into memory")
         .expect("buffered");
     assert!(failing.flush().is_err());
+}
+
+mod contiguous_tiny_payloads_use_chunk_io_instead_of_row_io_doubles {
+    use super::*;
+    use super::super::value::{BUFFER_BYTES, copy_buffered};
+    use std::cell::Cell;
+    use std::io::{BufReader, BufWriter};
+    use std::rc::Rc;
+
+    #[derive(Default)]
+    pub(super) struct Counts {
+        pub(super) reads: Cell<usize>,
+        pub(super) writes: Cell<usize>,
+        pub(super) seeks: Cell<usize>,
+    }
+
+    pub(super) struct Counted {
+        pub(super) inner: Cursor<Vec<u8>>,
+        pub(super) counts: Rc<Counts>,
+    }
+
+    impl Read for Counted {
+        fn read(&mut self, bytes: &mut [u8]) -> std::io::Result<usize> {
+            self.counts.reads.set(self.counts.reads.get() + 1);
+            self.inner.read(bytes)
+        }
+    }
+
+    impl Write for Counted {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.counts.writes.set(self.counts.writes.get() + 1);
+            self.inner.write(bytes)
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl Seek for Counted {
+        fn seek(&mut self, at: SeekFrom) -> std::io::Result<u64> {
+            self.counts.seeks.set(self.counts.seeks.get() + 1);
+            self.inner.seek(at)
+        }
+    }
 }

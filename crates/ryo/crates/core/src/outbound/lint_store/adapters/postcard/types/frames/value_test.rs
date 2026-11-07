@@ -167,24 +167,7 @@ fn corrupt_headers_order_and_truncated_payloads_are_refused() {
 
 #[test]
 fn streamed_payload_copies_have_bounded_write_chunks_and_propagate_write_failure() {
-    struct ObservedWriter {
-        largest: usize,
-        bytes: usize,
-        fail_after: usize,
-    }
-    impl std::io::Write for ObservedWriter {
-        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
-            self.largest = self.largest.max(bytes.len());
-            if self.bytes >= self.fail_after {
-                return Err(std::io::Error::other("injected final write failure"));
-            }
-            self.bytes += bytes.len();
-            Ok(bytes.len())
-        }
-        fn flush(&mut self) -> std::io::Result<()> {
-            Ok(())
-        }
-    }
+    use streamed_payload_copies_have_bounded_write_chunks_and_propagate_write_failure_doubles::ObservedWriter;
     let mut spool = StagingSpool::new(StagingSession(4)).expect("spool");
     let span = spool
         .append(PackedWords(vec![5; 1024 * 1024]))
@@ -224,26 +207,7 @@ fn streamed_payload_copies_have_bounded_write_chunks_and_propagate_write_failure
 
 #[test]
 fn scanning_tiny_old_rows_reads_and_seeks_by_chunks() {
-    use super::value::old_rows_in;
-    use crate::outbound::lint_store::adapters::postcard::types::spool::value::BUFFER_BYTES;
-    use std::io::{Cursor, Read, Seek, SeekFrom};
-    struct Counted {
-        inner: Cursor<Vec<u8>>,
-        reads: usize,
-        seeks: usize,
-    }
-    impl Read for Counted {
-        fn read(&mut self, into: &mut [u8]) -> std::io::Result<usize> {
-            self.reads += 1;
-            self.inner.read(into)
-        }
-    }
-    impl Seek for Counted {
-        fn seek(&mut self, at: SeekFrom) -> std::io::Result<u64> {
-            self.seeks += 1;
-            self.inner.seek(at)
-        }
-    }
+    use scanning_tiny_old_rows_reads_and_seeks_by_chunks_doubles::Counted;
     let rows = vec![row(0, 13); 10_000];
     let bytes = bucket_bytes(&rows.iter().collect::<Vec<_>>()).expect("existing wire");
     let length = u64::try_from(bytes.len()).expect("size");
@@ -278,46 +242,7 @@ fn scanning_tiny_old_rows_reads_and_seeks_by_chunks() {
 /// A virtual huge bucket exposes actual read volume without allocating its payload set.
 #[test]
 fn old_descriptor_enumeration_skips_huge_payloads_and_resolution_reads_one() {
-    use super::value::{old_word_rows_in, read_old_in};
-    use crate::outbound::lint_store::adapters::postcard::types::spool::value::BUFFER_BYTES;
-    use ryo_values::domain::stores::types::{OldWords, StoreSnapshot};
-    use std::io::{Read, Seek, SeekFrom};
-    struct Sparse {
-        headers: Vec<(u64, Vec<u8>)>,
-        length: u64,
-        at: u64,
-        bytes: usize,
-    }
-    impl Read for Sparse {
-        fn read(&mut self, into: &mut [u8]) -> std::io::Result<usize> {
-            let length = into
-                .len()
-                .min(usize::try_from(self.length - self.at).unwrap());
-            into[..length].fill(0x5a);
-            for (start, header) in &self.headers {
-                let begin = self.at.max(*start);
-                let end = (self.at + length as u64).min(*start + header.len() as u64);
-                if begin < end {
-                    into[(begin - self.at) as usize..(end - self.at) as usize]
-                        .copy_from_slice(&header[(begin - start) as usize..(end - start) as usize]);
-                }
-            }
-            self.at += length as u64;
-            self.bytes += length;
-            Ok(length)
-        }
-    }
-    impl Seek for Sparse {
-        fn seek(&mut self, seek: SeekFrom) -> std::io::Result<u64> {
-            let at = match seek {
-                SeekFrom::Start(at) => i128::from(at),
-                SeekFrom::Current(by) => i128::from(self.at) + i128::from(by),
-                SeekFrom::End(by) => i128::from(self.length) + i128::from(by),
-            };
-            self.at = u64::try_from(at).map_err(std::io::Error::other)?;
-            Ok(self.at)
-        }
-    }
+    use old_descriptor_enumeration_skips_huge_payloads_and_resolution_reads_one_doubles::Sparse;
     let count = postcard::to_allocvec(&3_usize).unwrap();
     let mut at = count.len() as u64;
     let mut headers = vec![(0, count)];
@@ -433,29 +358,7 @@ fn old_descriptor_enumeration_skips_huge_payloads_and_resolution_reads_one() {
 
 #[test]
 fn old_payloads_and_headers_share_one_exact_read_without_neighbor_prefetch() {
-    use super::value::{old_word_rows_in, read_old_in};
-    use ryo_values::domain::stores::types::{OldWords, StoreSnapshot};
-    use std::io::{Read, Seek, SeekFrom};
-
-    struct Counted {
-        bytes: std::io::Cursor<Vec<u8>>,
-        reads: usize,
-        transferred: usize,
-    }
-    impl Read for Counted {
-        fn read(&mut self, into: &mut [u8]) -> std::io::Result<usize> {
-            self.reads += 1;
-            let count = self.bytes.read(into)?;
-            self.transferred += count;
-            Ok(count)
-        }
-    }
-    impl Seek for Counted {
-        fn seek(&mut self, from: SeekFrom) -> std::io::Result<u64> {
-            self.bytes.seek(from)
-        }
-    }
-
+    use old_payloads_and_headers_share_one_exact_read_without_neighbor_prefetch_doubles::Counted;
     for file_number in [0, 127, 128, u32::MAX] {
         for length in [0, 1, 127, 128, 16_384] {
             let selected = row(file_number, length);
@@ -593,4 +496,131 @@ fn positional_old_payload_read_preserves_cursor_and_refuses_late_truncation() {
         .is_err()
     );
     assert!(loaded.0.is_empty());
+}
+
+mod streamed_payload_copies_have_bounded_write_chunks_and_propagate_write_failure_doubles {
+    use super::*;
+
+
+    pub(super) struct ObservedWriter {
+        pub(super) largest: usize,
+        pub(super) bytes: usize,
+        pub(super) fail_after: usize,
+    }
+
+    impl std::io::Write for ObservedWriter {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.largest = self.largest.max(bytes.len());
+            if self.bytes >= self.fail_after {
+                return Err(std::io::Error::other("injected final write failure"));
+            }
+            self.bytes += bytes.len();
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+}
+
+mod scanning_tiny_old_rows_reads_and_seeks_by_chunks_doubles {
+    use super::*;
+    use super::super::value::old_rows_in;
+    use crate::outbound::lint_store::adapters::postcard::types::spool::value::BUFFER_BYTES;
+    use std::io::{Cursor, Read, Seek, SeekFrom};
+
+    pub(super) struct Counted {
+        pub(super) inner: Cursor<Vec<u8>>,
+        pub(super) reads: usize,
+        pub(super) seeks: usize,
+    }
+
+    impl Read for Counted {
+        fn read(&mut self, into: &mut [u8]) -> std::io::Result<usize> {
+            self.reads += 1;
+            self.inner.read(into)
+        }
+    }
+
+    impl Seek for Counted {
+        fn seek(&mut self, at: SeekFrom) -> std::io::Result<u64> {
+            self.seeks += 1;
+            self.inner.seek(at)
+        }
+    }
+}
+
+mod old_descriptor_enumeration_skips_huge_payloads_and_resolution_reads_one_doubles {
+    use super::*;
+    use super::super::value::{old_word_rows_in, read_old_in};
+    use crate::outbound::lint_store::adapters::postcard::types::spool::value::BUFFER_BYTES;
+    use ryo_values::domain::stores::types::{OldWords, StoreSnapshot};
+    use std::io::{Read, Seek, SeekFrom};
+
+    pub(super) struct Sparse {
+        pub(super) headers: Vec<(u64, Vec<u8>)>,
+        pub(super) length: u64,
+        pub(super) at: u64,
+        pub(super) bytes: usize,
+    }
+
+    impl Read for Sparse {
+        fn read(&mut self, into: &mut [u8]) -> std::io::Result<usize> {
+            let length = into
+                .len()
+                .min(usize::try_from(self.length - self.at).unwrap());
+            into[..length].fill(0x5a);
+            for (start, header) in &self.headers {
+                let begin = self.at.max(*start);
+                let end = (self.at + length as u64).min(*start + header.len() as u64);
+                if begin < end {
+                    into[(begin - self.at) as usize..(end - self.at) as usize]
+                        .copy_from_slice(&header[(begin - start) as usize..(end - start) as usize]);
+                }
+            }
+            self.at += length as u64;
+            self.bytes += length;
+            Ok(length)
+        }
+    }
+
+    impl Seek for Sparse {
+        fn seek(&mut self, seek: SeekFrom) -> std::io::Result<u64> {
+            let at = match seek {
+                SeekFrom::Start(at) => i128::from(at),
+                SeekFrom::Current(by) => i128::from(self.at) + i128::from(by),
+                SeekFrom::End(by) => i128::from(self.length) + i128::from(by),
+            };
+            self.at = u64::try_from(at).map_err(std::io::Error::other)?;
+            Ok(self.at)
+        }
+    }
+}
+
+mod old_payloads_and_headers_share_one_exact_read_without_neighbor_prefetch_doubles {
+    use super::*;
+    use super::super::value::{old_word_rows_in, read_old_in};
+    use ryo_values::domain::stores::types::{OldWords, StoreSnapshot};
+    use std::io::{Read, Seek, SeekFrom};
+
+    pub(super) struct Counted {
+        pub(super) bytes: std::io::Cursor<Vec<u8>>,
+        pub(super) reads: usize,
+        pub(super) transferred: usize,
+    }
+
+    impl Read for Counted {
+        fn read(&mut self, into: &mut [u8]) -> std::io::Result<usize> {
+            self.reads += 1;
+            let count = self.bytes.read(into)?;
+            self.transferred += count;
+            Ok(count)
+        }
+    }
+
+    impl Seek for Counted {
+        fn seek(&mut self, from: SeekFrom) -> std::io::Result<u64> {
+            self.bytes.seek(from)
+        }
+    }
 }

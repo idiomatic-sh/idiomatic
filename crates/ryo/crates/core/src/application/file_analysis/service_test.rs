@@ -1217,50 +1217,7 @@ fn only_incomplete_diagnostics_mark_code_relations_as_recovery() -> Result<Value
 }
 
 fn required_dependency_stat_and_read_errors_cannot_disappear() -> Result<Value, Failure> {
-    use crate::outbound::corpus::{
-        errors::CorpusError,
-        interface::CorpusPort,
-        types::{CorpusInventory, PathStat},
-    };
-    use ryo_values::domain::files::types::{CorpusEntry, FileBytes, FileSize, Nanoseconds};
-    struct Refuses {
-        stat: bool,
-    }
-    impl CorpusPort for Refuses {
-        fn observe_entry(
-            &self,
-            path: &FilePath,
-        ) -> ryo_language::domain::project_context::types::EntryObservation {
-            ryo_language::domain::project_context::types::EntryObservation {
-                path: path.clone(),
-                state: ryo_language::domain::project_context::types::ObservedEntryState::Unknown,
-            }
-        }
-        fn inventory(&self) -> Result<CorpusInventory, CorpusError> {
-            Ok(CorpusInventory(vec![]))
-        }
-        fn read(&self, _: &CorpusEntry, _: &mut FileBytes) -> Result<(), CorpusError> {
-            Err(CorpusError::Unreadable {
-                path: "required".into(),
-                reason: "read denied".into(),
-            })
-        }
-        fn stat(&self, path: &FilePath) -> Result<PathStat, CorpusError> {
-            if self.stat {
-                Err(CorpusError::Unreadable {
-                    path: path.0.to_string(),
-                    reason: "stat denied".into(),
-                })
-            } else {
-                Ok(PathStat::Found(CorpusEntry {
-                    executable: Default::default(),
-                    path: path.clone(),
-                    size: FileSize(1),
-                    modified: Nanoseconds(1),
-                }))
-            }
-        }
-    }
+    use required_dependency_stat_and_read_errors_cannot_disappear_doubles::Refuses;
     for stat in [false, true] {
         let service = FileAnalysis::new(
             Arc::new(Refuses { stat }),
@@ -1566,74 +1523,7 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() -
 
 /// Only post-normalization outcomes can reach the staging boundary; IO failures remain failures.
 fn successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads() -> Result<Value, Failure> {
-    use crate::outbound::lint_store::errors::LintStoreError;
-    use crate::outbound::lint_store::interface::ReadStore;
-    use ryo_values::domain::files::types::FileNumber;
-    use ryo_values::domain::records::types::{
-        FileOutcome, Handed, HandedWords, Handing, Ran, RecordWords, StagedWords, StagingSession,
-    };
-    use ryo_values::domain::row_texts::types::FindingRows;
-    use ryo_values::domain::stored_facts::types::{Bucket, Digest, PackedWords};
-    use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, Stored};
-    use std::sync::atomic::AtomicUsize;
-
-    #[derive(Debug, Default)]
-    struct StagingRead {
-        calls: AtomicUsize,
-        fail: bool,
-    }
-    impl ReadStore for StagingRead {
-        fn tables(&self) -> Stored {
-            Stored::default()
-        }
-        fn handed(
-            &self,
-            _: &BucketsWanted,
-        ) -> Result<ryo_values::domain::stores::types::ReadHanded, LintStoreError> {
-            Ok(ryo_values::domain::stores::types::ReadHanded::default())
-        }
-        fn read_old(
-            &self,
-            _words: &ryo_values::domain::stores::types::OldWords,
-            _into: &mut ryo_values::domain::stored_facts::types::PackedWords,
-        ) -> Result<(), LintStoreError> {
-            Err(LintStoreError::NothingRead)
-        }
-
-        fn begin_old_rows(
-            &self,
-            _wanted: &ryo_values::domain::stores::types::BucketsWanted,
-        ) -> Result<Option<Box<dyn crate::outbound::lint_store::interface::OldRowBatch>>, LintStoreError> {
-            Ok(None)
-        }
-
-        fn read_staged(
-            &self,
-            _words: &ryo_values::domain::records::types::StagedWords,
-            _into: &mut ryo_values::domain::stored_facts::types::PackedWords,
-        ) -> Result<(), LintStoreError> {
-            Err(LintStoreError::NothingRead)
-        }
-
-        fn keep(&self, _: Stored, _: &KeptRows) -> Result<(), LintStoreError> {
-            Ok(())
-        }
-        fn stage_words(&self, words: PackedWords) -> Result<RecordWords, LintStoreError> {
-            let offset = self.calls.fetch_add(1, Ordering::Relaxed);
-            if self.fail {
-                return Err(LintStoreError::NothingRead);
-            }
-            Ok(RecordWords::Staged(StagedWords {
-                session: StagingSession(1),
-                offset: ryo_values::domain::records::types::PayloadOffset(
-                    u64::try_from(offset).expect("small count"),
-                ),
-                length: ryo_values::domain::records::types::PayloadLength(
-                    u64::try_from(words.0.len()).expect("size"),
-                ),
-            }))
-        }
-    }
+    use successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads_doubles::StagingRead;
     let outcome = FileOutcome::Read(Ran {
         rows: FindingRows::default(),
         number: FileNumber(0),
@@ -1937,57 +1827,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
 }
 
 fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes() -> Result<Value, Failure> {
-    use crate::domain::render::types::Answering;
-    use crate::domain::visit::types::Keeping;
-    use crate::outbound::corpus::{
-        errors::CorpusError,
-        interface::CorpusPort,
-        types::{CorpusInventory, PathStat},
-    };
-    use ryo_values::domain::files::types::{
-        CorpusEntry, CorpusInput, FileBytes, FileNumber, FileSize, Nanoseconds,
-    };
-    use ryo_values::domain::records::types::{FileOutcome, Record, Unreadable};
-    use ryo_values::domain::stored_facts::types::{Digest, ReadFailure};
-    use std::sync::atomic::AtomicUsize;
-    struct ChangingRead {
-        reads: AtomicUsize,
-        fail_at: usize,
-    }
-    impl CorpusPort for ChangingRead {
-        fn observe_entry(
-            &self,
-            path: &FilePath,
-        ) -> ryo_language::domain::project_context::types::EntryObservation {
-            ryo_language::domain::project_context::types::EntryObservation {
-                path: path.clone(),
-                state: ryo_language::domain::project_context::types::ObservedEntryState::Unknown,
-            }
-        }
-        fn inventory(&self) -> Result<CorpusInventory, CorpusError> {
-            unreachable!("explicit test inventory")
-        }
-        fn stat(&self, _: &FilePath) -> Result<PathStat, CorpusError> {
-            unreachable!("no dependency lookup")
-        }
-        fn read(&self, entry: &CorpusEntry, bytes: &mut FileBytes) -> Result<(), CorpusError> {
-            assert!(
-                bytes.0.is_empty(),
-                "each real attempt starts without earlier source or partial error bytes"
-            );
-            let at = self.reads.fetch_add(1, Ordering::Relaxed);
-            if at == self.fail_at {
-                bytes.0.extend_from_slice(b"partial failed bytes");
-                Err(CorpusError::Unreadable {
-                    path: entry.path.0.to_string(),
-                    reason: "read denied".into(),
-                })
-            } else {
-                bytes.0.extend_from_slice(b"fn main() {}");
-                Ok(())
-            }
-        }
-    }
+    use read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes_doubles::ChangingRead;
     for fail_at in [0, 1, 2] {
         let corpus = Arc::new(ChangingRead {
             reads: AtomicUsize::new(0),
@@ -2274,33 +2114,7 @@ fn primary_manifest_read_failure_retains_real_metadata_without_empty_project_sou
 }
 
 fn project_entry_acquisition_deduplicates_provider_candidates_before_observing() -> Result<Value, Failure> {
-    use crate::outbound::corpus::{
-        errors::CorpusError,
-        interface::CorpusPort,
-        types::{CorpusInventory, PathStat},
-    };
-    use ryo_language::domain::project_context::types::EntryObservation;
-    use ryo_values::domain::files::types::{CorpusEntry, FileBytes};
-    use std::sync::atomic::AtomicUsize;
-    struct CountingCorpus {
-        inner: CorpusFake,
-        observations: Arc<AtomicUsize>,
-    }
-    impl CorpusPort for CountingCorpus {
-        fn inventory(&self) -> Result<CorpusInventory, CorpusError> {
-            self.inner.inventory()
-        }
-        fn read(&self, entry: &CorpusEntry, into: &mut FileBytes) -> Result<(), CorpusError> {
-            self.inner.read(entry, into)
-        }
-        fn stat(&self, path: &FilePath) -> Result<PathStat, CorpusError> {
-            self.inner.stat(path)
-        }
-        fn observe_entry(&self, path: &FilePath) -> EntryObservation {
-            self.observations.fetch_add(1, Ordering::Relaxed);
-            self.inner.observe_entry(path)
-        }
-    }
+    use project_entry_acquisition_deduplicates_provider_candidates_before_observing_doubles::CountingCorpus;
     let observations = Arc::new(AtomicUsize::new(0));
     let corpus = Arc::new(CountingCorpus {
         inner: CorpusFake::default(),
@@ -2349,4 +2163,217 @@ fn project_entry_acquisition_deduplicates_provider_candidates_before_observing()
         vec!["a.py", "z.py"]
     );
     Ok(1)
+}
+
+mod required_dependency_stat_and_read_errors_cannot_disappear_doubles {
+    use super::*;
+    use crate::outbound::corpus::{
+        errors::CorpusError,
+        interface::CorpusPort,
+        types::{CorpusInventory, PathStat},
+    };
+    use ryo_values::domain::files::types::{CorpusEntry, FileBytes, FileSize, Nanoseconds};
+
+    pub(super) struct Refuses {
+        pub(super) stat: bool,
+    }
+
+    impl CorpusPort for Refuses {
+        fn observe_entry(
+            &self,
+            path: &FilePath,
+        ) -> ryo_language::domain::project_context::types::EntryObservation {
+            ryo_language::domain::project_context::types::EntryObservation {
+                path: path.clone(),
+                state: ryo_language::domain::project_context::types::ObservedEntryState::Unknown,
+            }
+        }
+        fn inventory(&self) -> Result<CorpusInventory, CorpusError> {
+            Ok(CorpusInventory(vec![]))
+        }
+        fn read(&self, _: &CorpusEntry, _: &mut FileBytes) -> Result<(), CorpusError> {
+            Err(CorpusError::Unreadable {
+                path: "required".into(),
+                reason: "read denied".into(),
+            })
+        }
+        fn stat(&self, path: &FilePath) -> Result<PathStat, CorpusError> {
+            if self.stat {
+                Err(CorpusError::Unreadable {
+                    path: path.0.to_string(),
+                    reason: "stat denied".into(),
+                })
+            } else {
+                Ok(PathStat::Found(CorpusEntry {
+                    executable: Default::default(),
+                    path: path.clone(),
+                    size: FileSize(1),
+                    modified: Nanoseconds(1),
+                }))
+            }
+        }
+    }
+}
+
+mod successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads_doubles {
+    use super::*;
+    use crate::outbound::lint_store::errors::LintStoreError;
+    use crate::outbound::lint_store::interface::ReadStore;
+    use ryo_values::domain::files::types::FileNumber;
+    use ryo_values::domain::records::types::{
+        FileOutcome, Handed, HandedWords, Handing, Ran, RecordWords, StagedWords, StagingSession,
+    };
+    use ryo_values::domain::row_texts::types::FindingRows;
+    use ryo_values::domain::stored_facts::types::{Bucket, Digest, PackedWords};
+    use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, Stored};
+    use std::sync::atomic::AtomicUsize;
+
+    #[derive(Debug, Default)]
+    pub(super) struct StagingRead {
+        pub(super) calls: AtomicUsize,
+        pub(super) fail: bool,
+    }
+
+    impl ReadStore for StagingRead {
+        fn tables(&self) -> Stored {
+            Stored::default()
+        }
+        fn handed(
+            &self,
+            _: &BucketsWanted,
+        ) -> Result<ryo_values::domain::stores::types::ReadHanded, LintStoreError> {
+            Ok(ryo_values::domain::stores::types::ReadHanded::default())
+        }
+        fn read_old(
+            &self,
+            _words: &ryo_values::domain::stores::types::OldWords,
+            _into: &mut ryo_values::domain::stored_facts::types::PackedWords,
+        ) -> Result<(), LintStoreError> {
+            Err(LintStoreError::NothingRead)
+        }
+
+        fn begin_old_rows(
+            &self,
+            _wanted: &ryo_values::domain::stores::types::BucketsWanted,
+        ) -> Result<Option<Box<dyn crate::outbound::lint_store::interface::OldRowBatch>>, LintStoreError> {
+            Ok(None)
+        }
+
+        fn read_staged(
+            &self,
+            _words: &ryo_values::domain::records::types::StagedWords,
+            _into: &mut ryo_values::domain::stored_facts::types::PackedWords,
+        ) -> Result<(), LintStoreError> {
+            Err(LintStoreError::NothingRead)
+        }
+
+        fn keep(&self, _: Stored, _: &KeptRows) -> Result<(), LintStoreError> {
+            Ok(())
+        }
+        fn stage_words(&self, words: PackedWords) -> Result<RecordWords, LintStoreError> {
+            let offset = self.calls.fetch_add(1, Ordering::Relaxed);
+            if self.fail {
+                return Err(LintStoreError::NothingRead);
+            }
+            Ok(RecordWords::Staged(StagedWords {
+                session: StagingSession(1),
+                offset: ryo_values::domain::records::types::PayloadOffset(
+                    u64::try_from(offset).expect("small count"),
+                ),
+                length: ryo_values::domain::records::types::PayloadLength(
+                    u64::try_from(words.0.len()).expect("size"),
+                ),
+            }))
+        }
+    }
+}
+
+mod read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes_doubles {
+    use super::*;
+    use crate::domain::render::types::Answering;
+    use crate::domain::visit::types::Keeping;
+    use crate::outbound::corpus::{
+        errors::CorpusError,
+        interface::CorpusPort,
+        types::{CorpusInventory, PathStat},
+    };
+    use ryo_values::domain::files::types::{
+        CorpusEntry, CorpusInput, FileBytes, FileNumber, FileSize, Nanoseconds,
+    };
+    use ryo_values::domain::records::types::{FileOutcome, Record, Unreadable};
+    use ryo_values::domain::stored_facts::types::{Digest, ReadFailure};
+    use std::sync::atomic::AtomicUsize;
+
+    pub(super) struct ChangingRead {
+        pub(super) reads: AtomicUsize,
+        pub(super) fail_at: usize,
+    }
+
+    impl CorpusPort for ChangingRead {
+        fn observe_entry(
+            &self,
+            path: &FilePath,
+        ) -> ryo_language::domain::project_context::types::EntryObservation {
+            ryo_language::domain::project_context::types::EntryObservation {
+                path: path.clone(),
+                state: ryo_language::domain::project_context::types::ObservedEntryState::Unknown,
+            }
+        }
+        fn inventory(&self) -> Result<CorpusInventory, CorpusError> {
+            unreachable!("explicit test inventory")
+        }
+        fn stat(&self, _: &FilePath) -> Result<PathStat, CorpusError> {
+            unreachable!("no dependency lookup")
+        }
+        fn read(&self, entry: &CorpusEntry, bytes: &mut FileBytes) -> Result<(), CorpusError> {
+            assert!(
+                bytes.0.is_empty(),
+                "each real attempt starts without earlier source or partial error bytes"
+            );
+            let at = self.reads.fetch_add(1, Ordering::Relaxed);
+            if at == self.fail_at {
+                bytes.0.extend_from_slice(b"partial failed bytes");
+                Err(CorpusError::Unreadable {
+                    path: entry.path.0.to_string(),
+                    reason: "read denied".into(),
+                })
+            } else {
+                bytes.0.extend_from_slice(b"fn main() {}");
+                Ok(())
+            }
+        }
+    }
+}
+
+mod project_entry_acquisition_deduplicates_provider_candidates_before_observing_doubles {
+    use super::*;
+    use crate::outbound::corpus::{
+        errors::CorpusError,
+        interface::CorpusPort,
+        types::{CorpusInventory, PathStat},
+    };
+    use ryo_language::domain::project_context::types::EntryObservation;
+    use ryo_values::domain::files::types::{CorpusEntry, FileBytes};
+    use std::sync::atomic::AtomicUsize;
+
+    pub(super) struct CountingCorpus {
+        pub(super) inner: CorpusFake,
+        pub(super) observations: Arc<AtomicUsize>,
+    }
+
+    impl CorpusPort for CountingCorpus {
+        fn inventory(&self) -> Result<CorpusInventory, CorpusError> {
+            self.inner.inventory()
+        }
+        fn read(&self, entry: &CorpusEntry, into: &mut FileBytes) -> Result<(), CorpusError> {
+            self.inner.read(entry, into)
+        }
+        fn stat(&self, path: &FilePath) -> Result<PathStat, CorpusError> {
+            self.inner.stat(path)
+        }
+        fn observe_entry(&self, path: &FilePath) -> EntryObservation {
+            self.observations.fetch_add(1, Ordering::Relaxed);
+            self.inner.observe_entry(path)
+        }
+    }
 }
