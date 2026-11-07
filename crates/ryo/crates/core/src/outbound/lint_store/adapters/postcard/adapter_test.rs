@@ -50,6 +50,27 @@ enum Question {
     OnlyTheBucketsAskedAreDecoded,
     /// A run of another process keeps between this run's read and keep: every word row stays under its own path.
     AnotherProcessKeptBetweenTheReadAndTheKeep,
+    /// normalized staging preserves store bytes and snapshot lifetime.
+    NormalizedStagingPreservesStoreBytesAndSnapshotLifetime,
+    /// warm partial frontier keeps exact proof through facts handover.
+    WarmPartialFrontierKeepsExactProofThroughFactsHandover,
+    /// staged fresh and selected old rows match inline edit add remove and reorder.
+    StagedFreshAndSelectedOldRowsMatchInlineEditAddRemoveAndReorder,
+    /// failed write flush or rename never publishes or removes previous cache.
+    FailedWriteFlushOrRenameNeverPublishesOrRemovesPreviousCache,
+    /// old read descriptors survive replacement and reject other snapshots.
+    OldReadDescriptorsSurviveReplacementAndRejectOtherSnapshots,
+    /// an open snapshot refuses external payload truncation.
+    AnOpenSnapshotRefusesExternalPayloadTruncation,
+    #[cfg(unix)]
+    /// bucket reader observes each row at its buffer acquisition.
+    BucketReaderObservesEachRowAtItsBufferAcquisition,
+    #[cfg(unix)]
+    /// bucket reader acquires other bucket after mutation or truncation.
+    BucketReaderAcquiresOtherBucketAfterMutationOrTruncation,
+    #[cfg(unix)]
+    /// bucket readers keep snapshot identity across concurrent consumers.
+    BucketReadersKeepSnapshotIdentityAcrossConcurrentConsumers,
 }
 
 type Input = Question;
@@ -152,6 +173,63 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_keep_after_another_process_kept_copies_from_the_store_its_run_read"),
         word: Word::Succeeds,
         input: || Question::AnotherProcessKeptBetweenTheReadAndTheKeep,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("normalized_staging_preserves_store_bytes_and_snapshot_lifetime"),
+        word: Word::Succeeds,
+        input: || Question::NormalizedStagingPreservesStoreBytesAndSnapshotLifetime,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("warm_partial_frontier_keeps_exact_proof_through_facts_handover"),
+        word: Word::Succeeds,
+        input: || Question::WarmPartialFrontierKeepsExactProofThroughFactsHandover,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("staged_fresh_and_selected_old_rows_match_inline_edit_add_remove_and_reorder"),
+        word: Word::Succeeds,
+        input: || Question::StagedFreshAndSelectedOldRowsMatchInlineEditAddRemoveAndReorder,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("failed_write_flush_or_rename_never_publishes_or_removes_previous_cache"),
+        word: Word::Succeeds,
+        input: || Question::FailedWriteFlushOrRenameNeverPublishesOrRemovesPreviousCache,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("old_read_descriptors_survive_replacement_and_reject_other_snapshots"),
+        word: Word::Succeeds,
+        input: || Question::OldReadDescriptorsSurviveReplacementAndRejectOtherSnapshots,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("an_open_snapshot_refuses_external_payload_truncation"),
+        word: Word::Succeeds,
+        input: || Question::AnOpenSnapshotRefusesExternalPayloadTruncation,
+        expect: Expect::Value(true),
+    },
+    #[cfg(unix)]
+    Case {
+        name: CaseName("bucket_reader_observes_each_row_at_its_buffer_acquisition"),
+        word: Word::Succeeds,
+        input: || Question::BucketReaderObservesEachRowAtItsBufferAcquisition,
+        expect: Expect::Value(true),
+    },
+    #[cfg(unix)]
+    Case {
+        name: CaseName("bucket_reader_acquires_other_bucket_after_mutation_or_truncation"),
+        word: Word::Succeeds,
+        input: || Question::BucketReaderAcquiresOtherBucketAfterMutationOrTruncation,
+        expect: Expect::Value(true),
+    },
+    #[cfg(unix)]
+    Case {
+        name: CaseName("bucket_readers_keep_snapshot_identity_across_concurrent_consumers"),
+        word: Word::Succeeds,
+        input: || Question::BucketReadersKeepSnapshotIdentityAcrossConcurrentConsumers,
         expect: Expect::Value(true),
     },
 ];
@@ -342,6 +420,18 @@ fn subject(question: Input) -> Result<Value, Failure> {
     let directory = root.path().join("cache");
     let store = store_in(&directory, "build-1");
     Ok(match question {
+        Question::NormalizedStagingPreservesStoreBytesAndSnapshotLifetime => normalized_staging_preserves_store_bytes_and_snapshot_lifetime(),
+        Question::WarmPartialFrontierKeepsExactProofThroughFactsHandover => warm_partial_frontier_keeps_exact_proof_through_facts_handover(),
+        Question::StagedFreshAndSelectedOldRowsMatchInlineEditAddRemoveAndReorder => staged_fresh_and_selected_old_rows_match_inline_edit_add_remove_and_reorder(),
+        Question::FailedWriteFlushOrRenameNeverPublishesOrRemovesPreviousCache => failed_write_flush_or_rename_never_publishes_or_removes_previous_cache(),
+        Question::OldReadDescriptorsSurviveReplacementAndRejectOtherSnapshots => old_read_descriptors_survive_replacement_and_reject_other_snapshots(),
+        Question::AnOpenSnapshotRefusesExternalPayloadTruncation => an_open_snapshot_refuses_external_payload_truncation(),
+        #[cfg(unix)]
+        Question::BucketReaderObservesEachRowAtItsBufferAcquisition => bucket_reader_observes_each_row_at_its_buffer_acquisition(),
+        #[cfg(unix)]
+        Question::BucketReaderAcquiresOtherBucketAfterMutationOrTruncation => bucket_reader_acquires_other_bucket_after_mutation_or_truncation(),
+        #[cfg(unix)]
+        Question::BucketReadersKeepSnapshotIdentityAcrossConcurrentConsumers => bucket_readers_keep_snapshot_identity_across_concurrent_consumers(),
         Question::PriorSchemaStoreIsEmpty => {
             store.stored()?.keep(stored(1), &KeptRows::default())?;
             let current = store.stored()?.tables() == tables(stored(1));
@@ -475,8 +565,21 @@ fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
 
-#[test]
-fn normalized_staging_preserves_store_bytes_and_snapshot_lifetime() {
+
+
+
+
+
+
+
+
+
+
+
+
+mod executable;
+
+fn normalized_staging_preserves_store_bytes_and_snapshot_lifetime() -> Result<Value, Failure> {
     use ryo_values::domain::records::types::RecordWords;
     use ryo_values::domain::stores::types::StagedRow;
     let root = tempfile::tempdir().expect("directories");
@@ -539,10 +642,10 @@ fn normalized_staging_preserves_store_bytes_and_snapshot_lifetime() {
         std::fs::read(staged_path.join("lint.store")).expect("old cache"),
         before
     );
+    Ok(true)
 }
 
-#[test]
-fn warm_partial_frontier_keeps_exact_proof_through_facts_handover() {
+fn warm_partial_frontier_keeps_exact_proof_through_facts_handover() -> Result<Value, Failure> {
     use ryo_execution::inbound::use_cases::execution::types::facts::{FactsPort as _, WordsToKeep};
     use ryo_relations::domain::relations::types::FileId;
     use ryo_values::domain::{
@@ -603,10 +706,10 @@ fn warm_partial_frontier_keeps_exact_proof_through_facts_handover() {
         joined.sources[0].proof.coverage,
         FrontierCoverage::Partial(vec![FrontierAffected::CurrentFile])
     );
+    Ok(true)
 }
 
-#[test]
-fn staged_fresh_and_selected_old_rows_match_inline_edit_add_remove_and_reorder() {
+fn staged_fresh_and_selected_old_rows_match_inline_edit_add_remove_and_reorder() -> Result<Value, Failure> {
     use ryo_values::domain::records::types::RecordWords;
     use ryo_values::domain::stores::types::StagedRow;
     let root = tempfile::tempdir().expect("directories");
@@ -660,10 +763,10 @@ fn staged_fresh_and_selected_old_rows_match_inline_edit_add_remove_and_reorder()
                 .expect("staged")
         );
     }
+    Ok(true)
 }
 
-#[test]
-fn failed_write_flush_or_rename_never_publishes_or_removes_previous_cache() {
+fn failed_write_flush_or_rename_never_publishes_or_removes_previous_cache() -> Result<Value, Failure> {
     use super::adapter::published;
     let root = tempfile::tempdir().expect("directory");
     let target = root.path().join("lint.store");
@@ -691,11 +794,11 @@ fn failed_write_flush_or_rename_never_publishes_or_removes_previous_cache() {
     );
     assert!(!temporary.exists());
     assert_eq!(std::fs::read(&target).expect("old cache"), previous);
+    Ok(true)
 }
 
 /// Descriptors remain tied to the open old file through atomic replacement and concurrent consumers.
-#[test]
-fn old_read_descriptors_survive_replacement_and_reject_other_snapshots() {
+fn old_read_descriptors_survive_replacement_and_reject_other_snapshots() -> Result<Value, Failure> {
     use ryo_values::domain::stored_facts::types::PackedWords;
     use ryo_values::domain::stores::types::ReadWordPayload;
     let root = tempfile::tempdir().expect("directory");
@@ -760,10 +863,10 @@ fn old_read_descriptors_survive_replacement_and_reject_other_snapshots() {
         materialized_handed(&*current, &BucketsWanted::All).unwrap(),
         stored(2).handed
     );
+    Ok(true)
 }
 
-#[test]
-fn an_open_snapshot_refuses_external_payload_truncation() {
+fn an_open_snapshot_refuses_external_payload_truncation() -> Result<Value, Failure> {
     use ryo_values::domain::stored_facts::types::PackedWords;
     use ryo_values::domain::stores::types::ReadWordPayload;
 
@@ -792,11 +895,11 @@ fn an_open_snapshot_refuses_external_payload_truncation() {
         snapshot.read_old(&descriptor, &mut loaded).is_err(),
         "the cached original length must never turn truncated bytes into a successful read"
     );
+    Ok(true)
 }
 
 #[cfg(unix)]
-#[test]
-fn bucket_reader_observes_each_row_at_its_buffer_acquisition() {
+fn bucket_reader_observes_each_row_at_its_buffer_acquisition() -> Result<Value, Failure> {
     use ryo_values::domain::stored_facts::types::PackedWords;
     use ryo_values::domain::stores::types::ReadWordPayload;
     use std::io::{Seek as _, SeekFrom, Write as _};
@@ -861,11 +964,11 @@ fn bucket_reader_observes_each_row_at_its_buffer_acquisition() {
             .expect("already buffered second row");
         assert_eq!(acquired, source.handed.frontier[0].words);
     }
+    Ok(true)
 }
 
 #[cfg(unix)]
-#[test]
-fn bucket_reader_acquires_other_bucket_after_mutation_or_truncation() {
+fn bucket_reader_acquires_other_bucket_after_mutation_or_truncation() -> Result<Value, Failure> {
     use ryo_values::domain::stored_facts::types::PackedWords;
     use ryo_values::domain::stores::types::ReadWordPayload;
     use std::io::{Seek as _, SeekFrom, Write as _};
@@ -919,11 +1022,11 @@ fn bucket_reader_acquires_other_bucket_after_mutation_or_truncation() {
         }
         assert!(batch.read(&second, &mut PackedWords::default()).is_err());
     }
+    Ok(true)
 }
 
 #[cfg(unix)]
-#[test]
-fn bucket_readers_keep_snapshot_identity_across_concurrent_consumers() {
+fn bucket_readers_keep_snapshot_identity_across_concurrent_consumers() -> Result<Value, Failure> {
     use ryo_values::domain::stored_facts::types::PackedWords;
     use ryo_values::domain::stores::types::ReadWordPayload;
 
@@ -994,6 +1097,5 @@ fn bucket_readers_keep_snapshot_identity_across_concurrent_consumers() {
             thread.join().unwrap();
         }
     });
+    Ok(true)
 }
-
-mod executable;

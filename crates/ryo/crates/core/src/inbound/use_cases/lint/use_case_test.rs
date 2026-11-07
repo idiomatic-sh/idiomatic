@@ -133,6 +133,20 @@ enum Scenario {
     UnreadableAgain,
     /// Lints a rule that reads the project twice over one store, with what changed between the two.
     Consulted(Between),
+    /// accepted syntax applicability replays skips and invalidates on policy change.
+    AcceptedSyntaxApplicabilityReplaysSkipsAndInvalidatesOnPolicyChange,
+    /// project entry observations invalidate persisted absence and presence.
+    ProjectEntryObservationsInvalidatePersistedAbsenceAndPresence,
+    /// project reuse frames root and repository and keeps dependency evidence.
+    ProjectReuseFramesRootAndRepositoryAndKeepsDependencyEvidence,
+    /// consulted equal byte files revalidate on each executable metadata change.
+    ConsultedEqualByteFilesRevalidateOnEachExecutableMetadataChange,
+    /// cold warm and edited runs answer the same in every store.
+    ColdWarmAndEditedRunsAnswerTheSameInEveryStore,
+    /// a syntax skipped file does not poison unrelated partitions cold or warm.
+    ASyntaxSkippedFileDoesNotPoisonUnrelatedPartitionsColdOrWarm,
+    /// a syntax rejected file is skipped with its reason and never undecided or complete.
+    ASyntaxRejectedFileIsSkippedWithItsReasonAndNeverUndecidedOrComplete,
 }
 
 /// What changes between two lints of a rule that reads the project, whose lookup reads a configuration above the root.
@@ -310,99 +324,7 @@ fn request(given: &Given) -> LintRequest {
     }
 }
 
-#[test]
-fn accepted_syntax_applicability_replays_skips_and_invalidates_on_policy_change() {
-    use ryo_values::domain::runs::types::{RuleApplicability, SkipReason};
 
-    let files = vec![("a.rs", "fn a() {}"), ("b.rs", "fn b() {}")];
-    let store = Arc::new(LintStoreFake::default());
-    let mut given = Given {
-        files: files.clone(),
-        store: Arc::clone(&store),
-        ..violations()
-    };
-    given.language.rejected_syntax = vec![FilePath("b.rs".into())];
-    let mut asked = request(&given);
-    asked.rules[0].applicability = RuleApplicability::AcceptedSyntax;
-    let first_world = world(given);
-
-    let first = first_world
-        .use_case
-        .lint(asked.clone())
-        .expect("first lint");
-    assert_eq!(first.unknowns, []);
-    assert_eq!(first.skipped.len(), 1);
-    assert_eq!(first.skipped[0].path, FilePath("b.rs".into()));
-    assert_eq!(first.skipped[0].reason, SkipReason::SyntaxRejected);
-    assert_eq!(first_world.language.parses.load(Ordering::SeqCst), 2);
-    let first_rows = first_world
-        .collected
-        .0
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .rows
-        .clone();
-    assert_eq!(
-        first_rows.len(),
-        1,
-        "the rejected file does not run the rule"
-    );
-
-    let warm = first_world.use_case.lint(asked.clone()).expect("warm lint");
-    assert_eq!(warm.skipped, first.skipped, "the stored skip is replayed");
-    assert_eq!(first_world.language.parses.load(Ordering::SeqCst), 2);
-
-    let edited = vec![("a.rs", "fn changed() {}"), files[1]];
-    let mut edited_given = Given {
-        files: edited,
-        store: Arc::clone(&store),
-        ..violations()
-    };
-    edited_given.language.rejected_syntax = vec![FilePath("b.rs".into())];
-    let edited_world = world(edited_given);
-    let edited_report = edited_world
-        .use_case
-        .lint(asked.clone())
-        .expect("edited lint");
-    assert_eq!(edited_report.skipped, first.skipped);
-    assert_eq!(edited_world.language.parses.load(Ordering::SeqCst), 1);
-    assert_eq!(
-        edited_world
-            .collected
-            .0
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .rows
-            .len(),
-        1,
-        "the edited accepted file is evaluated and the rejected file stays skipped"
-    );
-
-    asked.rules[0].applicability = RuleApplicability::Always;
-    let mut policy_given = Given {
-        files,
-        store,
-        ..violations()
-    };
-    policy_given.language.rejected_syntax = vec![FilePath("b.rs".into())];
-    let policy_world = world(policy_given);
-    let policy_report = policy_world
-        .use_case
-        .lint(asked)
-        .expect("always-applicable lint");
-    assert!(policy_report.skipped.is_empty());
-    assert_eq!(
-        policy_world
-            .collected
-            .0
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .rows
-            .len(),
-        2,
-        "changing the rule policy invalidates the retained skip"
-    );
-}
 
 /// The use case over the fakes `given` stands for.
 fn world(mut given: Given) -> World {
@@ -1214,6 +1136,48 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         },
         expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::Store { .. })))),
     },
+    Case {
+        name: CaseName("accepted_syntax_applicability_replays_skips_and_invalidates_on_policy_change"),
+        word: Word::Succeeds,
+        input: || Scenario::AcceptedSyntaxApplicabilityReplaysSkipsAndInvalidatesOnPolicyChange,
+        expect: Expect::Value((1, 0)),
+    },
+    Case {
+        name: CaseName("project_entry_observations_invalidate_persisted_absence_and_presence"),
+        word: Word::Succeeds,
+        input: || Scenario::ProjectEntryObservationsInvalidatePersistedAbsenceAndPresence,
+        expect: Expect::Value((1, 0)),
+    },
+    Case {
+        name: CaseName("project_reuse_frames_root_and_repository_and_keeps_dependency_evidence"),
+        word: Word::Succeeds,
+        input: || Scenario::ProjectReuseFramesRootAndRepositoryAndKeepsDependencyEvidence,
+        expect: Expect::Value((1, 0)),
+    },
+    Case {
+        name: CaseName("consulted_equal_byte_files_revalidate_on_each_executable_metadata_change"),
+        word: Word::Succeeds,
+        input: || Scenario::ConsultedEqualByteFilesRevalidateOnEachExecutableMetadataChange,
+        expect: Expect::Value((1, 0)),
+    },
+    Case {
+        name: CaseName("cold_warm_and_edited_runs_answer_the_same_in_every_store"),
+        word: Word::Succeeds,
+        input: || Scenario::ColdWarmAndEditedRunsAnswerTheSameInEveryStore,
+        expect: Expect::Value((1, 0)),
+    },
+    Case {
+        name: CaseName("a_syntax_skipped_file_does_not_poison_unrelated_partitions_cold_or_warm"),
+        word: Word::Succeeds,
+        input: || Scenario::ASyntaxSkippedFileDoesNotPoisonUnrelatedPartitionsColdOrWarm,
+        expect: Expect::Value((1, 0)),
+    },
+    Case {
+        name: CaseName("a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_complete"),
+        word: Word::Succeeds,
+        input: || Scenario::ASyntaxRejectedFileIsSkippedWithItsReasonAndNeverUndecidedOrComplete,
+        expect: Expect::Value((1, 0)),
+    },
 ];
 
 /// Lints three files with a rule that counts the files each function name is in, edits `a.rs` to `edit`, and lints again over the
@@ -1473,37 +1437,7 @@ fn consulted(between: Between) -> Result<Value, Failure> {
     Ok((read_again, usize::from(fed_again > 0)))
 }
 
-#[test]
-fn project_entry_observations_invalidate_persisted_absence_and_presence() {
-    let store = Arc::new(LintStoreFake::default());
-    let entry = ("../pkg.py", "package = 1");
-    let given = |outside: Vec<(&'static str, &'static str)>| Given {
-        files: vec![
-            SOURCES[0],
-            SOURCES[1],
-            ("project.manifest.fake", "members = 1"),
-        ],
-        outside,
-        store: Arc::clone(&store),
-        root: "root",
-        query: Arc::new(reading_the_project()),
-        language: LanguageFake {
-            project_entry_paths: vec![FilePath(entry.0.into())],
-            ..LanguageFake::default()
-        },
-        ..violations()
-    };
-    for (outside, expected_project_reads) in [
-        (Vec::new(), 1),
-        (Vec::new(), 0),
-        (vec![entry], 1),
-        (vec![entry], 0),
-        (Vec::new(), 1),
-    ] {
-        let (project_reads, _fed) = counted_lint(given(outside)).expect("lint");
-        assert_eq!(project_reads, expected_project_reads);
-    }
-}
+
 
 /// A file that cannot be read stays unread, for the same reason, on the warm run.
 fn unreadable_again() -> Result<Value, Failure> {
@@ -1686,6 +1620,13 @@ fn interleaved_runs() -> Result<Value, Failure> {
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let fresh = || Arc::new(LintStoreFake::default());
     match scenario {
+        Scenario::AcceptedSyntaxApplicabilityReplaysSkipsAndInvalidatesOnPolicyChange => accepted_syntax_applicability_replays_skips_and_invalidates_on_policy_change(),
+        Scenario::ProjectEntryObservationsInvalidatePersistedAbsenceAndPresence => project_entry_observations_invalidate_persisted_absence_and_presence(),
+        Scenario::ProjectReuseFramesRootAndRepositoryAndKeepsDependencyEvidence => project_reuse_frames_root_and_repository_and_keeps_dependency_evidence(),
+        Scenario::ConsultedEqualByteFilesRevalidateOnEachExecutableMetadataChange => consulted_equal_byte_files_revalidate_on_each_executable_metadata_change(),
+        Scenario::ColdWarmAndEditedRunsAnswerTheSameInEveryStore => cold_warm_and_edited_runs_answer_the_same_in_every_store(),
+        Scenario::ASyntaxSkippedFileDoesNotPoisonUnrelatedPartitionsColdOrWarm => a_syntax_skipped_file_does_not_poison_unrelated_partitions_cold_or_warm(),
+        Scenario::ASyntaxRejectedFileIsSkippedWithItsReasonAndNeverUndecidedOrComplete => a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_complete(),
         Scenario::Lint(given) => {
             let made = lint(given());
             let findings = made.rows.len();
@@ -1806,117 +1747,9 @@ fn fails() {
     run(CASES, Word::Fails, subject);
 }
 
-#[test]
-fn project_reuse_frames_root_and_repository_and_keeps_dependency_evidence() {
-    use ryo_language::inbound::use_cases::project::types::Repository;
-    let store = Arc::new(LintStoreFake::default());
-    let invoke = |root: &'static str, repository, project| {
-        let given = Given {
-            root,
-            store: Arc::clone(&store),
-            files: vec![SOURCES[0], SOURCES[1]],
-            outside: vec![("../context.fake", "content")],
-            query: Arc::new(if project {
-                reading_the_project()
-            } else {
-                QueryLanguageFake::counting_across_files()
-            }),
-            language: LanguageFake {
-                consulted: if project {
-                    vec![
-                        FilePath("../context.fake".into()),
-                        FilePath("../absent.fake".into()),
-                    ]
-                } else {
-                    vec![]
-                },
-                ..LanguageFake::default()
-            },
-            ..violations()
-        };
-        let mut asked = request(&given);
-        asked.session.repository = repository;
-        let made = world(given);
-        let report = made.use_case.counting().lint(asked).expect("complete lint");
-        (made.language.projects.load(Ordering::SeqCst), report)
-    };
-    let (cold, cold_report) = invoke("root-a", Repository::Disk, true);
-    let (warm, warm_report) = invoke("root-a", Repository::Disk, true);
-    assert_eq!(
-        (cold, warm),
-        (1, 0),
-        "an unchanged project really reuses its kept rows"
-    );
-    assert_eq!(cold_report.dependencies, warm_report.dependencies);
-    assert_eq!(
-        warm_report.dependencies.len(),
-        2,
-        "present and missing dependencies survive reuse"
-    );
-    assert_eq!(
-        invoke("root-b", Repository::Disk, true).0,
-        1,
-        "another absolute root cannot reuse package context"
-    );
-    assert_eq!(
-        invoke("root-b", Repository::Given, true).0,
-        1,
-        "repository isolation is part of project resolution identity"
-    );
-    assert_eq!(invoke("root-b", Repository::Given, true).0, 0);
-    let _cold = invoke("root-a", Repository::Disk, false);
-    let (projects, nonproject) = invoke("root-b", Repository::Given, false);
-    assert_eq!(projects, 0);
-    assert_eq!(
-        nonproject
-            .work
-            .iter()
-            .flat_map(|rule| &rule.steps)
-            .map(|step| step.rows.0)
-            .sum::<u64>(),
-        0,
-        "nonproject cache identity is unchanged by root and mode"
-    );
-}
 
-#[test]
-fn consulted_equal_byte_files_revalidate_on_each_executable_metadata_change() {
-    use ryo_values::domain::files::types::ExecutablePermission;
-    for before in [false, true] {
-        for changed in [false, true] {
-            let store = Arc::new(LintStoreFake::default());
-            let given = |executable| Given {
-                files: vec![
-                    SOURCES[0],
-                    SOURCES[1],
-                    ("project.manifest.fake", "members = 1"),
-                ],
-                outside: vec![("../config.fake", "target = 1")],
-                outside_executable: if executable {
-                    ExecutablePermission::PosixExecutable
-                } else {
-                    ExecutablePermission::PosixNotExecutable
-                },
-                store: Arc::clone(&store),
-                root: "root",
-                query: Arc::new(reading_the_project()),
-                language: LanguageFake {
-                    consulted: vec![FilePath("../config.fake".into())],
-                    ..LanguageFake::default()
-                },
-                ..violations()
-            };
-            assert_eq!(counted_lint(given(before)).unwrap().0, 1);
-            assert_eq!(
-                counted_lint(given(if changed { !before } else { before }))
-                    .unwrap()
-                    .0,
-                usize::from(changed),
-                "consulted metadata must invalidate even when source digest is equal"
-            );
-        }
-    }
-}
+
+
 
 /// What one whole lint answered: the rows written, what the rules could not decide, the files a rule skipped, and how many files the
 /// language parsed.
@@ -1990,10 +1823,256 @@ const THREE: [(&str, &str); 3] = [
     ("c.rs", "fn c() {}"),
 ];
 
+
+
+
+
+
+
+mod inapplicable_identity;
+mod project_budget;
+
+fn accepted_syntax_applicability_replays_skips_and_invalidates_on_policy_change() -> Result<Value, Failure> {
+    use ryo_values::domain::runs::types::{RuleApplicability, SkipReason};
+
+    let files = vec![("a.rs", "fn a() {}"), ("b.rs", "fn b() {}")];
+    let store = Arc::new(LintStoreFake::default());
+    let mut given = Given {
+        files: files.clone(),
+        store: Arc::clone(&store),
+        ..violations()
+    };
+    given.language.rejected_syntax = vec![FilePath("b.rs".into())];
+    let mut asked = request(&given);
+    asked.rules[0].applicability = RuleApplicability::AcceptedSyntax;
+    let first_world = world(given);
+
+    let first = first_world
+        .use_case
+        .lint(asked.clone())
+        .expect("first lint");
+    assert_eq!(first.unknowns, []);
+    assert_eq!(first.skipped.len(), 1);
+    assert_eq!(first.skipped[0].path, FilePath("b.rs".into()));
+    assert_eq!(first.skipped[0].reason, SkipReason::SyntaxRejected);
+    assert_eq!(first_world.language.parses.load(Ordering::SeqCst), 2);
+    let first_rows = first_world
+        .collected
+        .0
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .rows
+        .clone();
+    assert_eq!(
+        first_rows.len(),
+        1,
+        "the rejected file does not run the rule"
+    );
+
+    let warm = first_world.use_case.lint(asked.clone()).expect("warm lint");
+    assert_eq!(warm.skipped, first.skipped, "the stored skip is replayed");
+    assert_eq!(first_world.language.parses.load(Ordering::SeqCst), 2);
+
+    let edited = vec![("a.rs", "fn changed() {}"), files[1]];
+    let mut edited_given = Given {
+        files: edited,
+        store: Arc::clone(&store),
+        ..violations()
+    };
+    edited_given.language.rejected_syntax = vec![FilePath("b.rs".into())];
+    let edited_world = world(edited_given);
+    let edited_report = edited_world
+        .use_case
+        .lint(asked.clone())
+        .expect("edited lint");
+    assert_eq!(edited_report.skipped, first.skipped);
+    assert_eq!(edited_world.language.parses.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        edited_world
+            .collected
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .rows
+            .len(),
+        1,
+        "the edited accepted file is evaluated and the rejected file stays skipped"
+    );
+
+    asked.rules[0].applicability = RuleApplicability::Always;
+    let mut policy_given = Given {
+        files,
+        store,
+        ..violations()
+    };
+    policy_given.language.rejected_syntax = vec![FilePath("b.rs".into())];
+    let policy_world = world(policy_given);
+    let policy_report = policy_world
+        .use_case
+        .lint(asked)
+        .expect("always-applicable lint");
+    assert!(policy_report.skipped.is_empty());
+    assert_eq!(
+        policy_world
+            .collected
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .rows
+            .len(),
+        2,
+        "changing the rule policy invalidates the retained skip"
+    );
+    Ok((1, 0))
+}
+
+fn project_entry_observations_invalidate_persisted_absence_and_presence() -> Result<Value, Failure> {
+    let store = Arc::new(LintStoreFake::default());
+    let entry = ("../pkg.py", "package = 1");
+    let given = |outside: Vec<(&'static str, &'static str)>| Given {
+        files: vec![
+            SOURCES[0],
+            SOURCES[1],
+            ("project.manifest.fake", "members = 1"),
+        ],
+        outside,
+        store: Arc::clone(&store),
+        root: "root",
+        query: Arc::new(reading_the_project()),
+        language: LanguageFake {
+            project_entry_paths: vec![FilePath(entry.0.into())],
+            ..LanguageFake::default()
+        },
+        ..violations()
+    };
+    for (outside, expected_project_reads) in [
+        (Vec::new(), 1),
+        (Vec::new(), 0),
+        (vec![entry], 1),
+        (vec![entry], 0),
+        (Vec::new(), 1),
+    ] {
+        let (project_reads, _fed) = counted_lint(given(outside)).expect("lint");
+        assert_eq!(project_reads, expected_project_reads);
+    }
+    Ok((1, 0))
+}
+
+fn project_reuse_frames_root_and_repository_and_keeps_dependency_evidence() -> Result<Value, Failure> {
+    use ryo_language::inbound::use_cases::project::types::Repository;
+    let store = Arc::new(LintStoreFake::default());
+    let invoke = |root: &'static str, repository, project| {
+        let given = Given {
+            root,
+            store: Arc::clone(&store),
+            files: vec![SOURCES[0], SOURCES[1]],
+            outside: vec![("../context.fake", "content")],
+            query: Arc::new(if project {
+                reading_the_project()
+            } else {
+                QueryLanguageFake::counting_across_files()
+            }),
+            language: LanguageFake {
+                consulted: if project {
+                    vec![
+                        FilePath("../context.fake".into()),
+                        FilePath("../absent.fake".into()),
+                    ]
+                } else {
+                    vec![]
+                },
+                ..LanguageFake::default()
+            },
+            ..violations()
+        };
+        let mut asked = request(&given);
+        asked.session.repository = repository;
+        let made = world(given);
+        let report = made.use_case.counting().lint(asked).expect("complete lint");
+        (made.language.projects.load(Ordering::SeqCst), report)
+    };
+    let (cold, cold_report) = invoke("root-a", Repository::Disk, true);
+    let (warm, warm_report) = invoke("root-a", Repository::Disk, true);
+    assert_eq!(
+        (cold, warm),
+        (1, 0),
+        "an unchanged project really reuses its kept rows"
+    );
+    assert_eq!(cold_report.dependencies, warm_report.dependencies);
+    assert_eq!(
+        warm_report.dependencies.len(),
+        2,
+        "present and missing dependencies survive reuse"
+    );
+    assert_eq!(
+        invoke("root-b", Repository::Disk, true).0,
+        1,
+        "another absolute root cannot reuse package context"
+    );
+    assert_eq!(
+        invoke("root-b", Repository::Given, true).0,
+        1,
+        "repository isolation is part of project resolution identity"
+    );
+    assert_eq!(invoke("root-b", Repository::Given, true).0, 0);
+    let _cold = invoke("root-a", Repository::Disk, false);
+    let (projects, nonproject) = invoke("root-b", Repository::Given, false);
+    assert_eq!(projects, 0);
+    assert_eq!(
+        nonproject
+            .work
+            .iter()
+            .flat_map(|rule| &rule.steps)
+            .map(|step| step.rows.0)
+            .sum::<u64>(),
+        0,
+        "nonproject cache identity is unchanged by root and mode"
+    );
+    Ok((1, 0))
+}
+
+fn consulted_equal_byte_files_revalidate_on_each_executable_metadata_change() -> Result<Value, Failure> {
+    use ryo_values::domain::files::types::ExecutablePermission;
+    for before in [false, true] {
+        for changed in [false, true] {
+            let store = Arc::new(LintStoreFake::default());
+            let given = |executable| Given {
+                files: vec![
+                    SOURCES[0],
+                    SOURCES[1],
+                    ("project.manifest.fake", "members = 1"),
+                ],
+                outside: vec![("../config.fake", "target = 1")],
+                outside_executable: if executable {
+                    ExecutablePermission::PosixExecutable
+                } else {
+                    ExecutablePermission::PosixNotExecutable
+                },
+                store: Arc::clone(&store),
+                root: "root",
+                query: Arc::new(reading_the_project()),
+                language: LanguageFake {
+                    consulted: vec![FilePath("../config.fake".into())],
+                    ..LanguageFake::default()
+                },
+                ..violations()
+            };
+            assert_eq!(counted_lint(given(before)).unwrap().0, 1);
+            assert_eq!(
+                counted_lint(given(if changed { !before } else { before }))
+                    .unwrap()
+                    .0,
+                usize::from(changed),
+                "consulted metadata must invalidate even when source digest is equal"
+            );
+        }
+    }
+    Ok((1, 0))
+}
+
 /// A cold, a warm and an edited run answer the rows and findings a cold run over the same files answers, whichever store keeps
 /// them; the stores that keep read only the files that changed, the one that discards reads every file each time.
-#[test]
-fn cold_warm_and_edited_runs_answer_the_same_in_every_store() {
+fn cold_warm_and_edited_runs_answer_the_same_in_every_store() -> Result<Value, Failure> {
     use ryo_values::domain::runs::types::RuleApplicability::Always;
     let edited = [("a.rs", "fn changed() {}"), THREE[1], THREE[2]];
     for answer in [AnswerShape::Findings, AnswerShape::Rows(RowTotal(20))] {
@@ -2035,12 +2114,12 @@ fn cold_warm_and_edited_runs_answer_the_same_in_every_store() {
             }
         }
     }
+    Ok((1, 0))
 }
 
 /// One file whose syntax a rule skips does not poison the cross-file partitions of the files around it: cold or warm, they answer
 /// what the same run without that file answers, and the skip is named and kept.
-#[test]
-fn a_syntax_skipped_file_does_not_poison_unrelated_partitions_cold_or_warm() {
+fn a_syntax_skipped_file_does_not_poison_unrelated_partitions_cold_or_warm() -> Result<Value, Failure> {
     use ryo_values::domain::runs::types::RuleApplicability::{AcceptedSyntax, Always};
     let without = [THREE[0], THREE[2]];
     for kind in ["memory", "postcard"] {
@@ -2079,12 +2158,12 @@ fn a_syntax_skipped_file_does_not_poison_unrelated_partitions_cold_or_warm() {
         assert_eq!(warm.skipped, cold.skipped, "{kind}: the skip is kept");
         assert_eq!(warm.parses, 0, "{kind}: a warm run reads no file");
     }
+    Ok((1, 0))
 }
 
 /// A file whose syntax a rule skips is Skipped with the reason the language gave, for the file-phase rule as for the cross-file one:
 /// the rows of the files around it are those of the same run without it, and nothing is undecided; it is never answered complete.
-#[test]
-fn a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_complete() {
+fn a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_complete() -> Result<Value, Failure> {
     use ryo_values::domain::runs::types::RuleApplicability::{AcceptedSyntax, Always};
     let lint = |files: &[(&'static str, &'static str)], rejected: &[&str], applicability| {
         let mut given = Given {
@@ -2126,7 +2205,5 @@ fn a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_comp
         "a file that is read is not skipped: {}",
         oracle.2
     );
+    Ok((1, 0))
 }
-
-mod inapplicable_identity;
-mod project_budget;
