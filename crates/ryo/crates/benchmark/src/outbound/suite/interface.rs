@@ -29,7 +29,7 @@ pub trait SuitePort {
         &self,
         root: ArtifactPath<'_>,
         files: ArtifactSet<'_>,
-    ) -> Result<SourceDigest, super::types::discrepancy::ArtifactError>;
+    ) -> Result<SourceDigest, super::errors::SuiteError>;
 
     /// Read only explicitly named profile-relative artifact bytes.
     ///
@@ -38,10 +38,10 @@ pub trait SuitePort {
     fn read_discrepancy_artifacts(
         &self,
         profile: ArtifactPath<'_>,
-        artifacts: &[super::types::discrepancy::EvidenceArtifact],
+        artifacts: &[super::types::EvidenceArtifact],
     ) -> Result<
         std::collections::BTreeMap<std::path::PathBuf, ArtifactBytes>,
-        super::types::discrepancy::ArtifactError,
+        super::errors::SuiteError,
     >;
     /// Append an application-owned observation and preserve optional raw process bytes.
     ///
@@ -51,8 +51,8 @@ pub trait SuitePort {
         &self,
         receipt: ArtifactPath<'_>,
         record: ryo_benchmark_contracts::domain::documents::types::observation_document::ObservationDocument,
-        process: Option<super::types::process::CapturedProcess<'_>>,
-    ) -> Result<(), super::types::discrepancy::ArtifactError>;
+        process: Option<super::types::CapturedProcess<'_>>,
+    ) -> Result<(), super::errors::SuiteError>;
 
     /// Read every observation row of one receipt file.
     ///
@@ -63,7 +63,7 @@ pub trait SuitePort {
         receipt: ArtifactPath<'_>,
     ) -> Result<
         Vec<ryo_benchmark_contracts::domain::documents::types::observation_document::ObservationDocument>,
-        super::types::discrepancy::ArtifactError,
+        super::errors::SuiteError,
     >;
 
     /// Decode the pinned linter profile below its artifact directory.
@@ -94,13 +94,13 @@ pub trait SuitePort {
     ///
     /// # Errors
     /// Refuses unreadable or malformed artifacts; semantic conversion belongs to the application.
-    fn case_reference_wires(
+    fn case_claims(
         &self,
         profile: ArtifactPath<'_>,
         owners: &[ryo::linter::RuleId],
     ) -> Result<
-        Vec<super::types::discrepancy::CaseReferenceWire>,
-        super::types::discrepancy::ArtifactError,
+        Vec<super::types::CaseClaim>,
+        super::errors::SuiteError,
     >;
     /// Validate explicit source/evidence bytes inside their physical boundaries.
     ///
@@ -108,8 +108,8 @@ pub trait SuitePort {
     /// Refuses unreadable sources, escaping paths and stale artifact digests.
     fn verify_discrepancy_artifacts(
         &self,
-        artifacts: super::types::discrepancy::CaseArtifacts<'_>,
-    ) -> Result<(), super::types::discrepancy::ArtifactError>;
+        artifacts: super::types::CaseArtifacts<'_>,
+    ) -> Result<(), super::errors::SuiteError>;
     /// Hash one regular file's exact bytes with unframed SHA256 for executable pinning.
     ///
     /// # Errors
@@ -127,20 +127,25 @@ pub trait SuitePort {
         destination: ArtifactPath<'_>,
     ) -> Result<(), Error>;
     /// Create a fresh directory beneath `parent`, or beneath the system temporary directory when
-    /// the parent is the empty path, and keep it until `discard`.
+    /// the parent is the empty path; the adapter removes it when the returned value drops.
     ///
     /// # Errors
     /// Refuses a parent that cannot hold a new directory.
-    fn scratch(
+    fn scoped_directory(
         &self,
         parent: ArtifactPath<'_>,
         prefix: ArtifactText<'_>,
     ) -> Result<ScratchDirectory, Error>;
-    /// Remove a directory made by `scratch` with everything beneath it.
+    /// Create a fresh directory beneath `parent` that stays after the run, for the caller to
+    /// inspect, and answer its path.
     ///
     /// # Errors
-    /// Refuses a directory that cannot be removed.
-    fn discard(&self, directory: ArtifactPath<'_>) -> Result<(), Error>;
+    /// Refuses a parent that cannot hold a new directory.
+    fn retained_directory(
+        &self,
+        parent: ArtifactPath<'_>,
+        prefix: ArtifactText<'_>,
+    ) -> Result<std::path::PathBuf, Error>;
     /// Copy one executable's exact bytes to another path.
     ///
     /// # Errors
@@ -166,15 +171,6 @@ pub trait SuitePort {
     /// # Errors
     /// Refuses a file that cannot be inspected.
     fn total_size(&self, files: ArtifactSet<'_>) -> Result<ArtifactSize, Error>;
-    /// Seal the actual requested/auxiliary corpus bytes before both disk contestants.
-    /// # Errors
-    /// Refuses missing, escaping, symlinked or changed inputs without inventing metadata.
-    fn seal_context(
-        &self,
-        root: ArtifactPath<'_>,
-        sources: &[ryo::linter::RelativePath],
-        tracked: ArtifactSet<'_>,
-    ) -> Result<ryo_benchmark_contracts::domain::context::types::ContextManifest, Error>;
     /// Materialize only the explicitly authored subset in an owned empty directory.
     ///
     /// # Errors
@@ -223,6 +219,7 @@ pub trait SuitePort {
         &self,
         destination: ArtifactPath<'_>,
         case: &ryo_benchmark_contracts::domain::workloads::types::Case,
+        context: &super::types::MaterializedContext,
     ) -> Result<super::types::MaterializedCase, Error>;
 
     /// Check and materialize Given entries after request configuration is admitted.

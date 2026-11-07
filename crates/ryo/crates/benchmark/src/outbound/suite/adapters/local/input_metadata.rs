@@ -51,7 +51,7 @@ pub(super) fn stage(path: &Path, executable: bool) -> Result<(), Error> {
 
 /// Unconditional per-attempt verification, including Isolated input mode.
 pub(super) fn validate(request: &RunRequest) -> Result<(), Error> {
-    let Some(values) = &request.file_metadata else {
+    let ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(values) = &request.file_metadata else {
         return Ok(());
     };
     let root = request.root.canonicalize()?;
@@ -68,7 +68,12 @@ pub(super) fn validate(request: &RunRequest) -> Result<(), Error> {
                 constants::METADATA_SOURCE_ESCAPES_INPUT_ROOT.into(),
             ));
         }
-        if observed(&path)? != *expected {
+        let actual = if observed(&path)? {
+            FileExecutable::Set
+        } else {
+            FileExecutable::Unset
+        };
+        if actual != *expected {
             return Err(Error::Invalid(
                 constants::DECLARED_EXECUTABLE_METADATA_DRIFTED_BEFORE.into(),
             ));
@@ -119,22 +124,12 @@ pub(super) fn actual_digest(root: &Path, files: &[std::path::PathBuf]) -> Result
 pub(super) fn materialize(
     boundary: &Path,
     sources: &ryo_benchmark_contracts::domain::workloads::types::Case,
+    context: &MaterializedContext,
 ) -> Result<MaterializedCase, Error> {
-    let context_manifest = sources
-        .context
-        .as_ref()
-        .map(|context| {
-            crate::outbound::context::adapters::local::adapter::materialize(
-                boundary,
-                context,
-                &sources.files,
-            )
-        })
-        .transpose()?;
-    let root = context_manifest.as_ref().map_or_else(
-        || boundary.to_owned(),
-        |manifest| manifest.boundary.join(&manifest.logical_root),
-    );
+    let root = match context {
+        MaterializedContext::Isolated => boundary.to_owned(),
+        MaterializedContext::Sealed(manifest) => manifest.boundary.join(&manifest.logical_root),
+    };
     std::fs::create_dir_all(&root)?;
     for (file, source) in &sources.files {
         let relative = RelativeArtifactPath::try_from(Path::new(file.0.as_ref()))?;
@@ -144,18 +139,13 @@ pub(super) fn materialize(
                 .ok_or_else(|| Error::Invalid(super::constants::MISSING_CASE_PARENT.into()))?,
         )?;
         std::fs::write(&path, source.0.as_bytes())?;
-        if let Some(executable) = sources
-            .file_metadata
-            .as_ref()
-            .and_then(|values| values.get(file))
-        {
-            stage(&path, *executable)?;
+        if let ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(values) = &sources.file_metadata {
+            if let Some(executable) = values.get(file) {
+                stage(&path, *executable == FileExecutable::Set)?;
+            }
         }
     }
-    Ok(MaterializedCase {
-        root,
-        context: context_manifest.map_or(MaterializedContext::Isolated, MaterializedContext::Sealed),
-    })
+    Ok(MaterializedCase { root })
 }
 
 /// Materialize only the declared Given entries and reject contradictions with written sources.

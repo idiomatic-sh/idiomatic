@@ -1,11 +1,12 @@
 //! Physical artifact observations shared by suite adapters; audit policy stays in application.
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::documents::types::observation_document::ObservationDocument;
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use super::samples::{escaping_case, given_file, observation, request};
 use crate::outbound::suite::{
     interface::SuitePort,
     types::{
         ArtifactPath, ArtifactSet, ArtifactText, MaterializedContext,
-        discrepancy::{CaseArtifacts, EvidenceArtifact, EvidenceRequirement},
+        ArtifactMetadata, CaseArtifacts, EvidenceArtifact, EvidenceRequirement,
     },
 };
 use ryo_benchmark_contracts::domain::{
@@ -38,7 +39,6 @@ pub enum Operation {
     WriteAndSelect,
     SelectMissing,
     TotalSize,
-    SealMissing,
     QueryModules,
     MaterializeIsolated,
     MaterializeInventory,
@@ -199,12 +199,6 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(3),
     },
     Case {
-        name: CaseName("a missing context cannot be sealed"),
-        word: Word::Refuses,
-        input: || Operation::SealMissing,
-        expect: Expect::Error(Failure::Refused),
-    },
-    Case {
         name: CaseName("a profile without query modules verifies"),
         word: Word::Succeeds,
         input: || Operation::QueryModules,
@@ -224,123 +218,17 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-/// A request that declares no file metadata.
-fn request(root: &std::path::Path) -> ryo_benchmark_contracts::domain::requests::types::RunRequest {
-    use ryo_benchmark_contracts::domain::requests::types::{
-        CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration, RuleContextPreparation,
-        RunRequest, SearchRoots, StagedSources,
-    };
-    RunRequest {
-        performance: Default::default(),
-        selected_rules: CohortSelection::Frozen,
-        rule_observations: InputDeclaration::Undeclared,
-        rule_context: RuleContextPreparation::Unconfigured,
-        project_search_roots: SearchRoots::Undeclared,
-        given_project_inventory: Default::default(),
-        staged_sources: StagedSources::Unlisted,
-        file_metadata: FileMetadataDeclaration::Undeclared,
-        context_manifest: ContextSeal::Unsealed,
-        root: root.to_path_buf(),
-        files: Vec::new(),
-        state: root.to_path_buf(),
-    }
-}
-
-/// A case whose only source path leaves the directory it is materialized in.
-fn escaping_case() -> ryo_benchmark_contracts::domain::workloads::types::Case {
-    use ryo_benchmark_contracts::domain::requests::types::{
-        CohortSelection, FileMetadataDeclaration, InputDeclaration, SearchRoots,
-    };
-    use ryo_benchmark_contracts::domain::workloads::types::{
-        Case, CaseComparison, ConfigurationOverride, ContextDeclaration, InventoryDeclaration,
-        ReferenceBehavior, RequestedFiles,
-    };
-    Case {
-        performance: Default::default(),
-        selected_rules: CohortSelection::Frozen,
-        rule_observations: InputDeclaration::Undeclared,
-        rule_context: ConfigurationOverride::Inherited,
-        project_search_roots: SearchRoots::Undeclared,
-        given_project_inventory: InventoryDeclaration::Undeclared,
-        requested_files: RequestedFiles::Legacy,
-        file_metadata: FileMetadataDeclaration::Undeclared,
-        context: ContextDeclaration::Undeclared,
-        comparison: CaseComparison::Rule,
-        name: String::from("escape").into(),
-        files: std::iter::once((
-            ryo::linter::RelativePath("../escape.py".into()),
-            ryo::linter::SourceText("x".into()),
-        ))
-        .collect(),
-        expected: Vec::new(),
-        reference_discrepancy: ReferenceBehavior::Agrees,
-    }
-}
-
-/// A Given inventory that names a file nothing staged.
-fn given_file() -> ryo::linter::GivenProjectInventory {
-    ryo::linter::GivenProjectInventory {
-        entries: vec![ryo::linter::ProjectEntryObservation {
-            path: ryo::linter::RelativePath("absent.py".into()),
-            state: ryo::linter::ProjectEntryState::File,
-        }],
-        ..Default::default()
-    }
-}
-
-/// One complete observation row of a native side.
-fn observation() -> ObservationDocument {
-use ryo_benchmark_contracts::domain::documents::types::{observation_document::{
-            ContextRun, FileMetadataDigest, IntentMatch, ProjectContextRecord,
-            ProjectInputsDigest, ReferenceExpectation, RuleCohort, RuleContextRecord,
-            RuleObservationsRecord, SourceIdentity, ToolContractRecord,
-        }, text::{CaseName, ContestantSide, RuleName, SchemaName, YesNo}};
-    use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
-    ObservationDocument {
-        rule: RuleName("R1".into()),
-        name: CaseName("one".into()),
-        side: ContestantSide::Reference,
-        complete: YesNo::Yes,
-        error: None,
-        case_passed: YesNo::Yes,
-        files: Vec::new(),
-        source_sha256: SourceIdentity::Unavailable,
-        file_metadata_sha256: FileMetadataDigest::Undeclared,
-        project_inputs_sha256: ProjectInputsDigest::Undeclared,
-        expected: Vec::new(),
-        reference_expected: ReferenceExpectation::Underivable,
-        diagnostics: None,
-        skipped: None,
-        observation_schema: SchemaName("benchmark-case/v2".into()),
-        expectation_contract: ComparisonContract::Diagnostics,
-        execution_metadata: None,
-        coverage: None,
-        context_manifest: ContextRun::Isolated,
-        project_context: ProjectContextRecord::NotCarried,
-        rule_context: RuleContextRecord::Undeclared,
-        rule_observations: RuleObservationsRecord::Undeclared,
-        selected_rules: RuleCohort::Undeclared,
-        actual_request_root: None,
-        documented_reference_discrepancy: YesNo::No,
-        documented_tool_contract_difference: ToolContractRecord::Unrecorded,
-        discrepancy_validation: None,
-        raw_parity_matches_intended: None,
-        diagnostics_match_intended: IntentMatch::Unreported,
-        process_observation: None,
-    }
-}
-
 /// Exercise actual physical observations; policy expectations are proved by the application tests.
 pub fn check(adapter: &impl SuitePort) {
     let temporary = tempfile::tempdir().expect("suite fixture");
     std::fs::create_dir_all(temporary.path().join("rules")).expect("rules fixture");
     let tool = Tool {
         rule_observation_selection:
-            ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
+            ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
         supporting_rules: Vec::new(),
         rule_observations: Default::default(),
-        rule_context: None,
-        file_observation: None,
+        rule_context: ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared,
+        file_observation: ryo_benchmark_contracts::domain::workloads::types::FileObservation::Undeclared,
         project_context_mode: Default::default(),
         tool: "fixture".into(),
         version: "1".into(),
@@ -349,9 +237,9 @@ pub fn check(adapter: &impl SuitePort) {
         pending: Default::default(),
         query_modules: Default::default(),
         rule_applicability: Default::default(),
-        parser_configuration: None,
-        source_language: None,
-        project_search_roots: None,
+        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         defaults: vec!["fixture".try_into().expect("rule identifier")],
     };
     let subject = |operation| {
@@ -419,7 +307,7 @@ pub fn check(adapter: &impl SuitePort) {
             Operation::VerifyArtifacts => {
                 let evidence = [EvidenceArtifact {
                     path: "evidence.txt".into(),
-                    sha256: String::new(),
+                    sha256: ArtifactDigest(String::new()),
                     requirement: EvidenceRequirement::Language,
                 }];
                 adapter
@@ -427,17 +315,17 @@ pub fn check(adapter: &impl SuitePort) {
                         profile: &missing,
                         root: &missing,
                         files: &[],
-                        source_sha256: "",
+                        source_sha256: &ArtifactDigest(String::new()),
                         file_metadata_files: &[],
-                        file_metadata_sha256: None,
+                        file_metadata: ArtifactMetadata::Undeclared,
                         evidence: &evidence,
                     })
                     .map(|()| 0)
                     .map_err(|error| refused(&error))
             }
             Operation::ReferenceWires => adapter
-                .case_reference_wires(ArtifactPath(temporary.path()), &[])
-                .map(|wires| wires.len())
+                .case_claims(ArtifactPath(temporary.path()), &[])
+                .map(|claims| claims.len())
                 .map_err(|error| refused(&error)),
             Operation::RecordAndRead => {
                 let receipt = temporary.path().join("receipts").join("one.jsonl");
@@ -452,11 +340,12 @@ pub fn check(adapter: &impl SuitePort) {
                 .map(|rows| rows.len())
                 .map_err(|error| refused(&error)),
             Operation::ScratchAndDiscard => adapter
-                .scratch(ArtifactPath(temporary.path()), ArtifactText("contract-"))
-                .and_then(|scratch| {
-                    let existed = usize::from(scratch.0.is_dir());
-                    adapter.discard(ArtifactPath(&scratch.0))?;
-                    Ok(existed * usize::from(!scratch.0.exists()))
+                .scoped_directory(ArtifactPath(temporary.path()), ArtifactText("contract-"))
+                .map(|scratch| {
+                    let path = scratch.path.clone();
+                    let existed = usize::from(path.is_dir());
+                    drop(scratch);
+                    existed * usize::from(!path.exists())
                 })
                 .map_err(classify),
             Operation::CopyMissing => adapter
@@ -487,17 +376,17 @@ pub fn check(adapter: &impl SuitePort) {
                     .map(|size| usize::try_from(size.0).unwrap_or_default())
                     .map_err(classify)
             }
-            Operation::SealMissing => adapter
-                .seal_context(ArtifactPath(&missing), &[], ArtifactSet(&[]))
-                .map(|_| 0)
-                .map_err(|error| refused(&error)),
             Operation::QueryModules => adapter
                 .verify_query_modules(ArtifactPath(temporary.path()), &tool)
                 .map(|()| 0)
                 .map_err(classify),
             Operation::MaterializeIsolated => adapter
-                .materialize_case(ArtifactPath(&destination), &escaping_case())
-                .map(|case| usize::from(case.context == MaterializedContext::Isolated))
+                .materialize_case(
+                    ArtifactPath(&destination),
+                    &escaping_case(),
+                    &MaterializedContext::Isolated,
+                )
+                .map(|case| usize::from(case.root.is_absolute()))
                 .map_err(|error| refused(&error)),
             Operation::MaterializeInventory => adapter
                 .materialize_inventory(ArtifactPath(&missing), &given_file())

@@ -334,10 +334,10 @@ impl From<ObservationSchema> for ObservationDocument {
                 ExecutionSchema::Complete {} => ExecutionMetadata::Complete,
             }),
             coverage: wire.coverage.map(|coverage| RuleCoverage {
-                selected: coverage.selected_rule_file_pairs,
-                evaluated: coverage.evaluated_rule_file_pairs,
-                skipped: coverage.skipped_rule_file_pairs,
-                unknown_or_unread: coverage.unknown_or_unread_rule_file_pairs,
+                selected: ryo_benchmark_contracts::domain::reports::types::PairCount(coverage.selected_rule_file_pairs),
+                evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(coverage.evaluated_rule_file_pairs),
+                skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(coverage.skipped_rule_file_pairs),
+                unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(coverage.unknown_or_unread_rule_file_pairs),
             }),
             context_manifest: wire.context_manifest.map_or(ContextRun::Isolated, |manifest| {
                 ContextRun::Listed(ContextManifest {

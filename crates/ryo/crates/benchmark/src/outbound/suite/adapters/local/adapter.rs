@@ -4,7 +4,7 @@ use super::{constants, discrepancy_artifacts};
 use crate::outbound::suite::interface::SuitePort;
 use crate::outbound::suite::types::{
     ArtifactBytes, ArtifactPath, ArtifactSet, ArtifactSize, ArtifactText, CaseReceipts,
-    MaterializedCase, RuleQuery, ScratchDirectory, SelectedName,
+    MaterializedCase, MaterializedContext, RuleQuery, ScratchDirectory, ScratchRemoval, SelectedName,
     SourceDigest,
 };
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
@@ -49,6 +49,21 @@ fn verify_executable(path: &Path, tool: &Tool) -> Result<(), Error> {
 pub(crate) struct SuiteLocalAdapter {
     case_receipts: Option<std::path::PathBuf>,
 }
+/// Make a fresh directory beneath the parent, or beneath the system temporary directory for an empty parent.
+fn scratch_builder(
+    ArtifactPath(parent): ArtifactPath<'_>,
+    ArtifactText(prefix): ArtifactText<'_>,
+) -> Result<tempfile::TempDir, Error> {
+    let mut builder = tempfile::Builder::new();
+    let _prefixed = builder.prefix(prefix);
+    let directory = if parent.as_os_str().is_empty() {
+        builder.tempdir()?
+    } else {
+        builder.tempdir_in(parent)?
+    };
+    Ok(directory)
+}
+
 impl SuiteLocalAdapter {
     /// Bind the receipt destination chosen explicitly by executable composition.
     pub(crate) fn new(case_receipts: CaseReceipts) -> Self {
@@ -75,17 +90,17 @@ impl SuitePort for SuiteLocalAdapter {
         &self,
         root: ArtifactPath<'_>,
         files: ArtifactSet<'_>,
-    ) -> Result<SourceDigest, crate::outbound::suite::types::discrepancy::ArtifactError> {
+    ) -> Result<SourceDigest, crate::outbound::suite::errors::SuiteError> {
         discrepancy_artifacts::source_digest(root.0, files.0).map(SourceDigest)
     }
 
     fn read_discrepancy_artifacts(
         &self,
         profile: ArtifactPath<'_>,
-        artifacts: &[crate::outbound::suite::types::discrepancy::EvidenceArtifact],
+        artifacts: &[crate::outbound::suite::types::EvidenceArtifact],
     ) -> Result<
         std::collections::BTreeMap<std::path::PathBuf, ArtifactBytes>,
-        crate::outbound::suite::types::discrepancy::ArtifactError,
+        crate::outbound::suite::errors::SuiteError,
     > {
         discrepancy_artifacts::read(profile.0, artifacts).map(|bytes| {
             bytes
@@ -98,8 +113,8 @@ impl SuitePort for SuiteLocalAdapter {
         &self,
         receipt: ArtifactPath<'_>,
         record: ryo_benchmark_contracts::domain::documents::types::observation_document::ObservationDocument,
-        process: Option<crate::outbound::suite::types::process::CapturedProcess<'_>>,
-    ) -> Result<(), crate::outbound::suite::types::discrepancy::ArtifactError> {
+        process: Option<crate::outbound::suite::types::CapturedProcess<'_>>,
+    ) -> Result<(), crate::outbound::suite::errors::SuiteError> {
         super::case_observations::record(receipt.0, record, process)
     }
     fn case_observations(
@@ -107,43 +122,44 @@ impl SuitePort for SuiteLocalAdapter {
         receipt: ArtifactPath<'_>,
     ) -> Result<
         Vec<ryo_benchmark_contracts::domain::documents::types::observation_document::ObservationDocument>,
-        crate::outbound::suite::types::discrepancy::ArtifactError,
+        crate::outbound::suite::errors::SuiteError,
     > {
         super::case_observations::read(receipt.0)
     }
 
-    fn case_reference_wires(
+    fn case_claims(
         &self,
         ArtifactPath(profile): ArtifactPath<'_>,
         owners: &[ryo::linter::RuleId],
     ) -> Result<
-        Vec<crate::outbound::suite::types::discrepancy::CaseReferenceWire>,
-        crate::outbound::suite::types::discrepancy::ArtifactError,
+        Vec<crate::outbound::suite::types::CaseClaim>,
+        crate::outbound::suite::errors::SuiteError,
     > {
-        super::discrepancy_artifacts::case_reference_wires(profile, owners)
+        super::discrepancy_artifacts::case_claims(profile, owners)
     }
     fn verify_discrepancy_artifacts(
         &self,
-        artifacts: crate::outbound::suite::types::discrepancy::CaseArtifacts<'_>,
-    ) -> Result<(), crate::outbound::suite::types::discrepancy::ArtifactError> {
+        artifacts: crate::outbound::suite::types::CaseArtifacts<'_>,
+    ) -> Result<(), crate::outbound::suite::errors::SuiteError> {
         super::discrepancy_artifacts::verify(artifacts)
     }
-    fn scratch(
+    fn scoped_directory(
         &self,
-        ArtifactPath(parent): ArtifactPath<'_>,
-        ArtifactText(prefix): ArtifactText<'_>,
+        parent: ArtifactPath<'_>,
+        prefix: ArtifactText<'_>,
     ) -> Result<ScratchDirectory, Error> {
-        let mut builder = tempfile::Builder::new();
-        let _prefixed = builder.prefix(prefix);
-        let directory = if parent.as_os_str().is_empty() {
-            builder.tempdir()?
-        } else {
-            builder.tempdir_in(parent)?
-        };
-        Ok(ScratchDirectory(directory.keep()))
+        let directory = scratch_builder(parent, prefix)?;
+        Ok(ScratchDirectory {
+            path: directory.path().to_owned(),
+            removal: ScratchRemoval(Box::new(directory)),
+        })
     }
-    fn discard(&self, ArtifactPath(directory): ArtifactPath<'_>) -> Result<(), Error> {
-        std::fs::remove_dir_all(directory).map_err(Into::into)
+    fn retained_directory(
+        &self,
+        parent: ArtifactPath<'_>,
+        prefix: ArtifactText<'_>,
+    ) -> Result<std::path::PathBuf, Error> {
+        Ok(scratch_builder(parent, prefix)?.keep())
     }
     fn copy_file(&self, ArtifactPath(from): ArtifactPath<'_>, ArtifactPath(to): ArtifactPath<'_>) -> Result<(), Error> {
         std::fs::copy(from, to).map(|_bytes| ()).map_err(Into::into)
@@ -218,8 +234,9 @@ impl SuitePort for SuiteLocalAdapter {
         &self,
         ArtifactPath(destination): ArtifactPath<'_>,
         case: &ryo_benchmark_contracts::domain::workloads::types::Case,
+        context: &MaterializedContext,
     ) -> Result<MaterializedCase, Error> {
-        super::input_metadata::materialize(destination, case)
+        super::input_metadata::materialize(destination, case, context)
     }
     fn materialize_inventory(
         &self,
@@ -227,14 +244,6 @@ impl SuitePort for SuiteLocalAdapter {
         inventory: &ryo::linter::GivenProjectInventory,
     ) -> Result<(), Error> {
         super::input_metadata::materialize_inventory(root, inventory)
-    }
-    fn seal_context(
-        &self,
-        ArtifactPath(root): ArtifactPath<'_>,
-        sources: &[ryo::linter::RelativePath],
-        ArtifactSet(tracked): ArtifactSet<'_>,
-    ) -> Result<ryo_benchmark_contracts::domain::context::types::ContextManifest, Error> {
-        crate::outbound::context::adapters::local::adapter::seal_existing(root, sources, tracked)
     }
     fn stage_projects(
         &self,

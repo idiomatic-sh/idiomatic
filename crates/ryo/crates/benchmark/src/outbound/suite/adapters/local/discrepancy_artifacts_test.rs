@@ -3,8 +3,8 @@ use super::*;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
 /// Whether the artifacts were refused as not matching their declared identity.
-fn invalid(result: Result<(), ArtifactError>) -> bool {
-    matches!(result, Err(ArtifactError::Invalid(_)))
+fn invalid(result: Result<(), SuiteError>) -> bool {
+    matches!(result, Err(SuiteError::Invalid(_)))
 }
 fn source_identity_uses_utf8_name_order_on_every_platform() {
     let fixture: serde_json::Value = serde_json::from_str(include_str!(concat!(

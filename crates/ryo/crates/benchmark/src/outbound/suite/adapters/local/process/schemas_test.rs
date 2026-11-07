@@ -1,13 +1,14 @@
 //! Exercise the actual TOML case boundary before any authored process certificates are admitted.
-use crate::outbound::suite::adapters::local::rule_cases::schemas::case_reference_wires;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::suite::types::process::{
-    OutputPartWire, PathEncodingWire, ProcessFailureWire,
-};
+use crate::outbound::suite::adapters::local::rule_cases::schemas::case_claims;
+use crate::outbound::suite::types::{ClaimedEvidence, ClaimedProcess};
+use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
+use ryo_benchmark_contracts::domain::process::types::{OutputPart, PathEncoding};
+use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 
 /// Whether the authored TOML is refused by the case boundary.
 fn refused(text: &str) -> bool {
-    matches!(case_reference_wires(text), Err(_refused_toml))
+    matches!(case_claims(text), Err(_refused_toml))
 }
 
 fn source() -> String {
@@ -47,26 +48,20 @@ observations = [
 "#.replace("PIN", &"a".repeat(64))
 }
 fn tagged_process_certificate_and_declared_json_path_survive_real_case_toml_decoding() {
-    let mut values = case_reference_wires(&source()).unwrap();
+    let mut values = case_claims(&source()).unwrap();
     assert_eq!(values.len(), 1);
     let (name, wire, basis) = values.pop().unwrap();
-    assert!(matches!(
-        basis,
-        crate::outbound::suite::types::discrepancy::DiscrepancyBasisWire::LanguageDefect
-    ));
+    assert_eq!(basis, DiscrepancyBasis::LanguageDefect);
     assert_eq!(name, "encoded-path");
     assert!(wire.expected.is_empty());
     assert_eq!(wire.evidence.len(), 1);
-    let ProcessFailureWire::ProcessFailure {
-        exit,
-        stdout,
-        observations,
-        ..
-    } = wire.process.unwrap();
-    assert_eq!(exit, 2);
-    assert_eq!(observations.len(), 2);
+    let ClaimedProcess::Failure(failure) = wire.process else {
+        panic!("process failure expected");
+    };
+    assert_eq!(failure.exit, ProcessExitCode(2));
+    assert_eq!(failure.observations.len(), 2);
     assert!(
-        matches!(&stdout[1], OutputPartWire::InputPath { file, encoding:PathEncodingWire::JsonStringContent } if file == std::path::Path::new("case.py"))
+        matches!(&failure.stdout[1], OutputPart::InputPath { file, encoding: PathEncoding::JsonStringContent } if file == std::path::Path::new("case.py"))
     );
 }
 fn unknown_process_variants_and_unknown_byte_normalizations_are_not_decoded() {
@@ -84,7 +79,6 @@ fn one_case_cannot_declare_two_discrepancy_authorities() {
 }
 
 fn authored_toml_decodes_each_evidence_kind_with_its_documented_field_names() {
-    use crate::outbound::suite::types::discrepancy::{DiscrepancyBasisWire, EvidenceWire};
     let base = source()
         .split("[cases.reference-discrepancy.process]")
         .next()
@@ -108,7 +102,7 @@ fn authored_toml_decodes_each_evidence_kind_with_its_documented_field_names() {
         (contract, "contract"),
         (prior, "prior"),
     ] {
-        let mut cases = case_reference_wires(&text).expect("authored TOML spelling");
+        let mut cases = case_claims(&text).expect("authored TOML spelling");
         assert_eq!(cases.len(), 1);
         let (_name, wire, basis) = cases.pop().unwrap();
         assert_eq!(wire.evidence.len(), 1);
@@ -116,29 +110,29 @@ fn authored_toml_decodes_each_evidence_kind_with_its_documented_field_names() {
             "language" => matches!(
                 (&wire.evidence[0], basis),
                 (
-                    EvidenceWire::LanguageSpec { .. },
-                    DiscrepancyBasisWire::LanguageDefect
+                    ClaimedEvidence::LanguageSpec { .. },
+                    DiscrepancyBasis::LanguageDefect
                 )
             ),
             "independent" => matches!(
                 (&wire.evidence[0], basis),
                 (
-                    EvidenceWire::IndependentLanguageRun { .. },
-                    DiscrepancyBasisWire::LanguageDefect
+                    ClaimedEvidence::IndependentLanguageRun { .. },
+                    DiscrepancyBasis::LanguageDefect
                 )
             ),
             "contract" => matches!(
                 (&wire.evidence[0], basis),
                 (
-                    EvidenceWire::PublicToolContract { .. },
-                    DiscrepancyBasisWire::ToolContract
+                    ClaimedEvidence::PublicToolContract { .. },
+                    DiscrepancyBasis::ToolContract
                 )
             ),
             _ => matches!(
                 (&wire.evidence[0], basis),
                 (
-                    EvidenceWire::PriorWorkerRun { .. },
-                    DiscrepancyBasisWire::ToolContract
+                    ClaimedEvidence::PriorWorkerRun { .. },
+                    DiscrepancyBasis::ToolContract
                 )
             ),
         });

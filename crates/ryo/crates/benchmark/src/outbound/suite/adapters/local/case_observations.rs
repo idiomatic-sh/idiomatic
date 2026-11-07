@@ -1,7 +1,8 @@
 //! Receipt-file scoped process artifacts; resumes never overwrite historical attempts.
 use super::observation::schemas::ObservationSchema;
 use crate::outbound::suite::adapters::local::constants;
-use crate::outbound::suite::types::{discrepancy::ArtifactError, process::CapturedProcess};
+use crate::outbound::suite::errors::SuiteError;
+use crate::outbound::suite::types::CapturedProcess;
 use ryo_benchmark_contracts::domain::documents::types::{observation_document::{ObservationDocument, ProcessArtifacts}, reference_discrepancy::ArtifactPointer, text::{PathText, Sha256Text}};
 use sha2::{Digest as _, Sha256};
 use std::{io::Write as _, path::Path};
@@ -11,12 +12,12 @@ pub(super) fn record(
     receipt: &Path,
     mut record: ObservationDocument,
     process: Option<CapturedProcess<'_>>,
-) -> Result<(), ArtifactError> {
+) -> Result<(), SuiteError> {
     let name = receipt
         .file_name()
         .and_then(|name| name.to_str())
         .filter(|name| !name.is_empty())
-        .ok_or_else(|| ArtifactError::Invalid(constants::RECEIPT_FILENAME_MUST_BE_UTF8.into()))?;
+        .ok_or_else(|| SuiteError::Invalid(constants::RECEIPT_FILENAME_MUST_BE_UTF8.into()))?;
     let parent = receipt
         .parent()
         .filter(|path| !path.as_os_str().is_empty())
@@ -24,20 +25,21 @@ pub(super) fn record(
     if name.contains(['\\', ':'])
         || std::fs::symlink_metadata(receipt).is_ok_and(|meta| meta.file_type().is_symlink())
     {
-        return Err(ArtifactError::Invalid(
+        return Err(SuiteError::Invalid(
             constants::UNSAFE_RECEIPT_FILE_IDENTITY.into(),
         ));
     }
     std::fs::create_dir_all(parent)?;
     let boundary = parent.canonicalize()?;
     if let Some(process) = process {
-        if process.key.len() != 64
+        if process.key.0.len() != 64
             || !process
                 .key
+                .0
                 .bytes()
                 .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
         {
-            return Err(ArtifactError::Invalid(
+            return Err(SuiteError::Invalid(
                 constants::INVALID_FRAMED_PROCESS_CASE_KEY.into(),
             ));
         }
@@ -46,14 +48,14 @@ pub(super) fn record(
             .prefix(&format!("{name}.process-"))
             .tempdir_in(&boundary)?
             .keep();
-        let case = directory.join(process.key);
+        let case = directory.join(&process.key.0);
         std::fs::create_dir(&case)?;
         let invocation = serde_json::to_vec(process.invocation)
-            .map_err(|error| ArtifactError::Invalid(error.to_string()))?;
+            .map_err(|error| SuiteError::Invalid(error.to_string()))?;
         let mut artifacts = std::collections::BTreeMap::new();
         for (label, filename, bytes) in [
-            (constants::STDOUT, constants::STDOUT_BIN, process.stdout),
-            (constants::STDERR, constants::STDERR_BIN, process.stderr),
+            (constants::STDOUT, constants::STDOUT_BIN, process.stdout.0.as_slice()),
+            (constants::STDERR, constants::STDERR_BIN, process.stderr.0.as_slice()),
             (
                 constants::INVOCATION,
                 constants::INVOCATION_JSON,
@@ -69,12 +71,12 @@ pub(super) fn record(
             file.sync_data()?;
             let relative = path
                 .strip_prefix(&boundary)
-                .map_err(|error| ArtifactError::Invalid(error.to_string()))?;
+                .map_err(|error| SuiteError::Invalid(error.to_string()))?;
             let relative = relative
                 .components()
                 .map(|part| {
                     part.as_os_str().to_str().ok_or_else(|| {
-                        ArtifactError::Invalid(constants::RAW_ARTIFACT_PATH_IS_NOT_UTF8.into())
+                        SuiteError::Invalid(constants::RAW_ARTIFACT_PATH_IS_NOT_UTF8.into())
                     })
                 })
                 .collect::<Result<Vec<_>, _>>()?
@@ -93,7 +95,7 @@ pub(super) fn record(
             artifacts.remove(constants::INVOCATION),
             record.process_observation.as_mut(),
         ) else {
-            return Err(ArtifactError::Invalid(
+            return Err(SuiteError::Invalid(
                 constants::PROCESS_OBSERVATION_NEEDS_RAW_ARTIFACTS.into(),
             ));
         };
@@ -104,7 +106,7 @@ pub(super) fn record(
         });
     }
     let mut bytes = serde_json::to_vec(&ObservationSchema::from(&record))
-        .map_err(|error| ArtifactError::Invalid(error.to_string()))?;
+        .map_err(|error| SuiteError::Invalid(error.to_string()))?;
     bytes.push(b'\n');
     let mut output = std::fs::OpenOptions::new()
         .create(true)
@@ -116,7 +118,7 @@ pub(super) fn record(
 }
 
 /// Read every row of one receipt file; absence and malformed or unknown fields remain errors.
-pub(super) fn read(receipt: &Path) -> Result<Vec<ObservationDocument>, ArtifactError> {
+pub(super) fn read(receipt: &Path) -> Result<Vec<ObservationDocument>, SuiteError> {
     std::fs::read_to_string(receipt)?
         .lines()
         .enumerate()
@@ -124,7 +126,7 @@ pub(super) fn read(receipt: &Path) -> Result<Vec<ObservationDocument>, ArtifactE
             serde_json::from_str::<ObservationSchema>(line)
                 .map(ObservationDocument::from)
                 .map_err(|error| {
-                    ArtifactError::Invalid(format!("receipt row {}: {error}", index + 1))
+                    SuiteError::Invalid(format!("receipt row {}: {error}", index + 1))
                 })
         })
         .collect()
@@ -203,10 +205,10 @@ use ryo_benchmark_contracts::domain::documents::types::{observation_document::{
                 ArtifactPath(receipt),
                 row(),
                 Some(CapturedProcess {
-                    key: &constants::A.repeat(64),
+                    key: &ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(constants::A.repeat(64)),
                     invocation: &failed_invocation(),
-                    stdout,
-                    stderr: constants::ERROR,
+                    stdout: &ryo_benchmark_contracts::domain::measurements::types::CapturedBytes(stdout.to_vec()),
+                    stderr: &ryo_benchmark_contracts::domain::measurements::types::CapturedBytes(constants::ERROR.to_vec()),
                 }),
             )
             .unwrap();

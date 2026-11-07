@@ -33,7 +33,13 @@ fn optional_source_language_profile_preserves_default_and_validates_exact_names(
         let profile = local(CaseReceipts::Unrecorded)
             .profile(ArtifactPath(directory.path()))
             .expect("profile");
-        assert_eq!(profile.source_language.as_deref(), expected);
+        assert_eq!(
+            match &profile.source_language {
+                ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Selected(name) => Some(name.0.as_str()),
+                ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified => None,
+            },
+            expected
+        );
     }
     for bad in ["", " python", "python "] {
         std::fs::write(

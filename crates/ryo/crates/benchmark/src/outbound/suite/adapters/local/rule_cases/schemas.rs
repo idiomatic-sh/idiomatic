@@ -1,6 +1,13 @@
 //! Authored cases: independent sources, expected findings and declared inputs.
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types;
+use crate::outbound::suite::adapters::local::reference::schemas::ReferenceDiscrepancySchema;
+use crate::outbound::suite::errors::SuiteError;
+use crate::outbound::suite::types::ClaimedDiscrepancy;
+use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
+use ryo_benchmark_contracts::domain::requests::types::{
+    DiagnosticOptions, DiagnosticSwitch, PerformanceOptions,
+};
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use crate::outbound::suite::adapters::local::declarations::schemas::{
@@ -13,6 +20,59 @@ use crate::outbound::suite::adapters::local::declarations::schemas::{
 #[path = "schemas_test.rs"]
 mod tests;
 
+/// The execution and diagnostic policy an authored case selects.
+#[derive(Default, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+struct OptionsSchema {
+    /// Which bounded diagnostic targets the case observes.
+    diagnostics: DiagnosticsSchema,
+}
+/// The bounded diagnostic targets an authored case selects.
+#[derive(Default, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "the authored spelling is one boolean per bounded diagnostic target"
+)]
+struct DiagnosticsSchema {
+    /// Execution events.
+    execution: bool,
+    /// Lifecycle memory events.
+    lifecycle_memory: bool,
+    /// Resource route events.
+    resource_routes: bool,
+    /// Row progress events.
+    row_progress: bool,
+    /// Step events.
+    steps: bool,
+    /// Join events.
+    joins: bool,
+    /// Prefix events.
+    prefixes: bool,
+    /// Subplan events.
+    subplans: bool,
+    /// Selection detail events.
+    selection_detail: bool,
+}
+impl From<OptionsSchema> for PerformanceOptions {
+    fn from(schema: OptionsSchema) -> Self {
+        let switch = |on: bool| if on { DiagnosticSwitch::On } else { DiagnosticSwitch::Off };
+        let diagnostics = schema.diagnostics;
+        Self {
+            diagnostics: DiagnosticOptions {
+                execution: switch(diagnostics.execution),
+                lifecycle_memory: switch(diagnostics.lifecycle_memory),
+                resource_routes: switch(diagnostics.resource_routes),
+                row_progress: switch(diagnostics.row_progress),
+                steps: switch(diagnostics.steps),
+                joins: switch(diagnostics.joins),
+                prefixes: switch(diagnostics.prefixes),
+                subplans: switch(diagnostics.subplans),
+                selection_detail: switch(diagnostics.selection_detail),
+            },
+        }
+    }
+}
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 /// Independent rule examples and expected findings.
@@ -25,7 +85,7 @@ struct CasesSchema {
 /// One independent source example.
 struct CaseSchema {
     #[serde(default)]
-    performance: crate::outbound::worker::schemas::OptionsSchema,
+    performance: OptionsSchema,
     #[serde(default, rename = "selected-rules")]
     selected_rules: Option<Vec<String>>,
     #[serde(default, rename = "rule-observations")]
@@ -60,11 +120,11 @@ struct CaseSchema {
     /// Optional separately pinned reference behavior and independent evidence.
     #[serde(default, rename = "reference-discrepancy")]
     reference_discrepancy:
-        Option<crate::outbound::suite::types::discrepancy::ReferenceDiscrepancyWire>,
+        Option<ReferenceDiscrepancySchema>,
     /// A documented difference from an already public tool selection contract.
     #[serde(default, rename = "tool-contract-difference")]
     tool_contract_difference:
-        Option<crate::outbound::suite::types::discrepancy::ReferenceDiscrepancyWire>,
+        Option<ReferenceDiscrepancySchema>,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -156,7 +216,7 @@ impl TryFrom<CasesSchema> for types::Cases {
                                 })
                                 .collect()
                         }),
-                        reference_discrepancy: None,
+                        reference_discrepancy: ryo_benchmark_contracts::domain::workloads::types::ReferenceBehavior::Agrees,
                         context: case.context.map(Into::into),
                         comparison: match case.comparison {
                             ComparisonSchema::Rule => types::CaseComparison::Rule,
@@ -243,40 +303,27 @@ impl From<CaseContextSchema> for ryo_benchmark_contracts::domain::context::types
     }
 }
 
-/// Read raw reference wire values without constructing domain expectations.
-pub(in super::super) fn case_reference_wires(
+/// Read the authored reference certificates, each with the authority it asserts.
+pub(in super::super) fn case_claims(
     text: &str,
-) -> Result<
-    Vec<(
-        String,
-        crate::outbound::suite::types::discrepancy::ReferenceDiscrepancyWire,
-        crate::outbound::suite::types::discrepancy::DiscrepancyBasisWire,
-    )>,
-    toml::de::Error,
-> {
-    use serde::de::Error as _;
-    let mut wires = Vec::new();
+) -> Result<Vec<(String, ClaimedDiscrepancy, DiscrepancyBasis)>, SuiteError> {
+    let mut claims = Vec::new();
     for case in toml::from_str::<CasesSchema>(text)?.cases {
-        match (case.reference_discrepancy, case.tool_contract_difference) {
-            (Some(wire), None) => wires.push((
-                case.name,
-                wire,
-                crate::outbound::suite::types::discrepancy::DiscrepancyBasisWire::LanguageDefect,
-            )),
-            (None, Some(wire)) => wires.push((
-                case.name,
-                wire,
-                crate::outbound::suite::types::discrepancy::DiscrepancyBasisWire::ToolContract,
-            )),
-            (None, None) => {}
+        let (schema, basis) = match (case.reference_discrepancy, case.tool_contract_difference) {
+            (Some(schema), None) => (schema, DiscrepancyBasis::LanguageDefect),
+            (None, Some(schema)) => (schema, DiscrepancyBasis::ToolContract),
+            (None, None) => continue,
             (Some(_), Some(_)) => {
-                return Err(toml::de::Error::custom(
-                    "one discrepancy authority per case",
+                return Err(SuiteError::Invalid(
+                    "one discrepancy authority per case".into(),
                 ));
             }
-        }
+        };
+        let claim = ClaimedDiscrepancy::try_from(schema)
+            .map_err(|error| SuiteError::Invalid(error.to_string()))?;
+        claims.push((case.name, claim, basis));
     }
-    Ok(wires)
+    Ok(claims)
 }
 
 /// Validate a rule identifier before it enters the benchmark domain.

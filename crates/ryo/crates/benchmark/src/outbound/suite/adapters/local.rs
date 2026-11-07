@@ -6,6 +6,7 @@ mod corpus;
 mod declarations;
 mod observation;
 mod process;
+mod reference;
 mod selection;
 mod tool;
 mod writer;
