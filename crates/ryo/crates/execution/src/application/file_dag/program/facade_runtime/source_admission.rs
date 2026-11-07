@@ -34,7 +34,7 @@ pub(super) struct ProjectSources<'a> {
     pub(super) ordinary: &'a [Rc<
         super::super::project_population::types::ProjectFrontierPopulation<AvailableInput>,
     >],
-    pub(super) refused: &'a [crate::domain::crossing::types::RefusedFrontier],
+    pub(super) refused: &'a [crate::domain::frontiers::types::RefusedFrontier],
     pub(super) bound:
         &'a mut [Option<crate::application::file_dag::frontiers::types::BoundInput>],
     pub(super) cache: &'a mut Vec<CachedInput>,
@@ -277,7 +277,7 @@ pub(super) fn observation_slot(
     let mut matching = slots
         .iter()
         .enumerate()
-        .filter(|(_, slot)| slot.rule == rule.0 && slot.input == input);
+        .filter(|(_, slot)| slot.rule == rule && slot.input == input);
     let (index, _) = matching.next().ok_or(OperatingError::NotRun)?;
     if matching.next().is_some() {
         return Err(OperatingError::WrongOperation);

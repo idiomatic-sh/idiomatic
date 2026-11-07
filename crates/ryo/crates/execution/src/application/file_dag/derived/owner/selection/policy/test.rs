@@ -108,6 +108,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
+        matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b""),
@@ -158,7 +159,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             source,
             selection: Arc::new(StoredSelection {
                 relation: Relation::Function,
-                rows: Arc::new(vec![3, 1, 3]),
+                rows: crate::domain::stored_selection::types::SelectedPositions(Arc::new(vec![3, 1, 3])),
                 columns: Vec::new(),
                 kinds: Vec::new(),
                 identity: Arc::new(Default::default()),
@@ -200,7 +201,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     if matches!(scenario, Scenario::Reuse | Scenario::Projected) {
         let snapshot = fixture.snapshot(None);
         assert_eq!(snapshot.index_builds, 1);
-        assert!(Arc::ptr_eq(&selected.selection.rows, &next.selection.rows));
+        assert!(Arc::ptr_eq(&selected.selection.rows.0, &next.selection.rows.0));
         assert_eq!(
             (
                 snapshot.counts.builds,
@@ -219,8 +220,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             snapshot.counts.reuses, 1,
             "live publications share without optional retention"
         );
-        assert!(Arc::ptr_eq(&selected.selection.rows, &next.selection.rows));
-        let old = Arc::downgrade(&selected.selection.rows);
+        assert!(Arc::ptr_eq(&selected.selection.rows.0, &next.selection.rows.0));
+        let old = Arc::downgrade(&selected.selection.rows.0);
         let builds = snapshot.counts.builds;
         drop(selected);
         drop(next);
@@ -280,8 +281,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             .expect("new generation");
         assert_eq!(changed.selection.rows.len(), 1);
         assert!(!Arc::ptr_eq(
-            &selected.selection.rows,
-            &changed.selection.rows
+            &selected.selection.rows.0,
+            &changed.selection.rows.0
         ));
         assert_eq!(selected.publication.same_record(&changed.publication), crate::application::file_dag::relations::types::Sameness::Different);
     }

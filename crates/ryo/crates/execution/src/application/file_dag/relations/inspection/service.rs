@@ -87,7 +87,7 @@ impl RelationOwner {
                     positions,
                     columns,
                     kinds,
-                } if std::ptr::eq(positions, selection.rows.as_slice())
+                } if std::ptr::eq(positions.0, selection.rows.as_slice())
                     && columns == selection.columns
                     && kinds == selection.kinds =>
                 {

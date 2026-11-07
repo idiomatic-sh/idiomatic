@@ -3,8 +3,9 @@
 use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::{CellKind, FileId, Relation, Value as Cell};
 
-use super::service::{drop_uncertain, partial_of};
-use super::types::Recovery;
+use super::service::{affected_ordinals, drop_uncertain, partial_of};
+use super::types::{DeclaredFiles, Recovery};
+use crate::domain::operating::errors::OperatingError;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::rows::service::push_row;
 
@@ -22,13 +23,26 @@ enum Scenario {
     KeyedByName,
     /// Says why a file with syntax errors is read in part.
     Recovered,
+    /// The relations a file whose tokens are complete is read in part in, with and without a refusal of the reader.
+    LexicalRecovery,
+    /// The relations a file that is only a recovery is read in part in.
+    EveryRelationRecovered,
+    /// What a recovered file leaves of the rows of an absence check on byte literals.
+    RecoveredByteLiterals,
+    /// What a file read whole leaves of the same absence check.
+    WholeSource,
+    /// The ordinals of the files named by a partial source, over three declared files, as a bit set.
+    Affected(&'static [Option<FileId>]),
+    /// The same, over the number of declared files.
+    AffectedOver(&'static [Option<FileId>], usize),
 }
 
 /// What a row of the cases does.
 type Input = Scenario;
 /// A yes or no as a number, or how many rows remain.
 type Value = usize;
-type Failure = ();
+/// What the placing of a partial source is refused with.
+type Failure = OperatingError;
 
 fn antijoin(key: u32) -> Operation {
     Operation::Antijoin {
@@ -56,7 +70,7 @@ fn rows() -> Table {
     table
 }
 
-fn subject(scenario: Scenario) -> Value {
+fn subject(scenario: Scenario) -> Result<Value, Failure> {
     match scenario {
         Scenario::KeyedByFile => {
             let mut table = rows();
@@ -66,7 +80,7 @@ fn subject(scenario: Scenario) -> Value {
                 &mut table,
                 &[Some(FileId(2))],
             );
-            table.count.0
+            Ok(table.count.0)
         }
         Scenario::KeyedByName => {
             let mut table = rows();
@@ -76,14 +90,22 @@ fn subject(scenario: Scenario) -> Value {
                 &mut table,
                 &[Some(FileId(2))],
             );
-            table.count.0
+            Ok(table.count.0)
         }
-        Scenario::Recovered => partial_of(
+        Scenario::Recovered => Ok(partial_of(
             &[],
             Recovery::SyntaxErrors,
             &[Relation::Defines, Relation::FilesystemFile],
         )
-        .len(),
+        .len()),
+        Scenario::LexicalRecovery => Ok(lexical_recovery_keeps_explicit_reader_refusals_and_code_uncertainty()),
+        Scenario::EveryRelationRecovered => Ok(every_wanted_relation_is_partial_when_only_a_recovery()),
+        Scenario::RecoveredByteLiterals => Ok(recovered_byte_literals_refuse_absence()),
+        Scenario::WholeSource => Ok(whole_source_keeps_the_same_result()),
+        Scenario::Affected(files) => affected_ordinals(files, DeclaredFiles(3)).map(bit_set),
+        Scenario::AffectedOver(files, declared) => {
+            affected_ordinals(files, DeclaredFiles(declared)).map(bit_set)
+        }
     }
 }
 
@@ -106,15 +128,92 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::Recovered,
         expect: Expect::Value(1),
     },
+    Case {
+        name: CaseName("lexical_recovery_keeps_explicit_reader_refusals_and_code_uncertainty"),
+        word: Word::Succeeds,
+        input: || Scenario::LexicalRecovery,
+        expect: Expect::Value(2),
+    },
+    Case {
+        name: CaseName("a_file_that_is_only_a_recovery_is_partial_in_every_wanted_relation"),
+        word: Word::Succeeds,
+        input: || Scenario::EveryRelationRecovered,
+        expect: Expect::Value(6),
+    },
+    Case {
+        name: CaseName("recovered_byte_literals_refuse_absence"),
+        word: Word::Succeeds,
+        input: || Scenario::RecoveredByteLiterals,
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("whole_source_keeps_the_same_result_of_an_absence_check"),
+        word: Word::Succeeds,
+        input: || Scenario::WholeSource,
+        expect: Expect::Value(2),
+    },
+    Case {
+        name: CaseName("partial_project_coverage_names_each_affected_file_once"),
+        word: Word::Succeeds,
+        input: || Scenario::Affected(&[Some(FileId(2)), Some(FileId(0)), Some(FileId(2))]),
+        expect: Expect::Value(0b101),
+    },
+    Case {
+        name: CaseName("an_unlocated_partial_source_names_every_declared_file"),
+        word: Word::Succeeds,
+        input: || Scenario::Affected(&[None, Some(FileId(2))]),
+        expect: Expect::Value(0b111),
+    },
+    Case {
+        name: CaseName("a_partial_source_naming_no_file_is_refused"),
+        word: Word::Refuses,
+        input: || Scenario::Affected(&[]),
+        expect: Expect::Refusal(is_unplaceable),
+    },
+    Case {
+        name: CaseName("a_partial_source_over_no_declared_file_is_refused"),
+        word: Word::Refuses,
+        input: || Scenario::AffectedOver(&[None], 0),
+        expect: Expect::Refusal(is_unplaceable),
+    },
+    Case {
+        name: CaseName("a_file_beyond_the_declared_files_is_refused"),
+        word: Word::Refuses,
+        input: || Scenario::Affected(&[Some(FileId(3))]),
+        expect: Expect::Refusal(is_unplaceable),
+    },
+    Case {
+        name: CaseName("an_unlocated_source_beside_a_file_beyond_the_declared_files_is_refused"),
+        word: Word::Refuses,
+        input: || Scenario::Affected(&[None, Some(FileId(999))]),
+        expect: Expect::Refusal(is_unplaceable),
+    },
 ];
 
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, |input| Ok(subject(input)));
+    run(CASES, Word::Succeeds, subject);
 }
 
 #[test]
-fn lexical_recovery_keeps_explicit_reader_refusals_and_code_uncertainty() {
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+
+/// The ordinals as a bit set: the ordinal `n` is the bit `1 << n`.
+fn bit_set(ordinals: Vec<super::types::FileOrdinal>) -> Value {
+    ordinals.iter().map(|ordinal| 1_usize << ordinal.0).sum()
+}
+
+/// Whether an error is the refusal to place a partial source on the declared files.
+fn is_unplaceable(error: &OperatingError) -> ryo_values::cases::Selection {
+    ryo_values::selects!(matches!(
+        error,
+        OperatingError::ObservationIncomplete { .. }
+    ))
+}
+
+fn lexical_recovery_keeps_explicit_reader_refusals_and_code_uncertainty() -> Value {
     use ryo_relations::domain::relations::types::Missing;
     use ryo_values::domain::stored_facts::types::{PartialCause, PartialScope, ReadInPart};
 
@@ -134,7 +233,6 @@ fn lexical_recovery_keeps_explicit_reader_refusals_and_code_uncertainty() {
         at: PartialScope::Repository,
     };
     let explicit = partial_of(&[refused], Recovery::LexicallyCompleteSyntaxErrors, &wanted);
-    assert_eq!(explicit.len(), 2);
     assert!(
         explicit
             .iter()
@@ -145,19 +243,30 @@ fn lexical_recovery_keeps_explicit_reader_refusals_and_code_uncertainty() {
             .iter()
             .any(|part| part.relation == Relation::Function)
     );
+    explicit.len()
+}
 
+fn every_wanted_relation_is_partial_when_only_a_recovery() -> Value {
+    let wanted = [
+        Relation::Comment,
+        Relation::IndentRegion,
+        Relation::Function,
+    ];
+    let mut found = 0;
     for recovery in [Recovery::SyntaxErrors, Recovery::Unparsed] {
         let incomplete = partial_of(&[], recovery, &wanted);
         for relation in wanted {
             assert!(incomplete.iter().any(|part| part.relation == relation));
+            found += 1;
         }
     }
+    found
 }
 
-#[test]
-fn recovered_byte_literals_refuse_absence_while_whole_source_keeps_the_same_result() {
+fn recovered_byte_literals_refuse_absence() -> Value {
     use super::types::Lacking;
     let wanted = [Relation::BytesLiteral];
+    let mut left = 0;
     for recovery in [
         Recovery::SyntaxErrors,
         Recovery::LexicallyCompleteSyntaxErrors,
@@ -172,11 +281,21 @@ fn recovered_byte_literals_refuse_absence_while_whole_source_keeps_the_same_resu
             &antijoin(1),
             &[CellKind::File, CellKind::Number],
             &mut absent,
-            &partial.iter().map(|part| part.at).collect::<Vec<_>>(),
+            &partial
+                .iter()
+                .map(|part| match part.at {
+                    super::types::PartialPlace::File(file) => Some(file),
+                    super::types::PartialPlace::Repository => None,
+                })
+                .collect::<Vec<_>>(),
         );
-        assert_eq!(absent.count.0, 0, "{recovery:?}");
+        left += absent.count.0;
     }
-    let partial = partial_of(&[], Recovery::Whole, &wanted);
+    left
+}
+
+fn whole_source_keeps_the_same_result() -> Value {
+    let partial = partial_of(&[], Recovery::Whole, &[Relation::BytesLiteral]);
     assert!(partial.is_empty());
     let mut absent = rows();
     drop_uncertain(
@@ -185,24 +304,7 @@ fn recovered_byte_literals_refuse_absence_while_whole_source_keeps_the_same_resu
         &mut absent,
         &[],
     );
-    assert_eq!(absent.count.0, 2);
+    absent.count.0
 }
 
 use ryo_values::domain::rows::types::Table;
-
-#[test]
-fn partial_project_coverage_names_only_affected_files_and_refuses_unplaceable_roots() {
-    use super::service::affected_ordinals;
-    assert_eq!(
-        affected_ordinals(&[Some(FileId(2)), Some(FileId(0)), Some(FileId(2))], 3).unwrap(),
-        [0, 2]
-    );
-    assert_eq!(
-        affected_ordinals(&[None, Some(FileId(2))], 3).unwrap(),
-        [0, 1, 2]
-    );
-    assert!(affected_ordinals(&[], 3).is_err());
-    assert!(affected_ordinals(&[None], 0).is_err());
-    assert!(affected_ordinals(&[Some(FileId(3))], 3).is_err());
-    assert!(affected_ordinals(&[None, Some(FileId(999))], 3).is_err());
-}

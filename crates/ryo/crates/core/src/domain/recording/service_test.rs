@@ -112,7 +112,7 @@ fn partial() -> Partial {
         relation: Relation::Defines,
         cause: PartialCause("syntax error".into()),
         lacking: Lacking::Any,
-        at: None,
+        at: ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::Repository,
     }
 }
 

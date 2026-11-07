@@ -2,9 +2,9 @@
 use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::application::file_dag::relations::admission::types::AdmissionOrigin;
 use crate::domain::{
-    operator::contract::views::BorrowedRows,
     table_model::collections::representations::types::PhysicalShape,
 };
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_relations::domain::relations::types::Relation;
 
 /// Only the representation owner can bind population identity to borrowed input.

@@ -12,7 +12,7 @@ pub struct AskedKind {
     /// The word, or the pattern.
     pub word: KindWord,
     /// The original fragment source, when this comparison came from a linked module.
-    pub origin: Option<QueryOrigin>,
+    pub origin: KindOrigin,
 }
 
 /// Whether some language has a kind that satisfies a word.
@@ -36,12 +36,30 @@ pub struct UnknownKind {
     /// The word.
     pub word: KindWord,
     /// The original fragment source, when available.
-    pub origin: Option<QueryOrigin>,
+    pub origin: KindOrigin,
 }
 
-/// What a run is refused with for a word that names no kind: its message and optional source origin.
+/// Where a word a rule writes for a kind was written.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct KindRefusal(pub Box<str>, pub Option<QueryOrigin>);
+pub enum KindOrigin {
+    /// The word came from the recorded source of a linked module.
+    Recorded(QueryOrigin),
+    /// No source of the word is recorded.
+    Unrecorded,
+}
+
+/// What is said of a word that names no kind.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct KindMessage(pub Box<str>);
+
+/// What a run is refused with for a word that names no kind: its message and where the word was written.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct KindRefusal {
+    /// What is said of the word.
+    pub message: KindMessage,
+    /// Where the word was written.
+    pub origin: KindOrigin,
+}
 
 /// The names of the linked languages, as one phrase.
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -1,5 +1,5 @@
 //! What the identity of an admitted population is proven over.
-use crate::domain::stored_graph::types::Population;
+use crate::domain::stored_graph::types::RelationPopulation;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// Whether native syntax-tree populations may prove an identity, or only stored ones.
@@ -11,6 +11,6 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) enum Po
 
 /// A proven population with the original columns its rows expose.
 pub(in crate::application::file_dag::derived::owner::acquisition::graph) struct ProvenPopulation {
-    pub population: Population,
+    pub population: RelationPopulation,
     pub columns: Vec<ColumnIndex>,
 }

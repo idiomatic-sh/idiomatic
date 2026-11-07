@@ -242,8 +242,8 @@ impl Drop for Invocation<'_> {
                         slot.registered_calls.0 +=
                             std::mem::take(&mut workspace.observation.registered_calls);
                     }
-                    for (total, delta) in fed.0.iter_mut().zip(workspace.work.take()) {
-                        *total = total.saturating_add(delta);
+                    for (total, delta) in fed.0.iter_mut().zip(workspace.work.take().0) {
+                        *total = total.saturating_add(delta.0);
                     }
                 }
             }

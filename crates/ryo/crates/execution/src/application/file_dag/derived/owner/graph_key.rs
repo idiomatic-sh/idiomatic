@@ -2,14 +2,14 @@
 use super::types::IdentityCompatibility;
 use crate::application::file_dag::derived::constants;
 use crate::application::file_dag::derived::ledger::types::ByteCount;
-use crate::domain::derived_views::types::DerivedContract;
+use crate::domain::derived_views::types::contract::value::DerivedContract;
 use std::sync::{Arc, Weak};
 /// Selected positions are immutable. A Weak guard prevents address reuse while
 /// retaining no position payload after the last semantic/consumer handle drops.
 #[derive(Clone, Debug)]
 pub(in crate::application::file_dag::derived::owner) struct GraphSelection {
     rows: Weak<Vec<u32>>,
-    identity: Arc<crate::domain::table_model::types::SelectionIdentity>,
+    identity: Arc<crate::domain::stored_selection::types::SelectionIdentity>,
 }
 impl PartialEq for GraphSelection {
     fn eq(&self, other: &Self) -> bool {
@@ -26,7 +26,7 @@ impl std::hash::Hash for GraphSelection {
 impl GraphSelection {
     pub(in crate::application::file_dag::derived::owner) fn new(
         rows: &Arc<Vec<u32>>,
-        identity: &Arc<crate::domain::table_model::types::SelectionIdentity>,
+        identity: &Arc<crate::domain::stored_selection::types::SelectionIdentity>,
     ) -> Self {
         Self {
             rows: Arc::downgrade(rows),

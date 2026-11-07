@@ -29,8 +29,17 @@ pub struct Partial {
     pub cause: PartialCause,
     /// Which rows could be missing.
     pub lacking: Lacking,
-    /// The file the rows missing are about; none when it is not said.
-    pub at: Option<FileId>,
+    /// The file the rows missing are about, or the repository when it is not said.
+    pub at: PartialPlace,
+}
+
+/// Where the rows missing from a relation read in part are: in one file, or in the repository as a whole.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum PartialPlace {
+    /// Anywhere in the repository.
+    Repository,
+    /// In this file.
+    File(FileId),
 }
 
 /// The relations of the files of a run that are read only in part, by file.
@@ -45,8 +54,8 @@ pub struct Partials {
 /// A relation read in part, and the file it is read in part in.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FilePartial {
-    /// The file; none for the repository as a whole.
-    pub file: Option<FileId>,
+    /// The file, or the repository as a whole.
+    pub file: PartialPlace,
     /// The relation read in part there.
     pub partial: Partial,
 }
@@ -123,3 +132,15 @@ pub struct FileObservationReadiness {
 /// The edge that composes the languages and knows the governing mask names them; the engine discharges a missing source only for these.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct InapplicableFiles(pub Vec<FileId>);
+
+/// How many files a run declares, among which the files of a partial source are placed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DeclaredFiles(pub usize);
+
+/// The place of a file among the files a run declares.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct FileOrdinal(pub usize);
+
+/// The column of an answer that says which file a row is in.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct KeyColumn(pub usize);

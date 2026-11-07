@@ -38,14 +38,14 @@ fn cache_fields() -> Vec<String> {
     fields
 }
 const CONTRACT_UPDATE: &str = r#"
-mod contract_update { use crate::domain::derived_views::types::DerivedContract as Authority; fn forge(value: Authority) -> Authority { Authority { identity_hash: 0, ..value } } const _: fn(Authority) -> Authority = forge; }
+mod contract_update { use crate::domain::derived_views::types::{contract::value::DerivedContract as Authority, IdentityHash}; fn forge(value: Authority) -> Authority { Authority { identity_hash: IdentityHash(0), ..value } } const _: fn(Authority) -> Authority = forge; }
 "#;
 const CONTRACT_READ: &str = r#"
-mod contract_read { use crate::domain::derived_views::types::DerivedContract as Authority; fn peek(value: &Authority) -> u64 { value.identity_hash } const _: fn(&Authority) -> u64 = peek; }
+mod contract_read { use crate::domain::derived_views::types::{contract::value::DerivedContract as Authority, IdentityHash}; fn peek(value: &Authority) -> IdentityHash { value.identity_hash } const _: fn(&Authority) -> IdentityHash = peek; }
 "#;
 const CONTRACT_PREPARED: &str = r#"
 mod contract_prepared {
-    use crate::domain::{derived_views::types::{DerivedContract, ViewRequest}, operating::errors::OperatingError, operation_schema::types::InputShape};
+    use crate::domain::{derived_views::types::{contract::value::DerivedContract, ViewRequest}, operating::errors::OperatingError, operation_schema::types::InputShape};
     use crate::outbound::derived::interface::DerivedPort;
     use std::sync::Arc;
     fn authorized(port: Arc<dyn DerivedPort>, request: &ViewRequest, schemas: &[InputShape<'_>]) -> Result<DerivedContract, OperatingError> {
@@ -69,12 +69,12 @@ mod dependency_authorized {
 }
 "#;
 const CACHE_MUTATOR: &str = r#"
-mod cache_mutator { use crate::application::file_dag::derived::owner::cache::types::CacheBackend; fn mutate(cache: &mut CacheBackend) { cache.observe_graph_walk(crate::application::file_dag::derived::owner::cache::types::ExpandedVertices(1), crate::application::file_dag::derived::owner::cache::types::ExaminedVertices(1)); } const _: fn(&mut CacheBackend) = mutate; }
+mod cache_mutator { use crate::application::file_dag::derived::owner::cache::types::CacheBackend; fn mutate(cache: &mut CacheBackend) { cache.observe_graph_walk(crate::domain::stored_graph::types::ExpandedVertices(1), crate::domain::stored_graph::types::ExaminedVertices(1)); } const _: fn(&mut CacheBackend) = mutate; }
 "#;
 const CACHE_BINDING: &str = r#"
 mod cache_binding {
     use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
-    use crate::domain::derived_views::types::PreparedSelectionViews;
+    use crate::domain::derived_views::types::contract::value::PreparedSelectionViews;
     use std::sync::Arc;
     fn mutate(cache: &mut CacheBackend, views: Arc<PreparedSelectionViews>) { cache.bind_request_views(views); }
     const _: fn(&mut CacheBackend, Arc<PreparedSelectionViews>) = mutate;
@@ -83,7 +83,7 @@ mod cache_binding {
 const SELECTION_BUILD: &str = r#"
 mod selection_build {
     use super::selection::service::SelectionSource;
-    use crate::domain::{derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch}, operating::errors::OperatingError};
+    use crate::domain::{derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch}, operating::errors::OperatingError};
     use std::sync::Arc;
     fn escape(source: &SelectionSource<'_>, plan: &Arc<DerivedContract>, inputs: DerivedInputs<'_, '_>, scratch: &mut DerivedScratch) -> Result<(), OperatingError> {
         source.build(plan, inputs, scratch).map(|_| ())
@@ -183,7 +183,7 @@ pub(super) fn controls(root: &'static str, module: &'static str) -> Vec<Probe> {
             compilation: Compilation::Library,
             owner: CACHE,
             source: format!(
-                "mod cache_owner {{ use super::CacheBackend; use crate::domain::derived_views::types::PreparedSelectionViews; use std::sync::Arc; fn own(cache: &mut CacheBackend, views: Arc<PreparedSelectionViews>) {{ {field_reads} cache.observe_graph_walk(crate::application::file_dag::derived::owner::cache::types::ExpandedVertices(1), crate::application::file_dag::derived::owner::cache::types::ExaminedVertices(1)); cache.bind_request_views(views); }} const _: fn(&mut CacheBackend, Arc<PreparedSelectionViews>) = own; }}"
+                "mod cache_owner {{ use super::CacheBackend; use crate::domain::derived_views::types::contract::value::PreparedSelectionViews; use std::sync::Arc; fn own(cache: &mut CacheBackend, views: Arc<PreparedSelectionViews>) {{ {field_reads} cache.observe_graph_walk(crate::domain::stored_graph::types::ExpandedVertices(1), crate::domain::stored_graph::types::ExaminedVertices(1)); cache.bind_request_views(views); }} const _: fn(&mut CacheBackend, Arc<PreparedSelectionViews>) = own; }}"
             ),
             expected: Expectation::Accept,
         },

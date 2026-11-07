@@ -29,7 +29,7 @@ impl SetRowDriver for EngineRows<'_, '_> {
                     .resources
                     .index()
                     .ok_or(OperatingError::WrongBinding)?;
-                Ok(RightPopulation::from(index.rows.count() == 0))
+                Ok(RightPopulation::from(index.rows.count().0 == 0))
             })
             .map_err(|()| SetRowsError::Interrupted)
     }
@@ -43,7 +43,7 @@ impl SetRowDriver for EngineRows<'_, '_> {
                     .resources
                     .index()
                     .ok_or(OperatingError::WrongBinding)?;
-                Ok(RightMembership::from(index.contains(key)))
+                Ok(index.contains(key))
             })
             .map_err(|()| SetRowsError::Interrupted)
     }

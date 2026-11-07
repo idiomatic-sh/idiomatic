@@ -119,11 +119,11 @@ impl KernelPermit<'_> {
         }
         owner.admit(
             left_input.publication(owner)?.as_ref(),
-            crate::domain::operator::contract::views::BorrowedRows::from(left),
+            crate::domain::table_model::types::RepresentationInput::from(left),
         )?;
         owner.admit(
             right_input.publication(owner)?.as_ref(),
-            crate::domain::operator::contract::views::BorrowedRows::Tree(native.tree()),
+            crate::domain::table_model::types::RepresentationInput::Tree(native.tree()),
         )?;
         native.finding()?;
         Ok(())

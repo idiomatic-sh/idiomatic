@@ -3,7 +3,9 @@ use super::value::ReadyQueue;
 use crate::domain::{
     executable_program::types::RegionId,
     operating::errors::OperatingError,
-    readiness::types::{ReadinessAction as Action, ReadinessOutcome as Outcome, RegionCount},
+    readiness::types::{
+        ReadinessAction as Action, ReadinessEntryCount, ReadinessOutcome as Outcome, RegionCount,
+    },
 };
 fn diamond_preserves_cohorts_and_wakes_each_actual_waiter_once() {
     let mut queue =
@@ -134,7 +136,7 @@ fn preparation_terminal_wakes_admissions_before_the_ready_cohort() {
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 fn large_unreached_program_has_only_actual_readiness_entries() {
     let mut queue = ReadyQueue::new(RegionCount(10_000_000), &[RegionId(7), RegionId(7)]).unwrap();
-    assert_eq!(queue.reached_entries(), 1);
+    assert_eq!(queue.reached_entries(), ReadinessEntryCount(1));
     assert_eq!(queue.next(), Ok(Some(Action::Prepare(RegionId(7)))));
     assert_eq!(
         queue.observe(RegionId(7), Outcome::Waiting(RegionId(10_000_000))),
@@ -142,13 +144,13 @@ fn large_unreached_program_has_only_actual_readiness_entries() {
     );
     assert_eq!(
         queue.reached_entries(),
-        1,
+        ReadinessEntryCount(1),
         "invalid dependency cannot allocate a readiness entry"
     );
     queue
         .observe(RegionId(7), Outcome::Waiting(RegionId(9_999_999)))
         .unwrap();
-    assert_eq!(queue.reached_entries(), 2);
+    assert_eq!(queue.reached_entries(), ReadinessEntryCount(2));
     assert_eq!(queue.next(), Ok(Some(Action::Prepare(RegionId(9_999_999)))));
     queue
         .observe(RegionId(9_999_999), Outcome::Terminal)
@@ -156,7 +158,7 @@ fn large_unreached_program_has_only_actual_readiness_entries() {
     assert_eq!(queue.next(), Ok(Some(Action::Prepare(RegionId(7)))));
     queue.observe(RegionId(7), Outcome::Terminal).unwrap();
     assert_eq!(queue.next(), Ok(None));
-    assert_eq!(queue.reached_entries(), 2);
+    assert_eq!(queue.reached_entries(), ReadinessEntryCount(2));
 }
 type Input = fn();
 type Value = ();

@@ -38,7 +38,7 @@ impl OperatorsItem for HostedItem {
         };
         let mut row = std::mem::take(&mut lease.workspace.row);
         let result = (|| {
-            for at in 0..source.count() {
+            for at in 0..source.count().0 {
                 if let Some(each) =
                     source.read(ryo_values::domain::rows::types::RowIndex(at), &mut row)
                 {

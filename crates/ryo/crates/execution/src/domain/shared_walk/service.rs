@@ -39,6 +39,7 @@ fn class_context<'a>(
         semantic: base.semantic,
         prepared_kinds: base.prepared_kinds,
         prepared_matchers: base.prepared_matchers,
+        matcher: base.matcher,
         bindings: bound,
         symbols: query_reborrow(&mut base.symbols),
         source: base.source,
@@ -180,7 +181,7 @@ pub(crate) fn evaluate(
     if source_kinds != ryo_relations::domain::relations::service::kinds(relation)
         || matches!(rows, Rows::Tree(tree) if count != 0 && kind_names(tree.elements).is_empty())
         || count > u32::MAX as usize
-        || crate::domain::table_model::collections::representations::service::borrowed(rows)
+        || crate::domain::table_model::service::borrowed(rows)
             .validate()
             .is_err()
     {

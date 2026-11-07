@@ -54,8 +54,8 @@ impl PositionJoinDriver for StepMatches<'_> {
             let place = self.place;
             self.place.0 += 1;
             if let Some(right) = self.order.rows().get(place.0) {
-                self.current = Some(*right);
-                self.counts.found(1, 1);
+                self.current = Some(RowIndex(*right));
+                self.counts.found(ryo_values::domain::plan_parts::types::InputNumber(1), crate::domain::operator::contract::types::FoundRows(1));
                 return Ok(Advance::Admitted);
             }
         }
@@ -98,7 +98,7 @@ impl PositionJoinDriver for TreeMatch<'_, '_, '_, '_> {
             return Ok(Advance::Exhausted);
         }
         self.pending = TreeCandidate::Exhausted;
-        self.counts.found(1, 1);
+        self.counts.found(ryo_values::domain::plan_parts::types::InputNumber(1), crate::domain::operator::contract::types::FoundRows(1));
         match allows(self.admit, self.tree, Position(self.hit.0[0]), self.context) {
             Ok(verdict) => {
                 self.ready = if verdict == Verdict::Holds {
@@ -145,7 +145,7 @@ impl PositionJoinDriver for EdgeMatches<'_, '_, '_> {
         while let Some(child) = self.found.0.get(self.at.0).copied() {
             let at = self.at;
             self.at.0 += 1;
-            self.counts.found(1, 1);
+            self.counts.found(ryo_values::domain::plan_parts::types::InputNumber(1), crate::domain::operator::contract::types::FoundRows(1));
             if self.filter.is_empty() {
                 self.current = Some(at);
                 return Ok(Advance::Admitted);
@@ -227,7 +227,7 @@ pub(super) fn join(
             let order = order.ok_or(OperatingError::WrongOperation)?;
             let PositionWork { probe, .. } = work;
             for at in positions(count(left.rows)) {
-                counts.found(0, 1);
+                counts.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(1));
                 let each = row(left.rows, at);
                 probe.0.clear();
                 key_into(tree, &left.shape.columns, each, left_on, probe);
@@ -260,7 +260,7 @@ pub(super) fn join(
             };
             let mut result = Ok(());
             for at in positions(count(left.rows)) {
-                counts.found(0, 1);
+                counts.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(1));
                 let each = row(left.rows, at);
                 let Some(hit) = followed(tree, key_column, each) else {
                     continue;
@@ -300,7 +300,7 @@ pub(super) fn join(
                 .first()
                 .is_some_and(|on| viewed(view, *on) == ColumnIndex(0));
             for at in positions(count(left.rows)) {
-                counts.found(0, 1);
+                counts.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(1));
                 let each = row(left.rows, at);
                 let Some(start) = followed(tree, key_column, each) else {
                     continue;

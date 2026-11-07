@@ -3,6 +3,9 @@ use crate::domain::executable_program::types::RegionId;
 pub(crate) mod ready_queue;
 /// Distinct physical regions in this compiled program.
 pub(crate) struct RegionCount(pub usize);
+/// Readiness entries a queue holds, one for each region it has reached.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ReadinessEntryCount(pub usize);
 /// Admissions currently parked on a real producer.
 pub(crate) struct WaitingCount(pub usize);
 

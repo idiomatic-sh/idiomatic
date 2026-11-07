@@ -5,7 +5,9 @@ use crate::application::file_dag::relations::*;
 use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::application::file_dag::relations::handle::service::PublishedInput;
 use crate::domain::executable_program::types::RegionId;
-use crate::domain::self_join_recogniser::types::{NumberRequirement, StoredNumberOrigin};
+use crate::domain::self_join_recogniser::types::{
+    NumberRequirement, SchemaWidth, StoredNumberOrigin,
+};
 use ryo_relations::domain::relations::{
     service::kinds,
     types::{ColumnsView, FactColumn},
@@ -32,7 +34,7 @@ fn number_witness_rejects_wrong_producer_and_recycled_generation() {
     let required = NumberRequirement {
         source: StepId(0),
         column: number,
-        width: schema.len(),
+        width: SchemaWidth(schema.len()),
         origins: vec![StoredNumberOrigin {
             relation,
             column: number,

@@ -2,7 +2,7 @@
 use super::DerivedOwner;
 use crate::application::file_dag::relations::RelationOwner;
 use crate::domain::{
-    derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch, ViewRequest},
+    derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch, ViewRequest},
     operating::errors::OperatingError,
 };
 use ryo_derived::domain::contract::types::DerivedView;
@@ -47,7 +47,7 @@ impl RawScope {
         stride: crate::domain::positions::types::Stride,
         body: &mut dyn FnMut(&RawOrder) -> Result<(), OperatingError>,
     ) -> Result<(), OperatingError> {
-        let request = ViewRequest::RawKeyOrder { stride: stride.0 };
+        let request = ViewRequest::RawKeyOrder { stride };
         let plan = self
             .prepared
             .as_ref()
@@ -63,7 +63,7 @@ impl RawScope {
             self.admitted
                 .as_ref()
                 .ok_or(OperatingError::WrongOperation)?,
-            DerivedInputs::RawWords(&keys.0),
+            DerivedInputs::RawWords(keys),
             self.working.take(),
             &mut self.room,
         )?;

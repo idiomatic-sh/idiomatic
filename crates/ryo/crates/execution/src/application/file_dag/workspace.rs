@@ -1,10 +1,9 @@
 //! The application owns each invocation's mutable allocations and release boundary.
 use super::relations::admission::service::BorrowedInput;
 use crate::domain::{
-    derived_views::types::PreparedViewUse,
-    operating::{errors::OperatingError, types::OperatorContext},
-    operator::contract::views::BorrowedRows,
-};
+    derived_views::types::{InputsUsed, contract::value::PreparedViewUse},
+    operating::{errors::OperatingError, types::OperatorContext}};
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use std::sync::Arc;
 use self::constants::EXPECT_DEMANDED_INPUT;
 use ryo_values::domain::plan_parts::types::InputNumber;
@@ -24,7 +23,7 @@ pub(crate) struct InvocationWorkspace {
     pub publications:
         Vec<Option<crate::application::file_dag::relations::handle::service::PublishedInput>>,
     #[cfg(test)]
-    pub observation: crate::domain::operating::types::ExecutionObservation,
+    pub observation: crate::domain::operating::fixtures::ExecutionObservation,
     pub downstream_scratch: crate::domain::table_scratch::types::OperatorScratch,
     pub downstream_memo: Vec<crate::domain::operating::types::Memo>,
     pub predicates: crate::domain::table_scratch::types::LazyScratch<
@@ -70,7 +69,7 @@ impl InvocationWorkspace {
     }
 
     #[cfg(test)]
-    pub(crate) fn measured(&self) -> crate::domain::operating::types::ExecutionObservation {
+    pub(crate) fn measured(&self) -> crate::domain::operating::fixtures::ExecutionObservation {
         let mut observed = self.observation;
         observed.regexes = self
             .predicates
@@ -96,8 +95,8 @@ impl InvocationWorkspace {
                     .as_ref()
                     .map_or(0, |axis| axis.walk.visited.len()),
             );
-        observed.dfs_expanded = self.primitive.dfs.as_ref().map_or(0, |dfs| dfs.expanded);
-        observed.dfs_examined = self.primitive.dfs.as_ref().map_or(0, |dfs| dfs.examined);
+        observed.dfs_expanded = self.primitive.dfs.as_ref().map_or(0, |dfs| dfs.expanded.0);
+        observed.dfs_examined = self.primitive.dfs.as_ref().map_or(0, |dfs| dfs.examined.0);
         observed.dfs_frames_len = self
             .primitive
             .dfs
@@ -142,7 +141,7 @@ pub(super) struct GraphInput<'a> {
 impl<'a> GraphInput<'a> {
     pub(super) fn admission(
         &self,
-        plan: &Arc<crate::domain::derived_views::types::DerivedContract>,
+        plan: &Arc<crate::domain::derived_views::types::contract::value::DerivedContract>,
     ) -> Result<
         crate::application::file_dag::derived::owner::acquisition::admission::service::AdmittedViewInputs<'a>,
         OperatingError,
@@ -243,7 +242,7 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
         input: BorrowedRows<'f>,
         context: &mut OperatorContext<'_>,
     ) -> Result<super::closure_partitions::PartitionedClosure<'f>, OperatingError> {
-        let proof = self.proof(InputNumber(order.inputs[0]))?;
+        let proof = self.proof(order.inputs[0])?;
         if super::relations::same_admitted_rows(input, proof.rows()) == crate::application::file_dag::relations::types::Sameness::Different {
             return Err(OperatingError::NotRead);
         }
@@ -264,12 +263,12 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
         OperatingError,
     > {
         if use_.plan.kind != ryo_derived::domain::request::types::DerivedKind::NativeLookup
-            || use_.len != 2
+            || use_.len != InputsUsed(2)
         {
             return Err(OperatingError::WrongOperation);
         }
-        let left = self.proof(InputNumber(use_.inputs[0]))?;
-        let right = self.proof(InputNumber(use_.inputs[1]))?;
+        let left = self.proof(use_.inputs[0])?;
+        let right = self.proof(use_.inputs[1])?;
         let owner = self.workspace.owner();
         let admitted = owner
             .derived()

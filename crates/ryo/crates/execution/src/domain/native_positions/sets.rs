@@ -103,7 +103,7 @@ pub(super) fn union_rows(
             return Err(OperatingError::ShapeMismatch);
         }
         for at in positions(count(source.rows)) {
-            counts.found(source_at, 1);
+            counts.found(ryo_values::domain::plan_parts::types::InputNumber(source_at), crate::domain::operator::contract::types::FoundRows(1));
             let each = row(source.rows, at);
             if output.columns.is_empty() {
                 slots.0.push(
@@ -200,7 +200,7 @@ impl SetPositionsDriver for AntiDriver<'_, '_> {
             .run(|| {
                 self.current = (self.next.0 < count(self.left).0).then_some(self.next);
                 if self.current.is_some() {
-                    self.counts.found(0, 1);
+                    self.counts.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(1));
                     self.next.0 += 1;
                 }
                 Ok(Advance::from(self.current.is_some()))

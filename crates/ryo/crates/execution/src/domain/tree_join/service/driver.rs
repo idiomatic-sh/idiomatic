@@ -11,7 +11,7 @@ use crate::domain::table_model::service::kinds_of;
 use crate::domain::table_model::types::{Rows, Verdict};
 use crate::domain::table_scratch::types::ElementIndex;
 use crate::domain::text_gate::service::text_admitted;
-use crate::domain::tree_join::types::TreeState;
+use crate::domain::tree_join::types::{StretchCursor, TreeState};
 use ryo_language::domain::elements::service::{field_name_at, kind_at, parent_at, text_at};
 use ryo_operators::domain::equality_join::types::{Advance, JoinDriver};
 use ryo_operators::domain::equality_join::errors::EqualityJoinError;
@@ -19,7 +19,7 @@ use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{Flag, Position, Value};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison};
 use ryo_values::domain::rows::types::RowIndex;
-pub(super) struct Driver<'a, 'f, 'c> {
+pub(super) struct TreeDriver<'a, 'f, 'c> {
     #[cfg(feature = "diagnostic-row-progress")]
     pub(super) progress: crate::domain::operator::contract::views::ProgressObserver,
     pub(super) state: &'a mut TreeState,
@@ -28,22 +28,22 @@ pub(super) struct Driver<'a, 'f, 'c> {
     pub(super) comparisons: &'a [PlanComparison],
     pub(super) context: &'a mut OperatorContext<'c>,
     pub(super) emit: &'a mut dyn Emit,
-    pub(super) at: usize,
+    pub(super) at: StretchCursor,
     pub(super) current: Option<Position>,
     pub(super) error: Option<OperatingError>,
 }
-impl Driver<'_, '_, '_> {
-    fn advance(&mut self) -> Result<bool, OperatingError> {
+impl TreeDriver<'_, '_, '_> {
+    fn advance(&mut self) -> Result<Advance, OperatingError> {
         let first = usize::from(self.tree.form == TreeForm::Edges);
         let tree_rows = Rows::Tree(*self.tree);
         let elements = kinds_of(&tree_rows);
-        while let Some(found) = self.state.stretched.get(self.at).copied() {
-            self.at += 1;
-            self.work.found(1, 1);
+        while let Some(found) = self.state.stretched.get(self.at.0).copied() {
+            self.at = StretchCursor(self.at.0 + 1);
+            self.work.found(ryo_values::domain::plan_parts::types::InputNumber(1), crate::domain::operator::contract::types::FoundRows(1));
             #[cfg(feature = "diagnostic-row-progress")]
             (self.progress)(
                 crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,
-                1,
+                crate::domain::operator::contract::views::ProgressAmount(1),
             );
             if !self.state.kinds.tests.0.is_empty()
                 && passes(&self.state.kinds, kind_at(self.tree.elements, found)) == Verdict::Fails
@@ -55,7 +55,7 @@ impl Driver<'_, '_, '_> {
             if !self.state.gate.0.is_empty() {
                 (self.progress)(
                     crate::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
-                    1,
+                    crate::domain::operator::contract::views::ProgressAmount(1),
                 );
             }
             if !self.state.gate.0.is_empty()
@@ -77,7 +77,7 @@ impl Driver<'_, '_, '_> {
             if !self.state.rest.0.is_empty() {
                 (self.progress)(
                     crate::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
-                    1,
+                    crate::domain::operator::contract::views::ProgressAmount(1),
                 );
             }
             if !self.state.rest.0.is_empty()
@@ -95,18 +95,18 @@ impl Driver<'_, '_, '_> {
                 continue;
             }
             self.current = Some(found);
-            return Ok(true);
+            return Ok(Advance::Admitted);
         }
         self.current = None;
-        Ok(false)
+        Ok(Advance::Exhausted)
     }
 }
-impl JoinDriver for Driver<'_, '_, '_> {
+impl JoinDriver for TreeDriver<'_, '_, '_> {
     fn next(&mut self, _key: &[Value]) -> Result<Advance, EqualityJoinError> {
         if self.error.is_some() {
             return Err(EqualityJoinError::Interrupted);
         }
-        self.advance().map(Advance::from).map_err(|error| {
+        self.advance().map_err(|error| {
             self.error = Some(error);
             EqualityJoinError::Interrupted
         })

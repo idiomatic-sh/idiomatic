@@ -10,22 +10,16 @@ use ryo_relations::domain::relations::types::{
 
 use crate::domain::comparing::service::holds_all;
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::{NameCount, OperatorContext};
+use crate::domain::operating::types::{AfterTheFiles, Memo, NameCount, OperatorContext};
 use crate::domain::table_model::types::Verdict;
 use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::files::types::SourceView;
-use ryo_values::domain::plan_parts::types::Applied;
-use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::PlanComparison;
-use ryo_values::domain::plan_parts::types::Function;
-use ryo_values::domain::plan_parts::types::Input as PlanInput;
-use ryo_values::domain::plan_parts::types::LiteralText;
-use ryo_values::domain::plan_parts::types::Operand;
-use ryo_values::domain::plan_parts::types::ParameterId;
-use ryo_values::domain::plan_parts::types::QueryLiteral;
-use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::plan_parts::types::{
+    Applied, ColumnIndex, Function, Input as PlanInput, LiteralText, Operand, ParameterId,
+    PlanComparison, QueryLiteral, Test,
+};
 use ryo_values::domain::rows::service::push_row;
 
 /// A scenario: what a row observes of the comparisons, as a number.
@@ -35,6 +29,29 @@ type Value = usize;
 type Failure = OperatingError;
 
 const FROM: PlanInput = PlanInput::Relation(Relation::Function);
+
+/// The context of a run over `symbols` and `source`, before the files were read, with nothing bound.
+fn context<'a>(
+    symbols: &'a mut Symbols,
+    source: &'a [u8],
+    memo: &'a mut Vec<Memo>,
+    scratch: &'a mut OperatorScratch,
+) -> OperatorContext<'a> {
+    OperatorContext {
+        phase: AfterTheFiles::Before,
+        semantic: None,
+        prepared_kinds: None,
+        prepared_matchers: None,
+        matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
+        bindings: &[],
+        symbols: symbols.into(),
+        source: SourceView(source),
+        paths: &[],
+        arenas: &[],
+        memo,
+        scratch,
+    }
+}
 
 fn column(index: u32) -> ColumnIndex {
     ColumnIndex(index)
@@ -74,19 +91,9 @@ fn tells_a_name_equal_to_a_text_by_its_hash() -> Result<Value, OperatingError> {
             comparisons: vec![comparison],
             kept: Vec::new(),
         };
-        let mut context = OperatorContext {
-            phase: crate::domain::operating::types::AfterTheFiles::Before,
-            semantic: None,
-            prepared_kinds: None,
-            prepared_matchers: None,
-            bindings: &[],
-            symbols: (&mut symbols).into(),
-            source: SourceView(source),
-            paths: &[],
-            arenas: &[],
-            memo: &mut Vec::new(),
-            scratch: &mut OperatorScratch::default(),
-        };
+        let mut memo = Vec::new();
+        let mut scratch = OperatorScratch::default();
+        let mut context = context(&mut symbols, source, &mut memo, &mut scratch);
         let Operation::Select { comparisons, .. } = operation else {
             unreachable!()
         };
@@ -142,19 +149,7 @@ fn decides_once_for_each_name() -> Result<Value, OperatingError> {
     };
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
-    let mut context = OperatorContext {
-        phase: crate::domain::operating::types::AfterTheFiles::Before,
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: None,
-        bindings: &[],
-        symbols: (&mut symbols).into(),
-        source: SourceView(source),
-        paths: &[],
-        arenas: &[],
-        memo: &mut memo,
-        scratch: &mut scratch,
-    };
+    let mut context = context(&mut symbols, source, &mut memo, &mut scratch);
     let Operation::Select { comparisons, .. } = operation else {
         unreachable!()
     };
@@ -216,19 +211,8 @@ fn remembers_what_a_text_was_decided_in_another_file() -> Result<Value, Operatin
         for name in names {
             push_row(&mut table, &[name]);
         }
-        let mut context = OperatorContext {
-            phase: crate::domain::operating::types::AfterTheFiles::Before,
-            semantic: None,
-            prepared_kinds: None,
-            prepared_matchers: None,
-            bindings: &[],
-            symbols: (&mut symbols).into(),
-            source: SourceView(source),
-            paths: &[],
-            arenas: &[],
-            memo: &mut Vec::new(),
-            scratch: &mut scratch,
-        };
+        let mut memo = Vec::new();
+        let mut context = context(&mut symbols, source, &mut memo, &mut scratch);
         let Operation::Select { comparisons, .. } = &operation else {
             unreachable!()
         };
@@ -271,19 +255,9 @@ fn reads_each_rows_pattern() -> Result<Value, OperatingError> {
         right: Operand::Column(column(1)),
         origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }];
-    let mut context = OperatorContext {
-        phase: crate::domain::operating::types::AfterTheFiles::Before,
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: None,
-        bindings: &[],
-        symbols: (&mut symbols).into(),
-        source: SourceView(source),
-        paths: &[],
-        arenas: &[],
-        memo: &mut Vec::new(),
-        scratch: &mut OperatorScratch::default(),
-    };
+    let mut memo = Vec::new();
+    let mut scratch = OperatorScratch::default();
+    let mut context = context(&mut symbols, source, &mut memo, &mut scratch);
     let mut kept = 0;
     for pattern in [matches, differs] {
         kept += usize::from(
@@ -308,19 +282,9 @@ fn refuses_an_unbound_parameter() -> Result<Value, OperatingError> {
         origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let mut symbols = Symbols::default();
-    let mut context = OperatorContext {
-        phase: crate::domain::operating::types::AfterTheFiles::Before,
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: None,
-        bindings: &[],
-        symbols: (&mut symbols).into(),
-        source: SourceView(&[]),
-        paths: &[],
-        arenas: &[],
-        memo: &mut Vec::new(),
-        scratch: &mut OperatorScratch::default(),
-    };
+    let mut memo = Vec::new();
+    let mut scratch = OperatorScratch::default();
+    let mut context = context(&mut symbols, &[], &mut memo, &mut scratch);
     holds_all(
         &[comparison],
         &[Cell::Number(Integer(1))],
@@ -339,19 +303,9 @@ fn a_function_of_an_unknown_name_is_unlocated() -> Result<Value, OperatingError>
         hash: TextHash(7),
         place: PlaceNumber(99),
     });
-    let mut context = OperatorContext {
-        phase: crate::domain::operating::types::AfterTheFiles::Before,
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: None,
-        bindings: &[],
-        symbols: (&mut symbols).into(),
-        source: SourceView(&[]),
-        paths: &[],
-        arenas: &[],
-        memo: &mut Vec::new(),
-        scratch: &mut OperatorScratch::default(),
-    };
+    let mut memo = Vec::new();
+    let mut scratch = OperatorScratch::default();
+    let mut context = context(&mut symbols, &[], &mut memo, &mut scratch);
     let mut held = 0;
     for (place, test) in [
         Test::Equal,

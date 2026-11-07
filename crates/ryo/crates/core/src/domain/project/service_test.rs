@@ -96,7 +96,8 @@ fn subject(scenario: Input) -> Value {
             assert_eq!(partials.len(), 1);
             assert_eq!(partials[0].relation, Relation::PackageDependency);
             assert_eq!(
-                partials[0].at, None,
+                partials[0].at,
+                ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::Repository,
                 "project incompleteness is not an error on an unrelated primary source"
             );
             assert!(partials[0].cause.0.contains("pkg/Cargo.toml"));

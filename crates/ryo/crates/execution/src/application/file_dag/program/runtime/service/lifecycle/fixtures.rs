@@ -235,6 +235,7 @@ pub(super) fn context<'a>(
         phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_matchers: None,
+        matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
         prepared_kinds: None,
         bindings: &[],
         symbols: symbols.into(),

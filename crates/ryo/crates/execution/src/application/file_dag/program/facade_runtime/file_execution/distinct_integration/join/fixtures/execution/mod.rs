@@ -2,7 +2,7 @@
 use super::super::super::*;
 use super::provider::{Provider, provider};
 use crate::application::file_dag::derived::owner::fixtures::resources::RecordedDerived;
-use crate::domain::operating::types::ExecutionObservation;
+use crate::domain::operating::fixtures::ExecutionObservation;
 use crate::domain::table_model::service::materialize;
 use ryo_values::domain::compact_table::service::admit_compact;
 use ryo_values::domain::stored_facts::types::KeptWords;

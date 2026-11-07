@@ -6,10 +6,10 @@ use crate::application::file_dag::derived::owner::acquisition::population::types
 };
 use crate::application::file_dag::derived::owner::index::types::{IndexRowCount, KeyColumns};
 use crate::application::file_dag::derived::owner::selection::types::{
-    Retainability, SelectedPositions,
+    Retainability,
 };
 use crate::application::file_dag::relations::{RelationOwner, admission::service::BorrowedInput};
-use crate::domain::stored_selection::types::{Selector, SelectorHistogram};
+use crate::domain::stored_selection::types::{SelectedPositions, Selector, SelectorHistogram};
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_relations::domain::relations::types::ColumnsView;
 #[derive(Clone, Copy)]
@@ -31,7 +31,7 @@ impl<'a> SelectionSource<'a> {
         if !std::ptr::eq(owner, relation_owner.derived())
             || crate::application::file_dag::relations::same_admitted_rows(
                 proof.rows(),
-                crate::domain::operator::contract::views::BorrowedRows::Stored(source),
+                crate::domain::table_model::types::RepresentationInput::Stored(source),
             ) == crate::application::file_dag::relations::types::Sameness::Different
         {
             return Err(OperatingError::NotRead);
@@ -137,7 +137,7 @@ impl SelectionSource<'_> {
                             plan,
                             DerivedInputs::Postings {
                                 rows:
-                                    crate::domain::operator::contract::views::BorrowedRows::Stored(
+                                    crate::domain::table_model::types::RepresentationInput::Stored(
                                         source,
                                     ),
                                 texts,
@@ -200,7 +200,7 @@ impl SelectionSource<'_> {
         if cache
             .selection_views
             .as_ref()
-            .is_none_or(|views| group.0 >= views.groups)
+            .is_none_or(|views| group.0 >= views.groups.0)
         {
             return Err(OperatingError::NotRun);
         }
@@ -274,7 +274,7 @@ pub(in crate::application::file_dag::derived::owner) fn histogram<'a>(
         .iter()
         .position(|entry| Arc::ptr_eq(&entry.selector, program));
     let at = at.unwrap_or_else(|| {
-        entries.push(SelectorHistogram::new(program));
+        entries.push(SelectorHistogram::from(program));
         entries.len() - 1
     });
     entries.get_mut(at)

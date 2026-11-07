@@ -34,11 +34,11 @@ fn the_census_includes_every_synthetic_observation_union() -> Result<(), Operati
     };
     let mut observation_consumers = Vec::new();
     for (slot, declaration) in slots.iter().enumerate() {
-        let plan = &plans[declaration.rule];
+        let plan = &plans[declaration.rule.0];
         assert!(
             matches!(plan.steps[0].operation, Operation::Select { from: PlanInput::BoundObservation(input), .. } if input == declaration.input)
         );
-        let origin = program.rules()[declaration.rule].original_steps[0]
+        let origin = program.rules()[declaration.rule.0].original_steps[0]
             .as_ref()
             .unwrap();
         let region = &program.regions()[program.logical_regions()[origin.logical.0].0];
@@ -136,11 +136,11 @@ fn shared_walk_census_includes_every_synthetic_observation_union() -> Result<(),
     };
     let mut observation_consumers = Vec::new();
     for (slot, declaration) in slots.iter().enumerate() {
-        let plan = &plans[declaration.rule];
+        let plan = &plans[declaration.rule.0];
         assert!(
             matches!(plan.steps[0].operation, Operation::Select { from: PlanInput::BoundObservation(input), .. } if input == declaration.input)
         );
-        let origin = program.rules()[declaration.rule].original_steps[0]
+        let origin = program.rules()[declaration.rule.0].original_steps[0]
             .as_ref()
             .unwrap();
         let region = &program.regions()[program.logical_regions()[origin.logical.0].0];

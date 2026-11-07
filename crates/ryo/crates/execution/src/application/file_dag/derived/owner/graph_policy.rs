@@ -32,7 +32,7 @@ impl DerivedOwner {
             return Ok(Room::Full);
         };
         if credit.bytes.0 < required || credit.units.0 < required_units {
-            cache.graph_counts.pinned_refusals += u64::from(outlook.pinned == PinState::Pinned);
+            cache.graph_counts.pinned_refusals.0 += u64::from(outlook.pinned == PinState::Pinned);
             return Ok(Room::Full);
         }
         // No optional payload is removed until the complete admission has
@@ -154,7 +154,7 @@ impl DerivedOwner {
             let after = self.ledger.borrow().snapshot().view_optional_bytes.0;
             let physical = before.saturating_sub(after);
             cache.bytes = cache.bytes.saturating_sub(physical);
-            cache.graph_counts.reclaimed_bytes += physical as u64;
+            cache.graph_counts.reclaimed_bytes.0 += physical as u64;
         }
         state.retained_bytes = ByteCount(state.retained_bytes.0.saturating_sub(released.0));
         state.retained_predicates = PredicateCount(
@@ -163,7 +163,7 @@ impl DerivedOwner {
                 .0
                 .saturating_sub(released_predicates),
         );
-        cache.graph_counts.reclaimed_selections += released_predicates as u64;
-        cache.graph_counts.reclaimed_indexes += released_indexes;
+        cache.graph_counts.reclaimed_selections.0 += released_predicates as u64;
+        cache.graph_counts.reclaimed_indexes.0 += released_indexes;
     }
 }

@@ -10,7 +10,7 @@ use super::{
         instruction::value::Instruction,
     },
 };
-use crate::domain::file_program::types::{NodeId, NodeInput};
+use crate::domain::file_program::types::{ProgramNodeId, NodeInput};
 use std::sync::Arc;
 use crate::domain::{
     operation_schema::types::InputShape, operator::contract::service::prepare_for,
@@ -221,7 +221,7 @@ fn spec(rule: usize, variant: usize, leaf: bool) -> Draft {
         input: if leaf {
             NodeInput::Relation(Relation::Function)
         } else {
-            NodeInput::Node(NodeId(node))
+            NodeInput::Node(ProgramNodeId(node))
         },
     };
     match variant {

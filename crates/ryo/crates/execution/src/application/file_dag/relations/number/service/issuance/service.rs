@@ -2,7 +2,7 @@
 use super::super::*;
 use crate::application::file_dag::relations::publication::types::*;
 use crate::application::file_dag::relations::*;
-use crate::domain::table_model::collections::representations::publication::PublishedRelation;
+use crate::domain::table_model::types::PublishedRelation;
 impl RelationOwner {
     pub(in crate::application::file_dag) fn admit_number<'a>(
         &self,
@@ -54,7 +54,7 @@ impl RelationOwner {
         // Exact computed payload width is admitted by the owner, not inferred
         // from the query layout. Raw hosted/Rows lineages were already refused.
         if shape != PhysicalShape::Complete
-            || rows.kinds().len() != required.width
+            || rows.kinds().len() != required.width.0
             || rows.kinds().get(required.column.0 as usize) != Some(&CellKind::Number)
         {
             return Ok(None);

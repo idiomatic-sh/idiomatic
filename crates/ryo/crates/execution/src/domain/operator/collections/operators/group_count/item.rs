@@ -50,7 +50,7 @@ impl OperatorsItem for GroupCountItem {
                     .read(group.first, &mut row)
                     .ok_or(OperatingError::NotRun)?;
                 // The rows the group counts are the rows this step is fed: the engine reads them as the step's input count.
-                lease.found(0, u64::try_from(group.counted.0).unwrap_or(u64::MAX));
+                lease.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(u64::try_from(group.counted.0).unwrap_or(u64::MAX)));
                 let semantic = lease.semantics().operators(
                     ryo_operators::inbound::use_cases::operators::types::OperatorCall::Aggregate {
                         row: first, keys, count: ryo_relations::domain::relations::types::Count(group.counted.0), digest: None, target: &mut answer,

@@ -5,9 +5,11 @@ use crate::domain::functions::service::apply;
 use crate::domain::functions::types::MadeText;
 use crate::domain::kind_check::constants::LANGUAGE_SEPARATOR;
 use crate::domain::kind_check::types::{
-    AskedKind, KindMatch, KindRefusal, LanguageList, RulePlace, UnknownKind,
+    AskedKind, KindMatch, KindMessage, KindOrigin, KindRefusal, LanguageList, RulePlace,
+    UnknownKind,
 };
 use crate::domain::kind_sets::service::satisfies;
+use crate::domain::matching::types::PatternMatcher;
 use crate::domain::table_model::types::Verdict;
 use crate::domain::table_texts::types::TextView;
 use ryo_relations::domain::relations::types::Relation;
@@ -88,8 +90,11 @@ fn asked_in(
         let origin = match comparison.origin {
             ryo_values::domain::plan_parts::types::ComparisonOrigin::Recorded(id) => origins
                 .get(usize::try_from(id.0).unwrap_or(usize::MAX))
-                .cloned(),
-            ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded => None,
+                .cloned()
+                .map_or(KindOrigin::Unrecorded, KindOrigin::Recorded),
+            ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded => {
+                KindOrigin::Unrecorded
+            }
         };
         asked.extend(words.into_iter().map(|word| AskedKind {
             test,
@@ -126,7 +131,11 @@ fn constant_text(operand: &Operand, bound: &[ParameterBinding]) -> Option<MadeTe
 
 /// Whether a kind of some language is the word `asked` names: a name is equal to it, a pattern matches it.
 #[must_use]
-pub(crate) fn names_a_kind(asked: &AskedKind, vocabularies: &KindVocabularies) -> KindMatch {
+pub(crate) fn names_a_kind(
+    asked: &AskedKind,
+    vocabularies: &KindVocabularies,
+    matcher: PatternMatcher<'_>,
+) -> KindMatch {
     // A pattern, a prefix and a suffix are checked as the query compares them: against the kinds, not as an exact kind.
     let test = match asked.test {
         Test::GlobAny | Test::NotGlobAny => Test::GlobAny,
@@ -148,7 +157,7 @@ pub(crate) fn names_a_kind(asked: &AskedKind, vocabularies: &KindVocabularies) -
     };
     let named = vocabularies.0.iter().any(|vocabulary| {
         vocabulary.kinds.iter().any(|kind| {
-            satisfies(test, TextView(&kind.0), TextView(&asked.word.0)) == Verdict::Holds
+            satisfies(test, TextView(&kind.0), TextView(&asked.word.0), matcher) == Verdict::Holds
         })
     });
     if named {
@@ -178,12 +187,13 @@ pub(crate) fn first_unknown(
     plans: &[Plan],
     bindings: &[Vec<ParameterBinding>],
     vocabularies: &KindVocabularies,
+    matcher: PatternMatcher<'_>,
 ) -> Option<UnknownKind> {
     plans.iter().enumerate().find_map(|(at, plan)| {
         let bound = bindings.get(at).map_or(&[][..], Vec::as_slice);
         kinds_asked(plan, bound)
             .into_iter()
-            .find(|asked| names_a_kind(asked, vocabularies) == KindMatch::Nothing)
+            .find(|asked| names_a_kind(asked, vocabularies, matcher) == KindMatch::Nothing)
             .map(|asked| UnknownKind {
                 rule: RulePlace(at),
                 word: asked.word,
@@ -195,24 +205,30 @@ pub(crate) fn first_unknown(
 /// What is said of a word that names no kind: the word and the languages that were looked in.
 #[must_use]
 pub(crate) fn unknown_message(word: &KindWord, vocabularies: &KindVocabularies) -> KindRefusal {
-    KindRefusal(
-        format!(
-            "kind `{}` names no kind of {}",
-            word.0,
-            languages_of(vocabularies).0
-        )
-        .into(),
-        None,
-    )
+    KindRefusal {
+        message: KindMessage(
+            format!(
+                "kind `{}` names no kind of {}",
+                word.0,
+                languages_of(vocabularies).0
+            )
+            .into(),
+        ),
+        origin: KindOrigin::Unrecorded,
+    }
 }
 
 /// Why a query refuses to name a kind: the message for the first word it writes for a kind that no language of `vocabularies` has,
 /// or nothing when every word names one. Words that depend on a parameter are not known before the run and are not asked.
 #[must_use]
-pub fn refusal(plan: &Plan, vocabularies: &KindVocabularies) -> Option<KindRefusal> {
-    first_unknown(std::slice::from_ref(plan), &[Vec::new()], vocabularies).map(|unknown| {
+pub fn refusal(
+    plan: &Plan,
+    vocabularies: &KindVocabularies,
+    matcher: PatternMatcher<'_>,
+) -> Option<KindRefusal> {
+    first_unknown(std::slice::from_ref(plan), &[Vec::new()], vocabularies, matcher).map(|unknown| {
         let mut refusal = unknown_message(&unknown.word, vocabularies);
-        refusal.1 = unknown.origin;
+        refusal.origin = unknown.origin;
         refusal
     })
 }

@@ -4,7 +4,8 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
-use crate::domain::operator::contract::{failure::FailureLatch, views::BorrowedRows};
+use crate::domain::operator::contract::failure::FailureLatch;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::domain::ordered_match::types::OrderedMatchDriver;
 use ryo_operators::domain::contract::types::PortableOperatorFault;

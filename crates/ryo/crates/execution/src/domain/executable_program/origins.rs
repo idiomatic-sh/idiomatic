@@ -103,7 +103,7 @@ pub(super) fn rule_programs(
                         .ok_or_else(missing)?
                         .slots
                         .iter()
-                        .position(|slot| slot.rule == rule && slot.input == *id)
+                        .position(|slot| slot.rule.0 == rule && slot.input == *id)
                         .ok_or_else(missing)?;
                     Ok(InputSource::Observation(ObservationPlace(slot)))
                 }

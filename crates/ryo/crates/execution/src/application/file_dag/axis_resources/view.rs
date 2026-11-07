@@ -4,12 +4,14 @@ use crate::domain::{
     operating::errors::OperatingError,
     operator::contract::{
         axis::PreparedAxis,
-        views::{BorrowedRows, IndexedRows},
+        views::{IndexedRows},
     },
     table_cells::types::TreeRows,
 };
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_derived::domain::membership::types::MembershipView;
+use ryo_derived::domain::positions::types::DenseMarks;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 pub(crate) enum AxisResource<'f> {
@@ -38,8 +40,8 @@ impl AxisResource<'_> {
                 membership,
             } => {
                 let marks = match membership.as_ref().map(AcquiredView::view).transpose()? {
-                    Some(DerivedView::Membership(MembershipView::Dense(ryo_derived::domain::positions::types::DenseMarks(marks)))) => marks,
-                    None if among.is_some() => &[],
+                    Some(DerivedView::Membership(MembershipView::Dense(marks))) => marks,
+                    None if among.is_some() => DenseMarks(&[]),
                     _ => return Err(OperatingError::WrongBinding),
                 };
                 Ok(PreparedAxis::Native {

@@ -5,7 +5,7 @@ use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::owner::selection::literals::service::first_literal;
 use crate::application::file_dag::derived::owner::selection::types::*;
 use crate::domain::{
-    derived_views::types::DerivedContract,
+    derived_views::types::contract::value::DerivedContract,
     operating::{errors::OperatingError, types::OperatorContext},
     stored_selection::types::Selector,
     table_texts::types::Texts,
@@ -49,7 +49,7 @@ pub(in crate::application::file_dag::derived::owner::selection) fn prepare_activ
     let mut groups = std::collections::BTreeMap::<(_, _), Vec<LiteralText>>::new();
     for selector in &cache.selectors {
         tracing::trace!(target: activation::TARGET, event = activation::FANOUT);
-        let Some(prepared) = views.by_selector.get(&(Arc::as_ptr(selector) as usize)) else {
+        let Some(prepared) = views.by_selector.get(&crate::domain::derived_views::types::SelectorAddress(Arc::as_ptr(selector) as usize)) else {
             continue;
         };
         let Some(kinds) = prepared.postings.schemas.first() else {
@@ -79,7 +79,7 @@ pub(in crate::application::file_dag::derived::owner::selection) fn prepare_activ
         .filter(|bytes| *bytes <= cache.limit)
     {
         cache.bytes = bytes;
-        cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
+        cache.graph_counts.peak_bytes.0 = cache.graph_counts.peak_bytes.0.max(bytes);
         cache.active_postings = active;
     }
 }
@@ -134,7 +134,7 @@ pub(in crate::application::file_dag::derived::owner::selection) fn fanout_candid
         .share_posting_positions(ryo_values::domain::row_texts::types::CellText(wanted))
         .ok_or(OperatingError::WrongOperation)?;
     if acquired.construction() == Construction::Built {
-        cache.selection_counts.scanned += population as u64;
+        cache.selection_counts.scanned.0 += population as u64;
     }
     let path = if acquired.construction() == Construction::Built {
         SelectionPath::FanoutBuilt
@@ -142,7 +142,7 @@ pub(in crate::application::file_dag::derived::owner::selection) fn fanout_candid
         SelectionPath::FanoutReused
     };
     Ok(Some(FanoutHit {
-        rows: SelectedPositions(Arc::clone(&rows.0)),
+        rows: crate::domain::stored_selection::types::SelectedPositions(Arc::clone(&rows.0)),
         resource: acquired,
         path,
     }))

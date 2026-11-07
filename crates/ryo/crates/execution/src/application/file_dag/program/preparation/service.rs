@@ -1,7 +1,7 @@
 //! Immutable request preparation, physical metadata and compilation ownership.
 use super::types::*;
 use crate::domain::coverage::types::RuleIndex;
-use crate::domain::executable_program::file_demand::types::FrontierPurpose;
+use crate::domain::file_program::types::FrontierPurpose;
 use crate::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::prepared_request::types::Compiled;
@@ -49,7 +49,7 @@ impl PreparedProgram {
     pub(in crate::application::file_dag::program) fn native_order(
         &self,
         region: crate::domain::executable_program::types::RegionId,
-    ) -> Result<Option<Arc<crate::domain::derived_views::types::DerivedContract>>, OperatingError>
+    ) -> Result<Option<Arc<crate::domain::derived_views::types::contract::value::DerivedContract>>, OperatingError>
     {
         self.native_orders
             .get(region.0)
@@ -256,7 +256,7 @@ pub(crate) fn prepare(
             outputs: named.outputs.iter().map(|outputs| outputs.iter().map(|output| OutputMetadata {
                 root: match output.root { crate::domain::file_program::types::GraphObservationRoot::PerFile(_) => OutputRoot::PerFile,
                     crate::domain::file_program::types::GraphObservationRoot::CrossFile => OutputRoot::CrossFile,
-                    crate::domain::file_program::types::GraphObservationRoot::Unavailable => OutputRoot::Unavailable }, consumers: output.consumers.iter().copied().map(RuleIndex).collect(),
+                    crate::domain::file_program::types::GraphObservationRoot::Unavailable => OutputRoot::Unavailable }, consumers: output.consumers.clone(),
             }).collect()).collect(),
             retire: named.retire.clone(),
             consumers: named
@@ -265,7 +265,7 @@ pub(crate) fn prepare(
                 .map(|outputs| {
                     outputs
                         .iter()
-                        .map(|output| output.consumers.iter().copied().map(RuleIndex).collect())
+                        .map(|output| output.consumers.clone())
                         .collect()
                 })
                 .collect(),
@@ -277,22 +277,9 @@ pub(crate) fn prepare(
         .unwrap_or_else(|| {
             plans
                 .iter()
-                .map(|plan| vec![false; plan.frontier.len()])
+                .map(|plan| vec![FrontierPurpose::Diagnostic; plan.frontier.len()])
                 .collect()
-        })
-        .into_iter()
-        .map(|rule| {
-            rule.into_iter()
-                .map(|observed| {
-                    if observed {
-                        FrontierPurpose::Observation
-                    } else {
-                        FrontierPurpose::Diagnostic
-                    }
-                })
-                .collect()
-        })
-        .collect();
+        });
     let program = Arc::new(crate::domain::executable_program::service::compile(
         &plans,
         graph,

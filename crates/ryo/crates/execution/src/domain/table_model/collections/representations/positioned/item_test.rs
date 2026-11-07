@@ -1,8 +1,9 @@
 //! The actual item validates tuple geometry before exposing borrowed cells.
 use super::super::{
     interface::RepresentationsItem,
-    types::{CellRead, PhysicalShape, RepresentationInput},
+    types::{CellRead, PhysicalShape},
 };
+use crate::domain::table_model::types::RepresentationInput;
 use super::item::PositionedItem;
 use crate::domain::{
     lowering::types::{ElementPart, LoweredColumn, LoweredShape, RowPosition, RowWidth},
@@ -14,7 +15,10 @@ use crate::domain::{
 use ryo_language::domain::{elements::types::Elements, symbols::types::{ByteSlice, Symbols}};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder};
 use ryo_relations::domain::relations::types::{CellKind, FileId, KindBits, Offset, Value as Cell};
-use ryo_values::domain::{plan_parts::types::ColumnIndex, rows::types::RowIndex};
+use ryo_values::domain::{
+    plan_parts::types::ColumnIndex,
+    rows::types::{RowCount, RowIndex},
+};
 fn input<'a>(
     tree: TreeRows<'a>,
     positions: &'a Positions,
@@ -56,7 +60,7 @@ fn tuple_geometry_preserves_bags_and_refuses_invalid_coordinates() -> Result<(),
         PositionedItem.inspect(&contract),
         Ok(PhysicalShape::Complete)
     );
-    assert_eq!(contract.rows, 2);
+    assert_eq!(contract.rows, RowCount(2));
     for row in [RowIndex(0), RowIndex(1)] {
         assert_eq!(
             PositionedItem.cell(contract.input, row, ColumnIndex(0)),

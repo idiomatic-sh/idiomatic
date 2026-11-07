@@ -55,7 +55,7 @@ impl OperatorsItem for ReplaceItem {
             return Err(OperatingError::ShapeMismatch);
         };
         let regex = lease.views.regex.ok_or(OperatingError::WrongBinding)?;
-        let mut changed = std::mem::take(&mut lease.workspace.text);
+        let mut changed = std::mem::take(&mut lease.workspace.text.0);
         let answer = lease.semantics().operators(
             ryo_operators::inbound::use_cases::operators::types::OperatorCall::Replace {
                 regex,
@@ -67,7 +67,7 @@ impl OperatorsItem for ReplaceItem {
         let replacement_result =
             crate::domain::operator::contract::types::written_result(answer, None);
         if let Err(error) = replacement_result {
-            lease.workspace.text = changed;
+            lease.workspace.text.0 = changed;
             return Err(error);
         }
         let made = query_intern_derived(
@@ -75,7 +75,7 @@ impl OperatorsItem for ReplaceItem {
             ByteSlice(lease.views.source.0),
             NameText(&changed),
         );
-        lease.workspace.text = changed;
+        lease.workspace.text.0 = changed;
         let after = lease.views.phase;
         let appended = minted(lease.derived.as_ref(), made, after);
         let mut joined = std::mem::take(&mut lease.workspace.row);

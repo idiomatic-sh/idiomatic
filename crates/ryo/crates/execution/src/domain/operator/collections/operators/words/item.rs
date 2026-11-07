@@ -2,6 +2,7 @@
 use super::super::interface::OperatorsItem;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::service::minted;
+use crate::domain::operating::types::AfterTheFiles;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
@@ -9,12 +10,32 @@ use crate::domain::table_texts::service::datum;
 use crate::domain::table_texts::types::{Datum, Texts};
 use ryo_language::domain::symbols::service::query_intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_operators::domain::words::types::WordOutput;
+use ryo_relations::domain::relations::types::Value;
 use ryo_relations::domain::terms::types::NameText;
+use ryo_values::domain::row_texts::types::CellText;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rows::service::cell;
 pub(crate) struct WordsItem;
+/// Interns each word of a text as derived text.
+struct WordInterner<'a, 'engine> {
+    lease: &'a mut PrimitiveLease<'engine>,
+    captured: &'a mut Vec<Value>,
+    after: AfterTheFiles,
+}
+impl WordOutput for WordInterner<'_, '_> {
+    fn word(&mut self, text: CellText<'_>) {
+        let made = query_intern_derived(
+            &mut self.lease.derived,
+            ByteSlice(self.lease.views.source.0),
+            NameText(text.0),
+        );
+        self.captured
+            .push(minted(self.lease.derived.as_ref(), made, self.after));
+    }
+}
 impl OperatorsItem for WordsItem {
     fn prepare(
         &self,
@@ -52,7 +73,7 @@ impl OperatorsItem for WordsItem {
             return Ok(());
         };
         // Own the input while derived interning may grow the symbol table.
-        let mut text = std::mem::take(&mut lease.workspace.text);
+        let mut text = std::mem::take(&mut lease.workspace.text.0);
         text.clear();
         text.push_str(value.0);
         let after = lease.views.phase;
@@ -60,24 +81,23 @@ impl OperatorsItem for WordsItem {
         captured.clear();
         let width = 1;
         let mut word = std::mem::take(&mut lease.workspace.word);
-        let answer = lease.semantics().operators(
+        let semantics = lease.semantics();
+        let mut interner = WordInterner {
+            lease: &mut *lease,
+            captured: &mut captured,
+            after,
+        };
+        let answer = semantics.operators(
             ryo_operators::inbound::use_cases::operators::types::OperatorCall::Words {
                 text: ryo_values::domain::row_texts::types::CellText(&text),
                 word: ryo_operators::domain::words::types::WordScratch(&mut word.0),
-                each: &mut |each: &str| {
-                    let made = query_intern_derived(
-                        &mut lease.derived,
-                        ByteSlice(lease.views.source.0),
-                        NameText(each),
-                    );
-                    captured.push(minted(lease.derived.as_ref(), made, after));
-                },
+                each: &mut interner,
             },
         );
         let result = crate::domain::operator::contract::types::written_result(answer, None);
         if let Err(error) = result {
             lease.workspace.captured = captured;
-            lease.workspace.text = text;
+            lease.workspace.text.0 = text;
             lease.workspace.word = word;
             return Err(error);
         }
@@ -98,7 +118,7 @@ impl OperatorsItem for WordsItem {
         })();
         lease.workspace.row = joined;
         lease.workspace.captured = captured;
-        lease.workspace.text = text;
+        lease.workspace.text.0 = text;
         lease.workspace.word = word;
         result
     }

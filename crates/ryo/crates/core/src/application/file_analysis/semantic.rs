@@ -64,7 +64,7 @@ impl SemanticLookup for SemanticState {
     fn render_batch(
         &self,
         requests: &[RenderRequest],
-        source: &[u8],
+        source: ryo_values::domain::files::types::SourceView<'_>,
     ) -> Result<Vec<RenderOutcome>, OperatingError> {
         // Deduplicate only this invocation. Retaining answers across invocations
         // requires admission through the common owner and is not done here.
@@ -84,7 +84,7 @@ impl SemanticLookup for SemanticState {
                     reason: THE_SELECTED_LANGUAGE_DOES_NOT_OFFER.into(),
                 });
             };
-            let answers = session.render_batch(ByteSlice(source), &unique)?;
+            let answers = session.render_batch(ByteSlice(source.0), &unique)?;
             if answers.len() != unique.len() {
                 return Err(OperatingError::SemanticBatchShape);
             }

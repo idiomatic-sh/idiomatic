@@ -3,7 +3,8 @@ use crate::application::file_dag::invocation::prepared_use::service::prepared;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::contract::types::OperatorContract;
-use crate::domain::operator::contract::views::BorrowedRows;
+
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use crate::domain::table_groups::types::Group;
 use crate::domain::table_texts::types::Texts;
 use ryo_derived::domain::key::types::On;
@@ -21,7 +22,7 @@ fn materialized(input: BorrowedRows<'_>) -> Table {
         ..Table::default()
     };
     let mut row = Vec::new();
-    for at in 0..input.count() {
+    for at in 0..input.count().0 {
         if let Some(row) = input.read(RowIndex(at), &mut row) {
             push_row(&mut table, row);
         }

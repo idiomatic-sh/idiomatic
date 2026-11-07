@@ -26,7 +26,8 @@ impl AdmittedViewInputs<'_> {
         inputs: &DerivedInputs<'_, '_>,
     ) -> Result<(), OperatingError> {
         self.origin.validate(owner, plan)?;
-        use crate::domain::operator::contract::views::BorrowedRows;
+
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
         let admitted_rows = match (&self.sources, inputs) {
             (AcquisitionSources::Raw, DerivedInputs::RawWords(_)) => return Ok(()),
             (

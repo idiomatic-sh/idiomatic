@@ -1,8 +1,5 @@
 //! Physical completeness policy independent of execution scheduling.
-pub(crate) mod constants;
 pub(crate) mod service;
 #[cfg(test)]
 mod service_test;
-#[cfg(test)]
-mod anchoring_test;
 pub(crate) mod types;

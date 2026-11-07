@@ -26,7 +26,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adja
     owner: &DerivedOwner,
     population: PopulationId,
     admitted: &AdmittedViewInputs<'_>,
-    plan: &std::sync::Arc<crate::domain::derived_views::types::DerivedContract>,
+    plan: &std::sync::Arc<crate::domain::derived_views::types::contract::value::DerivedContract>,
     source: crate::domain::stored_graph::types::GraphSource,
     rows: &Rows<'_>,
     cache: Option<&mut CacheBackend>,
@@ -41,7 +41,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adja
                 .graph_identity()
                 .is_some_and(|identity| identity.as_ref() == &source.identity)
     }) {
-        cache.graph_counts.reuses += 1;
+        cache.graph_counts.reuses.0 += 1;
         return Ok(Some(BuiltGraph {
             storage: Arc::clone(&entry.storage),
             construction: Construction::Reused,
@@ -56,7 +56,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adja
                 plan,
                 admitted,
                 crate::domain::derived_views::types::DerivedInputs::Adjacency {
-                    rows: crate::domain::operator::contract::views::BorrowedRows::from(rows),
+                    rows: crate::domain::table_model::types::RepresentationInput::from(rows),
                     source,
                 },
                 &mut crate::domain::derived_views::types::DerivedScratch::default(),
@@ -77,7 +77,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adja
         .ok_or(OperatingError::WrongOperation)?;
     let storage = Arc::new(storage);
     let backings = owner.graph_backings(&storage)?;
-    cache.graph_counts.builds += 1;
+    cache.graph_counts.builds.0 += 1;
     let shared =
         owner.retain_graph(cache, population, &storage, &backings, &graph)? == GraphSharing::Shared;
     tracing::trace!(target: constants::TARGET_GRAPH, event = constants::EVENT_ADJACENCY, reused = false, shared,
@@ -92,7 +92,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adja
 pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn domain(
     owner: &DerivedOwner,
     population: PopulationId,
-    plan: &Arc<crate::domain::derived_views::types::DerivedContract>,
+    plan: &Arc<crate::domain::derived_views::types::contract::value::DerivedContract>,
     admitted: &AdmittedViewInputs<'_>,
     access: &GraphHandle,
     identity: Option<crate::domain::stored_graph::types::DomainIdentity>,
@@ -126,7 +126,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
                 plan,
                 admitted,
                 crate::domain::derived_views::types::DerivedInputs::Membership {
-                    rows: crate::domain::operator::contract::views::BorrowedRows::from(rows),
+                    rows: crate::domain::table_model::types::RepresentationInput::from(rows),
                     space: crate::domain::derived_views::types::MembershipSpace::Dense(
                         access.graph().vertices(),
                     ),
@@ -146,7 +146,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
     }
     let domain = Arc::new(GraphDomain {
         identity,
-        members: Arc::clone(&members.0),
+        members,
     });
     let storage = Arc::new(storage);
     let mut backings = owner.graph_backings(&storage)?;
@@ -157,7 +157,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
     if let Some(rows) = domain
         .identity
         .as_ref()
-        .and_then(|id| id.population.positions.as_ref())
+        .and_then(|id| id.population.positions.as_ref().map(|positions| &positions.0))
     {
         append_backing(
             &mut dependencies,
@@ -185,7 +185,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
     if let Some(cache) = cache.as_mut() {
         owner.retain_domain(cache, population, access, &domain, &storage, &backings)?;
     }
-    tracing::trace!(target: constants::TARGET_GRAPH, event = constants::EVENT_DOMAIN, vertices = domain.members.len(), source_rows = count_of(rows).0, stable = domain.identity.is_some());
+    tracing::trace!(target: constants::TARGET_GRAPH, event = constants::EVENT_DOMAIN, vertices = domain.members.as_slice().len(), source_rows = count_of(rows).0, stable = domain.identity.is_some());
     Ok(BuiltDomain {
         storage,
         construction: Construction::Built,

@@ -14,7 +14,7 @@ pub(super) struct Headers<'a> {
     semantic: Option<&'a dyn crate::domain::operating::types::SemanticLookup>,
     pub(super) prepared_matchers:
         Option<&'a crate::domain::matching::types::prepared::value::PreparedMatchers>,
-    pub(super) prepared_kinds: Option<&'a crate::domain::kind_sets::types::PreparedVocabulary>,
+    pub(super) prepared_kinds: Option<&'a crate::domain::kind_sets::types::vocabulary::value::PreparedVocabulary>,
     pub(super) bindings: &'a [ryo_values::domain::query_bindings::types::ParameterBinding],
     pub(super) source: ryo_values::domain::files::types::SourceView<'a>,
     pub(super) paths: &'a [ryo_language::domain::files::types::FilePath],
@@ -45,6 +45,7 @@ impl<'a> Headers<'a> {
             phase: self.phase,
             semantic: self.semantic,
             prepared_matchers: self.prepared_matchers,
+            matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
             prepared_kinds: self.prepared_kinds,
             bindings: self.bindings,
             symbols: query_reborrow(symbols),

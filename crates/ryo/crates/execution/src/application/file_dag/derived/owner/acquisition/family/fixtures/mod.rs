@@ -12,11 +12,11 @@ use crate::domain::{
     derived_views::types::{DerivedInputs, DerivedScratch, ViewRequest},
     operating::errors::OperatingError,
     operation_schema::types::InputShape,
-    operator::contract::views::BorrowedRows,
     positions::service_test::{SMALL_SOURCE, SmallTree, small_tree},
     table_cells::types::{TreeForm, TreeRows},
     table_model::types::Rows,
 };
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use crate::application::file_dag::relations::publication::types::ProducerScope;
 use crate::domain::executable_program::types::RegionId;
 use ryo_derived::domain::request::types::DerivedKind;

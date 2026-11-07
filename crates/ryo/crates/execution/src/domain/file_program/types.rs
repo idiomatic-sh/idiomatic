@@ -4,39 +4,25 @@ use crate::domain::self_join_recogniser::types::{Decline, Shape};
 use ryo_relations::domain::relations::types::Relation;
 use std::sync::Arc;
 
+pub(crate) mod canonical_operation;
+pub(crate) mod fingerprint;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct NodeId(pub usize);
+pub(crate) struct ProgramNodeId(pub usize);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum NodeInput {
     Relation(Relation),
-    Node(NodeId),
+    Node(ProgramNodeId),
     /// A named input reads already-published producer roots, never demands them under this rule.
     Observation(ObservationGraphInputId),
-}
-
-/// A plan input read as the node edge it stands for.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ResolvedInput {
-    /// The plan input, with a step read as the first step.
-    pub input: ryo_values::domain::plan_parts::types::Input,
-    /// The node edge the input is.
-    pub edge: NodeInput,
-}
-
-/// An operation with its step numbers normalized, and the node edges it reads.
-pub(crate) struct CanonicalOperation {
-    /// The operation read by its normalized inputs.
-    pub operation: ryo_values::domain::plans::types::Operation,
-    /// The node edges, in input order.
-    pub inputs: Vec<NodeInput>,
 }
 
 /// What the one analysis of a rule found for one of its steps: the native shape the step lowers to
 /// and the column chain it ends. It holds neither the plan nor a layout, and no evaluator.
 #[derive(Debug)]
 pub(crate) struct StepAnalysis {
-    pub rule: usize,
+    pub rule: crate::domain::coverage::types::RuleIndex,
     pub step: ryo_values::domain::plan_parts::types::StepId,
     pub native: Option<Arc<crate::domain::lowering::types::LoweredShape>>,
     pub column: Option<crate::domain::column_kernel::types::Chain>,
@@ -56,20 +42,20 @@ pub(crate) struct FileProgramNode {
     /// Ordered typed dependencies retained for the central executor.
     pub inputs: Vec<NodeInput>,
     /// Invalid synthetic plans keep ordinary error order instead of DAG admission.
-    pub schema_valid: bool,
+    pub schema_valid: SchemaValidity,
 }
 
 #[derive(Debug)]
 pub(crate) struct RequestGraph {
     /// Every original step, including terminal and project steps. Invalid
     /// references are deferred faults, never a choice of another scheduler.
-    pub program_nodes: Vec<Vec<Result<NodeId, crate::domain::operating::errors::OperatingError>>>,
+    pub program_nodes: Vec<Vec<Result<ProgramNodeId, crate::domain::operating::errors::OperatingError>>>,
     /// Reviewed alternatives indexed by their replaced Select producer.
     pub ordered_existence: Vec<Option<ResolvedAlternative>>,
     /// Named roots extend this request graph; ordinary requests retain no observation allocation.
     pub observations: Option<GraphObservations>,
     /// Producers of declared derived inputs, computed once for the whole request.
-    pub derived_sources: Vec<bool>,
+    pub derived_sources: DerivedSources,
     pub nodes: Vec<FileProgramNode>,
 }
 
@@ -130,13 +116,13 @@ pub(crate) enum ObservationRequest<'a> {
 /// Stable local bound input qualified by its original consumer index.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct ObservationSlot {
-    pub rule: usize,
+    pub rule: crate::domain::coverage::types::RuleIndex,
     pub input: ryo_values::domain::plan_parts::types::ObservationBindingId,
 }
 /// Actual prepared root location; unsupported admission never becomes complete-empty.
 #[derive(Clone, Debug)]
 pub(crate) enum GraphObservationRoot {
-    PerFile(NodeId),
+    PerFile(ProgramNodeId),
     CrossFile,
     Unavailable,
 }
@@ -144,7 +130,7 @@ pub(crate) enum GraphObservationRoot {
 #[derive(Clone, Debug)]
 pub(crate) struct GraphObservationOutput {
     pub root: GraphObservationRoot,
-    pub consumers: Vec<usize>,
+    pub consumers: Vec<crate::domain::coverage::types::RuleIndex>,
 }
 /// The existing request graph owns both typed binding edges and root lifetime declarations.
 #[derive(Debug)]
@@ -153,7 +139,7 @@ pub(crate) struct GraphObservations {
     /// Request-qualified bound slots; graph edges carry a compact ID rather than widening every ordinary edge.
     pub slots: Vec<ObservationSlot>,
     /// Frontier buckets actually needed by authored observations, prepared once.
-    pub observation_frontiers: Vec<Vec<bool>>,
+    pub observation_frontiers: Vec<Vec<FrontierPurpose>>,
     /// Logical output status slots in stable rule/output order; aliases may share a physical bucket.
     pub frontiers: Vec<ObservedFrontierRoot>,
     /// Prepared outgoing retirement edges, indexed by original consumer rule.
@@ -187,7 +173,7 @@ pub struct ObservedFrontierRoot {
     pub frontier: ryo_values::domain::plan_parts::types::InputNumber,
 }
 
-/// One request-wide binding slot; its payload is the same width as an ordinary NodeId edge.
+/// One request-wide binding slot; its payload is the same width as an ordinary ProgramNodeId edge.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct ObservationGraphInputId(pub usize);
 
@@ -195,9 +181,9 @@ pub(crate) struct ObservationGraphInputId(pub usize);
 #[derive(Clone, Debug)]
 pub(crate) struct ResolvedShape {
     pub shape: Shape,
-    pub source: NodeId,
-    pub join: NodeId,
-    pub select: NodeId,
+    pub source: ProgramNodeId,
+    pub join: ProgramNodeId,
+    pub select: ProgramNodeId,
     /// Exact logical output layout consumed by the unchanged Project.
     pub output: Vec<ryo_values::domain::plan_parts::types::JoinColumn>,
 }
@@ -206,4 +192,59 @@ pub(crate) struct ResolvedShape {
 pub(crate) enum ResolvedAlternative {
     Eligible(ResolvedShape),
     Declined(Decline),
+}
+
+/// Where the binding slots of one rule start among the binding slots of the request.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct BindingOffset(pub usize);
+
+/// How many bound inputs a plan declares.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct BindingCount(pub usize);
+
+/// The steps of one plan that linking keeps, by the step's place.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct WantedSteps(pub Vec<bool>);
+
+/// The named outputs of one plan that a consumer reads, by the output's place.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ExportedOutputs(pub Vec<bool>);
+
+/// The named outputs of one plan that a cross-file step reads, by the output's place.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct EscapingOutputs(pub Vec<bool>);
+
+/// The bound inputs of one rule that a kept step reads, by the input's place.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct UsedInputs(pub Vec<bool>);
+
+/// A step of one rule that linking has still to follow.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct PendingStep {
+    /// The rule the step belongs to.
+    pub rule: crate::domain::coverage::types::RuleIndex,
+    /// The step to follow.
+    pub step: ryo_values::domain::plan_parts::types::StepId,
+}
+
+/// The nodes of a request graph that a derived view reads, by the node's place.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct DerivedSources(pub Vec<bool>);
+
+/// What a retained frontier of rows is kept for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum FrontierPurpose {
+    /// The rows are read by the diagnostic emit only.
+    Diagnostic,
+    /// The rows are read by a named observation.
+    Observation,
+}
+
+/// Whether the contract of a node and of everything it reads has a valid schema.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SchemaValidity {
+    /// Every schema is valid.
+    Valid,
+    /// A schema is invalid; ordinary error order applies instead of DAG admission.
+    Invalid,
 }

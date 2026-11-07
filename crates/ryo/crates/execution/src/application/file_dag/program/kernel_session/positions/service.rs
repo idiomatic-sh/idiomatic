@@ -8,10 +8,10 @@ use crate::{
     application::file_dag::workspace::InvocationWorkspace,
     domain::{
         operating::{errors::OperatingError, types::OperatorContext},
-        operator::contract::views::BorrowedRows,
         table_model::{service::count_of, types::Rows},
     },
 };
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use std::rc::Rc;
 
 impl super::super::KernelSession<'_, '_> {
@@ -39,6 +39,7 @@ impl super::super::KernelSession<'_, '_> {
             phase: context.phase,
             semantic: context.semantic,
             prepared_matchers: context.prepared_matchers,
+            matcher: context.matcher,
             prepared_kinds: context.prepared_kinds,
             bindings: self
                 .prepared
@@ -151,7 +152,7 @@ impl super::super::KernelSession<'_, '_> {
                 return Err(InvocationFailure::Semantic(OperatingError::ShapeMismatch));
             }
             let selected = shared.result();
-            workspace.work.found(0, shared.visits().0);
+            workspace.work.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(shared.visits().0));
             selected
                 .completion
                 .clone()

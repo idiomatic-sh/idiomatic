@@ -26,13 +26,13 @@ fn different_projections_and_positions_have_distinct_admissions_and_correct_valu
         source,
         selection: Arc::new(StoredSelection {
             relation: Relation::SourceLocation,
-            rows: Arc::clone(&first.selection.rows),
+            rows: first.selection.rows.clone(),
             columns: vec![numeric[0], numeric[1], numeric[0]],
             kinds: vec![CellKind::Number; 3],
             identity: Arc::clone(&first.selection.identity),
         }),
     };
-    assert!(Arc::ptr_eq(&first.selection.rows, &second.selection.rows));
+    assert!(Arc::ptr_eq(&first.selection.rows.0, &second.selection.rows.0));
     let shifted = selected(
         source,
         vec![0, 1, 0],

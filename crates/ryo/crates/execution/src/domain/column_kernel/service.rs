@@ -1,13 +1,17 @@
 //! Compile and run only a complete selected-left/stored-right join, total equality
 //! filter, and terminal distinct projection. Every other shape uses the executor.
 
-use super::types::{Chain, KernelPlan};
+use super::types::{
+    CellsDecoded, Chain, ChainsRun, JoinedHits, KernelMeasure, KernelPlan, RowsCovered, RowsFiltered,
+    SymbolFilter,
+};
 use crate::domain::lowering::types::Counting;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::{
     types::{PrimitiveSemantics, join_result},
-    views::{BorrowedRows, IndexedRows},
+    views::{IndexedRows},
 };
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use crate::domain::operator::types::PlanLayout;
 
 use ryo_operators::domain::equality_join::types::JoinInput;
@@ -29,12 +33,7 @@ use ryo_values::domain::plan_parts::types::StepScope;
 /// A typed equality against authored text has no row-dependent error. Nonempty
 /// text also cannot match a malformed Symbol that the ordinary evaluator reads
 /// as empty. Other comparisons retain their original evaluation and error order.
-fn total_symbol_filter(
-    comparisons: &[PlanComparison],
-) -> Option<(
-    ryo_values::domain::plan_parts::types::ColumnIndex,
-    ryo_values::domain::plan_parts::types::LiteralText,
-)> {
+fn total_symbol_filter(comparisons: &[PlanComparison]) -> Option<SymbolFilter> {
     let [comparison] = comparisons else {
         return None;
     };
@@ -46,7 +45,10 @@ fn total_symbol_filter(
         | (Operand::Literal(QueryLiteral::Text(text)), Operand::Column(column)) => (column, text),
         _ => return None,
     };
-    (!text.0.is_empty()).then(|| (*column, text.clone()))
+    (!text.0.is_empty()).then(|| SymbolFilter {
+        column: *column,
+        literal: text.clone(),
+    })
 }
 
 /// Prepare immutable chains under the same plan/layout identity as the executor.
@@ -80,7 +82,11 @@ pub(crate) fn compile(plan: &Plan, layout: &PlanLayout) -> KernelPlan {
         if !kept.is_empty() {
             continue;
         }
-        let Some((filter_column, literal)) = total_symbol_filter(comparisons) else {
+        let Some(SymbolFilter {
+            column: filter_column,
+            literal,
+        }) = total_symbol_filter(comparisons)
+        else {
             continue;
         };
         let join_id = join_step.0 as usize;
@@ -154,7 +160,7 @@ pub(crate) fn compile(plan: &Plan, layout: &PlanLayout) -> KernelPlan {
             continue;
         };
         chains[target] = Some(Chain {
-            left_step: left_id,
+            left_step: *left_step,
             filter_step: ryo_values::domain::plan_parts::types::StepId(filter_id as u32),
             join_step: ryo_values::domain::plan_parts::types::StepId(join_id as u32),
             right: *right,
@@ -183,14 +189,14 @@ pub(crate) fn execute_with_index(
     target: &mut Table,
     kinds: &[CellKind],
     counts: &mut super::types::KernelCounts,
-) -> Result<Option<(u64, u64, u64)>, OperatingError> {
+) -> Result<Option<KernelMeasure>, OperatingError> {
     let left_count = crate::domain::table_model::service::count_of(left).0;
     reset(target, kinds);
     let mut key = Vec::with_capacity(chain.left_on.len());
     let mut projected = Vec::with_capacity(chain.projected.len());
-    let decoded = std::cell::Cell::new(0_u64);
-    let hits = std::cell::Cell::new(0_u64);
-    let emitted = std::cell::Cell::new(0_u64);
+    let decoded = std::cell::Cell::new(CellsDecoded(0));
+    let hits = std::cell::Cell::new(JoinedHits(0));
+    let emitted = std::cell::Cell::new(RowsFiltered(0));
     let indexed = IndexedRows {
         #[cfg(feature = "diagnostic-row-progress")]
         progress: semantics.progress(),
@@ -198,14 +204,14 @@ pub(crate) fn execute_with_index(
         columns: &chain.right_on,
         index,
     };
-    let covered = std::cell::Cell::new(0_u64);
+    let covered = std::cell::Cell::new(RowsCovered(0));
     let result: Result<(), OperatingError> = (|| {
         for position in 0..left_count {
-            covered.set(covered.get().saturating_add(1));
+            covered.set(RowsCovered(covered.get().0.saturating_add(1)));
             #[cfg(feature = "diagnostic-row-progress")]
             (semantics.progress())(
                 crate::domain::operator::contract::views::ProgressCounter::InputRows,
-                1,
+                crate::domain::operator::contract::views::ProgressAmount(1),
             );
             let left_row = RowIndex(position);
             let reader = driver::Left {
@@ -213,7 +219,7 @@ pub(crate) fn execute_with_index(
                 row: left_row,
                 decoded: &decoded,
             };
-            let mut driver = driver::Driver {
+            let mut driver = driver::ChainDriver {
                 chain,
                 left,
                 left_row,
@@ -244,14 +250,18 @@ pub(crate) fn execute_with_index(
         }
         Ok(())
     })();
-    counts.eligible_chains = counts.eligible_chains.saturating_add(1);
-    counts.covered_rows = counts.covered_rows.saturating_add(covered.get());
-    counts.decoded_cells = counts.decoded_cells.saturating_add(decoded.get());
-    counts.joined_hits = counts.joined_hits.saturating_add(hits.get());
-    counts.filtered_rows = counts.filtered_rows.saturating_add(emitted.get());
+    counts.eligible_chains = ChainsRun(counts.eligible_chains.0.saturating_add(1));
+    counts.covered_rows = RowsCovered(counts.covered_rows.0.saturating_add(covered.get().0));
+    counts.decoded_cells = CellsDecoded(counts.decoded_cells.0.saturating_add(decoded.get().0));
+    counts.joined_hits = JoinedHits(counts.joined_hits.0.saturating_add(hits.get().0));
+    counts.filtered_rows = RowsFiltered(counts.filtered_rows.0.saturating_add(emitted.get().0));
     result?;
     crate::domain::table_dedup::service::distinct(target, &mut hashbrown::HashTable::new());
-    Ok(Some((emitted.get(), decoded.get(), hits.get())))
+    Ok(Some(KernelMeasure {
+        emitted: emitted.get(),
+        decoded: decoded.get(),
+        hits: hits.get(),
+    }))
 }
 
 use ryo_values::domain::rows::types::{RowIndex, Table};

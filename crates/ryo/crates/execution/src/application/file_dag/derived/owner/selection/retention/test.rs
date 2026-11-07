@@ -52,6 +52,7 @@ fn retained_selections_keep_spare_owner_capacity_and_bounded_reacquisition() -> 
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
+        matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b""),
@@ -77,8 +78,8 @@ fn retained_selections_keep_spare_owner_capacity_and_bounded_reacquisition() -> 
         .select(&first, source, &mut context)?
         .expect("shared repeated result");
     assert!(Arc::ptr_eq(
-        &selected.selection.rows,
-        &repeated.selection.rows
+        &selected.selection.rows.0,
+        &repeated.selection.rows.0
     ));
     let after_reuse = fixture.snapshot(Some(&first));
     assert_eq!(after_reuse.descriptor_address, Some(descriptor));
@@ -128,10 +129,12 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
     use crate::domain::{
         derived_views::types::*,
         operation_schema::types::InputShape,
-        operator::contract::views::{BorrowedRows, PredicateProgram},
+        operator::contract::views::{PredicateProgram},
         stored_selection::types::Selector,
-        table_model::types::{SelectionIdentity, Verdict},
+        stored_selection::types::SelectionIdentity,
+        table_model::types::Verdict,
     };
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
     use ryo_relations::domain::relations::types::Value;
 
     struct AlwaysHolds;
@@ -147,7 +150,7 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
             bindings: vec![],
         }),
         columns: vec![],
-        distinct: false,
+        distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
     });
     let fixture = SelectionFixture::new(
         &[Relation::Function],
@@ -243,6 +246,7 @@ fn selecting_never_prepares_an_unknown_selector_identity() -> Result<(), Failure
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
+        matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b""),
@@ -273,7 +277,7 @@ fn every_possible_discriminator_column_is_prepared_once() -> Result<(), Failure>
         ColumnIndex, PlanComparison, Operand, QueryLiteral, Test,
     };
     let mut selector = (*program(2)).clone();
-    selector.identity = Arc::new(crate::domain::table_model::types::SelectionIdentity {
+    selector.identity = Arc::new(crate::domain::stored_selection::types::SelectionIdentity {
         comparisons: vec![1, 2]
             .into_iter()
             .map(|column| PlanComparison {
@@ -293,7 +297,7 @@ fn every_possible_discriminator_column_is_prepared_once() -> Result<(), Failure>
             crate::outbound::derived::factory::semantics(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     )?;
-    let plans = &views.by_selector[&(Arc::as_ptr(&selector) as usize)].equalities;
+    let plans = &views.by_selector[&crate::domain::derived_views::types::SelectorAddress(Arc::as_ptr(&selector) as usize)].equalities;
     assert_eq!(plans.len(), 2);
     for column in [ColumnIndex(1), ColumnIndex(2)] {
         let plan = &plans[&column];

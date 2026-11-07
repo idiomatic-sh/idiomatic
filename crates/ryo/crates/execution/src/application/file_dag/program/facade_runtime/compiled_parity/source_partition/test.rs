@@ -155,7 +155,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
         relation,
         cause: PartialCause("missing source rows".into()),
         lacking: Lacking::Any,
-        at: Some(FileId(0)),
+        at: crate::domain::coverage::types::PartialPlace::File(FileId(0)),
     }];
     let project_partials = Partials::default();
     let completion = if project_case {

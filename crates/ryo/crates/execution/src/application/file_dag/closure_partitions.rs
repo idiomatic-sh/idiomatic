@@ -3,10 +3,10 @@ use super::{
     derived::owner::acquisition::admission::service::AcquiredView, relations::RelationOwner,
 };
 use crate::domain::{
-    derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch, ViewRequest},
+    derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch, ViewRequest},
     operating::errors::OperatingError,
-    operator::contract::views::BorrowedRows,
 };
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_derived::domain::closure_adjacency::types::ClosurePartition;
 use ryo_derived::domain::key::types::ChainLink;
 use ryo_derived::domain::key::types::HashedRow;

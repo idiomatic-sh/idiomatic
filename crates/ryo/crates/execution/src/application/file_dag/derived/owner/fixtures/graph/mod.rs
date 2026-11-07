@@ -14,10 +14,10 @@ use crate::application::file_dag::{
 };
 use crate::domain::{
     coverage::types::Partial,
-    operator::contract::views::BorrowedRows,
-    stored_graph::types::{GraphWalk, Orientation},
+    stored_graph::types::{GraphWalk, Orientation, VertexId},
     table_model::types::Rows,
 };
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_relations::domain::relations::types::{Relation, Value};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Direction, Input, StepId, StepScope},
@@ -173,7 +173,7 @@ impl GraphFixture {
                     .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
                 self.owner.admit(
                     publication.as_ref(),
-                    crate::domain::operator::contract::views::BorrowedRows::from(&supplied),
+                    crate::domain::table_model::types::RepresentationInput::from(&supplied),
                 )?;
                 publication
             }
@@ -300,7 +300,7 @@ impl GraphFixture {
         domain: &DomainHandle,
         root: u32,
         orientation: Orientation,
-        local: &mut Vec<u32>,
+        local: &mut Vec<VertexId>,
         walk: &mut GraphWalk,
     ) -> Result<Option<u32>, OperatingError> {
         let mut cache = self.owner.derived().graph_cache()?;

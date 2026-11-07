@@ -1,6 +1,6 @@
 //! The graph inputs, hosted plan and request runner the ordered traversal proofs share.
 use super::super::*;
-use crate::domain::operating::types::ExecutionObservation;
+use crate::domain::operating::fixtures::ExecutionObservation;
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
 };

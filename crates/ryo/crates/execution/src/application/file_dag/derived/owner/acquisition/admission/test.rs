@@ -6,9 +6,8 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     derived_views::types::{DerivedInputs, DerivedScratch, MembershipSpace, ViewRequest},
     operating::errors::OperatingError,
-    operation_schema::types::InputShape,
-    operator::contract::views::BorrowedRows,
-};
+    operation_schema::types::InputShape};
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
@@ -104,7 +103,9 @@ fn subject(input: Input) -> Result<(), Failure> {
     let rows = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
     let proof = owner.admit(publication.as_ref(), BorrowedRows::from(&rows))?;
     let request = match input {
-        Input::UnpermittedRaw => ViewRequest::RawKeyOrder { stride: 1 },
+        Input::UnpermittedRaw => ViewRequest::RawKeyOrder {
+            stride: crate::domain::positions::types::Stride(1),
+        },
         Input::UnprovedDense => ViewRequest::Membership {
             column: ColumnIndex(0),
         },
@@ -193,7 +194,7 @@ fn subject(input: Input) -> Result<(), Failure> {
                 &plan,
                 &admitted,
                 Default::default(),
-                DerivedInputs::RawWords(&[2, 1, 2]),
+                DerivedInputs::RawWords(&crate::domain::positions::types::Keys(vec![2, 1, 2])),
                 &mut scratch,
                 None,
             )

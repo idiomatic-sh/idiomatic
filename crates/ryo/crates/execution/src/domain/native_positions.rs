@@ -11,6 +11,9 @@ pub(crate) mod types;
 #[cfg(test)]
 mod axis_test;
 
+#[cfg(test)]
+mod service_test;
+
 pub(crate) mod rows;
 
 #[cfg(test)]

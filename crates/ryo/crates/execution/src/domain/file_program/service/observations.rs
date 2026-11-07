@@ -1,8 +1,9 @@
 //! Pure named-root dependency resolution; the existing application graph owns execution and resources.
 use crate::domain::coverage::types::RuleIndex;
+use crate::domain::file_program::constants::{EXPECT_BINDING_INDEX, EXPECT_OUTPUT_INDEX};
 use crate::domain::file_program::errors::FileProgramError;
 use crate::domain::file_program::types::{
-    PreparedObservationInputs, ResolvedObservationBinding, ResolvedObservationProducer,
+    FrontierPurpose, PreparedObservationInputs, ResolvedObservationBinding, ResolvedObservationProducer,
     RuleSchedule,
 };
 use ryo_values::domain::observations::types::{BoundObservationInput, ObservationProducer};
@@ -161,7 +162,7 @@ pub(crate) fn schemas<P: std::borrow::Borrow<Plan>>(
 /// Bind every output to the existing graph's actual node identity, with explicit unsupported admission.
 pub(crate) fn graph_outputs(
     plans: &[Plan],
-    nodes: &[Vec<Option<crate::domain::file_program::types::NodeId>>],
+    nodes: &[Vec<Option<crate::domain::file_program::types::ProgramNodeId>>],
     request: crate::domain::file_program::types::ObservationRequest<'_>,
 ) -> Option<crate::domain::file_program::types::GraphObservations> {
     use crate::domain::file_program::types::{
@@ -182,9 +183,9 @@ pub(crate) fn graph_outputs(
                 .enumerate()
                 .map(
                     move |(input, _)| crate::domain::file_program::types::ObservationSlot {
-                        rule,
+                        rule: RuleIndex(rule),
                         input: ryo_values::domain::plan_parts::types::ObservationBindingId(
-                            u32::try_from(input).expect("compiled binding index fits u32"),
+                            u32::try_from(input).expect(EXPECT_BINDING_INDEX),
                         ),
                     },
                 )
@@ -238,7 +239,7 @@ pub(crate) fn graph_outputs(
                 frontiers.push(crate::domain::file_program::types::ObservedFrontierRoot {
                     producer: RuleIndex(rule),
                     output: ryo_values::domain::records::types::ObservationIndex(
-                        u32::try_from(output).expect("compiled output index fits u32"),
+                        u32::try_from(output).expect(EXPECT_OUTPUT_INDEX),
                     ),
                     frontier: ryo_values::domain::plan_parts::types::InputNumber(frontier),
                 });
@@ -247,6 +248,7 @@ pub(crate) fn graph_outputs(
     }
     let mut retire = vec![Vec::new(); bindings.len()];
     for (consumer, inputs) in bindings.iter().enumerate() {
+        let consumer = RuleIndex(consumer);
         for binding in inputs {
             for producer in &binding.producers {
                 if let ResolvedObservationProducer::Output { rule, output } = producer
@@ -256,7 +258,7 @@ pub(crate) fn graph_outputs(
                     && !root.consumers.contains(&consumer)
                 {
                     root.consumers.push(consumer);
-                    retire[consumer].push(
+                    retire[consumer.0].push(
                         crate::domain::file_program::types::ObservationRetirement {
                             producer: *rule,
                             output: *output,
@@ -327,7 +329,13 @@ pub(crate) fn graph_outputs(
             }
             plan.frontier
                 .iter()
-                .map(|input| needed.contains(input))
+                .map(|input| {
+                    if needed.contains(input) {
+                        FrontierPurpose::Observation
+                    } else {
+                        FrontierPurpose::Diagnostic
+                    }
+                })
                 .collect()
         })
         .collect();
@@ -355,63 +363,5 @@ pub(crate) fn request<'a>(
     match schedule {
         RuleSchedule::Dependencies { .. } => Ok(ObservationRequest::Bound { layout, bindings }),
         RuleSchedule::Independent => Err(FileProgramError::InvalidReference),
-    }
-}
-
-/// Actual bound sources beneath each retained cross frontier, including per-file transforms.
-pub(crate) fn frontier_dependencies(
-    plan: &Plan,
-) -> Result<Vec<Vec<ryo_values::domain::plan_parts::types::ObservationBindingId>>, FileProgramError>
-{
-    if plan.observation_inputs.is_empty() {
-        return Ok(vec![Vec::new(); plan.frontier.len()]);
-    }
-    let steps = bound_step_dependencies(plan)?;
-    plan.frontier
-        .iter()
-        .map(|input| {
-            bound_input_dependencies(*input, &steps, plan.observation_inputs.len())
-                .map(|set| set.into_iter().collect())
-        })
-        .collect()
-}
-/// One topological pass over the existing plan, used for escape and frontier admission preparation.
-pub(crate) fn bound_step_dependencies(
-    plan: &Plan,
-) -> Result<
-    Vec<BTreeSet<ryo_values::domain::plan_parts::types::ObservationBindingId>>,
-    FileProgramError,
-> {
-    let mut steps = Vec::with_capacity(plan.steps.len());
-    for step in &plan.steps {
-        let mut dependencies = BTreeSet::new();
-        for input in ryo_values::domain::plans::service::named(
-            &ryo_values::domain::plans::service::inputs_of(&step.operation),
-        ) {
-            dependencies.extend(bound_input_dependencies(
-                *input,
-                &steps,
-                plan.observation_inputs.len(),
-            )?);
-        }
-        steps.push(dependencies);
-    }
-    Ok(steps)
-}
-fn bound_input_dependencies(
-    input: ryo_values::domain::plan_parts::types::Input,
-    steps: &[BTreeSet<ryo_values::domain::plan_parts::types::ObservationBindingId>],
-    count: usize,
-) -> Result<BTreeSet<ryo_values::domain::plan_parts::types::ObservationBindingId>, FileProgramError>
-{
-    use ryo_values::domain::plan_parts::types::Input;
-    match input {
-        Input::Relation(_) => Ok(BTreeSet::new()),
-        Input::Step(step) => steps
-            .get(step.0 as usize)
-            .cloned()
-            .ok_or(FileProgramError::InvalidReference),
-        Input::BoundObservation(id) if (id.0 as usize) < count => Ok(BTreeSet::from([id])),
-        Input::BoundObservation(_) => Err(FileProgramError::InvalidReference),
     }
 }

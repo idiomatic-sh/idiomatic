@@ -56,7 +56,7 @@ fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<()
     let selector = |word: LiteralText| {
         Arc::new(Selector {
             relation: Relation::Defines,
-            identity: Arc::new(crate::domain::table_model::types::SelectionIdentity {
+            identity: Arc::new(crate::domain::stored_selection::types::SelectionIdentity {
                 comparisons: vec![PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(0)),
@@ -66,7 +66,7 @@ fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<()
                 bindings: Vec::new(),
             }),
             columns: vec![ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)],
-            distinct: false,
+            distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
         })
     };
     let rare_selector = selector(LiteralText("rare".into()));
@@ -87,6 +87,7 @@ fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<()
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
+        matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b""),
@@ -98,7 +99,7 @@ fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<()
     let rare_rows = fixture
         .select(&rare_selector, source, &mut context)?
         .expect("indexed rare");
-    assert_eq!(*rare_rows.selection.rows, [4]);
+    assert_eq!(**rare_rows.selection.rows, [4]);
     let indexes = fixture.snapshot(None);
     assert_eq!(indexes.entries, 1, "unique name uses the index");
     let candidates_before = indexes.counts.candidates;
@@ -106,7 +107,7 @@ fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<()
     let class_rows = fixture
         .select(&class_selector, source, &mut context)?
         .expect("term alias scan");
-    assert_eq!(*class_rows.selection.rows, [0, 2, 3, 17]);
+    assert_eq!(**class_rows.selection.rows, [0, 2, 3, 17]);
     let indexes = fixture.snapshot(None);
     assert_eq!(indexes.entries, 1);
     assert_eq!(indexes.counts.candidates, candidates_before);
@@ -155,12 +156,12 @@ fn absent_symbol_literal_preserves_ordered_errors() -> Result<(), Failure> {
     let selector = |comparisons| {
         Arc::new(Selector {
             relation: Relation::Defines,
-            identity: Arc::new(crate::domain::table_model::types::SelectionIdentity {
+            identity: Arc::new(crate::domain::stored_selection::types::SelectionIdentity {
                 comparisons,
                 bindings: vec![ParameterBinding::Tables(Vec::new())],
             }),
             columns: vec![ColumnIndex(0), ColumnIndex(0)],
-            distinct: false,
+            distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
         })
     };
     let first = selector(vec![absent.clone(), bad.clone()]);
@@ -180,6 +181,7 @@ fn absent_symbol_literal_preserves_ordered_errors() -> Result<(), Failure> {
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
+        matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b""),
@@ -213,6 +215,7 @@ fn absent_symbol_literal_preserves_ordered_errors() -> Result<(), Failure> {
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
+        matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
         bindings: &first.identity.bindings,
         symbols: (&mut symbols).into(),
         source: SourceView(b""),
@@ -259,7 +262,7 @@ fn empty_literal_preserves_malformed_symbol_fallback() -> Result<(), Failure> {
     };
     let selector = Arc::new(Selector {
         relation: Relation::Defines,
-        identity: Arc::new(crate::domain::table_model::types::SelectionIdentity {
+        identity: Arc::new(crate::domain::stored_selection::types::SelectionIdentity {
             comparisons: vec![PlanComparison {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(0)),
@@ -269,7 +272,7 @@ fn empty_literal_preserves_malformed_symbol_fallback() -> Result<(), Failure> {
             bindings: Vec::new(),
         }),
         columns: vec![ColumnIndex(0), ColumnIndex(0)],
-        distinct: false,
+        distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
     });
     let fixture = SelectionFixture::new(
         &[Relation::Defines],
@@ -285,6 +288,7 @@ fn empty_literal_preserves_malformed_symbol_fallback() -> Result<(), Failure> {
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
+        matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b""),
@@ -296,7 +300,7 @@ fn empty_literal_preserves_malformed_symbol_fallback() -> Result<(), Failure> {
     let selected = fixture
         .select(&selector, source, &mut context)?
         .expect("compact result");
-    assert_eq!(*selected.selection.rows, [0, 1, 2]);
+    assert_eq!(**selected.selection.rows, [0, 1, 2]);
     assert_eq!(fixture.snapshot(None).counts.scanned, 3);
     let mut actual = Table::default();
     materialize(

@@ -89,7 +89,7 @@ pub(crate) fn unread_manifest_partials(
                     format!("cannot read primary manifest `{}`: {}", path.0, detail.0).into(),
                 ),
                 lacking: ryo_execution::inbound::use_cases::metadata::interface::Lacking::Any,
-                at: None,
+                at: ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::Repository,
             },
         )
         .collect()

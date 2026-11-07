@@ -1,6 +1,7 @@
 //! Private application backend storage. Only derived-owner algorithms can access mutable fields.
 
 use crate::application::file_dag::derived::owner::types::{BuildCount, RefusalCount, ReuseCount};
+use crate::domain::stored_graph::types::{ExaminedVertices, ExpandedVertices};
 use ryo_relations::domain::relations::types::Relation;
 use std::sync::Arc;
 
@@ -31,14 +32,6 @@ pub enum RepetitionTracking {
     Failed,
 }
 
-/// Graph vertices expanded by one walk.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct ExpandedVertices(pub u64);
-
-/// Graph vertices examined by one walk.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct ExaminedVertices(pub u64);
-
 /// A file-local owner: dropping it releases all admitted allocations without eviction.
 #[derive(Debug)]
 pub(in crate::application::file_dag) struct CacheBackend {
@@ -52,7 +45,7 @@ pub(in crate::application::file_dag) struct CacheBackend {
         RepetitionTracking,
     /// Immutable request-owned selector requirements, never file-owned payload.
     pub(in crate::application::file_dag::derived::owner) selection_views:
-        Option<Arc<crate::domain::derived_views::types::PreparedSelectionViews>>,
+        Option<Arc<crate::domain::derived_views::types::contract::value::PreparedSelectionViews>>,
     /// An active eligible graph consumer may request bounded adjacency admission.
     pub(in crate::application::file_dag::derived::owner) graph_enabled: GraphAdmission,
     /// Charged graph/domain/memo bytes within `bytes`.
@@ -113,7 +106,7 @@ impl CacheBackend {
     /// Install immutable request descriptors without exposing their catalog to a caller.
     pub(in crate::application::file_dag::derived::owner) fn bind_request_views(
         &mut self,
-        views: Arc<crate::domain::derived_views::types::PreparedSelectionViews>,
+        views: Arc<crate::domain::derived_views::types::contract::value::PreparedSelectionViews>,
     ) {
         self.selection_views = Some(views);
     }
@@ -122,7 +115,7 @@ impl CacheBackend {
         expanded: ExpandedVertices,
         examined: ExaminedVertices,
     ) {
-        self.graph_counts.expanded += expanded.0;
-        self.graph_counts.examined += examined.0;
+        self.graph_counts.expanded.0 += expanded.0;
+        self.graph_counts.examined.0 += examined.0;
     }
 }

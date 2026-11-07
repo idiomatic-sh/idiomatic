@@ -5,11 +5,19 @@ use ryo_relations::domain::relations::types::{Integer, Value};
 
 /// Lookup layout is immutable while one invocation walks its independent cursor.
 
+/// The vertices one invocation of the ordered depth-first search has expanded.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct ExpandedCount(pub(crate) usize);
+
+/// The edges one invocation of the ordered depth-first search has examined.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct ExaminedCount(pub(crate) usize);
+
 #[derive(Debug, Default)]
 pub(crate) struct DfsWorkspace {
     pub(crate) walk: crate::domain::table_reach::types::OrderedWalk,
-    pub(crate) expanded: usize,
-    pub(crate) examined: usize,
+    pub(crate) expanded: ExpandedCount,
+    pub(crate) examined: ExaminedCount,
 }
 
 use ryo_values::domain::rows::types::{RowIndex, Table};

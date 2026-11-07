@@ -9,10 +9,10 @@ use crate::{
             errors::OperatingError,
             types::{Emit, OperatorContext},
         },
-        operator::contract::views::BorrowedRows,
         table_model::{service::count_of, types::Rows},
     },
 };
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use std::rc::Rc;
 
 impl super::super::KernelSession<'_, '_> {
@@ -35,6 +35,7 @@ impl super::super::KernelSession<'_, '_> {
             phase: context.phase,
             semantic: context.semantic,
             prepared_matchers: context.prepared_matchers,
+            matcher: context.matcher,
             prepared_kinds: context.prepared_kinds,
             bindings: self
                 .prepared
@@ -122,6 +123,7 @@ impl super::super::KernelSession<'_, '_> {
             phase: context.phase,
             semantic: context.semantic,
             prepared_matchers: context.prepared_matchers,
+            matcher: context.matcher,
             prepared_kinds: context.prepared_kinds,
             bindings: self
                 .prepared
@@ -187,6 +189,7 @@ impl super::super::KernelSession<'_, '_> {
             phase: context.phase,
             semantic: context.semantic,
             prepared_matchers: context.prepared_matchers,
+            matcher: context.matcher,
             prepared_kinds: context.prepared_kinds,
             bindings: self
                 .prepared
@@ -292,10 +295,10 @@ impl super::super::KernelSession<'_, '_> {
             &permit.output_kinds().map_err(InvocationFailure::Semantic)?,
             &mut measured,
         );
-        counts.join.found(0, measured.covered_rows);
-        counts.join.found(1, measured.joined_hits);
-        counts.filter.found(0, measured.joined_hits);
-        counts.project.found(0, measured.filtered_rows);
+        counts.join.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(measured.covered_rows.0));
+        counts.join.found(ryo_values::domain::plan_parts::types::InputNumber(1), crate::domain::operator::contract::types::FoundRows(measured.joined_hits.0));
+        counts.filter.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(measured.joined_hits.0));
+        counts.project.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(measured.filtered_rows.0));
         if let Some(error) = failure.get() {
             return Err(InvocationFailure::Semantic(error.clone()));
         }

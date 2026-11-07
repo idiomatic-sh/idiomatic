@@ -24,6 +24,11 @@ use ryo_values::{
     },
 };
 use std::sync::atomic::Ordering;
+
+/// The matching semantics the cases run through.
+fn matcher() -> crate::domain::matching::types::PatternMatcher<'static> {
+    crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl)
+}
 #[derive(Clone, Copy)]
 enum Scenario {
     SharedLiteral,
@@ -66,15 +71,15 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let slots = prepared(&operations);
             assert_eq!(slots.builds.load(Ordering::Relaxed), 0);
             for _file in 0..3 {
-                let regex = slots.regex(r"\s+").unwrap()?;
+                let regex = slots.regex(TextView(r"\s+"), matcher()).unwrap()?;
                 assert_eq!(
                     MatchingUseCaseImpl::new().matches_regex(regex, SearchText("é\u{2003}雪")),
                     MatchOutcome::Matches
                 );
-                assert!(std::ptr::eq(regex, slots.regex(r"\s+").unwrap()?));
+                assert!(std::ptr::eq(regex, slots.regex(TextView(r"\s+"), matcher()).unwrap()?));
                 assert_eq!(
                     MatchingUseCaseImpl::new().matches_text_globs(
-                        slots.glob(Test::GlobAny, "*.rs").unwrap(),
+                        slots.glob(Test::GlobAny, TextView("*.rs"), matcher()).unwrap(),
                         SearchText("src/lib.rs")
                     ),
                     MatchOutcome::Matches
@@ -94,7 +99,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     &Datum::Number(WholeNumber(1)),
                     &Datum::Text(TextView("[")),
                     Some(&slots),
-                    &mut Patterns::default()
+                    &mut Patterns::default(),
+                    matcher()
                 )?,
                 Verdict::Fails
             );
@@ -103,9 +109,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 0,
                 "wrong-typed operands never initialize the slot"
             );
-            let expected = super::value::compile_regex("[").unwrap_err();
+            let expected = super::value::compile_regex(TextView("["), matcher()).unwrap_err();
             for _ in 0..2 {
-                assert!(matches!(slots.regex("[").unwrap(),Err(ref error) if *error==expected));
+                assert!(matches!(slots.regex(TextView("["), matcher()).unwrap(),Err(ref error) if *error==expected));
             }
             assert_eq!(
                 slots.builds.load(Ordering::Relaxed),
@@ -121,8 +127,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 select(Test::Matches, "*"),
             ]);
             for _ in 0..2 {
-                let positive = slots.glob(Test::GlobAny, "*").unwrap();
-                let negative = slots.glob(Test::NotGlobAny, "*").unwrap();
+                let positive = slots.glob(Test::GlobAny, TextView("*"), matcher()).unwrap();
+                let negative = slots.glob(Test::NotGlobAny, TextView("*"), matcher()).unwrap();
                 assert!(
                     !std::ptr::eq(positive, negative),
                     "polarity retains a separate finite slot"
@@ -133,7 +139,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 );
                 assert_eq!(
                     MatchingUseCaseImpl::new().matches_text_globs(
-                        slots.glob(Test::GlobAny, "α?").unwrap(),
+                        slots.glob(Test::GlobAny, TextView("α?"), matcher()).unwrap(),
                         SearchText("αβ")
                     ),
                     MatchOutcome::Matches
@@ -144,7 +150,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 3,
                 "Unicode interpreter outcome is retained"
             );
-            assert!(slots.regex("*").unwrap().is_err());
+            assert!(slots.regex(TextView("*"), matcher()).unwrap().is_err());
             assert_eq!(
                 slots.builds.load(Ordering::Relaxed),
                 4,
@@ -153,8 +159,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }
         Scenario::Undeclared => {
             let slots = prepared(&[select(Test::GlobAny, "b*")]);
-            assert!(slots.glob(Test::GlobAny, "*").is_none());
-            assert!(slots.regex("b*").is_none());
+            assert!(slots.glob(Test::GlobAny, TextView("*"), matcher()).is_none());
+            assert!(slots.regex(TextView("b*"), matcher()).is_none());
             assert_eq!(
                 slots.builds.load(Ordering::Relaxed),
                 0,
@@ -203,7 +209,7 @@ fn concurrent_literal_users_initialize_one_slot() {
             .map(|_| {
                 scope.spawn(move || {
                     MatchingUseCaseImpl::new()
-                        .matches_regex(slots.regex("α+").unwrap().unwrap(), SearchText("αα"))
+                        .matches_regex(slots.regex(TextView("α+"), matcher()).unwrap().unwrap(), SearchText("αα"))
                         == MatchOutcome::Matches
                 })
             })

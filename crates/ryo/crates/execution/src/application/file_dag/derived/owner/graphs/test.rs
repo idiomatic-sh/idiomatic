@@ -5,7 +5,8 @@ use crate::application::file_dag::derived::owner::{
     fixtures::graph::GraphFixture, index::service::LIMIT,
 };
 use crate::domain::stored_graph::types::{GraphWalk, Orientation};
-use crate::domain::table_model::types::{Rows, SelectedRows, SelectionIdentity, StoredSelection};
+use crate::domain::stored_selection::types::SelectionIdentity;
+use crate::domain::table_model::types::{Rows, SelectedRows, StoredSelection};
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Integer, Relation, Value,
 };
@@ -104,7 +105,7 @@ fn exact_selected_bindings_population_and_projection_determine_graph_identity() 
                         ),
                     ],
                 }),
-                rows: Arc::new(positions),
+                rows: crate::domain::stored_selection::types::SelectedPositions(Arc::new(positions)),
                 columns,
                 kinds: vec![CellKind::Number; 2],
             }),
@@ -193,7 +194,7 @@ fn physical_partiality_ragged_views_and_next_generation_never_hit_old_graphs() {
         relation: Relation::Function,
         cause: PartialCause("missing kind".into()),
         lacking: Lacking::Kind(LackingKind("unknown".into())),
-        at: None,
+        at: crate::domain::coverage::types::PartialPlace::Repository,
     }];
     let partial = GraphFixture::new(&[Relation::Function], &partials, LIMIT);
     assert!(

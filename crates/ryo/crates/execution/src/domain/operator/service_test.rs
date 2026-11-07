@@ -1,5 +1,5 @@
 //! Preparation rejects foreign operations and retains input/value errors for execution.
-use super::service::registered;
+use super::service::prepare_operator;
 use crate::domain::{operating::errors::OperatingError, operation_schema::types::InputShape};
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::{
@@ -191,12 +191,14 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     };
     let kinds = [CellKind::File];
     match scenario {
-        Scenario::Valid => registered(OperationKind::Project).prepare(
+        Scenario::Valid => prepare_operator(
+            OperationKind::Project,
             &project,
             &[InputShape { kinds: &kinds, tree: None }],
             &[],
         ),
-        Scenario::Foreign => registered(OperationKind::Project).prepare(
+        Scenario::Foreign => prepare_operator(
+            OperationKind::Project,
             &Operation::Union {
                 left: Source::Relation(Relation::Function),
                 right: Source::Relation(Relation::Function),
@@ -207,11 +209,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             }],
             &[],
         ),
-        Scenario::Missing => registered(OperationKind::Project).prepare(&project, &[], &[]),
+        Scenario::Missing => prepare_operator(OperationKind::Project, &project, &[], &[]),
         Scenario::KindsAndItemsAgree
         | Scenario::NoSemanticIsDefinedTwice
         | Scenario::DriversAreImplementedByStrategiesOnly => return Ok(()),
-        Scenario::InvalidValue => registered(OperationKind::Extend).prepare(
+        Scenario::InvalidValue => prepare_operator(
+            OperationKind::Extend,
             &Operation::Extend {
                 from: Source::Relation(Relation::Function),
                 values: vec![Operand::Column(ColumnIndex(0))],

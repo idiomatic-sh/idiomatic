@@ -6,7 +6,7 @@ use crate::domain::operator::contract::types::{
 };
 use crate::domain::table_reach::{
     service::{begin_ordered, next_ordered},
-    types::Edges,
+    types::{Edges, OrderedVisit},
 };
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plans::types::Operation;
@@ -91,8 +91,8 @@ impl OperatorsItem for OrderedDfsItem {
                 .dfs
                 .as_mut()
                 .ok_or(OperatingError::WrongBinding)?;
-            work.expanded = 0;
-            work.examined = 0;
+            work.expanded = Default::default();
+            work.examined = Default::default();
             let mut begin = 0;
             while begin < prepared.root_index.sorted.len() {
                 let at = *prepared
@@ -130,7 +130,10 @@ impl OperatorsItem for OrderedDfsItem {
                         .dfs
                         .as_mut()
                         .ok_or(OperatingError::WrongBinding)?;
-                    let Some((edge_at, ordinal)) =
+                    let Some(OrderedVisit {
+                        edge: edge_at,
+                        ordinal,
+                    }) =
                         next_ordered(&walked, graph, partition, &mut work.walk)?
                     else {
                         break;
@@ -150,8 +153,8 @@ impl OperatorsItem for OrderedDfsItem {
                     .dfs
                     .as_mut()
                     .ok_or(OperatingError::WrongBinding)?;
-                work.expanded += work.walk.expanded;
-                work.examined += work.walk.examined;
+                work.expanded.0 += work.walk.expanded.0;
+                work.examined.0 += work.walk.examined.0;
                 begin += 1;
                 while begin < prepared.root_index.sorted.len() {
                     let at = *prepared

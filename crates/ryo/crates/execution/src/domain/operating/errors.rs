@@ -11,12 +11,6 @@ pub enum OperatingError {
     /// Request declaration errors are preserved before any file is read.
     #[error(transparent)]
     ObservationConfiguration(#[from] crate::domain::file_program::errors::FileProgramError),
-    /// A supplied producer has no future declared consumer in this phase.
-    #[error("supplied frontier {input:?} was retired after its last declared consumer")]
-    RetiredFrontier {
-        input: ryo_values::domain::plan_parts::types::Input,
-    },
-
     /// An explicit bound producer did not publish a complete result in this generation.
     #[error("named producer is incomplete: {reason}")]
     ObservationIncomplete { reason: String },
@@ -68,11 +62,6 @@ pub enum OperatingError {
     /// A step reads a relation nobody read.
     #[error("a step reads a relation that was not read")]
     NotRead,
-    /// A project input was required but no admitted frontier was supplied.
-    #[error("required frontier {input:?} is unavailable")]
-    FrontierUnavailable {
-        input: ryo_values::domain::plan_parts::types::Input,
-    },
     /// A query reads a parameter nothing was bound to.
     #[error("the parameter has no value")]
     Unbound,

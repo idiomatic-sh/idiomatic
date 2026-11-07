@@ -57,7 +57,7 @@ fn zero_optional_budget_shares_live_graph_and_rebuilds_only_after_last_opaque_co
     assert_eq!(
         walk.reached
             .iter()
-            .map(|vertex| reverse.graph().vertices()[*vertex as usize])
+            .map(|vertex| reverse.graph().vertices()[vertex.0 as usize])
             .collect::<Vec<_>>(),
         [number(Integer(1)), number(Integer(2))]
     );
@@ -216,7 +216,7 @@ fn old_completed_answer_owns_exact_context_through_clear_and_changed_facts() {
 fn weak_position_expiry_never_changes_map_key_hash_or_equality() {
     let positions = Arc::new(vec![0, 2]);
     let weak = Arc::downgrade(&positions);
-    let descriptor = Arc::new(crate::domain::table_model::types::SelectionIdentity::default());
+    let descriptor = Arc::new(crate::domain::stored_selection::types::SelectionIdentity::default());
     let requirement = GraphRequirement {
         endpoints: ENDPOINTS,
         keys: Arc::from([]),
@@ -283,7 +283,8 @@ fn unavailable_canonical_source_declines_without_retaining_duplicate_graphs() {
 
 #[test]
 fn impossible_selected_position_admission_does_not_evict_dormant_index() {
-    use crate::domain::table_model::types::{SelectedRows, SelectionIdentity, StoredSelection};
+    use crate::domain::stored_selection::types::SelectionIdentity;
+    use crate::domain::table_model::types::{SelectedRows, StoredSelection};
     let columns = [FactColumn(vec![1, 2]), FactColumn(vec![2, 3])];
     let input = rows(&columns);
     let mut fixture = GraphFixture::new(
@@ -309,7 +310,7 @@ fn impossible_selected_position_admission_does_not_evict_dormant_index() {
         selection: Arc::new(StoredSelection {
             relation: Relation::Function,
             identity: Arc::new(SelectionIdentity::default()),
-            rows: Arc::new(positions),
+            rows: crate::domain::stored_selection::types::SelectedPositions(Arc::new(positions)),
             columns: ENDPOINTS.to_vec(),
             kinds: vec![CellKind::Number; 2],
         }),

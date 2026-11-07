@@ -1,7 +1,7 @@
 //! Ordered graph traversals that refuse name the exact error.
 use super::super::super::*;
 use super::super::fixtures::{compute, numbers, operation, subject};
-use crate::domain::operating::types::ExecutionObservation;
+use crate::domain::operating::fixtures::ExecutionObservation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::selects;
 fn ties_are_rejected_even_without_roots() -> Result<usize, OperatingError> {

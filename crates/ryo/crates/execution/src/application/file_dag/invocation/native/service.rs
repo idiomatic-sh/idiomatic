@@ -36,7 +36,7 @@ impl NativeJoinLease<'_> {
     }
     pub(in crate::application::file_dag) fn contract(
         &self,
-    ) -> &crate::domain::derived_views::types::DerivedContract {
+    ) -> &crate::domain::derived_views::types::contract::value::DerivedContract {
         self.acquired.contract()
     }
 }

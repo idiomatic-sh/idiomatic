@@ -44,7 +44,7 @@ fn baseline_with_symbols(
     let select = Operation::Select {
         from: Source::Step(StepId(0)),
         comparisons: program.identity.comparisons.clone(),
-        kept: if program.distinct {
+        kept: if program.distinct == RepeatedRows::Dropped {
             Vec::new()
         } else {
             program.columns.clone()
@@ -103,13 +103,13 @@ fn baseline_with_symbols(
     };
     // Select keeps every input column when kept is empty; a zero-column
     // authored result requires the actual Project operation.
-    if program.distinct || program.columns.is_empty() {
+    if program.distinct == RepeatedRows::Dropped || program.columns.is_empty() {
         plan.steps.push(ryo_values::domain::plans::types::PlanStep {
             scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
             operation: Operation::Project {
                 from: Source::Step(plan.emit.step),
                 columns: program.columns.clone(),
-                distinct: if program.distinct {
+                distinct: if program.distinct == RepeatedRows::Dropped {
                     RepeatedRows::Dropped
                 } else {
                     RepeatedRows::Kept
@@ -260,7 +260,7 @@ fn literal(text: &str, columns: Vec<ColumnIndex>) -> Selector {
     };
     Selector {
         relation: Relation::Defines,
-        identity: Arc::new(crate::domain::table_model::types::SelectionIdentity {
+        identity: Arc::new(crate::domain::stored_selection::types::SelectionIdentity {
             comparisons: vec![PlanComparison {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(0)),
@@ -270,7 +270,7 @@ fn literal(text: &str, columns: Vec<ColumnIndex>) -> Selector {
             bindings: Vec::<ParameterBinding>::new(),
         }),
         columns,
-        distinct: false,
+        distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
     }
 }
 
@@ -358,7 +358,7 @@ fn distinct_projections_preserve_rows_and_predicate_cache() -> Result<(), Failur
     ] {
         let mut selector = (*program(7)).clone();
         selector.columns = columns;
-        selector.distinct = true;
+        selector.distinct = ryo_values::domain::plan_parts::types::RepeatedRows::Dropped;
         assert_eq!(
             baseline(source, &selector)?,
             expected_columns(source, &selector.columns, &positions)
@@ -375,7 +375,7 @@ fn distinct_projections_preserve_rows_and_predicate_cache() -> Result<(), Failur
     };
     let mut selector = (*program(7)).clone();
     selector.columns = vec![ColumnIndex(2), ColumnIndex(1), ColumnIndex(2)];
-    selector.distinct = true;
+    selector.distinct = ryo_values::domain::plan_parts::types::RepeatedRows::Dropped;
     assert_eq!(
         baseline(changed, &selector)?,
         expected_columns(changed, &selector.columns, &[0])

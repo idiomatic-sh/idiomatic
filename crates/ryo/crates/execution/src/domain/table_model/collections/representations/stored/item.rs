@@ -1,11 +1,12 @@
 //! Physical row semantics; policy and allocation ownership remain in the engine.
 use super::super::{interface::RepresentationsItem, types::*};
 use crate::domain::operating::errors::OperatingError;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 pub(crate) struct StoredItem;
 impl RepresentationsItem for StoredItem {
-    fn bulk<'f>(&self, input: RepresentationInput<'f>) -> Result<BulkAccess<'f>, OperatingError> {
+    fn bulk<'f>(&self, input: RepresentationInput<'f>) -> Result<RepresentationInput<'f>, OperatingError> {
         if matches!(input, RepresentationInput::Stored(_)) {
             Ok(input)
         } else {
@@ -23,7 +24,7 @@ impl RepresentationsItem for StoredItem {
             input,
             kind: RepresentationKind::Stored,
             kinds: view.kinds,
-            rows: view.columns.first().map_or(0, |c| c.0.len()),
+            rows: RowCount(view.columns.first().map_or(0, |c| c.0.len())),
             metadata: if view.columns.len() == view.kinds.len() {
                 Ok(())
             } else {
@@ -39,7 +40,7 @@ impl RepresentationsItem for StoredItem {
         if contract.kinds != contract.input.kinds() {
             return Err(OperatingError::ShapeMismatch);
         }
-        Ok(if view.columns.iter().all(|c| c.0.len() == contract.rows) {
+        Ok(if view.columns.iter().all(|c| c.0.len() == contract.rows.0) {
             PhysicalShape::Complete
         } else {
             PhysicalShape::ReadablePhysicalFallback
@@ -96,4 +97,4 @@ impl RepresentationsItem for StoredItem {
     }
 }
 
-use ryo_values::domain::rows::types::RowIndex;
+use ryo_values::domain::rows::types::{RowCount, RowIndex};

@@ -1,11 +1,12 @@
 //! Adapt already-admitted finite physical data; all semantic builds cross the injected port.
 use crate::domain::derived_views::types::{
-    DerivedContract, DerivedInputs, DerivedScratch, ViewRequest,
+    contract::value::DerivedContract, DerivedInputs, DerivedScratch, ViewRequest,
 };
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::{
-    derived::portable_fault, failure::FailureLatch, views::BorrowedRows,
+    derived::portable_fault, failure::FailureLatch, 
 };
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use crate::outbound::derived::interface::DerivedPort;
 use ryo_language::domain::symbols::types::ByteSlice;
 use std::{cell::RefCell, sync::Arc};
@@ -40,7 +41,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
         DerivedInputs::RawWords(keys) => port.build(
             &plan.semantic,
             ryo_derived::domain::contract::types::BuildInputs::RawWords(
-                ryo_derived::domain::raw_words::types::RawWords(keys),
+                ryo_derived::domain::raw_words::types::RawWords(&keys.0),
             ),
             &mut scratch.semantic,
             recycled,
@@ -95,7 +96,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
                 &plan.semantic,
                 ryo_derived::domain::contract::types::BuildInputs::Predicate {
                     rows: &mut predicate,
-                    candidates: candidates.map(ryo_derived::domain::positions::types::RowSlots),
+                    candidates: candidates.map(|rows| ryo_derived::domain::positions::types::RowSlots(rows.0)),
                 },
                 &mut scratch.semantic,
                 recycled,
@@ -110,7 +111,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
                 &plan.semantic,
                 ryo_derived::domain::contract::types::BuildInputs::Distinct {
                     rows: &source,
-                    positions: ryo_derived::domain::positions::types::RowSlots(positions),
+                    positions: ryo_derived::domain::positions::types::RowSlots(positions.0),
                 },
                 &mut scratch.semantic,
                 recycled,

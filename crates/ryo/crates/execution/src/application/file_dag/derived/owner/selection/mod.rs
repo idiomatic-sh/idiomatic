@@ -1,15 +1,15 @@
 //! Application policy for prepared compact selections and their shared file backend.
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::domain::{
-    derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch},
+    derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch},
     operating::{errors::OperatingError, types::OperatorContext},
-    operator::contract::views::BorrowedRows,
     stored_selection::types::Selector,
     table_model::{
         service::check_columns,
         types::{SelectedRows, StoredSelection},
     },
 };
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_relations::domain::relations::types::ColumnsView;
 use std::sync::Arc;
 pub(super) mod candidates;
@@ -56,13 +56,13 @@ fn make<'a>(
 ) -> Result<Option<SelectionOutput<'a>>, OperatingError> {
     check_columns(source.kinds, &program.columns)?;
     if let Some(entry) = histogram(cache, program) {
-        entry.calls += 1;
+        entry.calls.0 += 1;
     }
     let population = source.columns.first().map_or(0, |column| column.0.len());
     let Some(views) = cache
         .selection_views
         .as_ref()
-        .and_then(|prepared| prepared.by_selector.get(&(Arc::as_ptr(program) as usize)))
+        .and_then(|prepared| prepared.by_selector.get(&crate::domain::derived_views::types::SelectorAddress(Arc::as_ptr(program) as usize)))
         .cloned()
     else {
         return Ok(None);
@@ -90,7 +90,7 @@ fn make<'a>(
     let mut dependencies = [Some(predicate), None];
     // The shared result above always contains predicate matches, never distinct representatives.
     // Each terminal projection owns its representative IDs independently of other output maps.
-    let rows = if program.distinct {
+    let rows = if program.distinct == ryo_values::domain::plan_parts::types::RepeatedRows::Dropped {
         let acquired = resources.acquire(
             crate::application::file_dag::route_counts::types::BuildRoute::SelectorDistinct,
             cache,
@@ -100,7 +100,7 @@ fn make<'a>(
             ),
             DerivedInputs::Distinct {
                 rows: BorrowedRows::Stored(source),
-                positions: &rows,
+                positions: crate::domain::stored_selection::types::BorrowedPositions(&rows),
             },
             &mut DerivedScratch::default(),
             None,
@@ -122,7 +122,7 @@ fn make<'a>(
             source,
             selection: Arc::new(StoredSelection {
                 relation: program.relation,
-                rows,
+                rows: crate::domain::stored_selection::types::SelectedPositions(rows),
                 columns: program.columns.clone(),
                 kinds,
                 identity: (program.identity).clone(),
@@ -153,14 +153,14 @@ impl DerivedOwner {
             .ok_or(OperatingError::NotRun)?;
         let views = plans
             .by_selector
-            .get(&(Arc::as_ptr(program) as usize))
+                .get(&crate::domain::derived_views::types::SelectorAddress(Arc::as_ptr(program) as usize))
             .ok_or(OperatingError::NotRun)?;
         if backend.selector_repetition_failed
             == crate::application::file_dag::derived::owner::cache::types::RepetitionTracking::Failed
         {
             return Ok(None);
         }
-        if views.group >= plans.groups {
+        if views.group.0 >= plans.groups.0 {
             return Err(OperatingError::NotRun);
         }
         Ok(Some(Arc::clone(&views.predicate)))

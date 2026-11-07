@@ -102,7 +102,7 @@ impl ProgramExecution {
         state: &RuntimeState,
         rule: crate::domain::coverage::types::RuleIndex,
         step: ryo_values::domain::plan_parts::types::StepId,
-    ) -> Result<crate::domain::operating::types::ExecutionObservation, OperatingError> {
+    ) -> Result<crate::domain::operating::fixtures::ExecutionObservation, OperatingError> {
         let origin = self
             .program
             .rules()
@@ -123,7 +123,7 @@ impl ProgramExecution {
         &self,
         state: &RuntimeState,
         region: RegionId,
-    ) -> Result<crate::domain::operating::types::ExecutionObservation, OperatingError> {
+    ) -> Result<crate::domain::operating::fixtures::ExecutionObservation, OperatingError> {
         self.validate_state(state)?;
         let slots = state.slots.borrow();
         let Some(slot) = slots.get(&region) else {
@@ -133,7 +133,7 @@ impl ProgramExecution {
                 .ok_or(OperatingError::NotRun)?;
             return Ok(Default::default());
         };
-        Ok(crate::domain::operating::types::ExecutionObservation {
+        Ok(crate::domain::operating::fixtures::ExecutionObservation {
             native_positions: slot.native_positions.0,
             registered_calls: slot.registered_calls.0,
             ..slot.observed

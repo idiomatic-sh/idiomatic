@@ -4,6 +4,7 @@ use crate::application::file_dag::workspace::GraphInput;
 use crate::domain::stored_graph::types::{self as graph, GraphIdentity};
 use crate::domain::table_model::{service::count_of, types::Rows};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::rows::types::RowCount;
 use std::sync::Arc;
 /// Prove an eligible physical population and compose selected columns before sharing graph data.
 pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn source(
@@ -79,7 +80,7 @@ fn population(
         Rows::Stored(view) => (
             relation,
             view.kinds,
-            count_of(rows).0,
+            count_of(rows),
             None,
             None,
             None,
@@ -88,18 +89,19 @@ fn population(
                 .collect(),
         ),
         Rows::Selected(view) => {
-            let count = view
-                .source
-                .columns
-                .first()
-                .map_or(0, |column| column.0.len());
+            let count = RowCount(
+                view.source
+                    .columns
+                    .first()
+                    .map_or(0, |column| column.0.len()),
+            );
             (
                 relation,
                 view.source.kinds,
                 count,
                 None,
                 Some(Arc::clone(&view.selection.identity)),
-                Some(Arc::clone(&view.selection.rows)),
+                Some(view.selection.rows.clone()),
                 view.selection.columns.clone(),
             )
         }
@@ -115,7 +117,7 @@ fn population(
             (
                 relation,
                 schema,
-                count_of(rows).0,
+                count_of(rows),
                 Some(tree.file),
                 None,
                 None,
@@ -127,7 +129,7 @@ fn population(
         Rows::Tree(_) | Rows::Computed(_) | Rows::Compact(_) | Rows::Positioned(_) => return None,
     };
     Some(ProvenPopulation {
-        population: graph::Population {
+        population: graph::RelationPopulation {
             relation,
             kinds,
             rows: count,

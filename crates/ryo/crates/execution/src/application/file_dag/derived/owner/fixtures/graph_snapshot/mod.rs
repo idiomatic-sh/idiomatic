@@ -1,11 +1,29 @@
 //! The observed state of the owner and its cache after a fixture's actions.
 use super::graph::GraphFixture;
 use crate::application::file_dag::derived::owner::*;
-use crate::domain::stored_graph::types::GraphCounts;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
+/// What the owner counted, as plain numbers for a test to compare.
+pub(in crate::application::file_dag) struct SnapshotCounts {
+    pub reclaimed_indexes: u64,
+    pub reclaimed_selections: u64,
+    pub reclaimed_bytes: u64,
+    pub pinned_refusals: u64,
+    pub peak_bytes: usize,
+    pub builds: u64,
+    pub reuses: u64,
+    pub refusals: u64,
+    pub roots: u64,
+    pub traversals: u64,
+    pub memo_hits: u64,
+    pub expanded: u64,
+    pub examined: u64,
+    pub early_stops: u64,
+    pub forest_hits: u64,
+}
+
 pub(in crate::application::file_dag) struct Snapshot {
-    pub counts: GraphCounts,
+    pub counts: SnapshotCounts,
     pub bytes: usize,
     pub limit: usize,
     pub memo_bytes: usize,
@@ -43,22 +61,22 @@ impl GraphFixture {
             .collect();
         indexes.sort_by_key(|entry| entry.admission);
         Snapshot {
-            counts: GraphCounts {
-                reclaimed_indexes: c.reclaimed_indexes,
-                reclaimed_selections: c.reclaimed_selections,
-                reclaimed_bytes: c.reclaimed_bytes,
-                pinned_refusals: c.pinned_refusals,
-                peak_bytes: c.peak_bytes,
-                builds: c.builds,
-                reuses: c.reuses,
-                refusals: c.refusals,
-                roots: c.roots,
-                traversals: c.traversals,
-                memo_hits: c.memo_hits,
-                expanded: c.expanded,
-                examined: c.examined,
-                early_stops: c.early_stops,
-                forest_hits: c.forest_hits,
+            counts: SnapshotCounts {
+                reclaimed_indexes: c.reclaimed_indexes.0,
+                reclaimed_selections: c.reclaimed_selections.0,
+                reclaimed_bytes: c.reclaimed_bytes.0,
+                pinned_refusals: c.pinned_refusals.0,
+                peak_bytes: c.peak_bytes.0,
+                builds: c.builds.0,
+                reuses: c.reuses.0,
+                refusals: c.refusals.0,
+                roots: c.roots.0,
+                traversals: c.traversals.0,
+                memo_hits: c.memo_hits.0,
+                expanded: c.expanded.0,
+                examined: c.examined.0,
+                early_stops: c.early_stops.0,
+                forest_hits: c.forest_hits.0,
             },
             bytes: cache.bytes,
             limit: cache.limit,

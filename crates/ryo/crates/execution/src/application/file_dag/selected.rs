@@ -3,7 +3,8 @@
 
 use super::derived::owner::acquisition::admission::service::AcquiredView;
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operator::contract::views::{BorrowedRows, IndexedRows};
+use crate::domain::operator::contract::views::{IndexedRows};
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use crate::domain::table_model::types::SelectedRows;
 use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -36,7 +37,9 @@ impl<'f> SelectedInput<'f> {
             progress: crate::application::file_dag::route_counts::progress::service::progress,
             rows: BorrowedRows::Selected {
                 source: self.original.source,
-                positions: &self.original.selection.rows,
+                positions: crate::domain::stored_selection::types::BorrowedPositions(
+                    &self.original.selection.rows,
+                ),
                 columns: &self.original.selection.columns,
                 kinds: &self.original.selection.kinds,
             },

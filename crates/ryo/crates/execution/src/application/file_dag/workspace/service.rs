@@ -3,9 +3,10 @@ use super::constants::{EXPECT_ADMITTED_INPUT, EXPECT_FIRST_INPUT};
 use super::{InputAdmissions, InvocationWorkspace, ViewInputs};
 use crate::application::file_dag::derived::owner::acquisition::selection::types::StoredColumns;
 use crate::application::file_dag::relations::admission::service::BorrowedInput;
-use crate::domain::derived_views::types::PreparedViewUse;
+use crate::domain::derived_views::types::contract::value::PreparedViewUse;
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operator::contract::views::BorrowedRows;
+
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::rows::types::Table;
 
@@ -49,10 +50,9 @@ impl InvocationWorkspace {
         use crate::domain::{
             derived_views::types::{DerivedInputs, MembershipSpace},
             operating::errors::OperatingError,
-            operator::contract::views::BorrowedRows,
         };
         use ryo_derived::domain::request::types::DerivedKind;
-        let count = usize::from(use_.len);
+        let count = usize::from(use_.len.0);
         if !(1..=2).contains(&count) {
             return Err(OperatingError::WrongOperation);
         }
@@ -75,7 +75,7 @@ impl InvocationWorkspace {
         let mut proofs: [Option<&BorrowedInput<'_>>; 2] = [None, None];
         let mut relations = [None; 2];
         for at in 0..count {
-            let proof = inputs.proof(InputNumber(use_.inputs[at]))?;
+            let proof = inputs.proof(use_.inputs[at])?;
             let (_, relation) = proof.identity(self.owner())?;
             relations[at] = relation;
             proofs[at] = Some(proof);

@@ -4,11 +4,8 @@ use crate::application::file_dag::derived::ledger::types::BackingAddress;
 use crate::domain::executable_program::types::RegionId;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::{
-    collections::representations::{
-        publication::PublishedRelation,
-        types::{PhysicalShape, RepresentationKind},
-    },
-    types::StoredSelection,
+    collections::representations::types::{PhysicalShape, RepresentationKind},
+    types::{PublishedRelation, StoredSelection},
 };
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use std::sync::{Arc, OnceLock};

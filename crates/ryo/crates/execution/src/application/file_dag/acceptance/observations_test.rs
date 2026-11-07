@@ -79,8 +79,8 @@ fn two_local_zero_inputs_keep_their_distinct_request_producers() -> Result<(), O
     } = fixture(FrontierSlots::Declared);
     let metadata = graph.observations.as_ref().unwrap();
     assert_eq!(metadata.slots.len(), 2);
-    assert_eq!(metadata.slots[0].rule, 2);
-    assert_eq!(metadata.slots[1].rule, 3);
+    assert_eq!(metadata.slots[0].rule, RuleIndex(2));
+    assert_eq!(metadata.slots[1].rule, RuleIndex(3));
     assert_eq!(
         metadata.bindings[2][0].input.producers[0],
         ResolvedObservationProducer::Output {
@@ -132,7 +132,7 @@ fn declared_local_input_without_its_qualified_slot_is_a_typed_refusal() -> Resul
         mut graph,
         operators,
     } = fixture(FrontierSlots::Declared);
-    graph.observations.as_mut().unwrap().slots[0].rule = 99;
+    graph.observations.as_mut().unwrap().slots[0].rule = RuleIndex(99);
     let program = compile(&plans, graph, &DeclaredFileProducers, &operators, crate::domain::executable_program::types::RoutePolicy::default()).unwrap();
     assert!(matches!(
         &program.rules()[2].frontier[0],

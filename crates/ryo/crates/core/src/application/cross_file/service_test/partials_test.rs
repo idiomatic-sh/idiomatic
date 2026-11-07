@@ -7,6 +7,7 @@ use crate::domain::crossing::service::placeable;
 use crate::domain::crossing::types::Placeability;
 use ryo_execution::inbound::use_cases::metadata::interface::Covered;
 use ryo_execution::inbound::use_cases::metadata::interface::FilePartial;
+use ryo_execution::inbound::use_cases::metadata::interface::PartialPlace;
 use ryo_execution::inbound::use_cases::metadata::interface::Lacking;
 use ryo_execution::inbound::use_cases::metadata::interface::Needs;
 use ryo_execution::inbound::use_cases::metadata::interface::Partial;
@@ -24,7 +25,7 @@ fn partial(relation: Relation) -> Partial {
         relation,
         cause: PartialCause("a construct the reader cannot represent".into()),
         lacking: Lacking::Any,
-        at: None,
+        at: ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::Repository,
     }
 }
 
@@ -32,7 +33,11 @@ fn partial(relation: Relation) -> Partial {
 /// when there is no such partial.
 fn file_number(partial: Option<&FilePartial>) -> usize {
     partial.map_or(0, |each| {
-        usize::try_from(each.file.map_or(u32::MAX, |file| file.0)).unwrap_or(0)
+        usize::try_from(match each.file {
+            PartialPlace::File(file) => file.0,
+            PartialPlace::Repository => u32::MAX,
+        })
+        .unwrap_or(0)
     })
 }
 

@@ -2,12 +2,12 @@
 use super::*;
 use crate::application::file_dag::derived::owner::ViewContext;
 use crate::domain::{
-    derived_views::types::*,
+    derived_views::types::{contract::value::PreparedViewUse, *},
     operating::{errors::OperatingError, types::OperatorContext},
     operation_schema::types::InputShape,
-    operator::contract::views::BorrowedRows,
     table_model::types::Rows,
 };
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{
@@ -82,9 +82,12 @@ fn use_(
             assert_eq!(plan.kind, kind);
             Arc::new(plan)
         },
-        inputs: [0, 1],
+        inputs: [
+            ryo_values::domain::plan_parts::types::InputNumber(0),
+            ryo_values::domain::plan_parts::types::InputNumber(1),
+        ],
         relations: [None, None],
-        len,
+        len: crate::domain::derived_views::types::InputsUsed(len),
     }
 }
 fn context<'a>(
@@ -97,6 +100,7 @@ fn context<'a>(
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
+        matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
         bindings: &[] as &[ParameterBinding],
         symbols: symbols.into(),
         source: ryo_values::domain::files::types::SourceView(&[]),

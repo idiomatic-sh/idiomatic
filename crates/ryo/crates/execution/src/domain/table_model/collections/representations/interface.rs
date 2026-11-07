@@ -1,13 +1,14 @@
 //! Representation semantics expose no input scheduler or cache owner.
 use super::types::{
-    BulkAccess, CellRead, PhysicalShape, RelationContract, RepresentationInput, RowRead,
+    CellRead, PhysicalShape, RelationContract, RowRead,
 };
 use crate::domain::operating::errors::OperatingError;
+use crate::domain::table_model::types::RepresentationInput;
 
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
-pub(super) trait RepresentationsItem: Sync {
+pub(crate) trait RepresentationsItem: Sync {
     /// Declare immutable metadata. Physical checks are deferred until demanded.
     fn prepare<'file>(
         &self,
@@ -19,7 +20,7 @@ pub(super) trait RepresentationsItem: Sync {
     fn bulk<'file>(
         &self,
         input: RepresentationInput<'file>,
-    ) -> Result<BulkAccess<'file>, OperatingError>;
+    ) -> Result<RepresentationInput<'file>, OperatingError>;
     fn cell(
         &self,
         input: RepresentationInput<'_>,

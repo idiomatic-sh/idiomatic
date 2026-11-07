@@ -241,7 +241,7 @@ pub(in crate::application::file_dag::program::facade_runtime::source_admission) 
     let rows = owner.resolve(publication.as_ref(), &unavailable)?;
     let checked = owner.admit(
         publication.as_ref(),
-        crate::domain::operator::contract::views::BorrowedRows::from(&rows),
+        crate::domain::table_model::types::RepresentationInput::from(&rows),
     )?;
     AdmittedInput::from_publication(
         Rc::clone(owner),

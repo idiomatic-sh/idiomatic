@@ -14,13 +14,13 @@ use ryo_values::domain::plan_parts::types::{
 use std::sync::Arc;
 use {
     crate::domain::operating::types::OperatorContext,
-    crate::domain::operator::contract::views::BorrowedRows,
     crate::domain::stored_selection::types::Selector,
     crate::domain::table_model::collections::representations::types::PhysicalShape,
-    crate::domain::table_model::types::Rows, crate::domain::table_model::types::SelectionIdentity,
+    crate::domain::table_model::types::Rows, crate::domain::stored_selection::types::SelectionIdentity,
     crate::domain::table_scratch::types::OperatorScratch,
     ryo_values::domain::files::types::SourceView,
 };
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 
 #[test]
 fn real_selector_producer_is_the_only_trusted_selection_path() {
@@ -52,7 +52,7 @@ fn exercise_real_selector(limit: Retention) {
             bindings: vec![ParameterBinding::Number(WholeNumber(101))],
         }),
         columns: vec![ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)],
-        distinct: false,
+        distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
     });
     let active = vec![Arc::clone(&program), Arc::clone(&program)];
     let fixture =
@@ -80,6 +80,7 @@ fn exercise_real_selector(limit: Retention) {
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
+        matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b""),
@@ -132,7 +133,7 @@ fn exercise_real_selector(limit: Retention) {
         panic!("producer must publish compact rows")
     };
     assert!(
-        Arc::ptr_eq(&selected.selection.rows, &second_selected.selection.rows),
+        Arc::ptr_eq(&selected.selection.rows.0, &second_selected.selection.rows.0),
         "second registered consumer reuses the producer match IDs"
     );
     assert_eq!(

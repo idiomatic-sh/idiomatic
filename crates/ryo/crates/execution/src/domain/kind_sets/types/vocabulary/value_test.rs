@@ -78,6 +78,7 @@ fn prepared_masks_reuse_exact_vocabulary_without_per_row_setup() {
             semantic: None,
             prepared_kinds: Some(&prepared),
             prepared_matchers: None,
+            matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
             bindings: &[],
             symbols: (&mut symbols).into(),
             source: SourceView(b"a"),
@@ -132,6 +133,7 @@ fn prepared_vocabulary_replacement_preserves_live_old_masks_and_test_identity() 
             semantic: None,
             prepared_kinds: Some(&prepared),
             prepared_matchers: None,
+            matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
             bindings: &[],
             symbols: (&mut symbols).into(),
             source: SourceView(b"a"),
@@ -193,8 +195,14 @@ fn equal_kind_sums_do_not_identify_prepared_vocabularies() {
     let b = prepare_vocabulary(&mut previous, &second, &second_symbols, SourceView(b"a")).unwrap();
     assert!(!std::sync::Arc::ptr_eq(&a, &b));
     assert_ne!(a.names, b.names);
-    assert_eq!(a.names.first().unwrap().as_deref(), Some(left));
-    assert_eq!(b.names.first().unwrap().as_deref(), Some(right));
+    assert_eq!(
+        a.names.first().unwrap().as_ref().map(|name| &*name.0),
+        Some(left)
+    );
+    assert_eq!(
+        b.names.first().unwrap().as_ref().map(|name| &*name.0),
+        Some(right)
+    );
 }
 
 /// Runtime operands are not admitted to finite prepared literal metadata.
@@ -220,6 +228,7 @@ fn dynamic_kind_patterns_do_not_enter_prepared_metadata() {
         semantic: None,
         prepared_kinds: Some(&prepared),
         prepared_matchers: None,
+        matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b"a"),

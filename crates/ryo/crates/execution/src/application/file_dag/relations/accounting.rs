@@ -104,7 +104,7 @@ impl RelationOwner {
                             + selection.kinds.capacity() * size_of::<CellKind>(),
                     ),
                 });
-                output.push(Self::rows_backing(&selection.rows));
+                output.push(Self::rows_backing(&selection.rows.0));
             }
         }
         output.push(Backing {

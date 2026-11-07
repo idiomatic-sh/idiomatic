@@ -31,3 +31,6 @@ pub const PATTERN: &str = "pattern";
 
 /// The query operator that selects relation rows, also a grammar keyword.
 pub const SELECT: &str = "select";
+
+/// The query operator that keeps named columns.
+pub const PROJECT: &str = "project";

@@ -137,7 +137,7 @@ fn no_hits_missing_provider_and_partial_empty_sources_keep_refusal_and_frontier_
                 relation: Relation::SemanticChild,
                 cause: ryo_values::domain::stored_facts::types::PartialCause("incomplete".into()),
                 lacking: crate::domain::coverage::types::Lacking::Any,
-                at: None,
+                at: crate::domain::coverage::types::PartialPlace::Repository,
             }],
             ..Faults::default()
         },

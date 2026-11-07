@@ -8,7 +8,7 @@ pub(crate) enum ResourceProgram {
     Appended(Vec<Operand>),
     Rank(ParameterId),
     Index {
-        input: usize,
+        input: ryo_values::domain::plan_parts::types::InputNumber,
         columns: IndexColumns,
     },
     Join(JoinResources),
@@ -44,12 +44,18 @@ pub(crate) enum IndexColumns {
     Columns(Vec<ColumnIndex>),
     ColumnsUnlessEmpty(Vec<ColumnIndex>),
 }
+/// Whether a join or an axis carries a filter over its rows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Filtering {
+    Filtered,
+    Unfiltered,
+}
 #[derive(Clone, Debug)]
 pub(crate) struct JoinResources {
     pub left_on: Vec<ColumnIndex>,
     pub right_on: Vec<ColumnIndex>,
     pub view: Vec<ColumnIndex>,
-    pub has_filter: bool,
+    pub has_filter: Filtering,
     pub reach: Option<ReachLookup>,
 }
 #[derive(Clone, Debug)]
@@ -58,7 +64,7 @@ pub(crate) struct AxisResources {
     pub parent: ColumnIndex,
     pub child: ColumnIndex,
     pub domain_id: ColumnIndex,
-    pub has_filter: bool,
+    pub has_filter: Filtering,
     pub domain_view: Vec<ColumnIndex>,
     pub output: Vec<JoinColumn>,
     pub direction: Direction,
@@ -93,11 +99,11 @@ pub(crate) fn prepare(operation: &ryo_values::domain::plans::types::Operation) -
         Operation::Extend { values, .. } => ResourceProgram::Appended(values.clone()),
         Operation::Rank { sets, .. } => ResourceProgram::Rank(*sets),
         Operation::Intersection { .. } | Operation::Difference { .. } => ResourceProgram::Index {
-            input: 1,
+            input: ryo_values::domain::plan_parts::types::InputNumber(1),
             columns: IndexColumns::Whole,
         },
         Operation::Antijoin { right_on, .. } => ResourceProgram::Index {
-            input: 1,
+            input: ryo_values::domain::plan_parts::types::InputNumber(1),
             columns: IndexColumns::Columns(right_on.clone()),
         },
         Operation::Join {
@@ -111,7 +117,11 @@ pub(crate) fn prepare(operation: &ryo_values::domain::plans::types::Operation) -
             left_on: left_on.clone(),
             right_on: right_on.clone(),
             view: view.clone(),
-            has_filter: !filter.is_empty(),
+            has_filter: if filter.is_empty() {
+                Filtering::Unfiltered
+            } else {
+                Filtering::Filtered
+            },
             reach: reach.clone(),
         }),
         Operation::GroupCount { keys, distinct, .. } => ResourceProgram::Count {
@@ -185,7 +195,11 @@ pub(crate) fn prepare(operation: &ryo_values::domain::plans::types::Operation) -
             parent: *parent,
             child: *child,
             domain_id: *domain_id,
-            has_filter: !domain_filter.is_empty(),
+            has_filter: if domain_filter.is_empty() {
+                Filtering::Unfiltered
+            } else {
+                Filtering::Filtered
+            },
             domain_view: domain_view.clone(),
             output: output.clone(),
             direction: *direction,
@@ -193,13 +207,32 @@ pub(crate) fn prepare(operation: &ryo_values::domain::plans::types::Operation) -
     }
 }
 
-pub(crate) fn binding_dependent(operation: &ryo_values::domain::plans::types::Operation) -> bool {
+/// Whether the result of an operation depends on the bindings a request gives.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum BindingUse {
+    Dependent,
+    Independent,
+}
+
+pub(crate) fn binding_dependent(
+    operation: &ryo_values::domain::plans::types::Operation,
+) -> BindingUse {
     use ryo_values::domain::plan_parts::types::Operand;
-    fn operand(value: &Operand) -> bool {
+    fn operand(value: &Operand) -> BindingUse {
         match value {
-            Operand::Parameter(_) => true,
-            Operand::Function(function) => function.arguments.iter().any(operand),
-            Operand::Column(_) | Operand::Literal(_) => false,
+            Operand::Parameter(_) => BindingUse::Dependent,
+            Operand::Function(function) => {
+                if function
+                    .arguments
+                    .iter()
+                    .any(|argument| operand(argument) == BindingUse::Dependent)
+                {
+                    BindingUse::Dependent
+                } else {
+                    BindingUse::Independent
+                }
+            }
+            Operand::Column(_) | Operand::Literal(_) => BindingUse::Independent,
         }
     }
     let comparisons = match operation {
@@ -212,10 +245,15 @@ pub(crate) fn binding_dependent(operation: &ryo_values::domain::plans::types::Op
         }
         ryo_values::domain::plans::types::Operation::Rank { .. }
         | ryo_values::domain::plans::types::Operation::Rows { .. }
-        | ryo_values::domain::plans::types::Operation::Extend { .. } => return true,
+        | ryo_values::domain::plans::types::Operation::Extend { .. } => return BindingUse::Dependent,
         _ => &[],
     };
-    comparisons
-        .iter()
-        .any(|comparison| operand(&comparison.left) || operand(&comparison.right))
+    if comparisons.iter().any(|comparison| {
+        operand(&comparison.left) == BindingUse::Dependent
+            || operand(&comparison.right) == BindingUse::Dependent
+    }) {
+        BindingUse::Dependent
+    } else {
+        BindingUse::Independent
+    }
 }

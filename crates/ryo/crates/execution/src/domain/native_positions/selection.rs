@@ -45,7 +45,7 @@ pub(super) fn select(
             tree,
             comparisons,
             context,
-            &mut |_| counts.found(0, 1),
+            &mut |_| counts.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(1)),
             &mut slots,
         )?;
     } else {
@@ -65,7 +65,7 @@ pub(super) fn select(
             .memo
             .resize(comparisons.len() * names.0, Memo::Unknown);
         for at in positions(count(source.rows)) {
-            counts.found(0, 1);
+            counts.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(1));
             let each = row(source.rows, at);
             values(tree, &source.shape.columns, each, &mut work.cells);
             if holds_all(comparisons, &work.cells, &kinds, names, context)? == Verdict::Holds {
@@ -104,7 +104,7 @@ pub(super) fn project(
         .ok_or(OperatingError::MissingInput { position: 1 })?;
     let mut slots = Slots::default();
     if *distinct == RepeatedRows::Kept {
-        counts.found(0, count(source.rows).0 as u64);
+        counts.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(count(source.rows).0 as u64));
         slots.0.extend_from_slice(&source.rows.slots.0);
     } else {
         let order = order.ok_or(OperatingError::WrongOperation)?;

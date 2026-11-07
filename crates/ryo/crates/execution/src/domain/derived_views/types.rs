@@ -3,25 +3,27 @@ use ryo_language::domain::{
     files::types::FilePath,
     symbols::types::{QuerySymbols, Symbols},
 };
-use ryo_relations::domain::relations::types::{CellKind, Value};
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, LiteralText},
     stored_facts::types::ArenaBytes,
 };
 use std::sync::Arc;
+
+use crate::domain::positions::types::{Keys, Stride};
 use {
     crate::domain::operator::contract::resources::DfsResources,
-    crate::domain::operator::contract::views::BorrowedRows,
     crate::domain::operator::contract::views::PredicateProgram,
     crate::domain::stored_graph::types::GraphSource,
-    crate::domain::stored_selection::types::Selector, crate::domain::table_cells::types::TreeRows,
+    crate::domain::stored_selection::types::{BorrowedPositions, Selector}, crate::domain::table_cells::types::TreeRows,
     crate::domain::table_texts::types::Texts, ryo_values::domain::files::types::SourceView,
 };
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 
 #[derive(Clone, Debug)]
 pub(crate) enum ViewRequest {
     RawKeyOrder {
-        stride: usize,
+        stride: Stride,
     },
     Equality {
         columns: Vec<ColumnIndex>,
@@ -65,64 +67,12 @@ pub(crate) enum ViewRequest {
         view: Vec<ColumnIndex>,
     },
 }
-impl ViewRequest {
-    pub(crate) fn kind(&self) -> DerivedKind {
-        match self {
-            ViewRequest::RawKeyOrder { .. } => DerivedKind::RawKeyOrder,
-            ViewRequest::Equality { .. } => DerivedKind::Equality,
-            ViewRequest::PredicateMatches(_) => DerivedKind::PredicateMatches,
-            ViewRequest::CandidatePostings { .. } => DerivedKind::CandidatePostings,
-            ViewRequest::DistinctRepresentatives { .. } => DerivedKind::DistinctRepresentatives,
-            ViewRequest::Adjacency { .. } => DerivedKind::Adjacency,
-            ViewRequest::Membership { .. } => DerivedKind::Membership,
-            ViewRequest::PartitionOrder { .. } => DerivedKind::PartitionOrder,
-            ViewRequest::ClosureAdjacency { .. } => DerivedKind::ClosureAdjacency,
-            ViewRequest::CycleAdjacency { .. } => DerivedKind::CycleAdjacency,
-            ViewRequest::OrderedKeys { .. } => DerivedKind::OrderedKeys,
-            ViewRequest::OrderedDfs(_) => DerivedKind::OrderedDfs,
-            ViewRequest::NativeLookup { .. } => DerivedKind::NativeLookup,
-        }
-    }
-}
-#[derive(Clone, Debug)]
-pub(crate) struct DerivedContract {
-    /// Prepared once; equality still checks the complete semantic descriptor on collisions.
-    /// Private: a struct literal or update outside this module cannot forge a contract.
-    identity_hash: u64,
-    pub semantic: Arc<ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived>,
-    pub kind: DerivedKind,
-    pub request: ViewRequest,
-    pub schemas: Vec<Vec<CellKind>>,
-    pub metadata: Result<(), crate::domain::operating::errors::OperatingError>,
-    pub needed: crate::domain::table_cells::types::ColumnPlaces,
-}
-impl DerivedContract {
-    /// The only constructor: kind and metadata follow from the request and the validated semantic
-    /// descriptor, so no caller can state a contract whose parts disagree.
-    pub(crate) fn issue(
-        identity_hash: u64,
-        semantic: Arc<ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived>,
-        request: ViewRequest,
-        schemas: Vec<Vec<CellKind>>,
-        needed: crate::domain::table_cells::types::ColumnPlaces,
-    ) -> Self {
-        let metadata = semantic
-            .validate()
-            .map_err(crate::domain::operator::contract::derived::portable_fault);
-        Self {
-            identity_hash,
-            kind: request.kind(),
-            semantic,
-            request,
-            schemas,
-            metadata,
-            needed,
-        }
-    }
-    pub(crate) fn identity_hash(&self) -> u64 {
-        self.identity_hash
-    }
-}
+/// The hash of a request's identity, prepared once.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct IdentityHash(pub u64);
+
+pub(crate) mod contract;
+
 /// Membership semantics can address values, existing dense graph vertices or a native tree.
 pub(crate) enum MembershipSpace<'a> {
     Values,
@@ -131,7 +81,7 @@ pub(crate) enum MembershipSpace<'a> {
 }
 /// Inputs are semantic capabilities only; none can schedule upstream work or select a cache policy.
 pub(crate) enum DerivedInputs<'a, 's> {
-    RawWords(&'a [u64]),
+    RawWords(&'a Keys),
     Postings {
         rows: BorrowedRows<'a>,
         texts: &'a Texts<'a>,
@@ -145,13 +95,13 @@ pub(crate) enum DerivedInputs<'a, 's> {
     Rows(&'a [BorrowedRows<'a>]),
     Predicate {
         rows: BorrowedRows<'a>,
-        candidates: Option<&'a [u32]>,
+        candidates: Option<BorrowedPositions<'a>>,
         program: &'a mut dyn PredicateProgram,
         symbols: &'a Symbols,
     },
     Distinct {
         rows: BorrowedRows<'a>,
-        positions: &'a [u32],
+        positions: BorrowedPositions<'a>,
     },
     Text {
         rows: &'a [BorrowedRows<'a>],
@@ -179,43 +129,21 @@ pub(crate) struct DerivedScratch {
     pub semantic: ryo_derived::domain::contract::types::BuildWorkspace,
     pub row: Vec<Value>,
 }
-/// Request-owned prepared use; population slots are immutable dependency metadata, not a scheduler.
-#[derive(Clone, Debug)]
-pub(crate) struct PreparedViewUse {
-    pub plan: Arc<DerivedContract>,
-    pub inputs: [usize; 2],
-    pub relations: [Option<ryo_relations::domain::relations::types::Relation>; 2],
-    pub len: u8,
-}
-#[derive(Clone, Debug)]
-pub(crate) struct PreparedViewGroup {
-    pub primary: Arc<PreparedViewUse>,
-    pub secondary: Option<Arc<PreparedViewUse>>,
-}
-#[derive(Clone, Debug, Default)]
-pub(crate) struct DerivedSlots {
-    pub slots: [Option<Arc<PreparedViewGroup>>; DerivedKind::ALL.len()],
-}
+/// How many of a prepared use's input places the view reads.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct InputsUsed(pub u8);
 
 use ryo_values::domain::rows::types::RowIndex;
 
-use ryo_derived::domain::request::types::DerivedKind;
 
-/// Prepared construction contracts indexed by exact request-owned selector identity.
-#[derive(Debug, Default)]
-pub(crate) struct PreparedSelectionViews {
-    /// Pins every selector address for the complete request lifetime.
-    pub selectors: Vec<Arc<Selector>>,
-    /// O(1) capability lookup; no metadata construction occurs while selecting.
-    pub by_selector: std::collections::HashMap<usize, Arc<PreparedSelectorViews>>,
-    pub groups: usize,
-}
-#[derive(Debug)]
-pub(crate) struct PreparedSelectorViews {
-    pub group: usize,
-    pub predicate: Arc<DerivedContract>,
-    pub postings: Arc<DerivedContract>,
-    pub distinct: Arc<DerivedContract>,
-    /// Every statically possible equality discriminator, chosen without runtime preparation.
-    pub equalities: std::collections::HashMap<ColumnIndex, Arc<DerivedContract>>,
-}
+/// The address of a selector, which names it for the whole request.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct SelectorAddress(pub usize);
+
+/// Which group of equal selectors a selector belongs to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ViewGroup(pub usize);
+
+/// How many groups of equal selectors a request has.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ViewGroupCount(pub usize);

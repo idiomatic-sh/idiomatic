@@ -12,8 +12,8 @@ use crate::{
             types::{Emit, InputPlace, OperatorContext},
         },
         operator::contract::{
-            types::{InputShape, PreparedInputs},
-            views::BorrowedRows,
+            types::{InputMode, PreparedInputs},
+            
         },
         table_model::{
             service::{count_of, read_row},
@@ -21,6 +21,7 @@ use crate::{
         },
     },
 };
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_values::domain::rows::types::RowIndex;
 use std::rc::Rc;
 
@@ -41,6 +42,7 @@ impl super::super::KernelSession<'_, '_> {
             phase: context.phase,
             semantic: context.semantic,
             prepared_matchers: context.prepared_matchers,
+            matcher: context.matcher,
             prepared_kinds: context.prepared_kinds,
             bindings: self
                 .prepared
@@ -77,7 +79,7 @@ impl super::super::KernelSession<'_, '_> {
         let result = (|| {
             match input {
                 KernelInput::Continuation(row) => {
-                    workspace.work.found(0, 1);
+                    workspace.work.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(1));
                     let mut resources = crate::application::file_dag::invocation::service::continuation(contract)
                         .map_err(InvocationFailure::Semantic)?;
                     crate::application::file_dag::execution::lease::evaluate(
@@ -141,7 +143,7 @@ impl super::super::KernelSession<'_, '_> {
                                     ));
                                 }
                             };
-                            workspace.work.found(0, shared.visits().0);
+                            workspace.work.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(shared.visits().0));
                             return crate::domain::replay::service::selected(
                                 shared.result(),
                                 source,
@@ -166,7 +168,7 @@ impl super::super::KernelSession<'_, '_> {
                     InvocationResources::validate_row_metadata(contract, &views)
                         .map_err(InvocationFailure::Semantic)?;
                     let meaning = &contract.semantics;
-                    let mut resources = if matches!(meaning.shape, InputShape::Row { .. })
+                    let mut resources = if matches!(meaning.shape, InputMode::Row { .. })
                     && meaning.acquisition
                         == crate::domain::operator::contract::types::AcquisitionBoundary::FirstRow
                 {
@@ -255,7 +257,7 @@ impl super::super::KernelSession<'_, '_> {
                     }
                     let meaning = &contract.semantics;
                     match meaning.shape {
-                        InputShape::Views => {
+                        InputMode::Views => {
                             crate::application::file_dag::execution::lease::evaluate(
                                 self.kernels,
                                 contract,
@@ -271,7 +273,7 @@ impl super::super::KernelSession<'_, '_> {
                             )
                             .map_err(InvocationFailure::Semantic)
                         }
-                        InputShape::RequestSource => {
+                        InputMode::RequestSource => {
                             let empty = ryo_values::domain::rows::types::Table::default();
                             let source = match &instruction.operation() {
                                 // Rows semantics consume the exact producer's parameter
@@ -298,7 +300,7 @@ impl super::super::KernelSession<'_, '_> {
                             )
                             .map_err(InvocationFailure::Semantic)
                         }
-                        InputShape::Row { primary } => {
+                        InputMode::Row { primary } => {
                             // The primary input defines the row contract; the required mask
                             // declares every population that drives that same evaluator.
                             let row_inputs = meaning.row_inputs.0;
@@ -331,7 +333,7 @@ impl super::super::KernelSession<'_, '_> {
                                     let row = read_row(source, RowIndex(at), &mut cells).ok_or(
                                         InvocationFailure::Semantic(OperatingError::ShapeMismatch),
                                     )?;
-                                    workspace.work.found(input, 1);
+                                    workspace.work.found(ryo_values::domain::plan_parts::types::InputNumber(input), crate::domain::operator::contract::types::FoundRows(1));
                                     let texts = crate::domain::table_texts::types::Texts {
                                         symbols: context.symbols.as_ref(),
                                         source: context.source,

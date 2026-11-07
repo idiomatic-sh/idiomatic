@@ -5,6 +5,7 @@ use super::interface::{
 };
 use super::types::{AffectedFiles, CoverageFileCount};
 use super::use_case::MetadataUseCaseImpl;
+use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
 use crate::domain::kind_check::types::KindRefusal;
 use crate::domain::operating::errors::OperatingError;
 use ryo_language::domain::files::types::FilePath;
@@ -244,10 +245,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 
         Scenario::KnownKind => {
             let plan = plan(Relation::SyntaxTree, Some("fn"));
-            assert!(metadata.kind_refusal(&plan, &vocabularies()).is_none());
+            assert!(metadata.kind_refusal(&plan, &vocabularies(), &MatchingUseCaseImpl).is_none());
             assert!(
                 metadata
-                    .first_unknown(&[plan.clone()], &[Vec::new()], &vocabularies())
+                    .first_unknown(&[plan.clone()], &[Vec::new()], &vocabularies(), &MatchingUseCaseImpl)
                     .is_none()
             );
             Ok(Expected::KnownKind(metadata.kinds_asked(&plan, &[]).len()))
@@ -255,7 +256,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::UnknownKind => {
             let plan = plan(Relation::SyntaxTree, Some("ghost"));
             let unknown = metadata
-                .first_unknown(&[plan.clone()], &[Vec::new()], &vocabularies())
+                .first_unknown(&[plan.clone()], &[Vec::new()], &vocabularies(), &MatchingUseCaseImpl)
                 .expect("the first unknown kind");
             assert_eq!(unknown.rule.0, 0);
             assert_eq!(&*unknown.word.0, "ghost");
@@ -328,7 +329,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 relation: Relation::Function,
                 cause: PartialCause("failed read".into()),
                 lacking: Lacking::Any,
-                at: Some(FileId(0)),
+                at: crate::domain::coverage::types::PartialPlace::File(FileId(0)),
             };
             assert_eq!(
                 metadata.matters(&needs.reads[0], &partial),

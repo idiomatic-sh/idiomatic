@@ -747,7 +747,12 @@ impl LintUseCaseImpl {
         }
         let vocabularies = self.language.kind_vocabularies();
         if let Some(unknown) =
-            MetadataUseCaseImpl.first_unknown(compiled.plans(), compiled.bindings(), &vocabularies)
+            MetadataUseCaseImpl.first_unknown(
+                compiled.plans(),
+                compiled.bindings(),
+                &vocabularies,
+                &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl::new(),
+            )
         {
             return Err(LintError::UnknownKind {
                 id: rules
@@ -756,6 +761,7 @@ impl LintUseCaseImpl {
                     .unwrap_or_default(),
                 reason: MetadataUseCaseImpl
                     .unknown_kind_message(&unknown.word, &vocabularies)
+                    .message
                     .0
                     .into(),
             });

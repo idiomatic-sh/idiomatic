@@ -5,9 +5,10 @@ use crate::application::file_dag::relations::{RelationOwner, handle::service::Pu
 use crate::domain::{
     executable_program::types::SelectionAlternative,
     operating::{errors::OperatingError, types::OperatorContext},
-    operator::contract::{types::WorkCounters, views::BorrowedRows},
+    operator::contract::{types::WorkCounters, },
     table_model::{service::rectangular, types::Rows},
 };
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use std::rc::Rc;
 
 /// No provider callbacks or dependency requests enter this stage. The source is
@@ -32,7 +33,7 @@ pub(super) fn acquire(
     let Rows::Stored(columns) = rows else {
         return Ok(None);
     };
-    if !rectangular(*columns)
+    if rectangular(*columns) == ryo_values::domain::table_words::types::TableShape::Ragged
         || columns
             .columns
             .first()
@@ -42,7 +43,7 @@ pub(super) fn acquire(
     }
     // An empty primary has no representatives to acquire: the ordinary route
     // answers it without building any derived payload.
-    if shape.selector.distinct
+    if shape.selector().distinct == ryo_values::domain::plan_parts::types::RepeatedRows::Dropped
         && columns
             .columns
             .first()
@@ -80,11 +81,13 @@ pub(super) fn acquire(
         }
         let selection = {
             let result = shared.result();
-            work.found(0, shared.visits().0);
+            work.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(shared.visits().0));
             result.completion.clone()?;
             std::sync::Arc::new(crate::domain::table_model::types::StoredSelection {
                 relation: selector.relation,
-                rows: std::sync::Arc::new(result.positions.0.clone()),
+                rows: crate::domain::stored_selection::types::SelectedPositions(std::sync::Arc::new(
+                    result.positions.0.clone(),
+                )),
                 columns: selector.columns.clone(),
                 kinds,
                 identity: std::sync::Arc::clone(&selector.identity),
@@ -114,6 +117,7 @@ pub(super) fn acquire(
         phase: context.phase,
         semantic: context.semantic,
         prepared_matchers: context.prepared_matchers,
+        matcher: context.matcher,
         prepared_kinds: context.prepared_kinds,
         bindings: prepared.bindings(shape.producer)?,
         symbols: ryo_language::domain::symbols::service::query_reborrow(&mut context.symbols),
@@ -133,6 +137,6 @@ pub(super) fn acquire(
         &mut rebound,
     );
     let after = owner.derived().selector_work()?;
-    work.found(0, after.0[0].saturating_sub(before.0[0]));
+    work.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(after.0[0].saturating_sub(before.0[0])));
     result
 }

@@ -171,7 +171,7 @@ fn partial_positive_rows_survive_but_partial_absence_is_refused() {
         relation,
         cause: PartialCause("partial provider fixture".into()),
         lacking: Lacking::Any,
-        at: None,
+        at: crate::domain::coverage::types::PartialPlace::Repository,
     }];
     let RootOutcome::Partial { table, affected } = run(
         positive,

@@ -1,6 +1,7 @@
 //! The types of the `table_scratch` concept: the invocation-owned rooms operators work in, plain
 //! data with public fields and derives, and no constructor or inherent impl.
 
+use super::constants::SCRATCH_GROUP_INITIALIZED;
 use crate::domain::table_cells::types::ColumnPlaces;
 
 use crate::domain::table_model::types::Verdict;
@@ -8,6 +9,7 @@ use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_language::domain::elements::types::KindSum;
 use ryo_relations::domain::relations::types::{FileId, KindBits, TextHash, Value};
 use ryo_relations::domain::terms::types::Symbol;
+use ryo_values::domain::plan_parts::types::LiteralText;
 
 /// A word being read out of a text: cleared and grown in place for every word.
 #[derive(Debug, Default)]
@@ -43,7 +45,7 @@ pub(crate) struct KindTest {
     /// How the name is compared, by its place among the tests that can name a kind.
     pub test: NamingTest,
     /// The exact literal text the name is compared with.
-    pub text: Box<str>,
+    pub text: LiteralText,
 }
 
 /// The kinds of a language that have one name: as a set to ask of, and as a list to walk.
@@ -203,9 +205,7 @@ impl<T: Default> std::ops::DerefMut for LazyScratch<T> {
     )]
     fn deref_mut(&mut self) -> &mut T {
         let _initialized = self.0.get_or_init(Box::default);
-        self.0
-            .get_mut()
-            .expect("operator scratch group was initialized")
+        self.0.get_mut().expect(SCRATCH_GROUP_INITIALIZED)
     }
 }
 

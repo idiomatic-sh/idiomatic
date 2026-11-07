@@ -4,9 +4,9 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use {
     crate::domain::derived_views::types::*, crate::domain::operating::errors::OperatingError,
     crate::domain::operation_schema::types::InputShape,
-    crate::domain::operator::contract::views::BorrowedRows,
     ryo_values::domain::rows::service::push_row,
 };
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 fn prepare_cycles(
     input: BorrowedRows<'_>,
     source: ColumnIndex,
@@ -146,8 +146,14 @@ mod tests {
         .unwrap();
         assert_eq!(partitions.len(), 2);
         use crate::domain::operator::contract::views::ClosureParts;
-        let first = ClosureParts::get(&partitions, 0)?;
-        let second = ClosureParts::get(&partitions, 1)?;
+        let first = ClosureParts::get(
+            &partitions,
+            crate::domain::operator::contract::views::PartitionIndex(0),
+        )?;
+        let second = ClosureParts::get(
+            &partitions,
+            crate::domain::operator::contract::views::PartitionIndex(1),
+        )?;
         assert_eq!(first.key, vec![number(Integer(9))]);
         assert_eq!(first.sources, vec![number(Integer(2)), number(Integer(4))]);
         assert_eq!(

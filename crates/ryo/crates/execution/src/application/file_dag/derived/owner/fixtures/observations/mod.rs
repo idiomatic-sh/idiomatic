@@ -21,9 +21,9 @@ impl DerivedOwner {
         let backend = self.backend.borrow();
         let cache = backend.as_ref().expect("configured actual owner");
         crate::application::file_dag::derived::owner::fixtures::resources::Snapshot {
-            graph_builds: cache.graph_counts.builds,
-            graph_reuses: cache.graph_counts.reuses,
-            graph_early_stops: cache.graph_counts.early_stops,
+            graph_builds: cache.graph_counts.builds.0,
+            graph_reuses: cache.graph_counts.reuses.0,
+            graph_early_stops: cache.graph_counts.early_stops.0,
         }
     }
     pub(in crate::application::file_dag) fn index_observation(&self) -> IndexObservation {
@@ -138,7 +138,7 @@ impl DerivedOwner {
 use crate::application::file_dag::derived::owner::selection::fixtures::{
     SelectionCounters, SelectionSnapshot,
 };
-use crate::domain::stored_selection::types::Selector;
+use crate::domain::stored_selection::types::{CandidateRepeat, Selector};
 impl DerivedOwner {
     pub(in crate::application::file_dag::derived::owner) fn fixture_limit_to_metadata(&self) {
         if let Some(cache) = self.backend.borrow_mut().as_mut() {
@@ -161,7 +161,7 @@ impl DerivedOwner {
             .expect("prepared selector views");
         Arc::get_mut(&mut prepared)
             .expect("unshared request fixture")
-            .groups = 0;
+            .groups = crate::domain::derived_views::types::ViewGroupCount(0);
         crate::application::file_dag::derived::owner::selection::preparation::service::install_views(cache, prepared);
     }
     pub(in crate::application::file_dag::derived::owner) fn fixture_reserve_spare_selections(
@@ -216,7 +216,7 @@ impl DerivedOwner {
             }
             if let Some(graph) = retained.storage.graph_identity() {
                 if let Some(positions) = &graph.population.positions {
-                    add_rows(positions);
+                    add_rows(&positions.0);
                 }
             }
         }
@@ -266,14 +266,14 @@ impl DerivedOwner {
             repeated_discriminator: cache
                 .discriminator_columns
                 .iter()
-                .any(|column| column.repeated),
+                .any(|column| column.repeat == CandidateRepeat::Repeated),
             counts: SelectionCounters {
-                scanned: counts.scanned,
-                candidates: counts.candidates,
-                predicate_cells: counts.predicate_cells,
-                builds: counts.builds,
-                reuses: counts.reuses,
-                refusals: counts.refusals,
+                scanned: counts.scanned.0,
+                candidates: counts.candidates.0,
+                predicate_cells: counts.predicate_cells.0,
+                builds: counts.builds.0,
+                reuses: counts.reuses.0,
+                refusals: counts.refusals.0,
             },
         }
     }

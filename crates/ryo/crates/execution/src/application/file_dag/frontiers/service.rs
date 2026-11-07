@@ -18,7 +18,7 @@ use ryo_values::domain::{
     stored_facts::types::Bucket,
 };
 use {
-    crate::domain::crossing::types::RefusedFrontier,
+    crate::domain::frontiers::types::RefusedFrontier,
     crate::domain::frontiers::service::decode_input,
     crate::domain::frontiers::service::project_input,
     crate::domain::frontiers::service::project_relation,
@@ -288,7 +288,7 @@ pub(crate) fn validate_bucket(
                 if !ryo_values::domain::records::service::is_well_formed(scopes) {
                     return Err(refuse());
                 }
-                affected.extend(crate::domain::completion::service::restored_lacks(
+                affected.extend(crate::domain::frontier_coverage::service::restored_lacks(
                     source.file,
                     scopes,
                 ));

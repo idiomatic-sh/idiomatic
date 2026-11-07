@@ -1,6 +1,6 @@
 //! Shared real request and semantic-descriptor preparation data for owner controls.
 use crate::domain::{
-    derived_views::types::{DerivedContract, ViewRequest},
+    derived_views::types::{contract::value::DerivedContract, ViewRequest},
     operation_schema::types::InputShape,
     table_model::{service::kinds_of, types::Rows},
 };

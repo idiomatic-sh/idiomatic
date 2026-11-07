@@ -32,7 +32,7 @@ fn partial(kind: Option<&str>) -> Partial {
         relation: Relation::Defines,
         cause: PartialCause("a cause".into()),
         lacking: kind.map_or(Lacking::Any, |kind| Lacking::Kind(LackingKind(kind.into()))),
-        at: None,
+        at: crate::domain::coverage::types::PartialPlace::Repository,
     }
 }
 

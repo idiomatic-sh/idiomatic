@@ -52,7 +52,7 @@ pub mod domain {
   #[derive(Debug)]pub struct Relation;
  }}
  pub mod plan_parts {pub mod types {#[derive(Debug)]pub struct ColumnIndex;#[derive(Debug)]pub struct LiteralText;}}
- pub mod derived_views {pub mod types {#[derive(Debug)]pub struct PreparedSelectionViews;}}
+ pub mod derived_views {pub mod types {pub mod contract {pub mod value {#[derive(Debug)]pub struct PreparedSelectionViews;}}}}
  pub mod stored_selection {pub mod types {
   #[derive(Debug)]pub struct Selector;
   #[derive(Debug)]pub struct Matches;
@@ -65,7 +65,9 @@ pub mod domain {
   #[derive(Debug)]pub struct GraphEntry;
   #[derive(Debug)]pub struct DomainEntry;
   #[derive(Debug)]pub struct NearestMemo;
-  #[derive(Debug)]pub struct GraphCounts {pub expanded:u64,pub examined:u64}
+  #[derive(Debug)]pub struct ExpandedVertices(pub u64);
+  #[derive(Debug)]pub struct ExaminedVertices(pub u64);
+  #[derive(Debug)]pub struct GraphCounts {pub expanded:ExpandedVertices,pub examined:ExaminedVertices}
  }}
 }
 pub mod application {pub mod file_dag {

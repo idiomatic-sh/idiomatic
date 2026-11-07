@@ -1,6 +1,6 @@
 //! Immutable prepared request metadata; no runtime or lifecycle dependency.
 use crate::domain::coverage::types::RuleIndex;
-use crate::domain::executable_program::file_demand::types::FrontierPurpose;
+use crate::domain::file_program::types::FrontierPurpose;
 use crate::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use crate::domain::executable_program::types::InputSource;
 use crate::domain::executable_program::types::RegionId;
@@ -111,6 +111,6 @@ pub(crate) struct PreparedProgram {
     pub(super) matchers: Arc<crate::domain::matching::types::prepared::value::PreparedMatchers>,
     pub(super) derived: crate::application::file_dag::derived::prepared::RequestDerived,
     pub(super) native_orders:
-        Box<[Option<Arc<crate::domain::derived_views::types::DerivedContract>>]>,
+        Box<[Option<Arc<crate::domain::derived_views::types::contract::value::DerivedContract>>]>,
     pub(super) walk: crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
 }

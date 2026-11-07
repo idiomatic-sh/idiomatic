@@ -9,11 +9,12 @@ mod tests;
 use super::derived::owner::acquisition::admission::service::AcquiredView;
 use crate::domain::{
     operating::errors::OperatingError,
-    operator::contract::{resources::AxisResources, views::BorrowedRows},
+    operator::contract::{resources::AxisResources, },
     table_cells::types::{TreeForm, TreeRows},
     table_model::service::check_columns,
     tree_walk::service::entity_of,
 };
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 
 #[derive(Clone, Copy)]
@@ -46,7 +47,7 @@ pub(crate) fn classify<'f>(
         ..
     } = program;
     if matches!(domain, BorrowedRows::Computed(_) | BorrowedRows::Compact(_))
-        && domain.count() == 0
+        && domain.count().0 == 0
         && output.is_empty()
     {
         return Ok(AxisMode::Empty);
@@ -56,7 +57,7 @@ pub(crate) fn classify<'f>(
             && entity_of(domain_view, *domain_id) == ColumnIndex(0);
         if tree.form == TreeForm::Edges
             && (*parent, *child) == (ColumnIndex(0), ColumnIndex(1))
-            && ((!*has_filter && domain_view.is_empty()) || domain_of_tree)
+            && ((*has_filter == crate::domain::operator::contract::resources::Filtering::Unfiltered && domain_view.is_empty()) || domain_of_tree)
         {
             let among = if let BorrowedRows::Tree(each) = domain {
                 (each.form == TreeForm::Elements).then_some(each)
@@ -66,7 +67,7 @@ pub(crate) fn classify<'f>(
             return Ok(AxisMode::Native { tree, among });
         }
     }
-    if *has_filter
+    if *has_filter == crate::domain::operator::contract::resources::Filtering::Filtered
         || !domain_view.is_empty()
         || !output.is_empty()
         || matches!(

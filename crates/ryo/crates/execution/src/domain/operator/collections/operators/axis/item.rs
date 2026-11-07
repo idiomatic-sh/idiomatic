@@ -20,7 +20,10 @@ use ryo_values::domain::plan_parts::types::{Direction, Side};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
-use {crate::domain::table_model::types::Verdict, ryo_values::domain::rows::service::cell};
+use {
+    crate::domain::table_model::types::{SetMembership, Verdict},
+    ryo_values::domain::rows::service::cell,
+};
 pub(crate) struct AxisItem;
 impl OperatorsItem for AxisItem {
     fn prepare(
@@ -95,7 +98,11 @@ impl OperatorsItem for AxisItem {
                         let MembershipView::Values(members) = domain else {
                             return Err(OperatingError::WrongBinding);
                         };
-                        Ok(members.contains(&entity))
+                        Ok(if members.contains(&entity) {
+                            SetMembership::In
+                        } else {
+                            SetMembership::Out
+                        })
                     })?;
                 } else {
                     reach_breadth(edges, *to, start, &mut work.walk);
@@ -145,32 +152,37 @@ impl OperatorsItem for AxisItem {
                 found.clear();
                 let up = |from: Position| (from.0 != 0).then(|| parent_at(elements, from));
                 match direction {
-                    Direction::Parent => found.extend(up(at).map(|each| each.0)),
-                    Direction::Child => found.extend(children(elements, at).map(|each| each.0)),
-                    Direction::Ancestor | Direction::NearestAncestor => found
-                        .extend(std::iter::successors(up(at), |each| up(*each)).map(|each| each.0)),
+                    Direction::Parent => found.extend(up(at)),
+                    Direction::Child => found.extend(children(elements, at)),
+                    Direction::Ancestor | Direction::NearestAncestor => {
+                        found.extend(std::iter::successors(up(at), |each| up(*each)))
+                    }
                     Direction::Descendant => {
-                        found.extend(at.0 + 1..=at.0 + size_at(elements, at).0)
+                        found.extend((at.0 + 1..=at.0 + size_at(elements, at).0).map(Position))
                     }
                     Direction::Deep => found.extend(
                         (at.0 + 1..=at.0 + size_at(elements, at).0)
-                            .filter(|each| parent_at(elements, Position(*each)) != at),
+                            .map(Position)
+                            .filter(|each| parent_at(elements, *each) != at),
                     ),
                     Direction::PreviousSibling => {
-                        found.extend(previous_sibling(elements, at).map(|each| each.0))
+                        found.extend(previous_sibling(elements, at))
                     }
                     Direction::NextSibling => {
-                        found.extend(next_sibling(elements, at).map(|each| each.0))
+                        found.extend(next_sibling(elements, at))
                     }
                 }
                 let reached = among.unwrap_or(*tree);
                 let outcome = (|| {
                     for each in &found {
-                        let position = Position(*each);
+                        let position = *each;
                         let admitted = if among.is_some() {
                             lease.holds(&element_of(&reached, position))? == Verdict::Holds
                         } else {
-                            marks.get(*each as usize).copied().unwrap_or(false)
+                            *marks
+                                .0
+                                .get(each.0 as usize)
+                                .ok_or(OperatingError::ShapeMismatch)?
                         };
                         if !admitted {
                             continue;

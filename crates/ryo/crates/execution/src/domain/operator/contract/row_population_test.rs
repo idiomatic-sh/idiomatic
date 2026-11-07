@@ -165,7 +165,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 fn subject(kind: Input) -> Result<Value, Failure> {
-    Ok(semantics(kind).0.row_inputs.0)
+    Ok(semantics(kind).contract.row_inputs.0)
 }
 #[test]
 fn succeeds() {

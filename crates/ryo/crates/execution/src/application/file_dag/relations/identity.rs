@@ -4,10 +4,10 @@ use crate::application::file_dag::relations::publication::types::{
     SourceDescriptor, SpanLength, StorageSpan,
 };
 use crate::application::file_dag::relations::types::Sameness;
-use crate::domain::operator::contract::views::BorrowedRows;
-use crate::domain::table_model::collections::representations::service::kind;
+
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::service::kind;
 use ryo_relations::domain::relations::types::{FactColumn, Relation};
-use ryo_values::domain::rows::types::RowCount;
 
 macro_rules! sameness {
     ($equal:expr) => {
@@ -108,7 +108,7 @@ pub(super) fn describe(relation: Relation, input: BorrowedRows<'_>) -> SourceDes
         relation,
         kind: kind(input),
         kinds: input.kinds().to_vec(),
-        rows: RowCount(input.count()),
+        rows: input.count(),
         storage,
         projection,
         source_kinds,
@@ -117,7 +117,7 @@ pub(super) fn describe(relation: Relation, input: BorrowedRows<'_>) -> SourceDes
 pub(super) fn matches(source: &SourceDescriptor, input: BorrowedRows<'_>) -> Sameness {
     if source.kind != kind(input)
         || source.kinds != input.kinds()
-        || source.rows != RowCount(input.count())
+        || source.rows != input.count()
     {
         return Sameness::Different;
     }

@@ -22,7 +22,7 @@ pub(super) struct RunContext<'a> {
     source: SourceView<'a>,
     symbols: TransportPermit,
     semantic: Option<&'a dyn crate::domain::operating::types::SemanticLookup>,
-    kinds: Option<Arc<crate::domain::kind_sets::types::PreparedVocabulary>>,
+    kinds: Option<Arc<crate::domain::kind_sets::types::vocabulary::value::PreparedVocabulary>>,
     arenas: &'a [ArenaBytes],
     memo: Vec<Memo>,
     scratch: OperatorScratch,
@@ -33,7 +33,7 @@ impl<'a> RunContext<'a> {
         source: SourceView<'a>,
         symbols: &mut Symbols,
         semantic: Option<&'a dyn crate::domain::operating::types::SemanticLookup>,
-        kinds: Option<Arc<crate::domain::kind_sets::types::PreparedVocabulary>>,
+        kinds: Option<Arc<crate::domain::kind_sets::types::vocabulary::value::PreparedVocabulary>>,
     ) -> Self {
         Self {
             request: Arc::clone(services.request()),
@@ -80,6 +80,7 @@ impl<'a> RunContext<'a> {
             semantic: self.semantic,
             prepared_kinds: self.kinds.as_deref(),
             prepared_matchers: Some(program.matchers().as_ref()),
+            matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
             bindings: program.bindings(rule)?,
             symbols: symbols.into(),
             source: self.source,

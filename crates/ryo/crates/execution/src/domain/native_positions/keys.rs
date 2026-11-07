@@ -45,7 +45,7 @@ pub(crate) fn raw_keys(
                 .ok_or(OperatingError::MissingInput { position: 1 })?;
             let mut keyed = work_keys(work);
             for at in positions(count(source.rows)) {
-                counts.found(0, 1);
+                counts.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(1));
                 key_into(
                     tree,
                     &source.shape.columns,
@@ -90,7 +90,7 @@ pub(crate) fn raw_keys(
                 .ok_or(OperatingError::MissingInput { position: 2 })?;
             let mut keyed = work_keys(work);
             for at in positions(count(right.rows)) {
-                counts.found(1, 1);
+                counts.found(ryo_values::domain::plan_parts::types::InputNumber(1), crate::domain::operator::contract::types::FoundRows(1));
                 key_into(
                     tree,
                     &right.shape.columns,

@@ -1,6 +1,7 @@
 //! Borrowed adapters that present admitted rows and texts to the injected semantic port.
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operator::contract::{failure::FailureLatch, views::BorrowedRows};
+use crate::domain::operator::contract::{failure::FailureLatch, };
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use crate::domain::table_texts::service::{datum, name_text, symbol_text};
 use crate::domain::table_texts::types::{Datum, Texts};
 use ryo_derived::domain::row_cells::types::RowCells;
@@ -26,7 +27,9 @@ pub(super) struct AdmittedRows<'a, 'f> {
 }
 impl RowCells for AdmittedRows<'_, '_> {
     fn bulk(&self) -> Option<ryo_derived::domain::row_cells::types::BulkRows<'_>> {
-        if self.failure.borrow().failed() {
+        if self.failure.borrow().failed()
+            == crate::domain::operator::contract::failure::LatchState::Failed
+        {
             return None;
         }
         let Ok(rows) = self.failure.borrow_mut().run(|| self.rows.bulk()) else {
@@ -41,7 +44,7 @@ impl RowCells for AdmittedRows<'_, '_> {
                 ..
             } => Some(ryo_derived::domain::row_cells::types::BulkRows::Selected {
                 source,
-                positions: ryo_derived::domain::positions::types::RowSlots(positions),
+                positions: ryo_derived::domain::positions::types::RowSlots(positions.0),
                 columns,
             }),
             BorrowedRows::Computed(table) => Some(ryo_derived::domain::row_cells::types::BulkRows::Computed(table)),
@@ -52,10 +55,12 @@ impl RowCells for AdmittedRows<'_, '_> {
         self.rows.kinds()
     }
     fn count(&self) -> RowCount {
-        RowCount(self.rows.count())
+        self.rows.count()
     }
     fn cell(&self, row: RowIndex, column: ColumnIndex) -> Option<Value> {
-        if self.failure.borrow().failed() {
+        if self.failure.borrow().failed()
+            == crate::domain::operator::contract::failure::LatchState::Failed
+        {
             return None;
         }
         self.rows.cell(row, column)
@@ -67,7 +72,9 @@ impl RowCells for AdmittedRows<'_, '_> {
             .map_err(|()| ryo_derived::domain::fault::types::DerivedFault::Interrupted)
     }
     fn read_row<'a>(&'a self, row: RowIndex, buffer: &'a mut Vec<Value>) -> Option<&'a [Value]> {
-        if self.failure.borrow().failed() {
+        if self.failure.borrow().failed()
+            == crate::domain::operator::contract::failure::LatchState::Failed
+        {
             return None;
         }
         self.rows.read(row, buffer)
@@ -83,7 +90,7 @@ pub(super) struct Predicate<'a, 'f> {
 }
 impl ryo_derived::domain::row_cells::types::PredicateRows for Predicate<'_, '_> {
     fn count(&self) -> RowCount {
-        RowCount(self.rows.count())
+        self.rows.count()
     }
     fn holds(
         &mut self,
@@ -152,7 +159,9 @@ pub(super) struct CanonicalTexts<'a, 's> {
 }
 impl ryo_derived::domain::row_cells::types::ValueTexts for CanonicalTexts<'_, '_> {
     fn text(&self, value: Value) -> Option<CellText<'_>> {
-        if self.failure.borrow().failed() {
+        if self.failure.borrow().failed()
+            == crate::domain::operator::contract::failure::LatchState::Failed
+        {
             return None;
         }
         let texts = Texts {

@@ -108,6 +108,7 @@ fn an_empty_next_file_has_no_stale_native_publication() {
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
+        matcher: crate::domain::matching::service_test::matcher(),
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(SMALL_SOURCE),

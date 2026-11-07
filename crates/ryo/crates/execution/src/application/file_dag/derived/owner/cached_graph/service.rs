@@ -31,7 +31,7 @@ impl CachedGraph {
         use ryo_derived::domain::request::types::DerivedKind;
         let slots = &contract.derived.slots;
         let adjacency = || {
-            slots[slot(DerivedKind::Adjacency)]
+            slots[DerivedKind::Adjacency.ordinal()]
                 .as_ref()
                 .map(|group| &group.primary.plan)
                 .ok_or(OperatingError::NotRun)
@@ -41,7 +41,7 @@ impl CachedGraph {
                 let Some(reach) = join.reach.as_ref() else {
                     return Ok(None);
                 };
-                if join.has_filter
+                if join.has_filter == crate::domain::operator::contract::resources::Filtering::Filtered
                     || !join.view.is_empty()
                     || join.left_on.len() != join.right_on.len()
                 {
@@ -86,7 +86,7 @@ impl CachedGraph {
                 })))
             }
             ResourceProgram::Axis(axis) => {
-                if axis.has_filter
+                if axis.has_filter == crate::domain::operator::contract::resources::Filtering::Filtered
                     || !axis.domain_view.is_empty()
                     || !axis.output.is_empty()
                     || matches!(
@@ -204,7 +204,7 @@ impl ReachGraph {
                         .access
                         .graph()
                         .vertices()
-                        .get(*vertex as usize)
+                        .get(vertex.0 as usize)
                         .ok_or(OperatingError::ShapeMismatch)?,
                 );
             }
@@ -277,13 +277,13 @@ impl AxisGraph {
                 &mut self.walk,
             )?;
             for vertex in &self.walk.reached {
-                if self.domain.members().get(*vertex as usize) == Some(&true) {
+                if self.domain.members().get(vertex.0 as usize) == Some(&true) {
                     self.destinations.push(
                         *self
                             .access
                             .graph()
                             .vertices()
-                            .get(*vertex as usize)
+                            .get(vertex.0 as usize)
                             .ok_or(OperatingError::ShapeMismatch)?,
                     );
                 }

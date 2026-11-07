@@ -21,8 +21,17 @@ impl MetadataUseCase for MetadataUseCaseImpl {
     fn rule_id(&self, ids: &[RuleId], rule: RuleIndex) -> RuleId {
         crate::domain::rules::service::id_at(ids, rule)
     }
-    fn kind_refusal(&self, plan: &Plan, vocabularies: &KindVocabularies) -> Option<KindRefusal> {
-        crate::domain::kind_check::service::refusal(plan, vocabularies)
+    fn kind_refusal(
+        &self,
+        plan: &Plan,
+        vocabularies: &KindVocabularies,
+        matching: &dyn ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase,
+    ) -> Option<KindRefusal> {
+        crate::domain::kind_check::service::refusal(
+            plan,
+            vocabularies,
+            crate::domain::matching::types::PatternMatcher(matching),
+        )
     }
     fn kinds_asked(&self, plan: &Plan, bound: &[ParameterBinding]) -> Vec<AskedKind> {
         crate::domain::kind_check::service::kinds_asked(plan, bound)
@@ -32,8 +41,14 @@ impl MetadataUseCase for MetadataUseCaseImpl {
         plans: &[Plan],
         bindings: &[Vec<ParameterBinding>],
         vocabularies: &KindVocabularies,
+        matching: &dyn ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase,
     ) -> Option<UnknownKind> {
-        crate::domain::kind_check::service::first_unknown(plans, bindings, vocabularies)
+        crate::domain::kind_check::service::first_unknown(
+            plans,
+            bindings,
+            vocabularies,
+            crate::domain::matching::types::PatternMatcher(matching),
+        )
     }
     fn unknown_kind_message(
         &self,
@@ -89,8 +104,11 @@ impl MetadataUseCase for MetadataUseCaseImpl {
         &self,
         request: AffectedFiles<'_>,
     ) -> Result<FileOrdinals, OperatingError> {
-        crate::domain::coverage::service::affected_ordinals(request.affected, request.file_count.0)
-            .map(FileOrdinals)
+        crate::domain::coverage::service::affected_ordinals(
+            request.affected,
+            crate::domain::coverage::types::DeclaredFiles(request.file_count.0),
+        )
+        .map(|ordinals| FileOrdinals(ordinals.into_iter().map(|ordinal| ordinal.0).collect()))
     }
     fn scoped_needs(&self, plan: &Plan) -> Needs {
         crate::domain::trust::service::scoped_needs(plan)

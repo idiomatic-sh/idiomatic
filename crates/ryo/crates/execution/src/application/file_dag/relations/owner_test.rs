@@ -3,15 +3,12 @@ use super::RelationOwner;
 use crate::domain::{
     coverage::types::{Lacking, Partial},
     operating::errors::OperatingError,
-    operator::contract::views::BorrowedRows,
     table_model::{
-        collections::representations::{
-            publication::PublishedRelation,
-            types::{PhysicalShape, RepresentationKind},
-        },
-        types::{Rows, SelectedRows, StoredSelection},
+        collections::representations::types::{PhysicalShape, RepresentationKind},
+        types::{PublishedRelation, Rows, SelectedRows, StoredSelection},
     },
 };
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_relations::domain::relations::{
     service::{all, kinds, to_bits},
     types::{CellKind, ColumnsView, FileId, Integer, Relation, Value},
@@ -66,7 +63,7 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     owner
         .admit(
             first.as_ref(),
-            crate::domain::operator::contract::views::BorrowedRows::Compact(&compact),
+            crate::domain::table_model::types::RepresentationInput::Compact(&compact),
         )
         .unwrap();
     let first_unique = owner.derived.publication_ownership_bytes().2;
@@ -74,7 +71,7 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     owner
         .admit(
             second.as_ref(),
-            crate::domain::operator::contract::views::BorrowedRows::Compact(&compact),
+            crate::domain::table_model::types::RepresentationInput::Compact(&compact),
         )
         .unwrap();
     assert_eq!(first.same_record(&second), crate::application::file_dag::relations::types::Sameness::Different);
@@ -276,7 +273,7 @@ fn stable_partial_population_reuses_structure_without_proving_semantic_absence()
         relation,
         cause: PartialCause("fixture partial".into()),
         lacking: Lacking::Any,
-        at: Some(FileId(9)),
+        at: crate::domain::coverage::types::PartialPlace::File(FileId(9)),
     }];
     let owner = RelationOwner::new(
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,

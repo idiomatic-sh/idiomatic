@@ -23,7 +23,8 @@ use crate::application::file_dag::derived::{
 use crate::domain::{
     operating::errors::OperatingError,
     stored_graph::types::{
-        GraphDomain, GraphWalk, Orientation,
+        BreadthEnd, ExaminedVertices, ExpandedVertices, GraphDomain, GraphWalk, MemoStatus,
+        Nearest, Orientation, VertexId,
         traversal::value::{GraphTraversal, UNKNOWN},
     },
 };
@@ -54,11 +55,11 @@ impl<'a> DemandAnswers<'a> {
     ) -> Result<Option<RootAnswer>, OperatingError> {
         access.validate_owner(self.owner)?;
         walk.reached.clear();
-        walk.expanded = 0;
-        walk.examined = 0;
+        walk.expanded = ExpandedVertices(0);
+        walk.examined = ExaminedVertices(0);
         {
             let cache = &mut *self.cache;
-            cache.graph_counts.roots += 1;
+            cache.graph_counts.roots.0 += 1;
         }
         crate::application::file_dag::route_counts::event(
             constants::REACH_REQUEST,
@@ -89,7 +90,7 @@ impl<'a> DemandAnswers<'a> {
                 constants::REACH_MEMO_HIT,
                 constants::ROUTE_GRAPH,
             );
-            cache.graph_counts.memo_hits += 1;
+            cache.graph_counts.memo_hits.0 += 1;
             return completed(self.owner, entry, Arc::clone(&answer.reached)).map(Some);
         }
         crate::application::file_dag::route_counts::event(
@@ -97,13 +98,14 @@ impl<'a> DemandAnswers<'a> {
             constants::ROUTE_GRAPH,
         );
         let mut traversal = GraphTraversal::new(access.raw_graph(), walk);
-        let stopped = traversal.breadth(root, access.orientation(), None);
+        let stopped = traversal.breadth(VertexId(root), access.orientation(), None)
+            == BreadthEnd::Stopped;
         traversal.sort();
         {
             let cache = &mut *self.cache;
-            cache.graph_counts.traversals += 1;
-            cache.graph_counts.expanded += walk.expanded;
-            cache.graph_counts.examined += walk.examined;
+            cache.graph_counts.traversals.0 += 1;
+            cache.graph_counts.expanded.0 += walk.expanded.0;
+            cache.graph_counts.examined.0 += walk.examined.0;
         }
         // A stopped traversal has not completed the requested closure.
         if stopped || access.sharing() == GraphSharing::Local {
@@ -127,20 +129,13 @@ impl<'a> DemandAnswers<'a> {
             ryo_values::domain::plan_parts::types::Direction::Parent
                 | ryo_values::domain::plan_parts::types::Direction::Child
         ) {
-            traversal.direct(root, orientation);
+            traversal.direct(VertexId(root), orientation);
         } else {
-            let _ = traversal.breadth(root, orientation, None);
+            let _ = traversal.breadth(VertexId(root), orientation, None);
         }
         {
             let cache = &mut *self.cache;
-            cache.observe_graph_walk(
-                crate::application::file_dag::derived::owner::cache::types::ExpandedVertices(
-                    walk.expanded,
-                ),
-                crate::application::file_dag::derived::owner::cache::types::ExaminedVertices(
-                    walk.examined,
-                ),
-            );
+            cache.observe_graph_walk(walk.expanded, walk.examined);
         }
         Ok(())
     }
@@ -150,7 +145,7 @@ impl<'a> DemandAnswers<'a> {
         domain: &DomainHandle,
         root: u32,
         orientation: Orientation,
-        local: &mut Vec<u32>,
+        local: &mut Vec<VertexId>,
         walk: &mut GraphWalk,
     ) -> Result<Option<u32>, OperatingError> {
         access.validate_owner(self.owner)?;
@@ -162,7 +157,7 @@ impl<'a> DemandAnswers<'a> {
         );
         if access
             .graph()
-            .forest(crate::domain::stored_graph::types::traversal::value::direction(orientation))
+            .forest(crate::domain::stored_graph::types::traversal::value::direction(orientation).0)
             .is_none()
         {
             crate::application::file_dag::route_counts::event(
@@ -170,39 +165,43 @@ impl<'a> DemandAnswers<'a> {
                 constants::ROUTE_GRAPH,
             );
             let stopped = GraphTraversal::new(access.raw_graph(), walk).breadth(
-                root,
+                VertexId(root),
                 orientation,
-                Some(domain.members.as_slice()),
-            );
+                Some(domain.as_ref()),
+            ) == BreadthEnd::Stopped;
             {
                 let cache = &mut *self.cache;
-                cache.graph_counts.early_stops += u64::from(stopped);
-                cache.graph_counts.expanded += walk.expanded;
-                cache.graph_counts.examined += walk.examined;
+                cache.graph_counts.early_stops.0 += u64::from(stopped);
+                cache.graph_counts.expanded.0 += walk.expanded.0;
+                cache.graph_counts.examined.0 += walk.examined.0;
             }
             return Ok(stopped.then(|| {
-                *walk
-                    .reached
+                walk.reached
                     .last()
                     .expect(constants::EXPECT_QUALIFYING_ENCOUNTER)
+                    .0
             }));
         }
         let shared = self.forest_context(access, domain, orientation)?;
-        let (answer, hit) = if let Some(index) = shared {
+        let Nearest {
+            vertex: answer,
+            memo,
+        } = if let Some(index) = shared {
             GraphTraversal::new(access.raw_graph(), walk).nearest(
-                root,
+                VertexId(root),
                 orientation,
-                &domain.members,
+                domain,
                 &mut self.cache.nearest[index].answers,
             )
         } else {
             GraphTraversal::new(access.raw_graph(), walk).nearest(
-                root,
+                VertexId(root),
                 orientation,
-                &domain.members,
+                domain,
                 local,
             )
         };
+        let hit = memo == MemoStatus::Memoized;
         {
             let cache = &mut *self.cache;
             crate::application::file_dag::route_counts::event(
@@ -213,11 +212,11 @@ impl<'a> DemandAnswers<'a> {
                 },
                 constants::ROUTE_GRAPH,
             );
-            cache.graph_counts.forest_hits += u64::from(hit);
-            cache.graph_counts.expanded += walk.expanded;
-            cache.graph_counts.examined += walk.examined;
+            cache.graph_counts.forest_hits.0 += u64::from(hit);
+            cache.graph_counts.expanded.0 += walk.expanded.0;
+            cache.graph_counts.examined.0 += walk.examined.0;
         }
-        Ok(answer)
+        Ok(answer.map(|vertex| vertex.0))
     }
     fn admit(
         &mut self,
@@ -257,7 +256,7 @@ impl<'a> DemandAnswers<'a> {
             if reached.try_reserve_exact(walk.reached.len()).is_err() {
                 return None;
             }
-            reached.extend_from_slice(&walk.reached);
+            reached.extend(walk.reached.iter().map(|vertex| vertex.0));
             let cost = arc_bytes::<Vec<u32>>()
                 .0
                 .checked_add(vector(&reached).0)?
@@ -295,7 +294,7 @@ impl<'a> DemandAnswers<'a> {
         cache.bytes += cost;
         cache.graph_bytes += cost;
         cache.memo_bytes += cost;
-        cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(cache.bytes);
+        cache.graph_counts.peak_bytes.0 = cache.graph_counts.peak_bytes.0.max(cache.bytes);
         completed(self.owner, &cache.graphs[index], reached).map(Some)
     }
     /// Exact graph allocation, exact admitted domain and orientation jointly
@@ -387,7 +386,7 @@ impl<'a> DemandAnswers<'a> {
         cache.bytes += cost;
         cache.graph_bytes += cost;
         cache.memo_bytes += cost;
-        cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(cache.bytes);
+        cache.graph_counts.peak_bytes.0 = cache.graph_counts.peak_bytes.0.max(cache.bytes);
         Ok(Some(cache.nearest.len() - 1))
     }
 }

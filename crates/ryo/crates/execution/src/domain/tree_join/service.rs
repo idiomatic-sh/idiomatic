@@ -4,7 +4,7 @@ use ryo_language::domain::elements::service::kind_names;
 use ryo_language::domain::names::service::name_count;
 use ryo_relations::domain::relations::types::{Flag, Value};
 
-use super::types::{ColumnLack, TreeState};
+use super::types::{ColumnLack, StretchCursor, TreeState};
 use crate::domain::kind_sets::service::{candidates_of, kind_tests};
 use crate::domain::kind_sets::types::KindScratch;
 use crate::domain::operating::errors::OperatingError;
@@ -165,9 +165,9 @@ pub(crate) fn probe(
     #[cfg(feature = "diagnostic-row-progress")]
     (semantics.progress())(
         crate::domain::operator::contract::views::ProgressCounter::InputRows,
-        1,
+        crate::domain::operator::contract::views::ProgressAmount(1),
     );
-    let mut driver = driver::Driver {
+    let mut driver = driver::TreeDriver {
         #[cfg(feature = "diagnostic-row-progress")]
         progress: semantics.progress(),
         state,
@@ -176,7 +176,7 @@ pub(crate) fn probe(
         comparisons,
         context,
         emit,
-        at: 0,
+        at: StretchCursor(0),
         current: None,
         error: None,
     };
@@ -264,7 +264,7 @@ pub(crate) fn join_tree(
             let Some(left_row) = read_row(left, position, &mut buffer) else {
                 continue;
             };
-            work.found(0, 1);
+            work.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(1));
             outcome = probe(
                 semantics, left_on, work, &mut state, tree, finding, shape, left_row, context, emit,
             );

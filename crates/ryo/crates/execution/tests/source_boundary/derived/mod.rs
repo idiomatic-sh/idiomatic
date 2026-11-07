@@ -19,7 +19,7 @@ const AUTHORIZED: &str = r#"
 mod derived_authorized {
     use crate::application::file_dag::relations::{RelationOwner, admission::service::BorrowedInput};
     use crate::application::file_dag::program::runtime::service::KernelPermit;
-    use crate::domain::derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch};
+    use crate::domain::derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch};
     use crate::domain::operating::errors::OperatingError;
     use std::{rc::Rc, sync::Arc};
     fn acquire<'a>(owner: &'a RelationOwner, plan: &'a Arc<DerivedContract>, proof: &'a BorrowedInput<'a>, scratch: &'a mut DerivedScratch) -> Result<(), OperatingError> {
@@ -81,7 +81,7 @@ mod storage_constructor {
 const UNPERMITTED_RAW: &str = r#"
 mod unpermitted_raw {
     use crate::application::file_dag::relations::RelationOwner;
-    use crate::domain::derived_views::types::DerivedContract;
+    use crate::domain::derived_views::types::contract::value::DerivedContract;
     use std::{rc::Rc, sync::Arc};
     fn forge(owner: Rc<RelationOwner>, plan: Arc<DerivedContract>) { let _ = owner.derived().finite_raw(Rc::clone(&owner), Some(plan)); }
     const _: fn(Rc<RelationOwner>, Arc<DerivedContract>) = forge;
@@ -97,7 +97,7 @@ mod removed_port_getter {
 const RAW_BRIDGE_SIBLING: &str = r#"
 mod future_raw_consumer {
     use crate::outbound::derived::interface::DerivedPort;
-    use crate::domain::derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch};
+    use crate::domain::derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch};
     use std::sync::Arc;
     fn bypass<'a>(port: Arc<dyn DerivedPort>, plan: &'a DerivedContract, inputs: DerivedInputs<'a, 'a>, scratch: &'a mut DerivedScratch) {
         let _ = crate::application::file_dag::derived::owner::acquisition::semantics::service::build(port, plan, inputs, scratch, None);

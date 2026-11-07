@@ -126,7 +126,7 @@ pub use crate::application::file_dag::program::protocol::types::RootOutcome;
 pub use crate::application::file_dag::program::protocol::types::RuleDemand;
 pub use crate::application::file_dag::program::protocol::types::RuleOutcome;
 pub use crate::domain::coverage::types::{Covered, Partial, Partials, RuleIndex};
-pub use crate::domain::kind_sets::types::PreparedVocabulary;
+pub use crate::domain::kind_sets::types::vocabulary::value::PreparedVocabulary;
 pub use crate::domain::operating::errors::OperatingError;
 pub use crate::domain::operating::types::SemanticLookup;
 /// Physical provider data; execution-owned projections and publications cannot be supplied here.

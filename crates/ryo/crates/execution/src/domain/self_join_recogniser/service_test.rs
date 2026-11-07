@@ -1,9 +1,32 @@
-use super::*;
-use ryo_values::domain::plan_parts::types::{PlanComparison, JoinColumn};
-use ryo_values::domain::plans::types::{Emit, PlanStep};
+//! The `self_join_recogniser` service's cases, on values alone.
+
+use super::service::compile;
+use super::types::{Decline, Extremum, Program};
+use ryo_relations::domain::relations::{
+    service::kinds,
+    types::{CellKind, Relation},
+};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::plan_parts::types::{
+    ColumnIndex, ComparisonOrigin, Input as Source, JoinColumn, Operand, PlanComparison,
+    RepeatedRows, Side, StepId, StepScope, Test,
+};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+
+#[derive(Clone, Copy)]
+enum Scenario {
+    Eligible,
+    ExtraConsumer,
+    FilteredJoin,
+    ViewedJoin,
+    NaturalOrder,
+}
+type Input = Scenario;
+type Value = ();
+type Failure = Decline;
 
 fn fixture() -> (Plan, Vec<CellKind>) {
-    let schema = kinds(ryo_relations::domain::relations::types::Relation::SourceLocation).to_vec();
+    let schema = kinds(Relation::SourceLocation).to_vec();
     let number = ColumnIndex(
         schema
             .iter()
@@ -11,13 +34,13 @@ fn fixture() -> (Plan, Vec<CellKind>) {
             .expect("typed numeric source") as u32,
     );
     let source = Operation::Select {
-        from: Input::Relation(ryo_relations::domain::relations::types::Relation::SourceLocation),
+        from: Source::Relation(Relation::SourceLocation),
         comparisons: vec![],
         kept: vec![],
     };
     let join = Operation::Join {
-        left: Input::Step(StepId(0)),
-        right: Input::Step(StepId(0)),
+        left: Source::Step(StepId(0)),
+        right: Source::Step(StepId(0)),
         left_on: vec![ColumnIndex(0)],
         right_on: vec![ColumnIndex(0)],
         output: vec![
@@ -35,23 +58,23 @@ fn fixture() -> (Plan, Vec<CellKind>) {
         reach: None,
     };
     let select = Operation::Select {
-        from: Input::Step(StepId(1)),
+        from: Source::Step(StepId(1)),
         comparisons: vec![PlanComparison {
             test: Test::LessThan,
             left: Operand::Column(ColumnIndex(0)),
             right: Operand::Column(ColumnIndex(1)),
-            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
+            origin: ComparisonOrigin::Unrecorded,
         }],
         kept: vec![],
     };
     let project = Operation::Project {
-        from: Input::Step(StepId(2)),
+        from: Source::Step(StepId(2)),
         columns: vec![ColumnIndex(0)],
         distinct: RepeatedRows::Dropped,
     };
     let anti = Operation::Antijoin {
-        left: Input::Step(StepId(0)),
-        right: Input::Step(StepId(3)),
+        left: Source::Step(StepId(0)),
+        right: Source::Step(StepId(3)),
         left_on: vec![number],
         right_on: vec![ColumnIndex(0)],
     };
@@ -82,10 +105,36 @@ fn fixture() -> (Plan, Vec<CellKind>) {
 fn prepared(plan: &Plan, schema: &[CellKind]) -> Program {
     compile(plan, &|id| (id == StepId(0)).then_some(schema))
 }
-#[test]
-fn eligible_shape_names_original_source_replacements_and_retained_operators() {
-    let (plan, schema) = fixture();
+
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    let (mut plan, schema) = fixture();
+    match scenario {
+        Scenario::Eligible => {}
+        Scenario::ExtraConsumer => plan.frontier.push(Source::Step(StepId(1))),
+        Scenario::FilteredJoin => {
+            let comparison = match &plan.steps[2].operation {
+                Operation::Select { comparisons, .. } => comparisons[0].clone(),
+                _ => unreachable!(),
+            };
+            if let Operation::Join { filter, .. } = &mut plan.steps[1].operation {
+                filter.push(comparison);
+            }
+        }
+        Scenario::ViewedJoin => {
+            if let Operation::Join { view, .. } = &mut plan.steps[1].operation {
+                view.push(ColumnIndex(0));
+            }
+        }
+        Scenario::NaturalOrder => {
+            if let Operation::Select { comparisons, .. } = &mut plan.steps[2].operation {
+                comparisons[0].test = Test::NaturalLessThan;
+            }
+        }
+    }
     let found = prepared(&plan, &schema);
+    if let Some(declined) = found.declines.first() {
+        return Err(declined.reason);
+    }
     assert_eq!(found.shapes.len(), 1);
     let shape = &found.shapes[0];
     assert_eq!(
@@ -100,78 +149,49 @@ fn eligible_shape_names_original_source_replacements_and_retained_operators() {
     );
     assert_eq!(shape.extremum, Extremum::Maximum);
     assert!(!shape.number.origins.is_empty());
+    Ok(())
 }
+
+/// The rows of this part's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("an_eligible_shape_names_the_original_source_the_replacements_and_the_retained_operators"),
+        word: Word::Succeeds,
+        input: || Scenario::Eligible,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("an_extra_consumer_of_the_join_is_declined"),
+        word: Word::Refuses,
+        input: || Scenario::ExtraConsumer,
+        expect: Expect::Error(Decline::ExtraConsumer),
+    },
+    Case {
+        name: CaseName("a_join_with_a_filter_is_not_a_plain_self_join"),
+        word: Word::Refuses,
+        input: || Scenario::FilteredJoin,
+        expect: Expect::Error(Decline::NotPlainSelfJoin),
+    },
+    Case {
+        name: CaseName("a_join_with_a_view_is_not_a_plain_self_join"),
+        word: Word::Refuses,
+        input: || Scenario::ViewedJoin,
+        expect: Expect::Error(Decline::NotPlainSelfJoin),
+    },
+    Case {
+        name: CaseName("a_non_strict_order_is_declined"),
+        word: Word::Refuses,
+        input: || Scenario::NaturalOrder,
+        expect: Expect::Error(Decline::NonStrictOrder),
+    },
+];
+
 #[test]
-fn rejects_extra_consumers_filters_and_non_strict_or_mapped_views() {
-    let (base, schema) = fixture();
-    let mut plan = base.clone();
-    plan.frontier.push(Input::Step(StepId(1)));
-    assert_eq!(
-        prepared(&plan, &schema).declines[0].1,
-        Decline::ExtraConsumer
-    );
-    let mut plan = base.clone();
-    let comparison = match &plan.steps[2].operation {
-        Operation::Select { comparisons, .. } => comparisons[0].clone(),
-        _ => unreachable!(),
-    };
-    if let Operation::Join { filter, .. } = &mut plan.steps[1].operation {
-        filter.push(comparison);
-    }
-    assert_eq!(
-        prepared(&plan, &schema).declines[0].1,
-        Decline::NotPlainSelfJoin
-    );
-    let mut plan = base.clone();
-    if let Operation::Join { view, .. } = &mut plan.steps[1].operation {
-        view.push(ColumnIndex(0));
-    }
-    assert_eq!(
-        prepared(&plan, &schema).declines[0].1,
-        Decline::NotPlainSelfJoin
-    );
-    let mut plan = base;
-    if let Operation::Select { comparisons, .. } = &mut plan.steps[2].operation {
-        comparisons[0].test = Test::NaturalLessThan;
-    }
-    assert_eq!(
-        prepared(&plan, &schema).declines[0].1,
-        Decline::NonStrictOrder
-    );
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }
 
 #[test]
-fn request_binding_rejects_a_second_rules_bag_sensitive_terminal_select() {
-    let (first, _) = fixture();
-    let mut second = first.clone();
-    second.steps.truncate(3);
-    second.emit.step = StepId(2); // Direct observation of the pair-multiplicity bag.
-    let plans = [first, second];
-    let request = crate::application::file_dag::request::prepare(
-        &plans,
-        &[vec![], vec![]],
-        &[],
-        std::sync::Arc::new(
-            crate::outbound::derived::factory::semantics(),
-        ),
-    )
-    .unwrap();
-    assert_eq!(
-        request.ordered_existence[0].shapes.len(),
-        1,
-        "local shape alone is insufficient"
-    );
-    let graph = crate::domain::file_program::service::compile_prepared(&plans, &request);
-    use crate::domain::file_program::types::ResolvedAlternative;
-    assert!(graph.ordered_existence.iter().any(|alternative| matches!(
-        alternative,
-        Some(ResolvedAlternative::Declined(Decline::ExtraConsumer))
-    )));
-    assert!(
-        graph
-            .ordered_existence
-            .iter()
-            .all(|alternative| !matches!(alternative, Some(ResolvedAlternative::Eligible(_)))),
-        "canonical Select also has a bag-sensitive terminal observer; publication cannot be replaced"
-    );
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }

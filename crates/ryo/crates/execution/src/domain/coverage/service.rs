@@ -9,7 +9,10 @@ use ryo_relations::domain::relations::types::{CellKind, Class, FileId, Missing, 
 
 use super::constants::REPOSITORY;
 use super::constants::{UNKNOWN_BECAUSE, UNKNOWN_IN};
-use super::types::{CoverageScope, Keying, Lacking, LackingKind, Message, Partial, Recovery};
+use super::types::{
+    CoverageScope, DeclaredFiles, FileOrdinal, Keying, KeyColumn, Lacking, LackingKind, Message, Partial,
+    PartialPlace, Recovery,
+};
 
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::stored_facts::types::{PartialCause, PartialScope, ReadInPart};
@@ -19,13 +22,13 @@ use ryo_values::domain::stored_facts::types::{PartialCause, PartialScope, ReadIn
 /// the caller must retain the project refusal instead of losing it in a report.
 pub(crate) fn affected_ordinals(
     affected: &[Option<FileId>],
-    file_count: usize,
-) -> Result<Vec<usize>, crate::domain::operating::errors::OperatingError> {
+    file_count: DeclaredFiles,
+) -> Result<Vec<FileOrdinal>, crate::domain::operating::errors::OperatingError> {
     use crate::domain::operating::errors::OperatingError;
     let refuse = || OperatingError::ObservationIncomplete {
         reason: super::constants::UNPLACEABLE_COVERAGE.into(),
     };
-    if affected.is_empty() || file_count == 0 {
+    if affected.is_empty() || file_count.0 == 0 {
         return Err(refuse());
     }
     let unlocated = affected.iter().any(Option::is_none);
@@ -34,15 +37,17 @@ pub(crate) fn affected_ordinals(
         .filter_map(|file| file.as_ref())
         .map(|file| {
             let ordinal = usize::try_from(file.0).map_err(|_| refuse())?;
-            (ordinal < file_count).then_some(ordinal).ok_or_else(refuse)
+            (ordinal < file_count.0)
+                .then_some(ordinal)
+                .ok_or_else(refuse)
         })
         .collect::<Result<Vec<_>, _>>()?;
     if unlocated {
-        return Ok((0..file_count).collect());
+        return Ok((0..file_count.0).map(FileOrdinal).collect());
     }
     ordinals.sort_unstable();
     ordinals.dedup();
-    Ok(ordinals)
+    Ok(ordinals.into_iter().map(FileOrdinal).collect())
 }
 
 /// The file a value lies in, when it is a file or a node.
@@ -68,7 +73,7 @@ fn is_file_kind(kind: CellKind) -> Keying {
 }
 
 /// The column of the answer that says which file a row is in, when the operator keys by one.
-fn file_key(operation: &Operation, probed: &[CellKind], out: &Table) -> Option<usize> {
+fn file_key(operation: &Operation, probed: &[CellKind], out: &Table) -> Option<KeyColumn> {
     match operation {
         Operation::Antijoin {
             left_on, right_on, ..
@@ -80,7 +85,7 @@ fn file_key(operation: &Operation, probed: &[CellKind], out: &Table) -> Option<u
                     .get(usize::try_from(right.0).unwrap_or(usize::MAX))
                     .is_some_and(|kind| is_file_kind(*kind) == Keying::ByFile)
             })
-            .map(|(left, _)| usize::try_from(left.0).unwrap_or(usize::MAX)),
+            .map(|(left, _)| KeyColumn(usize::try_from(left.0).unwrap_or(usize::MAX))),
         Operation::Difference { .. } => out
             .kinds
             .iter()
@@ -90,7 +95,7 @@ fn file_key(operation: &Operation, probed: &[CellKind], out: &Table) -> Option<u
                     .get(*place)
                     .is_some_and(|kind| is_file_kind(*kind) == Keying::ByFile)
             })
-            .map(|(place, _)| place),
+            .map(|(place, _)| KeyColumn(place)),
         // A grouped answer lists its keys first, so the key at `place` of the answer is the one the output
         // schema says is a file or a node. `probed` is the schema of the operand in one caller and of the
         // answer in the other; only the answer's own schema is positioned the same in both.
@@ -98,7 +103,8 @@ fn file_key(operation: &Operation, probed: &[CellKind], out: &Table) -> Option<u
             .kinds
             .iter()
             .take(keys.len())
-            .position(|kind| is_file_kind(*kind) == Keying::ByFile),
+            .position(|kind| is_file_kind(*kind) == Keying::ByFile)
+            .map(KeyColumn),
         Operation::SpanBetween { .. }
         | Operation::SpanBounds { .. }
         | Operation::SourceMatches { .. }
@@ -140,7 +146,7 @@ pub(crate) fn drop_uncertain(
     // A relation read in part in the repository as a whole could have a missing row anywhere.
     let everywhere = files.contains(&None);
     let keyed = file_key(operation, probed, out);
-    let Some(column) = keyed.filter(|column| *column < width && !everywhere) else {
+    let Some(KeyColumn(column)) = keyed.filter(|column| column.0 < width && !everywhere) else {
         out.cells.clear();
         out.count = ryo_values::domain::rows::types::RowCount(0);
         return;
@@ -176,7 +182,7 @@ pub(crate) fn drop_inapplicable(
         operation,
         Operation::GroupCount { .. } | Operation::GroupDigest { .. }
     );
-    if counts && file_key(operation, probed, out).is_none_or(|column| column >= width) {
+    if counts && file_key(operation, probed, out).is_none_or(|column| column.0 >= width) {
         return;
     }
     let keyed: Vec<Option<FileId>> = files.iter().copied().map(Some).collect();
@@ -197,8 +203,8 @@ pub(crate) fn partial_of(
             relation: each.relation,
             cause: PartialCause(each.cause.0.clone()),
             at: match each.at {
-                PartialScope::OneFile(file) => Some(FileId(file.0)),
-                PartialScope::Repository => None,
+                PartialScope::OneFile(file) => PartialPlace::File(FileId(file.0)),
+                PartialScope::Repository => PartialPlace::Repository,
             },
             lacking: match &each.lacking {
                 Missing::Any => Lacking::Any,
@@ -227,7 +233,7 @@ pub(crate) fn partial_of(
                 relation: *relation,
                 cause: PartialCause(cause.into()),
                 lacking: Lacking::Any,
-                at: None,
+                at: PartialPlace::Repository,
             });
         }
     }

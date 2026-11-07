@@ -5,8 +5,9 @@ use ryo_derived::domain::contract::types::DerivedView;
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use {
-    crate::domain::operator::contract::views::BorrowedRows, crate::domain::table_model::types::Rows,
+    crate::domain::operator::contract:: crate::domain::table_model::types::Rows,
 };
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Number];
 fn fixture(columns: &[FactColumn]) -> ResourceFixture {
     let fixture = ResourceFixture::new(

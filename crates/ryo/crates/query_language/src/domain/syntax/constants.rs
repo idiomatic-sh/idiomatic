@@ -60,7 +60,7 @@ pub(crate) fn operator_name(operator: QueryOperator) -> &'static str {
         QueryOperator::OrderedMatch => "ordered-match",
         QueryOperator::OrderedDfs => "ordered-dfs",
         QueryOperator::Select => ryo_values::domain::descriptions::constants::SELECT,
-        QueryOperator::Project => "project",
+        QueryOperator::Project => ryo_values::domain::descriptions::constants::PROJECT,
         QueryOperator::Extend => "extend",
         QueryOperator::Join => "join",
         QueryOperator::Union => "union",

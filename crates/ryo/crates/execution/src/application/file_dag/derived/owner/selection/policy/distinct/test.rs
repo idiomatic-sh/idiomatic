@@ -30,13 +30,13 @@ fn distinct_projections_preserve_rows_and_predicate_cache() -> Result<(), Failur
     };
     let mut first = (*program(7)).clone();
     first.columns = vec![ColumnIndex(2), ColumnIndex(1), ColumnIndex(2)];
-    first.distinct = true;
+    first.distinct = ryo_values::domain::plan_parts::types::RepeatedRows::Dropped;
     let first = Arc::new(first);
     let mut second = (*first).clone();
     second.columns = vec![ColumnIndex(1)];
     let second = Arc::new(second);
     let mut bag = (*first).clone();
-    bag.distinct = false;
+    bag.distinct = ryo_values::domain::plan_parts::types::RepeatedRows::Kept;
     let bag = Arc::new(bag);
     let mut zero = (*first).clone();
     zero.columns.clear();
@@ -65,6 +65,7 @@ fn distinct_projections_preserve_rows_and_predicate_cache() -> Result<(), Failur
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
+        matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b""),
@@ -77,7 +78,7 @@ fn distinct_projections_preserve_rows_and_predicate_cache() -> Result<(), Failur
         let actual = fixture
             .select(program, source, &mut context)?
             .expect("compact distinct");
-        assert_eq!(*actual.selection.rows, expected);
+        assert_eq!(**actual.selection.rows, expected);
         let mut table = Table::default();
         materialize(
             &Rows::Selected(actual.rows.clone()),
@@ -89,17 +90,17 @@ fn distinct_projections_preserve_rows_and_predicate_cache() -> Result<(), Failur
     let bag_result = fixture
         .select(&bag, source, &mut context)?
         .expect("bag result");
-    assert_eq!(*bag_result.selection.rows, [0, 1, 2, 3, 4]);
+    assert_eq!(**bag_result.selection.rows, [0, 1, 2, 3, 4]);
     let retained = fixture.snapshot(None);
     assert_eq!(retained.selections, 1);
     assert_eq!(
         retained.first_retained_rows_address,
-        Some(Arc::as_ptr(&bag_result.selection.rows) as usize)
+        Some(Arc::as_ptr(&bag_result.selection.rows.0) as usize)
     );
     let selected = fixture
         .select(&zero, source, &mut context)?
         .expect("zero-width result");
-    assert_eq!(*selected.selection.rows, [0]);
+    assert_eq!(**selected.selection.rows, [0]);
     let mut table = Table::default();
     materialize(
         &Rows::Selected(selected.rows.clone()),
@@ -159,7 +160,7 @@ fn distinct_projections_preserve_rows_and_predicate_cache() -> Result<(), Failur
     let actual = next_file
         .select(&first, changed, &mut context)?
         .expect("next file");
-    assert_eq!(*actual.selection.rows, [0]);
+    assert_eq!(**actual.selection.rows, [0]);
     let mut table = Table::default();
     materialize(
         &Rows::Selected(actual.rows.clone()),

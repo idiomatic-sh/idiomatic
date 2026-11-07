@@ -95,7 +95,6 @@ fn subject(scenario: Input) -> Value {
 }
 
 fn comparison_origin_does_not_split_shared_step_classes() {
-    use ryo_values::domain::plan_parts::types::ComparisonOriginId;
     use ryo_values::domain::query_tokens::types::{
         ByteOffset, QueryOrigin, QuerySourceId, QuerySpan,
     };
@@ -139,6 +138,11 @@ fn with_operands(left: Operand, right: Operand) -> Plan {
     selected
 }
 
+/// How many classes the merge makes of the plans bound to the bindings.
+fn classes(plans: &[Plan], bindings: &[Vec<ParameterBinding>]) -> usize {
+    merge(plans, bindings).classes.len()
+}
+
 fn text(value: &str) -> ParameterBinding {
     ParameterBinding::Text(LiteralText(value.into()))
 }
@@ -173,37 +177,22 @@ fn only_referenced_slots_must_match_including_left_operands_and_duplicate_reads(
         Operand::Parameter(ParameterId(1)),
         Operand::Parameter(ParameterId(1)),
     );
-    let equal = merge(
-        &[selected.clone(), selected.clone()],
-        &[
-            vec![text("unused-a"), text("word")],
-            vec![
-                ParameterBinding::Number(WholeNumber(999)),
-                text("word"),
-                text("unused-b"),
-            ],
-        ],
-    );
-    assert_eq!(equal.classes.len(), 1);
-    let changed = merge(
-        &[selected.clone(), selected.clone()],
-        &[
-            vec![text("same-unused"), text("word")],
-            vec![text("same-unused"), text("other")],
-        ],
-    );
-    assert_eq!(changed.classes.len(), 2);
-    let wrong_type = merge(
-        &[selected.clone(), selected],
-        &[
-            vec![text("same-unused"), text("1")],
-            vec![
-                text("same-unused"),
-                ParameterBinding::Number(WholeNumber(1)),
-            ],
-        ],
-    );
-    assert_eq!(wrong_type.classes.len(), 2);
+    let pair = [selected.clone(), selected];
+    let equal = [
+        vec![text("unused-a"), text("word")],
+        vec![ParameterBinding::Number(WholeNumber(999)), text("word"), text("unused-b")],
+    ];
+    assert_eq!(classes(&pair, &equal), 1);
+    let changed = [
+        vec![text("same-unused"), text("word")],
+        vec![text("same-unused"), text("other")],
+    ];
+    assert_eq!(classes(&pair, &changed), 2);
+    let wrong_type = [
+        vec![text("same-unused"), text("1")],
+        vec![text("same-unused"), ParameterBinding::Number(WholeNumber(1))],
+    ];
+    assert_eq!(classes(&pair, &wrong_type), 2);
 }
 
 fn nested_function_parameters_are_referenced_but_unread_slots_are_not() {
@@ -223,52 +212,28 @@ fn nested_function_parameters_are_referenced_but_unread_slots_are_not() {
         (text("other"), 2),
         (ParameterBinding::Numbers(vec![]), 2),
     ] {
-        let merged = merge(
-            &[selected.clone(), selected.clone()],
-            &[
-                vec![text("unused-a"), text("word")],
-                vec![text("unused-b"), second],
-            ],
-        );
-        assert_eq!(merged.classes.len(), expected);
+        let bindings = [
+            vec![text("unused-a"), text("word")],
+            vec![text("unused-b"), second],
+        ];
+        assert_eq!(classes(&[selected.clone(), selected.clone()], &bindings), expected);
     }
-    assert_eq!(
-        merge(
-            &[selected.clone(), selected],
-            &[vec![text("unused-a")], vec![text("unused-b")]]
-        )
-        .classes
-        .len(),
-        2
-    );
+    let unread = [vec![text("unused-a")], vec![text("unused-b")]];
+    assert_eq!(classes(&[selected.clone(), selected], &unread), 2);
 }
 
 fn missing_vectors_or_referenced_slots_never_become_equal_values() {
     let empty = plan("word");
-    assert_eq!(
-        merge(&[empty.clone(), empty.clone()], &[vec![]])
-            .classes
-            .len(),
-        2
-    );
-    assert_eq!(merge(&[empty.clone(), empty], &[]).classes.len(), 2);
+    assert_eq!(classes(&[empty.clone(), empty.clone()], &[vec![]]), 2);
+    assert_eq!(classes(&[empty.clone(), empty], &[]), 2);
     for id in [0, 1, u32::MAX] {
         let selected = with_operands(
             Operand::Parameter(ParameterId(id)),
             Operand::Column(ColumnIndex(2)),
         );
-        assert_eq!(
-            merge(&[selected.clone(), selected.clone()], &[vec![], vec![]])
-                .classes
-                .len(),
-            2
-        );
-        assert_eq!(
-            merge(&[selected.clone(), selected], &[vec![], vec![text("word")]])
-                .classes
-                .len(),
-            2
-        );
+        let pair = [selected.clone(), selected];
+        assert_eq!(classes(&pair, &[vec![], vec![]]), 2);
+        assert_eq!(classes(&pair, &[vec![], vec![text("word")]]), 2);
     }
 }
 

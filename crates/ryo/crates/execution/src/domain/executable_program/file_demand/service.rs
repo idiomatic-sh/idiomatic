@@ -6,6 +6,7 @@ use super::super::types::{
     ReaderMultiplicity, RegionId, Remaining, RemainingMemo, RemainingTable, RuleProgram,
 };
 use super::types::*;
+use crate::domain::file_program::types::FrontierPurpose;
 use crate::domain::{
     coverage::types::RuleIndex, operating::errors::OperatingError,
 };

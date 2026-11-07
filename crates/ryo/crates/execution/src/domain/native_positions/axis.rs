@@ -83,7 +83,7 @@ pub(super) fn axis(
                 .ok_or(OperatingError::NotRun)?;
             let mut marks = vec![false; tree.elements.kind.len()];
             for at in positions(count(source.rows)) {
-                counts.found(AXIS_DOMAIN.0, 1);
+                counts.found(ryo_values::domain::plan_parts::types::InputNumber(AXIS_DOMAIN.0), crate::domain::operator::contract::types::FoundRows(1));
                 if let Some(hit) = followed(tree, column, row(source.rows, at)) {
                     if let Some(mark) = marks.get_mut(usize::try_from(hit.0).unwrap_or(usize::MAX))
                     {
@@ -100,7 +100,7 @@ pub(super) fn axis(
     let up = |at: Position| (at.0 != 0).then(|| parent_at(elements, at));
     let mut result = Ok(());
     for at in positions(count(from.rows)) {
-        counts.found(0, 1);
+        counts.found(ryo_values::domain::plan_parts::types::InputNumber(0), crate::domain::operator::contract::types::FoundRows(1));
         let each = row(from.rows, at);
         let Some(start) = followed(tree, start_column, each) else {
             continue;
@@ -130,7 +130,7 @@ pub(super) fn axis(
                 .extend(next_sibling(elements, start).map(|sibling| sibling.0)),
         }
         for reached in found.0.iter().copied() {
-            counts.found(1, 1);
+            counts.found(ryo_values::domain::plan_parts::types::InputNumber(1), crate::domain::operator::contract::types::FoundRows(1));
             match allows(&mut admit, tree, Position(reached), context) {
                 Ok(Verdict::Holds) => {}
                 Ok(Verdict::Fails) => continue,

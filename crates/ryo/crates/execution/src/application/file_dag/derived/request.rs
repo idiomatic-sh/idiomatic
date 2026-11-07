@@ -1,6 +1,11 @@
 //! Request-only interning. Runtime acquisition compares prepared IDs, never request metadata.
 use crate::domain::{
-    derived_views::{service::slot, types::*},
+    derived_views::types::{
+        contract::value::{
+            DerivedContract, DerivedSlots, PreparedViewGroup, PreparedViewUse, kind_of,
+        },
+        *,
+    },
     operating::errors::OperatingError,
     operation_schema::types::InputShape,
     operator::contract::{
@@ -8,7 +13,7 @@ use crate::domain::{
         types::OperatorContract,
     },
 };
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, InputNumber};
 use std::sync::Arc;
 pub(super) mod identity;
 use identity::types::StaticRequest;
@@ -53,7 +58,7 @@ impl RequestViews {
         match program {
             ResourceProgram::Index { input, columns } => {
                 let columns = match columns {
-                    IndexColumns::Whole => (0..kinds.get(*input).map_or(0, Vec::len))
+                    IndexColumns::Whole => (0..kinds.get(input.0).map_or(0, Vec::len))
                         .map(|at| ColumnIndex(u32::try_from(at).unwrap_or(u32::MAX)))
                         .collect(),
                     IndexColumns::Columns(columns) | IndexColumns::ColumnsUnlessEmpty(columns) => {
@@ -254,7 +259,7 @@ impl RequestViews {
                 break;
             }
         }
-        let at = slot(request.kind());
+        let at = kind_of(&request).ordinal();
         if slots[at]
             .as_ref()
             .is_some_and(|group| group.secondary.is_some())
@@ -267,8 +272,10 @@ impl RequestViews {
         } else {
             self.intern(&request, &schemas)?
         };
-        let mut inputs = [0; 2];
-        inputs[..positions.len()].copy_from_slice(positions);
+        let mut inputs = [InputNumber(0); 2];
+        for (input, position) in inputs.iter_mut().zip(positions) {
+            *input = InputNumber(*position);
+        }
         let relations = std::array::from_fn(|at| {
             positions
                 .get(at)
@@ -285,7 +292,7 @@ impl RequestViews {
             Arc::ptr_eq(&binding.plan, &plan)
                 && binding.inputs == inputs
                 && binding.relations == relations
-                && usize::from(binding.len) == positions.len()
+                && usize::from(binding.len.0) == positions.len()
         });
         let binding = if let Some(binding) = binding {
             (binding).clone()
@@ -294,7 +301,7 @@ impl RequestViews {
                 plan,
                 inputs,
                 relations,
-                len: positions.len() as u8,
+                len: InputsUsed(positions.len() as u8),
             });
             self.bindings.push((binding).clone());
             binding

@@ -47,11 +47,11 @@ impl DerivedOwner {
                 });
                 cache.graph_bytes += bytes - cache.bytes;
                 cache.bytes = bytes;
-                cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
+                cache.graph_counts.peak_bytes.0 = cache.graph_counts.peak_bytes.0.max(bytes);
                 return Ok(GraphSharing::Shared);
             }
         }
-        cache.graph_counts.refusals += 1;
+        cache.graph_counts.refusals.0 += 1;
         Ok(GraphSharing::Local)
     }
     pub(in crate::application::file_dag::derived::owner) fn retain_domain(
@@ -90,7 +90,7 @@ impl DerivedOwner {
                 });
                 cache.graph_bytes += bytes - cache.bytes;
                 cache.bytes = bytes;
-                cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
+                cache.graph_counts.peak_bytes.0 = cache.graph_counts.peak_bytes.0.max(bytes);
                 return Ok(GraphSharing::Shared);
             }
         }

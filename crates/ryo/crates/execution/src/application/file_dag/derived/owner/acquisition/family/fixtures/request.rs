@@ -2,8 +2,8 @@
 use super::super::super::admission::service::AcquiredView;
 use crate::domain::{
     derived_views::types::ViewRequest, operating::errors::OperatingError,
-    operator::contract::resources::DfsResources, stored_selection::types::Selector,
-    table_model::types::SelectionIdentity,
+    operator::contract::resources::DfsResources,
+    stored_selection::types::{SelectionIdentity, Selector},
 };
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_derived::domain::contract::types::DerivedView;
@@ -24,7 +24,7 @@ pub(super) fn request(kind: DerivedKind) -> ViewRequest {
                 bindings: vec![],
             }),
             columns: vec![zero],
-            distinct: false,
+            distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
         })),
         DerivedKind::CandidatePostings => ViewRequest::CandidatePostings {
             column: zero,
@@ -69,7 +69,9 @@ pub(super) fn request(kind: DerivedKind) -> ViewRequest {
             right_on: vec![zero],
             view: vec![zero],
         },
-        DerivedKind::RawKeyOrder => ViewRequest::RawKeyOrder { stride: 1 },
+        DerivedKind::RawKeyOrder => ViewRequest::RawKeyOrder {
+            stride: crate::domain::positions::types::Stride(1),
+        },
     }
 }
 pub(super) fn observed(view: &AcquiredView) -> Result<DerivedKind, OperatingError> {

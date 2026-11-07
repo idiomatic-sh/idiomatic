@@ -6,7 +6,7 @@ use crate::application::file_dag::derived::owner::selection::literals::service::
 use crate::application::file_dag::derived::owner::selection::types::*;
 use crate::domain::{
     derived_views::types::{
-        DerivedContract, PreparedSelectionViews, PreparedSelectorViews, ViewRequest,
+        contract::value::DerivedContract, contract::value::PreparedSelectionViews, contract::value::PreparedSelectorViews, ViewRequest,
     },
     operating::errors::OperatingError,
     stored_selection::types::Selector,
@@ -47,12 +47,12 @@ pub(crate) fn prepare_views_with_schemas<'s>(
     let mut prepared = PreparedSelectionViews {
         selectors,
         by_selector: HashMap::new(),
-        groups: 0,
+        groups: crate::domain::derived_views::types::ViewGroupCount(0),
     };
     let mut groups: Vec<Arc<Selector>> = Vec::new();
     let mut predicates: Vec<Arc<DerivedContract>> = Vec::new();
     for selector in &prepared.selectors {
-        let pointer = Arc::as_ptr(selector) as usize;
+        let pointer = crate::domain::derived_views::types::SelectorAddress(Arc::as_ptr(selector) as usize);
         if prepared.by_selector.contains_key(&pointer) {
             continue;
         }
@@ -132,7 +132,7 @@ pub(crate) fn prepare_views_with_schemas<'s>(
         prepared.by_selector.insert(
             pointer,
             Arc::new(PreparedSelectorViews {
-                group,
+                group: crate::domain::derived_views::types::ViewGroup(group),
                 predicate,
                 postings: candidate,
                 distinct,
@@ -140,7 +140,7 @@ pub(crate) fn prepare_views_with_schemas<'s>(
             }),
         );
     }
-    prepared.groups = groups.len();
+    prepared.groups = crate::domain::derived_views::types::ViewGroupCount(groups.len());
     Ok(Arc::new(prepared))
 }
 
@@ -184,7 +184,7 @@ pub(in crate::application::file_dag::derived::owner) fn activate_program(
                 .0
     }) {
         cache.bytes = bytes;
-        cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
+        cache.graph_counts.peak_bytes.0 = cache.graph_counts.peak_bytes.0.max(bytes);
         cache.selectors = selectors;
         crate::application::file_dag::derived::owner::index::service::candidate_columns(cache);
     }
@@ -214,8 +214,8 @@ pub(in crate::application::file_dag::derived::owner) fn install_views(
     {
         for selector in &cache.selectors {
             tracing::trace!(target: activation::TARGET, event = activation::REPETITION);
-            if let Some(prepared) = views.by_selector.get(&(Arc::as_ptr(selector) as usize)) {
-                if prepared.group >= views.groups {
+            if let Some(prepared) = views.by_selector.get(&crate::domain::derived_views::types::SelectorAddress(Arc::as_ptr(selector) as usize)) {
+                if prepared.group.0 >= views.groups.0 {
                     cache.selector_repetition.clear();
                     break;
                 }
@@ -223,7 +223,7 @@ pub(in crate::application::file_dag::derived::owner) fn install_views(
                     .selector_repetition
                     .entry(
                         crate::application::file_dag::derived::owner::cache::types::RepetitionGroup(
-                            prepared.group,
+                            prepared.group.0,
                         ),
                     )
                     .or_default();
@@ -234,7 +234,7 @@ pub(in crate::application::file_dag::derived::owner) fn install_views(
         cache.selector_repetition_failed =
             crate::application::file_dag::derived::owner::cache::types::RepetitionTracking::Failed;
     }
-    tracing::trace!(target:constants::TARGET_LIFECYCLE_MEMORY,phase=constants::PHASE_SELECTOR_ACTIVATION,request_groups=views.groups,active_groups=cache.selector_repetition.len(),working_metadata_bytes=cache.selector_repetition.capacity().saturating_mul(size_of::<(
+    tracing::trace!(target:constants::TARGET_LIFECYCLE_MEMORY,phase=constants::PHASE_SELECTOR_ACTIVATION,request_groups=views.groups.0,active_groups=cache.selector_repetition.len(),working_metadata_bytes=cache.selector_repetition.capacity().saturating_mul(size_of::<(
             crate::application::file_dag::derived::owner::cache::types::RepetitionGroup,
             crate::application::file_dag::derived::owner::cache::types::Repetitions,
         )>()));

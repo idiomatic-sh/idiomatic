@@ -1,11 +1,12 @@
 //! Physical row semantics; policy and allocation ownership remain in the engine.
 use super::super::{interface::RepresentationsItem, types::*};
 use crate::domain::operating::errors::OperatingError;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 pub(crate) struct ComputedItem;
 impl RepresentationsItem for ComputedItem {
-    fn bulk<'f>(&self, input: RepresentationInput<'f>) -> Result<BulkAccess<'f>, OperatingError> {
+    fn bulk<'f>(&self, input: RepresentationInput<'f>) -> Result<RepresentationInput<'f>, OperatingError> {
         if matches!(input, RepresentationInput::Computed(_)) {
             Ok(input)
         } else {
@@ -23,7 +24,7 @@ impl RepresentationsItem for ComputedItem {
             input,
             kind: RepresentationKind::Computed,
             kinds: &table.kinds,
-            rows: table.count.0,
+            rows: table.count,
             metadata: Ok(()),
         })
     }

@@ -18,8 +18,9 @@ use crate::domain::operator::contract::{
     join::NativeJoin,
     resources::ResourceProgram,
     types::OperatorContract,
-    views::{BorrowedRows, IndexedRows},
+    views::{IndexedRows},
 };
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use crate::domain::table_groups::types::Group;
 use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_derived::domain::closure_adjacency::types::ClosurePartition;
@@ -102,13 +103,13 @@ impl<'f> InvocationResources<'f> {
             {
                 return Ok(());
             }
-            if join.has_filter || !join.view.is_empty() {
+            if join.has_filter == crate::domain::operator::contract::resources::Filtering::Filtered || !join.view.is_empty() {
                 return Err(OperatingError::WrongOperation);
             }
             validate(DerivedKind::Equality)
         } else {
             // The ordinary values driver has no native filter/view protocol.
-            if join.has_filter || !join.view.is_empty() {
+            if join.has_filter == crate::domain::operator::contract::resources::Filtering::Filtered || !join.view.is_empty() {
                 return Err(OperatingError::WrongOperation);
             }
             validate(DerivedKind::Equality)
@@ -133,16 +134,16 @@ use ryo_values::domain::rows::types::Table;
 impl crate::domain::operator::contract::views::ClosureParts
     for Vec<super::derived::owner::acquisition::admission::service::AcquiredView>
 {
-    fn len(&self) -> usize {
-        Vec::len(self)
+    fn len(&self) -> crate::domain::operator::contract::views::PartitionCount {
+        crate::domain::operator::contract::views::PartitionCount(Vec::len(self))
     }
     fn get(
         &self,
-        at: usize,
+        at: crate::domain::operator::contract::views::PartitionIndex,
     ) -> Result<&ryo_derived::domain::closure_adjacency::types::ClosurePartition, OperatingError> {
         let view = self
             .as_slice()
-            .get(at)
+            .get(at.0)
             .ok_or(OperatingError::ShapeMismatch)?
             .view()?;
         match view {

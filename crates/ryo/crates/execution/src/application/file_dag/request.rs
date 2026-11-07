@@ -2,7 +2,7 @@
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::contract::types::OperatorContract;
-use crate::domain::operator::service::registered;
+use crate::domain::operator::service::prepare_operator;
 use crate::domain::table_cells::types::TreeForm;
 use ryo_relations::domain::relations::{
     service::kinds,
@@ -102,7 +102,8 @@ pub(crate) fn prepare_with_schemas<'s>(
                     tree: None,
                 });
             }
-            let mut contract = registered(kind_of(&step.operation)).prepare(
+            let mut contract = prepare_operator(
+                kind_of(&step.operation),
                 &step.operation,
                 &schemas,
                 bindings.get(rule).map_or(&[], Vec::as_slice),
@@ -160,7 +161,7 @@ pub(crate) fn prepare_with_schemas<'s>(
     let physical=plans.iter().enumerate().map(|(rule,plan)| {
         let selectors = &selection_plans[rule];
         plan.steps.iter().enumerate().map(|(at,_step)| {
-            crate::domain::table_model::collections::representations::publication::PreparedPhysical{selector:selectors.steps.get(at).cloned().flatten()}
+            crate::domain::table_model::types::PreparedPhysical{selector:selectors.steps.get(at).cloned().flatten()}
         }).collect()
     }).collect();
     let ordered_existence = Arc::new(
@@ -182,11 +183,11 @@ pub(crate) fn prepare_with_schemas<'s>(
         selection_plans,
         selection_views,
         rules,
-        preparations,
+        preparations: crate::domain::operator::contract::types::PreparationCount(preparations),
         physical,
     };
     debug_assert_eq!(
-        request.preparations,
+        request.preparations.0,
         plans.iter().map(|plan| plan.steps.len()).sum::<usize>()
     );
     Ok(request)

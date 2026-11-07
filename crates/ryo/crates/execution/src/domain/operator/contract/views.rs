@@ -3,10 +3,13 @@
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::types::Verdict;
 use ryo_derived::domain::equality::types::KeyIndex;
+use ryo_operators::domain::set_rows::types::RightMembership;
+use ryo_operators::domain::source_matches::types::{BaseLine, SourceBase};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::row_texts::types::CellText;
 
-pub(crate) use crate::domain::table_model::collections::representations::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 
 /// Profile-only semantic observations. No execution or ownership policy is reachable.
 #[cfg(feature = "diagnostic-row-progress")]
@@ -21,7 +24,12 @@ pub(crate) enum ProgressCounter {
     KernelOutputRows,
 }
 #[cfg(feature = "diagnostic-row-progress")]
-pub(crate) type ProgressObserver = fn(ProgressCounter, u64);
+pub(crate) type ProgressObserver = fn(ProgressCounter, ProgressAmount);
+
+/// How much of a counted thing one observation adds.
+#[cfg(feature = "diagnostic-row-progress")]
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ProgressAmount(pub u64);
 
 /// Exact typed key lookup prepared by the engine; primitives only probe it.
 #[derive(Clone, Copy)]
@@ -33,8 +41,8 @@ pub(crate) struct IndexedRows<'a> {
     pub index: &'a KeyIndex,
 }
 impl IndexedRows<'_> {
-    pub(crate) fn contains(&self, key: &[Value]) -> bool {
-        self.matching(key).next().is_some()
+    pub(crate) fn contains(&self, key: &[Value]) -> RightMembership {
+        RightMembership::from(self.matching(key).next().is_some())
     }
     pub(crate) fn probe(&self, key: &[Value]) -> KeyProbe {
         #[cfg(feature = "diagnostic-row-progress")]
@@ -108,15 +116,23 @@ use ryo_values::domain::rows::types::RowIndex;
 
 /// Finite immutable partition access; ownership and recycling remain in the invocation owner.
 pub(crate) trait ClosureParts {
-    fn len(&self) -> usize;
+    fn len(&self) -> PartitionCount;
     fn get(
         &self,
-        at: usize,
+        at: PartitionIndex,
     ) -> Result<
         &ryo_derived::domain::closure_adjacency::types::ClosurePartition,
         crate::domain::operating::errors::OperatingError,
     >;
 }
+/// How many partitions a closure holds.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct PartitionCount(pub usize);
+
+/// One partition of a closure, by its place among them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct PartitionIndex(pub usize);
+
 #[derive(Clone, Copy, Default)]
 pub(crate) enum ClosureViews<'a> {
     #[default]
@@ -125,23 +141,23 @@ pub(crate) enum ClosureViews<'a> {
     Many(&'a dyn ClosureParts),
 }
 impl<'a> ClosureViews<'a> {
-    fn len(self) -> usize {
+    fn len(self) -> PartitionCount {
         match self {
-            Self::Empty => 0,
-            Self::One(_) => 1,
+            Self::Empty => PartitionCount(0),
+            Self::One(_) => PartitionCount(1),
             Self::Many(parts) => parts.len(),
         }
     }
     fn get(
         self,
-        at: usize,
+        at: PartitionIndex,
     ) -> Result<
         &'a ryo_derived::domain::closure_adjacency::types::ClosurePartition,
         crate::domain::operating::errors::OperatingError,
     > {
         match self {
             Self::Empty => Err(crate::domain::operating::errors::OperatingError::ShapeMismatch),
-            Self::One(part) => (at == 0)
+            Self::One(part) => (at == PartitionIndex(0))
                 .then_some(part)
                 .ok_or(crate::domain::operating::errors::OperatingError::ShapeMismatch),
             Self::Many(parts) => parts.get(at),
@@ -150,7 +166,7 @@ impl<'a> ClosureViews<'a> {
 }
 pub(crate) struct ClosureIter<'a> {
     views: ClosureViews<'a>,
-    at: usize,
+    at: PartitionIndex,
 }
 impl<'a> Iterator for ClosureIter<'a> {
     type Item = Result<
@@ -158,11 +174,11 @@ impl<'a> Iterator for ClosureIter<'a> {
         crate::domain::operating::errors::OperatingError,
     >;
     fn next(&mut self) -> Option<Self::Item> {
-        if self.at >= self.views.len() {
+        if self.at.0 >= self.views.len().0 {
             return None;
         }
         let at = self.at;
-        self.at += 1;
+        self.at.0 += 1;
         Some(self.views.get(at))
     }
 }
@@ -170,7 +186,10 @@ impl<'a> IntoIterator for ClosureViews<'a> {
     type Item = <ClosureIter<'a> as Iterator>::Item;
     type IntoIter = ClosureIter<'a>;
     fn into_iter(self) -> Self::IntoIter {
-        ClosureIter { views: self, at: 0 }
+        ClosureIter {
+            views: self,
+            at: PartitionIndex(0),
+        }
     }
 }
 
@@ -183,4 +202,12 @@ pub(crate) trait PredicateProgram {
         row: &[Value],
         symbols: &ryo_language::domain::symbols::types::Symbols,
     ) -> Result<Verdict, OperatingError>;
+}
+
+/// The checked physical text of a source-matching span, with where it starts and the line it begins on.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ValidatedSource<'a> {
+    pub base: SourceBase,
+    pub text: CellText<'a>,
+    pub line: BaseLine,
 }

@@ -1,6 +1,7 @@
 //! Pure row access over immutable positions and their admitted tree geometry.
 use super::super::{interface::RepresentationsItem, types::*};
 use crate::domain::{operating::errors::OperatingError, table_model::types::PositionedRows};
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::types::{Position, Value};
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
@@ -26,7 +27,7 @@ impl RepresentationsItem for PositionedItem {
             input,
             kind: RepresentationKind::Positioned,
             kinds: view.kinds,
-            rows: count(view)?.0,
+            rows: count(view)?,
             metadata: Ok(()),
         })
     }
@@ -60,7 +61,7 @@ impl RepresentationsItem for PositionedItem {
         super::super::tree::item::TreeItem.inspect(&source)?;
         Ok(PhysicalShape::Complete)
     }
-    fn bulk<'f>(&self, input: RepresentationInput<'f>) -> Result<BulkAccess<'f>, OperatingError> {
+    fn bulk<'f>(&self, input: RepresentationInput<'f>) -> Result<RepresentationInput<'f>, OperatingError> {
         if matches!(input, RepresentationInput::Positioned(_)) {
             Ok(input)
         } else {

@@ -42,7 +42,7 @@ const METHODS: &[(&str, &str)] = &[
             RepresentationInput::Compact(_)=>(RepresentationKind::Compact,&[][..]),
             RepresentationInput::Positioned(_)=>(RepresentationKind::Positioned,&[][..]),
         };
-        Ok(RelationContract{input,kind,kinds,rows:0,metadata:Ok(())})
+        Ok(RelationContract{input,kind,kinds,rows:RowCount(0),metadata:Ok(())})
     }"#,
     ),
     (
@@ -51,7 +51,7 @@ const METHODS: &[(&str, &str)] = &[
     ),
     (
         "bulk",
-        "fn bulk<'f>(&self,input:RepresentationInput<'f>)->Result<BulkAccess<'f>,OperatingError>{Ok(input)}",
+        "fn bulk<'f>(&self,input:RepresentationInput<'f>)->Result<RepresentationInput<'f>,OperatingError>{Ok(input)}",
     ),
     (
         "cell",
@@ -65,6 +65,14 @@ const METHODS: &[(&str, &str)] = &[
 
 const KINDS: &[&str] = &["Stored", "Selected", "Tree", "Computed", "Compact", "Positioned"];
 
+fn production_in(name: &str) -> String {
+    fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("src/domain/table_model")
+            .join(name),
+    )
+    .unwrap()
+}
 fn production(name: &str) -> String {
     fs::read_to_string(
         Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -84,6 +92,7 @@ pub mod domain {
     pub mod operating {pub mod errors {#[derive(Clone,Debug)]pub enum OperatingError {WrongOperation}}}
     pub mod relations {pub mod types {
         #[derive(Clone,Copy,Debug,PartialEq,Eq)]pub enum CellKind {Number}
+        #[derive(Clone,Copy,Debug,PartialEq,Eq)]pub enum Relation {SyntaxTree,SyntaxChild}
         #[derive(Clone,Copy,Debug,PartialEq,Eq)]pub enum Value {Number(u32)}
         pub struct FactColumn(pub Vec<u64>);
         #[derive(Clone,Copy)]pub struct ColumnsView<'a> {pub kinds:&'a[CellKind],pub columns:&'a[FactColumn]}
@@ -91,15 +100,28 @@ pub mod domain {
     pub mod plan_parts {pub mod types {pub struct ColumnIndex(pub u32);}}
     pub mod rows {pub mod types {
         pub struct RowIndex(pub usize);
+        pub struct RowCount(pub usize);
         pub struct Table {pub kinds:Vec<crate::domain::relations::types::CellKind>,pub cells:Vec<crate::domain::relations::types::Value>}
     }}
     pub mod table_words {pub mod types {pub struct CompactTable;}}
-    pub mod table_cells {pub mod types {#[derive(Clone,Copy)]pub struct TreeRows<'a>(pub &'a());}}
+    pub mod stored_selection {pub mod types {#[derive(Clone,Copy)]pub struct BorrowedPositions<'a>(pub &'a [u32]);}}
+    pub mod table_cells {pub mod types {#[derive(Clone,Copy)]pub struct TreeRows<'a>(pub &'a());
+      #[derive(Clone,Copy,PartialEq,Eq)]pub enum TreeForm {Elements,Edges}}}
     pub mod table_model {
-        pub mod types {#[derive(Clone,Copy)]pub struct PositionedRows<'a>(pub &'a());}
+        pub mod types {
+          #[derive(Clone,Copy)]pub struct PositionedRows<'a>(pub &'a());
+          use crate::domain::relations::types::{CellKind,ColumnsView};
+          use crate::domain::plan_parts::types::ColumnIndex;
+          use crate::domain::table_cells::types::TreeRows;
+          use crate::domain::rows::types::Table;
+          use crate::domain::stored_selection::types::BorrowedPositions;
+          __INPUT__
+          pub mod registered_representation {pub mod value {__VALUE__}}
+        }
         pub mod collections {pub mod representations {
-            use crate::domain::{operating::errors::OperatingError,relations::types::Value,rows::types::RowIndex,plan_parts::types::ColumnIndex};
+            use crate::domain::{operating::errors::OperatingError,relations::types::Value,rows::types::{RowCount,RowIndex},plan_parts::types::ColumnIndex};
             use self::types::*;
+            use crate::domain::table_model::types::RepresentationInput;
             pub mod interface {__INTERFACE__}
             pub mod types {__TYPES__}
             pub mod stored {pub mod item {pub(crate) use super::super::Legitimate as StoredItem;}}
@@ -108,7 +130,6 @@ pub mod domain {
             pub mod computed {pub mod item {pub(crate) use super::super::Legitimate as ComputedItem;}}
             pub mod compact {pub mod item {pub(crate) use super::super::Legitimate as CompactItem;}}
             pub mod positioned {pub mod item {pub(crate) use super::super::Legitimate as PositionedItem;}}
-            pub mod registration {__REGISTRATION__}
             pub(crate) struct Legitimate;
             impl interface::RepresentationsItem for Legitimate {__METHODS__}
         }}
@@ -119,17 +140,17 @@ use domain::relations::types::Value;
 use domain::rows::types::RowIndex;
 use domain::plan_parts::types::ColumnIndex;
 use domain::table_model::collections::representations::types::*;
+use domain::table_model::types::RepresentationInput;
 "#;
-    let types = production("types.rs").replace(
-        "pub(crate) mod registered_representation;",
-        &format!(
-            "pub(crate) mod registered_representation {{ pub mod value {{ {value} }} }}"
-        ),
+    let input = declaration(
+        &production_in("types.rs"),
+        "#[derive(Clone, Copy)]\npub(crate) enum RepresentationInput",
     );
     template
         .replace("__INTERFACE__", &production("interface.rs"))
-        .replace("__TYPES__", &types)
-        .replace("__REGISTRATION__", &production("registration.rs"))
+        .replace("__TYPES__", &production("types.rs"))
+        .replace("__INPUT__", &input)
+        .replace("__VALUE__", value)
         .replace(
             "__METHODS__",
             &METHODS
@@ -141,7 +162,11 @@ use domain::table_model::collections::representations::types::*;
         )
 }
 fn value() -> String {
-    production("types/registered_representation/value.rs")
+    let source = production_in("types/registered_representation/value.rs");
+    let cut = source
+        .find("impl<'f> RepresentationInput<'f>")
+        .expect("the registry's dispatch methods");
+    source[..cut].to_owned()
 }
 
 #[test]
@@ -222,12 +247,12 @@ fn physical_readers_cannot_gain_scheduler_cache_mutation_or_static_source_lifeti
         ),
         (
             "selected_mutation",
-            "fn forbidden(input:RepresentationInput<'_>){if let RepresentationInput::Selected{positions,..}=input{positions[0]=1;}}",
+            "fn forbidden(input:RepresentationInput<'_>){if let RepresentationInput::Selected{positions,..}=input{positions.0[0]=1;}}",
             "E0594",
         ),
         (
             "source_escape",
-            "fn forbidden<'a>(input:RepresentationInput<'a>)->BulkAccess<'static>{input}",
+            "fn forbidden<'a>(input:RepresentationInput<'a>)->RepresentationInput<'static>{input}",
             "lifetime may not live long enough",
         ),
         (
@@ -276,16 +301,17 @@ fn private_publication_scaffold() -> String {
         core.join("src/application/file_dag/relations/publication/types.rs"),
     )
     .unwrap();
-    let published = production("publication.rs");
+    let published = production_in("types.rs");
     r#"
 #![allow(dead_code,unused_imports)]
 pub mod domain {
   pub mod operating {pub mod errors {#[derive(Clone,Debug)]pub enum OperatingError {WrongOperation}}}
   pub mod table_model {
-    pub mod types {#[derive(Debug,Default)]pub struct Table;}
+    pub mod types {#[derive(Debug,Default)]pub struct Table;
+      __TRAIT__
+    }
     pub mod collections {pub mod representations {
       pub mod types {#[derive(Clone,Copy,Debug,PartialEq,Eq)]pub enum PhysicalShape {Complete}}
-      pub mod publication {__TRAIT__}
     }}
   }
 }
@@ -293,7 +319,7 @@ pub mod application {pub mod file_dag {
   pub mod relations {
     pub mod publication {pub mod types {
       use crate::domain::operating::errors::OperatingError;
-      use crate::domain::table_model::{types::Table,collections::representations::{publication::PublishedRelation,types::PhysicalShape}};
+      use crate::domain::table_model::{types::{Table,PublishedRelation},collections::representations::types::PhysicalShape};
       use std::sync::{Arc,OnceLock};
       #[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct PopulationId(pub usize);
       #[derive(Clone,Copy,Debug)]pub(in crate::application::file_dag) enum ProducerScope {File}
@@ -311,7 +337,7 @@ pub mod application {pub mod file_dag {
   }
   pub mod peer {
     use crate::application::file_dag::relations::publication::types::RelationResult;
-    use crate::domain::table_model::{types::Table,collections::representations::{publication::PublishedRelation,types::PhysicalShape}};
+    use crate::domain::table_model::{types::{Table,PublishedRelation},collections::representations::types::PhysicalShape};
     use std::sync::{Arc,OnceLock};
     fn legitimate(){let record=super::relations::control();let _=format!("{record:?}");}
     __CLIENT__

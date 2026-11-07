@@ -26,7 +26,7 @@ impl crate::domain::operating::types::SemanticLookup for KnownSyntax {
     fn render_batch(
         &self,
         requests: &[RenderRequest],
-        _: &[u8],
+        _: ryo_values::domain::files::types::SourceView<'_>,
     ) -> Result<Vec<RenderOutcome>, crate::domain::operating::errors::OperatingError> {
         Ok(requests
             .iter()

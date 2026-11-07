@@ -50,13 +50,10 @@ fn exact_output(operation: &Operation, selector: &Selector, relation: Relation) 
         Operation::Project { columns, .. } => Some(columns.clone()),
         _ => None,
     };
-    let distinct = matches!(
-        operation,
-        Operation::Project {
-            distinct: RepeatedRows::Dropped,
-            ..
-        }
-    );
+    let distinct = match operation {
+        Operation::Project { distinct, .. } => *distinct,
+        _ => RepeatedRows::Kept,
+    };
     if columns.is_some_and(|columns| columns == selector.columns)
         && selector.distinct == distinct
         && selector.relation == relation
