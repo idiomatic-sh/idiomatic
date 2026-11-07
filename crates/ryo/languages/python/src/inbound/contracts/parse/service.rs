@@ -82,14 +82,12 @@ pub(super) fn complete_file(
 /// Reads the tree of one file into the worker's table.
 pub(super) fn read_file(
     syntax: &dyn SyntaxPort,
-    settings: &PythonParserSettings,
     request: &languages::ParseRequest<'_>,
     builder: &mut languages::TableBuilder<'_>,
 ) {
     syntax.read(
         SourceText(request.bytes.0),
         source_kind(request.path),
-        settings,
         builder,
     );
 }

@@ -122,12 +122,11 @@ fn future_annotations_use_only_valid_compiler_directives() {
             let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
             let mut builder =
                 languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-            SyntaxRuffPythonParserAdapter::default().read(
-                SourceText(source.as_bytes()),
-                source_kind,
-                &PythonParserSettings::new(PythonTargetVersion::Py313),
-                &mut builder,
-            );
+            SyntaxRuffPythonParserAdapter {
+                settings: PythonParserSettings::new(PythonTargetVersion::Py313),
+                ..Default::default()
+            }
+            .read(SourceText(source.as_bytes()), source_kind, &mut builder);
             assert_eq!(
                 languages::property_at(
                     &elements,
@@ -156,7 +155,11 @@ fn future_annotations_use_only_valid_compiler_directives() {
                 .collect::<Vec<_>>();
             actual.sort_unstable();
             assert_eq!(actual, expected, "{source_kind:?}: {source}");
-            assert!(languages::has_incomplete_syntax(&elements) == languages::SyntaxCompleteness::Complete, "{source}");
+            assert!(
+                languages::has_incomplete_syntax(&elements)
+                    == languages::SyntaxCompleteness::Complete,
+                "{source}"
+            );
         }
     }
 }
@@ -166,10 +169,13 @@ fn malformed_future_import_never_enables_a_compiler_feature() {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder =
         languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-    SyntaxRuffPythonParserAdapter::default().read(
+    SyntaxRuffPythonParserAdapter {
+        settings: PythonParserSettings::new(PythonTargetVersion::Py310),
+        ..Default::default()
+    }
+    .read(
         SourceText(source.as_bytes()),
         PythonSourceKind::Python,
-        &PythonParserSettings::new(PythonTargetVersion::Py310),
         &mut builder,
     );
     assert!(languages::diagnostics(&elements).next().is_some());

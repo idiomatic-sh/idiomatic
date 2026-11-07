@@ -19,9 +19,8 @@ use crate::domain::capacity::types::{MemoryBudget, WorkerPool};
 use crate::domain::language::types::Language;
 
 use super::connections::LinterLintConnections;
-use super::types::{
-    Corpus, DependencyBytes, DependencyFingerprint, LintRequest, LinterLintEngine, Reading, Spill,
-};
+use super::types::{Corpus, LintRequest, LinterLintEngine, Reading, Spill};
+use crate::domain::project::types::{DependencyBytes, DependencyFingerprint};
 
 /// The dependencies the caller supplies: how the service is built over the adapters its builder chose.
 pub(crate) struct LinterLintParts<Construct> {

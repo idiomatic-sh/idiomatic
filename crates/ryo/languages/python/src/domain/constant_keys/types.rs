@@ -52,7 +52,7 @@ pub(crate) struct WordRange {
 
 /// Whether an occurrence is a synthetic literal segment inside an interpolated string.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Fragment {
+pub(crate) enum ConstantKeyFragment {
     /// A literal segment of an interpolated string.
     Interpolated,
     /// An ordinary occurrence.

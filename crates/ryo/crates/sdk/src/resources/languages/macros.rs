@@ -2,6 +2,7 @@
 //! links a language; and `catalog_names`, which names the catalog in the SDK.
 
 pub(super) mod catalog;
+mod constants;
 /// `link!` and the function it calls, which build a language from its parts.
 pub(super) mod link;
 /// `reads!`, which declares how a language reads a relation.

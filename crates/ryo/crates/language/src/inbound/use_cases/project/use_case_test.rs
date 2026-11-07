@@ -15,8 +15,8 @@ use crate::inbound::use_cases::parse::fixtures::contract::Discard;
 use crate::selects;
 use ryo_relations::domain::relations::types::Count;
 
-/// A language without manifest relations whose tools cannot run at all.
-struct Broken;
+/// A language without manifest relations whose project is refused with the failure it holds.
+struct Broken(ProjectError);
 
 impl ProjectUseCase for Broken {
     type Derived = ();
@@ -43,9 +43,7 @@ impl ProjectUseCase for Broken {
     }
 
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved, ProjectError> {
-        Err(ProjectError::Manifest {
-            reason: ToolMessage("the tool could not run".into()),
-        })
+        Err(self.0.clone())
     }
 
     ryo_relations::each_relation!(absent_manifests);
@@ -58,6 +56,8 @@ enum Scenario {
     Nothing,
     /// A language whose tools cannot run reads a project.
     Broken,
+    /// A language whose repository context cannot be established reads a project.
+    Unlocated,
 }
 
 /// What a row is given.
@@ -83,6 +83,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 if &*reason.0 == "the tool could not run")
         }),
     },
+    Case {
+        name: CaseName("a_language_without_repository_context_stops_the_project"),
+        word: Word::Refuses,
+        input: || Scenario::Unlocated,
+        expect: Expect::Refusal(|error| {
+            selects!(error, ProjectError::Context { reason }
+                if &*reason.0 == "the repository was not found")
+        }),
+    },
 ];
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
@@ -97,9 +106,17 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         notes: Vec::new(),
         wanted: Vec::new(),
     };
+    let broken = Broken(match scenario {
+        Scenario::Broken => ProjectError::Manifest {
+            reason: ToolMessage("the tool could not run".into()),
+        },
+        _ => ProjectError::Context {
+            reason: ToolMessage("the repository was not found".into()),
+        },
+    });
     let language: &dyn ProjectEngine = match scenario {
         Scenario::Nothing => &ProjectUseCaseImpl,
-        Scenario::Broken => &Broken,
+        Scenario::Broken | Scenario::Unlocated => &broken,
     };
     language
         .project(&request, &mut Symbols::default(), &mut Discard)

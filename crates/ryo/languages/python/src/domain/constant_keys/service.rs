@@ -5,7 +5,7 @@ use crate::domain::constant_keys::types::{
     BuiltKey, KeyClass, KeyHash, KeyRecord, KeyRecordIndex, KeyState, KeyVisibility, KeyWord,
     LiteralKind,
 };
-use crate::domain::constant_keys::types::{Fragment, KeyWordIndex, WordRange};
+use crate::domain::constant_keys::types::{ConstantKeyFragment, KeyWordIndex, WordRange};
 use crate::domain::{
     constant_numbers::{
         service::{float_key, negate, number, property, to_float},
@@ -102,20 +102,20 @@ fn push_word(
 }
 
 /// Whether an occurrence is a synthetic literal segment inside an interpolated string.
-fn interpolation_fragment(tree: &Tree<'_>, at: Position) -> Fragment {
+fn interpolation_fragment(tree: &Tree<'_>, at: Position) -> ConstantKeyFragment {
     use crate::domain::syntax::service::parent;
     let mut child = at;
     let mut above = parent(tree, child);
     while above != child {
         match kind(tree, above) {
-            Kind::Node(Node::FormattedValue | Node::Interpolation) => return Fragment::Standalone,
-            Kind::Node(Node::JoinedStr | Node::TemplateStr) => return Fragment::Interpolated,
+            Kind::Node(Node::FormattedValue | Node::Interpolation) => return ConstantKeyFragment::Standalone,
+            Kind::Node(Node::JoinedStr | Node::TemplateStr) => return ConstantKeyFragment::Interpolated,
             Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => {}
         }
         child = above;
         above = parent(tree, above);
     }
-    Fragment::Standalone
+    ConstantKeyFragment::Standalone
 }
 
 /// Build a key for a primitive constant, retaining decoded strings and bounded numeric values.
@@ -125,7 +125,7 @@ fn constant_key(
     symbols: &mut Symbols,
     index: &mut RetainedKeyIndex<KeyClass, KeyWord, KeyHash, KeyState>,
 ) -> Option<BuiltKey> {
-    if interpolation_fragment(tree, at) == Fragment::Interpolated {
+    if interpolation_fragment(tree, at) == ConstantKeyFragment::Interpolated {
         return None;
     }
     if property(tree, at, SCALAR_KIND).map(|text| text.0) == Some(INTEGER_SCALAR)
@@ -370,7 +370,7 @@ pub(crate) fn prepare<'a>(
                 None => {
                     // Only actual primitive nodes with missing parser values make absence uncertain.
                     if kind(tree, at) == Kind::Node(Node::Constant)
-                        && interpolation_fragment(tree, at) == Fragment::Standalone
+                        && interpolation_fragment(tree, at) == ConstantKeyFragment::Standalone
                         && (literal(tree, at) != Literal::Other
                             || property(tree, at, SCALAR_KIND).is_some())
                     {

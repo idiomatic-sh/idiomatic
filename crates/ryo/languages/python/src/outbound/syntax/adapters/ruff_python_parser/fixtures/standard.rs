@@ -289,10 +289,13 @@ fn is_self_documenting(elements: &Elements, at: Position) -> bool {
 #[must_use]
 pub(crate) fn projected(text: &str) -> Option<Shape> {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
-    SyntaxRuffPythonParserAdapter::default().read(
+    SyntaxRuffPythonParserAdapter {
+        settings: PythonParserSettings::default(),
+        ..Default::default()
+    }
+    .read(
         SourceText(text.as_bytes()),
         PythonSourceKind::Python,
-        &PythonParserSettings::default(),
         &mut table_builder(&mut elements, &mut symbols, ByteSlice(text.as_bytes())),
     );
     let tree = Tree {

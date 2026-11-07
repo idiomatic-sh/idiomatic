@@ -4,8 +4,8 @@ use super::{report, request};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::cell::types::{Cell as Typed, HostText, Slot};
 use crate::domain::file::types::RelativePath;
+use crate::domain::place::types::Place;
 use crate::resources::linter::lint::types::Glob;
-use crate::resources::linter::lint::types::Place;
 use crate::resources::linter::lint::types::RuleId;
 use crate::resources::linter::{Corpus, LintRequest, Rule, RuleApplicability, SkipReason};
 use ryo_core::inbound::use_cases::lint::types::LintReport as CoreReport;
@@ -319,7 +319,7 @@ fn explicit_source_language_is_preserved_at_sdk_request_boundary() -> usize {
         project_search_scope: Default::default(),
         given_project_inventory: Default::default(),
         source_language: crate::domain::language::types::SourceLanguage::Named(
-            crate::domain::language::types::LanguageName("selected-provider".into(),),
+            crate::domain::language::types::LanguageName("selected-provider".into()),
         ),
         root: std::path::PathBuf::from("."),
         rules: std::collections::BTreeMap::new(),
@@ -340,7 +340,7 @@ fn explicit_source_language_is_preserved_at_sdk_request_boundary() -> usize {
 
 /// A repository-relative path is normalized before it is observed, and any other is refused.
 fn project_paths_are_normalized_before_observation_or_rejected() -> usize {
-    use crate::resources::linter::lint::types::{
+    use crate::domain::project::types::{
         GivenProjectInventory, ProjectEntryObservation, ProjectEntryState, ProjectSearchScope,
     };
     let mut request = LintRequest {

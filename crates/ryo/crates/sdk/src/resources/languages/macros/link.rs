@@ -12,7 +12,7 @@ macro_rules! link {
     ($name:expr, parse: $parse:expr, project: $project:expr $(,)?) => {
         $crate::languages::link(
             $crate::languages::LanguageName(($name).into()),
-            $crate::languages::LanguageBuild(env!("CARGO_PKG_VERSION").into()),
+            $crate::languages::LanguageBuild($crate::language_crate_version!().into()),
             $parse,
             $project,
         )

@@ -33,10 +33,13 @@ fn target_version_syntax_warning_preserves_the_tree() {
         let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
         let mut builder =
             languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-        SyntaxRuffPythonParserAdapter::default().read(
+        SyntaxRuffPythonParserAdapter {
+            settings: PythonParserSettings::new(target),
+            ..Default::default()
+        }
+        .read(
             SourceText(source.as_bytes()),
             PythonSourceKind::Python,
-            &PythonParserSettings::new(target),
             &mut builder,
         );
         let diagnostics: Vec<_> = languages::diagnostics(&elements)

@@ -1,6 +1,7 @@
 //! What every `module_context` adapter must pass.
 
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 use crate::outbound::module_context::interface::ModuleContextPort;
 use ryo::languages::{FilePath, ProjectError, ProjectRequest, Relation, Repository, RootPath};
 
@@ -63,7 +64,7 @@ pub(crate) const CASES: &[Case<Ask, Settled, ProjectError>] = &[
         name: CaseName("a_disk_lookup_that_cannot_inspect_a_marker_is_a_context_error"),
         word: Word::Refuses,
         input: || Ask::UnusableDiskRoot,
-        expect: Expect::Refusal(|error| selects(matches!(error, ProjectError::Context { .. }))),
+        expect: Expect::Refusal(|error| selects!(error, ProjectError::Context { .. })),
     },
 ];
 

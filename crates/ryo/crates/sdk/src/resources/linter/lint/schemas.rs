@@ -29,14 +29,16 @@ use ryo_values::domain::runs::types::{Budget, MemoryBytes, Session, WorkersAsked
 
 use super::errors::{LintError, ProviderCode};
 use super::types::{
-    Column, Corpus, Finding, FindingColumn, FindingKey, FlagState, Glob, HostRelation, HostRow,
-    Line, LintReport, LintRequest, Message, ParameterValue, Place, Port, ProviderName, RowNumber,
-    RuleApplicability, RuleId, SkipReason, Unknown,
+    Corpus, Finding, FindingColumn, FindingKey, Glob, HostRelation, HostRow, LintReport,
+    LintRequest, Message, Port, ProviderName, RowNumber, RuleApplicability, RuleId, SkipReason,
+    Unknown,
 };
 use crate::domain::capacity::types::MemoryBudget;
 use crate::domain::cell::types::{Cell, HostNumber, HostText, Slot};
 use crate::domain::file::types::{ReadFailure, RelativePath, Unread, Unreadable};
 use crate::domain::host::types::{HostColumn, HostKind, HostRelationName};
+use crate::domain::parameter::types::{FlagState, ParameterValue};
+use crate::domain::place::types::{Column, Line, Place};
 use crate::domain::query::errors::ValidateError;
 use crate::domain::query::types::{ByteOffset, QuerySpan};
 use crate::domain::relation::types::ColumnName;
@@ -84,7 +86,9 @@ fn project_path(path: &mut RelativePath, root: bool) -> Result<(), LintError> {
 
 /// Validate and normalize project authority before either the Given adapter or core sees it.
 pub(super) fn project_context(request: &mut LintRequest) -> Result<(), LintError> {
-    if let super::types::ProjectSearchScope::Declared(roots) = &mut request.project_search_scope {
+    if let crate::domain::project::types::ProjectSearchScope::Declared(roots) =
+        &mut request.project_search_scope
+    {
         for root in roots {
             project_path(root, true)?;
         }
@@ -139,22 +143,22 @@ struct LintReportSchema {
 }
 
 pub(super) fn given_project_inventory(
-    inventory: super::types::GivenProjectInventory,
+    inventory: crate::domain::project::types::GivenProjectInventory,
 ) -> ryo_language::domain::project_context::types::GivenProjectInventory {
     ryo_language::domain::project_context::types::GivenProjectInventory {
             entries: inventory.entries.into_iter().map(|entry| ryo_language::domain::project_context::types::EntryObservation {
                 path: FilePath(entry.path.0),
                 state: match entry.state {
-                    super::types::ProjectEntryState::File => ryo_language::domain::project_context::types::ObservedEntryState::File,
-                    super::types::ProjectEntryState::Directory => ryo_language::domain::project_context::types::ObservedEntryState::Directory,
-                    super::types::ProjectEntryState::Other => ryo_language::domain::project_context::types::ObservedEntryState::Other,
-                    super::types::ProjectEntryState::Missing => ryo_language::domain::project_context::types::ObservedEntryState::Missing,
-                    super::types::ProjectEntryState::Unknown => ryo_language::domain::project_context::types::ObservedEntryState::Unknown,
+                    crate::domain::project::types::ProjectEntryState::File => ryo_language::domain::project_context::types::ObservedEntryState::File,
+                    crate::domain::project::types::ProjectEntryState::Directory => ryo_language::domain::project_context::types::ObservedEntryState::Directory,
+                    crate::domain::project::types::ProjectEntryState::Other => ryo_language::domain::project_context::types::ObservedEntryState::Other,
+                    crate::domain::project::types::ProjectEntryState::Missing => ryo_language::domain::project_context::types::ObservedEntryState::Missing,
+                    crate::domain::project::types::ProjectEntryState::Unknown => ryo_language::domain::project_context::types::ObservedEntryState::Unknown,
                 },
             }).collect(),
             completeness: match inventory.completeness {
-                super::types::ProjectInventoryCompleteness::Partial => ryo_language::domain::project_context::types::ProjectInventoryCompleteness::Partial,
-                super::types::ProjectInventoryCompleteness::CompleteWithinDeclaredScope => ryo_language::domain::project_context::types::ProjectInventoryCompleteness::CompleteWithinDeclaredScope,
+                crate::domain::project::types::ProjectInventoryCompleteness::Partial => ryo_language::domain::project_context::types::ProjectInventoryCompleteness::Partial,
+                crate::domain::project::types::ProjectInventoryCompleteness::CompleteWithinDeclaredScope => ryo_language::domain::project_context::types::ProjectInventoryCompleteness::CompleteWithinDeclaredScope,
             },
         }
 }
@@ -235,10 +239,10 @@ impl TryFrom<LintRequestSchema> for CoreRequest {
                     Corpus::Walked | Corpus::Listed(_) => Repository::Disk,
                 },
                 search_scope: match request.project_search_scope {
-                    super::types::ProjectSearchScope::Undeclared => {
+                    crate::domain::project::types::ProjectSearchScope::Undeclared => {
                         ryo_language::domain::project_context::types::ProjectSearchScope::Undeclared
                     }
-                    super::types::ProjectSearchScope::Declared(roots) => {
+                    crate::domain::project::types::ProjectSearchScope::Declared(roots) => {
                         ryo_language::domain::project_context::types::ProjectSearchScope::Declared(
                             roots.into_iter().map(|root| FilePath(root.0)).collect(),
                         )
@@ -302,11 +306,11 @@ impl TryFrom<LintReportSchema> for LintReport {
             .collect::<Result<Vec<_>, _>>()?;
         Ok(Self {
             findings,
-            dependencies: report.dependencies.into_iter().map(|dependency| super::types::ProjectDependency {
+            dependencies: report.dependencies.into_iter().map(|dependency| crate::domain::project::types::ProjectDependency {
                 path: RelativePath(dependency.path.0),
                 state: match dependency.state {
-                    ryo_core::inbound::use_cases::lint::types::ProjectDependencyState::Present(digest) => super::types::ProjectDependencyState::Present(super::types::DependencyFingerprint(digest.0)),
-                    ryo_core::inbound::use_cases::lint::types::ProjectDependencyState::Missing => super::types::ProjectDependencyState::Missing,
+                    ryo_core::inbound::use_cases::lint::types::ProjectDependencyState::Present(digest) => crate::domain::project::types::ProjectDependencyState::Present(crate::domain::project::types::DependencyFingerprint(digest.0)),
+                    ryo_core::inbound::use_cases::lint::types::ProjectDependencyState::Missing => crate::domain::project::types::ProjectDependencyState::Missing,
                 },
             }).collect(),
             unread: report
@@ -374,10 +378,7 @@ impl From<LintErrorSchema> for LintError {
             } => Self::MemoryBudgetExceeded {
                 used,
                 budget,
-                plans: plans
-                    .into_iter()
-                    .map(|plan| RuleId(plan.into()))
-                    .collect(),
+                plans: plans.into_iter().map(|plan| RuleId(plan.into())).collect(),
             },
             CoreError::Provider { provider, code } => Self::Provider {
                 provider: ProviderName(provider.into()),

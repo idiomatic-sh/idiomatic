@@ -32,7 +32,9 @@ pub(crate) struct Parsed<'a> {
 pub(crate) fn parsed(bytes: &[u8]) -> Result<Parsed<'_>, languages::ParseError> {
     let parse = ParseContract::new(
         crate::settings::PythonParserSettings::default(),
-        Arc::new(ruff_python_parser()),
+        Arc::new(ruff_python_parser(
+            crate::settings::PythonParserSettings::default(),
+        )),
         Arc::new(postcard()),
     );
     let (mut elements, mut symbols) = (languages::Elements::default(), Symbols::default());
@@ -123,7 +125,9 @@ pub(crate) fn initialize_model(
     use languages::Parse as _;
     ParseContract::new(
         crate::settings::PythonParserSettings::default(),
-        Arc::new(ruff_python_parser()),
+        Arc::new(ruff_python_parser(
+            crate::settings::PythonParserSettings::default(),
+        )),
         Arc::new(postcard()),
     )
     .file_model(tree, model);
@@ -148,7 +152,9 @@ where
     };
     let parse = ParseContract::new(
         crate::settings::PythonParserSettings::default(),
-        Arc::new(ruff_python_parser()),
+        Arc::new(ruff_python_parser(
+            crate::settings::PythonParserSettings::default(),
+        )),
         Arc::new(postcard()),
     );
     let mut model = crate::domain::model::types::Declarations::default();

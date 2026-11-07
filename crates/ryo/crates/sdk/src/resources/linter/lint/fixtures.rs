@@ -16,14 +16,16 @@ pub(crate) mod scenarios {
         ObservationBindingName, ObservationColumn, ObservationColumnName, ObservationKind,
         ObservationName,
     };
+    use crate::domain::parameter::types::{ParameterName, ParameterText, ParameterValue};
+    use crate::domain::project::types::{
+        GivenProjectInventory, ProjectInventoryCompleteness, ProjectSearchScope,
+    };
     use crate::resources::linter::RuleApplicability;
     use crate::resources::linter::lint::entry::lint_with;
     use crate::resources::linter::lint::errors::LintError;
     use crate::resources::linter::lint::types::{
-        Cache, CaseSource, Corpus, GivenProjectInventory, Glob, HostRelation, HostRow, LintReport,
-        LintRequest, Linter, ObservationBinding, ObservationProducer, ParameterName, ParameterText,
-        ParameterValue, ProjectInventoryCompleteness, ProjectSearchScope, Rule, RuleId, SourceText,
-        Workers,
+        Cache, CaseSource, Corpus, Glob, HostRelation, HostRow, LintReport, LintRequest, Linter,
+        ObservationBinding, ObservationProducer, Rule, RuleId, SourceText, Workers,
     };
     use crate::resources::query::RyoQlQuery;
     use ryo_relations::domain::relations::types::OptionalCapability;
@@ -526,7 +528,7 @@ pub(crate) mod scenarios {
         );
         let mut selected = request.clone();
         selected.source_language = crate::domain::language::types::SourceLanguage::Named(
-            crate::domain::language::types::LanguageName("fixture".into(),),
+            crate::domain::language::types::LanguageName("fixture".into()),
         );
         let explicit =
             crate::resources::linter::lint::entry::lint_with(&advertised, selected.clone())
@@ -555,7 +557,7 @@ pub(crate) mod scenarios {
             first
         );
         selected.source_language = crate::domain::language::types::SourceLanguage::Named(
-            crate::domain::language::types::LanguageName("missing-provider".into(),),
+            crate::domain::language::types::LanguageName("missing-provider".into()),
         );
         assert!(matches!(
             crate::resources::linter::lint::entry::lint_with(&advertised, selected),
@@ -573,7 +575,7 @@ pub(crate) mod scenarios {
         );
         let mut ambiguous_request = request.clone();
         ambiguous_request.source_language = crate::domain::language::types::SourceLanguage::Named(
-            crate::domain::language::types::LanguageName("fixture".into(),),
+            crate::domain::language::types::LanguageName("fixture".into()),
         );
         assert!(matches!(
             crate::resources::linter::lint::entry::lint_with(&ambiguous, ambiguous_request),
@@ -789,8 +791,7 @@ pub(crate) mod scenarios {
         let mut last = (0, 0, true, 0);
         let query = "let files = select path as file from \"filesystem.executable\" where executable = \"true\"; emit files subject file key(file);";
         for executable in [false, true, true, false, false, true] {
-            let current =
-                permission_request(
+            let current = permission_request(
                 root.path(),
                 if executable {
                     ExecutablePermission::PosixExecutable

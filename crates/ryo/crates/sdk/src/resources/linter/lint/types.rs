@@ -16,6 +16,9 @@ use crate::domain::capacity::types::MemoryBudget;
 use crate::domain::cell::types::{Cell, Slot};
 use crate::domain::file::types::{RelativePath, Unread};
 use crate::domain::host::types::{HostColumn, HostRelationName};
+use crate::domain::parameter::types::{ParameterName, ParameterValue};
+use crate::domain::place::types::Place;
+use crate::domain::project::types::{GivenProjectInventory, ProjectDependency, ProjectSearchScope};
 use crate::domain::query::types::RyoQlQuery;
 use crate::domain::relation::types::ColumnName;
 use ryo_values::domain::files::types::{CorpusFile, CorpusListing};
@@ -232,52 +235,6 @@ pub enum Corpus {
     Given(Vec<CaseSource>),
 }
 
-/// Explicit host authority for project import roots; an empty declared list is meaningful.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub enum ProjectSearchScope {
-    /// No roots were declared, so local membership cannot be proved absent.
-    #[default]
-    Undeclared,
-    /// Repository-relative search roots, in the order the host uses them.
-    Declared(Vec<RelativePath>),
-}
-
-/// How much of a Given project's search scope the host inventoried.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum ProjectInventoryCompleteness {
-    /// An entry omitted from the inventory remains unknown.
-    #[default]
-    Partial,
-    /// Omitted entries within the declared scope are absent.
-    CompleteWithinDeclaredScope,
-}
-
-/// One host-observed candidate entry, separate from source text.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ProjectEntryObservation {
-    /// Repository-relative candidate path.
-    pub path: RelativePath,
-    /// Its observed kind.
-    pub state: ProjectEntryState,
-}
-
-/// Entry kinds available to a Given project's namespace lookup.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ProjectEntryState {
-    File,
-    Directory,
-    Other,
-    Missing,
-    Unknown,
-}
-
-/// Explicit Given inventory and its absence authority; no disk probing is implied.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct GivenProjectInventory {
-    pub entries: Vec<ProjectEntryObservation>,
-    pub completeness: ProjectInventoryCompleteness,
-}
-
 /// The place of a row among the rows of a relation the host declares, from one.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RowNumber(pub usize);
@@ -321,29 +278,6 @@ pub struct FindingColumn {
     pub name: ColumnName,
     /// Its value, typed; nothing for a value that reads as nothing.
     pub value: Slot,
-}
-
-/// A line of a file, counting from one.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Line(pub u32);
-
-/// A character of a line, counting from one.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Column(pub u32);
-
-/// Where in its file a finding is.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum Place {
-    /// The finding has no place in the file: it is of the file, or of several.
-    Missing,
-    /// The finding starts here.
-    At {
-        /// The line.
-        line: Line,
-        /// The character in the line.
-        column: Column,
-    },
 }
 
 /// Something a rule could not decide: a relation the rule reads is read only in part in a file, so what it found there may be
@@ -395,32 +329,6 @@ pub struct LintReport {
     pub skipped: Vec<Skipped>,
 }
 
-/// The bytes of a project dependency, borrowed, which `DependencyFingerprint::from` fingerprints.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct DependencyBytes<'a>(pub &'a [u8]);
-
-/// An opaque project dependency content fingerprint. Made from `DependencyBytes` to compare bytes.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct DependencyFingerprint(pub [u8; 16]);
-
-/// One file the project examined, whether present or absent.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ProjectDependency {
-    /// Path from the run root, possibly containing `../`.
-    pub path: RelativePath,
-    /// The observed bytes' fingerprint, or an explicitly missing file.
-    pub state: ProjectDependencyState,
-}
-
-/// State of a required project lookup.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ProjectDependencyState {
-    /// Content fingerprint supplied by the engine's digest adapter.
-    Present(DependencyFingerprint),
-    /// The path was examined and no file was present.
-    Missing,
-}
-
 /// A rule the engine did not run for a file because its applicability condition was not met.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Skipped {
@@ -446,64 +354,6 @@ pub struct HostRelation {
 /// One row of a relation the host declares: a cell for every column, in order.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HostRow(pub Vec<Cell>);
-
-/// The name of a parameter of a rule's query.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ParameterName(pub Box<str>);
-
-/// The text a parameter is bound to, or one member of the set it is bound to.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ParameterText(pub Box<str>);
-
-/// A whole number a parameter is bound to.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ParameterNumber(pub i64);
-
-/// A list or a set of whole numbers a parameter is bound to.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ParameterNumbers(pub Vec<i64>);
-
-/// A yes or no a parameter is bound to.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum FlagState {
-    /// The flag is raised.
-    On,
-    /// The flag is not raised.
-    Off,
-}
-
-/// What a parameter of a rule is bound to.
-#[derive(Clone, Debug, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum ParameterValue {
-    /// A whole number.
-    Number(ParameterNumber),
-    /// A yes or no.
-    Flag(FlagState),
-    /// Text.
-    Text(ParameterText),
-    /// A list or a set of numbers.
-    Numbers(ParameterNumbers),
-    /// A list or a set of text.
-    Texts(Vec<ParameterText>),
-    /// A list of sets of text: the sets in order.
-    TextSets(Vec<Vec<ParameterText>>),
-    /// A list of tables of text, each a row: what a `list<table>` parameter is bound to.
-    Tables(Vec<ParameterTable>),
-}
-
-/// One table of a `list<table>` parameter: a row, its cells by key.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ParameterTable(pub Vec<ParameterCell>);
-
-/// One cell of a table of a `list<table>` parameter: the key it is under and its text.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ParameterCell {
-    /// The key.
-    pub key: ParameterText,
-    /// The text.
-    pub value: ParameterText,
-}
 
 /// An explicit named input supplied as the distinct set union of selected producer outputs.
 /// Adding an empty producer never changes multiplicity; zero producers produce the declared empty set.

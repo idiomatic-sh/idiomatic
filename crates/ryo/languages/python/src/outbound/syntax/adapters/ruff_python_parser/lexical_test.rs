@@ -63,7 +63,14 @@ fn truncated_or_invalid_token_stream_cannot_certify_absence() {
         .iter()
         .position(|token| token.kind() == TokenKind::Comment)
         .unwrap();
-    assert!(!covered(&parsed.tokens()[..stop], ByteSlice(source.as_bytes()), DelimiterEof(false)).0);
+    assert!(
+        !covered(
+            &parsed.tokens()[..stop],
+            ByteSlice(source.as_bytes()),
+            DelimiterEof(false)
+        )
+        .0
+    );
     let invalid = RuffToken::new(
         TokenKind::Unknown,
         TextRange::empty(TextSize::new(0)),
@@ -84,10 +91,13 @@ fn parser_errors_distinguish_complete_tokens_from_lexical_failure() {
         let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
         let mut builder =
             languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-        SyntaxRuffPythonParserAdapter::default().read(
+        SyntaxRuffPythonParserAdapter {
+            settings: PythonParserSettings::new(PythonTargetVersion::Py310),
+            ..Default::default()
+        }
+        .read(
             SourceText(source.as_bytes()),
             PythonSourceKind::Python,
-            &PythonParserSettings::new(PythonTargetVersion::Py310),
             &mut builder,
         );
         let impacts: Vec<_> = languages::diagnostics(&elements)
@@ -95,8 +105,10 @@ fn parser_errors_distinguish_complete_tokens_from_lexical_failure() {
             .collect();
         (
             impacts,
-            languages::has_incomplete_syntax(&elements) == languages::SyntaxCompleteness::Incomplete,
-            languages::has_incomplete_lexical_stream(&elements) == languages::SyntaxCompleteness::Incomplete,
+            languages::has_incomplete_syntax(&elements)
+                == languages::SyntaxCompleteness::Incomplete,
+            languages::has_incomplete_lexical_stream(&elements)
+                == languages::SyntaxCompleteness::Incomplete,
             languages::syntax_acceptance(&elements),
         )
     };
@@ -148,10 +160,13 @@ fn parser_refusal_with_complete_tokens_keeps_lexical_facts_available() {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder =
         languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-    SyntaxRuffPythonParserAdapter::default().read(
+    SyntaxRuffPythonParserAdapter {
+        settings: PythonParserSettings::default(),
+        ..Default::default()
+    }
+    .read(
         SourceText(source.as_bytes()),
         PythonSourceKind::Python,
-        &PythonParserSettings::default(),
         &mut builder,
     );
     let diagnostics: Vec<_> = languages::diagnostics(&elements).collect();
@@ -164,22 +179,31 @@ fn parser_refusal_with_complete_tokens_keeps_lexical_facts_available() {
         diagnostic.phase == languages::DiagnosticPhase::Parse
             && diagnostic.impact == TreeImpact::LexicallyComplete
     }));
-    assert!(languages::has_incomplete_syntax(&elements) == languages::SyntaxCompleteness::Incomplete);
-    assert!(languages::has_incomplete_lexical_stream(&elements) == languages::SyntaxCompleteness::Complete);
+    assert!(
+        languages::has_incomplete_syntax(&elements) == languages::SyntaxCompleteness::Incomplete
+    );
+    assert!(
+        languages::has_incomplete_lexical_stream(&elements)
+            == languages::SyntaxCompleteness::Complete
+    );
 }
 
 fn invalid_utf8_never_certifies_a_complete_lexical_stream() {
     let source = b"x = ( # before invalid byte\n\xff\n";
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder = languages::table_builder(&mut elements, &mut symbols, ByteSlice(source));
-    SyntaxRuffPythonParserAdapter::default().read(
-        SourceText(source),
-        PythonSourceKind::Python,
-        &PythonParserSettings::default(),
-        &mut builder,
+    SyntaxRuffPythonParserAdapter {
+        settings: PythonParserSettings::default(),
+        ..Default::default()
+    }
+    .read(SourceText(source), PythonSourceKind::Python, &mut builder);
+    assert!(
+        languages::has_incomplete_syntax(&elements) == languages::SyntaxCompleteness::Incomplete
     );
-    assert!(languages::has_incomplete_syntax(&elements) == languages::SyntaxCompleteness::Incomplete);
-    assert!(languages::has_incomplete_lexical_stream(&elements) == languages::SyntaxCompleteness::Incomplete);
+    assert!(
+        languages::has_incomplete_lexical_stream(&elements)
+            == languages::SyntaxCompleteness::Incomplete
+    );
 }
 
 fn invalid_syntax_keeps_actual_comment_tokens() {

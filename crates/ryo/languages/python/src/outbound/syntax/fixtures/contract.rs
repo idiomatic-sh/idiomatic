@@ -9,7 +9,6 @@ use ryo::languages::{
 use super::super::interface::SyntaxPort;
 use super::super::types::PythonSourceKind;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::settings::PythonParserSettings;
 
 /// What a row of the contract is given: Python text.
 type Input = &'static str;
@@ -71,11 +70,7 @@ pub(crate) fn check(adapter: &impl SyntaxPort) {
     run(CASES, Word::Succeeds, |text| {
         Ok(well_formed(&table_of(adapter, text)))
     });
-    drop(adapter.begin_semantics(
-        &Elements::default(),
-        PythonSourceKind::Python,
-        PythonParserSettings::default(),
-    ));
+    drop(adapter.begin_semantics(&Elements::default(), PythonSourceKind::Python));
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     {
         let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(&[]));
@@ -91,7 +86,6 @@ fn table_of(adapter: &impl SyntaxPort, text: &str) -> Elements {
     adapter.read(
         SourceText(text.as_bytes()),
         PythonSourceKind::Python,
-        &crate::settings::PythonParserSettings::default(),
         &mut builder,
     );
     elements

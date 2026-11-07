@@ -15,12 +15,11 @@ pub(crate) fn diagnostics_of(
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder =
         languages::table_builder(&mut elements, &mut symbols, ByteSlice(text.as_bytes()));
-    SyntaxRuffPythonParserAdapter::default().read(
-        SourceText(text.as_bytes()),
-        source_kind,
-        &settings,
-        &mut builder,
-    );
+    SyntaxRuffPythonParserAdapter {
+        settings,
+        ..Default::default()
+    }
+    .read(SourceText(text.as_bytes()), source_kind, &mut builder);
     let diagnostics: Vec<(&'static str, u32, u32)> = languages::diagnostics(&elements)
         .map(|diagnostic| {
             let message = std::str::from_utf8(diagnostic.message.0).unwrap_or_default();
@@ -51,12 +50,11 @@ pub(crate) fn diagnostics_at(
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder =
         languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-    SyntaxRuffPythonParserAdapter::default().read(
-        SourceText(source.as_bytes()),
-        kind,
-        &PythonParserSettings::new(target),
-        &mut builder,
-    );
+    SyntaxRuffPythonParserAdapter {
+        settings: PythonParserSettings::new(target),
+        ..Default::default()
+    }
+    .read(SourceText(source.as_bytes()), kind, &mut builder);
     assert_eq!(
         languages::syntax_acceptance(&elements),
         languages::SyntaxAcceptance::Accepted

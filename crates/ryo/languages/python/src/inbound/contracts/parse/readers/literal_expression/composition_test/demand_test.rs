@@ -7,7 +7,7 @@ use crate::{
     outbound::{
         notes::factory::postcard,
         syntax::{
-            factory::observed_ruff_python_parser,
+            fixtures::library::observed,
             interface::SyntaxPort as _,
             types::{PythonSourceKind, SourceText},
         },
@@ -24,7 +24,7 @@ fn native_ids_and_one_actual_model_preparation_survive_repeated_demands_and_refi
     let source = b"Alias = list[\"'T'\"]\n";
     let settings = PythonParserSettings::new(PythonTargetVersion::Py310);
     let count = Arc::new(AtomicUsize::new(0));
-    let syntax = observed_ruff_python_parser(Arc::clone(&count));
+    let syntax = observed(settings, Arc::clone(&count));
     let (mut native, mut native_symbols) = (
         languages::Elements::default(),
         languages::Symbols::default(),
@@ -32,7 +32,6 @@ fn native_ids_and_one_actual_model_preparation_survive_repeated_demands_and_refi
     syntax.read(
         SourceText(source),
         PythonSourceKind::Stub,
-        &settings,
         &mut languages::table_builder(&mut native, &mut native_symbols, ByteSlice(source)),
     );
     let original = languages::positions(&native)
@@ -107,7 +106,10 @@ fn unrelated_runtime_subscripts_add_zero_parses_and_zero_logical_payload_bytes()
         .map(|i| format!("value_{i} = env_{i}[\"'runtime_key_{i}'\"]\n"))
         .collect::<String>();
     let count = Arc::new(AtomicUsize::new(0));
-    let syntax = observed_ruff_python_parser(Arc::clone(&count));
+    let syntax = observed(
+        PythonParserSettings::new(PythonTargetVersion::Py310),
+        Arc::clone(&count),
+    );
     let parse = ParseContract::new(
         PythonParserSettings::new(PythonTargetVersion::Py310),
         Arc::new(syntax),
@@ -151,7 +153,10 @@ fn complete_relation_rows_do_not_depend_on_demand_order() {
     fn run(order: &[languages::Relation]) -> Vec<(languages::Relation, Vec<Vec<String>>)> {
         let source = b"Alias = list[\"'T'\"]\nvalue = env[\"ordinary_key\"]\n";
         let count = Arc::new(AtomicUsize::new(0));
-        let syntax = observed_ruff_python_parser(Arc::clone(&count));
+        let syntax = observed(
+            PythonParserSettings::new(PythonTargetVersion::Py310),
+            Arc::clone(&count),
+        );
         let parse = ParseContract::new(
             PythonParserSettings::new(PythonTargetVersion::Py310),
             Arc::new(syntax),
