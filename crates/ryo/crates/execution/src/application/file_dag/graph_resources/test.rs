@@ -6,9 +6,9 @@ use {
     crate::domain::operation_schema::types::InputShape,
     ryo_values::domain::rows::service::push_row,
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 fn prepare_cycles(
-    input: BorrowedRows<'_>,
+    input: RepresentationInput<'_>,
     source: ColumnIndex,
     destination: ColumnIndex,
 ) -> Result<super::super::derived::owner::acquisition::admission::service::AcquiredView, OperatingError> {
@@ -18,12 +18,12 @@ fn prepare_cycles(
             crate::application::file_dag::fixtures::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
-    let BorrowedRows::Computed(table) = input else {
+    let RepresentationInput::Computed(table) = input else {
         panic!("computed fixture")
     };
     let publication = owner.computed(table.clone())?;
     let held = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
-    let input = BorrowedRows::from(&held);
+    let input = RepresentationInput::from(&held);
     let proof = owner.admit(publication.as_ref(), input)?;
     let plan = std::sync::Arc::new(owner.derived().prepare_view(
         &ViewRequest::CycleAdjacency {
@@ -46,7 +46,7 @@ fn prepare_cycles(
     )
 }
 fn prepare_closure(
-    input: BorrowedRows<'_>,
+    input: RepresentationInput<'_>,
     keys: &[ColumnIndex],
     source: ColumnIndex,
     destination: ColumnIndex,
@@ -58,12 +58,12 @@ fn prepare_closure(
             crate::application::file_dag::fixtures::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     ));
-    let BorrowedRows::Computed(table) = input else {
+    let RepresentationInput::Computed(table) = input else {
         return Err(OperatingError::WrongOperation);
     };
     let publication = owner.computed(table.clone())?;
     let rows = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
-    let input = BorrowedRows::from(&rows);
+    let input = RepresentationInput::from(&rows);
     let mut cursor = super::super::closure_partitions::schemas::prepare(
         &publication,
         input,
@@ -111,7 +111,7 @@ mod tests {
             ],
         );
         let graph = prepare_cycles(
-            BorrowedRows::Computed(&input),
+            RepresentationInput::Computed(&input),
             ColumnIndex(0),
             ColumnIndex(1),
         )
@@ -138,7 +138,7 @@ mod tests {
             ],
         );
         let partitions = prepare_closure(
-            BorrowedRows::Computed(&input),
+            RepresentationInput::Computed(&input),
             &[ColumnIndex(0)],
             ColumnIndex(1),
             ColumnIndex(2),

@@ -3,7 +3,6 @@
 use crate::domain::finish::types::LineStarts;
 use crate::domain::render::types::{Answering, Rendered};
 use crate::domain::visit::types::{Keeping, Noting, RoleRead};
-use ryo_execution::inbound::use_cases::execution::interface::PreparedVocabulary;
 use ryo_execution::inbound::use_cases::execution::interface::RowsFed;
 use ryo_execution::inbound::use_cases::metadata::interface::Needs;
 use ryo_execution::inbound::use_cases::metadata::interface::{Covered, Partial, Unknown};
@@ -146,8 +145,6 @@ pub(crate) struct Tables {
     pub packed: PackedWords,
     /// Actual work totals returned by the execution owner.
     pub fed: Vec<Vec<RowsFed>>,
-    /// The active immutable vocabulary; no operator/cache owner is held here.
-    pub kind_vocabulary: Option<std::sync::Arc<PreparedVocabulary>>,
     /// Where the lines of the file start.
     pub starts: LineStarts,
     /// The text the names of the files made.

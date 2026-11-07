@@ -485,10 +485,7 @@ impl FileAnalysis {
                 resident_stability: worker.facts.resident_stability(),
                 read: &read,
                 semantic: SemanticSupport::Supplied(semantic),
-                kinds: match tables.kind_vocabulary.as_ref() {
-                    Some(vocabulary) => KindSupport::Prepared(Arc::clone(vocabulary)),
-                    None => KindSupport::Absent,
-                },
+                kinds: KindSupport::Absent,
             },
             &mut tables.symbols,
         )?;

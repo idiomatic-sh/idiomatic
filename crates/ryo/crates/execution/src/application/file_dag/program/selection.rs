@@ -8,7 +8,7 @@ use crate::domain::{
     operator::contract::{types::WorkCounters, },
     table_model::{service::rectangular, types::Rows},
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use std::rc::Rc;
 
 /// No provider callbacks or dependency requests enter this stage. The source is
@@ -26,7 +26,7 @@ pub(super) fn acquire(
 ) -> Result<Option<PublishedInput>, OperatingError> {
     let input = permit.selection_input(shape)?;
     let publication = input.publication(owner)?;
-    let proof = owner.admit(publication.as_ref(), BorrowedRows::from(rows))?;
+    let proof = owner.admit(publication.as_ref(), RepresentationInput::from(rows))?;
     if owner.stable() == crate::application::file_dag::relations::types::ReuseEligibility::Ineligible {
         return Ok(None);
     }

@@ -15,7 +15,7 @@ use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::tree_join::collections::strategies::interface::StrategiesItem as _;
 use crate::domain::tree_join::collections::strategies::span_index::item::SpanIndexItem;
 use crate::domain::tree_join::collections::strategies::types::Fitting;
-use ryo_derived::domain::native::types::NativeFinding as Finding;
+use ryo_derived::domain::native::types::NativeFinding;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::errors::RowsError;
@@ -50,7 +50,7 @@ fn tree() -> Elements {
     elements
 }
 
-fn found(row: &[Cell], finding: Finding, file: u32) -> Result<[u32; 4], OperatingError> {
+fn found(row: &[Cell], finding: NativeFinding, file: u32) -> Result<[u32; 4], OperatingError> {
     let elements = tree();
     let rows = TreeRows {
         elements: &elements,
@@ -88,7 +88,7 @@ fn reordered_starts_keep_exact_span_matches() -> Result<[u32; 4], OperatingError
     SpanIndexItem::find(
         &rows,
         &[stretch(0, 2)],
-        Finding::Span(ColumnIndex(0)),
+        NativeFinding::Span(ColumnIndex(0)),
         &mut found,
     )?;
     Ok(four(found.into_iter().map(|each| each.0).collect()))
@@ -96,18 +96,18 @@ fn reordered_starts_keep_exact_span_matches() -> Result<[u32; 4], OperatingError
 
 fn a_stretch_names_the_elements_that_cover_it_exactly() -> Result<[u32; 4], OperatingError> {
     // The node at 2 and its token both cover 1..2; the root covers 0..2 and the first token 0..1.
-    found(&[stretch(1, 2)], Finding::Span(ColumnIndex(0)), 0)
+    found(&[stretch(1, 2)], NativeFinding::Span(ColumnIndex(0)), 0)
 }
 
 fn a_stretch_nothing_covers_exactly_names_nothing() -> Result<[u32; 4], OperatingError> {
-    found(&[stretch(0, 5)], Finding::Span(ColumnIndex(0)), 0)
+    found(&[stretch(0, 5)], NativeFinding::Span(ColumnIndex(0)), 0)
 }
 
 fn a_stretch_of_the_file_is_found_by_the_file_and_the_stretch() -> Result<[u32; 4], OperatingError>
 {
     found(
         &[Cell::File(FileId(0)), stretch(0, 1)],
-        Finding::Stretch(ColumnIndex(0), ColumnIndex(1)),
+        NativeFinding::Stretch(ColumnIndex(0), ColumnIndex(1)),
         0,
     )
 }
@@ -115,19 +115,19 @@ fn a_stretch_of_the_file_is_found_by_the_file_and_the_stretch() -> Result<[u32; 
 fn a_stretch_of_another_file_names_nothing() -> Result<[u32; 4], OperatingError> {
     found(
         &[Cell::File(FileId(1)), stretch(0, 1)],
-        Finding::Stretch(ColumnIndex(0), ColumnIndex(1)),
+        NativeFinding::Stretch(ColumnIndex(0), ColumnIndex(1)),
         0,
     )
 }
 
 fn a_row_without_the_column_is_refused() -> Result<[u32; 4], OperatingError> {
-    found(&[], Finding::Span(ColumnIndex(0)), 0)
+    found(&[], NativeFinding::Span(ColumnIndex(0)), 0)
 }
 
 fn it_applies_to_a_finding_by_stretch_alone() -> [u32; 4] {
-    let by_node = Some(Finding::Node(ColumnIndex(0), ColumnIndex(0)));
-    let by_span = Some(Finding::Span(ColumnIndex(0)));
-    let by_stretch = Some(Finding::Stretch(ColumnIndex(0), ColumnIndex(1)));
+    let by_node = Some(NativeFinding::Node(ColumnIndex(0), ColumnIndex(0)));
+    let by_span = Some(NativeFinding::Span(ColumnIndex(0)));
+    let by_stretch = Some(NativeFinding::Stretch(ColumnIndex(0), ColumnIndex(1)));
     four(vec![
         u32::from(SpanIndexItem.applies(by_node) == Fitting::Fits),
         u32::from(SpanIndexItem.applies(by_span) == Fitting::Fits),

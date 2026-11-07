@@ -7,7 +7,7 @@ use crate::domain::{
     operation_schema::types::InputShape,
     table_model::types::Rows,
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{
@@ -22,12 +22,12 @@ fn admission_requires_a_live_matching_publication_in_test_builds_too() {
     let mut workspace = InvocationWorkspace::new(Rc::clone(&owner));
     let raw = table(&[7], 1);
     assert!(matches!(
-        workspace.admit(InputNumber(0), BorrowedRows::Computed(&raw)),
+        workspace.admit(InputNumber(0), RepresentationInput::Computed(&raw)),
         Err(OperatingError::MissingInput { position: 1 })
     ));
     workspace.publications = vec![None];
     assert!(matches!(
-        workspace.admit(InputNumber(0), BorrowedRows::Computed(&raw)),
+        workspace.admit(InputNumber(0), RepresentationInput::Computed(&raw)),
         Err(OperatingError::NotRun)
     ));
     let publication = owner.computed(raw.clone()).unwrap();
@@ -35,16 +35,16 @@ fn admission_requires_a_live_matching_publication_in_test_builds_too() {
         .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))
         .unwrap();
     workspace.capture_admitted(vec![publication.clone()]);
-    let admitted = workspace.admit(InputNumber(0), BorrowedRows::from(&rows)).unwrap();
+    let admitted = workspace.admit(InputNumber(0), RepresentationInput::from(&rows)).unwrap();
     assert_eq!(admitted.identity(&owner).unwrap().relation, None);
     assert_eq!(admitted.rows().kinds(), &[CellKind::Number]);
     assert!(matches!(
-        workspace.admit(InputNumber(0), BorrowedRows::Computed(&raw)),
+        workspace.admit(InputNumber(0), RepresentationInput::Computed(&raw)),
         Err(OperatingError::NotRead)
     ));
     owner.release_population();
     assert!(matches!(
-        workspace.admit(InputNumber(0), BorrowedRows::from(&rows)),
+        workspace.admit(InputNumber(0), RepresentationInput::from(&rows)),
         Err(OperatingError::NotRead)
     ));
 }
@@ -137,7 +137,7 @@ fn immutable_demand_checks_identity_once_across_views_and_refuses_expired_proof(
     );
     let (mut symbols, mut scratch, mut memo) = (Symbols::default(), Default::default(), vec![]);
     let mut context = context(&mut symbols, &mut scratch, &mut memo);
-    let inputs = [BorrowedRows::from(&rows)];
+    let inputs = [RepresentationInput::from(&rows)];
     let scope = workspace.inputs(&inputs);
     let before = owner.identity_checks.get();
     let index = scope.acquire_rows(&equality, &mut context).unwrap();
@@ -209,7 +209,7 @@ fn distinct_published_populations_never_share_slot_only_identities() {
             })
             .unwrap();
         workspace.capture_admitted(vec![published.clone(), right_publication.clone()]);
-        let inputs = [BorrowedRows::from(&left), BorrowedRows::from(&right)];
+        let inputs = [RepresentationInput::from(&left), RepresentationInput::from(&right)];
         let texts = crate::domain::table_texts::types::Texts {
             symbols: context.symbols.as_ref(),
             source: context.source,
@@ -254,7 +254,7 @@ fn distinct_published_populations_never_share_slot_only_identities() {
     );
     workspace.publications[1] = Some(published.clone());
     let wrong = table(&[4, 0], 2);
-    let inputs = [BorrowedRows::from(&left), BorrowedRows::Computed(&wrong)];
+    let inputs = [RepresentationInput::from(&left), RepresentationInput::Computed(&wrong)];
     let texts = crate::domain::table_texts::types::Texts {
         symbols: context.symbols.as_ref(),
         source: context.source,
@@ -292,7 +292,7 @@ fn normalized_physical_input_is_admitted_but_unproved_transform_is_not() {
     );
     let (mut symbols, mut scratch, mut memo) = (Symbols::default(), Default::default(), vec![]);
     let mut context = context(&mut symbols, &mut scratch, &mut memo);
-    let inputs = [BorrowedRows::from(&normalized)];
+    let inputs = [RepresentationInput::from(&normalized)];
     let storage = workspace
         .inputs(&inputs)
         .acquire_rows(&use_, &mut context)
@@ -305,7 +305,7 @@ fn normalized_physical_input_is_admitted_but_unproved_transform_is_not() {
         crate::domain::table_model::service::count_of(&normalized).0
     );
     let transformed = table(&[8, 9], 2);
-    let inputs = [BorrowedRows::Computed(&transformed)];
+    let inputs = [RepresentationInput::Computed(&transformed)];
     assert!(matches!(
         workspace.inputs(&inputs).acquire_rows(&use_, &mut context),
         Err(OperatingError::NotRead)
@@ -338,7 +338,7 @@ fn recapturing_publications_replaces_population_without_replacing_owner() {
             .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))
             .unwrap();
         workspace.capture_admitted(vec![publication.clone()]);
-        let inputs = [BorrowedRows::from(&rows)];
+        let inputs = [RepresentationInput::from(&rows)];
         views.push(
             workspace
                 .inputs(&inputs)

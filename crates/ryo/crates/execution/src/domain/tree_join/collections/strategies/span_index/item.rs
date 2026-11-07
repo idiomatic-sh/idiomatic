@@ -8,15 +8,15 @@ use super::super::interface::StrategiesItem;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_cells::types::TreeRows;
 use crate::domain::tree_join::collections::strategies::types::Fitting;
-use ryo_derived::domain::native::types::NativeFinding as Finding;
+use ryo_derived::domain::native::types::NativeFinding;
 use ryo_values::domain::rows::service::cell;
 
 /// `span_index`, one item of the `strategies` collection.
 pub(crate) struct SpanIndexItem;
 
 impl StrategiesItem for SpanIndexItem {
-    fn applies(&self, finding: Option<Finding>) -> Fitting {
-        if matches!(finding, Some(Finding::Stretch(..) | Finding::Span(_))) {
+    fn applies(&self, finding: Option<NativeFinding>) -> Fitting {
+        if matches!(finding, Some(NativeFinding::Stretch(..) | NativeFinding::Span(_))) {
             Fitting::Fits
         } else {
             Fitting::Misfits
@@ -34,11 +34,11 @@ impl SpanIndexItem {
     pub(crate) fn find(
         tree: &TreeRows<'_>,
         left_row: &[Value],
-        finding: Finding,
+        finding: NativeFinding,
         found: &mut Vec<Position>,
     ) -> Result<(), OperatingError> {
         let span = match finding {
-            Finding::Stretch(file, stretch) => {
+            NativeFinding::Stretch(file, stretch) => {
                 let (Value::File(of), Value::Span(span)) =
                     (cell(left_row, file)?, cell(left_row, stretch)?)
                 else {
@@ -49,13 +49,13 @@ impl SpanIndexItem {
                 }
                 span
             }
-            Finding::Span(stretch) => {
+            NativeFinding::Span(stretch) => {
                 let Value::Span(span) = cell(left_row, stretch)? else {
                     return Ok(());
                 };
                 span
             }
-            Finding::Node(..) => return Ok(()),
+            NativeFinding::Node(..) => return Ok(()),
         };
         if ryo_language::domain::elements::service::source_order(tree.elements)
             == ryo_language::domain::elements::types::SourceOrder::Reordered

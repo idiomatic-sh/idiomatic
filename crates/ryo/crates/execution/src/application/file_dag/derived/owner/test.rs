@@ -13,7 +13,7 @@ use {
     crate::domain::operation_schema::types::InputShape,
     ryo_values::domain::rows::service::push_row,
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 
 fn source() -> Table {
     let mut table = Table {
@@ -57,7 +57,7 @@ fn population(owner: &RelationOwner, publication: &PublishedInput) -> Population
         .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))
         .unwrap();
     owner
-        .admit(publication.as_ref(), BorrowedRows::from(&held))
+        .admit(publication.as_ref(), RepresentationInput::from(&held))
         .unwrap()
         .identity(owner)
         .unwrap()
@@ -100,10 +100,10 @@ fn acquire_pair(
         .resolve(publications[1].as_ref(), &|_| Err(OperatingError::NotRead))
         .unwrap();
     let left = owner
-        .admit(publications[0].as_ref(), BorrowedRows::from(&left))
+        .admit(publications[0].as_ref(), RepresentationInput::from(&left))
         .unwrap();
     let right = owner
-        .admit(publications[1].as_ref(), BorrowedRows::from(&right))
+        .admit(publications[1].as_ref(), RepresentationInput::from(&right))
         .unwrap();
     let admitted = owner
         .derived()
@@ -142,7 +142,7 @@ fn acquire(
         .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))
         .unwrap();
     let proof = owner
-        .admit(publication.as_ref(), BorrowedRows::from(&held))
+        .admit(publication.as_ref(), RepresentationInput::from(&held))
         .unwrap();
     let admitted = owner.derived().admit_view(plan, owner, &[&proof]).unwrap();
     owner

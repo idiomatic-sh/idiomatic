@@ -47,13 +47,13 @@ mod contract_read { use crate::domain::derived_views::types::{contract::value::D
 "#;
 const CONTRACT_PREPARED: &str = r#"
 mod contract_prepared {
-    use crate::domain::{derived_views::types::{contract::value::DerivedContract, ViewRequest}, operating::errors::OperatingError, operation_schema::types::InputShape};
+    use crate::domain::{derived_views::types::{contract::value::DerivedContract, DerivedRequest}, operating::errors::OperatingError, operation_schema::types::InputShape};
     use crate::outbound::derived::interface::DerivedPort;
     use std::sync::Arc;
-    fn authorized(port: Arc<dyn DerivedPort>, request: &ViewRequest, schemas: &[InputShape<'_>]) -> Result<DerivedContract, OperatingError> {
+    fn authorized(port: Arc<dyn DerivedPort>, request: &DerivedRequest, schemas: &[InputShape<'_>]) -> Result<DerivedContract, OperatingError> {
         crate::application::file_dag::derived::prepare::view(port, request, schemas)
     }
-    const _: fn(Arc<dyn DerivedPort>, &ViewRequest, &[InputShape<'_>]) -> Result<DerivedContract, OperatingError> = authorized;
+    const _: fn(Arc<dyn DerivedPort>, &DerivedRequest, &[InputShape<'_>]) -> Result<DerivedContract, OperatingError> = authorized;
 }
 "#;
 const DEPENDENCY_FORGERY: &str = r#"
@@ -107,10 +107,10 @@ const ACCESS_PREPARE: &str = r#"
 mod access_prepare {
     use crate::application::file_dag::derived::owner::types::DerivedAccess;
     use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
-    use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
+    use ryo_derived::domain::request::types::DerivedRequest;
     use std::sync::Arc;
-    fn prepare(access: &DerivedAccess, request: ViewRequest) -> Arc<PreparedDerived> { access.prepare(request, Vec::new()) }
-    const _: fn(&DerivedAccess, ViewRequest) -> Arc<PreparedDerived> = prepare;
+    fn prepare(access: &DerivedAccess, request: DerivedRequest) -> Arc<PreparedDerived> { access.prepare(request, Vec::new()) }
+    const _: fn(&DerivedAccess, DerivedRequest) -> Arc<PreparedDerived> = prepare;
 }
 "#;
 const INBOUND_BUILD: &str = r#"

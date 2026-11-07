@@ -18,7 +18,7 @@ use {
     crate::domain::stored_selection::types::{BorrowedPositions, Selector}, crate::domain::table_cells::types::TreeRows,
     crate::domain::table_texts::types::Texts, ryo_values::domain::files::types::SourceView,
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 
 #[derive(Clone, Debug)]
 pub(crate) enum ViewRequest {
@@ -83,41 +83,41 @@ pub(crate) enum MembershipSpace<'a> {
 pub(crate) enum DerivedInputs<'a, 's> {
     RawWords(&'a Keys),
     Postings {
-        rows: BorrowedRows<'a>,
+        rows: RepresentationInput<'a>,
         texts: &'a Texts<'a>,
         active: &'a [LiteralText],
     },
     Partition {
-        rows: BorrowedRows<'a>,
+        rows: RepresentationInput<'a>,
         positions: &'a [RowIndex],
         key: &'a [Value],
     },
-    Rows(&'a [BorrowedRows<'a>]),
+    Rows(&'a [RepresentationInput<'a>]),
     Predicate {
-        rows: BorrowedRows<'a>,
+        rows: RepresentationInput<'a>,
         candidates: Option<BorrowedPositions<'a>>,
         program: &'a mut dyn PredicateProgram,
         symbols: &'a Symbols,
     },
     Distinct {
-        rows: BorrowedRows<'a>,
+        rows: RepresentationInput<'a>,
         positions: BorrowedPositions<'a>,
     },
     Text {
-        rows: &'a [BorrowedRows<'a>],
+        rows: &'a [RepresentationInput<'a>],
         texts: &'a Texts<'a>,
     },
     Adjacency {
-        rows: BorrowedRows<'a>,
+        rows: RepresentationInput<'a>,
         source: GraphSource,
     },
     Membership {
-        rows: BorrowedRows<'a>,
+        rows: RepresentationInput<'a>,
         space: MembershipSpace<'a>,
     },
     Dfs {
-        roots: BorrowedRows<'a>,
-        edges: BorrowedRows<'a>,
+        roots: RepresentationInput<'a>,
+        edges: RepresentationInput<'a>,
         symbols: &'a mut QuerySymbols<'s>,
         source: SourceView<'a>,
         paths: &'a [FilePath],

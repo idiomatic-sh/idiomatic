@@ -40,7 +40,6 @@ pub(crate) fn tables_for(number: WorkerNumber, metadata: &[RuleRunMetadata]) -> 
             .iter()
             .map(|rule| vec![RowsFed::default(); rule.steps.len()])
             .collect(),
-        kind_vocabulary: None,
         starts: LineStarts(Vec::new()),
         arena: ArenaBytes::default(),
         places: Vec::new(),

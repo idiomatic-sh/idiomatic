@@ -164,7 +164,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     prepare(operation.clone(), Some("actual"), &[], operation)?;
                 let expected = crate::domain::matching::types::prepared::value::compile_regex(
                     crate::domain::table_texts::types::TextView("["),
-                    crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
+                    crate::application::file_dag::fixtures::pattern_matcher(),
                 )
                     .unwrap_err();
                 for _file in 0..2 {
@@ -206,7 +206,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 program
                     .inner
                     .matchers()
-                    .regex(crate::domain::table_texts::types::TextView("a.*"), crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl))
+                    .regex(crate::domain::table_texts::types::TextView("a.*"), crate::application::file_dag::fixtures::pattern_matcher())
                     .unwrap()
                     .as_ref()
                     .expect("the prepared literal matcher compiled");
@@ -238,7 +238,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 program
                     .inner
                     .matchers()
-                    .regex(crate::domain::table_texts::types::TextView("a.*"), crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl))
+                    .regex(crate::domain::table_texts::types::TextView("a.*"), crate::application::file_dag::fixtures::pattern_matcher())
                     .unwrap()
                     .as_ref()
                     .expect("the prepared literal matcher compiled");
@@ -260,7 +260,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 )];
                 let (engine, program, mut symbols, _) =
                     prepare(lists.clone(), Some("alpha"), &bindings, &shadow)?;
-                assert!(program.inner.matchers().glob(Test::GlobAny, crate::domain::table_texts::types::TextView("a*"), crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl)).is_some());
+                assert!(program.inner.matchers().glob(Test::GlobAny, crate::domain::table_texts::types::TextView("a*"), crate::application::file_dag::fixtures::pattern_matcher()).is_some());
                 let actual = evaluate(&engine, &program, &mut symbols)?;
                 assert_eq!((actual.0.count.0, actual.2), (expected, 1));
                 assert_eq!(builds(&program), 1);

@@ -52,6 +52,8 @@ pub struct LanguageFake {
     pub consulted: Vec<FilePath>,
     /// Candidate entry paths requested by the fake, including duplicates for engine acquisition controls.
     pub project_entry_paths: Vec<FilePath>,
+    /// Whether the project answer gives back none of the entry observations it was given: a language whose receipt does not match the batch.
+    pub forgets_entries: bool,
     /// Paths for which this fake reports rejected syntax; other parsed files are accepted when this is nonempty.
     pub rejected_syntax: Vec<FilePath>,
 }
@@ -223,9 +225,11 @@ impl LanguagePort for LanguageFake {
         refuse_broken(input)?;
         Ok(ProjectAnswer {
             consulted: self.consulted.clone(),
-            observed_entries: ryo_language::domain::project_context::service::receipt(
-                input.observed_entries,
-            ),
+            observed_entries: if self.forgets_entries {
+                Vec::new()
+            } else {
+                ryo_language::domain::project_context::service::receipt(input.observed_entries)
+            },
             ..ProjectAnswer::default()
         })
     }

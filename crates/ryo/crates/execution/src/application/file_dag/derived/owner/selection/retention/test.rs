@@ -134,7 +134,7 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
         stored_selection::types::SelectionIdentity,
         table_model::types::Verdict,
     };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
     use ryo_relations::domain::relations::types::Value;
 
     struct AlwaysHolds;
@@ -173,7 +173,7 @@ use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
     let owner = fixture.owner();
     let publication = owner.computed(table.clone())?;
     let held = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
-    let rows = BorrowedRows::from(&held);
+    let rows = RepresentationInput::from(&held);
     let proof = owner.admit(publication.as_ref(), rows)?;
     let plan = Arc::new(crate::application::file_dag::derived::prepare::view(
         (std::sync::Arc::new(

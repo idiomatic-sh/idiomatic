@@ -1,8 +1,5 @@
 //! The `positions` service's cases, on values alone.
-use crate::outbound::derived::interface::DerivedPort as _;
-use ryo_derived::inbound::use_cases::build::interface::BuildUseCase;
-use ryo_derived::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_derived::inbound::use_cases::view::interface::ViewUseCase;
+use crate::domain::derived_views::fixtures::{Semantics, semantics};
 
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
@@ -242,23 +239,21 @@ fn succeeds() {
 
 fn raw_order() -> (
     ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived,
-    std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+    Semantics,
     ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload,
 ) {
     use ryo_derived::domain::contract::types::BuildOutcome;
     use ryo_derived::domain::contract::types::BuildWorkspace;
-    use ryo_derived::domain::contract::types::BuildInputs as DerivedInputs;
-    use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
-    let port: std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> = std::sync::Arc::new(
-        crate::outbound::derived::factory::semantics(),
-    );
-    let prepared = port.prepare(ViewRequest::RawKeyOrder {
+    use ryo_derived::domain::contract::types::BuildInputs;
+    use ryo_derived::domain::request::types::DerivedRequest;
+    let port = semantics();
+    let prepared = port.prepare(DerivedRequest::RawKeyOrder {
             stride: ryo_derived::domain::raw_words::types::KeyStride(2),
         }, Vec::new());
     let BuildOutcome::Built(payload) = port
         .build(
             &prepared,
-            DerivedInputs::RawWords(ryo_derived::domain::raw_words::types::RawWords(&keys().0)),
+            BuildInputs::RawWords(ryo_derived::domain::raw_words::types::RawWords(&keys().0)),
             &mut BuildWorkspace::default(),
             None,
         )
@@ -307,10 +302,8 @@ pub(crate) fn prepared_payload(
     use ryo_derived::domain::contract::types::BuildOutcome;
     use ryo_derived::domain::contract::types::BuildWorkspace;
     use ryo_derived::domain::fault::types::DerivedFault;
-    use ryo_derived::domain::contract::types::BuildInputs as DerivedInputs;
-    let port = std::sync::Arc::new(
-        crate::outbound::derived::factory::semantics(),
-    );
+    use ryo_derived::domain::contract::types::BuildInputs;
+    let port = semantics();
     let prepared = port.prepare(
         request,
         vec![crate::domain::table_model::service::kinds_of(rows).to_vec()],
@@ -318,7 +311,7 @@ pub(crate) fn prepared_payload(
     let input = SemanticRows(rows.clone());
     match port.build(
         &prepared,
-        DerivedInputs::Rows(&input),
+        BuildInputs::Rows(&input),
         &mut BuildWorkspace::default(),
         None,
     ) {
@@ -352,14 +345,12 @@ pub(crate) fn prepared_order(
     columns: &[ColumnIndex],
 ) -> Result<Vec<RowIndex>, RowsError> {
     use ryo_derived::domain::contract::types::DerivedView;
-    use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
-    let request = ViewRequest::PartitionOrder {
+    use ryo_derived::domain::request::types::DerivedRequest;
+    let request = DerivedRequest::PartitionOrder {
         keys: columns.to_vec(),
     };
     let payload = prepared_payload(request.clone(), rows)?;
-    let port = std::sync::Arc::new(
-        crate::outbound::derived::factory::semantics(),
-    );
+    let port = semantics();
     let plan = port.prepare(
         request,
         vec![crate::domain::table_model::service::kinds_of(rows).to_vec()],

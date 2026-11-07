@@ -8,7 +8,7 @@ use crate::domain::{
         types::{PublishedRelation, Rows, SelectedRows, StoredSelection},
     },
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::{
     service::{all, kinds, to_bits},
     types::{CellKind, ColumnsView, FileId, Integer, Relation, Value},
@@ -152,12 +152,12 @@ fn every_catalog_relation_is_admitted_resolved_and_read_with_its_actual_schema()
         let rows = Rows::Stored(source);
         let publication = owner.source(*relation, &rows).unwrap();
         assert_eq!(
-            owner.inspect(publication.as_ref(), BorrowedRows::from(&rows)),
+            owner.inspect(publication.as_ref(), RepresentationInput::from(&rows)),
             Ok(PhysicalShape::Complete),
             "{relation:?}"
         );
         assert_eq!(
-            owner.inspect(publication.as_ref(), BorrowedRows::from(&rows)),
+            owner.inspect(publication.as_ref(), RepresentationInput::from(&rows)),
             Ok(PhysicalShape::Complete),
             "{relation:?}"
         );
@@ -201,7 +201,7 @@ fn population_epoch_invalidates_proofs_even_when_same_buffer_and_count_are_reuse
         });
         let publication = owner.source(relation, &rows).unwrap();
         assert_eq!(
-            owner.inspect(publication.as_ref(), BorrowedRows::from(&rows)),
+            owner.inspect(publication.as_ref(), RepresentationInput::from(&rows)),
             Ok(PhysicalShape::Complete)
         );
         publication
@@ -221,7 +221,7 @@ fn population_epoch_invalidates_proofs_even_when_same_buffer_and_count_are_reuse
     };
     let rows = Rows::Stored(source);
     assert!(matches!(
-        owner.inspect(original.as_ref(), BorrowedRows::from(&rows)),
+        owner.inspect(original.as_ref(), RepresentationInput::from(&rows)),
         Err(OperatingError::NotRead)
     ));
     let reads = Cell::new(0);
@@ -240,7 +240,7 @@ fn population_epoch_invalidates_proofs_even_when_same_buffer_and_count_are_reuse
     let fresh = owner.source(relation, &rows).unwrap();
     assert_eq!(original.same_record(&fresh), crate::application::file_dag::relations::types::Sameness::Different);
     assert_eq!(
-        owner.inspect(fresh.as_ref(), BorrowedRows::from(&rows)),
+        owner.inspect(fresh.as_ref(), RepresentationInput::from(&rows)),
         Ok(PhysicalShape::Complete)
     );
     assert_eq!(owner.checks.get(), crate::application::file_dag::relations::types::CheckCount(2));
@@ -258,7 +258,7 @@ fn population_epoch_invalidates_proofs_even_when_same_buffer_and_count_are_reuse
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     assert!(matches!(
-        other.inspect(fresh.as_ref(), BorrowedRows::from(&rows)),
+        other.inspect(fresh.as_ref(), RepresentationInput::from(&rows)),
         Err(OperatingError::NotRead)
     ));
 }
@@ -288,7 +288,7 @@ fn stable_partial_population_reuses_structure_without_proving_semantic_absence()
     assert_eq!(first.same_record(&second), crate::application::file_dag::relations::types::Sameness::Same);
     for publication in [&first, &second] {
         assert_eq!(
-            owner.inspect(publication.as_ref(), BorrowedRows::from(&rows)),
+            owner.inspect(publication.as_ref(), RepresentationInput::from(&rows)),
             Ok(PhysicalShape::Complete)
         );
     }

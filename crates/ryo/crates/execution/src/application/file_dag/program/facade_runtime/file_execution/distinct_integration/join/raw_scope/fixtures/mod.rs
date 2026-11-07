@@ -6,7 +6,7 @@ use super::super::{
 };
 use crate::application::file_dag::derived::owner::fixtures::resources::RecordedDerived;
 use ryo_derived::domain::fault::types::DerivedFault;
-use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
+use ryo_derived::domain::request::types::DerivedRequest;
 
 #[derive(Clone, Copy, Debug)]
 pub(super) enum RawCase {
@@ -87,7 +87,7 @@ pub(super) fn observe(case: RawCase) -> Result<RowCount, OperatingError> {
         actual
             .derived_builds
             .iter()
-            .filter(|request| matches!(request, ViewRequest::RawKeyOrder { stride: ryo_derived::domain::raw_words::types::KeyStride(1) }))
+            .filter(|request| matches!(request, DerivedRequest::RawKeyOrder { stride: ryo_derived::domain::raw_words::types::KeyStride(1) }))
             .count(),
         1,
         "all controls must acquire the actual raw-order kind, even with zero optional retention"

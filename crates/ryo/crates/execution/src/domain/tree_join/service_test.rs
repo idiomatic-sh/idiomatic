@@ -1,16 +1,15 @@
 //! Native cell reading and lookup strategy decisions use their actual pure owners.
-use crate::outbound::derived::interface::DerivedPort;
 use crate::domain::{
     table_cells::types::{TreeForm, TreeRows},
     tree_join::service::{driver::tree_value, source_column},
 };
 use ryo_derived::domain::contract::types::BuildOutcome;
 use ryo_derived::domain::contract::types::BuildWorkspace;
-use ryo_derived::domain::contract::types::BuildInputs as DerivedInputs;
+use ryo_derived::domain::contract::types::BuildInputs;
 use ryo_derived::domain::contract::types::DerivedView;
-use ryo_derived::domain::native::types::NativeFinding as Finding;
+use ryo_derived::domain::native::types::NativeFinding;
 use ryo_derived::domain::native::types::NativeForm;
-use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
+use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_language::domain::{completion::service::{completion, name_kind}, elements::types::Elements, symbols::types::{ByteSlice, Symbols}};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_relations::domain::{
@@ -76,8 +75,8 @@ fn found(
     left_on: &[ColumnIndex],
     right_on: &[ColumnIndex],
     view: &[ColumnIndex],
-) -> Option<Finding> {
-    let semantics = crate::outbound::derived::factory::semantics();
+) -> Option<NativeFinding> {
+    let semantics = crate::domain::derived_views::fixtures::semantics();
     let native = ryo_relations::domain::relations::service::kinds(match form {
         TreeForm::Elements => ryo_relations::domain::relations::types::Relation::SyntaxTree,
         TreeForm::Edges => ryo_relations::domain::relations::types::Relation::SyntaxChild,
@@ -94,7 +93,7 @@ fn found(
         left[left_column.0 as usize] = native[source_column(view, *right_column).0 as usize];
     }
     let prepared = semantics.prepare(
-        ViewRequest::NativeLookup {
+        DerivedRequest::NativeLookup {
             left_on: left_on.to_vec(),
             right_on: right_on.to_vec(),
             view: view.to_vec(),
@@ -108,7 +107,7 @@ fn found(
     let BuildOutcome::Built(payload) = semantics
         .build(
             &prepared,
-            DerivedInputs::Native(form),
+            BuildInputs::Native(form),
             &mut BuildWorkspace::default(),
             None,
         )
@@ -172,25 +171,25 @@ fn subject(scenario: Input) {
         }
         Scenario::FindingBySpan => {
             let by_span = found(TreeForm::Elements, &[column(0)], &[column(4)], &[]);
-            assert!(matches!(by_span, Some(Finding::Span(ColumnIndex(0)))));
+            assert!(matches!(by_span, Some(NativeFinding::Span(ColumnIndex(0)))));
             let viewed = found(
                 TreeForm::Elements,
                 &[column(0)],
                 &[column(1)],
                 &[column(0), column(4)],
             );
-            assert!(matches!(viewed, Some(Finding::Span(ColumnIndex(0)))));
+            assert!(matches!(viewed, Some(NativeFinding::Span(ColumnIndex(0)))));
         }
         Scenario::FindingByNode => {
             let by_id = found(TreeForm::Elements, &[column(0)], &[column(0)], &[]);
             assert!(matches!(
                 by_id,
-                Some(Finding::Node(ColumnIndex(0), ColumnIndex(0)))
+                Some(NativeFinding::Node(ColumnIndex(0), ColumnIndex(0)))
             ));
             let by_child = found(TreeForm::Edges, &[column(0)], &[column(1)], &[]);
             assert!(matches!(
                 by_child,
-                Some(Finding::Node(ColumnIndex(0), ColumnIndex(1)))
+                Some(NativeFinding::Node(ColumnIndex(0), ColumnIndex(1)))
             ));
         }
         Scenario::FindingByStretch => {
@@ -202,7 +201,7 @@ fn subject(scenario: Input) {
             );
             assert!(matches!(
                 file_first,
-                Some(Finding::Stretch(ColumnIndex(0), ColumnIndex(1)))
+                Some(NativeFinding::Stretch(ColumnIndex(0), ColumnIndex(1)))
             ));
             let stretch_first = found(
                 TreeForm::Elements,
@@ -212,7 +211,7 @@ fn subject(scenario: Input) {
             );
             assert!(matches!(
                 stretch_first,
-                Some(Finding::Stretch(ColumnIndex(1), ColumnIndex(0)))
+                Some(NativeFinding::Stretch(ColumnIndex(1), ColumnIndex(0)))
             ));
         }
         Scenario::FindingByNothing => {

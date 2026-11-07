@@ -16,7 +16,7 @@ use crate::domain::{
     table_cells::types::{TreeForm, TreeRows},
     table_model::types::Rows,
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use crate::application::file_dag::relations::publication::types::ProducerScope;
 use crate::domain::executable_program::types::RegionId;
 use ryo_derived::domain::request::types::DerivedKind;
@@ -150,7 +150,7 @@ fn acquire(
     }
     let publication = owner.computed(table)?;
     let rows = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
-    let first = owner.admit(publication.as_ref(), BorrowedRows::from(&rows))?;
+    let first = owner.admit(publication.as_ref(), RepresentationInput::from(&rows))?;
     if kind == DerivedKind::ClosureAdjacency {
         let keys = [ColumnIndex(2)];
         let (source, destination) = (ColumnIndex(0), ColumnIndex(1));
@@ -225,7 +225,7 @@ fn acquire(
         )?;
         let other = owner.computed(numbers())?;
         let resolved = owner.resolve(other.as_ref(), &|_| Err(OperatingError::NotRead))?;
-        let second = owner.admit(other.as_ref(), BorrowedRows::from(&resolved))?;
+        let second = owner.admit(other.as_ref(), RepresentationInput::from(&resolved))?;
         if scenario == Scenario::Stale {
             owner.release_population();
         }
@@ -252,10 +252,10 @@ fn acquire(
     };
     let resolved;
     let second = if kind == DerivedKind::NativeLookup {
-        owner.admit(other.as_ref(), BorrowedRows::Tree(tree))?
+        owner.admit(other.as_ref(), RepresentationInput::Tree(tree))?
     } else {
         resolved = owner.resolve(other.as_ref(), &|_| Err(OperatingError::NotRead))?;
-        owner.admit(other.as_ref(), BorrowedRows::from(&resolved))?
+        owner.admit(other.as_ref(), RepresentationInput::from(&resolved))?
     };
     let pair = matches!(
         kind,

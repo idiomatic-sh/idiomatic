@@ -1,15 +1,30 @@
-//! The ports the lint tests build over the engine's own use cases: publication, operators and derived views.
+//! The ports the lint tests build over the engine's own use cases: publication, facts, operators and derived views.
 
 use std::sync::Arc;
 
 use crate::outbound::publication::interface::PublicationPort;
 use ryo_execution::outbound::derived::interface::DerivedPort;
+use ryo_execution::outbound::digest::fixtures::fake::DigestFake;
+use ryo_execution::outbound::digest::interface::DigestPort;
+use ryo_execution::outbound::facts::interface::FactsPort;
 use ryo_execution::outbound::operators::interface::OperatorsPort;
 
 /// The publication port over the engine's publication use case.
 #[must_use]
 pub fn publication() -> Arc<dyn PublicationPort> {
     Arc::new(crate::outbound::publication::factory::execution())
+}
+
+/// The digest port over the engine's digest fake.
+#[must_use]
+pub fn digest() -> Arc<dyn DigestPort> {
+    Arc::new(DigestFake)
+}
+
+/// The facts port over the engine's in-memory fact store.
+#[must_use]
+pub fn facts() -> Arc<dyn FactsPort> {
+    Arc::new(ryo_execution::outbound::facts::factory::memory())
 }
 
 /// The operators port over the engine's operators use case.

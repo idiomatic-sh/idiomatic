@@ -12,7 +12,7 @@ use crate::domain::operating::{
 use crate::domain::operator::contract::{
     context::with_primitive_context, types::*, 
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::{
     service::datum,

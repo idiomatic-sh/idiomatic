@@ -1,7 +1,7 @@
 //! One file generation owns representation descriptors and lazy admission proofs.
 use super::derived::population::types::PopulationId;
 
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use crate::domain::table_model::collections::representations::types::{
     PhysicalShape, RepresentationKind,
 };
@@ -159,8 +159,8 @@ impl RelationOwner {
 mod owner_test;
 
 pub(in crate::application::file_dag) fn same_admitted_rows(
-    left: BorrowedRows<'_>,
-    right: BorrowedRows<'_>,
+    left: RepresentationInput<'_>,
+    right: RepresentationInput<'_>,
 ) -> Sameness {
     identity::same(left, right)
 }

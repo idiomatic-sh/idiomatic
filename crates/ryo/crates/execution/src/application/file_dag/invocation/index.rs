@@ -6,7 +6,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::contract::types::OperatorContract;
 use crate::domain::operator::contract::views::IndexedRows;
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::equality::types::KeyIndex;
 /// Owned immutable view handles stay in application; primitives borrow only the index.
 /// Whether an index over an empty input is skipped or still built.
@@ -17,11 +17,11 @@ pub(in crate::application::file_dag) enum EmptyInput {
 }
 pub(in crate::application::file_dag) enum IndexResource<'f> {
     Derived {
-        rows: BorrowedRows<'f>,
+        rows: RepresentationInput<'f>,
         view: AcquiredView,
     },
     Empty {
-        rows: BorrowedRows<'f>,
+        rows: RepresentationInput<'f>,
         plan: std::sync::Arc<crate::domain::derived_views::types::contract::value::DerivedContract>,
         index: KeyIndex,
     },
@@ -42,7 +42,7 @@ impl<'f> IndexResource<'f> {
         // Absence's established empty-RHS gate precedes key interpretation.
         if empty == EmptyInput::Skip
             && source.count().0 == 0
-            && !matches!(source, BorrowedRows::Selected { .. })
+            && !matches!(source, RepresentationInput::Selected { .. })
         {
             return Ok(Self::Empty {
                 rows: source,

@@ -135,6 +135,12 @@ enum Scenario {
     UnreadableAgain,
     /// Lints a rule that reads the project twice over one store, with what changed between the two.
     Consulted(Between),
+    /// The file analysis refuses a run for execution dependencies that disagree.
+    FileAnalysisExecutionRefused,
+    /// The cross-file publication refuses an observation the execution cannot admit.
+    CrossFileOperatingRefused,
+    /// Rule compilation refuses named-root bindings that form a cycle.
+    ObservationBindingsRefused,
     /// accepted syntax applicability replays skips and invalidates on policy change.
     AcceptedSyntaxApplicabilityReplaysSkipsAndInvalidatesOnPolicyChange,
     /// project entry observations invalidate persisted absence and presence.
@@ -1024,6 +1030,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::TooLarge { .. })))),
     },
     Case {
+        name: CaseName("fails_when_the_file_analysis_execution_dependencies_disagree"),
+        word: Word::Fails,
+        input: || Scenario::FileAnalysisExecutionRefused,
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::Execution { .. })))),
+    },
+    Case {
+        name: CaseName("fails_when_the_execution_cannot_admit_an_observation"),
+        word: Word::Fails,
+        input: || Scenario::CrossFileOperatingRefused,
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::ObservationExecution { .. })))),
+    },
+    Case {
+        name: CaseName("fails_when_the_observation_bindings_form_a_cycle"),
+        word: Word::Fails,
+        input: || Scenario::ObservationBindingsRefused,
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::ObservationBindings { .. })))),
+    },
+    Case {
         name: CaseName("fails_when_corpus_fails"),
         word: Word::Fails,
         input: || {
@@ -1631,6 +1655,21 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::ColdWarmAndEditedRunsAnswerTheSameInEveryStore => cold_warm_and_edited_runs_answer_the_same_in_every_store(),
         Scenario::ASyntaxSkippedFileDoesNotPoisonUnrelatedPartitionsColdOrWarm => a_syntax_skipped_file_does_not_poison_unrelated_partitions_cold_or_warm(),
         Scenario::ASyntaxRejectedFileIsSkippedWithItsReasonAndNeverUndecidedOrComplete => a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_complete(),
+        Scenario::FileAnalysisExecutionRefused => Err(LintError::from(
+            crate::application::file_analysis::errors::FileAnalysisError::Execution(
+                ryo_execution::inbound::use_cases::execution::interface::OperatingError::SemanticBatchShape,
+            ),
+        )),
+        Scenario::CrossFileOperatingRefused => Err(LintError::from(
+            crate::application::cross_file::errors::CrossFileError::Operating(
+                ryo_execution::inbound::use_cases::execution::interface::OperatingError::SemanticBatchShape,
+            ),
+        )),
+        Scenario::ObservationBindingsRefused => Err(LintError::from(
+            ryo_execution::application::rule_compilation::errors::RuleCompilationError::Observations(
+                ryo_execution::inbound::use_cases::execution::interface::FileProgramError::Cycle,
+            ),
+        )),
         Scenario::Lint(given) => {
             let made = lint(given());
             let findings = made.rows.len();

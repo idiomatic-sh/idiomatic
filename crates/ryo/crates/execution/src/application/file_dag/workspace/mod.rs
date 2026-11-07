@@ -3,7 +3,7 @@ use super::relations::admission::service::BorrowedInput;
 use crate::domain::{
     derived_views::types::{InputsUsed, contract::value::PreparedViewUse},
     operating::{errors::OperatingError, types::OperatorContext}};
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use std::sync::Arc;
 use self::constants::EXPECT_DEMANDED_INPUT;
 use ryo_values::domain::plan_parts::types::InputNumber;
@@ -174,7 +174,7 @@ impl InvocationWorkspace {
         place: InputNumber,
         rows: &'a crate::domain::table_model::types::Rows<'a>,
     ) -> Result<Option<GraphInput<'a>>, OperatingError> {
-        let proof = self.admit(place, BorrowedRows::from(rows))?;
+        let proof = self.admit(place, RepresentationInput::from(rows))?;
         match proof.physical_shape() {
             crate::domain::table_model::collections::representations::types::PhysicalShape::ReadablePhysicalFallback => Ok(None),
             crate::domain::table_model::collections::representations::types::PhysicalShape::Complete => {
@@ -202,14 +202,14 @@ pub(super) enum ViewInputs<'a, 's> {
 /// operator inputs are held; only demanded slots acquire a proof.
 pub(super) struct InputAdmissions<'a, 'f> {
     workspace: &'a InvocationWorkspace,
-    inputs: &'a [BorrowedRows<'f>],
+    inputs: &'a [RepresentationInput<'f>],
     proofs: [std::cell::OnceCell<BorrowedInput<'f>>; 3],
 }
 impl<'a, 'f> InputAdmissions<'a, 'f> {
     pub(super) fn owner_handle(&self) -> std::rc::Rc<super::relations::RelationOwner> {
         self.workspace.owner_handle()
     }
-    pub(super) fn input(&self, place: InputNumber) -> Result<BorrowedRows<'f>, OperatingError> {
+    pub(super) fn input(&self, place: InputNumber) -> Result<RepresentationInput<'f>, OperatingError> {
         self.inputs
             .get(place.0)
             .copied()
@@ -217,7 +217,7 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
                 position: place.0 + 1,
             })
     }
-    pub(super) fn rows(&self, place: InputNumber) -> Result<BorrowedRows<'f>, OperatingError> {
+    pub(super) fn rows(&self, place: InputNumber) -> Result<RepresentationInput<'f>, OperatingError> {
         Ok(self.proof(place)?.rows())
     }
     fn proof(&self, place: InputNumber) -> Result<&BorrowedInput<'f>, OperatingError> {
@@ -239,7 +239,7 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
         &self,
         order: &PreparedViewUse,
         closure: &PreparedViewUse,
-        input: BorrowedRows<'f>,
+        input: RepresentationInput<'f>,
         context: &mut OperatorContext<'_>,
     ) -> Result<super::closure_partitions::PartitionedClosure<'f>, OperatingError> {
         let proof = self.proof(order.inputs[0])?;

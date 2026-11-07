@@ -3,7 +3,7 @@ use super::adapter::DerivedUseCaseAdapter;
 use super::types::DerivedUseCases;
 use crate::outbound::derived::fixtures::contract;
 use ryo_derived::inbound::use_cases::build::use_case::BuildUseCaseImpl;
-use ryo_derived::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_derived::inbound::use_cases::prepare_derived::use_case::PrepareDerivedUseCaseImpl;
 use ryo_derived::inbound::use_cases::view::use_case::ViewUseCaseImpl;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -22,7 +22,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 
 fn subject(column: Input) -> Result<Value, Failure> {
     contract::check(&DerivedUseCaseAdapter::new(DerivedUseCases {
-        prepare: std::sync::Arc::new(PrepareUseCaseImpl::new()),
+        prepare: std::sync::Arc::new(PrepareDerivedUseCaseImpl::new()),
         build: std::sync::Arc::new(BuildUseCaseImpl::new()),
         view: std::sync::Arc::new(ViewUseCaseImpl::new()),
     }));

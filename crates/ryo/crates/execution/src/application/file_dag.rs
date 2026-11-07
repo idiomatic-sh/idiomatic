@@ -24,7 +24,7 @@ pub(crate) mod relations;
 
 pub(crate) mod executor;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "fixtures"))]
 pub(crate) mod acceptance;
 
 pub(crate) mod derived;

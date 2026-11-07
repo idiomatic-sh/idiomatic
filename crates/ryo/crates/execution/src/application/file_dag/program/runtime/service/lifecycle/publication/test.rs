@@ -7,7 +7,7 @@ use std::rc::Rc;
 fn publication_constructor_rejects_same_owner_proof_substitution_even_for_canonical_aliases() {
     use crate::application::file_dag::program::admission::{ProducerRoot, ReadProof};
 
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
     use ryo_values::domain::rows::types::{RowCount, Table};
     let CompiledCase { execution, roots } = compiled();
     let owner = Rc::clone(&execution.owner);
@@ -46,10 +46,10 @@ use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
         let a_rows = owner.resolve(a.as_ref(), &unread).unwrap();
         let b_rows = owner.resolve(b.as_ref(), &unread).unwrap();
         let a_proof = owner
-            .admit(a.as_ref(), BorrowedRows::from(&a_rows))
+            .admit(a.as_ref(), RepresentationInput::from(&a_rows))
             .unwrap();
         let b_proof = owner
-            .admit(b.as_ref(), BorrowedRows::from(&b_rows))
+            .admit(b.as_ref(), RepresentationInput::from(&b_rows))
             .unwrap();
         if aliases {
             assert_eq!(

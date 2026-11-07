@@ -1,6 +1,6 @@
 # idiomatic-sh-ryo-derived
 
-Owns portable derived-view meaning through the public inbound prepare, build and view use cases. The execution engine owns acquisition, retention, scheduling, publication, cancellation, and lifetime. Domain implementation modules stay behind the use cases.
+Owns portable derived-view meaning through the public inbound prepare_derived, build and view use cases. The execution engine owns acquisition, retention, scheduling, publication, cancellation, and lifetime. Domain implementation modules stay behind the use cases.
 
 ## Domains
 

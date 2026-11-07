@@ -268,6 +268,7 @@ templates = [
   { template = "idiomatic.ryo/program-runtime-proof", file = "src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/readiness/fixtures/adapter/mod.rs", description = "Actual runtime admission, skipped KernelSession submission, shared dispatch and retained replay controls." },
   { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/acceptance.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/acceptance/distinct_representatives_test.rs", description = "One explicitly placed nested part of a cohesive application operation." },
+  { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/acceptance/observations_test/fixtures.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/acceptance/request_graph_test.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/acceptance/fixtures.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/acceptance/layout_service_test.rs", description = "One explicitly placed nested part of a cohesive application operation." },

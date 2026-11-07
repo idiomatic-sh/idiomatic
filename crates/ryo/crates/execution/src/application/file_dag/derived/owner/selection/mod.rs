@@ -9,7 +9,7 @@ use crate::domain::{
         types::{SelectedRows, StoredSelection},
     },
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::types::ColumnsView;
 use std::sync::Arc;
 pub(super) mod candidates;
@@ -99,7 +99,7 @@ fn make<'a>(
                 &views.predicate,
             ),
             DerivedInputs::Distinct {
-                rows: BorrowedRows::Stored(source),
+                rows: RepresentationInput::Stored(source),
                 positions: crate::domain::stored_selection::types::BorrowedPositions(&rows),
             },
             &mut DerivedScratch::default(),

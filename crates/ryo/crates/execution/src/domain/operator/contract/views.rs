@@ -9,7 +9,7 @@ use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::row_texts::types::CellText;
 
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 
 /// Profile-only semantic observations. No execution or ownership policy is reachable.
 #[cfg(feature = "diagnostic-row-progress")]
@@ -45,7 +45,7 @@ impl ProgressObserver for IgnoredProgress {
 pub(crate) struct IndexedRows<'a> {
     #[cfg(feature = "diagnostic-row-progress")]
     pub progress: &'a dyn ProgressObserver,
-    pub rows: BorrowedRows<'a>,
+    pub rows: RepresentationInput<'a>,
     pub columns: &'a [ColumnIndex],
     pub index: &'a KeyIndex,
 }

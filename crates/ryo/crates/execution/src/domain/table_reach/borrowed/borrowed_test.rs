@@ -1,21 +1,17 @@
 //! Differential traversal behavior over an actual prepared equality index.
-use crate::outbound::derived::interface::DerivedPort as _;
 use super::*;
 use ryo_relations::domain::relations::types::Value as Cell;
 
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::contract::types::BuildOutcome;
 use ryo_derived::domain::contract::types::BuildWorkspace;
 use ryo_derived::domain::row_cells::types::BulkRows;
 use ryo_derived::domain::fault::types::DerivedFault;
-use ryo_derived::domain::contract::types::BuildInputs as DerivedInputs;
+use ryo_derived::domain::contract::types::BuildInputs;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_derived::domain::row_cells::types::RowCells;
-use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
-use ryo_derived::inbound::use_cases::build::interface::BuildUseCase;
-use ryo_derived::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_derived::inbound::use_cases::view::interface::ViewUseCase;
+use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_relations::domain::relations::types::{CellKind, Integer};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::rows::types::{RowCount, Table};
@@ -64,11 +60,9 @@ fn with_edges(rows: &[[i64; 2]], run: impl FnOnce(&Table, &KeyIndex)) {
             .flat_map(|row| row.iter().copied().map(number))
             .collect(),
     };
-    let port = std::sync::Arc::new(
-        crate::outbound::derived::factory::semantics(),
-    );
+    let port = crate::domain::derived_views::fixtures::semantics();
     let prepared = port.prepare(
-        ViewRequest::Equality {
+        DerivedRequest::Equality {
             columns: vec![ColumnIndex(0)],
         },
         vec![table.kinds.clone()],
@@ -76,7 +70,7 @@ fn with_edges(rows: &[[i64; 2]], run: impl FnOnce(&Table, &KeyIndex)) {
     let BuildOutcome::Built(payload) = port
         .build(
             &prepared,
-            DerivedInputs::Rows(&Cells(&table)),
+            BuildInputs::Rows(&Cells(&table)),
             &mut BuildWorkspace::default(),
             None,
         )
@@ -94,7 +88,7 @@ fn view<'a>(table: &'a Table, index: &'a KeyIndex, columns: &'a [ColumnIndex]) -
     IndexedRows {
         #[cfg(feature = "diagnostic-row-progress")]
         progress: &crate::domain::operator::contract::views::IgnoredProgress,
-        rows: BorrowedRows::Computed(table),
+        rows: RepresentationInput::Computed(table),
         columns,
         index,
     }

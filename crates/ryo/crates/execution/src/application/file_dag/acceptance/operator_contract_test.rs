@@ -1,3 +1,3 @@
 //! Independent authored datasets shared by real public operation conformance controls.
-#[cfg(test)]
+#[cfg(any(test, feature = "fixtures"))]
 pub(crate) mod fixtures;

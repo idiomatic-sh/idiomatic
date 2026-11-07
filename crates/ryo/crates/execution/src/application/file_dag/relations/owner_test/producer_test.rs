@@ -20,7 +20,7 @@ use {
     crate::domain::table_scratch::types::OperatorScratch,
     ryo_values::domain::files::types::SourceView,
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 
 #[test]
 fn real_selector_producer_is_the_only_trusted_selection_path() {
@@ -91,7 +91,7 @@ fn exercise_real_selector(limit: Retention) {
     };
     let population = owner.source(relation, &Rows::Stored(source)).unwrap();
     let proof = owner
-        .admit(population.as_ref(), BorrowedRows::Stored(source))
+        .admit(population.as_ref(), RepresentationInput::Stored(source))
         .unwrap();
     let publication = owner
         .derived
@@ -110,7 +110,7 @@ fn exercise_real_selector(limit: Retention) {
         ]]
     );
     assert_eq!(
-        owner.inspect(publication.as_ref(), BorrowedRows::from(&resolved)),
+        owner.inspect(publication.as_ref(), RepresentationInput::from(&resolved)),
         Ok(PhysicalShape::Complete)
     );
     assert_eq!(

@@ -195,7 +195,7 @@ impl AdmittedInput {
         use crate::domain::{
             table_model::{service::kinds_of, types::Rows},
         };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
         if self.root != ProducerRoot::Input(InputSource::Relation(relation)) {
             return Err(OperatingError::WrongOperation);
         }
@@ -206,7 +206,7 @@ use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
         let admitted = self
             .proof
             .owner
-            .admit(publication.as_ref(), BorrowedRows::from(rows))?;
+            .admit(publication.as_ref(), RepresentationInput::from(rows))?;
         let crate::application::file_dag::relations::admission::types::AdmissionIdentity {
             population,
             relation: actual_relation,

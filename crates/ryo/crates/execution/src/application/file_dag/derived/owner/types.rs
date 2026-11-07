@@ -2,7 +2,7 @@
 use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::outbound::derived::interface::DerivedPort;
 use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
-use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
+use ryo_derived::domain::request::types::DerivedRequest;
 use std::sync::Arc;
 
 /// The owner-issued capability over the derived port. Holders outside the owner can ask the
@@ -16,7 +16,7 @@ impl DerivedAccess {
     /// Request-time metadata only: preparing never builds or retains a view.
     pub(in crate::application::file_dag) fn prepare(
         &self,
-        request: ViewRequest,
+        request: DerivedRequest,
         schemas: Vec<Vec<ryo_relations::domain::relations::types::CellKind>>,
     ) -> Arc<PreparedDerived> {
         Arc::new(self.port.prepare(request, schemas))

@@ -27,7 +27,7 @@ impl AdmittedViewInputs<'_> {
     ) -> Result<(), OperatingError> {
         self.origin.validate(owner, plan)?;
 
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
         let admitted_rows = match (&self.sources, inputs) {
             (AcquisitionSources::Raw, DerivedInputs::RawWords(_)) => return Ok(()),
             (
@@ -59,7 +59,7 @@ use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
             DerivedInputs::Membership {
                 rows,
                 space: MembershipSpace::Native(tree),
-            } => vec![*rows, BorrowedRows::Tree(*tree)],
+            } => vec![*rows, RepresentationInput::Tree(*tree)],
             DerivedInputs::Membership { rows, .. } => vec![*rows],
             DerivedInputs::Dfs { roots, edges, .. } => vec![*roots, *edges],
             DerivedInputs::RawWords(_) => return Err(OperatingError::NotRead),

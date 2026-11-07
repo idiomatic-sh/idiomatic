@@ -12,7 +12,3 @@ pub(crate) fn validate(
     }
     contract.metadata.clone()
 }
-/// Constant prepared-slot lookup; runtime hits never scan or clone request metadata.
-pub(crate) fn slot(kind: DerivedKind) -> usize {
-    kind.ordinal()
-}

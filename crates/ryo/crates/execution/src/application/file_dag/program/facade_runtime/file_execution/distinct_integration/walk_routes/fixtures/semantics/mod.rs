@@ -3,11 +3,11 @@ use crate::outbound::derived::interface::DerivedPort;
 use ryo_derived::domain::contract::types::BuildOutcome;
 use ryo_derived::domain::contract::types::BuildWorkspace;
 use ryo_derived::domain::fault::types::DerivedFault;
-use ryo_derived::domain::contract::types::BuildInputs as DerivedInputs;
+use ryo_derived::domain::contract::types::BuildInputs;
 use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
-use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
+use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
@@ -74,7 +74,7 @@ pub(in super::super) enum BuildPolicy {
 #[derive(Debug)]
 pub(in super::super) struct Derived {
     policy: BuildPolicy,
-    calls: Mutex<Vec<ViewRequest>>,
+    calls: Mutex<Vec<DerivedRequest>>,
 }
 impl Derived {
     pub(in super::super) fn new(policy: BuildPolicy) -> Self {
@@ -83,7 +83,7 @@ impl Derived {
             calls: Mutex::new(vec![]),
         }
     }
-    pub(in super::super) fn snapshot(&self) -> Vec<ViewRequest> {
+    pub(in super::super) fn snapshot(&self) -> Vec<DerivedRequest> {
         self.calls.lock().unwrap().clone()
     }
     pub(in super::super) fn distinct_calls(&self) -> Calls {
@@ -92,19 +92,19 @@ impl Derived {
                 .lock()
                 .unwrap()
                 .iter()
-                .filter(|request| matches!(request, ViewRequest::DistinctRepresentatives { .. }))
+                .filter(|request| matches!(request, DerivedRequest::DistinctRepresentatives { .. }))
                 .count(),
         )
     }
 }
 impl DerivedPort for Derived {
-    fn prepare(&self, request: ViewRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived {
+    fn prepare(&self, request: DerivedRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived {
         crate::application::file_dag::fixtures::derived().prepare(request, schemas)
     }
     fn build(
         &self,
         prepared: &PreparedDerived,
-        inputs: DerivedInputs<'_>,
+        inputs: BuildInputs<'_>,
         room: &mut BuildWorkspace,
         recycled: Option<DerivedPayload>,
     ) -> Result<BuildOutcome, DerivedFault> {
@@ -112,7 +112,7 @@ impl DerivedPort for Derived {
         if matches!(self.policy, BuildPolicy::RefuseDistinct)
             && matches!(
                 prepared.request(),
-                ViewRequest::DistinctRepresentatives { .. }
+                DerivedRequest::DistinctRepresentatives { .. }
             )
         {
             return Err(DerivedFault::DuplicateOrder);

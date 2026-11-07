@@ -8,21 +8,21 @@ use ryo_relations::domain::relations::types::CellKind;
 /// ```
 /// use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
 /// use ryo_derived::domain::request::types::DerivedRequest;
-/// use ryo_derived::inbound::use_cases::prepare::interface::PrepareUseCase;
+/// use ryo_derived::inbound::use_cases::prepare_derived::interface::PrepareDerivedUseCase;
 /// struct Item;
-/// impl PrepareUseCase for Item {
-///     fn prepare(&self, _request: DerivedRequest, _schemas: Vec<Vec<ryo_relations::domain::relations::types::CellKind>>) -> PreparedDerived { unimplemented!() }
+/// impl PrepareDerivedUseCase for Item {
+///     fn prepare_derived(&self, _request: DerivedRequest, _schemas: Vec<Vec<ryo_relations::domain::relations::types::CellKind>>) -> PreparedDerived { unimplemented!() }
 /// }
 /// ```
 ///
-/// A missing `prepare` is refused.
+/// A missing `prepare_derived` is refused.
 ///
 /// ```compile_fail,E0046
-/// use ryo_derived::inbound::use_cases::prepare::interface::PrepareUseCase;
+/// use ryo_derived::inbound::use_cases::prepare_derived::interface::PrepareDerivedUseCase;
 /// struct Item;
-/// impl PrepareUseCase for Item {}
+/// impl PrepareDerivedUseCase for Item {}
 /// ```
-pub trait PrepareUseCase: Sync {
+pub trait PrepareDerivedUseCase: Sync {
     /// Keeps the request with its literals in canonical order and the verdict of its metadata check.
-    fn prepare(&self, request: DerivedRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived;
+    fn prepare_derived(&self, request: DerivedRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived;
 }

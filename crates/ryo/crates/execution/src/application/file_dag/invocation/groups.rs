@@ -4,7 +4,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::contract::types::OperatorContract;
 
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use crate::domain::table_groups::types::Group;
 use crate::domain::table_texts::types::Texts;
 use ryo_derived::domain::key::types::On;
@@ -16,7 +16,7 @@ use {
     crate::domain::table_groups::types::CountRoom, crate::domain::table_groups::types::Hashes,
     ryo_values::domain::rows::service::push_row,
 };
-fn materialized(input: BorrowedRows<'_>) -> Table {
+fn materialized(input: RepresentationInput<'_>) -> Table {
     let mut table = Table {
         kinds: input.kinds().to_vec(),
         ..Table::default()
@@ -30,7 +30,7 @@ fn materialized(input: BorrowedRows<'_>) -> Table {
     table
 }
 pub(super) fn groups(
-    input: BorrowedRows<'_>,
+    input: RepresentationInput<'_>,
     keys: &[ColumnIndex],
     distinct: Option<ColumnIndex>,
     digest: Option<ColumnIndex>,

@@ -20,7 +20,7 @@ use crate::domain::tree_join::collections::strategies::entity_vector::item::Enti
 use crate::domain::tree_join::collections::strategies::interface::StrategiesItem as _;
 use crate::domain::tree_join::collections::strategies::span_index::item::SpanIndexItem;
 use crate::domain::tree_join::collections::strategies::types::{Fitting, NodeColumns};
-use ryo_derived::domain::native::types::NativeFinding as Finding;
+use ryo_derived::domain::native::types::NativeFinding;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison};
 use ryo_values::domain::rows::errors::RowsError;
@@ -124,7 +124,7 @@ pub(crate) fn probe(
     work: &crate::domain::operator::contract::types::WorkCounters,
     state: &mut TreeState,
     tree: &TreeRows<'_>,
-    finding: Finding,
+    finding: NativeFinding,
     shape: TreeShape<'_>,
     left_row: &[Value],
     context: &mut OperatorContext<'_>,
@@ -142,7 +142,7 @@ pub(crate) fn probe(
     }
     state.stretched.clear();
     match finding {
-        Finding::Node(left_key, key)
+        NativeFinding::Node(left_key, key)
             if EntityVectorItem.applies(Some(finding)) == Fitting::Fits =>
         {
             EntityVectorItem::find(
@@ -158,7 +158,7 @@ pub(crate) fn probe(
         _ if SpanIndexItem.applies(Some(finding)) == Fitting::Fits => {
             SpanIndexItem::find(tree, left_row, finding, &mut state.stretched)?;
         }
-        Finding::Node(..) | Finding::Stretch(..) | Finding::Span(_) => {}
+        NativeFinding::Node(..) | NativeFinding::Stretch(..) | NativeFinding::Span(_) => {}
     }
     let mut target = std::mem::take(&mut state.other);
     let mut key = std::mem::take(&mut state.key);
@@ -212,7 +212,7 @@ pub(crate) fn join_tree(
     tree: &TreeRows<'_>,
     left: &Rows<'_>,
     work: &crate::domain::operator::contract::types::WorkCounters,
-    finding: Finding,
+    finding: NativeFinding,
     shape: TreeShape<'_>,
     context: &mut OperatorContext<'_>,
     emit: &mut dyn Emit,
@@ -233,7 +233,7 @@ pub(crate) fn join_tree(
                 form: TreeForm::Edges,
                 ..
             })
-        ) && matches!(finding, Finding::Node(ColumnIndex(1), ColumnIndex(0)))
+        ) && matches!(finding, NativeFinding::Node(ColumnIndex(1), ColumnIndex(0)))
             && tree.form == TreeForm::Elements;
         let mut candidates = std::mem::take(&mut state.candidates);
         let narrowed = by_child

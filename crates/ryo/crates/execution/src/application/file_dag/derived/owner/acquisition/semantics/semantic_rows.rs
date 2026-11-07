@@ -1,7 +1,7 @@
 //! Borrowed adapters that present admitted rows and texts to the injected semantic port.
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::{failure::FailureLatch, };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use crate::domain::table_texts::service::{datum, name_text, symbol_text};
 use crate::domain::table_texts::types::{Datum, Texts};
 use ryo_derived::domain::row_cells::types::RowCells;
@@ -22,7 +22,7 @@ use ryo_values::domain::{
 use std::cell::RefCell;
 
 pub(super) struct AdmittedRows<'a, 'f> {
-    pub(super) rows: BorrowedRows<'f>,
+    pub(super) rows: RepresentationInput<'f>,
     pub(super) failure: &'a RefCell<FailureLatch>,
 }
 impl RowCells for AdmittedRows<'_, '_> {
@@ -36,8 +36,8 @@ impl RowCells for AdmittedRows<'_, '_> {
             return None;
         };
         match rows {
-            BorrowedRows::Stored(source) => Some(ryo_derived::domain::row_cells::types::BulkRows::Stored(source)),
-            BorrowedRows::Selected {
+            RepresentationInput::Stored(source) => Some(ryo_derived::domain::row_cells::types::BulkRows::Stored(source)),
+            RepresentationInput::Selected {
                 source,
                 positions,
                 columns,
@@ -47,8 +47,8 @@ impl RowCells for AdmittedRows<'_, '_> {
                 positions: ryo_derived::domain::positions::types::RowSlots(positions.0),
                 columns,
             }),
-            BorrowedRows::Computed(table) => Some(ryo_derived::domain::row_cells::types::BulkRows::Computed(table)),
-            BorrowedRows::Tree(_) | BorrowedRows::Compact(_) | BorrowedRows::Positioned(_) => None,
+            RepresentationInput::Computed(table) => Some(ryo_derived::domain::row_cells::types::BulkRows::Computed(table)),
+            RepresentationInput::Tree(_) | RepresentationInput::Compact(_) | RepresentationInput::Positioned(_) => None,
         }
     }
     fn kinds(&self) -> &[CellKind] {
@@ -81,7 +81,7 @@ impl RowCells for AdmittedRows<'_, '_> {
     }
 }
 pub(super) struct Predicate<'a, 'f> {
-    pub(super) rows: BorrowedRows<'f>,
+    pub(super) rows: RepresentationInput<'f>,
     pub(super) program: &'a mut dyn crate::domain::operator::contract::views::PredicateProgram,
     pub(super) symbols: &'a Symbols,
     pub(super) needed: &'a crate::domain::table_cells::types::ColumnPlaces,
@@ -110,7 +110,7 @@ impl ryo_derived::domain::row_cells::types::PredicateRows for Predicate<'_, '_> 
         failure
             .borrow_mut()
             .run(|| {
-                let row = if let BorrowedRows::Stored(source) = rows {
+                let row = if let RepresentationInput::Stored(source) = rows {
                     row.resize(
                         source.kinds.len(),
                         Value::Flag(ryo_relations::domain::relations::types::Flag::Lowered),

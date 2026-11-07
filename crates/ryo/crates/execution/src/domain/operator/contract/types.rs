@@ -1,6 +1,6 @@
 //! Prepared metadata is request-owned; invocation capabilities borrow engine-owned data.
 use super::views::{IndexedRows, PredicateProgram, ValidatedSource};
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::InputPlace;
 use ryo_language::domain::symbols::types::QuerySymbols;
@@ -182,10 +182,10 @@ pub(crate) enum PreparedInputs<'a> {
     Row {
         input: InputPlace,
         row: &'a [Value],
-        sides: &'a [BorrowedRows<'a>],
+        sides: &'a [RepresentationInput<'a>],
     },
-    Views(&'a [BorrowedRows<'a>]),
-    RequestSource(&'a BorrowedRows<'a>),
+    Views(&'a [RepresentationInput<'a>]),
+    RequestSource(&'a RepresentationInput<'a>),
 }
 
 /// Read-only data borrowed from the application-owned invocation. No owner,

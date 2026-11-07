@@ -8,7 +8,7 @@ use crate::domain::{
     positions::service_test::SMALL_SOURCE,
     table_texts::types::Texts,
 };
-use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::{files::types::SourceView, plan_parts::types::LiteralText};
@@ -19,7 +19,7 @@ pub(super) fn demand(
     owner: &RelationOwner,
     plan: &Arc<DerivedContract>,
     admitted: &AdmittedViewInputs<'_>,
-    rows: [BorrowedRows<'_>; 2],
+    rows: [RepresentationInput<'_>; 2],
     symbols: &mut Symbols,
 ) -> Result<AcquiredView, OperatingError> {
     let pair = matches!(

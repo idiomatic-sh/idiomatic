@@ -7,8 +7,8 @@ use ryo_derived::domain::raw_words::types::{KeyStride, RawWords};
 use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_derived::inbound::use_cases::build::interface::BuildUseCase as _;
 use ryo_derived::inbound::use_cases::build::use_case::BuildUseCaseImpl;
-use ryo_derived::inbound::use_cases::prepare::interface::PrepareUseCase as _;
-use ryo_derived::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_derived::inbound::use_cases::prepare_derived::interface::PrepareDerivedUseCase as _;
+use ryo_derived::inbound::use_cases::prepare_derived::use_case::PrepareDerivedUseCaseImpl;
 use ryo_derived::inbound::use_cases::view::interface::ViewUseCase as _;
 use ryo_derived::inbound::use_cases::view::use_case::ViewUseCaseImpl;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
@@ -27,13 +27,13 @@ fn runs(world: &mut Behavior) {
         cells: vec![Value::Number(Integer(4)), Value::Number(Integer(5))],
         count: RowCount(2),
     };
-    let equality = PrepareUseCaseImpl::new().prepare(
+    let equality = PrepareDerivedUseCaseImpl::new().prepare_derived(
         DerivedRequest::Equality {
             columns: vec![ColumnIndex(0)],
         },
         vec![vec![CellKind::Number]],
     );
-    let raw = PrepareUseCaseImpl::new().prepare(
+    let raw = PrepareDerivedUseCaseImpl::new().prepare_derived(
         DerivedRequest::RawKeyOrder { stride: KeyStride(1) },
         Vec::new(),
     );

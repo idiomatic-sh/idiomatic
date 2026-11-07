@@ -222,7 +222,7 @@ fn a_semantic_batch_of_another_length_is_refused() -> Result<(), Failure> {
     };
     // Positive control: one answer for each request is published.
     let answered = observe(&KnownSyntax);
-    assert!(answered.collected.is_ok());
+    assert!(matches!(&answered.collected, Ok(table) if table.count.0 > 0));
     assert_eq!(answered.stream_error, None);
     assert!(!answered.rows.is_empty());
     // Negative control: one answer more than there are requests is refused, and no row is published.
