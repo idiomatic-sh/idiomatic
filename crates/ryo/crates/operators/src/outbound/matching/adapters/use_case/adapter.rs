@@ -8,7 +8,7 @@ use ryo_matching::inbound::use_cases::matching::types::{GroupName, SearchText, T
 
 /// Adapts the matching use case to the port the operators call.
 #[derive(Debug)]
-pub struct MatchingUseCaseAdapter<Semantics> {
+pub(crate) struct MatchingUseCaseAdapter<Semantics> {
     semantics: Semantics,
 }
 
