@@ -1,6 +1,6 @@
 //! A producer completion wakes exactly the admissions waiting for that producer.
 use super::super::{
-    ReadinessAction, ReadinessCounts, ReadinessEntryCount, ReadinessOutcome, RegionCount,
+    ReadinessAction, ReadinessCounts, ReadinessOutcome, RegionCount,
     WaitingCount,
 };
 use crate::domain::{executable_program::types::RegionId, operating::errors::OperatingError};
@@ -170,8 +170,8 @@ impl ReadyQueue {
         Ok(())
     }
     #[cfg(test)]
-    pub(super) fn reached_entries(&self) -> ReadinessEntryCount {
-        ReadinessEntryCount(self.entries.len())
+    pub(super) fn reached_entries(&self) -> crate::domain::readiness::types::ReadinessEntryCount {
+        crate::domain::readiness::types::ReadinessEntryCount(self.entries.len())
     }
     pub(crate) fn counts(&self) -> ReadinessCounts {
         self.counts

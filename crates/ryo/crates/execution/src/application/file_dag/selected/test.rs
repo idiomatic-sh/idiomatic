@@ -9,7 +9,7 @@ fn borrowed<'a>(columns: &'a [FactColumn], positions: &'a [u32]) -> BorrowedRows
             kinds: &[CellKind::Node, CellKind::Node],
             columns,
         },
-        positions,
+        positions: crate::domain::stored_selection::types::BorrowedPositions(positions),
         columns: &[ColumnIndex(1), ColumnIndex(0)],
         kinds: &[CellKind::Node, CellKind::Node],
     }

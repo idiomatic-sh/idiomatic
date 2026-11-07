@@ -242,14 +242,14 @@ fn succeeds() {
 
 fn raw_order() -> (
     ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived,
-    std::sync::Arc<crate::outbound::derived::types::DerivedUseCases>,
+    std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>,
     ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload,
 ) {
     use ryo_derived::domain::contract::types::BuildOutcome;
     use ryo_derived::domain::contract::types::BuildWorkspace;
     use ryo_derived::domain::contract::types::BuildInputs as DerivedInputs;
     use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
-    let port = std::sync::Arc::new(
+    let port: std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> = std::sync::Arc::new(
         crate::outbound::derived::factory::semantics(),
     );
     let prepared = port.prepare(ViewRequest::RawKeyOrder {

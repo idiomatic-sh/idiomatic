@@ -6,7 +6,7 @@ use ryo_values::domain::query_operators::types::OperationKind;
 /// One semantic input and dependency contract, independent of output delivery.
 pub(crate) fn semantics(kind: OperationKind) -> OperationSemantics {
     use OperationKind::*;
-    let (demand, resource, effects, absence) = match kind {
+    let (demand, _resource, effects, absence) = match kind {
         Select => (
             DemandOrder::Unary,
             ResourceNeeds::Predicates,
@@ -162,7 +162,6 @@ pub(crate) fn semantics(kind: OperationKind) -> OperationSemantics {
             row_inputs,
             preflight,
         },
-        resources: resource,
         effects,
         absence: AbsenceMask(absence),
     }

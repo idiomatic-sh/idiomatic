@@ -86,11 +86,10 @@ pub(crate) struct SemanticContract {
     pub(crate) preflight: PreflightOrder,
 }
 
-/// What an operation declares of its semantics: its input contract, the resources it needs, its effects and the
+/// What an operation declares of its semantics: its input contract, its effects and the
 /// inputs whose absence of rows it trusts.
 pub(crate) struct OperationSemantics {
     pub contract: SemanticContract,
-    pub resources: ResourceNeeds,
     pub effects: Effects,
     pub absence: crate::domain::contributor_rows::types::AbsenceMask,
 }

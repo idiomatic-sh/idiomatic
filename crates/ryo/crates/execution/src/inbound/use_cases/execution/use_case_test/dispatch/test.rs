@@ -1,4 +1,5 @@
 //! File-valued dispatch uses a real hosted schema and both declared corpus entries.
+use crate::application::file_dag::program::file_session::interface::FileExecution as _;
 use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::outbound::facts::types::ResidentStability;

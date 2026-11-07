@@ -5,6 +5,7 @@ pub(crate) mod ready_queue;
 pub(crate) struct RegionCount(pub usize);
 /// Readiness entries a queue holds, one for each region it has reached.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg(test)]
 pub(crate) struct ReadinessEntryCount(pub usize);
 /// Admissions currently parked on a real producer.
 pub(crate) struct WaitingCount(pub usize);

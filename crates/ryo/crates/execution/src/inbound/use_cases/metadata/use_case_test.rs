@@ -230,7 +230,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             assert_eq!(unknown.rule.0, 0);
             assert_eq!(&*unknown.word.0, "ghost");
             let refusal = metadata
-                .kind_refusal(&plan, &vocabularies())
+                .kind_refusal(&plan, &vocabularies(), &MatchingUseCaseImpl)
                 .expect("unknown kind refuses");
             assert_eq!(
                 refusal,

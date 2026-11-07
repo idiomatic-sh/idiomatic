@@ -1,4 +1,5 @@
 //! A project root cannot reconstruct an unhanded per-file step from a provider.
+use crate::application::file_dag::program::project_phase::interface::{ProjectRootExecution as _, ProjectStage as _};
 use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};

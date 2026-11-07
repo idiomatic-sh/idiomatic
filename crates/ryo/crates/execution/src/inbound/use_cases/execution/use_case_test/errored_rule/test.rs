@@ -3,6 +3,7 @@
 //! its rows: compilation and preparation succeed, and the error is the second rule's alone. Each rule's written text is
 //! compiled through the query-language port and its parameters bound from its written spec; the provider hands over the
 //! plans (RyoQL refuses both authoring errors itself, so a provider is the author that can hand them over).
+use crate::application::file_dag::program::file_session::interface::FileExecution as _;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::outbound::facts::types::ResidentStability;
 use crate::application::file_dag::program::file_session::types::{FileInput, SourceLanguage, SourceRows};

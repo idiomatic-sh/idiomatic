@@ -1,4 +1,5 @@
 //! Authored request assembly; every operation runs through the public execution owner.
+use crate::application::file_dag::program::file_session::interface::FileExecution as _;
 use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use crate::domain::operating::errors::OperatingError;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;

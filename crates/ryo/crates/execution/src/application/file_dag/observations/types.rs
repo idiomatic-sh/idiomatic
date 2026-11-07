@@ -62,12 +62,12 @@ pub(in crate::application::file_dag::observations) enum FrontierCompatibility {
 }
 /// Whether a rule is among those the current run selected.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum RuleSelection {
+pub(crate) enum RuleSelection {
     Selected,
     Unselected,
 }
 /// One output of a rule with the admitted publication it delivers.
-pub struct AdmittedOutput {
+pub(crate) struct AdmittedOutput {
     pub output: ObservationIndex,
     pub publication: crate::application::file_dag::program::observed_publication::types::ObservedPublication,
 }

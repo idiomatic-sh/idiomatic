@@ -99,7 +99,7 @@ struct PopulationProof {
     generation: Arc<()>,
 }
 #[derive(Clone)]
-pub(super) struct AdmittedInput {
+pub(crate) struct AdmittedInput {
     proof: PopulationProof,
     root: ProducerRoot,
     partition: Partition,

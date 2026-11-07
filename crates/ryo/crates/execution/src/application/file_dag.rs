@@ -10,7 +10,7 @@ pub(crate) mod resources;
 #[cfg(any(test, feature = "fixtures"))]
 pub(crate) mod testing;
 
-#[cfg(any(test, feature = "fixtures"))]
+#[cfg(test)]
 pub(crate) mod fixtures;
 pub(crate) mod workspace;
 
