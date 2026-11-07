@@ -94,8 +94,8 @@ where
         };
         if !met {
             failed.push(format!(
-                "{}: expected {:?}, answered {answer:?}\n",
-                case.name.0, case.expect
+                "{}: expected {:?}, answered {:?}\n",
+                case.name.0, case.expect, answer
             ));
         }
     }

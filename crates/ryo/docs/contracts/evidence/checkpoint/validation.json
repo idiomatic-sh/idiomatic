@@ -211,7 +211,7 @@
     "execution_boundary": {
       "passed": 96,
       "failed": 7,
-      "note": "the five project_phase::restoration::partition rows (test.rs:353, [None]: per-column lineage does not yet anchor them, the per-column lineage row); shared_walk::compact::selected_frontiers selected_join_shares_work_preserves_counts_and_exports_owned_frontiers (a stored-selection backing count of the deleted selection family, the kernel consolidation row); source_boundary actual_runtime_authority_is_private_to_its_owner (three probes named deleted or test-only fields: corrected after the run, the row passes in its narrow run)"
+      "note": "the five project_phase::restoration::partition rows (test.rs:353, [None]: per-column lineage does not yet anchor them, the per-column lineage row); shared_walk::compact::selected_frontiers selected_join_shares_work_preserves_counts_and_exports_owned_frontiers (a stored-selection backing count of the deleted selection family, the kernel consolidation row); source_boundary actual_runtime_authority_is_private_to_its_owner (three probes named deleted or test-only fields: the probes were corrected after the run and not run again with a raw log, so the row is red at validation321)"
     },
     "activation": {"passed": 10, "failed": 0},
     "bdd": {"scenarios": 2, "failed": 0},

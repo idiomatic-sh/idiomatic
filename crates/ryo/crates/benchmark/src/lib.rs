@@ -14,3 +14,6 @@ pub mod outbound;
 
 #[cfg(any(test, feature = "fixtures"))]
 pub mod cases;
+
+#[cfg(test)]
+mod cases_test;
