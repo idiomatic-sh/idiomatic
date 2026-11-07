@@ -7,7 +7,7 @@ pub struct RawWords<'a>(pub &'a [u64]);
 
 /// Owned lowered key words: the bare words inside are named here.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct RawKeys(pub Vec<u64>);
+pub struct LoweredKeys(pub Vec<u64>);
 
 /// How many words make one key.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
