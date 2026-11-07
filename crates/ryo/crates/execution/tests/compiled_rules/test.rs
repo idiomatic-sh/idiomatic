@@ -262,6 +262,7 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
     }
 }
 
+#[test]
 fn independent_compilation_preserves_unused_steps_and_original_frontier_order() {
     use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution;
     use ryo_execution::application::rule_compilation::service::QueryCompilation;
