@@ -1,6 +1,6 @@
 //! Every field or constructor an in-crate sibling could use to forge owner state is private to its
 //! owner, and each authorized route stays reachable: ledger and lease, request frontier cache, read
-//! proof, compiled region and instruction, relation owner, one per-file route.
+//! proof, compiled region and instruction, relation owner.
 use super::fixtures::{Compilation, Expectation, Probe};
 const PROGRAM: &str = "src/application/file_dag/program.rs";
 const REQUEST: &str = "src/inbound/use_cases/execution/use_case.rs";

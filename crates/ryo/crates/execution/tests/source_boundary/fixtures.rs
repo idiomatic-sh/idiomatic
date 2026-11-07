@@ -85,10 +85,9 @@ pub(super) fn manifest(source: &Path) -> toml::Table {
     for dependency in &package.dependencies {
         let destination = match dependency.kind {
             DependencyKind::Normal => &mut dependencies,
-            // The crate's own dev-dependency (its tests' `fixtures` feature) would make the overlay
-            // depend on the production copy of itself.
-            DependencyKind::Development if dependency.name == package.name.to_string() => continue,
-            DependencyKind::Development => &mut development,
+            DependencyKind::Development if dependency.name != package.name.as_str() => {
+                &mut development
+            }
             _ => continue,
         };
         let mut entry = toml::Table::new();
