@@ -72,7 +72,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("nonempty_right_antijoin_checks_first_missing_key"),
         word: Word::Refuses,
         input: || Scenario::AntijoinInvalidKey,
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: 2 }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(2) }),
     },
     Case {
         name: CaseName("deferred_union_keeps_only_first_position_row"),

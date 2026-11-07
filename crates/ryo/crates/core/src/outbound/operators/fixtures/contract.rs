@@ -37,7 +37,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
                 vec![ColumnIndex(3), ColumnIndex(2)],
             )
         },
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: 3 }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(3) }),
     },
 ];
 

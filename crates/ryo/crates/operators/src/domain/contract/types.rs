@@ -12,7 +12,7 @@ pub enum PortableOperatorFault {
     /// The declared input column is absent.
     NoSuchColumn {
         /// Missing column index.
-        index: u32,
+        index: ryo_values::domain::plan_parts::types::ColumnIndex,
     },
     /// A present cell is not a span.
     ShapeMismatch,

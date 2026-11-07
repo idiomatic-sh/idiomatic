@@ -38,7 +38,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("held_predicate_reports_first_absent_column"),
         word: Word::Refuses,
         input: || (true, &[ColumnIndex(9), ColumnIndex(8)]),
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: 9 }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(9) }),
     },
 ];
 fn subject((holds, kept): Input) -> Result<Value, Failure> {

@@ -23,13 +23,13 @@ fn row(table: &Table, at: RowIndex) -> &[Value] {
 fn cell(row: &[Value], column: ColumnIndex) -> Result<Value, Fault> {
     row.get(usize::try_from(column.0).unwrap_or(usize::MAX))
         .copied()
-        .ok_or(Fault::NoSuchColumn { index: column.0 })
+        .ok_or(Fault::NoSuchColumn { index: column })
 }
 fn check(kinds: &[CellKind], column: ColumnIndex) -> Result<CellKind, Fault> {
     kinds
         .get(usize::try_from(column.0).unwrap_or(usize::MAX))
         .copied()
-        .ok_or(Fault::NoSuchColumn { index: column.0 })
+        .ok_or(Fault::NoSuchColumn { index: column })
 }
 fn same(table: &Table, on: GroupColumns<'_>, left: RowIndex, right: RowIndex) -> GroupMembership {
     let (left, right) = (row(table, left), row(table, right));

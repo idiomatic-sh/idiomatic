@@ -16,7 +16,7 @@ pub fn between(
     let cell = |column: ColumnIndex| {
         row.get(usize::try_from(column.0).unwrap_or(usize::MAX))
             .copied()
-            .ok_or(PortableOperatorFault::NoSuchColumn { index: column.0 })
+            .ok_or(PortableOperatorFault::NoSuchColumn { index: column })
     };
     // Both lookups precede the type pattern, including when the left type is wrong.
     let (Value::Span(left), Value::Span(right)) = (cell(start)?, cell(end)?) else {

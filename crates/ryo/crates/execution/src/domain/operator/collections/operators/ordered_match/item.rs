@@ -24,34 +24,38 @@ struct Pairing<'a, 'input, 'engine> {
     error: FailureLatch,
 }
 impl OrderedMatchDriver for Pairing<'_, '_, '_> {
-    fn left_len(&self) -> usize {
-        self.ordered.left().len()
+    fn left_len(&self) -> ryo_values::domain::rows::types::RowCount {
+        ryo_values::domain::rows::types::RowCount(self.ordered.left().len())
     }
-    fn right_len(&self) -> usize {
-        self.ordered.right().len()
+    fn right_len(&self) -> ryo_values::domain::rows::types::RowCount {
+        ryo_values::domain::rows::types::RowCount(self.ordered.right().len())
     }
-    fn compare_keys(&self, left: usize, right: usize) -> std::cmp::Ordering {
-        self.ordered.left()[left]
+    fn compare_keys(&self, left: ryo_values::domain::rows::types::RowIndex, right: ryo_values::domain::rows::types::RowIndex) -> std::cmp::Ordering {
+        self.ordered.left()[left.0]
             .keys()
-            .cmp(self.ordered.right()[right].keys())
+            .cmp(self.ordered.right()[right.0].keys())
     }
-    fn right_order_before_or_equal(&self, left: usize, right: usize) -> bool {
-        self.ordered.right()[right].order() <= self.ordered.left()[left].order()
+    fn right_order_before_or_equal(&self, left: ryo_values::domain::rows::types::RowIndex, right: ryo_values::domain::rows::types::RowIndex) -> ryo_operators::domain::ordered_match::types::KeyOrder {
+        if self.ordered.right()[right.0].order() <= self.ordered.left()[left.0].order() {
+            ryo_operators::domain::ordered_match::types::KeyOrder::BeforeOrEqual
+        } else {
+            ryo_operators::domain::ordered_match::types::KeyOrder::After
+        }
     }
     fn visit_pair(
         &mut self,
-        left: usize,
-        right: usize,
+        left: ryo_values::domain::rows::types::RowIndex,
+        right: ryo_values::domain::rows::types::RowIndex,
         project: &mut dyn FnMut(&[Value], &[Value]) -> Result<(), PortableOperatorFault>,
     ) -> Result<(), PortableOperatorFault> {
         let pair = self
             .error
             .run(|| {
                 let left = self.inputs[0]
-                    .read(self.ordered.left()[left].row(), self.left_buffer)
+                    .read(self.ordered.left()[left.0].row(), self.left_buffer)
                     .ok_or(OperatingError::ShapeMismatch)?;
                 let right = self.inputs[1]
-                    .read(self.ordered.right()[right].row(), self.right_buffer)
+                    .read(self.ordered.right()[right.0].row(), self.right_buffer)
                     .ok_or(OperatingError::ShapeMismatch)?;
                 Ok(project(left, right))
             })

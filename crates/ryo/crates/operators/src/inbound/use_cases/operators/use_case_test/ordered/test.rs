@@ -50,7 +50,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("ordered_projection_fault_precedes_any_delivery"),
         word: Word::Refuses,
         input: || Scenario::OrderedMissing,
-        expect: Expect::Error(Failure::NoSuchColumn { index: 2 }),
+        expect: Expect::Error(Failure::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(2) }),
     },
     Case {
         name: CaseName("ordered_sink_failure_preserves_prefix_and_stops_reads"),
@@ -79,28 +79,32 @@ struct Driver {
 const LEFT: &[(i64, i64)] = &[(1, 1), (1, 2), (1, 3)];
 const RIGHT: &[(i64, i64)] = &[(1, 0), (1, 2), (1, 3), (1, 4)];
 impl OrderedMatchDriver for Driver {
-    fn left_len(&self) -> usize {
-        LEFT.len()
+    fn left_len(&self) -> ryo_values::domain::rows::types::RowCount {
+        ryo_values::domain::rows::types::RowCount(LEFT.len())
     }
-    fn right_len(&self) -> usize {
-        RIGHT.len()
+    fn right_len(&self) -> ryo_values::domain::rows::types::RowCount {
+        ryo_values::domain::rows::types::RowCount(RIGHT.len())
     }
-    fn compare_keys(&self, left: usize, right: usize) -> std::cmp::Ordering {
-        LEFT[left].0.cmp(&RIGHT[right].0)
+    fn compare_keys(&self, left: ryo_values::domain::rows::types::RowIndex, right: ryo_values::domain::rows::types::RowIndex) -> std::cmp::Ordering {
+        LEFT[left.0].0.cmp(&RIGHT[right.0].0)
     }
-    fn right_order_before_or_equal(&self, left: usize, right: usize) -> bool {
-        RIGHT[right].1 <= LEFT[left].1
+    fn right_order_before_or_equal(&self, left: ryo_values::domain::rows::types::RowIndex, right: ryo_values::domain::rows::types::RowIndex) -> crate::domain::ordered_match::types::KeyOrder {
+        if RIGHT[right.0].1 <= LEFT[left.0].1 {
+            crate::domain::ordered_match::types::KeyOrder::BeforeOrEqual
+        } else {
+            crate::domain::ordered_match::types::KeyOrder::After
+        }
     }
     fn visit_pair(
         &mut self,
-        left: usize,
-        right: usize,
+        left: ryo_values::domain::rows::types::RowIndex,
+        right: ryo_values::domain::rows::types::RowIndex,
         project: &mut dyn FnMut(&[Cell], &[Cell]) -> Result<(), Failure>,
     ) -> Result<(), Failure> {
-        self.visits.push((left, right));
+        self.visits.push((left.0, right.0));
         project(
-            &[number(i64::try_from(left).unwrap())],
-            &[number(i64::try_from(right).unwrap())],
+            &[number(i64::try_from(left.0).unwrap())],
+            &[number(i64::try_from(right.0).unwrap())],
         )
     }
     fn emit(&mut self, row: &[Cell]) -> Result<(), ContractError> {

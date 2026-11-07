@@ -50,7 +50,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("missing_column_is_reported_by_index"),
         word: Word::Refuses,
         input: || (vec![], 7),
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: 7 }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(7) }),
     },
     Case {
         name: CaseName("a_number_is_not_a_span"),

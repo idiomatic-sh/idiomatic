@@ -19,7 +19,7 @@ impl OperatorsUseCase for OrderedPort {
         if matches!(call, OperatorCall::OrderedExistence { .. }) {
             self.calls.fetch_add(1, Ordering::Relaxed);
             if self.refuse {
-                return Err(PortableOperatorFault::NoSuchColumn { index: REFUSAL });
+                return Err(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(REFUSAL) });
             }
         }
         OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)

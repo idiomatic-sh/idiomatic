@@ -306,7 +306,7 @@ pub(crate) fn portable_fault(
     match error {
         PortableOperatorFault::Interrupted => OperatingError::WrongOperation,
         PortableOperatorFault::NoSuchColumn { index } => {
-            ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index }.into()
+            ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: index.0 }.into()
         }
         PortableOperatorFault::ShapeMismatch => OperatingError::ShapeMismatch,
         PortableOperatorFault::InvalidSpanBounds => OperatingError::InvalidSpanBounds,

@@ -15,7 +15,7 @@ impl OperatorsUseCase for KeepsCalling {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         match call {
             OperatorCall::Project { .. } if self.refuse_project => {
-                Err(PortableOperatorFault::NoSuchColumn { index: REFUSAL })
+                Err(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(REFUSAL) })
             }
             OperatorCall::EqualityJoin {
                 input: JoinInput::Values { driver, .. },

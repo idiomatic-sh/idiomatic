@@ -40,7 +40,7 @@ impl OperatorsUseCase for Witness {
                 _ => {}
             }
             if self.refuse && (!self.only_columns || columnar) {
-                return Err(PortableOperatorFault::NoSuchColumn { index: REFUSAL });
+                return Err(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(REFUSAL) });
             }
         }
         ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))
@@ -52,7 +52,7 @@ pub(crate) fn refusal(result: Result<Table, OperatingError>) {
         matches!(
             result,
             Err(OperatingError::Table(
-                ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: REFUSAL }
+                ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(REFUSAL) }
             ))
         ),
         "{result:?}"

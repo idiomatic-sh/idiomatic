@@ -11,7 +11,7 @@ pub fn bounds(row: &[Value], column: ColumnIndex) -> Result<[Value; 2], Portable
     let value = row
         .get(usize::try_from(column.0).unwrap_or(usize::MAX))
         .copied()
-        .ok_or(PortableOperatorFault::NoSuchColumn { index: column.0 })?;
+        .ok_or(PortableOperatorFault::NoSuchColumn { index: column })?;
     let Value::Span(span) = value else {
         return Err(PortableOperatorFault::ShapeMismatch);
     };

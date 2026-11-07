@@ -56,13 +56,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("missing_left_key_is_refused_before_candidate_access"),
         word: Word::Refuses,
         input: || Scenario::MissingLeftKey,
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: 3 }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(3) }),
     },
     Case {
         name: CaseName("first_output_fault_stops_before_any_delivery"),
         word: Word::Refuses,
         input: || Scenario::FirstOutputFault,
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: 99 }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(99) }),
     },
     Case {
         name: CaseName("downstream_interruption_preserves_delivered_prefix_and_stops_scanning"),

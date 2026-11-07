@@ -19,7 +19,7 @@ impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase f
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         self.calls.fetch_add(1, Ordering::Relaxed);
         if self.refuses {
-            return Err(PortableOperatorFault::NoSuchColumn { index: 8 });
+            return Err(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(8) });
         }
         OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)
     }

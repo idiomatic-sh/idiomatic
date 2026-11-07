@@ -53,7 +53,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("collected_count_operand_fault_precedes_key_fault"),
         word: Word::Refuses,
         input: || Scenario::CountOperandFirst,
-        expect: Expect::Error(Failure::NoSuchColumn { index: 98 }),
+        expect: Expect::Error(Failure::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(98) }),
     },
     Case {
         name: CaseName("digest_dispatch_uses_resolved_text_not_handles_repeats_or_order"),

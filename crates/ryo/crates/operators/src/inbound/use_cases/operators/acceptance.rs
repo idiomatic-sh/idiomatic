@@ -36,7 +36,7 @@ fn runs(world: &mut Behavior) {
             })
             .collect::<Vec<_>>()
             .join(" "),
-        Err(PortableOperatorFault::NoSuchColumn { index: missing }) => format!("missing {missing}"),
+        Err(PortableOperatorFault::NoSuchColumn { index: missing }) => format!("missing {}", missing.0),
         _ => panic!("project must answer a written row or a missing column"),
     };
 }

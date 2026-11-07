@@ -69,7 +69,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("project_reports_absent_column"),
         word: Word::Refuses,
         input: || Scenario::MissingProjectColumn,
-        expect: Expect::Error(Failure::NoSuchColumn { index: 2 }),
+        expect: Expect::Error(Failure::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(2) }),
     },
     Case {
         name: CaseName("select_dispatch_preserves_repeated_kept_columns"),
@@ -96,7 +96,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("select_reports_first_missing_kept_column"),
         word: Word::Refuses,
         input: || Scenario::SelectMissing,
-        expect: Expect::Error(Failure::NoSuchColumn { index: 9 }),
+        expect: Expect::Error(Failure::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(9) }),
     },
     Case {
         name: CaseName("aggregate_count_dispatch_preserves_key_order"),
@@ -122,7 +122,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("aggregate_reports_first_missing_key"),
         word: Word::Refuses,
         input: || Scenario::AggregateMissing,
-        expect: Expect::Error(Failure::NoSuchColumn { index: 4 }),
+        expect: Expect::Error(Failure::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(4) }),
     },
 ];
 fn written(call: OperatorCall<'_>) -> Result<(), Failure> {

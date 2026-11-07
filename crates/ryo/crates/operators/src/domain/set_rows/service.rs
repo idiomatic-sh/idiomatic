@@ -30,11 +30,11 @@ pub(crate) fn values(
                 key.clear();
                 for column in left_on {
                     let at = usize::try_from(column.0)
-                        .map_err(|_| PortableOperatorFault::NoSuchColumn { index: column.0 })?;
+                        .map_err(|_| PortableOperatorFault::NoSuchColumn { index: column })?;
                     key.push(
                         row.get(at)
                             .copied()
-                            .ok_or(PortableOperatorFault::NoSuchColumn { index: column.0 })?,
+                            .ok_or(PortableOperatorFault::NoSuchColumn { index: column })?,
                     );
                 }
                 !driver

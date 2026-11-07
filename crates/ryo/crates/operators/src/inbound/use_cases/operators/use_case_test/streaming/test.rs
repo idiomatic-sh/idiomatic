@@ -58,19 +58,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("streamed_count_metadata_checks_keys_first"),
         word: Word::Refuses,
         input: || Scenario::CheckStreamCountOrder,
-        expect: Expect::Error(Failure::NoSuchColumn { index: 99 }),
+        expect: Expect::Error(Failure::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(99) }),
     },
     Case {
         name: CaseName("collected_count_metadata_checks_operand_first"),
         word: Word::Refuses,
         input: || Scenario::CheckCollectedCountOrder,
-        expect: Expect::Error(Failure::NoSuchColumn { index: 98 }),
+        expect: Expect::Error(Failure::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(98) }),
     },
     Case {
         name: CaseName("streamed_digest_metadata_checks_operand_first"),
         word: Word::Refuses,
         input: || Scenario::CheckStreamDigestOrder,
-        expect: Expect::Error(Failure::NoSuchColumn { index: 98 }),
+        expect: Expect::Error(Failure::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(98) }),
     },
     Case {
         name: CaseName("stream_count_and_finish_keep_original_representatives"),
@@ -88,7 +88,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("stream_bad_early_row_prevents_later_upstream_demand"),
         word: Word::Refuses,
         input: || Scenario::StreamEarlyFault,
-        expect: Expect::Error(Failure::NoSuchColumn { index: 1 }),
+        expect: Expect::Error(Failure::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(1) }),
     },
     Case {
         name: CaseName("stream_group_storage_refusal_prevents_value_access"),
