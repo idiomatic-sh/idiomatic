@@ -33,7 +33,7 @@ fn advance_column(column: usize, text: &str, tab_width: usize) -> Result<usize, 
     Ok(column)
 }
 
-fn fits(
+pub(super) fn fits(
     text: &str,
     prefix: &str,
     maximum: usize,
@@ -149,19 +149,5 @@ impl OperatorsItem for FitsRenderedItem {
             emit.row(lease, row)?;
         }
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::fits;
-
-    #[test]
-    fn physical_width_counts_tabs_unicode_and_all_lines() {
-        assert!(fits("x", "\t", 5, 4).unwrap());
-        assert!(!fits("xx", "\t", 5, 4).unwrap());
-        assert!(fits("界e\u{301}", "", 3, 4).unwrap());
-        assert!(!fits("x\n123456", "", 5, 4).unwrap());
-        assert!(fits("123456\r\nx", "", 6, 4).unwrap());
     }
 }
