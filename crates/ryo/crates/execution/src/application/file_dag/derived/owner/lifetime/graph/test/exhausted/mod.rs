@@ -37,7 +37,11 @@ fn exhausted_domain_identity_uses_local_membership_without_retained_duplicates()
             .nearest(
                 &graph,
                 &domain,
-                graph.graph().vertex(0, number(Integer(1))).unwrap(),
+                graph
+                    .graph()
+                    .vertex(ryo_derived::domain::vertices::types::PartitionId(0), number(Integer(1)))
+                    .unwrap()
+                    .0,
                 Orientation::Forward,
                 &mut local,
                 &mut walk,

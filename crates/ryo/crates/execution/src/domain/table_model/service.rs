@@ -27,8 +27,10 @@ use ryo_relations::domain::relations::types::{
 use super::types::Rows;
 use crate::domain::table_cells::service::{edge_of, element_of};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use ryo_derived::domain::contract::key::hash_key;
-use ryo_derived::domain::contract::types::{ChainLink, KeyIndex, On};
+use ryo_derived::domain::key::service::hash_key;
+use ryo_derived::domain::key::types::ChainLink;
+use ryo_derived::domain::equality::types::KeyIndex;
+use ryo_derived::domain::key::types::On;
 use ryo_values::domain::plan_parts::service::column_in;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::errors::RowsError;
@@ -257,8 +259,8 @@ pub(crate) fn matching_stored<'o, 'k>(
         1,
     );
     let hash = hash_key(key.iter().map(Some));
-    let bucket = usize::try_from(hash.0).unwrap_or(0) & order.heads().len().saturating_sub(1);
-    let mut at = order.heads().get(bucket).copied().unwrap_or(ChainLink(0));
+    let bucket = usize::try_from(hash.0).unwrap_or(0) & order.heads.len().saturating_sub(1);
+    let mut at = order.heads.get(bucket).copied().unwrap_or(ChainLink(0));
     std::iter::from_fn(move || {
         while at.0 != 0 {
             #[cfg(feature = "diagnostic-row-progress")]
@@ -267,13 +269,13 @@ pub(crate) fn matching_stored<'o, 'k>(
                 1,
             );
             let place = usize::try_from(at.0 - 1).unwrap_or(usize::MAX);
-            at = order.links().get(place).copied().unwrap_or(ChainLink(0));
-            if order.hashes().get(place) == Some(&hash)
+            at = order.next.get(place).copied().unwrap_or(ChainLink(0));
+            if order.hashes.get(place) == Some(&hash)
                 && columns.iter().zip(key).all(|(column, wanted)| {
                     stored_cell(view, RowIndex(place), *column) == Some(*wanted)
                 })
             {
-                let row = order.rows().get(place);
+                let row = order.rows.get(place);
                 #[cfg(feature = "diagnostic-row-progress")]
                 if row.is_some() {
                     observer(
@@ -297,18 +299,18 @@ pub(crate) fn matching<'o, 'k>(
     key: &'k [Value],
 ) -> impl Iterator<Item = &'o RowIndex> + Clone {
     let hash = hash_key(key.iter().map(Some));
-    let bucket = usize::try_from(hash.0).unwrap_or(0) & order.heads().len().saturating_sub(1);
+    let bucket = usize::try_from(hash.0).unwrap_or(0) & order.heads.len().saturating_sub(1);
     // The next row of the chain, plus one; zero when there is none.
-    let mut at = order.heads().get(bucket).copied().unwrap_or(ChainLink(0));
+    let mut at = order.heads.get(bucket).copied().unwrap_or(ChainLink(0));
     std::iter::from_fn(move || {
         while at.0 != 0 {
             let place = usize::try_from(at.0 - 1).unwrap_or(usize::MAX);
-            at = order.links().get(place).copied().unwrap_or(ChainLink(0));
-            if order.hashes().get(place) == Some(&hash)
+            at = order.next.get(place).copied().unwrap_or(ChainLink(0));
+            if order.hashes.get(place) == Some(&hash)
                 && row_in(table, RowIndex(place))
                     .is_some_and(|row| compare_key(row, on, key) == Ordering::Equal)
             {
-                return order.rows().get(place);
+                return order.rows.get(place);
             }
         }
         None

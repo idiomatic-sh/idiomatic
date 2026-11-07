@@ -8,7 +8,7 @@ use crate::domain::{
     positions::service_test::SMALL_SOURCE,
     table_texts::types::Texts,
 };
-use ryo_derived::domain::contract::types::DerivedKind;
+use ryo_derived::domain::request::types::DerivedKind;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::{files::types::SourceView, plan_parts::types::LiteralText};
 use std::sync::Arc;

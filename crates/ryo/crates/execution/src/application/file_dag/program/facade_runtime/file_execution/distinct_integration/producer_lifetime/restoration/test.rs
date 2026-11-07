@@ -91,7 +91,7 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
         .iter()
         .flatten()
         .find(|group| {
-            group.primary.plan.kind == ryo_derived::domain::contract::types::DerivedKind::Equality
+            group.primary.plan.kind == ryo_derived::domain::request::types::DerivedKind::Equality
         })
         .expect("actual Join declares Equality");
     assert_eq!(equality.primary.len, 1);

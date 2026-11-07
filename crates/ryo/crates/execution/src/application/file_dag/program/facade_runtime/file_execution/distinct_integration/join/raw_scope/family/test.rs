@@ -7,7 +7,7 @@ use crate::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::operating::errors::OperatingError,
 };
-use ryo_derived::domain::contract::types::DerivedKind;
+use ryo_derived::domain::request::types::DerivedKind;
 type Input = DerivedKind;
 type Value = DerivedKind;
 type Failure = OperatingError;

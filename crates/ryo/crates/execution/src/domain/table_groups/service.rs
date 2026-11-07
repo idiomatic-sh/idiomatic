@@ -8,7 +8,7 @@ use crate::domain::{
         types::{Datum, Texts},
     },
 };
-use ryo_derived::domain::contract::types::On;
+use ryo_derived::domain::key::types::On;
 use ryo_operators::domain::reduction::types::DigestDatum;
 use ryo_operators::domain::reduction::types::DigestValues;
 use ryo_operators::domain::reduction::types::GroupColumns;

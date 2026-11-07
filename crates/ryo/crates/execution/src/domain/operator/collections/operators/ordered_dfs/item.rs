@@ -59,26 +59,26 @@ impl OperatorsItem for OrderedDfsItem {
             .ok_or(OperatingError::WrongBinding)?;
         let graph = prepared;
         let columns = graph
-            .edge_columns()
+            .edge_columns
             .get(
                 ..graph
-                    .edge_columns()
+                    .edge_columns
                     .len()
                     .checked_sub(1)
                     .ok_or(OperatingError::ShapeMismatch)?,
             )
             .ok_or(OperatingError::ShapeMismatch)?;
         let target = *graph
-            .edge_columns()
+            .edge_columns
             .last()
             .ok_or(OperatingError::ShapeMismatch)?;
         let canonical_root = *graph
-            .root_columns()
+            .root_columns
             .last()
             .ok_or(OperatingError::ShapeMismatch)?;
         let walked = Edges {
-            table: prepared.edges(),
-            order: prepared.edge_index(),
+            table: &prepared.edges,
+            order: &prepared.edge_index,
             from: columns,
             to: target,
         };
@@ -94,15 +94,15 @@ impl OperatorsItem for OrderedDfsItem {
             work.expanded = 0;
             work.examined = 0;
             let mut begin = 0;
-            while begin < prepared.root_index().sorted().len() {
+            while begin < prepared.root_index.sorted.len() {
                 let at = *prepared
-                    .root_index()
-                    .sorted()
+                    .root_index
+                    .sorted
                     .get(begin)
                     .ok_or(OperatingError::ShapeMismatch)?;
-                let root_row = row_in(prepared.roots(), at).ok_or(OperatingError::ShapeMismatch)?;
+                let root_row = row_in(&prepared.roots, at).ok_or(OperatingError::ShapeMismatch)?;
                 key.clear();
-                for column in graph.root_columns() {
+                for column in graph.root_columns {
                     key.push(cell(root_row, *column)?);
                 }
                 prefix.clear();
@@ -136,7 +136,7 @@ impl OperatorsItem for OrderedDfsItem {
                         break;
                     };
                     let edge_row =
-                        row_in(prepared.edges(), edge_at).ok_or(OperatingError::ShapeMismatch)?;
+                        row_in(&prepared.edges, edge_at).ok_or(OperatingError::ShapeMismatch)?;
                     joined.clear();
                     joined.extend_from_slice(&prefix);
                     for column in [*source, *destination, *edge] {
@@ -153,15 +153,15 @@ impl OperatorsItem for OrderedDfsItem {
                 work.expanded += work.walk.expanded;
                 work.examined += work.walk.examined;
                 begin += 1;
-                while begin < prepared.root_index().sorted().len() {
+                while begin < prepared.root_index.sorted.len() {
                     let at = *prepared
-                        .root_index()
-                        .sorted()
+                        .root_index
+                        .sorted
                         .get(begin)
                         .ok_or(OperatingError::ShapeMismatch)?;
-                    let next = row_in(prepared.roots(), at).ok_or(OperatingError::ShapeMismatch)?;
+                    let next = row_in(&prepared.roots, at).ok_or(OperatingError::ShapeMismatch)?;
                     if !graph
-                        .root_columns()
+                        .root_columns
                         .iter()
                         .zip(&key)
                         .all(|(column, value)| column_in(next, *column) == Some(value))

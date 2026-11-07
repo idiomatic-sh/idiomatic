@@ -1,5 +1,5 @@
 //! The exits and entries a family is driven through, and the release every exit must end with.
-use ryo_derived::domain::contract::types::DerivedKind;
+use ryo_derived::domain::request::types::DerivedKind;
 
 /// How the last consumer of a family leaves through its production entry.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -37,11 +37,11 @@ impl RowCells for Rows<'_> {
     fn kinds(&self) -> &[CellKind] {
         &self.0.kinds
     }
-    fn count(&self) -> usize {
-        self.0.count.0
+    fn count(&self) -> ryo_values::domain::rows::types::RowCount {
+        self.0.count
     }
-    fn cell(&self, row: usize, column: ColumnIndex) -> Option<Value> {
-        row_in(self.0, RowIndex(row))?
+    fn cell(&self, row: ryo_values::domain::rows::types::RowIndex, column: ColumnIndex) -> Option<Value> {
+        row_in(self.0, row)?
             .get(column.0 as usize)
             .copied()
     }
@@ -51,22 +51,26 @@ struct Texts {
     canonical: Vec<String>,
 }
 impl ValueTexts for Texts {
-    fn text(&self, value: Value) -> Option<&str> {
+    fn text(&self, value: Value) -> Option<ryo_values::domain::row_texts::types::CellText<'_>> {
         match value {
             Value::Name(name) => ["a", "b", "c", "ctx", "edge"]
                 .get(name.place.0 as usize)
-                .copied(),
-            Value::Symbol(symbol) => self.canonical.get(symbol.0 as usize).map(String::as_str),
+                .copied()
+                .map(ryo_values::domain::row_texts::types::CellText),
+            Value::Symbol(symbol) => self
+                .canonical
+                .get(symbol.0 as usize)
+                .map(|text| ryo_values::domain::row_texts::types::CellText(text.as_str())),
             _ => None,
         }
     }
 }
 impl CanonicalTexts for Texts {
-    fn intern(&mut self, text: &str) -> Result<Value, DerivedFault> {
-        let at = if let Some(at) = self.canonical.iter().position(|value| value == text) {
+    fn intern(&mut self, text: ryo_values::domain::row_texts::types::CellText<'_>) -> Result<Value, DerivedFault> {
+        let at = if let Some(at) = self.canonical.iter().position(|value| value == text.0) {
             at
         } else {
-            self.canonical.push(text.into());
+            self.canonical.push(text.0.into());
             self.canonical.len() - 1
         };
         Ok(Value::Symbol(Symbol(
@@ -92,7 +96,7 @@ fn with_graph<T>(
     texts: &mut Texts,
     check: impl FnOnce(&PreparedDfs) -> T,
 ) -> Result<T, DerivedFault> {
-    let use_case = DerivedUseCaseImpl::new();
+    let use_case = crate::outbound::derived::factory::semantics();
     let prepared = use_case.prepare(
         request(keys),
         vec![roots.kinds.clone(), edges.kinds.clone()],
@@ -130,11 +134,11 @@ fn ordinal_overflow_follows_the_last_representable_visit() {
     let roots = numbers(1, &[&[1]]);
     let edges = numbers(4, &[&[1, 2, 0, 12], &[1, 3, 1, 13]]);
     with_graph(&roots, &edges, false, &mut Texts::default(), |graph| {
-        let columns = &graph.edge_columns()[..graph.edge_columns().len() - 1];
-        let target = *graph.edge_columns().last().unwrap();
+        let columns = &graph.edge_columns[..graph.edge_columns.len() - 1];
+        let target = *graph.edge_columns.last().unwrap();
         let edges = Edges {
-            table: graph.edges(),
-            order: graph.edge_index(),
+            table: &graph.edges,
+            order: &graph.edge_index,
             from: columns,
             to: target,
         };
@@ -207,11 +211,11 @@ fn equal_retained_hashes_use_exact_text_and_preserve_original_cells() {
         canonical: vec!["a".into(), "b".into(), "ctx".into()],
     };
     with_graph(&roots, &edges, true, &mut texts, |graph| {
-        let canonical = graph.root_columns();
+        let canonical = graph.root_columns;
         let canonical_key = |row| {
             canonical
                 .iter()
-                .map(|column| cell(row_in(graph.roots(), RowIndex(row)).unwrap(), *column).unwrap())
+                .map(|column| cell(row_in(&graph.roots, RowIndex(row)).unwrap(), *column).unwrap())
                 .collect::<Vec<_>>()
         };
         assert_eq!(
@@ -226,18 +230,18 @@ fn equal_retained_hashes_use_exact_text_and_preserve_original_cells() {
         );
         for row in 0..roots.count.0 {
             assert_eq!(
-                &row_in(graph.roots(), RowIndex(row)).unwrap()[..2],
+                &row_in(&graph.roots, RowIndex(row)).unwrap()[..2],
                 row_in(&roots, RowIndex(row)).unwrap()
             );
         }
         for row in 0..edges.count.0 {
             assert_eq!(
-                &row_in(graph.edges(), RowIndex(row)).unwrap()[..5],
+                &row_in(&graph.edges, RowIndex(row)).unwrap()[..5],
                 row_in(&edges, RowIndex(row)).unwrap()
             );
             assert_eq!(
                 cell(
-                    row_in(graph.edges(), RowIndex(row)).unwrap(),
+                    row_in(&graph.edges, RowIndex(row)).unwrap(),
                     ColumnIndex(3)
                 )
                 .unwrap(),
@@ -245,15 +249,15 @@ fn equal_retained_hashes_use_exact_text_and_preserve_original_cells() {
             );
         }
         assert_eq!(
-            cell(row_in(graph.roots(), RowIndex(2)).unwrap(), ColumnIndex(0)).unwrap(),
+            cell(row_in(&graph.roots, RowIndex(2)).unwrap(), ColumnIndex(0)).unwrap(),
             retained(1)
         );
-        let columns = &graph.edge_columns()[..graph.edge_columns().len() - 1];
+        let columns = &graph.edge_columns[..graph.edge_columns.len() - 1];
         let walked = Edges {
-            table: graph.edges(),
-            order: graph.edge_index(),
+            table: &graph.edges,
+            order: &graph.edge_index,
             from: columns,
-            to: *graph.edge_columns().last().unwrap(),
+            to: *graph.edge_columns.last().unwrap(),
         };
         let mut total_expanded = 0;
         let mut total_examined = 0;

@@ -1,5 +1,7 @@
 //! The `positions` service's cases, on values alone.
-use ryo_derived::inbound::use_cases::derived::interface::DerivedUseCase;
+use ryo_derived::inbound::use_cases::build::interface::BuildUseCase;
+use ryo_derived::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_derived::inbound::use_cases::view::interface::ViewUseCase;
 
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
@@ -102,7 +104,10 @@ fn subject(scenario: Input) -> Value {
             else {
                 panic!("raw order")
             };
-            format!("{:?}", order.rows())
+            format!(
+                "{:?}",
+                order.rows().iter().map(|row| row.0).collect::<Vec<_>>()
+            )
         }
         Scenario::Hits => {
             let payload = raw_order();
@@ -111,8 +116,8 @@ fn subject(scenario: Input) -> Value {
             else {
                 panic!("raw order")
             };
-            let found = order.hits(&[2, 9]);
-            format!("{}..{}", found.start, found.end)
+            let found = order.hits(ryo_derived::domain::raw_words::types::RawWords(&[2, 9]));
+            format!("{}..{}", found.start.0, found.end.0)
         }
         Scenario::Firsts => {
             let payload = raw_order();
@@ -121,7 +126,10 @@ fn subject(scenario: Input) -> Value {
             else {
                 panic!("raw order")
             };
-            order.firsts(&mut keep.0);
+            let mut flags =
+                ryo_derived::domain::raw_words::types::KeepFlags(std::mem::take(&mut keep.0));
+            order.firsts(&mut flags);
+            keep.0 = flags.0;
             format!("{:?}", keep.0)
         }
         Scenario::Rows => {
@@ -232,21 +240,24 @@ fn succeeds() {
 }
 
 fn raw_order() -> (
-    std::sync::Arc<ryo_derived::domain::contract::types::PreparedDerived>,
-    std::sync::Arc<ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl>,
-    ryo_derived::domain::contract::types::DerivedPayload,
+    ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived,
+    std::sync::Arc<crate::outbound::derived::types::DerivedUseCases>,
+    ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload,
 ) {
-    use ryo_derived::domain::contract::types::{
-        BuildOutcome, BuildWorkspace, DerivedInputs, ViewRequest,
-    };
+    use ryo_derived::domain::contract::types::BuildOutcome;
+    use ryo_derived::domain::contract::types::BuildWorkspace;
+    use ryo_derived::domain::contract::types::BuildInputs as DerivedInputs;
+    use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
     let port = std::sync::Arc::new(
-        ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        crate::outbound::derived::factory::semantics(),
     );
-    let prepared = port.prepare(ViewRequest::RawKeyOrder { stride: 2 }, Vec::new());
+    let prepared = port.prepare(ViewRequest::RawKeyOrder {
+            stride: ryo_derived::domain::raw_words::types::KeyStride(2),
+        }, Vec::new());
     let BuildOutcome::Built(payload) = port
         .build(
             &prepared,
-            DerivedInputs::RawWords(&keys().0),
+            DerivedInputs::RawWords(ryo_derived::domain::raw_words::types::RawWords(&keys().0)),
             &mut BuildWorkspace::default(),
             None,
         )
@@ -257,46 +268,47 @@ fn raw_order() -> (
     (prepared, port, payload)
 }
 
-use ryo_derived::domain::contract::types::KeyIndex;
+use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::{plan_parts::types::ColumnIndex, rows::types::RowIndex};
 use {crate::domain::table_model::types::Rows, ryo_values::domain::rows::errors::RowsError};
 /// Finite typed input adapter for pure semantic conformance, with no cache or scheduler.
 pub(crate) struct SemanticRows<'f>(pub crate::domain::table_model::types::Rows<'f>);
-impl ryo_derived::domain::contract::types::RowCells for SemanticRows<'_> {
-    fn bulk(&self) -> Option<ryo_derived::domain::contract::types::BulkRows<'_>> {
+impl ryo_derived::domain::row_cells::types::RowCells for SemanticRows<'_> {
+    fn bulk(&self) -> Option<ryo_derived::domain::row_cells::types::BulkRows<'_>> {
         match &self.0 {
-            Rows::Stored(source) => Some(ryo_derived::domain::contract::types::BulkRows::Stored(
+            Rows::Stored(source) => Some(ryo_derived::domain::row_cells::types::BulkRows::Stored(
                 *source,
             )),
             Rows::Computed(table) => Some(
-                ryo_derived::domain::contract::types::BulkRows::Computed(table),
+                ryo_derived::domain::row_cells::types::BulkRows::Computed(table),
             ),
             _ => None,
         }
     }
-    fn validate(&self) -> Result<(), ryo_derived::domain::contract::types::DerivedFault> {
+    fn validate(&self) -> Result<(), ryo_derived::domain::fault::types::DerivedFault> {
         Ok(())
     }
     fn kinds(&self) -> &[CellKind] {
         crate::domain::table_model::service::kinds_of(&self.0)
     }
-    fn count(&self) -> usize {
-        crate::domain::table_model::service::count_of(&self.0).0
+    fn count(&self) -> ryo_values::domain::rows::types::RowCount {
+        crate::domain::table_model::service::count_of(&self.0)
     }
-    fn cell(&self, row: usize, column: ColumnIndex) -> Option<Cell> {
-        crate::domain::table_model::service::cell_at(&self.0, RowIndex(row), column)
+    fn cell(&self, row: RowIndex, column: ColumnIndex) -> Option<Cell> {
+        crate::domain::table_model::service::cell_at(&self.0, row, column)
     }
 }
 pub(crate) fn prepared_payload(
-    request: ryo_derived::domain::contract::types::ViewRequest,
+    request: ryo_derived::domain::request::types::DerivedRequest,
     rows: &Rows<'_>,
-) -> Result<ryo_derived::domain::contract::types::DerivedPayload, RowsError> {
-    use ryo_derived::domain::contract::types::{
-        BuildOutcome, BuildWorkspace, DerivedFault, DerivedInputs,
-    };
+) -> Result<ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload, RowsError> {
+    use ryo_derived::domain::contract::types::BuildOutcome;
+    use ryo_derived::domain::contract::types::BuildWorkspace;
+    use ryo_derived::domain::fault::types::DerivedFault;
+    use ryo_derived::domain::contract::types::BuildInputs as DerivedInputs;
     let port = std::sync::Arc::new(
-        ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        crate::outbound::derived::factory::semantics(),
     );
     let prepared = port.prepare(
         request,
@@ -321,7 +333,7 @@ pub(crate) fn prepared_index(
     columns: &[ColumnIndex],
 ) -> Result<std::sync::Arc<KeyIndex>, RowsError> {
     prepared_payload(
-        ryo_derived::domain::contract::types::ViewRequest::Equality {
+        ryo_derived::domain::request::types::DerivedRequest::Equality {
             columns: columns.to_vec(),
         },
         rows,
@@ -330,6 +342,7 @@ pub(crate) fn prepared_index(
         payload
             .share_equality()
             .expect("successful equality payload")
+            .0
     })
 }
 
@@ -337,13 +350,14 @@ pub(crate) fn prepared_order(
     rows: &Rows<'_>,
     columns: &[ColumnIndex],
 ) -> Result<Vec<RowIndex>, RowsError> {
-    use ryo_derived::domain::contract::types::{DerivedView, ViewRequest};
+    use ryo_derived::domain::contract::types::DerivedView;
+    use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
     let request = ViewRequest::PartitionOrder {
         keys: columns.to_vec(),
     };
     let payload = prepared_payload(request.clone(), rows)?;
     let port = std::sync::Arc::new(
-        ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        crate::outbound::derived::factory::semantics(),
     );
     let plan = port.prepare(
         request,

@@ -2,3 +2,4 @@
 
 pub mod interface;
 pub mod factory;
+pub mod types;

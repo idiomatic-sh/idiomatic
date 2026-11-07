@@ -163,7 +163,7 @@ pub(super) fn ordinary_project_rules_share_one_preparation_and_reject_another_ge
 
         let engine = ExecutionUseCaseImpl::new(
             calls.clone(),
-            Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+            Arc::new(ryo_execution::outbound::derived::factory::semantics()),
         );
         rules.request = engine.begin(&rules.program, &rules.files);
         let phase = rules.request.project_phase().unwrap();

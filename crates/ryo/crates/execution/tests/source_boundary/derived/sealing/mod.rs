@@ -104,7 +104,8 @@ mod port_accessor { use crate::application::file_dag::derived::owner::types::Der
 const ACCESS_PREPARE: &str = r#"
 mod access_prepare {
     use crate::application::file_dag::derived::owner::types::DerivedAccess;
-    use ryo_derived::domain::contract::types::{PreparedDerived, ViewRequest};
+    use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
+    use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
     use std::sync::Arc;
     fn prepare(access: &DerivedAccess, request: ViewRequest) -> Arc<PreparedDerived> { access.prepare(request, Vec::new()) }
     const _: fn(&DerivedAccess, ViewRequest) -> Arc<PreparedDerived> = prepare;

@@ -89,7 +89,7 @@ pub(crate) struct DerivedContract {
     /// Prepared once; equality still checks the complete semantic descriptor on collisions.
     /// Private: a struct literal or update outside this module cannot forge a contract.
     identity_hash: u64,
-    pub semantic: Arc<ryo_derived::domain::contract::types::PreparedDerived>,
+    pub semantic: Arc<ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived>,
     pub kind: DerivedKind,
     pub request: ViewRequest,
     pub schemas: Vec<Vec<CellKind>>,
@@ -101,7 +101,7 @@ impl DerivedContract {
     /// descriptor, so no caller can state a contract whose parts disagree.
     pub(crate) fn issue(
         identity_hash: u64,
-        semantic: Arc<ryo_derived::domain::contract::types::PreparedDerived>,
+        semantic: Arc<ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived>,
         request: ViewRequest,
         schemas: Vec<Vec<CellKind>>,
         needed: crate::domain::table_cells::types::ColumnPlaces,
@@ -199,7 +199,7 @@ pub(crate) struct DerivedSlots {
 
 use ryo_values::domain::rows::types::RowIndex;
 
-use ryo_derived::domain::contract::types::DerivedKind;
+use ryo_derived::domain::request::types::DerivedKind;
 
 /// Prepared construction contracts indexed by exact request-owned selector identity.
 #[derive(Debug, Default)]

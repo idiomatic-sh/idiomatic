@@ -439,7 +439,7 @@ fn scheduled_world_with_query_resources(
             Arc::clone(&analysis_memory),
             operators,
             std::sync::Arc::new(ryo_execution::outbound::derived::factory::use_case(
-                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+                ryo_execution::outbound::derived::factory::semantics(),
             )),
             scheduler,
             workers,
@@ -1734,7 +1734,7 @@ fn succeeds() {
                 ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
             )),
             std::sync::Arc::new(ryo_execution::outbound::derived::factory::use_case(
-                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+                ryo_execution::outbound::derived::factory::semantics(),
             )),
             Arc::new(SchedulerFake::default()),
             WorkerCount(1),

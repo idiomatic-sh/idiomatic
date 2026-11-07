@@ -7,7 +7,6 @@ use crate::domain::operator::contract::{
     derived::portable_fault, failure::FailureLatch, views::BorrowedRows,
 };
 use crate::outbound::derived::interface::DerivedPort;
-use ryo_derived::domain::contract::types::{self as semantic};
 use ryo_language::domain::symbols::types::ByteSlice;
 use std::{cell::RefCell, sync::Arc};
 
@@ -40,7 +39,9 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
     let answer = match inputs {
         DerivedInputs::RawWords(keys) => port.build(
             &plan.semantic,
-            semantic::DerivedInputs::RawWords(keys),
+            ryo_derived::domain::contract::types::BuildInputs::RawWords(
+                ryo_derived::domain::raw_words::types::RawWords(keys),
+            ),
             &mut scratch.semantic,
             recycled,
         ),
@@ -51,15 +52,15 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
                 };
                 let form = match tree.form {
                     crate::domain::table_cells::types::TreeForm::Elements => {
-                        semantic::NativeForm::Elements
+                        ryo_derived::domain::native::types::NativeForm::Elements
                     }
                     crate::domain::table_cells::types::TreeForm::Edges => {
-                        semantic::NativeForm::Edges
+                        ryo_derived::domain::native::types::NativeForm::Edges
                     }
                 };
                 port.build(
                     &plan.semantic,
-                    semantic::DerivedInputs::Native(form),
+                    ryo_derived::domain::contract::types::BuildInputs::Native(form),
                     &mut scratch.semantic,
                     recycled,
                 )
@@ -70,7 +71,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
                 };
                 port.build(
                     &plan.semantic,
-                    semantic::DerivedInputs::Rows(&source),
+                    ryo_derived::domain::contract::types::BuildInputs::Rows(&source),
                     &mut scratch.semantic,
                     recycled,
                 )
@@ -92,9 +93,9 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
             };
             port.build(
                 &plan.semantic,
-                semantic::DerivedInputs::Predicate {
+                ryo_derived::domain::contract::types::BuildInputs::Predicate {
                     rows: &mut predicate,
-                    candidates,
+                    candidates: candidates.map(ryo_derived::domain::positions::types::RowSlots),
                 },
                 &mut scratch.semantic,
                 recycled,
@@ -107,9 +108,9 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
             };
             port.build(
                 &plan.semantic,
-                semantic::DerivedInputs::Distinct {
+                ryo_derived::domain::contract::types::BuildInputs::Distinct {
                     rows: &source,
-                    positions,
+                    positions: ryo_derived::domain::positions::types::RowSlots(positions),
                 },
                 &mut scratch.semantic,
                 recycled,
@@ -126,7 +127,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
             };
             port.build(
                 &plan.semantic,
-                semantic::DerivedInputs::Postings {
+                ryo_derived::domain::contract::types::BuildInputs::Postings {
                     rows: &source,
                     symbols: texts.symbols,
                     source: ByteSlice(texts.source.0),
@@ -144,7 +145,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
             match &plan.request {
                 ViewRequest::CandidatePostings { literals, .. } => port.build(
                     &plan.semantic,
-                    semantic::DerivedInputs::Postings {
+                    ryo_derived::domain::contract::types::BuildInputs::Postings {
                         rows: &left,
                         symbols: texts.symbols,
                         source: ByteSlice(texts.source.0),
@@ -160,7 +161,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
                     };
                     port.build(
                         &plan.semantic,
-                        semantic::DerivedInputs::Ordered {
+                        ryo_derived::domain::contract::types::BuildInputs::Ordered {
                             left: &left,
                             right: &right,
                             texts,
@@ -179,21 +180,23 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
             };
             let space = match space {
                 crate::domain::derived_views::types::MembershipSpace::Values => {
-                    semantic::MembershipSpace::Values
+                    ryo_derived::domain::membership::types::MarkSpace::Values
                 }
                 crate::domain::derived_views::types::MembershipSpace::Dense(values) => {
-                    semantic::MembershipSpace::Dense(values)
+                    ryo_derived::domain::membership::types::MarkSpace::Dense(values)
                 }
                 crate::domain::derived_views::types::MembershipSpace::Native(tree) => {
-                    semantic::MembershipSpace::Native {
+                    ryo_derived::domain::membership::types::MarkSpace::Native {
                         file: tree.file,
-                        elements: tree.elements.kind.len(),
+                        elements: ryo_derived::domain::membership::types::MarkCount(
+                            tree.elements.kind.len(),
+                        ),
                     }
                 }
             };
             port.build(
                 &plan.semantic,
-                semantic::DerivedInputs::Membership {
+                ryo_derived::domain::contract::types::BuildInputs::Membership {
                     rows: &source,
                     space,
                 },
@@ -212,7 +215,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
             };
             port.build(
                 &plan.semantic,
-                semantic::DerivedInputs::Partition {
+                ryo_derived::domain::contract::types::BuildInputs::Partition {
                     rows: &source,
                     positions: Some(positions),
                     key,
@@ -246,7 +249,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
             };
             port.build(
                 &plan.semantic,
-                semantic::DerivedInputs::Dfs {
+                ryo_derived::domain::contract::types::BuildInputs::Dfs {
                     roots: &roots,
                     edges: &edges,
                     texts: &mut texts,
@@ -277,18 +280,18 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
             let prepared = if source.endpoints == *endpoints {
                 Arc::clone(&plan.semantic)
             } else {
-                port.prepare(
-                    semantic::ViewRequest::Adjacency {
+                Arc::new(port.prepare(
+                    ryo_derived::domain::request::types::DerivedRequest::Adjacency {
                         endpoints: source.endpoints,
                         keys: keys.clone(),
                     },
                     plan.schemas.clone(),
-                )
+                ))
             };
             built_plan = Arc::clone(&prepared);
             port.build(
                 &prepared,
-                semantic::DerivedInputs::Rows(&rows),
+                ryo_derived::domain::contract::types::BuildInputs::Rows(&rows),
                 &mut scratch.semantic,
                 recycled,
             )
@@ -298,12 +301,12 @@ pub(in crate::application::file_dag::derived::owner::acquisition) fn build(
         return Err(error);
     }
     match answer.map_err(portable_fault)? {
-        semantic::BuildOutcome::Built(payload) => Ok(Some(DerivedStorage::new(
+        ryo_derived::domain::contract::types::BuildOutcome::Built(payload) => Ok(Some(DerivedStorage::new(
             port,
             built_plan,
             payload,
             graph_identity,
         ))),
-        semantic::BuildOutcome::Declined => Ok(None),
+        ryo_derived::domain::contract::types::BuildOutcome::Declined => Ok(None),
     }
 }

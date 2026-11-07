@@ -5,7 +5,7 @@ use crate::domain::{
     operating::errors::OperatingError, table_model::types::Rows,
 };
 use crate::domain::derived_views::types::ViewRequest;
-use ryo_derived::domain::contract::types::DerivedKind;
+use ryo_derived::domain::request::types::DerivedKind;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Relation,
 };

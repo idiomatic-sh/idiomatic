@@ -1,7 +1,7 @@
 //! Iterative positive reach, ordered early stop and validated-forest path compression.
 
 use crate::domain::stored_graph::types::{GraphWalk, Orientation};
-use ryo_derived::domain::contract::types::CompactGraph;
+use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
 
 /// No known nearest answer has been computed for this vertex/context.
 pub(crate) const UNKNOWN: u32 = u32::MAX;
@@ -84,7 +84,10 @@ impl<'a> GraphTraversal<'a> {
         let answer = loop {
             self.walk.path.push(current);
             self.walk.expanded += 1;
-            let Some(parent) = parents.parent(current) else {
+            let Some(parent) = parents
+                .parent(ryo_derived::domain::vertices::types::VertexId(current))
+                .map(|parent| parent.0)
+            else {
                 break ABSENT;
             };
             self.walk.examined += 1;
@@ -133,17 +136,20 @@ impl<'a> GraphTraversal<'a> {
 }
 
 /// Dense adjacency stores forward then reverse arrays.
-pub(crate) const fn direction(orientation: Orientation) -> usize {
+pub(crate) const fn direction(
+    orientation: Orientation,
+) -> ryo_derived::domain::vertices::types::EdgeDirection {
     match orientation {
-        Orientation::Forward => 0,
-        Orientation::Reverse => 1,
+        Orientation::Forward => ryo_derived::domain::vertices::types::EdgeDirection::Forward,
+        Orientation::Reverse => ryo_derived::domain::vertices::types::EdgeDirection::Backward,
     }
 }
 
 /// Original encounter order, including parallel physical edges.
 pub(crate) fn neighbors(graph: &CompactGraph, vertex: u32, orientation: Orientation) -> &[u32] {
     let orientation = direction(orientation);
-    let from = graph.offsets()[orientation][vertex as usize] as usize;
-    let until = graph.offsets()[orientation][vertex as usize + 1] as usize;
-    &graph.neighbors()[orientation][from..until]
+    let offsets = &graph.offsets(orientation).0;
+    let from = offsets[vertex as usize] as usize;
+    let until = offsets[vertex as usize + 1] as usize;
+    &graph.neighbors(orientation).0[from..until]
 }

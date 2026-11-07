@@ -23,7 +23,7 @@ impl NativeJoinLease<'_> {
     }
     pub(in crate::application::file_dag) fn finding(
         &self,
-    ) -> Result<ryo_derived::domain::contract::types::Finding, OperatingError> {
+    ) -> Result<ryo_derived::domain::native::types::NativeFinding, OperatingError> {
         let ryo_derived::domain::contract::types::DerivedView::NativeLookup(finding) =
             self.acquired.view()?
         else {

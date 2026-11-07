@@ -129,7 +129,7 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
     let backing = file
         .owner
         .derived()
-        .view_witness(ryo_derived::domain::contract::types::DerivedKind::Equality)
+        .view_witness(ryo_derived::domain::request::types::DerivedKind::Equality)
         .expect("actual equality backing");
     assert!(backing.liveness() == BackingLiveness::Alive);
     let builds = file.owner.derived().counts();

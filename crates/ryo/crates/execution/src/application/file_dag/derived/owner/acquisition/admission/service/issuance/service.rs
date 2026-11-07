@@ -192,6 +192,7 @@ impl DerivedOwner {
             .storage()
             .payload()
             .share_adjacency()
+            .map(|shared| shared.0)
             .ok_or(OperatingError::WrongOperation)?;
         let AcquisitionSources::Rows(rows) = admitted.sources else {
             return Err(OperatingError::WrongOperation);

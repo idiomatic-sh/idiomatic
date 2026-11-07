@@ -92,6 +92,7 @@ pub(in crate::application::file_dag::derived::owner) fn acquire(
         .storage()
         .payload()
         .share_adjacency()
+        .map(|shared| shared.0)
         .ok_or(OperatingError::WrongOperation)?;
     let mut shared = cache
         .graphs
@@ -150,6 +151,7 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
         .storage()
         .payload()
         .share_adjacency()
+        .map(|shared| shared.0)
         .ok_or(OperatingError::WrongOperation)?;
     if !Arc::ptr_eq(&graph, access.raw_graph()) {
         return Err(OperatingError::NotRead);
@@ -233,7 +235,7 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
         })?
     };
     let ryo_derived::domain::contract::types::DerivedView::Membership(
-        ryo_derived::domain::contract::types::MembershipView::Dense(members),
+        ryo_derived::domain::membership::types::MembershipView::Dense(ryo_derived::domain::positions::types::DenseMarks(members)),
     ) = acquired.view()?
     else {
         return Err(OperatingError::WrongOperation);
@@ -246,7 +248,7 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
         .payload()
         .share_marks()
         .ok_or(OperatingError::WrongOperation)?;
-    let members = members.backing();
+    let members = &members.0;
     let found = cache.graph_domains.iter().find(|entry| {
         Arc::ptr_eq(&entry.graph, access.raw_graph()) && Arc::ptr_eq(&entry.domain.members, members)
     });

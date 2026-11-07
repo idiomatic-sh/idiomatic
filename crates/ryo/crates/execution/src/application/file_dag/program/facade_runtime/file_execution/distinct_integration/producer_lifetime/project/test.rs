@@ -199,7 +199,7 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
     );
     let backing = owner
         .derived()
-        .view_witness(ryo_derived::domain::contract::types::DerivedKind::Equality);
+        .view_witness(ryo_derived::domain::request::types::DerivedKind::Equality);
     if !matches!(exit, PhaseExit::RefuseBeforeWork) {
         assert!(
             live > 0,

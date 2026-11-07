@@ -168,7 +168,7 @@ pub(in super::super) fn compare_delivery_with_port(
     let emit = authored.plan.emit.step;
     let engine = ExecutionUseCaseImpl::new(
         port,
-        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+        Arc::new(crate::outbound::derived::factory::semantics()),
     );
     let preparation = engine.prepare(PreparedRequest {
         plans: vec![authored.plan],

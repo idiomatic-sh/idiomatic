@@ -4,7 +4,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
-use ryo_derived::domain::contract::types::CycleGraph;
+use ryo_derived::domain::cycle_adjacency::types::CycleGraph;
 use ryo_operators::domain::cycles::types::{CycleDriver, EdgePlace, NodeCount, NodeNumber};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plans::types::Operation;
@@ -14,16 +14,16 @@ use ryo_values::domain::query_bindings::types::ParameterBinding;
 struct Adjacency<'a>(&'a CycleGraph);
 impl CycleDriver for Adjacency<'_> {
     fn nodes(&self) -> NodeCount {
-        NodeCount(self.0.values().len())
+        NodeCount(self.0.values.len())
     }
     fn value(&self, node: NodeNumber) -> Option<Value> {
-        self.0.values().get(node.0).copied()
+        self.0.values.get(node.0).copied()
     }
     fn edge(&self, node: NodeNumber, place: EdgePlace) -> Option<NodeNumber> {
-        let starts = self.0.starts();
+        let starts = &self.0.starts.0;
         let at = starts.get(node.0)?.checked_add(place.0)?;
         (at < *starts.get(node.0 + 1)?)
-            .then(|| self.0.leaving().get(at).copied().map(NodeNumber))
+            .then(|| self.0.leaving.0.get(at).copied().map(NodeNumber))
             .flatten()
     }
 }

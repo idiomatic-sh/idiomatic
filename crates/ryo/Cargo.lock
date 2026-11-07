@@ -1348,7 +1348,6 @@ dependencies = [
  "hashbrown 0.17.1",
  "heck",
  "idiomatic-sh-ryo-core",
- "idiomatic-sh-ryo-derived",
  "idiomatic-sh-ryo-execution",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-matching",
@@ -1639,7 +1638,6 @@ version = "0.1.2"
 dependencies = [
  "divan",
  "idiomatic-sh-ryo-core",
- "idiomatic-sh-ryo-derived",
  "idiomatic-sh-ryo-execution",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-operators",

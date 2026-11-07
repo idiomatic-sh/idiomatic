@@ -27,7 +27,7 @@ use crate::domain::coverage::types::{Lacking, LackingKind, Partial};
 
 use crate::domain::table_model::service::matching_stored;
 
-use ryo_derived::domain::contract::types::KeyIndex;
+use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Flag, Integer, Relation, Value,
 };
@@ -320,8 +320,8 @@ fn a_reused_index_still_resolves_full_composite_hash_collisions_exactly() {
     assert_eq!(reused.construction(), Construction::Reused);
     let index = equality(&reused);
     assert_eq!(
-        index.hashes().first(),
-        index.hashes().get(1),
+        index.hashes.first(),
+        index.hashes.get(1),
         "actual full-hash collision"
     );
     assert_eq!(

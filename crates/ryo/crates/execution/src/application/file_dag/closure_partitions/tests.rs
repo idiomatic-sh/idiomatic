@@ -47,10 +47,10 @@ fn interleaved_partitions_keep_one_reused_adjacency() {
     let mut maximum_reserved = 0;
     while cursor.advance().unwrap() {
         let part = cursor.current().unwrap();
-        assert_eq!(part.table().count.0, 3);
-        assert_eq!(part.table().cells.len(), 6);
-        assert_eq!(part.key().len(), 1);
-        assert_eq!(part.sources(), vec![number(1), number(2)]);
+        assert_eq!(part.table.count.0, 3);
+        assert_eq!(part.table.cells.len(), 6);
+        assert_eq!(part.key.len(), 1);
+        assert_eq!(part.sources, vec![number(1), number(2)]);
         seen += 1;
         maximum_live = maximum_live.max(cursor.working_cells());
         maximum_reserved = maximum_reserved.max(cursor.working_capacity());
@@ -97,8 +97,8 @@ fn separate_keys_never_share_edges() {
     let mut observed = Vec::new();
     while cursor.advance().unwrap() {
         observed.push((
-            cursor.current().unwrap().key().to_vec(),
-            cursor.current().unwrap().table().cells.clone(),
+            cursor.current().unwrap().key.to_vec(),
+            cursor.current().unwrap().table.cells.clone(),
         ));
     }
     assert_eq!(observed.len(), 2);
@@ -170,7 +170,7 @@ fn advancing_releases_only_the_previous_partition_lease() {
     else {
         panic!("closure partition")
     };
-    assert_eq!(part.key(), &[number(7)]);
+    assert_eq!(part.key, &[number(7)]);
     assert!(cursor.current.is_none());
     drop(cursor);
     assert!(

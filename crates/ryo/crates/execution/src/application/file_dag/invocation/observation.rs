@@ -38,7 +38,7 @@ impl InvocationResources<'_> {
                 else {
                     unreachable!("closure partition family")
                 };
-                view.table().count.0
+                view.table.count.0
             })
             .sum();
         let mut capacity = self
@@ -52,15 +52,15 @@ impl InvocationResources<'_> {
                 else {
                     unreachable!("closure partition family")
                 };
-                let (keys, sources) = view.capacities();
-                view.table().cells.capacity() + keys + sources
+                let capacities = ryo_derived::domain::closure_adjacency::service::capacities(view);
+                view.table.cells.capacity() + capacities.key.0 + capacities.sources.0
             })
             .sum();
         if let Some(parts) = &self.inputs.partitioned_closure {
             rows = parts
                 .current()
                 .expect(super::constants::OBSERVED_ACTIVE_PARTITION)
-                .table()
+                .table
                 .count
                 .0;
             capacity = parts.working_capacity();
@@ -99,7 +99,7 @@ impl InvocationResources<'_> {
         if let Some(dfs) =
             Self::dfs_view(self.inputs.dfs.as_ref()).expect(super::constants::VALIDATED_DFS_VIEW)
         {
-            observed.dfs_adjacency_len = dfs.adjacency().len();
+            observed.dfs_adjacency_len = dfs.adjacency.len();
         }
     }
 }

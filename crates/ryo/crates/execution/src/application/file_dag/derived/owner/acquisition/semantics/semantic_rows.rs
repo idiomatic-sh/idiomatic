@@ -3,7 +3,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::{failure::FailureLatch, views::BorrowedRows};
 use crate::domain::table_texts::service::{datum, name_text, symbol_text};
 use crate::domain::table_texts::types::{Datum, Texts};
-use ryo_derived::domain::contract::types::{self as semantic, RowCells};
+use ryo_derived::domain::row_cells::types::RowCells;
 use ryo_language::domain::symbols::{
     service::query_intern_derived,
     types::{ByteSlice, QuerySymbols, Symbols},
@@ -13,7 +13,10 @@ use ryo_relations::domain::{
     terms::types::NameText,
 };
 use ryo_values::domain::{
-    files::types::SourceView, plan_parts::types::ColumnIndex, rows::types::RowIndex,
+    files::types::SourceView,
+    plan_parts::types::ColumnIndex,
+    row_texts::types::CellText,
+    rows::types::{RowCount, RowIndex},
 };
 use std::cell::RefCell;
 
@@ -22,7 +25,7 @@ pub(super) struct AdmittedRows<'a, 'f> {
     pub(super) failure: &'a RefCell<FailureLatch>,
 }
 impl RowCells for AdmittedRows<'_, '_> {
-    fn bulk(&self) -> Option<semantic::BulkRows<'_>> {
+    fn bulk(&self) -> Option<ryo_derived::domain::row_cells::types::BulkRows<'_>> {
         if self.failure.borrow().failed() {
             return None;
         }
@@ -30,44 +33,44 @@ impl RowCells for AdmittedRows<'_, '_> {
             return None;
         };
         match rows {
-            BorrowedRows::Stored(source) => Some(semantic::BulkRows::Stored(source)),
+            BorrowedRows::Stored(source) => Some(ryo_derived::domain::row_cells::types::BulkRows::Stored(source)),
             BorrowedRows::Selected {
                 source,
                 positions,
                 columns,
                 ..
-            } => Some(semantic::BulkRows::Selected {
+            } => Some(ryo_derived::domain::row_cells::types::BulkRows::Selected {
                 source,
-                positions,
+                positions: ryo_derived::domain::positions::types::RowSlots(positions),
                 columns,
             }),
-            BorrowedRows::Computed(table) => Some(semantic::BulkRows::Computed(table)),
+            BorrowedRows::Computed(table) => Some(ryo_derived::domain::row_cells::types::BulkRows::Computed(table)),
             BorrowedRows::Tree(_) | BorrowedRows::Compact(_) | BorrowedRows::Positioned(_) => None,
         }
     }
     fn kinds(&self) -> &[CellKind] {
         self.rows.kinds()
     }
-    fn count(&self) -> usize {
-        self.rows.count()
+    fn count(&self) -> RowCount {
+        RowCount(self.rows.count())
     }
-    fn cell(&self, row: usize, column: ColumnIndex) -> Option<Value> {
+    fn cell(&self, row: RowIndex, column: ColumnIndex) -> Option<Value> {
         if self.failure.borrow().failed() {
             return None;
         }
-        self.rows.cell(RowIndex(row), column)
+        self.rows.cell(row, column)
     }
-    fn validate(&self) -> Result<(), semantic::DerivedFault> {
+    fn validate(&self) -> Result<(), ryo_derived::domain::fault::types::DerivedFault> {
         self.failure
             .borrow_mut()
             .run(|| self.rows.validate())
-            .map_err(|()| semantic::DerivedFault::Interrupted)
+            .map_err(|()| ryo_derived::domain::fault::types::DerivedFault::Interrupted)
     }
-    fn read_row<'a>(&'a self, row: usize, buffer: &'a mut Vec<Value>) -> Option<&'a [Value]> {
+    fn read_row<'a>(&'a self, row: RowIndex, buffer: &'a mut Vec<Value>) -> Option<&'a [Value]> {
         if self.failure.borrow().failed() {
             return None;
         }
-        self.rows.read(RowIndex(row), buffer)
+        self.rows.read(row, buffer)
     }
 }
 pub(super) struct Predicate<'a, 'f> {
@@ -78,11 +81,17 @@ pub(super) struct Predicate<'a, 'f> {
     pub(super) row: &'a mut Vec<Value>,
     pub(super) failure: &'a RefCell<FailureLatch>,
 }
-impl semantic::PredicateRows for Predicate<'_, '_> {
-    fn count(&self) -> usize {
-        self.rows.count()
+impl ryo_derived::domain::row_cells::types::PredicateRows for Predicate<'_, '_> {
+    fn count(&self) -> RowCount {
+        RowCount(self.rows.count())
     }
-    fn holds(&mut self, at: usize) -> Result<bool, semantic::DerivedFault> {
+    fn holds(
+        &mut self,
+        at: RowIndex,
+    ) -> Result<
+        ryo_derived::domain::row_cells::types::PredicateVerdict,
+        ryo_derived::domain::fault::types::DerivedFault,
+    > {
         let Self {
             rows,
             program,
@@ -101,7 +110,7 @@ impl semantic::PredicateRows for Predicate<'_, '_> {
                     );
                     if crate::domain::table_cells::service::read_cells(
                         source,
-                        RowIndex(at),
+                        at,
                         row,
                         needed,
                     ) != crate::domain::table_cells::types::CellsRead::Read
@@ -110,19 +119,26 @@ impl semantic::PredicateRows for Predicate<'_, '_> {
                     }
                     row.as_slice()
                 } else {
-                    rows.read(RowIndex(at), row)
+                    rows.read(at, row)
                         .ok_or(OperatingError::ShapeMismatch)?
                 };
-                Ok(program.holds(row, symbols)?
-                    == crate::domain::table_model::types::Verdict::Holds)
+                Ok(
+                    if program.holds(row, symbols)?
+                        == crate::domain::table_model::types::Verdict::Holds
+                    {
+                        ryo_derived::domain::row_cells::types::PredicateVerdict::Holds
+                    } else {
+                        ryo_derived::domain::row_cells::types::PredicateVerdict::Fails
+                    },
+                )
             })
-            .map_err(|()| semantic::DerivedFault::Interrupted)
+            .map_err(|()| ryo_derived::domain::fault::types::DerivedFault::Interrupted)
     }
 }
-impl semantic::ValueTexts for Texts<'_> {
-    fn text(&self, value: Value) -> Option<&str> {
+impl ryo_derived::domain::row_cells::types::ValueTexts for Texts<'_> {
+    fn text(&self, value: Value) -> Option<CellText<'_>> {
         match datum(value, self) {
-            Datum::Text(text) => Some(text.0),
+            Datum::Text(text) => Some(CellText(text.0)),
             _ => None,
         }
     }
@@ -134,8 +150,8 @@ pub(super) struct CanonicalTexts<'a, 's> {
     pub(super) paths: &'a [ryo_language::domain::files::types::FilePath],
     pub(super) arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],
 }
-impl semantic::ValueTexts for CanonicalTexts<'_, '_> {
-    fn text(&self, value: Value) -> Option<&str> {
+impl ryo_derived::domain::row_cells::types::ValueTexts for CanonicalTexts<'_, '_> {
+    fn text(&self, value: Value) -> Option<CellText<'_>> {
         if self.failure.borrow().failed() {
             return None;
         }
@@ -146,14 +162,17 @@ impl semantic::ValueTexts for CanonicalTexts<'_, '_> {
             arenas: self.arenas,
         };
         match value {
-            Value::Symbol(symbol) => symbol_text(&texts, symbol).map(|text| text.0),
-            Value::Name(name) => name_text(&texts, name).map(|text| text.0),
+            Value::Symbol(symbol) => symbol_text(&texts, symbol).map(|text| CellText(text.0)),
+            Value::Name(name) => name_text(&texts, name).map(|text| CellText(text.0)),
             _ => None,
         }
     }
 }
-impl semantic::CanonicalTexts for CanonicalTexts<'_, '_> {
-    fn intern(&mut self, text: &str) -> Result<Value, semantic::DerivedFault> {
+impl ryo_derived::domain::row_cells::types::CanonicalTexts for CanonicalTexts<'_, '_> {
+    fn intern(
+        &mut self,
+        text: CellText<'_>,
+    ) -> Result<Value, ryo_derived::domain::fault::types::DerivedFault> {
         let Self {
             failure,
             symbols,
@@ -166,9 +185,9 @@ impl semantic::CanonicalTexts for CanonicalTexts<'_, '_> {
                 Ok(Value::Symbol(query_intern_derived(
                     symbols,
                     ByteSlice(source.0),
-                    NameText(text),
+                    NameText(text.0),
                 )))
             })
-            .map_err(|()| semantic::DerivedFault::Interrupted)
+            .map_err(|()| ryo_derived::domain::fault::types::DerivedFault::Interrupted)
     }
 }

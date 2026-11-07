@@ -154,7 +154,7 @@ pub(in crate::application::file_dag) fn prepare<'f>(
                 let native = if let BorrowedRows::Tree(tree) = right {
                     let use_ = prepared(
                         contract,
-                        ryo_derived::domain::contract::types::DerivedKind::NativeLookup,
+                        ryo_derived::domain::request::types::DerivedKind::NativeLookup,
                     )?;
                     admitted
                         .try_native_lookup(use_)?
@@ -224,13 +224,13 @@ pub(in crate::application::file_dag) fn prepare<'f>(
         ResourceProgram::Cycles { .. } => {
             let use_ = prepared(
                 contract,
-                ryo_derived::domain::contract::types::DerivedKind::CycleAdjacency,
+                ryo_derived::domain::request::types::DerivedKind::CycleAdjacency,
             )?;
             resources.inputs.cycles = Some(admitted.acquire_rows(use_, context)?);
         }
         ResourceProgram::Ordered { .. } => {
             use crate::domain::derived_views::types::DerivedInputs;
-            use ryo_derived::domain::contract::types::DerivedKind;
+            use ryo_derived::domain::request::types::DerivedKind;
             let use_ = prepared(contract, DerivedKind::OrderedKeys)?;
             let texts = Texts {
                 symbols: context.symbols.as_ref(),
@@ -246,7 +246,7 @@ pub(in crate::application::file_dag) fn prepare<'f>(
         }
         ResourceProgram::Dfs(_) => {
             use crate::domain::derived_views::types::DerivedInputs;
-            use ryo_derived::domain::contract::types::DerivedKind;
+            use ryo_derived::domain::request::types::DerivedKind;
             let use_ = prepared(contract, DerivedKind::OrderedDfs)?;
             resources.inputs.dfs = Some(admitted.acquire_derived(
                 use_,
@@ -265,7 +265,7 @@ pub(in crate::application::file_dag) fn prepare<'f>(
                 service::slot,
                 types::{DerivedInputs, MembershipSpace},
             };
-            use ryo_derived::domain::contract::types::DerivedKind;
+            use ryo_derived::domain::request::types::DerivedKind;
             let edges = input(inputs, InputNumber(1))?;
             let domain = input(inputs, InputNumber(2))?;
             let mode_axis = classify(program, edges, domain)?;

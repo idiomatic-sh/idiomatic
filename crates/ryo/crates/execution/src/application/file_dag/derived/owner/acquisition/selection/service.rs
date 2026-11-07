@@ -109,7 +109,7 @@ impl SelectionSource<'_> {
                     text_bytes = postings
                         .iter()
                         .try_fold(text_bytes, |total, value| {
-                            total.checked_add(value.text_capacity())
+                            total.checked_add(value.text.0.len())
                         })
                         .ok_or(OperatingError::ShapeMismatch)?;
                 }
@@ -285,7 +285,7 @@ pub(in crate::application::file_dag::derived::owner) fn shared_positions(
     population: RowBound,
     maximum: RowBound,
 ) -> Result<SelectedPositions, OperatingError> {
-    let DerivedView::RowIds(rows) = acquired.view()? else {
+    let DerivedView::RowIds(ryo_derived::domain::positions::types::RowSlots(rows)) = acquired.view()? else {
         return Err(OperatingError::WrongOperation);
     };
     if rows.len() > maximum.0
@@ -301,5 +301,5 @@ pub(in crate::application::file_dag::derived::owner) fn shared_positions(
         .payload()
         .share_positions()
         .ok_or(OperatingError::WrongOperation)?;
-    Ok(SelectedPositions(Arc::clone(rows.backing())))
+    Ok(SelectedPositions(Arc::clone(&rows.0)))
 }

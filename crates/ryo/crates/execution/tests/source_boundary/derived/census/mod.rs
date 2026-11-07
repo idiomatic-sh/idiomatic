@@ -31,7 +31,7 @@ const PORT_NAMES: &[(&str, &[&str])] = &[
 
 use entry::{Authority, Class, Entry};
 use holder::Holder;
-use ryo_derived::domain::contract::types::DerivedKind;
+use ryo_derived::domain::request::types::DerivedKind;
 
 fn refuse(owner: &'static str, negative: &controls::Negative) -> Probe {
     Probe {

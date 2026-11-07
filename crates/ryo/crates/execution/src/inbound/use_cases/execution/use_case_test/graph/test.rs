@@ -5,9 +5,11 @@ use crate::application::file_dag::testing::CompleteTableRows;
 use crate::domain::stored_graph::types::traversal::value::GraphTraversal;
 use crate::domain::stored_graph::types::{GraphIdentity, GraphWalk, Orientation, Population};
 use crate::domain::table_model::types::Rows;
-use ryo_derived::domain::contract::types::{
-    BuildOutcome, BuildWorkspace, CompactGraph, DerivedInputs, ViewRequest,
-};
+use ryo_derived::domain::contract::types::BuildOutcome;
+use ryo_derived::domain::contract::types::BuildWorkspace;
+use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
+use ryo_derived::domain::contract::types::BuildInputs as DerivedInputs;
+use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
@@ -61,7 +63,7 @@ fn build(
     // GraphIdentity belongs to the former local builder and is not an input
     // to this port; invalid columns must be refused by the port itself.
     let semantics = (std::sync::Arc::new(
-        ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        crate::outbound::derived::factory::semantics(),
     ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>);
     let prepared = semantics.prepare(
         ViewRequest::Adjacency {
@@ -83,7 +85,7 @@ fn build(
         )
         .map_err(crate::domain::operator::contract::derived::portable_fault)?
     {
-        BuildOutcome::Built(payload) => Ok(payload.share_adjacency()),
+        BuildOutcome::Built(payload) => Ok(payload.share_adjacency().map(|graph| graph.0)),
         BuildOutcome::Declined => Ok(None),
     }
 }
@@ -127,7 +129,9 @@ fn compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_dupl
     let mut walk = GraphWalk::default();
     for (root, value) in graph.vertices().iter().enumerate() {
         let partition = graph
-            .partition_values(graph.vertex_partitions()[root] as usize)
+            .partition_values(ryo_derived::domain::vertices::types::PartitionId(
+                graph.vertex_partitions().0[root],
+            ))
             .expect("prepared partition");
         let mut traversal = GraphTraversal::new(&graph, &mut walk);
         let _ = traversal.breadth(root as u32, Orientation::Forward, None);
@@ -167,8 +171,9 @@ fn sparse_demand_work_is_independent_of_unrelated_components() {
     .expect("columns")
     .expect("graph");
     let root = graph
-        .vertex(0, Value::Number(Integer(1)))
-        .expect("prepared vertex");
+        .vertex(ryo_derived::domain::vertices::types::PartitionId(0), Value::Number(Integer(1)))
+        .expect("prepared vertex")
+        .0;
     let mut walk = GraphWalk::default();
     let _ = GraphTraversal::new(&graph, &mut walk).breadth(root, Orientation::Forward, None);
     assert_eq!(
@@ -224,7 +229,7 @@ fn typed_endpoint_identity_never_coalesces_equal_payload_words() {
     .expect("columns")
     .expect("graph");
     assert_eq!(graph.vertices().len(), 2);
-    assert_ne!(graph.vertex(0, number), graph.vertex(0, flag));
+    assert_ne!(graph.vertex(ryo_derived::domain::vertices::types::PartitionId(0), number), graph.vertex(ryo_derived::domain::vertices::types::PartitionId(0), flag));
 }
 
 use ryo_values::domain::rows::types::Table;

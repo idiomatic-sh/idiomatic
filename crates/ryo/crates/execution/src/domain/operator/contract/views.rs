@@ -2,7 +2,7 @@
 
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::types::Verdict;
-use ryo_derived::domain::contract::types::KeyIndex;
+use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
@@ -39,33 +39,33 @@ impl IndexedRows<'_> {
     pub(crate) fn probe(&self, key: &[Value]) -> KeyProbe {
         #[cfg(feature = "diagnostic-row-progress")]
         (self.progress)(ProgressCounter::IndexProbes, 1);
-        let hash = ryo_derived::domain::contract::key::hash_key(key.iter().map(Some));
+        let hash = ryo_derived::domain::key::service::hash_key(key.iter().map(Some));
         let bucket =
-            usize::try_from(hash.0).unwrap_or(0) & self.index.heads().len().saturating_sub(1);
+            usize::try_from(hash.0).unwrap_or(0) & self.index.heads.len().saturating_sub(1);
         KeyProbe {
             hash,
             at: self
                 .index
-                .heads()
+                .heads
                 .get(bucket)
                 .copied()
-                .unwrap_or(ryo_derived::domain::contract::types::ChainLink(0)),
+                .unwrap_or(ryo_derived::domain::key::types::ChainLink(0)),
         }
     }
     pub(crate) fn next_match(&self, key: &[Value], probe: &mut KeyProbe) -> Option<RowIndex> {
-        use ryo_derived::domain::contract::types::ChainLink;
+        use ryo_derived::domain::key::types::ChainLink;
         while probe.at.0 != 0 {
             #[cfg(feature = "diagnostic-row-progress")]
             (self.progress)(ProgressCounter::IndexRowsExamined, 1);
             let position = usize::try_from(probe.at.0 - 1).unwrap_or(usize::MAX);
             probe.at = self
                 .index
-                .links()
+                .next
                 .get(position)
                 .copied()
                 .unwrap_or(ChainLink(0));
-            let row = self.index.rows().get(position).copied()?;
-            if self.index.hashes().get(position) == Some(&probe.hash)
+            let row = self.index.rows.get(position).copied()?;
+            if self.index.hashes.get(position) == Some(&probe.hash)
                 && self
                     .columns
                     .iter()
@@ -89,8 +89,8 @@ impl IndexedRows<'_> {
 }
 /// Physical hash-chain position, independent of the caller-owned key buffer.
 pub(crate) struct KeyProbe {
-    hash: ryo_derived::domain::contract::types::KeyCellsHash,
-    at: ryo_derived::domain::contract::types::ChainLink,
+    hash: ryo_derived::domain::key::types::KeyCellsHash,
+    at: ryo_derived::domain::key::types::ChainLink,
 }
 pub(crate) struct MatchingRows<'a> {
     view: &'a IndexedRows<'a>,
@@ -113,7 +113,7 @@ pub(crate) trait ClosureParts {
         &self,
         at: usize,
     ) -> Result<
-        &ryo_derived::domain::contract::types::ClosurePartition,
+        &ryo_derived::domain::closure_adjacency::types::ClosurePartition,
         crate::domain::operating::errors::OperatingError,
     >;
 }
@@ -121,7 +121,7 @@ pub(crate) trait ClosureParts {
 pub(crate) enum ClosureViews<'a> {
     #[default]
     Empty,
-    One(&'a ryo_derived::domain::contract::types::ClosurePartition),
+    One(&'a ryo_derived::domain::closure_adjacency::types::ClosurePartition),
     Many(&'a dyn ClosureParts),
 }
 impl<'a> ClosureViews<'a> {
@@ -136,7 +136,7 @@ impl<'a> ClosureViews<'a> {
         self,
         at: usize,
     ) -> Result<
-        &'a ryo_derived::domain::contract::types::ClosurePartition,
+        &'a ryo_derived::domain::closure_adjacency::types::ClosurePartition,
         crate::domain::operating::errors::OperatingError,
     > {
         match self {
@@ -154,7 +154,7 @@ pub(crate) struct ClosureIter<'a> {
 }
 impl<'a> Iterator for ClosureIter<'a> {
     type Item = Result<
-        &'a ryo_derived::domain::contract::types::ClosurePartition,
+        &'a ryo_derived::domain::closure_adjacency::types::ClosurePartition,
         crate::domain::operating::errors::OperatingError,
     >;
     fn next(&mut self) -> Option<Self::Item> {

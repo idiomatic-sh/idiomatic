@@ -72,7 +72,7 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
     });
     let engine = ExecutionUseCaseImpl::new(
         port.clone(),
-        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+        Arc::new(crate::outbound::derived::factory::semantics()),
     );
     let mut plan = fixtures::plan(vec![
         Operation::Hosted {

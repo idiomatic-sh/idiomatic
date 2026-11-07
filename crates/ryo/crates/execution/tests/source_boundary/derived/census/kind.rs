@@ -2,7 +2,7 @@
 //! wildcard: a fourteenth kind fails here until its route, lifecycle, identity and acquisition
 //! controls are named.
 use super::entry::Entry;
-use ryo_derived::domain::contract::types::DerivedKind;
+use ryo_derived::domain::request::types::DerivedKind;
 
 const FAMILY: &str = "application/file_dag/program/facade_runtime/file_execution/distinct_integration/join/raw_scope/family";
 const RAW: &str = "application/file_dag/program/facade_runtime/file_execution/distinct_integration/join/raw_scope/test.rs";

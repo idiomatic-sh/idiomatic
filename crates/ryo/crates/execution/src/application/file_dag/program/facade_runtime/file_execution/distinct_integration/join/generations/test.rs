@@ -152,7 +152,7 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
     let calls = recorded.builds();
     assert_eq!(calls.len(), 2);
     assert!(calls.iter().all(|request| matches!(request,
-        ryo_derived::domain::contract::types::ViewRequest::Equality { columns }
+        ryo_derived::domain::request::types::DerivedRequest::Equality { columns }
         if columns == &[ColumnIndex(right)])));
     let providers = simple(&[], &[(1, 99)], RepresentationKind::Stored);
     let right_refusals = Counter::new(0);

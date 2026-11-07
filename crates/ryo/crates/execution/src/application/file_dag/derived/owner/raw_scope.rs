@@ -5,7 +5,8 @@ use crate::domain::{
     derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch, ViewRequest},
     operating::errors::OperatingError,
 };
-use ryo_derived::domain::contract::types::{DerivedView, RawOrder};
+use ryo_derived::domain::contract::types::DerivedView;
+use ryo_derived::domain::raw_order::types::raw_order::value::RawOrder;
 use std::{rc::Rc, sync::Arc};
 pub(in crate::application::file_dag) struct RawScope {
     owner: Rc<RelationOwner>,

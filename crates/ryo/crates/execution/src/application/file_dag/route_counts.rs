@@ -274,8 +274,8 @@ pub(crate) fn observe<T, E>(
     );
     result
 }
-pub(crate) fn derived(kind: ryo_derived::domain::contract::types::DerivedKind) -> RouteLabel {
-    use ryo_derived::domain::contract::types::DerivedKind::*;
+pub(crate) fn derived(kind: ryo_derived::domain::request::types::DerivedKind) -> RouteLabel {
+    use ryo_derived::domain::request::types::DerivedKind::*;
     RouteLabel(match kind {
         Equality => constants::KIND_EQUALITY,
         PredicateMatches => constants::KIND_PREDICATE_MATCHES,

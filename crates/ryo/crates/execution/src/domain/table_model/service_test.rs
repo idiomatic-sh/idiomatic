@@ -19,7 +19,7 @@ use ryo_values::selects;
 use super::types::Rows;
 use crate::domain::positions::service_test::prepared_index;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use ryo_derived::domain::contract::types::On;
+use ryo_derived::domain::key::types::On;
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -550,8 +550,8 @@ fn stored_keys_check_exact_composite_equality_after_a_real_hash_collision() {
     let on = [ColumnIndex(0), ColumnIndex(1)];
     let index = prepared_index(&Rows::Stored(view), &on).expect("key");
     assert_eq!(
-        index.hashes()[0],
-        index.hashes()[1],
+        index.hashes[0],
+        index.hashes[1],
         "fixture must exercise an actual full-hash collision"
     );
     assert_eq!(

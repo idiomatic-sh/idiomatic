@@ -15,7 +15,7 @@ fn prepare_cycles(
     let owner = super::relations::RelationOwner::new(
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            crate::outbound::derived::factory::semantics(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let BorrowedRows::Computed(table) = input else {
@@ -55,7 +55,7 @@ fn prepare_closure(
     let owner = std::rc::Rc::new(super::relations::RelationOwner::new(
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            crate::outbound::derived::factory::semantics(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     ));
     let BorrowedRows::Computed(table) = input else {
@@ -121,9 +121,9 @@ mod tests {
         else {
             return Err(OperatingError::WrongOperation);
         };
-        assert_eq!(graph.values(), vec![number(Integer(9)), number(Integer(1)), number(Integer(7))]);
-        assert_eq!(graph.starts(), vec![0, 2, 3, 4]);
-        assert_eq!(graph.leaving(), vec![1, 1, 0, 2]);
+        assert_eq!(graph.values, vec![number(Integer(9)), number(Integer(1)), number(Integer(7))]);
+        assert_eq!(graph.starts.0, vec![0, 2, 3, 4]);
+        assert_eq!(graph.leaving.0, vec![1, 1, 0, 2]);
         Ok(())
     }
     #[test]
@@ -148,13 +148,13 @@ mod tests {
         use crate::domain::operator::contract::views::ClosureParts;
         let first = ClosureParts::get(&partitions, 0)?;
         let second = ClosureParts::get(&partitions, 1)?;
-        assert_eq!(first.key(), vec![number(Integer(9))]);
-        assert_eq!(first.sources(), vec![number(Integer(2)), number(Integer(4))]);
+        assert_eq!(first.key, vec![number(Integer(9))]);
+        assert_eq!(first.sources, vec![number(Integer(2)), number(Integer(4))]);
         assert_eq!(
-            first.table().cells,
+            first.table.cells,
             vec![number(Integer(4)), number(Integer(3)), number(Integer(2)), number(Integer(4))]
         );
-        assert_eq!(second.key(), vec![number(Integer(1))]);
+        assert_eq!(second.key, vec![number(Integer(1))]);
         Ok(())
     }
 }

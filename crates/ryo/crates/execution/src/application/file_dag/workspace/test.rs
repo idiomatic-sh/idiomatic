@@ -72,7 +72,7 @@ fn use_(
         plan: {
             let plan = crate::application::file_dag::derived::prepare::view(
                 (std::sync::Arc::new(
-                    ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+                    crate::outbound::derived::factory::semantics(),
                 )
                     as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
                 &request,
@@ -149,7 +149,7 @@ fn immutable_demand_checks_identity_once_across_views_and_refuses_expired_proof(
             panic!("equality")
         };
         assert_eq!(index.rows().len(), 3);
-        let DerivedView::Membership(ryo_derived::domain::contract::types::MembershipView::Values(
+        let DerivedView::Membership(ryo_derived::domain::membership::types::MembershipView::Values(
             values,
         )) = members.view().unwrap()
         else {
@@ -221,7 +221,7 @@ fn distinct_published_populations_never_share_slot_only_identities() {
             panic!("ordered")
         };
         assert!(
-            matches!(rows.right()[0].keys()[0],ryo_derived::domain::contract::types::OwnedOrderedKey::Value(Value::Number(Integer(value)))if value==expected)
+            matches!(rows.right()[0].keys()[0],ryo_derived::domain::ordered::types::OwnedOrderedKey::Value(Value::Number(Integer(value)))if value==expected)
         );
         retained_views.push(view);
     }
@@ -237,11 +237,11 @@ fn distinct_published_populations_never_share_slot_only_identities() {
     );
     assert!(matches!(
         first.right()[0].keys()[0],
-        ryo_derived::domain::contract::types::OwnedOrderedKey::Value(Value::Number(Integer(9)))
+        ryo_derived::domain::ordered::types::OwnedOrderedKey::Value(Value::Number(Integer(9)))
     ));
     assert!(matches!(
         second.right()[0].keys()[0],
-        ryo_derived::domain::contract::types::OwnedOrderedKey::Value(Value::Number(Integer(4)))
+        ryo_derived::domain::ordered::types::OwnedOrderedKey::Value(Value::Number(Integer(4)))
     ));
     assert_eq!(
         owner.derived().counts().0,
@@ -348,13 +348,13 @@ fn recapturing_publications_replaces_population_without_replacing_owner() {
 
 use ryo_values::domain::rows::types::RowCount;
 
-use ryo_derived::domain::contract::types::DerivedKind;
+use ryo_derived::domain::request::types::DerivedKind;
 
 fn owner() -> Rc<crate::application::file_dag::relations::RelationOwner> {
     Rc::new(crate::application::file_dag::relations::RelationOwner::new(
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            crate::outbound::derived::factory::semantics(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     ))
 }

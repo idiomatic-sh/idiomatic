@@ -123,7 +123,7 @@ impl RelationOwner {
         let max_derived = super::derived::owner::types::EntryLimit(
             max_views
                 .0
-                .saturating_mul(ryo_derived::domain::contract::types::DerivedKind::ALL.len()),
+                .saturating_mul(ryo_derived::domain::request::types::DerivedKind::ALL.len()),
         );
         Self {
             #[cfg(test)]

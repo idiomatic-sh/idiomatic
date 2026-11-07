@@ -20,7 +20,7 @@ pub(crate) struct Observation {
     pub(crate) attempts: Vec<SourceAttempt>,
     pub(crate) work: ExecutionObservation,
     pub(crate) counts: (u64, u64, u64),
-    pub(crate) derived_builds: Vec<ryo_derived::domain::contract::types::ViewRequest>,
+    pub(crate) derived_builds: Vec<ryo_derived::domain::request::types::DerivedRequest>,
     pub(crate) fed: Vec<crate::domain::operator::types::RowsFed>,
     pub(crate) instructions: usize,
     pub(crate) native_prepared: bool,

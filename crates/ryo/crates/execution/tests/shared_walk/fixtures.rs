@@ -53,7 +53,7 @@ pub(super) fn engine() -> (ExecutionUseCaseImpl, Arc<SemanticCalls>) {
     (
         ExecutionUseCaseImpl::new(
             semantics.clone(),
-            Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+            Arc::new(ryo_execution::outbound::derived::factory::semantics()),
         ),
         semantics,
     )

@@ -47,8 +47,9 @@ fn nearest_memo_is_shared_only_for_exact_domain_and_generation() {
     );
     let root = graph
         .graph()
-        .vertex(0, Value::Number(Integer(1)))
-        .expect("stored vertex");
+        .vertex(ryo_derived::domain::vertices::types::PartitionId(0), Value::Number(Integer(1)))
+        .expect("stored vertex")
+        .0;
     let mut walk = GraphWalk::default();
     let mut local = Vec::new();
     let first = fixture
@@ -140,8 +141,9 @@ fn nearest_handles_absent_parent_and_normal_parent_through_derived_forest() {
     for (root, expected) in [(3, None), (1, Some(2))] {
         let root = graph
             .graph()
-            .vertex(0, Value::Number(Integer(root)))
-            .unwrap();
+            .vertex(ryo_derived::domain::vertices::types::PartitionId(0), Value::Number(Integer(root)))
+            .unwrap()
+            .0;
         let answer = fixture
             .nearest(
                 &graph,

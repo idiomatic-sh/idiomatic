@@ -5,7 +5,9 @@ use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::owner::selection::types::Retainability;
 use crate::domain::coverage::types::Partial;
 
-use ryo_derived::domain::contract::types::{ChainLink, KeyCellsHash, KeyIndex};
+use ryo_derived::domain::key::types::ChainLink;
+use ryo_derived::domain::key::types::KeyCellsHash;
+use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_relations::domain::relations::types::{ColumnsView, Relation};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 

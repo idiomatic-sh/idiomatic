@@ -111,7 +111,7 @@ impl KernelPermit<'_> {
         let expected = region.instructions()[self.instruction.0]
             .contract()
             .derived
-            .slots[ryo_derived::domain::contract::types::DerivedKind::NativeLookup.ordinal()]
+            .slots[ryo_derived::domain::request::types::DerivedKind::NativeLookup.ordinal()]
         .as_ref()
         .ok_or(OperatingError::WrongOperation)?;
         if !std::ptr::eq(expected.primary.plan.as_ref(), native.contract()) {

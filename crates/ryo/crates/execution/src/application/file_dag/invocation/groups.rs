@@ -6,7 +6,7 @@ use crate::domain::operator::contract::types::OperatorContract;
 use crate::domain::operator::contract::views::BorrowedRows;
 use crate::domain::table_groups::types::Group;
 use crate::domain::table_texts::types::Texts;
-use ryo_derived::domain::contract::types::On;
+use ryo_derived::domain::key::types::On;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::Table;
 use {
@@ -44,7 +44,7 @@ pub(super) fn groups(
     }
     let use_ = prepared(
         contract,
-        ryo_derived::domain::contract::types::DerivedKind::PartitionOrder,
+        ryo_derived::domain::request::types::DerivedKind::PartitionOrder,
     )?;
     let acquired = admitted.acquire_rows(use_, context)?;
     let ryo_derived::domain::contract::types::DerivedView::PartitionOrder(order) =

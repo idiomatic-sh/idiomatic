@@ -8,7 +8,7 @@ use {
     ryo_values::domain::rows::service::row_in,
 };
 
-use ryo_derived::domain::contract::types::On;
+use ryo_derived::domain::key::types::On;
 
 /// Pushes onto `into` where the edges lead from `start`, in the order the edges came; `key` is the
 /// room the lookup is made with.
@@ -48,7 +48,7 @@ pub(crate) fn reach_all(edges: &Edges<'_>, start: Value, walk: &mut Walk) {
 /// Look up one newly expanded vertex once and retain its adjacency cursor.
 fn ordered_frame(
     edges: &Edges<'_>,
-    graph: &ryo_derived::domain::contract::types::PreparedDfs,
+    graph: &ryo_derived::domain::dfs::types::PreparedDfs,
     partition: &[Value],
     entity: Value,
     walk: &mut super::types::OrderedWalk,
@@ -59,15 +59,15 @@ fn ordered_frame(
     walk.expanded += 1;
     matching(edges.table, On::Columns(edges.from), edges.order, &walk.key)
         .next()
-        .and_then(|at| graph.adjacency().get(at.0))
-        .cloned()
+        .and_then(|at| graph.adjacency.get(at.0))
+        .map(|run| run.start.0..run.end.0)
         .unwrap_or(0..0)
 }
 
 /// Start one independent DFS; the root is already visited before any edge is emitted.
 pub(crate) fn begin_ordered(
     edges: &Edges<'_>,
-    graph: &ryo_derived::domain::contract::types::PreparedDfs,
+    graph: &ryo_derived::domain::dfs::types::PreparedDfs,
     partition: &[Value],
     root: Value,
     walk: &mut super::types::OrderedWalk,
@@ -86,7 +86,7 @@ pub(crate) fn begin_ordered(
 /// Yield an edge visit before considering whether to expand its destination.
 pub(crate) fn next_ordered(
     edges: &Edges<'_>,
-    graph: &ryo_derived::domain::contract::types::PreparedDfs,
+    graph: &ryo_derived::domain::dfs::types::PreparedDfs,
     partition: &[Value],
     walk: &mut super::types::OrderedWalk,
 ) -> Result<
@@ -110,7 +110,7 @@ pub(crate) fn next_ordered(
         }
         let at = *edges
             .order
-            .sorted()
+            .sorted
             .get(frame.start)
             .ok_or(OperatingError::ShapeMismatch)?;
         frame.start += 1;

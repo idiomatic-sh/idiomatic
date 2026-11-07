@@ -14,7 +14,7 @@ use crate::domain::{
     },
     table_cells::types::TreeRows,
 };
-use ryo_derived::domain::contract::types::RawOrder;
+use ryo_derived::domain::raw_order::types::raw_order::value::RawOrder;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::domain::set_rows::types::SetInput;
 use ryo_operators::domain::set_rows::errors::SetRowsError;
@@ -154,7 +154,9 @@ pub(super) fn union(
     let stride = output.columns.len().max(1);
     let mut slots = std::mem::take(&mut work.staged);
     let PositionWork { kept, .. } = work;
-    order.firsts(&mut kept.0);
+    let mut flags = ryo_derived::domain::raw_words::types::KeepFlags(std::mem::take(&mut kept.0));
+    order.firsts(&mut flags);
+    kept.0 = flags.0;
     let mut driver = UnionDriver {
         slots: &mut slots,
         keep: kept,
@@ -222,7 +224,10 @@ impl SetPositionsDriver for AntiDriver<'_, '_> {
                     self.left_on,
                     self.probe,
                 );
-                Ok(RightMembership::from(!self.order.hits(&self.probe.0).is_empty()))
+                let hit = self
+                    .order
+                    .hits(ryo_derived::domain::raw_words::types::RawWords(&self.probe.0));
+                Ok(RightMembership::from(hit.start != hit.end))
             })
             .map_err(|()| SetRowsError::Interrupted)
     }

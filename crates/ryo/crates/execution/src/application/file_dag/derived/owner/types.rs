@@ -1,7 +1,8 @@
 //! Counters, orders and answers of the derived owner, each named for what it counts.
 use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::outbound::derived::interface::DerivedPort;
-use ryo_derived::domain::contract::types::{PreparedDerived, ViewRequest};
+use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
+use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
 use std::sync::Arc;
 
 /// The owner-issued capability over the derived port. Holders outside the owner can ask the
@@ -18,7 +19,7 @@ impl DerivedAccess {
         request: ViewRequest,
         schemas: Vec<Vec<ryo_relations::domain::relations::types::CellKind>>,
     ) -> Arc<PreparedDerived> {
-        self.port.prepare(request, schemas)
+        Arc::new(self.port.prepare(request, schemas))
     }
     /// The builder is reachable only inside the owner tree.
     pub(in crate::application::file_dag::derived::owner) fn port(&self) -> &Arc<dyn DerivedPort> {

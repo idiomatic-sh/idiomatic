@@ -1,20 +1,26 @@
 //! A real portable use case whose build is the one injected dependency failure.
-use ryo_derived::domain::contract::types::{
-    BuildOutcome, BuildWorkspace, DerivedFault, DerivedInputs, DerivedPayload, DerivedView,
-    PreparedDerived, ViewRequest,
-};
-use ryo_derived::inbound::use_cases::derived::{
-    interface::DerivedUseCase, use_case::DerivedUseCaseImpl,
-};
+use ryo_derived::domain::contract::types::BuildOutcome;
+use ryo_derived::domain::contract::types::BuildWorkspace;
+use ryo_derived::domain::fault::types::DerivedFault;
+use ryo_derived::domain::contract::types::BuildInputs as DerivedInputs;
+use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
+use ryo_derived::domain::contract::types::DerivedView;
+use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
+use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
+use ryo_derived::inbound::use_cases::build::interface::BuildUseCase;
+use ryo_derived::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_derived::inbound::use_cases::view::interface::ViewUseCase;
 use ryo_relations::domain::relations::types::CellKind;
 use std::sync::Arc;
 
 #[derive(Debug)]
 pub(super) struct RefusingBuild;
-impl DerivedUseCase for RefusingBuild {
-    fn prepare(&self, request: ViewRequest, schemas: Vec<Vec<CellKind>>) -> Arc<PreparedDerived> {
-        DerivedUseCaseImpl::new().prepare(request, schemas)
+impl PrepareUseCase for RefusingBuild {
+    fn prepare(&self, request: ViewRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived {
+        crate::outbound::derived::factory::semantics().prepare(request, schemas)
     }
+}
+impl BuildUseCase for RefusingBuild {
     fn build(
         &self,
         _: &PreparedDerived,
@@ -24,11 +30,14 @@ impl DerivedUseCase for RefusingBuild {
     ) -> Result<BuildOutcome, DerivedFault> {
         Err(DerivedFault::DuplicateOrder)
     }
+}
+impl ViewUseCase for RefusingBuild {
     fn view<'a>(
         &self,
         prepared: &PreparedDerived,
         payload: &'a DerivedPayload,
     ) -> Result<DerivedView<'a>, DerivedFault> {
-        DerivedUseCaseImpl::new().view(prepared, payload)
+        crate::outbound::derived::factory::semantics().view(prepared, payload)
     }
 }
+

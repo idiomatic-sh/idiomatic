@@ -9,10 +9,12 @@ pub(in crate::application::file_dag) fn view(
     schemas: &[InputShape<'_>],
 ) -> Result<crate::domain::derived_views::types::DerivedContract, OperatingError> {
     use crate::domain::derived_views::types::{DerivedContract, ViewRequest};
-    use ryo_derived::domain::contract::types::ViewRequest as SemanticRequest;
+    use ryo_derived::domain::request::types::DerivedRequest as SemanticRequest;
     let mut needed = crate::domain::table_cells::types::ColumnPlaces::default();
     let meaning = match request {
-        ViewRequest::RawKeyOrder { stride } => SemanticRequest::RawKeyOrder { stride: *stride },
+        ViewRequest::RawKeyOrder { stride } => SemanticRequest::RawKeyOrder {
+            stride: ryo_derived::domain::raw_words::types::KeyStride(*stride),
+        },
         ViewRequest::Equality { columns } => SemanticRequest::Equality {
             columns: columns.clone(),
         },

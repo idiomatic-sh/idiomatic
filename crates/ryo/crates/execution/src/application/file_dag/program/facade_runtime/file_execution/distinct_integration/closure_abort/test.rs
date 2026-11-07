@@ -241,7 +241,7 @@ fn exercise(refusal: Refusal, fused: bool) {
     );
     let calls = recorded.builds();
     assert!(
-        matches!(calls.first(), Some(ryo_derived::domain::contract::types::ViewRequest::PartitionOrder { keys })
+        matches!(calls.first(), Some(ryo_derived::domain::request::types::DerivedRequest::PartitionOrder { keys })
         if keys == &[ColumnIndex(2), ColumnIndex(3)])
     );
     assert_eq!(
@@ -251,7 +251,7 @@ fn exercise(refusal: Refusal, fused: bool) {
     );
     assert!(calls[1..].iter().all(|request| matches!(
         request,
-        ryo_derived::domain::contract::types::ViewRequest::ClosureAdjacency {
+        ryo_derived::domain::request::types::DerivedRequest::ClosureAdjacency {
             source: ColumnIndex(0),
             destination: ColumnIndex(1)
         }

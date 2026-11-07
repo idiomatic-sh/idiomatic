@@ -168,7 +168,7 @@ pub(super) fn world_with_applicability(
     let metadata = ryo_values::domain::run_metadata::service::from_plans(&plans);
     let engine = ExecutionUseCaseImpl::new(
         operators,
-        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+        Arc::new(ryo_execution::outbound::derived::factory::semantics()),
     );
     let program = Arc::new(
         engine

@@ -101,7 +101,7 @@ fn graph(
         bindings,
         &[],
         &ryo_relations::domain::relations::service::kinds,
-        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+        Arc::new(crate::outbound::derived::factory::semantics()),
     )?;
     Ok(compile_prepared(plans, &operators))
 }

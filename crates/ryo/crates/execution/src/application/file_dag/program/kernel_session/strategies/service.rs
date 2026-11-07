@@ -244,7 +244,7 @@ impl super::super::KernelSession<'_, '_> {
             );
         }
         crate::domain::derived_views::service::validate(
-            ryo_derived::domain::contract::types::DerivedKind::Equality,
+            ryo_derived::domain::request::types::DerivedKind::Equality,
             index_plan,
         )
         .map_err(InvocationFailure::Semantic)?;

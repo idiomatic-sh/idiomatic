@@ -61,7 +61,7 @@ impl ProgramExecution {
             .producer_view_witness(
                 state.scope,
                 probe.producer,
-                ryo_derived::domain::contract::types::DerivedKind::Equality,
+                ryo_derived::domain::request::types::DerivedKind::Equality,
             )
             .unwrap();
         let index_liveness = if index.as_ref().is_some_and(|index| {

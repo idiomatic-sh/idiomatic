@@ -5,7 +5,8 @@ use crate::domain::{
     operator::contract::resources::DfsResources, stored_selection::types::Selector,
     table_model::types::SelectionIdentity,
 };
-use ryo_derived::domain::contract::types::{DerivedKind, DerivedView};
+use ryo_derived::domain::request::types::DerivedKind;
+use ryo_derived::domain::contract::types::DerivedView;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, LiteralText};
 use std::sync::Arc;

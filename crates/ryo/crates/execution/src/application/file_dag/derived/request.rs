@@ -371,4 +371,4 @@ mod test;
 
 pub(in crate::application::file_dag) mod types;
 
-use ryo_derived::domain::contract::types::DerivedKind;
+use ryo_derived::domain::request::types::DerivedKind;

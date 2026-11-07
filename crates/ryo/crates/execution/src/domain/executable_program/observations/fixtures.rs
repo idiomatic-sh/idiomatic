@@ -167,7 +167,7 @@ pub(crate) fn fixture(frontier: FrontierSlots, names: Names) -> Fixture {
         &[vec![], vec![], vec![], vec![]],
         &[],
         std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            crate::outbound::derived::factory::semantics(),
         ),
     )
     .unwrap();

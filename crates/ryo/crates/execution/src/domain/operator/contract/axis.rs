@@ -13,7 +13,7 @@ pub(crate) enum PreparedAxis<'a> {
     Indexed {
         edges: IndexedRows<'a>,
         to: ColumnIndex,
-        domain: ryo_derived::domain::contract::types::MembershipView<'a>,
+        domain: ryo_derived::domain::membership::types::MembershipView<'a>,
     },
 }
 #[derive(Debug, Default)]

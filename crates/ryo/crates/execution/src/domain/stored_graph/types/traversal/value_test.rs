@@ -3,12 +3,16 @@
 use super::value::{ABSENT, GraphTraversal, UNKNOWN};
 
 use crate::domain::stored_graph::types::{GraphDomain, GraphWalk, Orientation};
-use ryo_derived::domain::contract::types::{
-    BuildOutcome, BuildWorkspace, BulkRows, DerivedFault, DerivedInputs, RowCells, ViewRequest,
-};
-use ryo_derived::inbound::use_cases::derived::{
-    interface::DerivedUseCase, use_case::DerivedUseCaseImpl,
-};
+use ryo_derived::domain::contract::types::BuildOutcome;
+use ryo_derived::domain::contract::types::BuildWorkspace;
+use ryo_derived::domain::row_cells::types::BulkRows;
+use ryo_derived::domain::fault::types::DerivedFault;
+use ryo_derived::domain::contract::types::BuildInputs as DerivedInputs;
+use ryo_derived::domain::row_cells::types::RowCells;
+use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
+use ryo_derived::inbound::use_cases::build::interface::BuildUseCase;
+use ryo_derived::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_derived::inbound::use_cases::view::interface::ViewUseCase;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::service::push_row;
@@ -30,11 +34,11 @@ impl RowCells for SourceRows<'_> {
     fn kinds(&self) -> &[CellKind] {
         &self.0.kinds
     }
-    fn count(&self) -> usize {
-        self.0.count.0
+    fn count(&self) -> ryo_values::domain::rows::types::RowCount {
+        self.0.count
     }
-    fn cell(&self, row: usize, column: ColumnIndex) -> Option<Value> {
-        if row >= self.count() {
+    fn cell(&self, row: ryo_values::domain::rows::types::RowIndex, column: ColumnIndex) -> Option<Value> {
+        if row.0 >= self.count().0 {
             return None;
         }
         let column = usize::try_from(column.0).ok()?;
@@ -43,12 +47,12 @@ impl RowCells for SourceRows<'_> {
         }
         self.0
             .cells
-            .get(row.checked_mul(self.0.kinds.len())?.checked_add(column)?)
+            .get(row.0.checked_mul(self.0.kinds.len())?.checked_add(column)?)
             .copied()
     }
 }
 
-fn graph(edges: &[[i64; 2]]) -> Arc<ryo_derived::domain::contract::types::CompactGraph> {
+fn graph(edges: &[[i64; 2]]) -> Arc<ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph> {
     let mut table = Table {
         kinds: vec![CellKind::Number; 2],
         ..Default::default()
@@ -56,7 +60,7 @@ fn graph(edges: &[[i64; 2]]) -> Arc<ryo_derived::domain::contract::types::Compac
     for edge in edges {
         push_row(&mut table, &edge.map(|value| Value::Number(Integer(value))));
     }
-    let semantics = DerivedUseCaseImpl::new();
+    let semantics = crate::outbound::derived::factory::semantics();
     let prepared = semantics.prepare(
         ViewRequest::Adjacency {
             endpoints: [ColumnIndex(0), ColumnIndex(1)],
@@ -78,18 +82,20 @@ fn graph(edges: &[[i64; 2]]) -> Arc<ryo_derived::domain::contract::types::Compac
     payload
         .share_adjacency()
         .expect("successful adjacency payload")
+        .0
 }
 
-fn vertex(graph: &ryo_derived::domain::contract::types::CompactGraph, value: i64) -> u32 {
+fn vertex(graph: &ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph, value: i64) -> u32 {
     graph
-        .vertex(0, Value::Number(Integer(value)))
+        .vertex(ryo_derived::domain::vertices::types::PartitionId(0), Value::Number(Integer(value)))
         .expect("stored vertex")
+        .0
 }
 
 #[test]
 fn bfs_nearest_stops_in_edge_encounter_order_and_direct_retains_duplicates() {
     let graph = graph(&[[1, 9], [1, 2], [1, 9], [9, 4], [2, 4], [4, 1]]);
-    assert!(graph.forest(0).is_none());
+    assert!(graph.forest(ryo_derived::domain::vertices::types::EdgeDirection::Forward).is_none());
     let mut domain = GraphDomain {
         identity: None,
         members: Arc::new(vec![false; graph.vertices().len()]),
@@ -126,7 +132,7 @@ fn bfs_nearest_stops_in_edge_encounter_order_and_direct_retains_duplicates() {
 #[test]
 fn validated_forest_compresses_shared_chains_without_including_the_start() {
     let graph = graph(&[[1, 2], [2, 3], [3, 4], [8, 2], [1, 2]]);
-    assert!(graph.forest(0).is_some());
+    assert!(graph.forest(ryo_derived::domain::vertices::types::EdgeDirection::Forward).is_some());
     let mut domain = GraphDomain {
         identity: None,
         members: Arc::new(vec![false; graph.vertices().len()]),

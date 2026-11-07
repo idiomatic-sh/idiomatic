@@ -104,8 +104,9 @@ fn old_completed_answer_owns_exact_context_through_clear_and_changed_facts() {
     let mut walk = GraphWalk::default();
     let root = graph
         .graph()
-        .vertex(0, number(Integer(1)))
-        .expect("prepared vertex");
+        .vertex(ryo_derived::domain::vertices::types::PartitionId(0), number(Integer(1)))
+        .expect("prepared vertex")
+        .0;
     let nearest = fixture
         .nearest(
             &graph,

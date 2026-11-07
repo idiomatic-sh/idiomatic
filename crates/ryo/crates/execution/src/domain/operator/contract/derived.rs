@@ -2,9 +2,9 @@
 use crate::domain::operating::errors::OperatingError;
 
 pub(crate) fn portable_fault(
-    fault: ryo_derived::domain::contract::types::DerivedFault,
+    fault: ryo_derived::domain::fault::types::DerivedFault,
 ) -> OperatingError {
-    use ryo_derived::domain::contract::types::DerivedFault;
+    use ryo_derived::domain::fault::types::DerivedFault;
     match fault {
         DerivedFault::MissingInput { position } => OperatingError::MissingInput { position },
         DerivedFault::NoSuchColumn { column } => {

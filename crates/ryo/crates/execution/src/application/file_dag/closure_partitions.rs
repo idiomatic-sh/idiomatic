@@ -7,8 +7,10 @@ use crate::domain::{
     operating::errors::OperatingError,
     operator::contract::views::BorrowedRows,
 };
-use ryo_derived::domain::contract::types::ClosurePartition;
-use ryo_derived::domain::contract::types::{ChainLink, HashedRow, KeyCellsHash};
+use ryo_derived::domain::closure_adjacency::types::ClosurePartition;
+use ryo_derived::domain::key::types::ChainLink;
+use ryo_derived::domain::key::types::HashedRow;
+use ryo_derived::domain::key::types::KeyCellsHash;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use std::{rc::Rc, sync::Arc};
 
@@ -109,7 +111,7 @@ impl<'f> PartitionedClosure<'f> {
     pub(crate) fn working_cells(&self) -> usize {
         self.current.as_ref().map_or(0, |_| {
             let current = self.current().expect(constants::LIVE_PARTITION_VIEW);
-            current.table().cells.len() + current.key().len() + current.sources().len()
+            current.table.cells.len() + current.key.len() + current.sources.len()
         }) + self.key.len()
             + self.scratch.row.len()
     }
@@ -118,8 +120,8 @@ impl<'f> PartitionedClosure<'f> {
     pub(crate) fn working_capacity(&self) -> usize {
         self.current.as_ref().map_or(0, |_| {
             let current = self.current().expect(constants::LIVE_PARTITION_VIEW);
-            let (keys, sources) = current.capacities();
-            current.table().cells.capacity() + keys + sources
+            let capacities = ryo_derived::domain::closure_adjacency::service::capacities(current);
+            current.table.cells.capacity() + capacities.key.0 + capacities.sources.0
         }) + self.key.capacity()
             + self.scratch.row.capacity()
     }
@@ -132,9 +134,18 @@ impl<'f> PartitionedClosure<'f> {
             .saturating_add(self.working_capacity().saturating_mul(size_of::<Value>()));
         if self.current.is_some() {
             let current = self.current().expect(constants::LIVE_PARTITION_VIEW);
-            let [rows, hashes, heads, links, sorted, pairs, runs] = current.index().capacities();
+            let capacities = ryo_derived::domain::equality::service::capacities(&current.index);
+            let [rows, hashes, heads, links, sorted, pairs, runs] = [
+                capacities.rows.0,
+                capacities.hashes.0,
+                capacities.heads.0,
+                capacities.links.0,
+                capacities.sorted.0,
+                capacities.pairs.0,
+                capacities.runs.0,
+            ];
             bytes = bytes
-                .saturating_add(current.table().kinds.capacity() * size_of::<CellKind>())
+                .saturating_add(current.table.kinds.capacity() * size_of::<CellKind>())
                 .saturating_add((rows + sorted) * size_of::<RowIndex>())
                 .saturating_add(hashes * size_of::<KeyCellsHash>())
                 .saturating_add((heads + links) * size_of::<ChainLink>())
