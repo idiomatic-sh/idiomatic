@@ -11,12 +11,62 @@ LOCK = "/workspaces/.cargo-build.lock"
 TARGET = "/workspaces/idiomatic-benchmark-guards/target"
 FIXTURE_FIX = "cli/tests/replay/imports.rs"
 CARGO_BUILDS = {"build", "test", "bench", "clippy", "run", "check", "doc"}
-SPLIT = re.compile(r"\n|;|&&|\|\||\||(?<![>&])&(?![>&])")
-CARGO_ANYWHERE = re.compile(r"\bcargo\s+(\+\S+\s+)?(" + "|".join(sorted(CARGO_BUILDS)) + r")\b")
 INTEGRATION = re.compile(r"claude/(checkpoint-\d+|ryo-consolidation)")
 MEASUREMENT = "/workspaces/ryo-perf-"
 BUILDERS_AUTHOR = "Builders author; the integrator compiles. cargo is allowed only in an integration worktree (branch claude/checkpoint-N)"
 COMMENT = re.compile(r"(^|\s)#.*$", re.MULTILINE)
+
+
+def segments(text):
+    """Split at command separators outside quotes; quotes stay in the segment."""
+    out, current, quote, i = [], [], None, 0
+    while i < len(text):
+        c = text[i]
+        if c == "\\" and quote != "'" and i + 1 < len(text):
+            current.append(text[i:i + 2])
+            i += 2
+            continue
+        if quote:
+            quote = None if c == quote else quote
+        elif c in "'\"":
+            quote = c
+        elif c in ";\n|()`" or (c == "&" and text[i - 1:i] != ">" and text[i + 1:i + 2] != ">"):
+            out.append("".join(current))
+            current = []
+            i += 1
+            continue
+        current.append(c)
+        i += 1
+    out.append("".join(current))
+    return out
+
+
+WRAPPERS = {"env", "time", "exec", "nohup", "command", "nice"}
+
+
+def runs_cargo_verb(words):
+    """True when the word list is a command that runs cargo with a build verb, directly or through a wrapper."""
+    while words and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", words[0]):
+        words = words[1:]
+    while words and words[0] in WRAPPERS:
+        words = words[1:]
+    if not words:
+        return False
+    if words[0] == "flock":
+        rest = words[1:]
+        while rest and rest[0].startswith("-"):
+            rest = rest[2:] if rest[0] in ("-w", "-E", "--timeout", "--conflict-exit-code") else rest[1:]
+        return runs_cargo_verb(rest[1:])
+    if words[0] in ("bash", "sh", "zsh") and "-c" in words and words.index("-c") + 1 < len(words):
+        return has_cargo_command(words[words.index("-c") + 1])
+    if words[0] == "cargo":
+        rest = [w for w in words[1:] if not w.startswith("+")]
+        return next((w for w in rest if not w.startswith("-")), "") in CARGO_BUILDS
+    return False
+
+
+def has_cargo_command(text):
+    return any(runs_cargo_verb(tokens(segment)) for segment in segments(text))
 
 
 def tokens(segment):
@@ -99,7 +149,7 @@ def integration_tree(directory):
 def working_dirs(clean, cwd):
     """The directory the command runs in, plus any -C or --manifest-path directory it names."""
     here = cwd or os.getcwd()
-    for segment in SPLIT.split(clean):
+    for segment in segments(clean):
         words = tokens(segment)
         if len(words) > 1 and words[0] == "cd":
             here = os.path.join(here, os.path.expanduser(words[1]))
@@ -116,10 +166,10 @@ def reason(command, cwd=None):
     clean = COMMENT.sub("", command)
     if re.search(r"\b(while|until|for)\b", clean) and re.search(r"\b(pgrep|pkill)\b[^;&|\n]*\s-[A-Za-z]*f", clean):
         return "self-matching wait loop (pgrep/pkill -f in a loop); use pid files or pgrep -x"
-    if CARGO_ANYWHERE.search(clean) and not all(integration_tree(d) for d in working_dirs(clean, cwd)):
+    if has_cargo_command(clean) and not all(integration_tree(d) for d in working_dirs(clean, cwd)):
         return BUILDERS_AUTHOR
     before = ""
-    for segment in SPLIT.split(clean):
+    for segment in segments(clean):
         words = tokens(segment)
         for found in (stash(words), removal(words), cargo_rules(words, before), tm_fix(words, clean)):
             if found:
