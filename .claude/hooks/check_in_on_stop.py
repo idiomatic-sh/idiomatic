@@ -61,7 +61,12 @@ def read_transcript(path):
 
 
 def missing_table(text):
-    position = 0
+    # The check-in may open with checklists ("**Right now: ...**", "**Phases**" with - [x] / - [ ] lines)
+    # before table 1; everything before the table 1 heading is skipped.
+    first = re.compile(r"^\s*\*\*\s*" + HEADINGS[0][1], re.M | re.I).search(text)
+    if not first:
+        return 1, HEADINGS[0][0]
+    position = first.start()
     for number, (name, pattern) in enumerate(HEADINGS, 1):
         found = re.compile(r"^\s*\*\*\s*" + pattern, re.M | re.I).search(text, position)
         if not found:
