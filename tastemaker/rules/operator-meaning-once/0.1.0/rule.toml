@@ -1,0 +1,178 @@
+description = "An operation kind's meaning is implemented once, in its operators: the engine names a variant of the operators' call only when `engine-calls` lists it, and no module under `modules` is named after a kind, the snake case of an identifier the `kinds` files list in a macro call."
+why = "The operators crate holds the one meaning of every operation kind, reached through one evaluation call; the engine supplies resources, walks and delivery behind the driver ports. An engine that matches or builds another variant of the call (a `Union` of its own), or that grows a module named after a kind (`domain/operator/union.rs`), holds a second implementation of that kind, which drifts from the first where no parity test looks. The kinds are read from the macro call that declares them, so a new kind is covered without editing the entry. Read syntactically: a variant is named by a path in an expression or a pattern (`reference`), and a module by its `mod` declaration. Not seen: a variant written only inside a macro's arguments (`matches!(call, OperatorCall::Union { .. })`), whose tokens no syntax says are a path. Test code, fixtures and acceptance files are left out by the entry's `exclude`."
+
+query = '''
+param calls: set<string>;
+param engine-calls: set<string>;
+param engine: set<string>;
+param kinds: set<string>;
+param modules: set<string>;
+let named = select file, span from "reference" where glob_any(file, $engine) and glob_any(target, $calls) and not glob_any(target, $engine-calls);
+let variants = extend(from=named, values={"problem": "names a call of the operators the engine does not make"});
+let nodes = select id, kind from "syntax-tree" where text = "" and glob_any(file, $kinds);
+let tokens = select id, text from "syntax-tree" where text != "" and kind = "ident" and glob_any(file, $kinds);
+let macro-calls = select id from nodes where kind = "macro-call";
+let trees = select r.child as id from macro-calls as l join "syntax-child" as r on l.id = r.parent where r.field != "path";
+let kind-tokens = axis(from=trees, relation="syntax-child", direction=descendant, domain=tokens);
+let declared = select r.text as kind from kind-tokens as l join tokens as r on l.related = r.id;
+let keyed-kinds = extend(from=declared, values={"pair": 1});
+let modules = select name, file, span from "defines" where kind = "namespace" and glob_any(file, $modules);
+let keyed-modules = extend(from=modules, values={"pair": 1});
+let kind-modules = select l.file as file, l.span as span from keyed-modules as l join keyed-kinds as r on l.pair = r.pair where l.name = snake(r.kind);
+let modules-named = extend(from=kind-modules, values={"problem": "declares a module named after an operation kind"});
+let found = union(left=variants, right=modules-named);
+emit found subject "file" key("span");
+'''
+
+[params.calls]
+type = "set<string>"
+description = "The paths of the operators' call variants, as written in code: `{OperatorCall,*::OperatorCall}::*`."
+
+[params.engine-calls]
+type = "set<string>"
+description = "The call variants the engine may name, as written in code: the one evaluation of every kind and the calls that prepare a resource."
+
+[params.engine]
+type = "set<string>"
+description = "The engine's source files, as path globs: where a variant of the call outside `engine-calls` is a finding."
+
+[params.kinds]
+type = "set<string>"
+description = "The files whose macro call lists the operation kinds, one identifier each, as path globs."
+
+[params.modules]
+type = "set<string>"
+description = "The files under which no module is named after a kind, as path globs: the engine's operator concept."
+
+[diagnostic]
+primary = "span"
+message = "this {problem}: a kind's meaning lives once, in the operators"
+help = "Reach the kind through the operators' one evaluation call and give the engine only what the driver ports ask for. If the engine needs a new call of the operators, add it to the operators' call and to the entry's `engine-calls`, saying why in its description; never implement a kind's rows in the engine."
+
+[given]
+include = ["**"]
+params = { calls = ["{OperatorCall,*::OperatorCall}::*"], engine-calls = ["{OperatorCall,*::OperatorCall}::{Evaluate,ReduceCount}"], engine = ["engine/src/**"], kinds = ["values/src/kinds.rs"], modules = ["engine/src/domain/operator.rs", "engine/src/domain/operator/**"] }
+files.'values/Cargo.toml' = '''
+[package]
+name = "values"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'values/src/lib.rs' = '''
+//! The operation kinds.
+
+pub mod kinds;
+'''
+files.'values/src/kinds.rs' = '''
+//! The kinds, declared through one macro.
+
+macro_rules! operation_kinds {
+    ($( $variant:ident, )+) => {
+        #[derive(Clone, Copy, Debug)]
+        pub enum OperationKind { $( $variant, )+ }
+    };
+}
+
+operation_kinds! {
+    /// `union`.
+    Union,
+    /// `group-count`.
+    GroupCount,
+}
+'''
+files.'engine/Cargo.toml' = '''
+[package]
+name = "engine"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'engine/src/lib.rs' = '''
+//! The engine.
+
+pub mod application;
+pub mod domain;
+'''
+files.'engine/src/domain.rs' = '''
+//! The engine's domain.
+
+pub mod operator;
+'''
+files.'engine/src/domain/operator.rs' = '''
+//! The engine's operator concept.
+
+pub mod contract;
+'''
+files.'engine/src/domain/operator/contract.rs' = '''
+//! The engine side of the driver ports.
+
+pub fn registered() {}
+'''
+files.'engine/src/application.rs' = '''
+//! The engine's application.
+
+pub mod dispatch;
+'''
+files.'engine/src/application/dispatch.rs' = '''
+//! Dispatch: the one evaluation call.
+
+use operators::OperatorCall;
+
+pub fn run(call: OperatorCall) -> usize {
+    match call {
+        OperatorCall::Evaluate(operation) => operation,
+        operators::OperatorCall::ReduceCount(count) => count,
+    }
+}
+'''
+
+[[scenarios]]
+id = "the-engine-makes-its-calls"
+scenario = "The engine names only the calls it makes, and its operator concept has no module named after a kind."
+
+[[scenarios]]
+id = "the-engine-matches-a-kind-of-its-own"
+scenario = "An engine file that names another variant of the call is reported at that line."
+given.files.'engine/src/application/dispatch.rs' = '''
+//! Dispatch: the one evaluation call.
+
+use operators::OperatorCall;
+
+pub fn run(call: OperatorCall) -> usize {
+    match call {
+        OperatorCall::Evaluate(operation) => operation,
+        OperatorCall::Union(left, right) => left + right,
+    }
+}
+'''
+then.findings = [{ path = "engine/src/application/dispatch.rs", line = 8 }]
+
+[[scenarios]]
+id = "a-module-named-after-a-kind"
+scenario = "A module of the operator concept named after a kind, the snake case of `GroupCount`, is reported at its declaration."
+given.files.'engine/src/domain/operator.rs' = '''
+//! The engine's operator concept.
+
+pub mod contract;
+pub mod group_count;
+'''
+given.files.'engine/src/domain/operator/group_count.rs' = '''
+//! A second meaning of group-count.
+
+pub fn count() {}
+'''
+then.findings = [{ path = "engine/src/domain/operator.rs", line = 4 }]
+
+[[scenarios]]
+id = "a-module-elsewhere-may-share-a-name"
+scenario = "A module named after a kind outside the operator concept is no second implementation."
+given.files.'engine/src/application.rs' = '''
+//! The engine's application.
+
+pub mod dispatch;
+pub mod union;
+'''
+given.files.'engine/src/application/union.rs' = '''
+//! The resources a union reads.
+
+pub fn resources() {}
+'''
