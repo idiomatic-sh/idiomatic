@@ -16,7 +16,7 @@ templates = [
   { template = "idiomatic.arch/tastemaker-lock", file = "tastemaker.lock", description = "This file's lock: the definition versions the root resolved." },
   { template = "idiomatic.arch/cargo-config", file = ".cargo/config.toml", description = "The Cargo configuration every workspace of the repository builds with: the linker, the debug info, the aliases (coverage with no threshold)." },
   { template = "idiomatic.arch/unchecked", file = "tools/{*tools}", description = "The pinned command-line tools and their installer." },
-  { template = "idiomatic.arch/unchecked", file = ".agents/{*agents}", description = "The agent definitions and skills the repository's agents read." },
+  { template = "idiomatic.arch/unchecked", file = ".agents/agents/{*agents}", description = "The agent instruction files the repository's agents read." },
   { template = "idiomatic.arch/unchecked", file = "AGENTS.md", description = "The instructions every agent working in the repository follows." },
   { template = "idiomatic.arch/unchecked", file = ".editorconfig", description = "The editor settings every text file is held to." },
   { template = "idiomatic.arch/unchecked", file = ".editorconfig-checker.json", description = "The editorconfig checker's settings." },
