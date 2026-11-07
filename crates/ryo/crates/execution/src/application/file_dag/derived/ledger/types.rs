@@ -73,38 +73,38 @@ pub(in crate::application::file_dag) struct Snapshot {
 
 #[derive(Debug)]
 pub(in crate::application::file_dag) struct LedgerEntry {
-    pub bytes: ByteCount,
-    pub retention_units: UnitCount,
-    pub required: HoldCount,
-    pub optional: HoldCount,
+    pub(super) bytes: ByteCount,
+    pub(super) retention_units: UnitCount,
+    pub(super) required: HoldCount,
+    pub(super) optional: HoldCount,
 }
 
 #[derive(Debug)]
 pub(in crate::application::file_dag) struct Ledger {
-    pub entries: HashMap<BackingKey, LedgerEntry>,
-    pub required_bytes: ByteCount,
-    pub optional_bytes: ByteCount,
-    pub view_optional_bytes: ByteCount,
-    pub optional_units: UnitCount,
-    pub overlap_bytes: ByteCount,
-    pub unique_bytes: ByteCount,
-    pub lease_metadata: ByteCount,
-    pub peak_required_bytes: ByteCount,
-    pub peak_optional_bytes: ByteCount,
-    pub peak_view_optional_bytes: ByteCount,
-    pub peak_optional_units: UnitCount,
-    pub peak_overlap_bytes: ByteCount,
-    pub peak_unique_bytes: ByteCount,
-    pub peak_metadata_bytes: ByteCount,
+    pub(super) entries: HashMap<BackingKey, LedgerEntry>,
+    pub(super) required_bytes: ByteCount,
+    pub(super) optional_bytes: ByteCount,
+    pub(super) view_optional_bytes: ByteCount,
+    pub(super) optional_units: UnitCount,
+    pub(super) overlap_bytes: ByteCount,
+    pub(super) unique_bytes: ByteCount,
+    pub(super) lease_metadata: ByteCount,
+    pub(super) peak_required_bytes: ByteCount,
+    pub(super) peak_optional_bytes: ByteCount,
+    pub(super) peak_view_optional_bytes: ByteCount,
+    pub(super) peak_optional_units: UnitCount,
+    pub(super) peak_overlap_bytes: ByteCount,
+    pub(super) peak_unique_bytes: ByteCount,
+    pub(super) peak_metadata_bytes: ByteCount,
 }
 
 /// One physical handle, shared by consumers through an outer `Arc`.
 #[derive(Debug)]
 pub(in crate::application::file_dag) struct ResourceLease {
-    pub ledger: Rc<RefCell<Ledger>>,
-    pub keys: Vec<BackingKey>,
-    pub class: LeaseClass,
-    pub metadata_bytes: ByteCount,
+    pub(super) ledger: Rc<RefCell<Ledger>>,
+    pub(super) keys: Vec<BackingKey>,
+    pub(super) class: LeaseClass,
+    pub(super) metadata_bytes: ByteCount,
 }
 
 /// A backing with its immutable size, once the duplicates of a request are folded.
