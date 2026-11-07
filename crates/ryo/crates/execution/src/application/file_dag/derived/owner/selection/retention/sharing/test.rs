@@ -29,7 +29,7 @@ use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
     }];
     let distinct = Arc::new(crate::application::file_dag::derived::prepare::view(
         (std::sync::Arc::new(
-            crate::outbound::derived::factory::semantics(),
+            crate::application::file_dag::fixtures::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
         &ViewRequest::DistinctRepresentatives {
             columns: vec![ColumnIndex(0)],
@@ -38,7 +38,7 @@ use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
     )?);
     let order = Arc::new(crate::application::file_dag::derived::prepare::view(
         (std::sync::Arc::new(
-            crate::outbound::derived::factory::semantics(),
+            crate::application::file_dag::fixtures::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
         &ViewRequest::PartitionOrder {
             keys: vec![ColumnIndex(0)],
@@ -46,9 +46,9 @@ use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
         &schema,
     )?);
     let owner = RelationOwner::new(
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            crate::outbound::derived::factory::semantics(),
+            crate::application::file_dag::fixtures::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let publication = owner.computed(table.clone())?;

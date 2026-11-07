@@ -146,7 +146,7 @@ pub(crate) fn moved_words(
 pub(crate) fn frontier_flat(
     moved: &[BucketWords],
     observations: Option<ryo_values::domain::observations::validated::ValidatedFrontiers<'_>>,
-    slots: &[ryo_execution::inbound::use_cases::execution::types::ObservedFrontierRoot],
+    slots: &[ryo_execution::inbound::use_cases::execution::interface::ObservedFrontierRoot],
     setting: &VisitSetting<'_>,
     rule: RuleIndex,
     flat: &mut Flat,

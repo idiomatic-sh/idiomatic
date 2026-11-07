@@ -310,7 +310,7 @@ fn retired_immutable_handles_keep_their_lease_but_cannot_authorize_new_demands()
         "actual graph and domain retain required leases"
     );
     let vertices = graph.graph().vertices().to_vec();
-    let members = domain.members().to_vec();
+    let members = domain.members().0.to_vec();
     fixture.clear();
     let retired = fixture.snapshot();
     assert_eq!(retired.graphs, 0);
@@ -332,7 +332,7 @@ fn retired_immutable_handles_keep_their_lease_but_cannot_authorize_new_demands()
         "held immutable graph remains leased"
     );
     assert_eq!(
-        domain.members(),
+        domain.members().0,
         members,
         "held immutable domain remains leased"
     );

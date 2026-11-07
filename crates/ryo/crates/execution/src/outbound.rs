@@ -4,4 +4,5 @@ pub mod digest;
 pub mod facts;
 pub mod matching;
 pub mod operators;
+pub mod profile;
 pub mod query_language;

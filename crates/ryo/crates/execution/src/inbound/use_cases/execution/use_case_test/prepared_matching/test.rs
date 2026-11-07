@@ -1,7 +1,7 @@
 //! Literal metadata and dynamic patterns are exercised through real prepared file owners.
-use super::super::super::{
-    fixtures, types::PreparedExecutionProgram, use_case::ExecutionUseCaseImpl,
-};
+use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use crate::domain::operating::errors::OperatingError;
 use ryo_language::domain::{
     elements::types::Elements,
@@ -56,7 +56,7 @@ fn prepare(
     shadow: &Operation,
 ) -> Result<
     (
-        ExecutionUseCaseImpl,
+        fixtures::Preparation,
         PreparedExecutionProgram,
         Symbols,
         Table,
@@ -72,7 +72,7 @@ fn prepare(
         let symbol = intern_derived(&mut symbols, ByteSlice(b""), NameText(text));
         push_row(&mut input, &[Cell::Symbol(symbol)]);
     }
-    let mut authored = fixtures::table_inputs(operation, &[&input], bindings, &mut symbols);
+    let mut authored = inputs::table_inputs(operation, &[&input], bindings, &mut symbols);
     // A real but undemanded authored literal remains in the same immutable request.
     // Dynamic callers must not acquire its already-compiled slot merely by equal bytes.
     let mut shadow = shadow.clone();
@@ -87,7 +87,7 @@ fn prepare(
     Ok((engine, program, symbols, input))
 }
 fn evaluate(
-    engine: &ExecutionUseCaseImpl,
+    engine: &fixtures::Preparation,
     program: &PreparedExecutionProgram,
     symbols: &mut Symbols,
 ) -> Result<(Table, usize, usize), Failure> {
@@ -203,7 +203,13 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 let bindings = [ParameterBinding::Text(LiteralText(pattern.into()))];
                 let (engine, program, mut symbols, _) =
                     prepare(parameter.clone(), Some("alpha"), &bindings, &shadow)?;
-                assert!(program.inner.matchers().regex(crate::domain::table_texts::types::TextView("a.*"), crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl)).unwrap().is_ok());
+                program
+                    .inner
+                    .matchers()
+                    .regex(crate::domain::table_texts::types::TextView("a.*"), crate::domain::matching::types::PatternMatcher(\&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl))
+                    .unwrap()
+                    .as_ref()
+                    .expect("the prepared literal matcher compiled");
                 let actual = evaluate(&engine, &program, &mut symbols)?;
                 assert_eq!((actual.0.count.0, actual.1), (expected, 1));
                 assert_eq!(
@@ -229,7 +235,13 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             for (operation, text) in [(function, "alpha"), (row, "a.*")] {
                 let (engine, program, mut symbols, _) =
                     prepare(operation, Some(text), &[], &shadow)?;
-                assert!(program.inner.matchers().regex(crate::domain::table_texts::types::TextView("a.*"), crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl)).unwrap().is_ok());
+                program
+                    .inner
+                    .matchers()
+                    .regex(crate::domain::table_texts::types::TextView("a.*"), crate::domain::matching::types::PatternMatcher(\&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl))
+                    .unwrap()
+                    .as_ref()
+                    .expect("the prepared literal matcher compiled");
                 let actual = evaluate(&engine, &program, &mut symbols)?;
                 assert_eq!((actual.0.count.0, actual.1), (1, 1));
                 assert_eq!(builds(&program), 1);

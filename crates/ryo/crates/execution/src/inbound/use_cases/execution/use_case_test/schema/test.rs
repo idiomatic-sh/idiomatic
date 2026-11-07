@@ -1,6 +1,7 @@
 //! Proves every operation schema against its actual empty and populated evaluator.
 
 use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::values::KnownSyntax;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::fixtures::{bindings, operations, tables};
@@ -77,7 +78,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 fn hosted_without_source() -> Result<Value, Failure> {
     let mut symbols = Symbols::default();
     let result = fixtures::published(
-        fixtures::plan(vec![Operation::Hosted {
+        inputs::plan(vec![Operation::Hosted {
             relation: ryo_values::domain::plan_parts::types::HostedNumber(0),
         }]),
         vec![],

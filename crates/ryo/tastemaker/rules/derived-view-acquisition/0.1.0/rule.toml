@@ -31,7 +31,9 @@ let semantic-users = union(left=port-users, right=portable-users);
 let method-builds = select file, span from "static-call" where glob_any(target, "{build,*::build}");
 let port-builds = select l.file as file, r.span as span from semantic-users as l join method-builds as r on l.file = r.file where l.source-tail != "application/file_dag/derived/owner/acquisition/semantics/service.rs";
 let semantic-proofs = select path as file from "tastemaker.placed" where glob_any(template, "{unit-test,item-test,value-test,composition-test,domain-test,edge-fixtures,program-runtime-proof}");
-let production-port-builds = antijoin(left=port-builds, right=semantic-proofs, left-on=["file"], right-on=["file"]);
+let port-hex = select file from port-users where glob_any(source-tail, "outbound/derived/**");
+let consumer-builds = antijoin(left=port-builds, right=port-hex, left-on=["file"], right-on=["file"]);
+let production-port-builds = antijoin(left=consumer-builds, right=semantic-proofs, left-on=["file"], right-on=["file"]);
 let ordinary = union(left=local, right=all-raw-builds);
 let violations = union(left=ordinary, right=production-port-builds);
 emit violations subject file key(span);
@@ -189,3 +191,16 @@ given.files.'src/application/file_dag/consumer.rs' = 'use crate::outbound::deriv
 id = "semantic-bridge-port-build-allowed"
 scenario = "The admitted bridge is the actual semantic port's construction caller."
 given.files.'src/application/file_dag/derived/owner/acquisition/semantics/service.rs' = 'use crate::outbound::derived::interface::DerivedPort; pub struct DerivedStorage; pub fn build(port: &dyn DerivedPort) { port.build(); }'
+
+[[scenarios]]
+id = "port-hex-implementation-may-build"
+scenario = "The adapters, fake and contract of the derived port are its implementations, not consumers: they build through the port they implement."
+given.files.'src/outbound/derived.rs' = 'pub mod interface; pub mod adapter;'
+given.files.'src/outbound/derived/adapter.rs' = 'use crate::outbound::derived::interface::DerivedPort; pub fn forward(port: &dyn DerivedPort) { port.build(); }'
+
+[[scenarios]]
+id = "other-outbound-module-cannot-build-through-the-port"
+scenario = "Another outbound hex is a consumer of the derived port and cannot build through it."
+given.files.'src/outbound.rs' = 'pub mod derived; pub mod other;'
+given.files.'src/outbound/other.rs' = 'use crate::outbound::derived::interface::DerivedPort; pub fn forward(port: &dyn DerivedPort) { port.build(); }'
+then.findings = [{ path = "src/outbound/other.rs", line = 1 }]

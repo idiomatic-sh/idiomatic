@@ -7,14 +7,22 @@ use crate::domain::stored_graph::types::{GraphDomain, Orientation};
 use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
 use ryo_derived::domain::vertices::types::VertexId;
 use std::sync::Arc;
+/// The dense vertices a completed closure reached, in typed value order: the bare numbers inside are named here.
+#[derive(Debug)]
+pub(in crate::application::file_dag) struct ReachedVertices(pub Vec<u32>);
+
+/// The index of one nearest memo among the retained memos: the bare index inside is named here.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::application::file_dag::derived::owner) struct NearestSlot(pub usize);
+
 #[derive(Debug)]
 pub(in crate::application::file_dag::derived::owner) struct RootMemo {
     /// Dense root already identifies its partition.
-    pub(in crate::application::file_dag::derived::owner) root: u32,
+    pub(in crate::application::file_dag::derived::owner) root: GraphVertex,
     /// Requested traversal orientation.
     pub(in crate::application::file_dag::derived::owner) orientation: Orientation,
     /// Reachable dense IDs in typed Value order.
-    pub(in crate::application::file_dag::derived::owner) reached: Arc<Vec<u32>>,
+    pub(in crate::application::file_dag::derived::owner) reached: Arc<ReachedVertices>,
     pub(in crate::application::file_dag::derived::owner) _lease: Arc<ResourceLease>,
 }
 

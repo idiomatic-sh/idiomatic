@@ -23,19 +23,28 @@ pub(crate) enum ProgressCounter {
     JoinCandidatePairs,
     KernelOutputRows,
 }
-#[cfg(feature = "diagnostic-row-progress")]
-pub(crate) type ProgressObserver = fn(ProgressCounter, ProgressAmount);
-
-/// How much of a counted thing one observation adds.
+/// How much one profile observation adds to its counter: the bare count inside is named here.
 #[cfg(feature = "diagnostic-row-progress")]
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ProgressAmount(pub u64);
+#[cfg(feature = "diagnostic-row-progress")]
+pub(crate) trait ProgressObserver: Sync {
+    /// Adds `amount` to what `counter` has counted.
+    fn observe(&self, counter: ProgressCounter, amount: ProgressAmount);
+}
+/// The observer of a run that profiles nothing.
+#[cfg(feature = "diagnostic-row-progress")]
+pub(crate) struct IgnoredProgress;
+#[cfg(feature = "diagnostic-row-progress")]
+impl ProgressObserver for IgnoredProgress {
+    fn observe(&self, _counter: ProgressCounter, _amount: ProgressAmount) {}
+}
 
 /// Exact typed key lookup prepared by the engine; primitives only probe it.
 #[derive(Clone, Copy)]
 pub(crate) struct IndexedRows<'a> {
     #[cfg(feature = "diagnostic-row-progress")]
-    pub progress: ProgressObserver,
+    pub progress: &'a dyn ProgressObserver,
     pub rows: BorrowedRows<'a>,
     pub columns: &'a [ColumnIndex],
     pub index: &'a KeyIndex,
@@ -46,7 +55,7 @@ impl IndexedRows<'_> {
     }
     pub(crate) fn probe(&self, key: &[Value]) -> KeyProbe {
         #[cfg(feature = "diagnostic-row-progress")]
-        (self.progress)(ProgressCounter::IndexProbes, 1);
+        self.progress.observe(ProgressCounter::IndexProbes, ProgressAmount(1));
         let hash = ryo_derived::domain::key::service::hash_key(key.iter().map(Some));
         let bucket =
             usize::try_from(hash.0).unwrap_or(0) & self.index.heads.len().saturating_sub(1);
@@ -64,7 +73,7 @@ impl IndexedRows<'_> {
         use ryo_derived::domain::key::types::ChainLink;
         while probe.at.0 != 0 {
             #[cfg(feature = "diagnostic-row-progress")]
-            (self.progress)(ProgressCounter::IndexRowsExamined, 1);
+            self.progress.observe(ProgressCounter::IndexRowsExamined, ProgressAmount(1));
             let position = usize::try_from(probe.at.0 - 1).unwrap_or(usize::MAX);
             probe.at = self
                 .index
@@ -81,7 +90,7 @@ impl IndexedRows<'_> {
                     .all(|(column, expected)| self.rows.cell(row, *column) == Some(*expected))
             {
                 #[cfg(feature = "diagnostic-row-progress")]
-                (self.progress)(ProgressCounter::EqualityMatches, 1);
+                self.progress.observe(ProgressCounter::EqualityMatches, ProgressAmount(1));
                 return Some(row);
             }
         }

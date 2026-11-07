@@ -48,7 +48,7 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
         &intents,
         services,
         ryo_values::domain::files::types::SourceView(b""),
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
         None,
@@ -243,7 +243,7 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
                 ryo_values::domain::stored_facts::types::Bucket(0),
                 &read,
                 &mut symbols,
-                crate::application::file_dag::program::protocol::types::CaptureScope {
+                crate::domain::frontier_capture::types::CaptureScope {
                     file: FileId(0),
                     rule_digest: Digest([0; 16]),
                     worker: ryo_relations::domain::relations::types::WorkerNumber(0),

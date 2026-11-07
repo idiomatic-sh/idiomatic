@@ -4,9 +4,9 @@ use super::super::*;
 #[test]
 fn lazy_source_normalization_is_shared_and_lives_until_the_last_consumer() {
     let owner = RelationOwner::new(
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            crate::outbound::derived::factory::semantics(),
+            crate::application::file_dag::fixtures::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let relation = Relation::SourceLocation;
@@ -61,8 +61,8 @@ fn lazy_source_normalization_is_shared_and_lives_until_the_last_consumer() {
 fn computed_publication_clones_keep_required_backing_until_last_handle_in_live_generation() {
     use ryo_values::domain::rows::types::{RowCount, Table};
     let owner = RelationOwner::new(
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
-        crate::application::file_dag::testing::program_derived_port(),
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::fixtures::program_derived_port(),
     );
     let generation = owner.generation_guard();
     let publication = owner
@@ -99,7 +99,7 @@ fn computed_publication_clones_keep_required_backing_until_last_handle_in_live_g
         assert_eq!(owner.derived.publication_ownership_bytes(), charged);
     }
     assert_eq!(owner.matches_generation(&generation), crate::application::file_dag::relations::types::Sameness::Same);
-    assert!(owner.generation_liveness().is_live());
+    assert_eq!(owner.generation_liveness().is_live(), crate::application::file_dag::relations::types::Liveness::Live);
     drop(alias);
     assert!(
         record.upgrade().is_none(),
@@ -111,5 +111,5 @@ fn computed_publication_clones_keep_required_backing_until_last_handle_in_live_g
         crate::application::file_dag::relations::types::Sameness::Same,
         "release did not rely on retiring the generation"
     );
-    assert!(owner.generation_liveness().is_live());
+    assert_eq!(owner.generation_liveness().is_live(), crate::application::file_dag::relations::types::Liveness::Live);
 }

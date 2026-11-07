@@ -1,13 +1,31 @@
 //! Deferred roots do not hide owning-phase faults or renumber file frontier refusals.
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::outbound::facts::types::ResidentStability;
 use super::super::super::source_facts::fixtures::ProjectFacts;
 use super::super::fixtures::NoFileFrontiers;
 use crate::boundary_fixture::{
     authored_request, corpus, demand, engine, prepared, project_root, source,
 };
-use ryo_execution::inbound::use_cases::execution::{
-    interface::{ExecutionRequest, ExecutionUseCase, FileExecution, ProjectStage},
-    types::*,
-};
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
+use ryo_execution::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution::application::file_dag::program::project_phase::types::ProjectInput;
+use ryo_execution::application::file_dag::program::project_phase::types::FrontierDemand;
+use ryo_execution::application::file_dag::program::project_phase::types::FrontierRequest;
+use ryo_execution::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::Covered;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     fixtures::kinds,
@@ -26,7 +44,7 @@ fn a_file_emit_defers_at_project_scope_but_its_real_file_failure_is_not_deferred
     let engine = engine();
     let prepared = prepared(&engine);
     let corpus = corpus();
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let covered = [Covered {
         file: FileId(0),
         rules: vec![RuleIndex(0)],
@@ -39,7 +57,7 @@ fn a_file_emit_defers_at_project_scope_but_its_real_file_failure_is_not_deferred
             &corpus,
             &covered,
             &[],
-            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
         )
         .unwrap();
     let project = ProjectFacts::new(Relation::ModuleIdentity);
@@ -95,7 +113,7 @@ fn a_file_emit_defers_at_project_scope_but_its_real_file_failure_is_not_deferred
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
@@ -104,11 +122,11 @@ fn a_file_emit_defers_at_project_scope_but_its_real_file_failure_is_not_deferred
                     observations: ObservationDemand::NotRequired,
                     capture: CaptureIntent::Disabled,
                 }],
-                source: b"abc",
+                source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read: &read,
-                semantic: None,
-                kinds: None,
+                semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )
@@ -170,7 +188,7 @@ fn a_skipped_project_frontier_preserves_the_later_original_file_error_index() {
         .prepare(input)
         .expect("retain each frontier's independent refusal");
     let corpus = corpus();
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let table = source();
     let read = |actual| {
         assert_eq!(
@@ -186,7 +204,7 @@ fn a_skipped_project_frontier_preserves_the_later_original_file_error_index() {
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
@@ -195,11 +213,11 @@ fn a_skipped_project_frontier_preserves_the_later_original_file_error_index() {
                     observations: ObservationDemand::NotRequired,
                     capture: CaptureIntent::DiagnosticAndObservations,
                 }],
-                source: b"abc",
+                source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read: &read,
-                semantic: None,
-                kinds: None,
+                semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )
@@ -214,7 +232,7 @@ fn a_skipped_project_frontier_preserves_the_later_original_file_error_index() {
             &mut symbols,
             CaptureContext {
                 worker: WorkerNumber(0),
-                arena: &mut arena,
+                arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
                 places: &mut places,
                 words: &mut words,
             },

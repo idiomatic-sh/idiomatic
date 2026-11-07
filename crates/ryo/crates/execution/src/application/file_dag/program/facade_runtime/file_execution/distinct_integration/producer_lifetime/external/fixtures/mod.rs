@@ -31,7 +31,7 @@ pub(super) fn prepare_case(exit: ExternalRootExit) -> Result<PreparedCase, Opera
         ExternalRootExit::CaptureCollectedFailure => Some(RuleIndex(3)),
         _ => None,
     };
-    let derived = crate::application::file_dag::testing::program_derived_port();
+    let derived = crate::application::file_dag::fixtures::program_derived_port();
     let mut external = shared_plan(ProjectionOrder::Forward, FinalConsumer::Completes);
     external.steps.truncate(2);
     external.emit.step = StepId(1);
@@ -72,7 +72,7 @@ pub(super) fn prepare_case(exit: ExternalRootExit) -> Result<PreparedCase, Opera
     )?;
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
+            crate::application::file_dag::fixtures::operators(),
         ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {
@@ -96,7 +96,7 @@ pub(super) fn prepare_case(exit: ExternalRootExit) -> Result<PreparedCase, Opera
     match exit {
         ExternalRootExit::SkippedAlias | ExternalRootExit::CaptureCancelledAlias => {
             intents[1] = FileRuleIntent::Skipped(
-                crate::application::file_dag::program::admission::ApplicabilityReason::DiagnosticNotApplicable,
+                crate::domain::rule_intent::types::ApplicabilityReason::DiagnosticNotApplicable,
             );
         }
         ExternalRootExit::UndemandedAlias => intents[1] = FileRuleIntent::Undemanded,

@@ -44,6 +44,6 @@ pub(in crate::application::file_dag::derived::owner) fn room(
     cache: &CacheBackend,
     cost: ByteCount,
 ) -> Option<ByteCount> {
-    let total = cache.bytes.checked_add(cost.0)?;
-    (total <= cache.limit).then_some(ByteCount(total))
+    let total = cache.bytes.0.checked_add(cost.0)?;
+    (total <= cache.limit.0).then_some(ByteCount(total))
 }

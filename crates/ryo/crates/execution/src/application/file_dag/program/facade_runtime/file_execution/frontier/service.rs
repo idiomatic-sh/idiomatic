@@ -6,10 +6,10 @@ use crate::application::file_dag::program::facade_runtime::source_admission::tab
 use crate::application::file_dag::program::facade_runtime::types::{
     DeclaredIntent, FrontierCommit,
 };
-use crate::application::file_dag::program::protocol::types::CaptureIntent;
-use crate::application::file_dag::program::protocol::types::CaptureScope;
-use crate::application::file_dag::program::protocol::types::CapturedFrontier;
-use crate::application::file_dag::program::protocol::types::FrontierCapture;
+use crate::domain::rule_intent::types::CaptureIntent;
+use crate::domain::frontier_capture::types::CaptureScope;
+use crate::domain::frontier_capture::types::CapturedFrontier;
+use crate::domain::frontier_capture::types::FrontierCapture;
 use crate::application::file_dag::scope::ScopePartials;
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
 use crate::domain::coverage::types::RuleIndex;
@@ -95,7 +95,7 @@ impl FileRun<'_> {
         let crate::domain::finish::types::Retained { arena, places: _ } = retained;
         for (index, source) in sources.into_iter().enumerate() {
             if capture_intent == CaptureIntent::Observations
-                && self.program.frontier_purpose(rule, InputNumber(index))? != crate::domain::file_program::types::FrontierPurpose::Observation
+                && self.program.frontier_purpose(rule, InputNumber(index))? != crate::domain::rule_intent::types::FrontierPurpose::Observation
             {
                 continue;
             }
@@ -175,7 +175,7 @@ impl FileRun<'_> {
         } = self.declared(rule)?;
         if capture == CaptureIntent::Disabled
             || (capture == CaptureIntent::Observations
-                && self.program.frontier_purpose(rule, input)? != crate::domain::file_program::types::FrontierPurpose::Observation)
+                && self.program.frontier_purpose(rule, input)? != crate::domain::rule_intent::types::FrontierPurpose::Observation)
             || input.0 >= self.program.frontiers(rule)?.len()
         {
             return Err(OperatingError::NotRun);

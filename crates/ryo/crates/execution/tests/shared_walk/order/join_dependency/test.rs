@@ -1,11 +1,18 @@
 //! The shared walk uses one join dependency contract for callback delivery and shares one source walk.
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use super::super::super::fixtures::*;
 use super::super::super::no_catalog;
 use crate::boundary_fixture::{authored_request, corpus, demand};
-use ryo_execution::inbound::use_cases::execution::interface::{
-    ExecutionRequest, ExecutionUseCase, FileExecution,
-};
-use ryo_execution::inbound::use_cases::execution::types::*;
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_relations::domain::relations::fixtures::kinds;
 use ryo_relations::domain::relations::types::{FileId, Relation};
 use ryo_values::domain::plan_parts::types::StepScope;
@@ -61,7 +68,7 @@ fn shared_walk_uses_the_same_join_dependency_contract_for_callback_delivery() {
     for diagnostic in [DiagnosticDelivery::Collected, DiagnosticDelivery::Forwarded] {
         for independent_first in [false, true] {
             let corpus = corpus();
-            let request = engine.begin(&program, &corpus);
+            let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
             let (elements, mut symbols) = tree(FileId(0), b"abc");
             let intents = [
                 FileRuleIntent::Run {
@@ -150,7 +157,7 @@ fn independent_semantic_relation_selectors_share_one_source_walk() {
     }
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
     let table = named_functions(&mut symbols);
     let elements = ryo_language::domain::elements::types::Elements::default();

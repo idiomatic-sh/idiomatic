@@ -12,6 +12,7 @@
     reason = "a contract run over the corpus fails by panicking: the panic is the failure of the check that calls it"
 )]
 
+use ryo_execution::outbound::operators::interface::OperatorsPort as _;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::atomic::Ordering;
@@ -56,7 +57,7 @@ use crate::outbound::scheduler::fixtures::fake::{CountingSchedulerFake, Schedule
 use crate::outbound::scheduler::interface::SchedulerPort;
 use crate::outbound::row_sink;
 use ryo_execution::outbound::{facts, matching, query_language};
-use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort;
+use ryo_execution::outbound::facts::interface::FactsPort;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_values::domain::query_operators::types::QueryOperator;
@@ -562,7 +563,7 @@ fn use_case_over(
         let analysis_memory: Arc<dyn crate::outbound::memory::interface::MemoryPort> =
             Arc::new(MemoryFake::default());
         let analysis_digest: Arc<
-            dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
+            dyn ryo_execution::outbound::digest::interface::DigestPort,
         > = Arc::new(ryo_execution::outbound::digest::fixtures::fake::DigestFake);
         LintUseCaseImpl::new(
             crate::application::file_analysis::service::FileAnalysis::new(
@@ -571,7 +572,7 @@ fn use_case_over(
                 Arc::clone(&analysis_digest),
                 Arc::clone(&analysis_memory),
             ),
-            crate::application::cross_file::service::CrossFile::new(Arc::clone(&analysis_corpus), std::sync::Arc::new(crate::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())))),
+            crate::application::cross_file::service::CrossFile::new(Arc::clone(&analysis_corpus), std::sync::Arc::new(crate::outbound::publication::factory::execution())),
             Arc::clone(&analysis_corpus),
             facts,
             Arc::clone(&analysis_language),

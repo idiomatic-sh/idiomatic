@@ -1,5 +1,6 @@
 //! The `kind_sets` service's cases: the elements of a named kind are found among that kind, and a file nothing read teaches nothing.
 use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
@@ -73,7 +74,7 @@ fn finds_the_elements_of_a_named_kind() -> Result<Value, OperatingError> {
     let kind_glob = |test: Test, pattern: &str| compared(test, 1, pattern);
     let text_is = |text: &str| compared(Test::Equal, 2, text);
     let mut found = |comparisons: Vec<PlanComparison>| -> Result<Vec<Cell>, OperatingError> {
-        let plan = fixtures::plan(vec![Operation::Select {
+        let plan = inputs::plan(vec![Operation::Select {
             from: FROM,
             comparisons,
             kept: vec![column(0)],
@@ -120,7 +121,7 @@ fn a_file_with_no_names_teaches_nothing_about_kinds() -> Result<Value, Operating
         comparisons: vec![compared(Test::Equal, 1, "word")],
         kept: vec![column(0)],
     };
-    let (engine, prepared) = fixtures::prepared(fixtures::plan(vec![operation]), vec![], vec![])?;
+    let (engine, prepared) = fixtures::prepared(inputs::plan(vec![operation]), vec![], vec![])?;
     let never = |_| Err(super::super::super::types::OperatingError::NotRead);
     let empty = fixtures::run_prepared(
         &engine,
@@ -169,7 +170,7 @@ fn another_language_does_not_inherit_the_sets_of_the_first() -> Result<Value, Op
         }],
         kept: vec![column(0)],
     };
-    let (engine, prepared) = fixtures::prepared(fixtures::plan(vec![operation]), vec![], vec![])?;
+    let (engine, prepared) = fixtures::prepared(inputs::plan(vec![operation]), vec![], vec![])?;
     let found = |names: &[(u16, &str)], token_kind: u16| -> Result<Vec<Cell>, OperatingError> {
         let (elements, mut symbols) = tree_of(names, token_kind);
         let never = |_| Err(OperatingError::NotRead);
@@ -223,7 +224,7 @@ fn prepared_masks_keep_exact_projected_rows() -> Result<Value, OperatingError> {
             kept: vec![column(0), column(1), column(0)],
         };
         let out = fixtures::published_file(
-            fixtures::plan(vec![operation]),
+            inputs::plan(vec![operation]),
             vec![],
             vec![],
             b"abcd",
@@ -244,7 +245,7 @@ fn prepared_masks_keep_exact_projected_rows() -> Result<Value, OperatingError> {
         } else {
             assert_eq!(out.cells[0], Cell::Node(node_id(FileId(0), Position(1))));
             assert_eq!(out.cells[2], out.cells[0]);
-            assert_eq!(fixtures::text(out.cells[1], &symbols), "word");
+            assert_eq!(inputs::text(out.cells[1], &symbols), "word");
         }
     }
     Ok(1)

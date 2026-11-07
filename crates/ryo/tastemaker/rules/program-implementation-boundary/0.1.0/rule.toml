@@ -11,7 +11,7 @@ let callable-dependencies = antijoin(left="source-dependency", right=visibility-
 let paths = capture(from=callable-dependencies, path="source", pattern="{*source-root}/{*source-tail}", captures=["source-root", "source-tail"]);
 let targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/program/{*implementation-tail}", captures=["target-root", "implementation-tail"]);
 let local = select source as file, span, source-tail, implementation-tail from targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
-let protected = select * from local where not glob_any(implementation-tail, "{preparation/service.rs,preparation/types.rs,protocol/types.rs,protocol/service.rs,facade_runtime.rs,facade_runtime/file_execution.rs,facade_runtime/project_execution.rs,facade_runtime/service.rs,facade_runtime/types.rs,admission.rs,restored.rs,restored/types.rs}");
+let protected = select * from local where not glob_any(implementation-tail, "{preparation/service.rs,preparation/types.rs,rule_outcome/types.rs,observed_publication/types.rs,observed_publication/service.rs,prepared_execution/{interface,service,types}.rs,request_execution/{interface,service,types}.rs,file_session/{interface,types}.rs,project_phase/{interface,types}.rs,observation_stage/{interface,types}.rs,facade_runtime.rs,facade_runtime/file_execution.rs,facade_runtime/project_execution.rs,facade_runtime/service.rs,facade_runtime/types.rs,admission.rs,restored.rs,restored/types.rs}");
 let outsiders = select * from protected where not glob_any(source-tail, "{application/file_dag/program.rs,application/file_dag/program/**}");
 let ordinary-bridges = select * from outsiders where not glob_any(implementation-tail, "{admission.rs,runtime/service.rs}") or not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/execution.rs,application/file_dag/execution/lease.rs,application/file_dag/execution/lease/capability/service.rs}");
 let bridges = select * from ordinary-bridges where source-tail != "application/file_dag/executor.rs" or not glob_any(implementation-tail, "{native_walk/lease/service.rs,native_join/lease/service.rs}");
@@ -55,8 +55,8 @@ let foreign-context = select file, span from local-context where source-tail != 
 let domain-entry-violations = union(left=foreign-kernel, right=foreign-registry);
 let domain-violations = union(left=domain-entry-violations, right=foreign-context);
 let neutral-backrefs = select file, span from local where
-    (glob_any(source-tail, "application/file_dag/program/protocol/**") and glob_any(implementation-tail, "{preparation/**,runtime/**,facade_runtime.rs,facade_runtime/**,kernel_session.rs,kernel_session/**,native_walk.rs,native_join.rs}"))
-    or (glob_any(source-tail, "application/file_dag/program/preparation/**") and glob_any(implementation-tail, "{protocol/**,runtime/**,facade_runtime.rs,facade_runtime/**,kernel_session.rs,kernel_session/**,native_walk.rs,native_join.rs}"))
+    (glob_any(source-tail, "application/file_dag/program/{rule_outcome,observed_publication}/**") and glob_any(implementation-tail, "{preparation/**,runtime/**,facade_runtime.rs,facade_runtime/**,kernel_session.rs,kernel_session/**,native_walk.rs,native_join.rs}"))
+    or (glob_any(source-tail, "application/file_dag/program/preparation/**") and glob_any(implementation-tail, "{rule_outcome/**,observed_publication/**,runtime/**,facade_runtime.rs,facade_runtime/**,kernel_session.rs,kernel_session/**,native_walk.rs,native_join.rs}"))
     or (source-tail = "application/file_dag/program/admission.rs" and glob_any(implementation-tail, "runtime/**"))
     or (source-tail = "application/file_dag/program/runtime/types.rs" and implementation-tail = "runtime/service.rs");
 let invocation-boundary = union(left=protected-app, right=domain-violations);
@@ -155,15 +155,15 @@ edition = "2024"
 files.'src/lib.rs' = 'pub mod application; pub mod domain;'
 files.'src/application.rs' = 'pub mod file_dag; pub mod caller;'
 files.'src/application/file_dag.rs' = 'pub mod program; pub mod executor; pub mod execution; pub mod derived; pub mod relations;'
-files.'src/application/file_dag/program.rs' = 'pub mod preparation; pub mod protocol; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection;'
+files.'src/application/file_dag/program.rs' = 'pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection;'
 files.'src/application/file_dag/program/facade_runtime.rs' = 'pub mod source_admission;'
 files.'src/application/file_dag/program/facade_runtime/source_admission.rs' = "pub fn raw_admit() {} use super::super::admission::Inputs; pub struct SourceInputs; impl Inputs for SourceInputs {}"
 files.'src/application/file_dag/program/preparation/mod.rs' = 'pub mod types; pub mod service;'
 files.'src/application/file_dag/program/preparation/types.rs' = 'pub struct PreparedProgram;'
 files.'src/application/file_dag/program/preparation/service.rs' = 'pub fn invoke() {}'
-files.'src/application/file_dag/program/protocol/mod.rs' = 'pub mod types; pub mod service;'
-files.'src/application/file_dag/program/protocol/types.rs' = 'pub struct LogicalCounts;'
-files.'src/application/file_dag/program/protocol/service.rs' = 'pub fn validate() {}'
+files.'src/application/file_dag/program/rule_outcome/mod.rs' = 'pub mod types; pub mod service;'
+files.'src/application/file_dag/program/rule_outcome/types.rs' = 'pub struct LogicalCounts;'
+files.'src/application/file_dag/program/rule_outcome/service.rs' = 'pub fn validate() {}'
 files.'src/application/file_dag/program/runtime/mod.rs' = 'pub mod types; pub mod service;'
 files.'src/application/file_dag/program/runtime/types.rs' = 'pub struct WorkCount;'
 files.'src/application/file_dag/program/runtime/service.rs' = "pub struct KernelPermit; pub fn execute() {} pub trait KernelInvocation {}"
@@ -220,6 +220,27 @@ files.'src/domain/table_model/types/registered_representation/value.rs' = "pub e
 
 files.'src/domain/table_model/types.rs' = 'pub mod registered_representation;'
 files.'src/domain/table_model/types/registered_representation.rs' = 'pub mod value;'
+
+[[scenarios]]
+id = "handle-concept-is-an-entry"
+scenario = "A caller outside the owner names the interface of a handle concept, the outer entry the owner offers."
+given.files.'src/application/file_dag/program.rs' = 'pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod file_session;'
+given.files.'src/application/file_dag/program/file_session/mod.rs' = 'pub mod interface; pub mod types;'
+given.files.'src/application/file_dag/program/file_session/interface.rs' = 'pub trait FileExecution {}'
+given.files.'src/application/file_dag/program/file_session/types.rs' = 'pub struct FileSession;'
+given.files.'src/application/caller.rs' = 'use crate::application::file_dag::program::file_session::interface::FileExecution; use crate::application::file_dag::program::file_session::types::FileSession;'
+then.findings = []
+
+[[scenarios]]
+id = "handle-concept-service-is-protected"
+scenario = "The service of a handle concept stays an implementation: a caller outside the owner cannot name it."
+given.files.'src/application/file_dag/program.rs' = 'pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod file_session;'
+given.files.'src/application/file_dag/program/file_session/mod.rs' = 'pub mod interface; pub mod service; pub mod types;'
+given.files.'src/application/file_dag/program/file_session/interface.rs' = 'pub trait FileExecution {}'
+given.files.'src/application/file_dag/program/file_session/service.rs' = 'pub fn open() {}'
+given.files.'src/application/file_dag/program/file_session/types.rs' = 'pub struct FileSession;'
+given.files.'src/application/caller.rs' = 'use crate::application::file_dag::program::file_session::service::open;'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
 
 [[scenarios]]
 id = "direct-internal-import"
@@ -439,8 +460,8 @@ then.findings = [{ path = "src/domain/operator/collections/operators/select/item
 [[scenarios]]
 id = "neutral-protocol-cannot-hold-runtime-owner"
 scenario = "Neutral output DTOs cannot regain a lifecycle dependency through an aliased runtime type."
-given.files.'src/application/file_dag/program/protocol/types.rs' = 'use crate::application::file_dag::program::runtime::service as owner; struct Output { permit: owner::KernelPermit }'
-then.findings = [{ path = "src/application/file_dag/program/protocol/types.rs", line = 1 }]
+given.files.'src/application/file_dag/program/rule_outcome/types.rs' = 'use crate::application::file_dag::program::runtime::service as owner; struct Output { permit: owner::KernelPermit }'
+then.findings = [{ path = "src/application/file_dag/program/rule_outcome/types.rs", line = 1 }]
 
 [[scenarios]]
 id = "preparation-cannot-call-file-workflow"
@@ -622,7 +643,7 @@ then.findings = [{path="src/application/file_dag/program/kernel_session.rs",line
 [[scenarios]]
 id = "aliased-kernel-in-new-module"
 scenario = "An aliased invocation implementation in a new program module is refused."
-given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod protocol; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod extra;"
+given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod extra;"
 given.files.'src/application/file_dag/program/extra.rs' = "use super::runtime::service::KernelInvocation as Route; pub struct Extra; impl Route for Extra {}"
 then.findings = [{path="src/application/file_dag/program/extra.rs",line=1}]
 
@@ -704,7 +725,7 @@ then.findings = [{path="src/domain/operator/collections/operators/select/item_te
 [[scenarios]]
 id = "executor-borrows-issued-native-leaf-types"
 scenario = "The executor names only the actual private native request data contracts."
-given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod protocol; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
+given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
 given.files.'src/application/file_dag/program/native_walk.rs' = "pub mod lease; pub struct FileWalk;"
 given.files.'src/application/file_dag/program/native_walk/lease/mod.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_walk/lease/service.rs' = "pub struct PermittedWalk;"
@@ -716,7 +737,7 @@ given.files.'src/application/file_dag/executor.rs' = "pub fn bridge() {} pub tra
 [[scenarios]]
 id = "executor-cannot-borrow-old-walk-owner"
 scenario = "Moving issued data does not leave obsolete walk owner permission."
-given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod protocol; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
+given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
 given.files.'src/application/file_dag/program/native_walk.rs' = "pub mod lease; pub struct FileWalk;"
 given.files.'src/application/file_dag/program/native_walk/lease/mod.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_walk/lease/service.rs' = "pub struct PermittedWalk;"
@@ -729,7 +750,7 @@ then.findings = [{path="src/application/file_dag/executor.rs",line=1}]
 [[scenarios]]
 id = "executor-cannot-borrow-old-join-owner"
 scenario = "Moving issued data does not leave obsolete native join owner permission."
-given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod protocol; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
+given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
 given.files.'src/application/file_dag/program/native_walk.rs' = "pub mod lease; pub struct FileWalk;"
 given.files.'src/application/file_dag/program/native_walk/lease/mod.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_walk/lease/service.rs' = "pub struct PermittedWalk;"
@@ -742,7 +763,7 @@ then.findings = [{path="src/application/file_dag/executor.rs",line=1}]
 [[scenarios]]
 id = "foreign-alias-of-issued-walk-refused"
 scenario = "Only the executor bridge may borrow the issued walk data type."
-given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod protocol; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
+given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
 given.files.'src/application/file_dag/program/native_walk.rs' = "pub mod lease; pub struct FileWalk;"
 given.files.'src/application/file_dag/program/native_walk/lease/mod.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_walk/lease/service.rs' = "pub struct PermittedWalk;"
@@ -755,7 +776,7 @@ then.findings = [{path="src/application/caller.rs",line=1}]
 [[scenarios]]
 id = "foreign-qualified-issued-join-refused"
 scenario = "Qualified access to issued join data does not grant a new bridge."
-given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod protocol; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
+given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
 given.files.'src/application/file_dag/program/native_walk.rs' = "pub mod lease; pub struct FileWalk;"
 given.files.'src/application/file_dag/program/native_walk/lease/mod.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_walk/lease/service.rs' = "pub struct PermittedWalk;"
@@ -768,7 +789,7 @@ then.findings = [{path="src/application/caller.rs",line=1}]
 [[scenarios]]
 id = "new-module-issued-native-leaf-refused"
 scenario = "A new application module cannot acquire executor-only issued native data."
-given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod protocol; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
+given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod native_walk; pub mod native_join;"
 given.files.'src/application/file_dag/program/native_walk.rs' = "pub mod lease; pub struct FileWalk;"
 given.files.'src/application/file_dag/program/native_walk/lease/mod.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_walk/lease/service.rs' = "pub struct PermittedWalk;"
@@ -1016,6 +1037,6 @@ given.files.'src/application/file_dag/program/kernel_session/evaluation.rs' = 'p
 [[scenarios]]
 id = "kernel-session-lookalike-cannot-call-the-semantic-dispatcher"
 scenario = "A directory that only begins with the kernel session's name is not the kernel session."
-given.files.'src/application/file_dag/program.rs' = 'pub mod preparation; pub mod protocol; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod kernel_session_extra; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection;'
+given.files.'src/application/file_dag/program.rs' = 'pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod kernel_session_extra; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection;'
 given.files.'src/application/file_dag/program/kernel_session_extra.rs' = 'pub fn dispatch() { crate::domain::executable_program::kernel::evaluate(); }'
 then.findings = [{ path = "src/application/file_dag/program/kernel_session_extra.rs", line = 1 }]

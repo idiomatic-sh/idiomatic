@@ -1,5 +1,7 @@
 //! A native tree on either side of an actual compiled Join publishes the same exact cells.
-use super::super::super::{fixtures, types::OperatingError};
+use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_relations::domain::relations::{
     service::node_id,
     types::{FileId, Position, Relation, Value as Cell},
@@ -30,7 +32,7 @@ fn subject((): Input) -> Result<Value, Failure> {
         comparisons: vec![has_text.clone()],
         kept: vec![ColumnIndex(0)],
     };
-    let right = fixtures::plan(vec![
+    let right = inputs::plan(vec![
         tokens.clone(),
         Operation::Join {
             left: PlanInput::Step(StepId(0)),
@@ -52,7 +54,7 @@ fn subject((): Input) -> Result<Value, Failure> {
             reach: None,
         },
     ]);
-    let left = fixtures::plan(vec![
+    let left = inputs::plan(vec![
         tokens,
         Operation::Join {
             left: PlanInput::Relation(Relation::SyntaxTree),

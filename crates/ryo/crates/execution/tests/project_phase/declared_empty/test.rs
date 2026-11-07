@@ -1,6 +1,13 @@
 //! Closed empty declarations remain typed populations; absent declarations remain refusals.
+use ryo_execution::application::file_dag::frontiers::types::InputReadiness;
+use ryo_execution::outbound::facts::types::ResidentStability;
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::*;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
+use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationExecution;
 use ryo_values::domain::{
     observations::types::{
         BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
@@ -11,7 +18,7 @@ use ryo_values::domain::{
     stored_facts::types::Digest,
 };
 
-fn declared() -> PreparedRequest {
+fn declared() -> PrepareRequest {
     let mut input = authored_request(1);
     let columns = vec![ObservationColumn {
         name: ObservationColumnName("code".into()),
@@ -51,7 +58,7 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
         .prepare(declared())
         .expect("closed empty declaration");
     let corpus = corpus();
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let reads = Cell::new(0);
     let read = |_| {
         reads.set(reads.get() + 1);
@@ -63,7 +70,7 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
@@ -72,11 +79,11 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
                     observations: ObservationDemand::NotRequired,
                     capture: CaptureIntent::DiagnosticAndObservations,
                 }],
-                source: b"abc",
+                source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read: &read,
-                semantic: None,
-                kinds: None,
+                semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )
@@ -99,7 +106,7 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
             &mut symbols,
             CaptureContext {
                 worker: WorkerNumber(0),
-                arena: &mut arena,
+                arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
                 places: &mut places,
                 words: &mut words,
             },
@@ -130,7 +137,7 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
             .binding_readiness(RuleIndex(0))
             .unwrap()
             .get(&ObservationBindingId(0)),
-        Some(&true)
+        Some(&InputReadiness::Ready)
     );
     let bound = stage.bindings(RuleIndex(0)).unwrap();
     let scope = stage
@@ -139,7 +146,7 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
             &corpus,
             &covered,
             &[],
-            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
         )
         .unwrap();
     let project_symbols = Symbols::default();
@@ -189,16 +196,20 @@ fn no_query_is_unavailable_rather_than_an_empty_population() {
     input.rules[0].observations[0].producers = vec![ObservationProducer::NoQuery {
         rule: RuleId("not-executable".into()),
     }];
-    project_refuses(input, "observation producer has no executable query", false);
+    project_refuses(
+        input,
+        "observation producer has no executable query",
+        InputReadiness::Unavailable,
+    );
 }
 
-fn project_refuses(input: PreparedRequest, expected: &str, ready: bool) {
+fn project_refuses(input: PrepareRequest, expected: &str, ready: InputReadiness) {
     let engine = engine();
     let prepared = engine
         .prepare(input)
         .expect("valid declaration with deferred admission refusal");
     let corpus = corpus();
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let stored = CapturedFacts {
         captures: vec![],
         reads: AtomicUsize::new(0),
@@ -225,7 +236,7 @@ fn project_refuses(input: PreparedRequest, expected: &str, ready: bool) {
             &corpus,
             &covered,
             &[],
-            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
         )
         .unwrap();
     let mut symbols = Symbols::default();
@@ -292,7 +303,7 @@ fn missing_declarations_outputs_and_mismatched_schemas_are_not_closed_empty() {
     project_refuses(
         mismatch,
         "observation does not match its actual consumer declaration",
-        true,
+        InputReadiness::Ready,
     );
 
     let mut unknown = declared();

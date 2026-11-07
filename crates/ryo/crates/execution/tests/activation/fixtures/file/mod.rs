@@ -1,9 +1,17 @@
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::outbound::facts::types::ResidentStability;
 use super::program::{corpus, engine, prepared};
 use super::subscriber::{Activation, Sample};
-use ryo_execution::inbound::use_cases::execution::{
-    interface::{ExecutionRequest, ExecutionUseCase, FileExecution},
-    types::*,
-};
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::FileId;
 use std::cell::Cell;
@@ -13,7 +21,7 @@ pub(crate) fn measure(total: usize, demanded: &[usize]) -> Sample {
     let engine = engine();
     let prepared = prepared(&engine, total);
     let corpus = corpus();
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let mut intents = vec![FileRuleIntent::Undemanded; total];
     for &index in demanded {
         intents[index] = FileRuleIntent::Run {
@@ -39,16 +47,16 @@ pub(crate) fn measure(total: usize, demanded: &[usize]) -> Sample {
                 .open_file(
                     FileInput {
                         language: SourceLanguage::Recognized,
-                        resident_stability: facts::ResidentStability::Stable,
+                        resident_stability: ResidentStability::Stable,
                         file: FileId(0),
                         evaluation: &[],
                         publication: &[],
                         intents: &intents,
-                        source: b"",
+                        source: ryo_values::domain::files::types::SourceView(b""),
                         elements: &elements,
                         read: &read,
-                        semantic: None,
-                        kinds: None,
+                        semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                        kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
                     },
                     &mut symbols,
                 )

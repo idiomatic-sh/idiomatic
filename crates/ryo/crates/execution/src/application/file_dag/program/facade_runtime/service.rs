@@ -1,5 +1,6 @@
 //! Opening one publication scope and naming the physical files of one project request.
-use super::types::{ProgramServices, PublicationScope, ReuseEligibility};
+use super::types::{ProgramServices, PublicationScope};
+use crate::application::file_dag::relations::types::ReuseEligibility;
 use crate::application::file_dag::program::admission::RequiredPartitions;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::scope::open_program_owner;

@@ -1,4 +1,6 @@
 //! Actual engine visit and scratch bounds over increasing authored input populations.
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::operating::errors::OperatingError;
 use super::super::conformance::test::{compare_delivery, repeated};
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::*;
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::values::numbers;
@@ -9,8 +11,7 @@ use ryo_values::domain::{
     plans::types::Operation,
     query_operators::types::OperationKind,
 };
-#[test]
-fn former_unary_pilots_keep_linear_visits_and_bounded_row_scratch() {
+fn former_unary_pilots_keep_linear_visits_and_bounded_row_scratch() -> Result<(), Failure> {
     for kind in [
         OperationKind::Select,
         OperationKind::Project,
@@ -57,9 +58,9 @@ fn former_unary_pilots_keep_linear_visits_and_bounded_row_scratch() {
         assert!(empty.rows.is_empty());
         assert_eq!(empty.visits, vec![0]);
     }
+    Ok(())
 }
-#[test]
-fn former_binary_pilots_keep_linear_visits_for_unique_keys() {
+fn former_binary_pilots_keep_linear_visits_for_unique_keys() -> Result<(), Failure> {
     for kind in [OperationKind::Join, OperationKind::Union] {
         let mut case = fixture(kind);
         if let Operation::Join { output, .. } = &mut case.operation {
@@ -90,4 +91,38 @@ fn former_binary_pilots_keep_linear_visits_for_unique_keys() {
         assert!(empty.rows.is_empty());
         assert_eq!(empty.visits, vec![0, 0]);
     }
+    Ok(())
+}
+/// The scenarios of this group, one row each.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    FormerUnaryPilotsKeepLinearVisitsAndBoundedRowScratch,
+    FormerBinaryPilotsKeepLinearVisitsForUniqueKeys,
+}
+type Input = Scenario;
+type Value = ();
+type Failure = OperatingError;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(stringify!(former_unary_pilots_keep_linear_visits_and_bounded_row_scratch)),
+        word: Word::Succeeds,
+        input: || Scenario::FormerUnaryPilotsKeepLinearVisitsAndBoundedRowScratch,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(stringify!(former_binary_pilots_keep_linear_visits_for_unique_keys)),
+        word: Word::Succeeds,
+        input: || Scenario::FormerBinaryPilotsKeepLinearVisitsForUniqueKeys,
+        expect: Expect::Value(()),
+    },
+];
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::FormerUnaryPilotsKeepLinearVisitsAndBoundedRowScratch => former_unary_pilots_keep_linear_visits_and_bounded_row_scratch(),
+        Scenario::FormerBinaryPilotsKeepLinearVisitsForUniqueKeys => former_binary_pilots_keep_linear_visits_for_unique_keys(),
+    }
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

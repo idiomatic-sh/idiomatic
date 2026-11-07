@@ -112,7 +112,7 @@ pub(super) fn prepared(
         &[rule],
         &[Digest([0; 16])],
         &[],
-        crate::application::file_dag::testing::program_derived_port(),
+        crate::application::file_dag::fixtures::program_derived_port(),
         ObservationIdentity::Independent,
         crate::domain::executable_program::types::RoutePolicy::default(),
     )

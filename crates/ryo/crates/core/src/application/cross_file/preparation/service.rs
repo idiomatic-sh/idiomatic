@@ -4,7 +4,7 @@ use super::{
     types::{Occurrence, PreparedProject, ProjectOccurrenceCount},
 };
 use crate::{application::cross_file::errors::CrossFileError, domain::answering::types::Todo};
-use ryo_execution::inbound::use_cases::execution::types::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use std::sync::Arc;
 
 /// A stable occurrence, including when several declarations name the same rule.

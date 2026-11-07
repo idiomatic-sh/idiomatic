@@ -37,7 +37,7 @@ pub(crate) fn build(
     use ryo_core::outbound::memory::interface::MemoryPort;
     use ryo_core::outbound::{corpus, lint_store, memory, scheduler};
     use ryo_execution::outbound::{digest, facts, matching, query_language};
-    use ryo_execution::inbound::use_cases::execution::types::digest::DigestPort;
+    use ryo_execution::outbound::digest::interface::DigestPort;
     use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
     use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
     use std::sync::Arc;
@@ -61,6 +61,7 @@ pub(crate) fn build(
         },
     ));
     let language: Arc<dyn LanguagePort> = Arc::new(crate::languages::linked());
+    ryo_execution::application::file_dag::route_counts::profile::service::install(Arc::new(ryo_execution::outbound::profile::factory::thread::<ryo_execution::application::file_dag::route_counts::profile::service::RouteProfile>()));
     let digests: Arc<dyn DigestPort> = Arc::new(digest::factory::blake3());
     let memory: Arc<dyn MemoryPort> = Arc::new(memory::factory::sysinfo(budget));
     let store: Arc<dyn LintStorePort> = Arc::new(lint_store::factory::postcard(kept_in));
@@ -82,7 +83,7 @@ pub(crate) fn build(
             Arc::new(ryo_execution::outbound::operators::factory::use_case(
                 ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
             )),
-std::sync::Arc::new(ryo_execution::outbound::derived::factory::use_case(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new())),
+std::sync::Arc::new(ryo_execution::outbound::derived::factory::use_case(ryo_execution::outbound::derived::factory::semantics())),
             Arc::new(scheduler::factory::rayon(scheduler::factory::pool(workers))),
             scheduler::factory::workers(workers),
             Arc::new(crate::output::schemas::rows(out, edge.format)),

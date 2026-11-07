@@ -1,5 +1,6 @@
 //! Native traversal projection is compared with the actual public owner output.
 use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::domain::{
     operating::errors::OperatingError,
     operation_schema::types::InputShape,
@@ -194,7 +195,7 @@ fn native(scenario: Scenario) -> Result<Value, Failure> {
             }
             _ => unreachable!(),
         }
-        let plan = fixtures::plan(vec![first, operation]);
+        let plan = inputs::plan(vec![first, operation]);
         let output = fixtures::published_file(plan, vec![], vec![], b"x", &elements, &mut symbols)?;
         assert_eq!(answer, output.kinds);
         if !empty {

@@ -3,14 +3,14 @@ use crate::domain::admission::errors::AdmissionError;
 use crate::domain::budget::errors::BudgetError;
 use crate::outbound::language::errors::LanguageError;
 use crate::outbound::memory::errors::MemoryError;
-use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
+use ryo_execution::outbound::facts::errors::FactsError;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 /// Why an analysis could not finish.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum FileAnalysisError {
     /// Required execution scope dependencies were inconsistent.
     #[error(transparent)]
-    Execution(#[from] ryo_execution::inbound::use_cases::execution::types::OperatingError),
+    Execution(#[from] ryo_execution::inbound::use_cases::execution::interface::OperatingError),
     /// A provider did not echo the exact project-entry observation batch it received.
     #[error("project entry observation receipt did not match the engine batch")]
     ProjectObservationMismatch,

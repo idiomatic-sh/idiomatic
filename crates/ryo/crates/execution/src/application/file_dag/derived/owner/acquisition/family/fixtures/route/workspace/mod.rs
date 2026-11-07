@@ -5,7 +5,7 @@ use crate::application::file_dag::derived::owner::acquisition::family::fixtures:
 use crate::application::file_dag::{
     derived::owner::{ViewContext, acquisition::admission::service::AcquiredView},
     relations::RelationOwner,
-    testing::program_derived_port,
+    fixtures::program_derived_port,
     workspace::{InputAdmissions, InvocationWorkspace, ViewInputs},
 };
 use crate::domain::{
@@ -24,7 +24,7 @@ use ryo_values::domain::files::types::SourceView;
 use std::{rc::Rc, sync::Arc};
 
 pub(super) fn workspace(kind: DerivedKind, exit: Exit) -> Result<DerivedKind, OperatingError> {
-    let owner = Rc::new(RelationOwner::new(crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible, program_derived_port()));
+    let owner = Rc::new(RelationOwner::new(crate::application::file_dag::relations::types::ReuseEligibility::Eligible, program_derived_port()));
     let result = through_workspace(kind, exit, &owner);
     owner.release_population();
     released(kind, exit, owner.derived().publication_ownership_bytes());

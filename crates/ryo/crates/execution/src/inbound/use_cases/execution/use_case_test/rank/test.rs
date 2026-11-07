@@ -1,5 +1,7 @@
 //! Rank binding and row-retention contracts through the compiled public owner.
-use super::super::super::{fixtures, types::OperatingError};
+use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Value as Cell;
 use ryo_values::{
@@ -26,7 +28,7 @@ fn sets(layers: &[&[&str]]) -> ParameterBinding {
 }
 
 fn subject((names, binding): Input) -> Result<Value, Failure> {
-    let mut plan = fixtures::plan(vec![
+    let mut plan = inputs::plan(vec![
         Operation::Hosted {
             relation: HostedNumber(0),
         },
@@ -55,7 +57,7 @@ fn subject((names, binding): Input) -> Result<Value, Failure> {
             let Cell::Number(place) = row[1] else {
                 panic!("rank must append a numeric layer")
             };
-            let text = fixtures::text(row[0], &symbols);
+            let text = inputs::text(row[0], &symbols);
             let name = names
                 .iter()
                 .copied()

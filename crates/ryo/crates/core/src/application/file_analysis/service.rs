@@ -5,14 +5,27 @@ use crate::application::file_analysis::constants::{
     RULE_SKIPPED_APPLICABILITY_METADATA_UNAVAILABLE, RULE_SKIPPED_SYNTAX_ACCEPTANCE_UNDETERMINED,
     STORED_FRONTIER_PROOF_DOES_NOT_MATCH,
 };
-use ryo_execution::inbound::use_cases::execution::interface::{
-    ExecutionRequest, FileExecution, PreparedExecution,
-};
-use ryo_execution::inbound::use_cases::execution::types::{
-    ApplicabilityReason, ApplicabilityRefusal, CaptureContext, CaptureIntent, DiagnosticDelivery,
-    EmitDemand, FileInput, FileRuleIntent, ObservationDemand, RootOutcome, RuleDemand,
-    SourceLanguage, SourceRows,
-};
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution;
+use ryo_execution::application::file_dag::program::preparation::types::{Demand, NamedLayout, SemanticNeed};
+use ryo_execution::inbound::use_cases::execution::interface::Arena;
+use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
+use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityRefusal;
+use ryo_execution::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
+use ryo_execution::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution::application::file_dag::program::file_session::types::FinishedReadiness;
+use ryo_execution::application::file_dag::program::file_session::types::KindSupport;
+use ryo_execution::application::file_dag::program::file_session::types::SemanticSupport;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
+use ryo_execution::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution::application::file_dag::program::file_session::types::SourceRows;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 // this operation owns one bounded worker and the read, parse, admission, evaluation, and retention sequence for its file; its private methods share that invocation state, while domain computations remain separate pure functions.
@@ -69,10 +82,11 @@ use crate::domain::workers::types::{Checking, FileOrder};
 use crate::outbound::corpus::errors::CorpusError;
 use crate::outbound::corpus::interface::CorpusPort;
 use crate::outbound::corpus::types::PathStat;
-use ryo_execution::inbound::use_cases::execution::types::digest::DigestPort;
-use ryo_execution::inbound::use_cases::execution::types::digest::{DigestBytes, DigestWords};
-use ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker;
-use ryo_execution::inbound::use_cases::execution::types::facts::WordsToKeep;
+use ryo_execution::outbound::digest::interface::DigestPort;
+use ryo_execution::outbound::digest::types::DigestBytes;
+use ryo_execution::outbound::digest::types::DigestWords;
+use ryo_execution::outbound::facts::interface::FactsWorker;
+use ryo_execution::outbound::facts::types::WordsToKeep;
 use ryo_relations::domain::relations::collections::relations::filesystem_executable::item::FilesystemExecutableRow;
 use ryo_values::domain::files::service::input_path;
 use ryo_values::domain::files::types::ExecutablePermission;
@@ -203,7 +217,13 @@ impl FileAnalysis {
         }
         let demanded = setting
             .program
-            .demanded_rules(|place| governs_rule(tables, RuleIndex(place)) == Governing::Governs);
+            .demanded_rules(|rule| {
+                if governs_rule(tables, rule) == Governing::Governs {
+                    Demand::Demanded
+                } else {
+                    Demand::Undemanded
+                }
+            });
         Cow::Owned(
             setting
                 .wanted
@@ -211,7 +231,7 @@ impl FileAnalysis {
                 .copied()
                 .filter(|relation| {
                     setting.metadata.iter().enumerate().any(|(place, _)| {
-                        demanded.get(place).copied().unwrap_or(false)
+                        demanded.get(place).copied() == Some(Demand::Demanded)
                             && match setting.applicability.get(place).copied() {
                                 Some(RuleApplicability::Always) => true,
                                 Some(RuleApplicability::AcceptedSyntax) => {
@@ -294,10 +314,16 @@ impl FileAnalysis {
     ) -> Vec<RuleGate> {
         let demanded = setting
             .program
-            .demanded_rules(|place| governs_rule(tables, RuleIndex(place)) == Governing::Governs);
+            .demanded_rules(|rule| {
+                if governs_rule(tables, rule) == Governing::Governs {
+                    Demand::Demanded
+                } else {
+                    Demand::Undemanded
+                }
+            });
         let mut skipped = vec![RuleGate::Open; setting.metadata.len()];
         for (place, blocked) in skipped.iter_mut().enumerate() {
-            if !demanded.get(place).copied().unwrap_or(false) {
+            if demanded.get(place).copied() != Some(Demand::Demanded) {
                 continue;
             }
             let applicability = setting.applicability.get(place).copied();
@@ -391,12 +417,18 @@ impl FileAnalysis {
         let demanded = visit
             .setting
             .program
-            .demanded_rules(|place| governs_rule(tables, RuleIndex(place)) == Governing::Governs);
+            .demanded_rules(|rule| {
+                if governs_rule(tables, rule) == Governing::Governs {
+                    Demand::Demanded
+                } else {
+                    Demand::Undemanded
+                }
+            });
         let intents = demanded
             .iter()
             .enumerate()
             .map(|(place, demanded)| {
-                if !demanded {
+                if *demanded != Demand::Demanded {
                     return FileRuleIntent::Undemanded;
                 }
                 if skipped[place] == RuleGate::Blocked {
@@ -434,7 +466,7 @@ impl FileAnalysis {
                 .map(SourceRows::Stored)
                 .map_err(|error| {
                     *refused.borrow_mut() = Some(error);
-                    ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRead
+                    ryo_execution::inbound::use_cases::execution::interface::OperatingError::NotRead
                 })
         };
         let mut run = visit.setting.services.open_file(
@@ -443,7 +475,7 @@ impl FileAnalysis {
                 evaluation,
                 publication: &physical,
                 intents: &intents,
-                source: &tables.bytes.0,
+                source: ryo_values::domain::files::types::SourceView(&tables.bytes.0),
                 elements: &tables.elements,
                 language: if tables.language.is_some() {
                     SourceLanguage::Recognized
@@ -452,8 +484,11 @@ impl FileAnalysis {
                 },
                 resident_stability: worker.facts.resident_stability(),
                 read: &read,
-                semantic: Some(semantic),
-                kinds: tables.kind_vocabulary.as_ref().map(Arc::clone),
+                semantic: SemanticSupport::Supplied(semantic),
+                kinds: match tables.kind_vocabulary.as_ref() {
+                    Some(vocabulary) => KindSupport::Prepared(Arc::clone(vocabulary)),
+                    None => KindSupport::Absent,
+                },
             },
             &mut tables.symbols,
         )?;
@@ -489,14 +524,14 @@ impl FileAnalysis {
                 match outcome.emit {
                     RootOutcome::Complete(table) | RootOutcome::Partial { table, .. } => {
                         let number = RuleNumber(u32::try_from(rule.0).map_err(|_| {
-                            ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun
+                            ryo_execution::inbound::use_cases::execution::interface::OperatingError::NotRun
                         })?);
                         let id = crate::domain::render::types::FindingRule(
                             visit
                                 .setting
                                 .ids
                                 .get(rule.0)
-                                .ok_or(ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun)?
+                                .ok_or(ryo_execution::inbound::use_cases::execution::interface::OperatingError::NotRun)?
                                 .0
                                 .as_ref(),
                         );
@@ -557,7 +592,7 @@ impl FileAnalysis {
                         );
                         if matches!(
                             error,
-                            ryo_execution::inbound::use_cases::execution::types::OperatingError::SemanticIncomplete { .. }
+                            ryo_execution::inbound::use_cases::execution::interface::OperatingError::SemanticIncomplete { .. }
                         ) {
                             semantic.mark_incomplete();
                         }
@@ -578,12 +613,12 @@ impl FileAnalysis {
                 run.capture_frontiers(
                     rule,
                     *visit.setting.first_bucket.get(rule.0).ok_or(
-                        ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun,
+                        ryo_execution::inbound::use_cases::execution::interface::OperatingError::NotRun,
                     )?,
                     &mut tables.symbols,
                     CaptureContext {
                         worker: tables.number,
-                        arena: &mut tables.arena.0,
+                        arena: Arena(&mut tables.arena.0),
                         places: &mut tables.places,
                         words: &mut tables.words,
                     },
@@ -638,10 +673,10 @@ impl FileAnalysis {
             }
             let counts = run.counts(rule)?;
             let counted = tables.fed.get_mut(rule.0).ok_or(
-                ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun,
+                ryo_execution::inbound::use_cases::execution::interface::OperatingError::NotRun,
             )?;
             if counted.len() != counts.fed.len() {
-                return Err(ryo_execution::inbound::use_cases::execution::types::OperatingError::ShapeMismatch.into());
+                return Err(ryo_execution::inbound::use_cases::execution::interface::OperatingError::ShapeMismatch.into());
             }
             for (total, current) in counted.iter_mut().zip(counts.fed.iter()) {
                 for (total, current) in total.0.iter_mut().zip(current.0) {
@@ -649,7 +684,10 @@ impl FileAnalysis {
                 }
             }
         }
-        tables.current_observations = run.finish()?.readiness;
+        tables.current_observations = match run.finish()?.readiness {
+            FinishedReadiness::Observed(readiness) => Some(readiness),
+            FinishedReadiness::Unobserved => None,
+        };
         if let Some(root) = &tables.current_observations {
             tables.observations.push(
                 ryo_execution::inbound::use_cases::metadata::interface::FileObservationReadiness {
@@ -1145,7 +1183,7 @@ impl FileAnalysis {
             };
         if !valid {
             return Err(
-                ryo_execution::inbound::use_cases::execution::types::OperatingError::ObservationIncomplete {
+                ryo_execution::inbound::use_cases::execution::interface::OperatingError::ObservationIncomplete {
                     reason: STORED_FRONTIER_PROOF_DOES_NOT_MATCH.into(),
                 }
                 .into(),
@@ -1229,7 +1267,7 @@ impl FileAnalysis {
             active_wanted.as_ref(),
         );
         let semantic_needed = setting.program.semantic_needed();
-        let session = if semantic_needed {
+        let session = if semantic_needed == SemanticNeed::Required {
             worker.tables.language.and_then(|language| {
                 let source = FileToRead {
                     source_language: setting
@@ -1384,7 +1422,13 @@ impl FileAnalysis {
         let moved = moved_words(tables, number, base)?;
         let layout = setting.program.observation_layout();
         let (observations, slots) = match (tables.current_observations.as_deref(), layout) {
-            (Some(map), Some((layout, slots))) => {
+            (
+                Some(map),
+                Some(NamedLayout {
+                    layout,
+                    frontiers: slots,
+                }),
+            ) => {
                 let Ok(slot_count) = u32::try_from(slots.len()) else {
                     return None;
                 };
@@ -1397,7 +1441,7 @@ impl FileAnalysis {
                 };
                 (Some(checked), slots)
             }
-            (None, Some((_, slots))) if !slots.is_empty() => return None,
+            (None, Some(NamedLayout { frontiers: slots, .. })) if !slots.is_empty() => return None,
             (Some(_), None) => return None,
             _ => (None, &[][..]),
         };

@@ -209,12 +209,15 @@ fn forward<'a, 'service, 'facts>(
     sources.replay(input, &mut context, sink)?;
     Ok(outcome)
 }
-fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
+fn exercise(
+    scenario: Scenario,
+    derived: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+    operators: Arc<dyn crate::outbound::operators::interface::OperatorsPort>,
+) -> Result<Vec<u64>, OperatingError> {
     let SmallTree {
         elements,
         mut symbols,
     } = small_tree();
-    let derived = crate::application::file_dag::testing::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
@@ -228,9 +231,7 @@ fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
         Arc::clone(&derived),
         ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
     )?;
-    let engine = Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
-        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
-    )));
+    let engine = Arc::new(CommonOperatorEngine::new(operators));
     let services = Arc::new(ProgramServices::new(
         engine,
         derived,
@@ -255,7 +256,7 @@ fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
         }],
         services,
         ryo_values::domain::files::types::SourceView(SMALL_SOURCE),
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
         None,
@@ -338,22 +339,12 @@ fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
         }
     }
 }
-#[test]
-fn reach_restarts_distinct_for_each_identical_left_row() {
-    let actual = exercise(Scenario::ReachDuplicate).expect("compiled reach");
-    assert_eq!(actual, vec![1, 2, 3, 1, 2, 3]);
-}
-#[test]
-fn project_and_union_retry_replay_completed_distinct_after_sink_failure() {
-    for scenario in [Scenario::ProjectRetry, Scenario::UnionRetry] {
-        let actual = exercise(scenario).expect("compiled retry");
-        assert_eq!(actual, vec![0, 2]);
-    }
-}
-
 use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
 
 mod selected_join;
+
+#[cfg(test)]
+mod test;
 
 mod producer_lifetime;
 

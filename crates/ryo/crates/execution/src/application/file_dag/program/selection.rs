@@ -21,13 +21,13 @@ pub(super) fn acquire(
     owner: &Rc<RelationOwner>,
     context: &mut OperatorContext<'_>,
     work: &WorkCounters,
-    walk: &super::native_walk::WalkPartition<'_>,
+    walk: &super::native_walk::project::service::WalkPartition<'_>,
     kernels: &dyn super::super::executor::PrimitiveExecutor,
 ) -> Result<Option<PublishedInput>, OperatingError> {
     let input = permit.selection_input(shape)?;
     let publication = input.publication(owner)?;
     let proof = owner.admit(publication.as_ref(), BorrowedRows::from(rows))?;
-    if owner.stable() == crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Ineligible {
+    if owner.stable() == crate::application::file_dag::relations::types::ReuseEligibility::Ineligible {
         return Ok(None);
     }
     let Rows::Stored(columns) = rows else {

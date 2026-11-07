@@ -181,12 +181,12 @@ pub(super) fn ordinary_plan() -> Plan {
 
 pub(super) fn graph(plans: &[Plan]) -> (RequestOperators, RequestGraph) {
     let bindings = vec![Vec::new(); plans.len()];
-    let operators = crate::application::file_dag::request::prepare(
+    let operators = crate::application::file_dag::service::prepare(
         plans,
         &bindings,
         &[],
         (std::sync::Arc::new(
-            crate::outbound::derived::factory::semantics(),
+            crate::application::file_dag::fixtures::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     )
     .unwrap();

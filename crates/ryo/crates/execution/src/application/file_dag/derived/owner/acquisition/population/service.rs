@@ -249,15 +249,16 @@ impl DerivedOwner {
                 && positions_within_bound
                 && optional_bytes
                     .checked_add(additional_bytes)
-                    .is_some_and(|bytes| bytes <= cache.limit)
+                    .is_some_and(|bytes| bytes <= cache.limit.0)
                 && cache
                     .bytes
+                    .0
                     .checked_add(additional_bytes)
-                    .is_some_and(|n| n <= cache.limit)
+                    .is_some_and(|n| n <= cache.limit.0)
         }) {
             let lease = self.optional_lease(&backings)?;
-            cache.bytes += additional_bytes;
-            cache.graph_counts.peak_bytes.0 = cache.graph_counts.peak_bytes.0.max(cache.bytes);
+            cache.bytes.0 += additional_bytes;
+            cache.graph_counts.peak_bytes.0 = cache.graph_counts.peak_bytes.0.max(cache.bytes.0);
             state.retained_bytes += bytes;
             state.retained_predicates += usize::from(plan.kind == DerivedKind::PredicateMatches);
             Some(OwnedView {

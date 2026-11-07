@@ -9,7 +9,7 @@ use ryo_core::outbound::lint_store::interface::LintStorePort;
 use ryo_core::outbound::lint_store::types::BuildIdentity;
 use ryo_core::outbound::{corpus, language, lint_store, memory, row_sink, scheduler};
 use ryo_execution::outbound::{digest, facts, matching, query_language};
-use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort;
+use ryo_execution::outbound::matching::interface::MatchingPort;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::types::{CorpusFile, CorpusListing, FileBytes};
 
@@ -87,14 +87,14 @@ pub(crate) fn build_engine(
         language: Arc::new(language::factory::use_case(handles)),
         query_language: Arc::new(query_language::factory::use_case(compile, typecheck)),
         matching: Arc::new(matching::factory::globset()),
-        plans: ryo_execution::inbound::use_cases::execution::types::CompiledPlans::default(),
+        plans: ryo_execution::application::rule_compilation::service::CompiledPlans::default(),
         scheduler: pool.of(),
         workers,
         build,
         memory,
         cache,
         #[cfg(feature = "fixtures")]
-        routes: ryo_execution::inbound::use_cases::execution::types::RoutePolicy::default(),
+        routes: ryo_execution::inbound::use_cases::prepare::interface::RoutePolicy::default(),
     }
 }
 
@@ -108,7 +108,7 @@ pub(crate) fn build(
     settings: LinterLintSettings,
 ) -> impl LintUseCase {
     let LinterLintSettings { root, budget } = settings;
-    let spill: Arc<dyn ryo_execution::inbound::use_cases::execution::types::facts::FactsPort> =
+    let spill: Arc<dyn ryo_execution::outbound::facts::interface::FactsPort> =
         match &connections.spill {
             Spill::Kept(path) => Arc::new(facts::factory::spill(path.clone())),
             Spill::Scratch => Arc::new(facts::factory::spill_scratch()),
@@ -152,8 +152,9 @@ pub(crate) fn build(
             let analysis_corpus: Arc<dyn corpus::interface::CorpusPort> = files;
             let analysis_memory: Arc<dyn memory::interface::MemoryPort> =
                 Arc::new(memory::factory::sysinfo(budget));
+            ryo_execution::application::file_dag::route_counts::profile::service::install(Arc::new(ryo_execution::outbound::profile::factory::thread::<ryo_execution::application::file_dag::route_counts::profile::service::RouteProfile>()));
             let analysis_digest: Arc<
-                dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
+                dyn ryo_execution::outbound::digest::interface::DigestPort,
             > = Arc::new(digest::factory::blake3());
             let lint = ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl::new(
                 ryo_core::application::file_analysis::service::FileAnalysis::new(
@@ -164,9 +165,7 @@ pub(crate) fn build(
                 ),
                 ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(
                     &analysis_corpus,
-                ), std::sync::Arc::new(ryo_core::outbound::publication::factory::execution(
-                    std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new()),
-                ))),
+                ), std::sync::Arc::new(ryo_core::outbound::publication::factory::execution())),
                 Arc::clone(&analysis_corpus),
                 spill,
                 analysis_language,
@@ -323,9 +322,9 @@ pub(crate) fn store_skip(
 /// The dependency content identity using the digest adapter composed by the SDK.
 impl From<DependencyBytes<'_>> for DependencyFingerprint {
     fn from(bytes: DependencyBytes<'_>) -> Self {
-        use ryo_execution::inbound::use_cases::execution::types::digest::DigestPort as _;
+        use ryo_execution::outbound::digest::interface::DigestPort as _;
         let digest = digest::factory::blake3().digest(
-            ryo_execution::inbound::use_cases::execution::types::digest::DigestBytes(bytes.0),
+            ryo_execution::outbound::digest::types::DigestBytes(bytes.0),
         );
         Self(digest.0)
     }

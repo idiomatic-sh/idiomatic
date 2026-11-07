@@ -29,8 +29,8 @@ impl ActualSource {
     pub(super) fn new() -> Self {
         let source = Path::new(env!("CARGO_MANIFEST_DIR"));
         let overlay = tempfile::tempdir().unwrap();
-        super::super::test::copy_sources(&source.join("src"), &overlay.path().join("src")).unwrap();
-        super::super::test::copy_sources(
+        super::super::fixtures::copy_sources(&source.join("src"), &overlay.path().join("src")).unwrap();
+        super::super::fixtures::copy_sources(
             &source.join("tests/activation"),
             &overlay.path().join("tests/activation"),
         )
@@ -41,7 +41,7 @@ impl ActualSource {
             overlay.path().join("Cargo.lock"),
         )
         .unwrap();
-        let mut manifest = super::super::test::manifest(source);
+        let mut manifest = super::super::fixtures::manifest(source);
         let mut target = toml::Table::new();
         target.insert("name".into(), "activation".into());
         target.insert("path".into(), "tests/activation/test.rs".into());

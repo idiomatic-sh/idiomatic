@@ -1,9 +1,21 @@
 //! Canonical public request and catalog-row assembly shared by boundary controls.
-use ryo_execution::inbound::use_cases::execution::{
-    interface::{ExecutionUseCase, ProjectRootExecution},
-    types::*,
-    use_case::ExecutionUseCaseImpl,
-};
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::application::file_dag::program::project_phase::interface::ProjectRootExecution;
+use ryo_execution::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+use ryo_execution::application::file_dag::program::project_phase::types::ProjectInput;
+use ryo_execution::application::file_dag::program::project_phase::types::ProjectTask;
+use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectBatch;
+use ryo_execution::application::file_dag::program::rule_outcome::types::RuleOutcome;
+use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
+use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_language::{domain::files::types::FilePath, domain::symbols::types::Symbols};
 use ryo_relations::domain::relations::{
     fixtures::{kinds, node_id},
@@ -20,20 +32,19 @@ use ryo_values::domain::{
     stored_facts::types::Digest,
 };
 use std::{collections::BTreeMap, sync::Arc};
-pub(crate) fn engine() -> ExecutionUseCaseImpl {
-    ExecutionUseCaseImpl::new(
+pub(crate) fn engine() -> PrepareUseCaseImpl {
+    PrepareUseCaseImpl::new(
         Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
+            ryo_execution::outbound::operators::factory::use_case(ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))),
         ),
         Arc::new(ryo_execution::outbound::derived::factory::semantics()),
     )
 }
-pub(crate) fn prepared(engine: &ExecutionUseCaseImpl) -> PreparedExecutionProgram {
+pub(crate) fn prepared(engine: &PrepareUseCaseImpl) -> PreparedExecutionProgram {
     prepared_rules(engine, 1)
 }
-pub(crate) fn authored_request(count: usize) -> PreparedRequest {
-    PreparedRequest {
-        plans: vec![
+pub(crate) fn authored_request(count: usize) -> PrepareRequest {
+    PrepareRequest { plans: PlanSource::Authored { plans: vec![
             Plan {
                 parameters: vec![],
                 observation_inputs: vec![],
@@ -56,9 +67,7 @@ pub(crate) fn authored_request(count: usize) -> PreparedRequest {
                 },
             };
             count
-        ],
-        bindings: vec![vec![]; count],
-        rules: (0..count)
+        ], bindings: vec![vec![]; count] }, rules: (0..count)
             .map(|index| RuleSpec {
                 id: RuleId(format!("public-boundary-{index}").into()),
                 query: QueryBundle {
@@ -75,14 +84,10 @@ pub(crate) fn authored_request(count: usize) -> PreparedRequest {
                 include: vec![],
                 exclude: vec![],
             })
-            .collect(),
-        digests: (0..count).map(|index| Digest([index as u8; 16])).collect(),
-        hosted: vec![],
-        observations: ObservationIdentity::Independent,
-    }
+            .collect(), digests: (0..count).map(|index| Digest([index as u8; 16])).collect(), hosted: vec![], observations: ObservationIdentity::Independent }
 }
 pub(crate) fn prepared_rules(
-    engine: &ExecutionUseCaseImpl,
+    engine: &PrepareUseCaseImpl,
     count: usize,
 ) -> PreparedExecutionProgram {
     engine
@@ -150,7 +155,7 @@ pub(crate) fn project_roots<R: ProjectRootExecution>(
     demand: RuleDemand,
     inputs: Vec<ProjectInput<'_>>,
     symbols: &mut Symbols,
-) -> Vec<Result<ProjectRuleOutcome, OperatingError>> {
+) -> Vec<Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>> {
     let tasks = inputs
         .into_iter()
         .map(|input| ProjectTask {
@@ -171,6 +176,6 @@ pub(crate) fn project_root<R: ProjectRootExecution>(
     demand: RuleDemand,
     input: ProjectInput<'_>,
     symbols: &mut Symbols,
-) -> Result<ProjectRuleOutcome, OperatingError> {
+) -> Result<RuleOutcome<ProjectOutputOutcome>, OperatingError> {
     project_roots(root, rule, demand, vec![input], symbols).remove(0)
 }

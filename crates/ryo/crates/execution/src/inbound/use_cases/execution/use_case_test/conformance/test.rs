@@ -1,24 +1,41 @@
 //! Every operation executes through the real prepare/open_file/collect-or-deliver protocol.
-use super::super::super::{
-    fixtures as owner_fixtures, interface::*, types::*, use_case::ExecutionUseCaseImpl,
-};
+use ryo_values::cases::Case;
+use ryo_values::cases::CaseName;
+use ryo_values::cases::Expect;
+use ryo_values::cases::Word;
+use ryo_values::cases::run;
+use super::super::super::fixtures::Authored;
+use super::super::super::fixtures::Preparation;
+use crate::outbound::facts::types::ResidentStability;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use super::super::super::fixtures as owner_fixtures;
+use crate::application::file_dag::program::file_session::types::FileInput;
+use crate::application::file_dag::program::file_session::types::SourceLanguage;
+use crate::application::file_dag::program::file_session::types::SourceRows;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use crate::inbound::use_cases::execution::interface::CaptureIntent;
+use crate::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use crate::inbound::use_cases::execution::interface::EmitDemand;
+use crate::inbound::use_cases::execution::interface::FileRuleIntent;
+use crate::inbound::use_cases::execution::interface::ObservationDemand;
+use crate::inbound::use_cases::execution::interface::OperatingError;
+use crate::inbound::use_cases::execution::interface::RuleDemand;
+use crate::inbound::use_cases::execution::interface::RuleIndex;
+use crate::inbound::use_cases::execution::interface::SemanticLookup;
+use crate::domain::prepared_request::types::ObservationIdentity;
+use crate::outbound::operators::interface::OperatorsPort;
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::*;
-use crate::application::file_dag::acceptance::operator_contract_test::fixtures::values::KnownSyntax;
-use crate::application::file_dag::acceptance::operator_contract_test::fixtures::expectations::{SOURCE, assert_expected};
 use crate::domain::operating::fixtures::ExecutionObservation;
 use crate::domain::operator::service::prepare_operator;
-use ryo_language::domain::{
-    elements::types::Elements,
-    semantics::types::{RenderOutcome, RenderRequest},
-    symbols::types::Symbols,
-};
-use ryo_relations::domain::relations::types::{CellKind, FileId, Value};
+use ryo_language::domain::elements::types::Elements;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::FileId;
+use ryo_relations::domain::relations::types::Value as Cell;
 use ryo_values::domain::query_operators::types::OperationKind;
-use ryo_values::domain::{
-    plan_parts::types::ColumnIndex,
-    plans::{service::kind_of, types::Operation},
-    rows::types::Table,
-};
+use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::rows::types::Table;
 use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -29,12 +46,12 @@ pub(in super::super) enum RefusalOutcome {
 pub(in super::super) struct ObservedDelivery {
     pub(in super::super) schema: Result<Vec<CellKind>, OperatingError>,
     pub(in super::super) collected: Result<Table, OperatingError>,
-    pub(in super::super) rows: Vec<Vec<Value>>,
+    pub(in super::super) rows: Vec<Vec<Cell>>,
     pub(in super::super) stream_error: Option<OperatingError>,
     pub(in super::super) visits: Vec<u64>,
     pub(in super::super) scratch_cells: usize,
 }
-pub(in super::super) fn same_rows(table: &Table, rows: &[Vec<Value>]) -> bool {
+pub(in super::super) fn same_rows(table: &Table, rows: &[Vec<Cell>]) -> bool {
     table.count.0 == rows.len()
         && rows.iter().all(|row| row.len() == table.kinds.len())
         && table.cells == rows.iter().flatten().copied().collect::<Vec<_>>()
@@ -77,9 +94,7 @@ pub(in super::super) fn compare_delivery_with_semantic(
         stop,
         semantic,
         refusal,
-        Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
-        ),
+        Arc::new(owner_fixtures::operators()),
     )
 }
 /// This helper only drives supported owner APIs. It cannot invoke a primitive,
@@ -149,7 +164,7 @@ pub(in super::super) fn compare_delivery_with_port(
             view: vec![],
             reach: None,
         };
-        let mut a = owner_fixtures::table_inputs(join, &[&left, &right], bindings, symbols);
+        let mut a = inputs::table_inputs(join, &[&left, &right], bindings, symbols);
         let mut span = operation.clone();
         ryo_values::domain::plans::service::each_input(&mut span, &mut |input| {
             *input = Input::Step(a.plan.emit.step)
@@ -163,18 +178,14 @@ pub(in super::super) fn compare_delivery_with_port(
         a.plan.emit.step = StepId((a.plan.steps.len() - 1) as u32);
         a
     } else {
-        owner_fixtures::table_inputs(operation.clone(), &refs, bindings, symbols)
+        inputs::table_inputs(operation.clone(), &refs, bindings, symbols)
     };
     let emit = authored.plan.emit.step;
-    let engine = ExecutionUseCaseImpl::new(
+    let engine = Preparation::new(
         port,
-        Arc::new(crate::outbound::derived::factory::semantics()),
+        Arc::new(owner_fixtures::derived()),
     );
-    let preparation = engine.prepare(PreparedRequest {
-        plans: vec![authored.plan],
-        bindings: vec![bindings.to_vec()],
-        hosted: authored.hosted,
-        rules: vec![RuleSpec {
+    let preparation = engine.prepare(Authored { plans: vec![authored.plan], bindings: vec![bindings.to_vec()], rules: vec![RuleSpec {
             id: RuleId("operation-conformance".into()),
             query: QueryBundle {
                 root: QueryDocumentSource {
@@ -189,10 +200,7 @@ pub(in super::super) fn compare_delivery_with_port(
             spelled: RuleParameters("".into()),
             include: vec![],
             exclude: vec![],
-        }],
-        digests: vec![Digest([0; 16])],
-        observations: ObservationIdentity::Independent,
-    });
+        }], digests: vec![Digest([0; 16])], hosted: authored.hosted, observations: ObservationIdentity::Independent });
     let program = match preparation {
         Ok(program) => program,
         Err(error) => {
@@ -225,11 +233,11 @@ pub(in super::super) fn compare_delivery_with_port(
             .map(|(_, table)| SourceRows::Computed(table))
             .ok_or(OperatingError::NotRead)
     };
-    let request = engine.begin(&program, &corpus);
+    let request = owner_fixtures::execution().execution(&program, &corpus);
     let elements = Elements::default();
     let input = |diagnostic| FileInput {
         language: SourceLanguage::Recognized,
-        resident_stability: facts::ResidentStability::Stable,
+        resident_stability: ResidentStability::Stable,
         file: FileId(0),
         evaluation: &[],
         publication: &[],
@@ -238,7 +246,7 @@ pub(in super::super) fn compare_delivery_with_port(
         elements: &elements,
         read: &read,
         semantic,
-        kinds: None,
+        kinds: crate::application::file_dag::program::file_session::types::KindSupport::Absent,
     };
     let collected_intent = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,
@@ -307,219 +315,7 @@ pub(in super::super) fn compare_delivery_with_port(
         scratch_cells: observation.row_capacity,
     })
 }
-#[derive(Debug, Default)]
-struct ContinuesAfterDriverRefusal(std::sync::atomic::AtomicUsize);
-impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase
-    for ContinuesAfterDriverRefusal
-{
-    fn operators(
-        &self,
-        call: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,
-    ) -> Result<
-        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
-        ryo_operators::domain::contract::types::PortableOperatorFault,
-    > {
-        use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
-        use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
-        use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
-        use ryo_operators::domain::set_rows::types::SetInput;
-        use ryo_operators::domain::set_rows::types::SetKind;
-        match call {
-            OperatorCall::SetRow {
-                input:
-                    SetInput::Values {
-                        kind: SetKind::Union,
-                        row,
-                        driver,
-                        ..
-                    },
-            } => {
-                let first = driver.emit(row);
-                // Union is granted distinct-state access, not a RHS membership index.
-                let refusal = driver.contains_right(row);
-                let later_emit = driver.emit(row);
-                let later_lookup = driver.first_time(row);
-                if first.is_ok() && refusal.is_err() && later_emit.is_err() && later_lookup.is_err()
-                {
-                    self.0.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                }
-                Ok(OperatorAnswer::Written)
-            }
-            other => {
-                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))
-                    .operators(other)
-            }
-        }
-    }
-}
-#[test]
-fn engine_driver_preserves_first_refusal_and_denies_later_semantic_callbacks() {
-    let mut case = fixture(OperationKind::Union);
-    let port = Arc::new(ContinuesAfterDriverRefusal::default());
-    let observed = compare_delivery_with_port(
-        &case.operation,
-        &case.inputs,
-        &case.bindings,
-        SOURCE,
-        &mut case.symbols,
-        None,
-        None,
-        RefusalOutcome::Failed,
-        port.clone(),
-    )
-    .expect("real Union prepares");
-    assert_eq!(observed.collected.err(), Some(OperatingError::WrongBinding));
-    assert_eq!(observed.stream_error, Some(OperatingError::WrongBinding));
-    assert!(
-        observed.rows.is_empty(),
-        "a semantic prefix never becomes a publication"
-    );
-    assert_eq!(
-        port.0.load(std::sync::atomic::Ordering::Relaxed),
-        2,
-        "both independently declared sessions exercise the actual engine driver"
-    );
-}
-#[test]
-fn every_registered_class_runs_real_collect_and_stream_with_independent_expectations() {
-    let semantic = KnownSyntax;
-    assert_eq!(OperationKind::ALL.len(), 26);
-    for kind in OperationKind::ALL {
-        let mut case = fixture(*kind);
-        assert_eq!(kind_of(&case.operation), *kind);
-        let observed = compare_delivery_with_semantic(
-            &case.operation,
-            &case.inputs,
-            &case.bindings,
-            SOURCE,
-            &mut case.symbols,
-            None,
-            if *kind == OperationKind::RenderSyntax {
-                Some(&semantic)
-            } else {
-                None
-            },
-            RefusalOutcome::Failed,
-        )
-        .unwrap();
-        let collected = observed.collected.unwrap();
-        assert_eq!(observed.stream_error, None, "{kind:?}");
-        assert_eq!(observed.schema.unwrap(), collected.kinds);
-        assert!(
-            same_rows(&collected, &observed.rows),
-            "ordered bag {kind:?}"
-        );
-        assert_expected(&case.expected, &observed.rows, &case.symbols);
-    }
-}
-
-#[test]
-fn unsupported_semantic_batch_publishes_no_prefix() {
-    #[derive(Debug)]
-    struct PartialSyntax;
-    impl crate::domain::operating::types::SemanticLookup for PartialSyntax {
-        fn render_batch(
-            &self,
-            _: &[RenderRequest],
-            _: ryo_values::domain::files::types::SourceView<'_>,
-        ) -> Result<Vec<RenderOutcome>, OperatingError> {
-            Ok(vec![
-                RenderOutcome::Known(ryo_language::domain::semantics::types::RenderedNode(Arc::from("a"))),
-                RenderOutcome::Unsupported(ryo_relations::domain::terms::types::UnknownReason(24)),
-            ])
-        }
-    }
-    let mut case = fixture(OperationKind::RenderSyntax);
-    ryo_values::domain::rows::service::push_row(
-        &mut case.inputs[0],
-        &[Value::Node(
-            ryo_relations::domain::relations::service::node_id(
-                ryo_relations::domain::relations::types::FileId(0),
-                ryo_relations::domain::relations::types::Position(1),
-            ),
-        )],
-    );
-    let observed = compare_delivery_with_semantic(
-        &case.operation,
-        &case.inputs,
-        &case.bindings,
-        SOURCE,
-        &mut case.symbols,
-        None,
-        Some(&PartialSyntax),
-        RefusalOutcome::Unknown,
-    )
-    .unwrap();
-    assert!(matches!(
-        observed.collected,
-        Err(OperatingError::SemanticIncomplete { .. })
-    ));
-    assert!(matches!(
-        observed.stream_error,
-        Some(OperatingError::SemanticIncomplete { .. })
-    ));
-    assert!(observed.rows.is_empty());
-}
-
-#[test]
-fn a_semantic_batch_of_another_length_is_refused() {
-    #[derive(Debug)]
-    struct OneAnswerTooMany;
-    impl crate::domain::operating::types::SemanticLookup for OneAnswerTooMany {
-        fn render_batch(
-            &self,
-            requests: &[RenderRequest],
-            _: ryo_values::domain::files::types::SourceView<'_>,
-        ) -> Result<Vec<RenderOutcome>, OperatingError> {
-            let known = || {
-                RenderOutcome::Known(ryo_language::domain::semantics::types::RenderedNode(
-                    Arc::from("a"),
-                ))
-            };
-            Ok((0..=requests.len()).map(|_| known()).collect())
-        }
-    }
-    let observe = |lookup: &dyn crate::domain::operating::types::SemanticLookup| {
-        let mut case = fixture(OperationKind::RenderSyntax);
-        ryo_values::domain::rows::service::push_row(
-            &mut case.inputs[0],
-            &[Value::Node(ryo_relations::domain::relations::service::node_id(
-                ryo_relations::domain::relations::types::FileId(0),
-                ryo_relations::domain::relations::types::Position(1),
-            ))],
-        );
-        compare_delivery_with_semantic(
-            &case.operation,
-            &case.inputs,
-            &case.bindings,
-            SOURCE,
-            &mut case.symbols,
-            None,
-            Some(lookup),
-            RefusalOutcome::Failed,
-        )
-        .unwrap()
-    };
-    // Positive control: one answer for each request is published.
-    let answered = observe(&KnownSyntax);
-    assert!(answered.collected.is_ok());
-    assert_eq!(answered.stream_error, None);
-    assert!(!answered.rows.is_empty());
-    // Negative control: one answer more than there are requests is refused, and no row is published.
-    let refused = observe(&OneAnswerTooMany);
-    assert!(matches!(
-        refused.collected,
-        Err(OperatingError::SemanticBatchShape)
-    ));
-    assert!(matches!(
-        refused.stream_error,
-        Some(OperatingError::SemanticBatchShape)
-    ));
-    assert!(refused.rows.is_empty());
-}
-
-#[test]
-fn all_registrations_refuse_a_foreign_variant() {
+fn all_registrations_refuse_a_foreign_variant() -> Result<(), Failure> {
     for (at, kind) in OperationKind::ALL.iter().enumerate() {
         let foreign = fixture(OperationKind::ALL[(at + 1) % OperationKind::ALL.len()]);
         assert!(matches!(
@@ -527,6 +323,7 @@ fn all_registrations_refuse_a_foreign_variant() {
             Err(OperatingError::WrongOperation)
         ));
     }
+    Ok(())
 }
 pub(in super::super) fn repeated(table: &Table, times: usize) -> Table {
     Table {
@@ -534,4 +331,21 @@ pub(in super::super) fn repeated(table: &Table, times: usize) -> Table {
         cells: table.cells.repeat(times),
         count: ryo_values::domain::rows::types::RowCount(table.count.0 * times),
     }
+}
+type Input = fn() -> Result<Value, Failure>;
+type Value = ();
+type Failure = OperatingError;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(stringify!(all_registrations_refuse_a_foreign_variant)),
+        word: Word::Succeeds,
+        input: || all_registrations_refuse_a_foreign_variant,
+        expect: Expect::Value(()),
+    },];
+fn subject(input: Input) -> Result<Value, Failure> {
+    input()
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

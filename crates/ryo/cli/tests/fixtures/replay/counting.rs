@@ -182,7 +182,7 @@ pub(crate) fn lint_observing<T>(
         let analysis_memory: Arc<dyn memory::interface::MemoryPort> =
             Arc::new(memory::factory::sysinfo(Budget::Machine));
         let analysis_digest: Arc<
-            dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
+            dyn ryo_execution::outbound::digest::interface::DigestPort,
         > = Arc::new(digest::factory::blake3());
         LintUseCaseImpl::new(
             ryo_core::application::file_analysis::service::FileAnalysis::new(
@@ -210,7 +210,7 @@ pub(crate) fn lint_observing<T>(
                 ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
             )),
             std::sync::Arc::new(ryo_execution::outbound::derived::factory::use_case(
-                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+                ryo_execution::outbound::derived::factory::semantics(),
             )),
             Arc::new(scheduler::factory::rayon(scheduler::factory::pool(
                 ryo_values::domain::runs::types::WorkersAsked(workers),

@@ -21,8 +21,8 @@ use super::use_case::ValidateUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
 use crate::outbound::language::fixtures::fake::LanguageFake;
 use crate::outbound::language::interface::LanguagePort;
-use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguageError;
-use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
+use ryo_execution::outbound::query_language::errors::QueryLanguageError;
+use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 

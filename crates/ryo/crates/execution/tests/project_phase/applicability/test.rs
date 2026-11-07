@@ -1,4 +1,7 @@
 //! Missing transport remains an error; explicit syntax rejection remains partial.
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::outbound::facts::types::ResidentStability;
 use super::super::*;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::{
@@ -88,7 +91,7 @@ fn exercise(case: Case) {
         };
     }
     corpus.push(second);
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let table = source();
     let read = |_| Ok(SourceRows::Computed(&table));
     let elements = ryo_language::domain::elements::types::Elements::default();
@@ -97,7 +100,7 @@ fn exercise(case: Case) {
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
@@ -106,11 +109,11 @@ fn exercise(case: Case) {
                     observations: ObservationDemand::NotRequired,
                     capture: CaptureIntent::DiagnosticAndObservations,
                 }],
-                source: b"abc",
+                source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read: &read,
-                semantic: None,
-                kinds: None,
+                semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )
@@ -125,7 +128,7 @@ fn exercise(case: Case) {
             &mut symbols,
             CaptureContext {
                 worker: WorkerNumber(0),
-                arena: &mut arena,
+                arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
                 places: &mut places,
                 words: &mut words,
             },
@@ -148,16 +151,16 @@ fn exercise(case: Case) {
             .open_file(
                 FileInput {
                     language: SourceLanguage::Recognized,
-                    resident_stability: facts::ResidentStability::Stable,
+                    resident_stability: ResidentStability::Stable,
                     file: FileId(1),
                     evaluation: &[],
                     publication: &[],
                     intents: &[FileRuleIntent::Skipped(ApplicabilityReason::SyntaxRejected)],
-                    source: b"def broken(:",
+                    source: ryo_values::domain::files::types::SourceView(b"def broken(:"),
                     elements: &elements,
                     read: &forbidden_read,
-                    semantic: None,
-                    kinds: None,
+                    semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                    kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
                 },
                 &mut symbols,
             )
@@ -201,7 +204,7 @@ fn exercise(case: Case) {
             &corpus,
             &[],
             &skipped,
-            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles(
+            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles(
                 if matches!(case, Case::MissingWhileAnotherFileIsInapplicable) {
                     vec![FileId(0)]
                 } else {
@@ -273,7 +276,7 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
     authored.plans[0].frontier = vec![Input::Step(StepId(0))];
     let prepared = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let mut symbols = Symbols::default();
     let elements = ryo_language::domain::elements::types::Elements::default();
     let read = |_| -> Result<SourceRows<'_>, OperatingError> {
@@ -283,16 +286,16 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
                 intents: &[FileRuleIntent::Skipped(ApplicabilityReason::SyntaxRejected)],
-                source: b"def broken(:",
+                source: ryo_values::domain::files::types::SourceView(b"def broken(:"),
                 elements: &elements,
                 read: &read,
-                semantic: None,
-                kinds: None,
+                semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )
@@ -315,7 +318,7 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
             &corpus,
             &[],
             &skipped,
-            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
         )
         .unwrap();
     let stored = CapturedFacts {

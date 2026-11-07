@@ -1,4 +1,5 @@
 //! Selected RHS projection and duplicate order through the real compiled Join.
+use crate::outbound::operators::interface::OperatorsPort as _;
 use super::super::*;
 use crate::domain::table_model::fixtures::{read_row_counts, take_read_row_counts};
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
@@ -9,11 +10,11 @@ use ryo_operators::domain::contract::types::PortableOperatorFault;
 /// Observe only actual Join driver work, excluding prepared walks and publication delivery.
 #[derive(Debug, Default)]
 struct JoinReads(std::sync::Mutex<Vec<(u64, u64)>>);
-impl OperatorsUseCase for JoinReads {
+impl crate::outbound::operators::interface::OperatorsPort for JoinReads {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         let before = matches!(&call, OperatorCall::EqualityJoin { .. }).then(read_row_counts);
         let answer =
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))
+            crate::application::file_dag::fixtures::operators()
                 .operators(call);
         if let Some(before) = before {
             let after = read_row_counts();
@@ -104,7 +105,7 @@ fn edges(pairs: &[(u64, u64)]) -> Vec<FactColumn> {
 #[test]
 fn selected_join_keeps_duplicate_bag_order_and_decodes_only_projected_cells()
 -> Result<(), OperatingError> {
-    let derived = crate::application::file_dag::testing::program_derived_port();
+    let derived = crate::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
@@ -156,7 +157,7 @@ fn selected_join_keeps_duplicate_bag_order_and_decodes_only_projected_cells()
         }],
         services,
         ryo_values::domain::files::types::SourceView(b""),
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
         None,

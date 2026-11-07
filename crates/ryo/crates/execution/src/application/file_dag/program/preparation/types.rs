@@ -1,6 +1,6 @@
 //! Immutable prepared request metadata; no runtime or lifecycle dependency.
 use crate::domain::coverage::types::RuleIndex;
-use crate::domain::file_program::types::FrontierPurpose;
+use crate::domain::rule_intent::types::FrontierPurpose;
 use crate::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use crate::domain::executable_program::types::InputSource;
 use crate::domain::executable_program::types::RegionId;
@@ -23,33 +23,33 @@ use std::sync::Arc;
 
 /// Whether a rule renders syntax and so needs the semantic session.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum SemanticNeed {
+pub enum SemanticNeed {
     Required,
     NotRequired,
 }
 /// Whether a rule is wanted by the request, directly or through a named observation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Demand {
+pub enum Demand {
     Demanded,
     Undemanded,
 }
 /// Whether a rule declares or consumes named observations.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ObservationContract {
+pub enum ObservationContract {
     Declared,
     Absent,
 }
 /// How many rules the request holds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct RuleTotal(pub usize);
+pub struct RuleTotal(pub usize);
 /// The readiness layout of the named observations and the frontiers that feed them.
-pub(crate) struct NamedLayout<'a> {
+pub struct NamedLayout<'a> {
     pub layout: ObservationReadinessLayout,
     pub frontiers: &'a [ObservedFrontierRoot],
 }
 /// The rules a changed selection reaches and the producer frontiers they read.
 #[derive(Debug, PartialEq)]
-pub(crate) struct ReplayClosure {
+pub struct ReplayClosure {
     pub reuse: Reuse,
     pub buckets: Vec<Bucket>,
 }

@@ -27,7 +27,7 @@ pub(super) struct KernelSession<'a, 'facts> {
     prepared: &'a crate::application::file_dag::program::preparation::types::PreparedProgram,
     owner: Rc<RelationOwner>,
     read: &'a dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
-    walk: super::native_walk::WalkPartition<'a>,
+    walk: super::native_walk::project::service::WalkPartition<'a>,
 }
 impl<'a, 'facts> KernelSession<'a, 'facts> {
     pub(super) fn file(
@@ -42,7 +42,7 @@ impl<'a, 'facts> KernelSession<'a, 'facts> {
             prepared,
             owner,
             read,
-            walk: super::native_walk::WalkPartition::File(walk),
+            walk: super::native_walk::project::service::WalkPartition::File(walk),
         }
     }
     pub(super) fn project(
@@ -57,7 +57,7 @@ impl<'a, 'facts> KernelSession<'a, 'facts> {
             prepared,
             owner,
             read,
-            walk: super::native_walk::WalkPartition::Project(walk),
+            walk: super::native_walk::project::service::WalkPartition::Project(walk),
         }
     }
 }

@@ -7,8 +7,8 @@ use super::types::FileCompleteness;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
-use ryo_execution::inbound::use_cases::execution::types::OperatingError;
-use ryo_execution::inbound::use_cases::execution::types::SemanticLookup;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::SemanticLookup;
 use ryo_language::domain::elements::service::real_count;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::semantics::types::SemanticSession;

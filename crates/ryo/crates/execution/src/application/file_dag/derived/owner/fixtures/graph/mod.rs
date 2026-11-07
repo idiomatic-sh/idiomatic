@@ -4,6 +4,7 @@ use crate::application::file_dag::derived::owner::graphs::{
     service::slot,
     types::{
         handles::service::{DomainHandle, GraphHandle, RootAnswer},
+        retained::types::{GraphVertex, NearestAnswers},
         roots::value::DemandAnswers,
     },
 };
@@ -49,13 +50,13 @@ impl GraphFixture {
         let fixture = Self {
             owner: Rc::new(RelationOwner::for_request(
                 if stable {
-                    crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible
+                    crate::application::file_dag::relations::types::ReuseEligibility::Eligible
                 } else {
-                    crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Ineligible
+                    crate::application::file_dag::relations::types::ReuseEligibility::Ineligible
                 },
                 crate::application::file_dag::relations::types::PinnedViewCount(max_views),
                 (std::sync::Arc::new(
-                    crate::outbound::derived::factory::semantics(),
+                    crate::application::file_dag::fixtures::derived(),
                 )
                     as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             )),
@@ -136,7 +137,7 @@ impl GraphFixture {
         owner: Rc<RelationOwner>,
         wanted: &[Relation],
     ) -> Self {
-        let limit = owner.derived().backend.borrow().as_ref().unwrap().limit;
+        let limit = owner.derived().backend.borrow().as_ref().unwrap().limit.0;
         let fixture = Self {
             owner,
             wanted: wanted.to_vec(),
@@ -304,14 +305,11 @@ impl GraphFixture {
         walk: &mut GraphWalk,
     ) -> Result<Option<u32>, OperatingError> {
         let mut cache = self.owner.derived().graph_cache()?;
-        DemandAnswers::new(self.owner.derived(), &mut cache).nearest(
-            access,
-            domain,
-            root,
-            orientation,
-            local,
-            walk,
-        )
+        let mut answers = NearestAnswers(std::mem::take(local));
+        let found = DemandAnswers::new(self.owner.derived(), &mut cache)
+            .nearest(access, domain, GraphVertex(root), orientation, &mut answers, walk);
+        *local = answers.0;
+        found.map(|found| found.map(|vertex| vertex.0))
     }
     pub(in crate::application::file_dag) fn index(
         &self,

@@ -1,5 +1,28 @@
 //! A project root cannot reconstruct an unhanded per-file step from a provider.
-use super::super::super::{fixtures, interface::*, types::*};
+use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::facts::types::ColumnsMut;
+use crate::outbound::facts::errors::FactsError;
+use crate::outbound::facts::interface::FactsFinish;
+use crate::outbound::facts::interface::FactsWorker;
+use crate::outbound::facts::types::KeptBucket;
+use crate::outbound::facts::types::ResidentStability;
+use crate::outbound::facts::types::WordsToKeep;
+use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use crate::application::file_dag::program::project_phase::types::ProjectInput;
+use crate::application::file_dag::program::project_phase::types::ProjectTask;
+use crate::application::file_dag::program::project_phase::types::FrontierDemand;
+use crate::application::file_dag::program::project_phase::types::FrontierRequest;
+use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use crate::inbound::use_cases::execution::interface::Covered;
+use crate::inbound::use_cases::execution::interface::EmitDemand;
+use crate::inbound::use_cases::execution::interface::ObservationDemand;
+use crate::inbound::use_cases::execution::interface::OperatingError;
+use crate::inbound::use_cases::execution::interface::Partials;
+use crate::inbound::use_cases::execution::interface::RuleDemand;
+use crate::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{ColumnsView, FileId, Relation};
 use ryo_values::domain::{
@@ -13,40 +36,39 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 struct UnavailableFacts {
     reads: AtomicUsize,
 }
-fn denied() -> facts::FactsError {
-    facts::FactsError::Store {
+fn denied() -> FactsError {
+    FactsError::Store {
         reason: "no per-file frontier was handed over".into(),
     }
 }
-impl facts::FactsWorker for UnavailableFacts {
-    fn resident_stability(&self) -> facts::ResidentStability {
-        facts::ResidentStability::Stable
+impl FactsWorker for UnavailableFacts {
+    fn resident_stability(&self) -> ResidentStability {
+        ResidentStability::Stable
     }
-    fn rows(&self, _: Relation) -> Result<ColumnsView<'_>, facts::FactsError> {
+    fn rows(&self, _: Relation) -> Result<ColumnsView<'_>, FactsError> {
         self.reads.fetch_add(1, Ordering::Relaxed);
         Err(denied())
     }
-    fn columns_mut(&mut self) -> Result<facts::ColumnsMut<'_>, facts::FactsError> {
+    fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError> {
         Err(denied())
     }
-    fn keep(&self, _: Bucket, _: facts::WordsToKeep<'_>) -> Result<(), facts::FactsError> {
+    fn keep(&self, _: Bucket, _: WordsToKeep<'_>) -> Result<(), FactsError> {
         panic!("project input refusal writes no frontier")
     }
-    fn release(&mut self) -> Result<(), facts::FactsError> {
+    fn release(&mut self) -> Result<(), FactsError> {
         panic!("the borrowed project fixture is not an execution-owned source")
     }
-    fn finished(self: Box<Self>) -> Result<Box<dyn facts::FactsFinish>, facts::FactsError> {
+    fn finished(self: Box<Self>) -> Result<Box<dyn FactsFinish>, FactsError> {
         panic!("the borrowed project fixture is never finished by execution")
     }
 }
-impl facts::FactsFinish for UnavailableFacts {
-    fn kept(&self, _: Bucket) -> Result<facts::KeptBucket, facts::FactsError> {
+impl FactsFinish for UnavailableFacts {
+    fn kept(&self, _: Bucket) -> Result<KeptBucket, FactsError> {
         panic!("the plan declares no restored frontier to fetch")
     }
 }
-#[test]
-fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() {
-    let mut plan = fixtures::plan(vec![
+fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() -> Result<(), Failure> {
+    let mut plan = inputs::plan(vec![
         Operation::Select {
             from: Source::Relation(Relation::Function),
             kept: vec![ColumnIndex(0)],
@@ -68,7 +90,7 @@ fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() {
         size: FileSize(0),
         modified: Nanoseconds(0),
     })];
-    let request = engine.begin(&program, &corpus);
+    let request = fixtures::execution().execution(&program, &corpus);
     let covered = [Covered {
         file: FileId(0),
         rules: vec![RuleIndex(0)],
@@ -81,7 +103,7 @@ fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() {
             &corpus,
             &covered,
             &[],
-            &crate::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            &crate::inbound::use_cases::execution::interface::InapplicableFiles::default(),
         )
         .unwrap();
     let facts = UnavailableFacts::default();
@@ -140,4 +162,30 @@ fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() {
     drop(scope);
     phase.finish().unwrap();
     request.finish();
+    Ok(())
+}
+/// The scenarios of this group, one row each.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    ProjectStepWithoutADeclaredHandoverCannotReadAPerFileSource,
+}
+type Input = Scenario;
+type Value = ();
+type Failure = OperatingError;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(stringify!(project_step_without_a_declared_handover_cannot_read_a_per_file_source)),
+        word: Word::Succeeds,
+        input: || Scenario::ProjectStepWithoutADeclaredHandoverCannotReadAPerFileSource,
+        expect: Expect::Value(()),
+    },
+];
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::ProjectStepWithoutADeclaredHandoverCannotReadAPerFileSource => project_step_without_a_declared_handover_cannot_read_a_per_file_source(),
+    }
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

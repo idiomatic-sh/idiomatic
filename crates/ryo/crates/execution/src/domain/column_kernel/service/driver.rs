@@ -52,7 +52,7 @@ impl JoinDriver for ChainDriver<'_, '_> {
         self.current = None;
         while let Some(right_row) = self.index.next_match(key, &mut probe) {
             #[cfg(feature = "diagnostic-row-progress")]
-            (self.index.progress)(
+            self.index.progress.observe(
                 crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,
                 crate::domain::operator::contract::views::ProgressAmount(1),
             );
@@ -69,7 +69,7 @@ impl JoinDriver for ChainDriver<'_, '_> {
                 return Err(EqualityJoinError::Interrupted);
             };
             #[cfg(feature = "diagnostic-row-progress")]
-            (self.index.progress)(
+            self.index.progress.observe(
                 crate::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
                 crate::domain::operator::contract::views::ProgressAmount(1),
             );
@@ -100,7 +100,7 @@ impl JoinDriver for ChainDriver<'_, '_> {
             return Err(EqualityJoinError::Interrupted);
         }
         #[cfg(feature = "diagnostic-row-progress")]
-        (self.index.progress)(
+        self.index.progress.observe(
             crate::domain::operator::contract::views::ProgressCounter::KernelOutputRows,
             crate::domain::operator::contract::views::ProgressAmount(1),
         );

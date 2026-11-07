@@ -1,5 +1,6 @@
 //! Projected-row geometry and its exact logical selection output use the real owner.
-use super::super::super::{fixtures, types::OperatingError};
+use super::super::super::fixtures;
+use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::domain::table_model::{
     service::{materialize, read_row},
     types::{Rows, SelectedRows, StoredSelection},

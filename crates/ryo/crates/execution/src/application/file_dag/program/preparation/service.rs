@@ -1,7 +1,7 @@
 //! Immutable request preparation, physical metadata and compilation ownership.
 use super::types::*;
 use crate::domain::coverage::types::RuleIndex;
-use crate::domain::file_program::types::FrontierPurpose;
+use crate::domain::rule_intent::types::FrontierPurpose;
 use crate::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::prepared_request::types::Compiled;
@@ -226,7 +226,7 @@ pub(crate) fn prepare(
     );
     let source_plans: Vec<_> = plans.iter().map(Ok).collect();
     let partitions = SourcePartitions::new(rules, &source_plans, &bindings, hosted, &observations)?;
-    let operators = crate::application::file_dag::request::prepare(&plans, &bindings, hosted, derived.clone())?;
+    let operators = crate::application::file_dag::service::prepare(&plans, &bindings, hosted, derived.clone())?;
     let request = match identity {
         ObservationIdentity::Independent => {
             crate::domain::file_program::types::ObservationRequest::Independent

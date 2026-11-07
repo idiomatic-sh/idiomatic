@@ -1,6 +1,9 @@
-use ryo_execution::inbound::use_cases::execution::{
-    interface::ExecutionUseCase, types::*, use_case::ExecutionUseCaseImpl,
-};
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
+use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::{
     fixtures::kinds,
@@ -81,10 +84,10 @@ fn plan(index: usize) -> Plan {
     }
 }
 
-pub(in crate::fixtures) fn engine() -> ExecutionUseCaseImpl {
-    ExecutionUseCaseImpl::new(
+pub(in crate::fixtures) fn engine() -> PrepareUseCaseImpl {
+    PrepareUseCaseImpl::new(
         Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
+            ryo_execution::outbound::operators::factory::use_case(ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))),
         ),
         Arc::new(ryo_execution::outbound::derived::factory::semantics()),
     )
@@ -98,14 +101,11 @@ pub(in crate::fixtures) fn corpus() -> [CorpusInput; 1] {
     })]
 }
 pub(in crate::fixtures) fn prepared(
-    engine: &ExecutionUseCaseImpl,
+    engine: &PrepareUseCaseImpl,
     total: usize,
 ) -> PreparedExecutionProgram {
     engine
-        .prepare(PreparedRequest {
-            plans: (0..total).map(plan).collect(),
-            bindings: vec![vec![]; total],
-            rules: (0..total)
+        .prepare(PrepareRequest { plans: PlanSource::Authored { plans: (0..total).map(plan).collect(), bindings: vec![vec![]; total] }, rules: (0..total)
                 .map(|index| RuleSpec {
                     id: RuleId(format!("activation-{index}").into()),
                     query: QueryBundle {
@@ -122,10 +122,6 @@ pub(in crate::fixtures) fn prepared(
                     include: vec![],
                     exclude: vec![],
                 })
-                .collect(),
-            digests: (0..total).map(|index| Digest([index as u8; 16])).collect(),
-            hosted: vec![],
-            observations: ObservationIdentity::Independent,
-        })
+                .collect(), digests: (0..total).map(|index| Digest([index as u8; 16])).collect(), hosted: vec![], observations: ObservationIdentity::Independent })
         .unwrap()
 }

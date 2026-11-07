@@ -1,5 +1,17 @@
 //! Binary operators must demand the refusing RHS after a real nonempty successful LHS.
-use super::super::super::{fixtures, interface::*, types::*};
+use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
+use crate::outbound::facts::types::ResidentStability;
+use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use crate::application::file_dag::program::file_session::types::FileInput;
+use crate::application::file_dag::program::file_session::types::SourceLanguage;
+use crate::application::file_dag::program::file_session::types::SourceRows;
+use crate::inbound::use_cases::execution::interface::CaptureIntent;
+use crate::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use crate::inbound::use_cases::execution::interface::FileRuleIntent;
+use crate::inbound::use_cases::execution::interface::ObservationDemand;
+use crate::inbound::use_cases::execution::interface::OperatingError;
+use crate::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_relations::domain::relations::{
     service::{kinds, node_id},
     types::{FileId, Offset, Position, Relation, Span, Value as Cell},
@@ -24,6 +36,7 @@ enum Binary {
 enum Missing {
     First,
     Second,
+    Neither,
 }
 #[derive(Clone, Copy)]
 enum Delivery {
@@ -49,12 +62,20 @@ fn subject((operator, missing, delivery): Input) -> Result<Value, Failure> {
             }),
         ],
     };
+    let comment = Table {
+        kinds: kinds(Relation::Comment).to_vec(),
+        count: RowCount(0),
+        cells: vec![],
+    };
     let reads = RefCell::new(Vec::new());
     let read = |relation| {
         reads.borrow_mut().push(relation);
         match relation {
-            Relation::Function if matches!(missing, Missing::Second) => {
+            Relation::Function if matches!(missing, Missing::Second | Missing::Neither) => {
                 Ok(SourceRows::Computed(&function))
+            }
+            Relation::Comment if matches!(missing, Missing::Neither) => {
+                Ok(SourceRows::Computed(&comment))
             }
             _ => Err(OperatingError::NotRead),
         }
@@ -72,7 +93,7 @@ fn subject((operator, missing, delivery): Input) -> Result<Value, Failure> {
             right_on: vec![ColumnIndex(0)],
         },
     };
-    let plan = fixtures::plan(vec![
+    let plan = inputs::plan(vec![
         Operation::Select {
             from: PlanInput::Relation(Relation::Function),
             comparisons: vec![],
@@ -107,11 +128,11 @@ fn subject((operator, missing, delivery): Input) -> Result<Value, Failure> {
                 modified: Nanoseconds(0),
                 executable: ExecutablePermission::Unknown,
             })];
-            let request = engine.begin(&prepared, &corpus);
+            let request = fixtures::execution().execution(&prepared, &corpus);
             let mut file = request.open_file(
                 FileInput {
                     language: SourceLanguage::Recognized,
-                    resident_stability: facts::ResidentStability::Stable,
+                    resident_stability: ResidentStability::Stable,
                     file: FileId(0),
                     evaluation: &[],
                     publication: &[],
@@ -120,11 +141,11 @@ fn subject((operator, missing, delivery): Input) -> Result<Value, Failure> {
                         observations: ObservationDemand::NotRequired,
                         capture: CaptureIntent::Disabled,
                     }],
-                    source: b"abcd",
+                    source: ryo_values::domain::files::types::SourceView(b"abcd"),
                     elements: &elements,
                     read: &read,
-                    semantic: None,
-                    kinds: None,
+                    semantic: crate::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                    kinds: crate::application::file_dag::program::file_session::types::KindSupport::Absent,
                 },
                 &mut symbols,
             )?;
@@ -162,6 +183,10 @@ fn subject((operator, missing, delivery): Input) -> Result<Value, Failure> {
     // Pinned successful LHS borrows may repeat, but refusal is terminal.
     match missing {
         Missing::First => assert_eq!(history, [Relation::Function]),
+        Missing::Neither => {
+            assert!(history.contains(&Relation::Function), "the left provider is read");
+            assert!(history.contains(&Relation::Comment), "the right provider is read");
+        }
         Missing::Second => {
             let (last, prefix) = history.split_last().expect("RHS must actually be demanded");
             assert_eq!(*last, Relation::Comment);
@@ -180,6 +205,12 @@ fn subject((operator, missing, delivery): Input) -> Result<Value, Failure> {
     result.map(|_| ())
 }
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("union_over_two_available_providers_publishes"),
+        word: Word::Succeeds,
+        input: || (Binary::Union, Missing::Neither, Delivery::Collected),
+        expect: Expect::Value(()),
+    },
     Case {
         name: CaseName(
             "forwarded_union_requires_rhs_after_successful_lhs_and_never_delivers_a_prefix",
@@ -219,6 +250,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(OperatingError::NotRead),
     },
 ];
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);

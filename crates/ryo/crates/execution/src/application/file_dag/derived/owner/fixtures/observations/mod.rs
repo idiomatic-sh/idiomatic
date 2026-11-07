@@ -142,7 +142,7 @@ use crate::domain::stored_selection::types::{CandidateRepeat, Selector};
 impl DerivedOwner {
     pub(in crate::application::file_dag::derived::owner) fn fixture_limit_to_metadata(&self) {
         if let Some(cache) = self.backend.borrow_mut().as_mut() {
-            cache.limit = cache.bytes;
+            cache.limit.0 = cache.bytes.0;
         }
     }
     pub(in crate::application::file_dag::derived::owner) fn fixture_ineligible(&self) {
@@ -230,8 +230,8 @@ impl DerivedOwner {
         let capacity = rows.iter().map(|(_, capacity)| capacity).sum();
         let optional = self.ledger.borrow().snapshot();
         SelectionSnapshot {
-            bytes: cache.bytes,
-            limit: cache.limit,
+            bytes: cache.bytes.0,
+            limit: cache.limit.0,
             index_builds: cache.builds.0,
             entries: self.retained_index_count(),
             selections: predicates.len(),
@@ -291,7 +291,7 @@ impl DerivedOwner {
                 authored,
                 &|_| kinds,
                 (std::sync::Arc::new(
-                    crate::outbound::derived::factory::semantics(),
+                    crate::application::file_dag::fixtures::derived(),
                 )
                     as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             )?;

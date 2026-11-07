@@ -169,7 +169,7 @@ pub(crate) fn execute(
         }],
         services,
         ryo_values::domain::files::types::SourceView(source),
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         symbols,
         None,
         None,
@@ -228,7 +228,7 @@ pub(crate) fn execute(
             ryo_values::domain::stored_facts::types::Bucket(0),
             &read,
             symbols,
-            crate::application::file_dag::program::protocol::types::CaptureScope {
+            crate::domain::frontier_capture::types::CaptureScope {
                 file: FileId(0),
                 rule_digest: Digest([0; 16]),
                 worker: ryo_relations::domain::relations::types::WorkerNumber(0),
@@ -302,7 +302,7 @@ pub(crate) fn execute(
     })
 }
 pub(crate) fn real_port() -> Arc<dyn crate::outbound::operators::interface::OperatorsPort> {
-    Arc::new(ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())))
+    Arc::new(crate::application::file_dag::fixtures::operators())
 }
 pub(crate) fn made(
     op: &Operation,

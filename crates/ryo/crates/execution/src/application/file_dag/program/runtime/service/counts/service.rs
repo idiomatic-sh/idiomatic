@@ -50,7 +50,7 @@ impl ProgramExecution {
         &self,
         state: &RuntimeState,
         rule: crate::domain::coverage::types::RuleIndex,
-    ) -> Result<crate::application::file_dag::program::protocol::types::LogicalCounts, OperatingError>
+    ) -> Result<crate::domain::operator::types::LogicalCounts, OperatingError>
     {
         self.validate_state(state)?;
         let rule = self
@@ -88,7 +88,7 @@ impl ProgramExecution {
             fed.push(total);
         }
         Ok(
-            crate::application::file_dag::program::protocol::types::LogicalCounts {
+            crate::domain::operator::types::LogicalCounts {
                 fed: fed.into_boxed_slice(),
             },
         )

@@ -1,5 +1,13 @@
 //! Injected immutable source rows and the exact file frontier captured by the public owner.
-use ryo_execution::inbound::use_cases::execution::types::{CapturedFrontier, facts};
+use ryo_execution::outbound::facts::types::BucketSource;
+use ryo_execution::outbound::facts::types::ColumnsMut;
+use ryo_execution::outbound::facts::errors::FactsError;
+use ryo_execution::outbound::facts::interface::FactsFinish;
+use ryo_execution::outbound::facts::interface::FactsWorker;
+use ryo_execution::outbound::facts::types::KeptBucket;
+use ryo_execution::outbound::facts::types::ResidentStability;
+use ryo_execution::outbound::facts::types::WordsToKeep;
+use ryo_execution::inbound::use_cases::execution::interface::CapturedFrontier;
 use ryo_relations::domain::relations::{
     fixtures::kinds,
     types::{CellKind, FileId, Offset, Relation, Span, Value},
@@ -50,16 +58,16 @@ impl ProjectFacts {
         }
     }
 }
-fn unsupported() -> facts::FactsError {
-    facts::FactsError::Store {
+fn unsupported() -> FactsError {
+    FactsError::Store {
         reason: "immutable project fixture does not write facts".into(),
     }
 }
-impl facts::FactsWorker for ProjectFacts {
-    fn resident_stability(&self) -> facts::ResidentStability {
-        facts::ResidentStability::Stable
+impl FactsWorker for ProjectFacts {
+    fn resident_stability(&self) -> ResidentStability {
+        ResidentStability::Stable
     }
-    fn rows(&self, relation: Relation) -> Result<ColumnsView<'_>, facts::FactsError> {
+    fn rows(&self, relation: Relation) -> Result<ColumnsView<'_>, FactsError> {
         assert_eq!(relation, self.relation);
         self.reads.fetch_add(1, Ordering::SeqCst);
         Ok(ColumnsView {
@@ -67,16 +75,16 @@ impl facts::FactsWorker for ProjectFacts {
             columns: &self.columns,
         })
     }
-    fn columns_mut(&mut self) -> Result<facts::ColumnsMut<'_>, facts::FactsError> {
+    fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError> {
         Err(unsupported())
     }
-    fn keep(&self, _: Bucket, _: facts::WordsToKeep<'_>) -> Result<(), facts::FactsError> {
+    fn keep(&self, _: Bucket, _: WordsToKeep<'_>) -> Result<(), FactsError> {
         Err(unsupported())
     }
-    fn release(&mut self) -> Result<(), facts::FactsError> {
+    fn release(&mut self) -> Result<(), FactsError> {
         Err(unsupported())
     }
-    fn finished(self: Box<Self>) -> Result<Box<dyn facts::FactsFinish>, facts::FactsError> {
+    fn finished(self: Box<Self>) -> Result<Box<dyn FactsFinish>, FactsError> {
         Err(unsupported())
     }
 }
@@ -85,22 +93,22 @@ pub(in super::super) struct CapturedFacts {
     pub captures: Vec<(FileId, CapturedFrontier)>,
     pub reads: AtomicUsize,
 }
-impl facts::FactsFinish for CapturedFacts {
-    fn kept(&self, bucket: Bucket) -> Result<facts::KeptBucket, facts::FactsError> {
+impl FactsFinish for CapturedFacts {
+    fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
         self.reads.fetch_add(1, Ordering::SeqCst);
         let mut words = vec![];
         let mut sources = vec![];
         for (file, capture) in &self.captures {
             assert_eq!(bucket, capture.bucket);
-            sources.push(facts::BucketSource {
+            sources.push(BucketSource {
                 file: *file,
-                start: words.len(),
-                length: capture.words.0.len(),
+                start: ryo_execution::outbound::facts::types::KeptWordsStart(words.len()),
+                length: ryo_execution::outbound::facts::types::KeptWordsLength(capture.words.0.len()),
                 proof: capture.proof.clone(),
             });
             words.extend_from_slice(&capture.words.0);
         }
-        Ok(facts::KeptBucket {
+        Ok(KeptBucket {
             words: KeptWords(PackedWords(words)),
             sources,
         })

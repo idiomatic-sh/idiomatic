@@ -16,7 +16,7 @@ pub(in crate::application::file_dag::observations) enum CrossRoot {
     },
     Named {
         publication: crate::application::file_dag::relations::packed::service::PackedPublication,
-        admitted: crate::application::file_dag::program::protocol::types::ObservedPublication,
+        admitted: crate::application::file_dag::program::observed_publication::types::ObservedPublication,
         arenas: Vec<WorkerNumber>,
     },
     Unavailable,
@@ -62,14 +62,14 @@ pub(in crate::application::file_dag::observations) enum FrontierCompatibility {
 }
 /// Whether a rule is among those the current run selected.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum RuleSelection {
+pub enum RuleSelection {
     Selected,
     Unselected,
 }
 /// One output of a rule with the admitted publication it delivers.
-pub(crate) struct AdmittedOutput {
+pub struct AdmittedOutput {
     pub output: ObservationIndex,
-    pub publication: crate::application::file_dag::program::protocol::types::ObservedPublication,
+    pub publication: crate::application::file_dag::program::observed_publication::types::ObservedPublication,
 }
 /// One invocation extends the existing arena vector; stable slot indices never move during execution.
 pub(crate) struct CrossPublications<'a> {

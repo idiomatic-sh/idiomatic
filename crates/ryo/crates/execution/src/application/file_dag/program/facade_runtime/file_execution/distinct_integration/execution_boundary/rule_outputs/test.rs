@@ -50,7 +50,7 @@ fn output_requests(
             rule
         })
         .collect::<Vec<_>>();
-    let derived = crate::application::file_dag::testing::program_derived_port();
+    let derived = crate::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
@@ -67,7 +67,7 @@ fn output_requests(
     .unwrap();
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
+            crate::application::file_dag::fixtures::operators(),
         ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {
@@ -99,7 +99,7 @@ fn large_tiny_and_empty_rule_outputs_are_owned_beyond_workspace_drop() {
         }; 4],
         services,
         ryo_values::domain::files::types::SourceView(b""),
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
         None,
@@ -165,7 +165,7 @@ fn evaluation_errors_do_not_leave_mutable_state_in_the_next_rule() {
         }; 2],
         services,
         ryo_values::domain::files::types::SourceView(b""),
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
         None,

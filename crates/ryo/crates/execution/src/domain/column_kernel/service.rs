@@ -209,7 +209,7 @@ pub(crate) fn execute_with_index(
         for position in 0..left_count {
             covered.set(RowsCovered(covered.get().0.saturating_add(1)));
             #[cfg(feature = "diagnostic-row-progress")]
-            (semantics.progress())(
+            semantics.progress().observe(
                 crate::domain::operator::contract::views::ProgressCounter::InputRows,
                 crate::domain::operator::contract::views::ProgressAmount(1),
             );

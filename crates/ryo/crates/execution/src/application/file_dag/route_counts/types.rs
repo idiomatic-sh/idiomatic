@@ -129,6 +129,7 @@ pub(crate) struct RouteCount {
     pub successes: RouteTally,
     pub failures: RouteTally,
 }
+#[derive(Debug)]
 pub(crate) struct RouteState {
     pub file: RouteFileIndex,
     pub origin: RouteOrigin,
@@ -184,6 +185,7 @@ pub(crate) struct RouteRowFile {
     pub path: RouteFileName,
 }
 #[cfg(feature = "diagnostic-row-progress")]
+#[derive(Debug)]
 pub(crate) struct RouteProgressState {
     pub started: std::time::Instant,
     pub last: std::time::Instant,

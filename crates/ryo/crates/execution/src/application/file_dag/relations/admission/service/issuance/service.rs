@@ -39,7 +39,9 @@ impl<'a> BorrowedInput<'a> {
         self.identity(owner)?;
         Ok(self.backing_relation)
     }
-    pub(in crate::application::file_dag) fn canonical_backing(&self) -> bool {
+    pub(in crate::application::file_dag) fn canonical_backing(
+        &self,
+    ) -> crate::application::file_dag::relations::types::BackingForm {
         self.canonical_backing
     }
     pub(in crate::application::file_dag) fn physical_shape(&self) -> PhysicalShape {
@@ -54,14 +56,17 @@ impl<'a> BorrowedInput<'a> {
     pub(in crate::application::file_dag) fn identity(
         &self,
         owner: &RelationOwner,
-    ) -> Result<(PopulationId, Option<Relation>), OperatingError> {
+    ) -> Result<crate::application::file_dag::relations::admission::types::AdmissionIdentity, OperatingError> {
         if !Arc::ptr_eq(&self.origin.generation, &owner.generation.borrow()) {
             return Err(OperatingError::NotRead);
         }
         if self.shape != PhysicalShape::Complete {
             return Err(OperatingError::ShapeMismatch);
         }
-        Ok((self.origin.population, self.origin.relation))
+        Ok(crate::application::file_dag::relations::admission::types::AdmissionIdentity {
+            population: self.origin.population,
+            relation: self.origin.relation,
+        })
     }
 }
 
@@ -93,8 +98,13 @@ impl RelationOwner {
                 shape,
                 backing_population: self.backing_population(result),
                 backing_relation: Self::backing_relation(result),
-                canonical_backing: Self::backing_relation(result)
-                    .is_some_and(|relation| self.sources.borrow().contains_key(&relation)),
+                canonical_backing: if Self::backing_relation(result)
+                    .is_some_and(|relation| self.sources.borrow().contains_key(&relation))
+                {
+                    crate::application::file_dag::relations::types::BackingForm::Canonical
+                } else {
+                    crate::application::file_dag::relations::types::BackingForm::Foreign
+                },
                 origin: AdmissionOrigin {
                     population: self.result_population(result),
                     relation: match &result.body {

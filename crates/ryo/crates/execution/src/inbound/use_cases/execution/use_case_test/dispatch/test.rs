@@ -1,5 +1,19 @@
 //! File-valued dispatch uses a real hosted schema and both declared corpus entries.
-use super::super::super::{fixtures, interface::*, types::*};
+use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
+use crate::outbound::facts::types::ResidentStability;
+use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use crate::application::file_dag::program::file_session::types::FileInput;
+use crate::application::file_dag::program::file_session::types::SourceLanguage;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use crate::inbound::use_cases::execution::interface::CaptureIntent;
+use crate::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use crate::inbound::use_cases::execution::interface::EmitDemand;
+use crate::inbound::use_cases::execution::interface::FileRuleIntent;
+use crate::inbound::use_cases::execution::interface::ObservationDemand;
+use crate::inbound::use_cases::execution::interface::OperatingError;
+use crate::inbound::use_cases::execution::interface::RuleDemand;
+use crate::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_language::domain::{
     elements::types::Elements, files::types::FilePath, symbols::types::Symbols,
 };
@@ -30,7 +44,7 @@ fn subject(_: Input) -> Result<Value, Failure> {
             .to_vec(),
     };
     let (engine, prepared) = fixtures::prepared(
-        fixtures::plan(vec![
+        inputs::plan(vec![
             Operation::Hosted {
                 relation: HostedNumber(0),
             },
@@ -51,14 +65,15 @@ fn subject(_: Input) -> Result<Value, Failure> {
             executable: ExecutablePermission::Unknown,
         })
     });
-    let request = engine.begin(&prepared, &corpus);
+    let request = fixtures::execution().execution(&prepared, &corpus);
     let elements = Elements::default();
     let mut symbols = Symbols::default();
-    let read = |_| panic!("hosted File data never invokes a catalog provider");
+    // Hosted File data never invokes a catalog provider: were it called, the run would fail with the read refusal.
+    let read = |_| Err(OperatingError::NotRead);
     let mut file = request.open_file(
         FileInput {
             language: SourceLanguage::Recognized,
-            resident_stability: facts::ResidentStability::Stable,
+            resident_stability: ResidentStability::Stable,
             file: FileId(0),
             evaluation: &[],
             publication: &[],
@@ -67,11 +82,11 @@ fn subject(_: Input) -> Result<Value, Failure> {
                 observations: ObservationDemand::NotRequired,
                 capture: CaptureIntent::Disabled,
             }],
-            source: b"",
+            source: ryo_values::domain::files::types::SourceView(b""),
             elements: &elements,
             read: &read,
-            semantic: None,
-            kinds: None,
+            semantic: crate::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+            kinds: crate::application::file_dag::program::file_session::types::KindSupport::Absent,
         },
         &mut symbols,
     )?;

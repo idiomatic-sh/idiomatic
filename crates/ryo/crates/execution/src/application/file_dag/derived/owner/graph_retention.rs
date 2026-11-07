@@ -45,8 +45,8 @@ impl DerivedOwner {
                     backings: Arc::clone(backings),
                     _lease: lease,
                 });
-                cache.graph_bytes += bytes - cache.bytes;
-                cache.bytes = bytes;
+                cache.graph_bytes.0 += bytes - cache.bytes.0;
+                cache.bytes.0 = bytes;
                 cache.graph_counts.peak_bytes.0 = cache.graph_counts.peak_bytes.0.max(bytes);
                 return Ok(GraphSharing::Shared);
             }
@@ -88,8 +88,8 @@ impl DerivedOwner {
                     backings: Arc::clone(backings),
                     _lease: lease,
                 });
-                cache.graph_bytes += bytes - cache.bytes;
-                cache.bytes = bytes;
+                cache.graph_bytes.0 += bytes - cache.bytes.0;
+                cache.bytes.0 = bytes;
                 cache.graph_counts.peak_bytes.0 = cache.graph_counts.peak_bytes.0.max(bytes);
                 return Ok(GraphSharing::Shared);
             }

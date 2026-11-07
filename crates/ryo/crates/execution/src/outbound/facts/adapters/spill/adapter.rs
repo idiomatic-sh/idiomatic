@@ -258,8 +258,8 @@ impl FactsFinish for SpillFinish {
                             .map_err(|error| spilled(&error))?;
                         words.sources.push(BucketSource {
                             file: stretch.file,
-                            start,
-                            length,
+                            start: crate::outbound::facts::types::KeptWordsStart(start),
+                            length: crate::outbound::facts::types::KeptWordsLength(length),
                             proof: stretch.proof.clone(),
                         });
                     }
@@ -274,8 +274,8 @@ impl FactsFinish for SpillFinish {
                         words.words.0.0.extend_from_slice(held);
                         words.sources.push(BucketSource {
                             file: stretch.file,
-                            start,
-                            length,
+                            start: crate::outbound::facts::types::KeptWordsStart(start),
+                            length: crate::outbound::facts::types::KeptWordsLength(length),
                             proof: stretch.proof.clone(),
                         });
                     }
@@ -302,7 +302,7 @@ impl FactsFinish for Joined {
             words
                 .sources
                 .extend(each.sources.into_iter().map(|mut source| {
-                    source.start += offset;
+                    source.start.0 += offset;
                     source
                 }));
         }

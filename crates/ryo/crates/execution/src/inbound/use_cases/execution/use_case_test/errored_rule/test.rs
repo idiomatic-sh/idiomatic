@@ -18,13 +18,39 @@ use ryo_relations::domain::relations::{
     types::{CellKind, FileId, Flag, Integer, Offset, Position, Relation, Span, Value as CellValue},
 };
 use ryo_relations::domain::terms::types::Symbol;
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::{
-    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
-    plan_parts::types::{ColumnIndex, Input as PlanInput, RepeatedRows, StepId},
-    plans::types::Operation,
-    rows::types::{RowCount, Table},
-};
+use ryo_values::cases::Case;
+use ryo_values::cases::CaseName;
+use ryo_values::cases::Expect;
+use ryo_values::cases::Word;
+use ryo_values::cases::run;
+use ryo_values::domain::files::types::CorpusEntry;
+use ryo_values::domain::files::types::CorpusInput;
+use ryo_values::domain::files::types::ExecutablePermission;
+use ryo_values::domain::files::types::FileSize;
+use ryo_values::domain::files::types::Nanoseconds;
+use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::plan_parts::types::Input as PlanInput;
+use ryo_values::domain::plan_parts::types::RepeatedRows;
+use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::rows::types::RowCount;
+use ryo_values::domain::rows::types::Table;
+use crate::application::file_dag::program::prepared_execution::service::prepare;
+use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+use crate::domain::prepared_request::types::ObservationIdentity;
+use ryo_values::domain::hosted::types::HostRelation;
+use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::query_tokens::types::QueryBundle;
+use ryo_values::domain::query_tokens::types::QueryDocumentSource;
+use ryo_values::domain::query_tokens::types::QuerySourceId;
+use ryo_values::domain::rule_requests::types::RuleParameters;
+use ryo_values::domain::rule_requests::types::RuleSpec;
+use ryo_values::domain::runs::types::RuleApplicability;
+use ryo_values::domain::runs::types::RuleId;
+use ryo_values::domain::stored_facts::types::Digest;
+use std::collections::BTreeMap;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs::text;
 
 /// Which authoring error the second rule carries.
 #[derive(Clone, Copy)]
@@ -37,7 +63,6 @@ enum Authored {
 type Input = Authored;
 type Value = ();
 type Failure = OperatingError;
-
 fn sources() -> Table {
     let kinds = kinds(Relation::Function).to_vec();
     let mut cells = Vec::new();
@@ -193,7 +218,7 @@ fn an_errored_rule_answers_its_error_while_its_sibling_delivers_rows(authored: A
         size: FileSize(0),
         modified: Nanoseconds(0),
     })];
-    let request = engine.begin(&prepared, &corpus);
+    let request = fixtures::execution().execution(&prepared, &corpus);
     let elements = Elements::default();
     let mut symbols = Symbols::default();
     let run = FileRuleIntent::Run {
@@ -206,16 +231,16 @@ fn an_errored_rule_answers_its_error_while_its_sibling_delivers_rows(authored: A
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
                 intents: &intents,
-                source: b"",
+                source: ryo_values::domain::files::types::SourceView(b""),
                 elements: &elements,
                 read: &read,
-                semantic: None,
-                kinds: None,
+                semantic: crate::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: crate::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )
@@ -267,4 +292,42 @@ fn subject(input: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+/// One request of several authored rules, the first named as `prepared` names its only one.
+fn prepared_many(
+    plans: Vec<Plan>,
+    bindings: Vec<Vec<ParameterBinding>>,
+    hosted: Vec<HostRelation>,
+) -> Result<(fixtures::Preparation, PreparedExecutionProgram), OperatingError> {
+    let engine = fixtures::Preparation::real();
+    let rules: Vec<RuleSpec> = (0..plans.len())
+        .map(|at| {
+            let id = if at == 0 {
+                "authored-operator-contract".to_string()
+            } else {
+                format!("authored-operator-contract-{at}")
+            };
+            RuleSpec {
+                id: RuleId(id.clone().into()),
+                query: QueryBundle {
+                    root: QueryDocumentSource {
+                        id: QuerySourceId(id.into()),
+                        text: "".into(),
+                    },
+                    modules: BTreeMap::new().into(),
+                },
+                applicability: RuleApplicability::Always,
+                given: vec![],
+                observations: vec![],
+                spelled: RuleParameters("".into()),
+                include: vec![],
+                exclude: vec![],
+            }
+        })
+        .collect();
+    let digests = (0..plans.len())
+        .map(|at| Digest([u8::try_from(at).unwrap_or(u8::MAX); 16]))
+        .collect();
+    let prepared = engine.prepare(fixtures::Authored { plans, bindings, rules, digests, hosted, observations: ObservationIdentity::Independent })?;
+    Ok((engine, prepared))
 }

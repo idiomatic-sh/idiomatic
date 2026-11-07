@@ -9,7 +9,7 @@ pub(crate) fn source(rows: Rows<'_>) -> Result<Table, OperatingError> {
         comparisons: vec![],
         kept: vec![],
     };
-    let derived = crate::application::file_dag::testing::program_derived_port();
+    let derived = crate::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
@@ -25,7 +25,7 @@ pub(crate) fn source(rows: Rows<'_>) -> Result<Table, OperatingError> {
     )?;
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
+            crate::application::file_dag::fixtures::operators(),
         ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {
@@ -50,7 +50,7 @@ pub(crate) fn source(rows: Rows<'_>) -> Result<Table, OperatingError> {
         }],
         services,
         ryo_values::domain::files::types::SourceView(b""),
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
         None,

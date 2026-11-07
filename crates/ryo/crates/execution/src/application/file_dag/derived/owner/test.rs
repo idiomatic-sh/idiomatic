@@ -30,7 +30,7 @@ fn plan() -> Arc<DerivedContract> {
     Arc::new(
         crate::application::file_dag::derived::prepare::view(
             (std::sync::Arc::new(
-                crate::outbound::derived::factory::semantics(),
+                crate::application::file_dag::fixtures::derived(),
             ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             &ViewRequest::PartitionOrder {
                 keys: vec![ColumnIndex(0)],
@@ -46,8 +46,8 @@ fn plan() -> Arc<DerivedContract> {
 
 fn owner(entries: EntryLimit) -> RelationOwner {
     let mut owner = RelationOwner::new(
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
-        crate::application::file_dag::testing::program_derived_port(),
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::fixtures::program_derived_port(),
     );
     owner.derived_mut().max_entries = entries;
     owner
@@ -61,12 +61,12 @@ fn population(owner: &RelationOwner, publication: &PublishedInput) -> Population
         .unwrap()
         .identity(owner)
         .unwrap()
-        .0
+        .population
 }
 fn pair_plan() -> Arc<DerivedContract> {
     Arc::new(
         crate::application::file_dag::derived::prepare::view(
-            crate::application::file_dag::testing::program_derived_port(),
+            crate::application::file_dag::fixtures::program_derived_port(),
             &ViewRequest::OrderedKeys {
                 left_on: vec![ColumnIndex(0)],
                 right_on: vec![ColumnIndex(0)],
@@ -168,7 +168,7 @@ fn pinned_population_shares_even_with_zero_entry_and_retained_budget() {
     let plan = plan();
     let mut scratch = DerivedScratch::default();
     let mut cache = indexes::new(&[], &[], ByteLimit(4096)).unwrap();
-    cache.limit = 0;
+    cache.limit.0 = 0;
     owner.backend.borrow_mut().replace(cache);
 
     let first = acquire(

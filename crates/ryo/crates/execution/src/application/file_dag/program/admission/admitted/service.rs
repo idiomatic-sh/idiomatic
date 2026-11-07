@@ -207,7 +207,10 @@ use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
             .proof
             .owner
             .admit(publication.as_ref(), BorrowedRows::from(rows))?;
-        let (population, actual_relation) = admitted.identity(&self.proof.owner)?;
+        let crate::application::file_dag::relations::admission::types::AdmissionIdentity {
+            population,
+            relation: actual_relation,
+        } = admitted.identity(&self.proof.owner)?;
         // A project-stage input is the decoded frontier of the relation: computed rows carry no relation identity of their own, and
         // the root and the population proof already say which relation they are.
         if population != self.proof.population
@@ -236,7 +239,7 @@ use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
         read: ReadProof,
     ) -> Result<Self, OperatingError> {
         admitted.require_publication(owner.as_ref(), publication.as_ref())?;
-        let (population, _) = admitted.identity(&owner)?;
+        let crate::application::file_dag::relations::admission::types::AdmissionIdentity { population, .. } = admitted.identity(&owner)?;
         let generation = admitted.generation_guard();
 
         Ok(Self {

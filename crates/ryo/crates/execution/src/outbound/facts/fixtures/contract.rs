@@ -158,12 +158,12 @@ fn frontier_proofs_follow_their_bytes(facts: &dyn FactsPort) -> Result<Value, Fa
         bucket.words.0.0 == [1, 2, 3]
             && bucket.sources.len() == 2
             && bucket.sources[0].file == FileId(1)
-            && bucket.sources[0].start == 0
-            && bucket.sources[0].length == 2
+            && bucket.sources[0].start.0 == 0
+            && bucket.sources[0].length.0 == 2
             && bucket.sources[0].proof.coverage == partial.coverage
             && bucket.sources[1].file == FileId(0)
-            && bucket.sources[1].start == 2
-            && bucket.sources[1].length == 1
+            && bucket.sources[1].start.0 == 2
+            && bucket.sources[1].length.0 == 1
             && bucket.sources[1].proof.coverage == FrontierCoverage::Complete,
     ))
 }

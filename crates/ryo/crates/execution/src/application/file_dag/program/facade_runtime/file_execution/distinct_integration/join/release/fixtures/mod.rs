@@ -1,11 +1,11 @@
 //! Strategy inputs and the one real semantic dependency whose answers are refused.
+use crate::outbound::operators::interface::OperatorsPort as _;
 use super::super::capability::fixtures::REFUSAL;
 use super::super::*;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Counts the ordered-existence meaning and refuses it on request; every other call is real.
@@ -14,7 +14,7 @@ pub(super) struct OrderedPort {
     pub(super) calls: AtomicUsize,
     pub(super) refuse: bool,
 }
-impl OperatorsUseCase for OrderedPort {
+impl crate::outbound::operators::interface::OperatorsPort for OrderedPort {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         if matches!(call, OperatorCall::OrderedExistence { .. }) {
             self.calls.fetch_add(1, Ordering::Relaxed);
@@ -22,7 +22,7 @@ impl OperatorsUseCase for OrderedPort {
                 return Err(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(REFUSAL) });
             }
         }
-        OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)
+        crate::application::file_dag::fixtures::operators().operators(call)
     }
 }
 /// The error every refusing port raises, as the owner reports it.

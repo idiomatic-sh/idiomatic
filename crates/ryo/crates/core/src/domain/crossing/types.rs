@@ -64,7 +64,7 @@ pub(crate) struct ObservedRoot {
 #[derive(Debug, Default)]
 pub(crate) struct PhaseRoots {
     /// Emit refusal does not erase an independent successfully produced named root.
-    pub emit_error: Option<ryo_execution::inbound::use_cases::execution::types::OperatingError>,
+    pub emit_error: Option<ryo_execution::inbound::use_cases::execution::interface::OperatingError>,
     /// Exact affected physical file ordinals for a usable partial Emit.
     /// An unlocated entry requires request-level refusal if no file can represent it.
     pub emit_affected: Option<Vec<Option<ryo_relations::domain::relations::types::FileId>>>,

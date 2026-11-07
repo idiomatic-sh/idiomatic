@@ -1,13 +1,42 @@
 //! One project submission through the public phase, with the roots its guard was asked about.
+use ryo_execution::outbound::facts::types::ColumnsMut;
+use ryo_execution::outbound::facts::errors::FactsError;
+use ryo_execution::outbound::facts::interface::FactsFinish;
+use ryo_execution::outbound::facts::interface::FactsWorker;
+use ryo_execution::outbound::facts::types::KeptBucket;
+use ryo_execution::outbound::facts::types::ResidentStability;
+use ryo_execution::outbound::facts::types::WordsToKeep;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use crate::boundary_fixture::corpus;
-use ryo_execution::inbound::use_cases::execution::{
-    interface::{
-        ExecutionRequest, ExecutionUseCase, ObservationExecution, ProjectRootExecution,
-        ProjectStage,
-    },
-    types::*,
-    use_case::ExecutionUseCaseImpl,
-};
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationExecution;
+use ryo_execution::application::file_dag::program::project_phase::interface::ProjectRootExecution;
+use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
+use ryo_execution::application::file_dag::frontiers::errors::PreparationError;
+use ryo_execution::application::file_dag::frontiers::types::PreparedFrontiers;
+use ryo_execution::application::file_dag::program::observation_stage::types::ObservationStage;
+use ryo_execution::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+use ryo_execution::application::file_dag::program::project_phase::types::ProjectInput;
+use ryo_execution::application::file_dag::program::project_phase::types::ProjectPhase;
+use ryo_execution::application::file_dag::program::project_phase::types::PhaseScope;
+use ryo_execution::application::file_dag::program::project_phase::types::ProjectTask;
+use ryo_execution::application::file_dag::program::project_phase::types::FrontierDemand;
+use ryo_execution::application::file_dag::program::project_phase::types::FrontierRequest;
+use ryo_execution::application::file_dag::program::request_execution::types::RequestExecution;
+use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectBatch;
+use ryo_execution::application::file_dag::program::rule_outcome::types::RuleOutcome;
+use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::Covered;
+use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, FileId};
 use ryo_values::domain::{
@@ -24,31 +53,31 @@ use ryo_values::domain::{
 
 /// No compiled rule in these programs has a file frontier or a project relation.
 struct NoFacts;
-impl facts::FactsFinish for NoFacts {
-    fn kept(&self, _: Bucket) -> Result<facts::KeptBucket, facts::FactsError> {
+impl FactsFinish for NoFacts {
+    fn kept(&self, _: Bucket) -> Result<KeptBucket, FactsError> {
         panic!("a submission control has no file frontier to fetch")
     }
 }
-impl facts::FactsWorker for NoFacts {
-    fn resident_stability(&self) -> facts::ResidentStability {
-        facts::ResidentStability::Stable
+impl FactsWorker for NoFacts {
+    fn resident_stability(&self) -> ResidentStability {
+        ResidentStability::Stable
     }
     fn rows(
         &self,
         _: ryo_relations::domain::relations::types::Relation,
-    ) -> Result<ryo_relations::domain::relations::types::ColumnsView<'_>, facts::FactsError> {
+    ) -> Result<ryo_relations::domain::relations::types::ColumnsView<'_>, FactsError> {
         panic!("a submission control has no project relation to read")
     }
-    fn columns_mut(&mut self) -> Result<facts::ColumnsMut<'_>, facts::FactsError> {
+    fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError> {
         panic!("a submission control writes no facts")
     }
-    fn keep(&self, _: Bucket, _: facts::WordsToKeep<'_>) -> Result<(), facts::FactsError> {
+    fn keep(&self, _: Bucket, _: WordsToKeep<'_>) -> Result<(), FactsError> {
         panic!("a submission control writes no facts")
     }
-    fn release(&mut self) -> Result<(), facts::FactsError> {
+    fn release(&mut self) -> Result<(), FactsError> {
         panic!("a submission control writes no facts")
     }
-    fn finished(self: Box<Self>) -> Result<Box<dyn facts::FactsFinish>, facts::FactsError> {
+    fn finished(self: Box<Self>) -> Result<Box<dyn FactsFinish>, FactsError> {
         panic!("a submission control writes no facts")
     }
 }
@@ -71,25 +100,25 @@ impl Held<'_> {
         rule: RuleIndex,
         corpus: &[CorpusInput],
         covered: &[Covered],
-    ) -> Result<ProjectScope, OperatingError> {
+    ) -> Result<PhaseScope, OperatingError> {
         match self {
             Held::Phase(phase) => phase.project_scope(
                 rule,
                 corpus,
                 covered,
                 &[],
-                &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+                &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
             ),
             Held::Stage(stage) => stage.project_scope(
                 rule,
                 corpus,
                 covered,
                 &[],
-                &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+                &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
             ),
         }
     }
-    fn scope(&self, rule: RuleIndex, corpus: &[CorpusInput], covered: &[Covered]) -> ProjectScope {
+    fn scope(&self, rule: RuleIndex, corpus: &[CorpusInput], covered: &[Covered]) -> PhaseScope {
         self.try_scope(rule, corpus, covered).unwrap()
     }
     fn evaluate<E>(
@@ -97,7 +126,7 @@ impl Held<'_> {
         tasks: Vec<ProjectTask<'_>>,
         symbols: &mut Symbols,
         guard: impl FnMut(RuleIndex) -> Result<(), E>,
-    ) -> ProjectBatch<Result<ProjectRuleOutcome, OperatingError>, E> {
+    ) -> ProjectBatch<Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>, E> {
         match self {
             Held::Phase(phase) => phase.evaluate(tasks, symbols, guard),
             Held::Stage(stage) => stage.evaluate(tasks, symbols, guard),
@@ -113,7 +142,7 @@ impl Held<'_> {
 
 /// The prepared program of `rule_count` rules; the stage entry declares one closed named binding.
 fn program(
-    engine: &ExecutionUseCaseImpl,
+    engine: &PrepareUseCaseImpl,
     entry: Entry,
     rule_count: usize,
 ) -> PreparedExecutionProgram {
@@ -158,14 +187,14 @@ pub(crate) struct Root {
     pub named: usize,
 }
 pub(crate) struct Submitted {
-    pub outcomes: Vec<Result<ProjectRuleOutcome, OperatingError>>,
+    pub outcomes: Vec<Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>>,
     pub guarded: Vec<RuleIndex>,
     pub refused: Option<OperatingError>,
 }
 /// Evaluate `roots` through the real project phase of a request over `rule_count` rules.
 /// `refuse` is the rule the guard rejects, if any.
 pub(crate) fn submit(
-    engine: &ExecutionUseCaseImpl,
+    engine: &PrepareUseCaseImpl,
     entry: Entry,
     rule_count: usize,
     roots: &[Root],
@@ -173,7 +202,7 @@ pub(crate) fn submit(
 ) -> Submitted {
     let prepared = program(engine, entry, rule_count);
     let corpus = corpus();
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let covered = [Covered {
         file: FileId(0),
         rules: (0..rule_count).map(RuleIndex).collect(),
@@ -255,14 +284,14 @@ pub(crate) fn submit(
 /// Open the request and its phase (or observation stage) for `entry`, hand them to `check`,
 /// and release everything once `check` has dropped every scope it made.
 pub(crate) fn with_held<T>(
-    engine: &ExecutionUseCaseImpl,
+    engine: &PrepareUseCaseImpl,
     entry: Entry,
     rule_count: usize,
     check: impl FnOnce(&RequestExecution, &mut Held<'_>, &[CorpusInput], &[Covered]) -> T,
 ) -> T {
     let prepared = program(engine, entry, rule_count);
     let corpus = corpus();
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let covered = [Covered {
         file: FileId(0),
         rules: (0..rule_count).map(RuleIndex).collect(),
@@ -281,7 +310,7 @@ pub(crate) fn with_held<T>(
 /// Prepare the frontiers of `rule` against a scope that declared another rule.
 pub(crate) fn prepare_for(
     request: &RequestExecution,
-    scope: &ProjectScope,
+    scope: &PhaseScope,
     rule: RuleIndex,
 ) -> Result<PreparedFrontiers, PreparationError> {
     request.prepare_frontiers(
@@ -299,11 +328,11 @@ pub(crate) fn prepare_for(
 }
 /// A scope opened by one phase of the request, evaluated through another phase of it.
 pub(crate) fn foreign_phase_outcome(
-    engine: &ExecutionUseCaseImpl,
-) -> Result<ProjectRuleOutcome, OperatingError> {
+    engine: &PrepareUseCaseImpl,
+) -> Result<RuleOutcome<ProjectOutputOutcome>, OperatingError> {
     let prepared = program(engine, Entry::Phase, 1);
     let corpus = corpus();
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let covered = [Covered {
         file: FileId(0),
         rules: vec![RuleIndex(0)],
@@ -319,7 +348,7 @@ pub(crate) fn foreign_phase_outcome(
             &corpus,
             &covered,
             &[],
-            &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+            &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
         )
         .unwrap();
     let ordinary = prepare_for(&request, &scope, RuleIndex(0)).unwrap();
@@ -355,8 +384,8 @@ pub(crate) fn foreign_phase_outcome(
 
 /// A compiled rule with no file frontier to fetch.
 pub(crate) struct NoFileFrontiers;
-impl facts::FactsFinish for NoFileFrontiers {
-    fn kept(&self, _: Bucket) -> Result<facts::KeptBucket, facts::FactsError> {
+impl FactsFinish for NoFileFrontiers {
+    fn kept(&self, _: Bucket) -> Result<KeptBucket, FactsError> {
         panic!("this compiled rule has no file frontier to fetch")
     }
 }

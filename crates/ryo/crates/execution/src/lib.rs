@@ -2,7 +2,7 @@
 #![cfg_attr(not(doc), doc = env!("CARGO_PKG_DESCRIPTION"))]
 
 //! Ryo's sole execution owner; public callers enter through its inbound use case.
-mod application;
+pub mod application;
 mod domain;
 pub mod inbound;
 pub mod outbound;

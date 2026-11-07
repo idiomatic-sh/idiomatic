@@ -163,7 +163,7 @@ pub(crate) fn probe(
     let mut target = std::mem::take(&mut state.other);
     let mut key = std::mem::take(&mut state.key);
     #[cfg(feature = "diagnostic-row-progress")]
-    (semantics.progress())(
+    semantics.progress().observe(
         crate::domain::operator::contract::views::ProgressCounter::InputRows,
         crate::domain::operator::contract::views::ProgressAmount(1),
     );

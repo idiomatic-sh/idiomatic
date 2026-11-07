@@ -1,10 +1,15 @@
 //! Dormant declarations cannot allocate cohort scratch or retained result slots.
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use super::super::{fixtures::*, no_catalog};
 use crate::boundary_fixture::{authored_request, corpus, demand};
-use ryo_execution::inbound::use_cases::execution::{
-    interface::{ExecutionRequest, ExecutionUseCase, FileExecution},
-    types::*,
-};
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_relations::domain::relations::types::{FileId, Integer, Relation};
 use ryo_values::domain::{
     plan_parts::types::{Input, Operand, QueryLiteral, StepId, StepScope, Test},
@@ -42,7 +47,7 @@ fn only_admitted_classes_allocate_scratch_and_result_slots() {
         }
         let program = engine.prepare(authored).unwrap();
         let corpus = corpus();
-        let request = engine.begin(&program, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
         let mut intents = vec![FileRuleIntent::Undemanded; declarations];
         intents[0] = FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Collected,
@@ -110,7 +115,7 @@ fn a_failed_dependency_does_not_prepare_a_later_class_of_the_same_rule() {
     authored.plans[0].emit.step = StepId(2);
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"[bc");
     let intents = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,
@@ -173,7 +178,7 @@ fn later_cohorts_add_only_the_new_class_and_aliases_replay_both_results() {
     }
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let intents = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,
@@ -220,7 +225,7 @@ fn full_rule_count_shares_source_decoding_and_ordered_predicate_prefixes() {
     }
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let intents = vec![
         FileRuleIntent::Run {
@@ -295,7 +300,7 @@ fn shared_prefixes_preserve_distinct_parameter_bindings_and_first_errors() {
     }
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let intents = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,

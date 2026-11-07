@@ -1,11 +1,11 @@
 //! Refusal and physical-route controls through the real compiled owner.
+use crate::outbound::operators::interface::OperatorsPort as _;
 use super::super::*;
 use crate::domain::coverage::types::{Lacking, Partial};
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
 use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn},
@@ -19,7 +19,7 @@ struct MeaningCalls {
     joins: AtomicUsize,
     sets: AtomicUsize,
 }
-impl OperatorsUseCase for MeaningCalls {
+impl crate::outbound::operators::interface::OperatorsPort for MeaningCalls {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         match &call {
             OperatorCall::OrderedExistence { .. } => {
@@ -33,7 +33,7 @@ impl OperatorsUseCase for MeaningCalls {
             }
             _ => {}
         }
-        OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)
+        crate::application::file_dag::fixtures::operators().operators(call)
     }
 }
 fn run(
@@ -42,7 +42,7 @@ fn run(
     partials: &[Partial],
     calls: Arc<MeaningCalls>,
 ) -> RootOutcome {
-    let derived = crate::application::file_dag::testing::program_derived_port();
+    let derived = crate::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             plans: vec![plan],
@@ -82,7 +82,7 @@ fn run(
         }],
         services,
         ryo_values::domain::files::types::SourceView(b""),
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
         None,

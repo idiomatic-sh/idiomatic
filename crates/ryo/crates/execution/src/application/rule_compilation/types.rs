@@ -3,14 +3,6 @@ use crate::domain::prepared_request::types::ObservationIdentity;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::query_tokens::types::QueryBundle;
 use ryo_values::domain::runs::types::RuleId;
-use std::sync::{Arc, Mutex};
-
-/// The plan compiled so far for each rule id, shared by every use case built over them: a program that lints many projects with the
-/// same rules compiles each rule once. A rule id keeps one plan: the one of its latest query; past `COMPILED_PLANS` the plan that
-/// has been kept longest is dropped, whatever the request in progress names: a run holds the plans it compiled or found, so
-/// dropping one never changes an answer.
-#[derive(Clone, Debug, Default)]
-pub struct CompiledPlans(pub(crate) Arc<Mutex<PlanCache>>);
 
 /// The plans compiled so far, and the order they were first kept in.
 #[derive(Debug, Default)]

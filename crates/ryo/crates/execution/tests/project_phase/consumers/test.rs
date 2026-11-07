@@ -1,8 +1,11 @@
 //! Same producer proof, distinct resolved input slots, one project batch protocol.
+use ryo_execution::application::file_dag::observations::types::AdmittedOutput;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::*;
-use ryo_execution::inbound::use_cases::execution::interface::{
-    ObservationExecution, ObservationPublication, ProjectRootExecution,
-};
+use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationExecution;
+use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationPublication;
+use ryo_execution::application::file_dag::program::project_phase::interface::ProjectRootExecution;
 use ryo_values::domain::{
     observations::types::*,
     plan_parts::types::ObservationBindingId,
@@ -75,7 +78,7 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
             ObservationIdentity::Named(ObservationReadinessLayout(Digest([71; 16])));
         let prepared = engine.prepare(authored).unwrap();
         let corpus = corpus();
-        let request = engine.begin(&prepared, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
         let covered = [Covered {
             file: FileId(0),
             rules: vec![RuleIndex(0), RuleIndex(1), RuleIndex(2)],
@@ -97,7 +100,7 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
                 &corpus,
                 &covered,
                 &[],
-                &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+                &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
             )
             .unwrap();
         let slot = stage.reserve(RuleIndex(0)).unwrap();
@@ -156,10 +159,8 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
         let mut arena = ArenaBytes::default();
         let mut places = vec![];
         let mut words = Words::default();
-        ryo_execution::inbound::use_cases::publication::interface::PublicationUseCase::publication(
-            &ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new(
-            ),
-            ryo_execution::inbound::use_cases::publication::types::PublicationInput {
+        ryo_execution::application::publication::service::publication(
+        ryo_execution::application::publication::types::PublicationInput {
                 table: &mut table,
                 symbols: &mut symbols,
                 inherited: stage.arenas(),
@@ -186,7 +187,7 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
                         arenas: vec![],
                     }],
                 },
-                vec![(output, publication)],
+                vec![AdmittedOutput { output, publication }],
             )
             .unwrap();
         stage.finish(RuleIndex(0)).unwrap();
@@ -196,7 +197,7 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
         let mut bindings = vec![];
         for rule in order {
             let scope = stage
-                .project_scope(RuleIndex(rule), &corpus, &covered, &[], &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default())
+                .project_scope(RuleIndex(rule), &corpus, &covered, &[], &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default())
                 .unwrap();
             let ordinary = request
                 .prepare_frontiers(

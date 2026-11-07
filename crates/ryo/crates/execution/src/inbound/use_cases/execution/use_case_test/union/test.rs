@@ -1,5 +1,7 @@
 //! Both authored union associations must publish the same exact distinct findings.
-use super::super::super::{fixtures, types::OperatingError};
+use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 use ryo_values::{
@@ -55,13 +57,13 @@ fn subject((): Input) -> Result<Value, Failure> {
         },
     ]);
     let balanced = fixtures::published(
-        fixtures::plan(balanced),
+        inputs::plan(balanced),
         vec![],
         hosts.clone(),
         &mut Symbols::default(),
     )?;
     let left_deep = fixtures::published(
-        fixtures::plan(left_deep),
+        inputs::plan(left_deep),
         vec![],
         hosts,
         &mut Symbols::default(),

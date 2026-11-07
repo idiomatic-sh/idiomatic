@@ -4,9 +4,7 @@ use fixtures::resources::ResourceFixture;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use {
-    crate::domain::operator::contract:: crate::domain::table_model::types::Rows,
-};
+use crate::domain::table_model::types::Rows;
 use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Number];
 fn fixture(columns: &[FactColumn]) -> ResourceFixture {
@@ -88,7 +86,7 @@ fn reclaim(fixture: &ResourceFixture) -> Room {
         .bytes
         .checked_sub(payload)
         .expect("charged optional payload belongs to this cache");
-    let cost = cache.limit - metadata;
+    let cost = cache.limit.0 - metadata;
     owner
         .prepare_graph_room(
             cache,

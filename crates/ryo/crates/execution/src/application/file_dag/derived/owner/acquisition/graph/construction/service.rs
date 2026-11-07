@@ -82,7 +82,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adja
         owner.retain_graph(cache, population, &storage, &backings, &graph)? == GraphSharing::Shared;
     tracing::trace!(target: constants::TARGET_GRAPH, event = constants::EVENT_ADJACENCY, reused = false, shared,
         relation = ?expected_identity.population.relation, vertices = graph.vertices().len(), edges = graph.neighbors()[0].len(),
-        graph_bytes = cache.graph_bytes, cache_bytes = cache.bytes, graph_enabled = ?cache.graph_enabled);
+        graph_bytes = cache.graph_bytes.0, cache_bytes = cache.bytes.0, graph_enabled = ?cache.graph_enabled);
     Ok(Some(BuiltGraph {
         storage,
         construction: Construction::Built,

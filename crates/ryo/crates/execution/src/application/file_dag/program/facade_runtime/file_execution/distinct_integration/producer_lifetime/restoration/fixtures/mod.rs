@@ -171,7 +171,7 @@ impl CapturedProject {
             vec![vec![]; rules.len()],
             &rules,
         )?;
-        let derived = crate::application::file_dag::testing::program_derived_port();
+        let derived = crate::application::file_dag::fixtures::program_derived_port();
         let prepared = crate::application::file_dag::program::preparation::service::prepare(
             compiled,
             &rules,
@@ -188,7 +188,7 @@ impl CapturedProject {
         })];
         let services = Arc::new(ProgramServices::new(
             Arc::new(CommonOperatorEngine::new(Arc::new(
-                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
+                crate::application::file_dag::fixtures::operators(),
             ))),
             derived,
             &corpus,
@@ -228,7 +228,7 @@ impl CapturedProject {
             &intents,
             Arc::clone(&services),
             ryo_values::domain::files::types::SourceView(b""),
-            crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+            crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
             symbols,
             None,
             None)?;
@@ -240,7 +240,7 @@ impl CapturedProject {
             Bucket(0),
             &read,
             symbols,
-            crate::application::file_dag::program::protocol::types::CaptureScope {
+            crate::domain::frontier_capture::types::CaptureScope {
                 file: FileId(0),
                 rule_digest: Digest([0; 16]),
                 worker: ryo_relations::domain::relations::types::WorkerNumber(0),
@@ -270,8 +270,8 @@ impl CapturedProject {
                 words: KeptWords(capture.words),
                 sources: vec![crate::outbound::facts::types::BucketSource {
                     file: FileId(0),
-                    start: 0,
-                    length,
+                    start: crate::outbound::facts::types::KeptWordsStart(0),
+                    length: crate::outbound::facts::types::KeptWordsLength(length),
                     proof: capture.proof,
                 }],
             },
@@ -311,7 +311,7 @@ impl CapturedProject {
         )?;
         assert!(matches!(produced.emit, RootOutcome::NoQuery));
         assert_eq!(produced.observations.len(), 1);
-        let crate::application::file_dag::program::protocol::types::ProjectOutputOutcome {
+        let crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome {
             outcome: observed,
             ..
         } = produced.observations.pop().unwrap();

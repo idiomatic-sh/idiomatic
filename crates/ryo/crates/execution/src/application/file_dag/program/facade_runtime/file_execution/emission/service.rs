@@ -3,7 +3,7 @@ use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::constants::FILE_STREAM_CONSUMER;
 use crate::application::file_dag::program::facade_runtime::file_execution::FileRun;
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
-use crate::application::file_dag::program::protocol::types::DiagnosticDelivery;
+use crate::domain::rule_intent::types::DiagnosticDelivery;
 use crate::application::file_dag::program::runtime::service::InvocationOutcome;
 use crate::application::file_dag::scope::ScopePartials;
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
@@ -24,7 +24,7 @@ impl FileRun<'_> {
         each: &mut dyn FnMut(
             &[ryo_relations::domain::relations::types::Value],
         ) -> Result<(), OperatingError>,
-    ) -> Result<crate::application::file_dag::program::protocol::types::RowEmission, OperatingError>
+    ) -> Result<crate::domain::row_emission::types::RowEmission, OperatingError>
     {
         if self.declared(rule)?.delivery != DiagnosticDelivery::Forwarded {
             return Err(OperatingError::NotRun);
@@ -41,7 +41,7 @@ impl FileRun<'_> {
         each: &mut dyn FnMut(
             &[ryo_relations::domain::relations::types::Value],
         ) -> Result<(), OperatingError>,
-    ) -> Result<crate::application::file_dag::program::protocol::types::RowEmission, OperatingError>
+    ) -> Result<crate::domain::row_emission::types::RowEmission, OperatingError>
     {
         let id = *self
             .program
@@ -55,7 +55,7 @@ impl FileRun<'_> {
         let phase = self.program.program().regions()[id.0].phase();
         if phase != ryo_values::domain::plan_parts::types::StepScope::PerFile {
             return Ok(
-                crate::application::file_dag::program::protocol::types::RowEmission::Deferred {
+                crate::domain::row_emission::types::RowEmission::Deferred {
                     phase,
                 },
             );
@@ -128,12 +128,12 @@ impl FileRun<'_> {
         sources.replay(&published, context, &mut ForwardRows(each))?;
         Ok(match coverage {
             crate::domain::completion::types::CoverageState::Complete => {
-                crate::application::file_dag::program::protocol::types::RowEmission::Complete
+                crate::domain::row_emission::types::RowEmission::Complete
             }
             affected @ (crate::domain::completion::types::CoverageState::Partial { .. }
             | crate::domain::completion::types::CoverageState::Inapplicable {
                 ..
-            }) => crate::application::file_dag::program::protocol::types::RowEmission::Partial {
+            }) => crate::domain::row_emission::types::RowEmission::Partial {
                 affected: crate::domain::frontier_coverage::service::affected_files(&affected)
                     .unwrap_or_default(),
             },

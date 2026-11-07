@@ -1,37 +1,56 @@
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::outbound::facts::types::ColumnsMut;
+use ryo_execution::outbound::facts::errors::FactsError;
+use ryo_execution::outbound::facts::interface::FactsFinish;
+use ryo_execution::outbound::facts::interface::FactsWorker;
+use ryo_execution::outbound::facts::types::KeptBucket;
+use ryo_execution::outbound::facts::types::ResidentStability;
+use ryo_execution::outbound::facts::types::WordsToKeep;
 use super::program::{corpus, engine, prepared};
 use super::subscriber::{Access, Activation, Sample};
-use ryo_execution::inbound::use_cases::execution::{
-    interface::{ExecutionRequest, ExecutionUseCase, ProjectRootExecution, ProjectStage},
-    types::*,
-};
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::application::file_dag::program::project_phase::interface::ProjectRootExecution;
+use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
+use ryo_execution::application::file_dag::program::project_phase::types::ProjectInput;
+use ryo_execution::application::file_dag::program::project_phase::types::ProjectTask;
+use ryo_execution::application::file_dag::program::project_phase::types::FrontierDemand;
+use ryo_execution::application::file_dag::program::project_phase::types::FrontierRequest;
+use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectBatch;
+use ryo_execution::inbound::use_cases::execution::interface::Covered;
+use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{ColumnsView, FileId, Relation};
 use ryo_values::domain::stored_facts::types::Bucket;
 
 /// Compiled frontiers are empty, so no source row or kept bucket may be requested.
 struct NoFacts;
-impl facts::FactsFinish for NoFacts {
-    fn kept(&self, _: Bucket) -> Result<facts::KeptBucket, facts::FactsError> {
+impl FactsFinish for NoFacts {
+    fn kept(&self, _: Bucket) -> Result<KeptBucket, FactsError> {
         panic!("an activation rule has no file frontier to fetch")
     }
 }
-impl facts::FactsWorker for NoFacts {
-    fn resident_stability(&self) -> facts::ResidentStability {
-        facts::ResidentStability::Stable
+impl FactsWorker for NoFacts {
+    fn resident_stability(&self) -> ResidentStability {
+        ResidentStability::Stable
     }
-    fn rows(&self, _: Relation) -> Result<ColumnsView<'_>, facts::FactsError> {
+    fn rows(&self, _: Relation) -> Result<ColumnsView<'_>, FactsError> {
         panic!("an activation rule has no project relation to read")
     }
-    fn columns_mut(&mut self) -> Result<facts::ColumnsMut<'_>, facts::FactsError> {
+    fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError> {
         panic!("an activation rule writes no facts")
     }
-    fn keep(&self, _: Bucket, _: facts::WordsToKeep<'_>) -> Result<(), facts::FactsError> {
+    fn keep(&self, _: Bucket, _: WordsToKeep<'_>) -> Result<(), FactsError> {
         panic!("an activation rule writes no facts")
     }
-    fn release(&mut self) -> Result<(), facts::FactsError> {
+    fn release(&mut self) -> Result<(), FactsError> {
         panic!("an activation rule writes no facts")
     }
-    fn finished(self: Box<Self>) -> Result<Box<dyn facts::FactsFinish>, facts::FactsError> {
+    fn finished(self: Box<Self>) -> Result<Box<dyn FactsFinish>, FactsError> {
         panic!("an activation rule writes no facts")
     }
 }
@@ -58,7 +77,7 @@ pub(crate) fn measure_project(
     // The first cycle warms callsite registration and allocator metadata; the second
     // sees exactly the same real request and declared roots.
     for _ in 0..2 {
-        let request = engine.begin(&prepared, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
         let partials = Partials::default();
         let mut symbols = Symbols::default();
         tracing::dispatcher::with_default(&dispatch, || {
@@ -68,7 +87,7 @@ pub(crate) fn measure_project(
             let mut frontiers = Vec::with_capacity(demanded.len());
             for &rule in demanded {
                 let scope = phase
-                    .project_scope(RuleIndex(rule), &corpus, &covered, &[], &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default())
+                    .project_scope(RuleIndex(rule), &corpus, &covered, &[], &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default())
                     .unwrap();
                 frontiers.push(
                     request

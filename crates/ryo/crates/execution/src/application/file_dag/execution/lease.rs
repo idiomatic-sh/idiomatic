@@ -50,7 +50,7 @@ pub(in crate::application::file_dag) fn evaluate(
             .as_mut()
             .ok_or(OperatingError::NotRun)?
             .advance()?;
-        if !available {
+        if available == crate::application::file_dag::closure_partitions::types::PartitionAdvance::Exhausted {
             return Ok(());
         }
         evaluate_once(

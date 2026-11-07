@@ -2,7 +2,7 @@ use super::constants::{
     KIND_EQUALITY, KIND_MEMBERSHIP, KIND_PREDICATE_MATCHES, MAX_KEYS, OWNER_BUILD,
     SELECTOR_CANDIDATE_BUILD,
 };
-use super::profile::service::STATE;
+use super::profile::service::{with_borrow, with_borrow_mut};
 use super::schemas::document;
 use super::types::{
     BuildRoute, RouteCount, RouteNodeIndex, RouteOrigin, RouteOwnerId, RouteOwnership, RoutePlanId,
@@ -25,9 +25,10 @@ const ORIGINAL_FAILURE: &str = "original failure";
 const QUOTED_TEXT: &str = "a\"b\n";
 const QUOTED_JSON: &str = "\"a\\\"b\\n\"";
 fn capture(run: impl FnOnce()) -> RouteState {
-    STATE.with_borrow_mut(|state| {
+    super::profile::service::install(std::sync::Arc::new(crate::outbound::profile::fixtures::fake::ProfileFake::<super::profile::service::RouteProfile>::default()));
+    with_borrow_mut(|state| {
         assert!(state.is_none());
-        *state = Some(RouteState {
+        *state = Some(Box::new(RouteState {
             file: 7.into(),
             origin: RouteOrigin::default(),
             counts: HashMap::new(),
@@ -35,10 +36,10 @@ fn capture(run: impl FnOnce()) -> RouteState {
             rules: HashMap::new(),
             #[cfg(feature = "diagnostic-row-progress")]
             progress: super::new_progress(),
-        });
+        }));
     });
     run();
-    STATE.with_borrow_mut(Option::take).unwrap()
+    *with_borrow_mut(Option::take).unwrap()
 }
 #[test]
 fn physical_build_is_once_and_original_error_survives_nested_scopes() {
@@ -113,7 +114,7 @@ fn cross_rule_origin_is_attributed_and_disabled_recording_allocates_no_state() {
         2
     );
     observe(SCOPED_BUILD, KIND_EQUALITY, || Ok::<_, ()>(())).unwrap();
-    assert!(STATE.with_borrow(|state| state.is_none()));
+    assert!(with_borrow(|state| state.is_none()));
 }
 #[test]
 fn bounded_capture_reports_overflow_instead_of_claiming_complete_counts() {
@@ -174,7 +175,7 @@ use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
     let on = [ColumnIndex(0)];
     let plan = Arc::new(
         crate::application::file_dag::derived::prepare::view(
-            crate::application::file_dag::testing::program_derived_port(),
+            crate::application::file_dag::fixtures::program_derived_port(),
             &ViewRequest::Equality {
                 columns: on.to_vec(),
             },
@@ -189,8 +190,8 @@ use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
         let _rule = rule(2, &RuleId(QUERY_TWO.into()));
         let _node = node(41);
         let owner = RelationOwner::new(
-            crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
-            crate::application::file_dag::testing::program_derived_port(),
+            crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+            crate::application::file_dag::fixtures::program_derived_port(),
         );
         let proof = owner
             .admit_relation(
@@ -212,8 +213,8 @@ use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
             .unwrap();
         assert!(matches!(held.view().unwrap(), DerivedView::Equality(_)));
         let selector_owner = RelationOwner::new(
-            crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
-            crate::application::file_dag::testing::program_derived_port(),
+            crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+            crate::application::file_dag::fixtures::program_derived_port(),
         );
         let proof = selector_owner
             .admit_relation(

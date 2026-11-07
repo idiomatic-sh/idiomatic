@@ -1,4 +1,7 @@
 //! Real native Axis failures must not leak partially evaluated held results.
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::outbound::facts::types::ResidentStability;
 use super::super::*;
 use ryo_language::domain::{
     completion::fixtures as completion,
@@ -84,7 +87,7 @@ x
         input.plans[0].emit.step = StepId(0);
         let prepared = engine.prepare(input).expect("prepare real native Axis");
         let corpus = corpus();
-        let request = engine.begin(&prepared, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
         let (elements, mut symbols, root, children) = native_tree(bytes);
         let mut roots = source();
         roots.cells[0] = Value::Node(node_id(FileId(0), root));
@@ -96,7 +99,7 @@ x
             .open_file(
                 FileInput {
                     language: SourceLanguage::Recognized,
-                    resident_stability: facts::ResidentStability::Stable,
+                    resident_stability: ResidentStability::Stable,
                     file: FileId(0),
                     evaluation: &[],
                     publication: &[],
@@ -105,11 +108,11 @@ x
                         observations: ObservationDemand::NotRequired,
                         capture: CaptureIntent::Disabled,
                     }],
-                    source: bytes,
+                    source: ryo_values::domain::files::types::SourceView(bytes),
                     elements: &elements,
                     read: &read,
-                    semantic: None,
-                    kinds: None,
+                    semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                    kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
                 },
                 &mut symbols,
             )
@@ -167,14 +170,14 @@ fn ordinary_select_does_not_publish_a_prefix_before_late_predicate_failure() {
         .prepare(input)
         .expect("prepare actual incremental Select");
     let corpus = corpus();
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let (elements, mut symbols, _root, _children) = native_tree(bytes);
     let read = |_| Err::<SourceRows<'_>, _>(OperatingError::NotRead);
     let mut file = request
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
@@ -183,11 +186,11 @@ fn ordinary_select_does_not_publish_a_prefix_before_late_predicate_failure() {
                     observations: ObservationDemand::NotRequired,
                     capture: CaptureIntent::Disabled,
                 }],
-                source: bytes,
+                source: ryo_values::domain::files::types::SourceView(bytes),
                 elements: &elements,
                 read: &read,
-                semantic: None,
-                kinds: None,
+                semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )

@@ -9,7 +9,7 @@ use crate::outbound::lint_store::errors::LintStoreError;
 use crate::outbound::memory::errors::MemoryError;
 use crate::outbound::row_sink::errors::RowSinkError;
 use crate::outbound::scheduler::errors::SchedulerError;
-use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
+use ryo_execution::outbound::facts::errors::FactsError;
 use ryo_values::domain::program::types::RefusedQuery;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 
@@ -298,20 +298,20 @@ impl std::fmt::Display for ProviderFault {
     }
 }
 
-impl From<ryo_execution::inbound::use_cases::execution::types::RuleCompilationError> for LintError {
+impl From<ryo_execution::application::rule_compilation::errors::RuleCompilationError> for LintError {
     fn from(
-        error: ryo_execution::inbound::use_cases::execution::types::RuleCompilationError,
+        error: ryo_execution::application::rule_compilation::errors::RuleCompilationError,
     ) -> Self {
         match error {
-            ryo_execution::inbound::use_cases::execution::types::RuleCompilationError::Observations(
+            ryo_execution::application::rule_compilation::errors::RuleCompilationError::Observations(
                 reason,
             ) => Self::ObservationBindings {
                 reason: reason.to_string(),
             },
-            ryo_execution::inbound::use_cases::execution::types::RuleCompilationError::Rules(reason) => {
+            ryo_execution::application::rule_compilation::errors::RuleCompilationError::Rules(reason) => {
                 reason.into()
             }
-            ryo_execution::inbound::use_cases::execution::types::RuleCompilationError::Query {
+            ryo_execution::application::rule_compilation::errors::RuleCompilationError::Query {
                 id,
                 error,
             } => Self::Query { id, error },

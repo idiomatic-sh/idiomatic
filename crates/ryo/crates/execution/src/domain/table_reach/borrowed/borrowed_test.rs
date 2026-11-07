@@ -92,7 +92,7 @@ fn with_edges(rows: &[[i64; 2]], run: impl FnOnce(&Table, &KeyIndex)) {
 fn view<'a>(table: &'a Table, index: &'a KeyIndex, columns: &'a [ColumnIndex]) -> IndexedRows<'a> {
     IndexedRows {
         #[cfg(feature = "diagnostic-row-progress")]
-        progress: |_, _| {},
+        progress: &crate::domain::operator::contract::views::IgnoredProgress,
         rows: BorrowedRows::Computed(table),
         columns,
         index,

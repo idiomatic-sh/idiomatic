@@ -1,12 +1,5 @@
 //! Pure borrowed-value and preparation fixtures; no executor or admission alternative.
 use ryo_relations::domain::relations::types::{CellKind, Value};
-/// Composition of the actual portable derived use case for current engine tests.
-pub(crate) fn program_derived_port()
--> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
-    std::sync::Arc::new(
-        crate::outbound::derived::factory::semantics(),
-    )
-}
 /// Complete computed fixture rows for portable derived semantics controls.
 pub(crate) struct CompleteTableRows<'a>(pub &'a ryo_values::domain::rows::types::Table);
 impl ryo_derived::domain::row_cells::types::RowCells for CompleteTableRows<'_> {

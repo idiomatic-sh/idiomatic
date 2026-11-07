@@ -27,12 +27,20 @@ pub struct WordsToKeep<'a> {
     pub proof: &'a ryo_values::domain::records::types::FrontierProof,
 }
 
+/// Where a source range begins inside the concatenated bucket words: the bare offset inside is named here.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct KeptWordsStart(pub usize);
+
+/// How many bucket words a source range spans: the bare count inside is named here.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct KeptWordsLength(pub usize);
+
 /// One exact source range inside the concatenated bucket bytes.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BucketSource {
     pub file: FileId,
-    pub start: usize,
-    pub length: usize,
+    pub start: KeptWordsStart,
+    pub length: KeptWordsLength,
     pub proof: ryo_values::domain::records::types::FrontierProof,
 }
 

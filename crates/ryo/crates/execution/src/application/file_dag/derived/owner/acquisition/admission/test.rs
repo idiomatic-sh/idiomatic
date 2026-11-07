@@ -1,7 +1,7 @@
 //! Real publication admissions bind owner, generation, descriptor and semantic source.
 use super::service::AcquiredView;
 use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
-use crate::application::file_dag::{relations::RelationOwner, testing::program_derived_port};
+use crate::application::file_dag::{relations::RelationOwner, fixtures::program_derived_port};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     derived_views::types::{DerivedInputs, DerivedScratch, MembershipSpace, ViewRequest},
@@ -98,7 +98,7 @@ fn table() -> Table {
     }
 }
 fn subject(input: Input) -> Result<(), Failure> {
-    let owner = RelationOwner::new(crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible, program_derived_port());
+    let owner = RelationOwner::new(crate::application::file_dag::relations::types::ReuseEligibility::Eligible, program_derived_port());
     let publication = owner.computed(table())?;
     let rows = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
     let proof = owner.admit(publication.as_ref(), BorrowedRows::from(&rows))?;
@@ -125,7 +125,7 @@ fn subject(input: Input) -> Result<(), Failure> {
     let original = [proof.rows()];
     match input {
         Input::ForeignOwner => {
-            let foreign = RelationOwner::new(crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible, program_derived_port());
+            let foreign = RelationOwner::new(crate::application::file_dag::relations::types::ReuseEligibility::Eligible, program_derived_port());
             foreign
                 .derived()
                 .acquire_stored(

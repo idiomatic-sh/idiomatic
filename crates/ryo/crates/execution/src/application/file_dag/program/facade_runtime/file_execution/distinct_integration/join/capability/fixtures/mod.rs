@@ -1,4 +1,5 @@
 //! The operators-port witness and refusal the capability proofs share with the join proofs beside them.
+use crate::outbound::operators::interface::OperatorsPort as _;
 use super::super::*;
 use ryo_operators::domain::equality_join::types::JoinInput;
 use ryo_operators::domain::equality_join::types::JoinRow;
@@ -16,7 +17,7 @@ pub(in super::super) struct Witness {
     pub(in super::super) refuse: bool,
     pub(in super::super) only_columns: bool,
 }
-impl OperatorsUseCase for Witness {
+impl crate::outbound::operators::interface::OperatorsPort for Witness {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         if let OperatorCall::EqualityJoin { input } = &call {
             self.calls.fetch_add(1, Ordering::Relaxed);
@@ -43,7 +44,7 @@ impl OperatorsUseCase for Witness {
                 return Err(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(REFUSAL) });
             }
         }
-        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))
+        crate::application::file_dag::fixtures::operators()
             .operators(call)
     }
 }

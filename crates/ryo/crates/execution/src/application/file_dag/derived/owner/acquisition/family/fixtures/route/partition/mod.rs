@@ -2,7 +2,7 @@
 use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{Exit, released};
 use crate::application::file_dag::derived::owner::acquisition::family::fixtures::numbers;
 use crate::application::file_dag::{
-    relations::RelationOwner, testing::program_derived_port,
+    relations::RelationOwner, fixtures::program_derived_port,
 };
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
@@ -11,7 +11,7 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::rc::Rc;
 
 pub(super) fn partition(kind: DerivedKind, exit: Exit) -> Result<DerivedKind, OperatingError> {
-    let owner = Rc::new(RelationOwner::new(crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible, program_derived_port()));
+    let owner = Rc::new(RelationOwner::new(crate::application::file_dag::relations::types::ReuseEligibility::Eligible, program_derived_port()));
     let result = through_partition(kind, exit, &owner);
     owner.release_population();
     released(kind, exit, owner.derived().publication_ownership_bytes());
@@ -35,7 +35,7 @@ fn through_partition(
     match exit {
         Exit::Cancelled => Ok(kind),
         Exit::Succeeds => {
-            assert!(cursor.advance()?, "{kind:?}: the first partition is built");
+            assert_eq!(cursor.advance()?, crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced, "{kind:?}: the first partition is built");
             Ok(kind)
         }
         Exit::Errors => {

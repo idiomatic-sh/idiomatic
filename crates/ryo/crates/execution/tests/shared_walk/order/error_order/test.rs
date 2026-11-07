@@ -1,11 +1,17 @@
 //! Earlier semantic errors are never hidden by later ones and are terminal for every retry.
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use super::super::super::fixtures::*;
 use super::super::super::no_catalog;
 use crate::boundary_fixture::{authored_request, corpus, demand};
-use ryo_execution::inbound::use_cases::execution::interface::{
-    ExecutionRequest, ExecutionUseCase, FileExecution,
-};
-use ryo_execution::inbound::use_cases::execution::types::*;
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_relations::domain::relations::fixtures::kinds;
 use ryo_relations::domain::relations::types::{FileId, Relation};
 use ryo_values::domain::plan_parts::types::StepScope;
@@ -17,7 +23,7 @@ fn an_earlier_dynamic_regex_error_is_not_hidden_by_a_later_false_kind_test() {
     let (engine, semantics) = engine();
     let program = prepared(&engine, &[Selector::RegexBeforeAbsentKind]);
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"[bc");
     let mut file = request
         .open_file(
@@ -49,7 +55,7 @@ fn an_earlier_false_kind_test_still_short_circuits_the_later_invalid_regex() {
     let (engine, semantics) = engine();
     let program = prepared(&engine, &[Selector::AbsentKindBeforeRegex]);
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"[bc");
     let mut file = request
         .open_file(
@@ -107,7 +113,7 @@ fn a_fused_child_error_precedes_a_later_head_error_and_is_terminal() {
         .prepare(authored)
         .expect("prepare actual fused head and child");
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"ab(");
     let mut file = request
         .open_file(
@@ -169,7 +175,7 @@ fn semantic_failure_precedes_delivery_and_is_terminal_for_every_retry() {
     let (engine, semantics) = engine();
     let program = prepared(&engine, &[Selector::DynamicRegex]);
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"ab(");
     let mut file = request
         .open_file(

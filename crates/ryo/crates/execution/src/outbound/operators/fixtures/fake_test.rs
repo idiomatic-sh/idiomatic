@@ -1,7 +1,7 @@
 //! The operator fake preserves the port contract and a controlled refusal.
 use super::{super::contract, OperatorsFake};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase as _;
+use crate::outbound::operators::interface::OperatorsPort as _;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
@@ -28,31 +28,34 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-#[test]
-fn fake_obeys_contract_and_refusal_boundary() {
-    contract::check(&OperatorsFake::default());
-    let subject = |refuses: Input| {
-        let fake = OperatorsFake {
-            refuses,
-            ..OperatorsFake::default()
-        };
-        let row = [CellValue::Number(Integer(3))];
-        let initial = CellValue::Number(Integer(9));
-        let mut target = vec![initial];
-        let result = fake.operators(OperatorCall::Project {
-            row: &row,
-            columns: &[ColumnIndex(0)],
-            target: &mut target,
-        });
-        assert_eq!(fake.calls.load(Ordering::Relaxed), 1);
-        if refuses {
-            assert_eq!(target, vec![initial]);
-        } else {
-            assert_eq!(result, Ok(OperatorAnswer::Written));
-            assert_eq!(target, vec![initial, row[0]]);
-        }
-        result.map(|_| 1)
+fn subject(refuses: Input) -> Result<Value, Failure> {
+    let fake = OperatorsFake {
+        refuses,
+        ..OperatorsFake::default()
     };
+    let row = [CellValue::Number(Integer(3))];
+    let initial = CellValue::Number(Integer(9));
+    let mut target = vec![initial];
+    let result = fake.operators(OperatorCall::Project {
+        row: &row,
+        columns: &[ColumnIndex(0)],
+        target: &mut target,
+    });
+    assert_eq!(fake.calls.load(Ordering::Relaxed), 1);
+    if refuses {
+        assert_eq!(target, vec![initial]);
+    } else {
+        assert_eq!(result, Ok(OperatorAnswer::Written));
+        assert_eq!(target, vec![initial, row[0]]);
+    }
+    result.map(|_| 1)
+}
+#[test]
+fn succeeds() {
+    contract::check(&OperatorsFake::default());
     run(CASES, Word::Succeeds, subject);
+}
+#[test]
+fn refuses() {
     run(CASES, Word::Refuses, subject);
 }

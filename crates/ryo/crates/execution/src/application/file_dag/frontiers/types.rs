@@ -10,7 +10,7 @@ pub enum PublicationSlot {
 /// Each named member carries its own admission source, never just decoded words.
 #[derive(Clone)]
 pub(crate) enum BoundMember {
-    Current(crate::application::file_dag::program::protocol::types::ObservedPublication),
+    Current(crate::application::file_dag::program::observed_publication::types::ObservedPublication),
     Restored(crate::application::file_dag::program::restored::types::ValidatedFrontier),
 }
 
@@ -199,7 +199,7 @@ pub(in crate::application::file_dag) fn validate_consumer_sources(
 
 /// Whether the producer feeding one retained frontier is available to this phase.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum InputReadiness {
+pub enum InputReadiness {
     /// The producer published; the frontier is read.
     Ready,
     /// The producer is unavailable; the frontier is refused.

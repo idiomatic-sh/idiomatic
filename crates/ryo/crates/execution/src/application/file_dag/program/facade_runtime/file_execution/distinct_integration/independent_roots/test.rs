@@ -1,10 +1,10 @@
 //! Real semantic refusal at one compiled root cannot erase the independent root.
+use crate::outbound::operators::interface::OperatorsPort as _;
 use super::super::*;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
 use ryo_values::domain::observations::types::{
     BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
     ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
@@ -15,7 +15,7 @@ use ryo_values::domain::records::types::ObservationReadinessLayout;
 use ryo_values::domain::records::types::ProducerReadiness;
 #[derive(Debug)]
 struct RefuseCount;
-impl OperatorsUseCase for RefuseCount {
+impl crate::outbound::operators::interface::OperatorsPort for RefuseCount {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         if matches!(
             &call,
@@ -26,7 +26,7 @@ impl OperatorsUseCase for RefuseCount {
         ) {
             return Err(PortableOperatorFault::WrongOperation);
         }
-        OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)
+        crate::application::file_dag::fixtures::operators().operators(call)
     }
 }
 fn columns(failed_emit: bool) -> Vec<ObservationColumn> {
@@ -111,7 +111,7 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
             &rules,
         )
         .unwrap();
-        let derived = crate::application::file_dag::testing::program_derived_port();
+        let derived = crate::application::file_dag::fixtures::program_derived_port();
         let prepared = crate::application::file_dag::program::preparation::service::prepare(
             compiled,
             &rules,
@@ -153,7 +153,7 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
             ],
             services,
             ryo_values::domain::files::types::SourceView(b""),
-            crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+            crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
             &mut symbols,
             None,
             None)

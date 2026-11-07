@@ -1,4 +1,6 @@
 //! Sealed authority controls: contract forgery, dependency forgery, backend mutation, build escape.
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use super::super::fixtures::{Compilation, Expectation, Probe};
 
 pub(super) const TYPES: &str = "src/application/file_dag/derived/owner/types.rs";
@@ -113,26 +115,26 @@ mod access_prepare {
 "#;
 const INBOUND_BUILD: &str = r#"
 mod inbound_build {
-    use super::ExecutionUseCaseImpl;
-    fn escape(use_case: &ExecutionUseCaseImpl) { let _ = use_case.derived.build(); }
-    const _: fn(&ExecutionUseCaseImpl) = escape;
+    use super::PrepareUseCaseImpl;
+    fn escape(use_case: &PrepareUseCaseImpl) { let _ = use_case.derived.build(); }
+    const _: fn(&PrepareUseCaseImpl) = escape;
 }
 "#;
 const INBOUND_PORT: &str = r#"
 mod inbound_port {
-    use super::ExecutionUseCaseImpl;
+    use super::PrepareUseCaseImpl;
     use crate::outbound::derived::interface::DerivedPort;
     use std::sync::Arc;
-    fn escape(use_case: &ExecutionUseCaseImpl) -> &Arc<dyn DerivedPort> { &use_case.derived }
-    const _: fn(&ExecutionUseCaseImpl) -> &Arc<dyn DerivedPort> = escape;
+    fn escape(use_case: &PrepareUseCaseImpl) -> &Arc<dyn DerivedPort> { &use_case.derived }
+    const _: fn(&PrepareUseCaseImpl) -> &Arc<dyn DerivedPort> = escape;
 }
 "#;
 const INBOUND_HOLDS: &str = r#"
 mod inbound_holds {
-    use super::ExecutionUseCaseImpl;
+    use super::PrepareUseCaseImpl;
     use crate::application::file_dag::derived::owner::types::DerivedAccess;
-    fn hold(use_case: &ExecutionUseCaseImpl) -> DerivedAccess { use_case.derived.clone() }
-    const _: fn(&ExecutionUseCaseImpl) -> DerivedAccess = hold;
+    fn hold(use_case: &PrepareUseCaseImpl) -> DerivedAccess { use_case.derived.clone() }
+    const _: fn(&PrepareUseCaseImpl) -> DerivedAccess = hold;
 }
 "#;
 const PORT_OWNER: &str = r#"

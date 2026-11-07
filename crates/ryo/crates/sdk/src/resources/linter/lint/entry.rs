@@ -57,7 +57,7 @@ impl Linter {
     #[must_use]
     pub fn routing(
         mut self,
-        routes: ryo_execution::inbound::use_cases::execution::types::RoutePolicy,
+        routes: ryo_execution::inbound::use_cases::prepare::interface::RoutePolicy,
     ) -> Self {
         self.engine_mut().routes = routes;
         self

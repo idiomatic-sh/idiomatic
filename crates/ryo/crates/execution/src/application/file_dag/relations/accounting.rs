@@ -104,7 +104,7 @@ impl RelationOwner {
                             + selection.kinds.capacity() * size_of::<CellKind>(),
                     ),
                 });
-                output.push(Self::rows_backing(&selection.rows.0));
+                output.push(Self::rows_backing(selection));
             }
         }
         output.push(Backing {
@@ -119,14 +119,16 @@ impl RelationOwner {
             output.push(Self::table_backing(table));
         }
     }
-    pub(super) fn rows_backing(rows: &Arc<Vec<u32>>) -> Backing {
+    pub(super) fn rows_backing(selection: &StoredSelection) -> Backing {
         Backing {
             key: BackingKey {
                 tag: BackingTag(1),
-                address: BackingAddress(Arc::as_ptr(rows) as usize),
+                address: BackingAddress(Arc::as_ptr(&selection.rows.0) as usize),
             },
-            retention_units: UnitCount(rows.capacity()),
-            bytes: crate::application::file_dag::derived::ledger::capacity::shared_vector(rows),
+            retention_units: UnitCount(selection.rows.0.capacity()),
+            bytes: crate::application::file_dag::derived::ledger::capacity::shared_vector(
+                &selection.rows.0,
+            ),
         }
     }
     pub(super) fn table_backing(table: &Arc<Table>) -> Backing {

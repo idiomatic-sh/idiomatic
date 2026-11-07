@@ -177,7 +177,7 @@ use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
     let proof = owner.admit(publication.as_ref(), rows)?;
     let plan = Arc::new(crate::application::file_dag::derived::prepare::view(
         (std::sync::Arc::new(
-            crate::outbound::derived::factory::semantics(),
+            crate::application::file_dag::fixtures::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
         &ViewRequest::PredicateMatches(selector),
         &[InputShape {
@@ -294,7 +294,7 @@ fn every_possible_discriminator_column_is_prepared_once() -> Result<(), Failure>
         [(selector).clone()],
         &|_| &[CellKind::Number; 3],
         (std::sync::Arc::new(
-            crate::outbound::derived::factory::semantics(),
+            crate::application::file_dag::fixtures::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     )?;
     let plans = &views.by_selector[&crate::domain::derived_views::types::SelectorAddress(Arc::as_ptr(&selector) as usize)].equalities;

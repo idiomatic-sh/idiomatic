@@ -1,4 +1,6 @@
 //! Execution state and lifecycle belong to this crate.
-pub(crate) mod file_dag;
+pub mod file_dag;
 
-pub(crate) mod rule_compilation;
+pub mod publication;
+
+pub mod rule_compilation;

@@ -7,17 +7,15 @@ use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
 use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
-use ryo_derived::inbound::use_cases::build::interface::BuildUseCase;
-use ryo_derived::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_derived::inbound::use_cases::view::interface::ViewUseCase;
+use crate::outbound::derived::interface::DerivedPort;
 use ryo_relations::domain::relations::types::CellKind;
 use std::sync::Arc;
 
 #[derive(Debug)]
 pub(super) struct RefusingBuild;
-impl PrepareUseCase for RefusingBuild {
+impl DerivedPort for RefusingBuild {
     fn prepare(&self, request: ViewRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived {
-        crate::outbound::derived::factory::semantics().prepare(request, schemas)
+        crate::application::file_dag::fixtures::derived().prepare(request, schemas)
     }
 }
 impl BuildUseCase for RefusingBuild {
@@ -37,7 +35,7 @@ impl ViewUseCase for RefusingBuild {
         prepared: &PreparedDerived,
         payload: &'a DerivedPayload,
     ) -> Result<DerivedView<'a>, DerivedFault> {
-        crate::outbound::derived::factory::semantics().view(prepared, payload)
+        crate::application::file_dag::fixtures::derived().view(prepared, payload)
     }
 }
 

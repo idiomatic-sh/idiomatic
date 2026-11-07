@@ -72,7 +72,7 @@ fn use_(
         plan: {
             let plan = crate::application::file_dag::derived::prepare::view(
                 (std::sync::Arc::new(
-                    crate::outbound::derived::factory::semantics(),
+                    crate::application::file_dag::fixtures::derived(),
                 )
                     as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
                 &request,
@@ -356,9 +356,9 @@ use ryo_derived::domain::request::types::DerivedKind;
 
 fn owner() -> Rc<crate::application::file_dag::relations::RelationOwner> {
     Rc::new(crate::application::file_dag::relations::RelationOwner::new(
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            crate::outbound::derived::factory::semantics(),
+            crate::application::file_dag::fixtures::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     ))
 }

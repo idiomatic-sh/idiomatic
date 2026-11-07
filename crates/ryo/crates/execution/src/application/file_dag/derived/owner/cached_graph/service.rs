@@ -3,6 +3,9 @@ use ryo_values::domain::plan_parts::types::InputNumber;
 use super::types::{AxisGraph, CachedGraph, KeyPosition, PartitionWidth, ReachGraph};
 use crate::application::file_dag::derived::owner::DerivedOwner;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
+use crate::application::file_dag::derived::owner::graphs::types::retained::types::{
+    GraphVertex, NearestAnswers,
+};
 use crate::application::file_dag::derived::owner::graphs::types::roots::value::DemandAnswers;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::{
@@ -248,36 +251,36 @@ impl AxisGraph {
             }
         };
         if self.direction == Direction::NearestAncestor {
-            let mut answers = std::mem::take(&mut self.walk.answers);
+            let mut answers = NearestAnswers(std::mem::take(&mut self.walk.answers));
             let found = DemandAnswers::new(owner, &mut *cache).nearest(
                 &self.access,
                 &self.domain,
-                root,
+                GraphVertex(root),
                 orientation,
                 &mut answers,
                 &mut self.walk,
             )?;
-            self.walk.answers = answers;
+            self.walk.answers = answers.0;
             if let Some(found) = found {
                 self.destinations.push(
                     *self
                         .access
                         .graph()
                         .vertices()
-                        .get(found as usize)
+                        .get(found.0 as usize)
                         .ok_or(OperatingError::ShapeMismatch)?,
                 );
             }
         } else {
             DemandAnswers::new(owner, &mut *cache).axis(
                 &self.access,
-                root,
+                GraphVertex(root),
                 orientation,
                 self.direction,
                 &mut self.walk,
             )?;
             for vertex in &self.walk.reached {
-                if self.domain.members().get(vertex.0 as usize) == Some(&true) {
+                if self.domain.members().0.get(vertex.0 as usize) == Some(&true) {
                     self.destinations.push(
                         *self
                             .access

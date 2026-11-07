@@ -1,32 +1,44 @@
 //! Each pure family is exercised through the public inbound implementation.
-use super::interface::{
-    Bearing, Blocking, CoverageScope, Governing, Lacking, Mask, MetadataUseCase, Partial,
-    PlacedScopes, Recovery, RowsFed, RuleScope,
-};
-use super::types::{AffectedFiles, CoverageFileCount};
+use super::interface::Bearing;
+use super::interface::Blocking;
+use super::interface::CoverageScope;
+use super::interface::Governing;
+use super::interface::Lacking;
+use super::interface::Mask;
+use super::interface::Partial;
+use super::interface::PlacedScopes;
+use super::interface::Recovery;
+use super::interface::RowsFed;
+use super::interface::RuleScope;
+use super::types::AffectedFiles;
+use super::types::CoverageFileCount;
 use super::use_case::MetadataUseCaseImpl;
 use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
 use crate::domain::kind_check::types::KindRefusal;
 use crate::domain::operating::errors::OperatingError;
 use ryo_language::domain::files::types::FilePath;
-use ryo_relations::domain::relations::types::{FileId, Relation};
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::descriptions::types::{
-    KindVocabularies, KindVocabulary, KindWord, LanguageName,
-};
-use ryo_values::domain::files::types::{Glob, GlobsMatcher, Hits, MatchCandidate};
-use ryo_values::domain::plan_parts::types::StepScope;
-use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Input as PlanInput, LiteralText, Operand, PlanComparison, QueryLiteral, StepId,
-    Test,
-};
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_relations::domain::relations::types::FileId;
+use ryo_relations::domain::relations::types::Relation;
+use ryo_values::cases::Case;
+use ryo_values::cases::CaseName;
+use ryo_values::cases::Expect;
+use ryo_values::cases::Word;
+use ryo_values::cases::run;
+use ryo_values::domain::files::types::Glob;
+use ryo_values::domain::files::types::GlobsMatcher;
+use ryo_values::domain::files::types::Hits;
+use ryo_values::domain::files::types::MatchCandidate;
+use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::run_metadata::types::Feature;
-use ryo_values::domain::runs::types::{RuleId, RuleNumber};
+use ryo_values::domain::runs::types::RuleId;
+use ryo_values::domain::runs::types::RuleNumber;
 use ryo_values::domain::stored_facts::types::PartialCause;
 use ryo_values::selects;
 use std::sync::Arc;
+use super::fixtures::plan;
+use super::fixtures::vocabularies;
+use super::fixtures::example_unknown_relations;
 
 #[derive(Clone, Copy, Debug)]
 enum Scenario {
@@ -41,7 +53,6 @@ enum Scenario {
     Affected,
     ForeignAffected,
 }
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Expected {
     Catalog(std::borrow::Cow<'static, [ryo_values::domain::query_operators::types::QueryOperator]>),
@@ -62,13 +73,11 @@ enum Expected {
     },
     Affected(usize),
 }
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Refusal {
     Kind(KindRefusal),
     Coverage(OperatingError),
 }
-
 type Input = Scenario;
 type Value = Expected;
 type Failure = Refusal;
@@ -179,47 +188,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
 ];
-
-fn plan(relation: Relation, word: Option<&str>) -> Plan {
-    let comparisons = word
-        .map(|text| PlanComparison {
-            test: Test::Equal,
-            left: Operand::Column(ColumnIndex(1)),
-            right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
-            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
-        })
-        .into_iter()
-        .collect();
-    Plan {
-        observation_inputs: Vec::new(),
-        parameters: Vec::new(),
-        steps: vec![PlanStep {
-            operation: Operation::Select {
-                from: PlanInput::Relation(relation),
-                comparisons,
-                kept: Vec::new(),
-            },
-            scope: StepScope::PerFile,
-        }],
-        comparison_origins: Vec::new(),
-        observations: Vec::new(),
-        emit: Emit {
-            step: StepId(0),
-            subject: ColumnIndex(0),
-            key: Vec::new(),
-            headings: Vec::new(),
-        },
-        frontier: Vec::new(),
-    }
-}
-
-fn vocabularies() -> KindVocabularies {
-    KindVocabularies(vec![KindVocabulary {
-        language: LanguageName("rust".into()),
-        kinds: vec![KindWord("fn".into())],
-    }])
-}
-
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let metadata = MetadataUseCaseImpl;
     match scenario {
@@ -396,41 +364,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }
     }
 }
-
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
-
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
-}
-
-/// Retain the former operator-service example/catalog assertion through public descriptors.
-fn example_unknown_relations(example: &str) -> usize {
-    use ryo_relations::domain::relations::{service::relation_named, types::NameRef};
-    let fields = [
-        "from",
-        "from=",
-        "left=",
-        "right=",
-        "edges=",
-        "relation=",
-        "domain=",
-    ];
-    example
-        .split('"')
-        .skip(1)
-        .step_by(2)
-        .filter(|quoted| {
-            let before = example
-                .split(&format!("\"{quoted}\""))
-                .next()
-                .unwrap_or_default()
-                .trim_end();
-            fields.iter().any(|field| before.ends_with(field))
-                && relation_named(NameRef(quoted)).is_none()
-        })
-        .count()
 }

@@ -7,7 +7,7 @@ use super::types::{
     VisitSetting, WorkersMet,
 };
 use crate::domain::render::types::Rendered;
-use ryo_execution::inbound::use_cases::execution::types::RowsFed;
+use ryo_execution::inbound::use_cases::execution::interface::RowsFed;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::metadata::interface::{Governing, Mask};

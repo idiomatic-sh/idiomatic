@@ -12,11 +12,12 @@ use crate::domain::answering::types::Todo;
 use crate::domain::crossing::types::ObservedRoot;
 use crate::domain::crossing::types::PhaseRoots;
 use crate::outbound::publication::interface::PublicationPort;
-use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
-use ryo_execution::inbound::use_cases::execution::types::OperatingError;
-use ryo_execution::inbound::use_cases::execution::types::ProjectObservation;
-use ryo_execution::inbound::use_cases::execution::types::PublicationSlot;
-use ryo_execution::inbound::use_cases::execution::types::RootOutcome;
+use ryo_execution::application::file_dag::program::preparation::types::ObservationContract;
+use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectObservation;
+use ryo_execution::application::file_dag::frontiers::types::PublicationSlot;
+use ryo_execution::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_language::domain::symbols::types::Symbols;
@@ -96,7 +97,7 @@ impl ProjectCompletion {
                 .0
             {
                 let path = crossing.paths.get(index).ok_or_else(|| {
-                    refuse(&ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun)
+                    refuse(&ryo_execution::inbound::use_cases::execution::interface::OperatingError::NotRun)
                 })?;
                 // The file's own relation read in part already gives the rule's unknown there, with the relation and why.
                 if crossing.covered.iter().any(|each| {
@@ -129,7 +130,8 @@ impl ProjectCompletion {
                 if crossing
                     .program
                     .has_observation_contract(todo.rule)
-                    .map_err(|reason| failed(&todo.id, &reason))? =>
+                    .map_err(|reason| failed(&todo.id, &reason))?
+                    == ObservationContract::Declared =>
             {
                 unknowns.extend(
                     crossing
@@ -194,7 +196,7 @@ impl ProjectCompletion {
 
 /// The rows each root of a project rule's outcome delivers, and the owner proof of every usable named root.
 pub(crate) fn collected(
-    outcome: ryo_execution::inbound::use_cases::execution::types::ProjectRuleOutcome,
+    outcome: ryo_execution::application::file_dag::program::rule_outcome::types::RuleOutcome<ryo_execution::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome>,
 ) -> Result<ProgramEvaluated, OperatingError> {
     let mut roots = PhaseRoots::default();
     match outcome.emit {
@@ -207,7 +209,7 @@ pub(crate) fn collected(
         RootOutcome::Skipped(_) | RootOutcome::NoQuery | RootOutcome::Deferred { .. } => {}
     }
     let mut publications = Vec::new();
-    for ryo_execution::inbound::use_cases::execution::types::ProjectOutputOutcome {
+    for ryo_execution::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome {
         output,
         outcome,
     } in outcome.observations

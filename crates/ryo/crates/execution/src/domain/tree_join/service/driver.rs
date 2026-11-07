@@ -21,7 +21,7 @@ use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison};
 use ryo_values::domain::rows::types::RowIndex;
 pub(super) struct TreeDriver<'a, 'f, 'c> {
     #[cfg(feature = "diagnostic-row-progress")]
-    pub(super) progress: crate::domain::operator::contract::views::ProgressObserver,
+    pub(super) progress: &'a dyn crate::domain::operator::contract::views::ProgressObserver,
     pub(super) state: &'a mut TreeState,
     pub(super) work: &'a crate::domain::operator::contract::types::WorkCounters,
     pub(super) tree: &'a TreeRows<'f>,
@@ -41,7 +41,7 @@ impl TreeDriver<'_, '_, '_> {
             self.at = StretchCursor(self.at.0 + 1);
             self.work.found(ryo_values::domain::plan_parts::types::InputNumber(1), crate::domain::operator::contract::types::FoundRows(1));
             #[cfg(feature = "diagnostic-row-progress")]
-            (self.progress)(
+            self.progress.observe(
                 crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,
                 crate::domain::operator::contract::views::ProgressAmount(1),
             );
@@ -53,7 +53,7 @@ impl TreeDriver<'_, '_, '_> {
             let index = RowIndex(usize::try_from(found.0).unwrap_or(usize::MAX) - first);
             #[cfg(feature = "diagnostic-row-progress")]
             if !self.state.gate.0.is_empty() {
-                (self.progress)(
+                self.progress.observe(
                     crate::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
                     crate::domain::operator::contract::views::ProgressAmount(1),
                 );
@@ -75,7 +75,7 @@ impl TreeDriver<'_, '_, '_> {
             }
             #[cfg(feature = "diagnostic-row-progress")]
             if !self.state.rest.0.is_empty() {
-                (self.progress)(
+                self.progress.observe(
                     crate::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
                     crate::domain::operator::contract::views::ProgressAmount(1),
                 );

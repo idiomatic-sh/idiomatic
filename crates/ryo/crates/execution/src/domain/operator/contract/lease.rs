@@ -58,7 +58,7 @@ impl<'a> PrimitiveLease<'a> {
         counter: crate::domain::operator::contract::views::ProgressCounter,
         amount: crate::domain::operator::contract::views::ProgressAmount,
     ) {
-        (self.semantics.progress())(counter, amount);
+        self.semantics.progress().observe(counter, amount);
     }
 
     /// Copy the request-lived semantic port before borrowing this lease for row delivery.

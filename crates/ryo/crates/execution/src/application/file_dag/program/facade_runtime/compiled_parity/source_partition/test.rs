@@ -78,7 +78,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
             },
         ])]));
     }
-    let derived = crate::application::file_dag::testing::program_derived_port();
+    let derived = crate::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
@@ -95,7 +95,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
     let engine: Arc<dyn crate::application::file_dag::executor::PrimitiveExecutor + Send> =
         Arc::new(CommonOperatorEngine::new(
             (std::sync::Arc::new(
-                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
+                crate::application::file_dag::fixtures::operators(),
             )
                 as std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>),
         ));
@@ -139,7 +139,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
         handover.validate_scope(prepared.program(), &required)?;
         return Ok("frontier-scope");
     }
-    let owner = open_program_owner(prepared.program(), Arc::clone(&derived), crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible);
+    let owner = open_program_owner(prepared.program(), Arc::clone(&derived), crate::application::file_dag::relations::types::ReuseEligibility::Eligible);
     let project = Partition::Project(required);
     let scope = if project_case {
         project.clone()
@@ -186,7 +186,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
         }
     };
     let walk_owner = if matches!(case, SourceCase::ForeignWalkGeneration) {
-        open_program_owner(prepared.program(), Arc::clone(&derived), crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible)
+        open_program_owner(prepared.program(), Arc::clone(&derived), crate::application::file_dag::relations::types::ReuseEligibility::Eligible)
     } else {
         Rc::clone(&owner)
     };

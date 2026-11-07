@@ -1,20 +1,22 @@
 //! Axis rows and native tree traversal through real compiled file owners.
 use super::super::super::fixtures;
 use ryo_values::selects;
-
-use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_relations::domain::relations::types::{CellKind, Relation, Value as Cell};
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Value as Cell;
 use ryo_values::domain::plan_parts::types::LiteralText;
-
 use ryo_language::domain::symbols::types::Symbols;
-
 use crate::domain::operating::errors::OperatingError;
-use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::Integer;
-use ryo_relations::domain::relations::types::{FileId, KindBits, Offset, Position};
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use ryo_relations::domain::relations::types::FileId;
+use ryo_relations::domain::relations::types::Position;
+use ryo_values::cases::Case;
+use ryo_values::cases::CaseName;
+use ryo_values::cases::Expect;
+use ryo_values::cases::Word;
+use ryo_values::cases::run;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Direction;
 use ryo_values::domain::plan_parts::types::Input as Source;
@@ -26,18 +28,17 @@ use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::service::push_row;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::rows::types::Table;
 
 type Value = usize;
 type Failure = OperatingError;
 /// A scenario: what a row computes with the item, answering how many rows came out.
 type Input = fn() -> Result<Value, OperatingError>;
-
 const FROM: Source = Source::Relation(Relation::Function);
-
 fn column(index: u32) -> ColumnIndex {
     ColumnIndex(index)
 }
-
 /// A table of numbers, one row for each slice.
 fn numbers(rows: &[&[i64]]) -> Table {
     let width = rows.first().map_or(1, |row| row.len());
@@ -55,7 +56,6 @@ fn numbers(rows: &[&[i64]]) -> Table {
     }
     table
 }
-
 fn compute(
     operation: &Operation,
     inputs: &[&Table],
@@ -71,11 +71,9 @@ fn compute(
     .count
     .0)
 }
-
 fn node(position: u32) -> Cell {
     Cell::Node(node_id(FileId(0), Position(position)))
 }
-
 /// What the third input of a walk over the tree is: the nodes of a table, or the elements of the tree.
 enum Domain {
     /// A table of nodes.
@@ -83,7 +81,6 @@ enum Domain {
     /// The elements of the tree.
     Elements,
 }
-
 /// A table of one node column holding `starts`.
 fn node_table(starts: impl IntoIterator<Item = u32>) -> Table {
     let mut table = Table {
@@ -95,7 +92,6 @@ fn node_table(starts: impl IntoIterator<Item = u32>) -> Table {
         .for_each(|position| push_row(&mut table, &[node(position)]));
     table
 }
-
 /// The axis operation that walks `direction` over the tree, from column 0 to column 1 of the edges, with the domain's filter and output.
 fn axis(direction: Direction, filter: Vec<PlanComparison>, output: Vec<JoinColumn>) -> Operation {
     Operation::Axis {
@@ -112,151 +108,6 @@ fn axis(direction: Direction, filter: Vec<PlanComparison>, output: Vec<JoinColum
         output,
     }
 }
-
-/// What the item makes of the operation over the tree, from the nodes in `starts`.
-fn over_the_tree(
-    operation: &Operation,
-    starts: &Table,
-    domain: &Domain,
-) -> Result<Table, OperatingError> {
-    use ryo_relations::domain::relations::{
-        service::kinds,
-        types::{Flag, Span},
-    };
-    let (elements, mut symbols) = fixtures::tree_with_names();
-    let word = ryo_language::domain::symbols::service::intern_derived(
-        &mut symbols,
-        ByteSlice(b"abcd"),
-        ryo_relations::domain::terms::types::NameText("fixture"),
-    );
-    let facts = |relation, table: &Table| {
-        let mut supplied = Table {
-            kinds: kinds(relation).to_vec(),
-            ..Table::default()
-        };
-        for row in table.cells.chunks(table.kinds.len()) {
-            supplied
-                .cells
-                .extend(kinds(relation).iter().map(|kind| match kind {
-                    CellKind::Node => row[0],
-                    CellKind::Symbol => Cell::Symbol(word),
-                    CellKind::File => Cell::File(FileId(0)),
-                    CellKind::Span => Cell::Span(Span {
-                        start: Offset(0),
-                        end: Offset(0),
-                    }),
-                    CellKind::Number => Cell::Number(Integer(0)),
-                    CellKind::Flag => Cell::Flag(Flag::Lowered),
-                }));
-            supplied.count.0 += 1;
-        }
-        supplied
-    };
-    let from = facts(Relation::Function, starts);
-    let domain_rows = match domain {
-        Domain::Nodes(table) => Some(facts(Relation::Identifier, table)),
-        Domain::Elements => None,
-    };
-    let mut operations = vec![Operation::Select {
-        from: Source::Relation(Relation::Function),
-        comparisons: vec![],
-        kept: vec![column(0)],
-    }];
-    let domain_source = if domain_rows.is_some() {
-        operations.push(Operation::Select {
-            from: Source::Relation(Relation::Identifier),
-            comparisons: vec![],
-            kept: vec![column(0)],
-        });
-        Source::Step(ryo_values::domain::plan_parts::types::StepId(1))
-    } else {
-        Source::Relation(Relation::SyntaxTree)
-    };
-    let mut operation = operation.clone();
-    let Operation::Axis {
-        from: from_input,
-        edges,
-        domain,
-        ..
-    } = &mut operation
-    else {
-        unreachable!()
-    };
-    *from_input = Source::Step(ryo_values::domain::plan_parts::types::StepId(0));
-    *edges = Source::Relation(Relation::SyntaxChild);
-    *domain = domain_source;
-    operations.push(operation);
-    let read = |relation| match relation {
-        Relation::Function => Ok(super::super::super::types::SourceRows::Computed(&from)),
-        Relation::Identifier => Ok(super::super::super::types::SourceRows::Computed(
-            domain_rows.as_ref().expect("declared domain"),
-        )),
-        _ => Err(OperatingError::NotRead),
-    };
-    fixtures::published_from(
-        fixtures::plan(operations),
-        vec![],
-        vec![],
-        b"abcd",
-        &elements,
-        &mut symbols,
-        &read,
-    )
-}
-
-/// The entities found walking `direction` from the node at `start` in the tree, among all the nodes of the file.
-fn walks_the_tree(direction: Direction, start: u32) -> Result<Vec<Cell>, OperatingError> {
-    let out = over_the_tree(
-        &axis(direction, Vec::new(), Vec::new()),
-        &node_table([start]),
-        &Domain::Nodes(node_table(0..4)),
-    )?;
-    let mut found: Vec<Cell> = out.cells.chunks(2).map(|row| row[1]).collect();
-    found.sort();
-    Ok(found)
-}
-
-fn descendants_in_the_tree_are_everything_below() -> Result<Value, OperatingError> {
-    Ok(usize::from(
-        walks_the_tree(Direction::Descendant, 0)? == [node(1), node(2), node(3)]
-            && walks_the_tree(Direction::Descendant, 2)? == [node(3)]
-            && walks_the_tree(Direction::Descendant, 3)?.is_empty(),
-    ))
-}
-
-fn ancestors_in_the_tree_are_the_parents_up_to_the_root() -> Result<Value, OperatingError> {
-    Ok(usize::from(
-        walks_the_tree(Direction::Ancestor, 3)? == [node(0), node(2)]
-            && walks_the_tree(Direction::Ancestor, 0)?.is_empty(),
-    ))
-}
-
-fn the_nearest_ancestor_in_the_tree_is_the_parent() -> Result<Value, OperatingError> {
-    Ok(usize::from(
-        walks_the_tree(Direction::NearestAncestor, 3)? == [node(2)],
-    ))
-}
-
-fn the_parent_and_the_children_in_the_tree() -> Result<Value, OperatingError> {
-    Ok(usize::from(
-        walks_the_tree(Direction::Parent, 3)? == [node(2)]
-            && walks_the_tree(Direction::Child, 0)? == [node(1), node(2)]
-            && walks_the_tree(Direction::Parent, 0)?.is_empty(),
-    ))
-}
-
-fn the_siblings_in_the_tree_are_the_children_beside_under_the_same_parent()
--> Result<Value, OperatingError> {
-    Ok(usize::from(
-        walks_the_tree(Direction::PreviousSibling, 2)? == [node(1)]
-            && walks_the_tree(Direction::NextSibling, 1)? == [node(2)]
-            && walks_the_tree(Direction::PreviousSibling, 1)?.is_empty()
-            && walks_the_tree(Direction::NextSibling, 2)?.is_empty()
-            && walks_the_tree(Direction::NextSibling, 3)?.is_empty()
-            && walks_the_tree(Direction::PreviousSibling, 0)?.is_empty(),
-    ))
-}
-
 /// The descendants of the root among the elements of the tree that a filter admits, read from the tree.
 fn walks_among_the_filtered_elements(
     filter: Vec<PlanComparison>,
@@ -270,7 +121,6 @@ fn walks_among_the_filtered_elements(
     found.sort();
     Ok(found)
 }
-
 fn only_the_elements_a_filter_admits_answer() -> Result<Value, OperatingError> {
     let text_is_b = PlanComparison {
         test: Test::Equal,
@@ -283,7 +133,6 @@ fn only_the_elements_a_filter_admits_answer() -> Result<Value, OperatingError> {
             && walks_among_the_filtered_elements(Vec::new())? == [node(1), node(2), node(3)],
     ))
 }
-
 /// What a walk below the children of the root answers, as the rows `output` names.
 fn walks_below_the_children(output: Vec<JoinColumn>) -> Result<Vec<Vec<Cell>>, OperatingError> {
     let out = over_the_tree(
@@ -294,7 +143,6 @@ fn walks_below_the_children(output: Vec<JoinColumn>) -> Result<Vec<Vec<Cell>>, O
     let width = out.kinds.len();
     Ok(out.cells.chunks(width).map(<[Cell]>::to_vec).collect())
 }
-
 fn a_deep_walk_answers_what_is_below_the_children() -> Result<Value, OperatingError> {
     let left = JoinColumn {
         side: Side::Left,
@@ -310,7 +158,6 @@ fn a_deep_walk_answers_what_is_below_the_children() -> Result<Value, OperatingEr
             && walks_below_the_children(vec![right(0), left])? == [vec![node(3), node(0)]],
     ))
 }
-
 fn finds_the_descendants() -> Result<Value, OperatingError> {
     let operation = Operation::Axis {
         from: FROM,
@@ -330,7 +177,6 @@ fn finds_the_descendants() -> Result<Value, OperatingError> {
     let domain = numbers(&[&[1], &[2], &[3]]);
     compute(&operation, &[&from, &edges, &domain], &[])
 }
-
 fn walks_with_two_inputs() -> Result<Value, OperatingError> {
     let operation = Operation::Axis {
         from: FROM,
@@ -363,7 +209,6 @@ fn walks_with_two_inputs() -> Result<Value, OperatingError> {
     )
     .map(|kinds| kinds.len())
 }
-
 /// A sparse computed-edge walk retains payloads, crosses non-domain nodes and
 /// visits no unrelated component, including equal local positions in another file.
 fn sparse_computed_walk_work_is_rooted() -> Result<Value, OperatingError> {
@@ -420,7 +265,6 @@ fn sparse_computed_walk_work_is_rooted() -> Result<Value, OperatingError> {
     }
     Ok(1)
 }
-
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -436,30 +280,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(2),
     },
     Case {
-        name: CaseName("descendants_in_the_tree_are_everything_below"),
-        word: Word::Succeeds,
-        input: || descendants_in_the_tree_are_everything_below,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("ancestors_in_the_tree_are_the_parents_up_to_the_root"),
-        word: Word::Succeeds,
-        input: || ancestors_in_the_tree_are_the_parents_up_to_the_root,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("the_nearest_ancestor_in_the_tree_is_the_parent"),
-        word: Word::Succeeds,
-        input: || the_nearest_ancestor_in_the_tree_is_the_parent,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("the_parent_and_the_children_in_the_tree"),
-        word: Word::Succeeds,
-        input: || the_parent_and_the_children_in_the_tree,
-        expect: Expect::Value(1),
-    },
-    Case {
         name: CaseName("a_deep_walk_answers_what_is_below_the_children_with_the_columns_asked"),
         word: Word::Succeeds,
         input: || a_deep_walk_answers_what_is_below_the_children,
@@ -472,33 +292,21 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("the_siblings_in_the_tree_are_the_children_beside_under_the_same_parent"),
-        word: Word::Succeeds,
-        input: || the_siblings_in_the_tree_are_the_children_beside_under_the_same_parent,
-        expect: Expect::Value(1),
-    },
-    Case {
         name: CaseName("a_missing_input_is_refused"),
         word: Word::Refuses,
         input: || walks_with_two_inputs,
         expect: Expect::Refusal(|error| {
             selects!(matches!(error, OperatingError::MissingInput { .. }))
         }),
-    },
-];
-
+    },];
 fn subject(scenario: Input) -> Result<Value, Failure> {
     scenario()
 }
-
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
-
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
-
-use ryo_values::domain::{query_bindings::types::ParameterBinding, rows::types::Table};

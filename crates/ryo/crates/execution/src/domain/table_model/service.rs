@@ -241,10 +241,10 @@ pub(crate) fn matching_stored<'o, 'k>(
     order: &'o KeyIndex,
     key: &'k [Value],
     #[cfg(feature = "diagnostic-row-progress")]
-    observer: crate::domain::operator::contract::views::ProgressObserver,
+    observer: &dyn crate::domain::operator::contract::views::ProgressObserver,
 ) -> impl Iterator<Item = &'o RowIndex> + Clone {
     #[cfg(feature = "diagnostic-row-progress")]
-    observer(
+    observer.observe(
         crate::domain::operator::contract::views::ProgressCounter::IndexProbes,
         crate::domain::operator::contract::views::ProgressAmount(1),
     );
@@ -254,7 +254,7 @@ pub(crate) fn matching_stored<'o, 'k>(
     std::iter::from_fn(move || {
         while at.0 != 0 {
             #[cfg(feature = "diagnostic-row-progress")]
-            observer(
+            observer.observe(
                 crate::domain::operator::contract::views::ProgressCounter::IndexRowsExamined,
                 crate::domain::operator::contract::views::ProgressAmount(1),
             );
@@ -268,7 +268,7 @@ pub(crate) fn matching_stored<'o, 'k>(
                 let row = order.rows.get(place);
                 #[cfg(feature = "diagnostic-row-progress")]
                 if row.is_some() {
-                    observer(
+                    observer.observe(
                         crate::domain::operator::contract::views::ProgressCounter::EqualityMatches,
                         crate::domain::operator::contract::views::ProgressAmount(1),
                     );

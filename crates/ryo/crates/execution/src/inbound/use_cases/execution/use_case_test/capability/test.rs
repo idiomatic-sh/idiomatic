@@ -1,11 +1,27 @@
 //! Recursive producers and roots use the actual injected semantic capability, with terminal refusal.
-use super::super::super::{fixtures, interface::*, types::*, use_case::ExecutionUseCaseImpl};
+use crate::outbound::operators::interface::OperatorsPort as _;
+use super::super::super::fixtures::{Authored, Preparation};
+use crate::outbound::facts::types::ResidentStability;
+use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
+use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use crate::application::file_dag::program::file_session::types::FileInput;
+use crate::application::file_dag::program::file_session::types::SourceLanguage;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use crate::inbound::use_cases::execution::interface::CaptureIntent;
+use crate::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use crate::inbound::use_cases::execution::interface::EmitDemand;
+use crate::inbound::use_cases::execution::interface::FileRuleIntent;
+use crate::inbound::use_cases::execution::interface::ObservationDemand;
+use crate::inbound::use_cases::execution::interface::OperatingError;
+use crate::inbound::use_cases::execution::interface::RuleDemand;
+use crate::inbound::use_cases::execution::interface::RuleIndex;
+use crate::domain::prepared_request::types::ObservationIdentity;
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
@@ -36,7 +52,7 @@ struct ObservedSemantics {
     projects: AtomicUsize,
     appends: AtomicUsize,
 }
-impl OperatorsUseCase for ObservedSemantics {
+impl crate::outbound::operators::interface::OperatorsPort for ObservedSemantics {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         let refuse = match &call {
             OperatorCall::SetRow { .. } => {
@@ -56,7 +72,7 @@ impl OperatorsUseCase for ObservedSemantics {
         if refuse {
             Err(PortableOperatorFault::ShapeMismatch)
         } else {
-            OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)
+            fixtures::operators().operators(call)
         }
     }
 }
@@ -70,11 +86,11 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
         projects: AtomicUsize::new(0),
         appends: AtomicUsize::new(0),
     });
-    let engine = ExecutionUseCaseImpl::new(
+    let engine = Preparation::new(
         port.clone(),
-        Arc::new(crate::outbound::derived::factory::semantics()),
+        Arc::new(fixtures::derived()),
     );
-    let mut plan = fixtures::plan(vec![
+    let mut plan = inputs::plan(vec![
         Operation::Hosted {
             relation: HostedNumber(0),
         },
@@ -103,14 +119,7 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
     }
     // An authored identity boundary keeps the union a genuine recursive producer.
     plan.frontier.push(Source::Step(StepId(2)));
-    let prepared = engine.prepare(PreparedRequest {
-        plans: vec![plan],
-        bindings: vec![vec![]],
-        hosted: vec![
-            fixtures::numbers("left", 1, &[&[1], &[1], &[2]]),
-            fixtures::numbers("right", 1, &[&[2], &[3]]),
-        ],
-        rules: vec![RuleSpec {
+    let prepared = engine.prepare(Authored { plans: vec![plan], bindings: vec![vec![]], rules: vec![RuleSpec {
             id: RuleId("injected-semantics".into()),
             query: QueryBundle {
                 root: QueryDocumentSource {
@@ -125,24 +134,24 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
             spelled: RuleParameters("".into()),
             include: vec![],
             exclude: vec![],
-        }],
-        digests: vec![Digest([0; 16])],
-        observations: ObservationIdentity::Independent,
-    })?;
+        }], digests: vec![Digest([0; 16])], hosted: vec![
+            fixtures::numbers("left", 1, &[&[1], &[1], &[2]]),
+            fixtures::numbers("right", 1, &[&[2], &[3]]),
+        ], observations: ObservationIdentity::Independent })?;
     let corpus = [CorpusInput::Available(CorpusEntry {
         path: ryo_language::domain::files::types::FilePath("injected.py".into()),
         executable: ExecutablePermission::Unknown,
         size: FileSize(0),
         modified: Nanoseconds(0),
     })];
-    let request = engine.begin(&prepared, &corpus);
+    let request = fixtures::execution().execution(&prepared, &corpus);
     let elements = Elements::default();
     let mut symbols = Symbols::default();
     let no_provider = |_| Err(OperatingError::NotRead);
     let mut file = request.open_file(
         FileInput {
             language: SourceLanguage::Recognized,
-            resident_stability: facts::ResidentStability::Stable,
+            resident_stability: ResidentStability::Stable,
             file: ryo_relations::domain::relations::types::FileId(0),
             evaluation: &[],
             publication: &[],
@@ -151,11 +160,11 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
                 observations: ObservationDemand::NotRequired,
                 capture: CaptureIntent::Disabled,
             }],
-            source: b"",
+            source: ryo_values::domain::files::types::SourceView(b""),
             elements: &elements,
             read: &no_provider,
-            semantic: None,
-            kinds: None,
+            semantic: crate::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+            kinds: crate::application::file_dag::program::file_session::types::KindSupport::Absent,
         },
         &mut symbols,
     )?;

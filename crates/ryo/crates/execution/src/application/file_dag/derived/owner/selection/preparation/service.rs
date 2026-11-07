@@ -158,7 +158,7 @@ pub(in crate::application::file_dag::derived::owner) fn activate_program(
             }
             let bytes = (selectors.len() + 1).checked_mul(size_of::<Arc<Selector>>());
             if bytes
-                .and_then(|bytes| cache.bytes.checked_add(bytes))
+                .and_then(|bytes| cache.bytes.0.checked_add(bytes))
                 .is_none_or(|bytes| {
                     bytes
                     > crate::application::file_dag::derived::owner::index::service::non_graph_limit(
@@ -177,13 +177,13 @@ pub(in crate::application::file_dag::derived::owner) fn activate_program(
     >(
         crate::application::file_dag::derived::ledger::types::SlotCount(selectors.capacity()),
     )
-    .and_then(|bytes| cache.bytes.checked_add(bytes.0))
+    .and_then(|bytes| cache.bytes.0.checked_add(bytes.0))
     .filter(|bytes| {
         *bytes
             <= crate::application::file_dag::derived::owner::index::service::non_graph_limit(cache)
                 .0
     }) {
-        cache.bytes = bytes;
+        cache.bytes.0 = bytes;
         cache.graph_counts.peak_bytes.0 = cache.graph_counts.peak_bytes.0.max(bytes);
         cache.selectors = selectors;
         crate::application::file_dag::derived::owner::index::service::candidate_columns(cache);

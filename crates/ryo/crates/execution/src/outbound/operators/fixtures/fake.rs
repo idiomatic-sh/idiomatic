@@ -2,9 +2,8 @@
 use crate::outbound::operators::interface::OperatorsPort;
 use ryo_operators::inbound::use_cases::operators::types::{OperatorAnswer, OperatorCall};
 use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::inbound::use_cases::operators::{
-    interface::OperatorsUseCase, use_case::OperatorsUseCaseImpl,
-};
+use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase as _;
+use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(Debug, Default)]
@@ -14,7 +13,7 @@ pub struct OperatorsFake {
     /// Refuse before the portable implementation runs.
     pub refuses: bool,
 }
-impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase for OperatorsFake {
+impl OperatorsPort for OperatorsFake {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         self.calls.fetch_add(1, Ordering::Relaxed);
         if self.refuses {

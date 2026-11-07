@@ -14,7 +14,7 @@ use ryo_values::domain::rows::errors::RowsError;
 fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
     let skipped_at_start = matches!(final_consumer, FinalConsumer::SkippedAtStart);
     let refuse_provider = matches!(final_consumer, FinalConsumer::RefusingProvider);
-    let derived = crate::application::file_dag::testing::program_derived_port();
+    let derived = crate::application::file_dag::fixtures::program_derived_port();
     let mut second = rule();
     second.id = RuleId("second-derived-consumer".into());
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
@@ -49,7 +49,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
     assert_eq!(prepared.program().regions()[producer.0].consumers().0, 2);
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
+            crate::application::file_dag::fixtures::operators(),
         ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {
@@ -78,7 +78,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
                 capture: CaptureIntent::Disabled,
             },
             if skipped_at_start {
-                FileRuleIntent::Skipped(crate::application::file_dag::program::admission::ApplicabilityReason::DiagnosticNotApplicable)
+                FileRuleIntent::Skipped(crate::domain::rule_intent::types::ApplicabilityReason::DiagnosticNotApplicable)
             } else {
                 FileRuleIntent::Run {
                     diagnostic: DiagnosticDelivery::Collected,
@@ -89,7 +89,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
         ],
         services,
         ryo_values::domain::files::types::SourceView(b""),
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
         None,

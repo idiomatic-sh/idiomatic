@@ -2,7 +2,6 @@
 use super::adapter::PublicationExecutionAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::publication::{fixtures::contract, interface::PublicationPort};
-use ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl;
 use ryo_language::domain::symbols::{
     service::intern_derived,
     types::{ByteSlice, Symbols},
@@ -15,7 +14,6 @@ use ryo_values::domain::{
     rows::types::{RowCount, Table},
     stored_facts::types::ArenaBytes,
 };
-use std::sync::Arc;
 
 type Input = ();
 type Value = usize;
@@ -28,7 +26,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     expect: Expect::Value(1),
 }];
 fn subject(_: Input) -> Result<Value, Failure> {
-    let adapter = PublicationExecutionAdapter::new(Arc::new(PublicationUseCaseImpl::new()));
+    let adapter = PublicationExecutionAdapter::new();
     let mut symbols = Symbols::default();
     let name = std::str::from_utf8(NAME_BYTES).unwrap();
     let symbol = intern_derived(&mut symbols, ByteSlice(&[]), NameText(name));
@@ -53,8 +51,6 @@ fn subject(_: Input) -> Result<Value, Failure> {
 }
 #[test]
 fn succeeds() {
-    contract::check(&PublicationExecutionAdapter::new(Arc::new(
-        PublicationUseCaseImpl::new(),
-    )));
+    contract::check(&PublicationExecutionAdapter::new());
     run(CASES, Word::Succeeds, subject);
 }

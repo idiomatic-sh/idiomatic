@@ -1,9 +1,10 @@
 //! Pure derived-owner fixtures; no operator evaluator or legacy transport.
+use crate::outbound::derived::interface::DerivedPort;
 use crate::application::file_dag::derived::owner::*;
 use crate::application::file_dag::relations::RelationOwner;
 use crate::domain::{
     coverage::types::Partial, operating::errors::OperatingError,
-    operator::contract:: table_model::types::Rows,
+    table_model::types::Rows,
 };
 use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_derived::domain::equality::types::KeyIndex;
@@ -23,7 +24,7 @@ impl ResourceFixture {
     pub(crate) fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> Option<Self> {
         let owner = Rc::new(RelationOwner::new(
             crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
-            crate::application::file_dag::testing::program_derived_port(),
+            crate::application::file_dag::fixtures::program_derived_port(),
         ));
         let plans = wanted
             .iter()
@@ -136,17 +137,14 @@ impl RecordedDerived {
         self.builds.lock().expect("recorded semantic calls").clone()
     }
 }
-impl ryo_derived::inbound::use_cases::prepare::interface::PrepareUseCase for RecordedDerived {
+impl DerivedPort for RecordedDerived {
     fn prepare(
         &self,
         request: ryo_derived::domain::request::types::DerivedRequest,
         schemas: Vec<Vec<ryo_relations::domain::relations::types::CellKind>>,
     ) -> ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived {
-        use ryo_derived::inbound::use_cases::prepare::interface::PrepareUseCase;
-        crate::outbound::derived::factory::semantics().prepare(request, schemas)
+        crate::application::file_dag::fixtures::derived().prepare(request, schemas)
     }
-}
-impl ryo_derived::inbound::use_cases::build::interface::BuildUseCase for RecordedDerived {
     fn build(
         &self,
         prepared: &ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived,
@@ -157,7 +155,6 @@ impl ryo_derived::inbound::use_cases::build::interface::BuildUseCase for Recorde
         ryo_derived::domain::contract::types::BuildOutcome,
         ryo_derived::domain::fault::types::DerivedFault,
     > {
-        use ryo_derived::inbound::use_cases::build::interface::BuildUseCase;
         self.builds
             .lock()
             .expect("recorded semantic calls")
@@ -169,10 +166,8 @@ impl ryo_derived::inbound::use_cases::build::interface::BuildUseCase for Recorde
         {
             return Err(fault.clone());
         }
-        crate::outbound::derived::factory::semantics().build(prepared, inputs, room, recycled)
+        crate::application::file_dag::fixtures::derived().build(prepared, inputs, room, recycled)
     }
-}
-impl ryo_derived::inbound::use_cases::view::interface::ViewUseCase for RecordedDerived {
     fn view<'a>(
         &self,
         prepared: &ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived,
@@ -181,8 +176,7 @@ impl ryo_derived::inbound::use_cases::view::interface::ViewUseCase for RecordedD
         ryo_derived::domain::contract::types::DerivedView<'a>,
         ryo_derived::domain::fault::types::DerivedFault,
     > {
-        use ryo_derived::inbound::use_cases::view::interface::ViewUseCase;
-        crate::outbound::derived::factory::semantics().view(prepared, payload)
+        crate::application::file_dag::fixtures::derived().view(prepared, payload)
     }
 }
 

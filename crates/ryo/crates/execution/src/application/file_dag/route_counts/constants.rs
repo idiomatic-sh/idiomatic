@@ -1,6 +1,7 @@
 //! Diagnostic vocabulary of the opt-in route accounting.
 pub(super) const MAX_KEYS: usize = 32_768;
-pub(super) const RESOURCE_ROUTES_TARGET: &str = "ryo::diagnostic::resource_routes";
+pub(super) const RESOURCE_ROUTES_TARGET: &str =
+    crate::application::file_dag::derived::constants::TARGET_RESOURCE_ROUTES;
 pub(super) const RESOURCE_ROUTES_EVENT: &str = "resource_routes";
 pub(super) const UNCLASSIFIED: &str = "unclassified";
 
@@ -44,7 +45,7 @@ pub(super) const DAG_NAMESPACE: &str = "dag";
 #[cfg(feature = "diagnostic-row-progress")]
 pub(super) const NO_RULE: &str = "<none>";
 #[cfg(feature = "diagnostic-row-progress")]
-pub(super) const PHASE_PROJECT: &str = "project";
+pub(super) const PHASE_PROJECT: &str = ryo_values::domain::descriptions::constants::PROJECT;
 #[cfg(feature = "diagnostic-row-progress")]
 pub(super) const PHASE_FILE: &str = "file";
 #[cfg(feature = "diagnostic-row-progress")]

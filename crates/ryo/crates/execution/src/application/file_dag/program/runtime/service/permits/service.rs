@@ -231,7 +231,7 @@ impl<'scope> KernelPermit<'scope> {
     pub(in crate::application::file_dag::program) fn validate_live(
         &self,
     ) -> Result<(), OperatingError> {
-        if self.live.is_live() {
+        if self.live.is_live() == crate::application::file_dag::relations::types::Liveness::Live {
             Ok(())
         } else {
             Err(OperatingError::NotRead)

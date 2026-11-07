@@ -1,4 +1,5 @@
 //! A sink failure or a fused semantic refusal stays sticky while the kernel continues and reports success.
+use crate::outbound::operators::interface::OperatorsPort as _;
 use super::super::super::cases::test::table_of;
 use super::super::super::*;
 use super::super::fixtures::{REFUSAL, refusal};
@@ -11,7 +12,7 @@ use ryo_operators::domain::contract::types::PortableOperatorFault;
 struct KeepsCalling {
     refuse_project: bool,
 }
-impl OperatorsUseCase for KeepsCalling {
+impl crate::outbound::operators::interface::OperatorsPort for KeepsCalling {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         match call {
             OperatorCall::Project { .. } if self.refuse_project => {
@@ -33,7 +34,7 @@ impl OperatorsUseCase for KeepsCalling {
                 Ok(OperatorAnswer::Written)
             }
             call => {
-                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))
+                crate::application::file_dag::fixtures::operators()
                     .operators(call)
             }
         }

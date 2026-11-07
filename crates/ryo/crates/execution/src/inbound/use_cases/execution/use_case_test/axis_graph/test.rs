@@ -1,5 +1,22 @@
 //! Canonical stored graph acquisition and hosted ordinary traversal publish identical ordered bags.
-use super::super::super::{fixtures, interface::*, types::*, use_case::ExecutionUseCaseImpl};
+use super::super::super::fixtures::{Authored, Preparation};
+use crate::outbound::facts::types::ResidentStability;
+use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
+use super::super::super::fixtures;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use crate::application::file_dag::program::file_session::types::FileInput;
+use crate::application::file_dag::program::file_session::types::SourceLanguage;
+use crate::application::file_dag::program::file_session::types::SourceRows;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use crate::inbound::use_cases::execution::interface::CaptureIntent;
+use crate::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use crate::inbound::use_cases::execution::interface::EmitDemand;
+use crate::inbound::use_cases::execution::interface::FileRuleIntent;
+use crate::inbound::use_cases::execution::interface::ObservationDemand;
+use crate::inbound::use_cases::execution::interface::OperatingError;
+use crate::inbound::use_cases::execution::interface::RuleDemand;
+use crate::inbound::use_cases::execution::interface::RuleIndex;
+use crate::domain::prepared_request::types::ObservationIdentity;
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::{
     service::{kinds, to_bits},
@@ -37,7 +54,7 @@ const EDGES: &[&[i64]] = &[
     &[90, 91],
 ];
 fn plan(direction: Direction, stored: bool, projected: bool) -> Plan {
-    fixtures::plan(vec![
+    inputs::plan(vec![
         Operation::Hosted {
             relation: HostedNumber(0),
         },
@@ -75,25 +92,12 @@ fn plan(direction: Direction, stored: bool, projected: bool) -> Plan {
     ])
 }
 fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> {
-    let engine = ExecutionUseCaseImpl::new(
-        Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
-        ),
-        Arc::new(crate::outbound::derived::factory::semantics()),
-    );
+    let engine = Preparation::real();
     let plans = DIRECTIONS
         .into_iter()
         .map(|d| plan(d, stored, projected))
         .collect();
-    let prepared = engine.prepare(PreparedRequest {
-        plans,
-        bindings: vec![vec![]; 5],
-        hosted: vec![
-            fixtures::numbers("starts", 1, &[&[1], &[1], &[4], &[999]]),
-            fixtures::numbers("domain", 1, &[&[1], &[2], &[9], &[9], &[4], &[91]]),
-            fixtures::numbers("edges", 2, EDGES),
-        ],
-        rules: AXES
+    let prepared = engine.prepare(Authored { plans: plans, bindings: vec![vec![]; 5], rules: AXES
             .iter()
             .map(|axis| RuleSpec {
                 id: RuleId((*axis).into()),
@@ -111,10 +115,11 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
                 include: vec![],
                 exclude: vec![],
             })
-            .collect(),
-        digests: vec![Digest([0; 16]); 5],
-        observations: ObservationIdentity::Independent,
-    })?;
+            .collect(), digests: vec![Digest([0; 16]); 5], hosted: vec![
+            fixtures::numbers("starts", 1, &[&[1], &[1], &[4], &[999]]),
+            fixtures::numbers("domain", 1, &[&[1], &[2], &[9], &[9], &[4], &[91]]),
+            fixtures::numbers("edges", 2, EDGES),
+        ], observations: ObservationIdentity::Independent })?;
     let columns = [
         FactColumn(vec![to_bits(Cell::File(FileId(0))).0; 7]),
         FactColumn(
@@ -147,7 +152,7 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
         size: FileSize(0),
         modified: Nanoseconds(0),
     })];
-    let request = engine.begin(&prepared, &corpus);
+    let request = fixtures::execution().execution(&prepared, &corpus);
     let mut symbols = Symbols::default();
     let elements = Elements::default();
     let intents = vec![
@@ -161,16 +166,16 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
     let mut file = request.open_file(
         FileInput {
             language: SourceLanguage::Recognized,
-            resident_stability: facts::ResidentStability::Stable,
+            resident_stability: ResidentStability::Stable,
             file: FileId(0),
             evaluation: &[],
             publication: &[],
             intents: &intents,
-            source: b"",
+            source: ryo_values::domain::files::types::SourceView(b""),
             elements: &elements,
             read: &read,
-            semantic: None,
-            kinds: None,
+            semantic: crate::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+            kinds: crate::application::file_dag::program::file_session::types::KindSupport::Absent,
         },
         &mut symbols,
     )?;

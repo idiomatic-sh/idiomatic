@@ -93,7 +93,7 @@ impl DerivedOwner {
         }
         let populations = proofs
             .iter()
-            .map(|proof| proof.identity(owner).map(|identity| identity.0))
+            .map(|proof| proof.identity(owner).map(|identity| identity.population))
             .collect::<Result<Vec<_>, _>>()?;
         Ok(AdmittedViewInputs {
             origin: AcquisitionOrigin {
@@ -160,7 +160,7 @@ impl DerivedOwner {
     ) -> Result<AdmittedViewInputs<'a>, OperatingError> {
         let mut admitted = input.admission(plan)?;
         admitted.origin.populations = vec![input.population()?];
-        if !input.canonical_backing() {
+        if input.canonical_backing() == crate::application::file_dag::relations::types::BackingForm::Foreign {
             admitted.origin.lifetime = AcquisitionLifetime::Invocation;
         }
         Ok(admitted)

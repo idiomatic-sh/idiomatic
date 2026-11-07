@@ -1,8 +1,11 @@
 //! A control for every entry method: an incomplete, extra or undeclared root is refused.
+use ryo_execution::application::file_dag::observations::types::RuleSelection;
 use super::inventory::{
-    ADMISSION, CAPTURES, DELIVERIES, DEMANDS, PROTOCOL, REASONS, REFUSALS, assert_inventory,
+    CAPTURES, DELIVERIES, DEMANDS, PROTOCOL, REASONS, REFUSALS, assert_inventory,
     covered, every_intent,
 };
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::outbound::facts::types::ResidentStability;
 use super::routes::{file_route, project_route};
 use super::witness::{ALL, Method, Witness, implements_every_entry_trait};
 use crate::boundary_fixture::{corpus, demand, engine, prepared_rules};
@@ -10,13 +13,33 @@ use crate::file_intents::named_request;
 use crate::project_phase::negative::fixtures::{
     Entry, Held, foreign_phase_outcome, prepare_for, with_held,
 };
-use ryo_execution::inbound::use_cases::execution::{
-    interface::{
-        ExecutionRequest, ExecutionUseCase, FileExecution, ObservationExecution,
-        ObservationPublication, ProjectRootExecution, ProjectStage,
-    },
-    types::*,
-};
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationExecution;
+use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationPublication;
+use ryo_execution::application::file_dag::program::project_phase::interface::ProjectRootExecution;
+use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
+use ryo_execution::application::file_dag::frontiers::errors::PreparationError;
+use ryo_execution::application::file_dag::frontiers::types::PreparedFrontiers;
+use ryo_execution::application::file_dag::frontiers::types::PublicationSlot;
+use ryo_execution::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution;
+use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedReporting;
+use ryo_execution::application::rule_compilation::service::ExecutionCompilation;
+use ryo_execution::application::rule_compilation::service::PreparedQueries;
+use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
+use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityRefusal;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use std::{collections::BTreeSet, path::Path};
 
 /// What a method does with a root set: refuse an incomplete, extra or undeclared one, or
@@ -28,10 +51,7 @@ pub(super) enum Control {
 pub(super) fn control(method: Method) -> Control {
     match method {
         Method::UseCasePrepare => Control::Refuses(observations_need_a_named_program),
-        Method::UseCaseBegin => Control::Refuses(file_session_undeclared_rule),
-        Method::UseCasePrepareCompiled => Control::AcceptsNoRoot(
-            "declares the rules of a request; no root exists before preparation",
-        ),
+        Method::UseCaseExecution => Control::Refuses(file_session_undeclared_rule),
         Method::RequestOpenFile => Control::Refuses(file_route),
         Method::RequestObservations => Control::Refuses(observations_need_a_named_program),
         Method::RequestPrepareFrontiers => Control::Refuses(frontiers_of_an_undeclared_rule),
@@ -71,7 +91,7 @@ pub(super) fn observations_need_a_named_program() {
     let engine = engine();
     let corpus = corpus();
     let unnamed = prepared_rules(&engine, 2);
-    let request = engine.begin(&unnamed, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&unnamed, &corpus);
     let mut arenas = Vec::new();
     assert!(matches!(
         request.observations(&mut arenas),
@@ -79,7 +99,7 @@ pub(super) fn observations_need_a_named_program() {
     ));
     request.finish();
     let named = engine.prepare(named_request()).expect("named request");
-    let request = engine.begin(&named, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&named, &corpus);
     let mut arenas = Vec::new();
     request
         .observations(&mut arenas)
@@ -123,7 +143,7 @@ pub(super) fn file_session_undeclared_rule() {
     let engine = engine();
     let program = prepared_rules(&engine, 2);
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let read = |_| Err(OperatingError::NotRead);
     let intent = every_intent()
@@ -136,16 +156,16 @@ pub(super) fn file_session_undeclared_rule() {
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: ryo_relations::domain::relations::types::FileId(0),
                 evaluation: &[],
                 publication: &[],
                 intents: &intents,
-                source: b"abc",
+                source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read: &read,
-                semantic: None,
-                kinds: None,
+                semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )
@@ -170,7 +190,7 @@ pub(super) fn file_session_undeclared_rule() {
             &mut symbols,
             CaptureContext {
                 worker: ryo_relations::domain::relations::types::WorkerNumber(0),
-                arena: &mut arena,
+                arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
                 places: &mut places,
                 words: &mut words,
             },
@@ -233,7 +253,7 @@ pub(super) fn restore_inapplicable_per_rule() {
                 &vec![InapplicableFiles::default(); inapplicable],
                 &[],
                 &[ryo_values::domain::stored_facts::types::Bucket(0); 3],
-                &[false; 3],
+                &[RuleSelection::Unselected; 3],
             )
         };
         for wrong in [1, 2, 4] {
@@ -246,191 +266,5 @@ pub(super) fn restore_inapplicable_per_rule() {
         restore(3).expect("one set per rule");
     });
 }
-/// Methods of each entry trait in `interface.rs`, by the prefix of their `Method` variants.
-const TRAITS: [(&str, &str); 7] = [
-    ("ExecutionUseCase", "UseCase"),
-    ("ExecutionRequest", "Request"),
-    ("FileExecution", "File"),
-    ("ProjectRootExecution", "Roots"),
-    ("ProjectStage", "Stage"),
-    ("ObservationExecution", "Observed"),
-    ("ObservationPublication", "Publication"),
-];
-/// The public traits of `interface.rs` that are no entry: each states why none of its methods admits or mutates a root.
-const NON_ENTRY: [(&str, &str); 4] = [
-    (
-        "PreparedExecution",
-        "read-only metadata of a prepared program: a rule outside it answers an error and nothing is held, admitted or changed",
-    ),
-    (
-        "ExecutionCompilation",
-        "compiles the rules a request declares into plans and identities before any root exists",
-    ),
-    (
-        "PreparedQueries",
-        "reads the plans and bindings a program was prepared from; it takes no rule, scope or intent",
-    ),
-    (
-        "PreparedReporting",
-        "reads the run metadata and the replay closure of a finished preparation; it takes no root",
-    ),
-];
-#[test]
-pub(super) fn every_public_trait_is_an_entry_with_variants_or_is_named_with_its_reason() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let interface =
-        std::fs::read_to_string(root.join("src/inbound/use_cases/execution/interface.rs")).unwrap();
-    let declared: Vec<&str> = interface
-        .lines()
-        .filter_map(|line| line.strip_prefix("pub trait "))
-        .map(|rest| {
-            rest.split(|c: char| !(c.is_alphanumeric() || c == '_'))
-                .next()
-                .unwrap_or_default()
-        })
-        .collect();
-    assert!(!declared.is_empty(), "interface.rs declares public traits");
-    for name in &declared {
-        let entry = TRAITS.iter().any(|(each, _)| each == name);
-        let reason = NON_ENTRY
-            .iter()
-            .find(|(each, _)| each == name)
-            .map(|(_, reason)| *reason);
-        assert!(
-            entry != reason.is_some(),
-            "{name} is in exactly one of TRAITS and NON_ENTRY: a new public trait is classified here before it passes"
-        );
-        if let Some(reason) = reason {
-            assert!(!reason.is_empty(), "{name} states why it is no entry");
-        }
-    }
-    for (name, _) in TRAITS.iter().chain(NON_ENTRY.iter()) {
-        assert!(
-            declared.contains(name),
-            "{name} is listed but interface.rs declares no such public trait"
-        );
-    }
-}
-/// Every `.rs` file under `dir`, as paths relative to `base`.
-fn sources_under(base: &Path, dir: &Path, found: &mut Vec<String>) {
-    for entry in std::fs::read_dir(dir).unwrap() {
-        let path = entry.unwrap().path();
-        if path.is_dir() {
-            sources_under(base, &path, found);
-        } else if path.extension().is_some_and(|extension| extension == "rs") {
-            found.push(
-                path.strip_prefix(base)
-                    .unwrap()
-                    .to_string_lossy()
-                    .replace('\\', "/"),
-            );
-        }
-    }
-}
-/// A `PreparedFrontiers` value is made only by the `frontiers` module, where `FrontierCache::prepared` is the one route to it: a
-/// literal in any other production file would make a handover that never read its sources once.
-#[test]
-pub(super) fn prepared_frontiers_are_built_only_by_the_frontiers_module() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let mut files = Vec::new();
-    sources_under(root, &root.join("src"), &mut files);
-    let mut builders = Vec::new();
-    for file in files {
-        let test_tree = file.split('/').any(|part| {
-            part == "test" || part == "tests" || part == "fixtures" || part.ends_with("_test.rs") || part == "test.rs"
-        });
-        if test_tree {
-            continue;
-        }
-        let text = std::fs::read_to_string(root.join(&file)).unwrap();
-        let literals = text
-            .lines()
-            .map(str::trim_start)
-            .filter(|line| line.contains("PreparedFrontiers {"))
-            .filter(|line| !line.starts_with("pub struct ") && !line.starts_with("impl "))
-            .count();
-        if literals > 0 {
-            builders.push((file, literals));
-        }
-    }
-    assert!(!builders.is_empty(), "the frontiers module builds them");
-    for (file, literals) in builders {
-        assert!(
-            file.starts_with("src/application/file_dag/frontiers/"),
-            "{file} builds {literals} PreparedFrontiers outside the frontiers module"
-        );
-    }
-}
-#[test]
-pub(super) fn every_trait_method_has_its_own_variant() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let interface =
-        std::fs::read_to_string(root.join("src/inbound/use_cases/execution/interface.rs")).unwrap();
-    let witness =
-        std::fs::read_to_string(root.join("tests/source_boundary/submission/witness/mod.rs"))
-            .unwrap();
-    for (name, prefix) in TRAITS {
-        let start = interface
-            .find(&format!("pub trait {name}"))
-            .unwrap_or_else(|| panic!("{name} is declared in interface.rs"));
-        let body = &interface[start..];
-        let body = &body[..body.find("\n}\n").expect("a trait body ends")];
-        let methods = body.lines().filter(|line| line.starts_with("    fn ")).count();
-        let variants = ALL
-            .iter()
-            .filter(|method| format!("{method:?}").starts_with(prefix))
-            .count();
-        assert_eq!(
-            methods, variants,
-            "{name} has {methods} methods and {variants} {prefix}* variants: one variant per method"
-        );
-    }
-    for &method in ALL {
-        let call = format!("witness(Method::{method:?})");
-        assert_eq!(
-            witness.matches(&call).count(),
-            1,
-            "{method:?} is witnessed by exactly one trait method"
-        );
-    }
-    assert_eq!(
-        witness.matches("witness(Method::").count(),
-        ALL.len(),
-        "every witnessed trait method names its own variant"
-    );
-}
 
-#[test]
-pub(super) fn every_entry_method_refuses_an_incomplete_extra_or_undeclared_root() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    implements_every_entry_trait(&Witness);
-    assert_eq!(
-        ALL.iter().collect::<BTreeSet<_>>().len(),
-        ALL.len(),
-        "each entry method has exactly one control"
-    );
-    assert_inventory(root, PROTOCOL, "DiagnosticDelivery", covered(&DELIVERIES));
-    assert_inventory(root, PROTOCOL, "ObservationDemand", covered(&DEMANDS));
-    assert_inventory(root, PROTOCOL, "CaptureIntent", covered(&CAPTURES));
-    assert_inventory(root, PROTOCOL, "ApplicabilityRefusal", covered(&REFUSALS));
-    assert_inventory(root, ADMISSION, "ApplicabilityReason", covered(&REASONS));
-    assert_inventory(root, PROTOCOL, "FileRuleIntent", covered(&every_intent()));
-    let (mut refused, mut exempt) = (0, 0);
-    for &method in ALL {
-        match control(method) {
-            Control::Refuses(refuses) => {
-                refuses();
-                refused += 1;
-            }
-            Control::AcceptsNoRoot(reason) => {
-                assert!(!reason.is_empty(), "{method:?} states why it takes no root");
-                exempt += 1;
-            }
-        }
-    }
-    assert_eq!(
-        refused + exempt,
-        ALL.len(),
-        "every entry method was classified"
-    );
-}
+mod census;

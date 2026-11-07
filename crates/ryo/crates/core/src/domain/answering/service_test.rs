@@ -9,7 +9,7 @@ use super::types::{CrossSteps, Crossed, Todo};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::render::service::{end_row, lent_row, row_cells};
 use crate::domain::render::types::{Rendered, RowNumber};
-use ryo_execution::inbound::use_cases::execution::types::RowsFed;
+use ryo_execution::inbound::use_cases::execution::interface::RowsFed;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_values::domain::records::service::keep;
 use ryo_values::domain::row_texts::types::{Cell, CellText, RowsTextView};

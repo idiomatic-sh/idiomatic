@@ -4,6 +4,11 @@
 //! the rules that govern it on them. Only the words of the rows the rules emit and the cross-file steps read are kept; the workers'
 //! tables meet once, the cross-file steps run on the kept words, and the findings are written. What is decided of the rules, the
 //! files and the rows is the domain's; this calls it between the calls of the ports.
+use ryo_execution::application::file_dag::program::preparation::types::ReplayClosure;
+use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use super::errors::LintError;
 use super::interface::LintUseCase;
 use super::service::{
@@ -22,14 +27,19 @@ use crate::inbound::use_cases::lint::constants::{
     BEFORE_STORE_WRITE, LIFECYCLE_MEMORY_DIAGNOSTIC, MISSING_FRONTIER_BUCKET,
     NAMED_PUBLICATION_WAS_NOT_ADMITTED_BY, REQUEST, STORE_HANDED,
 };
-use ryo_execution::inbound::use_cases::execution::{
-    interface::{
-        ExecutionCompilation, ExecutionRequest, ExecutionUseCase, PreparedExecution,
-        PreparedQueries, PreparedReporting, ProjectStage,
-    },
-    types::{CompiledPlans, CompiledQueries, FrontierDemand, FrontierRequest, PreparationError},
-    use_case::{CompilationUseCaseImpl, ExecutionUseCaseImpl},
-};
+use ryo_execution::application::rule_compilation::service::ExecutionCompilation;
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution;
+use ryo_execution::application::rule_compilation::service::PreparedQueries;
+use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedReporting;
+use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
+use ryo_execution::application::rule_compilation::service::CompiledPlans;
+use ryo_execution::application::rule_compilation::service::CompiledQueries;
+use ryo_execution::application::file_dag::program::project_phase::types::FrontierDemand;
+use ryo_execution::application::file_dag::program::project_phase::types::FrontierRequest;
+use ryo_execution::application::file_dag::frontiers::errors::PreparationError;
+use ryo_execution::application::rule_compilation::service::QueryCompilation;
 
 use crate::domain::answering::service::{cross_steps, settle, todo_list};
 use crate::domain::answering::types::Todo;
@@ -41,8 +51,8 @@ use crate::domain::choosing::service::chosen;
 use crate::domain::keeping::service::{rendered_of, rows_of};
 use crate::domain::ordering::service::{PENDING_LIMIT, admitted, offer, sort_findings};
 use crate::domain::ordering::types::{Admittance, Ordered, Turn};
-use ryo_execution::inbound::use_cases::execution::types::Counting;
-use ryo_execution::inbound::use_cases::execution::types::RowsFed;
+use ryo_execution::inbound::use_cases::execution::interface::Counting;
+use ryo_execution::inbound::use_cases::execution::interface::RowsFed;
 use ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes;
 use ryo_values::domain::hosted::service::identity as hosted_identity;
 
@@ -89,14 +99,14 @@ use crate::outbound::row_sink::types::{LentCell, AnswerCounts};
 use crate::outbound::scheduler::errors::SchedulerError;
 use crate::outbound::scheduler::interface::SchedulerPort;
 use crate::outbound::scheduler::types::{JobCount, JobNumber, WorkerCount};
-use ryo_execution::inbound::use_cases::execution::types::OperatorsPort;
-use ryo_execution::inbound::use_cases::execution::types::digest::DigestBytes;
-use ryo_execution::inbound::use_cases::execution::types::digest::DigestPort;
-use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort;
-use ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker;
-use ryo_execution::inbound::use_cases::execution::types::matching::MatchingError;
-use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort;
-use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
+use ryo_execution::outbound::operators::interface::OperatorsPort;
+use ryo_execution::outbound::digest::types::DigestBytes;
+use ryo_execution::outbound::digest::interface::DigestPort;
+use ryo_execution::outbound::facts::interface::FactsPort;
+use ryo_execution::outbound::facts::interface::FactsWorker;
+use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
+use ryo_execution::outbound::matching::interface::MatchingPort;
+use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 use ryo_language::inbound::use_cases::project::types::ManifestFile;
 
 use ryo_relations::domain::relations::types::WorkerNumber;
@@ -146,12 +156,12 @@ pub struct LintUseCaseImpl {
     /// Decides which files a rule's include and exclude globs govern.
     matching: Arc<dyn MatchingPort>,
     /// Owns rule compilation, independent per-request binding and bounded session plans.
-    compilation: CompilationUseCaseImpl,
+    compilation: QueryCompilation,
     /// Says how much memory the machine has, which sizes the lint's budget.
     memory: Arc<dyn MemoryPort>,
     /// Pure primitive meanings supplied by the composition edge.
     operators: Arc<dyn OperatorsPort>,
-    derived: Arc<dyn ryo_execution::inbound::use_cases::execution::types::DerivedPort>,
+    derived: Arc<dyn ryo_execution::outbound::derived::interface::DerivedPort>,
     /// Runs the files' jobs on the workers.
     scheduler: Arc<dyn SchedulerPort>,
     /// How many workers the scheduler runs jobs on: the run makes one worker for each.
@@ -166,7 +176,7 @@ pub struct LintUseCaseImpl {
     counting: Counting,
     /// Which execution strategies the programs this use case prepares may use.
     #[cfg(feature = "fixtures")]
-    routes: ryo_execution::inbound::use_cases::execution::types::RoutePolicy,
+    routes: ryo_execution::inbound::use_cases::prepare::interface::RoutePolicy,
 }
 
 impl std::fmt::Debug for LintUseCaseImpl {
@@ -192,7 +202,7 @@ impl LintUseCaseImpl {
         query_language: Arc<dyn QueryLanguagePort>,
         memory: Arc<dyn MemoryPort>,
         operators: Arc<dyn OperatorsPort>,
-        derived: Arc<dyn ryo_execution::inbound::use_cases::execution::types::DerivedPort>,
+        derived: Arc<dyn ryo_execution::outbound::derived::interface::DerivedPort>,
         scheduler: Arc<dyn SchedulerPort>,
         workers: WorkerCount,
         rows: Arc<dyn RowSinkPort>,
@@ -206,7 +216,7 @@ impl LintUseCaseImpl {
             facts,
             language,
             matching,
-            compilation: CompilationUseCaseImpl::new(query_language),
+            compilation: QueryCompilation::new(query_language),
             memory,
             operators,
             derived,
@@ -217,7 +227,7 @@ impl LintUseCaseImpl {
             store,
             counting: Counting::DoesNotCount,
             #[cfg(feature = "fixtures")]
-            routes: ryo_execution::inbound::use_cases::execution::types::RoutePolicy::default(),
+            routes: ryo_execution::inbound::use_cases::prepare::interface::RoutePolicy::default(),
         }
     }
 
@@ -233,7 +243,7 @@ impl LintUseCaseImpl {
     #[must_use]
     pub const fn routing(
         mut self,
-        routes: ryo_execution::inbound::use_cases::execution::types::RoutePolicy,
+        routes: ryo_execution::inbound::use_cases::prepare::interface::RoutePolicy,
     ) -> Self {
         self.routes = routes;
         self
@@ -734,7 +744,7 @@ impl LintUseCaseImpl {
         rules: &[RuleSpec],
         hosted: &[HostRelation],
     ) -> Result<CompiledQueries, LintError> {
-        let compiled = self.compilation.compile(rules, hosted)?;
+        let compiled = self.compilation.compile(rules, hosted, self.digest.as_ref())?;
         // A word a rule writes for a kind that no linked language has fails the run before a file is read: nothing runs until it is fixed.
         // Rules that write no word for a kind need no vocabulary.
         if compiled
@@ -956,7 +966,7 @@ impl LintUseCaseImpl {
                     handed.arenas,
                     answered,
                     |rule| {
-                        let id = run.ids.get(rule.0).ok_or(ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun)?;
+                        let id = run.ids.get(rule.0).ok_or(ryo_execution::inbound::use_cases::execution::interface::OperatingError::NotRun)?;
                         Ok(within(self.memory.resident_bytes()?, listing.budget, || vec![id.clone()])?)
                     },
                 )
@@ -1004,7 +1014,7 @@ impl LintUseCaseImpl {
                     crossing.domain.covered,
                     crossing.domain.skipped,
                     inapplicable.get(each.rule.0).ok_or(
-                        ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun,
+                        ryo_execution::inbound::use_cases::execution::interface::OperatingError::NotRun,
                     ).map_err(|error| ryo_values::domain::rule_requests::service::failed(&each.id, &error))?,
                 )
                 .map_err(|error| ryo_values::domain::rule_requests::service::failed(&each.id, &error))?;
@@ -1032,16 +1042,16 @@ impl LintUseCaseImpl {
                 scope,
                 frontier,
                 bound: Vec::new(),
-                slot: ryo_execution::inbound::use_cases::execution::types::PublicationSlot::Unused,
+                slot: ryo_execution::application::file_dag::frontiers::types::PublicationSlot::Unused,
             })
         });
         let batch = prepared.seal().map_err(CrossFileError::from)?;
-        use ryo_execution::inbound::use_cases::execution::types::ProjectBatch;
+        use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectBatch;
         let guarded =
             self.cross_file
                 .evaluate_batch(&crossing, batch, &stage, &mut cross, |rule| {
                     let id = run.ids.get(rule.0).ok_or(
-                        ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun,
+                        ryo_execution::inbound::use_cases::execution::interface::OperatingError::NotRun,
                     )?;
                     Ok(within(
                         self.memory.resident_bytes()?,
@@ -1447,19 +1457,13 @@ impl LintUseCase for LintUseCaseImpl {
         );
         let unknown = self.language.unknown_reasons();
         let execution =
-            ExecutionUseCaseImpl::new(Arc::clone(&self.operators), Arc::clone(&self.derived));
+            PrepareUseCaseImpl::new(Arc::clone(&self.operators), Arc::clone(&self.derived));
         #[cfg(feature = "fixtures")]
         let execution = execution.routing(self.routes);
         let rule_digests: Vec<_> = stored_rules.iter().map(|rule| rule.digest).collect();
         let program = Arc::new(
             execution
-                .prepare_compiled(
-                    compiled,
-                    rules.clone(),
-                    rule_digests,
-                    request.hosted.clone(),
-                    identities.observations,
-                )
+                .prepare(PrepareRequest { plans: PlanSource::Compiled(compiled), rules: rules.clone(), digests: rule_digests, hosted: request.hosted.clone(), observations: identities.observations })
                 .map_err(|error| {
                     ryo_values::domain::rule_requests::service::failed(
                         &RuleId(REQUEST.into()),
@@ -1467,7 +1471,7 @@ impl LintUseCase for LintUseCaseImpl {
                     )
                 })?,
         );
-        let services = execution.begin(&program, &listing.files);
+        let services = ExecutionUseCaseImpl::new().execution(&program, &listing.files);
         let metadata = program.metadata();
         let mut setting = RequestVisitSetting {
             program: Arc::clone(&program),
@@ -1506,15 +1510,17 @@ impl LintUseCase for LintUseCaseImpl {
             skipped: alone_skipped,
             read_again,
         } = self.reused(&setting, &listing, &manifests, &stored_rules, &ids)?;
-        let (again, producer_buckets) =
-            program
-                .replay_closure(again, &first_bucket)
-                .map_err(|error| {
-                    ryo_values::domain::rule_requests::service::failed(
-                        &RuleId(REQUEST.into()),
-                        &error,
-                    )
-                })?;
+        let ReplayClosure {
+            reuse: again,
+            buckets: producer_buckets,
+        } = program
+            .replay_closure(again, &first_bucket)
+            .map_err(|error| {
+                ryo_values::domain::rule_requests::service::failed(
+                    &RuleId(REQUEST.into()),
+                    &error,
+                )
+            })?;
         let reuse_now = again.clone();
         setting.reuse = &reuse_now;
         // A run that makes cross-file steps again reads what the files handed them: the buckets of those rules alone.

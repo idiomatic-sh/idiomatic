@@ -1,5 +1,8 @@
 //! Compact adjacency matches the actual public closure owner without enumerating unrelated roots.
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use super::super::super::fixtures;
+use crate::domain::operating::errors::OperatingError;
+use ryo_values::domain::rows::errors::RowsError;
 
 use crate::application::file_dag::testing::CompleteTableRows;
 use crate::domain::stored_graph::types::traversal::value::GraphTraversal;
@@ -14,8 +17,8 @@ use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
 use ryo_derived::domain::contract::types::BuildInputs as DerivedInputs;
 use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value};
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
+use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value as Cell};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput};
 use ryo_values::domain::plans::types::Operation;
 use std::sync::Arc;
 use {ryo_values::domain::rows::service::push_row, ryo_values::domain::rows::service::row_in};
@@ -30,7 +33,7 @@ fn table(rows: &[&[i64]], width: usize) -> Table {
         push_row(
             &mut out,
             &row.iter()
-                .map(|value| Value::Number(Integer(*value)))
+                .map(|value| Cell::Number(Integer(*value)))
                 .collect::<Vec<_>>(),
         );
     }
@@ -66,7 +69,7 @@ fn build(
     // GraphIdentity belongs to the former local builder and is not an input
     // to this port; invalid columns must be refused by the port itself.
     let semantics = (std::sync::Arc::new(
-        crate::outbound::derived::factory::semantics(),
+        fixtures::derived(),
     ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>);
     let prepared = semantics.prepare(
         ViewRequest::Adjacency {
@@ -93,8 +96,7 @@ fn build(
     }
 }
 
-#[test]
-fn compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_duplicates() {
+fn compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_duplicates() -> Result<(), Failure> {
     let edges = table(
         &[
             &[9, 2, 1],
@@ -119,7 +121,7 @@ fn compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_dupl
     let mut symbols = Symbols::default();
     let (ordinary, _) = fixtures::table_request(
         Operation::Closure {
-            edges: Input::Relation(Relation::Function),
+            edges: PlanInput::Relation(Relation::Function),
             source: ColumnIndex(0),
             destination: ColumnIndex(1),
             keys: vec![ColumnIndex(2)],
@@ -151,17 +153,17 @@ fn compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_dupl
             .collect();
         assert_eq!(actual, expected, "root {value:?} partition {partition:?}");
     }
+    Ok(())
 }
 
-#[test]
-fn sparse_demand_work_is_independent_of_unrelated_components() {
+fn sparse_demand_work_is_independent_of_unrelated_components() -> Result<(), Failure> {
     let mut edges = table(&[&[1, 2], &[2, 3]], 2);
     for index in 0..300 {
         push_row(
             &mut edges,
             &[
-                Value::Number(Integer(1000 + index * 2)),
-                Value::Number(Integer(1001 + index * 2)),
+                Cell::Number(Integer(1000 + index * 2)),
+                Cell::Number(Integer(1001 + index * 2)),
             ],
         );
     }
@@ -174,7 +176,7 @@ fn sparse_demand_work_is_independent_of_unrelated_components() {
     .expect("columns")
     .expect("graph");
     let root = graph
-        .vertex(ryo_derived::domain::vertices::types::PartitionId(0), Value::Number(Integer(1)))
+        .vertex(ryo_derived::domain::vertices::types::PartitionId(0), Cell::Number(Integer(1)))
         .expect("prepared vertex")
         .0;
     let mut walk = GraphWalk::default();
@@ -192,39 +194,39 @@ fn sparse_demand_work_is_independent_of_unrelated_components() {
         (walk.expanded, walk.examined),
         (ExpandedVertices(3), ExaminedVertices(2))
     );
+    Ok(())
 }
 
-#[test]
-fn invalid_columns_are_rejected_even_on_empty_edges() {
+fn invalid_columns_are_rejected_even_on_empty_edges() -> Result<(), Failure> {
     let edges = table(&[], 2);
-    assert!(
+    assert!(matches!(
         build(
             identity(vec![], 0),
             &Rows::Computed(&edges),
             [ColumnIndex(0), ColumnIndex(2)],
             &[]
-        )
-        .is_err()
-    );
-    assert!(
+        ),
+        Err(OperatingError::Table(RowsError::NoSuchColumn { .. }))
+    ));
+    assert!(matches!(
         build(
             identity(vec![ColumnIndex(3)], 0),
             &Rows::Computed(&edges),
             [ColumnIndex(0), ColumnIndex(1)],
             &[ColumnIndex(3)]
-        )
-        .is_err()
-    );
+        ),
+        Err(OperatingError::Table(RowsError::NoSuchColumn { .. }))
+    ));
+    Ok(())
 }
 
-#[test]
-fn typed_endpoint_identity_never_coalesces_equal_payload_words() {
+fn typed_endpoint_identity_never_coalesces_equal_payload_words() -> Result<(), Failure> {
     let mut edges = Table {
         kinds: vec![CellKind::Number; 2],
         ..Default::default()
     };
-    let number = Value::Number(Integer(0));
-    let flag = Value::Flag(ryo_relations::domain::relations::types::Flag::Lowered);
+    let number = Cell::Number(Integer(0));
+    let flag = Cell::Flag(ryo_relations::domain::relations::types::Flag::Lowered);
     push_row(&mut edges, &[number, flag]);
     push_row(&mut edges, &[flag, number]);
     let graph = build(
@@ -237,6 +239,56 @@ fn typed_endpoint_identity_never_coalesces_equal_payload_words() {
     .expect("graph");
     assert_eq!(graph.vertices().len(), 2);
     assert_ne!(graph.vertex(ryo_derived::domain::vertices::types::PartitionId(0), number), graph.vertex(ryo_derived::domain::vertices::types::PartitionId(0), flag));
+    Ok(())
 }
 
 use ryo_values::domain::rows::types::Table;
+/// The scenarios of this group, one row each.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    CompactPositiveReachMatchesSortedClosureWithPartitionsCyclesAndDuplicates,
+    SparseDemandWorkIsIndependentOfUnrelatedComponents,
+    InvalidColumnsAreRejectedEvenOnEmptyEdges,
+    TypedEndpointIdentityNeverCoalescesEqualPayloadWords,
+}
+type Input = Scenario;
+type Value = ();
+type Failure = OperatingError;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(stringify!(compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_duplicates)),
+        word: Word::Succeeds,
+        input: || Scenario::CompactPositiveReachMatchesSortedClosureWithPartitionsCyclesAndDuplicates,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(stringify!(sparse_demand_work_is_independent_of_unrelated_components)),
+        word: Word::Succeeds,
+        input: || Scenario::SparseDemandWorkIsIndependentOfUnrelatedComponents,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(stringify!(invalid_columns_are_rejected_even_on_empty_edges)),
+        word: Word::Succeeds,
+        input: || Scenario::InvalidColumnsAreRejectedEvenOnEmptyEdges,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(stringify!(typed_endpoint_identity_never_coalesces_equal_payload_words)),
+        word: Word::Succeeds,
+        input: || Scenario::TypedEndpointIdentityNeverCoalescesEqualPayloadWords,
+        expect: Expect::Value(()),
+    },
+];
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::CompactPositiveReachMatchesSortedClosureWithPartitionsCyclesAndDuplicates => compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_duplicates(),
+        Scenario::SparseDemandWorkIsIndependentOfUnrelatedComponents => sparse_demand_work_is_independent_of_unrelated_components(),
+        Scenario::InvalidColumnsAreRejectedEvenOnEmptyEdges => invalid_columns_are_rejected_even_on_empty_edges(),
+        Scenario::TypedEndpointIdentityNeverCoalescesEqualPayloadWords => typed_endpoint_identity_never_coalesces_equal_payload_words(),
+    }
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}

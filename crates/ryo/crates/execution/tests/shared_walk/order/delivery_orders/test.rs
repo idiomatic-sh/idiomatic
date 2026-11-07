@@ -1,11 +1,20 @@
 //! Frontier and callback delivery share one atomic failure and one dependency contract in both orders.
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use super::super::super::fixtures::*;
 use super::super::super::no_catalog;
 use crate::boundary_fixture::{authored_request, corpus, demand};
-use ryo_execution::inbound::use_cases::execution::interface::{
-    ExecutionRequest, ExecutionUseCase, FileExecution,
-};
-use ryo_execution::inbound::use_cases::execution::types::*;
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_relations::domain::relations::types::{FileId, Relation};
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, StepId};
@@ -24,7 +33,7 @@ fn frontier_and_callback_share_the_same_atomic_semantic_failure() {
         authored.plans[0].frontier = vec![Input::Step(StepId(0))];
         let program = engine.prepare(authored).unwrap();
         let corpus = corpus();
-        let request = engine.begin(&program, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
         let (elements, mut symbols) = tree(FileId(0), b"ab(");
         let intents = [FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Forwarded,
@@ -47,7 +56,7 @@ fn frontier_and_callback_share_the_same_atomic_semantic_failure() {
                         &mut symbols,
                         CaptureContext {
                             worker: WorkerNumber(0),
-                            arena: &mut arena,
+                            arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
                             places: &mut places,
                             words: &mut words,
                         },
@@ -85,7 +94,7 @@ fn identical_join_diagnostics_have_equal_errors_for_both_delivery_orders() {
         .prepare(authored)
         .expect("identical authored Join plans");
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let intents = [
         FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Forwarded,
@@ -130,7 +139,7 @@ fn identical_join_diagnostics_have_equal_errors_for_both_delivery_orders() {
     }
     request.finish();
 }
-fn conditional_join_request(count: usize) -> PreparedRequest {
+fn conditional_join_request(count: usize) -> PrepareRequest {
     use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
     let mut authored = authored_request(count);
     authored.plans[0].steps = vec![
@@ -175,13 +184,13 @@ fn conditional_join_request(count: usize) -> PreparedRequest {
 }
 #[test]
 fn callback_and_frontier_use_one_dependency_contract_in_both_orders() {
-    use ryo_relations::domain::relations::types::{Words, WorkerNumber};
     let (engine, _) = engine();
+    use ryo_relations::domain::relations::types::{Words, WorkerNumber};
     let mut authored = conditional_join_request(1);
     authored.plans[0].frontier = vec![Input::Step(StepId(2))];
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let intents = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Forwarded,
         observations: ObservationDemand::NotRequired,
@@ -205,7 +214,7 @@ fn callback_and_frontier_use_one_dependency_contract_in_both_orders() {
                         &mut symbols,
                         CaptureContext {
                             worker: WorkerNumber(0),
-                            arena: &mut arena,
+                            arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
                             places: &mut places,
                             words: &mut words,
                         },

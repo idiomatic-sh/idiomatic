@@ -36,6 +36,7 @@ ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../q
 dhat = { workspace = true, optional = true }
 postcard.workspace = true
 tempfile.workspace = true
+thread_local.workspace = true
 
 [dev-dependencies]
 dhat.workspace = true
@@ -46,7 +47,14 @@ ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations",
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.2", features = ["fixtures"] }
 cargo_metadata.workspace = true
 cucumber.workspace = true
+divan.workspace = true
 tokio.workspace = true
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+required-features = ["fixtures"]
 
 [[test]]
 name = "bdd"
@@ -67,3 +75,15 @@ path = "tests/test.rs"
 name = "activation"
 path = "tests/activation/test.rs"
 harness = false
+
+[[test]]
+name = "executable_program_authority"
+path = "tests/executable_program_authority/test.rs"
+
+[[test]]
+name = "owner_resource_capabilities"
+path = "tests/owner_resource_capabilities/test.rs"
+
+[[test]]
+name = "representation_capabilities"
+path = "tests/representation_capabilities/test.rs"

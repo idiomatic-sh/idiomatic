@@ -9,12 +9,20 @@ mod fixtures;
 mod order;
 #[cfg(test)]
 mod readiness;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use crate::boundary_fixture::{corpus, demand};
 use fixtures::*;
-use ryo_execution::inbound::use_cases::execution::{
-    interface::{ExecutionRequest, ExecutionUseCase, FileExecution},
-    types::*,
-};
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_relations::domain::relations::types::{FileId, Relation};
 fn no_catalog(_: Relation) -> Result<SourceRows<'static>, OperatingError> {
     panic!("completed SyntaxTree is supplied by the public file input")
@@ -25,7 +33,7 @@ fn two_distinct_singleton_selectors_share_one_actual_native_walk() {
     let (engine, semantics) = engine();
     let program = prepared(&engine, &[Selector::Kind("word"), Selector::Kind("other")]);
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let mut file = request
         .open_file(
@@ -70,7 +78,7 @@ fn inactive_file_has_zero_shared_walk_work() {
     let (engine, semantics) = engine();
     let program = prepared(&engine, &[Selector::Kind("word"), Selector::BadRegex]);
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let file = request
         .open_file(
@@ -94,7 +102,7 @@ fn skipping_all_demanded_rules_does_not_start_the_walk() {
     let (engine, semantics) = engine();
     let program = prepared(&engine, &[Selector::BadRegex, Selector::Kind("other")]);
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let mut file = request
         .open_file(
@@ -121,7 +129,7 @@ fn equal_predicates_with_different_parameters_have_independent_native_results() 
         &[Selector::Parameter("a"), Selector::Parameter("c")],
     );
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let mut file = request
         .open_file(
@@ -164,7 +172,7 @@ fn a_fault_in_another_active_class_is_delayed_until_that_rule_is_requested() {
     let (engine, semantics) = engine();
     let program = prepared(&engine, &[Selector::BadRegex, Selector::Kind("other")]);
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let mut file = request
         .open_file(
@@ -221,7 +229,7 @@ fn the_second_file_starts_with_fresh_walk_state_and_its_own_source_rows() {
     };
     entry.path = ryo_language::domain::files::types::FilePath("second.py".into());
     corpus.push(second);
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     for (file_id, source, first, last) in [
         (FileId(0), b"abc".as_slice(), 1, 3),
         (FileId(1), b"cba".as_slice(), 3, 1),

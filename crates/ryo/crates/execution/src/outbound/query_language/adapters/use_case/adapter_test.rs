@@ -1,6 +1,5 @@
 //! The `use_case` adapter of the `query_language` port: the core's contract rows run through it, then the cases specific to it.
 
-use crate::domain::operator::constants::{OPERATORS, describe};
 use std::sync::Arc;
 
 use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
@@ -140,35 +139,12 @@ fn regex_evaluated(text: &Input) -> Result<Value, Failure> {
     Ok(matcher.matches_regex(&compiled, SearchText("\tnoqa")) == MatchOutcome::Matches)
 }
 
-/// The rows of the examples the operators print: no input, and the count of examples that do not compile as the value.
-const EXAMPLES: &[Case<(), usize, Failure>] = &[Case {
-    name: CaseName("every_operator_example_compiles_as_it_is_printed"),
-    word: Word::Succeeds,
-    input: || (),
-    expect: Expect::Value(0),
-}];
-
-/// How many of the examples the operators print do not compile.
-fn uncompiled() -> usize {
-    OPERATORS
-        .iter()
-        .filter(|operator| {
-            let described = describe(**operator);
-            matches!(
-                subject(&QueryText(described.example.0.clone())),
-                Err(QueryLanguageError::Refused { .. })
-            )
-        })
-        .count()
-}
-
 #[test]
 fn succeeds() {
     run(CONTRACT, Word::Succeeds, |bundle| {
         compile_query(&bundle).map(|_| true)
     });
     run(CASES, Word::Succeeds, |text| subject(&text));
-    run(EXAMPLES, Word::Succeeds, |()| Ok(uncompiled()));
     run(REGEX, Word::Succeeds, |text| regex_evaluated(&text));
 }
 

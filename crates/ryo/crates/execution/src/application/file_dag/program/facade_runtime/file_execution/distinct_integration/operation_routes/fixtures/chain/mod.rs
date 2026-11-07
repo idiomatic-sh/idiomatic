@@ -175,7 +175,7 @@ pub(crate) fn run_chain(
         },
         steps: sources.steps,
     };
-    let derived = crate::application::file_dag::testing::program_derived_port();
+    let derived = crate::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
@@ -221,7 +221,7 @@ pub(crate) fn run_chain(
         }],
         services,
         ryo_values::domain::files::types::SourceView(fixtures::expectations::SOURCE),
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut case.symbols,
         Some(&semantic),
         None,

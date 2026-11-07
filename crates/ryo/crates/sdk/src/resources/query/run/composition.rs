@@ -74,8 +74,9 @@ pub(crate) fn build(
                 skipped,
             ));
             let port: Arc<dyn language::interface::LanguagePort> = Arc::new(linked);
+            ryo_execution::application::file_dag::route_counts::profile::service::install(Arc::new(ryo_execution::outbound::profile::factory::thread::<ryo_execution::application::file_dag::route_counts::profile::service::RouteProfile>()));
             let digests: Arc<
-                dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
+                dyn ryo_execution::outbound::digest::interface::DigestPort,
             > = Arc::new(digest::factory::blake3());
             let machine: Arc<dyn memory::interface::MemoryPort> =
                 Arc::new(memory::factory::sysinfo(budget));
@@ -86,7 +87,7 @@ pub(crate) fn build(
                     Arc::clone(&digests),
                     Arc::clone(&machine),
                 ),
-                ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(&files), std::sync::Arc::new(ryo_core::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())))),
+                ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(&files), std::sync::Arc::new(ryo_core::outbound::publication::factory::execution())),
                 Arc::clone(&files),
                 Arc::new(facts::factory::memory()),
                 port,

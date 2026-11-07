@@ -14,7 +14,7 @@ impl DerivedOwner {
     ) -> Result<(), OperatingError> {
         let mut backend = self.backend.borrow_mut();
         let backend = backend.as_mut().ok_or(OperatingError::NotRun)?;
-        backend.limit = limit.0;
+        backend.limit = limit;
         Ok(())
     }
 }

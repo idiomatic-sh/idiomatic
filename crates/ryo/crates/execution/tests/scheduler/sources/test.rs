@@ -1,6 +1,28 @@
 //! Real relation, region, observation and member roots, including direct bound capture.
+use ryo_execution::outbound::facts::types::ResidentStability;
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::boundary_fixture::{authored_request, corpus, engine, source};
-use ryo_execution::inbound::use_cases::execution::{interface::*, types::*};
+use ryo_execution::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution::inbound::use_cases::execution::interface::FrontierPurpose;
+use ryo_values::domain::plan_parts::types::InputNumber;
+use ryo_execution::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityRefusal;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
+use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::{fixtures::node_id, types::*};
 use ryo_values::domain::{
@@ -14,7 +36,7 @@ use ryo_values::domain::{
 };
 use std::cell::Cell;
 
-fn named() -> PreparedRequest {
+fn named() -> PrepareRequest {
     let mut authored = authored_request(3);
     let columns = vec![ObservationColumn {
         name: ObservationColumnName("node".into()),
@@ -120,10 +142,16 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
                 Input::Step(StepId(0))
             ]
         );
-        assert!(program.captures_observation(RuleIndex(1), 0).unwrap());
-        assert!(program.captures_observation(RuleIndex(1), 1).unwrap());
+        assert_eq!(
+            program.frontier_purpose(RuleIndex(1), InputNumber(0)).unwrap(),
+            FrontierPurpose::Observation
+        );
+        assert_eq!(
+            program.frontier_purpose(RuleIndex(1), InputNumber(1)).unwrap(),
+            FrontierPurpose::Observation
+        );
         let corpus = corpus();
-        let request = engine.begin(&program, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
         let table = source();
         let reads = Cell::new(0);
         let read = |relation| {
@@ -143,16 +171,16 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
             .open_file(
                 FileInput {
                     language: SourceLanguage::Recognized,
-                    resident_stability: facts::ResidentStability::Stable,
+                    resident_stability: ResidentStability::Stable,
                     file: FileId(0),
                     evaluation: &[],
                     publication: &[],
                     intents: &intents,
-                    source: b"abc",
+                    source: ryo_values::domain::files::types::SourceView(b"abc"),
                     elements: &elements,
                     read: &read,
-                    semantic: None,
-                    kinds: None,
+                    semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                    kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
                 },
                 &mut symbols,
             )
@@ -193,7 +221,7 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
                 &mut symbols,
                 CaptureContext {
                     worker: WorkerNumber(0),
-                    arena: &mut arena,
+                    arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
                     places: &mut places,
                     words: &mut words,
                 },
@@ -241,10 +269,16 @@ fn a_refused_named_member_cannot_be_replaced_with_a_typed_empty_or_provider_retr
             Input::Step(StepId(0))
         ]
     );
-    assert!(program.captures_observation(RuleIndex(1), 0).unwrap());
-    assert!(program.captures_observation(RuleIndex(1), 1).unwrap());
+    assert_eq!(
+            program.frontier_purpose(RuleIndex(1), InputNumber(0)).unwrap(),
+            FrontierPurpose::Observation
+        );
+    assert_eq!(
+            program.frontier_purpose(RuleIndex(1), InputNumber(1)).unwrap(),
+            FrontierPurpose::Observation
+        );
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let read = |_| panic!("refused member cannot acquire a relation");
     let elements = Elements::default();
     let mut symbols = Symbols::default();
@@ -261,16 +295,16 @@ fn a_refused_named_member_cannot_be_replaced_with_a_typed_empty_or_provider_retr
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
                 intents: &intents,
-                source: b"abc",
+                source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read: &read,
-                semantic: None,
-                kinds: None,
+                semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )

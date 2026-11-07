@@ -185,10 +185,11 @@ impl DerivedOwner {
         Room::from(
             cache
                 .bytes
+                .0
                 .checked_add(cost.0)
-                .is_some_and(|n| n <= cache.limit)
+                .is_some_and(|n| n <= cache.limit.0)
                 && (memo == MemoBudget::Exempt
-                    || cache.memo_bytes.checked_add(cost.0).is_some_and(|n| {
+                    || cache.memo_bytes.0.checked_add(cost.0).is_some_and(|n| {
                         n <= crate::application::file_dag::derived::owner::graphs::service::MEMO_LIMIT
                     })),
         )
@@ -212,7 +213,7 @@ impl DerivedOwner {
             .view_optional_bytes
             .0
             .checked_add(extra)
-            .is_some_and(|n| n <= cache.limit)
+            .is_some_and(|n| n <= cache.limit.0)
             && snapshot
                 .optional_units
                 .0

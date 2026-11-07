@@ -1,7 +1,7 @@
 //! The types of the `answering` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
 use crate::domain::render::types::Rendered;
-use ryo_execution::inbound::use_cases::execution::types::RowsFed;
+use ryo_execution::inbound::use_cases::execution::interface::RowsFed;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_values::domain::runs::types::RuleId;
 

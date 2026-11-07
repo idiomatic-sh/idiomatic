@@ -5,7 +5,10 @@ use super::super::{
         types::GraphSharing,
     },
     reserve::types::Reserve,
-    retained::types::{GraphEntry, NearestMemo, RootMemo},
+    retained::types::{
+        GraphEntry, GraphVertex, NearestAnswers, NearestMemo, NearestSlot, ReachedVertices,
+        RootMemo,
+    },
 };
 use super::completed::service::completed;
 use crate::application::file_dag::derived::{
@@ -84,7 +87,7 @@ impl<'a> DemandAnswers<'a> {
             && let Some(answer) = entry
                 .roots
                 .iter()
-                .find(|answer| answer.root == root && answer.orientation == access.orientation())
+                .find(|answer| answer.root.0 == root && answer.orientation == access.orientation())
         {
             crate::application::file_dag::route_counts::event(
                 constants::REACH_MEMO_HIT,
@@ -111,13 +114,13 @@ impl<'a> DemandAnswers<'a> {
         if stopped || access.sharing() == GraphSharing::Local {
             return Ok(None);
         }
-        self.admit(access, root, walk)
+        self.admit(access, GraphVertex(root), walk)
     }
     /// One-step or closure traversal for an axis row; the owner alone records its walk work.
     pub(in crate::application::file_dag) fn axis(
         &mut self,
         access: &GraphHandle,
-        root: u32,
+        root: GraphVertex,
         orientation: Orientation,
         direction: ryo_values::domain::plan_parts::types::Direction,
         walk: &mut GraphWalk,
@@ -129,9 +132,9 @@ impl<'a> DemandAnswers<'a> {
             ryo_values::domain::plan_parts::types::Direction::Parent
                 | ryo_values::domain::plan_parts::types::Direction::Child
         ) {
-            traversal.direct(VertexId(root), orientation);
+            traversal.direct(root, orientation);
         } else {
-            let _ = traversal.breadth(VertexId(root), orientation, None);
+            let _ = traversal.breadth(root, orientation, None);
         }
         {
             let cache = &mut *self.cache;
@@ -143,11 +146,11 @@ impl<'a> DemandAnswers<'a> {
         &mut self,
         access: &GraphHandle,
         domain: &DomainHandle,
-        root: u32,
+        root: GraphVertex,
         orientation: Orientation,
         local: &mut Vec<VertexId>,
         walk: &mut GraphWalk,
-    ) -> Result<Option<u32>, OperatingError> {
+    ) -> Result<Option<GraphVertex>, OperatingError> {
         access.validate_owner(self.owner)?;
         domain.validate_owner(self.owner, access)?;
         let domain = domain.raw_domain();
@@ -165,7 +168,7 @@ impl<'a> DemandAnswers<'a> {
                 constants::ROUTE_GRAPH,
             );
             let stopped = GraphTraversal::new(access.raw_graph(), walk).breadth(
-                VertexId(root),
+                root,
                 orientation,
                 Some(domain.as_ref()),
             ) == BreadthEnd::Stopped;
@@ -176,10 +179,10 @@ impl<'a> DemandAnswers<'a> {
                 cache.graph_counts.examined.0 += walk.examined.0;
             }
             return Ok(stopped.then(|| {
-                walk.reached
+                *walk
+                    .reached
                     .last()
                     .expect(constants::EXPECT_QUALIFYING_ENCOUNTER)
-                    .0
             }));
         }
         let shared = self.forest_context(access, domain, orientation)?;
@@ -188,14 +191,14 @@ impl<'a> DemandAnswers<'a> {
             memo,
         } = if let Some(index) = shared {
             GraphTraversal::new(access.raw_graph(), walk).nearest(
-                VertexId(root),
+                root,
                 orientation,
                 domain,
-                &mut self.cache.nearest[index].answers,
+                &mut self.cache.nearest[index.0].answers,
             )
         } else {
             GraphTraversal::new(access.raw_graph(), walk).nearest(
-                VertexId(root),
+                root,
                 orientation,
                 domain,
                 local,
@@ -216,12 +219,12 @@ impl<'a> DemandAnswers<'a> {
             cache.graph_counts.expanded.0 += walk.expanded.0;
             cache.graph_counts.examined.0 += walk.examined.0;
         }
-        Ok(answer.map(|vertex| vertex.0))
+        Ok(answer)
     }
     fn admit(
         &mut self,
         access: &GraphHandle,
-        root: u32,
+        root: GraphVertex,
         walk: &GraphWalk,
     ) -> Result<Option<RootAnswer>, OperatingError> {
         let cache = &mut *self.cache;
@@ -261,7 +264,7 @@ impl<'a> DemandAnswers<'a> {
                 .0
                 .checked_add(vector(&reached).0)?
                 .checked_add(metadata)?;
-            Some((replacement, cost, Arc::new(reached)))
+            Some((replacement, cost, Arc::new(ReachedVertices(reached))))
         })();
         let Some((replacement, cost, reached)) = prepared else {
             return Ok(None);
@@ -273,7 +276,7 @@ impl<'a> DemandAnswers<'a> {
                 address: BackingAddress(Arc::as_ptr(&reached) as usize),
             },
             retention_units: UnitCount(0),
-            bytes: ByteCount(arc_bytes::<Vec<u32>>().0 + vector(&reached).0),
+            bytes: ByteCount(arc_bytes::<Vec<u32>>().0 + vector(&reached.0).0),
         };
         let Some(lease) = self.owner.try_graph_lease(
             cache,
@@ -291,10 +294,10 @@ impl<'a> DemandAnswers<'a> {
             reached: Arc::clone(&reached),
             _lease: lease,
         });
-        cache.bytes += cost;
-        cache.graph_bytes += cost;
-        cache.memo_bytes += cost;
-        cache.graph_counts.peak_bytes.0 = cache.graph_counts.peak_bytes.0.max(cache.bytes);
+        cache.bytes.0 += cost;
+        cache.graph_bytes.0 += cost;
+        cache.memo_bytes.0 += cost;
+        cache.graph_counts.peak_bytes.0 = cache.graph_counts.peak_bytes.0.max(cache.bytes.0);
         completed(self.owner, &cache.graphs[index], reached).map(Some)
     }
     /// Exact graph allocation, exact admitted domain and orientation jointly
@@ -304,7 +307,7 @@ impl<'a> DemandAnswers<'a> {
         access: &GraphHandle,
         domain: &Arc<GraphDomain>,
         orientation: Orientation,
-    ) -> Result<Option<usize>, OperatingError> {
+    ) -> Result<Option<NearestSlot>, OperatingError> {
         let cache = &mut *self.cache;
         if access.sharing() == GraphSharing::Local {
             return Ok(None);
@@ -319,7 +322,7 @@ impl<'a> DemandAnswers<'a> {
                 && Arc::ptr_eq(&entry.domain, domain)
                 && entry.orientation == orientation
         }) {
-            return Ok(Some(index));
+            return Ok(Some(NearestSlot(index)));
         }
         let prepared = (|| {
             let minimum = access
@@ -383,10 +386,10 @@ impl<'a> DemandAnswers<'a> {
             answers,
             _lease: lease,
         });
-        cache.bytes += cost;
-        cache.graph_bytes += cost;
-        cache.memo_bytes += cost;
-        cache.graph_counts.peak_bytes.0 = cache.graph_counts.peak_bytes.0.max(cache.bytes);
-        Ok(Some(cache.nearest.len() - 1))
+        cache.bytes.0 += cost;
+        cache.graph_bytes.0 += cost;
+        cache.memo_bytes.0 += cost;
+        cache.graph_counts.peak_bytes.0 = cache.graph_counts.peak_bytes.0.max(cache.bytes.0);
+        Ok(Some(NearestSlot(cache.nearest.len() - 1)))
     }
 }

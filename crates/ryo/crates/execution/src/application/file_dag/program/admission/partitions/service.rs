@@ -1,10 +1,13 @@
 //! Generation, request and partition identity: what a partition supplies and who it matches.
 use super::super::{
-    Agreement, ApplicabilityProof, ApplicabilityReason, FileGeneration, Partition, PartitionSupply,
+    Agreement, ApplicabilityProof, FileGeneration, Partition, PartitionSupply,
     RequiredPartitions,
 };
 use crate::application::file_dag::relations::RelationOwner;
-use crate::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
+use crate::domain::{
+    coverage::types::RuleIndex, operating::errors::OperatingError,
+    rule_intent::types::ApplicabilityReason,
+};
 use ryo_relations::domain::relations::types::FileId;
 use std::sync::Arc;
 

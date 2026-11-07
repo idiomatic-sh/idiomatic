@@ -81,7 +81,7 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
             }],
             Arc::clone(&services),
             ryo_values::domain::files::types::SourceView(b""),
-            crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+            crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
             &mut symbols,
             None,
             None)
@@ -179,7 +179,7 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
         }],
         Arc::clone(&services),
         ryo_values::domain::files::types::SourceView(b""),
-        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         &mut symbols,
         None,
         None,

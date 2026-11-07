@@ -3,6 +3,8 @@ use super::constants::{
     COMPILED_PREFIX_TARGET, COMPILED_SUBPLAN_TARGET, NORMALIZATION, RECORD_PLAN, RECORD_PREFIX,
     RECORD_RULE, RECORD_STEP, SCOPE_PER_FILE,
 };
+use crate::outbound::digest::interface::DigestPort;
+use crate::outbound::digest::types::DigestBytes;
 use ryo_relations::domain::relations::{service::kinds, types::Relation};
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::{
@@ -113,9 +115,10 @@ pub(super) fn compiled(
     plans: &[Plan],
     bindings: &[Vec<ParameterBinding>],
     hosted: &[HostRelation],
+    digest: &dyn DigestPort,
 ) {
     if tracing::enabled!(target: COMPILED_SUBPLAN_TARGET, tracing::Level::TRACE) {
-        subplans(rules, plans, bindings, hosted);
+        subplans(rules, plans, bindings, hosted, digest);
     }
     if !tracing::enabled!(target: COMPILED_PREFIX_TARGET, tracing::Level::TRACE) {
         return;
@@ -140,7 +143,7 @@ pub(super) fn compiled(
                     registered,
                     &source.id,
                     source.text.len(),
-                    blake3::hash(source.text.as_bytes()).to_hex().to_string(),
+                    digest.digest(DigestBytes(source.text.as_bytes())),
                 )
             })
             .collect::<Vec<_>>();
@@ -182,6 +185,7 @@ fn subplans(
     plans: &[Plan],
     bindings: &[Vec<ParameterBinding>],
     hosted: &[HostRelation],
+    digest: &dyn DigestPort,
 ) {
     for (rule_index, ((rule, plan), bound)) in rules.iter().zip(plans).zip(bindings).enumerate() {
         let identity = std::ptr::from_ref(plan).addr();
@@ -192,7 +196,7 @@ fn subplans(
                     registered,
                     &source.id,
                     source.text.len(),
-                    blake3::hash(source.text.as_bytes()).to_hex().to_string(),
+                    digest.digest(DigestBytes(source.text.as_bytes())),
                 )
             })
             .collect::<Vec<_>>();

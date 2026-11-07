@@ -2,7 +2,7 @@
 mod evaluation;
 mod request;
 mod scenario;
-use evaluation::subject;
+use evaluation::test::subject;
 use request::{plan, rule};
 use scenario::Scenario;
 

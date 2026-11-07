@@ -3,7 +3,7 @@ use super::constants::COMPILED_PLANS;
 use super::errors::RuleCompilationError;
 use super::service::RuleCompilation;
 use super::service_test::{population, rule};
-use super::types::CompiledPlans;
+use super::service::CompiledPlans;
 use crate::outbound::query_language::fixtures::fake::QueryLanguageFake;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::runs::types::RuleId;

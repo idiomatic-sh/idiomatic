@@ -272,8 +272,8 @@ pub(crate) struct PrimitiveLease<'a> {
 /// No outbound adapter, cache owner or scheduler is reachable from a primitive.
 pub(crate) trait PrimitiveSemantics: Sync {
     #[cfg(feature = "diagnostic-row-progress")]
-    fn progress(&self) -> super::views::ProgressObserver {
-        |_, _| {}
+    fn progress(&self) -> &dyn super::views::ProgressObserver {
+        &super::views::IgnoredProgress
     }
 
     fn operators(

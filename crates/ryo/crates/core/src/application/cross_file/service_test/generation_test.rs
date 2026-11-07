@@ -1,4 +1,6 @@
 //! Ordinary project rules share one preparation and refuse another generation.
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use super::batch_test::assert_count_findings;
 use super::batch_test::evaluate_fixture;
 use crate::application::cross_file::fixtures::ProjectCalls;
@@ -9,10 +11,9 @@ use crate::application::cross_file::fixtures::prepared_in;
 use crate::application::cross_file::fixtures::todo;
 use crate::application::cross_file::fixtures::world_with;
 use crate::domain::answering::types::Todo;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
 use ryo_execution::inbound::use_cases::metadata::interface::Covered;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
@@ -22,7 +23,7 @@ use std::sync::Arc;
 
 pub(super) fn ordinary_project_rules_share_one_preparation_and_reject_another_generation()
 -> Result<(), RuleRequestsError> {
-    use ryo_execution::inbound::use_cases::execution::types::OperatingError;
+    use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
     use std::sync::atomic::Ordering;
     for order in [[0, 1], [1, 0]] {
         let calls = Arc::new(ProjectCalls::default());
@@ -96,7 +97,7 @@ pub(super) fn ordinary_project_rules_share_one_preparation_and_reject_another_ge
                 &rules.files,
                 &changed,
                 &[],
-                &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+                &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
             )
             .unwrap();
         let (_, old_frontier) = prepared_in(
@@ -161,11 +162,11 @@ pub(super) fn ordinary_project_rules_share_one_preparation_and_reject_another_ge
         .unwrap();
         phase.finish().unwrap();
 
-        let engine = ExecutionUseCaseImpl::new(
+        let engine = PrepareUseCaseImpl::new(
             calls.clone(),
             Arc::new(ryo_execution::outbound::derived::factory::semantics()),
         );
-        rules.request = engine.begin(&rules.program, &rules.files);
+        rules.request = ExecutionUseCaseImpl::new().execution(&rules.program, &rules.files);
         let phase = rules.request.project_phase().unwrap();
         let scope = phase
             .project_scope(
@@ -173,7 +174,7 @@ pub(super) fn ordinary_project_rules_share_one_preparation_and_reject_another_ge
                 &rules.files,
                 &rules.covered,
                 &[],
-                &ryo_execution::inbound::use_cases::execution::types::InapplicableFiles::default(),
+                &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
             )
             .unwrap();
         let failed = evaluate_fixture(

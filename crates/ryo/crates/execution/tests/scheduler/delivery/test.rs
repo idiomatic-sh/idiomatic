@@ -1,6 +1,18 @@
 //! Sink refusal retries terminal delivery, while a new owner must admit a new population.
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::outbound::facts::types::ResidentStability;
 use crate::boundary_fixture::{authored_request, corpus, demand, engine, source};
-use ryo_execution::inbound::use_cases::execution::{interface::*, types::*};
+use ryo_execution::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::*;
 use ryo_values::domain::{
@@ -25,7 +37,7 @@ fn sink_refusal_replays_delivery_without_restarting_the_shared_dependency_graph(
     }
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let table = source();
     let reads = Cell::new(0);
     let refuse = Cell::new(false);
@@ -51,16 +63,16 @@ fn sink_refusal_replays_delivery_without_restarting_the_shared_dependency_graph(
             .open_file(
                 FileInput {
                     language: SourceLanguage::Recognized,
-                    resident_stability: facts::ResidentStability::Stable,
+                    resident_stability: ResidentStability::Stable,
                     file: FileId(0),
                     evaluation: &[],
                     publication: &[],
                     intents: &intents,
-                    source: b"abc",
+                    source: ryo_values::domain::files::types::SourceView(b"abc"),
                     elements: &elements,
                     read: &read,
-                    semantic: None,
-                    kinds: None,
+                    semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                    kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
                 },
                 &mut symbols,
             )
@@ -135,7 +147,7 @@ fn an_unbound_rule_cannot_schedule_an_independent_provider_after_a_failed_siblin
     };
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let reads = Cell::new(0);
     let read = |relation| {
         assert_eq!(
@@ -160,16 +172,16 @@ fn an_unbound_rule_cannot_schedule_an_independent_provider_after_a_failed_siblin
         .open_file(
             FileInput {
                 language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
+                resident_stability: ResidentStability::Stable,
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
                 intents: &intents,
-                source: b"abc",
+                source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read: &read,
-                semantic: None,
-                kinds: None,
+                semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )

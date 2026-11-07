@@ -1,10 +1,20 @@
 //! Actual public file-owner readiness bounds and terminal failure replay.
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use super::super::{fixtures::*, no_catalog};
 use crate::boundary_fixture::{authored_request, corpus, demand};
-use ryo_execution::inbound::use_cases::execution::{
-    interface::{ExecutionRequest, ExecutionUseCase, FileExecution},
-    types::*,
-};
+use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Relation, Value};
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
@@ -61,7 +71,7 @@ fn readiness_hosted() -> HostRelation {
             .collect(),
     }
 }
-fn readiness_budget(request: &PreparedRequest) -> (u64, u64) {
+fn readiness_budget(request: &PrepareRequest) -> (u64, u64) {
     use ryo_values::domain::plans::fixtures::{inputs_of, named};
     let nodes = request
         .plans
@@ -132,7 +142,7 @@ fn exercise_readiness_chain(empty: bool) {
     let (nodes, edges) = readiness_budget(&authored);
     let prepared = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let intents = [readiness_intent(), readiness_intent(), readiness_intent()];
     let mut file = request
@@ -220,7 +230,7 @@ fn failed_producers_wake_their_roots_without_erasing_independent_output() {
     let (nodes, edges) = readiness_budget(&authored);
     let prepared = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let calls = std::cell::RefCell::new(Vec::new());
     let read = |relation| {
