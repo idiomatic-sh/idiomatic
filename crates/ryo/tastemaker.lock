@@ -145,11 +145,11 @@ entry = "0.1.0"
 idiomatic-project = "0.3.0"
 idiomatic-rust = "0.1.5"
 item = "0.1.1"
-nu-hex = "0.3.1"
+nu-hex = "0.3.2"
 pipeline = "0.1.0"
 port = "0.3.1"
 sdk = "0.1.1"
-use-case = "0.1.1"
+use-case = "0.1.2"
 
 [packages."idiomatic.arch".templates]
 adapter-connection = "0.1.0"
