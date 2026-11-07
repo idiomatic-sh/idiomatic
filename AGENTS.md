@@ -29,3 +29,15 @@ Every new branch or refusal path names its positive and negative control in the 
 A test whose checked property changes is renamed in the same commit, and its matrix row says what it checks now, because a name that states the old property misleads every later reader.
 
 A review request carries three receipts (`tm check` over the review's scope at 0 findings and 0 suppressed, `run.py --check` exit 0, and the `no_print` target green with file-level cycles 0 in `validation.json`), and a request without them is refused by the reviewer, because what a linter or check catches is resolved before a person reads the source.
+
+## Builder brief contract
+
+A builder stops in exactly two states, and `.claude/hooks/acceptance_on_stop.py` enforces both; `.claude/hooks/guard_shell.py` refuses the shell habits listed in its source.
+
+- Every builder brief begins with `BEAD: <id>` and `WORKTREE: <path>`.
+- Requirements are numbered R1..Rn, and each names the check that proves it.
+- The brief has a Decisions table holding every decision the builder would otherwise have to ask.
+- The bead's notes carry an `ACCEPTANCE:` ... `END ACCEPTANCE` block of shell lines that must exit 0 in the worktree.
+- The report starts with `DONE:` (the acceptance output pasted, each R-number answered) or `BLOCKED:` (exactly one question the Decisions table does not answer). No other stop state exists.
+- The integrator runs the acceptance block before merging.
+- Builders run tm and the acceptance block; they never run cargo. The integrator compiles once per checkpoint.
