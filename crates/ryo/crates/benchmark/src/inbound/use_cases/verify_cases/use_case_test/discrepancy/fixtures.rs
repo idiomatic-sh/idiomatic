@@ -122,7 +122,7 @@ pub(crate) fn discrepancy_suite() -> SuiteFake {
     suite.profile = Some(profile);
     let _previous_profile = suite.artifact_digests.insert(
         std::path::Path::new("/profile")
-            .join(crate::domain::suite::constants::BENCHMARK_TOML),
+            .join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST),
         profile_hash,
     );
     let _previous_binary = suite.artifact_digests.insert("fixture".into(), binary_hash);

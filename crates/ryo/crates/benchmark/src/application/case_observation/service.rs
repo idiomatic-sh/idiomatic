@@ -12,7 +12,7 @@ use crate::outbound::receipts::interface::ReceiptsPort;
 use crate::outbound::receipts::types::{CapturedProcess, CaseReceipts, ReceiptPath};
 use crate::outbound::suite::interface::SuitePort;
 use crate::outbound::suite::types::{ArtifactPath, ArtifactSet};
-use ryo_benchmark_contracts::domain::documents::types::finding::value::{ExpectedFindings, Finding, FindingOffset, SkippedPair};
+use ryo_benchmark_contracts::domain::documents::types::finding::value::{ExpectedFindings, RecordedFinding, FindingOffset, SkippedPair};
 use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{ContextMode, ContextRun, IntentMatch, ListedContext, ObservationDocument, ProcessArtifactsRecord, ProcessRecord, ProjectContextRecord, RecordedMetadata, RecordedReason, ReferenceProcess, ReportedFindings, ReportedSkips, RequestRoot, ValidationRecord, RuleCohort, RuleContextRecord, RuleObservationsRecord, SourceIdentity, ToolContractRecord};
 use ryo_benchmark_contracts::domain::documents::types::text::value::{CanonicalJson, CaseName, ContestantSide, ExitStatus, FileMetadataDigest, PathText, ProjectInputsDigest, ReasonText, RuleName, SchemaName, Sha256Text, YesNo};
 use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{DiscrepancyValidation, ExpectationKind};
@@ -26,13 +26,15 @@ use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
 use std::path::Path;
 
-fn findings(rows: &[BenchmarkFinding]) -> Vec<Finding> {
+fn findings(rows: &[BenchmarkFinding]) -> Vec<RecordedFinding> {
     rows.iter()
-        .map(|row| Finding {
+        .map(|row| RecordedFinding {
             rule: RuleName(row.rule.as_ref().to_owned()),
             file: PathText(row.file.0.as_ref().to_owned()),
-            start: FindingOffset(u64::try_from(row.start.0).unwrap_or(u64::MAX)),
-            end: FindingOffset(u64::try_from(row.end.0).unwrap_or(u64::MAX)),
+            span: ryo_benchmark_contracts::domain::documents::types::finding::value::RecordedSpan {
+                start: FindingOffset(u64::try_from(row.start.0).unwrap_or(u64::MAX)),
+                end: FindingOffset(u64::try_from(row.end.0).unwrap_or(u64::MAX)),
+            },
         })
         .collect()
 }

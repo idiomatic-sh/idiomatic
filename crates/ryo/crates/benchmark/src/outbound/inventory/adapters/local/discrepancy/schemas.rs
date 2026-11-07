@@ -2,7 +2,7 @@
 //! explicit process failure.
 use crate::outbound::inventory::adapters::local::types::DiscrepancyText;
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::documents::types::finding::value::{Finding, FindingOffset};
+use ryo_benchmark_contracts::domain::documents::types::finding::value::{RecordedFinding, FindingOffset};
 use ryo_benchmark_contracts::domain::documents::types::finding::value::ExpectedFindings;
 use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{DiscrepancyIdentity, DiscrepancyRecord, ObservedExecutable};
 use ryo_benchmark_contracts::domain::documents::types::text::value::{PathText, ReasonText, RuleName, Sha256Text};
@@ -29,21 +29,23 @@ struct FindingSchema {
     end: u64,
 }
 
-impl From<FindingSchema> for Finding {
+impl From<FindingSchema> for RecordedFinding {
     fn from(wire: FindingSchema) -> Self {
         Self {
             rule: RuleName(wire.rule),
             file: PathText(wire.file),
-            start: FindingOffset(wire.start),
-            end: FindingOffset(wire.end),
+            span: ryo_benchmark_contracts::domain::documents::types::finding::value::RecordedSpan {
+                start: FindingOffset(wire.start),
+                end: FindingOffset(wire.end),
+            },
         }
     }
 }
 
 
 /// Every wire finding as a document finding.
-fn findings(rows: Vec<FindingSchema>) -> Vec<Finding> {
-    rows.into_iter().map(Finding::from).collect()
+fn findings(rows: Vec<FindingSchema>) -> Vec<RecordedFinding> {
+    rows.into_iter().map(RecordedFinding::from).collect()
 }
 
 /// Only this explicit variant can request process-failure comparison.
@@ -221,7 +223,8 @@ impl From<DiscrepancySchema> for DiscrepancyRecord {
                 source: Sha256Text(identity.source_sha256),
                 reference_output: Sha256Text(identity.reference_output_sha256),
                 intended_output: Sha256Text(identity.intended_output_sha256),
-                file_metadata: sha(identity.file_metadata_sha256),
+                file_metadata: sha(identity.file_metadata_sha256)
+                    .map_or(ryo_benchmark_contracts::domain::documents::types::text::value::FileMetadataDigest::Undeclared, ryo_benchmark_contracts::domain::documents::types::text::value::FileMetadataDigest::Declared),
             },
             approved_executable_sha256: wire
                 .approved_executable_sha256
@@ -235,7 +238,10 @@ impl From<DiscrepancySchema> for DiscrepancyRecord {
                 }),
             intended_expected: findings(wire.intended_expected),
             reason: ReasonText(wire.reason),
-            process: wire.process.0.map(Into::into),
+            process: match wire.process.0 {
+                Some(process) => ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::ProcessExpectation::Failure(process.into()),
+                None => ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::ProcessExpectation::Absent,
+            },
         }
     }
 }

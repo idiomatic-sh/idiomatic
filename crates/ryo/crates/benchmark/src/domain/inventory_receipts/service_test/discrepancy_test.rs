@@ -1,9 +1,11 @@
 //! A documented reference difference and a process failure are admitted only with bound evidence.
 use ryo_benchmark_contracts::domain::{
     documents::types::{
-        observation_document::{ReferenceExpectation, ToolContractRecord},
-        reference_discrepancy::ReferenceDiscrepancy,
-        text::{Sha256Text, YesNo},
+        case_document::value::CaseReference,
+        finding::value::ExpectedFindings,
+        observation_document::value::{ReferenceProcess, ToolContractRecord, ValidationRecord},
+        reference_discrepancy::value::DiscrepancyRecord,
+        text::value::{FileMetadataDigest, Sha256Text, YesNo},
     },
     reports::types::ComparisonContract,
     workloads::types::DiscrepancyBasis,
@@ -21,7 +23,7 @@ use crate::cases::Expect;
 use crate::cases::Word;
 use crate::cases::run;
 use crate::domain::process_receipts::errors::ProcessReceiptsError;
-use crate::outbound::inventory::types::case_document::ExpectationContract;
+use ryo_benchmark_contracts::domain::documents::types::case_document::value::ExpectationContract;
 
 type Input = Documents;
 type Value = ReceiptCounts;
@@ -49,12 +51,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::passing, |d| {
-                d.0[0].reference_discrepancy = Some(ReferenceDiscrepancy {
+                d.0[0].reference_discrepancy = CaseReference::Differs(DiscrepancyRecord {
                     ..process_discrepancy()
                 });
                 for row in &mut d.1 {
                     row.documented_reference_discrepancy = YesNo::Yes;
-                    row.reference_expected = ReferenceExpectation::Underivable;
+                    row.reference_expected = ExpectedFindings::Underivable;
                 }
             })
         },
@@ -69,7 +71,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             fixtures::edited(fixtures::passing, |d| {
                 d.0[0].expectation_contract =
                     ExpectationContract::Declared(ComparisonContract::CompleteReport);
-                d.0[0].reference_discrepancy = Some(process_discrepancy());
+                d.0[0].reference_discrepancy = CaseReference::Differs(process_discrepancy());
             })
         },
         expect: Expect::Error(InventoryReceiptsError::ProcessExpectationNotComplete),
@@ -89,7 +91,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::passing, |d| {
-                d.1[0].process_observation = Some(process_observation())
+                d.1[0].process_observation = ReferenceProcess::Observed(process_observation())
             })
         },
         expect: Expect::Error(InventoryReceiptsError::UnexpectedProcessObservation),
@@ -99,8 +101,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::independently_bound_discrepancy, |d| {
-                if let Some(certificate) = d.0[0].reference_discrepancy.as_mut() {
-                    certificate.identity.file_metadata = Some(Sha256Text("other".into()));
+                if let CaseReference::Differs(certificate) = &mut d.0[0].reference_discrepancy {
+                    certificate.identity.file_metadata =
+                        FileMetadataDigest::Declared(Sha256Text("other".into()));
                 }
             })
         },
@@ -111,7 +114,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::independently_bound_discrepancy, |d| {
-                d.1[1].discrepancy_validation = None
+                d.1[1].discrepancy_validation = ValidationRecord::Unattested
             })
         },
         expect: Expect::Error(InventoryReceiptsError::DiscrepancyValidationMissing),
@@ -121,7 +124,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::independently_bound_discrepancy, |d| {
-                if let Some(certificate) = d.0[0].reference_discrepancy.as_mut() {
+                if let CaseReference::Differs(certificate) = &mut d.0[0].reference_discrepancy {
                     certificate.basis = DiscrepancyBasis::ToolContract;
                 }
                 for row in &mut d.1 {
@@ -139,7 +142,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             fixtures::edited(fixtures::independently_bound_discrepancy, |d| {
                 for row in &mut d.1 {
-                    if let Some(proof) = row.discrepancy_validation.as_mut() {
+                    if let ValidationRecord::Attested(proof) = &mut row.discrepancy_validation {
                         proof.actual_executable_sha256 = Sha256Text(String::new());
                     }
                 }
@@ -152,7 +155,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::independently_bound_discrepancy, |d| {
-                if let Some(certificate) = d.0[0].reference_discrepancy.as_mut() {
+                if let CaseReference::Differs(certificate) = &mut d.0[0].reference_discrepancy {
                     certificate.approved_executable_sha256 = vec![Sha256Text("another-pin".into())];
                 }
             })

@@ -1,5 +1,4 @@
 //! Only samples issued from a complete inventory reach the evidence boundary, and never an empty set.
-use super::constants;
 use super::service::publish;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::discrepancy::fixtures::report;
@@ -85,9 +84,9 @@ fn subject(samples: Input) -> Result<Value, Failure> {
         .map(|()| Published::Accepted)
         .map_err(|error| {
             let message = error.to_string();
-            if message == constants::NO_MEASURED_EVIDENCE {
+            if message == ryo_benchmark_contracts::domain::reports::constants::NO_MEASURED_EVIDENCE {
                 Refusal::NoEvidence
-            } else if message == constants::DIAGNOSTIC_OBSERVATIONS_CANNOT_PUBLISH_BENCH {
+            } else if message == ryo_benchmark_contracts::domain::reports::constants::DIAGNOSTIC_OBSERVATIONS_CANNOT_PUBLISH {
                 Refusal::DiagnosticOnly
             } else {
                 Refusal::Unexpected

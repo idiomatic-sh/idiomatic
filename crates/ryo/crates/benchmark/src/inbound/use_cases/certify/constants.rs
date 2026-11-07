@@ -1,8 +1,4 @@
 //! Stable operation vocabulary and artifact identities.
-/// Stable filename used only to compare prepared invocation identities.
-pub(crate) const PROFILE_PROBE: &str = "__certificate_probe__";
-/// Separate state directory for preparation identity probes.
-pub(crate) const IDENTITY_STATE: &str = "identity";
 /// Authored rule directory sealed by certification.
 pub(crate) const RULE_DIRECTORY: &str = "rules";
 /// Refuse changed content fingerprints of certified artifacts.
@@ -39,7 +35,7 @@ pub(crate) const FIXTURE_TOOL_SCRIPT: &str = "#!/bin/sh\necho fixture 1\n";
 #[cfg(all(windows, any(test, feature = "fixtures")))]
 pub(crate) const FIXTURE_TOOL_SCRIPT: &str = "@echo fixture 1\r\n";
 /// Independent certification fixture profile file.
-pub(crate) const FIXTURE_PROFILE_FILE: &str = crate::domain::suite::constants::BENCHMARK_TOML;
+pub(crate) const FIXTURE_PROFILE_FILE: &str = ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST;
 #[cfg(any(test, feature = "fixtures"))]
 /// Independent certification fixture query file.
 pub(crate) const FIXTURE_QUERY_FILE: &str = "A/query.ryoql";
@@ -138,29 +134,8 @@ pub(crate) const FIXTURE_DIGEST_REQUIRED: &str =
 /// Each controlled mutation has an independently specified diagnostic.
 #[cfg(any(test, feature = "fixtures"))]
 pub(crate) const FIXTURE_REFUSAL_REQUIRED: &str = "mutation must produce its specific refusal";
-/// Text of the case inventory differs from measured complet in this part.
-pub(crate) const CASE_INVENTORY_DIFFERS_FROM_MEASURED_COMPLET: &str =
-    "case inventory differs from measured complete rule identities";
-/// Text of the registered certification requires actual exe in this part.
-pub(crate) const REGISTERED_CERTIFICATION_REQUIRES_ACTUAL_EXE: &str =
-    "registered certification requires actual execution authority";
-/// Text of the registered authority differs from measured c in this part.
-pub(crate) const REGISTERED_AUTHORITY_DIFFERS_FROM_MEASURED_C: &str =
-    "registered authority differs from measured canonical profile";
-/// Text of the selected rule root differs from measured in this part.
-pub(crate) const SELECTED_RULE_ROOT_DIFFERS_FROM_MEASURED: &str =
-    "selected rule root differs from measured profile";
-/// Text of the case inventory executable identities differ in this part.
-pub(crate) const CASE_INVENTORY_EXECUTABLE_IDENTITIES_DIFFER: &str =
-    "case inventory executable identities differ from measured contestants";
 /// Text of the missing verification command in this part.
 pub(crate) const MISSING_VERIFICATION_COMMAND: &str =
     crate::domain::suite::constants::MISSING_VERIFICATION_COMMAND;
-/// Text of the registered context lacks tested query in this part.
-pub(crate) const REGISTERED_CONTEXT_LACKS_TESTED_QUERY: &str =
-    "registered context lacks tested query";
 /// Text of the query ryoql in this part.
 pub(crate) const QUERY_RYOQL: &str = crate::domain::suite::constants::QUERY_RYOQL;
-/// Text of the registered independent case certification fa in this part.
-pub(crate) const REGISTERED_INDEPENDENT_CASE_CERTIFICATION_FA: &str =
-    "registered independent case certification failed";

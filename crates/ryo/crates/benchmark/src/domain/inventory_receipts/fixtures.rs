@@ -1,32 +1,19 @@
 //! Registered cases and native observation rows the receipt validation is proven over.
 use crate::domain::registered_inputs::service::project_inputs_digest;
-use crate::outbound::inventory::types::case_document::{
-    CaseContextIdentity, CaseDocument, Comparison, ContextIdentity, EntryState,
-    ExpectationContract, FileMetadata, FileObservation, InventoryCompleteness, ProjectEntry,
-    ProjectInventory, ProjectInventoryDocument, ProjectScope,
-};
+use ryo_benchmark_contracts::domain::documents::types::case_document::value::DeclaredScope;
+use ryo_benchmark_contracts::domain::workloads::types::FileObservation;
+use ryo_benchmark_contracts::domain::documents::types::case_document::value::{CaseContextIdentity, CaseDocument, CaseReference, ContextIdentity, EntryState, ExpectationContract, FileMetadata, InventoryCompleteness, ProjectEntry, ProjectInventory, ProjectInventoryDocument};
+use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
 use ryo::linter::RelativePath;
 use ryo_benchmark_contracts::domain::artifacts::types::{
     FileExecutable, FileMetadataEntry, digest::value::ArtifactDigest,
 };
-use ryo_benchmark_contracts::domain::documents::types::{
-    finding::{Finding, FindingOffset},
-    observation_document::{
-        ContextMode, ContextRun, FileMetadataDigest, IntentMatch, ObservationDocument,
-        ProjectContextRecord, ProjectInputsDigest, ReferenceExpectation, RuleCohort,
-        RuleContextRecord, RuleObservationsRecord, SourceIdentity, ToolContractRecord,
-    },
-    reference_discrepancy::{
-        DiscrepancyIdentity, DiscrepancyValidation, ExpectationKind, ObservedExecutable,
-        ReferenceDiscrepancy,
-    },
-    text::{
-        CanonicalJson, CaseName, ContestantSide, PathText, ReasonText, RuleName, SchemaName,
-        Sha256Text, YesNo,
-    },
-};
+use ryo_benchmark_contracts::domain::documents::types::finding::value::{ExpectedFindings, RecordedFinding, FindingOffset};
+use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{ContextMode, ContextRun, IntentMatch, ObservationDocument, ProjectContextRecord, RecordedMetadata, RecordedReason, ReferenceProcess, ReportedFindings, ReportedSkips, RequestRoot, RuleCohort, RuleContextRecord, RuleObservationsRecord, SourceIdentity, ToolContractRecord, ValidationRecord};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, CanonicalJson, CaseName, ContestantSide, FileMetadataDigest, PathText, ProjectInputsDigest, ReasonText, RuleName, SchemaName, Sha256Text, YesNo};
+use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{DiscrepancyIdentity, DiscrepancyRecord, DiscrepancyValidation, ExpectationKind, ObservedExecutable, ProcessExpectation};
 use ryo_benchmark_contracts::domain::reports::types::{
-    ComparisonContract, ExecutionMetadata, RuleCoverage,
+    ComparisonContract, CoverageAccounting, ExecutionMetadata, RuleCoverage,
 };
 use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 
@@ -38,12 +25,14 @@ fn sha(text: &str) -> Sha256Text {
 }
 
 /// A finding at an exact span of the case file.
-pub fn finding(rule: &str, file: &str, start: u64, end: u64) -> Finding {
-    Finding {
+pub fn finding(rule: &str, file: &str, start: u64, end: u64) -> RecordedFinding {
+    RecordedFinding {
         rule: RuleName(rule.into()),
         file: PathText(file.into()),
-        start: FindingOffset(start),
-        end: FindingOffset(end),
+        span: ryo_benchmark_contracts::domain::documents::types::finding::value::RecordedSpan {
+            start: FindingOffset(start),
+            end: FindingOffset(end),
+        },
     }
 }
 
@@ -55,19 +44,19 @@ pub fn registered_case(rule: &str, name: &str) -> CaseDocument {
         case_sha256: sha("case-pin"),
         source_sha256: sha("source-pin"),
         files: vec![PathText("input.txt".into())],
-        comparison: Comparison::Rule,
+        comparison: CaseComparison::Rule,
         expected: Vec::new(),
         project_context_mode: ContextMode::Isolated,
         context_identity: CaseContextIdentity::Isolated,
-        reference_discrepancy: None,
+        reference_discrepancy: CaseReference::Agrees,
         expectation_contract: ExpectationContract::Unwritten,
         rule_context: RuleContextRecord::Undeclared,
         rule_observations: RuleObservationsRecord::Undeclared,
         selected_rules: RuleCohort::Undeclared,
         file_observation: FileObservation::Undeclared,
         file_metadata: FileMetadata::Undeclared,
-        file_metadata_sha256: None,
-        project_search_roots: ProjectScope::Undeclared,
+        file_metadata_sha256: FileMetadataDigest::Undeclared,
+        project_search_roots: DeclaredScope::Undeclared,
         given_project_inventory: ProjectInventory::Undeclared,
         project_inputs_sha256: ProjectInputsDigest::Undeclared,
     }
@@ -84,20 +73,20 @@ pub fn observed_row(rule: &str, name: &str, side: ContestantSide) -> Observation
         name: CaseName(name.into()),
         side,
         complete: YesNo::Yes,
-        error: None,
+        error: RecordedReason::Absent,
         case_passed: YesNo::Yes,
         files: vec![PathText("input.txt".into())],
         source_sha256: SourceIdentity::Sealed(sha("source-pin")),
         file_metadata_sha256: FileMetadataDigest::Undeclared,
         project_inputs_sha256: ProjectInputsDigest::Undeclared,
         expected: Vec::new(),
-        reference_expected: ReferenceExpectation::Derived(Vec::new()),
-        diagnostics: Some(Vec::new()),
-        skipped: Some(Vec::new()),
+        reference_expected: ExpectedFindings::Derived(Vec::new()),
+        diagnostics: ReportedFindings::Reported(Vec::new()),
+        skipped: ReportedSkips::Reported(Vec::new()),
         observation_schema: SchemaName("benchmark-case/v2".into()),
         expectation_contract: ComparisonContract::Diagnostics,
-        execution_metadata: Some(ExecutionMetadata::Complete),
-        coverage: Some(RuleCoverage {
+        execution_metadata: RecordedMetadata::Recorded(ExecutionMetadata::Complete),
+        coverage: CoverageAccounting::Accounted(RuleCoverage {
             selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
             evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
             skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
@@ -108,13 +97,13 @@ pub fn observed_row(rule: &str, name: &str, side: ContestantSide) -> Observation
         rule_context: RuleContextRecord::Undeclared,
         rule_observations: RuleObservationsRecord::Undeclared,
         selected_rules: RuleCohort::Undeclared,
-        actual_request_root: None,
+        actual_request_root: RequestRoot::Unwritten,
         documented_reference_discrepancy: YesNo::No,
         documented_tool_contract_difference: ToolContractRecord::Unrecorded,
-        discrepancy_validation: None,
-        raw_parity_matches_intended: None,
+        discrepancy_validation: ValidationRecord::Unattested,
+        raw_parity_matches_intended: IntentMatch::Unreported,
         diagnostics_match_intended: IntentMatch::Unreported,
-        process_observation: None,
+        process_observation: ReferenceProcess::NotObserved,
     }
 }
 
@@ -141,14 +130,14 @@ pub fn passing() -> Documents {
 /// The same registered case, observed with an extra diagnostic on the candidate side.
 pub fn candidate_with_unexpected_diagnostic() -> Documents {
     let (cases, mut rows) = passing();
-    rows[1].diagnostics = Some(vec![finding("A001", "input.txt", 0, 1)]);
+    rows[1].diagnostics = ReportedFindings::Reported(vec![finding("A001", "input.txt", 0, 1)]);
     (cases, rows)
 }
 
 /// The candidate carries no diagnostics at all.
 pub fn candidate_without_diagnostics() -> Documents {
     let (cases, mut rows) = passing();
-    rows[1].diagnostics = None;
+    rows[1].diagnostics = ReportedFindings::Unreported;
     (cases, rows)
 }
 
@@ -185,7 +174,7 @@ pub fn duplicate_observation() -> Documents {
 fn documented_discrepancy(settings: Sha256Text) -> Documents {
     let finding = finding("A001", "input.txt", 0, 1);
     let mut case = registered("case");
-    case.reference_discrepancy = Some(ReferenceDiscrepancy {
+    case.reference_discrepancy = CaseReference::Differs(DiscrepancyRecord {
         basis: DiscrepancyBasis::LanguageDefect,
         identity: DiscrepancyIdentity {
             tool: ReasonText("tool".into()),
@@ -196,19 +185,19 @@ fn documented_discrepancy(settings: Sha256Text) -> Documents {
             source: sha("source-pin"),
             reference_output: sha("reference-pin"),
             intended_output: sha("intended-pin"),
-            file_metadata: None,
+            file_metadata: FileMetadataDigest::Undeclared,
         },
         approved_executable_sha256: vec![Sha256Text("tool-pin".into())],
-        reference_expected: ReferenceExpectation::Derived(vec![finding.clone()]),
+        reference_expected: ExpectedFindings::Derived(vec![finding.clone()]),
         intended_expected: Vec::new(),
         reason: ReasonText("independent expectation".into()),
-        process: None,
+        process: ProcessExpectation::Absent,
     });
     let mut base = observed("case");
-    base.reference_expected = ReferenceExpectation::Derived(vec![finding.clone()]);
-    base.discrepancy_validation = Some(DiscrepancyValidation {
+    base.reference_expected = ExpectedFindings::Derived(vec![finding.clone()]);
+    base.discrepancy_validation = ValidationRecord::Attested(DiscrepancyValidation {
         discrepancy_basis: DiscrepancyBasis::LanguageDefect,
-        process_observation_group_sha256: None,
+        process_observation_group_sha256: Pin::Absent,
         reference_expectation_kind: ExpectationKind::Diagnostics,
         actual_executable_sha256: sha("tool-pin"),
         settings_sha256: settings,
@@ -216,12 +205,12 @@ fn documented_discrepancy(settings: Sha256Text) -> Documents {
         source_sha256: sha("source-pin"),
         reference_output_sha256: sha("reference-pin"),
         intended_output_sha256: sha("intended-pin"),
-        file_metadata_sha256: None,
+        file_metadata_sha256: FileMetadataDigest::Undeclared,
     });
     base.documented_reference_discrepancy = YesNo::Yes;
     base.documented_tool_contract_difference = ToolContractRecord::Recorded(YesNo::No);
     let mut rows = sides(&base);
-    rows[0].diagnostics = Some(vec![finding]);
+    rows[0].diagnostics = ReportedFindings::Reported(vec![finding]);
     (vec![case], rows)
 }
 
@@ -252,15 +241,16 @@ pub fn with_file_metadata(executable: bool) -> Documents {
     .ok()
     .flatten()
     .map(|value| Sha256Text(value.0));
+    let declared = FileMetadataDigest::from(digest);
     let mut case = registered("mode");
     case.file_observation = FileObservation::PosixExecutable;
     case.file_metadata = FileMetadata::Declared(std::collections::BTreeMap::from([(
         PathText("input.txt".into()),
         flag,
     )]));
-    case.file_metadata_sha256 = digest.clone();
+    case.file_metadata_sha256 = declared.clone();
     let mut base = observed("mode");
-    base.file_metadata_sha256 = FileMetadataDigest::from(digest);
+    base.file_metadata_sha256 = declared;
     (vec![case], sides(&base))
 }
 
@@ -274,7 +264,7 @@ pub fn unspecified_legacy() -> Documents {
     let (mut cases, mut rows) = with_file_metadata(false);
     cases[0].file_observation = FileObservation::Undeclared;
     cases[0].file_metadata = FileMetadata::Undeclared;
-    cases[0].file_metadata_sha256 = None;
+    cases[0].file_metadata_sha256 = FileMetadataDigest::Undeclared;
     for row in &mut rows {
         row.file_metadata_sha256 = FileMetadataDigest::Undeclared;
     }
@@ -291,8 +281,8 @@ pub fn project_scope(roots: &[&str], state: EntryState, row_identity: Option<&st
             state,
         }],
     };
-    declared.0[0].project_search_roots = ProjectScope::Roots(vec![PathText("src".into())]);
-    declared.0[0].given_project_inventory = ProjectInventory::Declared(inventory(EntryState::File));
+    declared.0[0].project_search_roots = DeclaredScope::Roots(vec![PathText("src".into())]);
+    declared.0[0].given_project_inventory = ProjectInventory::Declared(inventory(EntryState::Regular));
     let digest = project_inputs_digest(
         &crate::domain::inventory_receipts::service::registered_inputs(&declared.0[0]),
     )
@@ -304,7 +294,7 @@ pub fn project_scope(roots: &[&str], state: EntryState, row_identity: Option<&st
         row.project_inputs_sha256 = ProjectInputsDigest::from(digest.clone());
     }
     declared.0[0].project_search_roots =
-        ProjectScope::Roots(roots.iter().map(|root| PathText((*root).into())).collect());
+        DeclaredScope::Roots(roots.iter().map(|root| PathText((*root).into())).collect());
     declared.0[0].given_project_inventory = ProjectInventory::Declared(inventory(state));
     if let Some(identity) = row_identity {
         declared.1[0].project_inputs_sha256 = ProjectInputsDigest::Declared(sha(identity));

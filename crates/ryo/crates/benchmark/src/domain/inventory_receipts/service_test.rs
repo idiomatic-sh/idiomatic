@@ -1,18 +1,20 @@
 //! Behavioral proof of `inventory_receipts` over registered cases and native rows.
 use ryo_benchmark_contracts::domain::{
     documents::types::{
-        observation_document::{
-            ExitStatus, ProcessObservation, ReferenceExpectation, RuleContextRecord,
+        case_document::value::CaseReference,
+        finding::value::ExpectedFindings,
+        observation_document::value::{
+            ProcessArtifactsRecord, ProcessRecord, RecordedMetadata, RecordedReason, RuleContextRecord,
         },
-        reference_discrepancy::{
-            DiscrepancyIdentity, ExpectationKind, ObservedExecutable, ReferenceDiscrepancy,
+        reference_discrepancy::value::{
+            DiscrepancyIdentity, DiscrepancyRecord, ExpectationKind, ObservedExecutable, ProcessExpectation,
         },
-        text::{
-            CanonicalJson, CaseName as DocumentCaseName, PathText, ReasonText, RuleName,
-            SchemaName, Sha256Text, YesNo,
+        text::value::{
+            CanonicalJson, CaseName as DocumentCaseName, ExitStatus, FileMetadataDigest, PathText, Pin,
+            ReasonText, RuleName, SchemaName, Sha256Text, Signal, YesNo,
         },
     },
-    reports::types::{ExecutionMetadata, RuleCoverage},
+    reports::types::{CoverageAccounting, ExecutionMetadata, RuleCoverage},
     workloads::types::DiscrepancyBasis,
 };
 
@@ -49,8 +51,8 @@ const fn counts(raw_exact: usize, documented: usize, contract_only: usize) -> Re
 }
 
 /// A discrepancy registered as an explicit process failure.
-fn process_discrepancy() -> ReferenceDiscrepancy {
-    ReferenceDiscrepancy {
+fn process_discrepancy() -> DiscrepancyRecord {
+    DiscrepancyRecord {
         basis: DiscrepancyBasis::LanguageDefect,
         identity: DiscrepancyIdentity {
             tool: ReasonText("tool".into()),
@@ -61,13 +63,13 @@ fn process_discrepancy() -> ReferenceDiscrepancy {
             source: Sha256Text("source-pin".into()),
             reference_output: Sha256Text("reference-pin".into()),
             intended_output: Sha256Text("intended-pin".into()),
-            file_metadata: None,
+            file_metadata: FileMetadataDigest::Undeclared,
         },
         approved_executable_sha256: Vec::new(),
-        reference_expected: ReferenceExpectation::Underivable,
+        reference_expected: ExpectedFindings::Underivable,
         intended_expected: Vec::new(),
         reason: ReasonText("process failure".into()),
-        process: Some(ProcessFailure {
+        process: ProcessExpectation::Failure(ProcessFailure {
             exit: ProcessExitCode(1),
             stdout: Vec::new(),
             stderr: Vec::new(),
@@ -77,18 +79,18 @@ fn process_discrepancy() -> ReferenceDiscrepancy {
 }
 
 /// A reference process observed instead of diagnostics.
-fn process_observation() -> ProcessObservation {
-    ProcessObservation {
+fn process_observation() -> ProcessRecord {
+    ProcessRecord {
         kind: ExpectationKind::ProcessFailure,
         exit: ExitStatus(1),
-        signal: None,
+        signal: Signal::Absent,
         actual_request_root: PathText("/cases/root".into()),
         observer_no_deadline: YesNo::Yes,
-        executable_sha256: None,
-        settings_sha256: None,
-        metadata_error: None,
-        template_sha256: None,
-        artifacts: None,
+        executable_sha256: Pin::Absent,
+        settings_sha256: Pin::Absent,
+        metadata_error: RecordedReason::Absent,
+        template_sha256: Pin::Absent,
+        artifacts: ProcessArtifactsRecord::Unattached,
     }
 }
 
@@ -188,7 +190,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::passing, |d| {
-                d.1[0].execution_metadata = Some(ExecutionMetadata::Unknown)
+                d.1[0].execution_metadata = RecordedMetadata::Recorded(ExecutionMetadata::Unknown)
             })
         },
         expect: Expect::Error(InventoryReceiptsError::Comparison(
@@ -200,9 +202,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::passing, |d| {
-                d.0[0].reference_discrepancy = Some(ReferenceDiscrepancy {
+                d.0[0].reference_discrepancy = CaseReference::Differs(DiscrepancyRecord {
                     intended_expected: vec![fixtures::finding("A001", "input.txt", 0, 1)],
-                    process: None,
+                    process: ProcessExpectation::Absent,
                     ..process_discrepancy()
                 })
             })
@@ -241,7 +243,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::passing, |d| {
-                d.1[1].coverage = Some(RuleCoverage {
+                d.1[1].coverage = CoverageAccounting::Accounted(RuleCoverage {
                     selected: ryo_benchmark_contracts::domain::reports::types::PairCount(2),
                     evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
                     skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),

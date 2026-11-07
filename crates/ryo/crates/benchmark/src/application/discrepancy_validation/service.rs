@@ -110,7 +110,7 @@ pub(crate) fn validate(
         identity,
         &profile,
         &actual_executable,
-        &suite.digest(ArtifactPath(&profile_root.join(crate::domain::suite::constants::BENCHMARK_TOML)))?,
+        &suite.digest(ArtifactPath(&profile_root.join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST)))?,
     )?;
     let settings = text_digest(&settings_text(reference, &invocation, case, &profile)?);
     let files = crate::domain::suite::service::materialized_sources(&case.request);

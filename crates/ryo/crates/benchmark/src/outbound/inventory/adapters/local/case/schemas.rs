@@ -2,7 +2,7 @@
 use crate::outbound::inventory::adapters::local::types::{CaseText, DiscrepancyText};
 use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
 use ryo_benchmark_contracts::domain::documents::types::case_document::value::{CaseContextIdentity, CaseDocument, CaseReference, ContextIdentity, DeclaredScope, EntryState, ExpectationContract, FileMetadata, InventoryCompleteness, ProjectEntry, ProjectInventory, ProjectInventoryDocument};
-use ryo_benchmark_contracts::domain::documents::types::finding::value::{Finding, FindingOffset};
+use ryo_benchmark_contracts::domain::documents::types::finding::value::{RecordedFinding, FindingOffset};
 use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{ContextMode, RuleCohort, RuleContextRecord, RuleObservationsRecord};
 use ryo_benchmark_contracts::domain::documents::types::text::value::{FileMetadataDigest, ProjectInputsDigest};
 use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::DiscrepancyRecord;
@@ -155,7 +155,7 @@ impl TryFrom<CaseSchema> for CaseDocument {
                 ComparisonSchema::Full => CaseComparison::Full,
                 ComparisonSchema::Rule => CaseComparison::Rule,
             },
-            expected: wire.expected.into_iter().map(Finding::from).collect(),
+            expected: wire.expected.into_iter().map(RecordedFinding::from).collect(),
             project_context_mode: wire.project_context_mode.into(),
             context_identity: wire.context_identity.map_or(
                 CaseContextIdentity::Isolated,
@@ -256,13 +256,15 @@ struct FindingSchema {
     end: u64,
 }
 
-impl From<FindingSchema> for Finding {
+impl From<FindingSchema> for RecordedFinding {
     fn from(wire: FindingSchema) -> Self {
         Self {
             rule: RuleName(wire.rule),
             file: PathText(wire.file),
-            start: FindingOffset(wire.start),
-            end: FindingOffset(wire.end),
+            span: ryo_benchmark_contracts::domain::documents::types::finding::value::RecordedSpan {
+                start: FindingOffset(wire.start),
+                end: FindingOffset(wire.end),
+            },
         }
     }
 }

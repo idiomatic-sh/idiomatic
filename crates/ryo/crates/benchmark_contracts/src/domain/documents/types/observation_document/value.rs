@@ -1,5 +1,5 @@
 //! One native side's observation of one registered case.
-use crate::domain::documents::types::finding::value::{ExpectedFindings, Finding, SkippedPair};
+use crate::domain::documents::types::finding::value::{ExpectedFindings, RecordedFinding, SkippedPair};
 use crate::domain::documents::types::reference_discrepancy::value::{ArtifactPointer, DiscrepancyValidation, ExpectationKind};
 use crate::domain::documents::types::text::value::{
     CanonicalJson, CaseName, ContestantSide, ExitStatus, FileMetadataDigest, PathText, Pin, ProjectInputsDigest,
@@ -166,7 +166,7 @@ pub struct ObservationDocument {
     /// Digest of the declared project inputs.
     pub project_inputs_sha256: ProjectInputsDigest,
     /// What the registered case expects.
-    pub expected: Vec<Finding>,
+    pub expected: Vec<RecordedFinding>,
     /// What the reference is expected to report.
     pub reference_expected: ExpectedFindings,
     /// What the side reported: absent for a process failure or a failed run.
@@ -231,7 +231,7 @@ pub enum ReportedFindings {
     /// The side produced no report: a process failure or a failed run.
     Unreported,
     /// The reported diagnostics.
-    Reported(Vec<Finding>),
+    Reported(Vec<RecordedFinding>),
 }
 
 /// The rule/file pairs a side skipped.

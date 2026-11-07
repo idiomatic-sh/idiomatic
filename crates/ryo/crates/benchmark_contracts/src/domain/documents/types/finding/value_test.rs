@@ -1,18 +1,20 @@
 //! Findings order by rule, then file, then span.
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use super::value::{Finding, FindingOffset};
+use super::value::{FindingOffset, RecordedFinding, RecordedSpan};
 use crate::domain::documents::types::text::value::{PathText, RuleName};
 use std::cmp::Ordering;
 
 type Input = (&'static str, &'static str, u64);
 type Value = Ordering;
 type Failure = ();
-fn finding((rule, file, start): Input) -> Finding {
-    Finding {
+fn finding((rule, file, start): Input) -> RecordedFinding {
+    RecordedFinding {
         rule: RuleName(rule.into()),
         file: PathText(file.into()),
-        start: FindingOffset(start),
-        end: FindingOffset(start + 1),
+        span: RecordedSpan {
+            start: FindingOffset(start),
+            end: FindingOffset(start + 1),
+        },
     }
 }
 const CASES: &[Case<(Input, Input), Value, Failure>] = &[

@@ -105,7 +105,7 @@ fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
     let defaults = ["missing", middle, "good"]
         .map(|rule| format!("{name}-{rule}"))
         .to_vec();
-    let profile = context.path().join(crate::domain::suite::constants::BENCHMARK_TOML);
+    let profile = context.path().join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
     std::fs::write(&profile, format!("tool = \"fixture\"\nversion = \"1\"\nsha256 = [{reference_sha:?}]\ndefaults = {defaults:?}\n")).unwrap();
     let rules = [(middle, defaults[1].clone()), ("good", defaults[2].clone())]
         .into_iter()
@@ -116,7 +116,7 @@ fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
             std::fs::write(&definition, format!("definition for {rule}")).unwrap();
             let evidence = directory.join("evidence/oracle.json");
             std::fs::write(&evidence, format!("independent evidence for {rule}")).unwrap();
-            let context_profile = directory.join(crate::domain::suite::constants::BENCHMARK_TOML);
+            let context_profile = directory.join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
             std::fs::write(
                 &context_profile,
                 format!(
@@ -268,7 +268,7 @@ fn undeclared_modules() -> Result<bool, Error> {
         let Command::CaseVerification { context } = entry.command.as_ref().unwrap();
         let helper = context.join("helper.ryoql");
         std::fs::write(&helper, "declared helper").unwrap();
-        let profile = context.join(crate::domain::suite::constants::BENCHMARK_TOML);
+        let profile = context.join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
         let content = std::fs::read_to_string(&profile).unwrap()
             + "query-modules={'test/helper'='helper.ryoql'}\n";
         std::fs::write(&profile, content).unwrap();

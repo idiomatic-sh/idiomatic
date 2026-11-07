@@ -1,8 +1,6 @@
 //! The registered input, cohort and declaration identities bind both native sides.
-use ryo_benchmark_contracts::domain::documents::types::{
-    observation_document::{ContextManifest, ContextMode, ContextRun, FileMetadataDigest},
-    text::{PathText, Sha256Text},
-};
+use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{ContextMode, ContextRun, ListedContext};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{FileMetadataDigest, PathText, Sha256Text};
 
 use super::super::{
     errors::InventoryReceiptsError,
@@ -13,8 +11,8 @@ use super::{COHORT, DECLARED, counts};
 use crate::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::registered_inputs::errors::RegisteredInputsError,
-    outbound::inventory::types::case_document::{CaseContextIdentity, EntryState, FileMetadata},
 };
+use ryo_benchmark_contracts::domain::documents::types::case_document::value::{CaseContextIdentity, EntryState, FileMetadata};
 
 type Input = Documents;
 type Value = ReceiptCounts;
@@ -34,7 +32,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("the registered project scope binds both raw sides"),
         word: Word::Succeeds,
-        input: || fixtures::project_scope(&["src"], EntryState::File, None),
+        input: || fixtures::project_scope(&["src"], EntryState::Regular, None),
         expect: Expect::Value(counts(1, 0, 0)),
     },
     Case {
@@ -70,7 +68,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             fixtures::edited(
                 || fixtures::with_file_metadata(false),
-                |d| d.0[0].file_metadata_sha256 = None,
+                |d| d.0[0].file_metadata_sha256 = FileMetadataDigest::Undeclared,
             )
         },
         expect: Expect::Error(InventoryReceiptsError::FileMetadataDigestDiffers),
@@ -93,7 +91,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a changed project scope no longer matches its registered identity"),
         word: Word::Refuses,
-        input: || fixtures::project_scope(&["vendor", "src"], EntryState::File, None),
+        input: || fixtures::project_scope(&["vendor", "src"], EntryState::Regular, None),
         expect: Expect::Error(InventoryReceiptsError::ProjectInputsDigestDiffers),
     },
     Case {
@@ -105,7 +103,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a stale project identity on a row is refused"),
         word: Word::Refuses,
-        input: || fixtures::project_scope(&["src"], EntryState::File, Some("stale-identity")),
+        input: || fixtures::project_scope(&["src"], EntryState::Regular, Some("stale-identity")),
         expect: Expect::Error(InventoryReceiptsError::ObservationStale),
     },
     Case {
@@ -149,7 +147,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             fixtures::edited(fixtures::passing, |d| {
-                d.1[0].context_manifest = ContextRun::Listed(ContextManifest {
+                d.1[0].context_manifest = ContextRun::Listed(ListedContext {
                     mode: ContextMode::ListedDisk,
                     logical_root: PathText("root".into()),
                     actual_root: PathText("/cases/root".into()),

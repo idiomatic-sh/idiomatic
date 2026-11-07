@@ -56,8 +56,6 @@ pub(super) const INVENTORY_MUST_CONTAIN_UNIQUE_NONEMPTY_RULE: &str =
     "inventory must contain unique nonempty rule IDs";
 /// Text of the not run in this part.
 pub(super) const NOT_RUN: &str = "not run";
-/// The pinned linter profile file inside a profile directory.
-pub(crate) const BENCHMARK_TOML: &str = "benchmark.toml";
 /// The authored query file inside a rule directory.
 pub(crate) const QUERY_RYOQL: &str = "query.ryoql";
 /// A registered rule whose command is absent cannot be verified.

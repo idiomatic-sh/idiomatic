@@ -77,7 +77,7 @@ pub(crate) fn output_digest(report: &RunReport) -> ArtifactDigest {
             ),
         ),
         (
-            Label::from(constants::DIAGNOSTICS),
+            Label::from(ryo_benchmark_contracts::domain::receipts::constants::DIAGNOSTICS),
             Fragment::List(diagnostics),
         ),
         (Label::from(constants::SKIPPED), Fragment::List(Vec::new())),
@@ -247,4 +247,22 @@ pub(crate) fn judge(
     Ok(super::types::Judgement {
         comparison: compare(expected, &report),
     })
+}
+
+/// What a contestant's difference from its expectation says, with its skipped pairs.
+#[must_use]
+pub(crate) fn describe_difference(
+    case: &PreparedCase,
+    contestant: Contestant,
+    difference: &ryo_benchmark_contracts::domain::reports::types::Difference,
+) -> ryo_benchmark_contracts::domain::documents::types::text::value::ReasonText {
+    ryo_benchmark_contracts::domain::documents::types::text::value::ReasonText(format!(
+        "{}/{} expected-vs-{contestant}: expected={:?}; actual={:?}; expected-skipped={:?}; actual-skipped={:?}",
+        case.rule,
+        case.name,
+        difference.reference,
+        difference.candidate,
+        difference.reference_skipped,
+        difference.candidate_skipped
+    ))
 }

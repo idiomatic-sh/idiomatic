@@ -7,27 +7,25 @@ use crate::domain::registered_inputs::{
     service as inputs,
     types::{ObservationDeclaration, RegisteredInputs},
 };
-use crate::outbound::inventory::types::{
-    InvocationDocument,
-    case_document::{
-        CaseContextIdentity, CaseDocument, EntryState, ExpectationContract, FileMetadata,
-        FileObservation, InventoryCompleteness, ProjectInventory, ProjectScope,
-    },
-};
+use ryo_benchmark_contracts::domain::documents::types::case_document::value::DeclaredScope;
+use ryo_benchmark_contracts::domain::workloads::types::FileObservation;
+use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
+use ryo_benchmark_contracts::domain::documents::types::case_document::value::{CaseContextIdentity, CaseDocument, CaseReference, EntryState, ExpectationContract, FileMetadata, InventoryCompleteness, ProjectInventory};
 use ryo::linter::{
     GivenProjectInventory, ProjectEntryObservation, ProjectEntryState,
     ProjectInventoryCompleteness, RelativePath,
 };
-use ryo_benchmark_contracts::domain::documents::types::{
-    finding::Finding,
-    observation_document::{
-        ContextMode, ContextRun, FileMetadataDigest, ObservationDocument, ProjectContextRecord,
-        ProjectInputsDigest, ReferenceExpectation, SourceIdentity, ToolContractRecord,
-    },
-    text::{ContestantSide, PathText, Sha256Text, YesNo},
+use ryo_benchmark_contracts::domain::documents::types::finding::value::{ExpectedFindings, RecordedFinding};
+use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+    ContextMode, ContextRun, ObservationDocument, ProjectContextRecord, RecordedMetadata, RecordedReason,
+    ReferenceProcess, ReportedFindings, ReportedSkips, SourceIdentity, ToolContractRecord, ValidationRecord,
 };
+use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{
+    DiscrepancyRecord, DiscrepancyValidation, ProcessExpectation,
+};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{ContestantSide, FileMetadataDigest, PathText, ProjectInputsDigest, Sha256Text, YesNo};
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
-use ryo_benchmark_contracts::domain::reports::types::{ComparisonContract, ExecutionMetadata};
+use ryo_benchmark_contracts::domain::reports::types::{ComparisonContract, CoverageAccounting, ExecutionMetadata};
 use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 use std::collections::HashSet;
 
@@ -55,8 +53,8 @@ pub(crate) fn registered_inputs(case: &CaseDocument) -> RegisteredInputs {
             FileMetadata::Undeclared => None,
         },
         search_roots: match &case.project_search_roots {
-            ProjectScope::Roots(roots) => Some(roots.iter().map(relative).collect()),
-            ProjectScope::Undeclared => None,
+            DeclaredScope::Roots(roots) => Some(roots.iter().map(relative).collect()),
+            DeclaredScope::Undeclared => None,
         },
         inventory: match &case.given_project_inventory {
             ProjectInventory::Declared(inventory) => GivenProjectInventory {
@@ -66,7 +64,7 @@ pub(crate) fn registered_inputs(case: &CaseDocument) -> RegisteredInputs {
                     .map(|entry| ProjectEntryObservation {
                         path: relative(&entry.path),
                         state: match entry.state {
-                            EntryState::File => ProjectEntryState::File,
+                            EntryState::Regular => ProjectEntryState::Regular,
                             EntryState::Directory => ProjectEntryState::Directory,
                             EntryState::Other => ProjectEntryState::Other,
                             EntryState::Missing => ProjectEntryState::Missing,
@@ -87,15 +85,39 @@ pub(crate) fn registered_inputs(case: &CaseDocument) -> RegisteredInputs {
 }
 
 /// The diagnostics a document derived for the reference, when it did.
-fn derived(expected: &ReferenceExpectation) -> Option<&Vec<Finding>> {
+fn derived(expected: &ExpectedFindings) -> Option<&Vec<RecordedFinding>> {
     match expected {
-        ReferenceExpectation::Derived(rows) => Some(rows),
-        ReferenceExpectation::Underivable => None,
+        ExpectedFindings::Derived(rows) => Some(rows),
+        ExpectedFindings::Underivable => None,
+    }
+}
+
+/// The documented discrepancy a case registers, when it differs from the reference.
+fn differing(case: &CaseDocument) -> Option<&DiscrepancyRecord> {
+    match &case.reference_discrepancy {
+        CaseReference::Differs(record) => Some(record),
+        CaseReference::Agrees => None,
+    }
+}
+
+/// The diagnostics a side reported, when it reported any.
+fn reported(findings: &ReportedFindings) -> Option<&Vec<RecordedFinding>> {
+    match findings {
+        ReportedFindings::Reported(rows) => Some(rows),
+        ReportedFindings::Unreported => None,
+    }
+}
+
+/// The validation a side attests, when it attests one.
+fn attestation(row: &ObservationDocument) -> Option<&DiscrepancyValidation> {
+    match &row.discrepancy_validation {
+        ValidationRecord::Attested(proof) => Some(proof),
+        ValidationRecord::Unattested => None,
     }
 }
 
 /// The sorted diagnostics of one document, each with a rule, a file and an ordered span.
-fn normalized(rows: Option<&Vec<Finding>>) -> Result<Vec<Finding>, Failure> {
+fn normalized(rows: Option<&Vec<RecordedFinding>>) -> Result<Vec<RecordedFinding>, Failure> {
     let mut rows = rows.ok_or(Failure::DiagnosticsMissing)?.clone();
     if rows
         .iter()
@@ -170,7 +192,7 @@ pub(crate) fn validate_with_artifacts(
         let project_inputs = digest_text(inputs::project_inputs_digest(&declared_inputs)?);
         let metadata_digest = FileMetadataDigest::from(metadata.clone());
         let inputs_digest = ProjectInputsDigest::from(project_inputs);
-        if case.file_metadata_sha256 != metadata {
+        if case.file_metadata_sha256 != metadata_digest {
             return Err(Failure::FileMetadataDigestDiffers);
         }
         if case.project_inputs_sha256 != inputs_digest {
@@ -181,9 +203,11 @@ pub(crate) fn validate_with_artifacts(
             ExpectationContract::Unwritten => ComparisonContract::Diagnostics,
         };
         let expected = normalized(Some(&case.expected))?;
-        let certificate = case.reference_discrepancy.as_ref();
+        let certificate = differing(case);
         let basis = certificate.map(|certificate| certificate.basis);
-        let process = certificate.is_some_and(|certificate| certificate.process.is_some());
+        let process = certificate.is_some_and(|certificate| {
+            matches!(certificate.process, ProcessExpectation::Failure(_))
+        });
         if process && declared != ComparisonContract::Diagnostics {
             return Err(Failure::ProcessExpectationNotComplete);
         }
@@ -221,7 +245,7 @@ pub(crate) fn validate_with_artifacts(
                 return Err(Failure::ExpectationContractDiffers);
             }
             if row.complete != YesNo::Yes
-                || row.error.is_some()
+                || row.error != RecordedReason::Absent
                 || row.case_passed != YesNo::Yes
                 || row.source_sha256 != SourceIdentity::Sealed(case.source_sha256.clone())
                 || row.file_metadata_sha256 != metadata_digest
@@ -229,7 +253,7 @@ pub(crate) fn validate_with_artifacts(
                 || row.files != case.files
                 || normalized(Some(&row.expected))? != expected
                 || if process {
-                    matches!(row.reference_expected, ReferenceExpectation::Derived(_))
+                    matches!(row.reference_expected, ExpectedFindings::Derived(_))
                 } else {
                     normalized(derived(&row.reference_expected))? != reference_expected
                 }
@@ -247,28 +271,31 @@ pub(crate) fn validate_with_artifacts(
             if process && side == ContestantSide::Reference {
                 process_receipts::validate(case, row, artifacts, invocations)?;
             } else {
-                if row.process_observation.is_some() {
+                if row.process_observation != ReferenceProcess::NotObserved {
                     return Err(Failure::UnexpectedProcessObservation);
                 }
-                let actual = normalized(row.diagnostics.as_ref())?;
+                let actual = normalized(reported(&row.diagnostics))?;
                 let required = if side == ContestantSide::Reference {
                     &reference_expected
                 } else {
                     &expected
                 };
-                if actual != *required || row.skipped.is_none() {
+                if actual != *required || row.skipped == ReportedSkips::Unreported {
                     return Err(Failure::DiagnosticsDiffer);
                 }
             }
             if side == ContestantSide::Candidate {
-                let accounted = row.coverage.is_some_and(|coverage| {
-                    coverage.selected != 0
-                        && coverage.evaluated.checked_add(coverage.skipped)
-                            == Some(coverage.selected)
-                        && coverage.unknown_or_unread == 0
-                });
+                let accounted = match row.coverage {
+                    CoverageAccounting::Accounted(coverage) => {
+                        coverage.selected.0 != 0
+                            && coverage.evaluated.0.checked_add(coverage.skipped.0)
+                                == Some(coverage.selected.0)
+                            && coverage.unknown_or_unread.0 == 0
+                    }
+                    CoverageAccounting::Unaccounted => false,
+                };
                 if row.expectation_contract != ComparisonContract::Diagnostics
-                    || row.execution_metadata != Some(ExecutionMetadata::Complete)
+                    || row.execution_metadata != RecordedMetadata::Recorded(ExecutionMetadata::Complete)
                     || !accounted
                 {
                     return Err(Failure::CandidateNotAccounted);
@@ -300,14 +327,16 @@ pub(crate) fn validate_with_artifacts(
             sides.push(row);
         }
         if let Some(certificate) = certificate {
-            let proof = sides[0].discrepancy_validation.as_ref();
-            if proof.and_then(|proof| proof.file_metadata_sha256.as_ref()) != metadata.as_ref()
-                || certificate.identity.file_metadata != metadata
+            let proof = attestation(sides[0]);
+            if proof.map_or(FileMetadataDigest::Undeclared, |proof| {
+                proof.file_metadata_sha256.clone()
+            }) != metadata_digest
+                || certificate.identity.file_metadata != metadata_digest
             {
                 return Err(Failure::DiscrepancyMetadataDiffers);
             }
             let Some(proof) =
-                proof.filter(|proof| sides[1].discrepancy_validation.as_ref() == Some(*proof))
+                proof.filter(|proof| attestation(sides[1]) == Some(*proof))
             else {
                 return Err(Failure::DiscrepancyValidationMissing);
             };
@@ -336,8 +365,8 @@ pub(crate) fn validate_with_artifacts(
         }
         inventory_execution::compare(sides[0], sides[1], declared)?;
         let exact = !process
-            && normalized(sides[0].diagnostics.as_ref())?
-                == normalized(sides[1].diagnostics.as_ref())?
+            && normalized(reported(&sides[0].diagnostics))?
+                == normalized(reported(&sides[1].diagnostics))?
             && sides[0].skipped == sides[1].skipped;
         raw_exact += usize::from(exact);
         documented += usize::from(!exact && certificate.is_some());

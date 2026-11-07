@@ -1,5 +1,5 @@
 //! A documented difference from the reference tool, and the validation a native side attests.
-use crate::domain::documents::types::finding::value::{ExpectedFindings, Finding};
+use crate::domain::documents::types::finding::value::{ExpectedFindings, RecordedFinding};
 use crate::domain::documents::types::text::value::{FileMetadataDigest, PathText, Pin, ReasonText, Sha256Text};
 use crate::domain::process::types::ProcessFailure;
 use crate::domain::workloads::types::DiscrepancyBasis;
@@ -48,7 +48,7 @@ pub struct DiscrepancyRecord {
     /// What the reference reports.
     pub reference_expected: ExpectedFindings,
     /// What the intended behavior reports.
-    pub intended_expected: Vec<Finding>,
+    pub intended_expected: Vec<RecordedFinding>,
     /// Why the difference is accepted.
     pub reason: ReasonText,
     /// The explicit process failure: present when the reference does not report diagnostics.

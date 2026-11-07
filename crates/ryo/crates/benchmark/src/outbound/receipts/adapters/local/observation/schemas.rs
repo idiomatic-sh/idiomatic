@@ -1,6 +1,6 @@
 //! The native receipt row: read back by the inventory and written by the case observer.
 //! Unknown fields are refused; the documents are a contract.
-use ryo_benchmark_contracts::domain::documents::types::finding::value::{ExpectedFindings, Finding, FindingOffset, SkippedPair};
+use ryo_benchmark_contracts::domain::documents::types::finding::value::{ExpectedFindings, RecordedFinding, FindingOffset, SkippedPair};
 use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{ContextMode, ContextRun, IntentMatch, ListedContext, ObservationDocument, ProcessArtifacts, ProcessRecord, ProjectContextRecord, RuleCohort, RuleContextRecord, RuleObservationsRecord, SourceIdentity, ToolContractRecord};
 use ryo_benchmark_contracts::domain::documents::types::text::value::{CanonicalJson, CaseName, ContestantSide, FileMetadataDigest, PathText, ProjectInputsDigest, ReasonText, RuleName, SchemaName, Sha256Text, Signal, YesNo};
 use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{ArtifactPointer, DiscrepancyValidation, ExpectationKind};
@@ -54,17 +54,17 @@ struct FindingSchema {
     start: u64,
     end: u64,
 }
-impl From<&Finding> for FindingSchema {
-    fn from(value: &Finding) -> Self {
+impl From<&RecordedFinding> for FindingSchema {
+    fn from(value: &RecordedFinding) -> Self {
         Self {
             rule: value.rule.0.clone(),
             file: value.file.0.clone(),
-            start: value.start.0,
-            end: value.end.0,
+            start: value.span.start.0,
+            end: value.span.end.0,
         }
     }
 }
-fn wire_findings(rows: &[Finding]) -> Vec<FindingSchema> {
+fn wire_findings(rows: &[RecordedFinding]) -> Vec<FindingSchema> {
     rows.iter().map(FindingSchema::from).collect()
 }
 

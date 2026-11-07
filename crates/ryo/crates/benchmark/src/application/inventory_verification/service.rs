@@ -68,7 +68,6 @@ fn row(registration: &Registration, rule: &RuleName, outcome: &RuleEvidence) -> 
     }
 }
 
-/// The complete snapshot of the inventory's current results.
 fn summary(registration: &Registration, inventory: &Inventory, state: RunState) -> Summary {
     let rules = inventory
         .rules()
@@ -89,7 +88,6 @@ fn summary(registration: &Registration, inventory: &Inventory, state: RunState) 
     }
 }
 
-/// A refusal in the words the failed row carries.
 fn refused(error: impl std::fmt::Display) -> FailureReason {
     FailureReason(error.to_string())
 }
@@ -247,6 +245,28 @@ pub fn verify(
     Ok(inventory.verdict())
 }
 
+/// Verify the registered cases once; cold, warm and edited measurements reuse the sealed result.
+///
+/// # Errors
+/// Refuses a failed verification, and propagates every verification failure.
+pub fn certify_registered(
+    registration: &Registration,
+    output: &Path,
+    suite: &dyn SuitePort,
+    receipts: &dyn ReceiptsPort,
+    execution: &dyn ExecutionPort,
+    store: &dyn InventoryPort,
+) -> Result<CaseCount, Error> {
+    if verify(registration, output, suite, receipts, execution, store)? != InventoryVerdict::Passed {
+        return Err(Error::Invalid(
+            constants::REGISTERED_INDEPENDENT_CASE_CERTIFICATION_FA.into(),
+        ));
+    }
+    Ok(CaseCount(
+        registration.rules.iter().map(|rule| rule.cases.len()).sum(),
+    ))
+}
+
 /// A complete result cannot contradict its pinned canonical profile.
 ///
 /// # Errors
@@ -279,7 +299,7 @@ pub fn require_authority(
     };
     let tool = suite.profile(ArtifactPath(profile))?;
     let observed_profile = suite.digest(ArtifactPath(
-        &profile.join(crate::domain::suite::constants::BENCHMARK_TOML),
+        &profile.join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST),
     ))?;
     let observed_reference = suite.digest(ArtifactPath(&reference.path))?;
     let observed_worker = suite.digest(ArtifactPath(&worker.path))?;

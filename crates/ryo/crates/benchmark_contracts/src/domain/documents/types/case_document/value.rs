@@ -1,6 +1,6 @@
 //! The registered case a provider's authoring writes, as a plain value.
 use crate::domain::artifacts::types::FileExecutable;
-use crate::domain::documents::types::finding::value::Finding;
+use crate::domain::documents::types::finding::value::RecordedFinding;
 use crate::domain::documents::types::observation_document::value::{
     ContextMode, RuleCohort, RuleContextRecord, RuleObservationsRecord,
 };
@@ -140,7 +140,7 @@ pub struct CaseDocument {
     /// How much of the report the case compares.
     pub comparison: CaseComparison,
     /// The diagnostics the candidate must report.
-    pub expected: Vec<Finding>,
+    pub expected: Vec<RecordedFinding>,
     /// How the sources are staged.
     pub project_context_mode: ContextMode,
     /// The listed context the case was authored against.

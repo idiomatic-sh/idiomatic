@@ -132,7 +132,7 @@ impl Fixture {
             .artifact_digests
             .insert(PathBuf::from("fixture"), ArtifactDigest("a".repeat(64)));
         suite.artifact_digests.insert(
-            source.join(crate::domain::suite::constants::BENCHMARK_TOML),
+            source.join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST),
             ArtifactDigest("c".repeat(64)),
         );
         let linter = crate::outbound::linter::fixtures::fake::LinterFake::default();

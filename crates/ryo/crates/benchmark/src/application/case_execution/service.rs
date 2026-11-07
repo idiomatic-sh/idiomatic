@@ -176,7 +176,7 @@ pub fn run(
                     &crate::domain::canonical_text::types::Document(settings_text.clone()),
                 );
                 let profile_pin = suite.digest(ArtifactPath(
-                    &profile_root.join(crate::domain::suite::constants::BENCHMARK_TOML),
+                    &profile_root.join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST),
                 ))?;
                 let metadata_pin =
                     crate::domain::input_metadata::service::digest(&case.request.file_metadata)?;
