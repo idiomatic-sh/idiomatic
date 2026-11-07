@@ -42,7 +42,7 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
         }
     }
     let phase = crate::application::file_dag::program::facade_runtime::service::publication_owner(
-        &prepared, &services,
+        &prepared, &services, std::sync::Arc::new(crate::outbound::digest::fixtures::fake::DigestFake),
     )?;
     let owner = Rc::clone(phase.owner());
     // A project phase has no file-cache backend. Required derived views still

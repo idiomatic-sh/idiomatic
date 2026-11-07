@@ -49,7 +49,7 @@ type Input = (Binary, Missing, Delivery);
 type Value = ();
 type Failure = OperatingError;
 fn subject((operator, missing, delivery): Input) -> Result<Value, Failure> {
-    let (elements, mut symbols) = fixtures::tree_with_names();
+    let (elements, mut symbols) = fixtures::requests::tree_with_names();
     // Actual Function declaration and valid typed cells; no numeric catalog stand-in.
     let function = Table {
         kinds: kinds(Relation::Function).to_vec(),
@@ -109,7 +109,7 @@ fn subject((operator, missing, delivery): Input) -> Result<Value, Failure> {
         operation,
     ]);
     let result = match delivery {
-        Delivery::Collected => fixtures::published_from(
+        Delivery::Collected => fixtures::requests::published_from(
             plan,
             vec![],
             vec![],
@@ -123,14 +123,14 @@ fn subject((operator, missing, delivery): Input) -> Result<Value, Failure> {
             use ryo_values::domain::files::types::{
                 CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
             };
-            let (engine, prepared) = fixtures::prepared(plan, vec![], vec![])?;
+            let (engine, prepared) = fixtures::requests::prepared(plan, vec![], vec![])?;
             let corpus = [CorpusInput::Available(CorpusEntry {
                 path: ryo_language::domain::files::types::FilePath("provider-refusal.py".into()),
                 size: FileSize(4),
                 modified: Nanoseconds(0),
                 executable: ExecutablePermission::Unknown,
             })];
-            let request = fixtures::execution().execution(&prepared, &corpus);
+            let request = fixtures::requests::execution().execution(&prepared, &corpus);
             let mut file = request.open_file(
                 FileInput {
                     language: SourceLanguage::Recognized,

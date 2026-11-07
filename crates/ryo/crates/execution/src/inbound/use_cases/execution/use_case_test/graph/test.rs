@@ -115,7 +115,7 @@ fn compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_dupl
     .expect("columns")
     .expect("graph");
     let mut symbols = Symbols::default();
-    let (ordinary, _) = fixtures::table_request(
+    let (ordinary, _) = fixtures::requests::table_request(
         Operation::Closure {
             edges: PlanInput::Relation(Relation::Function),
             source: ColumnIndex(0),

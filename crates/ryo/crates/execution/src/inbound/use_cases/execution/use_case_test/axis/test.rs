@@ -62,7 +62,7 @@ fn compute(
     inputs: &[&Table],
     bindings: &[ParameterBinding],
 ) -> Result<Value, OperatingError> {
-    Ok(fixtures::table_request(
+    Ok(fixtures::requests::table_request(
         operation.clone(),
         inputs,
         bindings.to_vec(),
@@ -236,7 +236,7 @@ fn sparse_computed_walk_work_is_rooted() -> Result<Value, OperatingError> {
                 push_row(&mut starts, &[node(1), Cell::Number(Integer(payload))]);
             }
             let domain = node_table([1, 2, 3]);
-            let (out, observation) = fixtures::table_request(
+            let (out, observation) = fixtures::requests::table_request(
                 axis(Direction::Descendant, vec![], vec![]),
                 &[&starts, &edges, &domain],
                 vec![],

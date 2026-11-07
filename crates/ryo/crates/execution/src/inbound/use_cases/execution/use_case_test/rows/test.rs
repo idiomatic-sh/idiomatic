@@ -44,7 +44,7 @@ fn subject((keys, binding): Input) -> Result<Value, Failure> {
             kind: ryo_values::domain::query_bindings::types::ParameterType::Tables,
         });
     let mut symbols = Symbols::default();
-    let output = fixtures::published(plan, binding.into_iter().collect(), vec![], &mut symbols)?;
+    let output = fixtures::requests::published(plan, binding.into_iter().collect(), vec![], &mut symbols)?;
     let rows: Vec<_> = output
         .cells
         .chunks(keys.len().max(1))

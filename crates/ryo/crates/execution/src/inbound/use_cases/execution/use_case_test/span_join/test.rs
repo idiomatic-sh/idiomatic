@@ -19,7 +19,7 @@ type Input = bool;
 type Value = ();
 type Failure = OperatingError;
 fn subject(stretch_first: Input) -> Result<Value, Failure> {
-    let (elements, mut symbols) = fixtures::tree_with_names();
+    let (elements, mut symbols) = fixtures::requests::tree_with_names();
     let word = ryo_language::domain::symbols::service::intern_derived(
         &mut symbols,
         ryo_language::domain::symbols::types::ByteSlice(b"abcd"),
@@ -80,7 +80,7 @@ fn subject(stretch_first: Input) -> Result<Value, Failure> {
         assert_eq!(relation, Relation::Function);
         Ok(SourceRows::Computed(&source))
     };
-    let out = fixtures::published_from(
+    let out = fixtures::requests::published_from(
         plan,
         vec![],
         vec![],

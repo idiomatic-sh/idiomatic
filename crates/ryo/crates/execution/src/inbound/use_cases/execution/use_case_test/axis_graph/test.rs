@@ -1,7 +1,7 @@
 //! The canonical stored graph, selected stored edges and hosted ordinary traversal publish identical ordered bags.
 use crate::application::file_dag::program::file_session::interface::FileExecution as _;
 use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
-use super::super::super::fixtures::{Authored, Preparation};
+use super::super::super::fixtures::requests::{Authored, Preparation};
 use crate::outbound::facts::types::ResidentStability;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::super::fixtures;
@@ -132,9 +132,9 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
                 exclude: vec![],
             })
             .collect(), digests: vec![Digest([0; 16]); 5], hosted: vec![
-            fixtures::numbers("starts", 1, &[&[1], &[1], &[4], &[999]]),
-            fixtures::numbers("domain", 1, &[&[1], &[2], &[9], &[9], &[4], &[91]]),
-            fixtures::numbers("edges", 2, EDGES),
+            fixtures::requests::numbers("starts", 1, &[&[1], &[1], &[4], &[999]]),
+            fixtures::requests::numbers("domain", 1, &[&[1], &[2], &[9], &[9], &[4], &[91]]),
+            fixtures::requests::numbers("edges", 2, EDGES),
         ], observations: ObservationIdentity::Independent })?;
     let columns = [
         FactColumn(vec![to_bits(Cell::File(FileId(0))).0; 7]),
@@ -168,7 +168,7 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
         size: FileSize(0),
         modified: Nanoseconds(0),
     })];
-    let request = fixtures::execution().execution(&prepared, &corpus);
+    let request = fixtures::requests::execution().execution(&prepared, &corpus);
     let mut symbols = Symbols::default();
     let elements = Elements::default();
     let intents = vec![

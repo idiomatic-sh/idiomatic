@@ -20,7 +20,7 @@ type Input = ();
 type Value = ();
 type Failure = OperatingError;
 fn subject((): Input) -> Result<Value, Failure> {
-    let (elements, mut symbols) = fixtures::tree_with_names();
+    let (elements, mut symbols) = fixtures::requests::tree_with_names();
     let has_text = PlanComparison {
         test: Test::NotEqual,
         left: Operand::Column(ColumnIndex(2)),
@@ -76,8 +76,8 @@ fn subject((): Input) -> Result<Value, Failure> {
             reach: None,
         },
     ]);
-    let right = fixtures::published_file(right, vec![], vec![], b"abcd", &elements, &mut symbols)?;
-    let left = fixtures::published_file(left, vec![], vec![], b"abcd", &elements, &mut symbols)?;
+    let right = fixtures::requests::published_file(right, vec![], vec![], b"abcd", &elements, &mut symbols)?;
+    let left = fixtures::requests::published_file(left, vec![], vec![], b"abcd", &elements, &mut symbols)?;
     assert_eq!(right.count.0, 2);
     assert_eq!(left.count.0, 2);
     assert_eq!(right.cells, left.cells);

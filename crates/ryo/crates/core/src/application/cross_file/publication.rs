@@ -1,6 +1,6 @@
 //! Normalize demanded phase roots at the existing table codec boundary before Symbols are dropped.
 use crate::domain::finish::service::missing_publication_table;
-use ryo_execution::outbound::publication::interface::PublicationPort;
+use ryo_execution::inbound::use_cases::publication::interface::{PublicationInput, PublicationUseCase};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{Origin, Words, WorkerNumber};
 use ryo_values::domain::records::types::{CrossPublicationTransfer, PackedObservedRoot};
@@ -21,7 +21,7 @@ pub(crate) fn pack_roots(
     symbols: &mut Symbols,
     inherited: &[ArenaBytes],
     worker: WorkerNumber,
-    publication: &dyn PublicationPort,
+    publication: &dyn PublicationUseCase,
 ) -> CrossPublicationTransfer {
     let mut arena = ArenaBytes::default();
     let mut packed = Vec::with_capacity(roots.len());
@@ -49,7 +49,7 @@ fn pack_root(
     inherited: &[ArenaBytes],
     worker: WorkerNumber,
     arena: &mut ArenaBytes,
-    publication: &dyn PublicationPort,
+    publication: &dyn PublicationUseCase,
 ) -> PackedObservedRoot {
     let mut published = PackedObservedRoot {
         output: root.output,
@@ -70,11 +70,17 @@ fn pack_root(
     };
     let before = arena.0.len();
     let mut places = Vec::new();
-    if let Err(reason) =
-        publication.publication(&mut table, symbols, inherited, worker, arena, &mut places)
-    {
+    if let Err(error) = publication.publication(PublicationInput {
+        table: &mut table,
+        symbols: &mut *symbols,
+        inherited,
+        worker,
+        arena: &mut *arena,
+        places: &mut places,
+    }) {
         arena.0.truncate(before);
-        published.readiness = ProducerReadiness::Unknown(reason);
+        published.readiness =
+            ProducerReadiness::Unknown(ObservationReason(error.to_string().into()));
         return published;
     }
     for place in &places {

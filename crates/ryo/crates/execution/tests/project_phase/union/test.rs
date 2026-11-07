@@ -43,6 +43,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     let engine = PrepareUseCaseImpl::new(
         union_semantic_calls.clone(),
         Arc::new(ryo_execution::outbound::derived::factory::semantics()),
+        std::sync::Arc::new(ryo_execution::outbound::digest::factory::blake3()),
     );
     let mut authored = authored_request(2);
     let relation = Relation::ModuleIdentity;

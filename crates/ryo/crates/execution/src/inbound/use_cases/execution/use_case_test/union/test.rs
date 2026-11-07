@@ -16,10 +16,10 @@ type Value = bool;
 type Failure = OperatingError;
 fn subject((): Input) -> Result<Value, Failure> {
     let hosts = vec![
-        fixtures::numbers("a", 1, &[&[1], &[2]]),
-        fixtures::numbers("b", 1, &[&[1], &[2]]),
-        fixtures::numbers("c", 1, &[&[2], &[3]]),
-        fixtures::numbers("d", 1, &[&[1], &[3]]),
+        fixtures::requests::numbers("a", 1, &[&[1], &[2]]),
+        fixtures::requests::numbers("b", 1, &[&[1], &[2]]),
+        fixtures::requests::numbers("c", 1, &[&[2], &[3]]),
+        fixtures::requests::numbers("d", 1, &[&[1], &[3]]),
     ];
     let source_steps: Vec<_> = (0..4)
         .map(|index| Operation::Hosted {
@@ -56,13 +56,13 @@ fn subject((): Input) -> Result<Value, Failure> {
             right: PlanInput::Step(StepId(3)),
         },
     ]);
-    let balanced = fixtures::published(
+    let balanced = fixtures::requests::published(
         inputs::plan(balanced),
         vec![],
         hosts.clone(),
         &mut Symbols::default(),
     )?;
-    let left_deep = fixtures::published(
+    let left_deep = fixtures::requests::published(
         inputs::plan(left_deep),
         vec![],
         hosts,

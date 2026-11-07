@@ -101,6 +101,7 @@ pub(crate) fn prepare(
     identity: ObservationIdentity,
     operators: Arc<dyn OperatorsPort>,
     derived: &DerivedAccess,
+    digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
 ) -> Result<PreparedExecutionProgram, OperatingError> {
     let inner = crate::application::file_dag::program::preparation::service::prepare(
         compiled,
@@ -114,5 +115,6 @@ pub(crate) fn prepare(
         inner,
         kernels: Arc::new(CommonOperatorEngine::new(operators)),
         derived: derived.clone(),
+        digest,
     })
 }

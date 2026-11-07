@@ -172,6 +172,7 @@ pub(super) fn world_with_applicability(
     let engine = PrepareUseCaseImpl::new(
         operators,
         Arc::new(ryo_execution::outbound::derived::factory::semantics()),
+        Arc::new(ryo_execution::outbound::digest::factory::blake3()),
     );
     let program = Arc::new(
         engine
@@ -389,5 +390,5 @@ impl ryo_execution::outbound::operators::interface::OperatorsPort for ProjectCal
 pub(super) fn service() -> CrossFile {
     CrossFile::new(std::sync::Arc::new(
         crate::outbound::corpus::fixtures::fake::CorpusFake::default(),
-    ), std::sync::Arc::new(ryo_execution::outbound::publication::factory::execution()))
+    ), std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new()))
 }

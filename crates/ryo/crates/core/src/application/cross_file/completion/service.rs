@@ -11,7 +11,7 @@ use crate::domain::answering::types::Crossed;
 use crate::domain::answering::types::Todo;
 use crate::domain::crossing::types::ObservedRoot;
 use crate::domain::crossing::types::PhaseRoots;
-use ryo_execution::outbound::publication::interface::PublicationPort;
+use ryo_execution::inbound::use_cases::publication::interface::PublicationUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationContract;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
@@ -27,18 +27,18 @@ use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use ryo_values::domain::rule_requests::service::failed;
 use std::sync::Arc;
 
-/// Delivers a project phase's answer and publications, over the injected publication port.
+/// Delivers a project phase's answer and publications, over the engine's publication use case.
 pub(crate) struct ProjectCompletion {
     /// Packs the demanded roots into the shared publication form.
-    publication: Arc<dyn PublicationPort>,
+    publication: Arc<dyn PublicationUseCase>,
     /// Places and renders the diagnostic root.
     rendering: Rendering,
 }
 
 impl ProjectCompletion {
-    /// Bind the publication port and the rendering once at composition.
+    /// Bind the publication use case and the rendering once at composition.
     #[must_use]
-    pub(crate) fn new(rendering: Rendering, publication: Arc<dyn PublicationPort>) -> Self {
+    pub(crate) fn new(rendering: Rendering, publication: Arc<dyn PublicationUseCase>) -> Self {
         Self {
             publication,
             rendering,

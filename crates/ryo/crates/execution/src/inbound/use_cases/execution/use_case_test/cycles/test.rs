@@ -42,7 +42,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         operations.push(Operation::Hosted {
             relation: HostedNumber(0),
         });
-        vec![fixtures::numbers("edges", 2, rows)]
+        vec![fixtures::requests::numbers("edges", 2, rows)]
     };
     operations.push(Operation::Cycles {
         edges: if matches!(input, Scenario::Missing) {
@@ -53,7 +53,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         source: ColumnIndex(0),
         destination: ColumnIndex(1),
     });
-    let output = fixtures::published(
+    let output = fixtures::requests::published(
         inputs::plan(operations),
         vec![],
         hosted,

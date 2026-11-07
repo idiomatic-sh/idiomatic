@@ -37,8 +37,8 @@ fn project_result(operation: &Operation, malformed: bool) -> Result<Table, Opera
         }
     };
     let (engine, prepared) =
-        fixtures::prepared(inputs::plan(vec![operation.clone()]), vec![], vec![])?;
-    fixtures::run_prepared(
+        fixtures::requests::prepared(inputs::plan(vec![operation.clone()]), vec![], vec![])?;
+    fixtures::requests::run_prepared(
         &engine,
         &prepared,
         b"",
@@ -52,7 +52,7 @@ fn project_result(operation: &Operation, malformed: bool) -> Result<Table, Opera
 fn axis_result(operation: &Operation, tables: &[Table]) -> Result<Table, OperatingError> {
     let references = tables.iter().collect::<Vec<_>>();
     let mut symbols = Symbols::default();
-    fixtures::table_request(operation.clone(), &references, vec![], &mut symbols)
+    fixtures::requests::table_request(operation.clone(), &references, vec![], &mut symbols)
         .map(|(table, _)| table)
 }
 
