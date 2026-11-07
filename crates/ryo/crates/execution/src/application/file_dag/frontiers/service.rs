@@ -7,8 +7,8 @@ use super::constants::{
 };
 use super::errors::PreparationError;
 use super::types::{
-    FileAccounting, FrontierCache, FrontierInput, FrontierSource, InputReadiness, PackedFrontier,
-    PreparedFrontiers, ProviderAddress, Providers,
+    FileAccounting, FrontierCache, FrontierDecodes, FrontierInput, FrontierSource, InputReadiness,
+    PackedFrontier, PreparedFrontiers, ProviderAddress, Providers,
 };
 use crate::application::file_dag::derived::constants::TARGET_LIFECYCLE_MEMORY;
 use crate::outbound::facts::interface::{FactsFinish, FactsWorker};
@@ -153,17 +153,19 @@ pub(super) fn prepare(
     })
 }
 
-/// The first demand of the frontiers: decode what preparation left packed, in place. A failed
-/// decode becomes the typed refusal the first demand of that source returns.
+/// The first demand of the frontiers: decode what preparation left packed, in place, once per
+/// population of the publication scope (`decodes`). A failed decode becomes the typed refusal the
+/// first demand of that source returns.
 pub(in crate::application::file_dag) fn admit_all(
     frontiers: &mut PreparedFrontiers,
     symbols: &mut Symbols,
+    decodes: &FrontierDecodes,
 ) {
     let mut rows = Vec::with_capacity(frontiers.rows.len());
     let mut refused = frontiers.refused.to_vec();
     for row in frontiers.rows.iter().cloned() {
         match row {
-            FrontierInput::Packed(packed) => match admit(packed, symbols) {
+            FrontierInput::Packed(packed) => match decodes.admit(packed, symbols, admit) {
                 Ok(admitted) => rows.push(admitted),
                 Err(error) => refused.push(error),
             },

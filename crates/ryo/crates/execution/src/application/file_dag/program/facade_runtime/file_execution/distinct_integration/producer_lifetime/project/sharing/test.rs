@@ -1,7 +1,10 @@
-//! One source pass per population across the rules of a cohort, and retirement on every exit.
+//! One source pass and one frontier decode per population across the rules of a cohort, and
+//! retirement on every exit.
 use super::super::super::super::*;
 use super::super::fixtures::{PhaseExit, PreparedCase, prepare_case};
+use crate::application::file_dag::frontiers::types::DecodeCount;
 use crate::application::file_dag::frontiers::types::FrontierInput;
+use crate::application::file_dag::frontiers::types::PackedFrontier;
 use crate::application::file_dag::frontiers::types::FrontierSource;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::program::facade_runtime::project_execution::ProjectRoot;
@@ -21,10 +24,46 @@ struct Observed {
     retained: RetainedBatches,
     delivered: usize,
     refused: bool,
+    decodes: DecodeCount,
+}
+
+/// How each rule's source rows reach the project run: decoded already, or packed as the store
+/// keeps them, each rule from its own bucket holding its own copy of the words.
+#[derive(Clone, Copy)]
+enum Stored {
+    Decoded,
+    Packed,
+}
+
+/// The source rows as a rule reads them, decoded or packed.
+fn frontier_row(stored: Stored, source: PlanInput, table: Table) -> FrontierInput {
+    match stored {
+        Stored::Decoded => FrontierInput::Decoded {
+            frontier: Frontier {
+                input: source,
+                table: Arc::new(table),
+            },
+            coverage: CoverageState::Complete,
+        },
+        Stored::Packed => {
+            let mut words = ryo_relations::domain::relations::types::Words::default();
+            ryo_values::domain::table_words::service::encode_table(&table, &[], &mut words);
+            FrontierInput::Packed(PackedFrontier {
+                input: source,
+                words: Arc::new(ryo_values::domain::stored_facts::types::KeptWords(
+                    ryo_values::domain::table_words::service::pack(
+                        ryo_values::domain::table_words::types::WordSlice(&words.0),
+                    ),
+                )),
+                mode: ryo_values::domain::table_words::types::DecodeMode::Permissive,
+                coverage: CoverageState::Complete,
+            })
+        }
+    }
 }
 
 /// Each rule reads a two-row source; rules whose `values` entries are equal read one population.
-fn exercise(exit: PhaseExit, values: [i64; 4]) -> Observed {
+fn exercise(exit: PhaseExit, values: [i64; 4], stored: Stored) -> Observed {
     let PreparedCase {
         prepared,
         services,
@@ -88,14 +127,7 @@ fn exercise(exit: PhaseExit, values: [i64; 4]) -> Observed {
                                 root: source_root.clone(),
                             }]
                             .into(),
-                            rows: vec![FrontierInput::Decoded {
-                                frontier: Frontier {
-                                    input: source,
-                                    table: Arc::new(table),
-                                },
-                                coverage: CoverageState::Complete,
-                            }]
-                            .into(),
+                            rows: vec![frontier_row(stored, source, table)].into(),
                             program: Arc::clone(prepared.program()),
                             required: required.clone(),
                             refused: vec![].into(),
@@ -142,6 +174,7 @@ fn exercise(exit: PhaseExit, values: [i64; 4]) -> Observed {
         retained: phase.walk.retained(),
         delivered,
         refused,
+        decodes: phase.frontier_decodes(),
     };
     phase.finish().expect("finish the publication scope");
     observed
@@ -149,7 +182,7 @@ fn exercise(exit: PhaseExit, values: [i64; 4]) -> Observed {
 
 #[test]
 fn one_population_is_read_once_for_every_rule_of_its_cohort() {
-    let seen = exercise(PhaseExit::Complete, [2, 2, 2, 2]);
+    let seen = exercise(PhaseExit::Complete, [2, 2, 2, 2], Stored::Decoded);
     assert_eq!(seen.delivered, 4, "every rule of the cohort is delivered");
     assert_eq!(seen.counts.passes.0, 1, "one source pass serves four rules");
     assert_eq!(
@@ -165,7 +198,7 @@ fn one_population_is_read_once_for_every_rule_of_its_cohort() {
 
 #[test]
 fn a_cohort_of_a_second_population_reads_its_own_source() {
-    let seen = exercise(PhaseExit::Complete, [2, 2, 8, 8]);
+    let seen = exercise(PhaseExit::Complete, [2, 2, 8, 8], Stored::Decoded);
     assert_eq!(seen.delivered, 4);
     assert_eq!(
         seen.counts.passes.0, 2,
@@ -180,7 +213,7 @@ fn a_cohort_of_a_second_population_reads_its_own_source() {
 
 #[test]
 fn retirement_follows_a_failing_terminal_result() {
-    let seen = exercise(PhaseExit::SemanticFailure, [2, 2, 2, 2]);
+    let seen = exercise(PhaseExit::SemanticFailure, [2, 2, 2, 2], Stored::Decoded);
     assert_eq!(seen.delivered, 4);
     assert_eq!(
         seen.counts.passes.0, 1,
@@ -195,7 +228,7 @@ fn retirement_follows_a_failing_terminal_result() {
 
 #[test]
 fn retirement_follows_a_cancelled_batch() {
-    let seen = exercise(PhaseExit::RefuseLaterCohort, [2, 2, 8, 8]);
+    let seen = exercise(PhaseExit::RefuseLaterCohort, [2, 2, 8, 8], Stored::Decoded);
     assert!(seen.refused, "the guard refused the later cohort");
     assert_eq!(
         seen.delivered, 2,
@@ -210,6 +243,38 @@ fn retirement_follows_a_cancelled_batch() {
         RetainedBatches(0),
         "cancellation retires the earlier cohort's batch and leaves the refused one unread"
     );
+}
+
+#[test]
+fn one_population_is_decoded_once_for_every_rule_of_its_cohort() {
+    let seen = exercise(PhaseExit::Complete, [2, 2, 2, 2], Stored::Packed);
+    assert_eq!(seen.delivered, 4, "every rule of the cohort is delivered");
+    assert_eq!(
+        seen.decodes,
+        DecodeCount(1),
+        "four rules reading their own copies of one population's words decode them once"
+    );
+    assert_eq!(seen.counts.passes.0, 1, "the shared decode is one population, read in one pass");
+    assert_eq!(seen.retained, RetainedBatches(0));
+}
+
+#[test]
+fn a_second_population_is_decoded_on_its_own() {
+    let seen = exercise(PhaseExit::Complete, [2, 2, 8, 8], Stored::Packed);
+    assert_eq!(seen.delivered, 4);
+    assert_eq!(
+        seen.decodes,
+        DecodeCount(2),
+        "two populations are two decodes, one for each, never one for each rule"
+    );
+    assert_eq!(seen.counts.passes.0, 2, "two populations are two source passes");
+    assert_eq!(seen.retained, RetainedBatches(0));
+}
+
+#[test]
+fn decoded_rows_are_never_decoded_again() {
+    let seen = exercise(PhaseExit::Complete, [2, 2, 2, 2], Stored::Decoded);
+    assert_eq!(seen.decodes, DecodeCount(0), "rows handed decoded are admitted as they are");
 }
 
 #[test]

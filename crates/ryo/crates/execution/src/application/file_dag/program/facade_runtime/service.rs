@@ -22,6 +22,7 @@ pub(crate) fn publication_owner(
             crate::application::file_dag::program::native_walk::project::service::ProjectWalk::new(),
         populations: std::cell::RefCell::new(Default::default()),
         symbols: std::cell::OnceCell::new(),
+        decodes: crate::application::file_dag::frontiers::types::FrontierDecodes::new(),
     })
 }
 
