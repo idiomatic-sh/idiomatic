@@ -61,7 +61,7 @@ impl ExecutionUseCase for ExecutionUseCaseImpl {
                 program.derived.clone(),
                 corpus,
             )),
-            frontiers: Default::default(),
+            frontiers: crate::application::file_dag::frontiers::types::FrontierCache::new(),
         }
     }
 }

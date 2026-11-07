@@ -56,7 +56,7 @@ impl RawScope {
             })
             .cloned()
             .ok_or(OperatingError::WrongOperation)?;
-        let acquired = self.owner.derived.scoped_build(
+        let acquired = self.owner.derived().scoped_build(
             crate::application::file_dag::route_counts::types::BuildRoute::OwnerAcquire,
             &plan,
             self.admitted
@@ -88,7 +88,7 @@ impl DerivedOwner {
         prepared: Option<Arc<DerivedContract>>,
         permit: &crate::application::file_dag::program::runtime::service::KernelPermit<'_>,
     ) -> Result<RawScope, OperatingError> {
-        if !std::ptr::eq(self, &owner.derived)
+        if !std::ptr::eq(self, owner.derived())
             || prepared
                 .as_ref()
                 .is_some_and(|plan| !matches!(&plan.request, ViewRequest::RawKeyOrder { .. }))

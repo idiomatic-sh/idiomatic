@@ -68,10 +68,13 @@ struct FrontierEntry {
 /// Engine-owned dedup of prepared frontiers for one request: the first call for a population reads
 /// the provider; every later call for it, while a root of that population is live, receives the same
 /// shared acquisition. Failures are not kept.
-#[derive(Default)]
 pub(crate) struct FrontierCache(std::sync::Mutex<Vec<FrontierEntry>>);
 
 impl FrontierCache {
+    /// The one cache of a request: `begin` issues it into the request and nothing else makes one.
+    pub(crate) fn new() -> Self {
+        Self(std::sync::Mutex::new(Vec::new()))
+    }
     pub(super) fn shared<E>(
         &self,
         rule: crate::domain::coverage::types::RuleIndex,

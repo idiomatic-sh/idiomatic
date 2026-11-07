@@ -182,9 +182,9 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
             tree: None,
         }],
     )?);
-    let handle = owner.derived.acquire_stored(
+    let handle = owner.derived().acquire_stored(
         &plan,
-        &owner.derived.admit_view(&plan, &owner, &[&proof]).unwrap(),
+        &owner.derived().admit_view(&plan, &owner, &[&proof]).unwrap(),
         ViewContext::default(),
         DerivedInputs::Predicate {
             rows: proof.rows(),
@@ -211,7 +211,7 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
     assert_eq!(after.selections, 0);
     assert_eq!(after.retained_positions, 0);
     assert_eq!(after.bytes, before.bytes);
-    assert_eq!(owner.derived.counts().2, 1);
+    assert_eq!(owner.derived().counts().2, 1);
     Ok(())
 }
 

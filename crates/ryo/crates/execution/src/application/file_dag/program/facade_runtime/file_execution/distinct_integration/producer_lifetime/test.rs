@@ -96,7 +96,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
     )?;
     // Required views still have to live until their published producer's last
     // consumer when optional retention is unavailable.
-    file.owner.derived.set_optional_limit(
+    file.owner.derived().set_optional_limit(
         crate::application::file_dag::derived::owner::index::types::ByteLimit(0),
     )?;
     let columns = [
@@ -173,7 +173,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
     );
     // Delivery is after canonical scheduling. The live interval is observed at
     // the actual consumer release, never inferred from API call order.
-    let first_counts = file.owner.derived.counts();
+    let first_counts = file.owner.derived().counts();
     assert_eq!(first_counts.0, 1, "one actual equality construction");
     let reads_before_final = source_reads.get();
     if skipped_at_start {
@@ -210,7 +210,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
                     numbers(&second),
                     [Integer(9), Integer(2), Integer(7), Integer(3)]
                 );
-                let final_counts = file.owner.derived.counts();
+                let final_counts = file.owner.derived().counts();
                 assert_eq!(
                     final_counts.0, first_counts.0,
                     "shared producer index is built once"
@@ -284,7 +284,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
     assert_eq!(final_state.attempt, AttemptCheckpoint::Terminal);
     assert_eq!(final_state.remaining.0, 0);
     assert_eq!(
-        file.owner.derived.working_bytes(),
+        file.owner.derived().working_bytes(),
         0,
         "final consumption or cancellation releases required storage before file shutdown"
     );
@@ -297,7 +297,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
         weak.liveness() == BackingLiveness::Released,
         "last actual consumer releases the unretained physical index"
     );
-    assert_eq!(file.owner.derived.owned_bytes(), 0);
+    assert_eq!(file.owner.derived().owned_bytes(), 0);
     file.finish()?;
     Ok(())
 }

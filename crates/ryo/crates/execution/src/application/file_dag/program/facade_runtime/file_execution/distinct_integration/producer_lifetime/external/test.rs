@@ -53,7 +53,7 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
         None,
         None,
     )?;
-    file.owner.derived.set_optional_limit(
+    file.owner.derived().set_optional_limit(
         crate::application::file_dag::derived::owner::index::types::ByteLimit(0),
     )?;
     assert_eq!(
@@ -121,18 +121,18 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
         checkpoint.remaining.0, retained_readers,
         "both internal readers released exactly once; external aliases remain live"
     );
-    let required = file.owner.derived.working_bytes();
+    let required = file.owner.derived().working_bytes();
     assert!(
         required > 0,
         "external publication retains the acquired required equality lease"
     );
     let backing = file
         .owner
-        .derived
+        .derived()
         .view_witness(ryo_derived::domain::contract::types::DerivedKind::Equality)
         .expect("actual equality backing");
     assert!(backing.liveness() == BackingLiveness::Alive);
-    let builds = file.owner.derived.counts();
+    let builds = file.owner.derived().counts();
     assert_eq!(
         builds.0, 1,
         "one actual equality construction across submitted roots"
@@ -208,9 +208,9 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
         "all external delivery is terminal replay"
     );
     assert_eq!(reads.get(), source_reads);
-    assert_eq!(file.owner.derived.counts(), builds);
+    assert_eq!(file.owner.derived().counts(), builds);
     assert_eq!(
-        file.owner.derived.working_bytes(),
+        file.owner.derived().working_bytes(),
         required,
         "duplicate delivery, failed roots and sink refusal cannot retire another reader's backing"
     );
@@ -276,13 +276,13 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
                 backing.liveness() == BackingLiveness::Alive,
                 "capture/commit cannot consume another external lease"
             );
-            assert_eq!(file.owner.derived.working_bytes(), required);
+            assert_eq!(file.owner.derived().working_bytes(), required);
             assert_eq!(
                 file.readiness_counts(),
                 counts,
                 "capture replay never reschedules semantics"
             );
-            assert_eq!(file.owner.derived.counts(), builds);
+            assert_eq!(file.owner.derived().counts(), builds);
             assert_eq!(reads.get(), source_reads);
         }
     }
@@ -291,12 +291,12 @@ fn external_root_exit(exit: ExternalRootExit) -> Result<(), OperatingError> {
     let owner = Rc::clone(&file.owner);
     file.finish()?;
     assert_eq!(
-        owner.derived.working_bytes(),
+        owner.derived().working_bytes(),
         0,
         "finish releases required lease accounting"
     );
     assert_eq!(
-        owner.derived.owned_bytes(),
+        owner.derived().owned_bytes(),
         0,
         "finish releases retained and required resources"
     );

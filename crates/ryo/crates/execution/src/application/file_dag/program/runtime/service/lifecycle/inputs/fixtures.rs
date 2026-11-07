@@ -179,7 +179,7 @@ impl TestInputs {
         inputs: &[AdmittedInput],
         table: Table,
     ) -> Result<AdmittedInput, OperatingError> {
-        let readiness = crate::application::file_dag::program::admission::contributor_readiness(
+        let read = crate::application::file_dag::program::admission::contributed_proof(
             partition,
             inputs,
             &self.owner,
@@ -196,8 +196,7 @@ impl TestInputs {
             publication.clone(),
             &proof,
             root,
-            partition.clone(),
-            readiness,
+            read,
         )
     }
 }
@@ -270,7 +269,7 @@ impl Inputs for TestInputs {
             Representation::Computed(rows) => return self.computed(root, partition, inputs, rows),
             Representation::Minted(publication) => publication,
         };
-        let readiness = crate::application::file_dag::program::admission::contributor_readiness(
+        let read = crate::application::file_dag::program::admission::contributed_proof(
             partition,
             inputs,
             &self.owner,
@@ -286,8 +285,7 @@ impl Inputs for TestInputs {
             publication.clone(),
             &proof,
             root,
-            partition.clone(),
-            readiness,
+            read,
         )
     }
     fn replay(

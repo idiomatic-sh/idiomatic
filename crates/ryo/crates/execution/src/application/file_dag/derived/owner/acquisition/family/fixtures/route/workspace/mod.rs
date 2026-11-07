@@ -27,7 +27,7 @@ pub(super) fn workspace(kind: DerivedKind, exit: Exit) -> Result<DerivedKind, Op
     let owner = Rc::new(RelationOwner::new(crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible, program_derived_port()));
     let result = through_workspace(kind, exit, &owner);
     owner.release_population();
-    released(kind, exit, owner.derived.publication_ownership_bytes());
+    released(kind, exit, owner.derived().publication_ownership_bytes());
     result
 }
 fn through_workspace(
@@ -82,7 +82,7 @@ fn through_workspace(
             tree: native.then_some(TreeForm::Elements),
         },
     ];
-    let plan = Arc::new(owner.derived.prepare_view(&request(kind), &shapes[..len])?);
+    let plan = Arc::new(owner.derived().prepare_view(&request(kind), &shapes[..len])?);
     let use_ = PreparedViewUse {
         plan,
         inputs: [0, 1],

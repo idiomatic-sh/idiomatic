@@ -104,7 +104,7 @@ fn exercise(scenario: Scenario) -> Result<(), OperatingError> {
     assert_eq!(derived.snapshot(), builds);
     let owner = Rc::clone(&file.owner);
     file.finish()?;
-    assert_eq!(owner.derived.working_bytes(), 0);
+    assert_eq!(owner.derived().working_bytes(), 0);
     Ok(())
 }
 #[test]
@@ -175,8 +175,8 @@ fn forward_refusal(scenario: Scenario) -> Result<(), OperatingError> {
     }
     let owner = Rc::clone(&file.owner);
     file.finish()?;
-    assert_eq!(owner.derived.working_bytes(), 0);
-    assert_eq!(owner.derived.publication_ownership_bytes().0, 0);
+    assert_eq!(owner.derived().working_bytes(), 0);
+    assert_eq!(owner.derived().publication_ownership_bytes().0, 0);
     Ok(())
 }
 #[test]

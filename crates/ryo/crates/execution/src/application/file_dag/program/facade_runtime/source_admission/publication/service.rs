@@ -19,19 +19,15 @@ impl SourceInputs<'_, '_> {
     ) -> Result<AdmittedInput, OperatingError> {
         let actual_partition = self.execution.source_partition(root)?;
         actual_partition.require_supply(partition)?;
-        let mut readiness =
-            crate::application::file_dag::program::admission::contributor_readiness(
-                &actual_partition,
-                inputs,
-                &self.owner,
-            )?;
+        let mut read = crate::application::file_dag::program::admission::contributed_proof(
+            &actual_partition,
+            inputs,
+            &self.owner,
+        )?;
         if let (ProducerRoot::Region(region), Representation::Computed(rows)) =
             (root, &mut representation)
-            && matches!(
-                readiness,
-                crate::application::file_dag::program::admission::Readiness::Partial { .. }
-                    | crate::application::file_dag::program::admission::Readiness::Inapplicable { .. }
-            )
+            && read.observation()
+                == crate::application::file_dag::program::admission::ObservationReadiness::Waiting
         {
             // A region starts with the admitted operands, then contains only
             // pure unary continuations. Absence operations publish before any
@@ -154,8 +150,7 @@ impl SourceInputs<'_, '_> {
             publication.clone(),
             &checked,
             root,
-            actual_partition,
-            readiness,
+            read,
         )
     }
     pub(in crate::application::file_dag::program::facade_runtime::source_admission) fn replay_source(

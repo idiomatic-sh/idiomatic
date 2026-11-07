@@ -27,12 +27,12 @@ pub(in crate::application::file_dag) struct Snapshot {
 }
 impl GraphFixture {
     pub(in crate::application::file_dag) fn snapshot(&self) -> Snapshot {
-        let backend = self.owner.derived.backend.borrow();
+        let backend = self.owner.derived().backend.borrow();
         let cache = backend.as_ref().unwrap();
         let c = &cache.graph_counts;
-        let ledger = self.owner.derived.ledger.borrow();
+        let ledger = self.owner.derived().ledger.borrow();
         let s = ledger.snapshot();
-        let state = self.owner.derived.state.borrow();
+        let state = self.owner.derived().state.borrow();
         let mut indexes: Vec<_> = state
             .entries
             .values()
@@ -83,8 +83,8 @@ impl GraphFixture {
             graph_backings: ledger
                 .backing_count(crate::application::file_dag::derived::ledger::types::BackingTag(9))
                 .0,
-            retained_view_bytes: self.owner.derived.state.borrow().retained_bytes.0,
-            selections: self.owner.derived.state.borrow().retained_predicates.0,
+            retained_view_bytes: self.owner.derived().state.borrow().retained_bytes.0,
+            selections: self.owner.derived().state.borrow().retained_predicates.0,
             retained_positions: s.optional_units.0,
         }
     }

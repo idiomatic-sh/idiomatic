@@ -182,7 +182,7 @@ mod census_finite_raw {
     use crate::domain::{derived_views::types::DerivedContract, operating::errors::OperatingError};
     use std::{rc::Rc, sync::Arc};
     fn raw<'a>(owner: Rc<RelationOwner>, plan: Arc<DerivedContract>, permit: &'a KernelPermit<'a>) -> Result<(), OperatingError> {
-        let _ = owner.derived.finite_raw(Rc::clone(&owner), Some(plan), permit)?;
+        let _ = owner.derived().finite_raw(Rc::clone(&owner), Some(plan), permit)?;
         Ok(())
     }
     const _: () = { let _ = raw; };
@@ -194,7 +194,7 @@ mod census_finite_raw_denied {
     use crate::application::file_dag::relations::RelationOwner;
     use crate::domain::derived_views::types::DerivedContract;
     use std::{rc::Rc, sync::Arc};
-    fn forge(owner: Rc<RelationOwner>, plan: Arc<DerivedContract>) { let _ = owner.derived.finite_raw(Rc::clone(&owner), Some(plan)); }
+    fn forge(owner: Rc<RelationOwner>, plan: Arc<DerivedContract>) { let _ = owner.derived().finite_raw(Rc::clone(&owner), Some(plan)); }
     const _: () = { let _ = forge; };
 }
 "#,

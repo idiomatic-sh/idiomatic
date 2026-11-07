@@ -175,7 +175,7 @@ pub(crate) fn execute(
         None,
     )?;
     if let Some(limit) = faults.optional_limit {
-        file.owner.derived.set_optional_limit(
+        file.owner.derived().set_optional_limit(
             crate::application::file_dag::derived::owner::index::types::ByteLimit(limit),
         )?;
     }
@@ -265,22 +265,22 @@ pub(crate) fn execute(
     } else {
         vec![]
     };
-    let counts = file.owner.derived.counts();
+    let counts = file.owner.derived().counts();
     let fed = file.counts(RuleIndex(0))?.fed.to_vec();
     let owner = Rc::clone(&file.owner);
     file.finish()?;
     assert_eq!(
-        owner.derived.publication_ownership_bytes(),
+        owner.derived().publication_ownership_bytes(),
         (0, 0, 0),
         "normal finish releases the actual shared physical ledger, including finite raw orders"
     );
     assert_eq!(
-        owner.derived.working_bytes(),
+        owner.derived().working_bytes(),
         0,
         "actual invocation resources released by normal owner shutdown"
     );
     assert_eq!(
-        owner.derived.owned_bytes(),
+        owner.derived().owned_bytes(),
         0,
         "finished file releases owned index storage"
     );

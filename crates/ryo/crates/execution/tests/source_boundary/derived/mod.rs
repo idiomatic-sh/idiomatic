@@ -23,13 +23,13 @@ mod derived_authorized {
     use crate::domain::operating::errors::OperatingError;
     use std::{rc::Rc, sync::Arc};
     fn acquire<'a>(owner: &'a RelationOwner, plan: &'a Arc<DerivedContract>, proof: &'a BorrowedInput<'a>, scratch: &'a mut DerivedScratch) -> Result<(), OperatingError> {
-        let admitted = owner.derived.admit_view(plan, owner, &[proof])?;
-        let _ = owner.derived.acquire_stored(plan, &admitted, Default::default(), DerivedInputs::Rows(&[proof.rows()]), scratch, None)?;
+        let admitted = owner.derived().admit_view(plan, owner, &[proof])?;
+        let _ = owner.derived().acquire_stored(plan, &admitted, Default::default(), DerivedInputs::Rows(&[proof.rows()]), scratch, None)?;
         Ok(())
     }
     const _: for<'a> fn(&'a RelationOwner, &'a Arc<DerivedContract>, &'a BorrowedInput<'a>, &'a mut DerivedScratch) -> Result<(), OperatingError> = acquire;
     fn raw<'a>(owner: Rc<RelationOwner>, plan: Arc<DerivedContract>, permit: &'a KernelPermit<'a>) -> Result<(), OperatingError> {
-        let _ = owner.derived.finite_raw(Rc::clone(&owner), Some(plan), permit)?;
+        let _ = owner.derived().finite_raw(Rc::clone(&owner), Some(plan), permit)?;
         Ok(())
     }
     const _: for<'a> fn(Rc<RelationOwner>, Arc<DerivedContract>, &'a KernelPermit<'a>) -> Result<(), OperatingError> = raw;
@@ -82,7 +82,7 @@ mod unpermitted_raw {
     use crate::application::file_dag::relations::RelationOwner;
     use crate::domain::derived_views::types::DerivedContract;
     use std::{rc::Rc, sync::Arc};
-    fn forge(owner: Rc<RelationOwner>, plan: Arc<DerivedContract>) { let _ = owner.derived.finite_raw(Rc::clone(&owner), Some(plan)); }
+    fn forge(owner: Rc<RelationOwner>, plan: Arc<DerivedContract>) { let _ = owner.derived().finite_raw(Rc::clone(&owner), Some(plan)); }
     const _: fn(Rc<RelationOwner>, Arc<DerivedContract>) = forge;
 }
 "#;

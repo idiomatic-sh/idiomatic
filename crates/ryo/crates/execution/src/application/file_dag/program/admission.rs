@@ -71,7 +71,7 @@ pub(in crate::application::file_dag::program) enum Emptiness {
     Populated,
 }
 #[derive(Clone)]
-pub(super) enum Readiness {
+enum Readiness {
     Complete,
     Partial {
         files: Vec<Option<FileId>>,
@@ -80,6 +80,15 @@ pub(super) enum Readiness {
     Inapplicable {
         files: Vec<FileId>,
     },
+}
+/// What admission knows of one read: the partition it sits in and how much of it was read. Only
+/// admission builds one: a whole physical read is `complete`, coverage lowers it, and a
+/// published result carries what its admitted contributors carried. Callers pass this proof to
+/// `AdmittedInput::from_publication` and never name a readiness.
+#[derive(Clone)]
+pub(super) struct ReadProof {
+    partition: Partition,
+    readiness: Readiness,
 }
 /// Root provenance remains attached even when no rows can be supplied.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -235,7 +244,19 @@ impl<'a> AdmittedWalkSource<'a> {
 /// Preserve physical coverage of every admitted contributor. This is only the
 /// input side of publication validation; the caller must still hold the
 /// invocation's output/root authority.
-pub(super) fn contributor_readiness(
+pub(super) fn contributed_proof(
+    partition: &Partition,
+    inputs: &[AdmittedInput],
+    owner: &Rc<RelationOwner>,
+) -> Result<ReadProof, OperatingError> {
+    let readiness = contributed_readiness(partition, inputs, owner)?;
+    Ok(ReadProof {
+        partition: partition.clone(),
+        readiness,
+    })
+}
+
+fn contributed_readiness(
     partition: &Partition,
     inputs: &[AdmittedInput],
     owner: &Rc<RelationOwner>,

@@ -27,7 +27,7 @@ impl DerivedOwner {
         {
             return Ok(None);
         }
-        if !std::ptr::eq(self, &admission.owner().derived) {
+        if !std::ptr::eq(self, admission.owner().derived()) {
             return Err(OperatingError::NotRead);
         }
         let mut cache = self.graph_cache()?;

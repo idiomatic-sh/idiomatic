@@ -342,16 +342,16 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
         published_reads.expect("first delivery prepares both roots")
     );
     assert_eq!(
-        owner.derived.counts().0,
+        owner.derived().counts().0,
         1,
         "one equality index for the actual shared admitted RHS"
     );
     assert!(
-        owner.derived.counts().1 > 0,
+        owner.derived().counts().1 > 0,
         "nested consumer shares the live index"
     );
     file.finish()?;
-    assert_eq!(owner.derived.working_bytes(), 0);
+    assert_eq!(owner.derived().working_bytes(), 0);
     Ok(())
 }
 #[test]

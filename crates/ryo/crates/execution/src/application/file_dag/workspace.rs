@@ -151,14 +151,14 @@ impl<'a> GraphInput<'a> {
         OperatingError,
     >{
         self.owner
-            .derived
+            .derived()
             .admit_view(plan, self.owner, &[&self.proof])
     }
     pub(super) fn rows(&self) -> &crate::domain::table_model::types::Rows<'a> {
         self.rows
     }
     pub(super) fn owner(&self) -> &super::derived::owner::DerivedOwner {
-        &self.owner.derived
+        self.owner.derived()
     }
     pub(super) fn canonical_backing(&self) -> bool {
         self.proof.canonical_backing()
@@ -275,9 +275,9 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
         let right = self.proof(InputNumber(use_.inputs[1]))?;
         let owner = self.workspace.owner();
         let admitted = owner
-            .derived
+            .derived()
             .admit_view(&use_.plan, owner, &[left, right])?;
-        owner.derived.try_acquire_rows(
+        owner.derived().try_acquire_rows(
             &use_.plan,
             &admitted,
             crate::domain::derived_views::types::DerivedInputs::Rows(&[left.rows(), right.rows()]),

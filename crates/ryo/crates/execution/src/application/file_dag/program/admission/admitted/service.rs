@@ -1,12 +1,46 @@
 //! The admitted input: identity, rows, coverage and generation validation.
 use super::super::{
     AdmittedInput, AdmittedWalkSource, Agreement, ObservationReadiness, Partition, PartitionSupply,
-    PopulationProof, ProducerRoot, Readiness,
+    PopulationProof, ProducerRoot, ReadProof, Readiness,
 };
 use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::application::file_dag::relations::{RelationOwner, handle::service::PublishedInput};
 use crate::domain::{executable_program::types::InputSource, operating::errors::OperatingError};
 use std::{rc::Rc, sync::Arc};
+
+impl ReadProof {
+    /// A whole physical read of `partition`.
+    pub(in crate::application::file_dag::program) fn complete(partition: Partition) -> Self {
+        Self {
+            partition,
+            readiness: Readiness::Complete,
+        }
+    }
+    /// A read of `partition` whose coverage the completion domain computed.
+    pub(in crate::application::file_dag::program) fn covered(
+        partition: Partition,
+        coverage: crate::domain::completion::types::CoverageState,
+    ) -> Self {
+        use crate::domain::completion::types::CoverageState;
+        let readiness = match coverage {
+            CoverageState::Complete => Readiness::Complete,
+            CoverageState::Partial { files } => Readiness::Partial { files },
+            CoverageState::Inapplicable { files } => Readiness::Inapplicable { files },
+        };
+        Self {
+            partition,
+            readiness,
+        }
+    }
+    pub(in crate::application::file_dag::program) fn observation(&self) -> ObservationReadiness {
+        match self.readiness {
+            Readiness::Complete => ObservationReadiness::Ready,
+            Readiness::Partial { .. } | Readiness::Inapplicable { .. } => {
+                ObservationReadiness::Waiting
+            }
+        }
+    }
+}
 
 impl AdmittedInput {
     pub(in crate::application::file_dag::program) fn population(
@@ -195,8 +229,7 @@ impl AdmittedInput {
         publication: PublishedInput,
         admitted: &crate::application::file_dag::relations::admission::service::BorrowedInput<'_>,
         root: ProducerRoot,
-        partition: Partition,
-        readiness: Readiness,
+        read: ReadProof,
     ) -> Result<Self, OperatingError> {
         admitted.require_publication(owner.as_ref(), publication.as_ref())?;
         let (population, _) = admitted.identity(&owner)?;
@@ -209,8 +242,8 @@ impl AdmittedInput {
                 generation,
             },
             root,
-            partition,
-            readiness,
+            partition: read.partition,
+            readiness: read.readiness,
             publication,
         })
     }

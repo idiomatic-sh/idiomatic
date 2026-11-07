@@ -138,7 +138,7 @@ fn evaluate_once(
         None
     };
     let cached = if let (Some(graph), Some(row)) = (resources.cached_graph.as_mut(), row) {
-        Some(workspace.owner().derived.graph_row(graph, row)?)
+        Some(workspace.owner().derived().graph_row(graph, row)?)
     } else {
         None
     };

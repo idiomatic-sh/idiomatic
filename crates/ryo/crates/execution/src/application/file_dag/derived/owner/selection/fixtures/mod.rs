@@ -129,9 +129,9 @@ impl SelectionFixture {
         ));
         let descriptors = crate::application::file_dag::derived::owner::fixtures::prepared_sources(
             plans,
-            owner.derived.semantic.clone(),
+            owner.derived().semantic.clone(),
         );
-        owner.derived.prepare_program_file(
+        owner.derived().prepare_program_file(
             &descriptors,
             &(0..plans.len())
                 .map(crate::domain::coverage::types::RuleIndex)
@@ -139,7 +139,7 @@ impl SelectionFixture {
             partials,
         )?;
         owner
-            .derived
+            .derived()
             .fixture_install_views(active, authored, kinds)?;
         Ok(Self { owner })
     }
@@ -166,7 +166,7 @@ impl SelectionFixture {
         {
             return Ok(None);
         }
-        let Some(publication) = self.owner.derived.select(
+        let Some(publication) = self.owner.derived().select(
             program,
             source,
             &self.owner,
@@ -198,27 +198,27 @@ impl SelectionFixture {
         )?;
         drop(proof);
         drop(population);
-        Ok(self.owner.derived.publication_ownership_bytes().0)
+        Ok(self.owner.derived().publication_ownership_bytes().0)
     }
 
     pub(crate) fn limit_to_metadata(&self) {
-        self.owner.derived.fixture_limit_to_metadata()
+        self.owner.derived().fixture_limit_to_metadata()
     }
 
     pub(crate) fn ineligible(&self) {
-        self.owner.derived.fixture_ineligible()
+        self.owner.derived().fixture_ineligible()
     }
 
     /// Corrupt request-prepared group metadata before any file selection runs.
     pub(crate) fn corrupt_prepared_group_count(&self) {
-        self.owner.derived.fixture_corrupt_prepared_group_count()
+        self.owner.derived().fixture_corrupt_prepared_group_count()
     }
 
     pub(crate) fn reserve_spare_selections(&self, extra: usize) {
-        self.owner.derived.fixture_reserve_spare_selections(extra)
+        self.owner.derived().fixture_reserve_spare_selections(extra)
     }
 
     pub(crate) fn snapshot(&self, descriptor: Option<&Arc<Selector>>) -> SelectionSnapshot {
-        self.owner.derived.fixture_snapshot(descriptor)
+        self.owner.derived().fixture_snapshot(descriptor)
     }
 }

@@ -46,7 +46,7 @@ pub(super) fn demand(
     };
     if kind == DerivedKind::OrderedDfs {
         let mut query = (&mut *symbols).into();
-        return owner.derived.acquire_stored(
+        return owner.derived().acquire_stored(
             plan,
             admitted,
             Default::default(),
@@ -96,7 +96,7 @@ pub(super) fn demand(
         DerivedKind::RawKeyOrder => DerivedInputs::RawWords(&[2, 1, 2]),
         _ => DerivedInputs::Rows(&rows[..if pair { 2 } else { 1 }]),
     };
-    owner.derived.acquire_stored(
+    owner.derived().acquire_stored(
         plan,
         admitted,
         Default::default(),

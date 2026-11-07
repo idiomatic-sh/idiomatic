@@ -11,3 +11,5 @@ mod activation;
 mod facade;
 
 mod submission;
+
+mod hardening;

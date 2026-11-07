@@ -100,7 +100,7 @@ pub(super) fn acquire(
         )
         .map(Some);
     }
-    let Some(plan) = owner.derived.selector_plan(shape.selector())? else {
+    let Some(plan) = owner.derived().selector_plan(shape.selector())? else {
         return Ok(None);
     };
     if plan
@@ -123,8 +123,8 @@ pub(super) fn acquire(
         memo: &mut *context.memo,
         scratch: &mut *context.scratch,
     };
-    let before = owner.derived.selector_work()?;
-    let result = owner.derived.select(
+    let before = owner.derived().selector_work()?;
+    let result = owner.derived().select(
         shape.selector(),
         *columns,
         owner,
@@ -132,7 +132,7 @@ pub(super) fn acquire(
         &proof,
         &mut rebound,
     );
-    let after = owner.derived.selector_work()?;
+    let after = owner.derived().selector_work()?;
     work.found(0, after.0[0].saturating_sub(before.0[0]));
     result
 }

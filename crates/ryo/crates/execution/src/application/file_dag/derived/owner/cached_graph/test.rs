@@ -19,7 +19,7 @@ fn an_unprepared_owner_refuses_graph_demand_with_a_typed_error() {
         crate::application::file_dag::testing::program_derived_port(),
     );
     assert!(matches!(
-        owner.derived.graph_cache(),
+        owner.derived().graph_cache(),
         Err(OperatingError::NotRun)
     ));
 }

@@ -1,7 +1,7 @@
 //! Producer declarations and actual source scope govern ordinary admission.
 use super::super::*;
 use crate::application::file_dag::program::admission::{
-    FileGeneration, Inputs, Partition, ProducerRoot, contributor_readiness,
+    FileGeneration, Inputs, Partition, ProducerRoot, contributed_proof,
 };
 use crate::application::file_dag::program::context::RunContext;
 use crate::application::file_dag::program::kernel_session::KernelSession;
@@ -275,7 +275,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
         else {
             return Err(OperatingError::NotRun);
         };
-        contributor_readiness(&project, &[admitted.clone()], &owner)?;
+        contributed_proof(&project, &[admitted.clone()], &owner)?;
         assert_eq!(count_of(&admitted.rows(&owner, &read)?).0, 1);
         assert_eq!(reads.get(), 0);
         return Ok("invariant");

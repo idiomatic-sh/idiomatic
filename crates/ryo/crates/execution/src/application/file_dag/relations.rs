@@ -54,7 +54,7 @@ struct SourceViews {
 pub(crate) struct RelationOwner {
     #[cfg(test)]
     pub(super) identity_checks: Cell<CheckCount>,
-    pub(super) derived: super::derived::owner::DerivedOwner,
+    derived: super::derived::owner::DerivedOwner,
     next_population: Cell<PopulationId>,
     producer_populations: RefCell<HashMap<ProducerKey, ProducerPopulation>>,
     generation: RefCell<Arc<()>>,
@@ -67,6 +67,9 @@ pub(crate) struct RelationOwner {
     pub(in crate::application::file_dag) reuses: Cell<CheckCount>,
 }
 impl RelationOwner {
+    pub(in crate::application::file_dag) fn derived(&self) -> &super::derived::owner::DerivedOwner {
+        &self.derived
+    }
     pub(in crate::application::file_dag) fn generation_guard(&self) -> Arc<()> {
         Arc::clone(&self.generation.borrow())
     }

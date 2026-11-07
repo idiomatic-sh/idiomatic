@@ -69,13 +69,13 @@ impl<'f> PartitionedClosure<'f> {
         }
         // The old partition's mandatory charge ends before its reusable buffer
         // is rebuilt for the next key. A taken partition transfers its lease.
-        let admitted = self.owner.derived.admit_partition(
+        let admitted = self.owner.derived().admit_partition(
             &self.closure_plan,
             &self.owner,
             &self.proof,
             &self.ordered,
         )?;
-        self.current = Some(self.owner.derived.scoped_build(
+        self.current = Some(self.owner.derived().scoped_build(
             crate::application::file_dag::route_counts::types::BuildRoute::ClosurePartition,
             &self.closure_plan,
             &admitted,

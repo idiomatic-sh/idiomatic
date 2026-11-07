@@ -229,14 +229,14 @@ fn run_with(
     released_at_exit(
         kind,
         exit,
-        fixture.owner().derived.publication_ownership_bytes(),
+        fixture.owner().derived().publication_ownership_bytes(),
         floor,
     );
     fixture.owner().release_population();
     released(
         kind,
         exit,
-        fixture.owner().derived.publication_ownership_bytes(),
+        fixture.owner().derived().publication_ownership_bytes(),
     );
     result
 }
