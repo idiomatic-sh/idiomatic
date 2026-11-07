@@ -16,7 +16,7 @@ enum Scenario {
     Bindings,
     Duplicates,
     Dependencies,
-    InvalidSchema,
+    InvalidContractShape,
 }
 type Input = Scenario;
 type Value = ();
@@ -49,7 +49,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("invalid_schema_stays_deferred_in_same_graph"),
         word: Word::Succeeds,
-        input: || Scenario::InvalidSchema,
+        input: || Scenario::InvalidContractShape,
         expect: Expect::Value(()),
     },
 ];
@@ -244,7 +244,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 );
             }
         }
-        Scenario::InvalidSchema => {
+        Scenario::InvalidContractShape => {
             let mut invalid = first;
             if let Operation::Project { columns, .. } = &mut invalid.steps[1].operation {
                 columns[0] = ColumnIndex(999);

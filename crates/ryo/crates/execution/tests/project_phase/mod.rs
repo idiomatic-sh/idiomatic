@@ -9,7 +9,7 @@ use ryo_execution::inbound::use_cases::execution::{
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_relations::domain::relations::{
-    service::kinds,
+    fixtures::kinds,
     types::{CellKind, FileId, Relation, Value},
 };
 use ryo_values::domain::{
@@ -349,7 +349,7 @@ pub(crate) mod negative;
 /// Every grouped name below is obtained from a real captured Function population.
 #[test]
 fn project_grouping_reads_only_actual_captured_function_names() {
-    use ryo_language::domain::symbols::{service::hash_of, types::ByteSlice};
+    use ryo_language::domain::symbols::{fixtures::hash_of, types::ByteSlice};
     use ryo_relations::domain::relations::types::Integer;
     use ryo_values::domain::stored_facts::types::ArenaBytes;
     let engine = engine();
@@ -405,7 +405,7 @@ fn project_grouping_reads_only_actual_captured_function_names() {
             table.count = RowCount(2);
         }
         for (index, row) in table.cells.chunks_exact_mut(width).enumerate() {
-            row[0] = Value::Node(ryo_relations::domain::relations::service::node_id(
+            row[0] = Value::Node(ryo_relations::domain::relations::fixtures::node_id(
                 file_id,
                 ryo_relations::domain::relations::types::Position(index as u32),
             ));
@@ -552,7 +552,7 @@ fn project_grouping_reads_only_actual_captured_function_names() {
 /// The former per-file, missing-input and shared-pool scenarios use one prepared program.
 #[test]
 fn named_function_selection_replays_without_running_project_steps_or_hiding_absence() {
-    use ryo_relations::domain::relations::{service::node_id, types::Position};
+    use ryo_relations::domain::relations::{fixtures::node_id, types::Position};
     use ryo_values::domain::plan_parts::types::{
         LiteralText, Operand, PlanComparison, QueryLiteral, Test,
     };
@@ -694,7 +694,7 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
                 .expect("project rule retains its file frontier");
             assert_eq!(captured.len(), 1);
             let capture = captured.pop().unwrap().outcome.expect("complete frontier");
-            let decoded = ryo_values::domain::table_words::service::decode_complete(
+            let decoded = ryo_values::domain::table_words::fixtures::decode_complete(
                 &capture.words,
                 &mut vec![],
             )
@@ -754,7 +754,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     use ryo_values::domain::records::types::{CrossPublicationTransfer, PackedObservedRoot};
     use ryo_values::domain::stored_facts::types::{ArenaBytes, Digest, KeptWords};
     use ryo_values::domain::table_words::{
-        service::{encode_table, pack},
+        fixtures::{encode_table, pack},
         types::WordSlice,
     };
 

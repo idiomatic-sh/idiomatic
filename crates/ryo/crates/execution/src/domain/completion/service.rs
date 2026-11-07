@@ -202,7 +202,7 @@ pub(crate) fn output_coverage(
         };
         if files.is_empty() {
             return Err(OperatingError::ObservationIncomplete {
-                reason: "partial contributor has no affected physical scope".into(),
+                reason: super::constants::NO_AFFECTED_SCOPE.into(),
             });
         }
         let base = reads_relation(operation, input.ordinal);

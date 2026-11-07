@@ -1,8 +1,8 @@
 //! Real native Axis failures must not leak partially evaluated held results.
 use super::super::*;
 use ryo_language::domain::{
-    completion::service as completion,
-    builders::service as builders,
+    completion::fixtures as completion,
+    builders::fixtures as builders,
     elements::types::Elements,
     symbols::types::ByteSlice,
 };

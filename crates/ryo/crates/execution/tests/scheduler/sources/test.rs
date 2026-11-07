@@ -2,7 +2,7 @@
 use crate::boundary_fixture::{authored_request, corpus, engine, source};
 use ryo_execution::inbound::use_cases::execution::{interface::*, types::*};
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
-use ryo_relations::domain::relations::{service::node_id, types::*};
+use ryo_relations::domain::relations::{fixtures::node_id, types::*};
 use ryo_values::domain::{
     observations::types::*,
     plan_parts::types::{Input, ObservationBindingId, StepId, StepScope},
@@ -10,7 +10,7 @@ use ryo_values::domain::{
     records::types::ObservationReadinessLayout,
     rows::types::RowCount,
     stored_facts::types::{Bucket, Digest},
-    table_words::service::decode_complete,
+    table_words::fixtures::decode_complete,
 };
 use std::cell::Cell;
 

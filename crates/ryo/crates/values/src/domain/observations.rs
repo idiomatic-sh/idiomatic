@@ -10,3 +10,6 @@ mod service_test;
 
 /// Persistent named-root readiness schema identity.
 pub mod constants;
+
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;

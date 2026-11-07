@@ -62,7 +62,7 @@ fn readiness_hosted() -> HostRelation {
     }
 }
 fn readiness_budget(request: &PreparedRequest) -> (u64, u64) {
-    use ryo_values::domain::plans::service::{inputs_of, named};
+    use ryo_values::domain::plans::fixtures::{inputs_of, named};
     let nodes = request
         .plans
         .iter()

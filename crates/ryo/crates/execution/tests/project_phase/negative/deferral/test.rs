@@ -10,7 +10,7 @@ use ryo_execution::inbound::use_cases::execution::{
 };
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
-    service::kinds,
+    fixtures::kinds,
     types::{CellKind, FileId, Relation, Words, WorkerNumber},
 };
 use ryo_values::domain::{

@@ -13,7 +13,7 @@ rules = [
   { rule = "no-tsv", include = ["**"], description = "No file of the product is a tab-separated table: expected data is typed Rust, recorded data is TOML." },
   { rule = "idiomatic.arch/no-machine-paths-shipped@0.1.0", include = ["**"], exclude = ["**/tests/**", "**/benches/**", "**/*_test.rs", "**/fixtures/**", "**/fixtures.rs", "**/.asymptote/**", "**/tastemaker.lock", "**/Cargo.lock"], description = "No file the product ships names a path of one machine: none under /workspaces, /tmp, /home or /Users." },
   { rule = "idiomatic.arch/readme-blocks-executed@0.2.0", include = ["README.md", "cli/tests/readme.rs"], description = "The product README's `console` blocks are run by its README test." },
-  { rule = "idiomatic.arch/no-tracker-text-shipped@0.1.0", include = ["**"], exclude = ["**/tests/fixtures/**", "**/.asymptote/**", "**/benchmarks/linters/*/results/*/tool-contract-proof/*/stage-manifest.json"], params = { patterns = ["*ryo-[a-z0-9][a-z0-9][a-z0-9].[0-9]*", "*ryo-[a-z0-9][a-z0-9][a-z0-9][a-z0-9].[0-9]*", "*ryo-[0-9][a-z0-9][a-z0-9][!a-z0-9]*", "*ryo-[a-z][0-9][a-z0-9][!a-z0-9]*", "*ryo-[a-z][a-z][0-9][!a-z0-9]*", "*ryo-[0-9][a-z0-9][a-z0-9][a-z0-9][!a-z0-9]*", "*ryo-[a-z][0-9][a-z0-9][a-z0-9][!a-z0-9]*", "*ryo-[a-z][a-z][0-9][a-z0-9][!a-z0-9]*", "*ryo-[a-z][a-z][a-z][0-9][!a-z0-9]*", "*ryo-[0-9][a-z0-9][a-z0-9]", "*ryo-[a-z][0-9][a-z0-9]", "*ryo-[a-z][a-z][0-9]", "*ryo-[0-9][a-z0-9][a-z0-9][a-z0-9]", "*ryo-[a-z][0-9][a-z0-9][a-z0-9]", "*ryo-[a-z][a-z][0-9][a-z0-9]", "*ryo-[a-z][a-z][a-z][0-9]", "*(owner 20*", "*owner 20[0-9][0-9]-*", "*[Tt]he owner's*", "*[Oo]wner's decision*", "*[Tt]he spike", "*[Tt]he spike[!a-z]*", "*[Tt]he devcontainer*", "*[Aa]n agent*"] }, description = "No shipped text names the work that made it: no issue id of the tracker (`ryo-` and a short id with a digit or a child number) no dated attribution (`(owner 2026-10-27)`) and no process phrase (\"the owner\", \"owner's decision\", \"the spike\", \"the devcontainer\", \"an agent\")." },
+  { rule = "idiomatic.arch/no-tracker-text-shipped@0.1.0", include = ["**"], exclude = ["**/tests/fixtures/**", "**/.asymptote/**", "**/benchmarks/linters/*/results/*/tool-contract-proof/*/stage-manifest.json"], params = { patterns = ["*ryo-[a-z0-9][a-z0-9][a-z0-9].[0-9]*", "*ryo-[a-z0-9][a-z0-9][a-z0-9][a-z0-9].[0-9]*", "*ryo-[0-9][a-z0-9][a-z0-9][!a-z0-9]*", "*ryo-[a-z][0-9][a-z0-9][!a-z0-9]*", "*ryo-[a-z][a-z][0-9][!a-z0-9]*", "*ryo-[0-9][a-z0-9][a-z0-9][a-z0-9][!a-z0-9]*", "*ryo-[a-z][0-9][a-z0-9][a-z0-9][!a-z0-9]*", "*ryo-[a-z][a-z][0-9][a-z0-9][!a-z0-9]*", "*ryo-[a-z][a-z][a-z][0-9][!a-z0-9]*", "*ryo-[0-9][a-z0-9][a-z0-9]", "*ryo-[a-z][0-9][a-z0-9]", "*ryo-[a-z][a-z][0-9]", "*ryo-[0-9][a-z0-9][a-z0-9][a-z0-9]", "*ryo-[a-z][0-9][a-z0-9][a-z0-9]", "*ryo-[a-z][a-z][0-9][a-z0-9]", "*ryo-[a-z][a-z][a-z][0-9]", "*(owner 20*", "*owner 20[0-9][0-9]-*", "*[Tt]he owner's figure*", "*[Tt]he owner's number*", "*[Tt]he owner's call*", "*[Tt]he owner's choice*", "*[Tt]he owner's ruling*", "*[Tt]he owner's word*", "*[Tt]he owner's request*", "*[Tt]he owner's budget*", "*[Tt]he owner's target*", "*[Tt]he owner's bar*", "*[Oo]wner's decision*", "*[Tt]he spike", "*[Tt]he spike[!a-z]*", "*[Tt]he devcontainer*", "*[Aa]n agent*"] }, description = "No shipped text names the work that made it: no issue id of the tracker (`ryo-` and a short id with a digit or a child number) no dated attribution (`(owner 2026-10-27)`) and no process phrase (\"the owner's figure\", \"owner's decision\", \"the spike\", \"the devcontainer\", \"an agent\")." },
 ]
 
 [given]
@@ -968,4 +968,28 @@ given.files.'demo/benchmarks/linters/ruff/composition.rs' = '''
 '''
 then.findings = [
   { rule = 'idiomatic.arch/file-length', path = 'demo/benchmarks/linters/ruff/composition.rs' },
+]
+
+[[scenarios]]
+id = 'the-owner-of-a-module-is-domain-wording'
+scenario = "A comment that says a module's owner (the owner's graph tables) names the product's own concept, not the work that made it: it is not reported."
+given.files.'demo/src/lib.rs' = '''
+//! The demo.
+
+// The slot helper of the owner's own graph tables.
+pub fn run() {}
+'''
+then.only = ['idiomatic.arch/no-tracker-text-shipped']
+
+[[scenarios]]
+id = 'the-owners-figure-is-process'
+scenario = "A comment that says \"the owner's figure\" names who decided: it is reported."
+given.files.'demo/src/lib.rs' = '''
+//! The demo.
+
+// The most a run may reach is the owner's figure.
+pub fn run() {}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/no-tracker-text-shipped', path = 'demo/src/lib.rs', line = 3 },
 ]

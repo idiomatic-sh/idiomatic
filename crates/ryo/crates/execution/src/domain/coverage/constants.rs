@@ -8,3 +8,7 @@ pub(crate) const UNKNOWN_BECAUSE: &str = ": ";
 
 /// What names the repository as a whole where a message names a file.
 pub(crate) const REPOSITORY: &str = ".";
+
+/// What a rule says when partial project coverage names no file it can be placed on.
+pub(crate) const UNPLACEABLE_COVERAGE: &str =
+    "partial project coverage cannot be placed on its declared files";

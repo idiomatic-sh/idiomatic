@@ -133,7 +133,10 @@ pub(crate) fn schema_of(
             if texts.is_empty()
                 || literals.len() != texts.len() + 1
                 || texts.iter().any(|text| {
-                    projected(input.kinds, &[*text]).ok() != Some(vec![CellKind::Symbol])
+                    !matches!(
+                        projected(input.kinds, &[*text]),
+                        Ok(kinds) if kinds == vec![CellKind::Symbol]
+                    )
                 })
                 || projected(input.kinds, &[*span])? != [CellKind::Span]
             {

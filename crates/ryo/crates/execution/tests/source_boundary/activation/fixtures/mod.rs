@@ -77,6 +77,10 @@ impl ActualSource {
             .arg(case)
             .output()
             .unwrap();
+        assert!(
+            output.status.code().is_some(),
+            "the activation process must end by itself, not by a signal"
+        );
         let mut built = false;
         for message in Message::parse_stream(output.stdout.as_slice()) {
             match message.unwrap() {

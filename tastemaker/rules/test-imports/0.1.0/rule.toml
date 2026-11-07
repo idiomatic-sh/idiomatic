@@ -49,7 +49,7 @@ description = "Paths of another crate a test may name besides its fixtures, each
 
 [params.test-contracts]
 type = "list<table>"
-description = "Explicit canonical public contract paths, each { path }; not package or implementation wildcards."
+description = "Explicit canonical public contract paths, each { path }; not package or implementation wildcards. A use case's `interface.rs` and `types.rs` paths are contracts, and so is the constructor of its implementation in `use_case.rs` (`<Name>UseCaseImpl::new`), which is how a test builds the use case it drives; no other part of `use_case.rs` is one."
 
 [diagnostic]
 primary = "span"

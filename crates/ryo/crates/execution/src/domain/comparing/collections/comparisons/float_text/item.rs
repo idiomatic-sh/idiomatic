@@ -16,13 +16,11 @@ struct WrittenNumber(f64);
 /// The finite number a text writes, when it writes one.
 fn number_of(datum: &Datum<'_>) -> Option<WrittenNumber> {
     match datum {
-        Datum::Text(text) => text
-            .0
-            .trim()
-            .parse::<f64>()
-            .ok() // a text that writes no number is compared as text, which is the question asked
-            .filter(|number| number.is_finite())
-            .map(WrittenNumber),
+        Datum::Text(text) => match text.0.trim().parse::<f64>() {
+            Ok(number) if number.is_finite() => Some(WrittenNumber(number)),
+            // a text that writes no number is compared as text, which is the question asked
+            Ok(_) | Err(_) => None,
+        },
         Datum::Unlocated
         | Datum::Number(_)
         | Datum::Flag(_)

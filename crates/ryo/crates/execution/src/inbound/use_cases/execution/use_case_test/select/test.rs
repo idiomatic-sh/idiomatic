@@ -177,7 +177,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(232),
     },
     Case {
-        name: CaseName("an_unbound_parameter_is_refused"),
+        name: CaseName("an_unbound_select_parameter_is_refused"),
         word: Word::Refuses,
         input: || Scenario::Unbound,
         expect: Expect::Error(OperatingError::Unbound),

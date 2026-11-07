@@ -96,9 +96,9 @@ impl<'f> RepresentationInput<'f> {
         row: ryo_values::domain::rows::types::RowIndex,
         column: ryo_values::domain::plan_parts::types::ColumnIndex,
     ) -> Option<ryo_relations::domain::relations::types::Value> {
-        match registered(kind(self)).cell(self, row, column).ok()? {
-            super::types::CellRead::Value(value) => Some(value),
-            super::types::CellRead::MissingPhysical => None,
+        match registered(kind(self)).cell(self, row, column) {
+            Ok(super::types::CellRead::Value(value)) => Some(value),
+            Ok(super::types::CellRead::MissingPhysical) | Err(_) => None,
         }
     }
     pub(crate) fn read<'r>(
@@ -117,9 +117,11 @@ impl<'f> RepresentationInput<'f> {
                 ),
             );
         }
-        match registered(kind(self)).row(self, row, decode).ok()? {
-            super::types::RowRead::Borrowed(row) | super::types::RowRead::Decoded(row) => Some(row),
-            super::types::RowRead::MissingPhysical => None,
+        match registered(kind(self)).row(self, row, decode) {
+            Ok(super::types::RowRead::Borrowed(row) | super::types::RowRead::Decoded(row)) => {
+                Some(row)
+            }
+            Ok(super::types::RowRead::MissingPhysical) | Err(_) => None,
         }
     }
 }

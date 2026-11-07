@@ -6,7 +6,7 @@ use ryo_execution::inbound::use_cases::execution::{
 };
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
-    service::{kinds, node_id},
+    fixtures::{kinds, node_id},
     types::{CellKind, FileId, Flag, Integer, Offset, Position, Relation, Span, Value},
 };
 use ryo_values::domain::{

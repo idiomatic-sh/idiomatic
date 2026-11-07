@@ -5,6 +5,11 @@ use ryo_values::domain::descriptions::types::{
     OptionLine, Purpose,
 };
 
+/// The field naming the column that holds the far end of an edge.
+pub(crate) const DESTINATION: &str = "destination";
+/// The field naming the relation an operator reads its edges from.
+pub(crate) const RELATION: &str = "relation";
+
 /// A field of an operator's description: its name, what it holds and whether it must be given.
 pub(crate) fn field(name: &str, summary: &str, required: FieldRequirement) -> FieldDescription {
     FieldDescription {

@@ -1,6 +1,7 @@
 //! Public description of request-driven semantic syntax rendering.
 
 use crate::domain::describing::constants::{described, field};
+use ryo_values::domain::descriptions::constants::OUTPUT;
 use ryo_values::domain::descriptions::types::{FieldRequirement, OperatorDescription};
 
 pub(crate) fn description() -> OperatorDescription {
@@ -19,13 +20,12 @@ pub(crate) fn description() -> OperatorDescription {
                 "Embedding role: assignment-target, attribute-receiver, or positional-argument.",
                 FieldRequirement::Required,
             ),
-            field(
-                "output",
-                "New exact text column.",
-                FieldRequirement::Required,
-            ),
+            field(OUTPUT, "New exact text column.", FieldRequirement::Required),
         ],
         &[],
         r#"let example = render-syntax(from="syntax-tree", node="id", context="assignment-target", output="rendered"); emit example subject file key(id);"#,
     )
 }
+
+/// What a render demand says when the file admitted no semantic session.
+pub(super) const NO_SEMANTIC_SESSION: &str = "no file semantic session was admitted";
