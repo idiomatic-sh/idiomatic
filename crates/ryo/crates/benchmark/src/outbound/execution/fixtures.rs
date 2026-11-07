@@ -4,3 +4,5 @@ pub mod contract;
 pub mod fake;
 
 mod driver;
+#[cfg(test)]
+pub mod observers;

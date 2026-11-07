@@ -1,4 +1,3 @@
-// ignore: idiomatic.arch/file-length - the test data of the paired verifier, its process-failure capture and its documented reference difference: they share one scenario over the fakes of its ports, and the use-case spec keeps a non-contract use case's fixtures in this one file (a `fixtures/` directory is refused by contract-only-files), so it cannot be split one fixture per file.
 //! Independent source inputs through the actual public use case and real process boundary.
 use crate::outbound::{
     execution::interface::ExecutionPort, linter::interface::LinterPort, suite::interface::SuitePort,

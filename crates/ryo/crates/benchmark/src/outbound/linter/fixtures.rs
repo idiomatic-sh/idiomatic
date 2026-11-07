@@ -3,3 +3,5 @@
 pub mod contract;
 pub mod data;
 pub mod fake;
+#[cfg(test)]
+pub mod covered;
