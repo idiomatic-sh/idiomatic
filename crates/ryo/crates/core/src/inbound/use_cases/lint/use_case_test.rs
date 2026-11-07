@@ -71,6 +71,8 @@ struct Given {
     include: Vec<&'static str>,
     exclude: Vec<&'static str>,
     answer: AnswerShape,
+    /// The provider the caller selects by name, when the row is about that selection.
+    source_language: Option<&'static str>,
 }
 
 /// What a lint over a given made: the answer, the rows kept, the files the language read and what the ports were asked.
@@ -249,6 +251,7 @@ fn violations() -> Given {
         include: Vec::new(),
         exclude: Vec::new(),
         answer: AnswerShape::Findings,
+        source_language: None,
     }
 }
 
@@ -265,7 +268,9 @@ struct World {
 fn request(given: &Given) -> LintRequest {
     let globs = |texts: &[&str]| texts.iter().map(|glob| Glob((*glob).into())).collect();
     LintRequest {
-        source_language: None,
+        source_language: given
+            .source_language
+            .map(|name| ryo_values::domain::descriptions::types::LanguageName(name.into())),
         answer: given.answer,
         hosted: given.hosted.clone(),
         session: Session {
@@ -992,6 +997,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         },
         expect: Expect::Refusal(|error| {
             selects(Matched(matches!(error, LintError::MemoryBudgetExceeded { .. })))
+        }),
+    },
+    Case {
+        name: CaseName("a_source_provider_the_request_names_but_no_language_links_is_refused"),
+        word: Word::Refuses,
+        input: || {
+            Scenario::Lint(|| Given {
+                source_language: Some("not-linked"),
+                ..violations()
+            })
+        },
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, LintError::SourceLanguage { .. })))
         }),
     },
     Case {

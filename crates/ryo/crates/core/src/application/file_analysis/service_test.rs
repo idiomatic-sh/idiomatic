@@ -608,6 +608,18 @@ fn subject(path: Input) -> Result<Value, Failure> {
     if path == "digests" {
         return digested();
     }
+    if path == "unlinked-source-provider" {
+        let service = FileAnalysis::new(
+            Arc::new(CorpusFake::default()),
+            Arc::new(LanguageFake::default()),
+            Arc::new(DigestFake),
+            Arc::new(MemoryFake::default()),
+        );
+        service.validate_source_language(Some(&ryo_values::domain::descriptions::types::LanguageName(
+            "not-linked".into(),
+        )))?;
+        return Ok(0);
+    }
     let language = Arc::new(LanguageFake::default());
     let service = FileAnalysis::new(
         Arc::new(CorpusFake::default()),
@@ -919,6 +931,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Refusal(|error| {
             if matches!(error, FileAnalysisError::Provider { code: crate::domain::admission::errors::AdmissionError::NodeOutsideTable, provider } if provider == "fake ")
             {
+                Selection::Matches
+            } else {
+                Selection::Differs
+            }
+        }),
+    },
+    Case {
+        name: CaseName("a_source_provider_no_language_links_is_refused_before_any_file_is_read"),
+        word: Word::Refuses,
+        input: || "unlinked-source-provider",
+        expect: Expect::Refusal(|error| {
+            if matches!(error, FileAnalysisError::SourceLanguage { name } if name == "not-linked") {
                 Selection::Matches
             } else {
                 Selection::Differs
