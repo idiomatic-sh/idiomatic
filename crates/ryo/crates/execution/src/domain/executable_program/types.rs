@@ -103,6 +103,7 @@ pub enum RouteWiring {
     #[default]
     Wired,
     /// The strategy is never offered.
+    #[cfg(any(test, feature = "fixtures"))]
     Unwired,
 }
 /// Which strategies the composition wires, every one by default. Each strategy implements a driver

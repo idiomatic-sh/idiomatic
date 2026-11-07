@@ -21,7 +21,6 @@ pub(super) const FIXTURE_FAKE_PROGRAM: &str = "fixture";
 #[cfg(any(test, feature = "fixtures"))]
 /// Independent certification fixture profile directory.
 pub(super) const FIXTURE_PROFILE_DIRECTORY: &str = "profile";
-#[cfg(any(test, feature = "fixtures"))]
 /// Independent certification fixture rule directory name.
 pub(super) const FIXTURE_RULE_DIRECTORY_NAME: &str = "rules";
 #[cfg(any(test, feature = "fixtures"))]
@@ -39,7 +38,6 @@ pub(super) const FIXTURE_TOOL_SCRIPT: &str = "#!/bin/sh\necho fixture 1\n";
 /// `std::process::Command` launches `.cmd` files through the platform command processor.
 #[cfg(all(windows, any(test, feature = "fixtures")))]
 pub(super) const FIXTURE_TOOL_SCRIPT: &str = "@echo fixture 1\r\n";
-#[cfg(any(test, feature = "fixtures"))]
 /// Independent certification fixture profile file.
 pub(super) const FIXTURE_PROFILE_FILE: &str = "benchmark.toml";
 #[cfg(any(test, feature = "fixtures"))]
