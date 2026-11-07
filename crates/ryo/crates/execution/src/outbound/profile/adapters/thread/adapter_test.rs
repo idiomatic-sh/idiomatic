@@ -54,7 +54,7 @@ fn subject(input: Input) -> Value {
         }
         Question::Room => {
             let profiles = ThreadProfiles::<u8>(ThreadLocal::with_capacity(THREAD_PROFILES));
-            profiles.0.iter().count() == 0 && THREAD_PROFILES > 0
+            profiles.0.into_iter().count() == 0 && THREAD_PROFILES > 0
         }
     }
 }

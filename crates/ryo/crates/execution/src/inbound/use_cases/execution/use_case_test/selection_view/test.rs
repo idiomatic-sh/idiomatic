@@ -52,7 +52,7 @@ fn subject(ragged: Input) -> Result<Value, Failure> {
         },
         selection: Arc::new(StoredSelection {
             relation: Relation::Function,
-            rows: Arc::new(vec![2, 0, 2, 1]),
+            rows: crate::domain::stored_selection::types::SelectedPositions(Arc::new(vec![2, 0, 2, 1])),
             columns: vec![
                 ColumnIndex(2),
                 ColumnIndex(1),
@@ -122,7 +122,7 @@ fn subject(ragged: Input) -> Result<Value, Failure> {
     };
     missing.selection = Arc::new(StoredSelection {
         relation: missing.selection.relation,
-        rows: Arc::new(vec![99]),
+        rows: crate::domain::stored_selection::types::SelectedPositions(Arc::new(vec![99])),
         columns: missing.selection.columns.clone(),
         kinds: missing.selection.kinds.clone(),
         identity: Arc::clone(&missing.selection.identity),

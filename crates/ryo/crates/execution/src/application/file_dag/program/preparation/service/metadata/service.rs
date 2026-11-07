@@ -128,7 +128,7 @@ fn source(
                     .iter()
                     .position(|slot| slot.rule == rule && slot.input == input)
             })
-            .map(InputSource::Observation)
+            .map(|slot| InputSource::Observation(crate::domain::executable_program::types::ObservationPlace(slot)))
             .ok_or(OperatingError::NotRun),
     }
 }

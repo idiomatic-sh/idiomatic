@@ -1,5 +1,6 @@
 //! Axis rows and native tree traversal through real compiled file owners.
 use super::super::super::fixtures;
+use super::super::axis_tree::test::{Domain, over_the_tree};
 use ryo_values::selects;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Relation;
@@ -73,13 +74,6 @@ fn compute(
 }
 fn node(position: u32) -> Cell {
     Cell::Node(node_id(FileId(0), Position(position)))
-}
-/// What the third input of a walk over the tree is: the nodes of a table, or the elements of the tree.
-enum Domain {
-    /// A table of nodes.
-    Nodes(Table),
-    /// The elements of the tree.
-    Elements,
 }
 /// A table of one node column holding `starts`.
 fn node_table(starts: impl IntoIterator<Item = u32>) -> Table {

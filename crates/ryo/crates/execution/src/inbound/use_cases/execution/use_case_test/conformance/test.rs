@@ -1,4 +1,5 @@
 //! Every operation executes through the real prepare/open_file/collect-or-deliver protocol.
+use crate::inbound::use_cases::execution::interface::ExecutionUseCase as _;
 use ryo_values::cases::Case;
 use ryo_values::cases::CaseName;
 use ryo_values::cases::Expect;
@@ -242,10 +243,13 @@ pub(in super::super) fn compare_delivery_with_port(
         evaluation: &[],
         publication: &[],
         intents: diagnostic,
-        source,
+        source: ryo_values::domain::files::types::SourceView(source),
         elements: &elements,
         read: &read,
-        semantic,
+        semantic: match semantic {
+            Some(lookup) => crate::application::file_dag::program::file_session::types::SemanticSupport::Supplied(lookup),
+            None => crate::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+        },
         kinds: crate::application::file_dag::program::file_session::types::KindSupport::Absent,
     };
     let collected_intent = [FileRuleIntent::Run {

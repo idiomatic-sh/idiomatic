@@ -334,7 +334,7 @@ pub(super) fn alias_member(
         });
     };
     let root = prepared
-        .rule_metadata(rule)?
+        .rule_metadata(*rule)?
         .observations
         .get(output.0 as usize)
         .ok_or(OperatingError::NotRun)?;

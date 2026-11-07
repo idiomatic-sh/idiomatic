@@ -60,7 +60,7 @@ fn immutable_duplicate_rows_share_one_complete_index_without_cloning_buffers() {
             equality(&second),
             &[Value::Number(Integer(2))],
             #[cfg(feature = "diagnostic-row-progress")]
-            |_, _| {},
+            &crate::domain::operator::contract::views::IgnoredProgress,
         )
         .copied()
         .collect::<Vec<_>>(),
@@ -219,7 +219,7 @@ fn invalid_columns_never_admit_and_normalized_flags_still_match_on_reuse() {
             equality(&reused),
             &[Value::Flag(Flag::Raised)],
             #[cfg(feature = "diagnostic-row-progress")]
-            |_, _| {},
+            &crate::domain::operator::contract::views::IgnoredProgress,
         )
         .copied()
         .collect::<Vec<_>>(),
@@ -232,7 +232,7 @@ fn invalid_columns_never_admit_and_normalized_flags_still_match_on_reuse() {
             equality(&reused),
             &[Value::Number(Integer(1))],
             #[cfg(feature = "diagnostic-row-progress")]
-            |_, _| {},
+            &crate::domain::operator::contract::views::IgnoredProgress,
         )
         .next()
         .is_none()
@@ -297,7 +297,7 @@ fn derived_symbol_growth_does_not_change_a_frozen_stored_key() {
             equality(&reused),
             &[Value::Symbol(original)],
             #[cfg(feature = "diagnostic-row-progress")]
-            |_, _| {},
+            &crate::domain::operator::contract::views::IgnoredProgress,
         )
         .copied()
         .collect::<Vec<_>>(),
@@ -331,7 +331,7 @@ fn a_reused_index_still_resolves_full_composite_hash_collisions_exactly() {
             index,
             &[Value::Number(Integer(0)), Value::Number(Integer(0))],
             #[cfg(feature = "diagnostic-row-progress")]
-            |_, _| {},
+            &crate::domain::operator::contract::views::IgnoredProgress,
         )
         .copied()
         .collect::<Vec<_>>(),

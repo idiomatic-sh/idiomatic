@@ -105,7 +105,7 @@ impl<'f> PartitionedClosure<'f> {
 }
 
 #[cfg(test)]
-mod partitions_test;
+pub(in crate::application::file_dag) mod partitions_test;
 mod constants;
 pub(in crate::application::file_dag) mod schemas;
 pub(in crate::application::file_dag) mod types;

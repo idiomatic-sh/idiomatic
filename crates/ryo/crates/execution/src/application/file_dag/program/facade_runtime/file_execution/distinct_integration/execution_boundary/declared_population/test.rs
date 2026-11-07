@@ -49,7 +49,7 @@ fn ragged_selected_fallback_cannot_admit_mismatched_projection_kinds() {
         },
         selection: Arc::new(StoredSelection {
             relation: Relation::SyntaxTree,
-            rows: Arc::new(vec![0]),
+            rows: crate::domain::stored_selection::types::SelectedPositions(Arc::new(vec![0])),
             columns: vec![ColumnIndex(0)],
             kinds: vec![CellKind::Symbol],
             identity: Arc::new(Default::default()),

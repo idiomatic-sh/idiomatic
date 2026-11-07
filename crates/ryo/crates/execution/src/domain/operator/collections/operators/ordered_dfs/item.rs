@@ -102,7 +102,7 @@ impl OperatorsItem for OrderedDfsItem {
                     .ok_or(OperatingError::ShapeMismatch)?;
                 let root_row = row_in(&prepared.roots, at).ok_or(OperatingError::ShapeMismatch)?;
                 key.clear();
-                for column in graph.root_columns {
+                for column in graph.root_columns.iter().copied() {
                     key.push(cell(root_row, column)?);
                 }
                 prefix.clear();

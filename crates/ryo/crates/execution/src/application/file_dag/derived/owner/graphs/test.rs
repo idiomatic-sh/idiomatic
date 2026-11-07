@@ -279,7 +279,14 @@ fn adjacency_admission_reclaims_dormant_payload_but_falls_back_while_the_index_i
     assert!(admitted.optional_bytes <= admitted.limit);
     assert!(Arc::ptr_eq(local.raw_graph(), shared.raw_graph()));
     assert_eq!(local.graph().vertices(), shared.graph().vertices());
-    assert_eq!(local.graph().neighbors(), shared.graph().neighbors());
+    assert_eq!(
+        local.graph().neighbors(ryo_derived::domain::vertices::types::EdgeDirection::Forward),
+        shared.graph().neighbors(ryo_derived::domain::vertices::types::EdgeDirection::Forward)
+    );
+    assert_eq!(
+        local.graph().neighbors(ryo_derived::domain::vertices::types::EdgeDirection::Backward),
+        shared.graph().neighbors(ryo_derived::domain::vertices::types::EdgeDirection::Backward)
+    );
     assert_eq!(admitted.counts.builds, 1);
 }
 

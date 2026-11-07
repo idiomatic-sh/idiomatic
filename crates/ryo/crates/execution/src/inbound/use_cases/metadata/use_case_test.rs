@@ -1,4 +1,5 @@
 //! Each pure family is exercised through the public inbound implementation.
+use crate::inbound::use_cases::metadata::interface::MetadataUseCase as _;
 use super::interface::Bearing;
 use super::interface::Blocking;
 use super::interface::CoverageScope;
@@ -126,7 +127,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::UnknownKind,
         expect: Expect::Refusal(|failure| {
             selects!(
-                matches!(failure, Refusal::Kind(KindRefusal(message, None)) if message.contains("ghost") && message.contains("rust")),
+                matches!(failure, Refusal::Kind(KindRefusal { message, origin: crate::domain::kind_check::types::KindOrigin::Unrecorded }) if message.0.contains("ghost") && message.0.contains("rust")),
             )
         }),
     },

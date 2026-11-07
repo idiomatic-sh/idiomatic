@@ -122,7 +122,7 @@ fn a_file_with_no_names_teaches_nothing_about_kinds() -> Result<Value, Operating
         kept: vec![column(0)],
     };
     let (engine, prepared) = fixtures::prepared(inputs::plan(vec![operation]), vec![], vec![])?;
-    let never = |_| Err(super::super::super::types::OperatingError::NotRead);
+    let never = |_| Err(crate::domain::operating::errors::OperatingError::NotRead);
     let empty = fixtures::run_prepared(
         &engine,
         &prepared,

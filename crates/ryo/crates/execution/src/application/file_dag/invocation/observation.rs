@@ -63,7 +63,7 @@ impl InvocationResources<'_> {
                 .table
                 .count
                 .0;
-            capacity = parts.working_capacity();
+            capacity = crate::application::file_dag::closure_partitions::partitions_test::working_capacity(parts);
         }
         if !self.inputs.closure.is_empty() || self.inputs.partitioned_closure.is_some() {
             capacity += workspace.primitive.row.capacity()

@@ -1,4 +1,5 @@
 //! Differential traversal behavior over an actual prepared equality index.
+use crate::outbound::derived::interface::DerivedPort as _;
 use super::*;
 use ryo_relations::domain::relations::types::Value as Cell;
 

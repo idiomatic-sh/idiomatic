@@ -38,7 +38,7 @@ fn node(position: u32) -> Cell {
     Cell::Node(node_id(FileId(0), Position(position)))
 }
 /// What the third input of a walk over the tree is: the nodes of a table, or the elements of the tree.
-enum Domain {
+pub(in crate::inbound::use_cases::execution::use_case_test) enum Domain {
     /// A table of nodes.
     Nodes(Table),
     /// The elements of the tree.
@@ -72,7 +72,7 @@ fn axis(direction: Direction, filter: Vec<PlanComparison>, output: Vec<JoinColum
     }
 }
 /// What the item makes of the operation over the tree, from the nodes in `starts`.
-fn over_the_tree(
+pub(in crate::inbound::use_cases::execution::use_case_test) fn over_the_tree(
     operation: &Operation,
     starts: &Table,
     domain: &Domain,
@@ -145,8 +145,8 @@ fn over_the_tree(
     *domain = domain_source;
     operations.push(operation);
     let read = |relation| match relation {
-        Relation::Function => Ok(super::super::super::types::SourceRows::Computed(&from)),
-        Relation::Identifier => Ok(super::super::super::types::SourceRows::Computed(
+        Relation::Function => Ok(crate::application::file_dag::program::file_session::types::SourceRows::Computed(&from)),
+        Relation::Identifier => Ok(crate::application::file_dag::program::file_session::types::SourceRows::Computed(
             domain_rows.as_ref().expect("declared domain"),
         )),
         _ => Err(OperatingError::NotRead),

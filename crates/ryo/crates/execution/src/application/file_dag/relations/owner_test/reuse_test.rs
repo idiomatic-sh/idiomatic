@@ -18,7 +18,7 @@ fn many_selected_consumers_reacquire_one_generation_proof() {
     let positions = Arc::new(vec![1, 0, 1]);
     let selection = Arc::new(StoredSelection {
         relation,
-        rows: positions,
+        rows: crate::domain::stored_selection::types::SelectedPositions(positions),
         columns: vec![ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)],
         kinds: vec![schema[1], schema[0], schema[1]],
         identity: Arc::new(Default::default()),

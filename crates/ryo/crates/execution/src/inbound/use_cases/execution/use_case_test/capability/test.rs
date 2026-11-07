@@ -1,4 +1,5 @@
 //! Recursive producers and roots use the actual injected semantic capability, with terminal refusal.
+use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use crate::outbound::operators::interface::OperatorsPort as _;
 use super::super::super::fixtures::{Authored, Preparation};
 use crate::outbound::facts::types::ResidentStability;

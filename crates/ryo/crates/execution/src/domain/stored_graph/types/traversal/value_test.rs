@@ -1,4 +1,5 @@
 //! Ordered nearest and forest compression are different from sorted closure order.
+use crate::outbound::derived::interface::DerivedPort as _;
 use ryo_derived::domain::vertices::types::VertexId;
 
 use super::value::{ABSENT, GraphTraversal, UNKNOWN};

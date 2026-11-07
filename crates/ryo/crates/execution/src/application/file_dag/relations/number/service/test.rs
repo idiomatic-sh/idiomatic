@@ -177,7 +177,7 @@ fn qualified_producers_release_only_their_actual_population() {
         let proof = owner
             .admit(publication.as_ref(), BorrowedRows::from(&rows))
             .unwrap();
-        let population = proof.identity(owner).unwrap().0;
+        let population = proof.identity(owner).unwrap().population;
         let plan = Arc::new(
             owner
                 .derived

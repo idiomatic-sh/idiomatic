@@ -1,4 +1,5 @@
 //! The projected tuple contract retains collision and invalid-cell controls through the capability.
+use crate::outbound::derived::interface::DerivedPort as _;
 use ryo_derived::domain::contract::types::BuildOutcome;
 use ryo_derived::domain::contract::types::BuildWorkspace;
 use ryo_derived::domain::fault::types::DerivedFault;
@@ -33,7 +34,7 @@ fn representatives(
         &plan,
         DerivedInputs::Distinct {
             rows: &rows,
-            positions,
+            positions: ryo_derived::domain::positions::types::RowSlots(positions),
         },
         &mut BuildWorkspace::default(),
         None,
@@ -44,6 +45,7 @@ fn representatives(
     Ok(payload
         .share_positions()
         .expect("successful distinct payload")
+        .0
         .as_slice()
         .to_vec())
 }

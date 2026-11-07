@@ -208,7 +208,7 @@ pub(crate) fn selection(
 ) -> Arc<StoredSelection> {
     Arc::new(StoredSelection {
         relation: Relation::Function,
-        rows: Arc::new(rows),
+        rows: crate::domain::stored_selection::types::SelectedPositions(Arc::new(rows)),
         columns,
         kinds,
         identity: Arc::new(Default::default()),
@@ -243,7 +243,7 @@ pub(crate) fn check_rows(input: &Rows<'_>, expected: &[Vec<Cell>]) {
             let at_column = ColumnIndex(u32::try_from(at_column).unwrap());
             assert_eq!(
                 item.cell(raw, RowIndex(at), at_column).unwrap(),
-                CellRead::Cell(*wanted)
+                CellRead::Value(*wanted)
             );
             assert_eq!(
                 crate::domain::table_model::service::cell_at(input, RowIndex(at), at_column),

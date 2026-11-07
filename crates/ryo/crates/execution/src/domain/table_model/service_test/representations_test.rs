@@ -208,7 +208,7 @@ fn metadata_preparation_does_not_eagerly_read_or_refuse_malformed_population() -
     ));
     assert_eq!(
         item.cell(raw, RowIndex(0), ColumnIndex(0)).unwrap(),
-        CellRead::Cell(number(4))
+        CellRead::Value(number(4))
     );
     let mut decode = [];
     assert!(matches!(
@@ -230,7 +230,7 @@ fn metadata_preparation_does_not_eagerly_read_or_refuse_malformed_population() -
     );
     assert_eq!(
         item.cell(raw, RowIndex(1), ColumnIndex(0)).unwrap(),
-        CellRead::Cell(number(5))
+        CellRead::Value(number(5))
     );
     let mut decode = [number(99); 2];
     assert!(matches!(

@@ -84,7 +84,7 @@ pub(super) fn demand(
         },
         DerivedKind::DistinctRepresentatives => DerivedInputs::Distinct {
             rows: rows[0],
-            positions: &[0, 1],
+            positions: crate::domain::stored_selection::types::BorrowedPositions(&[0, 1]),
         },
         DerivedKind::Membership => DerivedInputs::Membership {
             rows: rows[0],
@@ -94,7 +94,7 @@ pub(super) fn demand(
             rows: &rows,
             texts: &texts,
         },
-        DerivedKind::RawKeyOrder => DerivedInputs::RawWords(&[2, 1, 2]),
+        DerivedKind::RawKeyOrder => DerivedInputs::RawWords(&crate::domain::positions::types::Keys(vec![2, 1, 2])),
         _ => DerivedInputs::Rows(&rows[..if pair { 2 } else { 1 }]),
     };
     owner.derived().acquire_stored(

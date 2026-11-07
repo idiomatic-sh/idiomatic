@@ -28,7 +28,7 @@ fn equality() -> DerivedContract {
     );
     DerivedContract::issue(
         IdentityHash(0),
-        prepared,
+        std::sync::Arc::new(prepared),
         ViewRequest::Equality {
             columns: vec![ColumnIndex(0)],
         },

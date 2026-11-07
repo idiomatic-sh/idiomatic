@@ -1,4 +1,5 @@
 //! Canonical stored graph acquisition and hosted ordinary traversal publish identical ordered bags.
+use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use super::super::super::fixtures::{Authored, Preparation};
 use crate::outbound::facts::types::ResidentStability;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;

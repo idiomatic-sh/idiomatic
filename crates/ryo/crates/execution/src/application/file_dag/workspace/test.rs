@@ -36,7 +36,7 @@ fn admission_requires_a_live_matching_publication_in_test_builds_too() {
         .unwrap();
     workspace.capture_admitted(vec![publication.clone()]);
     let admitted = workspace.admit(InputNumber(0), BorrowedRows::from(&rows)).unwrap();
-    assert_eq!(admitted.identity(&owner).unwrap().1, None);
+    assert_eq!(admitted.identity(&owner).unwrap().relation, None);
     assert_eq!(admitted.rows().kinds(), &[CellKind::Number]);
     assert!(matches!(
         workspace.admit(InputNumber(0), BorrowedRows::Computed(&raw)),
@@ -225,7 +225,7 @@ fn distinct_published_populations_never_share_slot_only_identities() {
             panic!("ordered")
         };
         assert!(
-            matches!(rows.right()[0].keys()[0],ryo_derived::domain::ordered::types::OwnedOrderedKey::Value(Value::Number(Integer(value)))if value==expected)
+            matches!(rows.right[0].keys[0],ryo_derived::domain::ordered::types::OwnedOrderedKey::Value(Value::Number(Integer(value)))if value==expected)
         );
         retained_views.push(view);
     }
@@ -240,11 +240,11 @@ fn distinct_published_populations_never_share_slot_only_identities() {
         "live old view cannot be reused by temporary slot identity"
     );
     assert!(matches!(
-        first.right()[0].keys()[0],
+        first.right[0].keys[0],
         ryo_derived::domain::ordered::types::OwnedOrderedKey::Value(Value::Number(Integer(9)))
     ));
     assert!(matches!(
-        second.right()[0].keys()[0],
+        second.right[0].keys[0],
         ryo_derived::domain::ordered::types::OwnedOrderedKey::Value(Value::Number(Integer(4)))
     ));
     assert_eq!(

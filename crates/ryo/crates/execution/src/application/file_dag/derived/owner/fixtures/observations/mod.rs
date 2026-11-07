@@ -250,7 +250,7 @@ impl DerivedOwner {
                         .selection_views
                         .as_ref()?
                         .by_selector
-                        .get(&(Arc::as_ptr(program) as usize))
+                        .get(&crate::domain::derived_views::types::SelectorAddress(Arc::as_ptr(program) as usize))
                 })
                 .map(|view| Arc::as_ptr(view) as usize),
             prepared_views_address: cache

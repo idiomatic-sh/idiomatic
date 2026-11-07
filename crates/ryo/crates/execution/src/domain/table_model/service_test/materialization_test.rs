@@ -41,7 +41,7 @@ fn compact_materialization_decodes_projected_cells_without_full_row_reads() -> R
         },
         selection: Arc::new(StoredSelection {
             relation: Relation::Function,
-            rows: Arc::new(vec![1, 0, 1, 2]),
+            rows: crate::domain::stored_selection::types::SelectedPositions(Arc::new(vec![1, 0, 1, 2])),
             columns: vec![ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)],
             kinds: vec![CellKind::Number; 3],
             identity: Arc::new(Default::default()),
@@ -99,7 +99,7 @@ fn compact_materialization_preserves_ragged_and_zero_width_legacy_rows() -> Resu
             source,
             selection: Arc::new(StoredSelection {
                 relation: Relation::Function,
-                rows: Arc::new(rows),
+                rows: crate::domain::stored_selection::types::SelectedPositions(Arc::new(rows)),
                 columns,
                 kinds,
                 identity: Arc::new(Default::default()),

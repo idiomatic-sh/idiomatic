@@ -1,4 +1,5 @@
 //! Binary operators must demand the refusing RHS after a real nonempty successful LHS.
+use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::outbound::facts::types::ResidentStability;
 use super::super::super::fixtures;

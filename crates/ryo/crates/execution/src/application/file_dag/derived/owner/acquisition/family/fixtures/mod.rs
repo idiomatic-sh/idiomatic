@@ -167,13 +167,13 @@ fn acquire(
                 Rc::clone(&owner),
             )?;
             assert_eq!(cursor.advance()?, crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced);
-            assert_eq!(cursor.current()?.key(), &[Value::Number(Integer(0))]);
+            assert_eq!(cursor.current()?.key, &[Value::Number(Integer(0))]);
             match scenario {
                 Scenario::Cancelled => {}
                 Scenario::Held => {
                     owner.release_population();
                     assert_eq!(
-                        cursor.current()?.key(),
+                        cursor.current()?.key,
                         &[Value::Number(Integer(0))],
                         "the held partition outlives the retired generation"
                     );
@@ -184,7 +184,7 @@ fn acquire(
                 }
                 _ => {
                     assert_eq!(cursor.advance()?, crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced, "the second actual partition rebuilds the scoped acquired view");
-                    assert_eq!(cursor.current()?.key(), &[Value::Number(Integer(1))]);
+                    assert_eq!(cursor.current()?.key, &[Value::Number(Integer(1))]);
                     assert_eq!(cursor.advance()?, crate::application::file_dag::closure_partitions::types::PartitionAdvance::Exhausted);
                 }
             }

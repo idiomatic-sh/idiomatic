@@ -216,7 +216,7 @@ fn equal_retained_hashes_use_exact_text_and_preserve_original_cells() -> Value {
         canonical: vec!["a".into(), "b".into(), "ctx".into()],
     };
     with_graph(&roots, &edges, true, &mut texts, |graph| {
-        let canonical = graph.root_columns;
+        let canonical = graph.root_columns.clone();
         let canonical_key = |row| {
             canonical
                 .iter()

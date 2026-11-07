@@ -75,7 +75,7 @@ pub(super) fn selected<'a>(
         source,
         selection: Arc::new(StoredSelection {
             relation: Relation::SourceLocation,
-            rows: Arc::new(positions),
+            rows: crate::domain::stored_selection::types::SelectedPositions(Arc::new(positions)),
             columns,
             kinds,
             identity: Arc::new(Default::default()),
