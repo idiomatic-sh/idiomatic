@@ -61,7 +61,7 @@ pub struct PlanStep {
 }
 
 /// The operations of the language, one variant each, with typed fields.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Hash)]
 pub enum Operation {
     /// Keep the rows for which every comparison holds.
     Select {

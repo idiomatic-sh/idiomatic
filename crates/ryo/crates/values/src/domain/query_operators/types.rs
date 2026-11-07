@@ -1,7 +1,7 @@
 //! The types of the `query_operators` concept: the operators of the engine and the output choices of their steps. Plain data, public fields and derives, with no constructor and no inherent impl.
 
 /// Whether the source-matches step appends the captured physical text as a Symbol.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum TextOutput {
     /// The text is appended.
     Appended,
@@ -10,7 +10,7 @@ pub enum TextOutput {
 }
 
 /// Whether the source-matches step appends the captured start line.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum LineOutput {
     /// The line is appended.
     Appended,

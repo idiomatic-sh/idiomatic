@@ -23,7 +23,7 @@ pub struct TableKey(pub Box<str>);
 pub struct CapturePattern(pub Box<str>);
 
 /// Whether a projection drops the rows that repeat.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RepeatedRows {
     /// A row that repeats is kept once.
     Dropped,
@@ -72,7 +72,7 @@ pub enum Input {
 }
 
 /// Which side of a join a column comes from.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Side {
     /// The left input.
     Left,
@@ -102,7 +102,7 @@ pub enum Direction {
 }
 
 /// A column a join keeps.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct JoinColumn {
     /// The input it comes from.
     pub side: Side,
@@ -111,7 +111,7 @@ pub struct JoinColumn {
 }
 
 /// Physical source-keyed lookup of a positive transitive closure, internal to a compiled join.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ReachLookup {
     /// Physical edge column holding the closure source.
     pub source: ColumnIndex,
@@ -194,7 +194,7 @@ pub enum ComparisonOrigin {
 pub struct ComparisonOriginId(pub u32);
 
 /// One side of a comparison.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Hash)]
 pub enum Operand {
     /// A column of the step's input.
     Column(ColumnIndex),
@@ -224,7 +224,7 @@ pub enum Function {
 }
 
 /// A function and the operands it is applied to.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Hash)]
 pub struct Applied {
     /// The function.
     pub function: Function,
@@ -233,7 +233,7 @@ pub struct Applied {
 }
 
 /// A value the query wrote: text that entered the engine, or a number.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum QueryLiteral {
     /// A whole number.
     Number(Integer),
@@ -257,6 +257,15 @@ pub struct Inputs {
 /// How many inputs an operation reads.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct InputCount(pub usize);
+
+/// Hashes what equality compares; the diagnostic origin is not part of either.
+impl std::hash::Hash for PlanComparison {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.test.hash(state);
+        self.left.hash(state);
+        self.right.hash(state);
+    }
+}
 
 impl PartialEq for PlanComparison {
     fn eq(&self, other: &Self) -> bool {
