@@ -400,7 +400,7 @@ impl FileAnalysis {
         worker: &mut Worker,
         visit: &FileVisit<'_>,
         file: FileId,
-        semantic: &super::types::SemanticState,
+        semantic: &super::semantic::SemanticState,
     ) -> Result<(), FileAnalysisError> {
         let tables = &mut worker.tables;
         let acceptance = syntax_acceptance(&tables.elements);
@@ -941,7 +941,7 @@ impl FileAnalysis {
         if asked.any == EngineRows::Asked {
             index_kinds(&mut worker.tables.elements);
             let semantic =
-                super::types::SemanticState::new(number, &worker.tables.elements, None);
+                super::semantic::SemanticState::new(number, &worker.tables.elements, None);
             self.read_file(worker, visit, number, &semantic)?;
         } else if Self::may_gate_rules(setting, acceptance) == Gating::MayGate {
             drop(Self::gate_rules(
@@ -1288,7 +1288,7 @@ impl FileAnalysis {
             None
         };
         let semantic =
-            super::types::SemanticState::new(number, &worker.tables.elements, session);
+            super::semantic::SemanticState::new(number, &worker.tables.elements, session);
         Ok(match reading {
             FileReading::Read(_) | FileReading::Manifest => {
                 index_kinds(&mut worker.tables.elements);

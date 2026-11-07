@@ -25,7 +25,7 @@ fn runs(world: &mut Behavior) {
         cells: vec![Value::Number(Integer(4)), Value::Number(Integer(5))],
         count: RowCount(2),
     };
-    let prepared = PrepareDerivedUseCaseImpl::new().prepare(
+    let prepared = PrepareDerivedUseCaseImpl::new().prepare_derived(
         DerivedRequest::Equality {
             columns: vec![ColumnIndex(0)],
         },

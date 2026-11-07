@@ -34,7 +34,7 @@ impl Semantics {
         request: DerivedRequest,
         schemas: Vec<Vec<ryo_relations::domain::relations::types::CellKind>>,
     ) -> PreparedDerived {
-        PrepareDerivedUseCase::prepare(&self.prepare, request, schemas)
+        PrepareDerivedUseCase::prepare_derived(&self.prepare, request, schemas)
     }
 
     /// Builds the payload of a prepared request.

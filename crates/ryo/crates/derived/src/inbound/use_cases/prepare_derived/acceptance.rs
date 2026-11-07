@@ -20,7 +20,7 @@ fn runs(world: &mut Behavior) {
     } else {
         ColumnIndex(0)
     };
-    let prepared = PrepareDerivedUseCaseImpl::new().prepare(
+    let prepared = PrepareDerivedUseCaseImpl::new().prepare_derived(
         DerivedRequest::Equality {
             columns: vec![column],
         },

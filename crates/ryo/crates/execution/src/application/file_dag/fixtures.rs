@@ -20,3 +20,10 @@ pub(crate) fn program_derived_port()
 pub(crate) fn real_derived_port() -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
     std::sync::Arc::new(crate::outbound::derived::factory::semantics())
 }
+
+/// The matching semantics the proofs hand to the domain: the portable matching use case.
+pub(crate) fn pattern_matcher() -> crate::domain::matching::types::PatternMatcher<'static> {
+    crate::domain::matching::types::PatternMatcher(
+        &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+    )
+}

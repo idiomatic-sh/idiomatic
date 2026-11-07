@@ -29,7 +29,7 @@ impl DerivedUseCaseAdapter {
 
 impl DerivedPort for DerivedUseCaseAdapter {
     fn prepare(&self, request: DerivedRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived {
-        PrepareDerivedUseCase::prepare(&*self.use_cases.prepare, request, schemas)
+        PrepareDerivedUseCase::prepare_derived(&*self.use_cases.prepare, request, schemas)
     }
     fn build(
         &self,

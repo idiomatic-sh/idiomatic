@@ -27,13 +27,13 @@ fn runs(world: &mut Behavior) {
         cells: vec![Value::Number(Integer(4)), Value::Number(Integer(5))],
         count: RowCount(2),
     };
-    let equality = PrepareDerivedUseCaseImpl::new().prepare(
+    let equality = PrepareDerivedUseCaseImpl::new().prepare_derived(
         DerivedRequest::Equality {
             columns: vec![ColumnIndex(0)],
         },
         vec![vec![CellKind::Number]],
     );
-    let raw = PrepareDerivedUseCaseImpl::new().prepare(
+    let raw = PrepareDerivedUseCaseImpl::new().prepare_derived(
         DerivedRequest::RawKeyOrder { stride: KeyStride(1) },
         Vec::new(),
     );

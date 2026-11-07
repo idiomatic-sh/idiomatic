@@ -39,7 +39,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Scenario::PresentColumn => ColumnIndex(0),
         Scenario::AbsentColumn => ColumnIndex(3),
     };
-    let prepared = PrepareDerivedUseCaseImpl::new().prepare(
+    let prepared = PrepareDerivedUseCaseImpl::new().prepare_derived(
         DerivedRequest::Equality { columns: vec![column] },
         vec![vec![CellKind::Number]],
     );

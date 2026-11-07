@@ -17,7 +17,7 @@ impl PrepareDerivedUseCaseImpl {
 }
 
 impl PrepareDerivedUseCase for PrepareDerivedUseCaseImpl {
-    fn prepare(&self, request: DerivedRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived {
+    fn prepare_derived(&self, request: DerivedRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived {
         crate::domain::preparation::service::prepare(request, schemas)
     }
 }
