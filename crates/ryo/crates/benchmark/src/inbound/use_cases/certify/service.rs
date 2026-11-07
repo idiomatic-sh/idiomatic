@@ -1,42 +1,33 @@
 //! A complete disposition inventory is distinct from verified subset coverage.
-use ryo_benchmark_contracts::domain::documents::types::text::value::{ReasonText, YesNo};
-use crate::domain::suite::service::require_accounted;
-use crate::domain::suite::types::audit::value::Audit;
-use crate::domain::suite::types::certificate::value::Certificate;
-use crate::outbound::{
-    execution::interface::ExecutionPort, linter::interface::LinterPort, suite::interface::SuitePort,
-};
 use super::types::{PreparedCases, RegisteredContext};
-use crate::outbound::{
-    inventory::{
-        interface::InventoryPort,
-        types::{
-            Command, Registration, RegistrationAuthority, RuleCommand, RuleDefinition, RuleReason,
-        },
-    },
-    suite::types::ArtifactPath,
-};
 use crate::application::case_execution::{
     service::{candidate as run_candidate, run as run_case},
     types::AttemptOutcome,
 };
 use crate::application::case_observation::service::write as record;
 use crate::application::case_selection::{service::select, types::ShardSelection};
-use crate::domain::discrepancy::service::judge;
-use crate::domain::discrepancy::types::{Contestant, ReferenceProof};
+use crate::domain::discrepancy::service::{describe_difference, judge};
+use crate::domain::discrepancy::types::Contestant;
 use crate::domain::process_failure::types::CaptureRecord;
-use crate::domain::suite::constants;
-use crate::domain::suite::types::inventory::value::InventoryVerdict;
-use crate::outbound::receipts::interface::ReceiptsPort;
+use crate::domain::suite::{
+    constants,
+    service::require_accounted,
+    types::{audit::value::Audit, certificate::value::Certificate},
+};
 use crate::outbound::{
     context::interface::ContextPort,
-    execution::types::ExitObservationMode,
+    execution::{interface::ExecutionPort, types::ExitObservationMode},
+    inventory::{interface::InventoryPort, types::Registration},
+    linter::interface::LinterPort,
+    receipts::interface::ReceiptsPort,
+    suite::interface::SuitePort,
 };
-use ryo_benchmark_contracts::domain::requests::types::CaseSelection;
-use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{ReasonText, YesNo};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::Tool;
-use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
+use ryo_benchmark_contracts::domain::requests::types::CaseSelection;
+use ryo_benchmark_contracts::domain::workloads::types::{
+    PreparedCase, Tool, case_count::value::CaseCount,
+};
 use std::path::{Path, PathBuf};
 
 /// Execute independent cases, then seal the unchanged artifacts and both executable bytes.
@@ -122,23 +113,10 @@ pub(super) fn certify(
         }
     };
     let before = suite.fingerprint(crate::outbound::suite::types::ArtifactSet(&paths))?;
-    let probe = ryo_benchmark_contracts::domain::requests::types::RunRequest {
-        performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
-        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
-        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
-        given_project_inventory: Default::default(),
-        staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
-        file_metadata: ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
-        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
-        root: directory.to_owned(),
-        files: vec![ryo::linter::RelativePath(
-            super::constants::PROFILE_PROBE.into(),
-        )],
-        state: scratch.join(super::constants::IDENTITY_STATE),
-    };
-    let profiles = [reference.prepare(&probe)?, candidate.prepare(&probe)?];
+    let crate::application::certification_probe::types::ProbedProfiles { probe, profiles } =
+        crate::application::certification_probe::service::probe(
+            reference, candidate, directory, scratch,
+        )?;
     let cases = match &prepared_cases {
         PreparedCases::Profile => {
             let rules = directory.join(super::constants::RULE_DIRECTORY);
@@ -160,7 +138,14 @@ pub(super) fn certify(
         PreparedCases::Registered {
             registration,
             output,
-        } => execute(registration, output, suite, receipts, execution, inventory_store)?,
+        } => crate::application::inventory_verification::service::certify_registered(
+            registration,
+            output,
+            suite,
+            receipts,
+            execution,
+            inventory_store,
+        )?,
     };
     let after = suite.fingerprint(crate::outbound::suite::types::ArtifactSet(&paths))?;
     if before != after || execution.profile() != execution_profile {
@@ -203,113 +188,26 @@ pub(super) fn prepare(
 ) -> Result<RegisteredContext, Error> {
     let loaded = store.load(registration)?;
     crate::application::inventory_verification::service::require_authority(&loaded, suite, store)?;
-    let expected: std::collections::BTreeSet<_> =
-        tool.defaults.iter().map(ToString::to_string).collect();
-    let actual: std::collections::BTreeSet<_> =
-        loaded.defaults.iter().map(|rule| rule.0.clone()).collect();
-    if expected != actual || loaded.defaults.len() != expected.len() {
-        return Err(Error::Invalid(
-            super::constants::CASE_INVENTORY_DIFFERS_FROM_MEASURED_COMPLET.into(),
-        ));
-    }
-    let RegistrationAuthority::Execution {
-        profile,
-        reference: reference_pin,
-        worker,
-        profile_sha256,
-    } = &loaded.authority
-    else {
-        return Err(Error::Invalid(
-            super::constants::REGISTERED_CERTIFICATION_REQUIRES_ACTUAL_EXE.into(),
-        ));
-    };
-    if suite
-        .digest(ArtifactPath(
-            &measured_profile.join(crate::domain::suite::constants::BENCHMARK_TOML),
-        ))?
-        .0
-        != profile_sha256.0
-    {
-        return Err(Error::Invalid(
-            super::constants::REGISTERED_AUTHORITY_DIFFERS_FROM_MEASURED_C.into(),
-        ));
-    }
-    if rules != measured_profile.join(crate::domain::suite::constants::RULES).as_path() {
-        return Err(Error::Invalid(
-            super::constants::SELECTED_RULE_ROOT_DIFFERS_FROM_MEASURED.into(),
-        ));
-    }
-    if suite.digest(ArtifactPath(reference))?.0 != reference_pin.sha256.0
-        || suite.digest(ArtifactPath(candidate))?.0 != worker.sha256.0
-    {
-        return Err(Error::Invalid(
-            super::constants::CASE_INVENTORY_EXECUTABLE_IDENTITIES_DIFFER.into(),
-        ));
-    }
-    let mut paths = vec![
-        registration.to_owned(),
-        profile.join(crate::domain::suite::constants::BENCHMARK_TOML),
-        reference_pin.path.clone(),
-        worker.path.clone(),
-    ];
+    let mut paths = crate::application::registered_certification::service::admit(
+        &loaded,
+        suite,
+        registration,
+        measured_profile,
+        tool,
+        rules,
+        reference,
+        candidate,
+    )?;
     for entry in &loaded.rules {
-        let (RuleReason::Unstated, RuleCommand::Registered(Command::CaseVerification { context })) =
-            (&entry.reason, &entry.command)
-        else {
-            return Err(Error::Invalid(format!(
-                "unexecutable registered context: {}",
-                entry.rule_id.0
-            )));
-        };
         crate::application::inventory_verification::service::verify_context(entry, suite, store)
             .map_err(|reason| Error::Invalid(reason.0))?;
-        let RuleDefinition::Pinned(pin) = &entry.definition else {
-            return Err(Error::Invalid(
-                super::constants::REGISTERED_CONTEXT_LACKS_TESTED_QUERY.into(),
-            ));
-        };
-        if pin.path
-            != context
-                .join(crate::domain::suite::constants::RULES)
-                .join(&entry.rule_id.0)
-                .join(crate::domain::suite::constants::QUERY_RYOQL)
-            || entry.artifacts.get(&pin.path) != Some(&pin.sha256)
-            || suite
-                .digest(ArtifactPath(
-                    &rules
-                        .join(&entry.rule_id.0)
-                        .join(crate::domain::suite::constants::QUERY_RYOQL),
-                ))?
-                .0
-                != pin.sha256.0
-        {
-            return Err(Error::Invalid(format!(
-                "measured query differs from registered context: {}",
-                entry.rule_id.0
-            )));
-        }
-        for (name, pin) in &entry.modules {
-            let relative = tool
-                .query_modules
-                .iter()
-                .find(|(declared, _)| declared.0 == name.0)
-                .map(|(_, relative)| relative)
-                .ok_or_else(|| {
-                    Error::Invalid(format!("measured profile lacks tested module: {}", name.0))
-                })?;
-            if entry.artifacts.get(&pin.path) != Some(&pin.sha256)
-                || suite
-                    .digest(ArtifactPath(&measured_profile.join(relative)))?
-                    .0
-                    != pin.sha256.0
-            {
-                return Err(Error::Invalid(format!(
-                    "measured helper differs from tested context: {}",
-                    name.0
-                )));
-            }
-        }
-        paths.extend(entry.artifacts.keys().cloned());
+        paths.extend(crate::application::registered_certification::service::pin_rule(
+            entry,
+            suite,
+            measured_profile,
+            tool,
+            rules,
+        )?);
     }
     paths.sort();
     paths.dedup();
@@ -317,56 +215,6 @@ pub(super) fn prepare(
         registration: loaded,
         paths,
     })
-}
-/// Certify once; cold/warm/edit measurements reuse the sealed certificate.
-fn execute(
-    registration: &Registration,
-    output: &Path,
-    suite: &dyn SuitePort,
-    receipts: &dyn ReceiptsPort,
-    execution: &dyn ExecutionPort,
-    store: &dyn InventoryPort,
-) -> Result<CaseCount, Error> {
-    if crate::application::inventory_verification::service::verify(
-        registration,
-        output,
-        suite,
-        receipts,
-        execution,
-        store,
-    )? != InventoryVerdict::Passed
-    {
-        return Err(Error::Invalid(
-            super::constants::REGISTERED_INDEPENDENT_CASE_CERTIFICATION_FA.into(),
-        ));
-    }
-    Ok(CaseCount(
-        registration.rules.iter().map(|rule| rule.cases.len()).sum(),
-    ))
-}
-
-/// Match the actual reference process against its declared failure, when one was captured.
-fn process_matches(
-    case: &PreparedCase,
-    capture: &CaptureRecord,
-    proof: Option<&ReferenceProof>,
-    suite: &dyn SuitePort,
-    rules: &Path,
-) -> Option<Result<(), Error>> {
-    let (CaptureRecord::Kept(capture), Some(proof)) = (capture, proof) else {
-        return None;
-    };
-    Some(
-        crate::application::process_discrepancy::service::matches(
-            case,
-            &capture.invocation,
-            &capture.output,
-            proof,
-            suite,
-            rules,
-        )
-        .map_err(Error::from),
-    )
 }
 
 /// Execute admitted materialized cases through the same verification workflow.
@@ -485,20 +333,18 @@ fn verify_prepared_shard(
                         &capture,
                     )?;
                     if let Err(difference) = comparison {
-                        failures.push(format!(
-                            "{}/{} expected-vs-{contestant}: expected={:?}; actual={:?}; expected-skipped={:?}; actual-skipped={:?}",
-                            case.rule,
-                            case.name,
-                            difference.reference,
-                            difference.candidate,
-                            difference.reference_skipped,
-                            difference.candidate_skipped
-                        ));
+                        failures.push(describe_difference(&case, contestant, &difference).0);
                     }
                 }
                 Err(error) => {
                     let assessment = (contestant == Contestant::Reference)
-                        .then(|| process_matches(&case, &capture, proof.as_ref(), suite, rules))
+                        .then(|| crate::application::process_discrepancy::service::matches_capture(
+                            &case,
+                            &capture,
+                            proof.as_ref(),
+                            suite,
+                            rules,
+                        ))
                         .flatten();
                     let accepted = matches!(assessment, Some(Ok(())));
                     let message = ReasonText(match assessment {

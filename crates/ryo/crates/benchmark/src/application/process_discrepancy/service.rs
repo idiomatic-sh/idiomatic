@@ -100,3 +100,19 @@ pub(crate) fn matches(
         .map_err(|error| Failure::from(error.to_string()))?;
     Ok(())
 }
+
+/// Match a captured attempt against its declared failure, when the attempt kept raw bytes and a proof binds them.
+pub(crate) fn matches_capture(
+    case: &PreparedCase,
+    capture: &crate::domain::process_failure::types::CaptureRecord,
+    proof: Option<&ReferenceProof>,
+    suite: &dyn SuitePort,
+    rules: &Path,
+) -> Option<Result<(), Failure>> {
+    let (crate::domain::process_failure::types::CaptureRecord::Kept(kept), Some(proof)) =
+        (capture, proof)
+    else {
+        return None;
+    };
+    Some(matches(case, &kept.invocation, &kept.output, proof, suite, rules))
+}

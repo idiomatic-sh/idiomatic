@@ -6,8 +6,8 @@ use crate::application::case_execution::{
 };
 use crate::application::case_observation::service::write as record;
 use crate::application::case_selection::{service::select, types::ShardSelection};
-use crate::domain::discrepancy::service::judge;
-use crate::domain::discrepancy::types::{Contestant, ReferenceProof};
+use crate::domain::discrepancy::service::{describe_difference, judge};
+use crate::domain::discrepancy::types::Contestant;
 use crate::domain::process_failure::types::CaptureRecord;
 use crate::domain::suite::constants;
 use crate::outbound::receipts::interface::ReceiptsPort;
@@ -24,30 +24,6 @@ use ryo_benchmark_contracts::domain::workloads::types::{
     PreparedCase, case_count::value::CaseCount,
 };
 use std::path::Path;
-
-/// Match the actual reference process against its declared failure, when one was captured.
-fn process_matches(
-    case: &PreparedCase,
-    capture: &CaptureRecord,
-    proof: Option<&ReferenceProof>,
-    suite: &dyn SuitePort,
-    rules: &Path,
-) -> Option<Result<(), Error>> {
-    let (CaptureRecord::Kept(capture), Some(proof)) = (capture, proof) else {
-        return None;
-    };
-    Some(
-        crate::application::process_discrepancy::service::matches(
-            case,
-            &capture.invocation,
-            &capture.output,
-            proof,
-            suite,
-            rules,
-        )
-        .map_err(Error::from),
-    )
-}
 
 /// Execute admitted materialized cases through the same verification workflow.
 #[expect(
@@ -165,20 +141,18 @@ pub(super) fn verify_prepared_shard(
                         &capture,
                     )?;
                     if let Err(difference) = comparison {
-                        failures.push(format!(
-                            "{}/{} expected-vs-{contestant}: expected={:?}; actual={:?}; expected-skipped={:?}; actual-skipped={:?}",
-                            case.rule,
-                            case.name,
-                            difference.reference,
-                            difference.candidate,
-                            difference.reference_skipped,
-                            difference.candidate_skipped
-                        ));
+                        failures.push(describe_difference(&case, contestant, &difference).0);
                     }
                 }
                 Err(error) => {
                     let assessment = (contestant == Contestant::Reference)
-                        .then(|| process_matches(&case, &capture, proof.as_ref(), suite, rules))
+                        .then(|| crate::application::process_discrepancy::service::matches_capture(
+                            &case,
+                            &capture,
+                            proof.as_ref(),
+                            suite,
+                            rules,
+                        ))
                         .flatten();
                     let accepted = matches!(assessment, Some(Ok(())));
                     let message = ReasonText(match assessment {

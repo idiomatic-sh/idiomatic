@@ -3,7 +3,7 @@ use ryo_benchmark_contracts::domain::documents::types::text::value::{ReasonText,
 use crate::application::case_execution::{service::run as run_case, types::AttemptOutcome};
 use crate::application::case_observation::service::write as record;
 use crate::domain::discrepancy::service::judge;
-use crate::domain::discrepancy::types::{Contestant, ReferenceProof};
+use crate::domain::discrepancy::types::Contestant;
 use crate::domain::process_failure::types::CaptureRecord;
 use crate::domain::suite::constants;
 use crate::outbound::receipts::interface::ReceiptsPort;
@@ -19,30 +19,6 @@ use ryo_benchmark_contracts::domain::workloads::types::{
     PreparedCase, reference_case_count::value::ReferenceCaseCount,
 };
 use std::path::Path;
-
-/// Match the actual reference process against its declared failure, when one was captured.
-fn process_matches(
-    case: &PreparedCase,
-    capture: &CaptureRecord,
-    proof: Option<&ReferenceProof>,
-    suite: &dyn SuitePort,
-    rules: &Path,
-) -> Option<Result<(), Error>> {
-    let (CaptureRecord::Kept(capture), Some(proof)) = (capture, proof) else {
-        return None;
-    };
-    Some(
-        crate::application::process_discrepancy::service::matches(
-            case,
-            &capture.invocation,
-            &capture.output,
-            proof,
-            suite,
-            rules,
-        )
-        .map_err(Error::from),
-    )
-}
 
 /// Execute admitted cases through the actual reference-only verification workflow.
 pub(super) fn verify_prepared_reference_cases(
@@ -119,7 +95,13 @@ pub(super) fn verify_prepared_reference_cases(
                 }
             }
             Err(error) => {
-                let assessment = process_matches(&case, &capture, proof.as_ref(), suite, rules);
+                let assessment = crate::application::process_discrepancy::service::matches_capture(
+                            &case,
+                            &capture,
+                            proof.as_ref(),
+                            suite,
+                            rules,
+                        );
                 let accepted = matches!(assessment, Some(Ok(())));
                 let message = ReasonText(match assessment {
                     Some(Err(mismatch)) => format!("{error}; {mismatch}"),

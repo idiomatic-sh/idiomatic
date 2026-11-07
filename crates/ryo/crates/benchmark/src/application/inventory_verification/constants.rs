@@ -40,3 +40,6 @@ pub(super) const REGISTERED_CASE_CONTEXT_IS_EMPTY: &str = "registered case conte
 /// The files of the registered context must be exactly the pinned artifacts.
 pub(super) const REGISTERED_CONTEXT_NAMESPACE_DIFFERS_FROM_PI: &str =
     "registered context namespace differs from pinned artifacts";
+/// A registered rule that fails its independent cases fails the certification.
+pub(super) const REGISTERED_INDEPENDENT_CASE_CERTIFICATION_FA: &str =
+    "registered independent case certification failed";
