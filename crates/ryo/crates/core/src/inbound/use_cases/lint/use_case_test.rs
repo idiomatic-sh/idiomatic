@@ -1527,7 +1527,7 @@ fn changed_nested_module() -> Result<Value, Failure> {
 /// A module-only predicate edit changes actual findings through a retained real compiler plan.
 fn changed_fragment_plan() -> Result<Value, Failure> {
     use ryo_execution::outbound::query_language::factory;
-    use ryo_execution::application::rule_compilation::types::CompiledPlans;
+    use ryo_execution::application::rule_compilation::service::CompiledPlans;
     use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 
     let make_bundle = |prefix: &str| {

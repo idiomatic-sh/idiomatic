@@ -56,14 +56,17 @@ impl<'a> BorrowedInput<'a> {
     pub(in crate::application::file_dag) fn identity(
         &self,
         owner: &RelationOwner,
-    ) -> Result<(PopulationId, Option<Relation>), OperatingError> {
+    ) -> Result<crate::application::file_dag::relations::admission::types::AdmissionIdentity, OperatingError> {
         if !Arc::ptr_eq(&self.origin.generation, &owner.generation.borrow()) {
             return Err(OperatingError::NotRead);
         }
         if self.shape != PhysicalShape::Complete {
             return Err(OperatingError::ShapeMismatch);
         }
-        Ok((self.origin.population, self.origin.relation))
+        Ok(crate::application::file_dag::relations::admission::types::AdmissionIdentity {
+            population: self.origin.population,
+            relation: self.origin.relation,
+        })
     }
 }
 

@@ -92,7 +92,7 @@ impl DerivedOwner {
         }
         let populations = proofs
             .iter()
-            .map(|proof| proof.identity(owner).map(|identity| identity.0))
+            .map(|proof| proof.identity(owner).map(|identity| identity.population))
             .collect::<Result<Vec<_>, _>>()?;
         Ok(AdmittedViewInputs {
             origin: AcquisitionOrigin {

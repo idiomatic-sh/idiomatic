@@ -28,7 +28,7 @@ impl PredicateProgram for BoundPredicate<'_> {
         #[cfg(feature = "diagnostic-row-progress")]
         super::route_counts::progress::service::progress(
             crate::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
-            1,
+            crate::domain::operator::contract::views::ProgressAmount(1),
         );
         if !self.program.comparisons.is_empty() && row.len() != self.program.kinds.len() {
             return Err(OperatingError::ShapeMismatch);

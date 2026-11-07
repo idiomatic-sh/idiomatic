@@ -102,8 +102,8 @@ impl FactsFinish for CapturedFacts {
             assert_eq!(bucket, capture.bucket);
             sources.push(BucketSource {
                 file: *file,
-                start: words.len(),
-                length: capture.words.0.len(),
+                start: ryo_execution::outbound::facts::types::KeptWordsStart(words.len()),
+                length: ryo_execution::outbound::facts::types::KeptWordsLength(capture.words.0.len()),
                 proof: capture.proof.clone(),
             });
             words.extend_from_slice(&capture.words.0);

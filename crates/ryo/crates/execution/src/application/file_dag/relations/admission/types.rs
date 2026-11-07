@@ -10,3 +10,10 @@ pub(in crate::application::file_dag) struct AdmissionOrigin {
     pub relation: Option<Relation>,
     pub generation: Arc<()>,
 }
+
+/// The population and source relation an input was admitted under, without its generation.
+#[derive(Clone, Copy)]
+pub(in crate::application::file_dag) struct AdmissionIdentity {
+    pub population: PopulationId,
+    pub relation: Option<Relation>,
+}

@@ -1,6 +1,7 @@
 //! Required invocation leases travel with the immutable graph/domain handles.
 #[cfg(test)]
 use super::types::DataIdentity;
+use super::types::DomainMarks;
 use super::types::GraphSharing;
 #[cfg(test)]
 use crate::application::file_dag::derived::constants;
@@ -8,6 +9,7 @@ use crate::application::file_dag::derived::ledger::types::Backing;
 use crate::application::file_dag::derived::ledger::types::ResourceLease;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage;
+use crate::application::file_dag::derived::owner::graphs::types::retained::types::ReachedVertices;
 use crate::domain::stored_graph::types::{GraphDomain, Orientation};
 use ryo_derived::domain::contract::types::CompactGraph;
 use std::{ops::Deref, sync::Arc};
@@ -101,12 +103,12 @@ impl DomainHandle {
             _lease: lease,
         })
     }
-    pub(in crate::application::file_dag) fn members(&self) -> &[bool] {
+    pub(in crate::application::file_dag) fn members(&self) -> DomainMarks<'_> {
         #[cfg(test)]
         self.acquired
             .view()
             .expect(constants::EXPECT_MEMBERSHIP_LEASE);
-        &self.domain.members
+        DomainMarks(&self.domain.members)
     }
     pub(in crate::application::file_dag::derived::owner) fn raw_domain(&self) -> &Arc<GraphDomain> {
         &self.domain
@@ -129,13 +131,13 @@ impl DomainHandle {
 /// required lease; callers cannot detach the Arc payload from that lease.
 #[derive(Debug)]
 pub(in crate::application::file_dag) struct RootAnswer {
-    rows: Arc<Vec<u32>>,
+    rows: Arc<ReachedVertices>,
     _graph: Arc<DerivedStorage>,
     _lease: Arc<ResourceLease>,
 }
 impl RootAnswer {
     pub(in crate::application::file_dag::derived::owner) fn new(
-        rows: Arc<Vec<u32>>,
+        rows: Arc<ReachedVertices>,
         graph: Arc<DerivedStorage>,
         lease: Arc<ResourceLease>,
     ) -> Self {
@@ -163,7 +165,7 @@ impl RootAnswer {
         else {
             return Err(OperatingError::WrongOperation);
         };
-        Ok(self.rows.iter().map(move |vertex| {
+        Ok(self.rows.0.iter().map(move |vertex| {
             graph
                 .vertices()
                 .get(*vertex as usize)
@@ -176,13 +178,13 @@ impl RootAnswer {
         DataIdentity(Arc::as_ptr(&self.rows).cast())
     }
     #[cfg(test)]
-    pub(in crate::application::file_dag) fn weak(&self) -> std::sync::Weak<Vec<u32>> {
+    pub(in crate::application::file_dag) fn weak(&self) -> std::sync::Weak<ReachedVertices> {
         Arc::downgrade(&self.rows)
     }
 }
 impl Deref for RootAnswer {
     type Target = Vec<u32>;
     fn deref(&self) -> &Vec<u32> {
-        &self.rows
+        &self.rows.0
     }
 }

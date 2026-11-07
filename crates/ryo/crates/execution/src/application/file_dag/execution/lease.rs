@@ -91,7 +91,7 @@ fn evaluate_once(
         crate::application::file_dag::route_counts::progress::service::row_file(row, context.paths);
         crate::application::file_dag::route_counts::progress::service::progress(
             crate::domain::operator::contract::views::ProgressCounter::InputRows,
-            1,
+            crate::domain::operator::contract::views::ProgressAmount(1),
         );
     }
     let mut validated_source = None;

@@ -219,7 +219,12 @@ fn weak_position_expiry_never_changes_map_key_hash_or_equality() {
     let requirement = GraphRequirement {
         endpoints: ENDPOINTS,
         keys: Arc::from([]),
-        selection: Some(GraphSelection::new(&positions, &descriptor)),
+        selection: Some(GraphSelection::new(
+            &crate::application::file_dag::derived::owner::graph_key::SelectionRows(Arc::clone(
+                &positions,
+            )),
+            &descriptor,
+        )),
     };
     let key = Key {
         plan: RequirementIdentity::Graph(Arc::new(GraphViewIdentity::Adjacency(requirement))),
@@ -243,7 +248,12 @@ fn weak_position_expiry_never_changes_map_key_hash_or_equality() {
         RequirementIdentity::Graph(Arc::new(GraphViewIdentity::Adjacency(GraphRequirement {
             endpoints: ENDPOINTS,
             keys: Arc::from([]),
-            selection: Some(GraphSelection::new(&replacement, &descriptor)),
+            selection: Some(GraphSelection::new(
+                &crate::application::file_dag::derived::owner::graph_key::SelectionRows(Arc::clone(
+                    &replacement,
+                )),
+                &descriptor,
+            )),
         })));
     assert_ne!(key.plan, next);
     assert!(

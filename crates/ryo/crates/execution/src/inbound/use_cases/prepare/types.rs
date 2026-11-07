@@ -1,5 +1,5 @@
 //! The request `prepare` takes: its queries, rules, digests, hosted relations and observation identity.
-use crate::application::rule_compilation::types::CompiledQueries;
+use crate::application::rule_compilation::service::CompiledQueries;
 use crate::domain::prepared_request::types::ObservationIdentity;
 
 /// Where the plans of a request come from.

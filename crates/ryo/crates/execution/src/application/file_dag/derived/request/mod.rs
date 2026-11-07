@@ -12,6 +12,7 @@ use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 use std::sync::Arc;
 pub(super) mod identity;
 use identity::types::StaticRequest;
+use types::InputPositions;
 pub(in crate::application::file_dag) struct RequestViews {
     semantic: crate::application::file_dag::derived::owner::types::DerivedAccess,
     plans: Vec<Arc<DerivedContract>>,
@@ -64,7 +65,7 @@ impl RequestViews {
                     &mut slots,
                     kinds,
                     ViewRequest::Equality { columns },
-                    &[*input],
+                    InputPositions(&[*input]),
                 )?;
             }
             ResourceProgram::Join(join) => {
@@ -76,7 +77,7 @@ impl RequestViews {
                             endpoints: [reach.source, reach.destination],
                             keys: reach.keys.clone(),
                         },
-                        &[1],
+                        InputPositions(&[1]),
                     )?;
                     self.add(
                         &mut slots,
@@ -84,7 +85,7 @@ impl RequestViews {
                         ViewRequest::PartitionOrder {
                             keys: reach.keys.clone(),
                         },
-                        &[1],
+                        InputPositions(&[1]),
                     )?;
                     self.add(
                         &mut slots,
@@ -93,7 +94,7 @@ impl RequestViews {
                             source: reach.source,
                             destination: reach.destination,
                         },
-                        &[1],
+                        InputPositions(&[1]),
                     )?;
                 } else {
                     self.add(
@@ -102,7 +103,7 @@ impl RequestViews {
                         ViewRequest::Equality {
                             columns: join.right_on.clone(),
                         },
-                        &[1],
+                        InputPositions(&[1]),
                     )?;
                     self.add(
                         &mut slots,
@@ -110,7 +111,7 @@ impl RequestViews {
                         ViewRequest::Equality {
                             columns: join.left_on.clone(),
                         },
-                        &[0],
+                        InputPositions(&[0]),
                     )?;
                     self.add(
                         &mut slots,
@@ -120,7 +121,7 @@ impl RequestViews {
                             right_on: join.right_on.clone(),
                             view: join.view.clone(),
                         },
-                        &[0, 1],
+                        InputPositions(&[0, 1]),
                     )?;
                 }
             }
@@ -132,7 +133,7 @@ impl RequestViews {
                         endpoints: [axis.parent, axis.child],
                         keys: Vec::new(),
                     },
-                    &[1],
+                    InputPositions(&[1]),
                 )?;
                 let from = match axis.direction {
                     Direction::Parent | Direction::Ancestor | Direction::NearestAncestor => {
@@ -150,7 +151,7 @@ impl RequestViews {
                     ViewRequest::Equality {
                         columns: vec![from],
                     },
-                    &[1],
+                    InputPositions(&[1]),
                 )?;
                 self.add(
                     &mut slots,
@@ -158,7 +159,7 @@ impl RequestViews {
                     ViewRequest::Membership {
                         column: axis.domain_id,
                     },
-                    &[2, 1],
+                    InputPositions(&[2, 1]),
                 )?;
             }
             ResourceProgram::Closure {
@@ -170,7 +171,7 @@ impl RequestViews {
                     &mut slots,
                     kinds,
                     ViewRequest::PartitionOrder { keys: keys.clone() },
-                    &[0],
+                    InputPositions(&[0]),
                 )?;
                 self.add(
                     &mut slots,
@@ -179,7 +180,7 @@ impl RequestViews {
                         source: *source,
                         destination: *destination,
                     },
-                    &[0],
+                    InputPositions(&[0]),
                 )?;
             }
             ResourceProgram::Cycles {
@@ -193,7 +194,7 @@ impl RequestViews {
                         source: *source,
                         destination: *destination,
                     },
-                    &[0],
+                    InputPositions(&[0]),
                 )?;
             }
             ResourceProgram::Ordered {
@@ -211,7 +212,7 @@ impl RequestViews {
                         left_order: *left_order,
                         right_order: *right_order,
                     },
-                    &[0, 1],
+                    InputPositions(&[0, 1]),
                 )?;
             }
             ResourceProgram::Dfs(program) => {
@@ -219,7 +220,7 @@ impl RequestViews {
                     &mut slots,
                     kinds,
                     ViewRequest::OrderedDfs(program.clone()),
-                    &[0, 1],
+                    InputPositions(&[0, 1]),
                 )?;
             }
             ResourceProgram::Count { keys, .. } | ResourceProgram::Digest { keys, .. } => {
@@ -227,7 +228,7 @@ impl RequestViews {
                     &mut slots,
                     kinds,
                     ViewRequest::PartitionOrder { keys: keys.clone() },
-                    &[0],
+                    InputPositions(&[0]),
                 )?;
             }
             ResourceProgram::None | ResourceProgram::Appended(_) | ResourceProgram::Rank(_) => {}
@@ -240,8 +241,9 @@ impl RequestViews {
         slots: &mut [Option<Arc<PreparedViewGroup>>; DerivedKind::ALL.len()],
         kinds: &[Vec<ryo_relations::domain::relations::types::CellKind>],
         request: ViewRequest,
-        positions: &[usize],
+        positions: InputPositions<'_>,
     ) -> Result<(), OperatingError> {
+        let positions = positions.0;
         let mut schemas = Vec::with_capacity(positions.len());
         let mut missing = None;
         for position in positions {

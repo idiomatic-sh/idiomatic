@@ -4,6 +4,7 @@ use crate::application::file_dag::derived::owner::graphs::{
     service::slot,
     types::{
         handles::service::{DomainHandle, GraphHandle, RootAnswer},
+        retained::types::{GraphVertex, NearestAnswers},
         roots::value::DemandAnswers,
     },
 };
@@ -304,14 +305,17 @@ impl GraphFixture {
         walk: &mut GraphWalk,
     ) -> Result<Option<u32>, OperatingError> {
         let mut cache = self.owner.derived().graph_cache()?;
-        DemandAnswers::new(self.owner.derived(), &mut cache).nearest(
+        let mut answers = NearestAnswers(std::mem::take(local));
+        let nearest = DemandAnswers::new(self.owner.derived(), &mut cache).nearest(
             access,
             domain,
-            root,
+            GraphVertex(root),
             orientation,
-            local,
+            &mut answers,
             walk,
-        )
+        );
+        *local = answers.0;
+        nearest.map(|found| found.map(|vertex| vertex.0))
     }
     pub(in crate::application::file_dag) fn index(
         &self,

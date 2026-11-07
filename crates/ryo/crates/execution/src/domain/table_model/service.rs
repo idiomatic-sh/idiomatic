@@ -254,7 +254,7 @@ pub(crate) fn matching_stored<'o, 'k>(
     #[cfg(feature = "diagnostic-row-progress")]
     observer(
         crate::domain::operator::contract::views::ProgressCounter::IndexProbes,
-        1,
+        crate::domain::operator::contract::views::ProgressAmount(1),
     );
     let hash = hash_key(key.iter().map(Some));
     let bucket = usize::try_from(hash.0).unwrap_or(0) & order.heads().len().saturating_sub(1);
@@ -264,7 +264,7 @@ pub(crate) fn matching_stored<'o, 'k>(
             #[cfg(feature = "diagnostic-row-progress")]
             observer(
                 crate::domain::operator::contract::views::ProgressCounter::IndexRowsExamined,
-                1,
+                crate::domain::operator::contract::views::ProgressAmount(1),
             );
             let place = usize::try_from(at.0 - 1).unwrap_or(usize::MAX);
             at = order.links().get(place).copied().unwrap_or(ChainLink(0));
@@ -278,7 +278,7 @@ pub(crate) fn matching_stored<'o, 'k>(
                 if row.is_some() {
                     observer(
                         crate::domain::operator::contract::views::ProgressCounter::EqualityMatches,
-                        1,
+                        crate::domain::operator::contract::views::ProgressAmount(1),
                     );
                 }
                 return row;

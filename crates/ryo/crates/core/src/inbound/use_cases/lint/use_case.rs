@@ -34,8 +34,8 @@ use ryo_execution::application::file_dag::program::prepared_execution::interface
 use ryo_execution::application::rule_compilation::service::PreparedQueries;
 use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedReporting;
 use ryo_execution::application::file_dag::program::project_phase::interface::ProjectStage;
-use ryo_execution::application::rule_compilation::types::CompiledPlans;
-use ryo_execution::application::rule_compilation::types::CompiledQueries;
+use ryo_execution::application::rule_compilation::service::CompiledPlans;
+use ryo_execution::application::rule_compilation::service::CompiledQueries;
 use ryo_execution::application::file_dag::program::project_phase::types::FrontierDemand;
 use ryo_execution::application::file_dag::program::project_phase::types::FrontierRequest;
 use ryo_execution::application::file_dag::frontiers::errors::PreparationError;

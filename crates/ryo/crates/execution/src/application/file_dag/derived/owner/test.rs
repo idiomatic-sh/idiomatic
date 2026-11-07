@@ -61,7 +61,7 @@ fn population(owner: &RelationOwner, publication: &PublishedInput) -> Population
         .unwrap()
         .identity(owner)
         .unwrap()
-        .0
+        .population
 }
 fn pair_plan() -> Arc<DerivedContract> {
     Arc::new(

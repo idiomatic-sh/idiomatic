@@ -132,7 +132,12 @@ pub(super) fn graph_selection(
         .positions
         .as_ref()
         .zip(population.selected.as_ref())
-        .map(|(rows, identity)| GraphSelection::new(rows, identity))
+        .map(|(rows, identity)| {
+            GraphSelection::new(
+                &crate::application::file_dag::derived::owner::graph_key::SelectionRows(Arc::clone(rows)),
+                identity,
+            )
+        })
 }
 
 pub(in crate::application::file_dag::derived::owner) fn domain(

@@ -88,8 +88,8 @@ impl FactsWorker for MemoryWorker {
         kept.words.0.0.extend_from_slice(&words.words.0);
         kept.sources.push(BucketSource {
             file: words.file,
-            start,
-            length: words.words.0.len(),
+            start: crate::outbound::facts::types::KeptWordsStart(start),
+            length: crate::outbound::facts::types::KeptWordsLength(words.words.0.len()),
             proof: words.proof.clone(),
         });
         Ok(())
@@ -145,7 +145,7 @@ impl FactsFinish for Joined {
             words
                 .sources
                 .extend(each.sources.into_iter().map(|mut source| {
-                    source.start += offset;
+                    source.start.0 += offset;
                     source
                 }));
         }

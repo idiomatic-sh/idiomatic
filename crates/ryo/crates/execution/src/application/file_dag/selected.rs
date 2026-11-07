@@ -47,7 +47,7 @@ impl<'f> SelectedInput<'f> {
 }
 
 #[cfg(test)]
-mod tests;
+mod test;
 mod constants;
 pub(in crate::application::file_dag) mod schemas;
 

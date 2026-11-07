@@ -36,7 +36,7 @@ impl<'a> SelectionSource<'a> {
         {
             return Err(OperatingError::NotRead);
         }
-        let population = proof.identity(relation_owner)?.0;
+        let population = proof.identity(relation_owner)?.population;
         Ok(Self {
             owner,
             source: relation_owner,

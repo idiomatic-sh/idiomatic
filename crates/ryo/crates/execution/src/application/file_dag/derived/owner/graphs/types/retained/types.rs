@@ -6,14 +6,30 @@ use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::domain::stored_graph::types::{GraphDomain, Orientation};
 use ryo_derived::domain::contract::types::CompactGraph;
 use std::sync::Arc;
+/// A vertex's dense number in one graph's vertex list: the bare number inside is named here.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::application::file_dag) struct GraphVertex(pub u32);
+
+/// The dense vertices a completed closure reached, in typed value order: the bare numbers inside are named here.
+#[derive(Debug)]
+pub(in crate::application::file_dag) struct ReachedVertices(pub Vec<u32>);
+
+/// The nearest answer of every vertex, or a sentinel while unknown: the bare numbers inside are named here.
+#[derive(Debug, Default)]
+pub(in crate::application::file_dag) struct NearestAnswers(pub Vec<u32>);
+
+/// The index of one nearest memo among the retained memos: the bare index inside is named here.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::application::file_dag::derived::owner) struct NearestSlot(pub usize);
+
 #[derive(Debug)]
 pub(in crate::application::file_dag::derived::owner) struct RootMemo {
     /// Dense root already identifies its partition.
-    pub(in crate::application::file_dag::derived::owner) root: u32,
+    pub(in crate::application::file_dag::derived::owner) root: GraphVertex,
     /// Requested traversal orientation.
     pub(in crate::application::file_dag::derived::owner) orientation: Orientation,
     /// Reachable dense IDs in typed Value order.
-    pub(in crate::application::file_dag::derived::owner) reached: Arc<Vec<u32>>,
+    pub(in crate::application::file_dag::derived::owner) reached: Arc<ReachedVertices>,
     pub(in crate::application::file_dag::derived::owner) _lease: Arc<ResourceLease>,
 }
 
@@ -53,6 +69,6 @@ pub(in crate::application::file_dag::derived::owner) struct NearestMemo {
     /// Parent direction whose forest was validated.
     pub(in crate::application::file_dag::derived::owner) orientation: Orientation,
     /// Unknown/absent/answer sentinels or dense IDs, never public values.
-    pub(in crate::application::file_dag::derived::owner) answers: Vec<u32>,
+    pub(in crate::application::file_dag::derived::owner) answers: NearestAnswers,
     pub(in crate::application::file_dag::derived::owner) _lease: Arc<ResourceLease>,
 }

@@ -4,16 +4,24 @@ use crate::application::file_dag::derived::constants;
 use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::domain::derived_views::types::DerivedContract;
 use std::sync::{Arc, Weak};
+/// The original row positions a selection kept, shared with its population: the bare positions inside are named here.
+#[derive(Clone, Debug)]
+pub(in crate::application::file_dag) struct SelectionRows(pub Arc<Vec<u32>>);
+
+/// A weak hold on selected row positions, which retains nothing: the bare positions inside are named here.
+#[derive(Clone, Debug)]
+pub(in crate::application::file_dag::derived::owner) struct WeakSelectionRows(pub Weak<Vec<u32>>);
+
 /// Selected positions are immutable. A Weak guard prevents address reuse while
 /// retaining no position payload after the last semantic/consumer handle drops.
 #[derive(Clone, Debug)]
 pub(in crate::application::file_dag::derived::owner) struct GraphSelection {
-    rows: Weak<Vec<u32>>,
+    rows: WeakSelectionRows,
     identity: Arc<crate::domain::table_model::types::SelectionIdentity>,
 }
 impl PartialEq for GraphSelection {
     fn eq(&self, other: &Self) -> bool {
-        Weak::ptr_eq(&self.rows, &other.rows) && self.identity == other.identity
+        Weak::ptr_eq(&self.rows.0, &other.rows.0) && self.identity == other.identity
     }
 }
 impl Eq for GraphSelection {}
@@ -25,11 +33,11 @@ impl std::hash::Hash for GraphSelection {
 }
 impl GraphSelection {
     pub(in crate::application::file_dag::derived::owner) fn new(
-        rows: &Arc<Vec<u32>>,
+        rows: &SelectionRows,
         identity: &Arc<crate::domain::table_model::types::SelectionIdentity>,
     ) -> Self {
         Self {
-            rows: Arc::downgrade(rows),
+            rows: WeakSelectionRows(Arc::downgrade(&rows.0)),
             identity: Arc::clone(identity),
         }
     }
@@ -39,10 +47,10 @@ impl GraphSelection {
         if self.identity != other.identity {
             return IdentityCompatibility::Incompatible;
         }
-        if Weak::ptr_eq(&self.rows, &other.rows) {
+        if Weak::ptr_eq(&self.rows.0, &other.rows.0) {
             return IdentityCompatibility::Compatible;
         }
-        let (Some(left), Some(right)) = (self.rows.upgrade(), other.rows.upgrade()) else {
+        let (Some(left), Some(right)) = (self.rows.0.upgrade(), other.rows.0.upgrade()) else {
             return IdentityCompatibility::Incompatible;
         };
         crate::application::file_dag::route_counts::event(

@@ -1,7 +1,7 @@
 //! Rule compilation keeps bounded session plans and request-local bindings over injected ports.
 use super::errors::RuleCompilationError;
 use super::service::RuleCompilation;
-use super::types::CompiledPlans;
+use super::service::CompiledPlans;
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::fixtures::fake::{QueryLanguageFake, REFUSED};
 use crate::outbound::query_language::interface::QueryLanguagePort;

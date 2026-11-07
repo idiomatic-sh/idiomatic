@@ -270,8 +270,8 @@ impl CapturedProject {
                 words: KeptWords(capture.words),
                 sources: vec![crate::outbound::facts::types::BucketSource {
                     file: FileId(0),
-                    start: 0,
-                    length,
+                    start: crate::outbound::facts::types::KeptWordsStart(0),
+                    length: crate::outbound::facts::types::KeptWordsLength(length),
                     proof: capture.proof,
                 }],
             },

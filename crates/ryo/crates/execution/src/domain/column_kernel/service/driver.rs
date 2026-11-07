@@ -52,7 +52,7 @@ impl JoinDriver for Driver<'_, '_> {
             #[cfg(feature = "diagnostic-row-progress")]
             (self.index.progress)(
                 crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,
-                1,
+                crate::domain::operator::contract::views::ProgressAmount(1),
             );
             self.hits.set(self.hits.get().saturating_add(1));
             let Some(value) = cell(
@@ -69,7 +69,7 @@ impl JoinDriver for Driver<'_, '_> {
             #[cfg(feature = "diagnostic-row-progress")]
             (self.index.progress)(
                 crate::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
-                1,
+                crate::domain::operator::contract::views::ProgressAmount(1),
             );
             if !symbol_holds(value, &self.chain.literal.0, self.symbols, self.source) {
                 continue;
@@ -98,7 +98,7 @@ impl JoinDriver for Driver<'_, '_> {
         #[cfg(feature = "diagnostic-row-progress")]
         (self.index.progress)(
             crate::domain::operator::contract::views::ProgressCounter::KernelOutputRows,
-            1,
+            crate::domain::operator::contract::views::ProgressAmount(1),
         );
         push_row(self.target, row);
         self.emitted.set(self.emitted.get().saturating_add(1));

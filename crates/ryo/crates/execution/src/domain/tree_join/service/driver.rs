@@ -43,7 +43,7 @@ impl Driver<'_, '_, '_> {
             #[cfg(feature = "diagnostic-row-progress")]
             (self.progress)(
                 crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,
-                1,
+                crate::domain::operator::contract::views::ProgressAmount(1),
             );
             if !self.state.kinds.tests.0.is_empty()
                 && passes(&self.state.kinds, kind_at(self.tree.elements, found)) == Verdict::Fails
@@ -55,7 +55,7 @@ impl Driver<'_, '_, '_> {
             if !self.state.gate.0.is_empty() {
                 (self.progress)(
                     crate::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
-                    1,
+                    crate::domain::operator::contract::views::ProgressAmount(1),
                 );
             }
             if !self.state.gate.0.is_empty()
@@ -77,7 +77,7 @@ impl Driver<'_, '_, '_> {
             if !self.state.rest.0.is_empty() {
                 (self.progress)(
                     crate::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
-                    1,
+                    crate::domain::operator::contract::views::ProgressAmount(1),
                 );
             }
             if !self.state.rest.0.is_empty()

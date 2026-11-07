@@ -4,7 +4,7 @@ use std::time::Instant;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::Value;
 
-use crate::domain::operator::contract::views::ProgressCounter;
+use crate::domain::operator::contract::views::{ProgressAmount, ProgressCounter};
 
 use super::super::constants::{self, MAX_KEYS};
 use super::super::profile::service::STATE;
@@ -57,7 +57,7 @@ fn counter_label(counter: ProgressCounter) -> RouteLabel {
         ProgressCounter::KernelOutputRows => constants::COUNTER_KERNEL_OUTPUT_ROWS,
     })
 }
-pub(crate) fn progress(counter: ProgressCounter, amount: u64) {
+pub(crate) fn progress(counter: ProgressCounter, amount: ProgressAmount) {
     let label = counter_label(counter);
     let flush_now = STATE.with_borrow_mut(|state| {
         let Some(state) = state else {
@@ -69,12 +69,12 @@ pub(crate) fn progress(counter: ProgressCounter, amount: u64) {
             family: label,
         };
         if !state.counts.contains_key(&key) && state.counts.len() == MAX_KEYS {
-            state.overflow.0 += amount;
+            state.overflow.0 += amount.0;
         } else {
-            state.counts.entry(key).or_default().calls.0 += amount;
+            state.counts.entry(key).or_default().calls.0 += amount.0;
         }
-        state.progress.ticks.0 += amount;
-        if state.progress.ticks.0 == amount
+        state.progress.ticks.0 += amount.0;
+        if state.progress.ticks.0 == amount.0
             || (state.progress.ticks.0 & constants::FLUSH_TICK_MASK == 0
                 && state.progress.last.elapsed().as_secs() >= constants::FLUSH_SECONDS)
         {
