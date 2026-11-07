@@ -1,7 +1,8 @@
 //! Compile immutable file-intent root obligations once for the whole request.
 use super::super::types::{
     ConsumerObligation, ExecutableProgram, FileReaderGraph, InputSource, ReaderMultiplicity,
-    RegionId, RuleProgram,
+    RegionId, Remaining, RemainingTable, RuleProgram,
+    ComputationCount, RemainingMemo,
 };
 use super::types::*;
 use crate::domain::{

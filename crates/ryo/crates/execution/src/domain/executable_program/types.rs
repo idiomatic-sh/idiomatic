@@ -369,7 +369,29 @@ pub(crate) struct FileReaderGraph {
         std::collections::HashMap<RegionId, Box<[ConsumerObligation]>>,
     >,
     /// The last initial reader counts, shared by every file that selects the same roots.
-    pub remaining: std::sync::Mutex<super::file_demand::types::RemainingMemo>,
+    pub remaining: std::sync::Mutex<RemainingMemo>,
+}
+/// How many reader-count tables a request has computed.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct ComputationCount(pub usize);
+/// The retained initial reader counts and how many times they were computed.
+#[derive(Debug, Default)]
+pub(crate) struct RemainingMemo {
+    pub table: Option<std::sync::Arc<RemainingTable>>,
+    pub computations: ComputationCount,
+}
+/// Initial reader count of every region for one selection of external roots.
+#[derive(Debug)]
+pub(crate) struct RemainingTable {
+    pub selected: std::collections::HashMap<RegionId, ReaderMultiplicity>,
+    pub counts: Box<[ReaderMultiplicity]>,
+}
+/// A shared table and the cumulative number of tables the request has computed.
+#[derive(Debug)]
+pub(crate) struct Remaining {
+    pub table: std::sync::Arc<RemainingTable>,
+    #[cfg(test)]
+    pub computations: ComputationCount,
 }
 /// The typed semantic shape required by the shared physical invocation.
 #[derive(Clone, Debug)]
