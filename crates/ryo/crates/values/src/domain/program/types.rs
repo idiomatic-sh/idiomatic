@@ -126,6 +126,10 @@ pub struct FragmentProgram {
     pub result: FragmentReturn,
 }
 
+/// The modules of one catalog, parsed once and shared by every compile over it: empty when none was parsed yet.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ParsedModules(pub std::sync::Arc<BTreeMap<QuerySourceId, FragmentProgram>>);
+
 /// Parsed root and module syntax before query-language linking runs.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ParsedQueryBundle {

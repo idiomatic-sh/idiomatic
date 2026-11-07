@@ -164,17 +164,48 @@ impl RuleCompilation {
         {
             return Ok(plan);
         }
+        let mut modules = self.held_modules(&rule.query);
+        let first = modules.0.is_empty();
         let plan = self
             .query_language
-            .compile(&rule.query, declared, observations)
+            .compile_parsed(&rule.query, &mut modules, declared, observations)
             .map_err(
                 |QueryLanguageError::Refused { error }| RuleCompilationError::Query {
                     id: rule.id.0.to_string(),
                     error,
                 },
             )?;
+        if first && !modules.0.is_empty() {
+            let mut kept = self
+                .compiled
+                .0
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner);
+            kept.catalog = ryo_values::domain::query_tokens::types::ModuleCatalog(Arc::clone(
+                &rule.query.modules,
+            ));
+            kept.parsed = modules;
+        }
         self.cache_plan(rule, declared, observations, &plan);
         Ok(plan)
+    }
+
+    /// The modules of the bundle's catalog as this session parsed them, when an earlier rule over the same catalog compiled: empty on
+    /// the first, which parses them with its root and refuses as a lone compile does, so a module that does not parse refuses the run.
+    fn held_modules(
+        &self,
+        bundle: &ryo_values::domain::query_tokens::types::QueryBundle,
+    ) -> ryo_values::domain::program::types::ParsedModules {
+        let kept = self
+            .compiled
+            .0
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        if kept.catalog.0 == bundle.modules {
+            kept.parsed.clone()
+        } else {
+            ryo_values::domain::program::types::ParsedModules::default()
+        }
     }
 
     /// The existing bounded session owns cached declarations; a request owns its cloned plans.

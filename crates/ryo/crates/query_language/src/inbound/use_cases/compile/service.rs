@@ -3,6 +3,21 @@
 use super::errors::CompileError;
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::validation::errors::ValidationError;
+use crate::outbound::syntax::errors::SyntaxError;
+
+/// Says a refusal of the syntax as the use case's error.
+pub(super) fn syntax_refused(error: SyntaxError) -> CompileError {
+    match error {
+        SyntaxError::Unreadable { span, message } => CompileError::Syntax { span, message },
+        SyntaxError::Located { origin, message } => CompileError::Located {
+            error: Box::new(CompileError::Syntax {
+                span: origin.span,
+                message,
+            }),
+            origin,
+        },
+    }
+}
 
 /// Says a refusal of the validation as the use case's error.
 pub(super) fn invalid(error: ValidationError) -> CompileError {

@@ -10,4 +10,6 @@ use ryo_values::domain::plans::types::Plan;
 pub struct CompileReport {
     /// The compiled query.
     pub plan: Plan,
+    /// The query's modules as parsed, which a session hands the next compile over the same catalog.
+    pub modules: ryo_values::domain::program::types::ParsedModules,
 }

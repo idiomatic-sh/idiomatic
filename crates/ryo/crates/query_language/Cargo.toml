@@ -19,6 +19,7 @@ ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations",
 thiserror.workspace = true
 winnow.workspace = true
 regex-automata.workspace = true
+regex-syntax.workspace = true
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.2" }
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.2" }
 

@@ -21,7 +21,7 @@ use crate::domain::query_operators::types::{LineOutput, MaxLine, TabWidth, TextO
 use crate::domain::query_tokens::types::QueryOrigin;
 
 /// The RyoQL text to compile or check, and the relations the host declares beside ryo's own.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct QueryRequest {
     /// The query: text that entered the engine.
     pub text: crate::domain::query_tokens::types::QueryBundle,
@@ -29,6 +29,8 @@ pub struct QueryRequest {
     pub hosted: Vec<crate::domain::hosted::types::HostedRelation>,
     /// Resolved named producer contracts from the request graph's declaration pass.
     pub observations: Vec<crate::domain::observations::types::BoundObservationInput>,
+    /// The text's modules, parsed from the same catalog by an earlier compile of the session: empty parses them with the root.
+    pub modules: crate::domain::program::types::ParsedModules,
 }
 
 /// A compiled query: its parameters, its steps in the order to run them, and what it emits.

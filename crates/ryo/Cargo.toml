@@ -35,6 +35,7 @@ rayon = "=1.12.0"
 memchr = "=2.8.3"
 num-bigint = "=0.4.8"
 globset = "=0.4.18"
+regex-syntax = { version = "=0.8.11", default-features = false, features = ["std", "unicode"] }
 regex-automata = { version = "=0.4.18", default-features = false, features = ["std", "meta", "hybrid", "unicode"] }
 dhat = "=0.3.3"
 # The allocators ruff and uv ship, pinned as ruff pins them: jemalloc where it builds, mimalloc on Windows (mimalloc v2: v3.3.2

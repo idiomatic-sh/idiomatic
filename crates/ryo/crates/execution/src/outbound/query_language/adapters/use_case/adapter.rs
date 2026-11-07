@@ -51,6 +51,7 @@ impl QueryLanguagePort for QueryLanguageUseCaseAdapter {
             .typecheck(QueryRequest {
                 text: bundle.clone(),
                 hosted: hosted.to_vec(),
+                modules: ryo_values::domain::program::types::ParsedModules::default(),
                 observations: observations.to_vec(),
             })
             .map_err(|error| QueryLanguageError::Refused {
@@ -70,11 +71,35 @@ impl QueryLanguagePort for QueryLanguageUseCaseAdapter {
             .compile(QueryRequest {
                 text: bundle.clone(),
                 hosted: hosted.to_vec(),
+                modules: ryo_values::domain::program::types::ParsedModules::default(),
                 observations: observations.to_vec(),
             })
             .map_err(|error| QueryLanguageError::Refused {
                 error: refused(error),
             })?;
+        Ok(report.plan)
+    }
+
+    fn compile_parsed(
+        &self,
+        bundle: &ryo_values::domain::query_tokens::types::QueryBundle,
+        modules: &mut ryo_values::domain::program::types::ParsedModules,
+        hosted: &[hosted::HostedRelation],
+        observations: &[ryo_values::domain::observations::types::BoundObservationInput],
+    ) -> Result<plans::Plan, QueryLanguageError> {
+        let report = self
+            .compile
+            .0
+            .compile(QueryRequest {
+                text: bundle.clone(),
+                hosted: hosted.to_vec(),
+                observations: observations.to_vec(),
+                modules: modules.clone(),
+            })
+            .map_err(|error| QueryLanguageError::Refused {
+                error: refused(error),
+            })?;
+        *modules = report.modules;
         Ok(report.plan)
     }
 }

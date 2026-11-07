@@ -114,6 +114,21 @@ impl SyntaxPort for SyntaxFake {
             })
     }
 
+    fn read_root(&self, bundle: &QueryBundle) -> Result<WrittenProgram, SyntaxError> {
+        self.read(QueryView(&bundle.root.text))
+            .map_err(|error| match error {
+                SyntaxError::Unreadable { span, message } => SyntaxError::Located {
+                    origin: QueryOrigin {
+                        source_id: bundle.root.id.clone(),
+                        span,
+                        trace: Vec::new(),
+                    },
+                    message,
+                },
+                SyntaxError::Located { .. } => error,
+            })
+    }
+
     /// One production: the text the fake reads.
     fn grammar(&self) -> Grammar {
         Grammar(vec![Production {

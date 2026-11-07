@@ -21,6 +21,14 @@ pub trait SyntaxPort: Send + Sync {
     /// Returns the source-aware syntax error for the first unreadable document.
     fn read_bundle(&self, bundle: &QueryBundle) -> Result<ParsedQueryBundle, SyntaxError>;
 
+    /// Parses a bundle's root alone, located in the root's source, as `read_bundle` reads it first: a compile whose modules were
+    /// parsed from the same catalog earlier in its session reads only this.
+    ///
+    /// # Errors
+    ///
+    /// Returns the source-aware syntax error when the root is unreadable.
+    fn read_root(&self, bundle: &QueryBundle) -> Result<WrittenProgram, SyntaxError>;
+
     /// The grammar the adapter reads: every production, how it is written and text it reads.
     fn grammar(&self) -> Grammar;
 }
