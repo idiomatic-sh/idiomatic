@@ -12,7 +12,7 @@ use crate::domain::{
     table_model::types::SelectionIdentity,
     table_scratch::types::OperatorScratch,
 };
-use ryo_derived::domain::contract::types::DerivedKind;
+use ryo_derived::domain::request::types::DerivedKind;
 use ryo_language::domain::symbols::{
     service::intern_derived,
     types::{ByteSlice, Symbols},

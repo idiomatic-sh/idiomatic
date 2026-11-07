@@ -174,7 +174,7 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
     let proof = owner.admit(publication.as_ref(), rows)?;
     let plan = Arc::new(crate::application::file_dag::derived::prepare::view(
         (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            crate::outbound::derived::factory::semantics(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
         &ViewRequest::PredicateMatches(selector),
         &[InputShape {
@@ -195,7 +195,7 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
         &mut DerivedScratch::default(),
         None,
     )?;
-    let DerivedView::RowIds(rows) = handle.view()? else {
+    let DerivedView::RowIds(ryo_derived::domain::positions::types::RowSlots(rows)) = handle.view()? else {
         panic!("predicate view")
     };
     assert_eq!(
@@ -290,7 +290,7 @@ fn every_possible_discriminator_column_is_prepared_once() -> Result<(), Failure>
         [(selector).clone()],
         &|_| &[CellKind::Number; 3],
         (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            crate::outbound::derived::factory::semantics(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     )?;
     let plans = &views.by_selector[&(Arc::as_ptr(&selector) as usize)].equalities;
@@ -299,7 +299,7 @@ fn every_possible_discriminator_column_is_prepared_once() -> Result<(), Failure>
         let plan = &plans[&column];
         assert_eq!(
             plan.kind,
-            ryo_derived::domain::contract::types::DerivedKind::Equality
+            ryo_derived::domain::request::types::DerivedKind::Equality
         );
         let crate::domain::derived_views::types::ViewRequest::Equality { columns } = &plan.request
         else {

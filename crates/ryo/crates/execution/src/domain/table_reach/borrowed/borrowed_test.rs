@@ -1,11 +1,18 @@
 //! Differential traversal behavior over an actual prepared equality index.
 use super::*;
 use crate::domain::operator::contract::views::BorrowedRows;
-use ryo_derived::domain::contract::types::{
-    BuildOutcome, BuildWorkspace, BulkRows, DerivedFault, DerivedInputs, DerivedView, KeyIndex,
-    RowCells, ViewRequest,
-};
-use ryo_derived::inbound::use_cases::derived::interface::DerivedUseCase;
+use ryo_derived::domain::contract::types::BuildOutcome;
+use ryo_derived::domain::contract::types::BuildWorkspace;
+use ryo_derived::domain::row_cells::types::BulkRows;
+use ryo_derived::domain::fault::types::DerivedFault;
+use ryo_derived::domain::contract::types::BuildInputs as DerivedInputs;
+use ryo_derived::domain::contract::types::DerivedView;
+use ryo_derived::domain::equality::types::KeyIndex;
+use ryo_derived::domain::row_cells::types::RowCells;
+use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
+use ryo_derived::inbound::use_cases::build::interface::BuildUseCase;
+use ryo_derived::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_derived::inbound::use_cases::view::interface::ViewUseCase;
 use ryo_relations::domain::relations::types::{CellKind, Integer};
 use ryo_values::domain::rows::types::{RowCount, Table};
 
@@ -27,13 +34,13 @@ impl RowCells for Cells<'_> {
     fn kinds(&self) -> &[CellKind] {
         &self.0.kinds
     }
-    fn count(&self) -> usize {
-        self.0.count.0
+    fn count(&self) -> ryo_values::domain::rows::types::RowCount {
+        self.0.count
     }
-    fn cell(&self, row: usize, column: ColumnIndex) -> Option<Value> {
+    fn cell(&self, row: ryo_values::domain::rows::types::RowIndex, column: ColumnIndex) -> Option<Value> {
         self.0
             .cells
-            .get(row * self.0.kinds.len() + column.0 as usize)
+            .get(row.0 * self.0.kinds.len() + column.0 as usize)
             .copied()
     }
 }
@@ -47,7 +54,7 @@ fn with_edges(rows: &[[i64; 2]], run: impl FnOnce(&Table, &KeyIndex)) {
             .collect(),
     };
     let port = std::sync::Arc::new(
-        ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        crate::outbound::derived::factory::semantics(),
     );
     let prepared = port.prepare(
         ViewRequest::Equality {

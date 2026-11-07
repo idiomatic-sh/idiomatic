@@ -62,7 +62,7 @@ impl DerivedOwner {
 
     pub(in crate::application::file_dag::derived::owner) fn first_index_weak(
         &self,
-    ) -> Option<Weak<ryo_derived::domain::contract::types::KeyIndex>> {
+    ) -> Option<Weak<ryo_derived::domain::equality::types::KeyIndex>> {
         self.state.borrow().entries.values().find_map(|entry| {
             if entry._plan.kind != DerivedKind::Equality {
                 return None;
@@ -71,7 +71,7 @@ impl DerivedOwner {
             storage
                 .payload()
                 .share_equality()
-                .map(|index| Arc::downgrade(&index))
+                .map(|index| Arc::downgrade(&index.0))
         })
     }
     pub(in crate::application::file_dag) fn shared_index_backings(&self) -> usize {
@@ -197,9 +197,9 @@ impl DerivedOwner {
                 continue;
             };
             if let Some(shared) = retained.storage.payload().share_positions() {
-                add_rows(shared.backing());
+                add_rows(&shared.0);
                 if entry._plan.kind == DerivedKind::PredicateMatches {
-                    predicates.push(Arc::as_ptr(shared.backing()) as usize);
+                    predicates.push(Arc::as_ptr(&shared.0) as usize);
                 }
             }
             if let ryo_derived::domain::contract::types::DerivedView::Postings(postings) =
@@ -209,9 +209,9 @@ impl DerivedOwner {
                     let shared = retained
                         .storage
                         .payload()
-                        .share_posting_positions(posting.text())
+                        .share_posting_positions(ryo_values::domain::row_texts::types::CellText(&posting.text.0))
                         .expect("stored posting");
-                    add_rows(shared.backing());
+                    add_rows(&shared.0);
                 }
             }
             if let Some(graph) = retained.storage.graph_identity() {
@@ -291,7 +291,7 @@ impl DerivedOwner {
                 authored,
                 &|_| kinds,
                 (std::sync::Arc::new(
-                    ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+                    crate::outbound::derived::factory::semantics(),
                 )
                     as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             )?;

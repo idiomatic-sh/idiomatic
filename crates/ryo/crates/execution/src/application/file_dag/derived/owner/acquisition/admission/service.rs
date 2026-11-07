@@ -6,7 +6,7 @@ use crate::domain::{
     derived_views::types::{DerivedContract, DerivedInputs, MembershipSpace},
     operating::errors::OperatingError,
 };
-use ryo_derived::domain::contract::types::DerivedKind;
+use ryo_derived::domain::request::types::DerivedKind;
 use ryo_derived::domain::contract::types::DerivedView;
 use std::sync::Arc;
 
@@ -77,7 +77,7 @@ impl AcquiredView {
         self.storage
             .payload()
             .partition_order_capacity()
-            .map(PartitionCapacity)
+            .map(|capacity| PartitionCapacity(capacity.0))
             .ok_or(OperatingError::WrongOperation)
     }
     pub(in crate::application::file_dag) fn construction(&self) -> Construction {
@@ -143,7 +143,7 @@ enum AcquisitionSources<'a> {
     Rows(Vec<crate::domain::operator::contract::views::BorrowedRows<'a>>),
     Dense {
         rows: Vec<crate::domain::operator::contract::views::BorrowedRows<'a>>,
-        graph: Arc<ryo_derived::domain::contract::types::CompactGraph>,
+        graph: Arc<ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph>,
     },
     Raw,
 }

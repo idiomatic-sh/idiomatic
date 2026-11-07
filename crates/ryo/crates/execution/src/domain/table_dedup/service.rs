@@ -7,8 +7,9 @@ use ryo_relations::domain::relations::types::{CellKind, Value};
 use super::types::RowFound;
 
 use crate::domain::table_model::types::Addition;
-use ryo_derived::domain::contract::key::{mix, word_of};
-use ryo_derived::domain::contract::types::KeyCellsHash;
+use ryo_derived::domain::key::service::mix;
+use ryo_derived::domain::key::service::word_of;
+use ryo_derived::domain::key::types::KeyCellsHash;
 
 /// The row `index` of `cells`, rows of as many cells as `kinds` has columns; empty past the last row.
 fn row_at<'c>(cells: &'c [Value], kinds: &[CellKind], index: RowIndex) -> &'c [Value] {
@@ -26,15 +27,15 @@ pub(crate) fn find_or_add(
     row: &[Value],
 ) -> RowFound {
     let hash_of = |cells: &[Value], index: RowIndex| {
-        ryo_derived::domain::contract::key::hash_row(
+        ryo_derived::domain::key::service::hash_row(
             row_at(cells, &kept.kinds, index),
-            ryo_derived::domain::contract::types::On::Whole,
+            ryo_derived::domain::key::types::On::Whole,
         )
         .0
     };
-    let hash = ryo_derived::domain::contract::key::hash_row(
+    let hash = ryo_derived::domain::key::service::hash_row(
         row,
-        ryo_derived::domain::contract::types::On::Whole,
+        ryo_derived::domain::key::types::On::Whole,
     )
     .0;
     if let Some(found) = seen.find(hash, |each| row_at(&kept.cells, &kept.kinds, *each) == row) {

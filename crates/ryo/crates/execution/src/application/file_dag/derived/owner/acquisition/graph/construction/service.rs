@@ -73,6 +73,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adja
     let graph = storage
         .payload()
         .share_adjacency()
+        .map(|shared| shared.0)
         .ok_or(OperatingError::WrongOperation)?;
     let storage = Arc::new(storage);
     let backings = owner.graph_backings(&storage)?;
@@ -140,12 +141,12 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
         .payload()
         .share_marks()
         .ok_or(OperatingError::WrongOperation)?;
-    if members.as_slice().len() != access.graph().vertices().len() {
+    if members.0.len() != access.graph().vertices().len() {
         return Err(OperatingError::ShapeMismatch);
     }
     let domain = Arc::new(GraphDomain {
         identity,
-        members: Arc::clone(members.backing()),
+        members: Arc::clone(&members.0),
     });
     let storage = Arc::new(storage);
     let mut backings = owner.graph_backings(&storage)?;

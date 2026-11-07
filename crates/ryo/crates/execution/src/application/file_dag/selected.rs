@@ -5,7 +5,7 @@ use super::derived::owner::acquisition::admission::service::AcquiredView;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::views::{BorrowedRows, IndexedRows};
 use crate::domain::table_model::types::SelectedRows;
-use ryo_derived::domain::contract::types::KeyIndex;
+use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// One complete selected population and an index over only its declared key cells.
@@ -51,4 +51,4 @@ mod tests;
 mod constants;
 pub(in crate::application::file_dag) mod schemas;
 
-use ryo_derived::domain::contract::types::DerivedKind;
+use ryo_derived::domain::request::types::DerivedKind;

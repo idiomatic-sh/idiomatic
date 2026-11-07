@@ -5,7 +5,7 @@ use crate::domain::reduction::types::{
     GroupColumns, GroupCoordinate, GroupCounts, GroupDigest, GroupMembership, GroupOutput, HashScratch, StreamingReduction,
     ValueHash,
 };
-use crate::domain::set_rows::types::Occurrence;
+use crate::domain::set_rows::types::FirstOccurrence;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, FlagState},
@@ -189,10 +189,10 @@ pub(crate) fn push(
     match program {
         AggregationPlan::Count { distinct, .. } => {
             let counted = match distinct {
-                None => Occurrence::First,
+                None => FirstOccurrence::First,
                 Some(column) => driver.insert_value(group, cell(row, column)?),
             };
-            if counted == Occurrence::First {
+            if counted == FirstOccurrence::First {
                 driver.count(group).ok_or(Fault::ShapeMismatch)?.0 += 1;
             }
         }

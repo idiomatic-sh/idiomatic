@@ -5,7 +5,7 @@ use crate::application::file_dag::derived::owner::acquisition::family::fixtures:
     Scenario, exercise,
 };
 use crate::domain::operating::errors::OperatingError;
-use ryo_derived::domain::contract::types::DerivedKind;
+use ryo_derived::domain::request::types::DerivedKind;
 
 #[test]
 fn every_family_refuses_every_mismatched_capability() {

@@ -6,7 +6,9 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::derived::portable_fault;
 use crate::domain::stored_graph::types::GraphIdentity;
 use crate::outbound::derived::interface::DerivedPort;
-use ryo_derived::domain::contract::types::{DerivedPayload, DerivedView, PreparedDerived};
+use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
+use ryo_derived::domain::contract::types::DerivedView;
+use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -52,21 +54,22 @@ impl DerivedStorage {
     ) -> Result<Arc<[crate::application::file_dag::derived::ledger::types::Backing]>, OperatingError>
     {
         use crate::application::file_dag::derived::ledger::types::Backing;
-        let facts = this.payload.footprint().map_err(portable_fault)?;
+        let facts = ryo_derived::domain::footprint::service::describe(&this.payload)
+            .map_err(portable_fault)?;
         let mut output: Vec<Backing> = facts
             .shared
             .into_iter()
             .map(|fact| Backing {
                 key: BackingKey {
-                    tag: BackingTag(fact.tag),
-                    address: BackingAddress(fact.allocation_key),
+                    tag: BackingTag(fact.tag.0),
+                    address: BackingAddress(fact.allocation_key.0),
                 },
-                bytes: ByteCount(fact.bytes),
-                retention_units: UnitCount(fact.position_capacity),
+                bytes: ByteCount(fact.bytes.0),
+                retention_units: UnitCount(fact.position_capacity.0),
             })
             .collect();
         let bytes = (size_of::<Self>() + 2 * size_of::<usize>())
-            .checked_add(facts.owned_bytes)
+            .checked_add(facts.owned_bytes.0)
             .ok_or(OperatingError::ShapeMismatch)?;
         output.push(Backing {
             key: BackingKey {

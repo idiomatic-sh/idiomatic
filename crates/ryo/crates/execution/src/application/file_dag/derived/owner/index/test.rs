@@ -27,7 +27,7 @@ use crate::domain::coverage::types::{Lacking, LackingKind, Partial};
 
 use crate::domain::table_model::service::matching_stored;
 
-use ryo_derived::domain::contract::types::KeyIndex;
+use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Flag, Integer, Relation, Value,
 };
@@ -139,7 +139,7 @@ fn any_physical_partial_kind_and_inactive_relations_are_ineligible() {
     for relation in [Relation::Function, Relation::Identifier] {
         let result = acquire(&cache, relation, view, &[ColumnIndex(0)]).expect("local fallback");
         assert_eq!(result.construction(), Construction::Built);
-        assert_eq!(equality(&result).rows().len(), 1);
+        assert_eq!(equality(&result).rows.len(), 1);
     }
     assert_eq!(cache.snapshot().indexes, 0);
 }
@@ -157,7 +157,7 @@ fn actual_capacities_and_arc_metadata_remain_bounded_on_refusal() {
     let result =
         acquire(&cache, Relation::Function, view, &[ColumnIndex(0)]).expect("required index");
     assert_eq!(result.construction(), Construction::Built);
-    assert_eq!(equality(&result).rows().len(), 1024);
+    assert_eq!(equality(&result).rows.len(), 1024);
     let during = cache.snapshot();
     assert_eq!(during.indexes, 0);
     assert!(during.bytes <= during.limit);
@@ -320,8 +320,8 @@ fn a_reused_index_still_resolves_full_composite_hash_collisions_exactly() {
     assert_eq!(reused.construction(), Construction::Reused);
     let index = equality(&reused);
     assert_eq!(
-        index.hashes().first(),
-        index.hashes().get(1),
+        index.hashes.first(),
+        index.hashes.get(1),
         "actual full-hash collision"
     );
     assert_eq!(

@@ -2,7 +2,7 @@
 //! owner generation retired and `(required, optional, unique) == (0, 0, 0)` asserted here.
 //! `RawKeyOrder` needs a `KernelPermit`, so its exits are the program-level `raw_scope` cases.
 use crate::domain::operating::errors::OperatingError;
-use ryo_derived::domain::contract::types::DerivedKind;
+use ryo_derived::domain::request::types::DerivedKind;
 use self::exit::{Entry, Exit, entry};
 
 pub(in crate::application::file_dag) mod exit;

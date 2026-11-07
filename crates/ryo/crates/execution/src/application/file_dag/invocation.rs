@@ -21,10 +21,11 @@ use crate::domain::operator::contract::{
     views::{BorrowedRows, IndexedRows},
 };
 use crate::domain::table_groups::types::Group;
-use ryo_derived::domain::contract::types::KeyIndex;
-use ryo_derived::domain::contract::types::{
-    ClosurePartition, CycleGraph, OrderedMatching, PreparedDfs,
-};
+use ryo_derived::domain::equality::types::KeyIndex;
+use ryo_derived::domain::closure_adjacency::types::ClosurePartition;
+use ryo_derived::domain::cycle_adjacency::types::CycleGraph;
+use ryo_derived::domain::ordered::types::OrderedMatching;
+use ryo_derived::domain::dfs::types::PreparedDfs;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, InputNumber, LiteralText},
@@ -72,7 +73,7 @@ impl<'f> InvocationResources<'f> {
         contract: &OperatorContract,
         inputs: &[BorrowedRows<'_>],
     ) -> Result<(), OperatingError> {
-        use ryo_derived::domain::contract::types::DerivedKind;
+        use ryo_derived::domain::request::types::DerivedKind;
         let ResourceProgram::Join(join) = &contract.resources else {
             return Ok(());
         };
@@ -89,16 +90,13 @@ impl<'f> InvocationResources<'f> {
             let native = prepared(contract, DerivedKind::NativeLookup)?;
             let form = match tree.form {
                 crate::domain::table_cells::types::TreeForm::Elements => {
-                    ryo_derived::domain::contract::types::NativeForm::Elements
+                    ryo_derived::domain::native::types::NativeForm::Elements
                 }
                 crate::domain::table_cells::types::TreeForm::Edges => {
-                    ryo_derived::domain::contract::types::NativeForm::Edges
+                    ryo_derived::domain::native::types::NativeForm::Edges
                 }
             };
-            if native
-                .plan
-                .semantic
-                .native_finding(form)
+            if ryo_derived::domain::dispatch::service::native_finding(&native.plan.semantic, form)
                 .map_err(crate::domain::operator::contract::derived::portable_fault)?
                 .is_some()
             {
@@ -124,7 +122,7 @@ fn partitioned<'f>(
     admitted: &super::workspace::InputAdmissions<'_, 'f>,
     context: &mut OperatorContext<'_>,
 ) -> Result<super::closure_partitions::PartitionedClosure<'f>, OperatingError> {
-    use ryo_derived::domain::contract::types::DerivedKind;
+    use ryo_derived::domain::request::types::DerivedKind;
     let order = prepared(contract, DerivedKind::PartitionOrder)?;
     let closure = prepared(contract, DerivedKind::ClosureAdjacency)?;
     admitted.partitioned(order, closure, input, context)
@@ -141,7 +139,7 @@ impl crate::domain::operator::contract::views::ClosureParts
     fn get(
         &self,
         at: usize,
-    ) -> Result<&ryo_derived::domain::contract::types::ClosurePartition, OperatingError> {
+    ) -> Result<&ryo_derived::domain::closure_adjacency::types::ClosurePartition, OperatingError> {
         let view = self
             .as_slice()
             .get(at)

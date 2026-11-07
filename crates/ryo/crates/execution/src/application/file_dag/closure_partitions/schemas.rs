@@ -17,11 +17,11 @@ pub(in crate::application::file_dag) fn from_prepared<'f>(
     owner: Rc<RelationOwner>,
 ) -> Result<PartitionedClosure<'f>, OperatingError> {
     crate::domain::derived_views::service::validate(
-        ryo_derived::domain::contract::types::DerivedKind::PartitionOrder,
+        ryo_derived::domain::request::types::DerivedKind::PartitionOrder,
         &partition_plan,
     )?;
     crate::domain::derived_views::service::validate(
-        ryo_derived::domain::contract::types::DerivedKind::ClosureAdjacency,
+        ryo_derived::domain::request::types::DerivedKind::ClosureAdjacency,
         &closure_plan,
     )?;
     if !std::ptr::eq(ordered.contract(), partition_plan.as_ref())

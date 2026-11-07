@@ -8,7 +8,7 @@ use crate::domain::{
     executable_program::types::{ColumnAlternative, RegionId},
     file_program::types::{NodeId, RequestGraph},
 };
-use ryo_derived::domain::contract::types::DerivedKind;
+use ryo_derived::domain::request::types::DerivedKind;
 use ryo_values::domain::plan_parts::types::StepId;
 use std::sync::Arc;
 

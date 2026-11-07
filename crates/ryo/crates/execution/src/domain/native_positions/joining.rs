@@ -26,7 +26,7 @@ use crate::domain::{
         types::Admit,
     },
 };
-use ryo_derived::domain::contract::types::RawOrder;
+use ryo_derived::domain::raw_order::types::raw_order::value::RawOrder;
 use ryo_language::domain::elements::service::children;
 use ryo_language::domain::names::service::name_count;
 use ryo_operators::domain::equality_join::types::{Advance, JoinInput, PositionSlots, PositionTarget};
@@ -54,7 +54,7 @@ impl PositionJoinDriver for StepMatches<'_> {
             let place = self.place;
             self.place.0 += 1;
             if let Some(right) = self.order.rows().get(place.0) {
-                self.current = Some(RowIndex(*right));
+                self.current = Some(*right);
                 self.counts.found(1, 1);
                 return Ok(Advance::Admitted);
             }
@@ -231,12 +231,12 @@ pub(super) fn join(
                 let each = row(left.rows, at);
                 probe.0.clear();
                 key_into(tree, &left.shape.columns, each, left_on, probe);
-                let hits = order.hits(&probe.0);
+                let hits = order.hits(ryo_derived::domain::raw_words::types::RawWords(&probe.0));
                 let mut driver = StepMatches {
                     right: right.rows,
                     order,
-                    place: RowIndex(hits.start),
-                    end: RowIndex(hits.end),
+                    place: RowIndex(hits.start.0),
+                    end: RowIndex(hits.end.0),
                     current: None,
                     counts,
                 };

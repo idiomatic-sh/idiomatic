@@ -73,7 +73,7 @@ pub trait StreamingReduction {
         &mut self,
         group: ryo_values::domain::rows::types::RowIndex,
         value: ryo_relations::domain::relations::types::Value,
-    ) -> Occurrence;
+    ) -> FirstOccurrence;
     fn count(
         &mut self,
         group: ryo_values::domain::rows::types::RowIndex,
@@ -83,7 +83,7 @@ pub trait StreamingReduction {
 }
 
 use crate::domain::contract::errors::ContractError;
-use crate::domain::set_rows::types::Occurrence;
+use crate::domain::set_rows::types::FirstOccurrence;
 
 /// Whether two rows belong to the same group.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

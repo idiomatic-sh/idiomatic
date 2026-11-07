@@ -5,7 +5,8 @@ use super::super::{
     *,
 };
 use crate::application::file_dag::derived::owner::fixtures::resources::RecordedDerived;
-use ryo_derived::domain::contract::types::{DerivedFault, ViewRequest};
+use ryo_derived::domain::fault::types::DerivedFault;
+use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
 
 #[derive(Clone, Copy, Debug)]
 pub(super) enum RawCase {

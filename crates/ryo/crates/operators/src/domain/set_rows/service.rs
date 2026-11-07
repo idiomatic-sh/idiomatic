@@ -2,7 +2,7 @@
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::Advance;
 use crate::domain::set_rows::types::{
-    Membership, Occurrence, Population, SetKind, SetPositionsDriver, SetRowDriver,
+    FirstOccurrence, RightMembership, RightPopulation, SetKind, SetPositionsDriver, SetRowDriver,
 };
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -21,19 +21,19 @@ pub(crate) fn values(
             driver
                 .contains_right(row)
                 .map_err(|_| PortableOperatorFault::Interrupted)?
-                == Membership::Present
+                == RightMembership::Present
         }
         SetKind::Difference => {
             driver
                 .contains_right(row)
                 .map_err(|_| PortableOperatorFault::Interrupted)?
-                == Membership::Absent
+                == RightMembership::Absent
         }
         SetKind::Antijoin => {
             if driver
                 .right_empty()
                 .map_err(|_| PortableOperatorFault::Interrupted)?
-                == Population::Empty
+                == RightPopulation::Empty
             {
                 true
             } else {
@@ -50,7 +50,7 @@ pub(crate) fn values(
                 driver
                     .contains_right(key)
                     .map_err(|_| PortableOperatorFault::Interrupted)?
-                    == Membership::Absent
+                    == RightMembership::Absent
             }
         }
     };
@@ -63,7 +63,7 @@ pub(crate) fn values(
             driver
                 .first_time(row)
                 .map_err(|_| PortableOperatorFault::Interrupted)?
-                == Occurrence::First
+                == FirstOccurrence::First
         }
     };
     if first {
@@ -90,23 +90,23 @@ pub(crate) fn positions(
                 driver
                     .contains_right()
                     .map_err(|_| PortableOperatorFault::Interrupted)?
-                    == Membership::Present
+                    == RightMembership::Present
             }
             SetKind::Difference => {
                 driver
                     .contains_right()
                     .map_err(|_| PortableOperatorFault::Interrupted)?
-                    == Membership::Absent
+                    == RightMembership::Absent
             }
             SetKind::Antijoin => {
                 driver
                     .right_empty()
                     .map_err(|_| PortableOperatorFault::Interrupted)?
-                    == Population::Empty
+                    == RightPopulation::Empty
                     || driver
                         .contains_right()
                         .map_err(|_| PortableOperatorFault::Interrupted)?
-                        == Membership::Absent
+                        == RightMembership::Absent
             }
         };
         if !keep {
@@ -118,7 +118,7 @@ pub(crate) fn positions(
                 driver
                     .first_time()
                     .map_err(|_| PortableOperatorFault::Interrupted)?
-                    == Occurrence::First
+                    == FirstOccurrence::First
             }
         };
         if first {

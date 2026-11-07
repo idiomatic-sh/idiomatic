@@ -171,7 +171,7 @@ pub(in super::super) fn prepare(
         &[],
         &ryo_relations::domain::relations::service::kinds,
         std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            crate::outbound::derived::factory::semantics(),
         ),
     )
     .unwrap();

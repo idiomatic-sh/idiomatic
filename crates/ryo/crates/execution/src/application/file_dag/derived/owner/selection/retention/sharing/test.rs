@@ -29,7 +29,7 @@ fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> R
     }];
     let distinct = Arc::new(crate::application::file_dag::derived::prepare::view(
         (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            crate::outbound::derived::factory::semantics(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
         &ViewRequest::DistinctRepresentatives {
             columns: vec![ColumnIndex(0)],
@@ -38,7 +38,7 @@ fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> R
     )?);
     let order = Arc::new(crate::application::file_dag::derived::prepare::view(
         (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            crate::outbound::derived::factory::semantics(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
         &ViewRequest::PartitionOrder {
             keys: vec![ColumnIndex(0)],
@@ -48,7 +48,7 @@ fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> R
     let owner = RelationOwner::new(
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            crate::outbound::derived::factory::semantics(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let publication = owner.computed(table.clone())?;
@@ -69,7 +69,7 @@ fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> R
         &mut DerivedScratch::default(),
         None,
     )?;
-    let DerivedView::RowIds(actual) = acquired.view()? else {
+    let DerivedView::RowIds(ryo_derived::domain::positions::types::RowSlots(actual)) = acquired.view()? else {
         panic!("registered distinct view")
     };
     let original_buffer = actual.as_ptr();

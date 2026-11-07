@@ -44,12 +44,12 @@ impl OperatorsItem for ClosureItem {
                 let partition = partition?;
                 let from = [ColumnIndex(0)];
                 let edges = Edges {
-                    table: partition.table(),
-                    order: partition.index(),
+                    table: &partition.table,
+                    order: &partition.index,
                     from: &from,
                     to: ColumnIndex(1),
                 };
-                for start in partition.sources() {
+                for start in &partition.sources {
                     let walk = lease
                         .workspace
                         .closure_walk
@@ -66,7 +66,7 @@ impl OperatorsItem for ClosureItem {
                             .copied()
                             .ok_or(OperatingError::ShapeMismatch)?;
                         joined.clear();
-                        joined.extend_from_slice(partition.key());
+                        joined.extend_from_slice(&partition.key);
                         joined.extend_from_slice(&[*start, reached]);
                         emit.row(lease, &joined)?;
                     }

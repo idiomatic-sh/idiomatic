@@ -225,7 +225,7 @@ mod test;
 
 pub(in crate::application::file_dag) mod raw_scope;
 
-use ryo_derived::domain::contract::types::DerivedKind;
+use ryo_derived::domain::request::types::DerivedKind;
 
 pub(in crate::application::file_dag) mod cache;
 pub(in crate::application::file_dag) mod graphs;

@@ -8,7 +8,7 @@ use crate::domain::operator::contract::types::{
 use crate::domain::table_cells::service::element_of;
 use crate::domain::table_reach::borrowed::{follow, reach_breadth, reach_nearest};
 use crate::domain::tree_join::service::driver::tree_value;
-use ryo_derived::domain::contract::types::MembershipView;
+use ryo_derived::domain::membership::types::MembershipView;
 use ryo_language::domain::elements::service::{
     children, next_sibling, parent_at, previous_sibling, size_at,
 };

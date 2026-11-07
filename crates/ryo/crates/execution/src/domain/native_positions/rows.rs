@@ -11,7 +11,7 @@ use crate::domain::{
     table_cells::types::{TreeForm, TreeRows},
     table_model::types::Rows,
 };
-use ryo_derived::domain::contract::types::RawOrder;
+use ryo_derived::domain::raw_order::types::raw_order::value::RawOrder;
 use ryo_values::domain::plans::types::Operation;
 /// Source rows adapted to coordinates once, so the key phase and the evaluation phase share them.
 pub(crate) struct Staged<'s, 'a> {

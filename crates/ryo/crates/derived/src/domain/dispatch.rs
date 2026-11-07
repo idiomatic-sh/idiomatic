@@ -1,3 +1,5 @@
 //! Exhaustive semantic dispatcher. No caching, publication or admission decisions.
+pub mod service;
 
-pub(crate) mod service;
+#[cfg(test)]
+mod service_test;

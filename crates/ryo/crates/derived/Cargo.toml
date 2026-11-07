@@ -18,5 +18,22 @@ ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version 
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.2" }
 hashbrown.workspace = true
 
+[dev-dependencies]
+idiomatic-sh-ryo-derived = { path = ".", features = ["fixtures"] }
+idiomatic-sh-ryo-values = { path = "../values", features = ["fixtures"] }
+cargo_metadata.workspace = true
+cucumber.workspace = true
+tokio.workspace = true
+
+[[test]]
+name = "bdd"
+harness = false
+
+[features]
+fixtures = []
+
 [lints]
 workspace = true
+
+[package.metadata.cargo-machete]
+ignored = ["idiomatic-sh-ryo-derived"]

@@ -28,7 +28,7 @@ impl CachedGraph {
         cache: &mut CacheBackend,
     ) -> Result<Option<Self>, OperatingError> {
         use crate::domain::derived_views::service::slot;
-        use ryo_derived::domain::contract::types::DerivedKind;
+        use ryo_derived::domain::request::types::DerivedKind;
         let slots = &contract.derived.slots;
         let adjacency = || {
             slots[slot(DerivedKind::Adjacency)]
@@ -225,7 +225,12 @@ impl AxisGraph {
     ) -> Result<AxisResult<'a>, OperatingError> {
         self.destinations.clear();
         let start = cell(left, self.id)?;
-        let Some(root) = self.access.graph().vertex(0, start) else {
+        let Some(root) = self
+            .access
+            .graph()
+            .vertex(ryo_derived::domain::vertices::types::PartitionId(0), start)
+            .map(|vertex| vertex.0)
+        else {
             return Ok(AxisResult {
                 destinations: &self.destinations,
             });

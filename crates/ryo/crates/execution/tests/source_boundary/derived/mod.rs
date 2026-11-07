@@ -71,7 +71,8 @@ const STORAGE_CONSTRUCTOR: &str = r#"
 mod storage_constructor {
     use super::semantics::storage::DerivedStorage as Authority;
     use crate::outbound::derived::interface::DerivedPort;
-    use ryo_derived::domain::contract::types::{PreparedDerived, DerivedPayload};
+    use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
+    use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
     use std::sync::Arc;
     fn forge(port: Arc<dyn DerivedPort>, plan: Arc<PreparedDerived>, payload: DerivedPayload) { let _ = Authority::new(port, plan, payload, None); }
     const _: fn(Arc<dyn DerivedPort>, Arc<PreparedDerived>, DerivedPayload) = forge;
@@ -121,7 +122,7 @@ const RAW_VIEW_ESCAPE: &str = r#"
 mod raw_view_escape { use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage; fn escape(storage: &DerivedStorage) { let _ = storage.view(); } const _: fn(&DerivedStorage) = escape; }
 "#;
 const GRAPH_ALLOCATION_ESCAPE: &str = r#"
-mod graph_allocation_escape { use crate::application::file_dag::derived::owner::graphs::types::handles::service::GraphHandle; use ryo_derived::domain::contract::types::CompactGraph; fn escape(value: &GraphHandle) { let _: std::sync::Arc<CompactGraph> = std::sync::Arc::clone(value.graph()); } const _: fn(&GraphHandle) = escape; }
+mod graph_allocation_escape { use crate::application::file_dag::derived::owner::graphs::types::handles::service::GraphHandle; use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph; fn escape(value: &GraphHandle) { let _: std::sync::Arc<CompactGraph> = std::sync::Arc::clone(value.graph()); } const _: fn(&GraphHandle) = escape; }
 "#;
 const DOMAIN_ALLOCATION_ESCAPE: &str = r#"
 mod domain_allocation_escape { use crate::application::file_dag::derived::owner::graphs::types::handles::service::DomainHandle; fn escape(value: &DomainHandle) { let _: std::sync::Arc<Vec<bool>> = std::sync::Arc::clone(value.members()); } const _: fn(&DomainHandle) = escape; }
@@ -130,7 +131,7 @@ const GRAPH_RECORD_FORGERY: &str = r#"
 mod graph_record_forgery { use crate::application::file_dag::derived::owner::graphs::types::handles::service::GraphHandle as Authority; fn forge(value: Authority) -> Authority { Authority { sharing: crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing::Shared, ..value } } const _: fn(Authority) -> Authority = forge; }
 "#;
 const UNADMITTED_GRAPH_DEMAND: &str = r#"
-mod unadmitted_graph_demand { use crate::application::file_dag::derived::owner::{DerivedOwner, cache::types::CacheBackend, graphs::types::roots::value::DemandAnswers}; use crate::domain::stored_graph::types::GraphWalk; use ryo_derived::domain::contract::types::CompactGraph; use ryo_relations::domain::relations::types::{Value, Integer}; fn forge(owner: &DerivedOwner, graph: &CompactGraph, walk: &mut GraphWalk, cache: &mut CacheBackend) { let _ = DemandAnswers::new(owner, cache).reach(graph, &[], Value::Number(Integer(1)), walk); } const _: fn(&DerivedOwner, &CompactGraph, &mut GraphWalk, &mut CacheBackend) = forge; }
+mod unadmitted_graph_demand { use crate::application::file_dag::derived::owner::{DerivedOwner, cache::types::CacheBackend, graphs::types::roots::value::DemandAnswers}; use crate::domain::stored_graph::types::GraphWalk; use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph; use ryo_relations::domain::relations::types::{Value, Integer}; fn forge(owner: &DerivedOwner, graph: &CompactGraph, walk: &mut GraphWalk, cache: &mut CacheBackend) { let _ = DemandAnswers::new(owner, cache).reach(graph, &[], Value::Number(Integer(1)), walk); } const _: fn(&DerivedOwner, &CompactGraph, &mut GraphWalk, &mut CacheBackend) = forge; }
 "#;
 const BORROWED_LEASED_READ: &str = r#"
 mod borrowed_leased_read { use crate::application::file_dag::derived::owner::graphs::types::handles::service::{GraphHandle, DomainHandle}; fn read(graph: &GraphHandle, domain: &DomainHandle) -> usize { graph.graph().vertices().len() + domain.members().len() } const _: fn(&GraphHandle, &DomainHandle) -> usize = read; }

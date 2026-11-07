@@ -1,6 +1,6 @@
 //! Immutable engine-prepared graph inputs and invocation-bounded traversal work.
 
-use ryo_derived::domain::contract::types::KeyIndex;
+use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_relations::domain::relations::types::{Integer, Value};
 
 /// Lookup layout is immutable while one invocation walks its independent cursor.

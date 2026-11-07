@@ -67,7 +67,11 @@ impl<'a> DemandAnswers<'a> {
         let Some(partition) = access.graph().partition(partition) else {
             return Ok(None);
         };
-        let Some(root) = access.graph().vertex(partition, root) else {
+        let Some(root) = access
+            .graph()
+            .vertex(partition, root)
+            .map(|vertex| vertex.0)
+        else {
             return Ok(None);
         };
         let cache = &mut *self.cache;

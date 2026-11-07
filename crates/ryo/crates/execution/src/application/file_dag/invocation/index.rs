@@ -6,7 +6,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::contract::types::OperatorContract;
 use crate::domain::operator::contract::views::{BorrowedRows, IndexedRows};
-use ryo_derived::domain::contract::types::KeyIndex;
+use ryo_derived::domain::equality::types::KeyIndex;
 /// Owned immutable view handles stay in application; primitives borrow only the index.
 /// Whether an index over an empty input is skipped or still built.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -34,7 +34,7 @@ impl<'f> IndexResource<'f> {
         context: &mut OperatorContext<'_>,
         empty: EmptyInput,
     ) -> Result<Self, OperatingError> {
-        use ryo_derived::domain::contract::types::DerivedKind;
+        use ryo_derived::domain::request::types::DerivedKind;
         let use_ = prepared(contract, DerivedKind::Equality)?;
         let place = use_.inputs[0];
         let source = admission.input(InputNumber(place))?;

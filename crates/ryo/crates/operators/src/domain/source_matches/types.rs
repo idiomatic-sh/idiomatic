@@ -53,6 +53,19 @@ pub struct SourceBase(pub usize);
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct LineCursor(pub usize);
 
+/// A byte offset inside the searched text.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct OccurrenceByte(pub usize);
+
+/// A half-open interval of bytes inside the searched text.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct OccurrenceSpan {
+    /// The first byte of the interval.
+    pub start: OccurrenceByte,
+    /// The byte after the last of the interval.
+    pub end: OccurrenceByte,
+}
+
 /// Whether the last byte read was a carriage return that has not yet ended its line.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum CarriageReturn {

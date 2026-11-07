@@ -1,7 +1,9 @@
 //! Ordered DFS lookup preparation; traversal and completion admission remain engine-owned.
-use crate::domain::contract::types::{
-    CanonicalTexts, DerivedFault, PreparedDfs, RowCells, ViewRequest,
-};
+use super::types::{DfsColumns, EdgeRun, EdgeSlot, PreparedDfs};
+use crate::domain::fault::types::DerivedFault;
+use crate::domain::row_cells::types::{CanonicalTexts, RowCells};
+use ryo_values::domain::row_texts::types::CellText;
+use ryo_values::domain::rows::types::RowIndex;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::Table;
@@ -18,8 +20,8 @@ fn materialize(input: &dyn RowCells, buffer: &mut Vec<Value>) -> Table {
         kinds: input.kinds().to_vec(),
         ..Table::default()
     };
-    for row in 0..input.count() {
-        if let Some(cells) = input.read_row(row, buffer) {
+    for row in 0..input.count().0 {
+        if let Some(cells) = input.read_row(RowIndex(row), buffer) {
             table.cells.extend_from_slice(cells);
             table.count.0 += 1;
         }
@@ -74,8 +76,8 @@ fn canonical_columns(
             };
             let canonical = if let Some(text) = found {
                 buffer.clear();
-                buffer.push_str(text);
-                texts.intern(&buffer)?
+                buffer.push_str(text.0);
+                texts.intern(CellText(&buffer))?
             } else {
                 value
             };
@@ -93,14 +95,15 @@ fn canonical_columns(
     }
     Ok(())
 }
+/// Prepares the roots and edges of an ordered DFS lookup.
 pub(crate) fn build(
-    request: &ViewRequest,
+    columns: DfsColumns<'_>,
     roots: &dyn RowCells,
     edges: &dyn RowCells,
     texts: &mut dyn CanonicalTexts,
     buffer: &mut Vec<Value>,
 ) -> Result<PreparedDfs, DerivedFault> {
-    let ViewRequest::OrderedDfs {
+    let DfsColumns {
         root,
         root_keys,
         source,
@@ -108,13 +111,10 @@ pub(crate) fn build(
         order,
         edge,
         edge_keys,
-    } = request
-    else {
-        return Err(DerivedFault::WrongOperation);
-    };
-    check(roots, &[*root])?;
+    } = columns;
+    check(roots, &[root])?;
     check(roots, root_keys)?;
-    check(edges, &[*source, *destination, *order, *edge])?;
+    check(edges, &[source, destination, order, edge])?;
     check(edges, edge_keys)?;
     let kind = roots
         .kinds()
@@ -132,22 +132,28 @@ pub(crate) fn build(
     }
     let mut roots = materialize(roots, buffer);
     let mut edges = materialize(edges, buffer);
-    let mut root_columns = root_keys.clone();
-    root_columns.push(*root);
-    let mut edge_columns = edge_keys.clone();
-    edge_columns.extend([*source, *destination]);
+    let mut root_columns = root_keys.to_vec();
+    root_columns.push(root);
+    let mut edge_columns = edge_keys.to_vec();
+    edge_columns.extend([source, destination]);
     canonical_columns(&mut roots, &mut root_columns, texts)?;
     canonical_columns(&mut edges, &mut edge_columns, texts)?;
     let from = edge_columns
         .get(..edge_columns.len().saturating_sub(1))
         .unwrap_or_default();
     for at in 0..edges.count.0 {
-        if !matches!(edges.cell(at, *order), Some(Value::Number(_))) {
+        if !matches!(edges.cell(RowIndex(at), order), Some(Value::Number(_))) {
             return Err(DerivedFault::ShapeMismatch);
         }
     }
     let mut edge_order = crate::domain::partition::service::ordered_positions(&edges, from)?;
-    let mut adjacency = vec![0..0; edges.count.0];
+    let mut adjacency = vec![
+        EdgeRun {
+            start: EdgeSlot(0),
+            end: EdgeSlot(0)
+        };
+        edges.count.0
+    ];
     let mut begin = 0;
     while begin < edge_order.len() {
         let head = *edge_order.get(begin).ok_or(DerivedFault::ShapeMismatch)?;
@@ -156,7 +162,7 @@ pub(crate) fn build(
             let next = *edge_order.get(end).ok_or(DerivedFault::ShapeMismatch)?;
             if !from
                 .iter()
-                .all(|column| edges.cell(head.0, *column) == edges.cell(next.0, *column))
+                .all(|column| edges.cell(head, *column) == edges.cell(next, *column))
             {
                 break;
             }
@@ -165,17 +171,20 @@ pub(crate) fn build(
         let group = edge_order
             .get_mut(begin..end)
             .ok_or(DerivedFault::ShapeMismatch)?;
-        group.sort_unstable_by_key(|at| edges.cell(at.0, *order));
+        group.sort_unstable_by_key(|at| edges.cell(*at, order));
         if group
             .windows(2)
-            .any(|pair| edges.cell(pair[0].0, *order) == edges.cell(pair[1].0, *order))
+            .any(|pair| edges.cell(pair[0], order) == edges.cell(pair[1], order))
         {
             return Err(DerivedFault::DuplicateDfsOrder);
         }
         for row in group {
             *adjacency
                 .get_mut(row.0)
-                .ok_or(DerivedFault::ShapeMismatch)? = begin..end;
+                .ok_or(DerivedFault::ShapeMismatch)? = EdgeRun {
+                start: EdgeSlot(begin),
+                end: EdgeSlot(end),
+            };
         }
         begin = end;
     }

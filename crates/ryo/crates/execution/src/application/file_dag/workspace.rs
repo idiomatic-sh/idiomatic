@@ -263,7 +263,7 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
         Option<super::derived::owner::acquisition::admission::service::AcquiredView>,
         OperatingError,
     > {
-        if use_.plan.kind != ryo_derived::domain::contract::types::DerivedKind::NativeLookup
+        if use_.plan.kind != ryo_derived::domain::request::types::DerivedKind::NativeLookup
             || use_.len != 2
         {
             return Err(OperatingError::WrongOperation);

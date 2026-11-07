@@ -8,7 +8,8 @@ use crate::domain::{
     },
     table_cells::types::TreeRows,
 };
-use ryo_derived::domain::contract::types::{DerivedView, MembershipView};
+use ryo_derived::domain::contract::types::DerivedView;
+use ryo_derived::domain::membership::types::MembershipView;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 pub(crate) enum AxisResource<'f> {
@@ -37,7 +38,7 @@ impl AxisResource<'_> {
                 membership,
             } => {
                 let marks = match membership.as_ref().map(AcquiredView::view).transpose()? {
-                    Some(DerivedView::Membership(MembershipView::Dense(marks))) => marks,
+                    Some(DerivedView::Membership(MembershipView::Dense(ryo_derived::domain::positions::types::DenseMarks(marks)))) => marks,
                     None if among.is_some() => &[],
                     _ => return Err(OperatingError::WrongBinding),
                 };

@@ -151,7 +151,7 @@ pub(in super::super::super) fn compiled_operations() -> Corpus {
         &hosted,
         &ryo_relations::domain::relations::service::kinds,
         std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            crate::outbound::derived::factory::semantics(),
         ),
     )
     .unwrap();
@@ -175,7 +175,7 @@ pub(in super::super::super) fn compile_program(
         &hosted,
         &ryo_relations::domain::relations::service::kinds,
         std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            crate::outbound::derived::factory::semantics(),
         ),
     )
     .unwrap();

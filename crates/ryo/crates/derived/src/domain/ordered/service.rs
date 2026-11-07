@@ -1,7 +1,8 @@
 //! Existing ordered matching, retaining exact duplicate-order error semantics.
-use crate::domain::contract::types::{
-    DerivedFault, OrderedMatching, OwnedOrderedKey, OwnedOrderedRow, RowCells, ValueTexts,
-};
+use super::types::{OrderedMatching, OrderedText, OwnedOrderedKey, OwnedOrderedRow};
+use crate::domain::fault::types::DerivedFault;
+use crate::domain::row_cells::types::{RowCells, ValueTexts};
+use ryo_values::domain::rows::types::RowIndex;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 fn cell(row: &[Value], column: ColumnIndex) -> Result<Value, DerivedFault> {
@@ -24,9 +25,9 @@ fn ordered_rows(
     texts: &dyn ValueTexts,
     buffer: &mut Vec<Value>,
 ) -> Result<Vec<OwnedOrderedRow>, DerivedFault> {
-    let mut rows = Vec::with_capacity(input.count());
-    for at in 0..input.count() {
-        let Some(row) = input.read_row(at, buffer) else {
+    let mut rows = Vec::with_capacity(input.count().0);
+    for at in 0..input.count().0 {
+        let Some(row) = input.read_row(RowIndex(at), buffer) else {
             continue;
         };
         let Value::Number(order) = cell(row, order)? else {
@@ -41,7 +42,7 @@ fn ordered_rows(
                         let Some(text) = texts.text(value) else {
                             return Err(DerivedFault::ShapeMismatch);
                         };
-                        OwnedOrderedKey::Text(text.to_owned())
+                        OwnedOrderedKey::Text(OrderedText(text.0.to_owned()))
                     }
                     _ => OwnedOrderedKey::Value(value),
                 })
@@ -50,7 +51,7 @@ fn ordered_rows(
         rows.push(OwnedOrderedRow {
             keys: group,
             order,
-            row: ryo_values::domain::rows::types::RowIndex(at),
+            row: RowIndex(at),
         });
     }
     rows.sort_unstable();

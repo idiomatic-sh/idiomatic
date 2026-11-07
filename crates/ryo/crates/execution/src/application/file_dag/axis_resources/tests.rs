@@ -44,14 +44,14 @@ fn program(direction: Direction) -> AxisResources {
 }
 
 fn acquired(
-    kind: ryo_derived::domain::contract::types::DerivedKind,
+    kind: ryo_derived::domain::request::types::DerivedKind,
     request: crate::domain::derived_views::types::ViewRequest,
     rows: BorrowedRows<'_>,
 ) -> crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView {
     let plan = Arc::new(
         crate::application::file_dag::derived::prepare::view(
             (std::sync::Arc::new(
-                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+                crate::outbound::derived::factory::semantics(),
             ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             &request,
             &[crate::domain::operation_schema::types::InputShape {
@@ -64,7 +64,7 @@ fn acquired(
     let owner = crate::application::file_dag::relations::RelationOwner::new(
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Ineligible,
         (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            crate::outbound::derived::factory::semantics(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let BorrowedRows::Computed(table) = rows else {
@@ -77,7 +77,7 @@ fn acquired(
     let rows = BorrowedRows::from(&held);
     let proof = owner.admit(publication.as_ref(), rows).unwrap();
     let inputs = [rows];
-    let data = if kind == ryo_derived::domain::contract::types::DerivedKind::Membership {
+    let data = if kind == ryo_derived::domain::request::types::DerivedKind::Membership {
         DerivedInputs::Membership {
             rows,
             space: MembershipSpace::Values,
@@ -114,14 +114,14 @@ fn borrowed_axis_keeps_duplicate_direct_edges_and_breadth_order() {
         BorrowedRows::Computed(&edges),
         BorrowedRows::Computed(&domain),
         Some(acquired(
-            ryo_derived::domain::contract::types::DerivedKind::Equality,
+            ryo_derived::domain::request::types::DerivedKind::Equality,
             crate::domain::derived_views::types::ViewRequest::Equality {
                 columns: vec![ColumnIndex(0)],
             },
             BorrowedRows::Computed(&edges),
         )),
         Some(acquired(
-            ryo_derived::domain::contract::types::DerivedKind::Membership,
+            ryo_derived::domain::request::types::DerivedKind::Membership,
             crate::domain::derived_views::types::ViewRequest::Membership {
                 column: ColumnIndex(0),
             },

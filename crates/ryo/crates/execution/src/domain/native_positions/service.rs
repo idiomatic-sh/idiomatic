@@ -11,7 +11,7 @@ use crate::domain::{
     positions::types::Positions,
     table_cells::types::TreeRows,
 };
-use ryo_derived::domain::contract::types::RawOrder;
+use ryo_derived::domain::raw_order::types::raw_order::value::RawOrder;
 use ryo_values::domain::plans::types::Operation;
 
 /// Evaluate one already prepared operation. `order` is the raw order the application acquired

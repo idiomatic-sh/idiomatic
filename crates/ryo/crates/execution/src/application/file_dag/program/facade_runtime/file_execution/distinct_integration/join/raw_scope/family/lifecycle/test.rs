@@ -10,7 +10,7 @@ use crate::application::file_dag::derived::owner::acquisition::family::fixtures:
     },
 };
 use crate::domain::operating::errors::OperatingError;
-use ryo_derived::domain::contract::types::DerivedKind;
+use ryo_derived::domain::request::types::DerivedKind;
 use ryo_values::domain::rows::types::RowCount;
 
 enum Route {

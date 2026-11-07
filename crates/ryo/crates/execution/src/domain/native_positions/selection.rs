@@ -16,7 +16,7 @@ use crate::domain::{
     table_cells::types::TreeRows,
     table_model::types::Verdict,
 };
-use ryo_derived::domain::contract::types::RawOrder;
+use ryo_derived::domain::raw_order::types::raw_order::value::RawOrder;
 use ryo_language::domain::names::service::name_count;
 use ryo_values::domain::{
     plan_parts::types::{Input, RepeatedRows},
@@ -109,7 +109,9 @@ pub(super) fn project(
     } else {
         let order = order.ok_or(OperatingError::WrongOperation)?;
         let PositionWork { kept, .. } = work;
-        order.firsts(&mut kept.0);
+        let mut flags = ryo_derived::domain::raw_words::types::KeepFlags(std::mem::take(&mut kept.0));
+        order.firsts(&mut flags);
+        kept.0 = flags.0;
         for (at, first) in kept.0.iter().enumerate() {
             if *first {
                 slots.0.extend_from_slice(row(source.rows, RowIndex(at)).0);

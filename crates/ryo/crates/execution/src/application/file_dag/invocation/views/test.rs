@@ -21,7 +21,7 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
     let plan = Arc::new(
         crate::application::file_dag::derived::prepare::view(
             (std::sync::Arc::new(
-                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+                crate::outbound::derived::factory::semantics(),
             ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             &ViewRequest::CycleAdjacency {
                 source: ColumnIndex(0),
@@ -37,7 +37,7 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
     let owner = crate::application::file_dag::relations::RelationOwner::new(
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+            crate::outbound::derived::factory::semantics(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let publication = owner.computed(table.clone()).unwrap();
@@ -60,23 +60,23 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
     let DerivedView::CycleAdjacency(built) = acquired.view().unwrap() else {
         panic!("actual cycle builder");
     };
-    let pointer = built.values().as_ptr();
+    let pointer = built.values.as_ptr();
     let graph = InvocationResources::cycles_view(Some(&acquired))
         .unwrap()
         .unwrap();
     assert_eq!(
-        graph.values(),
+        graph.values,
         [Value::Number(Integer(1)), Value::Number(Integer(2))]
     );
     assert_eq!(
         pointer,
-        graph.values().as_ptr(),
+        graph.values.as_ptr(),
         "the semantic lease borrows the owned graph"
     );
     let equality = Arc::new(
         crate::application::file_dag::derived::prepare::view(
             (std::sync::Arc::new(
-                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+                crate::outbound::derived::factory::semantics(),
             ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             &ViewRequest::Equality {
                 columns: vec![ColumnIndex(0)],

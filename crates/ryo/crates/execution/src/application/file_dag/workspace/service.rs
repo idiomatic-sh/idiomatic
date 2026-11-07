@@ -51,7 +51,7 @@ impl InvocationWorkspace {
             operating::errors::OperatingError,
             operator::contract::views::BorrowedRows,
         };
-        use ryo_derived::domain::contract::types::DerivedKind;
+        use ryo_derived::domain::request::types::DerivedKind;
         let count = usize::from(use_.len);
         if !(1..=2).contains(&count) {
             return Err(OperatingError::WrongOperation);

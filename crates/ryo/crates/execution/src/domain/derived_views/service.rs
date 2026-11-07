@@ -16,4 +16,4 @@ pub(crate) fn slot(kind: DerivedKind) -> usize {
     kind.ordinal()
 }
 
-use ryo_derived::domain::contract::types::DerivedKind;
+use ryo_derived::domain::request::types::DerivedKind;

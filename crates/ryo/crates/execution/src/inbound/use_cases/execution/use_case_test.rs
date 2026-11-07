@@ -8,7 +8,7 @@ fn rejects_binding_population_without_a_rule() {
         Arc::new(
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
         ),
-        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+        Arc::new(crate::outbound::derived::factory::semantics()),
     );
     let request = PreparedRequest {
         plans: vec![],
@@ -29,7 +29,7 @@ fn empty_request_can_begin_and_finish_without_acquiring_inputs() {
         Arc::new(
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
         ),
-        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+        Arc::new(crate::outbound::derived::factory::semantics()),
     );
     let request = PreparedRequest {
         plans: vec![],
@@ -56,7 +56,7 @@ fn file_owner_reuses_only_recognized_stable_sources() {
         Arc::new(
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
         ),
-        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+        Arc::new(crate::outbound::derived::factory::semantics()),
     );
     let prepared = engine
         .prepare(PreparedRequest {

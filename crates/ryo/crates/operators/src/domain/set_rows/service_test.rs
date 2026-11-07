@@ -3,7 +3,7 @@ use super::service::{positions, values};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::Advance;
 use crate::domain::set_rows::types::{
-    Membership, Occurrence, Population, SetKind, SetPositionsDriver, SetRowDriver,
+    FirstOccurrence, RightMembership, RightPopulation, SetKind, SetPositionsDriver, SetRowDriver,
 };
 use crate::domain::set_rows::errors::SetRowsError;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
@@ -119,16 +119,16 @@ impl SetPositionsDriver for PositionProbe {
         self.next += 1;
         Ok(Advance::Admitted)
     }
-    fn right_empty(&mut self) -> Result<Population, SetRowsError> {
-        Ok(Population::from(self.right_empty))
+    fn right_empty(&mut self) -> Result<RightPopulation, SetRowsError> {
+        Ok(RightPopulation::from(self.right_empty))
     }
-    fn contains_right(&mut self) -> Result<Membership, SetRowsError> {
+    fn contains_right(&mut self) -> Result<RightMembership, SetRowsError> {
         self.calls[0] += 1;
-        Ok(Membership::from(self.current == 0))
+        Ok(RightMembership::from(self.current == 0))
     }
-    fn first_time(&mut self) -> Result<Occurrence, SetRowsError> {
+    fn first_time(&mut self) -> Result<FirstOccurrence, SetRowsError> {
         self.calls[1] += 1;
-        Ok(Occurrence::from(self.current == 0))
+        Ok(FirstOccurrence::from(self.current == 0))
     }
     fn emit(&mut self) -> Result<(), SetRowsError> {
         self.calls[2] += 1;
@@ -146,18 +146,18 @@ struct Probe {
     calls: Value,
 }
 impl SetRowDriver for Probe {
-    fn right_empty(&mut self) -> Result<Population, SetRowsError> {
-        Ok(Population::from(self.right_empty))
+    fn right_empty(&mut self) -> Result<RightPopulation, SetRowsError> {
+        Ok(RightPopulation::from(self.right_empty))
     }
-    fn contains_right(&mut self, key: &[Cell]) -> Result<Membership, SetRowsError> {
+    fn contains_right(&mut self, key: &[Cell]) -> Result<RightMembership, SetRowsError> {
         assert_eq!(key, &[Cell::Number(Integer(7))]);
         self.calls[0] += 1;
-        Ok(Membership::from(self.contains))
+        Ok(RightMembership::from(self.contains))
     }
-    fn first_time(&mut self, row: &[Cell]) -> Result<Occurrence, SetRowsError> {
+    fn first_time(&mut self, row: &[Cell]) -> Result<FirstOccurrence, SetRowsError> {
         assert_eq!(row, &[Cell::Number(Integer(7))]);
         self.calls[1] += 1;
-        Ok(Occurrence::from(self.first))
+        Ok(FirstOccurrence::from(self.first))
     }
     fn emit(&mut self, row: &[Cell]) -> Result<(), SetRowsError> {
         assert_eq!(row, &[Cell::Number(Integer(7))]);

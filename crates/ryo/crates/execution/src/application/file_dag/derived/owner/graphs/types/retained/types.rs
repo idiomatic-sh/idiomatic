@@ -4,7 +4,7 @@ use crate::application::file_dag::derived::ledger::types::ResourceLease;
 use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage;
 use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::domain::stored_graph::types::{GraphDomain, Orientation};
-use ryo_derived::domain::contract::types::CompactGraph;
+use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
 use std::sync::Arc;
 #[derive(Debug)]
 pub(in crate::application::file_dag::derived::owner) struct RootMemo {

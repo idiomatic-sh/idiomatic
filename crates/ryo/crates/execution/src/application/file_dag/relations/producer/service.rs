@@ -101,7 +101,7 @@ impl RelationOwner {
         &self,
         scope: ProducerScope,
         node: RegionId,
-        kind: ryo_derived::domain::contract::types::DerivedKind,
+        kind: ryo_derived::domain::request::types::DerivedKind,
     ) -> Result<Option<crate::application::file_dag::derived::owner::witness::service::BackingWitness>, OperatingError>
     {
         let Some(known) = self

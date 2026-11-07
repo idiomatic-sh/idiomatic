@@ -268,4 +268,4 @@ fn owner_routes_count_each_physical_equality_build_once() {
     }
 }
 
-use ryo_derived::domain::contract::types::DerivedKind;
+use ryo_derived::domain::request::types::DerivedKind;

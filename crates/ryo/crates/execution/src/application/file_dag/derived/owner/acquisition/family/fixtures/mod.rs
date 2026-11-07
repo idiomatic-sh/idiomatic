@@ -19,7 +19,7 @@ use crate::domain::{
 };
 use crate::application::file_dag::relations::publication::types::ProducerScope;
 use crate::domain::executable_program::types::RegionId;
-use ryo_derived::domain::contract::types::DerivedKind;
+use ryo_derived::domain::request::types::DerivedKind;
 use ryo_language::domain::symbols::{service::intern_derived, types::ByteSlice};
 use ryo_relations::domain::{
     relations::types::{CellKind, FileId, Integer, NodeId, Relation, Value},

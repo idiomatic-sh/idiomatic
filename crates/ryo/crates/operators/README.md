@@ -20,9 +20,17 @@ Enumerates nonempty path-slot matches over UTF-8 character boundaries with expli
 
 Defines borrowed semantic requests, answers, and finite engine-provided drivers exposed through the inbound interface.
 
+### cycles
+
+Marks the nodes that lie on a cycle of engine-prepared adjacency, where a component of more than one node or a self edge is a cycle and a chain is not.
+
 ### equality_join
 
 Combines admitted matching rows while preserving bag order, projections, and deferred physical positions.
+
+### fits_rendered
+
+Measures the physical line width of a source prefix and an already rendered candidate, with tab stops and Unicode width.
 
 ### ordered_existence
 
@@ -43,6 +51,10 @@ Finds the first matching resolved text-set layer without owning text-set resolut
 ### reduction
 
 Reduces count and digest groups through borrowed engine-owned populations, prepared key order, and streaming scratch.
+
+### render_batch
+
+Refuses a batch holding an unsupported answer before any delivery, then delivers the known texts in order.
 
 ### replace
 
@@ -67,6 +79,10 @@ Composes checked half-open endpoints from two span cells against an engine-suppl
 ### span_bounds
 
 Extracts checked physical endpoints from a declared span column.
+
+### table_rows
+
+Delivers, for each binding table, the texts under the requested keys, refusing a table that lacks a key before its row.
 
 ### words
 

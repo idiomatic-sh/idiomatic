@@ -190,14 +190,14 @@ pub(crate) trait PrimitiveResources {
     fn native_join(&self) -> Option<super::join::NativeJoin<'_>>;
     fn dfs(
         &self,
-    ) -> Result<Option<&ryo_derived::domain::contract::types::PreparedDfs>, OperatingError>;
+    ) -> Result<Option<&ryo_derived::domain::dfs::types::PreparedDfs>, OperatingError>;
     fn cycles(
         &self,
-    ) -> Result<Option<&ryo_derived::domain::contract::types::CycleGraph>, OperatingError>;
+    ) -> Result<Option<&ryo_derived::domain::cycle_adjacency::types::CycleGraph>, OperatingError>;
     fn closure(&self) -> Result<super::views::ClosureViews<'_>, OperatingError>;
     fn ordered(
         &self,
-    ) -> Result<Option<&ryo_derived::domain::contract::types::OrderedMatching>, OperatingError>;
+    ) -> Result<Option<&ryo_derived::domain::ordered::types::OrderedMatching>, OperatingError>;
     fn groups(&self) -> Option<&[crate::domain::table_groups::types::Group]>;
 }
 

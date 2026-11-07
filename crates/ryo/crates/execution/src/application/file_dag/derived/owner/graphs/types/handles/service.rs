@@ -9,7 +9,7 @@ use crate::application::file_dag::derived::ledger::types::ResourceLease;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage;
 use crate::domain::stored_graph::types::{GraphDomain, Orientation};
-use ryo_derived::domain::contract::types::CompactGraph;
+use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
 use std::{ops::Deref, sync::Arc};
 
 /// An actual completed adjacency and its required lease, issued together.
@@ -31,6 +31,7 @@ impl GraphHandle {
             .storage()
             .payload()
             .share_adjacency()
+            .map(|shared| shared.0)
             .ok_or(crate::domain::operating::errors::OperatingError::WrongOperation)?;
         Ok(Self {
             graph,
@@ -89,8 +90,8 @@ impl DomainHandle {
             .payload()
             .share_marks()
             .ok_or(OperatingError::WrongOperation)?;
-        if !Arc::ptr_eq(marks.backing(), &domain.members)
-            || marks.as_slice().len() != parent.graph().vertices().len()
+        if !Arc::ptr_eq(&marks.0, &domain.members)
+            || marks.0.len() != parent.graph().vertices().len()
         {
             return Err(OperatingError::NotRead);
         }

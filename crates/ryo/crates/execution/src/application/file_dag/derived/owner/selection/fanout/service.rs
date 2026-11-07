@@ -131,7 +131,7 @@ pub(in crate::application::file_dag::derived::owner::selection) fn fanout_candid
     let rows = acquired
         .storage()
         .payload()
-        .share_posting_positions(wanted)
+        .share_posting_positions(ryo_values::domain::row_texts::types::CellText(wanted))
         .ok_or(OperatingError::WrongOperation)?;
     if acquired.construction() == Construction::Built {
         cache.selection_counts.scanned += population as u64;
@@ -142,7 +142,7 @@ pub(in crate::application::file_dag::derived::owner::selection) fn fanout_candid
         SelectionPath::FanoutReused
     };
     Ok(Some(FanoutHit {
-        rows: SelectedPositions(Arc::clone(rows.backing())),
+        rows: SelectedPositions(Arc::clone(&rows.0)),
         resource: acquired,
         path,
     }))
