@@ -3,7 +3,7 @@
 use crate::application::file_analysis::constants::{
     FILE, NODES, SEMANTICSTATE, THE_SELECTED_LANGUAGE_DOES_NOT_OFFER,
 };
-use super::types::FileCompleteness;
+use super::super::types::FileCompleteness;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
