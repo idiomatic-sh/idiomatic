@@ -9,7 +9,6 @@ use std::sync::Arc;
 use ryo_core::inbound::use_cases::lint::types::{LintRequest, Rule};
 use ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl;
 use ryo_core::outbound::corpus::fixtures::fake::CorpusFake;
-use ryo_execution::outbound::digest::fixtures::fake::DigestFake;
 use ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::inbound::use_cases::project::types::RootPath;
@@ -100,9 +99,7 @@ fn runs(world: &mut Behavior) {
             Arc::new(LanguageFake::default());
         let analysis_memory: Arc<dyn ryo_core::outbound::memory::interface::MemoryPort> =
             Arc::new(MemoryFake::default());
-        let analysis_digest: Arc<
-            dyn ryo_execution::outbound::digest::interface::DigestPort,
-        > = Arc::new(DigestFake);
+        let analysis_digest = ryo_core::inbound::use_cases::lint::fixtures::engine::digest();
         LintUseCaseImpl::new(
             ryo_core::application::file_analysis::service::FileAnalysis::new(
                 Arc::clone(&analysis_corpus),
