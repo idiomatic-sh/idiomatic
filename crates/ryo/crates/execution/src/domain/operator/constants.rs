@@ -1,7 +1,7 @@
 //! The names of the `operator` concept: what each operator is called and how it is described,
 //! text that leaves the engine in `operator list` and `operator describe`.
 
-use crate::domain::describing::constants::{described, field};
+use crate::domain::describing::constants::{described, field, DESTINATION, RELATION};
 use ryo_relations::domain::relations::constants::SOURCE;
 use ryo_values::domain::descriptions::constants::{COLUMN, COLUMNS, DIGEST};
 use ryo_values::domain::descriptions::types::{FieldRequirement, OperatorDescription};
@@ -331,7 +331,7 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
                     FieldRequirement::Required,
                 ),
                 field(
-                    "relation",
+                    RELATION,
                     "Typed parent-child edges, in parent and child.",
                     FieldRequirement::Required,
                 ),
@@ -364,7 +364,7 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
                 field("edges", "Directed edge rows.", FieldRequirement::Required),
                 field(SOURCE, "Edge source.", FieldRequirement::Required),
                 field(
-                    "destination",
+                    DESTINATION,
                     "Edge destination.",
                     FieldRequirement::Required,
                 ),
@@ -402,7 +402,7 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
                 field("edges", "Directed edge rows.", FieldRequirement::Required),
                 field(SOURCE, "Edge source.", FieldRequirement::Required),
                 field(
-                    "destination",
+                    DESTINATION,
                     "Edge destination.",
                     FieldRequirement::Required,
                 ),

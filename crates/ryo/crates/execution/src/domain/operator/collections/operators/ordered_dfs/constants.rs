@@ -1,5 +1,6 @@
 //! The ordered DFS call's public description.
-use crate::domain::describing::constants::{described, field};
+use crate::domain::describing::constants::{described, field, DESTINATION};
+use ryo_values::domain::descriptions::constants::OUTPUT;
 use ryo_values::domain::descriptions::types::{FieldRequirement, OperatorDescription};
 /// Describe independent ordered graph walks and their emitted edge visits.
 pub(crate) fn description() -> OperatorDescription {
@@ -12,7 +13,7 @@ pub(crate) fn description() -> OperatorDescription {
             field("edges", "Directed edge rows.", FieldRequirement::Required),
             field("source", "Edge source column.", FieldRequirement::Required),
             field(
-                "destination",
+                DESTINATION,
                 "Edge destination column.",
                 FieldRequirement::Required,
             ),
@@ -32,7 +33,7 @@ pub(crate) fn description() -> OperatorDescription {
                 FieldRequirement::Optional,
             ),
             field(
-                "output",
+                OUTPUT,
                 "Name of the zero-based visit ordinal column.",
                 FieldRequirement::Required,
             ),

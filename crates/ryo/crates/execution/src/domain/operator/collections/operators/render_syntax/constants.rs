@@ -1,6 +1,7 @@
 //! Public description of request-driven semantic syntax rendering.
 
 use crate::domain::describing::constants::{described, field};
+use ryo_values::domain::descriptions::constants::OUTPUT;
 use ryo_values::domain::descriptions::types::{FieldRequirement, OperatorDescription};
 
 pub(crate) fn description() -> OperatorDescription {
@@ -20,7 +21,7 @@ pub(crate) fn description() -> OperatorDescription {
                 FieldRequirement::Required,
             ),
             field(
-                "output",
+                OUTPUT,
                 "New exact text column.",
                 FieldRequirement::Required,
             ),

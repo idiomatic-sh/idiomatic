@@ -1,6 +1,7 @@
 //! Public description of the byte-span projection.
 
 use crate::domain::describing::constants::{described, field};
+use ryo_values::domain::descriptions::constants::OUTPUT;
 use ryo_values::domain::descriptions::types::{FieldRequirement, OperatorDescription};
 
 /// Inputs and example for a per-file span composition.
@@ -20,7 +21,7 @@ pub(crate) fn description() -> OperatorDescription {
                 "Span column supplying the end offset.",
                 FieldRequirement::Required,
             ),
-            field("output", "New span column.", FieldRequirement::Required),
+            field(OUTPUT, "New span column.", FieldRequirement::Required),
         ],
         &[],
         r#"let example = span-between(from="function", start="span", end="span", output="diagnostic_span"); emit example subject file key(diagnostic_span);"#,

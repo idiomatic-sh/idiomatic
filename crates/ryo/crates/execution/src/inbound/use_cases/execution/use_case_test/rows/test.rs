@@ -94,13 +94,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(OperatingError::WrongBinding),
     },
     Case {
-        name: CaseName("a_parameter_nothing_bound_is_refused"),
+        name: CaseName("a_rows_parameter_nothing_bound_is_refused"),
         word: Word::Refuses,
         input: || (&["path"], None),
         expect: Expect::Error(OperatingError::Unbound),
     },
     Case {
-        name: CaseName("a_parameter_bound_to_a_text_is_refused"),
+        name: CaseName("a_rows_parameter_bound_to_a_text_is_refused"),
         word: Word::Refuses,
         input: || {
             (

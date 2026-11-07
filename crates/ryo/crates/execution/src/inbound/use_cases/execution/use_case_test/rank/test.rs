@@ -92,13 +92,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Cow::Borrowed(&[])),
     },
     Case {
-        name: CaseName("a_parameter_nothing_bound_is_refused"),
+        name: CaseName("a_rank_parameter_nothing_bound_is_refused"),
         word: Word::Refuses,
         input: || (&["cli"], None),
         expect: Expect::Error(OperatingError::Unbound),
     },
     Case {
-        name: CaseName("a_parameter_bound_to_a_text_is_refused"),
+        name: CaseName("a_rank_parameter_bound_to_a_text_is_refused"),
         word: Word::Refuses,
         input: || {
             (
