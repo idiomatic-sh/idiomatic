@@ -1,8 +1,21 @@
 //! One required semantic invocation contract for ordinary and physical kernels.
 //! It has no owner, dependency resolver, publication or cache acquisition API.
 use crate::domain::operating::errors::OperatingError;
-use response::types::{KernelAnswer, KernelFault};
-pub(crate) mod response;
+use ryo_operators::inbound::use_cases::operators::interface::{
+    OperatorAnswer, PortableOperatorFault,
+};
+
+/// Plain semantic responses of a kernel call.
+pub(crate) enum KernelAnswer {
+    Complete,
+    Physical(OperatorAnswer),
+    Walk(crate::domain::shared_walk::types::native_batch::value::NativeBatch),
+}
+/// Original typed refusals of a kernel call.
+pub(crate) enum KernelFault {
+    Refused(OperatingError),
+    Portable(PortableOperatorFault),
+}
 
 pub(crate) enum KernelCall<'call, 'resources, 'invocation> {
     Registered {

@@ -260,8 +260,6 @@ templates = [
   { alias = "issuer-data-role-1", template = "idiomatic.ryo/application-part", file = "derived/owner/acquisition/admission/service/issuance/service.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { alias = "issuer-data-role-2", template = "idiomatic.ryo/application-part", file = "execution/lease/capability/mod.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { alias = "issuer-data-role-3", template = "idiomatic.ryo/application-part", file = "execution/lease/capability/service.rs", description = "One explicitly placed nested part of a cohesive application operation." },
-  { alias = "issuer-data-role-4", template = "idiomatic.ryo/application-part", file = "executor/response/mod.rs", description = "One explicitly placed nested part of a cohesive application operation." },
-  { alias = "issuer-data-role-5", template = "idiomatic.ryo/application-part", file = "executor/response/types.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { alias = "issuer-data-role-6", template = "idiomatic.ryo/application-part", file = "invocation/native/mod.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { alias = "issuer-data-role-7", template = "idiomatic.ryo/application-part", file = "invocation/native/service.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { alias = "issuer-data-role-8", template = "idiomatic.ryo/application-part", file = "program/native_join/lease/mod.rs", description = "One explicitly placed nested part of a cohesive application operation." },
