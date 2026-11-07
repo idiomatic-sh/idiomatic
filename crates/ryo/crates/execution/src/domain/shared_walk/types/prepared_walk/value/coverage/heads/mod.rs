@@ -1,5 +1,6 @@
 //! Independent physical-head coverage over the authoritative relation catalog.
-//! Expected shared heads, computed from the program and the catalog alone.
+//! Expected shared heads, computed from the program and the catalog alone: a head of either
+//! partition that selects a catalog relation is shared within its own partition.
 use crate::domain::executable_program::types::{
     ExecutableProgram, Instruction, LogicalInstruction,
 };
@@ -8,7 +9,7 @@ use ryo_relations::domain::relations::{
     types::{Column, Relation},
 };
 use ryo_values::domain::{
-    plan_parts::types::{Input as Source, Operand, RepeatedRows, StepScope},
+    plan_parts::types::{Input as Source, Operand, RepeatedRows},
     plans::types::Operation,
 };
 use std::collections::HashSet;
@@ -53,7 +54,6 @@ pub(super) fn expected(program: &ExecutableProgram) -> HashSet<LogicalInstructio
     program
         .regions()
         .iter()
-        .filter(|region| region.phase == StepScope::PerFile)
         .filter_map(|region| region.instructions.first())
         .filter(|instruction| supported_head(instruction).is_some())
         .map(|instruction| instruction.logical)

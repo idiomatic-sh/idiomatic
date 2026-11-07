@@ -117,6 +117,8 @@ pub(crate) struct PublicationScope {
     pub(super) program: Arc<crate::domain::executable_program::types::ExecutableProgram>,
     pub(super) owner: Rc<RelationOwner>,
     pub(super) execution: std::cell::OnceCell<ProgramExecution>,
+    /// The scope's project-stage walk: every cohort of the scope leases from its batches.
+    pub(super) walk: crate::application::file_dag::program::native_walk::project::service::ProjectWalk,
     pub(super) populations: std::cell::RefCell<
         crate::application::file_dag::program::project_population::service::Populations<
             crate::application::file_dag::program::project_population::types::ProjectFrontierPopulation<AvailableInput>,
@@ -133,6 +135,12 @@ impl PublicationScope {
         self.execution
             .get()
             .map_or_else(Default::default, ProgramExecution::readiness_counts)
+    }
+
+    /// The project-stage walk's totals, retired batches included.
+    #[cfg(test)]
+    pub(crate) fn walk_counts(&self) -> crate::domain::shared_walk::types::WalkCounts {
+        self.walk.counts()
     }
 
     pub(crate) fn state_counts(&self) -> crate::domain::readiness::types::InvocationStateCounts {

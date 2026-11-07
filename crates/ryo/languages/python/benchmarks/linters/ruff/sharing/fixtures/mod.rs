@@ -33,6 +33,8 @@ pub(super) struct Route {
     pub logical: u64,
     pub kind: String,
     pub head: bool,
+    /// The partition of the instruction's region: "PerFile" or "CrossFile".
+    pub phase: String,
     pub route: String,
     pub class: Option<u64>,
 }
@@ -194,6 +196,8 @@ pub(super) struct ReadyHead {
 #[derive(Clone)]
 pub(super) struct Dispatch {
     pub generation: String,
+    /// The partition whose source the dispatch walked: "PerFile" or "CrossFile".
+    pub phase: String,
     pub relation: String,
     pub population: String,
     pub classes: Vec<u64>,
@@ -279,6 +283,7 @@ fn decode(
                 logical: count(fields, "logical"),
                 kind: fields["kind"].as_str().unwrap().to_owned(),
                 head: fields["head"].as_bool().unwrap(),
+                phase: fields["phase"].as_str().unwrap().to_owned(),
                 route: fields["barrier"].as_str().unwrap_or("Shared").to_owned(),
                 class: fields["class"].as_u64(),
             }),
@@ -308,6 +313,7 @@ fn decode(
             }
             "shared_walk_dispatch" => dispatches.push(Dispatch {
                 generation: fields["generation"].as_str().unwrap().to_owned(),
+                phase: fields["phase"].as_str().unwrap().to_owned(),
                 relation: fields["relation"].as_str().unwrap().to_owned(),
                 population: fields["population"].as_str().unwrap().to_owned(),
                 classes: serde_json::from_str(fields["classes"].as_str().unwrap())?,

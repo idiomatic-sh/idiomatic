@@ -18,6 +18,8 @@ fn subject(_: Input) -> Result<Value, Failure> {
     let mut silent = observed.clone();
     let mut single = observed.clone();
     let mut relabelled = observed.clone();
+    let mut unshared = observed.clone();
+    let mut unwalked = observed.clone();
     let mut omitted = observed;
     assert!(
         omitted.dispatches.len() > 1,
@@ -59,6 +61,25 @@ fn subject(_: Input) -> Result<Value, Failure> {
     assert!(
         std::panic::catch_unwind(|| verify(relabelled)).is_err(),
         "a class whose expected route is changed must fail coverage"
+    );
+    // A project-stage head relabelled as the old refusal must fail: its route is shared.
+    let project = unshared
+        .routes
+        .iter_mut()
+        .find(|route| route.phase == "CrossFile" && route.route == "Shared")
+        .expect("a shared project-stage route event");
+    project.route = "Representation".into();
+    assert!(
+        std::panic::catch_unwind(|| verify(unshared)).is_err(),
+        "a project-stage head claimed as refused must fail coverage"
+    );
+    // A project stage that never walks its source is not shared.
+    unwalked
+        .dispatches
+        .retain(|dispatch| dispatch.phase != "CrossFile");
+    assert!(
+        std::panic::catch_unwind(|| verify(unwalked)).is_err(),
+        "a project stage with no walk dispatch must fail coverage"
     );
     Ok(())
 }
@@ -125,12 +146,21 @@ fn verify(observed: Observation) -> Result<Value, Failure> {
         census.shared,
         "all prepared shared instructions retain their separate physical IDs"
     );
-    // Project-stage and other non-file-head instructions are barriers, never classes: the
-    // runtime admits only per-file heads (asserted PerFile when decoded), and every admitted
-    // head is a compiled shared head, so a project-stage head is refused by construction.
+    // Project-stage heads that select a relation join the walk like file heads: they are
+    // shared, in classes of their own partition, and the barriers beside them are the other
+    // operation kinds.
     assert!(
         census.instructions > census.shared,
-        "barriers (including project-stage heads) remain beside the shared heads"
+        "barriers remain beside the shared heads"
+    );
+    let project_shared = observed
+        .routes
+        .iter()
+        .filter(|route| route.phase == "CrossFile" && route.head && route.route == "Shared")
+        .count();
+    assert!(
+        project_shared > 0,
+        "a project-stage selection of a relation is a shared head, never refused by construction"
     );
     assert!(
         observed
@@ -192,12 +222,27 @@ fn verify(observed: Observation) -> Result<Value, Failure> {
             .len(),
         "one population per head within a generation; no key is shared across generations"
     );
-    for dispatch in &observed.dispatches {
+    for dispatch in observed
+        .dispatches
+        .iter()
+        .filter(|dispatch| dispatch.phase == "PerFile")
+    {
         assert!(
             generations.contains(dispatch.generation.as_str()),
-            "every dispatch belongs to an admitted file generation"
+            "every file dispatch belongs to an admitted file generation"
         );
     }
+    // The project stage has one walk generation of its own, never a file's.
+    let project_generations = observed
+        .dispatches
+        .iter()
+        .filter(|dispatch| dispatch.phase == "CrossFile")
+        .map(|dispatch| dispatch.generation.as_str())
+        .collect::<BTreeSet<_>>();
+    assert!(
+        project_generations.is_disjoint(&generations),
+        "a project dispatch is never attributed to a file generation"
+    );
     let mut expected = BTreeSet::new();
     for head in observed.ready {
         let class = *observed
@@ -212,10 +257,14 @@ fn verify(observed: Observation) -> Result<Value, Failure> {
         !expected.is_empty(),
         "authoritative runtime admission precedes any callback"
     );
+    let (project, file): (Vec<_>, Vec<_>) = observed
+        .dispatches
+        .into_iter()
+        .partition(|dispatch| dispatch.phase == "CrossFile");
     let mut dispatched = BTreeSet::new();
     let (mut passes, mut rows) = (0, 0);
     let mut shared_cohort = false;
-    for event in observed.dispatches {
+    for event in file {
         assert_eq!(event.classes.len() as u64, event.result_slots);
         if !event.classes.is_empty() {
             assert_eq!(
@@ -238,6 +287,28 @@ fn verify(observed: Observation) -> Result<Value, Failure> {
         passes += event.passes;
         rows += event.source_rows;
         assert!(event.decoded_rows <= event.source_rows);
+    }
+    // Project stage: each (population, class) is read by one pass for all the rules of its
+    // cohort, and no population is read twice.
+    assert!(
+        !project.is_empty(),
+        "the project stage walks its source population through the shared walk"
+    );
+    let mut project_read = BTreeSet::new();
+    for event in &project {
+        assert_eq!(event.classes.len() as u64, event.result_slots);
+        assert_eq!(event.passes, 1, "one source pass for this project population");
+        for class in &event.classes {
+            assert_eq!(
+                observed.classes.get(class),
+                Some(&event.relation),
+                "actual bound project class"
+            );
+            assert!(
+                project_read.insert((event.population.clone(), *class)),
+                "a project population is read once for all the rules that share its class"
+            );
+        }
     }
     assert!(
         dispatched.is_disjoint(&observed.refused),

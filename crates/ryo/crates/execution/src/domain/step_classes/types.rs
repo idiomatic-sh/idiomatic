@@ -19,6 +19,8 @@ pub(crate) struct MergedStep {
 pub(crate) struct StepClass {
     /// The typed relation whose ordered rows these comparisons select.
     pub source: ryo_relations::domain::relations::types::Relation,
+    /// The partition whose rows the class selects: a class never spans two partitions.
+    pub scope: ryo_values::domain::plan_parts::types::StepScope,
     /// The step the class is decided by.
     pub first: MergedStep,
     /// Every step of the class, the first included.

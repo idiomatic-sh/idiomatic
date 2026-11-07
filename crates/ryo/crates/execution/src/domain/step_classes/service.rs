@@ -6,7 +6,6 @@ use crate::domain::operator::types::StepPlace;
 use crate::domain::positions::types::ClassPlace;
 use ryo_values::domain::plan_parts::types::{Applied, ColumnIndex, PlanComparison, Input, Operand};
 use ryo_values::domain::plans::types::{Operation, Plan};
-use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 /// `operand` over the source's columns, using the projection's column map.
@@ -158,10 +157,21 @@ pub(crate) fn merge(plans: &[Plan], bindings: &[Vec<ParameterBinding>]) -> Merge
         let mut of_rule = vec![None; plan.steps.len()];
         let mut below: Vec<Option<Rooted>> = Vec::with_capacity(plan.steps.len());
         for (step, each) in plan.steps.iter().enumerate() {
-            let chosen = if each.scope == StepScope::PerFile {
-                rooted(&below, &each.operation)
-            } else {
+            // A step shares only the rows of its own partition: a step whose input is a step of
+            // the other partition reads a frontier, never the rows that step selected.
+            let crosses = matches!(
+                &each.operation,
+                Operation::Select { from: Input::Step(under), .. }
+                    | Operation::Project { from: Input::Step(under), .. }
+                    if plan
+                        .steps
+                        .get(usize::try_from(under.0).unwrap_or(usize::MAX))
+                        .is_none_or(|under| under.scope != each.scope)
+            );
+            let chosen = if crosses {
                 None
+            } else {
+                rooted(&below, &each.operation)
             };
             below.push(chosen.clone());
             let Some(chosen) = chosen else {
@@ -174,7 +184,8 @@ pub(crate) fn merge(plans: &[Plan], bindings: &[Vec<ParameterBinding>]) -> Merge
             let same = by_source.get(&chosen.source).and_then(|candidates| {
                 candidates.iter().copied().find(|&at| {
                     let class = &merged.classes[at];
-                    class.comparisons == chosen.comparisons
+                    class.scope == each.scope
+                        && class.comparisons == chosen.comparisons
                         && predicate_bindings_match(
                             &class.comparisons,
                             bindings.get(class.first.rule.0).map(Vec::as_slice),
@@ -194,6 +205,7 @@ pub(crate) fn merge(plans: &[Plan], bindings: &[Vec<ParameterBinding>]) -> Merge
                     .push(merged.classes.len());
                 merged.classes.push(StepClass {
                     source: chosen.source,
+                    scope: each.scope,
                     first: member,
                     members: vec![member],
                     comparisons: chosen.comparisons,

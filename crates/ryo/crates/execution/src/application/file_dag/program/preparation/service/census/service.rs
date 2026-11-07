@@ -44,7 +44,7 @@ pub(in crate::application::file_dag::program::preparation) fn trace(
             };
             tracing::trace!(target: crate::application::file_dag::program::constants::WALK_TARGET, event = crate::application::file_dag::program::constants::WALK_ROUTE,
                 logical = instruction.logical.0, kind = ?ryo_values::domain::plans::service::kind_of(&instruction.operation),
-                head = at == 0, barrier, class = walk.class_for(instruction).map(|class| class.0));
+                head = at == 0, phase = ?region.phase, barrier, class = walk.class_for(instruction).map(|class| class.0));
         }
     }
 }
