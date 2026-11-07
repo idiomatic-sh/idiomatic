@@ -756,7 +756,7 @@ fn a_restored_frontier_proof_clears_for_an_untouched_kind_and_stays_for_a_touche
         stored,
         FrontierCoverage::Partial(vec![FrontierAffected::CurrentFile(FrontierMissing::Kinds {
             column: kind,
-            kinds: vec!["variable".into()],
+            kinds: vec![ryo_values::domain::stored_facts::types::PartialKind("variable".into())],
         })]),
         "the proof carries the kinds"
     );

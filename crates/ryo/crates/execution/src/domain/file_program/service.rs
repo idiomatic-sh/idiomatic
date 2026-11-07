@@ -45,7 +45,7 @@ fn node_input(
         Input::BoundObservation(input) => Some(ResolvedInput {
             input: Input::Step(StepId(0)),
             edge: NodeInput::Observation(super::types::ObservationGraphInputId(
-                bound_offsets.get(rule)?.checked_add(binding_place(input))?,
+                bound_offsets.get(rule)?.checked_add(binding_place(input).0)?,
             )),
         }),
         Input::Step(step) => Some(ResolvedInput {

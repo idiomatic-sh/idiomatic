@@ -1,5 +1,4 @@
 //! The pinned corpus: every project is prepared, measured in both orders and compared cold, retained and edited.
-use super::commands;
 use super::constants;
 use super::output;
 use ryo::linter::{RelativePath, RuleId};
@@ -121,7 +120,7 @@ impl Corpus<'_> {
                 given_project_inventory: Default::default(),
                 staged_sources: None,
                 file_metadata: None,
-                context_manifest: commands::seal_context(
+                context_manifest: seal_context(
                     self.suite_source,
                     self.project_context_mode,
                     workspace.root(),
@@ -196,7 +195,7 @@ impl Corpus<'_> {
                 given_project_inventory: Default::default(),
                 staged_sources: None,
                 file_metadata: None,
-                context_manifest: commands::seal_context(
+                context_manifest: seal_context(
                     self.suite_source,
                     self.project_context_mode,
                     workspace.root(),
@@ -231,7 +230,7 @@ impl Corpus<'_> {
                 })?;
             workspaces.apply_patch(&mut workspace, &self.frozen_workload.join(&project.patch))?;
             let edited_request = RunRequest {
-                context_manifest: commands::seal_context(
+                context_manifest: seal_context(
                     self.suite_source,
                     self.project_context_mode,
                     workspace.root(),
@@ -290,5 +289,28 @@ impl Corpus<'_> {
             }
         }
         Ok(project_samples)
+    }
+}
+
+/// Select the declared generic corpus mode and delegate all observation to the shared suite boundary.
+fn seal_context(
+    suite: &dyn ryo_benchmark::outbound::suite::interface::SuitePort,
+    mode: ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode,
+    root: &std::path::Path,
+    files: &[ryo::linter::RelativePath],
+    tracked: &[std::path::PathBuf],
+) -> Result<
+    Option<ryo_benchmark_contracts::domain::context::types::ContextManifest>,
+    ryo_benchmark_contracts::domain::reports::errors::ReportsError,
+> {
+    match mode {
+        ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated => Ok(None),
+        ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk => suite
+            .seal_context(
+                ryo_benchmark::outbound::suite::types::ArtifactPath(root),
+                files,
+                tracked,
+            )
+            .map(Some),
     }
 }

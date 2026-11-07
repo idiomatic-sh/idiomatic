@@ -6,6 +6,7 @@ use crate::domain::files::types::Nanoseconds;
 use crate::domain::row_texts::types::{FindingRows, PlacedRule};
 use crate::domain::stored_facts::types::Bucket;
 use crate::domain::stored_facts::types::Digest;
+use crate::domain::stored_facts::types::PartialKind;
 use crate::domain::stored_facts::types::ReadFailure;
 use crate::domain::stored_facts::types::{ArenaBytes, FileNotes, StoredPartial};
 use crate::domain::stored_facts::types::{KeptWords, PackedWords};
@@ -188,7 +189,7 @@ pub enum FrontierMissing {
         /// The column that holds the kind.
         column: crate::domain::plan_parts::types::ColumnIndex,
         /// The kinds that could be missing.
-        kinds: Vec<Box<str>>,
+        kinds: Vec<PartialKind>,
     },
 }
 
@@ -199,6 +200,16 @@ pub enum FrontierAffected {
     CurrentFile(FrontierMissing),
     /// The source reported a repository-wide incomplete relation.
     Repository(FrontierMissing),
+}
+
+/// Whether the affected scopes of a partial frontier are nonempty, sorted, name each scope once, and name every kind list sorted and
+/// once each.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FrontierShape {
+    /// The scopes are nonempty, sorted, named once each, and every kind list is sorted and nonrepeating.
+    WellFormed,
+    /// Some scope or kind list breaks one of those.
+    Malformed,
 }
 
 /// A complete frontier or the precise physical scopes still uncertain.

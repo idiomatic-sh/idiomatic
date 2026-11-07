@@ -49,7 +49,10 @@ fn frontier_missing(
         MissingRows::Any => FrontierMissing::Any,
         MissingRows::Kinds { column, kinds } => FrontierMissing::Kinds {
             column,
-            kinds: kinds.into_iter().map(|kind| kind.0).collect(),
+            kinds: kinds
+                .into_iter()
+                .map(|kind| ryo_values::domain::stored_facts::types::PartialKind(kind.0))
+                .collect(),
         },
     }
 }
@@ -86,7 +89,7 @@ fn coverage_missing(
             column: *column,
             kinds: kinds
                 .iter()
-                .map(|kind| crate::domain::coverage::types::LackingKind(kind.clone()))
+                .map(|kind| crate::domain::coverage::types::LackingKind(kind.0.clone()))
                 .collect(),
         },
     }

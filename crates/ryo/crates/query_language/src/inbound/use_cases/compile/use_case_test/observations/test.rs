@@ -1,6 +1,7 @@
 //! The names, columns and schemas of observation inputs, from the compile inbound API.
 
-use super::super::{Given, compile_twice, observed, text_the_fake_reads};
+use super::super::{compile_twice, observed};
+use crate::inbound::use_cases::compile::fixtures::{Given, text_the_fake_reads};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::compile::errors::CompileError;
 use crate::selects;

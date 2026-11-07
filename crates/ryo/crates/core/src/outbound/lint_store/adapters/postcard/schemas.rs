@@ -886,7 +886,7 @@ fn missing_schema(
         FrontierMissing::Any => FrontierMissingSchema::Any,
         FrontierMissing::Kinds { column, kinds } => FrontierMissingSchema::Kinds {
             column: column.0,
-            kinds: kinds.iter().map(|kind| kind.to_string()).collect(),
+            kinds: kinds.iter().map(|kind| kind.0.to_string()).collect(),
         },
     }
 }
@@ -899,7 +899,10 @@ fn missing_row(
         FrontierMissingSchema::Any => FrontierMissing::Any,
         FrontierMissingSchema::Kinds { column, kinds } => FrontierMissing::Kinds {
             column: ryo_values::domain::plan_parts::types::ColumnIndex(*column),
-            kinds: kinds.iter().map(|kind| kind.as_str().into()).collect(),
+            kinds: kinds
+                .iter()
+                .map(|kind| ryo_values::domain::stored_facts::types::PartialKind(kind.as_str().into()))
+                .collect(),
         },
     }
 }
@@ -922,7 +925,9 @@ fn proof_row(
                     }
                 })
                 .collect::<Vec<_>>();
-            if !ryo_values::domain::records::service::is_well_formed(&values) {
+            if ryo_values::domain::records::service::is_well_formed(&values)
+                == ryo_values::domain::records::types::FrontierShape::Malformed
+            {
                 return Err(postcard::Error::DeserializeBadEncoding);
             }
             FrontierCoverage::Partial(values)

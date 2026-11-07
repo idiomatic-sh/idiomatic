@@ -285,7 +285,9 @@ pub(crate) fn validate_bucket(
         match &source.proof.coverage {
             FrontierCoverage::Complete => {}
             FrontierCoverage::Partial(scopes) => {
-                if !ryo_values::domain::records::service::is_well_formed(scopes) {
+                if ryo_values::domain::records::service::is_well_formed(scopes)
+                    == ryo_values::domain::records::types::FrontierShape::Malformed
+                {
                     return Err(refuse());
                 }
                 affected.extend(crate::domain::completion::service::restored_lacks(

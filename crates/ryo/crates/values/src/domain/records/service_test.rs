@@ -27,6 +27,8 @@ enum Scenario {
     OutOfText,
     /// A file whose executable bit changed with the size and the timestamp the same.
     ExecutableChanged,
+    /// Partial frontiers whose scopes and kind lists are sorted and named once, or are not.
+    PartialFrontiers,
 }
 
 /// What a row of the cases asks of the service.
@@ -77,6 +79,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("an_executable_observation_invalidates_in_both_directions"),
         word: Word::Succeeds,
         input: || Scenario::ExecutableChanged,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("a_partial_frontier_with_lacks_is_well_formed_only_when_sorted_distinct_and_named_once_per_scope"),
+        word: Word::Succeeds,
+        input: || Scenario::PartialFrontiers,
         expect: Expect::Value(1),
     },
 ];
@@ -148,6 +156,33 @@ fn executable_changes_invalidate() -> bool {
     held
 }
 
+/// Whether a partial frontier with lacks is well formed only when sorted, distinct and named once per scope.
+fn partial_frontiers_are_well_formed_only_when_sorted() -> bool {
+    use super::service::is_well_formed;
+    use super::types::{FrontierAffected, FrontierMissing, FrontierShape};
+    use crate::domain::plan_parts::types::ColumnIndex;
+    use crate::domain::stored_facts::types::PartialKind;
+    let kinds = |names: &[&str]| FrontierMissing::Kinds {
+        column: ColumnIndex(2),
+        kinds: names
+            .iter()
+            .map(|name| PartialKind((*name).into()))
+            .collect(),
+    };
+    is_well_formed(&[
+        FrontierAffected::CurrentFile(kinds(&["function", "variable"])),
+        FrontierAffected::Repository(FrontierMissing::Any),
+    ]) == FrontierShape::WellFormed
+        && is_well_formed(&[]) == FrontierShape::Malformed
+        && is_well_formed(&[FrontierAffected::CurrentFile(kinds(&[]))]) == FrontierShape::Malformed
+        && is_well_formed(&[FrontierAffected::CurrentFile(kinds(&["variable", "function"]))])
+            == FrontierShape::Malformed
+        && is_well_formed(&[
+            FrontierAffected::CurrentFile(FrontierMissing::Any),
+            FrontierAffected::CurrentFile(kinds(&["variable"])),
+        ]) == FrontierShape::Malformed
+}
+
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let answered = match scenario {
         Scenario::Same => is_as_it_was(&record(9), &entry(5, 9)) == Freshness::AsItWas,
@@ -156,6 +191,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::Undated => is_as_it_was(&record(0), &entry(5, 0)) == Freshness::Changed,
         Scenario::KeptAndLent => kept_and_lent(),
         Scenario::ExecutableChanged => executable_changes_invalidate(),
+        Scenario::PartialFrontiers => partial_frontiers_are_well_formed_only_when_sorted(),
         Scenario::OutOfText => {
             lent(
                 RowsTextView("ab"),
@@ -172,28 +208,4 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
-}
-
-#[test]
-fn a_partial_frontier_with_lacks_is_well_formed_only_when_sorted_distinct_and_named_once_per_scope() {
-    use super::service::is_well_formed;
-    use super::types::{FrontierAffected, FrontierMissing};
-    use crate::domain::plan_parts::types::ColumnIndex;
-    let kinds = |names: &[&str]| FrontierMissing::Kinds {
-        column: ColumnIndex(2),
-        kinds: names.iter().map(|name| (*name).into()).collect(),
-    };
-    assert!(is_well_formed(&[
-        FrontierAffected::CurrentFile(kinds(&["function", "variable"])),
-        FrontierAffected::Repository(FrontierMissing::Any),
-    ]));
-    assert!(!is_well_formed(&[]));
-    assert!(!is_well_formed(&[FrontierAffected::CurrentFile(kinds(&[]))]));
-    assert!(!is_well_formed(&[FrontierAffected::CurrentFile(kinds(&[
-        "variable", "function"
-    ]))]));
-    assert!(!is_well_formed(&[
-        FrontierAffected::CurrentFile(FrontierMissing::Any),
-        FrontierAffected::CurrentFile(kinds(&["variable"])),
-    ]));
 }

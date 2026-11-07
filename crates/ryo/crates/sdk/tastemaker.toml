@@ -233,6 +233,8 @@ specs = [
     { resource = "linter", path = "lint::entry::lint", as = "lint" },
     { resource = "linter", path = "lint::entry::lint_with", as = "lint_with" },
     { resource = "linter", path = "lint::types::Linter", as = "Linter" },
+    { resource = "linter", path = "ryo_execution::inbound::use_cases::execution::types::RoutePolicy", as = "RoutePolicy" },
+    { resource = "linter", path = "ryo_execution::inbound::use_cases::execution::types::RouteWiring", as = "RouteWiring" },
     { resource = "linter", path = "lint::types::ObservationBinding", as = "ObservationBinding" },
     { resource = "linter", path = "lint::types::ObservationProducer", as = "ObservationProducer" },
     { resource = "linter", path = "crate::domain::observation::types::ObservationBindingName", as = "ObservationBindingName" },

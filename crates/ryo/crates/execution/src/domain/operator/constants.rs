@@ -95,7 +95,7 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
             r#"let example = select * from "function" where name = "example"; emit example subject file key(span);"#,
         ),
         QueryOperator::Project => described(
-            "project",
+            ryo_values::domain::descriptions::constants::PROJECT,
             "Keep named columns and deduplicate equal rows.",
             vec![
                 field("from", "Input to project.", FieldRequirement::Required),

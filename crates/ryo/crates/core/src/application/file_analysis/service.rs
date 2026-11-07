@@ -1141,6 +1141,7 @@ impl FileAnalysis {
                 FrontierCoverage::Complete => true,
                 FrontierCoverage::Partial(affected) => {
                     ryo_values::domain::records::service::is_well_formed(affected)
+                        == ryo_values::domain::records::types::FrontierShape::WellFormed
                 }
             };
         if !valid {

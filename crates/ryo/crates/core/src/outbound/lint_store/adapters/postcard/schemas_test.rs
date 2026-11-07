@@ -233,7 +233,10 @@ fn frontier_proof_roundtrip_preserves_partial_and_rejects_old_layout() -> Value 
     partial.coverage = FrontierCoverage::Partial(vec![
         FrontierAffected::CurrentFile(FrontierMissing::Kinds {
             column: ryo_values::domain::plan_parts::types::ColumnIndex(2),
-            kinds: vec!["function".into(), "variable".into()],
+            kinds: vec![
+                ryo_values::domain::stored_facts::types::PartialKind("function".into()),
+                ryo_values::domain::stored_facts::types::PartialKind("variable".into()),
+            ],
         }),
         FrontierAffected::Repository(FrontierMissing::Any),
     ]);
