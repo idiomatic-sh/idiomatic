@@ -19,3 +19,40 @@ pub(crate) fn aggregate(
     )));
     Ok(())
 }
+
+/// Formats each engine-prepared group of the contributing population from its first row, in group order.
+/// A counted group is the step's input count; a digested group's rows were counted by its reduction.
+pub(crate) fn evaluate(
+    keys: &[ColumnIndex],
+    aggregation: super::types::Aggregation,
+    driver: &mut dyn crate::domain::evaluation::types::InvocationDriver,
+    scratch: &mut crate::domain::evaluation::types::EvaluationScratch,
+) -> Result<(), PortableOperatorFault> {
+    use crate::domain::evaluation::types::{RowRead, VertexPlace};
+    use ryo_values::domain::plan_parts::types::InputNumber;
+    let groups = driver.groups()?;
+    for at in 0..groups.0 {
+        let group = driver
+            .group(VertexPlace(at))
+            .ok_or(PortableOperatorFault::ShapeMismatch)?;
+        if driver.population_row(InputNumber(0), group.first, &mut scratch.row) != RowRead::Read {
+            return Err(PortableOperatorFault::NotRun);
+        }
+        let digest = match aggregation {
+            super::types::Aggregation::Counted => {
+                driver.found(InputNumber(0), group.counted);
+                None
+            }
+            super::types::Aggregation::Digested => Some(group.digest),
+        };
+        aggregate(
+            &scratch.row,
+            keys,
+            group.counted,
+            digest,
+            &mut scratch.other,
+        )?;
+        driver.emit(&scratch.other)?;
+    }
+    Ok(())
+}

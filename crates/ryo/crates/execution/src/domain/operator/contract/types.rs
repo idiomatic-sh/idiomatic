@@ -226,23 +226,14 @@ pub(crate) struct PrimitiveViews<'a> {
     pub cached_axis: Option<super::graph_view::AxisResult<'a>>,
 }
 
-/// The text an operator builds in place, handed back with its capacity kept.
-#[derive(Debug, Default)]
-pub(crate) struct ScratchText(pub String);
-
 /// Allocation slots owned once by the application invocation. A primitive only
 /// receives a reborrow; no cache, owner or generation identity is reachable.
 pub(crate) struct PrimitiveWorkspace {
-    pub row: Vec<Value>,
-    pub other: Vec<Value>,
-    pub text: ScratchText,
-    pub word: crate::domain::table_scratch::types::ScratchWord,
-    pub stretches: crate::domain::table_scratch::types::Stretches,
-    pub captured: Vec<Value>,
+    /// The buffers the operators fill while they evaluate a kind.
+    pub evaluation: ryo_operators::domain::evaluation::types::EvaluationScratch,
     pub axis: Option<super::axis::AxisWorkspace>,
     pub positions: Vec<ryo_relations::domain::relations::types::Position>,
     pub dfs: Option<super::graph::DfsWorkspace>,
-    pub cycles: Option<ryo_operators::domain::cycles::types::CycleScratch>,
     pub closure_walk: Option<crate::domain::table_reach::types::Walk>,
     pub distinct: Option<DistinctWorkspace>,
 }
@@ -298,6 +289,9 @@ pub(crate) fn portable_fault(
         PortableOperatorFault::InvalidSpan => OperatingError::InvalidSpan,
         PortableOperatorFault::InvalidSourceMatchSpan => OperatingError::InvalidSourceMatchSpan,
         PortableOperatorFault::UnboundKey => OperatingError::WrongBinding,
+        PortableOperatorFault::WrongBinding => OperatingError::WrongBinding,
+        PortableOperatorFault::Unbound => OperatingError::Unbound,
+        PortableOperatorFault::NotRun => OperatingError::NotRun,
         PortableOperatorFault::MissingCapture
         | PortableOperatorFault::WrongOperation
         | PortableOperatorFault::UnsupportedRender => OperatingError::WrongOperation,

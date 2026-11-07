@@ -295,7 +295,7 @@ pub(crate) fn join_schema(
         check_columns(
             right_kinds,
             &[view.map_or(*column, |view| {
-                crate::domain::tree_join::service::source_column(view, *column)
+                crate::domain::table_cells::service::source_column(view, *column)
             })],
         )?;
     }

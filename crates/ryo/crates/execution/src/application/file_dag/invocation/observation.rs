@@ -66,8 +66,8 @@ impl InvocationResources<'_> {
             capacity = crate::application::file_dag::closure_partitions::partitions_test::working_capacity(parts);
         }
         if !self.inputs.closure.is_empty() || self.inputs.partitioned_closure.is_some() {
-            capacity += workspace.primitive.row.capacity()
-                + workspace.primitive.other.capacity()
+            capacity += workspace.primitive.evaluation.row.capacity()
+                + workspace.primitive.evaluation.other.capacity()
                 + workspace
                     .primitive
                     .closure_walk

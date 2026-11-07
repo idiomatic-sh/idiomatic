@@ -103,7 +103,7 @@ fn evaluate_once(
         match contract.source_gate {
             SourceGate::None => {}
             SourceGate::CheckedSpan { span, base_line } => {
-                validated_source=crate::domain::operator::collections::operators::source_matches::item::validate(row,span,base_line,context.source)?;
+                validated_source=crate::domain::operator::contract::views::validate(row,span,base_line,context.source)?;
                 if validated_source.is_none() {
                     return Ok(());
                 }

@@ -82,8 +82,8 @@ impl InvocationWorkspace {
             .0
             .get()
             .map_or(0, |state| state.compiled_globs.len());
-        observed.row_capacity = self.primitive.row.capacity();
-        observed.other_capacity = self.primitive.other.capacity();
+        observed.row_capacity = self.primitive.evaluation.row.capacity();
+        observed.other_capacity = self.primitive.evaluation.other.capacity();
         observed.closure_visited = self
             .primitive
             .closure_walk

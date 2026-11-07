@@ -152,3 +152,123 @@ pub(crate) fn native_form(
         .iter()
         .find_map(|(native, form)| (*native == relation).then_some(*form))
 }
+
+/// One cell of the element at `at`, in the column order of the relation the tree's rows stand for; a column
+/// past them is the lowered flag.
+pub(crate) fn tree_value(
+    tree: &TreeRows<'_>,
+    at: Position,
+    column: ryo_values::domain::plan_parts::types::ColumnIndex,
+) -> Value {
+    let elements = tree.elements;
+    if tree.form == TreeForm::Edges {
+        return match column.0 {
+            0 => Value::Node(node_id(tree.file, parent_at(elements, at))),
+            1 => Value::Node(node_id(tree.file, at)),
+            2 => Value::Number(ordinal_number_at(elements, at)),
+            3 => Value::Symbol(field_name_at(elements, at)),
+            4 => Value::File(tree.file),
+            _ => Value::Flag(ryo_relations::domain::relations::types::Flag::Lowered),
+        };
+    }
+    match column.0 {
+        0 => Value::Node(node_id(tree.file, at)),
+        1 => Value::Symbol(kind_name_at(elements, at)),
+        2 => Value::Symbol(text_at(elements, at)),
+        3 => Value::File(tree.file),
+        4 => Value::Span(span_at(elements, at)),
+        _ => Value::Flag(ryo_relations::domain::relations::types::Flag::Lowered),
+    }
+}
+
+/// The physical column of the tree a view's logical column reads: a view names only the columns it moves,
+/// so a column it does not name is the tree's own.
+pub(crate) fn source_column(
+    view: &[ryo_values::domain::plan_parts::types::ColumnIndex],
+    column: ryo_values::domain::plan_parts::types::ColumnIndex,
+) -> ryo_values::domain::plan_parts::types::ColumnIndex {
+    match view.get(usize::try_from(column.0).unwrap_or(usize::MAX)) {
+        Some(moved) => *moved,
+        None => column,
+    }
+}
+
+/// Pushes onto `found` the elements a left row finds in the tree: by the node it holds (the element itself,
+/// the child an edge leads to, or, when the key is the parent of the edges, the children of the node), or by
+/// the stretch of a file it holds (the elements that cover exactly that stretch). A node or stretch of
+/// another file finds none.
+///
+/// # Errors
+///
+/// `NoSuchColumn` when the row lacks a column the finding reads.
+pub(crate) fn find_native(
+    tree: &TreeRows<'_>,
+    left_row: &[Value],
+    finding: ryo_derived::domain::native::types::NativeFinding,
+    found: &mut Vec<Position>,
+) -> Result<(), crate::domain::operating::errors::OperatingError> {
+    use ryo_derived::domain::native::types::NativeFinding as Finding;
+    use ryo_values::domain::rows::service::cell;
+    let span = match finding {
+        Finding::Node(left_key, key) => {
+            let Value::Node(start) = cell(left_row, left_key)? else {
+                return Ok(());
+            };
+            let at = ryo_relations::domain::relations::service::node_position(start);
+            if ryo_relations::domain::relations::service::node_file(start) != tree.file
+                || usize::try_from(at.0).map_or(true, |place| place >= tree.elements.kind.len())
+            {
+                return Ok(());
+            }
+            // An edge has a parent but the root: the edges of the root's children are found by it, no edge
+            // leads to the root.
+            match tree.form {
+                TreeForm::Edges if key == ryo_values::domain::plan_parts::types::ColumnIndex(0) => {
+                    found.extend(ryo_language::domain::elements::service::children(tree.elements, at));
+                }
+                TreeForm::Edges if at.0 == 0 => {}
+                TreeForm::Edges | TreeForm::Elements => found.push(at),
+            }
+            return Ok(());
+        }
+        Finding::Stretch(file, stretch) => {
+            let (Value::File(of), Value::Span(span)) =
+                (cell(left_row, file)?, cell(left_row, stretch)?)
+            else {
+                return Ok(());
+            };
+            if of != tree.file {
+                return Ok(());
+            }
+            span
+        }
+        Finding::Span(stretch) => {
+            let Value::Span(span) = cell(left_row, stretch)? else {
+                return Ok(());
+            };
+            span
+        }
+    };
+    if ryo_language::domain::elements::service::source_order(tree.elements)
+        == ryo_language::domain::elements::types::SourceOrder::Reordered
+    {
+        found.extend(
+            ryo_language::domain::elements::service::positions(tree.elements).filter(|at| {
+                let element = span_at(tree.elements, *at);
+                element.start == span.start && element.end == span.end
+            }),
+        );
+        return Ok(());
+    }
+    let starts = &tree.elements.start;
+    let from = starts.partition_point(|start| *start < span.start);
+    for place in from..starts.len() {
+        if starts.get(place) != Some(&span.start) {
+            break;
+        }
+        if tree.elements.end.get(place) == Some(&span.end) {
+            found.push(Position(u32::try_from(place).unwrap_or(u32::MAX)));
+        }
+    }
+    Ok(())
+}

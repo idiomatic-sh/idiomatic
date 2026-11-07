@@ -96,6 +96,26 @@ pub enum Advance {
 impl From<bool> for Advance {
     /// An advance that found a candidate is `Admitted`.
     fn from(found: bool) -> Self {
-        if found { Self::Admitted } else { Self::Exhausted }
+        if found {
+            Self::Admitted
+        } else {
+            Self::Exhausted
+        }
     }
+}
+
+/// What a join reads from its operation: its key columns, its output, the declared right view, and the
+/// reachability lookup of a logical closure join.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct JoinShape<'a> {
+    /// The left key columns.
+    pub left_on: &'a [ryo_values::domain::plan_parts::types::ColumnIndex],
+    /// The right key columns.
+    pub right_on: &'a [ryo_values::domain::plan_parts::types::ColumnIndex],
+    /// The output columns.
+    pub output: &'a [ryo_values::domain::plan_parts::types::JoinColumn],
+    /// The logical-to-physical right column remapping.
+    pub view: &'a [ryo_values::domain::plan_parts::types::ColumnIndex],
+    /// The reachability lookup of a join over a closure.
+    pub reach: Option<&'a ryo_values::domain::plan_parts::types::ReachLookup>,
 }

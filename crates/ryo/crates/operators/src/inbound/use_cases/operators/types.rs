@@ -1,24 +1,24 @@
 //! The request and answer of the operators capability: one borrowed call in, one pure meaning out.
 
+use crate::domain::capture::types::{CaptureOutput, CaptureSlots, SlotPattern, SlotSubject};
 use crate::domain::contract::types::SourceByteLength;
 use crate::domain::equality_join::types::JoinInput;
 use crate::domain::ordered_existence::types::{
     OrderedExistenceDriver, OrderedExistenceScratch, PartitionExtremum,
 };
 use crate::domain::ordered_match::types::OrderedMatchDriver;
-use crate::domain::capture::types::{CaptureOutput, CaptureSlots, SlotPattern, SlotSubject};
+use crate::domain::reduction::types::{
+    AggregationCheckOrder, AggregationHash, AggregationPlan, DigestDatum, DigestValues, Finishing,
+    GroupColumns, GroupCounts, GroupOutput, HashScratch, StreamingReduction, ValueHash,
+};
 use crate::domain::replace::types::{ReplacedText, ReplacementText};
 use crate::domain::select::types::{PredicateOutcome, RowSelection};
-use crate::domain::words::types::WordScratch;
-use ryo_relations::domain::relations::types::{Count, Integer};
-use ryo_values::domain::row_texts::types::CellText;
-use crate::domain::reduction::types::{
-    AggregationCheckOrder, AggregationHash, AggregationPlan, DigestDatum, DigestValues,
-    Finishing, GroupColumns, GroupCounts, GroupOutput, HashScratch, StreamingReduction, ValueHash,
-};
 use crate::domain::set_rows::types::SetInput;
 use crate::domain::source_matches::types::{SourceMatchesInput, TextRowDriver};
 use crate::domain::words::types::WordOutput;
+use crate::domain::words::types::WordScratch;
+use ryo_relations::domain::relations::types::{Count, Integer};
+use ryo_values::domain::row_texts::types::CellText;
 
 /// The result of one pure operator meaning, before engine publication.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -39,6 +39,20 @@ pub enum OperatorAnswer {
 
 /// A borrowed request for one pure operator meaning. Storage and publication stay with the engine.
 pub enum OperatorCall<'a> {
+    /// Evaluate one plan operation of any kind over its input: the one meaning of every operation kind,
+    /// with the engine's resources, walks and delivery behind the driver port.
+    Evaluate {
+        /// The operation, exactly as the plan holds it.
+        operation: &'a ryo_values::domain::plans::types::Operation,
+        /// One scheduled row, or the populations the driver reads.
+        input: crate::domain::evaluation::types::EvaluationInput<'a>,
+        /// Plain data of the invocation.
+        views: crate::domain::evaluation::types::EvaluationViews<'a>,
+        /// The engine's side of the evaluation.
+        driver: &'a mut dyn crate::domain::evaluation::types::InvocationDriver,
+        /// Engine-kept buffers.
+        scratch: &'a mut crate::domain::evaluation::types::EvaluationScratch,
+    },
     /// Reduce a prepared key order into first-occurrence group counts.
     ReduceCount {
         table: &'a ryo_values::domain::rows::types::Table,

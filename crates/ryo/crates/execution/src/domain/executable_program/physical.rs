@@ -53,7 +53,13 @@ pub(crate) fn authorize(
     const CYCLES: u32 = 131072;
     const ROWS: u32 = 262144;
     const RENDER_SYNTAX: u32 = 524288;
-    let allowed = match ryo_values::domain::plans::service::kind_of(operation) {
+    const EVALUATE: u32 = 1_048_576;
+    let evaluate = if matches!(route, PhysicalRoute::Registered) {
+        EVALUATE
+    } else {
+        0
+    };
+    let allowed = evaluate | match ryo_values::domain::plans::service::kind_of(operation) {
         OperationKind::Project => {
             if matches!(route, PhysicalRoute::Column(_)) {
                 PROJECT | JOIN
@@ -93,6 +99,26 @@ pub(crate) fn authorize(
         | OperationKind::Hosted => 0,
     };
     let (family, exact) = match call {
+        OperatorCall::Evaluate {
+            operation: called,
+            views,
+            ..
+        } => (
+            EVALUATE,
+            std::ptr::eq(*called, operation)
+                && match operation {
+                    Operation::Replace { .. } | Operation::SourceMatches { .. } => {
+                        views.regex.is_none_or(|regex| {
+                            binding.regex_identity == Some(RegexIdentity(regex as *const _ as usize))
+                        })
+                    }
+                    Operation::Rank { sets, .. } => {
+                        views.layers.is_none_or(|layers| matches!(binding.bindings.get(sets.0 as usize), Some(ryo_values::domain::query_bindings::types::ParameterBinding::TextSets(expected)) if layers == expected.as_slice()))
+                    }
+                    Operation::SpanBetween { .. } => views.source.0.len() == binding.source_len.0,
+                    _ => true,
+                },
+        ),
         OperatorCall::Select { kept, .. } => (
             SELECT,
             matches!(operation, Operation::Select { kept: expected, .. } if *kept == expected.as_slice()),

@@ -129,3 +129,14 @@ pub(crate) fn positions(
     }
     Ok(())
 }
+
+/// Applies one set or antijoin meaning to a scheduled row, over the engine's membership and distinct state.
+pub(crate) fn evaluate(
+    kind: SetKind,
+    row: &[Value],
+    left_on: &[ColumnIndex],
+    driver: &mut dyn crate::domain::evaluation::types::InvocationDriver,
+    key: &mut Vec<Value>,
+) -> Result<(), PortableOperatorFault> {
+    values(kind, row, left_on, driver.set_rows(), key)
+}

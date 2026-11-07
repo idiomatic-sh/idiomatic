@@ -18,3 +18,18 @@ pub(crate) fn select(
     }
     Ok(RowSelection::Kept)
 }
+
+/// Keeps a scheduled row its bound predicate holds for, with the authored kept columns; an empty projection
+/// keeps the original row.
+pub(crate) fn evaluate(
+    row: &[Value],
+    kept: &[ColumnIndex],
+    driver: &mut dyn crate::domain::evaluation::types::InvocationDriver,
+    projected: &mut Vec<Value>,
+) -> Result<(), PortableOperatorFault> {
+    let holds = driver.holds(row)?;
+    match select(row, kept, holds, projected)? {
+        RowSelection::Dropped => Ok(()),
+        RowSelection::Kept => driver.emit(if kept.is_empty() { row } else { projected }),
+    }
+}

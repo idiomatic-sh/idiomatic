@@ -1,6 +1,5 @@
 //! The `core` domain's `operator` concept.
 
-pub(crate) mod collections;
 pub(crate) mod constants;
 pub(crate) mod contract;
 pub(crate) mod service;

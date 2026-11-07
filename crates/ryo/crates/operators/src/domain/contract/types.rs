@@ -30,5 +30,10 @@ pub enum PortableOperatorFault {
     UnboundKey,
     /// A language provider cannot render the requested syntax.
     UnsupportedRender,
+    /// A resource the operation needs is not bound to the invocation, or a bound value does not fit it.
+    WrongBinding,
+    /// A parameter the operation reads has no binding.
+    Unbound,
+    /// A row the operation reads was not produced.
+    NotRun,
 }
-

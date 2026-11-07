@@ -3,9 +3,14 @@
 
 use crate::domain::describing::constants::{DESTINATION, RELATION, described, field};
 use ryo_relations::domain::relations::constants::SOURCE;
-use ryo_values::domain::descriptions::constants::{COLUMN, COLUMNS, DIGEST};
+use ryo_values::domain::descriptions::constants::{
+    COLUMN, COLUMNS, DIGEST, OUTPUT, PROJECT, SELECT,
+};
 use ryo_values::domain::descriptions::types::{FieldRequirement, OperatorDescription};
 use ryo_values::domain::query_operators::types::QueryOperator;
+
+/// What a render demand says when the file admitted no semantic session.
+pub(crate) const NO_SEMANTIC_SESSION: &str = "no file semantic session was admitted";
 
 /// Every operator, in the order the documentation lists them.
 pub(crate) const OPERATORS: [QueryOperator; 25] = [
@@ -44,30 +49,281 @@ pub(crate) const OPERATORS: [QueryOperator; 25] = [
 )]
 pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
     match operator {
-        QueryOperator::SpanBetween => {
-            super::collections::operators::span_between::constants::description()
-        }
-        QueryOperator::SpanBounds => {
-            super::collections::operators::span_bounds::constants::description()
-        }
-        QueryOperator::SourceMatches => {
-            super::collections::operators::source_matches::constants::description()
-        }
-        QueryOperator::RenderSyntax => {
-            super::collections::operators::render_syntax::constants::description()
-        }
-        QueryOperator::FitsRendered => {
-            super::collections::operators::fits_rendered::constants::description()
-        }
-        QueryOperator::Replace => super::collections::operators::replace::constants::description(),
-        QueryOperator::OrderedDfs => {
-            super::collections::operators::ordered_dfs::constants::description()
-        }
-        QueryOperator::OrderedMatch => {
-            super::collections::operators::ordered_match::constants::description()
-        }
-        QueryOperator::Select => super::collections::operators::select::constants::description(),
-        QueryOperator::Project => super::collections::operators::project::constants::description(),
+        QueryOperator::SpanBetween => described(
+            "span-between",
+            "Append [start.start, end.end) in the current file, preserving every input row. Absent spans propagate; invalid byte ranges fail.",
+            vec![
+                field("from", "Per-file input rows.", FieldRequirement::Required),
+                field(
+                    "start",
+                    "Span column supplying the start offset.",
+                    FieldRequirement::Required,
+                ),
+                field(
+                    "end",
+                    "Span column supplying the end offset.",
+                    FieldRequirement::Required,
+                ),
+                field(OUTPUT, "New span column.", FieldRequirement::Required),
+            ],
+            &[],
+            r#"let example = span-between(from="function", start="span", end="span", output="diagnostic_span"); emit example subject file key(diagnostic_span);"#,
+        ),
+        QueryOperator::SpanBounds => described(
+            "span-bounds",
+            "Append zero-based start and exclusive end byte offsets of each present ordered span. Input order and duplicates are preserved; absent, reversed, or out-of-file spans fail before their row emits.",
+            vec![
+                field("from", "Input rows.", FieldRequirement::Required),
+                field(
+                    "span",
+                    "Physical span column to inspect.",
+                    FieldRequirement::Required,
+                ),
+                field(
+                    "start-output",
+                    "New zero-based start byte column.",
+                    FieldRequirement::Required,
+                ),
+                field(
+                    "end-output",
+                    "New exclusive end byte column.",
+                    FieldRequirement::Required,
+                ),
+            ],
+            &[],
+            r#"let example = span-bounds(from="function", span="span", start-output="begin", end-output="finish"); emit example subject file key(span);"#,
+        ),
+        QueryOperator::SourceMatches => described(
+            "source-matches",
+            "For each per-file input row, append one absolute physical span for each non-overlapping regex occurrence in its checked source span. Input order and duplicates are preserved; zero-width matches use the regex engine's ordered match positions. Absent spans emit no rows; invalid ranges fail before that row emits.",
+            vec![
+                field("from", "Per-file input rows.", FieldRequirement::Required),
+                field(
+                    "span",
+                    "Physical source span column to search.",
+                    FieldRequirement::Required,
+                ),
+                field(
+                    "pattern",
+                    "Literal regular expression.",
+                    FieldRequirement::Required,
+                ),
+                field(
+                    OUTPUT,
+                    "New absolute occurrence span column.",
+                    FieldRequirement::Required,
+                ),
+                field(
+                    "base-line",
+                    "Optional positive one-based line at the input span's start; requires line-output.",
+                    FieldRequirement::Optional,
+                ),
+                field(
+                    "line-output",
+                    "Optional output line at each match start; requires base-line.",
+                    FieldRequirement::Optional,
+                ),
+            ],
+            &[],
+            r#"let example = source-matches(from="syntax-tree", span="span", pattern="TODO", output="match_span"); emit example subject file key(match_span);"#,
+        ),
+        QueryOperator::RenderSyntax => described(
+            "render-syntax",
+            "Append exact provider-rendered syntax for an already selected node in a declared embedding context. Unsupported valid syntax makes the consuming rule incomplete.",
+            vec![
+                field(
+                    "from",
+                    "Candidate rows from this file.",
+                    FieldRequirement::Required,
+                ),
+                field("node", "Node column to render.", FieldRequirement::Required),
+                field(
+                    "context",
+                    "Embedding role: assignment-target, attribute-receiver, or positional-argument.",
+                    FieldRequirement::Required,
+                ),
+                field(OUTPUT, "New exact text column.", FieldRequirement::Required),
+            ],
+            &[],
+            r#"let example = render-syntax(from="syntax-tree", node="id", context="assignment-target", output="rendered"); emit example subject file key(id);"#,
+        ),
+        QueryOperator::FitsRendered => described(
+            "fits-rendered",
+            "Keep rendered candidates whose physical display lines fit a declared maximum, including the original source prefix on the first line and tab stops.",
+            vec![
+                field(
+                    "from",
+                    "Rendered candidate rows from this file.",
+                    FieldRequirement::Required,
+                ),
+                field(
+                    "texts",
+                    "Ordered exact rendered text columns.",
+                    FieldRequirement::Required,
+                ),
+                field(
+                    "literals",
+                    "Literal separators, one more than the text columns.",
+                    FieldRequirement::Required,
+                ),
+                field(
+                    "span",
+                    "Original physical statement span.",
+                    FieldRequirement::Required,
+                ),
+                field(
+                    "max-line",
+                    "Maximum display columns.",
+                    FieldRequirement::Required,
+                ),
+                field(
+                    "tab-width",
+                    "Physical tab stop width.",
+                    FieldRequirement::Required,
+                ),
+            ],
+            &[],
+            r#"let example = fits-rendered(from="function", texts=["name"], literals=["", ""], span="span", max-line=88, tab-width=8); emit example subject file key(id);"#,
+        ),
+        QueryOperator::Replace => described(
+            "replace",
+            "Append text with literal replacement of regex matches.",
+            vec![
+                field("from", "Input rows.", FieldRequirement::Required),
+                field("text", "Text column.", FieldRequirement::Required),
+                field(
+                    ryo_values::domain::descriptions::constants::PATTERN,
+                    "Constant regular expression.",
+                    FieldRequirement::Required,
+                ),
+                field(
+                    ryo_values::domain::descriptions::constants::REPLACEMENT,
+                    "Literal replacement text.",
+                    FieldRequirement::Required,
+                ),
+                field(
+                    ryo_values::domain::descriptions::constants::OUTPUT,
+                    "New output column.",
+                    FieldRequirement::Required,
+                ),
+            ],
+            &[],
+            r#"let example = replace(from="function", text="name", pattern="_", replacement="-", output="label"); emit example subject file key(label);"#,
+        ),
+        QueryOperator::OrderedDfs => described(
+            "ordered-dfs",
+            "Visit outgoing edges in numeric order, recursively depth first for each distinct partition/root.",
+            vec![
+                field("from", "Root rows.", FieldRequirement::Required),
+                field("root", "Root entity column.", FieldRequirement::Required),
+                field("edges", "Directed edge rows.", FieldRequirement::Required),
+                field("source", "Edge source column.", FieldRequirement::Required),
+                field(
+                    DESTINATION,
+                    "Edge destination column.",
+                    FieldRequirement::Required,
+                ),
+                field(
+                    "order",
+                    "Numeric outgoing-edge order; ties are rejected.",
+                    FieldRequirement::Required,
+                ),
+                field(
+                    "edge",
+                    "Edge identity column retained on every visit.",
+                    FieldRequirement::Required,
+                ),
+                field(
+                    "keys",
+                    "Matching partition columns of roots and edges, in output order; omitted means one graph.",
+                    FieldRequirement::Optional,
+                ),
+                field(
+                    OUTPUT,
+                    "Name of the zero-based visit ordinal column.",
+                    FieldRequirement::Required,
+                ),
+            ],
+            &[],
+            r#"let roots = select id as root, file from "function"; let edges = select parent as source, child as destination, ordinal as position, child as base, file from "syntax-child"; let example = ordered-dfs(from=roots,root=root,edges=edges,source=source,destination=destination,order=position,edge=base,keys=[file],output=visit); emit example subject file key(base,visit);"#,
+        ),
+        QueryOperator::OrderedMatch => described(
+            "ordered-match",
+            "Consume the earliest later right row for each ordered left row in an equal-key group.",
+            vec![
+                field("left", "Left input.", FieldRequirement::Required),
+                field("right", "Right input.", FieldRequirement::Required),
+                field(
+                    ryo_values::domain::descriptions::constants::LEFT_ON,
+                    "Left equality keys.",
+                    FieldRequirement::Required,
+                ),
+                field(
+                    ryo_values::domain::descriptions::constants::RIGHT_ON,
+                    "Right equality keys.",
+                    FieldRequirement::Required,
+                ),
+                field(
+                    "left-order",
+                    "Left numeric order.",
+                    FieldRequirement::Required,
+                ),
+                field(
+                    "right-order",
+                    "Right numeric order.",
+                    FieldRequirement::Required,
+                ),
+                field(
+                    ryo_values::domain::descriptions::constants::OUTPUT,
+                    "Named columns with explicit input sources.",
+                    FieldRequirement::Required,
+                ),
+            ],
+            &[],
+            r#"let requests = extend(from="function", values={sequence: 1}); let replies = extend(from="function", values={sequence: 2}); let example = ordered-match(left=requests, right=replies, left-on=[file,name], right-on=[file,name], left-order="sequence", right-order="sequence", output={file: [left,file], name: [right,name]}); emit example subject file key(name); "#,
+        ),
+        QueryOperator::Select => described(
+            SELECT,
+            "Keep rows for which every comparison is true.",
+            vec![
+                field("from", "Input to filter.", FieldRequirement::Required),
+                field(
+                    "where",
+                    "Typed comparisons of columns, literals, parameters or functions of them.",
+                    FieldRequirement::Required,
+                ),
+            ],
+            &[
+                "comparison family: equality",
+                "comparison family: ordering",
+                "comparison family: float-text",
+                "comparison family: numeric, numeric_gte(value, 86400) compares canonical integer/binary64 text or integer cells without rounding integers; NaN and malformed text are false",
+                "integer_successor(left, right): true only when right is exactly left plus one; canonical integer text or integer cells, no float coercion",
+                "comparison family: membership",
+                "comparison family: glob",
+                "comparison family: affix, starts_with(path, \"src/\") or ends_with(name, \"Service\"), each side text",
+                "function: concat(a, b, ...) joins two or more texts, concat(pascal(p.pkg), \"Service\") is TodoListsService for todo_lists",
+                "function: pascal(text) writes todo_lists as TodoLists",
+                "function: camel(text) writes todo_lists as todoLists",
+                "function: snake(text) writes TodoLists as todo_lists",
+                "function: kebab(text) writes TodoLists as todo-lists",
+            ],
+            r#"let example = select * from "function" where name = "example"; emit example subject file key(span);"#,
+        ),
+        QueryOperator::Project => described(
+            PROJECT,
+            "Keep named columns and deduplicate equal rows.",
+            vec![
+                field("from", "Input to project.", FieldRequirement::Required),
+                field(
+                    COLUMNS,
+                    "Columns retained in output.",
+                    FieldRequirement::Required,
+                ),
+            ],
+            &[],
+            r#"let example = select file, name from "function"; emit example subject file key(name);"#,
+        ),
         QueryOperator::Extend => described(
             "extend",
             "Append numeric or flag columns.",

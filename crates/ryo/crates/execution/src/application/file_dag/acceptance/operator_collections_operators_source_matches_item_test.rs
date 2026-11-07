@@ -12,7 +12,6 @@ use ryo_values::domain::{
         ColumnIndex, Input as PlanInput, LiteralText, Operand, QueryLiteral, StepId,
     },
     plans::types::Operation,
-    query_operators::types::QueryOperator,
 };
 pub(super) fn span(start: u32, end: u32) -> Span {
     Span {
@@ -104,12 +103,6 @@ fn malformed_or_non_utf8_boundary_spans_refuse_before_their_row_emits() {
     );
 }
 
-#[test]
-fn contract() {
-    crate::domain::operator::collections::operators::fixtures::contract::check(
-        QueryOperator::SourceMatches,
-    );
-}
 
 fn evaluate_lines(
     source: &'static [u8],

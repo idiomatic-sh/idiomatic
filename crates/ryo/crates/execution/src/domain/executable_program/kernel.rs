@@ -22,7 +22,7 @@ pub(crate) fn row_admissible(
     match contract.source_gate {
         SourceGate::None => Ok(RowGate::Admitted),
         SourceGate::CheckedSpan { span, base_line } => Ok(
-            match crate::domain::operator::collections::operators::source_matches::item::validate(
+            match crate::domain::operator::contract::views::validate(
                 row,
                 span,
                 base_line,

@@ -32,7 +32,10 @@ pub enum CaptureRequest<'a> {
 
 /// Engine-owned symbol storage and row delivery. No acquisition or publication API is exposed.
 pub trait TextRowDriver {
-    fn intern(&mut self, text: ryo_values::domain::row_texts::types::CellText<'_>) -> ryo_relations::domain::relations::types::Value;
+    fn intern(
+        &mut self,
+        text: ryo_values::domain::row_texts::types::CellText<'_>,
+    ) -> ryo_relations::domain::relations::types::Value;
     fn emit(
         &mut self,
         row: &[ryo_relations::domain::relations::types::Value],
@@ -73,4 +76,15 @@ pub(crate) enum CarriageReturn {
     Pending,
     /// No carriage return awaits a line feed.
     Clear,
+}
+
+/// What an occurrence search reads from its operation: the capture it narrows to and what it emits.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SearchShape<'a> {
+    /// The named group the occurrences are narrowed to.
+    pub capture: CaptureRequest<'a>,
+    /// Whether the occurrence's text is emitted.
+    pub capture_text: ryo_values::domain::query_operators::types::TextOutput,
+    /// Whether the occurrence's line is emitted.
+    pub capture_line: ryo_values::domain::query_operators::types::LineOutput,
 }

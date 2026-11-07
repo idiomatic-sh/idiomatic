@@ -1,7 +1,7 @@
 //! One provider answer per request and the engine-owned delivery of the known ones.
 use crate::domain::contract::errors::ContractError;
-use ryo_values::domain::rows::types::RowIndex;
 use ryo_values::domain::row_texts::types::CellText;
+use ryo_values::domain::rows::types::RowIndex;
 
 /// What a language provider answered for one render request.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -22,4 +22,15 @@ pub trait RenderedOutput {
     ///
     /// The engine retained an error that stops the delivery.
     fn text(&mut self, position: RowIndex, text: CellText<'_>) -> Result<(), ContractError>;
+}
+
+/// What a language provider answered for one render request, without its text.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RenderKind {
+    /// A text was rendered.
+    Known,
+    /// The node has no rendering here.
+    NotApplicable,
+    /// The provider cannot render this syntax.
+    Unsupported,
 }

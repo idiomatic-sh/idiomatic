@@ -150,14 +150,14 @@ pub(crate) enum ClosureViews<'a> {
     Many(&'a dyn ClosureParts),
 }
 impl<'a> ClosureViews<'a> {
-    fn len(self) -> PartitionCount {
+    pub(crate) fn len(self) -> PartitionCount {
         match self {
             Self::Empty => PartitionCount(0),
             Self::One(_) => PartitionCount(1),
             Self::Many(parts) => parts.len(),
         }
     }
-    fn get(
+    pub(crate) fn get(
         self,
         at: PartitionIndex,
     ) -> Result<
@@ -219,4 +219,68 @@ pub(crate) struct ValidatedSource<'a> {
     pub base: SourceBase,
     pub text: CellText<'a>,
     pub line: BaseLine,
+}
+
+/// The checked physical text of a span and where it starts in the source.
+struct SourceSlice<'a> {
+    base: SourceBase,
+    text: CellText<'a>,
+}
+
+/// Returns the physical text only after validating the whole input span. An absent span carries no
+/// occurrences; malformed boundaries fail before the row emits.
+fn source_slice<'a>(
+    row: &[Value],
+    span: ColumnIndex,
+    source: ryo_values::domain::files::types::SourceView<'a>,
+) -> Result<Option<SourceSlice<'a>>, OperatingError> {
+    let Value::Span(span) = ryo_values::domain::rows::service::cell(row, span)? else {
+        return Err(OperatingError::ShapeMismatch);
+    };
+    if span == ryo_relations::domain::relations::constants::NO_SPAN {
+        return Ok(None);
+    }
+    let start =
+        usize::try_from(span.start.0).map_err(|_| OperatingError::InvalidSourceMatchSpan)?;
+    let end = usize::try_from(span.end.0).map_err(|_| OperatingError::InvalidSourceMatchSpan)?;
+    if start > end {
+        return Err(OperatingError::InvalidSourceMatchSpan);
+    }
+    let bytes = source
+        .0
+        .get(start..end)
+        .ok_or(OperatingError::InvalidSourceMatchSpan)?;
+    let text =
+        std::str::from_utf8(bytes).map_err(|_error| OperatingError::InvalidSourceMatchSpan)?;
+    Ok(Some(SourceSlice {
+        base: SourceBase(start),
+        text: CellText(text),
+    }))
+}
+
+/// The source gate of an occurrence search: validates the span, and its base line, before any matcher is
+/// acquired. An absent span suppresses the row's later checks.
+pub(crate) fn validate<'a>(
+    row: &[Value],
+    span: ColumnIndex,
+    base_line: Option<ColumnIndex>,
+    source: ryo_values::domain::files::types::SourceView<'a>,
+) -> Result<Option<ValidatedSource<'a>>, OperatingError> {
+    let Some(SourceSlice { base, text }) = source_slice(row, span, source)? else {
+        return Ok(None);
+    };
+    let line = if let Some(column) = base_line {
+        let Value::Number(ryo_relations::domain::relations::types::Integer(number)) =
+            ryo_values::domain::rows::service::cell(row, column)?
+        else {
+            return Err(OperatingError::ShapeMismatch);
+        };
+        if number <= 0 {
+            return Err(OperatingError::InvalidSourceMatchSpan);
+        }
+        BaseLine::Starts(ryo_relations::domain::relations::types::Integer(number))
+    } else {
+        BaseLine::Unnumbered
+    };
+    Ok(Some(ValidatedSource { base, text, line }))
 }
