@@ -462,6 +462,63 @@ fn unsupported_semantic_batch_publishes_no_prefix() {
 }
 
 #[test]
+fn a_semantic_batch_of_another_length_is_refused() {
+    #[derive(Debug)]
+    struct OneAnswerTooMany;
+    impl crate::domain::operating::types::SemanticLookup for OneAnswerTooMany {
+        fn render_batch(
+            &self,
+            requests: &[RenderRequest],
+            _: ryo_values::domain::files::types::SourceView<'_>,
+        ) -> Result<Vec<RenderOutcome>, OperatingError> {
+            let known = || {
+                RenderOutcome::Known(ryo_language::domain::semantics::types::RenderedNode(
+                    Arc::from("a"),
+                ))
+            };
+            Ok((0..=requests.len()).map(|_| known()).collect())
+        }
+    }
+    let observe = |lookup: &dyn crate::domain::operating::types::SemanticLookup| {
+        let mut case = fixture(OperationKind::RenderSyntax);
+        ryo_values::domain::rows::service::push_row(
+            &mut case.inputs[0],
+            &[Value::Node(ryo_relations::domain::relations::service::node_id(
+                ryo_relations::domain::relations::types::FileId(0),
+                ryo_relations::domain::relations::types::Position(1),
+            ))],
+        );
+        compare_delivery_with_semantic(
+            &case.operation,
+            &case.inputs,
+            &case.bindings,
+            SOURCE,
+            &mut case.symbols,
+            None,
+            Some(lookup),
+            RefusalOutcome::Failed,
+        )
+        .unwrap()
+    };
+    // Positive control: one answer for each request is published.
+    let answered = observe(&KnownSyntax);
+    assert!(answered.collected.is_ok());
+    assert_eq!(answered.stream_error, None);
+    assert!(!answered.rows.is_empty());
+    // Negative control: one answer more than there are requests is refused, and no row is published.
+    let refused = observe(&OneAnswerTooMany);
+    assert!(matches!(
+        refused.collected,
+        Err(OperatingError::SemanticBatchShape)
+    ));
+    assert!(matches!(
+        refused.stream_error,
+        Some(OperatingError::SemanticBatchShape)
+    ));
+    assert!(refused.rows.is_empty());
+}
+
+#[test]
 fn all_registrations_refuse_a_foreign_variant() {
     for (at, kind) in OperationKind::ALL.iter().enumerate() {
         let foreign = fixture(OperationKind::ALL[(at + 1) % OperationKind::ALL.len()]);
