@@ -67,7 +67,7 @@ fn chained_registered_evaluations_reuse_downstream_invocation_state() {
         &[Digest([0; 16])],
         &[host],
         Arc::clone(&derived),
-        ObservationIdentity::Independent,
+        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
     )
     .unwrap();
     let services = Arc::new(ProgramServices::new(

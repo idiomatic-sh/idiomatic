@@ -38,3 +38,13 @@ pub fn local_with_diagnostic_events(
 ) -> impl super::interface::EnginePort {
     EngineLocalAdapter::with_diagnostic_events(languages, events, Some(projection))
 }
+
+/// Construct the SDK engine wiring only the execution strategies `routes` names, for a differential run.
+#[must_use]
+pub fn local_with_routes(
+    languages: ryo::linter::Languages,
+    projection: FrontendDiagnosticProjection,
+    routes: ryo::linter::RoutePolicy,
+) -> impl super::interface::EnginePort {
+    EngineLocalAdapter::new(languages, None, Some(projection)).routing(routes)
+}

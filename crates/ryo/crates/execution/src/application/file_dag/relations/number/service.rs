@@ -2,7 +2,7 @@
 use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::application::file_dag::relations::handle::service::PublishedInput;
 use crate::domain::executable_program::types::RegionId;
-use crate::domain::ordered_existence::types::NumberRequirement;
+use crate::domain::self_join_recogniser::types::NumberRequirement;
 
 /// The borrowed publication pins its exact population/generation for the invocation.
 /// Construction is private: a schema or a caller assertion cannot mint this witness.

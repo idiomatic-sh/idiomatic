@@ -233,7 +233,7 @@ pub(crate) struct PrimitiveWorkspace {
     pub axis: Option<super::axis::AxisWorkspace>,
     pub positions: Vec<ryo_relations::domain::relations::types::Position>,
     pub dfs: Option<super::graph::DfsWorkspace>,
-    pub cycles: Option<super::graph::CycleMarks>,
+    pub cycles: Option<ryo_operators::inbound::use_cases::operators::interface::CycleScratch>,
     pub closure_walk: Option<crate::domain::table_reach::types::Walk>,
     pub distinct: Option<DistinctWorkspace>,
 }
@@ -312,9 +312,10 @@ pub(crate) fn portable_fault(
         PortableOperatorFault::InvalidSpanBounds => OperatingError::InvalidSpanBounds,
         PortableOperatorFault::InvalidSpan => OperatingError::InvalidSpan,
         PortableOperatorFault::InvalidSourceMatchSpan => OperatingError::InvalidSourceMatchSpan,
-        PortableOperatorFault::MissingCapture | PortableOperatorFault::WrongOperation => {
-            OperatingError::WrongOperation
-        }
+        PortableOperatorFault::UnboundKey => OperatingError::WrongBinding,
+        PortableOperatorFault::MissingCapture
+        | PortableOperatorFault::WrongOperation
+        | PortableOperatorFault::UnsupportedRender => OperatingError::WrongOperation,
     }
 }
 
@@ -334,7 +335,7 @@ pub(crate) struct DistinctWorkspace {
 #[derive(Debug)]
 pub(crate) struct RequestOperators {
     /// Original-plan shape metadata owned by this exact immutable request, never file state.
-    pub ordered_existence: std::sync::Arc<Vec<crate::domain::ordered_existence::types::Program>>,
+    pub ordered_existence: std::sync::Arc<Vec<crate::domain::self_join_recogniser::types::Program>>,
     pub selection_plans: std::sync::Arc<Vec<crate::domain::stored_selection::types::PreparedPlan>>,
     pub selection_views:
         std::sync::Arc<crate::domain::derived_views::types::PreparedSelectionViews>,

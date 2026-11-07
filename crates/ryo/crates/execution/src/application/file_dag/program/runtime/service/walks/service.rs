@@ -132,7 +132,8 @@ impl KernelPermit<'_> {
         &self,
     ) -> crate::application::file_dag::program::runtime::types::NativeJoinEligibility {
         let region = &self.program.regions()[self.region.0];
-        if region.instructions.len() == 1
+        if self.program.routes().tree_join == crate::domain::executable_program::types::RouteWiring::Wired
+            && region.instructions.len() == 1
             && matches!(
                 self.operation(),
                 ryo_values::domain::plans::types::Operation::Join { reach: None, filter, .. } if filter.is_empty()

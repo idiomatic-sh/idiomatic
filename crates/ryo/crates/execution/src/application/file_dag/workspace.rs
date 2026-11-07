@@ -8,10 +8,7 @@ use crate::domain::{
 use crate::application::file_dag::derived::owner::acquisition::selection::types::StoredColumns;
 use std::sync::Arc;
 
-use crate::domain::operator::contract::{
-    axis::AxisWorkspace,
-    graph::{CycleMarks, DfsWorkspace},
-};
+use crate::domain::operator::contract::{axis::AxisWorkspace, graph::DfsWorkspace};
 
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_reach::types::Walk;

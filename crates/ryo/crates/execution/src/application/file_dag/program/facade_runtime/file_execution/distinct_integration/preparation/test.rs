@@ -96,7 +96,7 @@ fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_a
         &vec![Digest([0; 16]); rules.len()],
         &[],
         Arc::clone(&derived),
-        ObservationIdentity::Named(ObservationReadinessLayout(Digest([33; 16]))),
+        ObservationIdentity::Named(ObservationReadinessLayout(Digest([33; 16]))), crate::domain::executable_program::types::RoutePolicy::default(),
     )
     .unwrap();
     let roots = prepared.file_demand(RuleIndex(0)).unwrap();

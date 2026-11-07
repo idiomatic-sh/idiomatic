@@ -1,4 +1,4 @@
-//! A pure width calculation over the source prefix and an already rendered candidate.
+//! The engine side of the width check: the semantics are the operators' `FitsRendered`.
 
 use super::super::interface::OperatorsItem;
 use crate::domain::operating::errors::OperatingError;
@@ -13,58 +13,6 @@ use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rows::service::cell;
-use unicode_width::UnicodeWidthChar;
-
-fn advance_column(column: usize, text: &str, tab_width: usize) -> Result<usize, OperatingError> {
-    let mut column = column;
-    for character in text.chars() {
-        column = if character == '\t' {
-            column
-                .checked_div(tab_width)
-                .and_then(|stop| stop.checked_add(1))
-                .and_then(|stop| stop.checked_mul(tab_width))
-                .ok_or(OperatingError::InvalidSpan)?
-        } else {
-            column
-                .checked_add(UnicodeWidthChar::width(character).unwrap_or(0))
-                .ok_or(OperatingError::InvalidSpan)?
-        };
-    }
-    Ok(column)
-}
-
-fn fits(
-    text: &str,
-    prefix: &str,
-    maximum: usize,
-    tab_width: usize,
-) -> Result<bool, OperatingError> {
-    let mut column = advance_column(0, prefix, tab_width)?;
-    if column > maximum {
-        return Ok(false);
-    }
-    let mut previous_cr = false;
-    for character in text.chars() {
-        if character == '\r' {
-            column = 0;
-            previous_cr = true;
-            continue;
-        }
-        if character == '\n' {
-            if !previous_cr {
-                column = 0;
-            }
-            previous_cr = false;
-            continue;
-        }
-        previous_cr = false;
-        column = advance_column(column, character.encode_utf8(&mut [0; 4]), tab_width)?;
-        if column > maximum {
-            return Ok(false);
-        }
-    }
-    Ok(true)
-}
 
 pub(crate) struct FitsRenderedItem;
 
@@ -143,25 +91,24 @@ impl OperatorsItem for FitsRenderedItem {
         if tab_width == 0 {
             return Err(OperatingError::WrongBinding);
         }
-        let answer = fits(&rendered, prefix, maximum, tab_width);
+        let answer = lease.semantics().operators(
+            ryo_operators::inbound::use_cases::operators::interface::OperatorCall::FitsRendered {
+                rendered: ryo_operators::domain::fits_rendered::types::CandidateText(&rendered),
+                prefix: ryo_operators::domain::fits_rendered::types::LinePrefix(prefix),
+                maximum: ryo_operators::domain::fits_rendered::types::LineWidth(maximum),
+                tab_width: ryo_operators::domain::fits_rendered::types::TabStop(tab_width),
+            },
+        );
         lease.workspace.text = rendered;
-        if answer? {
-            emit.row(lease, row)?;
+        match answer {
+            Ok(ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Selected(
+                true,
+            )) => emit.row(lease, row),
+            Ok(ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Selected(
+                false,
+            )) => Ok(()),
+            Ok(_) => Err(OperatingError::WrongOperation),
+            Err(error) => Err(crate::domain::operator::contract::types::portable_fault(error)),
         }
-        Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::fits;
-
-    #[test]
-    fn physical_width_counts_tabs_unicode_and_all_lines() {
-        assert!(fits("x", "\t", 5, 4).unwrap());
-        assert!(!fits("xx", "\t", 5, 4).unwrap());
-        assert!(fits("界e\u{301}", "", 3, 4).unwrap());
-        assert!(!fits("x\n123456", "", 5, 4).unwrap());
-        assert!(fits("123456\r\nx", "", 6, 4).unwrap());
     }
 }

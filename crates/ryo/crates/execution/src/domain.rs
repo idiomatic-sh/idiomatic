@@ -15,7 +15,7 @@ pub(crate) mod operands;
 pub(crate) mod operating;
 pub(crate) mod operation_schema;
 pub(crate) mod operator;
-pub(crate) mod ordered_existence;
+pub(crate) mod self_join_recogniser;
 pub(crate) mod placement;
 pub(crate) mod positions;
 pub(crate) mod prepared_request;

@@ -1,6 +1,6 @@
 //! Immutable request graph and bounded, invocation-local shared results.
 
-use crate::domain::ordered_existence::types::{Decline, Shape};
+use crate::domain::self_join_recogniser::types::{Decline, Shape};
 use ryo_relations::domain::relations::types::Relation;
 use std::sync::Arc;
 

@@ -21,7 +21,7 @@ pub(crate) fn source(rows: Rows<'_>) -> Result<Table, OperatingError> {
         &[Digest([0; 16])],
         &[],
         Arc::clone(&derived),
-        ObservationIdentity::Independent,
+        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
     )?;
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(

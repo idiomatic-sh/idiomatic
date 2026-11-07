@@ -165,10 +165,10 @@ pub(crate) fn authorize(
                         && *order == shape.order
                         && *extremum
                             == match shape.extremum {
-                                crate::domain::ordered_existence::types::Extremum::Maximum => {
+                                crate::domain::self_join_recogniser::types::Extremum::Maximum => {
                                     PartitionExtremum::Maximum
                                 }
-                                crate::domain::ordered_existence::types::Extremum::Minimum => {
+                                crate::domain::self_join_recogniser::types::Extremum::Minimum => {
                                     PartitionExtremum::Minimum
                                 }
                             }

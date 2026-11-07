@@ -167,7 +167,7 @@ impl RequestOperators {
                 .iter()
                 .enumerate()
                 .map(|(rule, plan)| {
-                    crate::domain::ordered_existence::service::compile(plan, &|id| {
+                    crate::domain::self_join_recogniser::service::compile(plan, &|id| {
                         rules
                             .get(rule)?
                             .get(id.0 as usize)?

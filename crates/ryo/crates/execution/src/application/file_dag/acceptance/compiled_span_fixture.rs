@@ -123,7 +123,7 @@ pub(super) fn run(
         &[Digest([0; 16])],
         &[],
         Arc::clone(&derived),
-        ObservationIdentity::Independent,
+        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
     ) {
         Ok(prepared) => prepared,
         Err(error) => return (Err(error), 0),

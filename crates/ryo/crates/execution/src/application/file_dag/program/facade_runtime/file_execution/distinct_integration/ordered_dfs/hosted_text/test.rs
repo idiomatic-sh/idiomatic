@@ -195,7 +195,7 @@ fn one_file_owner_resets_dfs_across_closure_empty_and_different_graph() {
         &[Digest([0; 16]); 4],
         &hosts,
         Arc::clone(&derived),
-        ObservationIdentity::Independent,
+        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
     )
     .unwrap();
     let services = Arc::new(ProgramServices::new(

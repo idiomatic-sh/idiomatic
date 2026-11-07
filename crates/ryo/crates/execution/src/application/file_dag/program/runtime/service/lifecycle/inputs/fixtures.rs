@@ -97,7 +97,7 @@ pub(in super::super) fn compiled() -> CompiledCase {
             &plans,
             graph,
             &FileProducers,
-            &prepared,
+            &prepared, crate::domain::executable_program::types::RoutePolicy::default(),
         )
         .unwrap(),
     );

@@ -399,7 +399,7 @@ pub(crate) fn compile_prepared_observations(
             {
                 ordered_existence[select.0] = Some(
                     crate::domain::file_program::types::ResolvedAlternative::Declined(
-                        crate::domain::ordered_existence::types::Decline::ExtraConsumer,
+                        crate::domain::self_join_recogniser::types::Decline::ExtraConsumer,
                     ),
                 );
                 continue;

@@ -65,6 +65,7 @@ pub(crate) fn compile(
     graph: RequestGraph,
     partitions: &dyn ProducerPartitions,
     prepared: &crate::domain::operator::contract::types::RequestOperators,
+    routes: RoutePolicy,
 ) -> Result<ExecutableProgram, OperatingError> {
     let mut column_candidates = super::column::ColumnCandidates::capture(&graph);
     let native_shapes = super::native::capture(&graph);
@@ -250,14 +251,22 @@ pub(crate) fn compile(
     // Every family leaves what it found eligible here; one rule keeps one route per region below.
     let mut candidates: Vec<super::types::RouteOffers> =
         vec![super::types::RouteOffers::default(); regions.len()];
-    for column in column_candidates.lower(&logical_regions) {
+    for column in column_candidates
+        .lower(&logical_regions)
+        .into_iter()
+        .filter(|_| routes.column_kernel == RouteWiring::Wired)
+    {
         let target = column.target();
         if candidates[target.0].column.is_some() {
             continue;
         }
         candidates[target.0].column = Some(column);
     }
-    for alternative in ordered_alternatives.into_iter().flatten() {
+    for alternative in ordered_alternatives
+        .into_iter()
+        .flatten()
+        .filter(|_| routes.ordered_existence == RouteWiring::Wired)
+    {
         let crate::domain::file_program::types::ResolvedAlternative::Eligible(resolved) =
             alternative
         else {
@@ -395,7 +404,10 @@ pub(crate) fn compile(
     // The stored-selection and native-position families are offered over the same regions, then
     // one rule keeps one route per region. Only the kept route takes a reader of its source.
     candidates.resize_with(regions.len(), Default::default);
-    for selection in super::selection::compile(&rules, &logical_regions, &regions, prepared) {
+    for selection in super::selection::compile(&rules, &logical_regions, &regions, prepared)
+        .into_iter()
+        .filter(|_| routes.stored_selection == RouteWiring::Wired)
+    {
         let target = selection.target();
         if !matches!(
             regions[target.0].instructions[0].operation,
@@ -407,7 +419,9 @@ pub(crate) fn compile(
             candidates[target.0].selection = Some(selection);
         }
     }
-    super::native::offer(&regions, &native_shapes, &mut candidates);
+    if routes.native_positions == RouteWiring::Wired {
+        super::native::offer(&regions, &native_shapes, &mut candidates);
+    }
     // Native positions are published for a reader that consumes positions. A region read by one
     // that has no native route must hand it rows, so it keeps no native offer: a stored selection
     // when one was offered, the generic route otherwise. A named observation is read by
@@ -513,6 +527,7 @@ pub(crate) fn compile(
         rules: rules.into_boxed_slice(),
         logical_regions: logical_regions.into_boxed_slice(),
         observation_regions: observation_regions.into_boxed_slice(),
+        routes,
         #[cfg(test)]
         fusibility: fusibility.into_boxed_slice(),
     })

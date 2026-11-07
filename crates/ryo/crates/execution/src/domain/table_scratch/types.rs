@@ -157,23 +157,6 @@ pub(crate) struct TextedFile {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct TreeSize(pub usize);
 
-/// An entity met by a search for cycles, by the order it was met in.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct EntityNumber(pub usize);
-
-/// An edge of a search for cycles, by its place among the edges leaving an entity.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct EdgePlace(pub usize);
-
-/// An entity on the walk of a search for cycles, with the next edge to try.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct WalkStep {
-    /// The entity.
-    pub entity: EntityNumber,
-    /// The next edge to try.
-    pub edge: EdgePlace,
-}
-
 /// A bit for each kind of a set, by the number of the kind.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct KindMask(pub Vec<u64>);

@@ -12,13 +12,21 @@ use std::sync::Arc;
 pub struct ExecutionUseCaseImpl {
     operators: Arc<dyn OperatorsPort>,
     derived: crate::application::file_dag::derived::owner::types::DerivedAccess,
+    routes: RoutePolicy,
 }
 impl ExecutionUseCaseImpl {
     pub fn new(operators: Arc<dyn OperatorsPort>, derived: Arc<dyn DerivedPort>) -> Self {
         Self {
             operators,
             derived: derived.into(),
+            routes: RoutePolicy::default(),
         }
+    }
+    /// The same engine wiring only the strategies `routes` names, for a differential run.
+    #[must_use]
+    pub const fn routing(mut self, routes: RoutePolicy) -> Self {
+        self.routes = routes;
+        self
     }
 }
 impl ExecutionUseCase for ExecutionUseCaseImpl {
@@ -598,6 +606,7 @@ impl ExecutionUseCaseImpl {
             &hosted,
             self.derived.clone(),
             identity,
+            self.routes,
         )?;
         Ok(PreparedExecutionProgram {
             inner,

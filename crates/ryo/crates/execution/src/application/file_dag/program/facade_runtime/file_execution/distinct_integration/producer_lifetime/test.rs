@@ -31,7 +31,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
         &[Digest([0; 16]), Digest([1; 16])],
         &[],
         Arc::clone(&derived),
-        ObservationIdentity::Independent,
+        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
     )?;
     let shared = |rule: RuleIndex| {
         let logical = prepared.program().rules()[rule.0].original_steps[1]

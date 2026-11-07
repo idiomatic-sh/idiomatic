@@ -178,7 +178,7 @@ pub(in super::super) fn prepare(
     .unwrap();
     let graph = crate::domain::file_program::service::compile_prepared(plans, &operators);
     let program =
-        crate::domain::executable_program::service::compile(plans, graph, &FileSources, &operators)
+        crate::domain::executable_program::service::compile(plans, graph, &FileSources, &operators, crate::domain::executable_program::types::RoutePolicy::default())
             .unwrap();
     let walk = super::super::super::PreparedWalk::compile(plans, &bindings);
     (program, walk)

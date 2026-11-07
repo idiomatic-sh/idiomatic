@@ -19,3 +19,8 @@ pub(crate) mod source_matches;
 pub(crate) mod words;
 
 pub(crate) mod reduction;
+
+pub mod cycles;
+pub mod fits_rendered;
+pub mod render_batch;
+pub mod table_rows;
