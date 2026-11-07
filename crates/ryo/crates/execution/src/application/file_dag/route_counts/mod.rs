@@ -1,6 +1,6 @@
 //! Opt-in diagnostic accounting; never participates in execution or admission decisions.
 mod constants;
-pub mod profile;
+mod profile;
 #[cfg(feature = "diagnostic-row-progress")]
 pub(crate) mod progress;
 mod schemas;

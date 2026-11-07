@@ -148,7 +148,6 @@ pub(crate) fn build(
             let analysis_corpus: Arc<dyn corpus::interface::CorpusPort> = files;
             let analysis_memory: Arc<dyn memory::interface::MemoryPort> =
                 Arc::new(memory::factory::sysinfo(budget));
-            ryo_execution::application::file_dag::route_counts::profile::service::install(Arc::new(ryo_execution::outbound::profile::factory::thread::<ryo_execution::application::file_dag::route_counts::profile::service::RouteProfile>()));
             let analysis_digest: Arc<
                 dyn ryo_execution::outbound::digest::interface::DigestPort,
             > = Arc::new(digest::factory::blake3());

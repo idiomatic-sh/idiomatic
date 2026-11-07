@@ -25,7 +25,6 @@ const ORIGINAL_FAILURE: &str = "original failure";
 const QUOTED_TEXT: &str = "a\"b\n";
 const QUOTED_JSON: &str = "\"a\\\"b\\n\"";
 fn capture(run: impl FnOnce()) -> RouteState {
-    super::profile::service::install(std::sync::Arc::new(crate::outbound::profile::fixtures::fake::ProfileFake::<super::profile::service::RouteProfile>::default()));
     with_borrow_mut(|state| {
         assert!(state.is_none());
         *state = Some(Box::new(RouteState {
