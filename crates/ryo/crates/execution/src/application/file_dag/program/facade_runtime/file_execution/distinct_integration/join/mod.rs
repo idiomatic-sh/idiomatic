@@ -26,6 +26,8 @@ use fixtures::provider::*;
 mod capability;
 #[cfg(test)]
 mod cases;
+#[cfg(test)]
+mod family;
 
 #[cfg(test)]
 mod lifecycle;

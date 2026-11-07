@@ -23,7 +23,6 @@ use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, StepId, Test};
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 #[test]
 fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
-    use ryo_operators::domain::equality_join::types::JoinInput;
     use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
     use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
     use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
@@ -46,8 +45,9 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
         ) -> Result<OperatorAnswer, PortableOperatorFault> {
             if matches!(
                 &call,
-                OperatorCall::EqualityJoin {
-                    input: JoinInput::Positions { .. }
+                OperatorCall::Evaluate {
+                    operation: ryo_values::domain::plans::types::Operation::Join { .. },
+                    ..
                 }
             ) {
                 self.calls.fetch_add(1, Ordering::Relaxed);

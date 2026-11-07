@@ -20,9 +20,10 @@ impl crate::outbound::operators::interface::OperatorsPort for RefuseCount {
         if matches!(
             &call,
             OperatorCall::ReduceCount { .. }
-                | OperatorCall::CheckAggregation { .. }
-                | OperatorCall::StreamAggregation { .. }
-                | OperatorCall::FinishAggregation { .. }
+                | OperatorCall::Evaluate {
+                    operation: Operation::GroupCount { .. },
+                    ..
+                }
         ) {
             return Err(PortableOperatorFault::WrongOperation);
         }

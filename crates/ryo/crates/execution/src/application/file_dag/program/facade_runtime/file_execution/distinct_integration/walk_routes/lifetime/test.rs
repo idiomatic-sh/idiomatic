@@ -1,7 +1,7 @@
 //! A shared source batch lives until its last consumer is delivered, on every exit.
 use super::super::super::*;
 use super::super::fixtures::plans::Authored;
-use super::super::fixtures::semantics::{BuildPolicy, Derived, Meanings};
+use super::super::fixtures::semantics::{Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, demand};
 use crate::application::file_dag::program::native_walk::RetainedBatches;
 fn program(residency: Residency) -> Program {
@@ -10,7 +10,7 @@ fn program(residency: Residency) -> Program {
         Population::Three,
         residency,
         Arc::new(Meanings::default()),
-        Arc::new(Derived::new(BuildPolicy::Normal)),
+        Arc::new(Derived::new()),
     )
     .unwrap()
 }

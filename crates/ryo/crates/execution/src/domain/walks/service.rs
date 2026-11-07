@@ -2,68 +2,20 @@
 
 use super::constants::MARK_OF_ELEMENT;
 use ryo_language::domain::elements::service::kind_names;
-use ryo_language::domain::names::service::name_count;
-use ryo_relations::domain::relations::types::{Flag, Position, Value};
+use ryo_relations::domain::relations::types::Position;
 
 use super::types::{Admission, Admit, FilterScratch};
 use crate::domain::comparing::service::holds_some;
 use crate::domain::kind_sets::service::{kind_tests, passes};
-use crate::domain::kind_sets::types::KindScratch;
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::{Memo, NameCount, OperatorContext};
+use crate::domain::operating::types::OperatorContext;
 use crate::domain::table_cells::service::read_tree_cells;
 use crate::domain::table_cells::types::{CellsRead, TreeRows};
 use crate::domain::table_model::service::kinds_of;
 use crate::domain::table_model::types::{Rows, Verdict};
-use crate::domain::table_scratch::types::{ElementIndex, KindsBy};
-use crate::domain::text_gate::service::{needed_of_rest, text_admitted, text_gate, undecided};
+use crate::domain::table_scratch::types::ElementIndex;
+use crate::domain::text_gate::service::text_admitted;
 use ryo_language::domain::elements::service::kind_at;
-use ryo_values::domain::plan_parts::types::PlanComparison;
-
-/// Takes filter scratch out of `context`, with nothing made ready yet.
-pub(crate) fn filter_of(context: &mut OperatorContext<'_>) -> FilterScratch {
-    FilterScratch {
-        kinds: KindScratch {
-            names: std::mem::take(&mut context.scratch.select_scratch.kind_names),
-            sets: std::mem::take(&mut context.scratch.select_scratch.kind_sets),
-            tests: std::mem::take(&mut context.scratch.select_scratch.kind_tests),
-        },
-        needed: std::mem::take(&mut context.scratch.needed),
-        cells: [Value::Flag(Flag::Lowered); 5],
-        names: NameCount(name_count(context.symbols.as_ref()).0),
-        gate: std::mem::take(&mut context.scratch.select_scratch.gate),
-        text_ok: std::mem::take(&mut context.scratch.select_scratch.text_ok),
-        rest: std::mem::take(&mut context.scratch.select_scratch.rest),
-    }
-}
-
-/// Takes what deciding the elements of `tree` by `comparisons` works with from the scratch of `context`, and makes ready what the
-/// comparisons decide.
-pub(crate) fn take_filter(
-    tree: &TreeRows<'_>,
-    comparisons: &[PlanComparison],
-    context: &mut OperatorContext<'_>,
-) -> FilterScratch {
-    let mut filter = filter_of(context);
-    context.memo.clear();
-    context
-        .memo
-        .resize(comparisons.len() * filter.names.0, Memo::Unknown);
-    kind_tests(tree, comparisons, context, &mut filter.kinds);
-    text_gate(tree, comparisons, &mut filter.gate);
-    filter.text_ok.0.clear();
-    if !filter.gate.0.is_empty() {
-        filter.text_ok.0.resize(filter.names.0 + 1, 0);
-    }
-    let kinds_by = if kind_names(tree.elements).is_empty() {
-        KindsBy::Nothing
-    } else {
-        KindsBy::Sets
-    };
-    undecided(comparisons, &filter.gate, kinds_by, &mut filter.rest);
-    needed_of_rest(comparisons, &filter.rest, &mut filter.needed);
-    filter
-}
 
 /// Gives back what a filter took.
 pub(crate) fn give_filter(filter: FilterScratch, context: &mut OperatorContext<'_>) {

@@ -2,7 +2,6 @@
 //! `execute` finishes the owner and asserts the shared ledger, working and owned bytes are zero.
 use super::super::capability::fixtures::Witness;
 use super::super::cases::test::{node, table_of, tree_rows, wide_tree};
-use super::super::column_chain::fixtures::{expected, plan, sources};
 use super::super::*;
 use super::fixtures::{OrderedPort, ordered_sources, refused};
 use std::sync::atomic::Ordering;

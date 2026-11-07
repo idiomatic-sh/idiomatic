@@ -100,16 +100,4 @@ impl RelationOwner {
             normalized: OnceLock::new(),
         }))
     }
-    pub(in crate::application::file_dag::relations) fn position_source(
-        &self,
-        publication: &PublishedInput,
-    ) -> Result<Arc<RelationResult>, OperatingError> {
-        self.generation(publication)?;
-        match &publication.body {
-            RelationBody::Source(source) if source.kind == RepresentationKind::Tree => {
-                Ok(Arc::clone(publication.record()))
-            }
-            _ => Err(OperatingError::WrongOperation),
-        }
-    }
 }

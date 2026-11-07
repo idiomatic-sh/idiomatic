@@ -36,11 +36,9 @@ const METHODS: &[(&str, &str)] = &[
         r#"fn prepare<'f>(&self,input:RepresentationInput<'f>)->Result<RelationContract<'f>,OperatingError>{
         let(kind,kinds)=match input {
             RepresentationInput::Stored(view)=>(RepresentationKind::Stored,view.kinds),
-            RepresentationInput::Selected{kinds,..}=>(RepresentationKind::Selected,kinds),
             RepresentationInput::Tree(_)=>(RepresentationKind::Tree,&[][..]),
             RepresentationInput::Computed(table)=>(RepresentationKind::Computed,table.kinds.as_slice()),
             RepresentationInput::Compact(_)=>(RepresentationKind::Compact,&[][..]),
-            RepresentationInput::Positioned(_)=>(RepresentationKind::Positioned,&[][..]),
         };
         Ok(RelationContract{input,kind,kinds,rows:RowCount(0),metadata:Ok(())})
     }"#,
@@ -63,7 +61,7 @@ const METHODS: &[(&str, &str)] = &[
     ),
 ];
 
-const KINDS: &[&str] = &["Stored", "Selected", "Tree", "Computed", "Compact", "Positioned"];
+const KINDS: &[&str] = &["Stored", "Tree", "Computed", "Compact"];
 
 fn production_in(name: &str) -> String {
     fs::read_to_string(
@@ -104,17 +102,14 @@ pub mod domain {
         pub struct Table {pub kinds:Vec<crate::domain::relations::types::CellKind>,pub cells:Vec<crate::domain::relations::types::Value>}
     }}
     pub mod table_words {pub mod types {pub struct CompactTable;}}
-    pub mod stored_selection {pub mod types {#[derive(Clone,Copy)]pub struct BorrowedPositions<'a>(pub &'a [u32]);}}
     pub mod table_cells {pub mod types {#[derive(Clone,Copy)]pub struct TreeRows<'a>(pub &'a());
       #[derive(Clone,Copy,PartialEq,Eq)]pub enum TreeForm {Elements,Edges}}}
     pub mod table_model {
         pub mod types {
-          #[derive(Clone,Copy)]pub struct PositionedRows<'a>(pub &'a());
           use crate::domain::relations::types::{CellKind,ColumnsView};
           use crate::domain::plan_parts::types::ColumnIndex;
           use crate::domain::table_cells::types::TreeRows;
           use crate::domain::rows::types::Table;
-          use crate::domain::stored_selection::types::BorrowedPositions;
           __INPUT__
           pub mod registered_representation {pub mod value {__VALUE__}}
         }
@@ -125,11 +120,9 @@ pub mod domain {
             pub mod interface {__INTERFACE__}
             pub mod types {__TYPES__}
             pub mod stored {pub mod item {pub(crate) use super::super::Legitimate as StoredItem;}}
-            pub mod selected {pub mod item {pub(crate) use super::super::Legitimate as SelectedItem;}}
             pub mod tree {pub mod item {pub(crate) use super::super::Legitimate as TreeItem;}}
             pub mod computed {pub mod item {pub(crate) use super::super::Legitimate as ComputedItem;}}
             pub mod compact {pub mod item {pub(crate) use super::super::Legitimate as CompactItem;}}
-            pub mod positioned {pub mod item {pub(crate) use super::super::Legitimate as PositionedItem;}}
             pub(crate) struct Legitimate;
             impl interface::RepresentationsItem for Legitimate {__METHODS__}
         }}
@@ -244,11 +237,6 @@ fn physical_readers_cannot_gain_scheduler_cache_mutation_or_static_source_lifeti
             "computed_mutation",
             "fn forbidden(input:RepresentationInput<'_>){if let RepresentationInput::Computed(table)=input{table.cells.clear();}}",
             "E0596",
-        ),
-        (
-            "selected_mutation",
-            "fn forbidden(input:RepresentationInput<'_>){if let RepresentationInput::Selected{positions,..}=input{positions.0[0]=1;}}",
-            "E0594",
         ),
         (
             "source_escape",

@@ -46,15 +46,6 @@ pub(in crate::application::file_dag) fn shared_vector<T>(rows: &Vec<T>) -> ByteC
     )
 }
 
-/// Like `shared_vector`, but none when the reserved room overflows.
-pub(in crate::application::file_dag) fn shared_vector_checked<T>(
-    rows: &Vec<T>,
-) -> Option<ByteCount> {
-    (size_of::<Vec<T>>() + 2 * size_of::<usize>())
-        .checked_add(checked::<T>(SlotCount(rows.capacity()))?.0)
-        .map(ByteCount)
-}
-
 /// A compact table's own metadata: its header, its frames, kinds and row offsets by reserved room.
 pub(in crate::application::file_dag) fn compact_table(
     table: &ryo_values::domain::table_words::types::CompactTable,

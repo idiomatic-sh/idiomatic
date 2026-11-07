@@ -55,7 +55,7 @@ mod census_admit_partition_denied {
 pub(in super::super) static ACQUIRE_STORED: Acquire = Acquire {
     positive: r#"
 mod census_acquire_stored {
-    use crate::application::file_dag::derived::owner::{DerivedOwner, ViewContext, acquisition::{admission::service::{AcquiredView, AdmittedViewInputs}, selection::types::StoredColumns}};
+    use crate::application::file_dag::derived::owner::{DerivedOwner, ViewContext, acquisition::{admission::service::{AcquiredView, AdmittedViewInputs}, population::types::StoredColumns}};
     use crate::domain::{derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch}, operating::errors::OperatingError};
     use std::sync::Arc;
     fn demand(owner: &DerivedOwner, plan: &Arc<DerivedContract>, admitted: &AdmittedViewInputs<'_>, inputs: DerivedInputs<'_, '_>, scratch: &mut DerivedScratch, stored: Option<StoredColumns>) -> Result<AcquiredView, OperatingError> { owner.acquire_stored(plan, admitted, ViewContext::default(), inputs, scratch, stored) }
@@ -80,7 +80,7 @@ mod census_acquire_stored_denied {
 pub(in super::super) static ACQUIRE_STORED_WITH_ROUTE: Acquire = Acquire {
     positive: r#"
 mod census_acquire_stored_with_route {
-    use crate::application::file_dag::{route_counts::types::BuildRoute, derived::owner::{DerivedOwner, ViewContext, acquisition::{admission::service::{AcquiredView, AdmittedViewInputs}, selection::types::StoredColumns}}};
+    use crate::application::file_dag::{route_counts::types::BuildRoute, derived::owner::{DerivedOwner, ViewContext, acquisition::{admission::service::{AcquiredView, AdmittedViewInputs}, population::types::StoredColumns}}};
     use crate::domain::{derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch}, operating::errors::OperatingError};
     use std::sync::Arc;
     fn demand(owner: &DerivedOwner, route: BuildRoute, plan: &Arc<DerivedContract>, admitted: &AdmittedViewInputs<'_>, inputs: DerivedInputs<'_, '_>, scratch: &mut DerivedScratch, stored: Option<StoredColumns>) -> Result<AcquiredView, OperatingError> { owner.acquire_stored_with_route(route, plan, admitted, ViewContext::default(), inputs, scratch, stored) }
@@ -152,74 +152,23 @@ mod census_scoped_build_denied {
         "mismatched",
     ),
 };
-pub(in super::super) static FINITE_RAW: Acquire = Acquire {
+pub(in super::super) static PREPARE_PROGRAM_FILE: Acquire = Acquire {
     positive: r#"
-mod census_finite_raw {
-    use crate::application::file_dag::{relations::RelationOwner, program::runtime::service::KernelPermit};
-    use crate::domain::{derived_views::types::contract::value::DerivedContract, operating::errors::OperatingError};
-    use std::{rc::Rc, sync::Arc};
-    fn raw<'a>(owner: Rc<RelationOwner>, plan: Arc<DerivedContract>, permit: &'a KernelPermit<'a>) -> Result<(), OperatingError> {
-        let _ = owner.derived().finite_raw(Rc::clone(&owner), Some(plan), permit)?;
-        Ok(())
-    }
-    const _: () = { let _ = raw; };
+mod census_prepare_program_file {
+    use crate::application::file_dag::derived::owner::DerivedOwner;
+    const _: () = { let _ = DerivedOwner::prepare_program_file; };
 }
 "#,
     negative: refuses(
         r#"
-mod census_finite_raw_denied {
-    use crate::application::file_dag::relations::RelationOwner;
-    use crate::domain::derived_views::types::contract::value::DerivedContract;
-    use std::{rc::Rc, sync::Arc};
-    fn forge(owner: Rc<RelationOwner>, plan: Arc<DerivedContract>) { let _ = owner.derived().finite_raw(Rc::clone(&owner), Some(plan)); }
-    const _: () = { let _ = forge; };
-}
-"#,
-        "E0061",
-        "KernelPermit",
-        "argument",
-    ),
-};
-pub(in super::super) static WITH_RAW_ORDER: Acquire = Acquire {
-    positive: r#"
-mod census_with_raw_order {
-    use crate::application::file_dag::derived::owner::raw_scope::RawScope;
-    use crate::domain::{operating::errors::OperatingError, positions::types::{Keys, Stride}};
-    fn order(scope: &mut RawScope, keys: &Keys) -> Result<(), OperatingError> { scope.with_raw_order(keys, Stride(1), &mut |_order| Ok(())) }
-    const _: () = { let _ = order; };
-}
-"#,
-    negative: refuses(
-        r#"
-mod census_with_raw_order_denied {
-    use crate::application::file_dag::{derived::owner::raw_scope::RawScope, relations::RelationOwner};
-    use std::rc::Rc;
-    fn forge(owner: Rc<RelationOwner>) -> RawScope { RawScope::for_program(owner, None, None) }
-    const _: () = { let _ = forge; };
-}
-"#,
-        "E0624",
-        "for_program",
-        "private",
-    ),
-};
-pub(in super::super) static EVALUATE_NATIVE: Acquire = Acquire {
-    positive: r#"
-mod census_evaluate_native {
-    use crate::application::file_dag::derived::owner::raw_scope::RawScope;
-    const _: () = { let _ = RawScope::evaluate_native; };
-}
-"#,
-    negative: refuses(
-        r#"
-mod census_evaluate_native_denied {
-    use crate::application::file_dag::derived::owner::raw_scope::RawScope;
-    fn peek(scope: &RawScope) { let _ = &scope.working; }
+mod census_prepare_program_file_denied {
+    use crate::application::file_dag::derived::owner::DerivedOwner;
+    fn peek(owner: &DerivedOwner) { let _ = &owner.file_prepared; }
     const _: () = { let _ = peek; };
 }
 "#,
         "E0616",
-        "working",
+        "file_prepared",
         "private",
     ),
 };

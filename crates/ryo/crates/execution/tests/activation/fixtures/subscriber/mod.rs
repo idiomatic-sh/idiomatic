@@ -2,11 +2,10 @@ use std::sync::{Arc, Mutex};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Sample {
-    /// Rule-relation lookup, relation visit, graph probe, selector-range lookup,
-    /// selector visit, comparison visit, repetition visit, fanout visit.
-    pub work: [u64; 8],
-    /// Actual visited rule indices in relation, graph and selector lookups.
-    pub rule_sums: [u64; 3],
+    /// Rule-relation lookup, relation visit, graph probe.
+    pub work: [u64; 3],
+    /// Actual visited rule indices in relation and graph lookups.
+    pub rule_sums: [u64; 2],
     pub graph_hits: u64,
     pub blocks: u64,
     pub bytes: u64,
@@ -45,13 +44,8 @@ impl tracing::field::Visit for EventFields {
                 "relation_rule" => 3,
                 "relation_visit" => 4,
                 "graph_rule" => 5,
-                "selector_rule" => 6,
-                "selector" => 7,
-                "candidate" => 8,
-                "repetition" => 9,
-                "fanout" => 10,
-                "graph_hit" => 11,
-                "rule_metadata" => 12,
+                "graph_hit" => 6,
+                "rule_metadata" => 7,
                 _ => 0,
             };
         }
@@ -101,19 +95,16 @@ impl tracing::Subscriber for Activation {
             state.sample.bytes = heap.total_bytes - state.before.1;
             state.ends += 1;
             state.active = false;
-        } else if state.active && fields.event == 12 {
+        } else if state.active && fields.event == 7 {
             state.access.reads += 1;
             state.access.read_rules += fields.rule;
-        } else if state.active && fields.event == 11 {
+        } else if state.active && fields.event == 6 {
             state.sample.graph_hits += 1;
-        } else if state.active && (3..=10).contains(&fields.event) {
+        } else if state.active && (3..=5).contains(&fields.event) {
             state.sample.work[usize::from(fields.event - 3)] += 1;
             match fields.event {
                 3 => state.sample.rule_sums[0] += fields.rule,
-                5 => {
-                    state.sample.rule_sums[1] += fields.rule;
-                }
-                6 => state.sample.rule_sums[2] += fields.rule,
+                5 => state.sample.rule_sums[1] += fields.rule,
                 _ => {}
             }
         }

@@ -6,13 +6,11 @@ use ryo_language::domain::elements::service::{
 };
 use ryo_language::domain::elements::types::Elements;
 
-use ryo_relations::domain::relations::service::from_bits;
 use ryo_relations::domain::relations::service::node_id;
-use ryo_relations::domain::relations::types::{Bits, Integer, Position, Span, Value};
+use ryo_relations::domain::relations::types::{Integer, Position, Span, Value};
 use ryo_relations::domain::terms::types::Symbol;
 
 use crate::domain::table_cells::types::{CellsRead, ColumnPlaces, TreeForm, TreeRows};
-use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 
 /// The name of the kind of the element at `at`, as the table's vocabulary names it.
 ///
@@ -70,35 +68,6 @@ pub(crate) fn edge_of(tree: &TreeRows<'_>, child: Position) -> [Value; 5] {
         Value::Symbol(field_name_at(tree.elements, child)),
         Value::File(tree.file),
     ]
-}
-
-/// Reads into `scratch`, which is as wide as the rows, the cells at `columns` of the stored row at
-/// `index`, and nothing else: a row is decided on a few of its cells before it is read whole.
-/// Answers whether the row is there.
-pub(crate) fn read_cells(
-    view: &ColumnsView<'_>,
-    index: RowIndex,
-    scratch: &mut [Value],
-    columns: &ColumnPlaces,
-) -> CellsRead {
-    let read = columns.0.iter().all(|place| {
-        let (Some(kind), Some(FactColumn(numbers)), Some(slot)) = (
-            view.kinds.get(*place),
-            view.columns.get(*place),
-            scratch.get_mut(*place),
-        ) else {
-            return false;
-        };
-        numbers.get(index.0).is_some_and(|number| {
-            *slot = from_bits(*kind, Bits(*number));
-            true
-        })
-    });
-    if read {
-        CellsRead::Read
-    } else {
-        CellsRead::Missing
-    }
 }
 
 /// Reads into `scratch`, which is as wide as the rows, the cells at `columns` of the row at `index` of
@@ -224,7 +193,10 @@ pub(crate) fn find_native(
             // leads to the root.
             match tree.form {
                 TreeForm::Edges if key == ryo_values::domain::plan_parts::types::ColumnIndex(0) => {
-                    found.extend(ryo_language::domain::elements::service::children(tree.elements, at));
+                    found.extend(ryo_language::domain::elements::service::children(
+                        tree.elements,
+                        at,
+                    ));
                 }
                 TreeForm::Edges if at.0 == 0 => {}
                 TreeForm::Edges | TreeForm::Elements => found.push(at),

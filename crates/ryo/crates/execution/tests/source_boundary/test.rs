@@ -43,7 +43,6 @@ fn actual_runtime_authority_is_private_to_its_owner() {
     let kernel_service = fs::read_to_string(source.join(super::derived::KERNEL)).unwrap();
     let cache_types = fs::read_to_string(source.join(super::derived::CACHE)).unwrap();
     let access_types = fs::read_to_string(source.join(super::derived::TYPES)).unwrap();
-    let raw_scope = fs::read_to_string(source.join(super::derived::RAW_SCOPE)).unwrap();
     let inbound_use_case = fs::read_to_string(source.join(super::derived::INBOUND)).unwrap();
     let activation_setup = fs::read_to_string(source.join(super::activation::SETUP)).unwrap();
     let mut probes = vec![
@@ -94,18 +93,6 @@ fn actual_runtime_authority_is_private_to_its_owner() {
             owner: PROGRAM,
             source: format!(
                 "{SIBLING} fn ordered<'a>(execution: &'a ProgramExecution, input: &'a AdmittedInput) {{ let _ = KernelPermit::ordered(execution, input); }} const _: for<'a> fn(&'a ProgramExecution, &'a AdmittedInput) = ordered; }}"
-            ),
-            expected: Expectation::Refuse {
-                code: "E0308",
-                first: "KernelAdmission",
-                second: "ProgramExecution",
-            },
-        },
-        Probe {
-            compilation: Compilation::Library,
-            owner: PROGRAM,
-            source: format!(
-                "{SIBLING} fn column<'a>(execution: &'a ProgramExecution, input: &'a AdmittedInput) {{ let _ = KernelPermit::column(execution, input, input); }} const _: for<'a> fn(&'a ProgramExecution, &'a AdmittedInput) = column; }}"
             ),
             expected: Expectation::Refuse {
                 code: "E0308",
@@ -192,11 +179,6 @@ fn actual_runtime_authority_is_private_to_its_owner() {
     probes.extend([
         Probe { compilation: Compilation::Library,
             owner: PROGRAM,
-            source: "mod unregistered_operator { use crate::domain::operator::collections::operators::interface::OperatorsItem as Route; fn bypass(_: &dyn Route) {} const _: fn(&dyn Route) = bypass; }".into(),
-            expected: Expectation::Refuse { code: "E0603", first: "OperatorsItem", second: "private" },
-        },
-        Probe { compilation: Compilation::Library,
-            owner: PROGRAM,
             source: "mod unregistered_representation { fn bypass(_: &dyn crate::domain::table_model::collections::representations::interface::RepresentationsItem) {} const _: fn(&dyn crate::domain::table_model::collections::representations::interface::RepresentationsItem) = bypass; }".into(),
             expected: Expectation::Refuse { code: "E0603", first: "RepresentationsItem", second: "private" },
         },
@@ -251,7 +233,6 @@ fn actual_runtime_authority_is_private_to_its_owner() {
         fs::write(overlay.path().join(super::derived::MODULE), &derived_module).unwrap();
         fs::write(overlay.path().join(super::derived::ISSUER), &derived_issuer).unwrap();
         fs::write(overlay.path().join(super::derived::KERNEL), &kernel_service).unwrap();
-        fs::write(overlay.path().join(super::derived::RAW_SCOPE), &raw_scope).unwrap();
         fs::write(
             overlay.path().join(super::derived::INBOUND),
             &inbound_use_case,
@@ -279,7 +260,6 @@ fn actual_runtime_authority_is_private_to_its_owner() {
             super::derived::MODULE => &derived_module,
             super::derived::ISSUER => &derived_issuer,
             super::derived::KERNEL => &kernel_service,
-            super::derived::RAW_SCOPE => &raw_scope,
             super::derived::INBOUND => &inbound_use_case,
             super::derived::CACHE => &cache_types,
             super::derived::TYPES => &access_types,

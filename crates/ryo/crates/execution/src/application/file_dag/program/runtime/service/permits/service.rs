@@ -3,7 +3,6 @@ use super::super::{BoundInputs, KernelAdmission, KernelPermit, ProgramExecution,
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::ProducerRoot;
 use crate::application::file_dag::program::runtime::types::InstructionIndex;
-use crate::application::file_dag::relations::RelationOwner;
 use crate::domain::executable_program::types::InputId;
 use crate::domain::executable_program::types::InputSource;
 use crate::domain::executable_program::types::RegionId;
@@ -134,17 +133,6 @@ impl<'scope> KernelPermit<'scope> {
         &self,
     ) -> &crate::domain::executable_program::types::instruction::value::Instruction {
         &self.program.regions()[self.region.0].instructions()[self.instruction.0]
-    }
-    /// Derived acquisition must borrow the owner of this actual live invocation.
-    pub(in crate::application::file_dag) fn validate_derived_owner(
-        &self,
-        owner: &RelationOwner,
-    ) -> Result<(), OperatingError> {
-        self.validate_live()?;
-        if !std::ptr::eq(self.owner, owner) || owner.matches_generation(self.generation) == crate::application::file_dag::relations::types::Sameness::Different {
-            return Err(OperatingError::NotRead);
-        }
-        Ok(())
     }
     pub(in crate::application::file_dag) fn semantics(&self) -> SemanticPermit<'_> {
         SemanticPermit {

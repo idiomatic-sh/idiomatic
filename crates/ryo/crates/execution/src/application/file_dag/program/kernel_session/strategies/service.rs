@@ -6,11 +6,7 @@ use crate::{
     application::file_dag::workspace::InvocationWorkspace,
     domain::{
         operating::{
-            errors::OperatingError,
-            types::{Emit, OperatorContext},
-        },
-    },
-};
+            types::{Emit, OperatorContext}}}};
 use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use std::rc::Rc;
 

@@ -7,7 +7,7 @@ use crate::application::file_dag::{execution::CommonOperatorEngine, scope::Scope
 use crate::domain::{
     file_program::types::RuleSchedule,
     operating::types::Emit as RowSink,
-    positions::service_test::{SMALL_SOURCE, SmallTree, small_tree},
+    table_cells::fixtures::{SMALL_SOURCE, SmallTree, small_tree},
     prepared_request::types::{Compiled, ObservationIdentity},
     table_cells::types::{TreeForm, TreeRows},
 };

@@ -3,7 +3,6 @@ use crate::outbound::operators::interface::OperatorsPort as _;
 use super::super::super::cases::test::table_of;
 use super::super::super::*;
 use super::super::fixtures::{REFUSAL, refusal};
-use ryo_operators::domain::equality_join::types::JoinInput;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
@@ -15,12 +14,18 @@ struct KeepsCalling {
 impl crate::outbound::operators::interface::OperatorsPort for KeepsCalling {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         match call {
-            OperatorCall::Project { .. } if self.refuse_project => {
+            OperatorCall::Evaluate {
+                operation: ryo_values::domain::plans::types::Operation::Project { .. },
+                ..
+            } if self.refuse_project => {
                 Err(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(REFUSAL) })
             }
-            OperatorCall::EqualityJoin {
-                input: JoinInput::Values { driver, .. },
+            OperatorCall::Evaluate {
+                operation: ryo_values::domain::plans::types::Operation::Join { .. },
+                driver,
+                ..
             } => {
+                let driver = driver.join();
                 if self.refuse_project {
                     assert!(driver.emit(&[Cell::Number(Integer(1))]).is_err());
                     assert!(driver.emit(&[Cell::Number(Integer(2))]).is_err());

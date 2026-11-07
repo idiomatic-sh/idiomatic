@@ -8,12 +8,6 @@ const CASES: &[Case<Mutation, (), Rejected>] = &[
         input: || Mutation::DenseReads,
         expect: Expect::Error(Rejected::DormantReads),
     },
-    Case {
-        name: CaseName("independent_allocator_rejects_request_sized_repetition_reservation"),
-        word: Word::Rejects,
-        input: || Mutation::DenseCapacity,
-        expect: Expect::Error(Rejected::DormantAllocation),
-    },
 ];
 #[test]
 fn rejects() {

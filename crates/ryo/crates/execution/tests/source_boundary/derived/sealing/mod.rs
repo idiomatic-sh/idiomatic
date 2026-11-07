@@ -34,8 +34,8 @@ fn cache_fields() -> Vec<String> {
         fields.push(name.to_owned());
     }
     assert!(
-        fields.len() >= 21,
-        "the backend declares at least the 21 fields known at the review: {fields:?}"
+        fields.len() >= 13,
+        "the backend declares at least the 13 fields known at the fold: {fields:?}"
     );
     fields
 }
@@ -72,26 +72,6 @@ mod dependency_authorized {
 "#;
 const CACHE_MUTATOR: &str = r#"
 mod cache_mutator { use crate::application::file_dag::derived::owner::cache::types::CacheBackend; fn mutate(cache: &mut CacheBackend) { cache.observe_graph_walk(crate::domain::stored_graph::types::ExpandedVertices(1), crate::domain::stored_graph::types::ExaminedVertices(1)); } const _: fn(&mut CacheBackend) = mutate; }
-"#;
-const CACHE_BINDING: &str = r#"
-mod cache_binding {
-    use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
-    use crate::domain::derived_views::types::contract::value::PreparedSelectionViews;
-    use std::sync::Arc;
-    fn mutate(cache: &mut CacheBackend, views: Arc<PreparedSelectionViews>) { cache.bind_request_views(views); }
-    const _: fn(&mut CacheBackend, Arc<PreparedSelectionViews>) = mutate;
-}
-"#;
-const SELECTION_BUILD: &str = r#"
-mod selection_build {
-    use super::selection::service::SelectionSource;
-    use crate::domain::{derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch}, operating::errors::OperatingError};
-    use std::sync::Arc;
-    fn escape(source: &SelectionSource<'_>, plan: &Arc<DerivedContract>, inputs: DerivedInputs<'_, '_>, scratch: &mut DerivedScratch) -> Result<(), OperatingError> {
-        source.build(plan, inputs, scratch).map(|_| ())
-    }
-    const _: fn(&SelectionSource<'_>, &Arc<DerivedContract>, DerivedInputs<'_, '_>, &mut DerivedScratch) -> Result<(), OperatingError> = escape;
-}
 "#;
 
 const PORT_BUILD: &str = r#"
@@ -160,7 +140,7 @@ fn refuse(
     }
 }
 
-pub(super) fn controls(root: &'static str, module: &'static str) -> Vec<Probe> {
+pub(super) fn controls(root: &'static str) -> Vec<Probe> {
     let fields = cache_fields();
     let field_reads = fields
         .iter()
@@ -173,23 +153,15 @@ pub(super) fn controls(root: &'static str, module: &'static str) -> Vec<Probe> {
         Probe { compilation: Compilation::Library, owner: root, source: CONTRACT_PREPARED.into(), expected: Expectation::Accept },
         refuse(root, DEPENDENCY_FORGERY.into(), "E0451", "backings", "private"),
         Probe { compilation: Compilation::Library, owner: root, source: DEPENDENCY_AUTHORIZED.into(), expected: Expectation::Accept },
-        Probe {
-            compilation: Compilation::LibraryTests,
-            owner: root,
-            source: "mod cache_test_field { use crate::application::file_dag::derived::owner::cache::types::CacheBackend; fn escape(cache: &CacheBackend) { let _ = &cache.selector_descriptor; } const _: fn(&CacheBackend) = escape; }".into(),
-            expected: Expectation::Refuse { code: "E0616", first: "CacheBackend", second: "private" },
-        },
         refuse(root, CACHE_MUTATOR.into(), "E0624", "observe_graph_walk", "private"),
-        refuse(root, CACHE_BINDING.into(), "E0624", "bind_request_views", "private"),
         Probe {
             compilation: Compilation::Library,
             owner: CACHE,
             source: format!(
-                "mod cache_owner {{ use super::CacheBackend; use crate::domain::derived_views::types::contract::value::PreparedSelectionViews; use std::sync::Arc; fn own(cache: &mut CacheBackend, views: Arc<PreparedSelectionViews>) {{ {field_reads} cache.observe_graph_walk(crate::domain::stored_graph::types::ExpandedVertices(1), crate::domain::stored_graph::types::ExaminedVertices(1)); cache.bind_request_views(views); }} const _: fn(&mut CacheBackend, Arc<PreparedSelectionViews>) = own; }}"
+                "mod cache_owner {{ use super::CacheBackend; fn own(cache: &mut CacheBackend) {{ {field_reads} cache.observe_graph_walk(crate::domain::stored_graph::types::ExpandedVertices(1), crate::domain::stored_graph::types::ExaminedVertices(1)); }} const _: fn(&mut CacheBackend) = own; }}"
             ),
             expected: Expectation::Accept,
         },
-        refuse(module, SELECTION_BUILD.into(), "E0624", "build", "private"),
         // The builder port: a file_dag sibling can prepare through the capability, and can
         // neither call build, name the accessor nor read the port; the owner reads it.
         refuse(root, PORT_BUILD.into(), "E0599", "build", "DerivedAccess"),

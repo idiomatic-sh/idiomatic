@@ -9,19 +9,15 @@ use std::{
 #[derive(Clone, Copy)]
 pub(super) enum Mutation {
     DenseReads,
-    DenseCapacity,
 }
 #[derive(Debug, PartialEq, Eq)]
 pub(super) enum Rejected {
     DormantReads,
-    DormantAllocation,
 }
 pub(super) struct ActualSource {
     overlay: tempfile::TempDir,
     setup: String,
-    selection: String,
 }
-const SELECTION: &str = "src/application/file_dag/derived/owner/selection/preparation/service.rs";
 const SPARSE: &str = "same_131_rule_sparse_intent_reads_only_its_required_metadata";
 const ALLOCATION: &str =
     "one_selector_has_identical_actual_work_and_allocations_with_128_dormant_roots";
@@ -54,7 +50,6 @@ impl ActualSource {
         .unwrap();
         Self {
             setup: fs::read_to_string(source.join(super::SETUP)).unwrap(),
-            selection: fs::read_to_string(source.join(SELECTION)).unwrap(),
             overlay,
         }
     }
@@ -119,7 +114,6 @@ impl ActualSource {
         // Every mutant starts from exactly the same production source. Neither
         // mutation changes the public131-rule request or its sparse intent[0].
         fs::write(self.overlay.path().join(super::SETUP), &self.setup).unwrap();
-        fs::write(self.overlay.path().join(SELECTION), &self.selection).unwrap();
         let (case, message, rejected) = match mutation {
             Mutation::DenseReads => {
                 let anchor = super::ANCHOR;
@@ -130,19 +124,6 @@ impl ActualSource {
                     SPARSE,
                     "sparse intent must not read dormant rule metadata",
                     Rejected::DormantReads,
-                )
-            }
-            Mutation::DenseCapacity => {
-                let anchor = ".try_reserve(cache.selectors.len())";
-                assert_eq!(self.selection.matches(anchor).count(), 1);
-                let mutant = self
-                    .selection
-                    .replacen(anchor, ".try_reserve(views.groups.0)", 1);
-                fs::write(self.overlay.path().join(SELECTION), mutant).unwrap();
-                (
-                    ALLOCATION,
-                    "sparse intent must not allocate dormant metadata",
-                    Rejected::DormantAllocation,
                 )
             }
         };

@@ -53,7 +53,7 @@ struct ReductionAudit {
 impl ryo_execution::outbound::operators::interface::OperatorsPort for ReductionAudit {
     fn operators(
         &self,
-        call: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,
+        mut call: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,
     ) -> Result<
         ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
         ryo_operators::domain::contract::types::PortableOperatorFault,
@@ -61,14 +61,20 @@ impl ryo_execution::outbound::operators::interface::OperatorsPort for ReductionA
         use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
         use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
         use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
-        match &call {
+        match &mut call {
             OperatorCall::ReduceCount { .. } => {
                 self.reductions
                     .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             }
-            OperatorCall::Aggregate { .. } => {
+            OperatorCall::Evaluate {
+                operation: ryo_values::domain::plans::types::Operation::GroupCount { .. } | ryo_values::domain::plans::types::Operation::GroupDigest { .. },
+                driver,
+                ..
+            } => {
+                // One aggregate is formatted for each prepared group.
+                let groups = driver.groups().map_or(0, |groups| groups.0);
                 self.emissions
-                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    .fetch_add(groups, std::sync::atomic::Ordering::Relaxed);
             }
             _ => {}
         }

@@ -2,7 +2,6 @@
 use crate::outbound::derived::interface::DerivedPort;
 use ryo_derived::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace, DerivedView};
 use ryo_derived::domain::fault::types::DerivedFault;
-use ryo_derived::domain::raw_words::types::RawWords;
 use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
@@ -107,7 +106,7 @@ pub fn check(adapter: &impl DerivedPort) {
             }
             Scenario::BuildsFromAnotherKind => {
                 let built =
-                    adapter.build(&prepared, BuildInputs::RawWords(RawWords(&[])), &mut room, None)?;
+                    adapter.build(&prepared, BuildInputs::Native(ryo_derived::domain::native::types::NativeForm::Edges), &mut room, None)?;
                 Ok(usize::from(matches!(built, BuildOutcome::Built(_))))
             }
         }

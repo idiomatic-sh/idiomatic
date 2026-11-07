@@ -181,11 +181,6 @@ impl AdmittedInput {
         self.publication(owner)?;
         Ok(())
     }
-    pub(in crate::application::file_dag::program) fn validate_publication(
-        &self,
-    ) -> Result<(), OperatingError> {
-        self.publication(&self.proof.owner).map(|_| ())
-    }
     pub(in crate::application::file_dag::program) fn walk_source<'call>(
         &'call self,
         relation: ryo_relations::domain::relations::types::Relation,

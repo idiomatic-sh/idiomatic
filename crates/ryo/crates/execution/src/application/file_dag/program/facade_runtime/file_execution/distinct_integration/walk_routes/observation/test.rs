@@ -1,13 +1,13 @@
 //! A normalized named union is not the relation population with the same cell kinds.
 use super::super::super::*;
 use super::super::fixtures::plans::Authored;
-use super::super::fixtures::semantics::{BuildPolicy, Derived, Meanings};
+use super::super::fixtures::semantics::{Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, cells, demand};
 
 #[test]
 fn named_population_barrier_cannot_reuse_a_direct_relation_class_or_erase_replay() {
     let meanings = Arc::new(Meanings::default());
-    let derived = Arc::new(Derived::new(BuildPolicy::Normal));
+    let derived = Arc::new(Derived::new());
     let program = Program::new(
         Authored::named(),
         Population::Three,

@@ -5,8 +5,7 @@ use crate::application::file_dag::derived::owner::{
     fixtures::graph::GraphFixture, index::service::LIMIT,
 };
 use crate::domain::stored_graph::types::{GraphWalk, Orientation};
-use crate::domain::stored_selection::types::SelectionIdentity;
-use crate::domain::table_model::types::{Rows, SelectedRows, StoredSelection};
+use crate::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Integer, Relation, Value,
 };
@@ -82,67 +81,6 @@ fn shared_adjacency_builds_once_and_sparse_root_memo_avoids_retraversal() {
     assert_eq!(reverse.orientation(), Orientation::Reverse);
     assert!(Arc::ptr_eq(first.raw_graph(), reverse.raw_graph()));
     assert!(fixture.snapshot().bytes <= LIMIT);
-}
-
-#[test]
-fn exact_selected_bindings_population_and_projection_determine_graph_identity() {
-    let columns = [FactColumn(vec![1, 2, 90]), FactColumn(vec![2, 3, 91])];
-    let source = ColumnsView {
-        kinds: &[CellKind::Number; 2],
-        columns: &columns,
-    };
-    let fixture = GraphFixture::new(&[Relation::Function, Relation::Identifier], &[], LIMIT);
-    let selection = |bound, positions, columns| {
-        Rows::Selected(SelectedRows {
-            source,
-            selection: Arc::new(StoredSelection {
-                relation: Relation::Function,
-                identity: Arc::new(SelectionIdentity {
-                    comparisons: vec![],
-                    bindings: vec![
-                        ryo_values::domain::query_bindings::types::ParameterBinding::Number(
-                            ryo_values::domain::plan_parts::types::WholeNumber(bound),
-                        ),
-                    ],
-                }),
-                rows: crate::domain::stored_selection::types::SelectedPositions(Arc::new(positions)),
-                columns,
-                kinds: vec![CellKind::Number; 2],
-            }),
-        })
-    };
-    let first = selection(1, vec![0, 1], vec![ColumnIndex(0), ColumnIndex(1)]);
-    let original = fixture
-        .acquire(SOURCE, &first, ENDPOINTS, &[])
-        .unwrap()
-        .unwrap();
-    let reordered = selection(1, vec![0, 1], vec![ColumnIndex(1), ColumnIndex(0)]);
-    let same = fixture
-        .acquire(SOURCE, &reordered, [ENDPOINTS[1], ENDPOINTS[0]], &[])
-        .unwrap()
-        .unwrap();
-    assert!(Arc::ptr_eq(original.raw_graph(), same.raw_graph()));
-    for different in [
-        selection(2, vec![0, 1], vec![ColumnIndex(0), ColumnIndex(1)]),
-        selection(1, vec![0, 2], vec![ColumnIndex(0), ColumnIndex(1)]),
-    ] {
-        let graph = fixture
-            .acquire(SOURCE, &different, ENDPOINTS, &[])
-            .unwrap()
-            .unwrap();
-        assert!(!Arc::ptr_eq(original.raw_graph(), graph.raw_graph()));
-    }
-    let other = fixture
-        .acquire(
-            Input::Relation(Relation::Identifier),
-            &Rows::Stored(source),
-            ENDPOINTS,
-            &[],
-        )
-        .unwrap()
-        .unwrap();
-    assert!(!Arc::ptr_eq(original.raw_graph(), other.raw_graph()));
-    assert_eq!(fixture.snapshot().counts.builds, 4);
 }
 
 #[test]

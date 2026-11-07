@@ -205,11 +205,6 @@ fn every_derived_consumer_is_censused_and_every_kind_names_its_controls() {
             );
         }
     }
-    let (raw_file, raw_cases) = kind::RAW_CASES;
-    let raw = std::fs::read_to_string(src.join(raw_file)).unwrap();
-    for case in raw_cases {
-        assert!(raw.contains(case), "RawKeyOrder exit case {case} exists");
-    }
     for entry in Entry::ALL {
         if matches!(entry.row().class, Class::Acquires(_)) {
             assert!(

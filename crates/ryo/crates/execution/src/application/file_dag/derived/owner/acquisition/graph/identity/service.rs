@@ -4,7 +4,6 @@ use crate::application::file_dag::workspace::GraphInput;
 use crate::domain::stored_graph::types::{self as graph, GraphIdentity};
 use crate::domain::table_model::{service::count_of, types::Rows};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::rows::types::RowCount;
 /// Prove an eligible physical population and compose selected columns before sharing graph data.
 pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn source(
     input: &GraphInput<'_>,

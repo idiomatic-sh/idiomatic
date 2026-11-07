@@ -9,52 +9,6 @@ use crate::application::file_dag::derived::owner::*;
 use crate::application::file_dag::route_counts;
 
 impl DerivedOwner {
-    pub(in crate::application::file_dag::derived::owner::acquisition) fn acquire_with(
-        &self,
-        plan: &Arc<DerivedContract>,
-        admitted: &AdmittedViewInputs<'_>,
-        context: ViewContext,
-        stored_observation: StoredObservation,
-        mut cache: Option<&mut CacheBackend>,
-        build: impl FnOnce(Option<&mut CacheBackend>) -> Result<Acquisition, OperatingError>,
-    ) -> Result<AcquiredView, OperatingError> {
-        self.acquire_with_requirement(
-            RequirementIdentity::prepared(plan),
-            plan,
-            admitted,
-            context,
-            stored_observation,
-            cache,
-            build,
-        )
-    }
-    pub(in crate::application::file_dag::derived::owner::acquisition) fn acquire_with_requirement(
-        &self,
-        requirement: RequirementIdentity,
-        plan: &Arc<DerivedContract>,
-        admitted: &AdmittedViewInputs<'_>,
-        context: ViewContext,
-        stored_observation: StoredObservation,
-        mut cache: Option<&mut CacheBackend>,
-        build: impl FnOnce(Option<&mut CacheBackend>) -> Result<Acquisition, OperatingError>,
-    ) -> Result<AcquiredView, OperatingError> {
-        self.acquire_shared_with_requirement(
-            requirement,
-            plan,
-            admitted,
-            context,
-            stored_observation,
-            cache,
-            |cache| {
-                build(cache).map(|made| Acquisition {
-                    storage: Arc::new(made.storage),
-                    construction: made.construction,
-                    backend: made.backend,
-                    optional: made.optional,
-                })
-            },
-        )
-    }
     pub(in crate::application::file_dag::derived::owner::acquisition) fn acquire_shared_with_requirement(
         &self,
         requirement: RequirementIdentity,

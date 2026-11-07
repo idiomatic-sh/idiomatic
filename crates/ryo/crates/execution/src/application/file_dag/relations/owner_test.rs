@@ -5,7 +5,7 @@ use crate::domain::{
     operating::errors::OperatingError,
     table_model::{
         collections::representations::types::{PhysicalShape, RepresentationKind},
-        types::{PublishedRelation, Rows, SelectedRows, StoredSelection},
+        types::{PublishedRelation, Rows},
     },
 };
 use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
@@ -128,10 +128,8 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
 #[cfg(test)]
 mod fixtures;
 #[cfg(test)]
-mod producer_test;
-#[cfg(test)]
 mod projection_test;
-use fixtures::{columns, group, read, row, selected};
+use fixtures::{columns, group, read, row};
 
 #[test]
 fn every_catalog_relation_is_admitted_resolved_and_read_with_its_actual_schema() {
@@ -342,7 +340,5 @@ fn normalization_reuses_one_owned_fallback_without_promoting_missing_rows() {
     assert_eq!(owner.checks.get(), crate::application::file_dag::relations::types::CheckCount(1));
 }
 
-#[cfg(test)]
-mod reuse_test;
 
 mod publication;

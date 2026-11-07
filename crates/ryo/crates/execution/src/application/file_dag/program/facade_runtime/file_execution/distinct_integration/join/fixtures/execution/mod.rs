@@ -24,7 +24,6 @@ pub(crate) struct Observation {
     pub(crate) fed: Vec<crate::domain::operator::types::RowsFed>,
     pub(crate) instructions: usize,
     pub(crate) frontiers: Vec<Table>,
-    pub(crate) frontier_errors: Vec<OperatingError>,
     pub(crate) affected: Vec<Option<FileId>>,
 }
 /// Fixture behavior belongs to real external source/sink dependencies only.
@@ -209,7 +208,6 @@ pub(crate) fn execute(
         }
     };
     let work = file.route_observation(RuleIndex(0), target)?;
-    let mut frontier_errors = vec![];
     let frontiers = if has_frontier {
         let mut arena = vec![];
         let mut places = vec![];
@@ -232,13 +230,8 @@ pub(crate) fn execute(
         )?
         .into_iter()
         .filter_map(|capture| {
-            let capture = match capture.outcome {
-                Ok(capture) => capture,
-                Err(error) => {
-                    frontier_errors.push(error);
-                    return None;
-                }
-            };
+            // A refused frontier capture contributes no frontier table.
+            let capture = capture.outcome.ok()?;
             let ryo_values::domain::table_words::types::Admitted { table: compact, .. } =
                 admit_compact(
                     ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(
@@ -286,7 +279,6 @@ pub(crate) fn execute(
         fed,
         instructions,
         frontiers,
-        frontier_errors,
         affected,
     })
 }

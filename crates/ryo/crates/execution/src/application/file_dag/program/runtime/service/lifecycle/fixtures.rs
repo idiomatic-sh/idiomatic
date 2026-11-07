@@ -15,16 +15,13 @@ use crate::domain::operating::types::Emit;
 use crate::domain::operating::types::OperatorContext;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, Integer, Value};
-use ryo_values::domain::rows::types::Table;
 use std::{
     cell::{Cell, RefCell},
-    rc::Rc,
-};
+    rc::Rc};
 use {
     crate::domain::coverage::types::RuleIndex,
     crate::domain::table_scratch::types::OperatorScratch,
-    ryo_values::domain::files::types::SourceView,
-};
+    ryo_values::domain::files::types::SourceView};
 
 #[derive(Clone, Copy)]
 pub(super) enum RuntimeProbeMode {

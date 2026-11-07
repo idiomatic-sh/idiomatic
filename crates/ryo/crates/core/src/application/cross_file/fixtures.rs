@@ -358,7 +358,7 @@ pub(super) struct ProjectCalls {
 impl ryo_execution::outbound::operators::interface::OperatorsPort for ProjectCalls {
     fn operators(
         &self,
-        call: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,
+        mut call: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,
     ) -> Result<
         ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
         ryo_operators::domain::contract::types::PortableOperatorFault,
@@ -366,12 +366,18 @@ impl ryo_execution::outbound::operators::interface::OperatorsPort for ProjectCal
         use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
         use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
         use std::sync::atomic::Ordering;
-        match &call {
+        match &mut call {
             OperatorCall::ReduceCount { .. } => {
                 self.reductions.fetch_add(1, Ordering::SeqCst);
             }
-            OperatorCall::Aggregate { .. } => {
-                self.aggregates.fetch_add(1, Ordering::SeqCst);
+            OperatorCall::Evaluate {
+                operation: ryo_values::domain::plans::types::Operation::GroupCount { .. } | ryo_values::domain::plans::types::Operation::GroupDigest { .. },
+                driver,
+                ..
+            } => {
+                // One aggregate is formatted for each prepared group.
+                let groups = driver.groups().map_or(0, |groups| groups.0);
+                self.aggregates.fetch_add(groups, Ordering::SeqCst);
             }
             _ => {}
         }

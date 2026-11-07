@@ -23,7 +23,6 @@ enum Scenario {
     ForeignDescriptor,
     SubstitutedRows,
     UnprovedDense,
-    UnpermittedRaw,
     ExpiredView,
     CloneKeepsLease,
 }
@@ -68,12 +67,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
-        name: CaseName("ordinary_source_is_not_raw_invocation_authority"),
-        word: Word::Refuses,
-        input: || Input::UnpermittedRaw,
-        expect: Expect::Error(OperatingError::NotRead),
-    },
-    Case {
         name: CaseName("held_payload_remains_immutable_under_its_required_lease"),
         word: Word::Succeeds,
         input: || Input::ExpiredView,
@@ -103,9 +96,6 @@ fn subject(input: Input) -> Result<(), Failure> {
     let rows = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
     let proof = owner.admit(publication.as_ref(), BorrowedRows::from(&rows))?;
     let request = match input {
-        Input::UnpermittedRaw => ViewRequest::RawKeyOrder {
-            stride: crate::domain::positions::types::Stride(1),
-        },
         Input::UnprovedDense => ViewRequest::Membership {
             column: ColumnIndex(0),
         },
@@ -184,17 +174,6 @@ fn subject(input: Input) -> Result<(), Failure> {
                     rows: proof.rows(),
                     space: MembershipSpace::Dense(&[]),
                 },
-                &mut scratch,
-                None,
-            )
-            .map(|_| ()),
-        Input::UnpermittedRaw => owner
-            .derived()
-            .acquire_stored(
-                &plan,
-                &admitted,
-                Default::default(),
-                DerivedInputs::RawWords(&crate::domain::positions::types::Keys(vec![2, 1, 2])),
                 &mut scratch,
                 None,
             )

@@ -46,55 +46,49 @@ impl Meanings {
 }
 impl crate::outbound::operators::interface::OperatorsPort for Meanings {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
-        match &call {
-            OperatorCall::Append { appended, .. } if *appended == [Value::Number(Integer(99))] => {
-                self.failed.fetch_add(1, Ordering::Relaxed);
-                return Err(PortableOperatorFault::WrongOperation);
+        if let OperatorCall::Evaluate {
+            operation, views, ..
+        } = &call
+        {
+            use ryo_values::domain::plans::types::Operation;
+            match operation {
+                Operation::Extend { .. }
+                    if views.appended == Some(&[Value::Number(Integer(99))][..]) =>
+                {
+                    self.failed.fetch_add(1, Ordering::Relaxed);
+                    return Err(PortableOperatorFault::WrongOperation);
+                }
+                Operation::Extend { .. } => {
+                    self.appended.fetch_add(1, Ordering::Relaxed);
+                }
+                Operation::Project { .. } => {
+                    self.projects.fetch_add(1, Ordering::Relaxed);
+                }
+                Operation::Union { .. }
+                | Operation::Intersection { .. }
+                | Operation::Difference { .. }
+                | Operation::Antijoin { .. } => {
+                    self.unions.fetch_add(1, Ordering::Relaxed);
+                }
+                _ => {}
             }
-            OperatorCall::Append { .. } => {
-                self.appended.fetch_add(1, Ordering::Relaxed);
-            }
-            OperatorCall::Project { .. } => {
-                self.projects.fetch_add(1, Ordering::Relaxed);
-            }
-            OperatorCall::SetRow { .. } => {
-                self.unions.fetch_add(1, Ordering::Relaxed);
-            }
-            _ => {}
         }
         crate::application::file_dag::fixtures::operators().operators(call)
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-pub(in super::super) enum BuildPolicy {
-    Normal,
-    RefuseDistinct,
-}
 #[derive(Debug)]
 pub(in super::super) struct Derived {
-    policy: BuildPolicy,
     calls: Mutex<Vec<ViewRequest>>,
 }
 impl Derived {
-    pub(in super::super) fn new(policy: BuildPolicy) -> Self {
+    pub(in super::super) fn new() -> Self {
         Self {
-            policy,
             calls: Mutex::new(vec![]),
         }
     }
     pub(in super::super) fn snapshot(&self) -> Vec<ViewRequest> {
         self.calls.lock().unwrap().clone()
-    }
-    pub(in super::super) fn distinct_calls(&self) -> Calls {
-        Calls(
-            self.calls
-                .lock()
-                .unwrap()
-                .iter()
-                .filter(|request| matches!(request, ViewRequest::DistinctRepresentatives { .. }))
-                .count(),
-        )
     }
 }
 impl DerivedPort for Derived {
@@ -109,14 +103,6 @@ impl DerivedPort for Derived {
         recycled: Option<DerivedPayload>,
     ) -> Result<BuildOutcome, DerivedFault> {
         self.calls.lock().unwrap().push(prepared.request().clone());
-        if matches!(self.policy, BuildPolicy::RefuseDistinct)
-            && matches!(
-                prepared.request(),
-                ViewRequest::DistinctRepresentatives { .. }
-            )
-        {
-            return Err(DerivedFault::DuplicateOrder);
-        }
         crate::application::file_dag::fixtures::derived().build(prepared, inputs, room, recycled)
     }
     fn view<'a>(

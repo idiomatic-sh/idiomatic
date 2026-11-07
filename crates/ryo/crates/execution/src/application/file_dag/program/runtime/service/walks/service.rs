@@ -1,6 +1,5 @@
 //! Walk-source admission for a live kernel permit.
 use super::super::KernelPermit;
-use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::AdmittedWalkSource;
 use crate::application::file_dag::program::admission::FileGeneration;
 use crate::application::file_dag::program::admission::Partition;
@@ -41,8 +40,7 @@ impl KernelPermit<'_> {
         let source = self.bound_input(InputId(0))?;
         use ryo_values::domain::{
             plan_parts::types::{Input, RepeatedRows},
-            plans::types::Operation,
-        };
+            plans::types::Operation};
         let authored = match &self.descriptor().operation() {
             Operation::Select {
                 from: Input::Relation(authored),

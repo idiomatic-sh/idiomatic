@@ -95,20 +95,6 @@ impl RelationOwner {
     ) -> Result<PublishedInput, OperatingError> {
         self.leased_publication(record, None)
     }
-    pub(super) fn publication_with_resources(
-        &self,
-        record: Arc<RelationResult>,
-        resources: [Option<super::super::derived::owner::acquisition::admission::service::AcquiredView>;
-            2],
-    ) -> Result<PublishedInput, OperatingError> {
-        let dependencies = resources
-            .iter()
-            .flatten()
-            .map(|view| view.dependency())
-            .collect::<Vec<_>>();
-        let dependencies = (!dependencies.is_empty()).then(|| Arc::from(dependencies));
-        self.leased_publication(record, dependencies)
-    }
     fn leased_publication(
         &self,
         record: Arc<RelationResult>,

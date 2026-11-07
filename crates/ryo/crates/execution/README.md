@@ -4,10 +4,6 @@ Owns Ryo's compiled request execution, source admission, shared scheduling, publ
 
 ## Domains
 
-### column_kernel
-
-Defines the column-oriented join kernels used by admitted execution.
-
 ### comparing
 
 Evaluates typed selection comparisons against borrowed rows and bindings.
@@ -64,17 +60,9 @@ Checks query kind names against the linked language vocabulary.
 
 Prepares named kind comparisons as sets of admitted kinds.
 
-### lowering
-
-Derives tree-position shapes for eligible file-local operations.
-
 ### matching
 
 Evaluates compiled text patterns over borrowed query values.
-
-### native_positions
-
-Evaluates admitted select, project, join, antijoin, union and axis positions.
 
 ### numeric_values
 
@@ -104,10 +92,6 @@ Checks ordered existence against prepared join inputs.
 
 Decides which configured rules govern a source file.
 
-### positions
-
-Represents borrowed tree coordinates and their row geometry.
-
 ### prepared_request
 
 Holds immutable request declarations consumed by compilation.
@@ -119,10 +103,6 @@ Describes how produced rows are passed to their consumers.
 ### rules
 
 Looks up admitted rule coordinates in the compiled request.
-
-### selections
-
-Evaluates tree selections and projections over borrowed rows.
 
 ### shared_walk
 
@@ -139,10 +119,6 @@ Classifies compatible selection steps before shared traversal.
 ### stored_graph
 
 Describes generation-bound graph population and adjacency.
-
-### stored_selection
-
-Describes selectors prepared once for stored relations.
 
 ### table_cells
 
@@ -175,10 +151,6 @@ Resolves table text cells through their retained name sources.
 ### text_gate
 
 Prepares fixed text comparisons for tree selection.
-
-### tree_join
-
-Matches tree edges to admitted left rows in demand order.
 
 ### tree_walk
 

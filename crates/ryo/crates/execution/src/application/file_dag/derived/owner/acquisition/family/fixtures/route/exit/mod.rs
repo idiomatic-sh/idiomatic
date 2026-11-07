@@ -18,26 +18,18 @@ pub(in crate::application::file_dag) enum Entry {
     Workspace,
     /// The `PartitionedClosure` cursor of `closure_partitions`.
     Partition,
-    /// `DerivedOwner::select` over a stored relation.
-    Selection,
     /// `acquire_graph` and `acquire_graph_domain` over an admitted graph input.
     Graph,
-    /// `finite_raw` and `with_raw_order`, which require a `KernelPermit`.
-    Permit,
 }
 /// Exhaustive on purpose: a new family must name its production entry before this file compiles.
 pub(in crate::application::file_dag) fn entry(kind: DerivedKind) -> Entry {
     match kind {
-        DerivedKind::RawKeyOrder => Entry::Permit,
         DerivedKind::Equality
         | DerivedKind::CycleAdjacency
         | DerivedKind::OrderedKeys
         | DerivedKind::OrderedDfs
         | DerivedKind::NativeLookup => Entry::Workspace,
         DerivedKind::PartitionOrder | DerivedKind::ClosureAdjacency => Entry::Partition,
-        DerivedKind::PredicateMatches
-        | DerivedKind::CandidatePostings
-        | DerivedKind::DistinctRepresentatives => Entry::Selection,
         DerivedKind::Adjacency | DerivedKind::Membership => Entry::Graph,
     }
 }

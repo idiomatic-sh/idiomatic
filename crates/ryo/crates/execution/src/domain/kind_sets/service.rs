@@ -1,7 +1,6 @@
 //! The `kind_sets` service: the comparisons that name a kind, as sets of kinds, with no IO and no ports.
 
 use ryo_language::domain::elements::service::{kind_names, kind_vocabulary};
-use ryo_language::domain::kind_index::service::of_kind;
 use ryo_language::domain::symbols::service::text_of;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::constants::NO_SYMBOL;
@@ -16,18 +15,15 @@ use crate::domain::comparing::collections::comparisons::equality::item::Equality
 use crate::domain::comparing::collections::comparisons::glob::item::GlobItem;
 use crate::domain::comparing::collections::comparisons::interface::ComparisonsItem as _;
 use crate::domain::operating::types::OperatorContext;
-use crate::domain::operating::types::{KindNaming, KindNarrowing};
+use crate::domain::operating::types::KindNaming;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::types::{SetMembership, Verdict};
 use crate::domain::table_scratch::service::kind_has;
-use crate::domain::table_scratch::types::{
-    Candidates, KindSet, KindSetPlace, KindTest, NamingPlace, NamingTest,
-};
+use crate::domain::table_scratch::types::{ KindSet, KindSetPlace, KindTest, NamingPlace, NamingTest};
 use crate::domain::table_texts::types::{Datum, TextView};
 use ryo_values::domain::descriptions::types::KindWord;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, LiteralText, Operand, PlanComparison, QueryLiteral, Test,
-};
+    ColumnIndex, LiteralText, Operand, PlanComparison, QueryLiteral, Test};
 
 /// Whether the comparison asks of the kind of an element something fixed, which the sets of kinds decide.
 pub(crate) fn names_a_kind(comparison: &PlanComparison) -> KindNaming {
@@ -199,41 +195,6 @@ pub(crate) fn passes(scratch: &KindScratch, kind: KindBits) -> Verdict {
     } else {
         Verdict::Fails
     }
-}
-
-/// The places of the elements of a tree that the comparisons of their kind leave, when one of them
-/// names few enough kinds: found among the elements of those kinds, in the order of the tree.
-pub(crate) fn candidates_of(
-    tree: &TreeRows<'_>,
-    scratch: &KindScratch,
-    candidates: &mut Candidates,
-) -> KindNarrowing {
-    let candidates = &mut candidates.0;
-    let Some(set) = scratch
-        .tests
-        .0
-        .iter()
-        .map(|set| set_at(scratch, KindSetPlace(*set)))
-        .min_by_key(|named| named.kinds.len())
-    else {
-        return KindNarrowing::Whole;
-    };
-    let kinds = &set.kinds;
-    if kinds.len() * 4 > kind_names(tree.elements).len() {
-        return KindNarrowing::Whole;
-    }
-    candidates.clear();
-    for kind in kinds {
-        candidates.extend(
-            of_kind(tree.elements, *kind)
-                .iter()
-                .map(|position| position.0),
-        );
-    }
-    if kinds.len() > 1 {
-        candidates.sort_unstable();
-    }
-    KindNarrowing::Narrowed
 }
 
 /// The kinds of the smallest set the tests name, in order: every kind that passes them is among these.

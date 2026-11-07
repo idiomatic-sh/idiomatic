@@ -1,12 +1,12 @@
 //! A source class is not a continuation result, and its consumers own immutable answers.
 use super::super::super::*;
 use super::super::fixtures::plans::Authored;
-use super::super::fixtures::semantics::{BuildPolicy, Calls, Derived, Meanings};
+use super::super::fixtures::semantics::{Calls, Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, cells, demand};
 
 fn exercise(residency: Residency) -> Result<(), OperatingError> {
     let meanings = Arc::new(Meanings::default());
-    let derived = Arc::new(Derived::new(BuildPolicy::Normal));
+    let derived = Arc::new(Derived::new());
     let program = Program::new(
         Authored::continuations(),
         Population::Three,

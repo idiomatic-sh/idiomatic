@@ -84,13 +84,7 @@ pub(crate) fn read_row<'s>(
     index: RowIndex,
     scratch: &'s mut Vec<Value>,
 ) -> Option<&'s [Value]> {
-    let found = borrowed(rows)
-        .read(index, scratch);
-    #[cfg(test)]
-    if let Some(row) = found {
-        super::fixtures::note_read_row(row.len());
-    }
-    found
+    borrowed(rows).read(index, scratch)
 }
 
 /// Copies the rows into `into`, keeping the room `into` has.

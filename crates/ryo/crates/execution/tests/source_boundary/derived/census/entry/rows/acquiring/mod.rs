@@ -4,10 +4,8 @@ use super::super::*;
 pub(super) fn row(entry: Entry) -> Row {
     let admission = owner!("acquisition/admission/service/issuance/service.rs");
     let acquisition = owner!("acquisition/service.rs");
-    let raw = owner!("raw_scope.rs");
     let graph = owner!("graph.rs");
     let roots = owner!("graphs/types/roots/value.rs");
-    let selection = owner!("selection/mod.rs");
     let setup = owner!("setup.rs");
     let owner = owner!("mod.rs");
     let cached: &'static [&'static str] = &[];
@@ -18,7 +16,6 @@ pub(super) fn row(entry: Entry) -> Row {
             &c::admission::ADMIT_VIEW,
             &[
                 file!("closure_partitions/schemas.rs"),
-                file!("relations/selected_access.rs"),
                 file!("workspace/mod.rs"),
                 file!("workspace/service.rs"),
             ],
@@ -51,7 +48,7 @@ pub(super) fn row(entry: Entry) -> Row {
             acquisition,
             "acquire_stored_with_route",
             &c::admission::ACQUIRE_STORED_WITH_ROUTE,
-            &[file!("relations/selected_access.rs")],
+            &[],
             ".acquire_stored_with_route(",
             "",
         ),
@@ -69,30 +66,6 @@ pub(super) fn row(entry: Entry) -> Row {
             &c::admission::SCOPED_BUILD,
             &[file!("closure_partitions.rs")],
             ".scoped_build(",
-            "",
-        ),
-        Entry::FiniteRaw => acquires(
-            raw,
-            "finite_raw",
-            &c::admission::FINITE_RAW,
-            &[file!("program/kernel_session/positions/service.rs")],
-            ".finite_raw(",
-            "",
-        ),
-        Entry::WithRawOrder => acquires(
-            raw,
-            "with_raw_order",
-            &c::admission::WITH_RAW_ORDER,
-            &[],
-            ".with_raw_order(",
-            "",
-        ),
-        Entry::EvaluateNative => acquires(
-            raw,
-            "evaluate_native",
-            &c::admission::EVALUATE_NATIVE,
-            &[file!("program/kernel_session/positions/service.rs")],
-            ".evaluate_native(",
             "",
         ),
         Entry::PrepareGraph => acquires(
@@ -154,36 +127,12 @@ pub(super) fn row(entry: Entry) -> Row {
             ".nearest(",
             "DemandAnswers",
         ),
-        Entry::SelectorPlan => acquires(
-            selection,
-            "selector_plan",
-            &c::selection::SELECTOR_PLAN,
-            &[file!("program/selection.rs")],
-            ".selector_plan(",
-            "",
-        ),
-        Entry::Select => acquires(
-            selection,
-            "select",
-            &c::selection::SELECT,
-            &[file!("program/selection.rs")],
-            ".select(",
-            "derived",
-        ),
         Entry::PrepareProgramFile => acquires(
             setup,
             "prepare_program_file",
-            &c::selection::PREPARE_PROGRAM_FILE,
+            &c::admission::PREPARE_PROGRAM_FILE,
             &[file!("program/facade_runtime/file_execution.rs")],
             ".prepare_program_file(",
-            "",
-        ),
-        Entry::PrepareViewsWithSchemas => acquires(
-            owner!("selection/preparation/service.rs"),
-            "prepare_views_with_schemas",
-            &c::selection::PREPARE_VIEWS,
-            &[file!("service.rs")],
-            "prepare_views_with_schemas(",
             "",
         ),
         _ => unreachable!(),

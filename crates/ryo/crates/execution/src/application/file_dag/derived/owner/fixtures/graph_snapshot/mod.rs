@@ -6,7 +6,6 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 /// What the owner counted, as plain numbers for a test to compare.
 pub(in crate::application::file_dag) struct SnapshotCounts {
     pub reclaimed_indexes: u64,
-    pub reclaimed_selections: u64,
     pub reclaimed_bytes: u64,
     pub pinned_refusals: u64,
     pub builds: u64,
@@ -36,8 +35,6 @@ pub(in crate::application::file_dag) struct Snapshot {
     pub overlap_bytes: usize,
     pub graph_backings: usize,
     pub retained_view_bytes: usize,
-    pub selections: usize,
-    pub retained_positions: usize,
 }
 impl GraphFixture {
     pub(in crate::application::file_dag) fn snapshot(&self) -> Snapshot {
@@ -59,7 +56,6 @@ impl GraphFixture {
         Snapshot {
             counts: SnapshotCounts {
                 reclaimed_indexes: c.reclaimed_indexes.0,
-                reclaimed_selections: c.reclaimed_selections.0,
                 reclaimed_bytes: c.reclaimed_bytes.0,
                 pinned_refusals: c.pinned_refusals.0,
                 builds: c.builds.0,
@@ -94,8 +90,6 @@ impl GraphFixture {
                 .backing_count(crate::application::file_dag::derived::ledger::types::BackingTag(9))
                 .0,
             retained_view_bytes: self.owner.derived().state.borrow().retained_bytes.0,
-            selections: self.owner.derived().state.borrow().retained_predicates.0,
-            retained_positions: s.optional_units.0,
         }
     }
 }
