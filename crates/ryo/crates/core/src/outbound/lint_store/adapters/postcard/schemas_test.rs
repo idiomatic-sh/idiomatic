@@ -1,10 +1,10 @@
 //! What the schemas of this adapter accept and refuse, one row of `CASES` for each input.
 
 use super::super::types::TableOfContents;
-use super::{
-    bucket_bytes, bucket_from, contents, contents_bytes, rest_bytes, rest_from, tables_bytes,
-    tables_of,
-};
+use super::buckets::schemas::{bucket_bytes, bucket_from};
+use super::contents::schemas::{contents, contents_bytes};
+use super::rest::schemas::{rest_bytes, rest_from};
+use super::tables::schemas::{tables_bytes, tables_of};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::lint_store::fixtures::tables::stored;
 use ryo_language::domain::files::types::FilePath;
