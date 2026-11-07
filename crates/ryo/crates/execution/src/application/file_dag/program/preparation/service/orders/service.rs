@@ -9,7 +9,7 @@ use std::sync::Arc;
 pub(in crate::application::file_dag::program::preparation) fn prepare(
     program: &ExecutableProgram,
     derived: &crate::application::file_dag::derived::owner::types::DerivedAccess,
-) -> Result<Box<[Option<Arc<crate::domain::derived_views::types::DerivedContract>>]>, OperatingError>
+) -> Result<Box<[Option<Arc<crate::domain::derived_views::types::contract::value::DerivedContract>>]>, OperatingError>
 {
     Ok(program
         .regions()

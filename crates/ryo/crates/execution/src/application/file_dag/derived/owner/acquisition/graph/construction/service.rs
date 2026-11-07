@@ -26,7 +26,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adja
     owner: &DerivedOwner,
     population: PopulationId,
     admitted: &AdmittedViewInputs<'_>,
-    plan: &std::sync::Arc<crate::domain::derived_views::types::DerivedContract>,
+    plan: &std::sync::Arc<crate::domain::derived_views::types::contract::value::DerivedContract>,
     source: crate::domain::stored_graph::types::GraphSource,
     rows: &Rows<'_>,
     cache: Option<&mut CacheBackend>,
@@ -91,7 +91,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adja
 pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn domain(
     owner: &DerivedOwner,
     population: PopulationId,
-    plan: &Arc<crate::domain::derived_views::types::DerivedContract>,
+    plan: &Arc<crate::domain::derived_views::types::contract::value::DerivedContract>,
     admitted: &AdmittedViewInputs<'_>,
     access: &GraphHandle,
     identity: Option<crate::domain::stored_graph::types::DomainIdentity>,

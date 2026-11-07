@@ -94,9 +94,12 @@ fn exercise(exit: Exit) -> Result<(), OperatingError> {
             group.primary.plan.kind == ryo_derived::domain::contract::types::DerivedKind::Equality
         })
         .expect("actual Join declares Equality");
-    assert_eq!(equality.primary.len, 1);
+    assert_eq!(
+        equality.primary.len,
+        crate::domain::derived_views::types::InputsUsed(1)
+    );
     let crate::domain::executable_program::types::OperandSource::Boundary(input) =
-        join.inputs()[equality.primary.inputs[0]]
+        join.inputs()[equality.primary.inputs[0].0]
     else {
         panic!("observed Equality must have a real upstream publication")
     };

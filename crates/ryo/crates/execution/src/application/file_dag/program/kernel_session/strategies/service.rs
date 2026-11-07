@@ -36,6 +36,7 @@ impl super::super::KernelSession<'_, '_> {
             phase: context.phase,
             semantic: context.semantic,
             prepared_matchers: context.prepared_matchers,
+            matcher: context.matcher,
             prepared_kinds: context.prepared_kinds,
             bindings: self
                 .prepared
@@ -123,6 +124,7 @@ impl super::super::KernelSession<'_, '_> {
             phase: context.phase,
             semantic: context.semantic,
             prepared_matchers: context.prepared_matchers,
+            matcher: context.matcher,
             prepared_kinds: context.prepared_kinds,
             bindings: self
                 .prepared
@@ -188,6 +190,7 @@ impl super::super::KernelSession<'_, '_> {
             phase: context.phase,
             semantic: context.semantic,
             prepared_matchers: context.prepared_matchers,
+            matcher: context.matcher,
             prepared_kinds: context.prepared_kinds,
             bindings: self
                 .prepared

@@ -23,7 +23,7 @@ impl RelationOwner {
     }
     pub(in crate::application::file_dag) fn stored_equality(
         &self,
-        plan: &Arc<crate::domain::derived_views::types::DerivedContract>,
+        plan: &Arc<crate::domain::derived_views::types::contract::value::DerivedContract>,
         relation: Relation,
         source: ryo_relations::domain::relations::types::ColumnsView<'_>,
     ) -> Result<

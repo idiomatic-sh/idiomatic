@@ -2,7 +2,7 @@
 use super::DerivedOwner;
 use crate::application::file_dag::relations::RelationOwner;
 use crate::domain::{
-    derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch, ViewRequest},
+    derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch, ViewRequest},
     operating::errors::OperatingError,
 };
 use ryo_derived::domain::contract::types::{DerivedView, RawOrder};
@@ -62,7 +62,7 @@ impl RawScope {
             self.admitted
                 .as_ref()
                 .ok_or(OperatingError::WrongOperation)?,
-            DerivedInputs::RawWords(&keys.0),
+            DerivedInputs::RawWords(keys),
             self.working.take(),
             &mut self.room,
         )?;

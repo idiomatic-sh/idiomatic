@@ -7,7 +7,7 @@ pub(in crate::application::file_dag::invocation) fn prepared(
     kind: ryo_derived::domain::contract::types::DerivedKind,
 ) -> Result<&crate::domain::derived_views::types::PreparedViewUse, OperatingError> {
     let slots = &contract.derived.slots;
-    slots[crate::domain::derived_views::service::slot(kind)]
+    slots[kind.ordinal()]
         .as_ref()
         .map(|group| group.primary.as_ref())
         .ok_or(OperatingError::NotRun)

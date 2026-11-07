@@ -1,6 +1,7 @@
 //! Static request interpretation and immutable access; no acquisition or retained policy.
-use super::types::{DerivedContract, ViewRequest};
+use super::types::contract::value::{DerivedContract, kind_of};
 use crate::domain::operating::errors::OperatingError;
+use ryo_derived::domain::contract::types::DerivedKind;
 
 pub(crate) fn validate(
     expected: DerivedKind,
@@ -11,27 +12,3 @@ pub(crate) fn validate(
     }
     contract.metadata.clone()
 }
-pub(crate) fn kind_of(request: &ViewRequest) -> DerivedKind {
-    match request {
-        ViewRequest::RawKeyOrder { .. } => DerivedKind::RawKeyOrder,
-        ViewRequest::Equality { .. } => DerivedKind::Equality,
-        ViewRequest::PredicateMatches(_) => DerivedKind::PredicateMatches,
-        ViewRequest::CandidatePostings { .. } => DerivedKind::CandidatePostings,
-        ViewRequest::DistinctRepresentatives { .. } => DerivedKind::DistinctRepresentatives,
-        ViewRequest::Adjacency { .. } => DerivedKind::Adjacency,
-        ViewRequest::Membership { .. } => DerivedKind::Membership,
-        ViewRequest::PartitionOrder { .. } => DerivedKind::PartitionOrder,
-        ViewRequest::ClosureAdjacency { .. } => DerivedKind::ClosureAdjacency,
-        ViewRequest::CycleAdjacency { .. } => DerivedKind::CycleAdjacency,
-        ViewRequest::OrderedKeys { .. } => DerivedKind::OrderedKeys,
-        ViewRequest::OrderedDfs(_) => DerivedKind::OrderedDfs,
-        ViewRequest::NativeLookup { .. } => DerivedKind::NativeLookup,
-    }
-}
-
-/// Constant prepared-slot lookup; runtime hits never scan or clone request metadata.
-pub(crate) fn slot(kind: DerivedKind) -> usize {
-    kind.ordinal()
-}
-
-use ryo_derived::domain::contract::types::DerivedKind;

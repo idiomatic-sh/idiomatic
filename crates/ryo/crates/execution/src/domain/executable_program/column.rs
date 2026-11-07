@@ -4,12 +4,12 @@
 use crate::domain::{
     column_kernel::types::Chain,
     coverage::types::RuleIndex,
-    derived_views::types::ViewRequest,
+    derived_views::types::{InputsUsed, ViewRequest},
     executable_program::types::{ColumnAlternative, RegionId},
     file_program::types::{ProgramNodeId, RequestGraph, SchemaValidity},
 };
 use ryo_derived::domain::contract::types::DerivedKind;
-use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::plan_parts::types::{InputNumber, StepId};
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
@@ -60,7 +60,7 @@ impl ColumnCandidates {
                 let (Some(filter), Some(join), Some(left)) = (
                     original(graph, rule, chain.filter_step),
                     original(graph, rule, chain.join_step),
-                    original(graph, rule, StepId(chain.left_step as u32)),
+                    original(graph, rule, chain.left_step),
                 ) else {
                     continue;
                 };
@@ -81,8 +81,8 @@ impl ColumnCandidates {
                     continue;
                 };
                 let primary = &equality.primary;
-                if primary.len != 1
-                    || primary.inputs[0] != 1
+                if primary.len != InputsUsed(1)
+                    || primary.inputs[0] != InputNumber(1)
                     || primary.relations[0] != Some(chain.right)
                     || primary.plan.kind != DerivedKind::Equality
                     || !matches!(

@@ -3,7 +3,10 @@ use crate::application::file_dag::derived::constants;
 use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::population::types::PopulationId;
-use crate::domain::{derived_views::types::*, operating::errors::OperatingError};
+use crate::domain::{
+    derived_views::types::{contract::value::DerivedContract, *},
+    operating::errors::OperatingError,
+};
 use acquisition::semantics::storage::DerivedStorage;
 use footprint::service::storage_bytes;
 use std::{

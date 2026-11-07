@@ -3,7 +3,7 @@ use crate::application::file_dag::derived::ledger::types::{Backing, ResourceLeas
 use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage;
 use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::domain::{
-    derived_views::types::{DerivedContract, DerivedInputs, MembershipSpace},
+    derived_views::types::{contract::value::DerivedContract, DerivedInputs, MembershipSpace},
     operating::errors::OperatingError,
 };
 use ryo_derived::domain::contract::types::DerivedKind;

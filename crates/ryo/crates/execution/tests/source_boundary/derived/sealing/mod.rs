@@ -38,14 +38,14 @@ fn cache_fields() -> Vec<String> {
     fields
 }
 const CONTRACT_UPDATE: &str = r#"
-mod contract_update { use crate::domain::derived_views::types::DerivedContract as Authority; fn forge(value: Authority) -> Authority { Authority { identity_hash: 0, ..value } } const _: fn(Authority) -> Authority = forge; }
+mod contract_update { use crate::domain::derived_views::types::{contract::value::DerivedContract as Authority, IdentityHash}; fn forge(value: Authority) -> Authority { Authority { identity_hash: IdentityHash(0), ..value } } const _: fn(Authority) -> Authority = forge; }
 "#;
 const CONTRACT_READ: &str = r#"
-mod contract_read { use crate::domain::derived_views::types::DerivedContract as Authority; fn peek(value: &Authority) -> u64 { value.identity_hash } const _: fn(&Authority) -> u64 = peek; }
+mod contract_read { use crate::domain::derived_views::types::{contract::value::DerivedContract as Authority, IdentityHash}; fn peek(value: &Authority) -> IdentityHash { value.identity_hash } const _: fn(&Authority) -> IdentityHash = peek; }
 "#;
 const CONTRACT_PREPARED: &str = r#"
 mod contract_prepared {
-    use crate::domain::{derived_views::types::{DerivedContract, ViewRequest}, operating::errors::OperatingError, operation_schema::types::InputShape};
+    use crate::domain::{derived_views::types::{contract::value::DerivedContract, ViewRequest}, operating::errors::OperatingError, operation_schema::types::InputShape};
     use crate::outbound::derived::interface::DerivedPort;
     use std::sync::Arc;
     fn authorized(port: Arc<dyn DerivedPort>, request: &ViewRequest, schemas: &[InputShape<'_>]) -> Result<DerivedContract, OperatingError> {
@@ -83,7 +83,7 @@ mod cache_binding {
 const SELECTION_BUILD: &str = r#"
 mod selection_build {
     use super::selection::service::SelectionSource;
-    use crate::domain::{derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch}, operating::errors::OperatingError};
+    use crate::domain::{derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch}, operating::errors::OperatingError};
     use std::sync::Arc;
     fn escape(source: &SelectionSource<'_>, plan: &Arc<DerivedContract>, inputs: DerivedInputs<'_, '_>, scratch: &mut DerivedScratch) -> Result<(), OperatingError> {
         source.build(plan, inputs, scratch).map(|_| ())

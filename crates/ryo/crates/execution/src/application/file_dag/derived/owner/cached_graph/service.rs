@@ -27,11 +27,10 @@ impl CachedGraph {
         original_inputs: &[Rows<'_>],
         cache: &mut CacheBackend,
     ) -> Result<Option<Self>, OperatingError> {
-        use crate::domain::derived_views::service::slot;
         use ryo_derived::domain::contract::types::DerivedKind;
         let slots = &contract.derived.slots;
         let adjacency = || {
-            slots[slot(DerivedKind::Adjacency)]
+            slots[DerivedKind::Adjacency.ordinal()]
                 .as_ref()
                 .map(|group| &group.primary.plan)
                 .ok_or(OperatingError::NotRun)

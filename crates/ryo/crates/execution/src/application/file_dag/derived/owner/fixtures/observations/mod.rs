@@ -161,7 +161,7 @@ impl DerivedOwner {
             .expect("prepared selector views");
         Arc::get_mut(&mut prepared)
             .expect("unshared request fixture")
-            .groups = 0;
+            .groups = crate::domain::derived_views::types::ViewGroupCount(0);
         crate::application::file_dag::derived::owner::selection::preparation::service::install_views(cache, prepared);
     }
     pub(in crate::application::file_dag::derived::owner) fn fixture_reserve_spare_selections(

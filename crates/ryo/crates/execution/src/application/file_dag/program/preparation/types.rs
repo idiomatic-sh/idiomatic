@@ -111,6 +111,6 @@ pub(crate) struct PreparedProgram {
     pub(super) matchers: Arc<crate::domain::matching::types::prepared::value::PreparedMatchers>,
     pub(super) derived: crate::application::file_dag::derived::prepared::RequestDerived,
     pub(super) native_orders:
-        Box<[Option<Arc<crate::domain::derived_views::types::DerivedContract>>]>,
+        Box<[Option<Arc<crate::domain::derived_views::types::contract::value::DerivedContract>>]>,
     pub(super) walk: crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
 }

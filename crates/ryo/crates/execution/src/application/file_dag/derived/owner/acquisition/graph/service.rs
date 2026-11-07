@@ -29,7 +29,7 @@ use crate::domain::{
 };
 use std::sync::Arc;
 pub(in crate::application::file_dag::derived::owner) fn acquire(
-    plan: &Arc<crate::domain::derived_views::types::DerivedContract>,
+    plan: &Arc<crate::domain::derived_views::types::contract::value::DerivedContract>,
     input: &GraphInput<'_>,
     cache: &mut CacheBackend,
 ) -> Result<Option<GraphHandle>, OperatingError> {
@@ -136,7 +136,7 @@ pub(super) fn graph_selection(
 }
 
 pub(in crate::application::file_dag::derived::owner) fn domain(
-    plan: &Arc<crate::domain::derived_views::types::DerivedContract>,
+    plan: &Arc<crate::domain::derived_views::types::contract::value::DerivedContract>,
     access: &GraphHandle,
     input: &GraphInput<'_>,
     cache: &mut CacheBackend,
@@ -318,7 +318,7 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
 }
 
 pub(super) fn validate_input(
-    plan: &crate::domain::derived_views::types::DerivedContract,
+    plan: &crate::domain::derived_views::types::contract::value::DerivedContract,
     rows: &Rows<'_>,
 ) -> Result<(), OperatingError> {
     plan.metadata.as_ref().map_err(Clone::clone)?;

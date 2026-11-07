@@ -5,7 +5,7 @@ use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::owner::selection::literals::service::first_literal;
 use crate::application::file_dag::derived::owner::selection::types::*;
 use crate::domain::{
-    derived_views::types::DerivedContract,
+    derived_views::types::contract::value::DerivedContract,
     operating::{errors::OperatingError, types::OperatorContext},
     stored_selection::types::Selector,
     table_texts::types::Texts,
@@ -49,7 +49,7 @@ pub(in crate::application::file_dag::derived::owner::selection) fn prepare_activ
     let mut groups = std::collections::BTreeMap::<(_, _), Vec<LiteralText>>::new();
     for selector in &cache.selectors {
         tracing::trace!(target: activation::TARGET, event = activation::FANOUT);
-        let Some(prepared) = views.by_selector.get(&(Arc::as_ptr(selector) as usize)) else {
+        let Some(prepared) = views.by_selector.get(&crate::domain::derived_views::types::SelectorAddress(Arc::as_ptr(selector) as usize)) else {
             continue;
         };
         let Some(kinds) = prepared.postings.schemas.first() else {

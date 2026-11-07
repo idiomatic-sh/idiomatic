@@ -49,7 +49,7 @@ impl PreparedProgram {
     pub(in crate::application::file_dag::program) fn native_order(
         &self,
         region: crate::domain::executable_program::types::RegionId,
-    ) -> Result<Option<Arc<crate::domain::derived_views::types::DerivedContract>>, OperatingError>
+    ) -> Result<Option<Arc<crate::domain::derived_views::types::contract::value::DerivedContract>>, OperatingError>
     {
         self.native_orders
             .get(region.0)
