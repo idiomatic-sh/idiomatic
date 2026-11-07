@@ -2,6 +2,7 @@
 
 use crate::domain::stored_selection::types::{PreparedPlan, Selector};
 use ryo_relations::domain::relations::service::kinds;
+use ryo_values::domain::plan_parts::service::{column_in, parameter_in, step_in};
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input, Operand, ParameterId, RepeatedRows, Test,
@@ -42,8 +43,7 @@ impl<'a> SelectionProgram<'a> {
     fn input(&self, from: Input, steps: &[Option<Arc<Selector>>]) -> Option<Selector> {
         match from {
             Input::BoundObservation(_) => None,
-            Input::Step(id) => steps
-                .get(id.0 as usize)?
+            Input::Step(id) => step_in(steps, id)?
                 .as_deref()
                 .filter(|selector| !selector.distinct)
                 .cloned(),
@@ -100,7 +100,7 @@ impl<'a> SelectionProgram<'a> {
                 if !kept.is_empty() {
                     selector.columns = kept
                         .iter()
-                        .map(|index| selector.columns.get(index.0 as usize).copied())
+                        .map(|index| column_in(&selector.columns, *index).copied())
                         .collect::<Option<_>>()?;
                 }
                 Some(selector)
@@ -113,7 +113,7 @@ impl<'a> SelectionProgram<'a> {
                 let mut selector = self.input(*from, steps)?;
                 selector.columns = columns
                     .iter()
-                    .map(|index| selector.columns.get(index.0 as usize).copied())
+                    .map(|index| column_in(&selector.columns, *index).copied())
                     .collect::<Option<_>>()?;
                 selector.distinct = *distinct == RepeatedRows::Dropped;
                 Some(selector)
@@ -148,10 +148,10 @@ impl<'a> SelectionProgram<'a> {
     /// Remap physical columns and only the bindings this exact predicate sequence references.
     fn operand(&self, operand: &Operand, selector: &mut Selector) -> Option<Operand> {
         Some(match operand {
-            Operand::Column(index) => Operand::Column(*selector.columns.get(index.0 as usize)?),
+            Operand::Column(index) => Operand::Column(*column_in(&selector.columns, *index)?),
             Operand::Literal(value) => Operand::Literal(value.clone()),
             Operand::Parameter(id) => {
-                let value = self.bindings.get(id.0 as usize)?;
+                let value = parameter_in(&self.bindings, id)?;
                 if matches!(
                     value,
                     ParameterBinding::Tables(_) | ParameterBinding::TextSets(_)

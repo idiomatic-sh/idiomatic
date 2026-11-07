@@ -120,9 +120,12 @@ pub(crate) fn link(
             }
             for producer in &mut binding.producers {
                 if let ResolvedObservationProducer::Output { rule, output } = producer {
+                    let Ok(at) = usize::try_from(output.0) else {
+                        return Err(FileProgramError::InvalidReference);
+                    };
                     *output = output_maps
                         .get(rule.0)
-                        .and_then(|mapping| mapping.get(output.0 as usize))
+                        .and_then(|mapping| mapping.get(at))
                         .and_then(|id| *id)
                         .ok_or(FileProgramError::InvalidReference)?;
                 }

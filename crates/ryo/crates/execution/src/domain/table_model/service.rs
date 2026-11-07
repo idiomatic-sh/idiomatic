@@ -29,6 +29,7 @@ use crate::domain::table_cells::service::{edge_of, element_of};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use ryo_derived::domain::contract::key::hash_key;
 use ryo_derived::domain::contract::types::{ChainLink, KeyIndex, On};
+use ryo_values::domain::plan_parts::service::column_in;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::errors::RowsError;
 
@@ -197,9 +198,8 @@ pub(crate) fn rectangular(view: ColumnsView<'_>) -> bool {
 
 /// Decode one typed stored cell, preserving normalization such as nonzero flag encodings.
 fn stored_cell(view: ColumnsView<'_>, row: RowIndex, column: ColumnIndex) -> Option<Value> {
-    let place = column.0 as usize;
-    let kind = view.kinds.get(place)?;
-    let bits = view.columns.get(place)?.0.get(row.0)?;
+    let kind = column_in(view.kinds, column)?;
+    let bits = column_in(view.columns, column)?.0.get(row.0)?;
     Some(from_bits(*kind, Bits(*bits)))
 }
 
@@ -225,8 +225,14 @@ fn selected_view_cell(
     row: RowIndex,
     column: ColumnIndex,
 ) -> Option<Value> {
-    let physical = RowIndex(*view.positions.get(row.0)? as usize);
-    stored_cell(view.source, physical, *view.columns.get(column.0 as usize)?)
+    let Ok(physical) = usize::try_from(*view.positions.get(row.0)?) else {
+        return None;
+    };
+    stored_cell(
+        view.source,
+        RowIndex(physical),
+        *column_in(view.columns, column)?,
+    )
 }
 
 /// Read one typed cell without decoding unused stored payload or allocating a row buffer.

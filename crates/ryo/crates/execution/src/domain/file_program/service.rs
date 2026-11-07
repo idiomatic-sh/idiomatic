@@ -8,6 +8,7 @@ use super::types::{
     ResolvedInput,
 };
 
+use ryo_values::domain::plan_parts::service::{binding_place, step_in};
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{Input, Operand, QueryLiteral, StepId};
 use ryo_values::domain::plans::service::{inputs_of, named};
@@ -44,12 +45,12 @@ fn node_input(
         Input::BoundObservation(input) => Some(ResolvedInput {
             input: Input::Step(StepId(0)),
             edge: NodeInput::Observation(super::types::ObservationGraphInputId(
-                bound_offsets.get(rule)?.checked_add(input.0 as usize)?,
+                bound_offsets.get(rule)?.checked_add(binding_place(input))?,
             )),
         }),
         Input::Step(step) => Some(ResolvedInput {
             input: Input::Step(StepId(0)),
-            edge: NodeInput::Node(*previous.get(step.0 as usize)?.as_ref()?),
+            edge: NodeInput::Node(*step_in(previous, step)?.as_ref()?),
         }),
     }
 }
