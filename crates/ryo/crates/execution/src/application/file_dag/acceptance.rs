@@ -2,6 +2,8 @@
 #[cfg(test)]
 pub(crate) mod column_topology_test;
 #[cfg(test)]
+pub(crate) mod distinct_representatives_test;
+#[cfg(test)]
 pub(crate) mod frontier_service_test;
 #[cfg(test)]
 pub(crate) mod layout_service_test;
