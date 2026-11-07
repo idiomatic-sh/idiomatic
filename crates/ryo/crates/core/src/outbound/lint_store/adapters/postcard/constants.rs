@@ -18,9 +18,9 @@ pub(super) const UNDECODED: &str = "a section of the store does not read back";
 /// How long the number that says how long the table of contents is, immediately before the checked format trailer.
 pub(super) const LENGTH: u64 = 8;
 
-/// Checked before positional postcard decoding; old stores become ordinary cache misses.
-pub(super) const FORMAT: &[u8] =
-    b"ryo-lint-store\0permissions-v1\0observation-readiness-v2\0project-entries-v2\0project-path-kind-v1\0frontier-proof-v1\0";
+/// Checked before positional postcard decoding; a store that does not carry it is a cache miss, and is rebuilt.
+pub(super) const TRAILER: &[u8] =
+    b"ryo-lint-store\0permissions\0observation-readiness\0project-entries\0project-path-kind\0frontier-proof\0";
 
 /// The text "frontier payload lacks its exact source proof".
 pub(super) const FRONTIER_PAYLOAD_LACKS_ITS_EXACT_SOURCE: &str =

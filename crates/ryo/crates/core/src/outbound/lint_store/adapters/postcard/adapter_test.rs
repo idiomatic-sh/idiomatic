@@ -228,7 +228,7 @@ fn damage_contents(
     let file = directory.join("lint.store");
     let bytes = std::fs::read(&file).expect("the store");
     let tagged = bytes
-        .strip_suffix(super::constants::FORMAT)
+        .strip_suffix(super::constants::TRAILER)
         .expect("current version trailer");
     let (body, trailer) = tagged.split_at(tagged.len() - 8);
     let mut word = [0_u8; 8];
@@ -241,7 +241,7 @@ fn damage_contents(
     let mut damaged = sections.to_vec();
     damaged.extend_from_slice(&toc);
     damaged.extend_from_slice(&u64::try_from(toc.len()).expect("a length").to_le_bytes());
-    damaged.extend_from_slice(super::constants::FORMAT);
+    damaged.extend_from_slice(super::constants::TRAILER);
     std::fs::write(&file, damaged).expect("a damaged store");
 }
 
@@ -251,7 +251,7 @@ fn damage_bucket(directory: &std::path::Path, build: &str, bucket: Bucket) {
     let file = directory.join("lint.store");
     let mut bytes = std::fs::read(&file).expect("the store");
     let tagged = bytes
-        .strip_suffix(super::constants::FORMAT)
+        .strip_suffix(super::constants::TRAILER)
         .expect("current version trailer");
     let (body, trailer) = tagged.split_at(tagged.len() - 8);
     let mut word = [0_u8; 8];
@@ -348,7 +348,7 @@ fn subject(question: Input) -> Result<Value, Failure> {
             let file = directory.join(super::constants::FILE);
             let bytes = std::fs::read(&file).expect("current store");
             let body = bytes
-                .strip_suffix(super::constants::FORMAT)
+                .strip_suffix(super::constants::TRAILER)
                 .expect("checked current trailer");
             let mut prior = body.to_vec();
             prior.extend_from_slice(
