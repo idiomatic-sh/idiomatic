@@ -35,7 +35,7 @@ impl<T: ProjectRootExecution> ProjectRootExecution for CountedProject<'_, T> {
         guard: impl FnMut(RuleIndex) -> Result<(), E>,
     ) -> ProjectBatch<
         Result<
-            ryo_execution::application::file_dag::program::rule_outcome::types::ProjectRuleOutcome,
+            ryo_execution::application::file_dag::program::rule_outcome::types::RuleOutcome<ryo_execution::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome>,
             ryo_execution::inbound::use_cases::execution::interface::OperatingError,
         >,
         E,

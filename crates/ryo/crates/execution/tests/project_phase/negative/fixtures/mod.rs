@@ -27,7 +27,8 @@ use ryo_execution::application::file_dag::program::project_phase::types::Frontie
 use ryo_execution::application::file_dag::program::project_phase::types::FrontierRequest;
 use ryo_execution::application::file_dag::program::request_execution::types::RequestExecution;
 use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectBatch;
-use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectRuleOutcome;
+use ryo_execution::application::file_dag::program::rule_outcome::types::RuleOutcome;
+use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
@@ -125,7 +126,7 @@ impl Held<'_> {
         tasks: Vec<ProjectTask<'_>>,
         symbols: &mut Symbols,
         guard: impl FnMut(RuleIndex) -> Result<(), E>,
-    ) -> ProjectBatch<Result<ProjectRuleOutcome, OperatingError>, E> {
+    ) -> ProjectBatch<Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>, E> {
         match self {
             Held::Phase(phase) => phase.evaluate(tasks, symbols, guard),
             Held::Stage(stage) => stage.evaluate(tasks, symbols, guard),
@@ -186,7 +187,7 @@ pub(crate) struct Root {
     pub named: usize,
 }
 pub(crate) struct Submitted {
-    pub outcomes: Vec<Result<ProjectRuleOutcome, OperatingError>>,
+    pub outcomes: Vec<Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>>,
     pub guarded: Vec<RuleIndex>,
     pub refused: Option<OperatingError>,
 }
@@ -328,7 +329,7 @@ pub(crate) fn prepare_for(
 /// A scope opened by one phase of the request, evaluated through another phase of it.
 pub(crate) fn foreign_phase_outcome(
     engine: &PrepareUseCaseImpl,
-) -> Result<ProjectRuleOutcome, OperatingError> {
+) -> Result<RuleOutcome<ProjectOutputOutcome>, OperatingError> {
     let prepared = program(engine, Entry::Phase, 1);
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);

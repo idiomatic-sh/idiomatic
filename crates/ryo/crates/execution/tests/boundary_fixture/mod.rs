@@ -7,7 +7,8 @@ use ryo_execution::application::file_dag::program::prepared_execution::types::Pr
 use ryo_execution::application::file_dag::program::project_phase::types::ProjectInput;
 use ryo_execution::application::file_dag::program::project_phase::types::ProjectTask;
 use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectBatch;
-use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectRuleOutcome;
+use ryo_execution::application::file_dag::program::rule_outcome::types::RuleOutcome;
+use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
@@ -154,7 +155,7 @@ pub(crate) fn project_roots<R: ProjectRootExecution>(
     demand: RuleDemand,
     inputs: Vec<ProjectInput<'_>>,
     symbols: &mut Symbols,
-) -> Vec<Result<ProjectRuleOutcome, OperatingError>> {
+) -> Vec<Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>> {
     let tasks = inputs
         .into_iter()
         .map(|input| ProjectTask {
@@ -175,6 +176,6 @@ pub(crate) fn project_root<R: ProjectRootExecution>(
     demand: RuleDemand,
     input: ProjectInput<'_>,
     symbols: &mut Symbols,
-) -> Result<ProjectRuleOutcome, OperatingError> {
+) -> Result<RuleOutcome<ProjectOutputOutcome>, OperatingError> {
     project_roots(root, rule, demand, vec![input], symbols).remove(0)
 }

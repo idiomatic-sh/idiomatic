@@ -31,9 +31,11 @@ pub struct ProjectOutputOutcome {
     pub output: ObservationIndex,
     pub outcome: ProjectObservation,
 }
-pub struct RuleOutcome {
+/// What became of one rule: its emitted root, each declared output and its counts. The observation type names the kind of
+/// output: a file rule yields `OutputOutcome`, a project rule `ProjectOutputOutcome`.
+pub struct RuleOutcome<O = OutputOutcome> {
     pub emit: RootOutcome,
-    pub observations: Vec<OutputOutcome>,
+    pub observations: Vec<O>,
     pub counts: LogicalCounts,
 }
 /// A project named root can be Complete only with the admitted owner proof.
@@ -53,9 +55,4 @@ pub enum ProjectObservation {
 pub enum ProjectBatch<T, E> {
     Complete(Vec<T>),
     Refused { completed: Vec<T>, error: E },
-}
-pub struct ProjectRuleOutcome {
-    pub emit: RootOutcome,
-    pub observations: Vec<ProjectOutputOutcome>,
-    pub counts: LogicalCounts,
 }

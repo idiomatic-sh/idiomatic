@@ -194,7 +194,7 @@ impl ProjectCompletion {
 
 /// The rows each root of a project rule's outcome delivers, and the owner proof of every usable named root.
 pub(crate) fn collected(
-    outcome: ryo_execution::application::file_dag::program::rule_outcome::types::ProjectRuleOutcome,
+    outcome: ryo_execution::application::file_dag::program::rule_outcome::types::RuleOutcome<ryo_execution::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome>,
 ) -> Result<ProgramEvaluated, OperatingError> {
     let mut roots = PhaseRoots::default();
     match outcome.emit {

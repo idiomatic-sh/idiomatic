@@ -35,6 +35,7 @@ enum Binary {
 enum Missing {
     First,
     Second,
+    Neither,
 }
 #[derive(Clone, Copy)]
 enum Delivery {
@@ -60,12 +61,20 @@ fn subject((operator, missing, delivery): Input) -> Result<Value, Failure> {
             }),
         ],
     };
+    let comment = Table {
+        kinds: kinds(Relation::Comment).to_vec(),
+        count: RowCount(0),
+        cells: vec![],
+    };
     let reads = RefCell::new(Vec::new());
     let read = |relation| {
         reads.borrow_mut().push(relation);
         match relation {
-            Relation::Function if matches!(missing, Missing::Second) => {
+            Relation::Function if matches!(missing, Missing::Second | Missing::Neither) => {
                 Ok(SourceRows::Computed(&function))
+            }
+            Relation::Comment if matches!(missing, Missing::Neither) => {
+                Ok(SourceRows::Computed(&comment))
             }
             _ => Err(OperatingError::NotRead),
         }
@@ -173,6 +182,10 @@ fn subject((operator, missing, delivery): Input) -> Result<Value, Failure> {
     // Pinned successful LHS borrows may repeat, but refusal is terminal.
     match missing {
         Missing::First => assert_eq!(history, [Relation::Function]),
+        Missing::Neither => {
+            assert!(history.contains(&Relation::Function), "the left provider is read");
+            assert!(history.contains(&Relation::Comment), "the right provider is read");
+        }
         Missing::Second => {
             let (last, prefix) = history.split_last().expect("RHS must actually be demanded");
             assert_eq!(*last, Relation::Comment);
@@ -191,6 +204,12 @@ fn subject((operator, missing, delivery): Input) -> Result<Value, Failure> {
     result.map(|_| ())
 }
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("union_over_two_available_providers_publishes"),
+        word: Word::Succeeds,
+        input: || (Binary::Union, Missing::Neither, Delivery::Collected),
+        expect: Expect::Value(()),
+    },
     Case {
         name: CaseName(
             "forwarded_union_requires_rhs_after_successful_lhs_and_never_delivers_a_prefix",
@@ -230,6 +249,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(OperatingError::NotRead),
     },
 ];
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);

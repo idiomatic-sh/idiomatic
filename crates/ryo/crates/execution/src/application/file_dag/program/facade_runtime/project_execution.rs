@@ -11,7 +11,8 @@ use crate::application::file_dag::program::native_walk::Deliveries;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::domain::rule_intent::types::EmitDemand;
 use crate::domain::rule_intent::types::ObservationDemand;
-use crate::application::file_dag::program::rule_outcome::types::ProjectRuleOutcome;
+use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
+use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use crate::domain::rule_intent::types::RuleDemand;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use crate::application::file_dag::relations::RelationOwner;
@@ -224,7 +225,7 @@ impl ProjectRun<'_> {
         rule: RuleIndex,
         demand: RuleDemand,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
-    ) -> Result<ProjectRuleOutcome, OperatingError> {
+    ) -> Result<RuleOutcome<ProjectOutputOutcome>, OperatingError> {
         let roots = self.roots(rule, demand)?;
         let identity = self.identity(rule)?;
         let state = self.execution.project_state(identity);
@@ -251,7 +252,7 @@ pub(crate) fn evaluate_roots<E>(
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
     mut guard: impl FnMut(RuleIndex) -> Result<(), E>,
 ) -> crate::application::file_dag::program::rule_outcome::types::ProjectBatch<
-    Result<ProjectRuleOutcome, OperatingError>,
+    Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>,
     E,
 > {
     use crate::domain::executable_program::types::RegionId;

@@ -6,7 +6,8 @@ use crate::application::file_dag::program::project_phase::types::ProjectPhase;
 use crate::application::file_dag::program::project_phase::types::PhaseScope;
 use crate::application::file_dag::program::project_phase::types::ProjectTask;
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
-use crate::application::file_dag::program::rule_outcome::types::ProjectRuleOutcome;
+use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
+use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use crate::domain::coverage::types::Covered;
 use crate::domain::coverage::types::InapplicableFiles;
 use crate::domain::coverage::types::RuleIndex;
@@ -22,7 +23,7 @@ impl ProjectRootExecution for ProjectPhase<'_> {
         tasks: Vec<ProjectTask<'_>>,
         symbols: &mut Symbols,
         guard: impl FnMut(RuleIndex) -> Result<(), E>,
-    ) -> ProjectBatch<Result<ProjectRuleOutcome, OperatingError>, E> {
+    ) -> ProjectBatch<Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>, E> {
         let mut roots = Vec::with_capacity(tasks.len());
         for task in tasks {
             let run = if std::rc::Rc::ptr_eq(&self.publication, &task.input.scope.publication) {

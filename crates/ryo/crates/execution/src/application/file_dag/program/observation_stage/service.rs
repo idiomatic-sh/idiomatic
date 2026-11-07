@@ -9,7 +9,8 @@ use crate::application::file_dag::program::project_phase::types::PhaseScope;
 use crate::application::file_dag::program::project_phase::types::ProjectTask;
 use crate::application::file_dag::program::observed_publication::types::ObservedPublication;
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
-use crate::application::file_dag::program::rule_outcome::types::ProjectRuleOutcome;
+use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
+use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use crate::domain::coverage::types::Covered;
 use crate::domain::coverage::types::FileObservationReadiness;
 use crate::domain::coverage::types::InapplicableFiles;
@@ -28,7 +29,7 @@ impl ProjectRootExecution for ObservationStage<'_> {
         tasks: Vec<ProjectTask<'_>>,
         symbols: &mut Symbols,
         guard: impl FnMut(RuleIndex) -> Result<(), E>,
-    ) -> ProjectBatch<Result<ProjectRuleOutcome, OperatingError>, E> {
+    ) -> ProjectBatch<Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>, E> {
         self.phase.evaluate(tasks, symbols, guard)
     }
     fn readiness_counts(&self) -> ReadinessCounts {

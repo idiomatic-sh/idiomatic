@@ -2,7 +2,8 @@
 use crate::application::file_dag::program::project_phase::types::PhaseScope;
 use crate::application::file_dag::program::project_phase::types::ProjectTask;
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
-use crate::application::file_dag::program::rule_outcome::types::ProjectRuleOutcome;
+use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
+use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use crate::domain::coverage::types::Covered;
 use crate::domain::coverage::types::InapplicableFiles;
 use crate::domain::coverage::types::RuleIndex;
@@ -29,14 +30,14 @@ use ryo_values::domain::runs::types::Skipped;
 ///     interface::ProjectRootExecution,
 ///     types::{ProjectPhase, ProjectTask},
 /// };
-/// use ryo_execution::application::file_dag::program::rule_outcome::types::{ProjectBatch, ProjectRuleOutcome};
+/// use ryo_execution::application::file_dag::program::rule_outcome::types::{ProjectBatch, ProjectOutputOutcome, RuleOutcome};
 /// use ryo_execution::inbound::use_cases::execution::interface::{OperatingError, RuleIndex};
 /// use ryo_language::domain::symbols::types::Symbols;
 /// fn evaluate(
 ///     phase: &ProjectPhase<'_>,
 ///     tasks: Vec<ProjectTask<'_>>,
 ///     symbols: &mut Symbols,
-/// ) -> ProjectBatch<Result<ProjectRuleOutcome, OperatingError>, OperatingError> {
+/// ) -> ProjectBatch<Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>, OperatingError> {
 ///     phase.evaluate(tasks, symbols, |_: RuleIndex| Ok(()))
 /// }
 /// ```
@@ -47,7 +48,7 @@ pub trait ProjectRootExecution {
         tasks: Vec<ProjectTask<'_>>,
         symbols: &mut Symbols,
         guard: impl FnMut(RuleIndex) -> Result<(), E>,
-    ) -> ProjectBatch<Result<ProjectRuleOutcome, OperatingError>, E>;
+    ) -> ProjectBatch<Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>, E>;
     fn readiness_counts(&self) -> ReadinessCounts;
 }
 pub trait ProjectStage: ProjectRootExecution {

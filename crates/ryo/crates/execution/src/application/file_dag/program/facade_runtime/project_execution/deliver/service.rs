@@ -9,7 +9,8 @@ use crate::domain::rule_intent::types::EmitDemand;
 use crate::domain::rule_intent::types::ObservationDemand;
 use crate::application::file_dag::program::observed_publication::types::ObservedPublication;
 use crate::application::file_dag::program::rule_outcome::types::ProjectObservation;
-use crate::application::file_dag::program::rule_outcome::types::ProjectRuleOutcome;
+use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
+use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::domain::rule_intent::types::RuleDemand;
 use crate::domain::coverage::types::RuleIndex;
@@ -25,7 +26,7 @@ impl ProjectRun<'_> {
         demand: RuleDemand,
         roots: &[crate::domain::executable_program::types::RegionId],
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
-    ) -> Result<ProjectRuleOutcome, OperatingError> {
+    ) -> Result<RuleOutcome<ProjectOutputOutcome>, OperatingError> {
         let completion = self.completion(rule)?;
         let mut context = self.context.borrow(symbols, self.program, rule)?;
         let context = &mut context;
@@ -146,7 +147,7 @@ impl ProjectRun<'_> {
                 });
             }
         }
-        Ok(ProjectRuleOutcome {
+        Ok(RuleOutcome {
             emit,
             observations,
             counts: self.execution.logical_counts(state, rule)?,
