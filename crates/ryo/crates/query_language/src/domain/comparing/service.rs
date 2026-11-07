@@ -295,13 +295,13 @@ pub(crate) fn comparison_of(
         return Err(LoweringError::KindMismatch { span: filter.span });
     }
     check_words(filter, &left, &right, columns.fields)?;
-    // Literal patterns are checked before optimization or execution, including empty inputs.
+    // Literal patterns are checked before optimization or execution, including empty inputs, by parsing them with the syntax the
+    // matcher compiles: the one compile of a literal pattern is the executor's prepared slot, on first use.
     // Dynamic patterns remain checked by the executor when their values are available.
-    // The executor builds its bounded cache separately: this validation cost is query compilation.
     if test == parts::Test::Matches
         && let parts::Operand::Literal(parts::QueryLiteral::Text(pattern)) = &right
     {
-        let _compiled = regex_automata::meta::Regex::new(&pattern.0).map_err(|error| {
+        let _parsed = regex_automata::util::syntax::parse(&pattern.0).map_err(|error| {
             LoweringError::InvalidRegex {
                 reason: error.to_string(),
                 span: filter.span,

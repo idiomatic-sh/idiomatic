@@ -3,6 +3,7 @@
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::Builder;
 use crate::domain::lowering::types::PlannedColumn;
+use crate::domain::lowering::types::SearchMatch;
 use crate::domain::lowering::types::Sourced;
 use crate::domain::lowering::types::Uniqueness;
 use crate::domain::planning::service::push;
@@ -152,17 +153,15 @@ pub(crate) fn call_source_matches(
             });
         }
     }
-    let compiled = regex_automata::meta::Regex::new(&pattern.0).map_err(|error| {
+    // Parsed, not compiled: the one compile of the pattern is the executor's prepared slot, on first use.
+    let parsed = regex_automata::util::syntax::parse(&pattern.0).map_err(|error| {
         LoweringError::InvalidRegex {
             reason: error.to_string(),
             span: call.span,
         }
     })?;
     if let Some(name) = &capture_name
-        && compiled
-            .group_info()
-            .to_index(regex_automata::util::primitives::PatternID::ZERO, &name.0)
-            .is_none()
+        && names_capture(&parsed, name) == SearchMatch::Differs
     {
         return Err(LoweringError::SourceMatchesCaptureMissing {
             name: name.0.to_string(),
@@ -251,7 +250,8 @@ pub(crate) fn call_replace(
             span: call.span,
         });
     }
-    let _compiled = regex_automata::meta::Regex::new(&pattern.0).map_err(|error| {
+    // Parsed, not compiled: the one compile of the pattern is the executor's prepared slot, on first use.
+    let _parsed = regex_automata::util::syntax::parse(&pattern.0).map_err(|error| {
         LoweringError::InvalidRegex {
             reason: error.to_string(),
             span: call.span,
@@ -275,4 +275,31 @@ pub(crate) fn call_replace(
         fields,
     );
     Ok(())
+}
+
+/// Whether the parsed pattern has a capture group called `name`: the groups the compiled matcher numbers are the ones its syntax
+/// tree holds.
+fn names_capture(
+    pattern: &regex_syntax::hir::Hir,
+    name: &ryo_values::domain::descriptions::types::ColumnName,
+) -> SearchMatch {
+    let mut pending = vec![pattern];
+    while let Some(hir) = pending.pop() {
+        match hir.kind() {
+            regex_syntax::hir::HirKind::Capture(capture) => {
+                if capture.name.as_deref() == Some(&*name.0) {
+                    return SearchMatch::Matches;
+                }
+                pending.push(&capture.sub);
+            }
+            regex_syntax::hir::HirKind::Repetition(repetition) => pending.push(&repetition.sub),
+            regex_syntax::hir::HirKind::Concat(parts)
+            | regex_syntax::hir::HirKind::Alternation(parts) => pending.extend(parts.iter()),
+            regex_syntax::hir::HirKind::Empty
+            | regex_syntax::hir::HirKind::Literal(_)
+            | regex_syntax::hir::HirKind::Class(_)
+            | regex_syntax::hir::HirKind::Look(_) => {}
+        }
+    }
+    SearchMatch::Differs
 }

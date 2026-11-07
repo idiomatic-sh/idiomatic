@@ -1598,6 +1598,7 @@ dependencies = [
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
  "regex-automata",
+ "regex-syntax",
  "thiserror 2.0.20",
  "tokio",
  "winnow 0.7.15",
