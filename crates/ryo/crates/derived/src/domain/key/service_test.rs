@@ -45,10 +45,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("mixing_one_into_zero_multiplies_by_the_constant"),
+        name: CaseName("mixing_one_into_zero_is_the_standard_fx_hash_of_one"),
         word: Word::Succeeds,
         input: || Scenario::MixOfOneIntoZero,
-        expect: Expect::Value(0x517c_c1b7_2722_0a95),
+        expect: Expect::Value(1),
     },
 ];
 
@@ -63,7 +63,11 @@ fn subject(input: Input) -> Result<Value, Failure> {
             let columns = [ColumnIndex(0), ColumnIndex(1)];
             u64::from(hash_row(&row, On::Whole) == hash_row(&row, On::Columns(&columns)))
         }
-        Scenario::MixOfOneIntoZero => mix(KeyCellsHash(0), HashWord(1)).0,
+        Scenario::MixOfOneIntoZero => {
+            let mut standard = rustc_hash::FxHasher::default();
+            std::hash::Hasher::write_u64(&mut standard, 1);
+            u64::from(mix(KeyCellsHash(0), HashWord(1)).0 == std::hash::Hasher::finish(&standard))
+        }
     })
 }
 

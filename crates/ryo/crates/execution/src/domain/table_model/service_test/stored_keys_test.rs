@@ -100,7 +100,13 @@ fn stored_keys_preserve_order_duplicates_and_typed_flag_normalization() -> Resul
 
 fn stored_keys_check_exact_composite_equality_after_a_real_hash_collision() -> Result<Value, Failure> {
     const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Number];
-    let colliding_word = 0x517c_c1b7_2722_0a95_u64.rotate_left(5);
+    // One FxHash step sees only the running hash plus the word, so the key (1, -mix(0, 1)) hashes as (0, 0).
+    let colliding_word = ryo_derived::domain::key::service::mix(
+        ryo_derived::domain::key::types::KeyCellsHash(0),
+        ryo_derived::domain::key::types::HashWord(1),
+    )
+    .0
+    .wrapping_neg();
     let columns = [
         FactColumn(vec![0, 1, 0]),
         FactColumn(vec![0, colliding_word, 0]),

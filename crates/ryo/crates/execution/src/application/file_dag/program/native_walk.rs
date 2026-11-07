@@ -24,8 +24,9 @@ pub(super) enum Submission {
 use ryo_relations::domain::relations::types::Relation;
 use std::{
     cell::{Cell, Ref, RefCell},
-    collections::{BTreeSet, HashMap},
+    collections::BTreeSet,
 };
+use rustc_hash::FxHashMap;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 struct WalkSourceIdentity {
     population: PopulationId,
@@ -78,8 +79,8 @@ pub(super) struct FileWalk {
     generation: super::admission::FileGeneration,
     // A source batch lives while a rule that consumes its relation still owes a
     // delivery, then retires; a lease handed out earlier keeps its own result.
-    batches: RefCell<HashMap<WalkSourceIdentity, SourceWork>>,
-    owed: RefCell<HashMap<RuleIndex, Owed>>,
+    batches: RefCell<FxHashMap<WalkSourceIdentity, SourceWork>>,
+    owed: RefCell<FxHashMap<RuleIndex, Owed>>,
     // Counters of retired batches, so the file's totals survive retirement.
     retired: Cell<WalkCounts>,
     work: RefCell<WalkWork>,
@@ -88,8 +89,8 @@ impl FileWalk {
     pub(super) fn new(generation: super::admission::FileGeneration) -> Self {
         Self {
             generation,
-            batches: RefCell::new(HashMap::new()),
-            owed: RefCell::new(HashMap::new()),
+            batches: RefCell::new(FxHashMap::default()),
+            owed: RefCell::new(FxHashMap::default()),
             retired: Cell::new(WalkCounts::default()),
             work: RefCell::new(WalkWork::default()),
         }

@@ -33,7 +33,7 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::files::types::SourceView;
 #[cfg(test)]
 use ryo_values::domain::rows::types::Table;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -68,13 +68,13 @@ pub(crate) struct FileRun<'a> {
     owner: Rc<RelationOwner>,
     file: FileId,
     partials: ScopePartials<'a>,
-    roots: HashMap<RuleIndex, Vec<FileRoot>>,
+    roots: FxHashMap<RuleIndex, Vec<FileRoot>>,
     prepared_roots: Vec<crate::domain::executable_program::types::RegionId>,
     prepared_named: Vec<PreparedNamed>,
     /// Immutable intent and identity share the same private file owner lifetime.
     intents: Box<[FileRuleIntent]>,
     generation: FileGeneration,
-    observed: HashMap<ObservationKey, AdmittedInput>,
+    observed: FxHashMap<ObservationKey, AdmittedInput>,
     context: super::super::context::RunContext<'a>,
     walk: super::super::native_walk::FileWalk,
     walk_prepared: WalkPreparation,
@@ -134,12 +134,12 @@ pub(crate) fn open_file<'a>(
         owner,
         file,
         partials,
-        roots: HashMap::new(),
+        roots: FxHashMap::default(),
         prepared_roots: Vec::new(),
         prepared_named: Vec::new(),
         intents: intents.into(),
         generation: generation.clone(),
-        observed: HashMap::new(),
+        observed: FxHashMap::default(),
         walk: super::super::native_walk::FileWalk::new(generation),
         walk_prepared: WalkPreparation::Pending,
         context: super::super::context::RunContext::file(

@@ -15,7 +15,7 @@ use std::sync::Arc;
 impl Slot {
     pub(in crate::application::file_dag::program::runtime) fn touched<'a>(
         state: &RuntimeState,
-        slots: &'a mut std::collections::HashMap<RegionId, Slot>,
+        slots: &'a mut rustc_hash::FxHashMap<RegionId, Slot>,
         program: &ExecutableProgram,
         id: RegionId,
     ) -> Result<&'a mut Slot, OperatingError> {
@@ -73,13 +73,13 @@ impl RuntimeState {
             roots: RefCell::new(RootReaders::Declared),
             #[cfg(test)]
             reader_initializations: std::cell::Cell::new(ReaderInitializations(0)),
-            slots: RefCell::new(std::collections::HashMap::new()),
-            dormant: RefCell::new(std::collections::HashMap::new()),
+            slots: RefCell::new(rustc_hash::FxHashMap::default()),
+            dormant: RefCell::new(rustc_hash::FxHashMap::default()),
             retirement: RefCell::new(RetirementWork {
-                simulated: std::collections::HashMap::new(),
+                simulated: rustc_hash::FxHashMap::default(),
                 touched: Vec::new(),
                 pending: Vec::new(),
-                waiters: std::collections::HashMap::new(),
+                waiters: rustc_hash::FxHashMap::default(),
                 retired_states: Vec::new(),
                 retired_scratch: Vec::new(),
             }),

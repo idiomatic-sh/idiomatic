@@ -24,7 +24,7 @@ use crate::domain::table_model::service::materialize;
 use crate::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::rows::types::Table;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::rc::Rc;
 
 pub(super) struct ProjectSources<'a> {
@@ -53,8 +53,8 @@ pub(super) struct SourceInputs<'a, 'facts> {
     pub(super) completion: CompletionPolicy,
     pub(super) owner: Rc<RelationOwner>,
     pub(super) read: &'a dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
-    pub(super) observations: &'a mut HashMap<ObservationKey, AdmittedInput>,
-    pub(super) file_outputs: Option<&'a HashMap<RuleIndex, Vec<FileRoot>>>,
+    pub(super) observations: &'a mut FxHashMap<ObservationKey, AdmittedInput>,
+    pub(super) file_outputs: Option<&'a FxHashMap<RuleIndex, Vec<FileRoot>>>,
     pub(super) program: &'a PreparedProgram,
     pub(super) rule: RuleIndex,
     pub(super) project: Option<ProjectSources<'a>>,

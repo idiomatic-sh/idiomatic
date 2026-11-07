@@ -1395,6 +1395,7 @@ dependencies = [
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
+ "rustc-hash 2.1.3",
  "tokio",
 ]
 

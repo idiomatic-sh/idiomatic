@@ -21,7 +21,7 @@ use crate::domain::completion::types::completion_policy::value::CompletionPolicy
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::executable_program::types::InputSource;
 use crate::domain::operating::errors::OperatingError;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 mod deliver;
@@ -289,7 +289,7 @@ pub(crate) fn evaluate_roots<E>(
             .collect(),
     );
     let mut cohorts = Vec::new();
-    let mut by_identity: HashMap<PopulationId, usize> = HashMap::new();
+    let mut by_identity: FxHashMap<PopulationId, usize> = FxHashMap::default();
     let mut memberships = Vec::with_capacity(roots.len());
     for ProjectRoot { rule, demand, run } in roots.iter_mut() {
         let (rule, demand) = (*rule, *demand);

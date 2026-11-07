@@ -1,5 +1,6 @@
 //! The values the ledger counts and the records it keeps.
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
+use rustc_hash::FxHashMap;
 
 /// Physical bytes.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -81,7 +82,7 @@ pub(in crate::application::file_dag) struct LedgerEntry {
 
 #[derive(Debug)]
 pub(in crate::application::file_dag) struct Ledger {
-    pub(super) entries: HashMap<BackingKey, LedgerEntry>,
+    pub(super) entries: FxHashMap<BackingKey, LedgerEntry>,
     pub(super) required_bytes: ByteCount,
     pub(super) optional_bytes: ByteCount,
     pub(super) view_optional_bytes: ByteCount,

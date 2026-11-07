@@ -11,9 +11,9 @@ use acquisition::semantics::storage::DerivedStorage;
 use footprint::service::storage_bytes;
 use std::{
     cell::RefCell,
-    collections::HashMap,
     sync::{Arc, Weak},
 };
+use rustc_hash::FxHashMap;
 use types::{
     AdmissionOrder, BuildCount, BuildCounts, EntryLimit, FilePreparation,
     HitCount, IdentityCompatibility, MembershipOrder, MemoBudget, PinCount, PinState,
@@ -79,8 +79,8 @@ struct Entry {
 struct State {
     next_admission: AdmissionOrder,
     entries: hashbrown::HashMap<Key, Entry>,
-    pins: HashMap<PopulationId, PinCount>,
-    dependents: HashMap<PopulationId, Vec<Key>>,
+    pins: FxHashMap<PopulationId, PinCount>,
+    dependents: FxHashMap<PopulationId, Vec<Key>>,
     spare_dependencies: Vec<Vec<Key>>,
     released_entries: ReleasedEntries,
     builds: BuildCount,

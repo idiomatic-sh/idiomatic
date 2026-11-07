@@ -307,7 +307,13 @@ fn derived_symbol_growth_does_not_change_a_frozen_stored_key() {
 
 #[test]
 fn a_reused_index_still_resolves_full_composite_hash_collisions_exactly() {
-    let collision = 0x517c_c1b7_2722_0a95_u64.rotate_left(5);
+    // One FxHash step sees only the running hash plus the word, so the key (1, -mix(0, 1)) hashes as (0, 0).
+    let collision = ryo_derived::domain::key::service::mix(
+        ryo_derived::domain::key::types::KeyCellsHash(0),
+        ryo_derived::domain::key::types::HashWord(1),
+    )
+    .0
+    .wrapping_neg();
     let columns = [FactColumn(vec![0, 1, 0]), FactColumn(vec![0, collision, 0])];
     let view = ColumnsView {
         kinds: &[CellKind::Number, CellKind::Number],

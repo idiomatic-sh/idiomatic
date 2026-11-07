@@ -38,7 +38,7 @@ impl FileRun<'_> {
         let ScopePartials::File { publication, .. } = &self.partials else {
             return Err(OperatingError::WrongOperation);
         };
-        let mut seen = std::collections::HashSet::new();
+        let mut seen = rustc_hash::FxHashSet::default();
         let mut readers = Vec::new();
         let mut demanded = Vec::new();
         for (index, intent) in self.intents.iter().copied().enumerate() {

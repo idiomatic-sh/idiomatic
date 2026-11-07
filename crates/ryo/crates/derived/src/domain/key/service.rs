@@ -1,6 +1,7 @@
 //! Typed key identity shared by construction and immutable physical probes.
 use super::types::{HashWord, KeyCellsHash, On};
 use ryo_relations::domain::relations::types::{Flag, Integer, Value};
+use std::hash::Hasher as _;
 
 /// The word of one cell.
 #[must_use]
@@ -16,10 +17,12 @@ pub fn word_of(value: &Value) -> HashWord {
     })
 }
 
-/// Folds one word into a running key hash.
+/// Folds one word into a running key hash: one step of the standard `FxHasher` (rustc-hash) over the running hash plus the word.
 #[must_use]
-pub const fn mix(hash: KeyCellsHash, word: HashWord) -> KeyCellsHash {
-    KeyCellsHash((hash.0.rotate_left(5) ^ word.0).wrapping_mul(0x517c_c1b7_2722_0a95))
+pub fn mix(hash: KeyCellsHash, word: HashWord) -> KeyCellsHash {
+    let mut hasher = rustc_hash::FxHasher::default();
+    hasher.write_u64(hash.0.wrapping_add(word.0));
+    KeyCellsHash(hasher.finish())
 }
 
 /// The hash of the cells of one key; an absent cell is the zero word.
