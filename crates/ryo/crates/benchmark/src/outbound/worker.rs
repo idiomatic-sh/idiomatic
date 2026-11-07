@@ -7,3 +7,4 @@ pub mod interface;
 
 /// Shared process-boundary option encoding used by emitters, decoders and receipts.
 pub(crate) mod schemas;
+pub mod types;

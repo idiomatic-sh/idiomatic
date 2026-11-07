@@ -20,9 +20,13 @@ use ryo_benchmark::inbound::use_cases::certify::{
 };
 use ryo_benchmark::inbound::use_cases::measure_corpus::{
     interface::MeasureCorpusUseCase as _,
-    types::{CorpusMeasurement, SourceLanguage, SourceProfile},
+    types::{
+        CorpusLanguage, CorpusMeasurement, LanguageTitle, ProfileLabel, SampleLabel, SourceProfile,
+        SourceSuffix, ToolTitle,
+    },
     use_case::MeasureCorpusUseCaseImpl,
 };
+use ryo_benchmark::outbound::discovery::interface::DiscoveryPort;
 use ryo_benchmark::outbound::evidence::interface::EvidencePort;
 use ryo_benchmark::outbound::execution::interface::ExecutionPort;
 use ryo_benchmark::outbound::linter::interface::LinterPort;
@@ -75,20 +79,22 @@ pub(super) fn measure(
     if args.next().is_some() {
         return Err(Error::Invalid(UNEXPECTED_MEASUREMENT_ARGUMENT.into()));
     }
-    let measurement_mode = AdmitMeasurementUseCaseImpl::new().admit_measurement(
-        &MeasurementAdmission {
+    let measurement_mode =
+        AdmitMeasurementUseCaseImpl::new().admit_measurement(&MeasurementAdmission {
             scope,
             audit: &audit,
             tool: &tool,
             declared_inventory,
-        },
-    )?;
+        })?;
     let tally = RuleTally::of(&tool, authored_total);
     let project_context_mode = tool.project_context_mode;
     let project_search_roots = tool.project_search_roots.clone();
     tool.defaults = audit.authored().to_vec();
     let declared_rule_context = tool.rule_context.clone();
-    let configured_cohort = ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(tool.defaults.clone());
+    let configured_cohort =
+        ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
+            tool.defaults.clone(),
+        );
     let StagedSuite {
         scratch: selected_scratch,
         profile: selected_profile,
@@ -101,14 +107,20 @@ pub(super) fn measure(
         ArtifactPath(&candidate_executable),
     )?;
     let candidate = candidate_linter(&tool, candidate_executable.clone(), selected_rules.clone());
+    let discovery: Arc<dyn DiscoveryPort> =
+        Arc::new(ryo_benchmark::outbound::discovery::factory::listing(
+            executable.clone(),
+            crate::constants::DISCOVERY_ARGUMENTS
+                .into_iter()
+                .map(std::ffi::OsString::from)
+                .collect(),
+        ));
     let reference = Arc::new(commands::reference(executable.clone(), tool)?);
     let collector_settings =
         commands::collector(suite_source.as_ref(), &collector_path, &frozen_workload)?;
     let execution = commands::timed(collector_settings, observations)?;
-    let case_scratch = default_scratch(
-        suite_source.as_ref(),
-        ArtifactText(constants::CASE_SCRATCH),
-    )?;
+    let case_scratch =
+        default_scratch(suite_source.as_ref(), ArtifactText(constants::CASE_SCRATCH))?;
     let certificate = CertifyUseCaseImpl::new(
         Arc::<_>::clone(&suite_source),
         Arc::new(ryo_benchmark::outbound::receipts::factory::local(
@@ -144,6 +156,7 @@ pub(super) fn measure(
         Certified {
             reference,
             candidate,
+            discovery,
             execution,
             certificate,
             cohort: configured_cohort,
@@ -165,6 +178,7 @@ pub(super) fn measure(
 struct Certified {
     reference: Arc<super::super::adapter::LinterRuffAdapter>,
     candidate: Arc<dyn LinterPort>,
+    discovery: Arc<dyn DiscoveryPort>,
     execution: Arc<dyn ExecutionPort>,
     certificate: Certificate,
     cohort: ryo_benchmark_contracts::domain::requests::types::CohortSelection,
@@ -187,6 +201,7 @@ fn compare(
     let Certified {
         reference,
         candidate,
+        discovery,
         execution,
         certificate,
         cohort,
@@ -213,10 +228,13 @@ fn compare(
     } else {
         SourceProfile::Full
     };
+    let suffixes = constants::SOURCE_SUFFIXES.map(SourceSuffix);
+    let invalid_syntax = ryo::linter::RuleId::try_from(constants::INVALID_SYNTAX)
+        .map_err(|error| Error::Invalid(error.to_string()))?;
     MeasureCorpusUseCaseImpl::new(
         Arc::<super::super::adapter::LinterRuffAdapter>::clone(&reference),
         Arc::<_>::clone(&candidate),
-        reference,
+        discovery,
         execution,
         Arc::<_>::clone(suite_source),
         Arc::new(ryo_benchmark::outbound::context::factory::local()),
@@ -238,14 +256,14 @@ fn compare(
             rule_context: &rule_context,
             search_roots: &search_roots,
             context_mode,
-            language: SourceLanguage {
-                display: constants::LANGUAGE_DISPLAY,
-                reference_display: constants::REFERENCE_DISPLAY,
-                reference_name: constants::REFERENCE_NAME,
-                suffixes: &constants::SOURCE_SUFFIXES,
-                invalid_syntax: constants::INVALID_SYNTAX,
-                valid_profile: constants::VALID_SOURCE_PROFILE,
-                full_profile: constants::FULL_SOURCE_PROFILE,
+            language: CorpusLanguage {
+                display: LanguageTitle(constants::LANGUAGE_DISPLAY),
+                reference_display: ToolTitle(constants::REFERENCE_DISPLAY),
+                reference_name: SampleLabel(constants::REFERENCE_NAME),
+                suffixes: &suffixes,
+                invalid_syntax: &invalid_syntax,
+                valid_profile: ProfileLabel(constants::VALID_SOURCE_PROFILE),
+                full_profile: ProfileLabel(constants::FULL_SOURCE_PROFILE),
             },
         },
         observations,

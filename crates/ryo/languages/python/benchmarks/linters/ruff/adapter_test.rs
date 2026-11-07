@@ -1,6 +1,6 @@
 //! Invocation, operational failures and exact-source decoding through the actual adapter.
 use super::engine_test::boundary_failure_test::{BoundaryFailure, failure};
-use super::{adapter::LinterRuffAdapter, settings::LinterRuffSettings};
+use super::{adapter::LinterRuffAdapter, constants, settings::LinterRuffSettings};
 use ryo::linter::RuleId;
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark::outbound::linter::fixtures::contract::check;
@@ -180,7 +180,17 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         state: root.path().join("cache"),
     };
     if matches!(scenario, AdapterScenario::MissingExecutable) {
-        return ryo_benchmark::outbound::discovery::interface::DiscoveryPort::files(&ruff, root.path()).map(|_| false);
+        return ryo_benchmark::outbound::discovery::interface::DiscoveryPort::files(
+            &ryo_benchmark::outbound::discovery::factory::listing(
+                executable.clone(),
+                constants::DISCOVERY_ARGUMENTS
+                    .into_iter()
+                    .map(std::ffi::OsString::from)
+                    .collect(),
+            ),
+            root.path(),
+        )
+        .map(|_| false);
     }
     if matches!(scenario, AdapterScenario::EmptyInput) {
         request.files.clear();

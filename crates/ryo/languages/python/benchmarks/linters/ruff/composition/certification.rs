@@ -1,9 +1,9 @@
 //! Certification of a measure invocation: what it names, what it stages, which contestant it builds and what it reports.
-use super::locations;
 use super::constants;
 use super::constants::{
     CANONICAL_BENCHMARK_REQUIRES_EXPLI, CASE_INVENTORY, REGISTERED_CASE_RESULTS,
 };
+use super::locations;
 use super::request_input::BenchmarkArgument;
 use ryo_benchmark::domain::suite::types::audit::value::Audit;
 use ryo_benchmark::domain::suite::types::certificate::value::Certificate;
@@ -90,7 +90,10 @@ pub(super) fn stage(
     authored: &[ryo::linter::RuleId],
 ) -> Result<StagedSuite, Error> {
     let scratch = suite_source
-        .retained_directory(ArtifactPath(cache), ArtifactText(constants::CERTIFICATION_PREFIX))?
+        .retained_directory(
+            ArtifactPath(cache),
+            ArtifactText(constants::CERTIFICATION_PREFIX),
+        )?
         .0;
     let profile = scratch.join(constants::PROFILE_DIRECTORY);
     StageSuiteUseCaseImpl::new(suite_source.as_ref()).stage_suite(

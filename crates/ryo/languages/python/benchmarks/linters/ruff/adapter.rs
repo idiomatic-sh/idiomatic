@@ -3,8 +3,7 @@ use super::host_policy::Permissions;
 #[cfg(unix)]
 use super::host_policy::{Isolation, Kernel, supported};
 use super::{constants, schemas, settings::LinterRuffSettings};
-use ryo::linter::{RelativePath, RuleId, SourceText};
-use ryo_benchmark::outbound::discovery::interface::DiscoveryPort;
+use ryo::linter::{RuleId, SourceText};
 use ryo_benchmark::outbound::linter::interface::LinterPort;
 use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
@@ -13,7 +12,6 @@ use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
 use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 /// Executes the pinned Ruff protocol against an explicit source set.
@@ -113,45 +111,6 @@ impl LinterRuffAdapter {
     /// Bind the executable and selected rules before preparing invocations.
     pub(crate) fn new(settings: LinterRuffSettings) -> Self {
         Self { settings }
-    }
-}
-
-impl DiscoveryPort for LinterRuffAdapter {
-    /// Ask the pinned tool for its default file selection before either timer starts.
-    fn files(&self, root: &Path) -> Result<Vec<RelativePath>, Error> {
-        let output = std::process::Command::new(&self.settings.executable)
-            .args([
-                constants::CHECK,
-                constants::ISOLATED,
-                constants::SHOW_FILES,
-                constants::CURRENT_DIRECTORY,
-            ])
-            .current_dir(root)
-            .output()?;
-        if !output.status.success() || !output.stderr.is_empty() {
-            return Err(Error::Invalid(format!(
-                "Ruff file discovery failed: {}",
-                String::from_utf8_lossy(&output.stderr)
-            )));
-        }
-        let text = std::str::from_utf8(&output.stdout)
-            .map_err(|error| Error::Invalid(error.to_string()))?;
-        let mut files = Vec::new();
-        for line in text.lines() {
-            let path = Path::new(line)
-                .strip_prefix(root)
-                .map_err(|_outside_root| Error::Invalid(constants::DISCOVERED_OUTSIDE.into()))?;
-            let file = path
-                .to_str()
-                .ok_or_else(|| Error::Invalid(constants::NON_UTF8_PATH.into()))?;
-            RelativeArtifactPath::try_from(Path::new(file))?;
-            files.push(RelativePath(file.into()));
-        }
-        files.sort();
-        if files.is_empty() {
-            return Err(Error::Invalid(constants::EMPTY_DISCOVERY.into()));
-        }
-        Ok(files)
     }
 }
 

@@ -1,6 +1,7 @@
 //! Shared orchestration.
 pub(crate) mod case_preparation;
 pub mod discrepancy_attachment;
+pub mod certified_measurement;
 pub mod discrepancy_validation;
 pub(crate) mod inventory_receipts;
 pub mod process_discrepancy;
@@ -8,4 +9,5 @@ pub mod process_receipts;
 pub mod run;
 pub(crate) mod suite_auditing;
 pub(crate) mod suite_staging;
+pub mod worker_identity;
 pub mod worker_request;

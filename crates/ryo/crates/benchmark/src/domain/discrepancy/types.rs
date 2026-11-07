@@ -76,8 +76,8 @@ pub(crate) struct ReferenceProof {
 impl std::fmt::Display for Contestant {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(match self {
-            Self::Reference => super::constants::REFERENCE,
-            Self::Candidate => super::constants::CANDIDATE,
+            Self::Reference => ryo_benchmark_contracts::domain::receipts::constants::REFERENCE,
+            Self::Candidate => ryo_benchmark_contracts::domain::receipts::constants::CANDIDATE,
         })
     }
 }

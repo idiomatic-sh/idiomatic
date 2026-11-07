@@ -177,9 +177,11 @@ fn authored_observations_survive_actual_parent_to_worker_transport_and_explicit_
         };
         let invocation = adapter.prepare(&request).unwrap();
         let path = std::path::PathBuf::from(&invocation.arguments[2]);
-        let json = std::fs::read_to_string(path).unwrap();
-        let worker =
-            crate::outbound::worker::factory::json(json.clone().into(), Box::new(Vec::<u8>::new()));
+        let json = std::fs::read_to_string(&path).unwrap();
+        let worker = crate::outbound::worker::factory::json(
+            crate::outbound::worker::types::WorkerSource::Stored(path),
+            Box::new(Vec::<u8>::new()),
+        );
         let received = worker.receive().unwrap();
         assert!(matches!(
             &received.rule_observations,
@@ -199,7 +201,7 @@ fn authored_observations_survive_actual_parent_to_worker_transport_and_explicit_
                     forged["rule_observations"]["A001"][0]["unknown"] = serde_json::json!(true);
                 }
                 let worker = crate::outbound::worker::factory::json(
-                    forged.to_string().into(),
+                    crate::outbound::worker::types::WorkerSource::Argument(forged.to_string().into()),
                     Box::new(Vec::<u8>::new()),
                 );
                 assert!(matches!(worker.receive(), Err(_refused)));

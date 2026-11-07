@@ -31,12 +31,6 @@ pub(crate) const ONE_WORKER: &str = "1";
 pub(crate) const EMPTY_INPUT: &str = "empty input list would make Ruff walk the directory";
 /// Refusal for duplicated requested source paths.
 pub(crate) const DUPLICATE_INPUT: &str = "duplicate requested source file";
-/// Refusal when discovery escapes the corpus root.
-pub(crate) const DISCOVERED_OUTSIDE: &str = "discovered file outside corpus";
-/// Refusal for paths outside the text-based benchmark contract.
-pub(crate) const NON_UTF8_PATH: &str = "non-UTF8 corpus path";
-/// Refusal when discovery supplies no source files.
-pub(crate) const EMPTY_DISCOVERY: &str = "empty discovered corpus";
 /// Select the exact compared rule set.
 pub(crate) const SELECT: &str = "--select";
 /// Pin syntax and target-gated diagnostics to the prepared Python 3.10 oracle.
@@ -121,3 +115,5 @@ pub(crate) const CONTAINER: &str = "/container";
 pub(crate) const LXC: &str = "/lxc";
 /// Text `kubepods`.
 pub(crate) const KUBEPODS: &str = "kubepods";
+/// The arguments that make the pinned reference list the files it selects by default, one path per line.
+pub(crate) const DISCOVERY_ARGUMENTS: [&str; 4] = [CHECK, ISOLATED, SHOW_FILES, CURRENT_DIRECTORY];

@@ -163,7 +163,10 @@ fn subject(operation: Input) -> Result<Value, Failure> {
             r#"{"root":"workspace","rules":"rules","files":["source.txt"],"cache":"cache"}"#.into()
         }
     };
-    let child = crate::outbound::worker::factory::json(payload, Box::new(output));
+    let child = crate::outbound::worker::factory::json(
+        crate::outbound::worker::types::WorkerSource::Argument(payload),
+        Box::new(output),
+    );
     let mut expected_report = report();
     if matches!(operation, Operation::RoundTrip) {
         let skipped_rule = ryo::linter::RuleId::try_from("other").expect("fixture rule");

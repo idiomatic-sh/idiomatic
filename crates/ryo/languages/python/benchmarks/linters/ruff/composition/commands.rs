@@ -5,8 +5,8 @@ use super::constants::{
     PINNED_REFERENCE_DOES_NOT_EVALUATE, PYTHON_TARGET, UNEXPECTED_TRAILING_WORKER_ARGUMEN,
     UNEXPECTED_WORKER_CONFIGURATION,
 };
-use super::locations::{default_scratch, directory};
 use super::diagnostic_protocol::WorkerTracing;
+use super::locations::{default_scratch, directory};
 use super::request_input::{BenchmarkArgument, WorkerInput, worker_expectation, worker_input};
 use super::targets::{ReferenceSpelling, TargetConfiguration};
 use ryo_benchmark::inbound::use_cases::audit::interface::AuditUseCase as _;
@@ -29,7 +29,7 @@ use ryo_benchmark::outbound::suite::{
     interface::SuitePort,
     types::{ArtifactPath, ArtifactText},
 };
-use ryo_benchmark::outbound::worker::interface::WorkerPort;
+use ryo_benchmark::outbound::worker::{interface::WorkerPort, types::WorkerSource};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::Tool;
 use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
@@ -66,17 +66,16 @@ pub(super) fn worker(
         return Err(Error::Invalid(UNEXPECTED_TRAILING_WORKER_ARGUMEN.into()));
     }
     let expectation = worker_expectation(parser_configuration.as_deref().map(TargetConfiguration))?;
-    let transport: Arc<dyn WorkerPort> = match input {
-        WorkerInput::File(path) => Arc::new(ryo_benchmark::outbound::worker::factory::json_file(
-            path,
-            Box::new(std::io::stdout()),
-        )),
-        WorkerInput::Inline(payload) => Arc::new(ryo_benchmark::outbound::worker::factory::json(
-            payload.0.into(),
-            Box::new(std::io::stdout()),
-        )),
+    let source = match input {
+        WorkerInput::File(path) => WorkerSource::Stored(path),
+        WorkerInput::Inline(payload) => WorkerSource::Argument(payload.0.into()),
     };
-    CheckWorkerRequestUseCaseImpl::new(Arc::clone(&transport)).check_worker_request(&expectation)?;
+    let transport: Arc<dyn WorkerPort> = Arc::new(ryo_benchmark::outbound::worker::factory::json(
+        source,
+        Box::new(std::io::stdout()),
+    ));
+    CheckWorkerRequestUseCaseImpl::new(Arc::clone(&transport))
+        .check_worker_request(&expectation)?;
     let target_version = parser_target(parser_configuration.as_deref().map(TargetConfiguration))?;
     let languages = ryo::linter::Languages(vec![ryo_python::linked_with_settings(
         ryo_python::settings::PythonParserSettings::new(target_version),
@@ -140,10 +139,11 @@ pub(super) fn verify_cases(
     let flags = args
         .map(|argument| CaseArgument(argument.0))
         .collect::<Vec<_>>();
-    let run = ryo_benchmark::inbound::use_cases::select_cases::use_case::SelectCasesUseCaseImpl::new(
-        Arc::new(ryo_benchmark::outbound::suite::factory::local()),
-    )
-    .select_cases(&flags)?;
+    let run =
+        ryo_benchmark::inbound::use_cases::select_cases::use_case::SelectCasesUseCaseImpl::new(
+            Arc::new(ryo_benchmark::outbound::suite::factory::local()),
+        )
+        .select_cases(&flags)?;
     let suite_source: Arc<dyn SuitePort> =
         Arc::new(ryo_benchmark::outbound::suite::factory::local());
     let mut tool = suite_source.profile(ArtifactPath(&source))?;
@@ -253,18 +253,19 @@ pub(super) fn verify_reference_cases(
 
 /// Compose the selected reference rule subset with its verified executable.
 pub(super) fn reference(executable: PathBuf, tool: Tool) -> Result<LinterRuffAdapter, Error> {
-    if tool.file_observation != ryo_benchmark_contracts::domain::workloads::types::FileObservation::Undeclared
+    if tool.file_observation
+        != ryo_benchmark_contracts::domain::workloads::types::FileObservation::Undeclared
         && super::super::adapter::permission_checks_supported()
             == super::super::host_policy::Permissions::Unsupported
     {
         return Err(Error::Invalid(PINNED_REFERENCE_DOES_NOT_EVALUATE.into()));
     }
-    let target_version = ruff_target(
-        match &tool.parser_configuration {
-            ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(name) => Some(TargetConfiguration(name.0.as_str())),
-            ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified => None,
-        },
-    )?
+    let target_version = ruff_target(match &tool.parser_configuration {
+        ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(name) => {
+            Some(TargetConfiguration(name.0.as_str()))
+        }
+        ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified => None,
+    })?
     .0
     .to_owned();
     Ok(LinterRuffAdapter::new(LinterRuffSettings {
