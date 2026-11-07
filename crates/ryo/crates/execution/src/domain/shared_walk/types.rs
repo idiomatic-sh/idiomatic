@@ -1,7 +1,10 @@
 //! File-local scratch for one borrowed relation pass.
 
 use crate::domain::{
-    operating::types::Memo, positions::types::ClassPlace, table_cells::types::ColumnPlaces,
+    operating::{errors::OperatingError, types::Memo},
+    positions::types::ClassPlace,
+    table_cells::types::ColumnPlaces,
+    table_model::types::Verdict,
 };
 use ryo_relations::domain::relations::types::Value;
 
@@ -67,13 +70,14 @@ pub(crate) struct WalkWork {
     pub columns_by_kind: Vec<ColumnPlaces>,
     pub every: Vec<CohortPlace>,
     pub cells: Vec<Value>,
-    pub predicates: std::collections::HashMap<
-        PredicatePlace,
-        Result<
-            crate::domain::table_model::types::Verdict,
-            crate::domain::operating::errors::OperatingError,
-        >,
-    >,
+    pub predicates: PredicateMemo,
+}
+
+/// Decisions of the current source row indexed by `PredicatePlace`, and the places filled.
+#[derive(Debug, Default)]
+pub(crate) struct PredicateMemo {
+    pub slots: Vec<Option<Result<Verdict, OperatingError>>>,
+    pub filled: Vec<PredicatePlace>,
 }
 
 /// Actual outer shared native traversals in this file generation.

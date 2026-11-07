@@ -102,12 +102,7 @@ impl RuntimeState {
                 .map(|region| ReaderCount(region.consumers()))
                 .ok_or(OperatingError::NotRun),
             RootReaders::Selected(selected) => {
-                crate::domain::executable_program::file_demand::service::remaining(
-                    program.file_readers(),
-                    selected,
-                    id,
-                )
-                .map(|readers| ReaderCount(readers.0))
+                Ok(ReaderCount(selected.of(id).0))
             }
         }
     }
@@ -178,7 +173,12 @@ impl ProgramExecution {
                 .or_insert(crate::domain::executable_program::types::ReaderMultiplicity(0))
                 .0 += 1;
         }
-        *self.file_state.roots.borrow_mut() = RootReaders::Selected(selected);
+        let remaining = crate::domain::executable_program::file_demand::service::remaining(
+            self.program.file_readers(),
+            crate::domain::readiness::types::RegionCount(self.program.regions().len()),
+            &selected,
+        )?;
+        *self.file_state.roots.borrow_mut() = RootReaders::Selected(remaining.table);
         Ok(())
     }
     pub(in crate::application::file_dag::program::runtime::service) fn validate_state(

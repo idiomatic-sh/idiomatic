@@ -2,7 +2,7 @@
 //! provider demand, fallback, or owner lifetime is decided in this domain.
 
 use super::types::{
-    ClassCount, ClassWork, CohortPlace, Eligibility, KindCount, WalkWork,
+    ClassCount, ClassWork, CohortPlace, Eligibility, KindCount, PredicateMemo, PredicatePlace, WalkWork,
     native_batch::value::NativeBatch, prepared_walk::value::PreparedWalk,
 };
 use crate::domain::{
@@ -61,6 +61,27 @@ fn needed_together(union: &mut ColumnPlaces, work: &[ClassWork], places: &[Cohor
     union.0.dedup();
 }
 
+/// The dense slot of a predicate; a slot first reached is recorded so `forget` clears only those.
+fn memo_slot(
+    memo: &mut PredicateMemo,
+    predicate: PredicatePlace,
+) -> &mut Option<Result<Verdict, crate::domain::operating::errors::OperatingError>> {
+    if memo.slots.len() <= predicate.0 {
+        memo.slots.resize_with(predicate.0 + 1, || None);
+    }
+    if memo.slots[predicate.0].is_none() {
+        memo.filled.push(predicate);
+    }
+    &mut memo.slots[predicate.0]
+}
+
+/// Forget every decision before the next source row.
+fn forget(memo: &mut PredicateMemo) {
+    for predicate in memo.filled.drain(..) {
+        memo.slots[predicate.0] = None;
+    }
+}
+
 #[expect(
     clippy::too_many_arguments,
     reason = "One borrowed source row and one independent class result"
@@ -70,10 +91,7 @@ fn consider(
     program: &PreparedWalk,
     place: ClassPlace,
     class: &StepClass,
-    predicates: &mut std::collections::HashMap<
-        super::types::PredicatePlace,
-        Result<Verdict, crate::domain::operating::errors::OperatingError>,
-    >,
+    predicates: &mut PredicateMemo,
     batch: &mut NativeBatch,
     each: &mut ClassWork,
     position: Position,
@@ -92,23 +110,23 @@ fn consider(
     let mut class_context = class_context(context, bound, &mut each.memo);
     let mut verdict = Ok(Verdict::Holds);
     for &predicate in program.prefixes(place) {
-        let decision = if let Some(decision) = predicates.get(&predicate) {
-            batch.record_predicate_reuse();
-            decision.clone()
-        } else {
+        let mut tested = false;
+        let decision = memo_slot(predicates, predicate).get_or_insert_with(|| {
+            tested = true;
             batch.record_predicate_test();
-            let decision = holds_all(
+            holds_all(
                 std::slice::from_ref(program.comparison(predicate)),
                 row,
                 source_kinds,
                 names,
                 &mut class_context,
-            );
-            let _previous = predicates.insert(predicate, decision.clone());
-            decision
-        };
-        if decision != Ok(Verdict::Holds) {
-            verdict = decision;
+            )
+        });
+        if !tested {
+            batch.record_predicate_reuse();
+        }
+        if *decision != Ok(Verdict::Holds) {
+            verdict = decision.clone();
             break;
         }
     }
@@ -321,7 +339,7 @@ pub(crate) fn evaluate(
             row
         };
         batch.record_decoded_row();
-        predicates.clear();
+        forget(predicates);
         for place in group {
             if let (Some(class), Some(each)) = (
                 program.classes().get(active[place.0].0),

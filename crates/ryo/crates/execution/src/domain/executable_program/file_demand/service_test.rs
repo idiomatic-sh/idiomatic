@@ -6,6 +6,7 @@ use crate::domain::{
         ExecutableProgram, InputSource, ReaderMultiplicity, Region, RegionId, RuleProgram,
     },
     operating::errors::OperatingError,
+    readiness::types::RegionCount,
 };
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
@@ -45,41 +46,72 @@ fn program() -> ExecutableProgram {
         fusibility: Box::new([]),
     }
 }
+fn counted(
+    program: &ExecutableProgram,
+    selected: &std::collections::HashMap<RegionId, ReaderMultiplicity>,
+    producer: RegionId,
+) -> Result<ReaderMultiplicity, OperatingError> {
+    super::service::remaining(program.file_readers(), RegionCount(program.regions().len()), selected)
+        .map(|remaining| remaining.table.of(producer))
+}
 fn selected_reader_counts_keep_duplicate_edges_without_disabled_siblings() {
     let mut program = program();
     program.regions[0].dependencies = vec![RegionId(1), RegionId(1)].into_boxed_slice();
-    let graph = super::service::readers(&program.regions, &program.rules).unwrap();
+    program.file_readers = super::service::readers(&program.regions, &program.rules).unwrap();
     let mut selected = std::collections::HashMap::from([(RegionId(0), ReaderMultiplicity(2))]);
     assert_eq!(
-        super::service::remaining(&graph, &selected, RegionId(0)).unwrap(),
+        counted(&program, &selected, RegionId(0)).unwrap(),
         ReaderMultiplicity(2)
     );
     assert_eq!(
-        super::service::remaining(&graph, &selected, RegionId(1)).unwrap(),
+        counted(&program, &selected, RegionId(1)).unwrap(),
         ReaderMultiplicity(2),
         "the same dependency is consumed once per declared edge"
     );
     selected.insert(RegionId(1), ReaderMultiplicity(1));
     assert_eq!(
-        super::service::remaining(&graph, &selected, RegionId(1)).unwrap(),
+        counted(&program, &selected, RegionId(1)).unwrap(),
         ReaderMultiplicity(3),
         "a source's external reader is independent of consumer edges"
     );
     selected.clear();
     assert_eq!(
-        super::service::remaining(&graph, &selected, RegionId(1)).unwrap(),
+        counted(&program, &selected, RegionId(1)).unwrap(),
         ReaderMultiplicity(0)
     );
     selected.insert(RegionId(99), ReaderMultiplicity(1));
     assert_eq!(
-        super::service::remaining(&graph, &selected, RegionId(1)),
+        counted(&program, &selected, RegionId(1)),
         Err(OperatingError::NotRun)
     );
+}
+/// Many files selecting the same roots share one table per request; a changed selection recomputes.
+fn remaining_is_computed_once_per_selection() {
+    let program = program();
+    let selected = std::collections::HashMap::from([(RegionId(0), ReaderMultiplicity(1))]);
+    let files = 8;
+    let mut computations = 0;
+    for _ in 0..files {
+        computations = super::service::remaining(
+            program.file_readers(),
+            RegionCount(program.regions().len()),
+            &selected,
+        )
+        .unwrap()
+        .computations;
+    }
+    assert_eq!(computations, 1, "{files} files with one selection compute once");
+    let other = std::collections::HashMap::from([(RegionId(1), ReaderMultiplicity(1))]);
+    let changed =
+        super::service::remaining(program.file_readers(), RegionCount(program.regions().len()), &other)
+            .unwrap();
+    assert_eq!(changed.computations, 2, "a different selection computes again");
 }
 enum Scenario {
     Mode(bool, bool, usize, usize, usize),
     Readers,
     DeferredSources,
+    RemainingOnce,
 }
 type Input = Scenario;
 type Value = ();
@@ -97,6 +129,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: || Scenario::Readers,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("initial reader counts are computed once for many files"),
+        word: Word::Succeeds,
+        input: || Scenario::RemainingOnce,
         expect: Expect::Value(()),
     },
     Case {
@@ -144,6 +182,10 @@ fn subject(input: Input) -> Result<Value, Failure> {
         }
         Scenario::DeferredSources => {
             return deferred_sources();
+        }
+        Scenario::RemainingOnce => {
+            remaining_is_computed_once_per_selection();
+            return Ok(());
         }
         Scenario::Mode(diagnostic, observations, capture, cancelled, roots) => {
             (diagnostic, observations, capture, cancelled, roots)
