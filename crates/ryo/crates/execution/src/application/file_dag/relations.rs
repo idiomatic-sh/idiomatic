@@ -13,9 +13,9 @@ use crate::domain::{executable_program::types::RegionId, operating::errors::Oper
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use std::{
     cell::{Cell, RefCell},
-    collections::HashMap,
     sync::{Arc, OnceLock},
 };
+use rustc_hash::FxHashMap;
 mod accounting;
 pub(crate) mod types;
 pub(in crate::application::file_dag) mod inspection;
@@ -44,7 +44,7 @@ pub(in crate::application::file_dag) mod packed;
 struct SourceViews {
     population: SourceDescriptor,
     canonical_population: PopulationId,
-    views: HashMap<SourceDescriptor, PublishedInput>,
+    views: FxHashMap<SourceDescriptor, PublishedInput>,
 }
 
 pub(crate) struct RelationOwner {
@@ -52,11 +52,11 @@ pub(crate) struct RelationOwner {
     pub(super) identity_checks: Cell<CheckCount>,
     derived: super::derived::owner::DerivedOwner,
     next_population: Cell<PopulationId>,
-    producer_populations: RefCell<HashMap<ProducerKey, ProducerPopulation>>,
+    producer_populations: RefCell<FxHashMap<ProducerKey, ProducerPopulation>>,
     generation: RefCell<Arc<()>>,
     generation_live: RefCell<Arc<GenerationLease>>,
     stable: ReuseEligibility,
-    sources: RefCell<HashMap<Relation, SourceViews>>,
+    sources: RefCell<FxHashMap<Relation, SourceViews>>,
     max_views: PinnedViewCount,
     views: Cell<PinnedViewCount>,
     pub(in crate::application::file_dag) checks: Cell<CheckCount>,
@@ -145,11 +145,11 @@ impl RelationOwner {
             identity_checks: Cell::new(CheckCount(0)),
             derived: super::derived::owner::DerivedOwner::new(max_derived, semantic, routes.clone()),
             next_population: Cell::new(PopulationId(0)),
-            producer_populations: RefCell::new(HashMap::new()),
+            producer_populations: RefCell::new(FxHashMap::default()),
             generation: RefCell::new(Arc::new(())),
             generation_live: RefCell::new(Arc::new(GenerationLease::new())),
             stable,
-            sources: RefCell::new(HashMap::new()),
+            sources: RefCell::new(FxHashMap::default()),
             max_views,
             views: Cell::new(PinnedViewCount(0)),
             checks: Cell::new(CheckCount(0)),

@@ -27,6 +27,7 @@ pub fn completion<'a>(
         symbols,
         source,
         file,
+        requirement: crate::domain::elements::types::CompletionRequirement::Independent,
     })
 }
 

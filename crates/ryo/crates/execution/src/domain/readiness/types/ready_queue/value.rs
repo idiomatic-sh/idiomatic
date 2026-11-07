@@ -4,7 +4,8 @@ use super::super::{
     WaitingCount,
 };
 use crate::domain::{executable_program::types::RegionId, operating::errors::OperatingError};
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
+use rustc_hash::FxHashMap;
 
 #[derive(Clone, Copy)]
 enum State {
@@ -22,7 +23,7 @@ struct Entry {
 /// Owns only readiness transitions. The application polls the sole actual interpreter.
 pub(crate) struct ReadyQueue {
     region_count: RegionCount,
-    entries: HashMap<RegionId, Entry>,
+    entries: FxHashMap<RegionId, Entry>,
     pending: VecDeque<RegionId>,
     ready: VecDeque<RegionId>,
     cohort: VecDeque<RegionId>,
@@ -36,7 +37,7 @@ impl ReadyQueue {
     ) -> Result<Self, OperatingError> {
         let mut queue = Self {
             region_count,
-            entries: HashMap::new(),
+            entries: FxHashMap::default(),
             pending: VecDeque::new(),
             ready: VecDeque::new(),
             cohort: VecDeque::new(),

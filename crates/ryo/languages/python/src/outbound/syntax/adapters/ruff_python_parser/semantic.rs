@@ -25,6 +25,9 @@ pub(super) struct PythonSemanticSession {
     source_kind: PythonSourceKind,
     settings: PythonParserSettings,
     parsed: Option<ruff_python_parser::Parsed<ruff_python_ast::Mod>>,
+    /// Actual whole-file parses, observed only in tests.
+    #[cfg(test)]
+    file_parses: Arc<std::sync::atomic::AtomicUsize>,
 }
 
 impl PythonSemanticSession {
@@ -32,6 +35,8 @@ impl PythonSemanticSession {
         tree: &languages::Elements,
         source_kind: PythonSourceKind,
         settings: PythonParserSettings,
+        parsed: Option<ruff_python_parser::Parsed<ruff_python_ast::Mod>>,
+        #[cfg(test)] file_parses: Arc<std::sync::atomic::AtomicUsize>,
     ) -> Self {
         let elements = tree
             .start
@@ -48,7 +53,9 @@ impl PythonSemanticSession {
             elements,
             source_kind,
             settings,
-            parsed: None,
+            parsed,
+            #[cfg(test)]
+            file_parses,
         }
     }
 }
@@ -217,6 +224,12 @@ impl SemanticSession for PythonSemanticSession {
                 requests.len()
             ]);
         };
+        #[cfg(test)]
+        if self.parsed.is_none() {
+            let _previous = self
+                .file_parses
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
         let parsed = self.parsed.get_or_insert_with(|| {
             ruff_python_parser::parse_unchecked(
                 source,

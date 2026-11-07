@@ -108,8 +108,9 @@ impl FactsWorker for FakeWorker {
         }
         let mut buckets = self.words.lock().map_err(|_| refusal())?;
         let kept = buckets.entry(bucket).or_default();
-        let start = kept.words.0.0.len();
-        kept.words.0.0.extend_from_slice(&words.words.0);
+        let held = &mut std::sync::Arc::make_mut(&mut kept.words).0.0;
+        let start = held.len();
+        held.extend_from_slice(&words.words.0);
         kept.sources.push(BucketSource {
             file: words.file,
             start: crate::outbound::facts::types::KeptWordsStart(start),
@@ -158,8 +159,9 @@ impl FactsFinish for Joined {
         let mut words = KeptBucket::default();
         for part in &self.parts {
             let each = part.kept(bucket)?;
-            let offset = words.words.0.0.len();
-            words.words.0.0.extend(each.words.0.0);
+            let held = &mut std::sync::Arc::make_mut(&mut words.words).0.0;
+            let offset = held.len();
+            held.extend_from_slice(&each.words.0.0);
             words
                 .sources
                 .extend(each.sources.into_iter().map(|mut source| {

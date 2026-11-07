@@ -17,6 +17,7 @@ ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations",
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.2" }
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.2" }
 hashbrown.workspace = true
+rustc-hash.workspace = true
 
 [dev-dependencies]
 idiomatic-sh-ryo-derived = { path = ".", features = ["fixtures"] }

@@ -20,6 +20,58 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 
+/// Reads `source` as a stub with `wanted` alone and answers how many annotation carriers the syntax adapter parsed and how many
+/// embedded expressions the table holds.
+fn read_with_demand(source: &[u8], wanted: languages::Relation) -> (usize, usize) {
+    let settings = PythonParserSettings::new(PythonTargetVersion::Py310);
+    let count = Arc::new(AtomicUsize::new(0));
+    let parse = ParseContract::new(
+        settings,
+        Arc::new(observed(settings, Arc::clone(&count))),
+        Arc::new(postcard()),
+    );
+    let (mut elements, mut symbols) = (
+        languages::Elements::default(),
+        languages::Symbols::default(),
+    );
+    let mut out = languages::contract::Collect::default();
+    languages::contract::read(
+        &parse,
+        languages::ParseRequest {
+            path: languages::SourcePath("case.pyi"),
+            file: languages::FileId(0),
+            bytes: ByteSlice(source),
+            notes: languages::NoteRequest::Unwanted,
+            fields: languages::FieldRequest::Unwanted,
+        },
+        &mut elements,
+        &mut symbols,
+        &[wanted],
+        &mut out,
+    )
+    .unwrap();
+    (
+        count.load(Ordering::Relaxed),
+        languages::embedded_expressions(&elements).count(),
+    )
+}
+
+/// A demand whose readers never look at expanded elements leaves the annotation carriers unparsed: completion classifies no
+/// carrier, so it asks nothing of the binding model. The negative control is the same file read for its embedded expressions.
+fn a_demand_that_reads_no_expanded_element_expands_no_annotation() {
+    let source = b"Alias = list[\"'T'\"]\n";
+    assert_eq!(
+        read_with_demand(source, languages::Relation::Comment),
+        (0, 0),
+        "no wanted reader reads what completion adds"
+    );
+    assert_eq!(
+        read_with_demand(source, languages::Relation::EmbeddedExpression),
+        (1, 1),
+        "a reader of the embedded expressions has the carrier expanded"
+    );
+}
+
 fn native_ids_and_one_actual_model_preparation_survive_repeated_demands_and_refill() {
     let source = b"Alias = list[\"'T'\"]\n";
     let settings = PythonParserSettings::new(PythonTargetVersion::Py310);
@@ -247,6 +299,8 @@ enum Body {
     UnicodeAndEscapedCarriersUseTheExistingSingleMappingWriter,
     /// The case `complete_relation_rows_do_not_depend_on_demand_order`.
     CompleteRelationRowsDoNotDependOnDemandOrder,
+    /// The case `a_demand_that_reads_no_expanded_element_expands_no_annotation`.
+    ADemandThatReadsNoExpandedElementExpandsNoAnnotation,
 }
 
 type Input = Body;
@@ -283,6 +337,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Body::CompleteRelationRowsDoNotDependOnDemandOrder,
         expect: Expect::Value(()),
     },
+    Case {
+        name: CaseName("a_demand_that_reads_no_expanded_element_expands_no_annotation"),
+        word: Word::Succeeds,
+        input: || Body::ADemandThatReadsNoExpandedElementExpandsNoAnnotation,
+        expect: Expect::Value(()),
+    },
 ];
 
 /// Runs the body of one case.
@@ -299,6 +359,9 @@ fn subject(given: Input) -> Result<Value, Failure> {
         }
         Body::CompleteRelationRowsDoNotDependOnDemandOrder => {
             complete_relation_rows_do_not_depend_on_demand_order()
+        }
+        Body::ADemandThatReadsNoExpandedElementExpandsNoAnnotation => {
+            a_demand_that_reads_no_expanded_element_expands_no_annotation()
         }
     }
     Ok(())

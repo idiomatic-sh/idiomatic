@@ -207,7 +207,7 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
         let mut prefix = vec![];
         let mut nested_rows = vec![];
         let mut entries = 0;
-        let mut nested_observed = std::collections::HashMap::new();
+        let mut nested_observed = rustc_hash::FxHashMap::default();
         let mut each = |context: &mut OperatorContext<'_>, row: &[Cell]| {
             entries += 1;
             let admitted = context

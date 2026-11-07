@@ -112,6 +112,7 @@ pub(crate) fn complete<M: Default + Send + 'static>(
         completion,
         committed: Commit::Pending,
     };
+    phase.completion.as_mut().requirement = requirement;
     if requires_model {
         let input = phase.completion.as_mut();
         let mut model = take_model::<M>(input.elements);
@@ -144,6 +145,14 @@ pub(crate) fn complete<M: Default + Send + 'static>(
         engine_mut(input.elements).model_preparation.ready = ModelReadiness::Ready;
     }
     phase.committed = Commit::Done;
+}
+
+/// What this completion was given: `PreparedModel` only when the language requires a model and the request's demand reads what
+/// completion adds (a reader of expanded elements); otherwise `Independent`, and no model is lent.
+pub fn completion_requirement(
+    completion: &mut Completion<'_>,
+) -> crate::domain::elements::types::CompletionRequirement {
+    completion.as_mut().requirement
 }
 
 /// Lend initialized model data without giving the provider readiness or initialization capabilities.

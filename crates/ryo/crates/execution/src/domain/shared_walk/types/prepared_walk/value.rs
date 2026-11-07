@@ -47,13 +47,13 @@ impl PreparedWalk {
         self.predicates.clear();
         self.needed.clear();
         // Predicates bucketed by (parent, source): only these can be equal.
-        let mut keyed: std::collections::HashMap<
+        let mut keyed: rustc_hash::FxHashMap<
             (
                 Option<PredicatePlace>,
                 ryo_relations::domain::relations::types::Relation,
             ),
             Vec<usize>,
-        > = std::collections::HashMap::new();
+        > = rustc_hash::FxHashMap::default();
         for (at, class) in self.classes.classes.iter().enumerate() {
             let mut prefixes = Vec::new();
             let mut parent = None;

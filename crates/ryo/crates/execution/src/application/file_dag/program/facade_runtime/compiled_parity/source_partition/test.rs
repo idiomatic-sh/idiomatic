@@ -224,7 +224,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
             &project_walk,
         ),
     };
-    let mut observed = std::collections::HashMap::new();
+    let mut observed = rustc_hash::FxHashMap::default();
     let mut sources =
         crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs {
             execution: &execution,

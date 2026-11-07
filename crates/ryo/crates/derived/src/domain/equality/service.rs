@@ -2,8 +2,8 @@
 use super::types::{KeyIndex, KeyIndexCapacities};
 use crate::domain::allocation::types::ElementCapacity;
 use crate::domain::fault::types::DerivedFault;
-use crate::domain::key::service::word_of;
-use crate::domain::key::types::{ChainLink, KeyCellsHash};
+use crate::domain::key::service::{mix, word_of};
+use crate::domain::key::types::{ChainLink, HashWord, KeyCellsHash};
 use crate::domain::row_cells::types::{BulkRows, RowCells};
 use ryo_relations::domain::relations::types::{ColumnsView, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -84,9 +84,8 @@ fn fill(
     out.rows.extend((0..count.0).map(RowIndex));
     out.hashes.clear();
     out.hashes.extend(out.rows.iter().map(|row| {
-        KeyCellsHash(columns.iter().fold(0_u64, |hash, column| {
-            (hash.rotate_left(5) ^ cell(*row, *column).map_or(0, |value| word_of(&value).0))
-                .wrapping_mul(0x517c_c1b7_2722_0a95)
-        }))
+        columns.iter().fold(KeyCellsHash(0), |hash, column| {
+            mix(hash, cell(*row, *column).map_or(HashWord(0), |value| word_of(&value)))
+        })
     }));
 }

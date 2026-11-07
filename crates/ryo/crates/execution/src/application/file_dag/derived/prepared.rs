@@ -10,14 +10,14 @@ use ryo_relations::domain::relations::types::Relation;
 use crate::application::file_dag::derived::owner::cache::types::GraphAdmission;
 pub(in crate::application::file_dag) struct RequestDerived {
     relations: Box<[Box<[Relation]>]>,
-    graph_rules: std::collections::HashSet<RuleIndex>,
+    graph_rules: rustc_hash::FxHashSet<RuleIndex>,
 }
 impl RequestDerived {
     pub(in crate::application::file_dag) fn compile(
         program: &ExecutableProgram,
     ) -> Result<Self, OperatingError> {
         let mut relations = Vec::with_capacity(program.rules().len());
-        let mut graph_rules = std::collections::HashSet::new();
+        let mut graph_rules = rustc_hash::FxHashSet::default();
         for (rule, mapping) in program.rules().iter().enumerate() {
             let mut reads = Vec::new();
             let mut graph = false;

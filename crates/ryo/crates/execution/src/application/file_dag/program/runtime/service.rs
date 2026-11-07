@@ -120,10 +120,10 @@ struct Slot {
 /// Reused scope-local planning buffers. No per-row allocation or mutation of
 /// reader counts occurs until the entire cancellation cascade validates.
 struct RetirementWork {
-    simulated: std::collections::HashMap<RegionId, ReaderCount>,
+    simulated: rustc_hash::FxHashMap<RegionId, ReaderCount>,
     touched: Vec<RegionId>,
     pending: Vec<RegionId>,
-    waiters: std::collections::HashMap<RegionId, Vec<RegionId>>,
+    waiters: rustc_hash::FxHashMap<RegionId, Vec<RegionId>>,
     retired_states: Vec<State>,
     retired_scratch: Vec<Vec<KernelScratch>>,
 }
@@ -154,8 +154,8 @@ pub(in crate::application::file_dag::program) struct RuntimeState {
     generation: Arc<()>,
     scope: crate::application::file_dag::relations::publication::types::ProducerScope,
     roots: RefCell<RootReaders>,
-    slots: RefCell<std::collections::HashMap<RegionId, Slot>>,
-    dormant: RefCell<std::collections::HashMap<RegionId, ReaderCount>>,
+    slots: RefCell<rustc_hash::FxHashMap<RegionId, Slot>>,
+    dormant: RefCell<rustc_hash::FxHashMap<RegionId, ReaderCount>>,
     retirement: RefCell<RetirementWork>,
     #[cfg(test)]
     reader_initializations: std::cell::Cell<ReaderInitializations>,

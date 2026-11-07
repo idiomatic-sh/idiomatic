@@ -18,9 +18,18 @@ use ryo_relations::domain::terms::types::ChildOrdinal;
 use ryo_relations::domain::terms::types::Symbol;
 
 /// Empties an element table, keeping its room for the next file.
+/// What the language kept of its read of the file for a semantic session, taken: the table keeps nothing of it after.
+pub fn take_semantics(elements: &mut Elements) -> crate::domain::semantics::types::SemanticSlot {
+    engine_mut(elements).retained.0.take().map_or(
+        crate::domain::semantics::types::SemanticSlot::Empty,
+        crate::domain::semantics::types::SemanticSlot::Retained,
+    )
+}
+
 pub fn clear_elements(elements: &mut Elements) {
     // Invalidate before touching the old population; stale models never survive a refill.
     engine_mut(elements).model_preparation.ready = ModelReadiness::Stale;
+    engine_mut(elements).retained.0 = None;
     elements.kind.as_mut().values.clear();
     elements.flags.as_mut().values.clear();
     elements.start.as_mut().values.clear();

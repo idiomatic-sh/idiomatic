@@ -4,7 +4,6 @@ use crate::domain::fact_notes::service::noted;
 use crate::domain::fields::service::role_of;
 use crate::domain::labels::service::{field_bits, field_name, fields};
 use crate::domain::model::types::Declarations;
-use crate::domain::scopes::service::declare;
 use crate::domain::syntax::service::{kind_bits, kind_name, kinds};
 use crate::outbound::notes::interface::NotesPort;
 use crate::outbound::syntax::interface::SyntaxPort;
@@ -25,12 +24,8 @@ pub(super) fn source_kind(path: languages::SourcePath<'_>) -> PythonSourceKind {
     }
 }
 
-/// Prepares the model of one file: the language target, every cache cleared, the declarations and the binding index.
-pub(super) fn prepare_model(
-    settings: &PythonParserSettings,
-    tree: &languages::Tree<'_>,
-    model: &mut Declarations,
-) {
+/// Prepares the model of one file: the language target and every cache cleared, the declarations and the binding index among them.
+pub(super) fn prepare_model(settings: &PythonParserSettings, model: &mut Declarations) {
     model.language_target = settings.target_version().components();
     crate::domain::expression_shapes::service::clear(model.expression_shapes.get_mut());
     crate::domain::constant_keys::service::clear(model.constant_keys.get_mut());
@@ -47,8 +42,11 @@ pub(super) fn prepare_model(
     crate::domain::binding_analysis::service::clear(model.binding_analysis.get_mut());
     model.semantic.get_mut().roots.clear();
     model.semantic.get_mut().state = crate::domain::model::types::QualificationState::Fresh;
-    declare(tree, model);
-    crate::domain::bindings::service::index(tree, model);
+    // The declarations and the binding index are built on a reader's first lookup, not for every file.
+    model.declared.get_mut().clear();
+    model.bindings.get_mut().clear();
+    model.declared_state.set(crate::domain::model::types::QualificationState::Fresh);
+    model.bindings_state.set(crate::domain::model::types::QualificationState::Fresh);
 }
 
 /// Completes a file: its kind names, and, when asked, its field names, roles and notes.

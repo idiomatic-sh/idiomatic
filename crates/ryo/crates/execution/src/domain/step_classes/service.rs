@@ -149,10 +149,10 @@ pub(crate) fn predicate_bindings_match(
 pub(crate) fn merge(plans: &[Plan], bindings: &[Vec<ParameterBinding>]) -> Merge {
     let mut merged = Merge::default();
     // Classes bucketed by source relation: a class only ever matches its own source.
-    let mut by_source: std::collections::HashMap<
+    let mut by_source: rustc_hash::FxHashMap<
         ryo_relations::domain::relations::types::Relation,
         Vec<usize>,
-    > = std::collections::HashMap::new();
+    > = rustc_hash::FxHashMap::default();
     for (rule, plan) in plans.iter().enumerate() {
         let mut of_rule = vec![None; plan.steps.len()];
         let mut below: Vec<Option<Rooted>> = Vec::with_capacity(plan.steps.len());

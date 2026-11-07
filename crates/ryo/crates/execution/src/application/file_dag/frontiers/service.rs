@@ -126,7 +126,7 @@ pub(super) fn prepare(
         // proof and the refusals above keep their order; only the decode is deferred.
         admitted.push(FrontierInput::Packed(PackedFrontier {
             input,
-            words: std::sync::Arc::new(words.words),
+            words: words.words,
             mode,
             coverage,
         }));

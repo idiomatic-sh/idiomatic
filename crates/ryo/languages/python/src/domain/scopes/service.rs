@@ -8,7 +8,7 @@ use ryo::languages::{self, Position, Symbol, Tree};
 
 use super::types::{CategoryIndex, Context, Evaluation, Scopeness, Targeting};
 use crate::domain::model::service::redirect_of;
-use crate::domain::model::types::{BindingRedirect, Declarations, ScopeDeclaration};
+use crate::domain::model::types::{BindingRedirect, Declarations, QualificationState, ScopeDeclaration};
 use crate::domain::nodes::types::Category;
 use crate::domain::syntax::service::{category, is_root, kind, name_of, nodes, nodes_of, parent};
 use crate::domain::syntax::types::{Kind, Rootness};
@@ -171,6 +171,9 @@ pub(crate) fn redirected(
     scope: Position,
     name: Symbol,
 ) -> Position {
+    if model.declared_state.get() == QualificationState::Fresh {
+        declare(tree, model);
+    }
     match redirect_of(model, scope, name) {
         Some(BindingRedirect::Global) => Position(0),
         Some(BindingRedirect::Nonlocal) => function_around(tree, scope),
@@ -257,9 +260,11 @@ pub(crate) fn context(tree: &Tree<'_>, at: Position) -> Context {
     clippy::wildcard_enum_match_arm,
     reason = "only `global` and `nonlocal` declare where a name is bound; every other kind declares nothing"
 )]
-/// Refills the scope redirects of the file; declaration indexing is a separate phase.
-pub(crate) fn declare(tree: &Tree<'_>, model: &mut Declarations) {
-    model.declared.clear();
+/// Refills the scope redirects of the file, on its first redirect lookup; declaration indexing is a separate phase.
+pub(crate) fn declare(tree: &Tree<'_>, model: &Declarations) {
+    model.declared_state.set(QualificationState::Ready);
+    let mut declared = model.declared.borrow_mut();
+    declared.clear();
     for at in languages::positions(tree.elements) {
         let redirect = match kind(tree, at) {
             Kind::Node(Node::Global) => BindingRedirect::Global,
@@ -269,7 +274,7 @@ pub(crate) fn declare(tree: &Tree<'_>, model: &mut Declarations) {
         let scope = enclosing(tree, at);
         for identifier in nodes(tree, at) {
             if let Some(name) = name_of(tree, identifier) {
-                model.declared.push(ScopeDeclaration {
+                declared.push(ScopeDeclaration {
                     scope,
                     name,
                     redirect,

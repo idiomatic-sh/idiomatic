@@ -75,10 +75,14 @@ pub(crate) struct Declarations {
     pub expression_types: RefCell<ExpressionTypeIndex>,
     /// Lazy terminal function summaries, invalidated between source revisions.
     pub terminal_flow: RefCell<TerminalIndex>,
-    /// Every declared name.
-    pub declared: Vec<ScopeDeclaration>,
-    /// Definitions indexed by lexical scope and name, in source order.
-    pub bindings: Vec<LexicalBinding>,
+    /// Every declared name, worked out on a reader's first lookup of the file.
+    pub declared: RefCell<Vec<ScopeDeclaration>>,
+    /// Definitions indexed by lexical scope and name, in source order, worked out with `declared`.
+    pub bindings: RefCell<Vec<LexicalBinding>>,
+    /// Whether `declared` belongs to the current parse: a file no reader looks a redirect up in never builds it.
+    pub declared_state: std::cell::Cell<QualificationState>,
+    /// Whether `bindings` belongs to the current parse: a file no reader resolves a name in never builds it.
+    pub bindings_state: std::cell::Cell<QualificationState>,
     /// Lazy lexical indentation regions retain their storage between files.
     pub indentation: RefCell<IndentationIndex>,
     /// Lazy provenance uncertainty, invalidated with every parse.

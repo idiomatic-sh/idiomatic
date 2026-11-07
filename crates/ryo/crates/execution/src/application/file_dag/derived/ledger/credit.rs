@@ -4,7 +4,8 @@ use super::types::{
     UnitCount,
 };
 use crate::domain::operating::errors::OperatingError;
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
+use rustc_hash::FxHashMap;
 
 /// A handle being released, with how many of its clones are being released with it.
 struct Dropping<'a> {
@@ -33,7 +34,7 @@ impl Ledger {
         &self,
         leases: &[&Arc<ResourceLease>],
     ) -> Result<Option<Credit>, OperatingError> {
-        let mut handles = HashMap::<usize, Dropping<'_>>::new();
+        let mut handles = FxHashMap::<usize, Dropping<'_>>::default();
         if handles.try_reserve(leases.len()).is_err() {
             return Ok(None);
         }
@@ -56,7 +57,7 @@ impl Ledger {
                 .checked_add(lease.keys.len())
                 .ok_or(OperatingError::ShapeMismatch)?;
         }
-        let mut references = HashMap::<BackingKey, HoldCount>::new();
+        let mut references = FxHashMap::<BackingKey, HoldCount>::default();
         if references.try_reserve(keys).is_err() {
             return Ok(None);
         }

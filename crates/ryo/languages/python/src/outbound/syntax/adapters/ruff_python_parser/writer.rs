@@ -166,7 +166,7 @@ impl<'b, 'w, 't> Writer<'b, 'w, 't> {
     }
 }
 
-impl<'a> SourceOrderVisitor<'a> for Writer<'_, '_, '_> {
+impl<'a> SourceOrderVisitor<'a> for Writer<'_, '_, 'a> {
     fn visit_expr(&mut self, expr: &'a ruff_python_ast::Expr) {
         let previous = self.annotation;
         if matches!(expr, ruff_python_ast::Expr::Call(_)) && previous == AnnotationContext::Runtime
@@ -213,7 +213,7 @@ impl<'a> SourceOrderVisitor<'a> for Writer<'_, '_, '_> {
         {
             self.annotations.push(AnnotationCandidate {
                 host: languages::builder_position(self.tree.builder),
-                literal: literal.clone(),
+                literal,
             });
         }
         let strings = self.strings.last().copied().unwrap_or(Strings::Formatted);

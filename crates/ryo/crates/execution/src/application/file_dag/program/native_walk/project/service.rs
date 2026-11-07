@@ -24,8 +24,9 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::StepScope;
 use std::{
     cell::{Cell, Ref, RefCell},
-    collections::{BTreeSet, HashMap},
+    collections::BTreeSet,
 };
+use rustc_hash::FxHashMap;
 
 /// The production invocation is explicitly bound to a file owner or project stage.
 /// An invocation of either partition cannot opt out of its shared-walk owner.
@@ -120,9 +121,9 @@ fn relation_of(
 pub(in crate::application::file_dag::program) struct ProjectWalk {
     // A batch lives while a declared rule that consumes its relation still owes a delivery,
     // then retires; a lease handed out earlier keeps its own result.
-    batches: RefCell<HashMap<WalkSourceIdentity, SourceWork>>,
+    batches: RefCell<FxHashMap<WalkSourceIdentity, SourceWork>>,
     // The declared roots of the cohorts in flight: no head is admitted without its declaration.
-    owed: RefCell<HashMap<RuleIndex, Owed>>,
+    owed: RefCell<FxHashMap<RuleIndex, Owed>>,
     // Counters of retired batches, so the scope's totals survive retirement.
     retired: Cell<WalkCounts>,
     work: RefCell<WalkWork>,
@@ -130,8 +131,8 @@ pub(in crate::application::file_dag::program) struct ProjectWalk {
 impl ProjectWalk {
     pub(in crate::application::file_dag::program) fn new() -> Self {
         Self {
-            batches: RefCell::new(HashMap::new()),
-            owed: RefCell::new(HashMap::new()),
+            batches: RefCell::new(FxHashMap::default()),
+            owed: RefCell::new(FxHashMap::default()),
             retired: Cell::new(WalkCounts::default()),
             work: RefCell::new(WalkWork::default()),
         }

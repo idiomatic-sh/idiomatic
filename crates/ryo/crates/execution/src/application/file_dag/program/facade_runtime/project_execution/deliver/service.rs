@@ -15,7 +15,7 @@ use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::domain::rule_intent::types::RuleDemand;
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::operating::errors::OperatingError;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::rc::Rc;
 
 impl ProjectRun<'_> {
@@ -39,7 +39,7 @@ impl ProjectRun<'_> {
             &unavailable,
             &self.publication.walk,
         );
-        let mut absent = HashMap::new();
+        let mut absent = FxHashMap::default();
         let mut sources = SourceInputs {
             execution: self.execution,
             state,

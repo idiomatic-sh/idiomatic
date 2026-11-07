@@ -1,4 +1,5 @@
-//! Classify using the engine-prepared model, then delegate eligible carrier parsing to the syntax port.
+//! Classify using the engine-prepared model, then delegate eligible carrier parsing to the syntax port, when the request's demand
+//! reads the expanded annotations.
 use crate::{
     domain::{model::types::Declarations, semantic_syntax::service::completion_hosts},
     outbound::syntax::{
@@ -20,6 +21,10 @@ pub(crate) fn expand(
     completion: &mut languages::Completion<'_>,
     syntax: &dyn SyntaxPort,
 ) {
+    // No wanted reader reads the expanded annotations: none are parsed, and no model is prepared for them.
+    if languages::completion_requirement(completion) != languages::CompletionRequirement::PreparedModel {
+        return;
+    }
     let carriers =
         languages::with_file_model::<Declarations, _>(completion, |tree, symbols, model| {
             completion_hosts(tree, model, symbols)

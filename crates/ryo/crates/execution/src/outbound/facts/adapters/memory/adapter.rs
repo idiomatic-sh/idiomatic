@@ -5,7 +5,7 @@
 use std::collections::BTreeMap;
 use std::sync::Mutex;
 
-use ryo_relations::domain::relations::service::{all, columns, kinds};
+use ryo_relations::domain::relations::service::{all, columns, kinds, number_of};
 use ryo_relations::domain::relations::types::Relation;
 
 use super::constants::{RETAINED_COLUMN_WORDS, SCHEMAS};
@@ -61,13 +61,9 @@ impl FactsWorker for MemoryWorker {
     }
 
     fn rows(&self, relation: Relation) -> Result<ColumnsView<'_>, FactsError> {
-        let place = all()
-            .iter()
-            .position(|each| *each == relation)
-            .ok_or_else(|| refused(FactsRefusalText(SCHEMAS)))?;
         let columns = self
             .tables
-            .get(place)
+            .get(number_of(relation).0)
             .ok_or_else(|| refused(FactsRefusalText(SCHEMAS)))?;
         Ok(ColumnsView {
             kinds: kinds(relation),
@@ -84,8 +80,10 @@ impl FactsWorker for MemoryWorker {
             .lock()
             .map_err(|_| refused(FactsRefusalText(SCHEMAS)))?;
         let kept = buckets.entry(bucket).or_default();
-        let start = kept.words.0.0.len();
-        kept.words.0.0.extend_from_slice(&words.words.0);
+        // The worker is the only holder of its words until it finishes: this borrows them mutably and copies nothing.
+        let held = &mut std::sync::Arc::make_mut(&mut kept.words).0.0;
+        let start = held.len();
+        held.extend_from_slice(&words.words.0);
         kept.sources.push(BucketSource {
             file: words.file,
             start: crate::outbound::facts::types::KeptWordsStart(start),
@@ -121,6 +119,7 @@ struct MemoryFinish {
 }
 
 impl FactsFinish for MemoryFinish {
+    /// The worker's own buffer of the bucket, shared: its words are not copied.
     fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
         Ok(self
             .kept
@@ -136,20 +135,36 @@ struct Joined {
 }
 
 impl FactsFinish for Joined {
+    /// One worker's words are handed out as that worker holds them; the words of several are run together once, into a buffer
+    /// of exactly their length.
     fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
-        let mut words = KeptBucket::default();
+        let mut held = Vec::with_capacity(self.parts.len());
         for part in &self.parts {
             let each = part.kept(bucket)?;
-            let offset = words.words.0.0.len();
-            words.words.0.0.extend(each.words.0.0);
-            words
-                .sources
-                .extend(each.sources.into_iter().map(|mut source| {
-                    source.start.0 += offset;
-                    source
-                }));
+            if !each.sources.is_empty() || !each.words.0.0.is_empty() {
+                held.push(each);
+            }
         }
-        Ok(words)
+        if held.len() <= 1 {
+            return Ok(held.pop().unwrap_or_default());
+        }
+        let length = held.iter().map(|each| each.words.0.0.len()).sum();
+        let mut words = Vec::with_capacity(length);
+        let mut sources = Vec::with_capacity(held.iter().map(|each| each.sources.len()).sum());
+        for each in held {
+            let offset = words.len();
+            words.extend_from_slice(&each.words.0.0);
+            sources.extend(each.sources.into_iter().map(|mut source| {
+                source.start.0 += offset;
+                source
+            }));
+        }
+        Ok(KeptBucket {
+            words: std::sync::Arc::new(ryo_values::domain::stored_facts::types::KeptWords(
+                ryo_values::domain::stored_facts::types::PackedWords(words),
+            )),
+            sources,
+        })
     }
 }
 

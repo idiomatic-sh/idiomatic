@@ -248,7 +248,7 @@ impl FileAnalysis {
                     roles: setting.roled.into(),
                 };
                 self.language
-                    .begin_semantics(language, source, &worker.tables.elements)
+                    .begin_semantics(language, source, &mut worker.tables.elements)
             })
         } else {
             None

@@ -6,7 +6,7 @@ use super::{
     },
 };
 use crate::domain::operating::errors::OperatingError;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 #[cfg(test)]
 impl ResourceLease {
@@ -81,7 +81,7 @@ impl Drop for ResourceLease {
 
 /// The distinct backings of a request, each with its size; a key that disagrees with itself refuses.
 pub(super) fn measured(backings: &[Backing]) -> Result<Vec<Measured>, OperatingError> {
-    let mut seen = HashMap::<BackingKey, Backing>::with_capacity(backings.len());
+    let mut seen = FxHashMap::<BackingKey, Backing>::with_capacity_and_hasher(backings.len(), rustc_hash::FxBuildHasher);
     for backing in backings {
         if seen.insert(backing.key, *backing).is_some_and(|prior| {
             prior.bytes != backing.bytes || prior.retention_units != backing.retention_units

@@ -19,7 +19,7 @@ pub struct KeyIndex {
     /// The rows with their hashes.
     pub pairs: Vec<HashedRow>,
     /// The distinct key hashes.
-    pub runs: hashbrown::HashSet<KeyCellsHash>,
+    pub runs: hashbrown::HashSet<KeyCellsHash, rustc_hash::FxBuildHasher>,
 }
 
 /// The capacity of each buffer of a key index.

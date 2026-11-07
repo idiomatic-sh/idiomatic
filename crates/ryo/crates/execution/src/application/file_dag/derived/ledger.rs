@@ -1,7 +1,8 @@
 //! Accounting for physical payloads held by derived resource handles.
 //! Admission policy, cache selection and scheduling stay with the caller.
 use crate::domain::operating::errors::OperatingError;
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
+use rustc_hash::FxHashMap;
 
 mod arithmetic;
 pub(in crate::application::file_dag) mod capacity;
@@ -23,7 +24,7 @@ use types::{
 impl Default for Ledger {
     fn default() -> Self {
         let mut ledger = Self {
-            entries: HashMap::new(),
+            entries: FxHashMap::default(),
             required_bytes: ByteCount(0),
             optional_bytes: ByteCount(0),
             view_optional_bytes: ByteCount(0),

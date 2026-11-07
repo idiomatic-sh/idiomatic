@@ -6,11 +6,12 @@ use ryo::languages::TableBuilder;
 
 /// What every `syntax` adapter implements.
 pub(crate) trait SyntaxPort: Send + Sync {
-    /// Own lazy parser-backed syntax rendering for the current admitted tree.
+    /// Own lazy parser-backed syntax rendering for the current admitted tree, over the parsed tree `read` kept in `retained`.
     fn begin_semantics(
         &self,
         _tree: &ryo::languages::Elements,
         _source_kind: PythonSourceKind,
+        _retained: ryo::languages::SemanticSlot,
     ) -> Option<Box<dyn ryo::languages::SemanticSession>> {
         None
     }
@@ -24,7 +25,7 @@ pub(crate) trait SyntaxPort: Send + Sync {
     );
 
     /// Reads Python text into the table `builder` builds, a pre-order table of its nodes and tokens, each token's
-    /// text interned. A file with errors still gives the elements that could be read, and what the library said of the rest: reading
+    /// text interned, and keeps the parsed tree in the table for a semantic session of the file. A file with errors still gives the elements that could be read, and what the library said of the rest: reading
     /// never fails.
     fn read(
         &self,

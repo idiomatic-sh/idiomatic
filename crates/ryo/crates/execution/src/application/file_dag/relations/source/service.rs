@@ -46,7 +46,7 @@ impl RelationOwner {
                     // graph source must not promote unrelated ordinary views
                     // keyed by the raw relation's primary population.
                     canonical_population: self.allocate_population()?,
-                    views: HashMap::new(),
+                    views: FxHashMap::default(),
                 }),
             };
             entry

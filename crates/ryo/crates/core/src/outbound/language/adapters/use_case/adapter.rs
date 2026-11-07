@@ -265,9 +265,10 @@ impl LanguagePort for LanguageUseCaseAdapter {
         &self,
         language: LanguageNumber,
         file: FileToRead<'_>,
-        tree: &Elements,
+        tree: &mut Elements,
     ) -> Option<Box<dyn SemanticSession>> {
-        let mut slot = SemanticSlot::default();
+        // What the language's read kept for the session (its parsed tree) is handed to it, so the file is not parsed again.
+        let mut slot = ryo_language::domain::elements::service::take_semantics(tree);
         if let Some(handle) = self.languages.get(language.0) {
             handle
                 .parse
@@ -275,7 +276,7 @@ impl LanguagePort for LanguageUseCaseAdapter {
         }
         match slot {
             SemanticSlot::Begun(session) => Some(session),
-            SemanticSlot::Empty => None,
+            SemanticSlot::Empty | SemanticSlot::Retained(_) => None,
         }
     }
 

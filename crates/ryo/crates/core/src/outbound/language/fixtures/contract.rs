@@ -122,7 +122,7 @@ fn a_language_not_linked_begins_no_semantic_session(language: &dyn LanguagePort)
     };
     let not_linked = LanguageNumber(language.linked().0.len());
     language
-        .begin_semantics(not_linked, file, &Elements::default())
+        .begin_semantics(not_linked, file, &mut Elements::default())
         .is_none()
 }
 

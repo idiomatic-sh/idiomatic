@@ -44,10 +44,11 @@ pub struct BucketSource {
     pub proof: ryo_values::domain::records::types::FrontierProof,
 }
 
-/// The existing bucket payload and its mandatory per-source provenance.
+/// The existing bucket payload and its mandatory per-source provenance. The words are shared, not copied: the finish hands out
+/// the one buffer that holds them, and every reader of the bucket borrows it.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct KeptBucket {
-    pub words: KeptWords,
+    pub words: std::sync::Arc<KeptWords>,
     pub sources: Vec<BucketSource>,
 }
 

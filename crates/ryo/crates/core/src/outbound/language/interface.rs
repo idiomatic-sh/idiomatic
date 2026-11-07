@@ -49,13 +49,13 @@ pub trait LanguagePort: Send + Sync {
         out: &mut dyn RowWriter,
     ) -> FileReading;
 
-    /// Begin the provider's owned semantic session for a successfully parsed file.
+    /// Begin the provider's owned semantic session for a successfully parsed file, from what its read kept in the table.
     /// Providers without this capability leave semantic demand explicitly unsupported.
     fn begin_semantics(
         &self,
         _language: LanguageNumber,
         _file: FileToRead<'_>,
-        _tree: &Elements,
+        _tree: &mut Elements,
     ) -> Option<Box<dyn SemanticSession>> {
         None
     }

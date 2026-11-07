@@ -26,6 +26,9 @@ pub(crate) struct SyntaxRuffPythonParserAdapter {
     /// Actual new carrier parse attempts, observed per adapter only in tests.
     #[cfg(test)]
     pub(crate) expansion_parses: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    /// Actual whole-file parses, by `read` and by a semantic session, observed per adapter only in tests.
+    #[cfg(test)]
+    pub(crate) file_parses: std::sync::Arc<std::sync::atomic::AtomicUsize>,
 }
 
 impl SyntaxPort for SyntaxRuffPythonParserAdapter {
@@ -33,11 +36,26 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
         &self,
         tree: &languages::Elements,
         source_kind: PythonSourceKind,
+        retained: languages::SemanticSlot,
     ) -> Option<Box<dyn languages::SemanticSession>> {
+        // The tree `read` parsed, when it kept one for this file: the session renders from it and parses nothing.
+        let parsed = match retained {
+            languages::SemanticSlot::Retained(kept) => {
+                match kept.downcast::<ruff_python_parser::Parsed<Mod>>() {
+                    Ok(parsed) => Some(*parsed),
+                    // Kept by another language: this session parses the file itself.
+                    Err(_) => None,
+                }
+            }
+            languages::SemanticSlot::Empty | languages::SemanticSlot::Begun(_) => None,
+        };
         Some(Box::new(super::semantic::PythonSemanticSession::new(
             tree,
             source_kind,
             self.settings,
+            parsed,
+            #[cfg(test)]
+            std::sync::Arc::clone(&self.file_parses),
         )))
     }
 
@@ -87,6 +105,10 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
         builder: &mut languages::TableBuilder<'_>,
     ) {
         let Readable(source) = readable(text);
+        #[cfg(test)]
+        let _previous = self
+            .file_parses
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let parsed = parse_unchecked(&source, options(source_kind, &self.settings));
         languages::set_syntax_acceptance(
             builder,
@@ -165,6 +187,8 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
                 languages::EmbeddedMapping::Exact(Offset(0)),
             );
         }
+        // The session of this file, if one is begun, renders from this tree: the file is parsed once.
+        languages::retain_for_semantics(builder, Box::new(parsed));
     }
 }
 
@@ -258,14 +282,14 @@ fn diagnose_invalid_utf8(
 /// are parsed again before relocation so semantic token text and child order survive.
 fn append_annotation(
     builder: &mut languages::TableBuilder<'_>,
-    candidate: &AnnotationCandidate,
+    candidate: &AnnotationCandidate<'_>,
     source: languages::NameText<'_>,
     inherited: languages::EmbeddedMapping,
 ) {
     append_literal(
         builder,
         candidate.host,
-        &candidate.literal,
+        candidate.literal,
         source,
         inherited,
     );

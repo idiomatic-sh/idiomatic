@@ -18,12 +18,12 @@ pub(super) enum AnnotationContext {
 }
 
 /// A quoted expression candidate and the native element retaining its source.
-#[derive(Clone, Debug)]
-pub(super) struct AnnotationCandidate {
+#[derive(Clone, Copy, Debug)]
+pub(super) struct AnnotationCandidate<'t> {
     /// The original string node in the element table.
     pub host: languages::Position,
-    /// Parser-decoded value and source mapping information.
-    pub literal: ruff_python_ast::ExprStringLiteral,
+    /// Parser-decoded value and source mapping information, borrowed from the tree the writer visits: never cloned.
+    pub literal: &'t ruff_python_ast::ExprStringLiteral,
 }
 
 /// A place among the bytes of the file, from zero.
@@ -72,7 +72,7 @@ pub(super) struct Writer<'b, 'w, 't> {
     /// Valid compiler activation computed from the module’s legal future-statement prefix.
     pub future_annotations: FutureAnnotations,
     /// Annotation candidates are collected only in explicit annotation contexts.
-    pub annotations: Vec<AnnotationCandidate>,
+    pub annotations: Vec<AnnotationCandidate<'t>>,
     /// Current syntactic context, refined by semantic binding before projection.
     pub annotation: AnnotationContext,
     /// The first logical source byte emitted by this traversal.

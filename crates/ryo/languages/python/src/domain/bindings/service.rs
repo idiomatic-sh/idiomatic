@@ -5,24 +5,48 @@ use ryo::languages::{self, Position, Symbol, Tree};
 
 use super::types::{BindingAvailability, EvaluationReach, ScopeExecution};
 use crate::domain::definitions::service::definition;
-use crate::domain::model::types::{BindingKey, Declarations, LexicalBinding};
+use crate::domain::model::types::{BindingKey, Declarations, LexicalBinding, QualificationState};
 use crate::domain::nodes::types::Node;
 use crate::domain::scopes::service::{enclosing, redirected};
 use crate::domain::syntax::service::{kind, last, parent};
 use crate::domain::syntax::types::Kind;
 
-/// Index each declaration once, after scope redirects have been collected.
+/// Builds the declarations and the binding index now, as a reader's first lookup would: what the tests of the index read.
+#[cfg(test)]
 pub(crate) fn index(tree: &Tree<'_>, model: &mut Declarations) {
-    model.bindings.clear();
-    extend(tree, Position(0), model);
+    model.bindings_state.set(QualificationState::Fresh);
+    bound(tree, model);
 }
 
-/// Index only newly appended definitions; native declarations and qualification remain unchanged.
+/// Index only newly appended definitions; native declarations and qualification remain unchanged. Indexes not built yet are
+/// left for the first lookup, which builds them over every element then present.
 pub(crate) fn extend(tree: &Tree<'_>, from: Position, model: &mut Declarations) {
-    let previous = model.bindings.len();
+    if model.bindings_state.get() == QualificationState::Fresh {
+        return;
+    }
+    let mut bindings = std::mem::take(model.bindings.get_mut());
+    collect(tree, from, model, &mut bindings);
+    *model.bindings.get_mut() = bindings;
+}
+
+/// Builds the binding index of the file on its first lookup; later lookups read it as built.
+pub(crate) fn bound(tree: &Tree<'_>, model: &Declarations) {
+    if model.bindings_state.get() == QualificationState::Ready {
+        return;
+    }
+    model.bindings_state.set(QualificationState::Ready);
+    let mut bindings = model.bindings.take();
+    bindings.clear();
+    collect(tree, Position(0), model, &mut bindings);
+    model.bindings.replace(bindings);
+}
+
+/// Pushes every definition from `from` to the end of the table, keeping the index sorted.
+fn collect(tree: &Tree<'_>, from: Position, model: &Declarations, bindings: &mut Vec<LexicalBinding>) {
+    let previous = bindings.len();
     for at in (from.0..languages::end_of(tree.elements).0).map(Position) {
         if let Some(found) = definition(tree, model, at) {
-            model.bindings.push(LexicalBinding {
+            bindings.push(LexicalBinding {
                 key: BindingKey {
                     scope: found.owner,
                     name: found.name,
@@ -31,8 +55,8 @@ pub(crate) fn extend(tree: &Tree<'_>, from: Position, model: &mut Declarations) 
             });
         }
     }
-    if model.bindings.len() != previous {
-        model.bindings.sort_unstable();
+    if bindings.len() != previous {
+        bindings.sort_unstable();
     }
 }
 
@@ -111,6 +135,8 @@ pub(crate) fn resolve(
     at: Position,
     name: Symbol,
 ) -> Option<Position> {
+    bound(tree, model);
+    let all = model.bindings.borrow();
     let initial = enclosing(tree, at);
     let mut scope = initial;
     let mut delayed = false;
@@ -122,10 +148,10 @@ pub(crate) fn resolve(
             scope: lookup,
             name,
         };
-        let start = model.bindings.partition_point(|binding| binding.key < key);
-        let end = model.bindings.partition_point(|binding| binding.key <= key);
+        let start = all.partition_point(|binding| binding.key < key);
+        let end = all.partition_point(|binding| binding.key <= key);
         if (!class || scope == initial) && start < end {
-            let bindings = model.bindings.get(start..end)?;
+            let bindings = all.get(start..end)?;
             let lexical = matches!(
                 kind(tree, lookup),
                 Kind::Node(

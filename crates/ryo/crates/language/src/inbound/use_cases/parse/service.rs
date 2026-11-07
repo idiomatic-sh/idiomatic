@@ -4,17 +4,15 @@
 use super::constants::COUNT;
 use super::errors::ParseError;
 use super::interface::ParseUseCase;
-use super::types::{ParseEngine, ParseRequest, Slot, expands, reads_of, visit};
+use super::types::{ParseEngine, ParseRequest, Recognition, Slot, expands, reads_of, visit};
 use crate::domain::answers::types::{Answer, Expansions, Reads};
 use crate::domain::builders::service::{discarding_builder, table_builder};
 use crate::domain::completion::service::completion;
-use crate::domain::elements::service::{engine_mut, kind_at};
-use crate::domain::elements::service::{expanded_positions, positions};
-use crate::domain::elements::types::{Elements, Tree};
+use crate::domain::elements::service::{engine_mut, expanded_positions, kind_at, positions};
+use crate::domain::elements::types::{CompletionRequirement, Elements, Tree};
 use crate::domain::relation_masks::service::{add, none, places};
 use crate::domain::relation_masks::types::RelationSet;
 use crate::domain::symbols::types::{ByteSlice, Symbols};
-use crate::inbound::use_cases::parse::types::Recognition;
 use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::relations::service::{KIND_LIMIT, all, number_of, optional_capability};
 use ryo_relations::domain::relations::types::{FileId, KindBits, Relation, RowWriter};
@@ -102,6 +100,7 @@ pub(crate) fn build_in<L>(
     request: ParseRequest<'_>,
     table: &mut Elements,
     symbols: &mut Symbols,
+    requirement: CompletionRequirement,
 ) -> Result<(), ParseError>
 where
     L: ParseUseCase + ?Sized,
@@ -109,7 +108,14 @@ where
     if language.recognizes(&request) == Recognition::Declines {
         return Err(ParseError::Unsupported);
     }
-    build_recognized(language, request, table, symbols)
+    build_recognized(language, request, table, symbols, requirement)
+}
+
+/// The language's requirement when a wanted reader looks at what completion adds; else none: no model is prepared for it.
+fn demanded<L: ParseUseCase + ?Sized>(language: &L, wanted: &[Relation]) -> CompletionRequirement {
+    let mut slots = wanted.iter().filter_map(|relation| slot_of(language, *relation));
+    let reads_added = slots.any(|slot| expands(&slot) == Expansions::Included);
+    reads_added.then(|| language.completion_requirement()).unwrap_or_default()
 }
 
 fn build_recognized<L: ParseUseCase + ?Sized>(
@@ -117,13 +123,14 @@ fn build_recognized<L: ParseUseCase + ?Sized>(
     request: ParseRequest<'_>,
     table: &mut Elements,
     symbols: &mut Symbols,
+    requirement: CompletionRequirement,
 ) -> Result<(), ParseError> {
     let mut builder = table_builder(table, symbols, request.bytes);
     language.read_tree(&request, &mut builder)?;
     crate::application::completion::service::complete::<L::FileModel>(
         completion(table, symbols, request.bytes, request.file),
         ByteSlice(language.configuration_identity().0.as_bytes()),
-        language.completion_requirement(),
+        requirement,
         |tree, model| language.file_model(tree, model),
         |completed| language.complete(&request, completed),
         |tree, from, model| language.extend_file_model(tree, from, model),
@@ -163,7 +170,7 @@ pub(crate) fn read_in<L>(
 where
     L: ParseUseCase + ?Sized,
 {
-    build_in(language, request, table, symbols)?;
+    build_in(language, request, table, symbols, demanded(language, wanted))?;
     walk_in(
         language,
         table,
@@ -188,7 +195,7 @@ pub(crate) fn read_explicit_in<L: ParseUseCase + ?Sized>(
     if language.recognizes_explicit(&request) == Recognition::Declines {
         return Err(ParseError::Unsupported);
     }
-    build_recognized(language, request, table, symbols)?;
+    build_recognized(language, request, table, symbols, demanded(language, wanted))?;
     walk_in(
         language,
         table,

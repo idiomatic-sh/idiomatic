@@ -73,7 +73,7 @@ impl Parse for ParseContract {
         slot: &mut languages::SemanticSlot,
     ) {
         let kind = source_kind(request.path);
-        if let Some(session) = self.syntax.begin_semantics(tree, kind) {
+        if let Some(session) = self.syntax.begin_semantics(tree, kind, std::mem::take(slot)) {
             *slot = languages::SemanticSlot::Begun(session);
         }
     }
@@ -99,12 +99,12 @@ impl Parse for ParseContract {
         crate::domain::bindings::service::extend(tree, from, model);
     }
 
-    fn file_model(&self, tree: &languages::Tree<'_>, model: &mut Declarations) {
+    fn file_model(&self, _tree: &languages::Tree<'_>, model: &mut Declarations) {
         #[cfg(test)]
         let _previous = self
             .model_preparations
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        prepare_model(&self.settings, tree, model);
+        prepare_model(&self.settings, model);
     }
 
     fn unknown_reasons(&self) -> &'static [UnknownName] {
