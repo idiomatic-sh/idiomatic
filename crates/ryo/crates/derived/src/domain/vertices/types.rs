@@ -9,9 +9,25 @@ pub struct PartitionId(pub u32);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct VertexId(pub u32);
 
-/// Where the edges leaving one vertex begin in the neighbor list.
+/// Where the edges leaving each vertex begin in the neighbor list: the bare offsets inside are named here.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct OffsetList(pub Vec<u32>);
+
+/// The neighbor of each edge, grouped by vertex: the bare vertex numbers inside are named here.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct NeighborList(pub Vec<u32>);
+
+/// The partition of each vertex: the bare partition numbers inside are named here.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct PartitionList(pub Vec<u32>);
+
+/// The parent of each vertex, the storage sentinel for a root: the bare vertex numbers inside are named here.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ParentList(pub Vec<u32>);
+
+/// Borrowed parents: the bare vertex numbers inside are named here.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct EdgeOffset(pub u32);
+pub struct ParentSlice<'a>(pub &'a [u32]);
 
 /// Which end of an edge a list is ordered by.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

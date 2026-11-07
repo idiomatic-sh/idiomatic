@@ -1,6 +1,9 @@
 //! Compact adjacency: the value and its behaviour, owned together.
 use crate::domain::adjacency::types::forest_parents::value::ForestParents;
-use crate::domain::vertices::types::{EdgeDirection, EdgeOffset, PartitionId, VertexId, VertexKey};
+use crate::domain::vertices::types::{
+    EdgeDirection, NeighborList, OffsetList, ParentList, ParentSlice, PartitionId, PartitionList,
+    VertexId, VertexKey,
+};
 use ryo_relations::domain::relations::types::Value;
 use std::sync::Arc;
 
@@ -10,11 +13,11 @@ pub struct CompactGraph {
     pub(crate) partitions: Vec<Arc<[Value]>>,
     pub(crate) partition_ids: hashbrown::HashMap<Arc<[Value]>, PartitionId>,
     pub(crate) vertices: Vec<Value>,
-    pub(crate) vertex_partitions: Vec<PartitionId>,
+    pub(crate) vertex_partitions: PartitionList,
     pub(crate) vertex_ids: hashbrown::HashMap<VertexKey, VertexId>,
-    pub(crate) offsets: [Vec<EdgeOffset>; 2],
-    pub(crate) neighbors: [Vec<VertexId>; 2],
-    pub(crate) forests: [Option<Vec<VertexId>>; 2],
+    pub(crate) offsets: [OffsetList; 2],
+    pub(crate) neighbors: [NeighborList; 2],
+    pub(crate) forests: [Option<ParentList>; 2],
 }
 
 impl CompactGraph {
@@ -35,7 +38,7 @@ impl CompactGraph {
     }
     /// The partition of each vertex.
     #[must_use]
-    pub fn vertex_partitions(&self) -> &[PartitionId] {
+    pub fn vertex_partitions(&self) -> &PartitionList {
         &self.vertex_partitions
     }
     /// The vertex of a value within a partition.
@@ -45,7 +48,7 @@ impl CompactGraph {
     }
     /// Where each vertex's edges begin, for one direction.
     #[must_use]
-    pub fn offsets(&self, direction: EdgeDirection) -> &[EdgeOffset] {
+    pub fn offsets(&self, direction: EdgeDirection) -> &OffsetList {
         match direction {
             EdgeDirection::Forward => &self.offsets[0],
             EdgeDirection::Backward => &self.offsets[1],
@@ -53,7 +56,7 @@ impl CompactGraph {
     }
     /// The neighbor list, for one direction.
     #[must_use]
-    pub fn neighbors(&self, direction: EdgeDirection) -> &[VertexId] {
+    pub fn neighbors(&self, direction: EdgeDirection) -> &NeighborList {
         match direction {
             EdgeDirection::Forward => &self.neighbors[0],
             EdgeDirection::Backward => &self.neighbors[1],
@@ -63,9 +66,11 @@ impl CompactGraph {
     #[must_use]
     pub fn forest(&self, direction: EdgeDirection) -> Option<ForestParents<'_>> {
         let parents = match direction {
-            EdgeDirection::Forward => self.forests[0].as_deref(),
-            EdgeDirection::Backward => self.forests[1].as_deref(),
+            EdgeDirection::Forward => self.forests[0].as_ref(),
+            EdgeDirection::Backward => self.forests[1].as_ref(),
         };
-        parents.map(|parents| ForestParents { parents })
+        parents.map(|parents| ForestParents {
+            parents: ParentSlice(&parents.0),
+        })
     }
 }

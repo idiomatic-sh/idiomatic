@@ -3,7 +3,9 @@ use super::types::compact_graph::value::CompactGraph;
 use crate::domain::fault::types::DerivedFault;
 use crate::domain::row_cells::types::RowCells;
 use crate::domain::vertices::constants::FOREST_ROOT;
-use crate::domain::vertices::types::{EdgeOffset, PartitionId, VertexId, VertexKey};
+use crate::domain::vertices::types::{
+    NeighborList, OffsetList, ParentList, PartitionId, PartitionList, VertexId, VertexKey,
+};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::RowIndex;
@@ -36,10 +38,10 @@ pub(crate) fn build_borrowed(
         partitions: Vec::new(),
         partition_ids: Default::default(),
         vertices: Vec::new(),
-        vertex_partitions: Vec::new(),
+        vertex_partitions: PartitionList(Vec::new()),
         vertex_ids: Default::default(),
-        offsets: [Vec::new(), Vec::new()],
-        neighbors: [Vec::new(), Vec::new()],
+        offsets: [OffsetList(Vec::new()), OffsetList(Vec::new())],
+        neighbors: [NeighborList(Vec::new()), NeighborList(Vec::new())],
         forests: [None, None],
     };
     let mut pairs = Vec::new();
@@ -84,7 +86,7 @@ pub(crate) fn build_borrowed(
                 }
                 let id = VertexId(u32::try_from(graph.vertices.len()).unwrap_or(u32::MAX));
                 graph.vertices.push(value);
-                graph.vertex_partitions.push(partition);
+                graph.vertex_partitions.0.push(partition.0);
                 let _ = graph.vertex_ids.insert(VertexKey { partition, value }, id);
                 id
             };
@@ -94,20 +96,22 @@ pub(crate) fn build_borrowed(
         }
     }
     for orientation in 0..2 {
-        let mut offsets = vec![EdgeOffset(0); graph.vertices.len() + 1];
+        let mut offsets = vec![0_u32; graph.vertices.len() + 1];
         for pair in &pairs {
-            offsets[pair[orientation].0 as usize + 1].0 += 1;
+            offsets[pair[orientation].0 as usize + 1] += 1;
         }
         for vertex in 1..offsets.len() {
-            offsets[vertex].0 += offsets[vertex - 1].0;
+            offsets[vertex] += offsets[vertex - 1];
         }
         let mut written = offsets.clone();
-        let mut neighbors = vec![VertexId(0); pairs.len()];
+        let mut neighbors = vec![0_u32; pairs.len()];
         for pair in &pairs {
             let source = pair[orientation].0 as usize;
-            neighbors[written[source].0 as usize] = pair[1 - orientation];
-            written[source].0 += 1;
+            neighbors[written[source] as usize] = pair[1 - orientation].0;
+            written[source] += 1;
         }
+        let offsets = OffsetList(offsets);
+        let neighbors = NeighborList(neighbors);
         graph.forests[orientation] = forest(&offsets, &neighbors);
         graph.offsets[orientation] = offsets;
         graph.neighbors[orientation] = neighbors;
@@ -116,10 +120,11 @@ pub(crate) fn build_borrowed(
 }
 
 /// Validate duplicate-insensitive single-parent ancestry and cycles iteratively once per graph.
-fn forest(offsets: &[EdgeOffset], neighbors: &[VertexId]) -> Option<Vec<VertexId>> {
+fn forest(offsets: &OffsetList, neighbors: &NeighborList) -> Option<ParentList> {
+    let (offsets, neighbors) = (&offsets.0, &neighbors.0);
     let mut parents = vec![FOREST_ROOT; offsets.len().saturating_sub(1)];
     for vertex in 0..parents.len() {
-        let outgoing = &neighbors[offsets[vertex].0 as usize..offsets[vertex + 1].0 as usize];
+        let outgoing = &neighbors[offsets[vertex] as usize..offsets[vertex + 1] as usize];
         if let Some(parent) = outgoing.first() {
             if outgoing.iter().any(|other| other != parent) {
                 return None;
@@ -147,11 +152,11 @@ fn forest(offsets: &[EdgeOffset], neighbors: &[VertexId]) -> Option<Vec<VertexId
             if parents[current] == FOREST_ROOT {
                 break;
             }
-            current = parents[current].0 as usize;
+            current = parents[current] as usize;
         }
         for vertex in &path {
             state[*vertex] = 2;
         }
     }
-    Some(parents)
+    Some(ParentList(parents))
 }

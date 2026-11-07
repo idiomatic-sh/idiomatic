@@ -64,7 +64,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
             .vertex(PartitionId(0), Cell::Number(Integer(9)))
             .map(|vertex| vertex.0),
         Scenario::OffsetsCoverEveryVertex => {
-            u32::try_from(graph.offsets(EdgeDirection::Forward).len()).ok()
+            u32::try_from(graph.offsets(EdgeDirection::Forward).0.len()).ok()
         }
     })
 }

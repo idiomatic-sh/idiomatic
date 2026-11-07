@@ -189,7 +189,7 @@ pub fn describe(payload: &DerivedPayload) -> Result<PayloadFootprint, DerivedFau
                 let base = sum([
                     vector(&value.partitions),
                     vector(&value.vertices),
-                    vector(&value.vertex_partitions),
+                    vector(&value.vertex_partitions.0),
                     hash(
                         ElementCapacity(value.partition_ids.capacity()),
                         AllocationBytes(size_of::<PartitionEntry>()),
@@ -204,11 +204,11 @@ pub fn describe(payload: &DerivedPayload) -> Result<PayloadFootprint, DerivedFau
                 }))?;
                 let directions = sum((0..2).map(|direction| {
                     sum([
-                        vector(&value.offsets[direction]),
-                        vector(&value.neighbors[direction]),
+                        vector(&value.offsets[direction].0),
+                        vector(&value.neighbors[direction].0),
                         value.forests[direction]
                             .as_ref()
-                            .map_or(AllocationBytes(0), vector),
+                            .map_or(AllocationBytes(0), |parents| vector(&parents.0)),
                     ])
                     .unwrap_or(AllocationBytes(usize::MAX))
                 }))?;
