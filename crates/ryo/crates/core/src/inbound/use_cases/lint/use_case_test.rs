@@ -2008,7 +2008,7 @@ fn cold_warm_and_edited_runs_answer_the_same_in_every_store() {
                     now.skipped, oracle.skipped,
                     "{kind} run {run}: what was skipped"
                 );
-                // The reuse of a rows answer is not asserted: it is decided apart from the findings (see ryo-l1w3).
+                // The reuse of a rows answer is not asserted: it is decided apart from the findings.
                 if answer == AnswerShape::Findings {
                     assert_eq!(now.parses, parsed[run], "{kind} run {run}: the files read");
                 }

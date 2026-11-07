@@ -21,6 +21,7 @@ use ryo_values::domain::records::types::Unreadable;
 use ryo_values::domain::row_texts::types::Cell;
 use ryo_values::domain::row_texts::types::PlacedRule;
 use ryo_values::domain::row_texts::types::{PlacedColumn, PlacedLine};
+use ryo_values::domain::runs::constants::SYNTAX_REJECTED;
 use ryo_values::domain::runs::types::{ManifestRefused, RuleId, SkipReason, Skipped};
 #[cfg(test)]
 use ryo_values::domain::stored_facts::types::PackedWords;
@@ -620,7 +621,7 @@ impl<'a> From<&'a Stored> for TablesSchema<'a> {
                 said: text(
                     &mut strings,
                     match each.reason {
-                        SkipReason::SyntaxRejected => "syntax-rejected",
+                        SkipReason::SyntaxRejected => SYNTAX_REJECTED,
                     },
                 ),
             })
@@ -810,10 +811,12 @@ impl TryFrom<TablesSchema<'_>> for Stored {
             .iter()
             .map(|each| {
                 let said = named(strings, each.said)?;
-                let reason = match said.as_ref() {
-                    "syntax-rejected" => SkipReason::SyntaxRejected,
-                    _ => return Err(postcard::Error::DeserializeBadEncoding),
-                };
+                let reason = [SkipReason::SyntaxRejected]
+                    .into_iter()
+                    .find(|candidate| match candidate {
+                        SkipReason::SyntaxRejected => said.as_ref() == SYNTAX_REJECTED,
+                    })
+                    .ok_or(postcard::Error::DeserializeBadEncoding)?;
                 Ok(Skipped {
                     rule: RuleId(named(strings, each.first)?),
                     path: FilePath(named(strings, each.path)?),

@@ -56,4 +56,4 @@ pub(super) const BEFORE_CROSS_CLEANUP: &str = "before_cross_cleanup";
 pub(super) const MISSING_FRONTIER_BUCKET: &str = "missing frontier bucket";
 
 /// The tracing target of the lifecycle memory diagnostics.
-pub(super) const LIFECYCLE_MEMORY_DIAGNOSTIC: &str = "ryo::diagnostic::lifecycle_memory";
+pub(super) const LIFECYCLE_MEMORY_DIAGNOSTIC: &str = ryo_values::domain::table_words::constants::LIFECYCLE_TARGET;

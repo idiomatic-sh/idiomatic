@@ -33,4 +33,4 @@ pub(super) const RULE_SKIPPED_SYNTAX_ACCEPTANCE_UNDETERMINED: &str =
     "rule skipped: syntax acceptance undetermined";
 
 /// The tracing target of the execution diagnostics.
-pub(super) const EXECUTION_DIAGNOSTIC: &str = "ryo::diagnostic::execution";
+pub(super) const EXECUTION_DIAGNOSTIC: &str = ryo_values::domain::table_words::constants::EXECUTION_TARGET;
