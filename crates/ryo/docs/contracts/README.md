@@ -45,6 +45,14 @@ All frozen branches of checkpoint 318 are merged into one tree and compiled once
 
 ### Checkpoint 320 integration record
 
+The wave-2 branches of checkpoint 319 are merged into one tree, each as a merge commit, and compiled once: tm-derived (`dfeec58a74`), review-repairs-v (`afc870de5b`), tm-execution-domain (`9899023c24`), tm-execution (`8bac7aef9f`, its `outbound/derived` wins over tm-derived's), tm-core-sdk (`2d51ed2f8b`) and ratchet-seed (`e6bbb4a839`). The benchmark branch (`d563631ab2`) froze after the final validation started and goes to 321. One all-features build of every target, then ten repair builds to exit 0 and one production default-feature build at exit 0. No test was weakened or deleted.
+
+- **Joins (one definition per concept):** a vertex is `ryo_derived`'s `VertexId` (the engine's `stored_graph` copy, `GraphVertex` and `NearestAnswers` go); dense membership marks are `ryo_derived`'s `DenseMarks` (the axis copy and `DomainMarks` go); the purpose of a frontier is `rule_intent::types::FrontierPurpose` (the `file_program` copy goes); a request-graph node is `ProgramNodeId` (over `GraphNodeId`); a step's origin is `StepOrigin` (over `InstructionOrigin`); the progress observer is the injected trait (`RouteProgress`), not a function pointer. `idiomatic-rust` 0.1.6, written by two branches, is 0.1.7 carrying `error-variants-reached@0.2.0` and the `storage-shapes-in-schemas` document exclude, proven by two new spec scenarios (`document-schemas-hold-a-string-table`, `document-implementation-holds-a-string-table`). The two files the execution-domain branch's empty-index commit left out are the representation collection's `publication.rs`, `registration.rs` and `service.rs`, folded into `table_model/types.rs` and `service.rs` (every item survives) less the added `service_test/rows_test.rs`: intended, nothing restored. The `use … as` aliases of the derived renames remain in consumers and a `RepresentationInput as BorrowedRows` alias in others; replacing them is not done here. The sdk `api.txt` is regenerated: no item is gained or lost, the parameter, place and project types are listed once at `ryo::linter`.
+- **Repairs at the compile:** core's engine service wraps the prepare and execution use cases; tests edit an authored request's plans through one accessor (`boundary_fixture::plans`); the protocol traits the removed forwarding `pub use` lines carried are imported where proofs call them; the `CanonicalOperation` value file declares its value again; the derived native-decline rows run over two-column inputs (their single-column schema made the request invalid before the decline: premise corrected, row names unchanged); the moved compiled-rules control `independent_compilation_preserves_unused_steps_and_original_frontier_order` has its `#[test]` attribute again; operator items are sealed to the operator concept again (the merge had widened `OperatorsItem` to the crate, which the authority probe refuses); the authority scaffolds and boundary probes name the sealed values and moved contract paths; the never-read `OperationSemantics.resources` and four unread graph-snapshot counts are dropped; the scheduler row `one_worker_asked_is_one_worker_started` is renamed `one_job_over_one_worker_runs_once`, the property it now checks.
+- **Behaviour changes found inside the lint batches, each decided:** the store's postcard bytes change (one schema document per stored kind, the frontier proof flattened): accepted, there is no compatibility before release, and the store adapter's own rows pass. The compile-trace source digest is the digest port's 32 hex characters where it was blake3's 64: accepted, the trace field only labels a source text, no reader parses it, and the digest port is the one the rule identities use. `dispatch/test.rs` answers a refused provider read with `NotRead` where it panicked: equivalent, an unexpected read still fails the row through `?`. The axis item refuses a position past the dense marks with `ShapeMismatch` where it read the mark as absent: accepted as the stricter reading, a dense membership spans every element of its tree and `among` reads no marks. `DerivedContract::issue` derives its kind from the request through `kind_of`, as the method did: no change.
+- **Owner-visible:** the `thread_local` workspace dependency and the profile port the compositions install into a `OnceLock` (still process-global, not injected through the observer); the crate-dependency-depth cap of twelve local packages; the six file-length ignores the rules admit (sdk `entry_test.rs` and `schemas.rs`, winnow `adapter.rs` and `adapter_test.rs`, postcard `adapter.rs` and `adapter_test.rs`); the sdk now depends on the matching crate whose error its matching port speaks (allow-list entry added); a new open row for the core pipeline.
+- **Named reds at 320:** `core_allocation` and the five `cli_tests` replay rows (`cli_replay_reds`), as at 319; `cli_cost` (3 rows: the seed set the Django bests, the ruff bests are still placeholders); the five `project_phase::restoration::partition` rows and the `ruff` `engine_test` I001 row (per-column lineage, as at 319); the core `removed_file` row: one instrumented narrow run shows `validate_bucket`'s file accounting refuses it, not a per-source proof check (the replayed kept bucket holds no source for either surviving file while the required partition names both); the benchmark `direct` executor row answered `ExecutableFileBusy` where `ExecutableFormat` is expected (a write-then-exec race; it passed in an earlier run of the same tree); the `ruff_sharing` route differential stays filtered out (its `django()` fixture drops `column_kernel` but not `node_result_reuse`, and its all-variants run reached 43.9 GB at 319). The two `errored_rule` rows and the staged-replay core row of 319 pass.
+- **Whole-tree TM:** 1,223 findings, 6 suppressed (the six admitted ignores), against 2,762 at 319: execution 108 (1,157), benchmark 927 (933), benchmark_contracts 127 (128), python 31 (33), core 14 (103), operators 12 (26), relations 2 (12), derived 1 (174), values 1 (6), cli 0 (104), docs 0 (68), sdk 0 (5), query_language 0 (4). Re-owned sets: 26 domain-concept cycles in execution (the cycle row); the 12 operators `parallel-members` and the hosted `item-contract` (the kernel fold); core's 8 file-length findings and the unplaced `semantic.rs` (the core pipeline), with core's four `error-variants-reached` and one `test-imports`. Execution beyond the re-owned sets: the crate README template (28), domain tests reaching the derived port's factory (`layer-matrix`, 16), proofs naming the matching use case and the walk-coverage fixtures (`import-directions`, 11), and twelve single findings of the merged branches. `tm validate`: 232 versions hold in `crates/ryo`, 217 at the repository root, 0 do not. File-level ownership cycles: 1, `table_model/service.rs` with `types/registered_representation/value.rs`.
 - **Dependency depth:** a package may reach twelve local packages (`idiomatic-project` 0.3.1, placed by ryo only), not nine: ryo's decomposition into the store and runtime crates adds two internal packages behind the sdk, and every language provider reaches the sdk's packages plus the sdk.
 - **Owner-visible:** winnow grammar adapter 1075 lines (and its 733-line test): ignore under the rule's own admission; a per-area adapter module role is an owner decision. The sdk `entry_test.rs` and `schemas.rs` carry the same admitted ignore.
 - **Owner-visible ignores under the rules' own admission:** the postcard store adapter `adapter.rs`, `adapter_test.rs` and `schemas.rs` (one placed file each, over the line budget) and the two stored-type nestings in `schemas.rs` (the byte layout of the store file already written), beside the winnow adapter and the sdk files named above.
@@ -61,42 +69,43 @@ Branch `claude/w2-review-v` from checkpoint 319 `f2d8aaf1db` (the Phase 1 re-own
 - **R4, hardening-1 placement:** `Region`, `Instruction`, `DemandProgram` and `ExecutableProgram` are sealed values, each in `domain/executable_program/types/<value>/value.rs` with a `value_test.rs`; only the compiler constructs and writes them (`pub(in crate::domain::executable_program)`). `ColumnAlternative` (now one definition over original nodes and regions, which removes the mirrored `OriginalColumn`) and `SelectionAlternative` are plain route payloads in `types.rs`: the route lives in the sealed `Region`. Bare integers and bools are typed (`ObservationPlace`, `ProducerMember`, `DraftIndex`, `RegexIdentity`, `JoinLease`, `RowGate`, `Equivalence`, `StepUse`, `AbsenceInputs`); `service.rs` is split into `merge.rs`, `origins.rs` and `aliases.rs`, and `trust/service.rs` into `trust/reads.rs`. The observation slot proofs moved from the domain to `application/file_dag/acceptance/{observations_test.rs, observation_census_test.rs}` because they prepare through the application request preparation. Weak closures kept and closed by the store and runtime crates (hardening steps 2 and 3): `FrontierCache::new` stays `pub(crate)`, and `ReadProof::complete` stays callable within the program. Controls: `types::region::value_test`, `types::instruction::value_test`, `types::demand_program::value_test`, `types::executable_program::value_test`; `tm` over `domain/executable_program` and `domain/trust` is 0.
 - **R5:** this record.
 
-### Current ownership checkpoint — source `da1fe3eff3`, validation319
+### Current ownership checkpoint — source `8315ae21db`, validation320
 
 Written by `evidence/checkpoint/run.py` from [validation.json](evidence/checkpoint/validation.json); do not edit by hand. Review: [checkpoint](audits/2026-11-06-derived/ownership/checkpoint.json).
 
 | Check | Result |
 |---|---|
-| Source | `da1fe3eff3` |
-| Validation | validation319 (raw logs in the directory named `ryo-contract-validation319-20261107`, kept outside the repository) |
-| execution library | 549 PASS / 2 failed (the two are the errored_rule rows (compiled_parity and use_case_test)) |
-| core library | 108 PASS / 2 failed (application::file_analysis::service_test::succeeds (staged replay of an unrequested span) and lint::use_case_test::succeeds (a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store)) |
-| benchmark passed | 154 |
+| Source | `8315ae21db` |
+| Validation | validation320 (raw logs in the directory named `ryo-contract-validation320-20261107`, kept outside the repository) |
+| execution library | 604 PASS / 0 failed (the errored_rule rows (compiled_parity and use_case_test) pass after review repairs V) |
+| core library | 105 PASS / 1 failed (lint::use_case_test::succeeds (a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store): validate_bucket's file accounting refuses the replayed bucket, which holds no source for either surviving file) |
+| benchmark passed | 153 |
 | sdk passed | 29 |
-| other libraries passed | 181 |
-| libraries total | 1021 PASS / 4 failed |
+| other libraries passed | 219 |
+| libraries total | 1110 PASS / 2 failed |
 | execution boundary | 98 PASS / 5 failed (the five project_phase::restoration::partition rows (step-key anchoring against file-key narrowing)) |
 | activation | 10 PASS / 0 failed |
-| bdd | scenarios 3, failed 0 |
-| core bdd | scenarios 5, failed 0 |
+| bdd | scenarios 2, failed 0 |
+| core bdd | scenarios 21, failed 0 |
 | core project boundary | 1 PASS / 0 failed |
-| ruff sharing | 1 PASS / 0 failed (sharing::test::succeeds; the route differential every_strategy_unwired_answers_like_the_wired_engine is left to its quiet-machine run) |
-| ruff | 11 PASS / 1 failed (engine_test::succeeds: the I001 observation row (the valid file keeps its I001-derived answer, 0 against 1) fails with the same step-key anchoring as the partition rows; it was green at validation318;) |
+| ruff sharing | 1 PASS / 0 failed (sharing::test::succeeds; the route differential every_strategy_unwired_answers_like_the_wired_engine is filtered out (its django() fixture drops column_kernel but not node_result_reuse, and its all-variants run reached 43.9 GB at 319)) |
+| ruff | 11 PASS / 1 failed (engine_test::succeeds: the I001 observation row fails with the step-key anchoring of the partition rows, as at validation319) |
 | execution program authority | 9 PASS / 0 failed |
-| doctests | execution 16, core 1, sdk 3, values 4, derived 9, failed 0 |
+| doctests | execution 16, core 1, sdk 3, values 4, derived 11, failed 0 |
 | tm import cli | pass |
 | tm cli source findings | 0 |
 | tm guards | pass |
 | core allocation | exit 101, phase 7 |
 | cli replay | 73 PASS / 5 failed |
 | cli replay reds | 5: `behavior::what_ryo_could_not_decide_over_ruff_is_the_golden_or_a_recorded_difference`; `behavior::every_recorded_rule_gives_the_recorded_rows`; `behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows`; `cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store`; `peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound` |
-| cli cost | 4 PASS / 3 failed (the ratchet holds placeholder bests until the perf agent seeds it on a quiet lock) |
+| cli cost | 4 PASS / 3 failed (the ruff rows of the ratchet still hold placeholder bests; the seed branch set the Django bests only) |
 | cli other targets | blocks (dhat run, no panic), call_count 1/1, command_line 7/7, command_tree 11/11, readme 1/1 |
 | conformance | targets 10, exit 0 |
 | harness hooks | 15 PASS / 0 failed |
+| benchmark red | 153 PASS / 1 failed (outbound::execution::adapters::direct::adapter_test::succeeds answered ExecutableFileBusy where ExecutableFormat is expected (a write-then-exec race on the probe binary; 154/0 in the earlier run of the same source tree)) |
 | tm_cli_source findings | 0 (0 production, 0 test), 0 suppressed, 1 scoped directories |
-| tm_source findings | 250 (200 production, 50 test), 0 suppressed, 16 scoped directories |
-| Whole-tree TM | 2762 findings, 0 suppressed (3676 at 318) |
+| tm_source findings | 17 (14 production, 3 test), 2 suppressed, 16 scoped directories |
+| Whole-tree TM | 1223 findings, 6 suppressed (3676 at 318) |
 | File-level ownership cycles | 1 (0 targeted) |
 
 - [x] Correct restored last-use, physical-row and witness proof fixtures; execute publication controls. (validation319: the execution library and `boundary_contract` publication, restored-proof and witness controls pass apart from the named reds of the record below.)
