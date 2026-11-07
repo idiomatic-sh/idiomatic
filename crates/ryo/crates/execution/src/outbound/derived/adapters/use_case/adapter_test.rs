@@ -22,9 +22,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 
 fn subject(column: Input) -> Result<Value, Failure> {
     contract::check(&DerivedUseCaseAdapter::new(DerivedUseCases {
-        prepare: PrepareUseCaseImpl::new(),
-        build: BuildUseCaseImpl::new(),
-        view: ViewUseCaseImpl::new(),
+        prepare: std::sync::Arc::new(PrepareUseCaseImpl::new()),
+        build: std::sync::Arc::new(BuildUseCaseImpl::new()),
+        view: std::sync::Arc::new(ViewUseCaseImpl::new()),
     }));
     Ok(column)
 }

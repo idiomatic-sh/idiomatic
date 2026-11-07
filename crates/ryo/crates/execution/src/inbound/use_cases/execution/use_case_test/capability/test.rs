@@ -87,7 +87,7 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
     });
     let engine = Preparation::new(
         port.clone(),
-        Arc::new(crate::outbound::derived::factory::semantics()),
+        Arc::new(fixtures::derived()),
     );
     let mut plan = fixtures::plan(vec![
         Operation::Hosted {

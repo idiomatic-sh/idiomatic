@@ -183,7 +183,7 @@ pub(in super::super) fn compare_delivery_with_port(
     let emit = authored.plan.emit.step;
     let engine = Preparation::new(
         port,
-        Arc::new(crate::outbound::derived::factory::semantics()),
+        Arc::new(owner_fixtures::derived()),
     );
     let preparation = engine.prepare(Authored { plans: vec![authored.plan], bindings: vec![bindings.to_vec()], rules: vec![RuleSpec {
             id: RuleId("operation-conformance".into()),

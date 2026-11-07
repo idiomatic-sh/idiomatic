@@ -129,7 +129,7 @@ impl Preparation {
     pub(super) fn real() -> Self {
         Self::new(
             Arc::new(operators()),
-            Arc::new(crate::outbound::derived::factory::semantics()),
+            Arc::new(derived()),
         )
     }
     pub(super) fn new(operators: Arc<dyn OperatorsPort>, derived: Arc<dyn DerivedPort>) -> Self {
@@ -156,6 +156,10 @@ impl Preparation {
             RoutePolicy::default(),
         )
     }
+}
+/// The derived capability behind its port, as the edge composes it.
+pub(super) fn derived() -> impl crate::outbound::derived::interface::DerivedPort {
+    crate::outbound::derived::factory::semantics()
 }
 /// The execution use case that begins the requests of the proofs.
 pub(super) fn execution() -> ExecutionUseCaseImpl {

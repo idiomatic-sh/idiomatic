@@ -12,7 +12,6 @@ use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use std::sync::{
     Arc, Mutex,
@@ -63,7 +62,7 @@ impl crate::outbound::operators::interface::OperatorsPort for Meanings {
             }
             _ => {}
         }
-        OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)
+        crate::application::file_dag::fakes_test::operators().operators(call)
     }
 }
 

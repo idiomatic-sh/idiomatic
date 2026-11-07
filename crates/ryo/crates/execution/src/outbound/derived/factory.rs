@@ -12,9 +12,9 @@ use ryo_derived::inbound::use_cases::{
 #[must_use]
 pub fn semantics() -> impl DerivedPort {
     DerivedUseCaseAdapter::new(DerivedUseCases {
-        prepare: PrepareUseCaseImpl::new(),
-        build: BuildUseCaseImpl::new(),
-        view: ViewUseCaseImpl::new(),
+        prepare: std::sync::Arc::new(PrepareUseCaseImpl::new()),
+        build: std::sync::Arc::new(BuildUseCaseImpl::new()),
+        view: std::sync::Arc::new(ViewUseCaseImpl::new()),
     })
 }
 

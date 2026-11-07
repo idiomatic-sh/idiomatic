@@ -29,7 +29,7 @@ impl DerivedUseCaseAdapter {
 
 impl DerivedPort for DerivedUseCaseAdapter {
     fn prepare(&self, request: DerivedRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived {
-        PrepareUseCase::prepare(&self.use_cases.prepare, request, schemas)
+        PrepareUseCase::prepare(&*self.use_cases.prepare, request, schemas)
     }
     fn build(
         &self,
@@ -38,13 +38,13 @@ impl DerivedPort for DerivedUseCaseAdapter {
         room: &mut BuildWorkspace,
         recycled: Option<DerivedPayload>,
     ) -> Result<BuildOutcome, DerivedFault> {
-        BuildUseCase::build(&self.use_cases.build, prepared, inputs, room, recycled)
+        BuildUseCase::build(&*self.use_cases.build, prepared, inputs, room, recycled)
     }
     fn view<'a>(
         &self,
         prepared: &PreparedDerived,
         payload: &'a DerivedPayload,
     ) -> Result<DerivedView<'a>, DerivedFault> {
-        ViewUseCase::view(&self.use_cases.view, prepared, payload)
+        ViewUseCase::view(&*self.use_cases.view, prepared, payload)
     }
 }

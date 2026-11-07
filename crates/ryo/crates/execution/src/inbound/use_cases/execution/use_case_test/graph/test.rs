@@ -64,7 +64,7 @@ fn build(
     // GraphIdentity belongs to the former local builder and is not an input
     // to this port; invalid columns must be refused by the port itself.
     let semantics = (std::sync::Arc::new(
-        crate::outbound::derived::factory::semantics(),
+        fixtures::derived(),
     ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>);
     let prepared = semantics.prepare(
         ViewRequest::Adjacency {
