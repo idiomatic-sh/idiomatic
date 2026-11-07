@@ -14,7 +14,7 @@ let presentation = union(left=outputs, right=commands);
 let adapters = select * from placed-files where spec = "adapter" and glob_any(template, "{schemas,*/schemas}");
 let placed-edges = union(left=presentation, right=adapters);
 let placed-edge-files = project(from=placed-edges, columns=["file"]);
-let adapter-schemas = select l."path" as "file" from "filesystem.file" as l where glob_any(l."path", "**/outbound/*/adapters/*/schemas.rs");
+let adapter-schemas = select l."file" as "file" from placed-files as l where glob_any(l."file", "**/outbound/*/adapters/*/schemas.rs");
 let edges = union(left=placed-edge-files, right=adapter-schemas);
 let internal = antijoin(left=json, right=edges, left-on=["file"], right-on=["file"]);
 let boundary-packages = select r."package" as "file" from edges as l join "file-package" as r on l."file" = r."path";
@@ -374,24 +374,31 @@ then.findings = [{ path = 'app/src/domain/value.rs', line = 1 }]
 
 [[scenarios]]
 id = 'input-parsing-adapter-schemas'
-scenario = "A language package reads a manifest that is a JSON file (input parsing, not exchange between its own parts): its adapter's schemas.rs and its dependency are not reported, while a domain file of the same package is."
-given.files.'Cargo.toml' = '''
+scenario = "A language package reads a manifest that is a JSON file (input parsing, not exchange between its own parts): its adapter's placed schemas.rs, which the entry leaves out, and its dependency are not reported, while a domain file of the same package is."
+given.files.'app/Cargo.toml' = '''
 [package]
 name = "fixture"
 version = "0.1.0"
 edition = "2024"
-
+[lib]
+path = "src/lib.rs"
 [dependencies]
 serde_json = "1"
 '''
-given.files.'src/lib.rs' = ''
-given.files.'src/outbound/manifest_reading/adapters/npm/schemas.rs' = '''
+given.files.'app/src/lib.rs' = ''
+given.files.'app/src/outbound/manifest_reading/adapters/npm/schemas.rs' = '''
 fn read(text: &str) { let _ = serde_json::from_str::<u8>(text); }
 '''
-given.files.'src/domain/value.rs' = '''
+given.files.'app/src/domain/value.rs' = '''
 fn internal() { let _ = serde_json::json!({}); }
 '''
-then.findings = [{ path = 'src/domain/value.rs', line = 1 }]
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+rules = [{ rule = "idiomatic.arch/no-json-in-process", include = ["**"], exclude = ["**/adapters/**"] }]
+specs = [{ spec = "idiomatic.arch/adapter", params = { core = "crate", port = "manifest_reading" }, include = ["app/src/outbound/manifest_reading/adapters/npm"] }]
+'''
+then.only = ['idiomatic.arch/no-json-in-process', 'idiomatic.arch/no-json-in-process#unknown']
+then.findings = [{ path = 'app/src/domain/value.rs', line = 1 }]
 
 [[scenarios]]
 id = 'optional-oracle-dependency'

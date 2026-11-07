@@ -40,16 +40,23 @@ let named-found = union(left=distinctive-found, right=adapter-found);
 let all-named = union(left=named-found, right=domain-found);
 let every = union(left=all-named, right=value-found);
 let adapter-files = capture(from="filesystem.file", path="path", pattern="{*port}/adapters/{adapter}/{*rest}", captures=["port", "adapter"]);
-let in-adapter = select l."package" as "package", l."value" as "value", l."file" as "file", l."span" as "span", r."port" as "port", r."adapter" as "adapter" from valued as l join adapter-files as r on l."file" = r."path";
-let outside-files = antijoin(left=valued, right=adapter-files, left-on=["file"], right-on=["path"]);
-let outside = select l."package" as "package", l."value" as "value", l."file" as "file", l."span" as "span" from outside-files as l;
-let beside-any = select l."file" as "file", l."span" as "span" from outside as l join valued as r on l."package" = r."package" and l."value" = r."value" where l."file" != r."file";
-let adapter-beside-outside = select l."file" as "file", l."span" as "span" from in-adapter as l join outside as r on l."package" = r."package" and l."value" = r."value" where l."file" != r."file";
-let adapter-beside-adapter = select l."file" as "file", l."span" as "span" from in-adapter as l join in-adapter as r on l."package" = r."package" and l."value" = r."value" where l."file" != r."file" and (l."port" != r."port" or l."adapter" = r."adapter");
+let in-adapter = select l."package" as "package", l."name" as "name", l."value" as "value", l."file" as "file", l."span" as "span", r."port" as "port", r."adapter" as "adapter" from valued as l join adapter-files as r on l."file" = r."path";
+let outside = antijoin(left=valued, right=adapter-files, left-on=["file"], right-on=["path"]);
+let beside-any = select l."file" as "file", l."span" as "span" from outside as l join valued as r on l."package" = r."package" and l."name" = r."name" and l."value" = r."value" where l."file" != r."file";
+let adapter-beside-outside = select l."file" as "file", l."span" as "span" from in-adapter as l join outside as r on l."package" = r."package" and l."name" = r."name" and l."value" = r."value" where l."file" != r."file";
+let adapter-beside-adapter = select l."file" as "file", l."span" as "span" from in-adapter as l join in-adapter as r on l."package" = r."package" and l."name" = r."name" and l."value" = r."value" where l."file" != r."file" and (l."port" != r."port" or l."adapter" = r."adapter");
 let outside-pairs = union(left=beside-any, right=adapter-beside-outside);
-let counterparts = union(left=outside-pairs, right=adapter-beside-adapter);
-let countered = group-count(from=counterparts, keys=["file", "span"], count="counterparts");
-let kept = select l."files" as "files", l."name" as "name", l."value" as "value", l."file" as "file", l."span" as "span" from every as l join countered as r on l."file" = r."file" and l."span" = r."span";
+let named-counterparts = union(left=outside-pairs, right=adapter-beside-adapter);
+let named-countered = group-count(from=named-counterparts, keys=["file", "span"], count="counterparts");
+let named-kept = select l."files" as "files", l."name" as "name", l."value" as "value", l."file" as "file", l."span" as "span" from all-named as l join named-countered as r on l."file" = r."file" and l."span" = r."span";
+let value-beside-any = select l."file" as "file", l."span" as "span" from outside as l join valued as r on l."package" = r."package" and l."value" = r."value" where l."file" != r."file";
+let value-adapter-beside-outside = select l."file" as "file", l."span" as "span" from in-adapter as l join outside as r on l."package" = r."package" and l."value" = r."value" where l."file" != r."file";
+let value-adapter-beside-adapter = select l."file" as "file", l."span" as "span" from in-adapter as l join in-adapter as r on l."package" = r."package" and l."value" = r."value" where l."file" != r."file" and (l."port" != r."port" or l."adapter" = r."adapter");
+let value-outside-pairs = union(left=value-beside-any, right=value-adapter-beside-outside);
+let value-counterparts = union(left=value-outside-pairs, right=value-adapter-beside-adapter);
+let value-countered = group-count(from=value-counterparts, keys=["file", "span"], count="counterparts");
+let value-kept = select l."files" as "files", l."name" as "name", l."value" as "value", l."file" as "file", l."span" as "span" from value-found as l join value-countered as r on l."file" = r."file" and l."span" = r."span";
+let kept = union(left=named-kept, right=value-kept);
 let occurrences = project(from=kept, columns=["files", "name", "value", "file", "span"]);
 emit occurrences subject "file" key("span");
 '''
@@ -246,3 +253,25 @@ then.findings = [
   { path = 'src/outbound/embedded/adapters/svelte/constants.rs', line = 4 },
   { path = 'src/domain/markup/constants.rs', line = 4 },
 ]
+
+[[scenarios]]
+id = 'sibling-adapters-and-another-port-by-value'
+scenario = "Two sibling adapters declare one constant, and an adapter of another port holds the same word under another name: the sibling pair is still not reported."
+given.files.'src/outbound/embedded/adapters/vue/constants.rs' = '''
+//! The text the vue adapter reads with.
+
+/// The `lang` value of a typed block.
+pub(super) const TYPESCRIPT: &str = "ts";
+'''
+given.files.'src/outbound/embedded/adapters/svelte/constants.rs' = '''
+//! The text the svelte adapter reads with.
+
+/// The `lang` value of a typed block.
+pub(super) const TYPESCRIPT: &str = "ts";
+'''
+given.files.'src/outbound/syntax/adapters/oxc_parser/constants.rs' = '''
+//! The text the parser adapter reads with.
+
+/// The ending of the files it reads.
+pub(super) const PLAIN_EXTENSION: &str = "ts";
+'''
