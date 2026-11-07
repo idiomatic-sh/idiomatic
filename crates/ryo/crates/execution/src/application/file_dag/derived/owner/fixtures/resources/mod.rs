@@ -142,7 +142,7 @@ impl DerivedPort for RecordedDerived {
         request: ryo_derived::domain::request::types::DerivedRequest,
         schemas: Vec<Vec<ryo_relations::domain::relations::types::CellKind>>,
     ) -> ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived {
-        crate::outbound::derived::factory::semantics().prepare(request, schemas)
+        crate::outbound::derived::fixtures::fake::DerivedFake::default().prepare(request, schemas)
     }
     fn build(
         &self,
@@ -165,7 +165,7 @@ impl DerivedPort for RecordedDerived {
         {
             return Err(fault.clone());
         }
-        crate::outbound::derived::factory::semantics().build(prepared, inputs, room, recycled)
+        crate::outbound::derived::fixtures::fake::DerivedFake::default().build(prepared, inputs, room, recycled)
     }
     fn view<'a>(
         &self,
@@ -175,7 +175,7 @@ impl DerivedPort for RecordedDerived {
         ryo_derived::domain::contract::types::DerivedView<'a>,
         ryo_derived::domain::fault::types::DerivedFault,
     > {
-        crate::outbound::derived::factory::semantics().view(prepared, payload)
+        crate::outbound::derived::fixtures::fake::DerivedFake::default().view(prepared, payload)
     }
 }
 

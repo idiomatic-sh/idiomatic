@@ -291,7 +291,7 @@ impl DerivedOwner {
                 authored,
                 &|_| kinds,
                 (std::sync::Arc::new(
-                    crate::outbound::derived::factory::semantics(),
+                    crate::outbound::derived::fixtures::fake::DerivedFake::default(),
                 )
                     as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             )?;

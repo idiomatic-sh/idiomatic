@@ -124,7 +124,7 @@ impl SelectionFixture {
         let owner = Rc::new(RelationOwner::new(
             crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
             (std::sync::Arc::new(
-                crate::outbound::derived::factory::semantics(),
+                crate::outbound::derived::fixtures::fake::DerivedFake::default(),
             ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
         ));
         let descriptors = crate::application::file_dag::derived::owner::fixtures::prepared_sources(

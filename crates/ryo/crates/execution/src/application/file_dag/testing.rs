@@ -4,7 +4,7 @@ use ryo_relations::domain::relations::types::{CellKind, Value};
 pub(crate) fn program_derived_port()
 -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
     std::sync::Arc::new(
-        crate::outbound::derived::factory::semantics(),
+        crate::outbound::derived::fixtures::fake::DerivedFake::default(),
     )
 }
 /// Complete computed fixture rows for portable derived semantics controls.

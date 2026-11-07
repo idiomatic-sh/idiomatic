@@ -42,7 +42,7 @@ fn number_witness_rejects_wrong_producer_and_recycled_generation() {
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         crate::application::file_dag::relations::types::PinnedViewCount(64),
         (std::sync::Arc::new(
-            crate::outbound::derived::factory::semantics(),
+            crate::outbound::derived::fixtures::fake::DerivedFake::default(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let publication = owner.source_borrowed(relation, rows).unwrap();

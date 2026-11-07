@@ -186,7 +186,7 @@ pub(super) fn graph(plans: &[Plan]) -> (RequestOperators, RequestGraph) {
         &bindings,
         &[],
         (std::sync::Arc::new(
-            crate::outbound::derived::factory::semantics(),
+            crate::outbound::derived::fixtures::fake::DerivedFake::default(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     )
     .unwrap();

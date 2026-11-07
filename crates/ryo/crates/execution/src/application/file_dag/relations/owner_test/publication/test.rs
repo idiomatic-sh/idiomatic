@@ -6,7 +6,7 @@ fn lazy_source_normalization_is_shared_and_lives_until_the_last_consumer() {
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            crate::outbound::derived::factory::semantics(),
+            crate::outbound::derived::fixtures::fake::DerivedFake::default(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let relation = Relation::SourceLocation;

@@ -21,7 +21,7 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
     let plan = Arc::new(
         crate::application::file_dag::derived::prepare::view(
             (std::sync::Arc::new(
-                crate::outbound::derived::factory::semantics(),
+                crate::outbound::derived::fixtures::fake::DerivedFake::default(),
             ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             &ViewRequest::CycleAdjacency {
                 source: ColumnIndex(0),
@@ -37,7 +37,7 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
     let owner = crate::application::file_dag::relations::RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            crate::outbound::derived::factory::semantics(),
+            crate::outbound::derived::fixtures::fake::DerivedFake::default(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let publication = owner.computed(table.clone()).unwrap();
@@ -76,7 +76,7 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
     let equality = Arc::new(
         crate::application::file_dag::derived::prepare::view(
             (std::sync::Arc::new(
-                crate::outbound::derived::factory::semantics(),
+                crate::outbound::derived::fixtures::fake::DerivedFake::default(),
             ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             &ViewRequest::Equality {
                 columns: vec![ColumnIndex(0)],
