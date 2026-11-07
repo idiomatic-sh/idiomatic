@@ -1,1 +1,0 @@
-let e = select id as "parent", id as "child" from "function"; let a = cycles(edges=e, source="parent", destination="child"); emit a subject parent key(child);

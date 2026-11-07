@@ -1,1 +1,0 @@
-Supporting cohort rule for RUF100, no shipped-default inventory credit. Constant-likelihood comparison policy is expressed over existing semantic expression/identifier facts; composite classification uses relational descendant checks, not provider-specific linter behavior. Exact semantic and runtime parity controls pending.

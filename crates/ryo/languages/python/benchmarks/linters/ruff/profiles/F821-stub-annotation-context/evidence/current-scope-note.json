@@ -1,7 +1,0 @@
-{
-  "scope": "Current F821: 207 unchanged sources; 15 exact source/full diagnostic discrepancy certificates.",
-  "historical_oracle": "validity-reporting-contract.json and derived-validity-spans-new-cause.json retain their historical F811/F841 scope/status. Reuse only exact source-identical generic spans; current-independent-full-intended.json separately defines current full arrays before candidate comparison.",
-  "observation": "Actual reference arrays archived from PR16e x86 run, tool pin024cdf; current ARM execution is a separate approved-native validation, never historical observation attribution.",
-  "effective_profile": "Archived executed profile is byte-identical to the canonical staged current profile before adding explicit source3.10. Adding source key preserves canonical staged bytes; direct-profile route now declares same contract.",
-  "rerun": "Run python3.13 derive-validity-spans.py current-failing-cases.json for generic AST/token spans. Run python3 derive-current-full-intended.py for full intended arrays from local preserved generic oracle and binding evidence; outputs JSON to stdout. Compiler originals and target-positive controls retain their original tool/version provenance."
-}

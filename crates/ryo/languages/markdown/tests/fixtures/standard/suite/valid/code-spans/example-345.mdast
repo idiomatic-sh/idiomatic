@@ -1,4 +1,0 @@
-root[1]
-└─0 paragraph[2]
-    ├─0 inlineCode "<https://foo.bar."
-    └─1 text "baz>`"

@@ -1,1 +1,0 @@
-let m = select * from "function" where name = "run"; let a = difference(left="function", right=m); emit a subject file key(span);

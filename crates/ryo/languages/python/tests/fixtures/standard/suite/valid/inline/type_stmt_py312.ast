@@ -1,1 +1,0 @@
-Module(body=[TypeAlias(name=Name(id='x', ctx=Store()), value=Name(id='int'))])

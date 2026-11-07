@@ -1,3 +1,0 @@
-SIM401 remains FAIL in the accepted full inventory. This candidate has 20 full-comparison cases: the unchanged 16-case fixture plus mirrored `elif` and `if/elif/else` negatives. The clause-token guard distinguishes a real `else` body from an `elif` body, and the clause-count gate rejects an `if` with both. All 20 passed both contestants on the sealed ARM worker in `sim401-elif-count-replay-20261103`.
-
-The keyed syntax-rendering path is a prototype. Its batch-local dedup and file-wide persistence bypass do not establish common-owner admission or lifetime for rendered answers. An exact-head full inventory and narrow review of the clause fix remain required before this rule can be promoted.

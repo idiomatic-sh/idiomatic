@@ -1,1 +1,0 @@
-let a = group-digest(from="function", keys=["file"], distinct="name", digest="d", count="n"); emit a subject file key(n);

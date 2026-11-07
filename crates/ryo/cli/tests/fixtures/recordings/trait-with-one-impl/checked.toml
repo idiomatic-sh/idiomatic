@@ -1,7 +1,0 @@
-rows = [
-  { path = "crates/ruff_db/src/system/walk_directory.rs", key = "4126..4153" },
-  { path = "crates/ruff_linter/src/rules/ruff/rules/suppression_comment_visitor.rs", key = "8146..8171" },
-  { path = "crates/ruff_python_literal/src/format.rs", key = "23179..23191" },
-  { path = "crates/ruff_text_size/src/traits.rs", key = "1601..1610" },
-  { path = "crates/ruff_python_trivia/src/whitespace.rs", key = "2946..2962" },
-]

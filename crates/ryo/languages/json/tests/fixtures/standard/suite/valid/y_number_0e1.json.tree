@@ -1,7 +1,0 @@
-json-text 0-5
- value 0-5
-  array 0-5
-   begin-array 0-1
-   value 1-4
-    number 1-4
-   end-array 4-5

@@ -1,6 +1,0 @@
-root[1]
-└─0 paragraph[1]
-    └─0 link[1]
-        │ title: null
-        │ url: "made-up-scheme://foo,bar"
-        └─0 text "made-up-scheme://foo,bar"

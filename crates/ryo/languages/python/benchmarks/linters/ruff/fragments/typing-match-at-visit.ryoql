@@ -1,8 +1,0 @@
-import read_match from "python/ruff/type-match-at-check";
-input expressions: relation<id: node,file: file>;
-param member: string;
-output relation<id: node,file: file>;
-let checks=select id as check,id as root,file from expressions;
-let matches=read_match(checks=checks,builtin="__no_builtin__",typing=$member,mode="read");
-let result=select check as id,file from matches;
-return result;

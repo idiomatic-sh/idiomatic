@@ -1,9 +1,0 @@
-version = 1
-parents = ["f8dbd0fc78f6e7f485da757ac4c35ce0fbdf2b9504f13547ea0c1beaca5aacfc"]
-
-suppressed = [
-  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/inbound/use_cases/check/use_case.rs", level = "warning", fingerprint = "b38a6c348fd3539f", count = 1, message = "`crates/asymptote/crates/core/src/inbound/use_cases/check/use_case.rs` has 416 lines, over the file-length limit", since_rev = "1d1b1cb80d4c359da7062b45c4b08080e87bd2b2", since = "2026-10-23" },
-  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/outbound/lock/adapters/toml/schemas.rs", level = "warning", fingerprint = "b38a6c348fd3539f", count = 1, message = "`crates/asymptote/crates/core/src/outbound/lock/adapters/toml/schemas.rs` has 459 lines, over the file-length limit", since_rev = "1d1b1cb80d4c359da7062b45c4b08080e87bd2b2", since = "2026-10-23" },
-  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "cli/src/resources/ratchet/check/schemas.rs", level = "warning", fingerprint = "b38a6c348fd3539f", count = 1, message = "`crates/asymptote/cli/src/resources/ratchet/check/schemas.rs` has 748 lines, over the file-length limit", since_rev = "1d1b1cb80d4c359da7062b45c4b08080e87bd2b2", since = "2026-10-23" },
-  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/inbound/use_cases/check/fixtures.rs", level = "warning", fingerprint = "b38a6c348fd3539f", count = 1, message = "`crates/asymptote/crates/core/src/inbound/use_cases/check/fixtures.rs` has 417 lines, over the file-length limit", since_rev = "1d1b1cb80d4c359da7062b45c4b08080e87bd2b2", since = "2026-10-23" },
-]

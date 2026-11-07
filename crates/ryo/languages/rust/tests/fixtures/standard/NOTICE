@@ -1,4 +1,0 @@
-This directory holds the standard that defines the nodes and the tokens of the rust language, copied unchanged and pinned: README.md names its source and the version pinned.
-
-- syntax_kind.rs: the generated `SyntaxKind` of the `ra_ap_parser` crate, version 0.0.347, from github.com/rust-lang/rust-analyzer. The crate is licensed `MIT OR Apache-2.0`; the licenses are those of the rust-analyzer repository (LICENSE-MIT and LICENSE-APACHE).
-- The `.rast` files are the output of the `parse` function of rust-analyzer's own tests (`src/tests.rs` of `ra_ap_parser` 0.0.347, `MIT OR Apache-2.0`) for the language's inputs; for the suite they are the files rust-analyzer publishes as `test_data/parser/**/*.rast`, or what that function prints for the repository's copy of a suite file.

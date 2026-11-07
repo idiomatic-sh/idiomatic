@@ -1,1 +1,0 @@
-imports-allow = ["tree_sitter::*", "tree_sitter_go::*", "serde::*", "postcard::*"]

@@ -1,6 +1,0 @@
-version = 1
-parents = ["c5ffdcac127831de014fc84420f02b608d42877f34512936b945872c8a3748c5"]
-
-suppressed = [
-  { tool = "tastemaker", rule = "idiomatic.arch/no-json-in-process", path = "languages/javascript/Cargo.toml", level = "error", fingerprint = "263ad814cbef4bc6", count = 1, message = "`serde_json` is JSON in process", since_rev = "1fe5a1e8cf86915349a261a7ec4d19b42f227c79", since = "2026-10-28" },
-]

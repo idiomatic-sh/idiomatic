@@ -1,6 +1,0 @@
-version = 1
-parents = ["08d4be921790e11464ff5a89507589e80bb6db8708973ba064d652833b1e4b84"]
-
-removed = [
-  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "cli/tests/replay/scaffold.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },
-]

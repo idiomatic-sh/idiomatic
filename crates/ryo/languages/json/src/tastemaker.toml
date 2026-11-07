@@ -1,1 +1,0 @@
-imports-allow = ["jsonc_parser::*", "serde_json::*", "json5::*"]

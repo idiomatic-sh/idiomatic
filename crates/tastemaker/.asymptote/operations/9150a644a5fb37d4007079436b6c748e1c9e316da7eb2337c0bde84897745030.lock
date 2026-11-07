@@ -1,6 +1,0 @@
-version = 1
-parents = ["f33c11342e06b628ea9fd0cbd0cd8779769e124974609a9a620f5b186d78ef85"]
-
-suppressed = [
-  { tool = "tastemaker", rule = "idiomatic.arch/idiomatic-rust/bounded-engine-state", path = "crates/core/src/outbound/analysis/adapters/ryo/adapter.rs", level = "error", fingerprint = "f1ad19dd45ad6f96", count = 1, message = "a use case or an adapter holds this interior-mutable state outside a bounded cache a test proves", since_rev = "9d9dc61340a9ed391fe06017b0a6d8f36982e26e", since = "2026-10-30" },
-]

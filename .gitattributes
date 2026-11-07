@@ -1,3 +1,0 @@
-# Every file is checked out byte for byte as committed, on every platform: Windows git converts line endings by default,
-# which changes the fixtures, digests and snapshots the tests read.
-* -text

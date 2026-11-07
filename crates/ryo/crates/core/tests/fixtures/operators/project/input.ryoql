@@ -1,1 +1,0 @@
-let a = select file as "f" from "function"; emit a subject f key(f);

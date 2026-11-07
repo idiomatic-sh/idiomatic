@@ -1,6 +1,0 @@
-version = 1
-parents = ["42c10d1a792c3a6ac26c2d580cc51e71ea53703f4f30355416c31a354bd6cf55"]
-
-perf-removed = [
-  { tool = "performance", benchmark = "workspace/new", measure = "cpu-ms" },
-]

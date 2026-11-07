@@ -1,1 +1,0 @@
-let a = fits-rendered(from="function", texts=["name"], literals=["", ""], span="span", max-line=88, tab-width=4); emit a subject file key(span);

@@ -1,8 +1,0 @@
-root[5]
-├─0 html "<table>"
-├─1 html "  <tr>"
-├─2 code "<td>\n  Hi\n</td>"
-│     lang: null
-│     meta: null
-├─3 html "  </tr>"
-└─4 html "</table>"

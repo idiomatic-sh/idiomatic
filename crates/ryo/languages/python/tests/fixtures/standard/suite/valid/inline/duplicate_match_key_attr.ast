@@ -1,1 +1,0 @@
-Module(body=[Match(subject=Name(id='x'), cases=[match_case(pattern=MatchMapping(keys=[Attribute(value=Name(id='x'), attr='a'), Attribute(value=Name(id='x'), attr='a')], patterns=[MatchValue(value=Constant(value=1)), MatchValue(value=Constant(value=2))]), body=[Expr(value=Constant(value=Ellipsis))])])])

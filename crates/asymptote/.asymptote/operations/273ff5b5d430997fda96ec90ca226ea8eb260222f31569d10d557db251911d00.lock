@@ -1,8 +1,0 @@
-version = 1
-parents = ["caf129e5f06a71ed7fb388b6baf891a95ecfd5bd81e650e6e2c26a91542f8379"]
-
-[[perf]]
-reasons = ["Seeded with the median of five runs of the benchmark on the development machine, each run the median of its rounds; the tolerance is three times the spread of those five medians, rounded up to a multiple of 5, and at least 100% for a workload under 100 ms or 20% above it: the machine is shared, and a workload that short moves by its own rounding."]
-records = [
-  { tool = "performance", benchmark = "ratchet/up", measure = "cpu-ms", best = 0.319 },
-]

@@ -1,6 +1,0 @@
-version = 1
-parents = ["2d83b251097022f242fa312b621c5df0c2245d2f5d3bd9b7d3cdca2e0922914f"]
-
-suppressed = [
-  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/query_language/src/outbound/syntax/adapters/winnow/adapter_test.rs", level = "warning", fingerprint = "b38a6c348fd3539f", count = 1, message = "`crates/ryo/crates/query_language/src/outbound/syntax/adapters/winnow/adapter_test.rs` has 471 lines, over the file-length limit", since_rev = "e17527479a276925887506e4c8528b9fddbb8d4c", since = "2026-10-27" },
-]

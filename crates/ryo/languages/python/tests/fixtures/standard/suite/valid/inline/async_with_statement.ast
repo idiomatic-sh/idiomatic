@@ -1,1 +1,0 @@
-Module(body=[AsyncWith(items=[withitem(context_expr=Name(id='item'))], body=[Expr(value=Constant(value=Ellipsis))])])

@@ -1,3 +1,0 @@
-`valid/` holds the 95 files of JSONTestSuite's `test_parsing` named `y_*` (the files every parser must accept) and `invalid/` the 188 named `n_*` (the files every parser must reject), copied unchanged from github.com/nst/JSONTestSuite at commit 1ef36fa01286573e846ac449e8683f8833c5b26a. Licence: MIT, Copyright (c) 2016 Nicolas Seriot (`LICENSE`).
-
-Left out, not counted as read: the 35 files named `i_*`, for which the suite says a parser may accept or reject (implementation-defined: deep nesting, huge numbers, lone surrogates, a byte order mark).

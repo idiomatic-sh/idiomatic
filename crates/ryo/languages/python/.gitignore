@@ -1,3 +1,0 @@
-# Generated run dumps of the Ruff benchmark; only the files a test, generator or the preparation manifest reads stay tracked (add with -f).
-/benchmarks/linters/ruff/results/
-/benchmarks/linters/ruff/profiles/evidence/

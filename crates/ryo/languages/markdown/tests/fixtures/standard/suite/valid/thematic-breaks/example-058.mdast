@@ -1,6 +1,0 @@
-root[3]
-├─0 paragraph[1]
-│   └─0 text "Foo"
-├─1 thematicBreak
-└─2 paragraph[1]
-    └─0 text "bar"

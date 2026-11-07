@@ -1,6 +1,0 @@
-{
-  "positional-only-self": "class C:\n    def f(self, /):\n        return super(C, self).f()\n",
-  "module-class-rebound-after-definition": "class C:\n    def f(self):\n        return super(C, self).f()\noriginal = C\nclass Other: pass\nC = Other\n",
-  "nested-class-attribute-rebound-after-definition": "class Base:\n    def f(self):\n        pass\nclass Other(Base):\n    pass\nclass Outer:\n    class Inner(Base):\n        def f(self):\n            return super(Outer.Inner, self).f()\nOriginalInner = Outer.Inner\nOuter.Inner = Other\n",
-  "nested-parent-attribute-rebound-after-definition": "class Base:\n    def f(self):\n        pass\nclass Other:\n    pass\nclass A:\n    class B:\n        class C(Base):\n            def f(self):\n                return super(A.B.C, self).f()\nOriginalC = A.B.C\nA.B = Other\n"
-}

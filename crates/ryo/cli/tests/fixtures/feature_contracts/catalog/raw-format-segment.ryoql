@@ -1,2 +1,0 @@
-let witness = select * from "raw-format-segment";
-emit witness subject file key(id, segment, dialect);

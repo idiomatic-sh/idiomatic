@@ -1,8 +1,0 @@
-# Imports: derived
-
-Per concept: the concepts of its own crate it imports from (source-dependency edges, with the count of edges), the concepts and crate roots of other crates it imports from (static-import of a `ryo_*` path), and the concepts that import it.
-
-| concept | imports (same crate) | imports (other crates) | imported by |
-|---|---|---|---|
-| domain/contract | - | relations:domain/relations (3); values:domain/plan_parts (1); values:domain/rows (3) | derived:inbound/use_cases/derived (2); execution:application/file_dag (28); execution:application/file_dag/derived/owner (5); execution:application/file_dag/derived/owner/acquisition/admission (2); execution:application/file_dag/derived/owner/acquisition/selection (1); execution:application/file_dag/derived/owner/acquisition/semantics (6); execution:application/file_dag/derived/owner/cached_graph (1); execution:application/file_dag/derived/owner/graphs/types/handles (1); execution:application/file_dag/derived/owner/graphs/types/retained (1); execution:application/file_dag/derived/owner/index (3); execution:application/file_dag/derived/owner/selection/candidates (1); execution:domain/column_kernel (1); execution:domain/derived_views (2); execution:domain/executable_program (1); execution:domain/native_positions (5); execution:domain/operator/collections/operators (3); execution:domain/operator/contract (7); execution:domain/stored_graph (1); execution:domain/table_dedup (3); execution:domain/table_groups (1); execution:domain/table_model (4); execution:domain/table_reach (2); execution:domain/table_scratch (1); execution:domain/tree_join (1); execution:domain/tree_join/collections/strategies (3) |
-| inbound/use_cases/derived | derived:domain/contract (2) | - | - |

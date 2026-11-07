@@ -1,2 +1,0 @@
-let witness = select * from "raw-format-field";
-emit witness subject file key(id, segment, ordinal, segment-field-ordinal);

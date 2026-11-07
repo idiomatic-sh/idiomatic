@@ -1,1 +1,0 @@
-let a = extend(from="function", values={"n": 1}); emit a subject file key(n);

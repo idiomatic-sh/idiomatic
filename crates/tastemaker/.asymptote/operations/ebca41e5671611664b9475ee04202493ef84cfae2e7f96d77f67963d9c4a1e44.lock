@@ -1,9 +1,0 @@
-version = 1
-parents = ["11146e1793ee060fbddd86805124457040d2c57616a5814a21ab41ff9336352d"]
-
-suppressed-removed = [
-  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/outbound/inventory/adapters/arrow/adapter.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },
-  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/outbound/inventory/adapters/arrow/adapter_test.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },
-  { tool = "tastemaker", rule = "idiomatic.arch/pub-item-unreferenced-elsewhere", path = "crates/core/src/outbound/repository/fixtures/fake.rs", level = "warning", fingerprint = "d591316996e00d40" },
-  { tool = "tastemaker", rule = "idiomatic.arch/pub-item-unreferenced-elsewhere", path = "crates/core/src/outbound/repository/fixtures/fake.rs", level = "warning", fingerprint = "974b34c706700416" },
-]

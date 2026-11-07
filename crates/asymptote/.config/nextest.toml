@@ -1,4 +1,0 @@
-# Bench and cucumber BDD targets do not support libtest's listing protocol.
-# Run them with `cargo test --all-features --benches --test '*bdd'`.
-[profile.default]
-default-filter = "not kind(bench) and not binary(/bdd$|^distribution$/)"

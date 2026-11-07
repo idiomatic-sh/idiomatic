@@ -1,1 +1,0 @@
-let a = span-between(from="function", start="span", end="span", output="diagnostic_span"); emit a subject file key(diagnostic_span);

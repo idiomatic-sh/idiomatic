@@ -1,6 +1,0 @@
-{
-  "comment-at-eof": "x=1\n# fmt: skip",
-  "directive-whitespace": "\t#\tfmt:\tskip\t\n",
-  "semicolon-body-line-indentation": "for x in items:\n    f();g()\n# fmt: off\nelse:\n    h()\n",
-  "unicode-byte-spans": "label=\"\u00e9\ud83e\uddea\"\nx=1 # fmt: on\n"
-}

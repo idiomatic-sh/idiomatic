@@ -1,6 +1,0 @@
-version = 1
-parents = ["d23e32b58dfb4401d8f268359564e1d632b19238ff49ec080ad991c2df07235a"]
-
-suppressed-removed = [
-  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/inbound/use_cases/run/use_case.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },
-]

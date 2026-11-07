@@ -1,5 +1,0 @@
-# The findings the command prints over this target: the sha256 of the whole
-# findings document in canonical form, the exit status the run must end with and
-# their count per rule; the total is the sum of the counts, never stored beside them.
-digest = "ed94c0588799748b06f6e3c0ae0c5c91ec88e80f34654109fde829c5549c6c7d"
-exit_code = 0

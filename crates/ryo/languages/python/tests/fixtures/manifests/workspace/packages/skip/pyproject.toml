@@ -1,5 +1,0 @@
-[project]
-name = "skip"
-[tool.poetry.dependencies]
-python = "^3.9"
-colorama = { git = "https://github.com/tartley/colorama", branch = "master", python = ">=3.8" }

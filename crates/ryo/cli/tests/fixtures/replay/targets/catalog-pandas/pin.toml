@@ -1,6 +1,0 @@
-# Real production package sources, at the existing Python benchmark's exact pin.
-# Replayed without the benchmark's injected source edit or local fixture generation.
-# Sparse catalog witnesses and their invariants retain real file/source identities.
-repository = "https://github.com/pandas-dev/pandas.git"
-revision = "366ccdfcd8ed1e5543bfb6d4ee0c9bc519898670"
-directory = "."

@@ -1,8 +1,0 @@
-version = 1
-parents = ["09da4a85427eb3731e373ebad96ae255cf854b18d506f7f7b7be5ce043e44378"]
-
-[[perf]]
-reasons = ["Median of 3 rounds; 6 rounds read 252 241 259 259 269 244 ms. The page cache is made equal before every round: before it was, the edit read 243 to 522 ms and its tolerance was 45%."]
-records = [
-  { tool = "performance-lint", benchmark = "ruff", measure = "edit-milliseconds", best = 255.0 },
-]

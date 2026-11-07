@@ -1,1 +1,0 @@
-let a = words(from="function", text="name", word="w"); emit a subject file key(w);

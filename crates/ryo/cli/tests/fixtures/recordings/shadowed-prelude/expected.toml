@@ -1,3 +1,0 @@
-rows = [
-  { path = "crates/ruff_linter/src/rules/flake8_pyi/rules/bad_generator_return_type.rs", key = "11095..11103" },
-]

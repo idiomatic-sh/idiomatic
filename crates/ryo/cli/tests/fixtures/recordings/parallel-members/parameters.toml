@@ -1,2 +1,0 @@
-roles = ["adapters", "methods", "commands", "macros", "tests", "benches", "fixtures", "src"]
-independent = ["languages", "relations"]

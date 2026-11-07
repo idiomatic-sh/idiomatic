@@ -1,1 +1,0 @@
-let a = source-matches(from="function", span="span", pattern="fn", output="match_span"); emit a subject file key(match_span);

@@ -1,4 +1,0 @@
-let tokens = select id, file, span, text from "syntax-tree" where text != "";
-let bounds = select l.id as id, l.file as file, l.span as span, r."start-byte" as begin, r."end-byte" as finish from tokens as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let one_byte = select id, file, span, begin, finish from bounds where integer_successor(begin, finish);
-emit one_byte subject file key(id, begin, finish, span);

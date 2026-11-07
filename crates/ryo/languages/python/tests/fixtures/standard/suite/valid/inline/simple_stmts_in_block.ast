@@ -1,1 +1,0 @@
-Module(body=[If(test=Constant(value=True), body=[Pass()]), If(test=Constant(value=True), body=[Pass()]), If(test=Constant(value=True), body=[Pass(), Continue()]), If(test=Constant(value=True), body=[Pass(), Continue()]), Assign(targets=[Name(id='x', ctx=Store())], value=Constant(value=1))])

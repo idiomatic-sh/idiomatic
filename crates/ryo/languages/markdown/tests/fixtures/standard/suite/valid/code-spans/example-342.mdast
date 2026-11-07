@@ -1,5 +1,0 @@
-root[1]
-└─0 paragraph[3]
-    ├─0 text "[not a "
-    ├─1 inlineCode "link](/foo"
-    └─2 text ")"

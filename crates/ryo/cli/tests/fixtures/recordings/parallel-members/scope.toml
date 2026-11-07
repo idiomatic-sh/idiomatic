@@ -1,2 +1,0 @@
-include = ["**"]
-exclude = ["**/src/commands/**", "**/benches/**"]

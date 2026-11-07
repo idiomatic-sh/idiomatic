@@ -1,6 +1,0 @@
-version = 1
-parents = ["e28d1300c459504783190d4565f5d7faf646b1a43e014f1dd9730bf41a559f1c"]
-
-suppressed = [
-  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/domain/reports/service_test.rs", level = "warning", fingerprint = "b38a6c348fd3539f", count = 1, message = "`crates/asymptote/crates/core/src/domain/reports/service_test.rs` has 407 lines, over the file-length limit", since_rev = "5064af2ba9f208648d21cd08bc57201519575fd3", since = "2026-10-28" },
-]

@@ -1,8 +1,0 @@
-diff --git a/django/utils/module_loading.py b/django/utils/module_loading.py
---- a/django/utils/module_loading.py
-+++ b/django/utils/module_loading.py
-@@ -78,3 +78,3 @@
-         package_path = package.__path__
--    except AttributeError:
-+    except:
-         # package isn't a package.

@@ -1,1 +1,0 @@
-export {v} from "./foo.json" with { type: "json" };

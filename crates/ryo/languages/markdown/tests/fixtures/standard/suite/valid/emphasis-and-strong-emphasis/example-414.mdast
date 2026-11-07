@@ -1,6 +1,0 @@
-root[1]
-└─0 paragraph[1]
-    └─0 emphasis[2]
-        ├─0 text "foo "
-        └─1 strong[1]
-            └─0 text "bar"

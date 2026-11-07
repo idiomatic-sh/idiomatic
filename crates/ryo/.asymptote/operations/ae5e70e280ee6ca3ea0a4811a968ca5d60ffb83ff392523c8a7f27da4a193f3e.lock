@@ -1,8 +1,0 @@
-version = 1
-parents = ["320c316069731743bf7546e81718626c22826b3583548b2969283219f72ce33b"]
-
-[[perf]]
-reasons = ["Median of 3 rounds; 6 rounds read 547 536 547 546 534 550 MB, and medians of three in a row differ by 0.2%."]
-records = [
-  { tool = "performance-lint", benchmark = "ruff", measure = "peak-megabytes", best = 546.0 },
-]

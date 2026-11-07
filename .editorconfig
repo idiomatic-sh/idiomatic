@@ -1,7 +1,0 @@
-# The conventions every text file in the repository keeps; editorconfig-checker (a lint tool of the
-# root asymptote.toml) holds them. Indentation is rustfmt's, taplo's and the language's own, so it is not stated here.
-root = true
-
-[*]
-insert_final_newline = true
-trim_trailing_whitespace = true

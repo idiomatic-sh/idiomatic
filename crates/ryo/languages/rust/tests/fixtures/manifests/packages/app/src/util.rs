@@ -1,3 +1,0 @@
-pub fn double(value: u8) -> u8 {
-    value * 2
-}

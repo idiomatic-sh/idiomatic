@@ -1,8 +1,0 @@
-version = 1
-parents = ["52e2333640f7cbab21121a6e5dfffc05f2d19fd8654a093249823f24f9442bbe"]
-
-[[perf]]
-reasons = ["The store holds exactly the image and one words file, because a save removes every words file the image does not name."]
-records = [
-  { tool = "performance-lint", benchmark = "ruff", measure = "store-files", best = 2.0 },
-]

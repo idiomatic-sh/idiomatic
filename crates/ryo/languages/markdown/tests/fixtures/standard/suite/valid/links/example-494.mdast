@@ -1,5 +1,0 @@
-root[1]
-└─0 paragraph[3]
-    ├─0 text "[a](<b)c\n[a](<b)c>\n[a]("
-    ├─1 html "<b>"
-    └─2 text "c)"

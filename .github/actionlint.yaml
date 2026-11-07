@@ -1,6 +1,0 @@
-# GitHub's runner labels newer than the installed actionlint knows: the hosted Ubuntu 26.04 images
-# (https://github.com/actions/runner-images). Delete each once actionlint lists it.
-self-hosted-runner:
-  labels:
-    - ubuntu-26.04
-    - ubuntu-26.04-arm

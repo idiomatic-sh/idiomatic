@@ -1,3 +1,0 @@
-let regions = select r.id as id, r.file as file, r.span as span, r."start-byte" as begin, r."end-byte" as finish from "indent-region" as r;
-let reversed = select file, span from regions where begin > finish;
-emit reversed subject file key(span);

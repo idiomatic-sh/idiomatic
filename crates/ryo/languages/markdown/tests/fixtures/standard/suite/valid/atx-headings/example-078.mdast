@@ -1,8 +1,0 @@
-root[3]
-├─0 paragraph[1]
-│   └─0 text "Foo bar"
-├─1 heading[1]
-│   │ depth: 1
-│   └─0 text "baz"
-└─2 paragraph[1]
-    └─0 text "Bar foo"

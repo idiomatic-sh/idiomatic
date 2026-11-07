@@ -1,9 +1,0 @@
-# Tests may panic freely: an assertion failing is the mechanism, and threading
-# Result through every test to avoid `unwrap` costs readability for nothing.
-allow-expect-in-tests = true
-allow-indexing-slicing-in-tests = true
-allow-panic-in-tests = true
-allow-unwrap-in-tests = true
-# RyoQL is the query language's name, not an identifier to put in backticks;
-# ".." keeps clippy's own list.
-doc-valid-idents = ["RyoQL", ".."]

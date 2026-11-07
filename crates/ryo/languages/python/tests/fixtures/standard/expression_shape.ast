@@ -1,6 +1,0 @@
-Module(
-  body=[
-    Expr(
-      value=Name(id='x')),
-    Expr(
-      value=Name(id='x'))])

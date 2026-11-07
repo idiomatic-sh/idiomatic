@@ -1,8 +1,0 @@
-diff --git a/fastapi/dependencies/utils.py b/fastapi/dependencies/utils.py
---- a/fastapi/dependencies/utils.py
-+++ b/fastapi/dependencies/utils.py
-@@ -90,3 +90,3 @@
-         assert __version__ > "0.0.12"
--    except (ImportError, AssertionError):
-+    except:
-         try:

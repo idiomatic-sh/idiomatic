@@ -1,1 +1,0 @@
-let a = select l."file" as "f", r."id" as "x" from "function" as l join "function" as r on l."id" = r."id"; emit a subject f key(x);

@@ -1,1 +1,0 @@
-let e = select id as "parent", id as "child" from "function"; let a = axis(from="function", relation=e, domain="function", direction=descendant); emit a subject file key(related);

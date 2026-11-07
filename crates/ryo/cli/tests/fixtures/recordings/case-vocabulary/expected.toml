@@ -1,4 +1,0 @@
-rows = [
-  { path = "crates/ruff/tests/cli/lint.rs", key = "47791..48495,uses `fails` outside `fails_when_<dependency>_fails`: `fails` names a dependency's error propagating" },
-  { path = "crates/ty/tests/cli/server.rs", key = "2962..3427,uses `fails` outside `fails_when_<dependency>_fails`: `fails` names a dependency's error propagating" },
-]

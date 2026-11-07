@@ -1,5 +1,0 @@
-Real stylesheets, each copied unchanged from the package the npm registry publishes, as jsdelivr serves it, and each under the MIT License:
-`bootstrap_5.3.3_*` are `dist/css/bootstrap.css` and `dist/css/bootstrap-reboot.css` of bootstrap 5.3.3 (Copyright (c) 2011-2024 The Bootstrap
-Authors); `normalize_8.0.1_normalize.css` is `normalize.css` of normalize.css 8.0.1 (Copyright (c) Nicolas Gallagher and Jonathan Neal);
-`modern-normalize_3.0.1_modern-normalize.css` is `modern-normalize.css` of modern-normalize 3.0.1 (Copyright (c) Sindre Sorhus);
-`pico_2.0.6_pico.css` is `css/pico.css` of @picocss/pico 2.0.6 (Copyright (c) 2019-2024 Pico). This repository has no stylesheet of its own.

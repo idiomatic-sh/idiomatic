@@ -1,2 +1,0 @@
-specs = [{ spec = "idiomatic.arch/concept", include = ["."], params = { item-trait = [] } }]
-imports-allow = ["std::any::type_name"]

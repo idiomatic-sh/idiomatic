@@ -1,1 +1,0 @@
-Module(body=[Import(names=[alias(name='foo', asname='match')], is_lazy=0), Import(names=[alias(name='bar', asname='case')], is_lazy=0), Import(names=[alias(name='baz', asname='type')], is_lazy=0), Import(names=[alias(name='qux', asname='lazy')], is_lazy=0)])

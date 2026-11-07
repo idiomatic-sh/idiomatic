@@ -1,2 +1,0 @@
-let witness = select * from "brace-format-field";
-emit witness subject file key(id, ordinal);

@@ -1,6 +1,0 @@
-version = 1
-parents = ["3b413176646f5a7b990109e6eb3ba4f7d21f22c925858eefe44f5c784f95f17d"]
-
-removed = [
-  { tool = "canonical", rule = "idiomatic.arch/asymptote-config#template", path = "asymptote.toml", level = "error", fingerprint = "b38a6c348fd3539f" },
-]

@@ -1,5 +1,0 @@
-root[2]
-├─0 html "<style>p{color:red;}</style>"
-└─1 paragraph[1]
-    └─0 emphasis[1]
-        └─0 text "foo"

@@ -1,3 +1,0 @@
-[project]
-name = "lib.two"
-dependencies = ["lib-one ; sys_platform == 'win32'"]

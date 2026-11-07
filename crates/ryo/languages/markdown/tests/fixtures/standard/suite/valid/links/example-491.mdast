@@ -1,5 +1,0 @@
-root[1]
-└─0 paragraph[3]
-    ├─0 text "[link]("
-    ├─1 html "<foo\nbar>"
-    └─2 text ")"

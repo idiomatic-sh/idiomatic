@@ -1,6 +1,0 @@
-version = 1
-parents = ["eb94a8c7f39c2cdafa206d3e69e3742b9ff059242a88459bd7a2d085d48052d4"]
-
-suppressed-removed = [
-  { tool = "tastemaker", rule = "idiomatic.arch/no-deep-stored-types", path = "cli/src/resources/ratchet/check/schemas.rs", level = "error", fingerprint = "1d1420ecb7f34f13" },
-]

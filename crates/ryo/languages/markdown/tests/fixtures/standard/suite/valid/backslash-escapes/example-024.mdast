@@ -1,4 +1,0 @@
-root[1]
-└─0 code "foo"
-      lang: "foo+bar"
-      meta: null

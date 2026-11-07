@@ -1,1 +1,0 @@
-Module(body=[Assign(targets=[Name(id='x', ctx=Store()), Name(id='y', ctx=Store()), Name(id='z', ctx=Store())], value=Constant(value=1)), Expr(value=Tuple(elts=[Name(id='a'), Name(id='b')])), Assign(targets=[Name(id='x', ctx=Store()), Name(id='y', ctx=Store()), Name(id='z', ctx=Store())], value=Constant(value=1)), Expr(value=Tuple(elts=[Name(id='a'), Name(id='b')]))])

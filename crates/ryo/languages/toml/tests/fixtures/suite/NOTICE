@@ -1,5 +1,0 @@
-The files of `suite/` are copied unchanged from the TOML test suite (toml-test, github.com/toml-lang/toml-test, MIT License, Copyright (c) 2018 TOML authors)
-as published in the crate `toml-test-data` 2.14.1: every `.toml` file of `tests/valid` and `tests/invalid` that its `files-toml-1.1.0` lists (TOML 1.1, the version
-the language reads), 218 valid and 494 invalid. None is left out: the language reports the faults of syntax, the faults of meaning (a key given twice, a table
-defined again, an array extended as a table, a date that is no day) through the `toml` crate's own validation, and bytes that are not UTF-8 as text it could not
-read. The licence of the suite is `LICENSE`.

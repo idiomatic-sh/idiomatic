@@ -1,1 +1,0 @@
-let a = span-bounds(from="function", span="span", start-output="begin", end-output="finish"); emit a subject file key(span);

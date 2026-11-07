@@ -1,4 +1,0 @@
-root[1]
-└─0 paragraph[2]
-    ├─0 text "Foo "
-    └─1 html "<responsive-image src=\"foo.jpg\" />"

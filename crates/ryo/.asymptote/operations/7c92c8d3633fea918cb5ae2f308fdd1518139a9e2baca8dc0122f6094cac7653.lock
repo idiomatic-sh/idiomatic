@@ -1,8 +1,0 @@
-version = 1
-parents = ["bf77391cafe13abc33089896880bbefe47a32fa08ae5c587cf7e93da3d1d3c80"]
-
-[[perf]]
-reasons = ["Median of 15 rounds in 3 sets of 5 (831, 830, 890 ms), the sets differing by 7.2%; seeded 2026-10-17 on a machine shared with other work and re-seeded 2026-10-18 idle with the build lock held (914, 860, 827 ms)."]
-records = [
-  { tool = "performance-lint", benchmark = "ruff", measure = "cold-milliseconds", best = 831.0 },
-]

@@ -1,3 +1,0 @@
-root[1]
-└─0 paragraph[1]
-    └─0 html "<a foo=\"bar\" bam = 'baz <em>\"</em>'\n_boolean zoop:33=zoop:33 />"

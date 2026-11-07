@@ -1,6 +1,0 @@
-param max-depth: integer;
-let functions = project(from="function", columns=["id", "name", "file", "span"]);
-let enclosing = axis(from=functions, relation="scope", direction=ancestor, domain=functions);
-let depths = group-count(from=enclosing, keys=["id", "name", "file", "span"], count="depth", distinct="related");
-let deep = select * from depths where depth > $max-depth;
-emit deep subject "file" key("span");

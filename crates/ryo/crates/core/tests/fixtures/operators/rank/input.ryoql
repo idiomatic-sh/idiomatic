@@ -1,2 +1,0 @@
-param layers: list<set<string>>;
-let a = rank(from="function", column=name, sets=$layers, output=layer); emit a subject file key(layer);

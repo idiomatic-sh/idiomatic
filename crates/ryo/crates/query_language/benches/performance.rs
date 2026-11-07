@@ -1,8 +1,0 @@
-//! `query_language`'s workloads.
-
-fn main() {
-    divan::Divan::default()
-        .max_time(std::time::Duration::from_secs(10))
-        .config_with_args()
-        .main();
-}

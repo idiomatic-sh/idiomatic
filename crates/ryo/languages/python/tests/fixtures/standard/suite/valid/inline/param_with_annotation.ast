@@ -1,1 +1,0 @@
-Module(body=[FunctionDef(name='foo', args=arguments(args=[arg(arg='arg', annotation=Name(id='int'))]), body=[Expr(value=Constant(value=Ellipsis))]), FunctionDef(name='foo', args=arguments(args=[arg(arg='arg', annotation=Lambda(args=arguments(args=[arg(arg='x')]), body=Name(id='x')))]), body=[Expr(value=Constant(value=Ellipsis))])])

@@ -1,6 +1,0 @@
-
-[[cases]]
-name = "cross-PLE0117-own-global-conflict-with-real-outer-binding"
-comparison = "full"
-files = { "case.py" = "def outer():\n    value=1\n    def inner():\n        global value\n        nonlocal value\n" }
-expected = [{ end = 62, file = "case.py", rule = "PLE0115", start = 57 }]

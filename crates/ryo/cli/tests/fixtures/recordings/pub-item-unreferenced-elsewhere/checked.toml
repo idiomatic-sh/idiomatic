@@ -1,7 +1,0 @@
-rows = [
-  { path = "crates/mdtest/src/matcher.rs", key = "795..809" },
-  { path = "crates/ruff_linter/src/source_kind.rs", key = "1328..1339" },
-  { path = "crates/ruff_python_ast/src/generated.rs", key = "2417..2434" },
-  { path = "crates/ruff_python_ast/src/generated.rs", key = "66823..66839" },
-  { path = "crates/ruff_python_parser/src/semantic_errors.rs", key = "78107..78123" },
-]

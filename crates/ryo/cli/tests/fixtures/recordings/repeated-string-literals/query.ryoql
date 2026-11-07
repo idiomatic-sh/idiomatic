@@ -1,8 +1,0 @@
-param allowed: set<string>;
-param min-files: integer;
-let long = select * from "string-literal" where glob_any(value, "??????*");
-let literals = select * from long where value not in $allowed;
-let spread = group-count(from=literals, keys=["value"], count="files", distinct="file");
-let repeated = select * from spread where files >= $min-files;
-let occurrences = select r."files" as "files", l."file" as "file", l."span" as "span", l."value" as "value" from literals as l join repeated as r on l."value" = r."value";
-emit occurrences subject "file" key("span");

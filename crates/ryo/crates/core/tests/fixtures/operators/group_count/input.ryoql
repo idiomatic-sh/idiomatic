@@ -1,1 +1,0 @@
-let a = group-count(from="function", keys=["file"], count="n", distinct="id"); emit a subject file key(n);

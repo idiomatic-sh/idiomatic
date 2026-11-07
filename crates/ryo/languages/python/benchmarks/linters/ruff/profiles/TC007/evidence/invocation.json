@@ -1,8 +1,0 @@
-{
-  "ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
-  "python_sha256": "2c2bf2087b89419f609369de36aa7ba7ae9f8e67bd8ae495e51afb964cd9db27",
-  "script_sha256": "ed04a1c5b3a1d0f802d229f2ffe3b20421f8ecc374b5efe11abcb95128abf2e3",
-  "python_program": "import sys,json\nout=[]\nfor r in json.load(sys.stdin):\n ns={};v={'name':r['name']}\n try:\n  exec(compile(r['source'],r['name']+'.py','exec',dont_inherit=True),ns);v['error']=None\n  if r['name'] in ['runtime-fallback','shadowed-true-guard']:assert ns['Alias'] is ns['Foo']\n  if r['name']=='class-global-fallback':assert ns['C'].Alias is ns['Foo']\n  if r['name']=='builtin-fallback':assert ns['Alias'] is int\n  if r['name']=='alias-under-guard':assert 'Foo' not in ns and 'Alias' not in ns\n  if r['name']=='quoted-alias':assert ns['Alias']=='Foo'\n  if r['name']=='quoted-generic-argument':assert ns['Alias'].__origin__ is list and ns['Alias'].__args__==('Foo',)\n except Exception as e:v['error']=type(e).__name__;v['message']=str(e)\n v['passed']=v['error']==r['expected_error'];out.append(v)\njson.dump({'python':sys.version,'results':out},sys.stdout,indent=2)\n",
-  "reference_invocations": 62,
-  "native_exit": 1
-}

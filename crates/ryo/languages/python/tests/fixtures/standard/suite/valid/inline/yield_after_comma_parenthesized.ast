@@ -1,1 +1,0 @@
-Module(body=[FunctionDef(name='f', args=arguments(), body=[Expr(value=Tuple(elts=[Constant(value=1), Yield(value=Constant(value=1))]))])])

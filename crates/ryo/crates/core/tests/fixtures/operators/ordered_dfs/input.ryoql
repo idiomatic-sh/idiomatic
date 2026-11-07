@@ -1,5 +1,0 @@
-let roots = select id as root, file from "function";
-let raw = select id as source, id as destination, id as base, file from "function";
-let edges = extend(from=raw,values={position:0});
-let walks = ordered-dfs(from=roots,root=root,edges=edges,source=source,destination=destination,order=position,edge=base,keys=[file],output=visit);
-emit walks subject root key(base,visit);

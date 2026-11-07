@@ -1,1 +1,0 @@
-let a = select * from "function" where name = "run"; emit a subject file key(span);

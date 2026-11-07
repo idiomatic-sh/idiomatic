@@ -1,1 +1,0 @@
-imports-allow = ["swc_html_parser::*", "swc_html_ast::*", "swc_common::*", "swc_atoms::*", "serde_json::*"]

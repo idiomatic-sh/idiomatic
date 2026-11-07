@@ -1,5 +1,0 @@
-root[2]
-├─0 html "<div>\n*foo*"
-└─1 paragraph[1]
-    └─0 emphasis[1]
-        └─0 text "bar"

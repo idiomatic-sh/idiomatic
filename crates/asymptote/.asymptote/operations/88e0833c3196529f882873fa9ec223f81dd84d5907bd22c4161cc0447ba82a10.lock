@@ -1,6 +1,0 @@
-version = 1
-parents = ["95e33621da8eca797d7feef9ba404cfb2fb3bed1d7412db35efbe5f1bf75914d"]
-
-suppressed-removed = [
-  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/outbound/sarif/adapters/serde_sarif/adapter_test.rs", level = "warning", fingerprint = "b38a6c348fd3539f" },
-]

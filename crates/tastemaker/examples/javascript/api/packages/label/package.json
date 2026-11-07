@@ -1,7 +1,0 @@
-{
-  "name": "todo-label",
-  "version": "1.0.0",
-  "description": "The API's display label.",
-  "type": "module",
-  "exports": "./index.js"
-}
