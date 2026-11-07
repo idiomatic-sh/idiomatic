@@ -290,3 +290,32 @@ pub(super) fn a_project_answer_that_drops_an_observed_entry_is_refused() -> Resu
     service.project_now(&input, &mut Symbols::default(), &mut *facts)?;
     Ok(0)
 }
+
+/// Reads a project whose language names one candidate entry and answers without the observation of it.
+pub(super) fn a_receipt_that_forgets_the_entries_is_refused() -> Result<usize, FileAnalysisError> {
+    let service = FileAnalysis::new(
+        Arc::new(CorpusFake::default()),
+        Arc::new(LanguageFake {
+            project_entry_paths: vec![FilePath("a.py".into())],
+            forgets_entries: true,
+            ..LanguageFake::default()
+        }),
+        Arc::new(DigestFake),
+        Arc::new(MemoryFake::default()),
+    );
+    let input = ProjectToRead {
+        search_scope: &Default::default(),
+        given_inventory: &Default::default(),
+        observed_entries: &Default::default(),
+        repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
+        root: &RootPath(".".into()),
+        manifests: &[],
+        files: &[],
+        notes: &ProjectNotes(Vec::new()),
+        wanted: &[],
+    };
+    let mut facts = FactsFake::default().worker()?;
+    service
+        .project_now(&input, &mut Symbols::default(), &mut *facts)
+        .map(|_| 0)
+}

@@ -67,10 +67,7 @@ impl FileAnalysis {
                     SourceLanguage::Unrecognized
                 },
                 semantic: SemanticSupport::Supplied(semantic),
-                kinds: match tables.kind_vocabulary.as_ref() {
-                    Some(vocabulary) => KindSupport::Prepared(Arc::clone(vocabulary)),
-                    None => KindSupport::Absent,
-                },
+                kinds: KindSupport::Absent,
                 first: visit.setting.first_bucket,
             },
             &mut tables.symbols,

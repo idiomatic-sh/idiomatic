@@ -182,6 +182,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::TooLarge { .. })))),
     },
     Case {
+        name: CaseName("fails_when_the_file_analysis_execution_dependencies_disagree"),
+        word: Word::Fails,
+        input: || Scenario::FileAnalysisExecutionRefused,
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::Execution { .. })))),
+    },
+    Case {
+        name: CaseName("fails_when_the_execution_cannot_admit_an_observation"),
+        word: Word::Fails,
+        input: || Scenario::CrossFileOperatingRefused,
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::ObservationExecution { .. })))),
+    },
+    Case {
+        name: CaseName("fails_when_the_observation_bindings_form_a_cycle"),
+        word: Word::Fails,
+        input: || Scenario::ObservationBindingsRefused,
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::ObservationBindings { .. })))),
+    },
+    Case {
         name: CaseName("fails_when_facts_fail"),
         word: Word::Fails,
         input: || {

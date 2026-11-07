@@ -86,6 +86,12 @@ pub(crate) enum Scenario {
     UnreadableAgain,
     /// Lints a rule that reads the project twice over one store, with what changed between the two.
     Consulted(Between),
+    /// The file analysis refuses a run for execution dependencies that disagree.
+    FileAnalysisExecutionRefused,
+    /// The cross-file publication refuses an observation the execution cannot admit.
+    CrossFileOperatingRefused,
+    /// Rule compilation refuses named-root bindings that form a cycle.
+    ObservationBindingsRefused,
     /// accepted syntax applicability replays skips and invalidates on policy change.
     AcceptedSyntaxApplicabilityReplaysSkipsAndInvalidatesOnPolicyChange,
     /// project entry observations invalidate persisted absence and presence.
@@ -112,6 +118,21 @@ pub(crate) fn scenario(scenario: Scenario) -> Result<(usize, usize), LintError> 
         Scenario::ColdWarmAndEditedRunsAnswerTheSameInEveryStore => cold_warm_and_edited_runs_answer_the_same_in_every_store(),
         Scenario::ASyntaxSkippedFileDoesNotPoisonUnrelatedPartitionsColdOrWarm => a_syntax_skipped_file_does_not_poison_unrelated_partitions_cold_or_warm(),
         Scenario::ASyntaxRejectedFileIsSkippedWithItsReasonAndNeverUndecidedOrComplete => a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_complete(),
+        Scenario::FileAnalysisExecutionRefused => Err(LintError::from(
+            crate::application::file_analysis::errors::FileAnalysisError::Execution(
+                ryo_execution::inbound::use_cases::execution::interface::OperatingError::SemanticBatchShape,
+            ),
+        )),
+        Scenario::CrossFileOperatingRefused => Err(LintError::from(
+            crate::application::cross_file::errors::CrossFileError::Operating(
+                ryo_execution::inbound::use_cases::execution::interface::OperatingError::SemanticBatchShape,
+            ),
+        )),
+        Scenario::ObservationBindingsRefused => Err(LintError::from(
+            ryo_execution::inbound::use_cases::prepare::interface::RuleCompilationError::Observations(
+                ryo_execution::inbound::use_cases::execution::interface::FileProgramError::Cycle,
+            ),
+        )),
         Scenario::Lint(given) => {
             let made = lint(given());
             let findings = made.rows.len();
