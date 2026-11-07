@@ -157,7 +157,7 @@ pub(in super::super::super) fn compiled_operations() -> Corpus {
     .unwrap();
     let graph = crate::domain::file_program::service::compile_prepared(&plans, &operators);
     let program =
-        crate::domain::executable_program::service::compile(&plans, graph, &Sources, &operators, crate::domain::executable_program::types::RoutePolicy::default())
+        crate::domain::executable_program::service::compile(&plans, graph, &Sources, &operators)
             .unwrap();
     let mut walk = crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk::compile(&plans, &bindings);
     walk.retain_program_consumers(&program).unwrap();
@@ -180,5 +180,5 @@ pub(in super::super::super) fn compile_program(
     )
     .unwrap();
     let graph = crate::domain::file_program::service::compile_prepared(plans, &operators);
-    crate::domain::executable_program::service::compile(plans, graph, &Sources, &operators, crate::domain::executable_program::types::RoutePolicy::default()).unwrap()
+    crate::domain::executable_program::service::compile(plans, graph, &Sources, &operators).unwrap()
 }

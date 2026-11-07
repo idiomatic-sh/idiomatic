@@ -12,7 +12,6 @@ use super::types::{
 };
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::operator::contract::types::RequestOperators;
-use crate::domain::operator::types::KeptSteps;
 use crate::domain::self_join_recogniser::types::Decline;
 
 use ryo_values::domain::plan_parts::types::StepScope;
@@ -22,42 +21,6 @@ use ryo_values::domain::plans::types::{Operation, Plan};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-pub(crate) fn materialized_steps(plan: &Plan) -> KeptSteps {
-    let mut readers = vec![0usize; plan.steps.len()];
-    for step in &plan.steps {
-        if step.scope != StepScope::PerFile {
-            continue;
-        }
-        for input in named(&inputs_of(&step.operation)) {
-            if let Input::Step(id) = input
-                && let Some(count) = readers.get_mut(id.0 as usize)
-            {
-                *count += 1;
-            }
-        }
-    }
-    let mut roots = vec![false; plan.steps.len()];
-    for input in plan
-        .frontier
-        .iter()
-        .copied()
-        .chain(std::iter::once(Input::Step(plan.emit.step)))
-        .chain(plan.observations.iter().map(|root| root.source))
-    {
-        if let Input::Step(id) = input
-            && let Some(root) = roots.get_mut(id.0 as usize)
-        {
-            *root = true;
-        }
-    }
-    KeptSteps(
-        roots
-            .into_iter()
-            .zip(readers)
-            .map(|(root, readers)| root || readers > 1)
-            .collect(),
-    )
-}
 
 /// Compile one DAG for the entire ordered request. Unsupported descendants
 /// break the chain; no raw Debug serialization or source-origin text is a key.
@@ -89,27 +52,8 @@ pub(crate) fn compile_prepared_observations(
     let mut observed_outputs = Vec::new();
     let mut buckets = HashMap::<Fingerprint, Vec<ProgramNodeId>>::new();
     for (rule, plan) in plans.iter().enumerate() {
-        let kept = materialized_steps(plan);
         let rule_index = RuleIndex(rule);
         let needs = crate::domain::trust::service::needs_of_contracts(plan, &operators.rules[rule]);
-        // The one analysis of the rule: the lowering is made once and the column chains are
-        // compiled over it. Nothing of it outlives the loop but the shapes found per step.
-        let layout = match operators.rules[rule]
-            .iter()
-            .map(|contract| contract.output_kinds.clone())
-            .collect::<Result<Vec<_>, _>>()
-        {
-            Ok(kinds) => Some(crate::domain::operator::types::PlanLayout {
-                kept: KeptSteps(kept.0.clone()),
-                kinds,
-                lowering: crate::domain::lowering::service::lower(plan),
-            }),
-            Err(_) => None,
-        };
-        let columns = layout
-            .as_ref()
-            .map(|layout| crate::domain::column_kernel::service::compile(plan, layout));
-
         let mut mapped = Vec::with_capacity(plan.steps.len());
         let mut rule_cuts = Vec::with_capacity(plan.steps.len());
         for (index, step) in plan.steps.iter().enumerate() {
@@ -121,26 +65,6 @@ pub(crate) fn compile_prepared_observations(
                         || contract.effects
                             != crate::domain::operator::contract::types::Effects::Pure)
                         .then_some(rule_index);
-                    let region = layout.as_ref().and_then(|layout| {
-                        let column = columns
-                            .as_ref()
-                            .and_then(|columns| columns.0.get(index))
-                            .cloned()
-                            .flatten();
-                        // A step that only counts the rows of a lowered step makes no positions.
-                        let native = (step.scope == StepScope::PerFile
-                            && layout.lowering.counting.get(index)
-                                == Some(&crate::domain::lowering::types::Counting::DoesNotCount))
-                        .then(|| layout.lowering.shapes.get(index).and_then(Option::as_ref))
-                        .flatten()
-                        .map(|shape| Arc::new(shape.clone()));
-                        (native.is_some() || column.is_some()).then(|| super::types::StepAnalysis {
-                            rule: rule_index,
-                            step: StepId(index as u32),
-                            native,
-                            column,
-                        })
-                    });
                     let hash = Fingerprint::of(&operation, &inputs, scope, step.scope);
                     // Delivery is outside semantic evaluation. Identical pure
                     // terminals and intermediates share one canonical publication;
@@ -154,9 +78,6 @@ pub(crate) fn compile_prepared_observations(
                                 && existing.phase == step.scope
                         })
                     }) {
-                        if let Some(region) = region {
-                            nodes[found.0].analysis.push(region);
-                        }
                         return Some(found);
                     }
                     let schema_valid = if contract.schema.is_ok()
@@ -171,7 +92,6 @@ pub(crate) fn compile_prepared_observations(
                     let id = ProgramNodeId(nodes.len());
                     scopes.push(scope);
                     nodes.push(FileProgramNode {
-                        analysis: region.into_iter().collect(),
                         needs: needs.as_ref().map_err(Clone::clone).and_then(|needs| {
                             needs
                                 .get(index)

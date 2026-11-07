@@ -1,10 +1,8 @@
-//! Whole-region strategies that publish without the ordinary kernel loop: blocked, ordered-existence and column regions.
+//! Whole-region strategies that publish without the ordinary kernel loop: blocked and ordered-existence regions.
 use super::super::{InvocationOutcome, Poll, ProgramExecution};
 use super::super::{KernelAdmission, KernelPermit};
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
-use crate::application::file_dag::program::runtime::types::{
-    ColumnCounters, StageProgress, StrategyOutcome,
-};
+use crate::application::file_dag::program::runtime::types::{StageProgress, StrategyOutcome};
 use crate::domain::operating::errors::OperatingError;
 
 impl ProgramExecution {
@@ -147,109 +145,6 @@ impl ProgramExecution {
             }
         }
         progress.ordered_done = StageProgress::Done;
-        Ok(None)
-    }
-    pub(in crate::application::file_dag::program::runtime::service) fn column(
-        &self,
-        call: &mut Poll<'_, '_>,
-    ) -> Result<Option<InvocationOutcome>, InvocationFailure> {
-        let id = call.id;
-        let region = call.region;
-        let completion = call.completion;
-        let kernels = call.kernels;
-        let state = call.state;
-        let inputs = &mut *call.inputs;
-        let context = &mut *call.context;
-        let progress = &mut *call.progress;
-        let needs = region
-            .needs()
-            .as_ref()
-            .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
-        if let Some(shape) = crate::domain::executable_program::service::column(&region.route())
-            .filter(|_| progress.column_done == StageProgress::Pending)
-        {
-            use crate::domain::executable_program::types::InputSource;
-            progress
-                .supply(
-                    inputs,
-                    InputSource::Region(shape.left),
-                    &self.partition,
-                    context,
-                )
-                .map_err(InvocationFailure::Semantic)?;
-            progress
-                .supply(
-                    inputs,
-                    InputSource::Relation(shape.chain.right),
-                    &self.partition,
-                    context,
-                )
-                .map_err(InvocationFailure::Semantic)?;
-            progress
-                .check_schema(region)
-                .map_err(InvocationFailure::Semantic)?;
-            let left = progress
-                .admit(
-                    inputs,
-                    InputSource::Region(shape.left),
-                    &self.partition,
-                    context,
-                )
-                .map_err(InvocationFailure::Semantic)?;
-            let right = progress
-                .admit(
-                    inputs,
-                    InputSource::Relation(shape.chain.right),
-                    &self.partition,
-                    context,
-                )
-                .map_err(InvocationFailure::Semantic)?;
-            let permit = KernelPermit::column(
-                KernelAdmission {
-                    execution: self,
-                    region: id,
-                },
-                &left,
-                &right,
-            )
-            .map_err(InvocationFailure::Semantic)?;
-            let frames = call
-                .frames
-                .as_mut()
-                .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?;
-            let scratch = frames
-                .first_mut()
-                .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?;
-            let counters = ColumnCounters::default();
-            let mut rows = ryo_values::domain::rows::types::Table::default();
-            let outcome = kernels.column(
-                shape, &permit, &left, &right, context, scratch, &counters, &mut rows,
-            );
-            self.record_column(state, shape, &counters)
-                .map_err(InvocationFailure::Semantic)?;
-            if matches!(outcome?, StrategyOutcome::Executed) {
-                completion.filter_rows(
-                    region
-                        .last_operation()
-                        .map_err(InvocationFailure::Semantic)?,
-                    needs,
-                    &mut rows,
-                );
-                let publication = inputs
-                    .publish(
-                        crate::application::file_dag::program::admission::ProducerRoot::Region(id),
-                        &self.partition,
-                        &[left, right],
-                        crate::application::file_dag::program::admission::Representation::Computed(
-                            rows,
-                        ),
-                    )
-                    .map_err(InvocationFailure::Semantic)?
-                    .with_coverage(completion.coverage(needs));
-                return Ok(Some(InvocationOutcome::Published(publication)));
-            }
-        }
-        progress.column_done = StageProgress::Done;
         Ok(None)
     }
 }

@@ -33,9 +33,6 @@ pub(crate) struct EngineLocalAdapter {
     diagnostic_events: Option<std::path::PathBuf>,
     /// Optional explicit query mapping provider diagnostics to benchmark findings.
     frontend_diagnostic: Option<FrontendDiagnosticProjection>,
-    /// The execution strategies every run wires, every one unless a differential run unwires some.
-    #[cfg(feature = "fixtures")]
-    routes: ryo::linter::RoutePolicy,
 }
 impl EngineLocalAdapter {
     /// Bind language support and optional profiling output once at composition.
@@ -49,15 +46,7 @@ impl EngineLocalAdapter {
             trace,
             diagnostic_events: None,
             frontend_diagnostic,
-            #[cfg(feature = "fixtures")]
-            routes: ryo::linter::RoutePolicy::default(),
         }
-    }
-    /// The same adapter whose runs wire only the strategies `routes` names.
-    #[cfg(feature = "fixtures")]
-    pub(crate) const fn routing(mut self, routes: ryo::linter::RoutePolicy) -> Self {
-        self.routes = routes;
-        self
     }
     /// Bind an explicit live JSONL diagnostic sink without changing the timing worker.
     pub(crate) fn with_diagnostic_events(
@@ -70,8 +59,6 @@ impl EngineLocalAdapter {
             trace: None,
             diagnostic_events: Some(path),
             frontend_diagnostic,
-            #[cfg(feature = "fixtures")]
-            routes: ryo::linter::RoutePolicy::default(),
         }
     }
     /// Load all selected query files, refusing duplicate or empty inventories.
@@ -309,8 +296,6 @@ impl EngineExecution for LocalEngineSession<'_> {
             MemoryBudget::Machine,
             cache,
         );
-        #[cfg(feature = "fixtures")]
-        let engine = engine.routing(adapter.routes);
         let report = linter::lint_with(
             &engine,
             LintRequest {

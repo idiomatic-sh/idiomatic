@@ -4,10 +4,6 @@ use crate::application::file_dag::program::prepared_execution::types::PreparedEx
 use crate::domain::operating::errors::OperatingError;
 
 // Canonical inbound signature vocabulary from private pure concepts.
-#[cfg(any(test, feature = "fixtures"))]
-pub use crate::domain::executable_program::types::RoutePolicy;
-#[cfg(any(test, feature = "fixtures"))]
-pub use crate::domain::executable_program::types::RouteWiring;
 pub use crate::domain::prepared_request::types::ObservationIdentity;
 
 /// What `prepare` offers its callers.

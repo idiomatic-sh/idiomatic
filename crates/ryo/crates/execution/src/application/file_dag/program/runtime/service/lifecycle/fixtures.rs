@@ -3,7 +3,6 @@ use super::inputs::fixtures::{TestInputs, value};
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::runtime::service::KernelInvocation;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
-use crate::application::file_dag::program::runtime::types::ColumnCounters;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
@@ -77,46 +76,6 @@ impl KernelInvocation for RuntimeProbe {
         _: &mut OperatorContext<'_>,
         _: &mut KernelScratch,
         _: &mut dyn Emit,
-    ) -> Result<StrategyOutcome, InvocationFailure> {
-        Err(InvocationFailure::Semantic(OperatingError::WrongOperation))
-    }
-    fn positions(
-        &self,
-        _: &crate::application::file_dag::program::runtime::service::KernelPermit<'_>,
-        _: &mut OperatorContext<'_>,
-        _: &mut KernelScratch,
-    ) -> Result<
-        crate::application::file_dag::program::runtime::types::Attempt<
-            crate::application::file_dag::relations::handle::service::PublishedInput,
-        >,
-        InvocationFailure,
-    > {
-        Err(InvocationFailure::Semantic(OperatingError::WrongOperation))
-    }
-    fn selected(
-        &self,
-        _: &crate::domain::executable_program::types::SelectionAlternative,
-        _: &crate::application::file_dag::program::runtime::service::KernelPermit<'_>,
-        _: &mut OperatorContext<'_>,
-        _: &mut KernelScratch,
-    ) -> Result<
-        crate::application::file_dag::program::runtime::types::Attempt<
-            crate::application::file_dag::relations::handle::service::PublishedInput,
-        >,
-        InvocationFailure,
-    > {
-        Err(InvocationFailure::Semantic(OperatingError::WrongOperation))
-    }
-    fn column(
-        &self,
-        _: &crate::domain::executable_program::types::ColumnAlternative,
-        _: &crate::application::file_dag::program::runtime::service::KernelPermit<'_>,
-        _: &AdmittedInput,
-        _: &AdmittedInput,
-        _: &mut OperatorContext<'_>,
-        _: &mut KernelScratch,
-        _: &ColumnCounters,
-        _: &mut Table,
     ) -> Result<StrategyOutcome, InvocationFailure> {
         Err(InvocationFailure::Semantic(OperatingError::WrongOperation))
     }

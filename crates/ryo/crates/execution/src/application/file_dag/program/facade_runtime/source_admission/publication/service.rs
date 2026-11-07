@@ -123,10 +123,8 @@ impl SourceInputs<'_, '_> {
                 coverage,
             );
         }
-        let publication = match representation {
-            Representation::Computed(rows) => self.owner.computed(rows)?,
-            Representation::Minted(publication) => publication,
-        };
+        let Representation::Computed(rows) = representation;
+        let publication = self.owner.computed(rows)?;
         self.state.bind(&self.owner, root, &publication)?;
         let resolved = self.owner.resolve(publication.as_ref(), self.read)?;
         let checked = self.owner.admit(

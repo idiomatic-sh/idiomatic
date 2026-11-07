@@ -10,13 +10,7 @@ mod origins;
 
 pub(crate) mod physical;
 
-pub(crate) mod column;
-
 pub(crate) mod fusion;
-
-pub(crate) mod selection;
-
-pub(crate) mod native;
 
 #[cfg(test)]
 mod service_test;

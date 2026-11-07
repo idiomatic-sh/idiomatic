@@ -97,7 +97,7 @@ pub(in super::super) fn compiled() -> CompiledCase {
             &plans,
             graph,
             &FileProducers,
-            &prepared, crate::domain::executable_program::types::RoutePolicy::default(),
+            &prepared,
         )
         .unwrap(),
     );
@@ -265,28 +265,8 @@ impl Inputs for TestInputs {
         representation: crate::application::file_dag::program::admission::Representation,
     ) -> Result<AdmittedInput, OperatingError> {
         use crate::application::file_dag::program::admission::Representation;
-        let publication = match representation {
-            Representation::Computed(rows) => return self.computed(root, partition, inputs, rows),
-            Representation::Minted(publication) => publication,
-        };
-        let read = crate::application::file_dag::program::admission::contributed_proof(
-            partition,
-            inputs,
-            &self.owner,
-        )?;
-        let rows = self
-            .owner
-            .resolve(publication.as_ref(), &|relation| self.read(relation))?;
-        let proof = self
-            .owner
-            .admit(publication.as_ref(), BorrowedRows::from(&rows))?;
-        AdmittedInput::from_publication(
-            Rc::clone(&self.owner),
-            publication.clone(),
-            &proof,
-            root,
-            read,
-        )
+        let Representation::Computed(rows) = representation;
+        self.computed(root, partition, inputs, rows)
     }
     fn replay(
         &self,

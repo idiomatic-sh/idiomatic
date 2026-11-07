@@ -51,7 +51,6 @@ fn build(
         rules,
         Box::new([]),
         observation_regions,
-        super::super::types::RoutePolicy::default(),
     )
 }
 fn program() -> ExecutableProgram {

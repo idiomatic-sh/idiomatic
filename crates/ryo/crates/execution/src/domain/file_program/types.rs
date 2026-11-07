@@ -18,18 +18,8 @@ pub(crate) enum NodeInput {
     Observation(ObservationGraphInputId),
 }
 
-/// What the one analysis of a rule found for one of its steps: the native shape the step lowers to
-/// and the column chain it ends. It holds neither the plan nor a layout, and no evaluator.
-#[derive(Debug)]
-pub(crate) struct StepAnalysis {
-    pub rule: crate::domain::coverage::types::RuleIndex,
-    pub step: ryo_values::domain::plan_parts::types::StepId,
-    pub native: Option<Arc<crate::domain::lowering::types::LoweredShape>>,
-    pub column: Option<crate::domain::column_kernel::types::Chain>,
-}
 #[derive(Debug)]
 pub(crate) struct FileProgramNode {
-    pub analysis: Vec<StepAnalysis>,
     pub needs: Result<
         Vec<crate::domain::trust::types::RelationRead>,
         crate::domain::operating::errors::OperatingError,

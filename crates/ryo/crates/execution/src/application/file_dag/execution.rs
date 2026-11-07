@@ -28,10 +28,6 @@ impl PrimitiveExecutor for CommonOperatorEngine {
                 .dispatch()
                 .map(KernelAnswer::Walk)
                 .map_err(KernelFault::Refused),
-            KernelCall::NativeJoin { request } => request
-                .dispatch(self)
-                .map(|()| KernelAnswer::Complete)
-                .map_err(KernelFault::Refused),
             KernelCall::Physical { request } => request
                 .dispatch(self.operators.as_ref())
                 .map(KernelAnswer::Physical),

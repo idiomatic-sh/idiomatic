@@ -121,9 +121,6 @@ impl ProgramExecution {
             if let Some(outcome) = self.ordered(&mut call)? {
                 return Ok(outcome);
             }
-            if let Some(outcome) = self.column(&mut call)? {
-                return Ok(outcome);
-            }
             if let Some(outcome) = self.admit_demand(&mut call, &mut admitted)? {
                 return Ok(outcome);
             }

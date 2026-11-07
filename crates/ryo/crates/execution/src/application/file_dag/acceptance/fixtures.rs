@@ -166,7 +166,7 @@ pub(super) fn run(
         &[Digest([0; 16])],
         &[],
         Arc::clone(&derived),
-        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
+        ObservationIdentity::Independent,
     ) {
         Ok(prepared) => prepared,
         Err(error) => {

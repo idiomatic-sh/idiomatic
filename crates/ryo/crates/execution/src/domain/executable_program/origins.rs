@@ -59,8 +59,6 @@ pub(super) fn rule_programs(
     faults: &[Option<OperatingError>],
 ) -> RulePrograms {
     let mut rules = Vec::with_capacity(plans.len());
-    // The region each plan's named output reads, in the plan's own output order.
-    let mut observed_roots: Vec<Vec<Option<RegionId>>> = Vec::with_capacity(plans.len());
     for (rule, (plan, nodes)) in plans.iter().zip(program_nodes).enumerate() {
         let unread = unread_steps(plan);
         let original_steps: Vec<_> = nodes
@@ -113,15 +111,6 @@ pub(super) fn rule_programs(
             InputSource::Region(region) => Ok(region),
             _ => Err(OperatingError::WrongOperation),
         });
-        observed_roots.push(
-            plan.observations
-                .iter()
-                .map(|output| match from(&output.source) {
-                    Ok(InputSource::Region(id)) => Some(id),
-                    _ => None,
-                })
-                .collect(),
-        );
         let root_readers = emit
             .iter()
             .copied()
@@ -151,8 +140,5 @@ pub(super) fn rule_programs(
             original_steps: original_steps.into_boxed_slice(),
         });
     }
-    RulePrograms {
-        rules,
-        observed_roots,
-    }
+    RulePrograms { rules }
 }

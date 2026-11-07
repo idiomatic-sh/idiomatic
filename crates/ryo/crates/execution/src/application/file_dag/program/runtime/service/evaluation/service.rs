@@ -7,7 +7,6 @@ use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::Emptiness;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::admission::Representation;
-use crate::application::file_dag::program::runtime::types::Attempt;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;
 use crate::application::file_dag::program::runtime::types::{
@@ -15,7 +14,6 @@ use crate::application::file_dag::program::runtime::types::{
 };
 use crate::domain::executable_program::types::DemandAction;
 use crate::domain::executable_program::types::InputId;
-use crate::domain::executable_program::types::Route;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::types::PreflightOrder;
 use std::sync::Arc;
@@ -207,57 +205,6 @@ impl ProgramExecution {
             .instructions()
             .last()
             .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
-        // The region's one route decides which kernel is offered the instruction; a decline
-        // happens before observable work and the generic evaluation below then runs once.
-        match &region.route() {
-            Route::NativePositions(_)
-                if completion.row_retention()
-                    == crate::domain::completion::types::RowRetention::Unnecessary =>
-            {
-                let frame = frames
-                    .first_mut()
-                    .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?;
-                if let Attempt::Produced(produced) = kernels.positions(&permit, context, frame)? {
-                    let publication = inputs
-                        .publish(
-                            crate::application::file_dag::program::admission::ProducerRoot::Region(
-                                id,
-                            ),
-                            &self.partition,
-                            &admitted,
-                            Representation::Minted(produced),
-                        )
-                        .map_err(InvocationFailure::Semantic)?
-                        .with_coverage(completion.coverage(needs));
-                    return Ok(InvocationOutcome::Published(publication));
-                }
-            }
-            Route::Selection(shape) => {
-                let frame = frames
-                    .first_mut()
-                    .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?;
-                if let Attempt::Produced(produced) =
-                    kernels.selected(shape, &permit, context, frame)?
-                {
-                    let publication = inputs
-                        .publish(
-                            crate::application::file_dag::program::admission::ProducerRoot::Region(
-                                id,
-                            ),
-                            &self.partition,
-                            &admitted,
-                            Representation::Minted(produced),
-                        )
-                        .map_err(InvocationFailure::Semantic)?
-                        .with_coverage(completion.coverage(needs));
-                    return Ok(InvocationOutcome::Published(publication));
-                }
-            }
-            Route::NativePositions(_)
-            | Route::Generic
-            | Route::OrderedExistence(_)
-            | Route::Column(_) => {}
-        }
         let mut rows = ryo_values::domain::rows::types::Table::default();
         let output_kinds = &last.contract().output_kinds;
         if let Ok(kinds) = output_kinds {

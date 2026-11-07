@@ -117,7 +117,7 @@ fn selected_join_keeps_duplicate_bag_order_and_decodes_only_projected_cells()
         &[Digest([0; 16])],
         &[],
         Arc::clone(&derived),
-        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
+        ObservationIdentity::Independent,
     )?;
     let right_origin = prepared.program().rules()[0].original_steps[1]
         .as_ref()

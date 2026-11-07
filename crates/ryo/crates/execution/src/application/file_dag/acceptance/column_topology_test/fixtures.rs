@@ -199,7 +199,7 @@ pub(super) fn node(graph: &RequestGraph, rule: usize, step: usize) -> ProgramNod
 }
 
 pub(super) fn program(plans: &[Plan], operators: &RequestOperators, graph: RequestGraph) -> ExecutableProgram {
-    compile(plans, graph, &FileProducers, operators, crate::domain::executable_program::types::RoutePolicy::default()).unwrap()
+    compile(plans, graph, &FileProducers, operators).unwrap()
 }
 
 /// An instruction has exactly one route: the accessors agree with the kind, and at most one is set.

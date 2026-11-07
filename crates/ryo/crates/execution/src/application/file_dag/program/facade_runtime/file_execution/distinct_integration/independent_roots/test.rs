@@ -118,7 +118,7 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
             &[Digest([0; 16]); 2],
             &[],
             Arc::clone(&derived),
-            ObservationIdentity::Named(ObservationReadinessLayout(Digest([6; 16]))), crate::domain::executable_program::types::RoutePolicy::default(),
+            ObservationIdentity::Named(ObservationReadinessLayout(Digest([6; 16]))),
         )
         .unwrap();
         let services = Arc::new(ProgramServices::new(

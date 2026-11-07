@@ -9,7 +9,6 @@ pub(crate) mod kind_check;
 pub(crate) mod kind_sets;
 pub(crate) mod lowering;
 pub(crate) mod matching;
-pub(crate) mod native_positions;
 pub(crate) mod numeric_values;
 pub(crate) mod operands;
 pub(crate) mod operating;
@@ -30,11 +29,9 @@ pub(crate) mod table_reach;
 pub(crate) mod table_scratch;
 pub(crate) mod table_texts;
 
-pub(crate) mod tree_join;
 pub(crate) mod trust;
 pub(crate) mod walks;
 
-pub(crate) mod column_kernel;
 pub(crate) mod describing;
 pub(crate) mod finish;
 pub(crate) mod frontiers;

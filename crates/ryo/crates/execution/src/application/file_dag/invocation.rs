@@ -2,8 +2,6 @@
 use super::derived::owner::acquisition::admission::service::AcquiredView;
 mod binding;
 mod constants;
-pub(in crate::application::file_dag) mod native;
-use native::service::NativeJoinLease;
 mod groups;
 pub(in crate::application::file_dag) mod index;
 mod prepared_use;
@@ -153,17 +151,3 @@ impl crate::domain::operator::contract::views::ClosureParts
     }
 }
 
-impl InvocationResources<'_> {
-    pub(in crate::application::file_dag) fn native_join_lease(
-        &self,
-    ) -> Result<Option<NativeJoinLease<'_>>, OperatingError> {
-        match (
-            self.inputs.native_join.as_ref(),
-            self.inputs.native_storage.as_ref(),
-        ) {
-            (None, None) => Ok(None),
-            (Some(native), Some(acquired)) => Ok(Some(NativeJoinLease::new(*native, acquired))),
-            _ => Err(OperatingError::WrongOperation),
-        }
-    }
-}

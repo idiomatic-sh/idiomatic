@@ -34,10 +34,7 @@ pub(super) fn resolve(
         }
         match region.route() {
             Route::OrderedExistence(ordered) => dependencies.push(ordered.source),
-            Route::Column(column) => dependencies.push(column.left),
-            Route::Generic
-            | Route::Selection(_)
-            | Route::NativePositions(_) => {}
+            Route::Generic => {}
         }
         region.set_dependencies(dependencies.into_boxed_slice());
     }

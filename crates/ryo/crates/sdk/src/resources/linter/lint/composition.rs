@@ -93,8 +93,6 @@ pub(crate) fn build_engine(
         build,
         memory,
         cache,
-        #[cfg(feature = "fixtures")]
-        routes: ryo_execution::inbound::use_cases::prepare::interface::RoutePolicy::default(),
     }
 }
 
@@ -137,8 +135,6 @@ pub(crate) fn build(
     let plans = engine.plans.clone();
     let pool = Arc::clone(&engine.scheduler);
     let workers = engine.workers;
-    #[cfg(feature = "fixtures")]
-    let routes = engine.routes;
     compose(LinterLintParts {
         service: move || {
             let files: Arc<dyn corpus::interface::CorpusPort> = match reading {
@@ -156,7 +152,7 @@ pub(crate) fn build(
             let analysis_digest: Arc<
                 dyn ryo_execution::outbound::digest::interface::DigestPort,
             > = Arc::new(digest::factory::blake3());
-            let lint = ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl::new(
+            ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl::new(
                 ryo_core::application::file_analysis::service::FileAnalysis::new(
                     Arc::clone(&analysis_corpus),
                     Arc::clone(&analysis_language),
@@ -180,10 +176,7 @@ std::sync::Arc::new(ryo_execution::outbound::derived::factory::use_case(ryo_exec
                 analysis_digest,
                 store,
             )
-            .compiling_into(plans);
-            #[cfg(feature = "fixtures")]
-            let lint = lint.routing(routes);
-            lint
+            .compiling_into(plans)
         },
     })
 }

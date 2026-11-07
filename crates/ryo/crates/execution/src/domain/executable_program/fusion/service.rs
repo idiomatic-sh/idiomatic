@@ -3,10 +3,7 @@ use super::types::*;
 use crate::domain::executable_program::types::Fusibilities;
 use crate::domain::{
     coverage::types::RuleIndex,
-    executable_program::{
-        column::{ColumnCandidates, ReplacementUse},
-        types::ReaderMultiplicity,
-    },
+    executable_program::types::ReaderMultiplicity,
     file_program::types::{
         FileProgramNode, GraphObservationRoot, NodeInput, ProgramNodeId, RequestGraph,
         SchemaValidity,
@@ -156,11 +153,7 @@ fn fusibility_of(
 }
 
 /// Classify the graph from its operations and the owner-issued identities of the request.
-pub(crate) fn classify(
-    plans: &[Plan],
-    graph: &RequestGraph,
-    columns: &mut ColumnCandidates,
-) -> Fusibilities {
+pub(crate) fn classify(plans: &[Plan], graph: &RequestGraph) -> Fusibilities {
     let mut held = vec![None; graph.nodes.len()];
     let mut readers = vec![ReaderMultiplicity::default(); graph.nodes.len()];
     for node in &graph.nodes {
@@ -210,17 +203,6 @@ pub(crate) fn classify(
             hold(&mut held, resolved.join, Barrier::Lifetime);
             hold(&mut held, resolved.select, Barrier::Lifetime);
         }
-    }
-    columns.retain_internal(|node| {
-        if readers[node.0] == SOLE_READER && held[node.0].is_none() {
-            ReplacementUse::Exclusive
-        } else {
-            ReplacementUse::Observed
-        }
-    });
-    let fenced: Vec<_> = columns.fences().collect();
-    for node in fenced {
-        hold(&mut held, node, Barrier::Lifetime);
     }
     let fusibility = graph
         .nodes

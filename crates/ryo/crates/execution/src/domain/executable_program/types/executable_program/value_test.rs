@@ -5,7 +5,7 @@ use crate::domain::{
     coverage::types::RuleIndex,
     executable_program::types::{
         FileReaderGraph, InputSource, ObservationPlace, PartitionRequirement, ReaderMultiplicity,
-        RegionId, RemainingMemo, RoutePolicy, SourcePartition, region::value::Region,
+        RegionId, RemainingMemo, SourcePartition, region::value::Region,
     },
     operating::errors::OperatingError,
 };
@@ -35,7 +35,6 @@ fn program() -> ExecutableProgram {
         Box::new([]),
         Box::new([RegionId(0)]),
         Box::new([Ok(RegionId(0)), Err(OperatingError::NotRead)]),
-        RoutePolicy::default(),
     )
 }
 
@@ -58,7 +57,6 @@ fn a_declared_relation_answers_its_partition_and_phase() {
     );
     assert_eq!(program.regions().len(), 1);
     assert_eq!(program.logical_regions(), [RegionId(0)]);
-    assert_eq!(program.routes(), RoutePolicy::default());
 }
 
 #[test]

@@ -12,7 +12,6 @@ pub(in crate::application::file_dag::program) enum InvocationFailure {
 /// No held inputs/publication or dependency accounting at internal instructions.
 #[derive(Default)]
 pub(in crate::application::file_dag::program) struct KernelScratch {
-    pub positions: crate::domain::native_positions::types::PositionWork,
     pub workspace: Option<crate::application::file_dag::workspace::InvocationWorkspace>,
     pub ordered_row: Vec<Value>,
     pub ordered: ryo_operators::domain::ordered_existence::types::OrderedExistenceScratch,
@@ -21,20 +20,8 @@ pub(in crate::application::file_dag::program) enum KernelInput<'a> {
     Admitted(&'a [AdmittedInput]),
     Continuation(&'a [Value]),
 }
-#[derive(Default)]
-pub(in crate::application::file_dag::program) struct ColumnCounters {
-    pub join: crate::domain::operator::contract::types::WorkCounters,
-    pub filter: crate::domain::operator::contract::types::WorkCounters,
-    pub project: crate::domain::operator::contract::types::WorkCounters,
-}
 pub(in crate::application::file_dag::program) enum StrategyOutcome {
     Executed,
-    Declined,
-}
-/// What a route that mints its own publication answered. A decline happens before any
-/// observable work and is never a retry of another specialised route.
-pub(in crate::application::file_dag::program) enum Attempt<T> {
-    Produced(T),
     Declined,
 }
 #[cfg(test)]
@@ -78,11 +65,6 @@ pub(in crate::application::file_dag::program) struct ProducerLeaseEvent {
     pub index_liveness: IndexLiveness,
     pub index:
         Option<crate::application::file_dag::derived::owner::witness::service::BackingWitness>,
-}
-
-pub(in crate::application::file_dag::program) enum NativeJoinEligibility {
-    Native,
-    Ordinary,
 }
 
 /// Bytes of derived working storage held when a producer lease was observed.

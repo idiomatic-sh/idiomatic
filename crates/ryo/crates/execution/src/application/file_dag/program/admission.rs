@@ -193,10 +193,8 @@ pub(super) trait Inputs {
 
 /// What a publication holds, stated by the producer and never inferred by the publisher.
 pub(in crate::application::file_dag::program) enum Representation {
-    /// Rows the generic route computed, empty or not: the owner stores them as computed rows.
+    /// Rows the operators computed, empty or not: the owner stores them as computed rows.
     Computed(ryo_values::domain::rows::types::Table),
-    /// A positioned or selected publication a kernel already minted with the owner.
-    Minted(crate::application::file_dag::relations::handle::service::PublishedInput),
 }
 impl Representation {
     /// No rows over `schema`; a refused schema stays the producer's fault.

@@ -27,7 +27,8 @@ impl PrimitiveResources for InvocationInputs<'_> {
         self.axis.as_ref().map(|axis| axis.view()).transpose()
     }
     fn native_join(&self) -> Option<NativeJoin<'_>> {
-        self.native_join
+        // A native lookup is lent only while its derived acquisition is held.
+        self.native_storage.as_ref().and(self.native_join)
     }
     fn dfs(&self) -> Result<Option<&PreparedDfs>, OperatingError> {
         InvocationResources::dfs_view(self.dfs.as_ref())

@@ -109,7 +109,7 @@ fn exercise(refusal: Refusal, fused: bool) {
         &[Digest([0; 16])],
         &[host],
         Arc::clone(&derived),
-        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
+        ObservationIdentity::Independent,
     )
     .unwrap();
     let program = prepared.program();

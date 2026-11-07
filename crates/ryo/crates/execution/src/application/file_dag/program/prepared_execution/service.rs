@@ -13,7 +13,6 @@ use crate::domain::trust::types::RelationRead;
 use ryo_values::domain::stored_facts::types::Bucket;
 use crate::application::file_dag::derived::owner::types::DerivedAccess;
 use crate::application::file_dag::execution::CommonOperatorEngine;
-use crate::domain::executable_program::types::RoutePolicy;
 use crate::domain::prepared_request::types::{Compiled, ObservationIdentity};
 use crate::outbound::operators::interface::OperatorsPort;
 use ryo_values::domain::{
@@ -102,7 +101,6 @@ pub(crate) fn prepare(
     identity: ObservationIdentity,
     operators: Arc<dyn OperatorsPort>,
     derived: &DerivedAccess,
-    routes: RoutePolicy,
 ) -> Result<PreparedExecutionProgram, OperatingError> {
     let inner = crate::application::file_dag::program::preparation::service::prepare(
         compiled,
@@ -111,7 +109,6 @@ pub(crate) fn prepare(
         hosted,
         derived.clone(),
         identity,
-        routes,
     )?;
     Ok(PreparedExecutionProgram {
         inner,

@@ -209,7 +209,6 @@ pub(crate) fn prepare(
     hosted: &[HostRelation],
     derived: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     identity: ObservationIdentity,
-    routes: crate::domain::executable_program::types::RoutePolicy,
 ) -> Result<Arc<PreparedProgram>, OperatingError> {
     let derived: crate::application::file_dag::derived::owner::types::DerivedAccess = derived.into();
     if rule_digests.len() != rules.len() {
@@ -285,7 +284,6 @@ pub(crate) fn prepare(
         graph,
         &partitions,
         &operators,
-        routes,
     )?);
     walk.retain_program_consumers(&program)?;
     census::service::trace(rules, &walk, &program);

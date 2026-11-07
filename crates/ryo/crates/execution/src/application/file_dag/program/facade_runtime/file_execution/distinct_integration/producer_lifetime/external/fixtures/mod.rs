@@ -68,7 +68,7 @@ pub(super) fn prepare_case(exit: ExternalRootExit) -> Result<PreparedCase, Opera
         &vec![Digest([0; 16]); 4],
         &[],
         Arc::clone(&derived),
-        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
+        ObservationIdentity::Independent,
     )?;
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(Arc::new(

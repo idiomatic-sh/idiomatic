@@ -229,7 +229,7 @@ fn exercise(
         &[Digest([0; 16])],
         &[],
         Arc::clone(&derived),
-        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
+        ObservationIdentity::Independent,
     )?;
     let engine = Arc::new(CommonOperatorEngine::new(operators));
     let services = Arc::new(ProgramServices::new(

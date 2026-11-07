@@ -23,10 +23,7 @@ pub(crate) fn compile(
     graph: RequestGraph,
     partitions: &dyn ProducerPartitions,
     prepared: &crate::domain::operator::contract::types::RequestOperators,
-    routes: RoutePolicy,
 ) -> Result<ExecutableProgram, OperatingError> {
-    let mut column_candidates = super::column::ColumnCandidates::capture(&graph);
-    let native_shapes = super::native::capture(&graph);
     let count = graph.nodes.len();
     let mut origins = vec![None; count];
     for (rule, nodes) in graph.program_nodes.iter().enumerate() {
@@ -35,7 +32,7 @@ pub(crate) fn compile(
         }
     }
     let ordered_alternatives = graph.ordered_existence.clone();
-    let classification = super::fusion::service::classify(plans, &graph, &mut column_candidates);
+    let classification = super::fusion::service::classify(plans, &graph);
     let mut drafts: Vec<Option<DraftRegion<Instruction>>> = Vec::new();
     let mut mapping = vec![DraftIndex(usize::MAX); count];
     // A step's own schema fault, kept for its origin before the analysis graph is consumed.
@@ -44,9 +41,7 @@ pub(crate) fn compile(
         .iter()
         .map(|node| node.contract.schema.as_ref().err().cloned())
         .collect();
-    for (logical, mut node) in graph.nodes.into_iter().enumerate() {
-        // PhysicalRegion's plans/layouts have no place in executable state.
-        node.analysis.clear();
+    for (logical, node) in graph.nodes.into_iter().enumerate() {
         let fuse = match (classification.fusibility[logical], node.inputs.first()) {
             (Fusibility::Fusable, Some(NodeInput::Node(child))) => {
                 let DraftIndex(region) = mapping[child.0];
@@ -168,25 +163,10 @@ pub(crate) fn compile(
             readers[at],
         ));
     }
-    // Every family leaves what it found eligible here; one rule keeps one route per region below.
-    let mut candidates: Vec<super::types::RouteOffers> =
-        vec![super::types::RouteOffers::default(); regions.len()];
-    for column in column_candidates
-        .lower(&logical_regions)
-        .into_iter()
-        .filter(|_| routes.column_kernel == RouteWiring::Wired)
-    {
-        let target = column.target;
-        if candidates[target.0].column.is_some() {
-            continue;
-        }
-        candidates[target.0].column = Some(column);
-    }
-    for alternative in ordered_alternatives
-        .into_iter()
-        .flatten()
-        .filter(|_| routes.ordered_existence == RouteWiring::Wired)
-    {
+    // The ordered-existence replacement of a self-join anti-join select is the one implementation of
+    // the regions the recogniser resolved; every other region is evaluated by its registered operators.
+    let mut ordered: Vec<Option<OrderedExistence>> = vec![None; regions.len()];
+    for alternative in ordered_alternatives.into_iter().flatten() {
         let crate::domain::file_program::types::ResolvedAlternative::Eligible(resolved) =
             alternative
         else {
@@ -198,7 +178,7 @@ pub(crate) fn compile(
         if select == join || select == source || regions[select.0].instructions().len() != 1 {
             return Err(OperatingError::WrongOperation);
         }
-        candidates[select.0].ordered = Some(OrderedExistence {
+        ordered[select.0] = Some(OrderedExistence {
             source,
             number: resolved.shape.number,
             partition: resolved.shape.partition.into_boxed_slice(),
@@ -207,10 +187,7 @@ pub(crate) fn compile(
             output: resolved.output.into_boxed_slice(),
         });
     }
-    let RulePrograms {
-        mut rules,
-        observed_roots,
-    } = super::origins::rule_programs(
+    let RulePrograms { mut rules } = super::origins::rule_programs(
         plans,
         graph.program_nodes,
         graph.observations.as_ref(),
@@ -244,58 +221,11 @@ pub(crate) fn compile(
         }
         fusibility
     };
-    // The stored-selection and native-position families are offered over the same regions, then
-    // one rule keeps one route per region. Only the kept route takes a reader of its source.
-    candidates.resize_with(regions.len(), Default::default);
-    for selection in super::selection::compile(&rules, &logical_regions, &regions, prepared)
-        .into_iter()
-        .filter(|_| routes.stored_selection == RouteWiring::Wired)
-    {
-        let target = selection.target;
-        if !matches!(
-            regions[target.0].instructions()[0].operation(),
-            Operation::Select { .. } | Operation::Project { .. }
-        ) {
-            continue;
-        }
-        if candidates[target.0].selection.is_none() {
-            candidates[target.0].selection = Some(selection);
-        }
-    }
-    if routes.native_positions == RouteWiring::Wired {
-        super::native::offer(&regions, &native_shapes, &mut candidates);
-    }
-    // Native positions are published for a reader that consumes positions. A region read by one
-    // that has no native route must hand it rows, so it keeps no native offer: a stored selection
-    // when one was offered, the generic route otherwise. A named observation is read by
-    // synthesized unions and the consumers of its members, none of which has a native route, so
-    // the region each declared output reads is read by rows.
-    let mut read_by_rows = vec![false; regions.len()];
-    for (reader, region) in regions.iter().enumerate() {
-        if candidates[reader].native.is_some() {
-            continue;
-        }
-        for source in region.inputs() {
-            if let InputSource::Region(id) = source {
-                read_by_rows[id.0] = true;
-            }
-        }
-    }
-    for root in observed_roots.iter().flatten().flatten() {
-        read_by_rows[root.0] = true;
-    }
-    for (at, candidate) in candidates.iter_mut().enumerate() {
-        if read_by_rows[at] {
-            candidate.native = None;
-        }
-    }
-    for (at, candidate) in candidates.into_iter().enumerate() {
-        let route = choose(candidate);
-        match &route {
-            super::types::Route::OrderedExistence(shape) => regions[shape.source.0].add_consumer(),
-            super::types::Route::Column(shape) => regions[shape.left.0].add_consumer(),
-            _ => {}
-        }
+    for (at, shape) in ordered.into_iter().enumerate() {
+        let route = shape.map_or(super::types::Route::Generic, |shape| {
+            regions[shape.source.0].add_consumer();
+            super::types::Route::OrderedExistence(shape)
+        });
         regions[at].set_route(route);
     }
     super::aliases::resolve(&mut regions, &mut rules, &observation_regions, partitions);
@@ -306,57 +236,15 @@ pub(crate) fn compile(
         rules.into_boxed_slice(),
         logical_regions.into_boxed_slice(),
         observation_regions.into_boxed_slice(),
-        routes,
     );
     #[cfg(test)]
     let program = program.with_fusibility(fusibility.into_boxed_slice());
     Ok(program)
 }
 
-/// The one selection rule: ordered existence, then the column kernel, then native positions
-/// (a native join consumes the positions of its inputs, so they must be published as such),
-/// then the stored selection; the generic route when no family offered one. A route
-/// that cannot run declines before any observable work and the generic evaluation of the
-/// instruction then runs once; no second specialised route is ever tried.
-pub(crate) fn choose(offers: super::types::RouteOffers) -> super::types::Route {
-    use super::types::Route;
-    if let Some(shape) = offers.ordered {
-        Route::OrderedExistence(shape)
-    } else if let Some(shape) = offers.column {
-        Route::Column(shape)
-    } else if let Some(shape) = offers.native {
-        Route::NativePositions(shape)
-    } else if let Some(shape) = offers.selection {
-        Route::Selection(shape)
-    } else {
-        Route::Generic
-    }
-}
 pub(crate) fn ordered_existence(route: &super::types::Route) -> Option<&OrderedExistence> {
     match route {
         super::types::Route::OrderedExistence(shape) => Some(shape),
-        _ => None,
-    }
-}
-pub(crate) fn column(route: &super::types::Route) -> Option<&super::types::ColumnAlternative> {
-    match route {
-        super::types::Route::Column(shape) => Some(shape),
-        _ => None,
-    }
-}
-pub(crate) fn selection(
-    route: &super::types::Route,
-) -> Option<&super::types::SelectionAlternative> {
-    match route {
-        super::types::Route::Selection(shape) => Some(shape),
-        _ => None,
-    }
-}
-pub(crate) fn native_positions(
-    route: &super::types::Route,
-) -> Option<&std::sync::Arc<crate::domain::lowering::types::LoweredShape>> {
-    match route {
-        super::types::Route::NativePositions(shape) => Some(shape),
         _ => None,
     }
 }

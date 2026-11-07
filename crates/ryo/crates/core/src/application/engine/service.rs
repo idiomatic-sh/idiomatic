@@ -80,16 +80,6 @@ impl Execution {
         Self(PrepareUseCaseImpl::new(operators, derived))
     }
 
-    /// The same, wiring only the strategies `routes` names, for a differential run.
-    #[cfg(feature = "fixtures")]
-    #[must_use]
-    pub fn routing(
-        self,
-        routes: ryo_execution::inbound::use_cases::prepare::interface::RoutePolicy,
-    ) -> Self {
-        Self(self.0.routing(routes))
-    }
-
     /// Begins the execution of a prepared program over the corpus it runs on.
     #[must_use]
     pub fn begin(

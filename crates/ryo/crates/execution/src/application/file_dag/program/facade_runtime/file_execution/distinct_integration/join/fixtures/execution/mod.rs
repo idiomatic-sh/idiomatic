@@ -103,7 +103,7 @@ pub(crate) fn execute(
         &[Digest([0; 16])],
         &[],
         Arc::clone(&derived),
-        ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
+        ObservationIdentity::Independent,
     )?;
     let program = prepared.program();
     let logical = program.rules()[0].original_steps[target.0 as usize]
