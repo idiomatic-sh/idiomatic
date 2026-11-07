@@ -20,7 +20,7 @@ pub(super) fn acquire(
     owner: &Rc<RelationOwner>,
     context: &mut OperatorContext<'_>,
     work: &WorkCounters,
-    walk: &super::native_walk::WalkPartition<'_>,
+    walk: &super::native_walk::project::service::WalkPartition<'_>,
     kernels: &dyn super::super::executor::PrimitiveExecutor,
 ) -> Result<Option<PublishedInput>, OperatingError> {
     let input = permit.selection_input(shape)?;
