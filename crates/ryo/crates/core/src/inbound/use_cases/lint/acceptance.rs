@@ -138,7 +138,7 @@ fn runs(world: &mut Behavior) {
         "a query"
     };
     let request = LintRequest {
-        source_language: None,
+        source_language: ryo_core::inbound::use_cases::lint::types::SourceProvider::Recognized,
         answer: ryo_values::domain::runs::types::AnswerShape::Findings,
         hosted: Vec::new(),
         session: Session {

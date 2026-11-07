@@ -2,7 +2,7 @@
 
 use super::constants::TASK_ANSWERED;
 use super::errors::LintError;
-use super::types::{MemoryDiagnostics, MemoryOwner, MemoryPhase};
+use super::types::{MemoryDiagnostics, MemoryOwner, MemoryPhase, SourceProvider};
 use crate::domain::project::types::Projected;
 use crate::domain::reporting::service::report_refused;
 use ryo_language::domain::files::types::FilePath;
@@ -22,6 +22,16 @@ use {
     crate::domain::storing::types::HandedAgain, ryo_values::domain::stores::types::MadeAgain,
     ryo_values::domain::stores::types::Reuse,
 };
+
+/// The provider a request names, when it names one.
+pub(super) fn named_provider(
+    provider: &SourceProvider,
+) -> Option<&ryo_values::domain::descriptions::types::LanguageName> {
+    match provider {
+        SourceProvider::Recognized => None,
+        SourceProvider::Named(name) => Some(name),
+    }
+}
 
 /// What a task's slot holds once the workers are done: its answer.
 ///

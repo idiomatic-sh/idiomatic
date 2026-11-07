@@ -62,7 +62,7 @@ impl TryFrom<RunRequestSchema> for CoreRequest {
                 given_inventory: Default::default(),
             },
             files: Vec::new(),
-            source_language: None,
+            source_language: ryo_core::inbound::use_cases::lint::types::SourceProvider::Recognized,
             rules: vec![Rule {
                 observations: Vec::new(),
                 id: ryo_values::domain::runs::types::RuleId(QUERY_ID.into()),

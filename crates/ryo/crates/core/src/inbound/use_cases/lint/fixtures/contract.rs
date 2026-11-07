@@ -110,7 +110,7 @@ fn rule(id: &str, query: &str, include: Vec<Glob>) -> Rule {
 /// A request to lint the repository at the working directory with rules of these ids, whose queries are never run.
 fn asking(ids: &[&str]) -> LintRequest {
     LintRequest {
-        source_language: None,
+        source_language: crate::inbound::use_cases::lint::types::SourceProvider::Recognized,
         answer: AnswerShape::Findings,
         hosted: Vec::new(),
         session: Session {
@@ -531,7 +531,7 @@ fn lint_keeping(
     let rules =
         rules.map(|(id, (query, governs))| rule(id, query, vec![Glob(governs.as_str().into())]));
     let request = LintRequest {
-        source_language: None,
+        source_language: crate::inbound::use_cases::lint::types::SourceProvider::Recognized,
         rules: rules.collect(),
         ..asking(&[])
     };
@@ -831,7 +831,7 @@ fn run_query(
     );
     let text = "let a = select * from \"syntax-tree\"; emit a subject file key(span);";
     let request = LintRequest {
-        source_language: None,
+        source_language: crate::inbound::use_cases::lint::types::SourceProvider::Recognized,
         rules: vec![rule("query", text, Vec::new())],
         answer: AnswerShape::Rows(RowTotal(limit)),
         ..asking(&[])

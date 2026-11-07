@@ -398,7 +398,7 @@ pub(crate) fn lint_report_with_languages(
         use_case
     };
     let request = LintRequest {
-        source_language: None,
+        source_language: ryo_core::inbound::use_cases::lint::types::SourceProvider::Recognized,
         answer: ryo_values::domain::runs::types::AnswerShape::Findings,
         hosted,
         session: Session {

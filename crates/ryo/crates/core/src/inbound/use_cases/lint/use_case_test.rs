@@ -8,7 +8,7 @@ use std::sync::atomic::Ordering;
 use super::errors::LintError;
 use super::fixtures::contract::check;
 use super::interface::LintUseCase as _;
-use super::types::{LintRequest, Rule};
+use super::types::{LintRequest, Rule, SourceProvider};
 use super::use_case::LintUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
 use crate::outbound::corpus::fixtures::fake::CorpusFake;
@@ -268,9 +268,11 @@ struct World {
 fn request(given: &Given) -> LintRequest {
     let globs = |texts: &[&str]| texts.iter().map(|glob| Glob((*glob).into())).collect();
     LintRequest {
-        source_language: given
-            .source_language
-            .map(|name| ryo_values::domain::descriptions::types::LanguageName(name.into())),
+        source_language: given.source_language.map_or(SourceProvider::Recognized, |name| {
+            SourceProvider::Named(ryo_values::domain::descriptions::types::LanguageName(
+                name.into(),
+            ))
+        }),
         answer: given.answer,
         hosted: given.hosted.clone(),
         session: Session {

@@ -45,11 +45,20 @@ pub struct MemoryPhase(pub &'static str);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MemoryOwner(pub &'static str);
 
+/// Which linked provider reads the sources of a request.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SourceProvider {
+    /// The providers decide by each file's path, in the order they were linked.
+    Recognized,
+    /// The linked provider the request names reads every file.
+    Named(ryo_values::domain::descriptions::types::LanguageName),
+}
+
 /// The rules to check in a session.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LintRequest {
-    /// Explicit provider for these sources; none preserves ordinary path recognition.
-    pub source_language: Option<ryo_values::domain::descriptions::types::LanguageName>,
+    /// The provider for these sources: the one the request names, or ordinary path recognition.
+    pub source_language: SourceProvider,
     /// The session `open` returned.
     pub session: Session,
     /// Only findings in these files are reported; none means every file.

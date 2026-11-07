@@ -8,7 +8,7 @@ use super::errors::LintError;
 use super::interface::LintUseCase;
 use super::service::{
     answered, handed_of, memory_diagnostics, memory_rule, observed_arenas, observed_cross_symbols,
-    observed_notes, observed_records, observed_staged, observed_stored, project_dependencies,
+    observed_notes, observed_records, observed_staged, named_provider, observed_stored, project_dependencies,
     read_outcomes, records_of, sort_unique,
 };
 use super::types::{
@@ -1374,7 +1374,7 @@ impl LintUseCaseImpl {
 impl LintUseCase for LintUseCaseImpl {
     fn lint(&self, request: LintRequest) -> Result<LintReport, LintError> {
         self.file_analysis
-            .validate_source_language(request.source_language.as_ref())?;
+            .validate_source_language(named_provider(&request.source_language))?;
         let rules: Vec<RuleSpec> = request.rules.iter().map(RuleSpec::from).collect();
         let compiling = tracing::info_span!("compile").entered();
         let compiled = self.checked_rules(&rules, &request.hosted)?;
@@ -1417,7 +1417,7 @@ impl LintUseCase for LintUseCaseImpl {
             &plans,
             &request.hosted,
             resolved,
-            request.source_language.as_ref(),
+            named_provider(&request.source_language),
         );
         let identities =
             self.compilation
@@ -1452,7 +1452,7 @@ impl LintUseCase for LintUseCaseImpl {
         let metadata = program.metadata();
         let mut setting = RequestVisitSetting {
             program: Arc::clone(&program),
-            source_language: request.source_language.as_ref(),
+            source_language: named_provider(&request.source_language),
             services: &services,
             domain: crate::domain::workers::types::VisitSetting {
                 metadata,
