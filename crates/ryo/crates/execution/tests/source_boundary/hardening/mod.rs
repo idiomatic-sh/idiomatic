@@ -1,6 +1,6 @@
 //! Every field or constructor an in-crate sibling could use to forge owner state is private to its
 //! owner, and each authorized route stays reachable: ledger and lease, request frontier cache, read
-//! proof, compiled region and instruction, relation owner.
+//! proof, compiled region and instruction, relation owner, one per-file route.
 use super::fixtures::{Compilation, Expectation, Probe};
 const PROGRAM: &str = "src/application/file_dag/program.rs";
 const REQUEST: &str = "src/inbound/use_cases/execution/use_case.rs";
@@ -184,6 +184,19 @@ pub(super) fn controls() -> Vec<Probe> {
             "E0616",
             "derived",
             "private",
+        ),
+        // One per-file route: a production caller runs a file through `run_file`; the
+        // caller-driven session is sealed behind the engine's own tests and harnesses.
+        accept(
+            REQUEST,
+            "mod production_runs_a_file { use crate::inbound::use_cases::execution::interface::{ExecutionRequest, RequestExecution}; const _: () = { let _ = <RequestExecution as ExecutionRequest>::run_file; }; }".into(),
+        ),
+        refuse(
+            REQUEST,
+            "mod production_opens_a_file { use crate::inbound::use_cases::execution::interface::{ExecutionRequest, RequestExecution}; const _: () = { let _ = <RequestExecution as ExecutionRequest>::open_file; }; }".into(),
+            "E0576",
+            "open_file",
+            "ExecutionRequest",
         ),
     ]
 }
