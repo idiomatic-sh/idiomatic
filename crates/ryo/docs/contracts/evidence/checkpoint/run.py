@@ -1,10 +1,11 @@
-import json,os,re,subprocess,sys,time,fcntl
+import json,os,re,subprocess,sys,time,fcntl,tomllib
 from datetime import date
 from pathlib import Path
 p=Path(__file__).resolve().parent
 contracts=p.parents[1]
 readme=contracts/'README.md'
 validation_json=p/'validation.json'
+tests_json=p/'tests.json'
 TM_TARGETS=('tm_source','tm_cli_source')
 def dumps(v,pad=''):
  """JSON with two-space indent where a list of scalars or a short dict of scalars stays on one line, so a command line is one line."""
@@ -54,6 +55,7 @@ def render(v):
  rows.append(('Whole-tree TM',str(w['total'])+' findings, '+str(w['suppressed'])+' suppressed ('+str(w['at_checkpoint_318'])+' at 318)'))
  g=v['ownership_graph']
  rows.append(('File-level ownership cycles',str(g['other_cycles'])+' ('+fmt(g['targeted_cycles'])+' targeted)'))
+ rows+=[('Red test',x) for x in red_rows(v)]
  table=['| Check | Result |','|---|---|']+['| '+k+' | '+fmt(x).replace('|','\\|')+' |' for k,x in rows]
  head='### Current ownership checkpoint — source `'+v['source'][:10]+'`, validation'+str(v['validation'])
  return '\n'.join([head,'','Written by `evidence/checkpoint/run.py` from [validation.json](evidence/checkpoint/validation.json); do not edit by hand. Review: [checkpoint](audits/2026-11-06-derived/ownership/checkpoint.json).','']+table)+'\n\n'
@@ -68,6 +70,148 @@ def ticked_rows_without_proof(text,produced):
   if not cited: bad.append(str(n)+': cites no validation: '+line[:110])
   elif max(cited)>produced: bad.append(str(n)+': cites validation'+str(max(cited))+' beyond '+str(produced)+': '+line[:110])
  return bad
+RAN=re.compile(r'^\s+(?:Running (.+?) \((?:[^)]*/)?(\w+?)-[0-9a-f]+\)|Doc-tests (\w+))')
+TEST=re.compile(r'^test (.+?) \.\.\. (ok|FAILED|ignored)')
+FAILURE=re.compile(r'^---- (.+?) stdout ----$')
+RED_ROW=re.compile(r'^(.+?): (?:expected |a \w+ row expects the wrong kind|the subject panicked)')
+def test_results(log):
+ """Per test binary of one cargo test log: its passed and ignored tests, and each failed test with the case rows its runner names; `collected` when the runner ran every row and named every red one. A test that prints before its status has the status on a line of its own."""
+ out={}; binary=None; failing=None; pending=[]
+ for line in Path(log).read_text(errors='replace').splitlines():
+  m=RAN.match(line)
+  if m: binary=m.group(2) or m.group(3); out.setdefault(binary,{'passed':[],'ignored':[],'failed':{}}); failing=None; continue
+  m=TEST.match(line) or (pending and re.match(r'^()(ok|FAILED|ignored)$',line))
+  if not m and binary and line.startswith('test ') and ' ... ' in line: pending.append(line[5:line.index(' ... ')]); continue
+  if m and binary:
+   name,status=m.groups(); name=name or pending.pop(0)
+   if status=='FAILED': out[binary]['failed'].setdefault(name,{'rows':[],'collected':False})
+   else: out[binary]['passed' if status=='ok' else 'ignored'].append(name)
+   continue
+  m=FAILURE.match(line)
+  if m and binary: failing=out[binary]['failed'].setdefault(m.group(1),{'rows':[],'collected':False}); continue
+  if failing is None: continue
+  if re.search(r'\d+ row\(s\) of \w+ failed:',line): failing['collected']=True
+  m=RED_ROW.match(line.strip())
+  if m and m.group(1) not in failing['rows']: failing['rows'].append(m.group(1))
+ return {b:t for b,t in out.items() if t['passed'] or t['failed'] or t['ignored']}
+def stored(tests):
+ """The recorded tests as tests.json keeps them, one line per list: a failed test is `[collected or aborted, red row...]`, an empty list is left out."""
+ return {n:{b:{k:x for k,x in (('passed',t['passed']),('ignored',t['ignored']),('failed',{name:['collected' if f['collected'] else 'aborted']+f['rows'] for name,f in t['failed'].items()})) if x} for b,t in bs.items()} for n,bs in tests.items()}
+def loaded(kept):
+ """tests.json read back into the shape `test_results` gives."""
+ return {n:{b:{'passed':t.get('passed',[]),'ignored':t.get('ignored',[]),'failed':{name:{'collected':f[0]=='collected','rows':f[1:]} for name,f in t.get('failed',{}).items()}} for b,t in bs.items()} for n,bs in kept.items()}
+def record_tests(v,commands,out_dir):
+ """Every cargo test target's tests, from its raw log, into tests.json beside validation.json (which stays within its line budget)."""
+ v['tests']={n:test_results(out_dir/(n+'.log')) for n,c in commands if c[:2]==['cargo','test'] and (out_dir/(n+'.log')).exists()}
+ tests_json.write_text(dumps(stored(v['tests']))+'\n')
+def red_rows(v):
+ """Each failed test with the case rows it reports: every red row when its runner collected them, else the first only."""
+ lines=[]
+ for target,binaries in v.get('tests',{}).items():
+  for binary,t in binaries.items():
+   for name,f in t['failed'].items():
+    if f['collected']: said='red rows '+str(len(f['rows']))+': '+', '.join(f['rows'])
+    elif f['rows']: said='red at row '+f['rows'][0]+'; the rows after it did not run'
+    else: said='red; its failure names no case row'
+    lines.append(target+' '+name+': '+said)
+ return lines
+SENTENCE=re.compile(r'^[a-z][a-z0-9]*(?:_[a-z0-9]+){3,}\*?$')
+SEGMENT=re.compile(r'^[a-z_*][a-z0-9_*]*$')
+TESTISH=re.compile(r'^(?:tests?|\w+_test|controls)$')
+def expand(span):
+ """`a::{b,c}::d` as `a::b::d` and `a::c::d`; one level of braces, any number of groups."""
+ m=re.search(r'\{([^{}]*)\}',span)
+ if not m: return [span]
+ return [x for part in m.group(1).split(',') for x in expand(span[:m.start()]+part.strip()+span[m.end():])]
+def cited_tests(line):
+ """The tests and case rows a row cites: a backticked lowercase `::` path through a test module or ending in a sentence-like name, or a bare sentence-like name."""
+ cited=[]
+ for span in re.findall(r'`([^`]+)`',line):
+  for c in expand(span):
+   segs=c.split('::')
+   if not all(SEGMENT.match(s) for s in segs): continue
+   if len(segs)==1 and SENTENCE.match(c): cited.append(c)
+   elif len(segs)>1 and (any(TESTISH.match(s) for s in segs) or SENTENCE.match(segs[-1])): cited.append(c)
+ return cited
+def all_tests(v):
+ """(binary, test, red rows or None when it passed, collected) over every recorded target; a test red in one target is red."""
+ merged={}
+ for binaries in v.get('tests',{}).values():
+  for binary,t in binaries.items():
+   for name in t['passed']: merged.setdefault((binary,name),None)
+   for name,f in t['failed'].items(): merged[(binary,name)]=f
+ return merged
+def glob_rx(segs): return '::'.join('.+' if s=='*' else re.escape(s).replace(r'\*','[^:]*') for s in segs)
+def row_verdict(row,tests):
+ """A case row's verdict from the tests that run its table: passed when they passed or collected without naming it."""
+ if not tests: return 'absent'
+ if any(f and row in f['rows'] for _,f in tests): return 'red'
+ if all(f is None or f['collected'] for _,f in tests): return 'passed'
+ return 'not run'
+def binaries_of(crate):
+ """The test binaries of a crate directory: its library's unit tests and each integration test, as cargo names them."""
+ manifest=tomllib.loads((crate/'Cargo.toml').read_text())
+ names={manifest.get('lib',{}).get('name',manifest['package']['name'].replace('-','_'))}
+ names|={t['name'] for t in manifest.get('test',[])}
+ names|={x.stem for x in (crate/'tests').glob('*.rs')} if manifest.get('package',{}).get('autotests',True) else set()
+ return names
+def sources():
+ """Every `CaseName("...")` in the product's sources: its crate's test binaries and its file's module path, read once."""
+ if hasattr(sources,'found'): return sources.found
+ found={}; product=p.parents[3]
+ for path in product.rglob('*.rs'):
+  rel=path.relative_to(product).parts
+  if 'target' in rel or 'fixtures' in rel and 'tests' in rel[:rel.index('fixtures')]: continue
+  try: names=re.findall(r'CaseName\("([^"]+)"\)',path.read_text())
+  except (UnicodeDecodeError,OSError): continue
+  if not names: continue
+  crate=next(d for d in path.parents if (d/'Cargo.toml').is_file())
+  inner=path.relative_to(crate).with_suffix('').parts
+  module=[x for x in inner[1:] if x not in ('mod','lib','main')]
+  for name in names: found.setdefault(name,[]).append((binaries_of(crate),module))
+ sources.found=found; return found
+def verdict(cited,tests):
+ """passed, red, not run (its table stopped at an earlier red row) or absent (no recorded test runs it). A cited path is a test, the tests of a module, or a case row of a module's table."""
+ segs=cited.split('::'); rx=re.compile('(?:^|::)'+glob_rx(segs)+'$')
+ hit=[(k,f) for k,f in tests.items() if rx.search(k[1])]
+ if not hit and '*' not in segs[-1]:
+  under=re.compile('(?:^|::)'+glob_rx(segs)+'::')
+  hit=[(k,f) for k,f in tests.items() if under.search(k[1])]
+ if hit: return 'passed' if all(f is None for _,f in hit) else 'red'
+ if '*' in segs[-1]: return 'absent'
+ if len(segs)>1:
+  if segs[-1] not in sources(): return 'absent'
+  under=re.compile('(?:^|::)'+glob_rx(segs[:-1])+'::')
+  return row_verdict(segs[-1],[(k,f) for k,f in tests.items() if under.search(k[1])])
+ for binaries,module in sources().get(cited,[]):
+  scoped=[(k,f) for k,f in tests.items() if k[0] in binaries]
+  for prefix in range(len(module),0,-1):
+   for start in range(prefix):
+    under=re.compile('(?:^|::)'+'::'.join(map(re.escape,module[start:prefix]))+'::')
+    found=[(k,f) for k,f in scoped if under.search(k[1])]
+    if found: return row_verdict(cited,found)
+ if any(f and cited in f['rows'] for f in tests.values()): return 'red'
+ return 'absent'
+def untick_unproven(text,v):
+ """The text with every ticked row un-ticked that cites a test or case row red, not run or absent in the validation's recorded tests, and one line per such row."""
+ tests=all_tests(v); bad=[]; lines=text.splitlines(keepends=True)
+ for n,line in enumerate(lines):
+  if not TICKED.match(line): continue
+  cited=cited_tests(line); found={c:verdict(c,tests) for c in cited}
+  unproven={c:x for c,x in found.items() if x!='passed'}
+  if not unproven: continue
+  bad.append(str(n+1)+': '+str(len(cited)-len(unproven))+' of '+str(len(cited))+' cited tests passed; '+'; '.join(x+' `'+c+'`' for c,x in unproven.items())+': '+line[:80])
+  lines[n]=re.sub(r'\[x\]','[ ]',line,count=1,flags=re.I)
+ return ''.join(lines),bad
+RERUN=re.compile(r'\b(?:narrow(?:ed)? run|re-?run)\b',re.I)
+def reruns_without_log(texts,v):
+ """A result cited from a rerun names its raw log, and that log is in the validation directory."""
+ bad=[]
+ for where,text in texts:
+  if not RERUN.search(text): continue
+  logs=re.findall(r'[\w.-]+\.log\b',text)
+  if not logs or not all((Path(v['raw_identity'])/x).is_file() for x in logs): bad.append(where+': cites a rerun with no raw log in '+v['raw_identity']+': '+text[:110])
+ return bad
 def write_block(text,v):
  """Replace the block from the `### Current ownership checkpoint` heading to the first following bullet."""
  lines=text.splitlines(keepends=True)
@@ -75,65 +219,74 @@ def write_block(text,v):
  end=next(i for i in range(start+1,len(lines)) if lines[i].startswith('- ['))
  return ''.join(lines[:start])+render(v)+''.join(lines[end:])
 def finish(v):
- """Write the matrix numbers block from validation.json, print the scope delta, check the ticked rows. Returns the exit code."""
+ """Write the matrix numbers block from validation.json, print the scope delta, un-tick each ticked row a cited test does not prove, check each ticked row cites a validation and each rerun result names its raw log. Returns the exit code."""
  old=readme.read_text(); text=write_block(old,v)
- readme.write_text(text)
  for line in scope_delta(v): print(line)
- bad=ticked_rows_without_proof(text,v['validation'])
+ bad=[]; texts=[]; changed=[]
  for part in sorted(contracts.glob('*.md')):
-  if part!=readme: bad+=[part.name+' '+x for x in ticked_rows_without_proof(part.read_text(),v['validation'])]
+  before=old if part==readme else part.read_text(); body,unticked=untick_unproven(text if part==readme else before,v); where='' if part==readme else part.name+' '
+  if body!=before: part.write_text(body); changed.append(part.name)
+  for line in unticked: print('UNTICKED ROW '+where+line)
+  bad+=[where+x for x in ticked_rows_without_proof(body,v['validation'])]
+  texts+=[(part.name+':'+str(n),line) for n,line in enumerate(body.splitlines(),1) if TICKED.match(line)]
+ texts+=[('validation.json results '+k,x['note']) for k,x in v['results'].items() if isinstance(x,dict) and 'note' in x]
+ bad+=reruns_without_log(texts,v)
  for line in bad: print('TICKED ROW '+line)
- if text!=old: print('matrix numbers block rewritten from validation.json; stage the README')
- return 1 if bad or text!=old else 0
-if __name__=='__main__' and sys.argv[1:]==['--check']: sys.exit(finish(json.loads(validation_json.read_text())))
-locks=[open('/workspaces/.cargo-build.lock','a'),open('/tmp/ryo-cargo-serial.lock','a')]
-def locked(run):
- """Runs one command under the build locks, so other agents' short runs interleave between this batch's commands."""
- for lock in locks: fcntl.flock(lock,fcntl.LOCK_EX)
- try: return run()
- finally:
-  for lock in locks: fcntl.flock(lock,fcntl.LOCK_UN)
-assert not subprocess.check_output(['git','status','--porcelain'],text=True).strip(), 'freeze source before validation'
-head=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
-# The shared target directory serves several worktrees whose crates have equal build hashes; cargo
-# trusts source mtimes, so artifacts another worktree built after this tree's edits would be reused.
-# Touching the sources under the lock makes every artifact this run uses come from this tree.
-def touch_sources():
- for d,dirs,fs in os.walk('crates/ryo'):
-  dirs[:]=[x for x in dirs if x not in ('target','.git','node_modules')]
-  for f in fs:
-   if f.endswith(('.rs','.toml')): os.utime(os.path.join(d,f))
-locked(touch_sources)
-def is_test(path):
- parts=path.split('/')
- return any(x in ('tests','test','fixtures') for x in parts[:-1]) or parts[-1] in ('test.rs','tests.rs') or parts[-1].endswith('_test.rs')
-def finding_split(cmd,log):
- # `tm check` prints its findings as one JSON document; the split is per scoped directory, test trees apart from production.
- scoped=cmd[cmd.index('check')+1:cmd.index('--format')]
- found=json.loads(log.read_text())
- by_directory={x:{'production':0,'test':0} for x in scoped}
- for finding in found['findings']:
-  owner=[x for x in scoped if finding['path'].startswith('crates/ryo/'+x+'/') or finding['path']=='crates/ryo/'+x]
-  by_directory[owner[0]]['test' if is_test(finding['path']) else 'production']+=1
- return {'total':len(found['findings']),'suppressed':len(found['suppressed']),'production':sum(v['production'] for v in by_directory.values()),'test':sum(v['test'] for v in by_directory.values()),'by_directory':by_directory}
-commands=json.loads((p/'commands.json').read_text())
-(p/'identity.json').write_text(dumps({'source':head,'commands':commands})+'\n')
-# Raw outputs (.log/.json per command) never live in the repository: they go to the directory given as the first argument,
-# by default a directory named for the source head and the date under the system temporary directory.
-out_dir=Path(sys.argv[1]) if len(sys.argv)>1 else Path('/tmp/ryo-contract-validation-'+head[:10]+'-'+date.today().strftime('%Y%m%d'))
-out_dir.mkdir(parents=True,exist_ok=True)
-for name,cmd in commands:
- print('START '+name,flush=True)
- started=time.time()
- with (out_dir/(name+'.log')).open('w') as out: r=locked(lambda: subprocess.run(cmd,stdout=out,stderr=subprocess.STDOUT))
- result={'source':head,'command':cmd,'exit':r.returncode,'elapsed_seconds':time.time()-started}
- if name=='tm_source': result['findings']=finding_split(cmd,out_dir/(name+'.log'))
- (out_dir/(name+'.json')).write_text(json.dumps(result,indent=2))
- print('END '+name+' exit='+str(r.returncode),flush=True)
- if name=='build' and r.returncode: break
-print('BATCH COMPLETE',flush=True)
-v=json.loads(validation_json.read_text())
-v.update({'source':head,'validation':v['validation']+1,'raw_identity':str(out_dir)})
-record(v,commands,out_dir)
-validation_json.write_text(dumps(v)+'\n')
-sys.exit(finish(v))
+ if changed: print('rewritten from validation.json (numbers block, un-ticked rows): '+', '.join(changed)+'; stage them')
+ return 1 if bad or changed else 0
+if __name__=='__main__' and sys.argv[1:]==['--check']: sys.exit(finish(dict(json.loads(validation_json.read_text()),tests=loaded(json.loads(tests_json.read_text())) if tests_json.exists() else {})))
+def validate():
+ """Runs every command of commands.json at a frozen head, records its results and tests, and checks the matrix."""
+ locks=[open('/workspaces/.cargo-build.lock','a'),open('/tmp/ryo-cargo-serial.lock','a')]
+ def locked(run):
+  """Runs one command under the build locks, so other agents' short runs interleave between this batch's commands."""
+  for lock in locks: fcntl.flock(lock,fcntl.LOCK_EX)
+  try: return run()
+  finally:
+   for lock in locks: fcntl.flock(lock,fcntl.LOCK_UN)
+ assert not subprocess.check_output(['git','status','--porcelain'],text=True).strip(), 'freeze source before validation'
+ head=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+ # The shared target directory serves several worktrees whose crates have equal build hashes; cargo
+ # trusts source mtimes, so artifacts another worktree built after this tree's edits would be reused.
+ # Touching the sources under the lock makes every artifact this run uses come from this tree.
+ def touch_sources():
+  for d,dirs,fs in os.walk('crates/ryo'):
+   dirs[:]=[x for x in dirs if x not in ('target','.git','node_modules')]
+   for f in fs:
+    if f.endswith(('.rs','.toml')): os.utime(os.path.join(d,f))
+ locked(touch_sources)
+ def is_test(path):
+  parts=path.split('/')
+  return any(x in ('tests','test','fixtures') for x in parts[:-1]) or parts[-1] in ('test.rs','tests.rs') or parts[-1].endswith('_test.rs')
+ def finding_split(cmd,log):
+  # `tm check` prints its findings as one JSON document; the split is per scoped directory, test trees apart from production.
+  scoped=cmd[cmd.index('check')+1:cmd.index('--format')]
+  found=json.loads(log.read_text())
+  by_directory={x:{'production':0,'test':0} for x in scoped}
+  for finding in found['findings']:
+   owner=[x for x in scoped if finding['path'].startswith('crates/ryo/'+x+'/') or finding['path']=='crates/ryo/'+x]
+   by_directory[owner[0]]['test' if is_test(finding['path']) else 'production']+=1
+  return {'total':len(found['findings']),'suppressed':len(found['suppressed']),'production':sum(v['production'] for v in by_directory.values()),'test':sum(v['test'] for v in by_directory.values()),'by_directory':by_directory}
+ commands=json.loads((p/'commands.json').read_text())
+ (p/'identity.json').write_text(dumps({'source':head,'commands':commands})+'\n')
+ # Raw outputs (.log/.json per command) never live in the repository: they go to the directory given as the first argument,
+ # by default a directory named for the source head and the date under the system temporary directory.
+ out_dir=Path(sys.argv[1]) if len(sys.argv)>1 else Path('/tmp/ryo-contract-validation-'+head[:10]+'-'+date.today().strftime('%Y%m%d'))
+ out_dir.mkdir(parents=True,exist_ok=True)
+ for name,cmd in commands:
+  print('START '+name,flush=True)
+  started=time.time()
+  with (out_dir/(name+'.log')).open('w') as out: r=locked(lambda: subprocess.run(cmd,stdout=out,stderr=subprocess.STDOUT))
+  result={'source':head,'command':cmd,'exit':r.returncode,'elapsed_seconds':time.time()-started}
+  if name=='tm_source': result['findings']=finding_split(cmd,out_dir/(name+'.log'))
+  (out_dir/(name+'.json')).write_text(json.dumps(result,indent=2))
+  print('END '+name+' exit='+str(r.returncode),flush=True)
+  if name=='build' and r.returncode: break
+ print('BATCH COMPLETE',flush=True)
+ v=json.loads(validation_json.read_text())
+ v.update({'source':head,'validation':v['validation']+1,'raw_identity':str(out_dir)})
+ record(v,commands,out_dir)
+ record_tests(v,commands,out_dir)
+ validation_json.write_text(dumps({k:x for k,x in v.items() if k!='tests'})+'\n')
+ sys.exit(finish(v))
+if __name__=='__main__': validate()
