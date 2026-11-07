@@ -245,11 +245,17 @@ impl LintUseCaseImpl {
     ) -> Result<Wanting, LintError> {
         let placement = MetadataUseCaseImpl.decide(&scopes_of(rules));
         let matcher = self.matching.compile(&placement.globs).map_err(
-            |MatchingError::BadGlob { glob, reason }| LintError::Rule {
-                id: owner_of(&placement, &Glob(glob.into()), ids)
-                    .map(|id| id.0.to_string())
-                    .unwrap_or_default(),
-                reason,
+            |error| match error {
+                MatchingError::BadGlob { glob, reason } => LintError::Rule {
+                    id: owner_of(&placement, &Glob(glob.into()), ids)
+                        .map(|id| id.0.to_string())
+                        .unwrap_or_default(),
+                    reason,
+                },
+                MatchingError::InvalidRegex { reason } => LintError::Rule {
+                    id: String::new(),
+                    reason,
+                },
             },
         )?;
         let wants = wants(plans, &self.language.relations()?.0)?;

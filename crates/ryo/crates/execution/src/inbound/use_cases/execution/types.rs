@@ -99,7 +99,7 @@ pub mod digest {
     pub use crate::outbound::digest::types::{DigestBytes, DigestWords};
 }
 pub mod matching {
-    pub use crate::outbound::matching::errors::MatchingError;
+    pub use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
     pub use crate::outbound::matching::interface::MatchingPort;
 }
 

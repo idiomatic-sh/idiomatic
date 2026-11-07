@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use ryo_execution::inbound::use_cases::execution::types::matching::{MatchingError, MatchingPort};
-use ryo_matching::inbound::use_cases::matching::errors::MatchingError as SemanticError;
+use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort;
+use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
 use ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase;
 use ryo_matching::inbound::use_cases::matching::types::{GlobHits, GlobPattern};
 use ryo_values::domain::files::types::{Glob, GlobsMatcher, Hits, MatchCandidate};
@@ -59,10 +59,10 @@ where
 }
 
 /// Only glob requests enter this port; preserve the semantic refusal verbatim.
-fn matching_error(error: SemanticError) -> MatchingError {
+fn matching_error(error: MatchingError) -> MatchingError {
     match error {
-        SemanticError::BadGlob { glob, reason } => MatchingError::BadGlob { glob, reason },
-        SemanticError::InvalidRegex { reason } => MatchingError::BadGlob {
+        MatchingError::BadGlob { glob, reason } => MatchingError::BadGlob { glob, reason },
+        MatchingError::InvalidRegex { reason } => MatchingError::BadGlob {
             glob: String::new(),
             reason,
         },
