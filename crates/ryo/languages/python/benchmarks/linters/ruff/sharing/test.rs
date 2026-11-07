@@ -1,6 +1,6 @@
 //! Actual configured classes and explicit barriers, through the production SDK.
 use super::fixtures::{
-    measurement::{diagnostics_of, django, record, recorded_django_diagnostics},
+    measurement::{diagnostics, django, record, recorded_django_diagnostics},
     observation::{Observation, expected_routes, observe},
 };
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
@@ -372,9 +372,9 @@ fn the_one_path_answers_the_django_canary_as_recorded() -> Result<(), Box<dyn st
         .as_ref()
         .map_err(|error| format!("the one path must answer django-n999: {error}"))?;
     assert_eq!(
-        diagnostics_of(report, super::fixtures::measurement::DJANGO_RULE)?,
+        diagnostics(report)?,
         recorded_django_diagnostics()?,
-        "the one path answers N999 over Django as the checkpoint recorded it"
+        "the one path answers N999 over Django as the checkpoint recorded it, its frontend diagnostics included"
     );
     Ok(())
 }
