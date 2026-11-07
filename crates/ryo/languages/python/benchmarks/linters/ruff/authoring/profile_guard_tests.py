@@ -132,7 +132,8 @@ def guards_1() -> tuple[int, tuple]:
         missing_policy = {**base, 'rule-applicability': dict(base['rule-applicability'])}
         missing_policy['rule-applicability'].pop('UP025')
         wrong_policy = {**base, 'rule-applicability': {**base['rule-applicability'], 'UP025': 'always'}}
-        for wrong_base in (missing_default, duplicate_default, missing_policy, wrong_policy):
+        wrong_supporting = {**base, 'rule-applicability': {**base['rule-applicability'], 'E501': 'accepted-syntax'}}
+        for wrong_base in (missing_default, duplicate_default, missing_policy, wrong_policy, wrong_supporting):
             try:
                 profile_proofs.check_base_rule_applicability(wrong_base, phase_registry)
             except ValueError:
