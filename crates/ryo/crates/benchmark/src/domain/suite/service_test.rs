@@ -80,7 +80,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a given project inventory stages an unselected local module"),
         word: Word::Succeeds,
-        input: || Check::Sources(sibling(ProjectEntryState::File)),
+        input: || Check::Sources(sibling(ProjectEntryState::Regular)),
         expect: Expect::Value(()),
     },
     Case {
@@ -192,7 +192,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("unselected bytes need an observation"),
         word: Word::Refuses,
         input: || {
-            edited(sibling(ProjectEntryState::File), |case| {
+            edited(sibling(ProjectEntryState::Regular), |case| {
                 case.given_project_inventory = InventoryDeclaration::Undeclared;
             })
         },

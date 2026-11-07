@@ -1,7 +1,7 @@
 //! Decode native execution evidence into the existing typed comparison contract.
 use super::errors::InventoryComparisonError as Failure;
 use crate::domain::registered_inputs::types::RefusalText;
-use ryo_benchmark_contracts::domain::documents::types::observation_document::ObservationDocument;
+use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{ObservationDocument, RecordedMetadata, ReferenceProcess, ReportedSkips};
 
 use crate::domain::diagnostics::service::compare_with_contract;
 use ryo_benchmark_contracts::domain::reports::types::Comparison;
@@ -13,10 +13,9 @@ use ryo_benchmark_contracts::domain::reports::types::{
 
 /// The run report an observation row records, when its execution accounting is explicit.
 fn report(row: &ObservationDocument) -> Result<RunReport, Failure> {
-    let metadata = row
-        .execution_metadata
-        .clone()
-        .ok_or(Failure::MissingExecutionCapability)?;
+    let RecordedMetadata::Recorded(metadata) = row.execution_metadata.clone() else {
+        return Err(Failure::MissingExecutionCapability);
+    };
     if matches!(metadata, ExecutionMetadata::Unknown)
         || matches!(&metadata, ExecutionMetadata::Unavailable { reason } if reason.0.trim().is_empty())
     {
@@ -32,10 +31,10 @@ fn report(row: &ObservationDocument) -> Result<RunReport, Failure> {
                 .ok_or(Failure::InvalidExecutionFile)
         })
         .collect::<Result<Vec<_>, _>>()?;
-    let skipped = row
-        .skipped
-        .as_ref()
-        .ok_or(Failure::MissingExecutionSkips)?
+    let ReportedSkips::Reported(skips) = &row.skipped else {
+        return Err(Failure::MissingExecutionSkips);
+    };
+    let skipped = skips
         .iter()
         .map(|skip| {
             Ok(ryo::linter::Skipped {
@@ -46,10 +45,7 @@ fn report(row: &ObservationDocument) -> Result<RunReport, Failure> {
             })
         })
         .collect::<Result<Vec<_>, Failure>>()?;
-    let coverage = row.coverage.map_or(
-        CoverageAccounting::Unaccounted,
-        CoverageAccounting::Accounted,
-    );
+    let coverage = row.coverage;
     if matches!(metadata, ExecutionMetadata::Unavailable { .. })
         && (coverage != CoverageAccounting::Unaccounted || !skipped.is_empty())
     {
@@ -74,7 +70,7 @@ pub(crate) fn compare(
     candidate: &ObservationDocument,
     contract: ComparisonContract,
 ) -> Result<Comparison, Failure> {
-    if reference.process_observation.is_some() {
+    if matches!(reference.process_observation, ReferenceProcess::Observed(_)) {
         if contract != ComparisonContract::Diagnostics {
             return Err(Failure::ProcessFailureHasNoCompleteReport);
         }

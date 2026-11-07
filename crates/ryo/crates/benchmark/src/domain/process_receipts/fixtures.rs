@@ -2,23 +2,20 @@
 use crate::domain::canonical_text::{service::text_digest, types::Document};
 use crate::domain::inventory_receipts::fixtures::{observed_row, registered_case};
 use crate::domain::process_failure::service::{group_digest, output_digest};
-use crate::outbound::inventory::types::{
-    ArgumentText, CompleteInvocation, InvocationDocument, NormalizedSettings, Pin, Signal,
-    case_document::{CaseDocument, Comparison},
-};
+use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{ArgumentText, CompleteInvocation, InvocationDocument, NormalizedSettings};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
+use ryo_benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
+use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::documents::types::{
-    observation_document::{
-        ExitStatus, ObservationDocument, ProcessArtifacts, ProcessObservation, ReferenceExpectation,
-    },
-    reference_discrepancy::{
-        ArtifactPointer, DiscrepancyIdentity, DiscrepancyValidation, ExpectationKind,
-        ObservedExecutable, ReferenceDiscrepancy,
-    },
-    text::{
-        CanonicalJson, CaseName, ContestantSide, PathText, ReasonText, RuleName, Sha256Text, YesNo,
-    },
+use ryo_benchmark_contracts::domain::documents::types::text::value::{CanonicalJson, CaseName, ContestantSide, ExitStatus, FileMetadataDigest, PathText, ReasonText, RuleName, Sha256Text, YesNo};
+use ryo_benchmark_contracts::domain::reports::types::CoverageAccounting;
+use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+    IntentMatch, ObservationDocument, ProcessArtifacts, ProcessArtifactsRecord, ProcessRecord, RecordedMetadata,
+    RecordedReason, ReferenceProcess, ReportedFindings, ReportedSkips, RequestRoot, ValidationRecord,
 };
+use ryo_benchmark_contracts::domain::documents::types::case_document::value::CaseReference;
+use ryo_benchmark_contracts::domain::documents::types::finding::value::ExpectedFindings;
+use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{ArtifactPointer, DiscrepancyIdentity, DiscrepancyRecord, DiscrepancyValidation, ExpectationKind, ObservedExecutable, ProcessExpectation};
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
 use ryo_benchmark_contracts::domain::process::types::{
@@ -117,8 +114,8 @@ pub(crate) fn passing() -> Documents {
         name: CaseName("matched".into()),
         source_sha256: sha('e'),
         files: vec![path("case.py")],
-        comparison: Comparison::Full,
-        reference_discrepancy: Some(ReferenceDiscrepancy {
+        comparison: CaseComparison::Full,
+        reference_discrepancy: CaseReference::Differs(DiscrepancyRecord {
             basis: DiscrepancyBasis::LanguageDefect,
             identity: DiscrepancyIdentity {
                 tool: ReasonText("fixture".into()),
@@ -129,27 +126,27 @@ pub(crate) fn passing() -> Documents {
                 source: sha('e'),
                 reference_output: sha('d'),
                 intended_output: sha('f'),
-                file_metadata: None,
+                file_metadata: FileMetadataDigest::Undeclared,
             },
             approved_executable_sha256: Vec::new(),
-            reference_expected: ReferenceExpectation::Underivable,
+            reference_expected: ExpectedFindings::Underivable,
             intended_expected: Vec::new(),
             reason: ReasonText("independent semantic authority".into()),
-            process: Some(failure()),
+            process: ProcessExpectation::Failure(failure()),
         }),
         ..registered_case("A001", "matched")
     };
     let row = ObservationDocument {
-        diagnostics: None,
-        skipped: None,
-        execution_metadata: None,
-        coverage: None,
-        actual_request_root: Some(path(ROOT)),
-        raw_parity_matches_intended: Some(YesNo::No),
-        discrepancy_validation: Some(DiscrepancyValidation {
+        diagnostics: ReportedFindings::Unreported,
+        skipped: ReportedSkips::Unreported,
+        execution_metadata: RecordedMetadata::Unrecorded,
+        coverage: CoverageAccounting::Unaccounted,
+        actual_request_root: RequestRoot::Written(path(ROOT)),
+        raw_parity_matches_intended: IntentMatch::Matched(YesNo::No),
+        discrepancy_validation: ValidationRecord::Attested(DiscrepancyValidation {
             discrepancy_basis: DiscrepancyBasis::LanguageDefect,
             actual_executable_sha256: sha('a'),
-            process_observation_group_sha256: Some(Sha256Text(
+            process_observation_group_sha256: Pin::Sha256(Sha256Text(
                 group_digest(&process, &ArtifactDigest(repeated('a')))
                     .expect("group")
                     .0,
@@ -160,19 +157,19 @@ pub(crate) fn passing() -> Documents {
             source_sha256: sha('e'),
             reference_output_sha256: sha('d'),
             intended_output_sha256: sha('f'),
-            file_metadata_sha256: None,
+            file_metadata_sha256: FileMetadataDigest::Undeclared,
         }),
-        process_observation: Some(ProcessObservation {
+        process_observation: ReferenceProcess::Observed(ProcessRecord {
             kind: ExpectationKind::ProcessFailure,
             exit: ExitStatus(2),
-            signal: None,
+            signal: Signal::Absent,
             actual_request_root: path(ROOT),
             observer_no_deadline: YesNo::Yes,
-            executable_sha256: Some(sha('a')),
-            settings_sha256: Some(settings.clone()),
-            metadata_error: None,
-            template_sha256: Some(Sha256Text(output_digest(&process).0)),
-            artifacts: Some(ProcessArtifacts {
+            executable_sha256: Pin::Sha256(sha('a')),
+            settings_sha256: Pin::Sha256(settings.clone()),
+            metadata_error: RecordedReason::Absent,
+            template_sha256: Pin::Sha256(Sha256Text(output_digest(&process).0)),
+            artifacts: ProcessArtifactsRecord::Attached(ProcessArtifacts {
                 stdout: pointer(&location("stdout.bin"), &stdout.0),
                 stderr: pointer(&location("stderr.bin"), &stderr.0),
                 invocation: pointer(&location("invocation.json"), &record.0),
@@ -241,25 +238,44 @@ pub(crate) fn invocation(documents: &mut Documents) -> &mut CompleteInvocation {
 }
 
 /// The observed process of the base documents, edited in place.
-pub(crate) fn process(documents: &mut Documents) -> &mut ProcessObservation {
-    documents
-        .row
-        .process_observation
-        .as_mut()
-        .expect("the base row observes a process")
+pub(crate) fn process(documents: &mut Documents) -> &mut ProcessRecord {
+    match &mut documents.row.process_observation {
+        ReferenceProcess::Observed(record) => record,
+        ReferenceProcess::NotObserved => panic!("the base row observes a process"),
+    }
 }
 
 /// The stdout path of the base documents.
 pub(crate) fn stdout_path(documents: &Documents) -> PathBuf {
-    PathBuf::from(
-        &documents
-            .row
-            .process_observation
-            .as_ref()
-            .and_then(|observed| observed.artifacts.as_ref())
-            .expect("the base row points at artifacts")
-            .stdout
-            .path
-            .0,
-    )
+    let ReferenceProcess::Observed(observed) = &documents.row.process_observation else {
+        panic!("the base row observes a process");
+    };
+    let ProcessArtifactsRecord::Attached(artifacts) = &observed.artifacts else {
+        panic!("the base row points at artifacts");
+    };
+    PathBuf::from(&artifacts.stdout.path.0)
+}
+
+/// The registered discrepancy of the base documents, edited in place.
+pub(crate) fn discrepancy(documents: &mut Documents) -> &mut DiscrepancyRecord {
+    match &mut documents.case.reference_discrepancy {
+        CaseReference::Differs(record) => record,
+        CaseReference::Agrees => panic!("the base case registers a discrepancy"),
+    }
+}
+
+/// The attested validation of the base row, edited in place.
+pub(crate) fn validation(documents: &mut Documents) -> &mut DiscrepancyValidation {
+    match &mut documents.row.discrepancy_validation {
+        ValidationRecord::Attested(proof) => proof,
+        ValidationRecord::Unattested => panic!("the base row attests a validation"),
+    }
+}
+
+/// The raw artifacts of the observed process of the base row, edited in place.
+pub(crate) fn artifacts(documents: &mut Documents) -> &mut ProcessArtifacts {
+    match &mut process(documents).artifacts {
+        ProcessArtifactsRecord::Attached(artifacts) => artifacts,
+        ProcessArtifactsRecord::Unattached => panic!("the base row points at artifacts"),
+    }
 }

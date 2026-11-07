@@ -8,7 +8,6 @@ pub(super) const STDERR: &str = "stderr";
 pub(super) const LITERAL: &str = "literal";
 pub(super) const VALUE: &str = "value";
 pub(super) const INPUT_PATH: &str = "input-path";
-pub(super) const FILE: &str = "file";
 pub(super) const ENCODING: &str = "encoding";
 pub(super) const UTF8_BYTES: &str = "utf8-bytes";
 pub(super) const JSON_STRING_CONTENT: &str = "json-string-content";

@@ -4,14 +4,15 @@ use super::service::compare;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::inventory_receipts::fixtures::observed_row;
 use crate::domain::registered_inputs::types::RefusalText;
-use ryo_benchmark_contracts::domain::documents::types::{
-    finding::SkippedPair,
-    observation_document::{ExitStatus, ObservationDocument, ProcessObservation},
-    reference_discrepancy::ExpectationKind,
-    text::{ContestantSide, PathText, RuleName, YesNo},
+use ryo_benchmark_contracts::domain::documents::types::finding::value::SkippedPair;
+use ryo_benchmark_contracts::domain::documents::types::text::value::{ContestantSide, ExitStatus, PathText, Pin, RuleName, Signal, YesNo};
+use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+    ObservationDocument, ProcessArtifactsRecord, ProcessRecord, RecordedMetadata, RecordedReason, ReferenceProcess,
+    ReportedSkips,
 };
+use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::ExpectationKind;
 use ryo_benchmark_contracts::domain::reports::types::{
-    Comparison, ComparisonContract, ExecutionMetadata, RuleCoverage,
+    Comparison, ComparisonContract, CoverageAccounting, ExecutionMetadata, RuleCoverage,
 };
 
 type Input = (ObservationDocument, ObservationDocument, ComparisonContract);
@@ -37,8 +38,8 @@ fn coverage() -> RuleCoverage {
 fn candidate() -> ObservationDocument {
     ObservationDocument {
         files: vec![PathText("input".into())],
-        skipped: Some(skipped()),
-        coverage: Some(coverage()),
+        skipped: ReportedSkips::Reported(skipped()),
+        coverage: CoverageAccounting::Accounted(coverage()),
         ..observed_row("R1", "syntax", ContestantSide::Candidate)
     }
 }
@@ -46,10 +47,10 @@ fn candidate() -> ObservationDocument {
 fn unavailable_reference() -> ObservationDocument {
     ObservationDocument {
         side: ContestantSide::Reference,
-        skipped: Some(Vec::new()),
-        coverage: None,
-        execution_metadata: Some(ExecutionMetadata::Unavailable {
-            reason: "findings-only CLI".into(),
+        skipped: ReportedSkips::Reported(Vec::new()),
+        coverage: CoverageAccounting::Unaccounted,
+        execution_metadata: RecordedMetadata::Recorded(ExecutionMetadata::Unavailable {
+            reason: ryo_benchmark_contracts::domain::reports::types::UnavailableReason("findings-only CLI".into()),
         }),
         ..candidate()
     }
@@ -60,30 +61,30 @@ fn available_reference() -> ObservationDocument {
 }
 
 /// A reference process observed instead of diagnostics.
-fn process_observation() -> ProcessObservation {
-    ProcessObservation {
+fn process_observation() -> ProcessRecord {
+    ProcessRecord {
         kind: ExpectationKind::ProcessFailure,
         exit: ExitStatus(1),
-        signal: None,
+        signal: Signal::Absent,
         actual_request_root: PathText("/cases/root".into()),
         observer_no_deadline: YesNo::Yes,
-        executable_sha256: None,
-        settings_sha256: None,
-        metadata_error: None,
-        template_sha256: None,
-        artifacts: None,
+        executable_sha256: Pin::Absent,
+        settings_sha256: Pin::Absent,
+        metadata_error: RecordedReason::Absent,
+        template_sha256: Pin::Absent,
+        artifacts: ProcessArtifactsRecord::Unattached,
     }
 }
 
 fn process_reference() -> ObservationDocument {
     ObservationDocument {
         side: ContestantSide::Reference,
-        process_observation: Some(process_observation()),
+        process_observation: ReferenceProcess::Observed(process_observation()),
         ..candidate()
     }
 }
 
-fn with_metadata(metadata: Option<ExecutionMetadata>) -> ObservationDocument {
+fn with_metadata(metadata: RecordedMetadata) -> ObservationDocument {
     ObservationDocument {
         execution_metadata: metadata,
         ..unavailable_reference()
@@ -112,7 +113,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 ObservationDocument {
-                    skipped: None,
+                    skipped: ReportedSkips::Unreported,
                     ..available_reference()
                 },
                 candidate(),
@@ -127,7 +128,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 ObservationDocument {
-                    skipped: Some(vec![SkippedPair {
+                    skipped: ReportedSkips::Reported(vec![SkippedPair {
                         rule: RuleName(String::new()),
                         path: PathText("input".into()),
                     }]),
@@ -160,7 +161,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             (
                 process_reference(),
                 ObservationDocument {
-                    coverage: None,
+                    coverage: CoverageAccounting::Unaccounted,
                     ..candidate()
                 },
                 ComparisonContract::Diagnostics,
@@ -214,7 +215,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 ObservationDocument {
-                    coverage: Some(RuleCoverage {
+                    coverage: CoverageAccounting::Accounted(RuleCoverage {
                         evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
                         skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
                         ..coverage()
@@ -232,7 +233,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             (
-                with_metadata(None),
+                with_metadata(RecordedMetadata::Unrecorded),
                 candidate(),
                 ComparisonContract::Diagnostics,
             )
@@ -244,7 +245,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             (
-                with_metadata(Some(ExecutionMetadata::Unknown)),
+                with_metadata(RecordedMetadata::Recorded(ExecutionMetadata::Unknown)),
                 candidate(),
                 ComparisonContract::Diagnostics,
             )
@@ -256,8 +257,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             (
-                with_metadata(Some(ExecutionMetadata::Unavailable {
-                    reason: String::new(),
+                with_metadata(RecordedMetadata::Recorded(ExecutionMetadata::Unavailable {
+                    reason: ryo_benchmark_contracts::domain::reports::types::UnavailableReason(String::new()),
                 })),
                 candidate(),
                 ComparisonContract::Diagnostics,
@@ -271,7 +272,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 ObservationDocument {
-                    skipped: Some(skipped()),
+                    skipped: ReportedSkips::Reported(skipped()),
                     ..unavailable_reference()
                 },
                 candidate(),
@@ -287,7 +288,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             (
                 unavailable_reference(),
                 ObservationDocument {
-                    coverage: Some(RuleCoverage {
+                    coverage: CoverageAccounting::Accounted(RuleCoverage {
                         unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
                         ..coverage()
                     }),

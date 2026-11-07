@@ -1,16 +1,18 @@
 //! Behavioral proof of `process_receipts`: a reference process receipt is rebuilt from registration and actual roots.
 use std::collections::BTreeMap;
 
-use ryo_benchmark_contracts::domain::documents::types::{
-    observation_document::ExitStatus,
-    text::{PathText, ReasonText, Sha256Text, YesNo},
+use ryo_benchmark_contracts::domain::documents::types::text::value::ExitStatus;
+use ryo_benchmark_contracts::domain::documents::types::text::value::{FileMetadataDigest, PathText, ReasonText, Sha256Text, YesNo};
+use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+    IntentMatch, ProcessArtifactsRecord, RecordedReason, ReferenceProcess, ReportedFindings, RequestRoot,
 };
+use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::ProcessExpectation;
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use sha2::Digest as _;
 
 use super::{
     errors::ProcessReceiptsError,
-    fixtures::{Documents, edited, passing, process, stdout_path},
+    fixtures::{Documents, artifacts, discrepancy, edited, passing, process, stdout_path, validation},
     service::validate,
 };
 use crate::{
@@ -18,10 +20,10 @@ use crate::{
     domain::{
         process_failure::errors::ProcessFailureError, process_output::errors::ProcessOutputError,
     },
-    outbound::inventory::types::{
-        FailedInvocation, InvocationDocument, Pin, Signal, case_document::Comparison,
-    },
 };
+use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{FailedInvocation, InvocationDocument};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
+use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
 
 /// What an accepted receipt answers.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -70,7 +72,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             edited(passing, |d| {
-                d.case.reference_discrepancy.as_mut().unwrap().process = None
+                discrepancy(d).process = ProcessExpectation::Absent
             })
         },
         expect: Expect::Error(ProcessReceiptsError::ProcessRegistrationMissing),
@@ -81,10 +83,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edited(passing, |d| {
                 let relative = PathText("relative".into());
-                d.row.actual_request_root = Some(relative.clone());
-                if let Some(captured) = d.row.process_observation.as_mut() {
-                    captured.actual_request_root = relative;
-                }
+                d.row.actual_request_root = RequestRoot::Written(relative.clone());
+                process(d).actual_request_root = relative;
             })
         },
         expect: Expect::Error(ProcessReceiptsError::Output(
@@ -94,13 +94,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a reference side without an observed process is refused"),
         word: Word::Refuses,
-        input: || edited(passing, |d| d.row.process_observation = None),
+        input: || edited(passing, |d| d.row.process_observation = ReferenceProcess::NotObserved),
         expect: Expect::Error(ProcessReceiptsError::ReferenceVariantDiffers),
     },
     Case {
         name: CaseName("a rule projection cannot attest a process failure"),
         word: Word::Refuses,
-        input: || edited(passing, |d| d.case.comparison = Comparison::Rule),
+        input: || edited(passing, |d| d.case.comparison = CaseComparison::Rule),
         expect: Expect::Error(ProcessReceiptsError::ReferenceVariantDiffers),
     },
     Case {
@@ -108,7 +108,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             edited(passing, |d| {
-                process(d).metadata_error = Some(ReasonText("unavailable".into()))
+                process(d).metadata_error = RecordedReason::Stated(ReasonText("unavailable".into()))
             })
         },
         expect: Expect::Error(ProcessReceiptsError::ReferenceVariantDiffers),
@@ -128,13 +128,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a signalled process is refused"),
         word: Word::Refuses,
-        input: || edited(passing, |d| process(d).signal = Some(ExitStatus(15))),
+        input: || edited(passing, |d| process(d).signal = Signal::Number(ExitStatus(15))),
         expect: Expect::Error(ProcessReceiptsError::ReferenceVariantDiffers),
     },
     Case {
         name: CaseName("a reference side reporting diagnostics is refused"),
         word: Word::Refuses,
-        input: || edited(passing, |d| d.row.diagnostics = Some(Vec::new())),
+        input: || edited(passing, |d| d.row.diagnostics = ReportedFindings::Reported(Vec::new())),
         expect: Expect::Error(ProcessReceiptsError::ReferenceVariantDiffers),
     },
     Case {
@@ -142,7 +142,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             edited(passing, |d| {
-                d.row.raw_parity_matches_intended = Some(YesNo::Yes)
+                d.row.raw_parity_matches_intended = IntentMatch::Matched(YesNo::Yes)
             })
         },
         expect: Expect::Error(ProcessReceiptsError::ReferenceVariantDiffers),
@@ -150,7 +150,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("another template digest is refused"),
         word: Word::Refuses,
-        input: || edited(passing, |d| process(d).template_sha256 = Some(sha('9'))),
+        input: || edited(passing, |d| process(d).template_sha256 = Pin::Sha256(sha('9'))),
         expect: Expect::Error(ProcessReceiptsError::ReferenceVariantDiffers),
     },
     Case {
@@ -158,11 +158,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             edited(passing, |d| {
-                d.row
-                    .discrepancy_validation
-                    .as_mut()
-                    .unwrap()
-                    .process_observation_group_sha256 = Some(sha('9'))
+                validation(d).process_observation_group_sha256 = Pin::Sha256(sha('9'))
             })
         },
         expect: Expect::Error(ProcessReceiptsError::ReferenceVariantDiffers),
@@ -170,13 +166,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("file metadata the certificate does not bind is refused"),
         word: Word::Refuses,
-        input: || edited(passing, |d| d.case.file_metadata_sha256 = Some(sha('9'))),
+        input: || edited(passing, |d| d.case.file_metadata_sha256 = FileMetadataDigest::Declared(sha('9'))),
         expect: Expect::Error(ProcessReceiptsError::FileMetadataIdentityDiffers),
     },
     Case {
         name: CaseName("a receipt without a request root is refused"),
         word: Word::Refuses,
-        input: || edited(passing, |d| d.row.actual_request_root = None),
+        input: || edited(passing, |d| d.row.actual_request_root = RequestRoot::Unwritten),
         expect: Expect::Error(ProcessReceiptsError::RequestRootMissing),
     },
     Case {
@@ -192,7 +188,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("an observation without raw artifact pointers is refused"),
         word: Word::Refuses,
-        input: || edited(passing, |d| process(d).artifacts = None),
+        input: || edited(passing, |d| process(d).artifacts = ProcessArtifactsRecord::Unattached),
         expect: Expect::Error(ProcessReceiptsError::MissingRawProcessPath),
     },
     Case {
@@ -200,7 +196,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             edited(passing, |d| {
-                process(d).artifacts.as_mut().unwrap().stdout.path =
+                artifacts(d).stdout.path =
                     PathText("attempt/other/stdout.bin".into())
             })
         },
@@ -235,7 +231,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edited(passing, |d| {
                 let path = stdout_path(d);
                 d.artifacts.insert(path, CapturedBytes(b"forged".to_vec()));
-                process(d).artifacts.as_mut().unwrap().stdout.sha256 = bytes_digest(b"forged");
+                artifacts(d).stdout.sha256 = bytes_digest(b"forged");
             })
         },
         expect: Expect::Error(ProcessReceiptsError::CapturedBytesDifferFromTemplates),
@@ -257,14 +253,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             edited(passing, |d| {
-                if let Some(process) = d
-                    .case
-                    .reference_discrepancy
-                    .as_mut()
-                    .unwrap()
-                    .process
-                    .as_mut()
-                {
+                if let ProcessExpectation::Failure(process) = &mut discrepancy(d).process {
                     process.observations[1] = process.observations[0].clone();
                 }
             })

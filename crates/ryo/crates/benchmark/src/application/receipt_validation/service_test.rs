@@ -2,9 +2,14 @@
 use super::service::validate;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::inventory_receipts::fixtures::with_file_metadata;
-use crate::outbound::inventory::types::{CapturedObservation, RegisteredRule, Registration, RegistrationAuthority};
+use crate::outbound::inventory::types::{
+    ProviderName, RawArtifacts, RegisteredRule, Registration, RegistrationAuthority, RuleCommand,
+    RuleDefinition, RuleInstance, RuleReason,
+};
 use ryo_benchmark_contracts::domain::documents::types::case_document::value::{CaseDocument, FileMetadata};
-use ryo_benchmark_contracts::domain::documents::types::text::value::{PathText, Sha256Text};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{
+    FileMetadataDigest, PathText, RuleName,
+};
 use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use std::borrow::Cow;
@@ -12,17 +17,17 @@ use std::borrow::Cow;
 fn registration(case: CaseDocument) -> Registration {
     Registration {
         authority: RegistrationAuthority::ReceiptOnly,
-        provider: "fixture".into(),
-        defaults: vec!["A001".into()],
+        provider: ProviderName("fixture".into()),
+        defaults: vec![RuleName("A001".into())],
         rules: vec![RegisteredRule {
-            definition: None,
+            definition: RuleDefinition::Unpinned,
             modules: Default::default(),
             artifacts: Default::default(),
-            rule_id: "A001".into(),
-            command: None,
-            reason: None,
+            rule_id: RuleName("A001".into()),
+            command: RuleCommand::Unregistered,
+            reason: RuleReason::Unstated,
             cases: vec![case],
-            instance: None,
+            instance: RuleInstance::Undeclared,
         }],
         identity: Default::default(),
     }
@@ -70,26 +75,26 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let (cases, records) = with_file_metadata(false);
     let case = cases[0].clone();
-    let captured = CapturedObservation {
-        artifacts: Default::default(),
+    let raw = RawArtifacts {
+        bytes: Default::default(),
         invocations: Default::default(),
-        records,
-        sha256: Some("raw-receipt".into()),
     };
     let audit_of = |case: CaseDocument| -> Result<_, ReportsError> {
-        validate(&registration(case), &captured)
+        validate(&registration(case), &records, &raw)
     };
     let verdict = match scenario {
         Scenario::Declared => {
             let audit = audit_of(case.clone()).map_err(|error| error.to_string())?;
-            let witness = audit.metadata_verified.first().map(|entry| entry.digest.0.as_str());
+            let witness = audit
+                .metadata_verified
+                .first()
+                .map(|entry| entry.digest.0.as_str());
             if audit.errors.is_empty()
                 && audit.metadata_verified.len() == 1
-                && witness
-                    == case
-                        .file_metadata_sha256
-                        .as_ref()
-                        .map(|digest| digest.0.as_str())
+                && match &case.file_metadata_sha256 {
+                    FileMetadataDigest::Declared(declared) => witness == Some(declared.0.as_str()),
+                    FileMetadataDigest::Undeclared => witness.is_none(),
+                }
             {
                 Audit::Recomputed
             } else {

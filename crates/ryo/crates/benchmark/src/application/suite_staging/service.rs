@@ -1,5 +1,5 @@
 //! Resolve executable dependencies before copying a selected suite snapshot.
-use crate::domain::observations::service;
+use crate::domain::observations::service as observations;
 use crate::outbound::suite::{interface::SuitePort, types::ArtifactPath};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::StagePurpose;
@@ -43,10 +43,14 @@ pub(crate) fn stage(
                 selected,
                 tool.rule_observation_selection,
             );
-            let declarations = case
-                .rule_observations
-                .as_ref()
-                .unwrap_or(&profile_declarations);
+            let declarations = match &case.rule_observations {
+                ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Declared(
+                    declared,
+                ) => declared,
+                ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared => {
+                    &profile_declarations
+                }
+            };
             definitions.extend(observations::closure(selected.iter().cloned(), |id| {
                 declarations.get(id).map(Vec::as_slice)
             }));

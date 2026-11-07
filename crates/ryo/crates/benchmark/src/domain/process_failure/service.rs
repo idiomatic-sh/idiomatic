@@ -35,7 +35,7 @@ fn parts(values: &[OutputPart]) -> Fragment {
                         Fragment::from(constants::INPUT_PATH),
                     ),
                     (
-                        Label::from(constants::FILE),
+                        Label::from(crate::domain::canonical_text::constants::FILE),
                         Fragment::from(&*file.to_string_lossy()),
                     ),
                     (

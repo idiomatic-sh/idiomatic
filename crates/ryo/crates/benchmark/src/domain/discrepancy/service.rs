@@ -58,7 +58,7 @@ pub(crate) fn output_digest(report: &RunReport) -> ArtifactDigest {
                     Fragment::Text(Label::from(row.rule.as_ref())),
                 ),
                 (
-                    Label::from(constants::FILE),
+                    Label::from(crate::domain::canonical_text::constants::FILE),
                     Fragment::Text(Label::from(row.file.0.as_ref())),
                 ),
                 (Label::from(constants::START), offset(&row.start)),

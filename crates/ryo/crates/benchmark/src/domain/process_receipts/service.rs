@@ -6,16 +6,20 @@ use crate::domain::invocation_identity::{
     types::{Boundaries, InvocationText},
 };
 use crate::domain::process_failure::service::{group_digest, output_digest};
-use crate::outbound::inventory::types::{
-    ArgumentText, CompleteInvocation, EnvironmentName, EnvironmentValue, InvocationDocument, Pin,
-    Signal,
-    case_document::{CaseDocument, Comparison},
-};
+use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{ArgumentText, CompleteInvocation, EnvironmentName, EnvironmentValue, InvocationDocument};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
+use ryo_benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
+use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::documents::types::{
-    observation_document::{ExitStatus, ObservationDocument},
-    reference_discrepancy::{ArtifactPointer, ExpectationKind},
-    text::{PathText, Sha256Text, YesNo},
+use ryo_benchmark_contracts::domain::documents::types::text::value::{ExitStatus, FileMetadataDigest, PathText, Sha256Text, YesNo};
+use ryo_benchmark_contracts::domain::documents::types::case_document::value::CaseReference;
+use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+    IntentMatch, ObservationDocument, ProcessArtifactsRecord, ProcessRecord, RecordedMetadata, RecordedReason,
+    ReferenceProcess, ReportedFindings, ReportedSkips, RequestRoot, ValidationRecord,
+};
+use ryo_benchmark_contracts::domain::reports::types::CoverageAccounting;
+use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{
+    ArtifactPointer, DiscrepancyRecord, DiscrepancyValidation, ExpectationKind, ProcessExpectation,
 };
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::process::types::ProcessFailure;
@@ -38,8 +42,35 @@ fn raw<'a>(
     Ok(bytes)
 }
 
-fn pin(value: Option<&Sha256Text>) -> Pin {
-    value.map_or(Pin::Absent, |digest| Pin::Sha256(digest.clone()))
+fn pin(value: &FileMetadataDigest) -> Pin {
+    match value {
+        FileMetadataDigest::Declared(digest) => Pin::Sha256(digest.clone()),
+        FileMetadataDigest::Undeclared => Pin::Absent,
+    }
+}
+
+/// The documented discrepancy a case registers, when it differs from the reference.
+fn differing(case: &CaseDocument) -> Option<&DiscrepancyRecord> {
+    match &case.reference_discrepancy {
+        CaseReference::Differs(record) => Some(record),
+        CaseReference::Agrees => None,
+    }
+}
+
+/// The process a reference side was observed to run instead of reporting.
+fn observed(reference: &ObservationDocument) -> Option<&ProcessRecord> {
+    match &reference.process_observation {
+        ReferenceProcess::Observed(record) => Some(record),
+        ReferenceProcess::NotObserved => None,
+    }
+}
+
+/// The validation a reference side attests.
+fn attested(reference: &ObservationDocument) -> Option<&DiscrepancyValidation> {
+    match &reference.discrepancy_validation {
+        ValidationRecord::Attested(proof) => Some(proof),
+        ValidationRecord::Unattested => None,
+    }
 }
 
 /// The reference side is the explicit process variant, terminated exactly as registered.
@@ -49,33 +80,31 @@ fn require_reference_variant(
     process: &ProcessFailure,
     executable: &ArtifactDigest,
 ) -> Result<(), Failure> {
-    let (Some(certificate), Some(captured), Some(proof)) = (
-        case.reference_discrepancy.as_ref(),
-        reference.process_observation.as_ref(),
-        reference.discrepancy_validation.as_ref(),
-    ) else {
+    let (Some(certificate), Some(captured), Some(proof)) =
+        (differing(case), observed(reference), attested(reference))
+    else {
         return Err(Failure::ReferenceVariantDiffers);
     };
     let identity = &certificate.identity;
     let pinned = Sha256Text(executable.0.clone());
     let template = Sha256Text(output_digest(process).0);
     let group = Sha256Text(group_digest(process, executable)?.0);
-    if case.comparison != Comparison::Full
+    if case.comparison != CaseComparison::Full
         || proof.reference_expectation_kind != ExpectationKind::ProcessFailure
         || captured.kind != ExpectationKind::ProcessFailure
-        || captured.metadata_error.is_some()
+        || captured.metadata_error != RecordedReason::Absent
         || captured.observer_no_deadline != YesNo::Yes
         || captured.exit != ExitStatus(i64::from(process.exit.0))
-        || captured.signal.is_some()
-        || captured.executable_sha256.as_ref() != Some(&pinned)
-        || captured.settings_sha256.as_ref() != Some(&identity.settings)
-        || captured.template_sha256.as_ref() != Some(&template)
-        || proof.process_observation_group_sha256.as_ref() != Some(&group)
-        || reference.diagnostics.is_some()
-        || reference.skipped.is_some()
-        || reference.coverage.is_some()
-        || reference.execution_metadata.is_some()
-        || reference.raw_parity_matches_intended != Some(YesNo::No)
+        || captured.signal != Signal::Absent
+        || captured.executable_sha256 != Pin::Sha256(pinned)
+        || captured.settings_sha256 != Pin::Sha256(identity.settings.clone())
+        || captured.template_sha256 != Pin::Sha256(template)
+        || proof.process_observation_group_sha256 != Pin::Sha256(group)
+        || reference.diagnostics != ReportedFindings::Unreported
+        || reference.skipped != ReportedSkips::Unreported
+        || reference.coverage != CoverageAccounting::Unaccounted
+        || reference.execution_metadata != RecordedMetadata::Unrecorded
+        || reference.raw_parity_matches_intended != IntentMatch::Matched(YesNo::No)
     {
         return Err(Failure::ReferenceVariantDiffers);
     }
@@ -90,14 +119,11 @@ fn require_invocation(
     root: &PathText,
     executable: &ArtifactDigest,
 ) -> Result<(), Failure> {
-    let (Some(certificate), Some(captured)) = (
-        case.reference_discrepancy.as_ref(),
-        reference.process_observation.as_ref(),
-    ) else {
+    let (Some(certificate), Some(captured)) = (differing(case), observed(reference)) else {
         return Err(Failure::ReferenceVariantDiffers);
     };
     let identity = &certificate.identity;
-    if invocation.file_metadata_sha256 != pin(case.file_metadata_sha256.as_ref()) {
+    if invocation.file_metadata_sha256 != pin(&case.file_metadata_sha256) {
         return Err(Failure::InvocationFileMetadataDiffers);
     }
     if invocation.tool != identity.tool {
@@ -138,9 +164,7 @@ fn require_invocation(
 
 /// Raw argv, environment and directory establish the pinned settings again, without trusting precomputed digests.
 fn require_settings(case: &CaseDocument, invocation: &CompleteInvocation) -> Result<(), Failure> {
-    let identity = case
-        .reference_discrepancy
-        .as_ref()
+    let identity = differing(case)
         .map(|certificate| &certificate.identity)
         .ok_or(Failure::ReferenceVariantDiffers)?;
     let pinned = Sha256Text(
@@ -192,22 +216,17 @@ pub(crate) fn validate(
     artifacts: &BTreeMap<PathBuf, CapturedBytes>,
     invocations: &BTreeMap<PathBuf, InvocationDocument>,
 ) -> Result<(), Failure> {
-    let process = case
-        .reference_discrepancy
-        .as_ref()
-        .and_then(|certificate| certificate.process.clone())
-        .ok_or(Failure::ProcessRegistrationMissing)?;
-    let (Some(captured), Some(proof)) = (
-        reference.process_observation.as_ref(),
-        reference.discrepancy_validation.as_ref(),
-    ) else {
+    let Some(ProcessExpectation::Failure(process)) = differing(case).map(|certificate| &certificate.process)
+    else {
+        return Err(Failure::ProcessRegistrationMissing);
+    };
+    let process = process.clone();
+    let (Some(captured), Some(proof)) = (observed(reference), attested(reference)) else {
         return Err(Failure::ReferenceVariantDiffers);
     };
     let executable = ArtifactDigest(proof.actual_executable_sha256.0.clone());
     require_reference_variant(case, reference, &process, &executable)?;
-    let identity = &case
-        .reference_discrepancy
-        .as_ref()
+    let identity = &differing(case)
         .ok_or(Failure::ReferenceVariantDiffers)?
         .identity;
     if identity.file_metadata != case.file_metadata_sha256
@@ -215,10 +234,9 @@ pub(crate) fn validate(
     {
         return Err(Failure::FileMetadataIdentityDiffers);
     }
-    let root = reference
-        .actual_request_root
-        .as_ref()
-        .ok_or(Failure::RequestRootMissing)?;
+    let RequestRoot::Written(root) = &reference.actual_request_root else {
+        return Err(Failure::RequestRootMissing);
+    };
     if captured.actual_request_root != *root {
         return Err(Failure::ObservationRootDiffers);
     }
@@ -248,10 +266,9 @@ pub(crate) fn validate(
             ),
         },
     );
-    let pointers = captured
-        .artifacts
-        .as_ref()
-        .ok_or(Failure::MissingRawProcessPath)?;
+    let ProcessArtifactsRecord::Attached(pointers) = &captured.artifacts else {
+        return Err(Failure::MissingRawProcessPath);
+    };
     for pointer in [&pointers.stdout, &pointers.stderr, &pointers.invocation] {
         if Path::new(&pointer.path.0)
             .components()

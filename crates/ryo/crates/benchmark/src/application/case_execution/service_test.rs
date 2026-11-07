@@ -80,14 +80,20 @@ impl LinterPort for ObservedPrepare {
     }
 }
 #[cfg(unix)]
-fn metadata_drift_blocks_each_attempt() {
+fn set_mode(path: &std::path::Path, mode: u32) {
     use std::os::unix::fs::PermissionsExt as _;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).unwrap();
+}
+#[cfg(not(unix))]
+fn set_mode(_path: &std::path::Path, _mode: u32) {}
+#[cfg(unix)]
+fn metadata_drift_blocks_each_attempt() {
     for expected in [false, true] {
         let root = tempfile::tempdir().unwrap();
         let path = root.path().join("input.txt");
         std::fs::write(&path, b"same bytes").unwrap();
         let mode = if expected { 0o744 } else { 0o644 };
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(mode)).unwrap();
+        set_mode(&path, mode);
         let file = ryo::linter::RelativePath("input.txt".into());
         let case = PreparedCase {
             comparison: CaseComparison::Full,
@@ -138,11 +144,7 @@ fn metadata_drift_blocks_each_attempt() {
                 .contains("preparation reached")
         );
         assert_eq!(reference.0.get(), 1);
-        std::fs::set_permissions(
-            &path,
-            std::fs::Permissions::from_mode(if expected { 0o644 } else { 0o744 }),
-        )
-        .unwrap();
+        set_mode(&path, if expected { 0o644 } else { 0o744 });
         let candidate = ObservedPrepare(Cell::new(0));
         assert!(
             candidate(
@@ -155,7 +157,7 @@ fn metadata_drift_blocks_each_attempt() {
             .is_err()
         );
         assert_eq!(candidate.0.get(), 0);
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(mode)).unwrap();
+        set_mode(&path, mode);
         assert!(
             candidate(
                 &crate::outbound::suite::factory::local(),

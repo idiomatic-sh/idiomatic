@@ -1,11 +1,17 @@
 //! Two unrelated providers exercise the same inventory behavior and native receipt contract.
 use super::constants;
 use super::service::verify;
+use crate::domain::suite::types::inventory::value::InventoryVerdict;
 use crate::domain::discrepancy::types::Contestant;
 use crate::outbound::{
     execution::interface::ExecutionPort,
-    inventory::types::{Registration, CASE_RECEIPTS_ARGUMENT},
+    inventory::types::{
+        ProviderName, RegisteredModuleName, Registration, RuleCommand, RuleDefinition,
+        RuleInstance, RuleReason,
+    },
 };
+use ryo_benchmark_contracts::domain::documents::types::text::value::{CanonicalJson, RuleName, Sha256Text};
+use ryo_benchmark_contracts::domain::receipts::constants::{CASE_RECEIPTS_ARGUMENT, VERIFY_CASES};
 use ryo_benchmark_contracts::domain::measurements::types::{Invocation, TerminationSignal};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::collections::BTreeMap;
@@ -47,7 +53,7 @@ impl ExecutionPort for ToyExecution {
     }
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
         assert_eq!(invocation.executable, self.worker);
-        assert_eq!(invocation.arguments[0], constants::VERIFY_CASES);
+        assert_eq!(invocation.arguments[0], VERIFY_CASES);
         assert_eq!(invocation.arguments[1], self.reference.as_os_str());
         assert_eq!(invocation.directory.as_os_str(), invocation.arguments[2]);
         assert!(invocation.environment.is_empty());
@@ -125,20 +131,20 @@ fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
             )
             .unwrap();
             let pin = FilePin {
-                sha256: digest(&definition),
+                sha256: Sha256Text(digest(&definition)),
                 path: definition.clone(),
             };
             RegisteredRule {
-                definition: Some(pin),
-                modules: BTreeMap::new(),
+                definition: RuleDefinition::Pinned(pin),
+                modules: BTreeMap::<RegisteredModuleName, FilePin>::new(),
                 artifacts: BTreeMap::from([
-                    (definition.clone(), digest(&definition)),
-                    (evidence.clone(), digest(&evidence)),
-                    (context_profile.clone(), digest(&context_profile)),
+                    (definition.clone(), Sha256Text(digest(&definition))),
+                    (evidence.clone(), Sha256Text(digest(&evidence))),
+                    (context_profile.clone(), Sha256Text(digest(&context_profile))),
                 ]),
-                rule_id: rule.clone(),
-                reason: None,
-                command: Some(Command::CaseVerification {
+                rule_id: RuleName(rule.clone()),
+                reason: RuleReason::Unstated,
+                command: RuleCommand::Registered(Command::CaseVerification {
                     context: directory.clone(),
                 }),
                 cases: vec![
@@ -147,7 +153,9 @@ fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
                         "independent-case",
                     ),
                 ],
-                instance: Some(json!({"input-pin": "immutable-provider-bytes"})),
+                instance: RuleInstance::Declared(CanonicalJson(
+                    json!({"input-pin": "immutable-provider-bytes"}).to_string(),
+                )),
             }
         })
         .collect();
@@ -155,18 +163,18 @@ fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
         Registration {
             authority: RegistrationAuthority::Execution {
                 profile: context.path().to_owned(),
-                profile_sha256: digest(&profile),
+                profile_sha256: Sha256Text(digest(&profile)),
                 reference: ExecutablePin {
                     path: reference,
-                    sha256: reference_sha,
+                    sha256: Sha256Text(reference_sha),
                 },
                 worker: ExecutablePin {
                     path: worker,
-                    sha256: worker_sha,
+                    sha256: Sha256Text(worker_sha),
                 },
             },
-            provider: name.into(),
-            defaults,
+            provider: ProviderName(name.into()),
+            defaults: defaults.into_iter().map(RuleName).collect(),
             rules,
             identity: BTreeMap::new(),
         },
@@ -185,7 +193,7 @@ enum Scenario {
 }
 
 type Input = Scenario;
-type Value = bool;
+type Value = InventoryVerdict;
 type Failure = Cow<'static, str>;
 
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -193,13 +201,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("independent providers keep missing and failed rules and continue"),
         word: Word::Succeeds,
         input: || Scenario::IndependentProviders,
-        expect: Expect::Value(false),
+        expect: Expect::Value(InventoryVerdict::Failed),
     },
     Case {
         name: CaseName("undeclared module pins fail every rule before each native invocation"),
         word: Word::Succeeds,
         input: || Scenario::UndeclaredModules,
-        expect: Expect::Value(false),
+        expect: Expect::Value(InventoryVerdict::Failed),
     },
     Case {
         name: CaseName("an unknown registered rule never changes the inventory cardinality"),
@@ -215,8 +223,8 @@ fn summary_of(root: &std::path::Path) -> serde_json::Value {
     serde_json::from_slice(&std::fs::read(root.join("summary.json")).unwrap()).unwrap()
 }
 
-fn independent_providers() -> Result<bool, Error> {
-    let mut verified = false;
+fn independent_providers() -> Result<InventoryVerdict, Error> {
+    let mut verified = InventoryVerdict::Failed;
     for (name, middle) in [("toy-syntax", "bad"), ("toy-style", "empty")] {
         let root = tempfile::tempdir().unwrap();
         let (registration, _context) = provider(name, middle);
@@ -224,6 +232,10 @@ fn independent_providers() -> Result<bool, Error> {
         verified = verify(
             &registration,
             root.path(),
+            &crate::outbound::suite::factory::local(),
+            &crate::outbound::receipts::factory::local(
+                crate::outbound::receipts::types::CaseReceipts::Unrecorded,
+            ),
             &execution,
             &crate::outbound::inventory::factory::local(),
         )?;
@@ -237,21 +249,25 @@ fn independent_providers() -> Result<bool, Error> {
             *execution.calls.lock().unwrap(),
             [middle.to_string(), "good".into()]
         );
-        if verified {
+        if verified == InventoryVerdict::Passed {
             return Ok(verified);
         }
     }
     Ok(verified)
 }
 
-fn unknown_rule() -> Result<bool, Error> {
+fn unknown_rule() -> Result<InventoryVerdict, Error> {
     let root = tempfile::tempdir().unwrap();
     let (mut registration, _context) = provider("third-provider", "bad");
-    registration.rules[0].rule_id = "not-a-pinned-rule".into();
+    registration.rules[0].rule_id = RuleName("not-a-pinned-rule".into());
     let execution = ToyExecution::for_registration(&registration);
     let answer = verify(
         &registration,
         root.path(),
+        &crate::outbound::suite::factory::local(),
+        &crate::outbound::receipts::factory::local(
+            crate::outbound::receipts::types::CaseReceipts::Unrecorded,
+        ),
         &execution,
         &crate::outbound::inventory::factory::local(),
     );
@@ -261,11 +277,13 @@ fn unknown_rule() -> Result<bool, Error> {
     answer
 }
 
-fn undeclared_modules() -> Result<bool, Error> {
+fn undeclared_modules() -> Result<InventoryVerdict, Error> {
     use sha2::Digest as _;
     let (mut registration, _context) = provider("module-provider", "bad");
     for entry in &mut registration.rules {
-        let Command::CaseVerification { context } = entry.command.as_ref().unwrap();
+        let RuleCommand::Registered(Command::CaseVerification { context }) = &entry.command else {
+            panic!("fixture rules are registered");
+        };
         let helper = context.join("helper.ryoql");
         std::fs::write(&helper, "declared helper").unwrap();
         let profile = context.join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
@@ -274,7 +292,7 @@ fn undeclared_modules() -> Result<bool, Error> {
         std::fs::write(&profile, content).unwrap();
         for path in [profile, helper] {
             let digest = format!("{:x}", sha2::Sha256::digest(std::fs::read(&path).unwrap()));
-            entry.artifacts.insert(path, digest);
+            entry.artifacts.insert(path, Sha256Text(digest));
         }
         assert!(entry.modules.is_empty()); // The omission under test; all actual bytes stay pinned.
     }
@@ -283,6 +301,10 @@ fn undeclared_modules() -> Result<bool, Error> {
     let answer = verify(
         &registration,
         output.path(),
+        &crate::outbound::suite::factory::local(),
+        &crate::outbound::receipts::factory::local(
+            crate::outbound::receipts::types::CaseReceipts::Unrecorded,
+        ),
         &execution,
         &crate::outbound::inventory::factory::local(),
     );
