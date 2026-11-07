@@ -306,9 +306,7 @@ impl From<&Rule> for RuleSpec {
                 })
                 .collect(),
             observations: rule.observations.clone(),
-            spelled: RuleParameters(
-                format!("{:?}|{:?}", rule.parameters, rule.applicability).into(),
-            ),
+            spelled: RuleParameters(format!("{:?}", rule.parameters).into()),
             include: rule.include.clone(),
             exclude: rule.exclude.clone(),
         }

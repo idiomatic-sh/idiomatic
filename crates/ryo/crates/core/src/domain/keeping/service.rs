@@ -199,6 +199,10 @@ pub(crate) fn configuration_bytes(configuration: &Configuration<'_>) -> DigestIn
             put(&mut out, DigestPart(&source.text));
         }
         put(&mut out, DigestPart(&rule.spelled.0));
+        out.0.push(match rule.applicability {
+            ryo_values::domain::runs::types::RuleApplicability::Always => 0,
+            ryo_values::domain::runs::types::RuleApplicability::AcceptedSyntax => 1,
+        });
         // Ordinary rules retain their historical bytes; declared dependency contracts
         // carry a versioned frame including producer IDs, output names and schema.
         out.0.extend_from_slice(
