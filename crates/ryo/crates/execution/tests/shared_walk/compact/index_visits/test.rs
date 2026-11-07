@@ -5,7 +5,7 @@ use ryo_execution::inbound::use_cases::execution::interface::*;
 use ryo_execution::inbound::use_cases::execution::types::*;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::service::kinds;
+use ryo_relations::domain::relations::fixtures::kinds;
 use ryo_relations::domain::relations::types::*;
 use ryo_values::domain::plan_parts::types::*;
 use ryo_values::domain::plans::types::*;

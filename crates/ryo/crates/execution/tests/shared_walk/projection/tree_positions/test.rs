@@ -6,7 +6,7 @@ use ryo_execution::inbound::use_cases::execution::interface::{
     ExecutionRequest, ExecutionUseCase, FileExecution,
 };
 use ryo_execution::inbound::use_cases::execution::types::*;
-use ryo_relations::domain::relations::service::node_id;
+use ryo_relations::domain::relations::fixtures::node_id;
 use ryo_relations::domain::relations::types::{FileId, Position, Relation, Value};
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, StepId, Test};

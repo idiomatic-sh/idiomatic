@@ -6,7 +6,7 @@ use ryo_execution::inbound::use_cases::execution::interface::{
     ExecutionRequest, ExecutionUseCase, FileExecution,
 };
 use ryo_execution::inbound::use_cases::execution::types::*;
-use ryo_relations::domain::relations::service::kinds;
+use ryo_relations::domain::relations::fixtures::kinds;
 use ryo_relations::domain::relations::types::{FileId, Relation};
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, StepId, Test};
@@ -136,7 +136,7 @@ fn shared_walk_uses_the_same_join_dependency_contract_for_callback_delivery() {
 fn independent_semantic_relation_selectors_share_one_source_walk() {
     use crate::boundary_fixture::named_functions;
     use ryo_relations::domain::relations::{
-        service::node_id,
+        fixtures::node_id,
         types::{CellKind, Position, Value},
     };
     let (engine, semantics) = engine();

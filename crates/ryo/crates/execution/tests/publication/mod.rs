@@ -213,13 +213,13 @@ mod axis;
 #[test]
 fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
     use ryo_language::domain::symbols::{
-        service::{hash_in, intern},
+        fixtures::{hash_in, intern},
         types::ByteSlice,
     };
     use ryo_relations::domain::relations::types::{Origin, Words, WorkerNumber};
     use ryo_values::domain::{
         plan_parts::types::RepeatedRows, stored_facts::types::Bucket,
-        table_words::service::decode_complete,
+        table_words::fixtures::decode_complete,
     };
     for representation in [
         "symbol",
@@ -248,7 +248,7 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
         let request = engine.begin(&program, &corpus);
         let mut symbols = Symbols::default();
         let symbol = if representation == "cross_name" {
-            ryo_language::domain::symbols::service::intern_derived(
+            ryo_language::domain::symbols::fixtures::intern_derived(
                 &mut symbols,
                 ByteSlice(b"abc"),
                 ryo_relations::domain::terms::types::NameText("abc"),
@@ -261,7 +261,7 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
         table.cells[1] = match representation {
             "source_name" | "inherited" | "missing_range" | "wrong_hash" | "other_worker"
             | "valid_then_missing" => {
-                ryo_language::domain::symbols::service::places_mut(&mut symbols).push(
+                ryo_language::domain::symbols::fixtures::places_mut(&mut symbols).push(
                     ryo_relations::domain::relations::types::NamePlace {
                         origin: match representation {
                             "source_name" | "valid_then_missing" => Origin::Source,
@@ -285,7 +285,7 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
                 ),
             }),
             "cross_name" => Value::Name(
-                ryo_language::domain::symbols::service::name_made_across(&symbols, symbol)
+                ryo_language::domain::symbols::fixtures::name_made_across(&symbols, symbol)
                     .expect("derived producer name"),
             ),
             _ => Value::Symbol(symbol),

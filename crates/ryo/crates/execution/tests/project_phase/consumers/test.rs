@@ -11,7 +11,7 @@ use ryo_values::domain::{
     },
     stored_facts::types::{ArenaBytes, Digest, KeptWords},
     table_words::{
-        service::{encode_table, pack},
+        fixtures::{encode_table, pack},
         types::WordSlice,
     },
 };

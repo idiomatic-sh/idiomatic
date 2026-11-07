@@ -3,7 +3,7 @@ use ryo_execution::inbound::use_cases::execution::{
 };
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::{
-    service::kinds,
+    fixtures::kinds,
     types::{CellKind, Relation},
 };
 use ryo_values::domain::{

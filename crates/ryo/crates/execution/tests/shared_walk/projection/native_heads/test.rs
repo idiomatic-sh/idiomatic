@@ -6,8 +6,8 @@ use ryo_execution::inbound::use_cases::execution::interface::{
     ExecutionRequest, ExecutionUseCase, FileExecution,
 };
 use ryo_execution::inbound::use_cases::execution::types::*;
-use ryo_language::domain::elements::service::text_at;
-use ryo_relations::domain::relations::service::node_id;
+use ryo_language::domain::elements::fixtures::text_at;
+use ryo_relations::domain::relations::fixtures::node_id;
 use ryo_relations::domain::relations::types::{
     CellKind, FileId, Offset, Position, Relation, Span, Value,
 };

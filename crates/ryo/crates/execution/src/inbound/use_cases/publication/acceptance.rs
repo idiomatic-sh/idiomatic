@@ -5,7 +5,7 @@ use ryo_execution::inbound::use_cases::publication::{
     interface::PublicationUseCase, types::PublicationInput, use_case::PublicationUseCaseImpl,
 };
 use ryo_language::domain::symbols::{
-    service::intern_derived,
+    fixtures::intern_derived,
     types::{ByteSlice, Symbols},
 };
 use ryo_relations::domain::{

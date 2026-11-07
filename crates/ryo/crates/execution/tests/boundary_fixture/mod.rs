@@ -6,7 +6,7 @@ use ryo_execution::inbound::use_cases::execution::{
 };
 use ryo_language::{domain::files::types::FilePath, domain::symbols::types::Symbols};
 use ryo_relations::domain::relations::{
-    service::{kinds, node_id},
+    fixtures::{kinds, node_id},
     types::{CellKind, FileId, Flag, Integer, Offset, Position, Relation, Span, Value},
 };
 use ryo_values::domain::{
@@ -126,7 +126,7 @@ pub(crate) fn demand() -> RuleDemand {
 
 /// Canonical Function rows for two matching declarations and one other declaration.
 pub(crate) fn named_functions(symbols: &mut Symbols) -> Table {
-    use ryo_language::domain::symbols::{service::intern, types::ByteSlice};
+    use ryo_language::domain::symbols::{fixtures::intern, types::ByteSlice};
     let main = intern(symbols, ByteSlice(b"mainother"), Offset(0), Offset(4));
     let other = intern(symbols, ByteSlice(b"mainother"), Offset(4), Offset(9));
     let mut table = source();

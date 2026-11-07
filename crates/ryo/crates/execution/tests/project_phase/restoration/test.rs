@@ -35,7 +35,7 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
                 match cell {
                     Value::File(actual) => *actual = file_id,
                     Value::Node(actual) => {
-                        *actual = ryo_relations::domain::relations::service::node_id(
+                        *actual = ryo_relations::domain::relations::fixtures::node_id(
                             file_id,
                             ryo_relations::domain::relations::types::Position(2),
                         )

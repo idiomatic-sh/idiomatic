@@ -319,7 +319,7 @@ fn diagnostic_disabled_observation_producer_runs_and_captures_only_named_frontie
 
 #[test]
 fn file_start_refusal_preserves_unknown_readiness_without_a_skip_proof() {
-    use ryo_values::domain::observations::service::{frontier_state, validate_frontiers};
+    use ryo_values::domain::observations::fixtures::{frontier_state, validate_frontiers};
     use ryo_values::domain::records::types::{ObservationReadinessSlot, ProducerReadiness};
     let engine = engine();
     let program = engine.prepare(named_request()).unwrap();
