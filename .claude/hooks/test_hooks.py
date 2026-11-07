@@ -54,6 +54,18 @@ class GuardShell(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertEqual(shell(command, self.builder), 2)
 
+    def test_cargo_words_inside_quoted_arguments_are_not_commands(self):
+        for command in ["bd update ryo-1 --append-notes 'the cargo check JSON; cargo test output'",
+                        'git commit -m "run cargo test; then cargo build"', "echo cargo build", "grep 'cargo clippy' log"]:
+            with self.subTest(command=command):
+                self.assertEqual(shell(command, self.builder), 0)
+
+    def test_cargo_after_a_separator_is_blocked(self):
+        for command in ["x; cargo test", "x && cargo build", "x | cargo run", "(cargo check)", "echo $(cargo doc)",
+                        "x\ncargo bench", "bash -c 'x; cargo test'", LOCK + "cargo clippy"]:
+            with self.subTest(command=command):
+                self.assertEqual(shell(command, self.builder), 2)
+
     def test_hidden_cargo_is_allowed_in_an_integration_tree(self):
         self.assertEqual(shell(LOCK + 'bash -c "cargo test"', self.integration), 0)
 
