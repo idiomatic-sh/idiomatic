@@ -104,7 +104,9 @@ fn subject(input: Input) -> Result<(), Failure> {
     let rows = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
     let proof = owner.admit(publication.as_ref(), BorrowedRows::from(&rows))?;
     let request = match input {
-        Input::UnpermittedRaw => ViewRequest::RawKeyOrder { stride: 1 },
+        Input::UnpermittedRaw => ViewRequest::RawKeyOrder {
+            stride: crate::domain::positions::types::Stride(1),
+        },
         Input::UnprovedDense => ViewRequest::Membership {
             column: ColumnIndex(0),
         },

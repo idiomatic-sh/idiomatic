@@ -12,7 +12,7 @@ pub(in crate::application::file_dag) fn view(
     use ryo_derived::domain::contract::types::ViewRequest as SemanticRequest;
     let mut needed = crate::domain::table_cells::types::ColumnPlaces::default();
     let meaning = match request {
-        ViewRequest::RawKeyOrder { stride } => SemanticRequest::RawKeyOrder { stride: *stride },
+        ViewRequest::RawKeyOrder { stride } => SemanticRequest::RawKeyOrder { stride: stride.0 },
         ViewRequest::Equality { columns } => SemanticRequest::Equality {
             columns: columns.clone(),
         },
@@ -114,7 +114,7 @@ pub(in crate::application::file_dag) fn view(
     };
     use std::hash::{Hash, Hasher};
     let mut identity = std::collections::hash_map::DefaultHasher::new();
-    let kind = request.kind();
+    let kind = crate::domain::derived_views::service::kind_of(&request);
     kind.hash(&mut identity);
     let schemas = schemas
         .iter()
@@ -123,6 +123,7 @@ pub(in crate::application::file_dag) fn view(
     schemas.hash(&mut identity);
     identity::hash_request(&request, &mut identity);
     Ok(DerivedContract::issue(
+        kind,
         identity.finish(),
         prepared,
         request,

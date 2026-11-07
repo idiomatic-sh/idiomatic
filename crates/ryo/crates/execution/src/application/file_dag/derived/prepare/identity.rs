@@ -49,7 +49,7 @@ pub(super) fn hash_request<H: std::hash::Hasher>(request: &ViewRequest, state: &
     }
     std::mem::discriminant(request).hash(state);
     match request {
-        ViewRequest::RawKeyOrder { stride } => stride.hash(state),
+        ViewRequest::RawKeyOrder { stride } => stride.0.hash(state),
         ViewRequest::Equality { columns } | ViewRequest::DistinctRepresentatives { columns } => {
             columns.hash(state)
         }

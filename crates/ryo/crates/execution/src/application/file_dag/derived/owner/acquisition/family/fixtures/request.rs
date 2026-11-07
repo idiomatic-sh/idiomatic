@@ -68,7 +68,9 @@ pub(super) fn request(kind: DerivedKind) -> ViewRequest {
             right_on: vec![zero],
             view: vec![zero],
         },
-        DerivedKind::RawKeyOrder => ViewRequest::RawKeyOrder { stride: 1 },
+        DerivedKind::RawKeyOrder => ViewRequest::RawKeyOrder {
+            stride: crate::domain::positions::types::Stride(1),
+        },
     }
 }
 pub(super) fn observed(view: &AcquiredView) -> Result<DerivedKind, OperatingError> {

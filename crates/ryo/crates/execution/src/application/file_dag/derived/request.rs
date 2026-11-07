@@ -254,7 +254,7 @@ impl RequestViews {
                 break;
             }
         }
-        let at = slot(request.kind());
+        let at = slot(crate::domain::derived_views::service::kind_of(&request));
         if slots[at]
             .as_ref()
             .is_some_and(|group| group.secondary.is_some())

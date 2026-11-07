@@ -9,6 +9,8 @@ use ryo_values::domain::{
     stored_facts::types::ArenaBytes,
 };
 use std::sync::Arc;
+
+use crate::domain::positions::types::Stride;
 use {
     crate::domain::operator::contract::resources::DfsResources,
     crate::domain::operator::contract::views::BorrowedRows,
@@ -21,7 +23,7 @@ use {
 #[derive(Clone, Debug)]
 pub(crate) enum ViewRequest {
     RawKeyOrder {
-        stride: usize,
+        stride: Stride,
     },
     Equality {
         columns: Vec<ColumnIndex>,
@@ -65,25 +67,6 @@ pub(crate) enum ViewRequest {
         view: Vec<ColumnIndex>,
     },
 }
-impl ViewRequest {
-    pub(crate) fn kind(&self) -> DerivedKind {
-        match self {
-            ViewRequest::RawKeyOrder { .. } => DerivedKind::RawKeyOrder,
-            ViewRequest::Equality { .. } => DerivedKind::Equality,
-            ViewRequest::PredicateMatches(_) => DerivedKind::PredicateMatches,
-            ViewRequest::CandidatePostings { .. } => DerivedKind::CandidatePostings,
-            ViewRequest::DistinctRepresentatives { .. } => DerivedKind::DistinctRepresentatives,
-            ViewRequest::Adjacency { .. } => DerivedKind::Adjacency,
-            ViewRequest::Membership { .. } => DerivedKind::Membership,
-            ViewRequest::PartitionOrder { .. } => DerivedKind::PartitionOrder,
-            ViewRequest::ClosureAdjacency { .. } => DerivedKind::ClosureAdjacency,
-            ViewRequest::CycleAdjacency { .. } => DerivedKind::CycleAdjacency,
-            ViewRequest::OrderedKeys { .. } => DerivedKind::OrderedKeys,
-            ViewRequest::OrderedDfs(_) => DerivedKind::OrderedDfs,
-            ViewRequest::NativeLookup { .. } => DerivedKind::NativeLookup,
-        }
-    }
-}
 #[derive(Clone, Debug)]
 pub(crate) struct DerivedContract {
     /// Prepared once; equality still checks the complete semantic descriptor on collisions.
@@ -97,9 +80,10 @@ pub(crate) struct DerivedContract {
     pub needed: crate::domain::table_cells::types::ColumnPlaces,
 }
 impl DerivedContract {
-    /// The only constructor: kind and metadata follow from the request and the validated semantic
-    /// descriptor, so no caller can state a contract whose parts disagree.
+    /// The only constructor: metadata follows from the validated semantic descriptor, and the kind
+    /// is the one `service::kind_of` names for the request.
     pub(crate) fn issue(
+        kind: DerivedKind,
         identity_hash: u64,
         semantic: Arc<ryo_derived::domain::contract::types::PreparedDerived>,
         request: ViewRequest,
@@ -111,7 +95,7 @@ impl DerivedContract {
             .map_err(crate::domain::operator::contract::derived::portable_fault);
         Self {
             identity_hash,
-            kind: request.kind(),
+            kind,
             semantic,
             request,
             schemas,

@@ -46,7 +46,7 @@ impl RawScope {
         stride: crate::domain::positions::types::Stride,
         body: &mut dyn FnMut(&RawOrder) -> Result<(), OperatingError>,
     ) -> Result<(), OperatingError> {
-        let request = ViewRequest::RawKeyOrder { stride: stride.0 };
+        let request = ViewRequest::RawKeyOrder { stride };
         let plan = self
             .prepared
             .as_ref()
