@@ -2,7 +2,6 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::inventory::adapters::local::types::{RowJson, SummaryJson};
 use crate::outbound::inventory::fixtures::data::{row, summary};
-use crate::outbound::suite::{interface::SuitePort as _, types::ArtifactPath};
 
 /// Why a document was refused.
 #[derive(Debug, PartialEq, Eq)]
@@ -97,8 +96,11 @@ fn subject(input: Input) -> Result<Value, Failure> {
             let directory = tempfile::tempdir().expect("receipt directory");
             let receipt = directory.path().join("cases.jsonl");
             std::fs::write(&receipt, text).expect("receipt rows");
-            crate::outbound::suite::factory::local()
-            .case_observations(ArtifactPath(&receipt))
+            use crate::outbound::receipts::interface::ReceiptsPort as _;
+            crate::outbound::receipts::factory::local(
+                crate::outbound::receipts::types::CaseReceipts::Unrecorded,
+            )
+            .case_observations(crate::outbound::receipts::types::ReceiptPath(&receipt))
             .map(|rows| rows.len())
             .map_err(|error| named(&error.to_string()))
         }

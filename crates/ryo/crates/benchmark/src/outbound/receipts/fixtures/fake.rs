@@ -34,6 +34,13 @@ impl ReceiptsPort for ReceiptsFake {
         crate::outbound::receipts::factory::local(self.case_receipts.clone())
             .record_case(receipt, record, process)
     }
+
+    fn case_observations(
+        &self,
+        receipt: ReceiptPath<'_>,
+    ) -> Result<Vec<ObservationDocument>, ReceiptsError> {
+        crate::outbound::receipts::factory::local(self.case_receipts.clone()).case_observations(receipt)
+    }
 }
 
 #[cfg(test)]

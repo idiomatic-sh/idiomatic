@@ -19,4 +19,13 @@ pub trait ReceiptsPort {
         record: ObservationDocument,
         process: Option<CapturedProcess<'_>>,
     ) -> Result<(), ReceiptsError>;
+
+    /// Read every observation row of one receipt file.
+    ///
+    /// # Errors
+    /// Refuses unreadable receipts, malformed rows and fields the schema does not name.
+    fn case_observations(
+        &self,
+        receipt: ReceiptPath<'_>,
+    ) -> Result<Vec<ObservationDocument>, ReceiptsError>;
 }

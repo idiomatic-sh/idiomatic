@@ -118,3 +118,8 @@ pub(super) fn record(
     output.sync_data()?;
     Ok(())
 }
+
+/// Read every row of one receipt file; absence and malformed or unknown fields remain errors.
+pub(super) fn read(receipt: &Path) -> Result<Vec<ObservationDocument>, ReceiptsError> {
+    super::rows::schemas::rows(&std::fs::read_to_string(receipt)?)
+}

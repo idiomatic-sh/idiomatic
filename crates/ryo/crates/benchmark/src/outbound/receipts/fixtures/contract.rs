@@ -9,6 +9,8 @@ pub enum Operation {
     Destination,
     RecordTwice,
     UnsafeName,
+    ReadBack,
+    ReadMissing,
 }
 type Input = Operation;
 type Value = usize;
@@ -26,6 +28,18 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Operation::RecordTwice,
         expect: Expect::Value(2),
+    },
+    Case {
+        name: CaseName("a recorded row reads back as one observation"),
+        word: Word::Succeeds,
+        input: || Operation::ReadBack,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("a missing receipt is refused"),
+        word: Word::Refuses,
+        input: || Operation::ReadMissing,
+        expect: Expect::Error(()),
     },
     Case {
         name: CaseName("a receipt name that is not a plain file name is refused"),
@@ -52,6 +66,18 @@ pub fn check(adapter: &impl ReceiptsPort, destination: &CaseReceipts) {
                 .lines()
                 .count())
         }
+        Operation::ReadBack => {
+            let receipt = temporary.path().join("read.jsonl");
+            adapter
+                .record_case(ReceiptPath(&receipt), observation(), None)
+                .and_then(|()| adapter.case_observations(ReceiptPath(&receipt)))
+                .map(|rows| rows.len())
+                .map_err(|_refused| ())
+        }
+        Operation::ReadMissing => adapter
+            .case_observations(ReceiptPath(&temporary.path().join("missing.jsonl")))
+            .map(|rows| rows.len())
+            .map_err(|_refused| ()),
         Operation::UnsafeName => adapter
             .record_case(
                 ReceiptPath(&temporary.path().join("bad:name.jsonl")),

@@ -29,4 +29,11 @@ impl ReceiptsPort for ReceiptsLocalAdapter {
     ) -> Result<(), ReceiptsError> {
         writer::record(receipt, record, process)
     }
+
+    fn case_observations(
+        &self,
+        ReceiptPath(receipt): ReceiptPath<'_>,
+    ) -> Result<Vec<ObservationDocument>, ReceiptsError> {
+        writer::read(receipt)
+    }
 }
