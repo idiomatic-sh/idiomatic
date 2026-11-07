@@ -7,7 +7,7 @@ use super::{
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Direction, Input as PlanInput, StepId},
+    plan_parts::types::{ColumnIndex, Direction, Input as PlanInput, ObservationBindingId, StepId},
     plans::types::Operation,
 };
 use {
@@ -39,6 +39,7 @@ fn shape(columns: usize) -> LoweredShape {
 enum Scenario {
     Subset,
     Empty,
+    BoundDomain,
 }
 type Input = Scenario;
 type Value = (Option<(u32, u32)>, [u64; 3]);
@@ -56,6 +57,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::Empty,
         expect: Expect::Value((None, [1, 3, 0])),
+    },
+    // The control of this row is the first one: the same operation over a step domain answers.
+    Case {
+        name: CaseName("a_bound_observation_is_not_a_step_domain"),
+        word: Word::Refuses,
+        input: || Scenario::BoundDomain,
+        expect: Expect::Error(OperatingError::NotAStep),
     },
 ];
 
@@ -82,13 +90,16 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
         width: RowWidth(1),
         slots: Slots(match scenario {
             Scenario::Subset => vec![2],
-            Scenario::Empty => vec![],
+            Scenario::Empty | Scenario::BoundDomain => vec![],
         }),
     };
     let operation = Operation::Axis {
         from: PlanInput::Step(StepId(0)),
         edges: PlanInput::Relation(Relation::SyntaxChild),
-        domain: PlanInput::Step(StepId(2)),
+        domain: match scenario {
+            Scenario::Subset | Scenario::Empty => PlanInput::Step(StepId(2)),
+            Scenario::BoundDomain => PlanInput::BoundObservation(ObservationBindingId(0)),
+        },
         direction: Direction::Child,
         id: ColumnIndex(0),
         parent: ColumnIndex(0),
@@ -148,4 +159,9 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }
