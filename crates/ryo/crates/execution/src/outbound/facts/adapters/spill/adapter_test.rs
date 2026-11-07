@@ -34,7 +34,7 @@ type Failure = FactsError;
 /// value or error variant.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("the_words_kept_in_the_file_come_back_as_they_were_kept"),
+        name: CaseName("the_words_kept_in_the_file_come_back_once_into_a_buffer_of_their_length"),
         word: Word::Succeeds,
         input: || Scenario::WordsComeBack,
         expect: Expect::Value(1),
@@ -64,9 +64,13 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             worker.keep(Bucket(4), test_words(&words))?;
             worker.keep(Bucket(4), test_words(&PackedWords(vec![7, 8, 9])))?;
             let finished = adapter.finish(&mut vec![worker].into_iter())?;
-            let kept = finished.kept(Bucket(4))?.words.0.0;
+            let bucket = finished.kept(Bucket(4))?;
+            let kept = &bucket.words.0.0;
+            // One read into one buffer of exactly the bucket's length: no growth slack, no second concatenation.
             Ok(usize::from(
-                kept.len() == words.0.len() + 3 && kept.ends_with(&[7, 8, 9]),
+                kept.len() == words.0.len() + 3
+                    && kept.capacity() == kept.len()
+                    && kept.ends_with(&[7, 8, 9]),
             ))
         }
         Scenario::FewWordsStayInMemory => {

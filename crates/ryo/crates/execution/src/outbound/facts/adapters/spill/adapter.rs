@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use ryo_relations::domain::relations::service::{all, columns, kinds};
+use ryo_relations::domain::relations::service::{all, columns, kinds, number_of};
 use ryo_relations::domain::relations::types::Relation;
 
 use super::constants::{FILE, FLUSH_AT, MISSING};
@@ -17,7 +17,7 @@ use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::types::{BucketSource, ColumnsMut, KeptBucket, WordsToKeep};
 use crate::outbound::facts::interface::{FactsFinish, FactsPort, FactsWorker};
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
-use ryo_values::domain::stored_facts::types::Bucket;
+use ryo_values::domain::stored_facts::types::{Bucket, KeptWords, PackedWords};
 
 /// The spill facts adapter: the rows of each worker in memory, a file of the adapter's directory for its words.
 #[derive(Debug)]
@@ -172,13 +172,9 @@ impl FactsWorker for SpillWorker {
     }
 
     fn rows(&self, relation: Relation) -> Result<ColumnsView<'_>, FactsError> {
-        let place = all()
-            .iter()
-            .position(|each| *each == relation)
-            .ok_or_else(refused)?;
         Ok(ColumnsView {
             kinds: kinds(relation),
-            columns: self.tables.get(place).ok_or_else(refused)?,
+            columns: self.tables.get(number_of(relation).0).ok_or_else(refused)?,
         })
     }
 
@@ -241,48 +237,54 @@ struct SpillFinish {
 }
 
 impl FactsFinish for SpillFinish {
+    /// The bucket's words read once, into a buffer of exactly their length: the stretches are measured before anything is read.
     fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
-        let mut words = KeptBucket::default();
+        let length = self
+            .spilled
+            .iter()
+            .filter_map(|spill| spill.stretches.get(&bucket))
+            .flatten()
+            .map(|stretch| usize::try_from(stretch.length.0).unwrap_or(usize::MAX))
+            .fold(0_usize, usize::saturating_add);
+        let mut words = Vec::with_capacity(length);
+        let mut sources = Vec::new();
         for spill in &self.spilled {
             let Some(stretches) = spill.stretches.get(&bucket) else {
                 continue;
             };
+            sources.reserve(stretches.len());
             for stretch in stretches {
                 let length = usize::try_from(stretch.length.0).unwrap_or(usize::MAX);
+                let start = words.len();
                 match &spill.file {
                     SpillFile::Open(file) => {
-                        let start = words.words.0.0.len();
-                        words.words.0.0.resize(start.saturating_add(length), 0);
-                        let room = words.words.0.0.get_mut(start..).ok_or_else(refused)?;
+                        words.resize(start.saturating_add(length), 0);
+                        let room = words.get_mut(start..).ok_or_else(refused)?;
                         read_exact_at(file, RoomToFill(room), stretch.offset)
                             .map_err(|error| spilled(&error))?;
-                        words.sources.push(BucketSource {
-                            file: stretch.file,
-                            start: crate::outbound::facts::types::KeptWordsStart(start),
-                            length: crate::outbound::facts::types::KeptWordsLength(length),
-                            proof: stretch.proof.clone(),
-                        });
                     }
                     SpillFile::Missing => {
-                        let start = usize::try_from(stretch.offset.0).unwrap_or(usize::MAX);
+                        let at = usize::try_from(stretch.offset.0).unwrap_or(usize::MAX);
                         let held = spill
                             .pending
                             .0
-                            .get(start..start.saturating_add(length))
+                            .get(at..at.saturating_add(length))
                             .ok_or_else(refused)?;
-                        let start = words.words.0.0.len();
-                        words.words.0.0.extend_from_slice(held);
-                        words.sources.push(BucketSource {
-                            file: stretch.file,
-                            start: crate::outbound::facts::types::KeptWordsStart(start),
-                            length: crate::outbound::facts::types::KeptWordsLength(length),
-                            proof: stretch.proof.clone(),
-                        });
+                        words.extend_from_slice(held);
                     }
                 }
+                sources.push(BucketSource {
+                    file: stretch.file,
+                    start: crate::outbound::facts::types::KeptWordsStart(start),
+                    length: crate::outbound::facts::types::KeptWordsLength(length),
+                    proof: stretch.proof.clone(),
+                });
             }
         }
-        Ok(words)
+        Ok(KeptBucket {
+            words: Arc::new(KeptWords(PackedWords(words))),
+            sources,
+        })
     }
 }
 
@@ -293,20 +295,34 @@ struct Joined {
 }
 
 impl FactsFinish for Joined {
+    /// One worker's words are handed out as that worker read them; the words of several are run together once, into a buffer
+    /// of exactly their length.
     fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
-        let mut words = KeptBucket::default();
+        let mut held = Vec::with_capacity(self.parts.len());
         for part in &self.parts {
             let each = part.kept(bucket)?;
-            let offset = words.words.0.0.len();
-            words.words.0.0.extend(each.words.0.0);
-            words
-                .sources
-                .extend(each.sources.into_iter().map(|mut source| {
-                    source.start.0 += offset;
-                    source
-                }));
+            if !each.sources.is_empty() || !each.words.0.0.is_empty() {
+                held.push(each);
+            }
         }
-        Ok(words)
+        if held.len() <= 1 {
+            return Ok(held.pop().unwrap_or_default());
+        }
+        let length = held.iter().map(|each| each.words.0.0.len()).sum();
+        let mut words = Vec::with_capacity(length);
+        let mut sources = Vec::with_capacity(held.iter().map(|each| each.sources.len()).sum());
+        for each in held {
+            let offset = words.len();
+            words.extend_from_slice(&each.words.0.0);
+            sources.extend(each.sources.into_iter().map(|mut source| {
+                source.start.0 += offset;
+                source
+            }));
+        }
+        Ok(KeptBucket {
+            words: Arc::new(KeptWords(PackedWords(words))),
+            sources,
+        })
     }
 }
 

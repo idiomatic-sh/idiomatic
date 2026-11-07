@@ -5,7 +5,9 @@ use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::facts::fixtures::contract::check;
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::FactsPort as _;
+use crate::outbound::facts::fixtures::words::test_words;
 use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::stored_facts::types::{Bucket, PackedWords};
 
 /// What a row of the cases asks of the adapter.
 #[derive(Clone, Copy)]
@@ -14,6 +16,8 @@ enum Scenario {
     NothingWritten,
     /// Large columns release excess capacity before the worker's next population.
     ReleasedCapacity,
+    /// One worker's stored population, read twice from the finish: both reads borrow the one buffer the worker filled.
+    StoredPopulationBorrowed,
 }
 
 /// What a row of the cases asks of the adapter.
@@ -35,6 +39,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("release_bounds_all_column_capacities_then_reads_next_file"),
         word: Word::Succeeds,
         input: || Scenario::ReleasedCapacity,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("the_finish_hands_out_a_stored_population_as_a_borrow_not_a_copy"),
+        word: Word::Succeeds,
+        input: || Scenario::StoredPopulationBorrowed,
         expect: Expect::Value(1),
     },
 ];
@@ -85,6 +95,16 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     .all(|column| column.0 == [37])
             );
             Ok(1)
+        }
+        Scenario::StoredPopulationBorrowed => {
+            let worker = adapter.worker()?;
+            worker.keep(Bucket(3), test_words(&PackedWords(vec![1, 2, 3])))?;
+            let finished = adapter.finish(&mut vec![worker].into_iter())?;
+            let (first, second) = (finished.kept(Bucket(3))?, finished.kept(Bucket(3))?);
+            Ok(usize::from(
+                first.words.0.0 == [1, 2, 3]
+                    && std::ptr::eq(first.words.0.0.as_ptr(), second.words.0.0.as_ptr()),
+            ))
         }
     }
 }

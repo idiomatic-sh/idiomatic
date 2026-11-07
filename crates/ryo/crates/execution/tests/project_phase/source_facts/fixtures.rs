@@ -109,7 +109,7 @@ impl FactsFinish for CapturedFacts {
             words.extend_from_slice(&capture.words.0);
         }
         Ok(KeptBucket {
-            words: KeptWords(PackedWords(words)),
+            words: std::sync::Arc::new(KeptWords(PackedWords(words))),
             sources,
         })
     }
