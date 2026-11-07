@@ -1,6 +1,7 @@
 //! The witness that implements every method of each entry trait.
 use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution::inbound::use_cases::execution::interface::InvocationStateCounts;
 use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationExecution;
@@ -28,7 +29,6 @@ use ryo_execution::application::file_dag::program::request_execution::types::Req
 use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectRuleOutcome;
 use ryo_execution::application::file_dag::program::rule_outcome::types::RuleOutcome;
-use ryo_execution::application::rule_compilation::types::CompiledQueries;
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
 use ryo_execution::inbound::use_cases::execution::interface::FrontierCapture;
@@ -38,8 +38,7 @@ use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::RowEmission;
 use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
-use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
-use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
+use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::{
     files::types::CorpusInput,
@@ -61,8 +60,7 @@ macro_rules! methods {
 }
 methods!(
     UseCasePrepare,
-    UseCasePrepareCompiled,
-    UseCaseBegin,
+    UseCaseExecution,
     RequestObservations,
     RequestPrepareFrontiers,
     RequestFinish,
@@ -95,6 +93,7 @@ methods!(
 pub(super) struct Witness;
 pub(super) fn implements_every_entry_trait<
     W: ExecutionUseCase
+        + PrepareUseCase
         + ExecutionRequest
         + FileExecution
         + ProjectRootExecution
@@ -108,22 +107,14 @@ pub(super) fn implements_every_entry_trait<
 pub(super) fn witness(method: Method) -> ! {
     unreachable!("{method:?} is a compile-time witness only")
 }
-impl ExecutionUseCase for Witness {
+impl PrepareUseCase for Witness {
     fn prepare(&self, _: PrepareRequest) -> Result<PreparedExecutionProgram, OperatingError> {
         witness(Method::UseCasePrepare)
     }
-    fn prepare_compiled(
-        &self,
-        _: CompiledQueries,
-        _: Vec<ryo_values::domain::rule_requests::types::RuleSpec>,
-        _: Vec<ryo_values::domain::stored_facts::types::Digest>,
-        _: Vec<ryo_values::domain::hosted::types::HostRelation>,
-        _: ObservationIdentity,
-    ) -> Result<PreparedExecutionProgram, OperatingError> {
-        witness(Method::UseCasePrepareCompiled)
-    }
-    fn begin(&self, _: &PreparedExecutionProgram, _: &[CorpusInput]) -> RequestExecution {
-        witness(Method::UseCaseBegin)
+}
+impl ExecutionUseCase for Witness {
+    fn execution(&self, _: &PreparedExecutionProgram, _: &[CorpusInput]) -> RequestExecution {
+        witness(Method::UseCaseExecution)
     }
 }
 impl ExecutionRequest for Witness {

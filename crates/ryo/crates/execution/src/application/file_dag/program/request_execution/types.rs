@@ -5,12 +5,12 @@ use crate::outbound::facts::interface::FactsFinish;
 use crate::outbound::facts::interface::FactsWorker;
 use std::sync::Arc;
 pub struct RequestExecution {
-    pub(in crate::application::file_dag::program) program:
+    pub(crate) program:
         Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
-    pub(in crate::application::file_dag::program) services:
+    pub(crate) services:
         Arc<crate::application::file_dag::program::facade_runtime::types::ProgramServices>,
     /// Prepared frontiers of this request, one acquisition per population.
-    pub(in crate::application::file_dag::program) frontiers: crate::application::file_dag::frontiers::types::FrontierCache,
+    pub(crate) frontiers: crate::application::file_dag::frontiers::types::FrontierCache,
 }
 pub enum FrontierDemand<'a> {
     Diagnostic,

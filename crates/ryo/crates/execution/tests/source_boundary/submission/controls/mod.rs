@@ -1,6 +1,6 @@
 //! A control for every entry method: an incomplete, extra or undeclared root is refused.
 use super::inventory::{
-    ADMISSION, CAPTURES, DELIVERIES, DEMANDS, PROTOCOL, REASONS, REFUSALS, assert_inventory,
+    CAPTURES, DELIVERIES, DEMANDS, PROTOCOL, REASONS, REFUSALS, assert_inventory,
     covered, every_intent,
 };
 use super::routes::{file_route, project_route};
@@ -12,6 +12,7 @@ use crate::project_phase::negative::fixtures::{
 };
 use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationExecution;
 use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationPublication;
@@ -47,10 +48,7 @@ pub(super) enum Control {
 pub(super) fn control(method: Method) -> Control {
     match method {
         Method::UseCasePrepare => Control::Refuses(observations_need_a_named_program),
-        Method::UseCaseBegin => Control::Refuses(file_session_undeclared_rule),
-        Method::UseCasePrepareCompiled => Control::AcceptsNoRoot(
-            "declares the rules of a request; no root exists before preparation",
-        ),
+        Method::UseCaseExecution => Control::Refuses(file_session_undeclared_rule),
         Method::RequestOpenFile => Control::Refuses(file_route),
         Method::RequestObservations => Control::Refuses(observations_need_a_named_program),
         Method::RequestPrepareFrontiers => Control::Refuses(frontiers_of_an_undeclared_rule),
@@ -265,9 +263,30 @@ pub(super) fn restore_inapplicable_per_rule() {
         restore(3).expect("one set per rule");
     });
 }
-/// Methods of each entry trait in `interface.rs`, by the prefix of their `Method` variants.
-const TRAITS: [(&str, &str); 7] = [
-    ("ExecutionUseCase", "UseCase"),
+/// The files that declare the entry traits and the read-only traits: the two use case interfaces, the interface of each handle's
+/// concept and the rule compilation service.
+const INTERFACES: [&str; 8] = [
+    "src/inbound/use_cases/prepare/interface.rs",
+    "src/inbound/use_cases/execution/interface.rs",
+    "src/application/file_dag/program/prepared_execution/interface.rs",
+    "src/application/file_dag/program/request_execution/interface.rs",
+    "src/application/file_dag/program/file_session/interface.rs",
+    "src/application/file_dag/program/project_phase/interface.rs",
+    "src/application/file_dag/program/observation_stage/interface.rs",
+    "src/application/rule_compilation/service.rs",
+];
+/// The text of every file in `INTERFACES`, one after another.
+fn interface_sources(root: &Path) -> String {
+    INTERFACES
+        .iter()
+        .map(|file| std::fs::read_to_string(root.join(file)).unwrap())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+/// Methods of each entry trait in the interface files, by the prefix of their `Method` variants.
+const TRAITS: [(&str, &str); 8] = [
+    ("PrepareUseCase", "UseCasePrepare"),
+    ("ExecutionUseCase", "UseCaseExecution"),
     ("ExecutionRequest", "Request"),
     ("FileExecution", "File"),
     ("ProjectRootExecution", "Roots"),
@@ -297,8 +316,7 @@ const NON_ENTRY: [(&str, &str); 4] = [
 #[test]
 pub(super) fn every_public_trait_is_an_entry_with_variants_or_is_named_with_its_reason() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let interface =
-        std::fs::read_to_string(root.join("src/inbound/use_cases/execution/interface.rs")).unwrap();
+    let interface = interface_sources(root);
     let declared: Vec<&str> = interface
         .lines()
         .filter_map(|line| line.strip_prefix("pub trait "))
@@ -383,8 +401,7 @@ pub(super) fn prepared_frontiers_are_built_only_by_the_frontiers_module() {
 #[test]
 pub(super) fn every_trait_method_has_its_own_variant() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let interface =
-        std::fs::read_to_string(root.join("src/inbound/use_cases/execution/interface.rs")).unwrap();
+    let interface = interface_sources(root);
     let witness =
         std::fs::read_to_string(root.join("tests/source_boundary/submission/witness/mod.rs"))
             .unwrap();
@@ -432,7 +449,7 @@ pub(super) fn every_entry_method_refuses_an_incomplete_extra_or_undeclared_root(
     assert_inventory(root, PROTOCOL, "ObservationDemand", covered(&DEMANDS));
     assert_inventory(root, PROTOCOL, "CaptureIntent", covered(&CAPTURES));
     assert_inventory(root, PROTOCOL, "ApplicabilityRefusal", covered(&REFUSALS));
-    assert_inventory(root, ADMISSION, "ApplicabilityReason", covered(&REASONS));
+    assert_inventory(root, PROTOCOL, "ApplicabilityReason", covered(&REASONS));
     assert_inventory(root, PROTOCOL, "FileRuleIntent", covered(&every_intent()));
     let (mut refused, mut exempt) = (0, 0);
     for &method in ALL {

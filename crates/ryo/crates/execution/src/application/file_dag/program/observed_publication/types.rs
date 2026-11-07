@@ -3,5 +3,5 @@
 /// may accompany it, but never substitute for its owner/generation evidence.
 #[derive(Clone)]
 pub struct ObservedPublication {
-    pub(in crate::application::file_dag::program) admitted: crate::application::file_dag::program::admission::AdmittedInput,
+    pub(crate) admitted: crate::application::file_dag::program::admission::AdmittedInput,
 }

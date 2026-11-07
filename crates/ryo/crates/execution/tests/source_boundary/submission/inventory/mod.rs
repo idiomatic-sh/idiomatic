@@ -8,8 +8,7 @@ use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_values::domain::runs::types::Skipped;
 use std::{collections::BTreeSet, fs, path::Path};
 
-pub(super) const PROTOCOL: &str = "src/application/file_dag/program/protocol/types.rs";
-pub(super) const ADMISSION: &str = "src/application/file_dag/program/admission.rs";
+pub(super) const PROTOCOL: &str = "src/domain/rule_intent/types.rs";
 pub(super) fn identifier(text: &str) -> &str {
     text.split(|c: char| !(c.is_alphanumeric() || c == '_'))
         .next()

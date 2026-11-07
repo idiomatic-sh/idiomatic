@@ -15,10 +15,8 @@ use ryo_values::domain::stored_facts::types::Bucket;
 /// The intent supplied at file start is immutable throughout this session.
 /// Applicability cannot be changed after another rule has started the shared walk.
 /// ```compile_fail,E0599
-/// use ryo_execution::inbound::use_cases::execution::{
-///     interface::FileExecution,
-///     types::{ApplicabilityReason, FileSession, RuleIndex},
-/// };
+/// use ryo_execution::application::file_dag::program::file_session::{interface::FileExecution, types::FileSession};
+/// use ryo_execution::inbound::use_cases::execution::interface::{ApplicabilityReason, RuleIndex};
 /// fn late_skip(file: &mut FileSession<'_, '_>) {
 ///     file.skip_rule(RuleIndex(0), ApplicabilityReason::SyntaxRejected).unwrap();
 /// }

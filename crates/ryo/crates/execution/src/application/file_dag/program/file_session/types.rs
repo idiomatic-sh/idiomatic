@@ -12,6 +12,7 @@ pub enum SourceRows<'a> {
     Stored(ryo_relations::domain::relations::types::ColumnsView<'a>),
     Computed(&'a ryo_values::domain::rows::types::Table),
 }
+#[derive(Clone, Copy, Debug)]
 pub enum SourceLanguage {
     Recognized,
     Unrecognized,
@@ -34,13 +35,13 @@ pub struct FileInput<'a, 'facts> {
     pub kinds: Option<Arc<PreparedVocabulary>>,
 }
 pub struct FileSession<'a, 'facts> {
-    pub(in crate::application::file_dag::program) inner:
+    pub(crate) inner:
         crate::application::file_dag::program::facade_runtime::file_execution::FileRun<'a>,
-    pub(in crate::application::file_dag::program) program:
+    pub(crate) program:
         Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
-    pub(in crate::application::file_dag::program) file: ryo_relations::domain::relations::types::FileId,
-    pub(in crate::application::file_dag::program) elements: &'a ryo_language::domain::elements::types::Elements,
-    pub(in crate::application::file_dag::program) read: &'a dyn Fn(
+    pub(crate) file: ryo_relations::domain::relations::types::FileId,
+    pub(crate) elements: &'a ryo_language::domain::elements::types::Elements,
+    pub(crate) read: &'a dyn Fn(
         ryo_relations::domain::relations::types::Relation,
     ) -> Result<SourceRows<'facts>, OperatingError>,
 }

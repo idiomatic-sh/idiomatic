@@ -2,6 +2,8 @@
 mod execution;
 #[path = "../src/inbound/use_cases/metadata/acceptance.rs"]
 mod metadata;
+#[path = "../src/inbound/use_cases/prepare/acceptance.rs"]
+mod prepare;
 #[path = "../src/inbound/use_cases/publication/acceptance.rs"]
 mod publication;
 

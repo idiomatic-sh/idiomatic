@@ -1,92 +1,99 @@
-//! Public preparation must reject structurally mismatched request inputs.
-use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use crate::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use crate::inbound::use_cases::execution::use_case::PrepareUseCaseImpl;
-use crate::inbound::use_cases::prepare::interface::PrepareUseCase;
-use super::use_case::PrepareUseCaseImpl;
-use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
-use crate::application::file_dag::program::file_session::types::FileInput;
-use crate::application::file_dag::program::file_session::types::SourceLanguage;
-use crate::inbound::use_cases::execution::interface::OperatingError;
-use crate::inbound::use_cases::prepare::interface::ObservationIdentity;
-use crate::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
+//! A request execution begins over a prepared program, and its file owner reuses only recognized stable sources.
+use super::{interface::ExecutionUseCase, use_case::ExecutionUseCaseImpl};
 use crate::application::file_dag::program::facade_runtime::types::ReuseEligibility;
+use crate::application::file_dag::program::file_session::interface::FileExecution;
+use crate::application::file_dag::program::file_session::types::{FileInput, SourceLanguage};
+use crate::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::operating::errors::OperatingError;
+use crate::inbound::use_cases::prepare::interface::PrepareUseCase;
+use crate::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
+use crate::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use crate::domain::prepared_request::types::ObservationIdentity;
+use crate::outbound::facts::types::ResidentStability;
+use ryo_values::domain::files::types::{
+    CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
+};
 use std::sync::Arc;
-#[test]
-fn rejects_binding_population_without_a_rule() {
-    let engine = PrepareUseCaseImpl::new(
-        Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
-        ),
-        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
-    );
-    let request = PrepareRequest { plans: PlanSource::Authored { plans: vec![], bindings: vec![vec![]] }, rules: vec![], digests: vec![], hosted: vec![], observations: ObservationIdentity::Independent };
-    assert!(matches!(
-        engine.prepare(request),
-        Err(OperatingError::ObservationConfiguration(_))
-    ));
-}
-#[test]
-fn empty_request_can_begin_and_finish_without_acquiring_inputs() {
-    let engine = PrepareUseCaseImpl::new(
-        Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
-        ),
-        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
-    );
-    let request = PrepareRequest { plans: PlanSource::Authored { plans: vec![], bindings: vec![] }, rules: vec![], digests: vec![], hosted: vec![], observations: ObservationIdentity::Independent };
-    let prepared = engine
-        .prepare(request)
-        .expect("empty request is legitimate");
-    let run = ExecutionUseCaseImpl::new().execution(&prepared, &[]);
-    super::interface::ExecutionRequest::finish(run);
-}
 
-#[test]
-fn file_owner_reuses_only_recognized_stable_sources() {
-    use crate::application::file_dag::program::request_execution::interface::ExecutionRequest;
-    use crate::application::file_dag::program::file_session::interface::FileExecution;
-    use ryo_values::domain::files::types::{
-        CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
-    };
-    let engine = PrepareUseCaseImpl::new(
+/// What a begun request is asked to do.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    Empty,
+    File(SourceLanguage, ResidentStability),
+}
+/// What the begun request answered.
+#[derive(Debug, PartialEq, Eq)]
+enum Outcome {
+    Finished,
+    Reuse(ReuseEligibility),
+}
+type Input = Scenario;
+type Value = Outcome;
+type Failure = OperatingError;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(stringify!(an_empty_request_begins_and_finishes)),
+        word: Word::Succeeds,
+        input: || Scenario::Empty,
+        expect: Expect::Value(Outcome::Finished),
+    },
+    Case {
+        name: CaseName(stringify!(a_recognized_stable_source_is_reused)),
+        word: Word::Succeeds,
+        input: || Scenario::File(SourceLanguage::Recognized, ResidentStability::Stable),
+        expect: Expect::Value(Outcome::Reuse(ReuseEligibility::Eligible)),
+    },
+    Case {
+        name: CaseName(stringify!(an_unstable_source_is_not_reused)),
+        word: Word::Succeeds,
+        input: || Scenario::File(SourceLanguage::Recognized, ResidentStability::Unstable),
+        expect: Expect::Value(Outcome::Reuse(ReuseEligibility::Ineligible)),
+    },
+    Case {
+        name: CaseName(stringify!(an_unrecognized_source_is_not_reused)),
+        word: Word::Succeeds,
+        input: || Scenario::File(SourceLanguage::Unrecognized, ResidentStability::Stable),
+        expect: Expect::Value(Outcome::Reuse(ReuseEligibility::Ineligible)),
+    },
+];
+fn subject(input: Input) -> Result<Value, Failure> {
+    let prepare = PrepareUseCaseImpl::new(
         Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(Arc::new(
+                ryo_operators::outbound::matching::factory::use_case(),
+            )),
         ),
         Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
     );
-    let prepared = engine
-        .prepare(PrepareRequest { plans: PlanSource::Authored { plans: vec![], bindings: vec![] }, rules: vec![], digests: vec![], hosted: vec![], observations: ObservationIdentity::Independent })
-        .expect("valid empty program");
-    let corpus = vec![CorpusInput::Available(CorpusEntry {
-        path: ryo_language::domain::files::types::FilePath("empty.py".into()),
-        executable: ExecutablePermission::Unknown,
-        size: FileSize(0),
-        modified: Nanoseconds(0),
-    })];
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
-    let elements = ryo_language::domain::elements::types::Elements::default();
-    let read = |_| Err(OperatingError::NotRead);
-    for (language, resident_stability, expected) in [
-        (
-            SourceLanguage::Recognized,
-            facts::ResidentStability::Stable,
-            ReuseEligibility::Eligible,
-        ),
-        (
-            SourceLanguage::Recognized,
-            facts::ResidentStability::Unstable,
-            ReuseEligibility::Ineligible,
-        ),
-        (
-            SourceLanguage::Unrecognized,
-            facts::ResidentStability::Stable,
-            ReuseEligibility::Ineligible,
-        ),
-    ] {
-        let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
-        let file = request
-            .open_file(
+    let prepared = prepare.prepare(PrepareRequest {
+        plans: PlanSource::Authored {
+            plans: vec![],
+            bindings: vec![],
+        },
+        rules: vec![],
+        digests: vec![],
+        hosted: vec![],
+        observations: ObservationIdentity::Independent,
+    })?;
+    match input {
+        Scenario::Empty => {
+            let request = ExecutionUseCaseImpl::new().execution(&prepared, &[]);
+            ExecutionRequest::finish(request);
+            Ok(Outcome::Finished)
+        }
+        Scenario::File(language, resident_stability) => {
+            let corpus = vec![CorpusInput::Available(CorpusEntry {
+                path: ryo_language::domain::files::types::FilePath("empty.py".into()),
+                executable: ExecutablePermission::Unknown,
+                size: FileSize(0),
+                modified: Nanoseconds(0),
+            })];
+            let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+            let elements = ryo_language::domain::elements::types::Elements::default();
+            let read = |_| Err(OperatingError::NotRead);
+            let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
+            let file = request.open_file(
                 FileInput {
                     language,
                     resident_stability,
@@ -101,11 +108,16 @@ fn file_owner_reuses_only_recognized_stable_sources() {
                     kinds: None,
                 },
                 &mut symbols,
-            )
-            .expect("normal inbound file owner");
-        assert_eq!(file.inner.source_reuse_eligible(), expected);
-        file.finish().expect("finish file owner");
+            )?;
+            let eligibility = file.inner.source_reuse_eligible();
+            file.finish()?;
+            Ok(Outcome::Reuse(eligibility))
+        }
     }
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }
 
 #[cfg(test)]
