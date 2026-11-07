@@ -1,0 +1,3 @@
+let counted = select * from "filesystem.line-count" where (glob_any(path, "crates/*/src/domain/**/*.rs") or glob_any(path, "crates/*/src/application/**/*.rs") or glob_any(path, "crates/*/src/inbound/**/*.rs") or glob_any(path, "crates/*/src/outbound/**/*.rs")) and not glob_any(path, "**/*_test.rs") and not glob_any(path, "**/*_test/**") and not glob_any(path, "**/test.rs") and not glob_any(path, "**/tests/**") and not glob_any(path, "**/fixtures/**") and not glob_any(path, "**/fixtures.rs");
+let located = capture(from=counted, path="path", pattern="crates/{crate}/src/{layer}/{*dir}/{name}.rs", captures=["crate", "layer", "dir", "name"]);
+emit located subject path key(path);
