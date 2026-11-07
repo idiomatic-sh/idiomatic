@@ -1,0 +1,160 @@
+description = "An internal package dependency uses a declared package identity regardless of alias, source or dependency kind."
+why = "A registry or git copy of an engine package is still an engine dependency. package-dependency.package is the actual Cargo package identity, separate from its binding/alias and from its resolved local target. The inventory declares exact internal package names and the subset a capability may use. Every dependency kind and origin is checked. Third-party packages outside that declared inventory are governed by other manifest policies, not guessed from a name prefix. Local manifest identity is checked separately, so an allowed package spelling cannot bless an unrelated path. Incomplete dependency facts remain ordinary TM coverage failures. This rail does not prove version compatibility, semantic cohesion or runtime ownership."
+query = '''
+param internal-packages: set<string>;
+param allowed-packages: set<string>;
+let internal = select source, target, package from "package-dependency" where package in $internal-packages;
+let allowed = select source, target, package from internal where package in $allowed-packages;
+let own_manifest = select source, target, package from internal as l where l.source = l.target;
+let permitted = union(left=allowed, right=own_manifest);
+let denied = antijoin(left=internal, right=permitted, left-on=["source", "target", "package"], right-on=["source", "target", "package"]);
+let documents = select file, span from "syntax-tree" where kind = "toml" and text = "";
+let located = select l.source as file, r.span as span, l.package as package from denied as l join documents as r on l.source = r.file;
+emit located subject "file" key("file", "package");
+'''
+
+[params.internal-packages]
+type = "set<string>"
+description = "Exact internal package identities declared by the crate inventory; not dependency binding aliases or name patterns."
+
+[params.allowed-packages]
+type = "set<string>"
+description = "The exact internal package identities this component is permitted to depend on."
+
+[diagnostic]
+primary = "span"
+message = "internal package `{package}` is not an allowed dependency of this capability"
+help = "Depend on the declared semantic contract packages. A renamed binding, registry release, git source, workspace table or target condition does not change the package identity."
+
+[given]
+include = ['crates/operators/Cargo.toml']
+params = { internal-packages = ['operators', 'core', 'derived', 'language', 'values'], allowed-packages = ['language', 'values'] }
+files.'Cargo.toml' = '''
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+'''
+files.'crates/operators/Cargo.toml' = '''
+[package]
+name = "operators"
+version = "0.1.0"
+edition = "2024"
+[dependencies]
+renamed = { package = "values", version = "0.1" }
+'''
+files.'crates/operators/src/lib.rs' = ''
+
+[[scenarios]]
+id = 'allowed-published-semantic-package'
+scenario = 'An allowed package identity remains allowed under a renamed registry binding.'
+
+[[scenarios]]
+id = "registry-engine-alias"
+scenario = "The actual internal package identity rejects registry-engine-alias."
+given.files.'crates/operators/Cargo.toml' = """
+[package]
+name = "operators"
+version = "0.1.0"
+edition = "2024"
+[dependencies]
+innocent = { package = "core", version = "0.1" }
+"""
+then.findings = [{ path = "crates/operators/Cargo.toml", line = 1 }]
+
+[[scenarios]]
+id = "git-engine-alias"
+scenario = "The actual internal package identity rejects git-engine-alias."
+given.files.'crates/operators/Cargo.toml' = """
+[package]
+name = "operators"
+version = "0.1.0"
+edition = "2024"
+[dependencies]
+innocent = { package = "core", git = "https://example.invalid/core" }
+"""
+then.findings = [{ path = "crates/operators/Cargo.toml", line = 1 }]
+
+[[scenarios]]
+id = "target-registry-engine"
+scenario = "The actual internal package identity rejects target-registry-engine."
+given.files.'crates/operators/Cargo.toml' = """
+[package]
+name = "operators"
+version = "0.1.0"
+edition = "2024"
+[target.'cfg(unix)'.dependencies]
+innocent = { package = "core", version = "0.1" }
+"""
+then.findings = [{ path = "crates/operators/Cargo.toml", line = 1 }]
+
+[[scenarios]]
+id = "dev-registry-engine"
+scenario = "The actual internal package identity rejects dev-registry-engine."
+given.files.'crates/operators/Cargo.toml' = """
+[package]
+name = "operators"
+version = "0.1.0"
+edition = "2024"
+[dev-dependencies]
+innocent = { package = "core", version = "0.1" }
+"""
+then.findings = [{ path = "crates/operators/Cargo.toml", line = 1 }]
+
+[[scenarios]]
+id = "same-layer-published-sibling"
+scenario = "The actual internal package identity rejects same-layer-published-sibling."
+given.files.'crates/operators/Cargo.toml' = """
+[package]
+name = "operators"
+version = "0.1.0"
+edition = "2024"
+[dependencies]
+innocent = { package = "derived", version = "0.1" }
+"""
+then.findings = [{ path = "crates/operators/Cargo.toml", line = 1 }]
+
+[[scenarios]]
+id = 'external-package-with-engine-binding'
+scenario = 'A binding that resembles an internal crate does not turn a third-party package into it.'
+given.files.'crates/operators/Cargo.toml' = """
+[package]
+name = "operators"
+version = "0.1.0"
+edition = "2024"
+[dependencies]
+core = { package = "serde", version = "1" }
+"""
+
+[[scenarios]]
+id = 'workspace-registry-engine'
+scenario = 'Workspace inheritance retains the forbidden registry package identity.'
+given.files.'Cargo.toml' = """
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+[workspace.dependencies]
+innocent = { package = "core", version = "0.1" }
+"""
+given.files.'crates/operators/Cargo.toml' = """
+[package]
+name = "operators"
+version = "0.1.0"
+edition = "2024"
+[dependencies]
+innocent = { workspace = true }
+"""
+then.findings = [{ path = 'crates/operators/Cargo.toml', line = 1 }]
+
+[[scenarios]]
+id = 'same-manifest-fixture-feature'
+scenario = 'A self-manifest dev feature adds no dependency on another internal package.'
+given.files.'crates/operators/Cargo.toml' = """
+[package]
+name = "operators"
+version = "0.1.0"
+edition = "2024"
+[features]
+fixtures = []
+[dev-dependencies]
+operators = { path = ".", features = ["fixtures"] }
+"""

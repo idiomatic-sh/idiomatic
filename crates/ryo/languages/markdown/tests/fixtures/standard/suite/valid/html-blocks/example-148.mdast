@@ -1,0 +1,8 @@
+root[3]
+├─0 html "<table><tr><td>\n<pre>\n**Hello**,"
+├─1 paragraph[3]
+│   ├─0 emphasis[1]
+│   │   └─0 text "world"
+│   ├─1 text ".\n"
+│   └─2 html "</pre>"
+└─2 html "</td></tr></table>"

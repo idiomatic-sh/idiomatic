@@ -1,0 +1,8 @@
+json-text 0-8
+ value 0-8
+  array 0-8
+   begin-array 0-2
+    ws 1-2
+   value 2-7
+    string 2-7
+   end-array 7-8

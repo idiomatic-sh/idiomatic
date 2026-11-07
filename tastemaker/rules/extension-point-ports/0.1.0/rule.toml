@@ -1,0 +1,502 @@
+description = "The ports the product lists as `exposed` are exactly the ports its SDK re-exports in a resource module (`sdk/src/resources/<resource>.rs`); a listed port has no adapters in the core and a trait under its plain noun, every other port has at least one adapter and a trait ending `Port`."
+why = "A port the SDK exposes as an extension point is implemented outside the core, by the user or by a language crate, so the core holds no adapter, factory or adapters directory for it. Every other port is implemented in the core, so it has at least one adapter. lists the exposed ports once, as the nu-hex's `exposed` param, which the port spec passes to the port's templates and to `kind-suffix`; this rule keeps the list and the SDK in step. A port is the directory `src/outbound/<port>/` with an `interface.rs`; it is re-exported when an SDK resource module (`sdk/src/resources/<resource>.rs`) names a path `outbound::<port>::interface::...` (a `pub use` of its trait). The port spec's counts for `adapters.rs`, `factory.rs` and `adapters/` are zero so this rule, not a count, decides. Ports are matched by name across the product's cores. Not seen: a re-export through a glob or an alias."
+params = { exposed = { type = "set<string>", description = "The ports the product's SDK exposes, by directory name: the list the nu-hex also passes to its ports." } }
+
+query = '''
+param exposed: set<string>;
+let listed-files = select l."path" as "file" from "filesystem.file" as l;
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let files = project(from=listed-files, columns=["file"]);
+let interfaces = capture(from=files, path="file", pattern="{*core}/src/outbound/{*port}/interface.rs", captures=["core", "port"]);
+let adapter-lists = capture(from=files, path="file", pattern="{*core}/src/outbound/{*port}/adapters.rs", captures=["core", "port"]);
+let factories = capture(from=files, path="file", pattern="{*core}/src/outbound/{*port}/factory.rs", captures=["core", "port"]);
+let adapter-parts = capture(from=files, path="file", pattern="{*core}/src/outbound/{*port}/adapters/{*rest}", captures=["core", "port", "rest"]);
+let paths = select * from tree-nodes where kind = "path";
+let path-edges = select l."id" as "id", l."file" as "file", r."child" as "child" from paths as l join "syntax-child" as r on l."id" = r."parent";
+let segments = select * from tree-nodes where kind = "path-segment";
+let to-segment = select l."id" as "id", l."file" as "file", r."id" as "segment" from path-edges as l join segments as r on l."child" = r."id";
+let segment-edges = select l."id" as "id", l."file" as "file", r."child" as "child" from to-segment as l join "syntax-child" as r on l."segment" = r."parent";
+let name-refs = select * from tree-nodes where kind = "name-ref";
+let to-name = select l."id" as "id", l."file" as "file", r."id" as "name" from segment-edges as l join name-refs as r on l."child" = r."id";
+let name-edges = select l."id" as "id", l."file" as "file", r."child" as "token" from to-name as l join "syntax-child" as r on l."name" = r."parent";
+let last-segment = select l."id" as "id", l."file" as "file", r."text" as "text" from name-edges as l join tree-tokens as r on l."token" = r."id";
+let qualifier = select l."id" as "id", r."id" as "inner" from path-edges as l join paths as r on l."child" = r."id";
+let uses = select * from tree-nodes where kind = "use";
+let use-kids = select l."id" as "id", r."child" as "child" from uses as l join "syntax-child" as r on l."id" = r."parent";
+let vis-nodes = select * from tree-nodes where kind = "visibility";
+let use-vis = select l."id" as "id", r."id" as "vis" from use-kids as l join vis-nodes as r on l."child" = r."id";
+let pub-kw = select * from tree-tokens where kind = "pub-kw";
+let vis-pub = select l."parent" as "vis" from "syntax-child" as l join pub-kw as r on l."child" = r."id";
+let pub-uses = select l."id" as "id" from use-vis as l join vis-pub as r on l."vis" = r."vis";
+let pub-use-axis = axis(from=pub-uses, relation="syntax-child", direction=descendant, domain=paths);
+let pub-use-paths = project(from=pub-use-axis, columns=["related"]);
+let all-interface-paths = select * from last-segment where text = "interface";
+let interface-paths = select l."id" as "id", l."file" as "file", l."text" as "text" from all-interface-paths as l join pub-use-paths as r on l."id" = r."related";
+let port-paths = select l."file" as "file", r."inner" as "port-path" from interface-paths as l join qualifier as r on l."id" = r."id";
+let port-names = select l."file" as "file", l."port-path" as "port-path", r."text" as "port" from port-paths as l join last-segment as r on l."port-path" = r."id";
+let outbound-paths = select l."file" as "file", l."port" as "port", r."inner" as "outbound-path" from port-names as l join qualifier as r on l."port-path" = r."id";
+let outbound-names = select l."file" as "file", l."port" as "port", r."text" as "text" from outbound-paths as l join last-segment as r on l."outbound-path" = r."id";
+let reexports = select * from outbound-names where text = "outbound";
+let point-reexports = select * from reexports where glob_any(file, "{sdk/src/resources/*.rs,**/sdk/src/resources/*.rs}");
+let sdk-ports = project(from=point-reexports, columns=["port"]);
+let own = project(from=interfaces, columns=["file", "core", "port"]);
+let listed = select * from own where port in $exposed;
+let exposed-ports = project(from=listed, columns=["port"]);
+let unlisted-reexport = select * from point-reexports where port not in $exposed;
+let unlisted-reexport-rows = project(from=unlisted-reexport, columns=["file", "port"]);
+let unlisted-reexport-found = extend(from=unlisted-reexport-rows, values={"reason": "is re-exported in an SDK resource module but is not in the product's `exposed` list"});
+let unexported = antijoin(left=listed, right=sdk-ports, left-on=["port"], right-on=["port"]);
+let unexported-rows = project(from=unexported, columns=["file", "port"]);
+let unexported-found = extend(from=unexported-rows, values={"reason": "is in the product's `exposed` list but no SDK resource module re-exports it"});
+let list-found = union(left=unlisted-reexport-found, right=unexported-found);
+let in-core-1 = project(from=adapter-lists, columns=["file", "port"]);
+let in-core-2 = project(from=factories, columns=["file", "port"]);
+let in-core-3 = project(from=adapter-parts, columns=["file", "port"]);
+let in-core-12 = union(left=in-core-1, right=in-core-2);
+let in-core = union(left=in-core-12, right=in-core-3);
+let exposed-in-core = select l."file" as "file", l."port" as "port" from in-core as l join exposed-ports as r on l."port" = r."port";
+let adapter-dir-parts = capture(from=files, path="file", pattern="{*core}/src/outbound/{*port}/adapters/{impl}/{*rest}", captures=["core", "port", "impl", "rest"]);
+let in-core-adapters = project(from=adapter-dir-parts, columns=["core", "port"]);
+let unexposed = antijoin(left=own, right=exposed-ports, left-on=["port"], right-on=["port"]);
+let bare = antijoin(left=unexposed, right=in-core-adapters, left-on=["core", "port"], right-on=["core", "port"]);
+let bare-ports = project(from=bare, columns=["file", "port"]);
+let extra = extend(from=exposed-in-core, values={"reason": "is exposed in an SDK resource module, so the core holds no adapter for it"});
+let missing = extend(from=bare-ports, values={"reason": "is not exposed in an SDK resource module, so the core holds at least one adapter for it"});
+let counted = union(left=extra, right=missing);
+let trait-nodes = select * from tree-nodes where kind = "trait";
+let trait-name-edges = select l."id" as "id", r."child" as "child" from trait-nodes as l join "syntax-child" as r on l."id" = r."parent";
+let trait-name-nodes = select * from tree-nodes where kind = "name";
+let trait-names = select l."id" as "id", r."id" as "name-node" from trait-name-edges as l join trait-name-nodes as r on l."child" = r."id";
+let trait-name-tokens = select l."id" as "id", r."child" as "token" from trait-names as l join "syntax-child" as r on l."name-node" = r."parent";
+let trait-name-texts = select l."id" as "id", r."text" as "trait" from trait-name-tokens as l join tree-tokens as r on l."token" = r."id";
+let named-traits = select l."id" as "id", l."file" as "file", r."trait" as "trait" from trait-nodes as l join trait-name-texts as r on l."id" = r."id";
+let port-traits = capture(from=named-traits, path="file", pattern="{*core}/src/outbound/{*port}/interface.rs", captures=["core", "port"]);
+let port-trait-rows = project(from=port-traits, columns=["file", "port", "trait"]);
+let exposed-traits = select l."file" as "file", l."port" as "port", l."trait" as "trait" from port-trait-rows as l join exposed-ports as r on l."port" = r."port";
+let exposed-suffixed = select * from exposed-traits where glob_any(trait, "*Port");
+let exposed-suffixed-rows = project(from=exposed-suffixed, columns=["file", "port"]);
+let suffixed = extend(from=exposed-suffixed-rows, values={"reason": "is exposed in an SDK resource module, so its trait is its plain noun and does not end in `Port`"});
+let unexposed-traits = antijoin(left=port-trait-rows, right=exposed-ports, left-on=["port"], right-on=["port"]);
+let unexposed-suffixed = select * from unexposed-traits where glob_any(trait, "*Port");
+let unexposed-keys = project(from=unexposed-traits, columns=["file", "port"]);
+let unexposed-suffixed-keys = project(from=unexposed-suffixed, columns=["file", "port"]);
+let unexposed-plain-rows = antijoin(left=unexposed-keys, right=unexposed-suffixed-keys, left-on=["file", "port"], right-on=["file", "port"]);
+let plain = extend(from=unexposed-plain-rows, values={"reason": "is not exposed in an SDK resource module, so its trait is named `<Port>Port`"});
+let named = union(left=suffixed, right=plain);
+let found-1 = union(left=counted, right=named);
+let found = union(left=found-1, right=list-found);
+emit found subject "file" key("port", "reason");
+'''
+
+[diagnostic]
+primary = "file"
+message = "port `{port}` {reason}"
+help = "A port in `exposed` (and re-exported by an SDK resource module) is implemented outside the core: delete its `adapters.rs`, `factory.rs` and `adapters/`. Any other port is implemented in the core: add an adapter under `src/outbound/<port>/adapters/<implementation>/` with its `adapters.rs` and `factory.rs`. An ignore is never the fix."
+
+[given]
+include = ['**']
+files.'Cargo.toml' = '''
+[workspace]
+members = ["core", "sdk"]
+resolver = "3"
+'''
+files.'core/Cargo.toml' = '''
+[package]
+name = "greeting-core"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'core/src/lib.rs' = '''
+pub mod outbound;
+'''
+files.'core/src/outbound.rs' = '''
+pub mod resources;
+'''
+files.'sdk/Cargo.toml' = '''
+[package]
+name = "greeting-sdk"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+greeting-core = { path = "../core" }
+'''
+files.'sdk/src/lib.rs' = '''
+pub mod resources;
+'''
+files.'sdk/src/resources/language.rs' = '''
+pub use greeting_core::outbound::language::interface::Language;
+'''
+params = { exposed = [] }
+
+[[scenarios]]
+id = 'exposed-without-adapters'
+scenario = 'An exposed port with no adapters, factory or adapters directory.'
+given.params = { exposed = ['language'] }
+given.files.'core/src/outbound/language.rs' = '''
+pub mod interface;
+'''
+given.files.'core/src/outbound/language/interface.rs' = '''
+/// The language port.
+pub trait Language {
+    fn language(&self) -> u8;
+}
+'''
+
+[[scenarios]]
+id = 'internal-with-adapter'
+scenario = 'An unexposed port with its adapter and factory.'
+given.files.'core/src/outbound.rs' = '''
+pub mod names;
+'''
+given.files.'core/src/outbound/names.rs' = '''
+pub mod interface;
+pub(crate) mod adapters;
+pub mod factory;
+'''
+given.files.'core/src/outbound/names/adapters.rs' = '''
+pub(crate) mod memory;
+'''
+given.files.'core/src/outbound/names/adapters/memory.rs' = '''
+//! The memory adapter.
+'''
+given.files.'core/src/outbound/names/adapters/memory/adapter.rs' = '''
+//! The memory adapter.
+
+/// The adapter.
+pub struct NamesMemoryAdapter;
+'''
+given.files.'core/src/outbound/names/factory.rs' = '''
+/// Builds the memory adapter.
+pub fn memory() {}
+'''
+given.files.'core/src/outbound/names/interface.rs' = '''
+/// The names port.
+pub trait NamesPort {
+    fn names(&self) -> u8;
+}
+'''
+given.files.'sdk/src/resources/language.rs' = '''
+//! No extension points.
+'''
+
+[[scenarios]]
+id = 'both-kinds'
+scenario = 'An exposed port beside an unexposed one with its adapter.'
+given.params = { exposed = ['language'] }
+given.files.'core/src/outbound.rs' = '''
+pub mod resources;
+pub mod names;
+'''
+given.files.'core/src/outbound/language.rs' = '''
+pub mod interface;
+'''
+given.files.'core/src/outbound/language/interface.rs' = '''
+/// The language port.
+pub trait Language {
+    fn language(&self) -> u8;
+}
+'''
+given.files.'core/src/outbound/names.rs' = '''
+pub mod interface;
+pub(crate) mod adapters;
+pub mod factory;
+'''
+given.files.'core/src/outbound/names/adapters.rs' = '''
+pub(crate) mod memory;
+'''
+given.files.'core/src/outbound/names/adapters/memory.rs' = '''
+//! The memory adapter.
+'''
+given.files.'core/src/outbound/names/adapters/memory/adapter.rs' = '''
+//! The memory adapter.
+
+/// The adapter.
+pub struct NamesMemoryAdapter;
+'''
+given.files.'core/src/outbound/names/factory.rs' = '''
+/// Builds the memory adapter.
+pub fn memory() {}
+'''
+given.files.'core/src/outbound/names/interface.rs' = '''
+/// The names port.
+pub trait NamesPort {
+    fn names(&self) -> u8;
+}
+'''
+
+[[scenarios]]
+id = 'exposed-with-adapters'
+scenario = 'An exposed port that still has an adapters.rs.'
+given.params = { exposed = ['language'] }
+given.files.'core/src/outbound/language.rs' = '''
+pub mod interface;
+pub(crate) mod adapters;
+'''
+given.files.'core/src/outbound/language/adapters.rs' = '''
+//! Adapters.
+'''
+given.files.'core/src/outbound/language/interface.rs' = '''
+/// The language port.
+pub trait Language {
+    fn language(&self) -> u8;
+}
+'''
+then.findings = [
+  { path = 'core/src/outbound/language/adapters.rs' },
+]
+
+[[scenarios]]
+id = 'exposed-with-factory'
+scenario = 'An exposed port that still has a factory.rs.'
+given.params = { exposed = ['language'] }
+given.files.'core/src/outbound/language.rs' = '''
+pub mod interface;
+pub mod factory;
+'''
+given.files.'core/src/outbound/language/factory.rs' = '''
+/// Builds.
+pub fn memory() {}
+'''
+given.files.'core/src/outbound/language/interface.rs' = '''
+/// The language port.
+pub trait Language {
+    fn language(&self) -> u8;
+}
+'''
+then.findings = [
+  { path = 'core/src/outbound/language/factory.rs' },
+]
+
+[[scenarios]]
+id = 'internal-without-adapter'
+scenario = 'An unexposed port with no adapter.'
+given.files.'core/src/outbound.rs' = '''
+pub mod names;
+'''
+given.files.'core/src/outbound/names.rs' = '''
+pub mod interface;
+'''
+given.files.'core/src/outbound/names/interface.rs' = '''
+/// The names port.
+pub trait NamesPort {
+    fn names(&self) -> u8;
+}
+'''
+given.files.'sdk/src/resources/language.rs' = '''
+//! No extension points.
+'''
+then.findings = [
+  { path = 'core/src/outbound/names/interface.rs' },
+]
+
+[[scenarios]]
+id = 'exposed-with-port-suffix'
+scenario = 'An exposed port whose trait still ends in Port.'
+given.params = { exposed = ['language'] }
+given.files.'core/src/outbound/language.rs' = '''
+pub mod interface;
+'''
+given.files.'core/src/outbound/language/interface.rs' = '''
+/// The language port.
+pub trait LanguagePort {
+    fn language(&self) -> u8;
+}
+'''
+then.findings = [
+  { path = 'core/src/outbound/language/interface.rs' },
+]
+
+[[scenarios]]
+id = 'internal-without-port-suffix'
+scenario = 'An unexposed port whose trait lacks the Port suffix.'
+given.files.'core/src/outbound.rs' = '''
+pub mod names;
+'''
+given.files.'core/src/outbound/names.rs' = '''
+pub mod interface;
+pub(crate) mod adapters;
+pub mod factory;
+'''
+given.files.'core/src/outbound/names/adapters.rs' = '''
+pub(crate) mod memory;
+'''
+given.files.'core/src/outbound/names/adapters/memory.rs' = '''
+//! The memory adapter.
+'''
+given.files.'core/src/outbound/names/adapters/memory/adapter.rs' = '''
+//! The memory adapter.
+
+/// The adapter.
+pub struct NamesMemoryAdapter;
+'''
+given.files.'core/src/outbound/names/factory.rs' = '''
+/// Builds the memory adapter.
+pub fn memory() {}
+'''
+given.files.'core/src/outbound/names/interface.rs' = '''
+/// The names port.
+pub trait Names {
+    fn names(&self) -> u8;
+}
+'''
+given.files.'sdk/src/resources/language.rs' = '''
+//! No extension points.
+'''
+then.findings = [
+  { path = 'core/src/outbound/names/interface.rs' },
+]
+
+[[scenarios]]
+id = 'internal-with-empty-list'
+scenario = 'An unexposed port whose adapters list has no adapter directory.'
+given.files.'core/src/outbound.rs' = '''
+pub mod names;
+'''
+given.files.'core/src/outbound/names.rs' = '''
+pub mod interface;
+pub(crate) mod adapters;
+pub mod factory;
+'''
+given.files.'core/src/outbound/names/adapters.rs' = '''
+pub(crate) mod memory;
+'''
+given.files.'core/src/outbound/names/adapters/memory.rs' = '''
+//! The memory adapter.
+'''
+given.files.'core/src/outbound/names/factory.rs' = '''
+/// Builds the memory adapter.
+pub fn memory() {}
+'''
+given.files.'core/src/outbound/names/interface.rs' = '''
+/// The names port.
+pub trait NamesPort {
+    fn names(&self) -> u8;
+}
+'''
+given.files.'sdk/src/resources/language.rs' = '''
+//! No extension points.
+'''
+then.findings = [
+  { path = 'core/src/outbound/names/interface.rs' },
+]
+
+[[scenarios]]
+id = 'internal-with-private-use'
+scenario = 'A port a resource module only imports, without pub use, is not exposed.'
+given.files.'core/src/outbound.rs' = '''
+pub mod names;
+'''
+given.files.'core/src/outbound/names.rs' = '''
+pub mod interface;
+pub(crate) mod adapters;
+pub mod factory;
+'''
+given.files.'core/src/outbound/names/adapters.rs' = '''
+pub(crate) mod memory;
+'''
+given.files.'core/src/outbound/names/adapters/memory.rs' = '''
+//! The memory adapter.
+'''
+given.files.'core/src/outbound/names/adapters/memory/adapter.rs' = '''
+//! The memory adapter.
+
+/// The adapter.
+pub struct NamesMemoryAdapter;
+'''
+given.files.'core/src/outbound/names/factory.rs' = '''
+/// Builds the memory adapter.
+pub fn memory() {}
+'''
+given.files.'core/src/outbound/names/interface.rs' = '''
+/// The names port.
+pub trait NamesPort {
+    fn names(&self) -> u8;
+}
+'''
+given.files.'sdk/src/resources/language.rs' = '''
+//! The language resource.
+
+use core::outbound::names::interface::NamesPort;
+'''
+
+[[scenarios]]
+id = 'reexport-not-listed'
+scenario = 'An SDK resource module re-exports a port the product does not list as exposed.'
+given.files.'core/src/outbound/language.rs' = '''
+pub mod interface;
+'''
+given.files.'core/src/outbound/language/interface.rs' = '''
+/// The language port.
+pub trait Language {
+    fn language(&self) -> u8;
+}
+'''
+then.findings = [
+  { path = 'core/src/outbound/language/interface.rs' },
+  { path = 'core/src/outbound/language/interface.rs' },
+  { path = 'sdk/src/resources/language.rs' },
+]
+
+[[scenarios]]
+id = 'listed-not-reexported'
+scenario = 'The product lists a port as exposed that no SDK resource module re-exports.'
+given.params = { exposed = ['language'] }
+given.files.'core/src/outbound/language.rs' = '''
+pub mod interface;
+'''
+given.files.'core/src/outbound/language/interface.rs' = '''
+/// The language port.
+pub trait Language {
+    fn language(&self) -> u8;
+}
+'''
+given.files.'sdk/src/resources/language.rs' = '''
+//! The language resource.
+'''
+then.findings = [
+  { path = 'core/src/outbound/language/interface.rs' },
+]
+
+[[scenarios]]
+id = 'internal-with-handle-trait'
+scenario = 'A handle trait a port returns needs no Port suffix.'
+given.files.'core/src/outbound.rs' = '''
+pub mod names;
+'''
+given.files.'core/src/outbound/names.rs' = '''
+pub mod interface;
+pub(crate) mod adapters;
+pub mod factory;
+'''
+given.files.'core/src/outbound/names/adapters.rs' = '''
+pub(crate) mod memory;
+'''
+given.files.'core/src/outbound/names/adapters/memory.rs' = '''
+//! The memory adapter.
+'''
+given.files.'core/src/outbound/names/adapters/memory/adapter.rs' = '''
+//! The memory adapter.
+
+/// The adapter.
+pub struct NamesMemoryAdapter;
+'''
+given.files.'core/src/outbound/names/factory.rs' = '''
+/// Builds the memory adapter.
+pub fn memory() {}
+'''
+given.files.'core/src/outbound/names/interface.rs' = '''
+/// The names port.
+pub trait NamesPort {
+    fn names(&self) -> Box<dyn NamesReader>;
+}
+
+/// A handle the port returns.
+pub trait NamesReader {
+    fn read(&self) -> u8;
+}
+'''
+given.files.'sdk/src/resources/language.rs' = '''
+//! No extension points.
+'''

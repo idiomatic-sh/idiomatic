@@ -1,0 +1,187 @@
+//! Verification-only raw capture; measured runs keep their existing allocation path.
+use crate::application::run::constants;
+use crate::outbound::{
+    execution::interface::ExecutionPort,
+    linter::interface::LinterPort,
+    suite::{interface::SuitePort, types::ArtifactPath},
+};
+use ryo_benchmark_contracts::domain::artifacts::types::{FileExecutable, FileMetadataEntry};
+use ryo_benchmark_contracts::domain::measurements::types::Measurement;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
+use std::path::Path;
+
+/// Raw process bytes exist independently of whether a report could be decoded.
+pub(super) struct Capture {
+    pub invocation: serde_json::Value,
+    pub output: ProcessOutput,
+}
+/// One actual attempt, including operational failures without a fabricated report.
+pub(super) struct Outcome {
+    pub result: Result<Measurement, Error>,
+    pub capture: Option<Capture>,
+}
+/// One verification preparation boundary for both contestants and every attempt.
+fn prepare(
+    suite: &dyn SuitePort,
+    linter: &dyn LinterPort,
+    request: &ryo_benchmark_contracts::domain::requests::types::RunRequest,
+) -> Result<ryo_benchmark_contracts::domain::measurements::types::Invocation, Error> {
+    crate::domain::suite::service::validate_selected_rules(request.selected_rules.as_deref())?;
+    configuration(linter, request)?;
+    suite.validate_file_metadata(request)?;
+    if let Some(context) = &request.context_manifest {
+        crate::outbound::context::adapters::local::adapter::validate(context, &request.root)?;
+    }
+    linter.prepare(request)
+}
+/// The candidate keeps ordinary report decoding while sharing reference preparation admission.
+pub(super) fn candidate(
+    suite: &dyn SuitePort,
+    linter: &dyn LinterPort,
+    execution: &dyn ExecutionPort,
+    request: &ryo_benchmark_contracts::domain::requests::types::RunRequest,
+) -> Result<Measurement, Error> {
+    let invocation = prepare(suite, linter, request)?;
+    super::service::finish(linter, request, execution.run(invocation)?)
+}
+/// Execute once and preserve failed process streams before adapter errors discard them.
+pub(super) fn run(
+    suite: &dyn SuitePort,
+    linter: &dyn LinterPort,
+    execution: &dyn ExecutionPort,
+    case: &PreparedCase,
+    rules: &Path,
+) -> Outcome {
+    let attempt = || {
+        let invocation = prepare(suite, linter, &case.request)?;
+        let output = execution.run(invocation.clone())?;
+        Ok::<_, Error>((invocation, output))
+    };
+    let (invocation, output) = match attempt() {
+        Ok(value) => value,
+        Err(error) => {
+            return Outcome {
+                result: Err(error),
+                capture: None,
+            };
+        }
+    };
+    // Verification artifacts are outside the measured path; preserve raw bytes only on decode failure.
+    let raw = output.clone();
+    let wall = output.wall;
+    let resources = output.resources;
+    match linter.decode(&case.request, output) {
+        Ok(report) => Outcome {
+            result: super::service::validate_report(&case.request, &report).map(|()| Measurement {
+                wall,
+                resources,
+                report,
+            }),
+            capture: None,
+        },
+        Err(error) => {
+            let metadata = || {
+                let request_root =
+                    case.request.root.to_str().ok_or_else(|| {
+                        Error::Invalid(constants::PROCESS_ROOT_IS_NOT_UTF8.into())
+                    })?;
+                let state =
+                    case.request.state.to_str().ok_or_else(|| {
+                        Error::Invalid(constants::PROCESS_STATE_IS_NOT_UTF8.into())
+                    })?;
+                let profile_root = rules
+                    .parent()
+                    .ok_or_else(|| Error::Invalid(constants::MISSING_PROFILE_BOUNDARY.into()))?;
+                let profile = suite.profile(ArtifactPath(profile_root))?;
+                let executable = suite.digest(ArtifactPath(&invocation.executable))?;
+                let normalized =
+                    crate::domain::invocation_identity::service::normalize(&invocation, case)
+                        .map_err(|error| Error::Invalid(error.to_string()))?;
+                let observations =
+                    crate::domain::invocation_identity::service::effective_observations(
+                        case, &profile,
+                    );
+                let settings_text = crate::outbound::worker::schemas::invocation_settings_text(
+                    &normalized,
+                    case,
+                    &profile,
+                    observations.as_ref(),
+                )?;
+                let settings = crate::domain::canonical_text::service::text_digest(
+                    &crate::domain::canonical_text::types::Document(settings_text.clone()),
+                );
+                let mut captured = serde_json::json!({
+                    constants::ACTUAL_REQUEST_ROOT:request_root, constants::FILES:case.request.files.iter().map(|file|file.0.as_ref()).collect::<Vec<_>>(),
+                    constants::EXECUTABLE_SHA256:executable.0, constants::SETTINGS_SHA256:settings.0,
+                    constants::NORMALIZED_SETTINGS:serde_json::from_str::<serde_json::Value>(&settings_text).map_err(|error| Error::Json(Box::new(error)))?,
+                    constants::PROFILE_SHA256:suite.digest(ArtifactPath(&profile_root.join(constants::BENCHMARK_TOML)))?.0,
+                    constants::TOOL:profile.tool.0, constants::VERSION:profile.version.0, constants::STATE:state,
+                    constants::ARGUMENTS:invocation.arguments.iter().map(|argument|argument.to_string_lossy()).collect::<Vec<_>>(),
+                    constants::ENVIRONMENT:invocation.environment.iter().map(|(key,value)|(key.to_string_lossy(),value.to_string_lossy())).collect::<std::collections::BTreeMap<_,_>>(),
+                    constants::DIRECTORY:invocation.directory.to_string_lossy(), constants::EXIT:raw.status.0, constants::SIGNAL:raw.signal,
+                    constants::OBSERVER_NO_DEADLINE:execution.observes_completed_processes_without_deadline(),
+                });
+                if let Some(digest) = ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest::file_metadata((case.request.file_metadata.as_ref()).map(|values| values.iter().map(|(path, executable)| FileMetadataEntry { path, executable: if *executable { FileExecutable::Set } else { FileExecutable::Unset } })))? {
+                    captured[constants::FILE_METADATA_SHA256] = serde_json::json!(digest.0);
+                }
+                Ok::<_, Error>(captured)
+            };
+            match metadata() {
+                Ok(invocation) => Outcome {
+                    result: Err(error),
+                    capture: Some(Capture {
+                        invocation,
+                        output: raw,
+                    }),
+                },
+                Err(capture_error) => {
+                    let invocation = serde_json::json!({
+                        constants::ACTUAL_REQUEST_ROOT:case.request.root.to_string_lossy(),
+                        constants::FILES:case.request.files.iter().map(|file|file.0.as_ref()).collect::<Vec<_>>(),
+                        constants::ARGUMENTS:invocation.arguments.iter().map(|argument|argument.to_string_lossy()).collect::<Vec<_>>(),
+                        constants::ENVIRONMENT:invocation.environment.iter().map(|(key,value)|(key.to_string_lossy(),value.to_string_lossy())).collect::<std::collections::BTreeMap<_,_>>(),
+                        constants::DIRECTORY:invocation.directory.to_string_lossy(), constants::EXIT:raw.status.0, constants::SIGNAL:raw.signal,
+                        constants::OBSERVER_NO_DEADLINE:execution.observes_completed_processes_without_deadline(),
+                        constants::METADATA_ERROR:capture_error.to_string(),
+                    });
+                    Outcome {
+                        result: Err(Error::Invalid(format!(
+                            "{error}; raw process identity unavailable: {capture_error}"
+                        ))),
+                        capture: Some(Capture {
+                            invocation,
+                            output: raw,
+                        }),
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(all(test, unix))]
+mod input_metadata_test;
+
+/// One shared configuration admission boundary for both contestants and measured/verification calls.
+pub(super) fn configuration(
+    linter: &dyn LinterPort,
+    request: &ryo_benchmark_contracts::domain::requests::types::RunRequest,
+) -> Result<(), Error> {
+    if let Some(context) = &request.rule_context {
+        crate::domain::suite::rule_context::check(context, &request.files)?;
+        crate::domain::suite::rule_context::check_selection(
+            context,
+            request.selected_rules.as_deref(),
+        )?;
+        if linter.rule_configuration()
+            != ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Explicit
+        {
+            return Err(Error::Invalid(
+                constants::CONTESTANT_DOES_NOT_IMPLEMENT_THE_DECLARED.into(),
+            ));
+        }
+    }
+    Ok(())
+}

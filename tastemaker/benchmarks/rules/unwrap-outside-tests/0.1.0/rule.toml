@@ -1,0 +1,66 @@
+description = "Benchmark: duplicates clippy's `unwrap_used` and `expect_used`; ruff and eslint have none, for Python and TypeScript have no `Option` or `Result` whose unwrapping panics (a missing value raises from an ordinary call, and TypeScript's non-null `!` checks nothing at run time); not placed on this repo. No Rust `.unwrap()` or `.expect(..)` method call outside test code: a function or module carrying an attribute that names `test` (`#[test]`, `#[cfg(test)]`, `#[tokio::test]`)."
+why = "A panic on a `None` or an `Err` in library code ends the caller's process instead of returning an error it can handle (clippy's `unwrap_used` and `expect_used`). Test code panics by design. Read syntactically: the method's name as written, on any receiver; test code is an item whose attribute holds the identifier `test` anywhere in its tokens, and everything nested in it. Not seen: a call inside a macro invocation's tokens."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let names = select * from tree-tokens where glob_any(text, "{unwrap,expect}");
+let name-parents = select r."parent" as "name", l."text" as "text" from names as l join "syntax-child" as r on l."id" = r."child";
+let name-calls = select r."parent" as "call", l."text" as "text" from name-parents as l join "syntax-child" as r on l."name" = r."child";
+let calls = select * from tree-nodes where kind = "method-call-expr";
+let method-calls = select r."id" as "id", r."file" as "file", r."span" as "span", l."text" as "text" from name-calls as l join calls as r on l."call" = r."id";
+let test-tokens = select * from tree-tokens where text = "test";
+let test-token-parents = select r."parent" as "id" from test-tokens as l join "syntax-child" as r on l."id" = r."child";
+let attributes = select * from tree-nodes where kind = "attr";
+let test-token-attributes = axis(from=test-token-parents, relation="syntax-child", direction=nearest-ancestor, domain=attributes);
+let test-attribute-owners = select r."parent" as "item" from test-token-attributes as l join "syntax-child" as r on l."related" = r."child";
+let test-items = select r."id" as "id" from test-attribute-owners as l join tree-nodes as r on l."item" = r."id";
+let calls-in-tests = axis(from=method-calls, relation="syntax-child", direction=ancestor, domain=test-items);
+let production-calls = antijoin(left=method-calls, right=calls-in-tests, left-on=["id"], right-on=["id"]);
+emit production-calls subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`.{text}()` panics outside test code"
+help = "Return the error with `?`, or handle the `None` or `Err` case."
+
+[given]
+include = ['**']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'library-code-unwraps'
+scenario = 'Library code unwraps: it is reported.'
+given.files.'src/lib.rs' = '''
+pub fn first(values: &[u8]) -> u8 {
+    *values.first().unwrap()
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'test-code'
+scenario = 'A test module unwraps and expects.'
+given.files.'src/lib.rs' = '''
+pub fn first(values: &[u8]) -> Option<u8> {
+    values.first().copied()
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn first_succeeds() {
+        assert_eq!(super::first(&[1]).unwrap(), 1);
+        let value: Result<u8, ()> = Ok(1);
+        value.expect("a value");
+    }
+}
+'''

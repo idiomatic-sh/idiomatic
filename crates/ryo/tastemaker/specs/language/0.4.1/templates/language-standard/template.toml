@@ -1,0 +1,61 @@
+description = "The README of a language's pinned standard: the standard that defines its nodes and its tokens, where it is published and which version is pinned, or that the language has none."
+why = "A language's nodes and tokens are named by the standard that defines the language, and the standard is pinned in `tests/fixtures/standard/` so that the name and version in the `STANDARD` constants are checkable against a snapshot: the page beside the files says what they are a snapshot of, the source and the version pinned, so that an update is a visible change. A language no standard defines says so under the same two headings and holds the file that lists the names. The template is open: it asks that the page exist and shows the two headings it names, and the text is the language's own."
+content = '''
+# {{ lang }} standard
+
+## Source
+
+The standard that defines the nodes and the tokens of the language and where it is published, or the grammar file that lists them.
+
+## Version
+
+The version of the standard that is pinned here.
+'''
+
+[params]
+lang = { type = "identifier", from = "directory-name", description = "The language, its directory's name." }
+
+[given]
+file = 'tests/fixtures/standard/README.md'
+params = { lang = 'demo' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'tests/fixtures/standard/README.md' = '''
+# demo standard
+
+## Source
+
+The standard that defines the nodes and the tokens of the language and where it is published, or the grammar file that lists them.
+
+## Version
+
+The version of the standard that is pinned here.
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A page may carry more than its template.'
+given.files.'tests/fixtures/standard/README.md' = '''
+# demo standard
+
+## Source
+
+The standard that defines the nodes and the tokens of the language and where it is published, or the grammar file that lists them.
+
+## Version
+
+The version of the standard that is pinned here.
+
+## Notes
+
+The files are copied unchanged.
+'''
+
+[[scenarios]]
+id = 'page-missing'
+scenario = 'The page is missing.'
+then.findings = [
+  { rule = 'language-standard#count', path = '.' },
+]

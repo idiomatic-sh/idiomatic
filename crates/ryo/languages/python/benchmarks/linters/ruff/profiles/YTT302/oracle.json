@@ -1,0 +1,64 @@
+{
+  "ruff_version": "0.16.5",
+  "ruff_binary_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "target_version": "py310",
+  "mode": "isolated selected-rule full report",
+  "cases": [
+    {
+      "rule": "YTT302",
+      "case": "direct",
+      "source_sha256": "2237c5969f98427d50dc88132de60097efd09e9f2b3056864a4f33360fe5668e",
+      "diagnostics": [
+        {
+          "rule": "YTT302",
+          "file": "case.py",
+          "start": 11,
+          "end": 22
+        }
+      ]
+    },
+    {
+      "rule": "YTT302",
+      "case": "escaped-one-byte",
+      "source_sha256": "374e0ffdc88dff5eeff9441d406105c6295550beb2b32d6569dbc2d67028525d",
+      "diagnostics": [
+        {
+          "rule": "YTT302",
+          "file": "case.py",
+          "start": 11,
+          "end": 22
+        }
+      ]
+    },
+    {
+      "rule": "YTT302",
+      "case": "reverse",
+      "source_sha256": "e389b8c066ab40d93e68a1d12dc3a505dd026c05b1b31c7805b120534523cd29",
+      "diagnostics": []
+    },
+    {
+      "rule": "YTT302",
+      "case": "long-string",
+      "source_sha256": "0bcaec2bff6d009f444f3750fabf4aa851b2480100c98eff66f94b99a9d900eb",
+      "diagnostics": []
+    },
+    {
+      "rule": "YTT302",
+      "case": "non-ascii-single-scalar",
+      "source_sha256": "da70765ed497175ce027c4abc43cb676ddf6d79d57d8e47da65e4507a901741e",
+      "diagnostics": []
+    },
+    {
+      "rule": "YTT302",
+      "case": "wrong-operator",
+      "source_sha256": "c9cc30b77b5972f6866e733b22106bb8b948669717abbb88b00d81b0522fe8fe",
+      "diagnostics": []
+    },
+    {
+      "rule": "YTT302",
+      "case": "wrong-left",
+      "source_sha256": "08384677bd3a6ceced7d9ba0aac882158331563018b51481ac260172f5cf76a1",
+      "diagnostics": []
+    }
+  ]
+}

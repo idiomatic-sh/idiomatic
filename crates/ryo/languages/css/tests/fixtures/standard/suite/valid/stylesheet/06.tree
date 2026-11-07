@@ -1,0 +1,6 @@
+stylesheet
+  at-rule foo
+    whitespace
+    ident
+  whitespace
+  comment

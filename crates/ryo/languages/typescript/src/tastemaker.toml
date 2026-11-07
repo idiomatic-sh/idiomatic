@@ -1,0 +1,1 @@
+imports-allow = ["oxc_parser::*", "oxc_allocator::*", "oxc_ast::*", "oxc_ast_visit::*", "oxc_span::*", "oxc_semantic::*", "serde::*", "serde_json::*", "jsonc_parser::*", "yaml_serde::*", "globset::*", "postcard::*"]

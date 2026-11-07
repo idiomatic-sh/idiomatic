@@ -1,0 +1,362 @@
+[[cases]]
+name = "bare-handler"
+files = { "case.py" = "try:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "typed-handler"
+files = { "case.py" = "try:\n    pass\nexcept Exception:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "unicode-before-handler"
+files = { "case.py" = "label = \"é\"\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 27, end = 33 }]
+
+[[cases]]
+name = "direct-reraise"
+files = { "case.py" = "try:\n    pass\nexcept:\n    raise\n" }
+expected = []
+
+[[cases]]
+name = "raising-new-exception"
+files = { "case.py" = "try:\n    pass\nexcept:\n    raise ValueError()\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "nested-reraise-is-not-direct"
+files = { "case.py" = "try:\n    pass\nexcept:\n    if True:\n        raise\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "noqa-rule-suppression"
+files = { "case.py" = "try:\n    pass\nexcept:  # noqa: E722\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "noqa-file-suppression"
+files = { "case.py" = "# ruff: noqa\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "noqa-code-does-not-match-a-prefix"
+files = { "case.py" = "try:\n    pass\nexcept:  # noqa: E7220\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "noqa-unrelated-rule"
+files = { "case.py" = "try:\n    pass\nexcept:  # noqa: F401\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "noqa-body-comment-is-not-header"
+files = { "case.py" = "try:\n    pass\nexcept:\n    pass  # noqa: E722\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "file-noqa-must-be-standalone"
+files = { "case.py" = "try:\n    pass\nexcept:  # ruff: noqa\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "noqa-case-insensitive-keyword-and-code-list"
+files = { "case.py" = "try:\n    pass\nexcept:  # NOQA: F401, E722\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "file-noqa-targeted-rule"
+files = { "case.py" = "# flake8: noqa: F401, E722\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "malformed-later-code-invalidates-directive"
+files = { "case.py" = "try:\n    pass\nexcept:  # noqa: E722, F401x\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "only-first-noqa-directive-applies"
+files = { "case.py" = "try:\n    pass\nexcept:  # noqa: F401 # noqa: E722\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+# Directive cases follow the pinned lexer: astral-sh/ruff@0.16.5, crates/ruff_linter/src/noqa.rs.
+# A malformed joined code invalidates the directive; a separated non-code starts trailing commentary.
+
+[[cases]]
+name = "squashed-code-list-target-last"
+files = { "case.py" = "try:\n    pass\nexcept:  # noqa: F401E722\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "squashed-invalid-code-rejects-all"
+files = { "case.py" = "try:\n    pass\nexcept:  # noqa: E722Ffoo\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "separated-uppercase-tail-is-comment"
+files = { "case.py" = "try:\n    pass\nexcept:  # noqa: E722 Ffoo\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "trailing-comment-cannot-supply-code"
+files = { "case.py" = "try:\n    pass\nexcept:  # noqa: F401 reason E722\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "first-invalid-directive-blocks-later"
+files = { "case.py" = "try:\n    pass\nexcept:  # noqaBAD # noqa:E722\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "embedded-marker-after-comment-text"
+files = { "case.py" = "try:\n    pass\nexcept:  # reason / path # noqa:E722\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "leading-extra-hash"
+files = { "case.py" = "try:\n    pass\nexcept:  # # noqa:E722\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "empty-code-list-items-are-warnings"
+files = { "case.py" = "try:\n    pass\nexcept:  # noqa: , , E722,,F401\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "later-squashed-invalid-code-rejects-all"
+files = { "case.py" = "try:\n    pass\nexcept:  # noqa: E722 F401E\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "nested-first-invalid-directive"
+files = { "case.py" = "try:\n    pass\nexcept:  # note # noqaBAD # noqa:E722\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "file-malformed-later-code-rejects-all"
+files = { "case.py" = "# ruff: noqa: E722,F401x\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 39, end = 45 }]
+
+[[cases]]
+name = "file-only-first-directive-applies"
+files = { "case.py" = "# ruff:noqa:F401 # ruff:noqa:E722\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 48, end = 54 }]
+
+[[cases]]
+name = "file-first-invalid-directive-blocks-later"
+files = { "case.py" = "# ruff:noqaBAD # ruff:noqa:E722\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 46, end = 52 }]
+
+[[cases]]
+name = "file-directive-search-ignores-inline-marker"
+files = { "case.py" = "# noqa:F401 # ruff:noqa:E722\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "file-squashed-code-list"
+files = { "case.py" = "# flake8:noqa:F401E722\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "file-tool-prefix-is-case-sensitive"
+files = { "case.py" = "# RUFF:noqa:E722\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 31, end = 37 }]
+
+[[cases]]
+name = "rule-codes-are-case-sensitive"
+files = { "case.py" = "try:\n    pass\nexcept:  # NoQa:e722\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "unicode-directive-whitespace"
+files = { "case.py" = "try:\n    pass\nexcept:  # noqa: E722\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "file-uppercase-trailing-comment"
+files = { "case.py" = "# ruff:noqa:E722 UPPERCASE reason\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[E722]\ntry:\n    pass\nexcept:\n    pass\n\n# ruff: enable[E722]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[E722]\n# ruff: enable[E722]\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 57, end = 63 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[E722]\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 36, end = 42 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[E722]\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "duplicate-block-opens-consume-distinct-enables"
+files = { "case.py" = "# ruff: disable[E722]\n# ruff: disable[E722]\n# ruff: enable[E722]\ntry:\n    pass\nexcept:\n    pass\n# ruff: enable[E722]\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 131, end = 137 }]
+
+[[cases]]
+name = "unmatched-enable-before-disable"
+files = { "case.py" = "# ruff: enable[E722]\n# ruff: disable[E722]\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "normalized-codes-whitespace-and-trailing-comma"
+files = { "case.py" = "# ruff: disable[ E722 , B002 , ]\n# ruff: enable[E722,B002]\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 73, end = 79 }]
+
+[[cases]]
+name = "code-order-is-not-a-set"
+files = { "case.py" = "# ruff: disable[E722,B002]\n# ruff: enable[B002,E722]\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "duplicate-codes-are-preserved"
+files = { "case.py" = "# ruff: disable[E722,E722]\n# ruff: enable[E722]\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "implicit-end-on-dedent"
+files = { "case.py" = "def f():\n    # ruff: disable[E722]\n    try:\n        pass\n    except:\n        pass\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 96, end = 102 }]
+
+[[cases]]
+name = "invalid-interior-comment-indent"
+files = { "case.py" = "def f():\n    pass\n  # ruff: disable[E722]\n    try:\n        pass\n    except:\n        pass\n" }
+expected = [{ file = "case.py", start = 68, end = 74 }]
+
+[[cases]]
+name = "permitted-boundary-comment-outlives-child"
+files = { "case.py" = "def f():\n  # ruff: disable[E722]\n    try:\n        pass\n    except:\n        pass\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "file-ignore-must-be-module-scope"
+files = { "case.py" = "def f():\n    # ruff: file-ignore[E722]\n    try:\n        pass\n    except:\n        pass\n" }
+expected = [{ file = "case.py", start = 65, end = 71 }]
+
+[[cases]]
+name = "trailing-disable-invalid"
+files = { "case.py" = "value = 1 # ruff: disable[E722]\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 46, end = 52 }]
+
+[[cases]]
+name = "malformed-missing-comma-ignore"
+files = { "case.py" = "# ruff: disable[E722 B002]\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 41, end = 47 }]
+
+[[cases]]
+name = "ignore-above-handler"
+files = { "case.py" = "try:\n    pass\n# ruff: ignore[E722]\nexcept:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "ignore-above-try-only-covers-header"
+files = { "case.py" = "# ruff: ignore[E722]\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 35, end = 41 }]
+
+[[cases]]
+name = "ignore-trailing-handler"
+files = { "case.py" = "try:\n    pass\nexcept: # ruff: ignore[E722]\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "nested-trailing-ignore"
+files = { "case.py" = "try:\n pass\nexcept: # explanation # ruff: ignore[E722]\n pass\n" }
+expected = []
+
+[[cases]]
+name = "nested-ownline-ignore-is-trailing"
+files = { "case.py" = "try:\n pass\n# explanation # ruff: ignore[E722]\nexcept:\n pass\n" }
+expected = [{ file = "case.py", start = 46, end = 52 }]
+
+[[cases]]
+name = "nested-disable-is-invalid"
+files = { "case.py" = "# explanation # ruff: disable[E722]\ntry:\n pass\nexcept:\n pass\n" }
+expected = [{ file = "case.py", start = 47, end = 53 }]
+
+[[cases]]
+name = "unknown-code-with-valid-code"
+files = { "case.py" = "# ruff: disable[UNKNOWN, E722]\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "invalid-numeric-code-invalidates-comment"
+files = { "case.py" = "# ruff: disable[E722, 123]\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 41, end = 47 }]
+
+[[cases]]
+name = "empty-code-invalidates-comment"
+files = { "case.py" = "# ruff: disable[E722,,B002]\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 42, end = 48 }]
+
+[[cases]]
+name = "partial-code-does-not-match"
+files = { "case.py" = "# ruff: disable[E7220]\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 37, end = 43 }]
+
+[[cases]]
+name = "colon-code-does-not-match"
+files = { "case.py" = "# ruff: disable[E722:]\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 37, end = 43 }]
+
+[[cases]]
+name = "trailing-reason"
+files = { "case.py" = "# ruff: disable[E722] intentional for this test\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "range-unicode-directive-whitespace"
+files = { "case.py" = "#\u2003ruff\u2003:\u2003disable\u2003[E722\u2003,\u2003]\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "nested-enable-does-not-close"
+files = { "case.py" = "# ruff: disable[E722] # ruff: enable[E722]\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "raw-tab-block-scope"
+files = { "case.py" = "def f():\n\t# ruff: disable[E722]\n\ttry:\n\t\tpass\n\texcept:\n\t\tpass\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 75, end = 81 }]
+
+[[cases]]
+name = "raw-formfeed-block-scope"
+files = { "case.py" = "def f():\n\f    # ruff: disable[E722]\n\f    try:\n\f        pass\n\f    except:\n\f        pass\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 101, end = 107 }]
+
+[[cases]]
+name = "same-visual-indent-is-not-same-raw-prefix"
+files = { "case.py" = "def f():\n\tpass\n        # ruff: disable[E722]\n\ttry:\n\t\tpass\n\texcept:\n\t\tpass\n" }
+expected = [{ file = "case.py", start = 59, end = 65 }]
+
+[[cases]]
+name = "raw-length-boundary-can-expire-before-handler"
+files = { "case.py" = "def f():\n        # ruff: disable[E722]\n\ttry:\n\t\tpass\n\texcept:\n\t\tpass\ntry:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 53, end = 59 }, { file = "case.py", start = 82, end = 88 }]
+
+[[cases]]
+name = "other-rule-alias-spelling-affects-pairing"
+files = { "case.py" = "# ruff: disable[E722,U005]\n# ruff: enable[E722,UP005]\ntry:\n pass\nexcept:\n pass\n" }
+expected = []
+
+[[cases]]
+name = "block-bare-cr"
+files = { "case.py" = "# ruff: disable[E722]\rtry:\r pass\rexcept:\r pass\r# ruff: enable[E722]\rtry:\r pass\rexcept:\r pass\r" }
+expected = [{ file = "case.py", start = 79, end = 85 }]
+
+[[cases]]
+name = "block-crlf"
+files = { "case.py" = "# ruff: disable[E722]\r\ntry:\r\n pass\r\nexcept:\r\n pass\r\n# ruff: enable[E722]\r\ntry:\r\n pass\r\nexcept:\r\n pass\r\n" }
+expected = [{ file = "case.py", start = 87, end = 93 }]

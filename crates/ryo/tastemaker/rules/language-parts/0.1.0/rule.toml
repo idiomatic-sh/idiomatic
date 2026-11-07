@@ -1,0 +1,846 @@
+description = "A language has, beyond what its spec places: no directory of kinds, a manifest reading adapter (or a native manifest adapter of its own `manifest` port) and its fixtures when it has manifest items other than the links read from the parse's notes, a test beside every project or embedded adapter, the files its allocation test reads, and a `model` concept when its file model is not `()`."
+why = "The language spec places every part a language has by construction: its contracts, its concepts, its syntax adapter with its walk and oracle, its fixtures, its tests and its bench. What a placement cannot say stays here, because it depends on what the language reads: the kinds are one file and never a directory for each, a language with manifest items has the manifest reading adapter and the project cases that read them, every language has the sample files its allocation test measures, and the `model` concept exists exactly when the file model of the parse contract is not `()`. A part that is missing is a finding that names it, with the path to write."
+
+query = '''
+let listed-files = select l."path" as "file" from "filesystem.file" as l;
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let files = project(from=listed-files, columns=["file"]);
+let crates = capture(from=files, path="file", pattern="{*root}/Cargo.toml", captures=["root"]);
+let real-crates = select * from crates where not glob_any(file, "**/tests/fixtures/**");
+let roots = project(from=real-crates, columns=["root", "file"]);
+let kind-files = capture(from=files, path="file", pattern="{*root}/src/domain/syntax/collections/{*rest}", captures=["root", "rest"]);
+let kind-directories = extend(from=kind-files, values={"part": "a directory of kinds: the kinds are one file, src/domain/syntax/types.rs"});
+let manifest-files = capture(from=files, path="file", pattern="{*root}/src/domain/manifests/collections/{*rest}", captures=["root", "rest"]);
+let manifest-items = select * from manifest-files where not glob_any(rest, "{manifests.rs,manifests/source_dependency.rs,manifests/analyzed_source.rs,manifests/source_dependency/**,manifests/analyzed_source/**}");
+let item-roots = project(from=manifest-items, columns=["root"]);
+let no-manifest-items = antijoin(left=roots, right=item-roots, left-on=["root"], right-on=["root"]);
+let no-manifest-roots = project(from=no-manifest-items, columns=["root"]);
+let reads-manifests = antijoin(left=roots, right=no-manifest-roots, left-on=["root"], right-on=["root"]);
+let port-tools = capture(from=files, path="file", pattern="{*root}/src/outbound/{port}/adapters/{tool}/adapter.rs", captures=["root", "port", "tool"]);
+let tools = select * from port-tools where glob_any(port, "{manifest_reading,manifest}");
+let tool-roots = project(from=tools, columns=["root"]);
+let no-tool = antijoin(left=reads-manifests, right=tool-roots, left-on=["root"], right-on=["root"]);
+let missing-tool = extend(from=no-tool, values={"part": "a manifest reading adapter, src/outbound/manifest_reading/adapters/<tool>/adapter.rs, or a native manifest adapter, src/outbound/manifest/adapters/<tool>/adapter.rs, for the tool whose manifests the language reads (it has manifest items: a directory under src/domain/manifests/collections/)"});
+let manifest-fixtures = capture(from=files, path="file", pattern="{*root}/tests/fixtures/manifests/{case}/{*rest}", captures=["root", "case", "rest"]);
+let manifest-roots = project(from=manifest-fixtures, columns=["root"]);
+let no-manifest-fixtures = antijoin(left=reads-manifests, right=manifest-roots, left-on=["root"], right-on=["root"]);
+let missing-manifests = extend(from=no-manifest-fixtures, values={"part": "the repository of a project case, tests/fixtures/manifests/<case>/"});
+let allocation-fixtures = capture(from=files, path="file", pattern="{*root}/tests/fixtures/allocation/{sample}.{ext}", captures=["root", "sample", "ext"]);
+let allocation-roots = project(from=allocation-fixtures, columns=["root"]);
+let no-allocation-fixtures = antijoin(left=roots, right=allocation-roots, left-on=["root"], right-on=["root"]);
+let missing-allocation = extend(from=no-allocation-fixtures, values={"part": "the files the allocation test reads, tests/fixtures/allocation/"});
+let fixture-files = capture(from=files, path="file", pattern="{*root}/src/fixtures/{name}.rs", captures=["root", "name"]);
+let manifest-row-files = select * from fixture-files where not glob_any(name, "{contracts,kinds,reading,relations}");
+let manifest-row-roots = project(from=manifest-row-files, columns=["root"]);
+let no-manifest-rows = antijoin(left=reads-manifests, right=manifest-row-roots, left-on=["root"], right-on=["root"]);
+let missing-manifest-rows = extend(from=no-manifest-rows, values={"part": "the typed rows each project case must give, src/fixtures/<case>.rs"});
+let parse-contracts = select * from tree-tokens where kind = "ident";
+let model-idents = select * from parse-contracts where text = "FileModel";
+let aliases = select * from tree-nodes where kind = "type-alias";
+let names = select * from tree-nodes where kind = "name";
+let tuple-types = select * from tree-nodes where kind = "tuple-type";
+let model-names = select l."parent" as "name", l."file" as "file" from "syntax-child" as l join model-idents as r on l."child" = r."id";
+let named = select l."name" as "name", l."file" as "file" from model-names as l join names as r on l."name" = r."id";
+let in-alias = select l."parent" as "alias", l."file" as "file" from "syntax-child" as l join named as r on l."child" = r."name";
+let model-aliases = select l."alias" as "alias", l."file" as "file" from in-alias as l join aliases as r on l."alias" = r."id";
+let alias-edges = select l."file" as "file", l."alias" as "alias", r."child" as "tuple" from model-aliases as l join "syntax-child" as r on l."alias" = r."parent";
+let unit-aliases = select l."file" as "file" from alias-edges as l join tuple-types as r on l."tuple" = r."id";
+let model-files = capture(from=model-aliases, path="file", pattern="{*root}/src/inbound/contracts/parse/contract.rs", captures=["root"]);
+let model-roots = project(from=model-files, columns=["root"]);
+let unit-files = capture(from=unit-aliases, path="file", pattern="{*root}/src/inbound/contracts/parse/contract.rs", captures=["root"]);
+let unit-roots = project(from=unit-files, columns=["root"]);
+let modelled = antijoin(left=model-roots, right=unit-roots, left-on=["root"], right-on=["root"]);
+let modelled-crates = select l."root" as "root", l."file" as "file" from roots as l join modelled as r on l."root" = r."root";
+let model-0 = extend(from=modelled-crates, values={"rel": "domain/model/types.rs", "part": "src/domain/model/types.rs"});
+let model-1 = extend(from=modelled-crates, values={"rel": "domain/model/service.rs", "part": "src/domain/model/service.rs"});
+let model-2 = extend(from=modelled-crates, values={"rel": "domain/model/service_test.rs", "part": "src/domain/model/service_test.rs"});
+let model-u0 = union(left=model-0, right=model-1);
+let model-u1 = union(left=model-u0, right=model-2);
+let src-have = capture(from=files, path="file", pattern="{*root}/src/{*rel}", captures=["root", "rel"]);
+let src-have-keys = project(from=src-have, columns=["root", "rel"]);
+let no-src = antijoin(left=model-u1, right=src-have-keys, left-on=["root", "rel"], right-on=["root", "rel"]);
+let missing-src = project(from=no-src, columns=["file", "part"]);
+let adapter-files = capture(from=files, path="file", pattern="{*root}/src/outbound/{port}/adapters/{tool}/adapter.rs", captures=["root", "port", "tool"]);
+let placed-adapters = select * from adapter-files where glob_any(port, "{manifest_reading,manifest,embedded}");
+let adapter-tests = capture(from=files, path="file", pattern="{*root}/src/outbound/{port}/adapters/{tool}/adapter_test.rs", captures=["root", "port", "tool"]);
+let tested-adapters = project(from=adapter-tests, columns=["root", "port", "tool"]);
+let untested-adapters = antijoin(left=placed-adapters, right=tested-adapters, left-on=["root", "port", "tool"], right-on=["root", "port", "tool"]);
+let missing-adapter-test = extend(from=untested-adapters, values={"part": "the adapter's test, adapter_test.rs beside this adapter.rs, which runs the port's contract"});
+let p6 = project(from=kind-directories, columns=["file", "part"]);
+let p7 = project(from=missing-tool, columns=["file", "part"]);
+let p9 = project(from=missing-manifests, columns=["file", "part"]);
+let p10 = project(from=missing-allocation, columns=["file", "part"]);
+let p14 = project(from=missing-manifest-rows, columns=["file", "part"]);
+let first = union(left=p6, right=p7);
+let second = union(left=first, right=p9);
+let third = union(left=second, right=p10);
+let p15 = project(from=missing-adapter-test, columns=["file", "part"]);
+let fourth = union(left=third, right=p14);
+let fifth = union(left=fourth, right=p15);
+let rows = union(left=fifth, right=missing-src);
+emit rows subject "file" key("file", "part");
+'''
+
+[diagnostic]
+primary = "file"
+message = "the language lacks {part}"
+help = "Write the part the message names; `tm scaffold` lays out the contracts, and the file of kinds is seeded once from the first parser library's grammar. A kind is a variant of `NodeKind` in the file of kinds, never a directory. An ignore is never the fix."
+
+[given]
+include = ['**']
+files.'demo/Cargo.toml' = '''
+[package]
+name = "demo-language"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'demo/benches/performance.rs' = '''
+// bench
+'''
+files.'demo/src/domain/language/service.rs' = '''
+// domain/language/service
+'''
+files.'demo/src/domain/language/service_test.rs' = '''
+// domain/language/service_test
+'''
+files.'demo/src/domain/nodes/constants.rs' = '''
+pub const STANDARD: &str = "demo 1";
+'''
+files.'demo/src/domain/nodes/service.rs' = '''
+// domain/nodes/service
+'''
+files.'demo/src/domain/nodes/service_test.rs' = '''
+// domain/nodes/service_test
+'''
+files.'demo/src/domain/nodes/types.rs' = '''
+// domain/nodes/types
+'''
+files.'demo/src/domain/relations/collections/relations/fixtures/contract.rs' = '''
+// contract
+'''
+files.'demo/src/domain/relations/collections/relations/function/item.rs' = '''
+//! The `function` item.
+
+pub(crate) struct FunctionItem;
+'''
+files.'demo/src/domain/syntax/service.rs' = '''
+// domain/syntax/service
+'''
+files.'demo/src/domain/syntax/service_test.rs' = '''
+// domain/syntax/service_test
+'''
+files.'demo/src/domain/syntax/types.rs' = '''
+//! The demo language's kinds.
+
+pub(crate) enum NodeKind {
+    Other,
+    Fn,
+}
+'''
+files.'demo/src/domain/tokens/constants.rs' = '''
+pub const STANDARD: &str = "demo 1";
+'''
+files.'demo/src/domain/tokens/service.rs' = '''
+// domain/tokens/service
+'''
+files.'demo/src/domain/tokens/service_test.rs' = '''
+// domain/tokens/service_test
+'''
+files.'demo/src/domain/tokens/types.rs' = '''
+// domain/tokens/types
+'''
+files.'demo/src/fixtures.rs' = '''
+//! The typed fixtures of the language.
+
+mod kinds;
+mod relations;
+mod packages;
+'''
+files.'demo/src/fixtures/contracts.rs' = '''
+// fixtures/contracts
+'''
+files.'demo/src/fixtures/kinds.rs' = '''
+//! How each kind is shown.
+
+/// The kinds, with their samples.
+pub(super) fn shown() -> u8 {
+    1
+}
+'''
+files.'demo/src/fixtures/reading.rs' = '''
+// fixtures/reading
+'''
+files.'demo/src/fixtures/relations.rs' = '''
+//! The rows each relation fixture gives.
+
+/// The rows.
+pub(super) fn expected() -> u8 {
+    1
+}
+'''
+files.'demo/src/inbound/contracts/parse/contract.rs' = '''
+use ryo::languages::{self, Reader, AbsenceCause, Support};
+
+pub struct ParseUseCaseImpl;
+
+impl languages::Parse for ParseUseCaseImpl {
+    fn function(&self) -> Support<Reader<languages::Function>> {
+        Support::Reads(FunctionItem::READER)
+    }
+
+    fn comment(&self) -> Support<Reader<languages::Comment>> {
+        Support::NotInThisLanguage(AbsenceCause::NoSuchConstruct)
+    }
+}
+'''
+files.'demo/src/inbound/contracts/project/contract.rs' = '''
+use ryo::languages;
+
+pub struct ProjectUseCaseImpl;
+
+impl languages::Project for ProjectUseCaseImpl {
+    fn manifests(&self) -> &'static [languages::ManifestName] {
+        &[]
+    }
+}
+'''
+files.'demo/src/lib.rs' = '''
+//! The demo language.
+
+pub mod inbound;
+pub mod outbound;
+mod domain;
+
+/// The demo language, composed over its ports.
+pub fn linked() {}
+'''
+files.'demo/src/outbound/syntax/adapters/demo_parser/adapter.rs' = '''
+//! The syntax port, implemented with demo_parser.
+
+use demo_parser::Parser;
+
+pub struct SyntaxDemoParserAdapter;
+'''
+files.'demo/src/outbound/syntax/adapters/demo_parser/constants.rs' = '''
+// constants
+'''
+files.'demo/src/outbound/syntax/adapters/demo_parser/fixtures/oracle.rs' = '''
+// fixtures/oracle
+'''
+files.'demo/src/outbound/syntax/adapters/demo_parser/fixtures/walk.rs' = '''
+// fixtures/walk
+'''
+files.'demo/src/outbound/syntax/adapters/demo_parser/schemas.rs' = '''
+// schemas
+'''
+files.'demo/src/outbound/syntax/adapters/demo_parser/schemas_test.rs' = '''
+// schemas_test
+'''
+files.'demo/src/outbound/syntax/adapters/demo_parser/types.rs' = '''
+// types
+'''
+files.'demo/src/outbound/syntax/factory.rs' = '''
+// outbound/syntax/factory
+'''
+files.'demo/src/outbound/syntax/fixtures/library.rs' = '''
+// outbound/syntax/fixtures/library
+'''
+files.'demo/tests/fixtures/relations/function/input.rs' = '''
+fn f() {}
+'''
+
+[[scenarios]]
+id = 'every-part-present'
+scenario = 'Every part present: nothing is reported.'
+given.files.'demo/src/domain/manifests/collections/manifests/package/item.rs' = '''
+//! The `package` relation of the demo language.
+
+pub(crate) struct PackageItem;
+
+ryo::reads! {
+    PackageItem => languages::Package, manifests |input, symbols|
+    row { name: value(input) }
+}
+'''
+given.files.'demo/src/fixtures/packages.rs' = '''
+//! The rows the project case gives.
+
+/// The rows.
+pub(super) fn expected() -> u8 {
+    1
+}
+'''
+given.files.'demo/src/outbound/manifest_reading/adapters/demo_tool/adapter.rs' = '''
+//! The demo manifest reading adapter.
+'''
+given.files.'demo/src/outbound/manifest_reading/adapters/demo_tool/adapter_test.rs' = '''
+//! The demo manifest reading adapter's test.
+'''
+given.files.'demo/tests/fixtures/allocation/sample.rs' = '''
+fn f() {}
+'''
+given.files.'demo/tests/fixtures/manifests/one/demo.manifest' = '''
+name = "one"
+'''
+given.files.'demo/tests/fixtures/manifests/two/Cargo.toml' = '''
+[package]
+name = "two"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'kind-directory'
+scenario = 'A directory of kinds.'
+given.files.'demo/src/domain/syntax/collections/nodes/abi/item.rs' = '''
+pub(crate) struct AbiItem;
+'''
+given.files.'demo/src/fixtures.rs' = '''
+//! The typed fixtures of the language.
+
+mod kinds;
+mod relations;
+'''
+given.files.'demo/src/outbound/manifest_reading/adapters/demo_tool/adapter.rs' = '''
+//! The demo manifest reading adapter.
+'''
+given.files.'demo/src/outbound/manifest_reading/adapters/demo_tool/adapter_test.rs' = '''
+//! The demo manifest reading adapter's test.
+'''
+given.files.'demo/tests/fixtures/allocation/sample.rs' = '''
+fn f() {}
+'''
+given.files.'demo/tests/fixtures/manifests/one/demo.manifest' = '''
+name = "one"
+'''
+then.findings = [
+  { path = 'demo/src/domain/syntax/collections/nodes/abi/item.rs' },
+]
+
+[[scenarios]]
+id = 'missing-project-adapter'
+scenario = 'No manifest reading adapter: it is reported.'
+given.files.'demo/src/domain/manifests/collections/manifests/package/item.rs' = '''
+//! The `package` relation of the demo language.
+
+pub(crate) struct PackageItem;
+
+ryo::reads! {
+    PackageItem => languages::Package, manifests |input, symbols|
+    row { name: value(input) }
+}
+'''
+given.files.'demo/src/fixtures/packages.rs' = '''
+//! The rows the project case gives.
+
+/// The rows.
+pub(super) fn expected() -> u8 {
+    1
+}
+'''
+given.files.'demo/tests/fixtures/allocation/sample.rs' = '''
+fn f() {}
+'''
+given.files.'demo/tests/fixtures/manifests/one/demo.manifest' = '''
+name = "one"
+'''
+then.findings = [
+  { path = 'demo/Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'native-manifest-adapter'
+scenario = "A language that reads its manifests with a native adapter of its own `manifest` port, as ryo's Rust provider reads Cargo manifests with `src/outbound/manifest/adapters/toml/`, owes no manifest reading adapter; that adapter has its test."
+given.files.'demo/src/domain/manifests/collections/manifests/package/item.rs' = '''
+//! The `package` relation of the demo language.
+
+pub(crate) struct PackageItem;
+
+ryo::reads! {
+    PackageItem => languages::Package, manifests |input, symbols|
+    row { name: value(input) }
+}
+'''
+given.files.'demo/src/fixtures/packages.rs' = '''
+//! The rows the project case gives.
+
+/// The rows.
+pub(super) fn expected() -> u8 {
+    1
+}
+'''
+given.files.'demo/src/outbound/manifest/adapters/toml/adapter.rs' = '''
+//! The demo native manifest adapter.
+'''
+given.files.'demo/src/outbound/manifest/adapters/toml/adapter_test.rs' = '''
+//! The demo native manifest adapter's test.
+'''
+given.files.'demo/tests/fixtures/allocation/sample.rs' = '''
+fn f() {}
+'''
+given.files.'demo/tests/fixtures/manifests/one/Cargo.toml' = '''
+[package]
+name = "one"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'native-manifest-adapter-untested'
+scenario = 'A native manifest adapter without its test.'
+given.files.'demo/src/domain/manifests/collections/manifests/package/item.rs' = '''
+//! The `package` relation of the demo language.
+
+pub(crate) struct PackageItem;
+
+ryo::reads! {
+    PackageItem => languages::Package, manifests |input, symbols|
+    row { name: value(input) }
+}
+'''
+given.files.'demo/src/fixtures/packages.rs' = '''
+//! The rows the project case gives.
+
+/// The rows.
+pub(super) fn expected() -> u8 {
+    1
+}
+'''
+given.files.'demo/src/outbound/manifest/adapters/toml/adapter.rs' = '''
+//! The demo native manifest adapter.
+'''
+given.files.'demo/tests/fixtures/allocation/sample.rs' = '''
+fn f() {}
+'''
+given.files.'demo/tests/fixtures/manifests/one/Cargo.toml' = '''
+[package]
+name = "one"
+version = "0.1.0"
+edition = "2024"
+'''
+then.findings = [
+  { path = 'demo/src/outbound/manifest/adapters/toml/adapter.rs' },
+]
+
+[[scenarios]]
+id = 'missing-adapter-test'
+scenario = 'A manifest reading adapter without its test.'
+given.files.'demo/src/domain/manifests/collections/manifests/package/item.rs' = '''
+//! The `package` relation of the demo language.
+
+pub(crate) struct PackageItem;
+
+ryo::reads! {
+    PackageItem => languages::Package, manifests |input, symbols|
+    row { name: value(input) }
+}
+'''
+given.files.'demo/src/fixtures/packages.rs' = '''
+//! The rows the project case gives.
+
+/// The rows.
+pub(super) fn expected() -> u8 {
+    1
+}
+'''
+given.files.'demo/src/outbound/manifest_reading/adapters/demo_tool/adapter.rs' = '''
+//! The demo manifest reading adapter.
+'''
+given.files.'demo/tests/fixtures/allocation/sample.rs' = '''
+fn f() {}
+'''
+given.files.'demo/tests/fixtures/manifests/one/demo.manifest' = '''
+name = "one"
+'''
+given.files.'demo/tests/fixtures/manifests/two/Cargo.toml' = '''
+[package]
+name = "two"
+version = "0.1.0"
+edition = "2024"
+'''
+then.findings = [
+  { path = 'demo/src/outbound/manifest_reading/adapters/demo_tool/adapter.rs' },
+]
+
+[[scenarios]]
+id = 'missing-embedded-adapter-test'
+scenario = 'An embedded adapter without its test.'
+given.files.'demo/src/domain/manifests/collections/manifests/package/item.rs' = '''
+//! The `package` relation of the demo language.
+
+pub(crate) struct PackageItem;
+
+ryo::reads! {
+    PackageItem => languages::Package, manifests |input, symbols|
+    row { name: value(input) }
+}
+'''
+given.files.'demo/src/fixtures/packages.rs' = '''
+//! The rows the project case gives.
+
+/// The rows.
+pub(super) fn expected() -> u8 {
+    1
+}
+'''
+given.files.'demo/src/outbound/embedded/adapters/demo_framework/adapter.rs' = '''
+//! The demo embedded adapter.
+'''
+given.files.'demo/src/outbound/manifest_reading/adapters/demo_tool/adapter.rs' = '''
+//! The demo manifest reading adapter.
+'''
+given.files.'demo/src/outbound/manifest_reading/adapters/demo_tool/adapter_test.rs' = '''
+//! The demo manifest reading adapter's test.
+'''
+given.files.'demo/tests/fixtures/allocation/sample.rs' = '''
+fn f() {}
+'''
+given.files.'demo/tests/fixtures/manifests/one/demo.manifest' = '''
+name = "one"
+'''
+given.files.'demo/tests/fixtures/manifests/two/Cargo.toml' = '''
+[package]
+name = "two"
+version = "0.1.0"
+edition = "2024"
+'''
+then.findings = [
+  { path = 'demo/src/outbound/embedded/adapters/demo_framework/adapter.rs' },
+]
+
+[[scenarios]]
+id = 'embedded-adapter'
+scenario = 'An embedded adapter with its test; a language without an embedded port owes none.'
+given.files.'demo/src/domain/manifests/collections/manifests/package/item.rs' = '''
+//! The `package` relation of the demo language.
+
+pub(crate) struct PackageItem;
+
+ryo::reads! {
+    PackageItem => languages::Package, manifests |input, symbols|
+    row { name: value(input) }
+}
+'''
+given.files.'demo/src/fixtures/packages.rs' = '''
+//! The rows the project case gives.
+
+/// The rows.
+pub(super) fn expected() -> u8 {
+    1
+}
+'''
+given.files.'demo/src/outbound/embedded/adapters/demo_framework/adapter.rs' = '''
+//! The demo embedded adapter.
+'''
+given.files.'demo/src/outbound/embedded/adapters/demo_framework/adapter_test.rs' = '''
+//! The demo embedded adapter's test.
+'''
+given.files.'demo/src/outbound/manifest_reading/adapters/demo_tool/adapter.rs' = '''
+//! The demo manifest reading adapter.
+'''
+given.files.'demo/src/outbound/manifest_reading/adapters/demo_tool/adapter_test.rs' = '''
+//! The demo manifest reading adapter's test.
+'''
+given.files.'demo/tests/fixtures/allocation/sample.rs' = '''
+fn f() {}
+'''
+given.files.'demo/tests/fixtures/manifests/one/demo.manifest' = '''
+name = "one"
+'''
+given.files.'demo/tests/fixtures/manifests/two/Cargo.toml' = '''
+[package]
+name = "two"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'missing-manifests-fixtures'
+scenario = 'No expected rows of a project.'
+given.files.'demo/src/domain/manifests/collections/manifests/package/item.rs' = '''
+//! The `package` relation of the demo language.
+
+pub(crate) struct PackageItem;
+
+ryo::reads! {
+    PackageItem => languages::Package, manifests |input, symbols|
+    row { name: value(input) }
+}
+'''
+given.files.'demo/src/outbound/manifest_reading/adapters/demo_tool/adapter.rs' = '''
+//! The demo manifest reading adapter.
+'''
+given.files.'demo/src/outbound/manifest_reading/adapters/demo_tool/adapter_test.rs' = '''
+//! The demo manifest reading adapter's test.
+'''
+given.files.'demo/tests/fixtures/allocation/sample.rs' = '''
+fn f() {}
+'''
+then.findings = [
+  { path = 'demo/Cargo.toml' },
+  { path = 'demo/Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'missing-allocation-fixtures'
+scenario = 'No allocation files: it is reported.'
+given.files.'demo/src/fixtures.rs' = '''
+//! The typed fixtures of the language.
+
+mod kinds;
+mod relations;
+'''
+given.files.'demo/src/outbound/manifest_reading/adapters/demo_tool/adapter.rs' = '''
+//! The demo manifest reading adapter.
+'''
+given.files.'demo/src/outbound/manifest_reading/adapters/demo_tool/adapter_test.rs' = '''
+//! The demo manifest reading adapter's test.
+'''
+given.files.'demo/tests/fixtures/manifests/one/demo.manifest' = '''
+name = "one"
+'''
+then.findings = [
+  { path = 'demo/Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'no-manifests'
+scenario = 'A language with no manifest items, or with only `source_dependency` and `analyzed_source`, which it reads from the notes of its parse, needs no manifest reading adapter and no project fixtures.'
+given.files.'demo/src/domain/manifests/collections/manifests.rs' = '''
+pub(crate) mod source_dependency;
+'''
+given.files.'demo/src/domain/manifests/collections/manifests/source_dependency/item.rs' = '''
+//! The `source_dependency` item.
+
+pub(crate) struct SourceDependencyItem;
+'''
+given.files.'demo/src/fixtures.rs' = '''
+//! The typed fixtures of the language.
+
+mod kinds;
+mod relations;
+'''
+given.files.'demo/tests/fixtures/allocation/sample.rs' = '''
+fn f() {}
+'''
+
+[[scenarios]]
+id = 'gitkeep-allocation'
+scenario = 'A file that is no sample does not stand for the allocation files.'
+given.files.'demo/src/domain/manifests/collections/manifests/package/item.rs' = '''
+//! The `package` relation of the demo language.
+
+pub(crate) struct PackageItem;
+
+ryo::reads! {
+    PackageItem => languages::Package, manifests |input, symbols|
+    row { name: value(input) }
+}
+'''
+given.files.'demo/src/fixtures/packages.rs' = '''
+//! The rows the project case gives.
+
+/// The rows.
+pub(super) fn expected() -> u8 {
+    1
+}
+'''
+given.files.'demo/src/outbound/manifest_reading/adapters/demo_tool/adapter.rs' = '''
+//! The demo manifest reading adapter.
+'''
+given.files.'demo/src/outbound/manifest_reading/adapters/demo_tool/adapter_test.rs' = '''
+//! The demo manifest reading adapter's test.
+'''
+given.files.'demo/tests/fixtures/allocation/.gitkeep' = ''
+given.files.'demo/tests/fixtures/manifests/one/demo.manifest' = '''
+name = "one"
+'''
+then.findings = [
+  { path = 'demo/Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'model-without-files'
+scenario = 'A file model without a model concept.'
+given.files.'demo/src/domain/manifests/collections/manifests/package/item.rs' = '''
+//! The `package` relation of the demo language.
+
+pub(crate) struct PackageItem;
+
+ryo::reads! {
+    PackageItem => languages::Package, manifests |input, symbols|
+    row { name: value(input) }
+}
+'''
+given.files.'demo/src/fixtures/packages.rs' = '''
+//! The rows the project case gives.
+
+/// The rows.
+pub(super) fn expected() -> u8 {
+    1
+}
+'''
+given.files.'demo/src/inbound/contracts/parse/contract.rs' = '''
+use ryo::languages::{self, Reader, AbsenceCause, Support};
+
+pub struct ParseUseCaseImpl;
+
+impl languages::Parse for ParseUseCaseImpl {
+    type FileModel = Model;
+
+    fn function(&self) -> Support<Reader<languages::Function>> {
+        Support::Reads(FunctionItem::READER)
+    }
+
+    fn comment(&self) -> Support<Reader<languages::Comment>> {
+        Support::NotInThisLanguage(AbsenceCause::NoSuchConstruct)
+    }
+}
+'''
+given.files.'demo/src/outbound/manifest_reading/adapters/demo_tool/adapter.rs' = '''
+//! The demo manifest reading adapter.
+'''
+given.files.'demo/src/outbound/manifest_reading/adapters/demo_tool/adapter_test.rs' = '''
+//! The demo manifest reading adapter's test.
+'''
+given.files.'demo/tests/fixtures/allocation/sample.rs' = '''
+fn f() {}
+'''
+given.files.'demo/tests/fixtures/manifests/one/demo.manifest' = '''
+name = "one"
+'''
+given.files.'demo/tests/fixtures/manifests/two/Cargo.toml' = '''
+[package]
+name = "two"
+version = "0.1.0"
+edition = "2024"
+'''
+then.findings = [
+  { path = 'demo/Cargo.toml' },
+  { path = 'demo/Cargo.toml' },
+  { path = 'demo/Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'model-with-files'
+scenario = 'A file model with its model concept.'
+given.files.'demo/src/domain/manifests/collections/manifests/package/item.rs' = '''
+//! The `package` relation of the demo language.
+
+pub(crate) struct PackageItem;
+
+ryo::reads! {
+    PackageItem => languages::Package, manifests |input, symbols|
+    row { name: value(input) }
+}
+'''
+given.files.'demo/src/domain/model/service.rs' = '''
+// service
+'''
+given.files.'demo/src/domain/model/service_test.rs' = '''
+// service_test
+'''
+given.files.'demo/src/domain/model/types.rs' = '''
+// types
+'''
+given.files.'demo/src/fixtures/packages.rs' = '''
+//! The rows the project case gives.
+
+/// The rows.
+pub(super) fn expected() -> u8 {
+    1
+}
+'''
+given.files.'demo/src/inbound/contracts/parse/contract.rs' = '''
+use ryo::languages::{self, Reader, AbsenceCause, Support};
+
+pub struct ParseUseCaseImpl;
+
+impl languages::Parse for ParseUseCaseImpl {
+    type FileModel = Model;
+
+    fn function(&self) -> Support<Reader<languages::Function>> {
+        Support::Reads(FunctionItem::READER)
+    }
+
+    fn comment(&self) -> Support<Reader<languages::Comment>> {
+        Support::NotInThisLanguage(AbsenceCause::NoSuchConstruct)
+    }
+}
+'''
+given.files.'demo/src/outbound/manifest_reading/adapters/demo_tool/adapter.rs' = '''
+//! The demo manifest reading adapter.
+'''
+given.files.'demo/src/outbound/manifest_reading/adapters/demo_tool/adapter_test.rs' = '''
+//! The demo manifest reading adapter's test.
+'''
+given.files.'demo/tests/fixtures/allocation/sample.rs' = '''
+fn f() {}
+'''
+given.files.'demo/tests/fixtures/manifests/one/demo.manifest' = '''
+name = "one"
+'''
+given.files.'demo/tests/fixtures/manifests/two/Cargo.toml' = '''
+[package]
+name = "two"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'unit-model'
+scenario = 'A unit file model needs no model concept.'
+given.files.'demo/src/domain/manifests/collections/manifests/package/item.rs' = '''
+//! The `package` relation of the demo language.
+
+pub(crate) struct PackageItem;
+
+ryo::reads! {
+    PackageItem => languages::Package, manifests |input, symbols|
+    row { name: value(input) }
+}
+'''
+given.files.'demo/src/fixtures/packages.rs' = '''
+//! The rows the project case gives.
+
+/// The rows.
+pub(super) fn expected() -> u8 {
+    1
+}
+'''
+given.files.'demo/src/inbound/contracts/parse/contract.rs' = '''
+use ryo::languages::{self, Reader, AbsenceCause, Support};
+
+pub struct ParseUseCaseImpl;
+
+impl languages::Parse for ParseUseCaseImpl {
+    type FileModel = ();
+
+    fn function(&self) -> Support<Reader<languages::Function>> {
+        Support::Reads(FunctionItem::READER)
+    }
+
+    fn comment(&self) -> Support<Reader<languages::Comment>> {
+        Support::NotInThisLanguage(AbsenceCause::NoSuchConstruct)
+    }
+}
+'''
+given.files.'demo/src/outbound/manifest_reading/adapters/demo_tool/adapter.rs' = '''
+//! The demo manifest reading adapter.
+'''
+given.files.'demo/src/outbound/manifest_reading/adapters/demo_tool/adapter_test.rs' = '''
+//! The demo manifest reading adapter's test.
+'''
+given.files.'demo/tests/fixtures/allocation/sample.rs' = '''
+fn f() {}
+'''
+given.files.'demo/tests/fixtures/manifests/one/demo.manifest' = '''
+name = "one"
+'''
+given.files.'demo/tests/fixtures/manifests/two/Cargo.toml' = '''
+[package]
+name = "two"
+version = "0.1.0"
+edition = "2024"
+'''

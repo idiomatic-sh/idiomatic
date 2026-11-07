@@ -1,0 +1,263 @@
+   Compiling idiomatic-sh-ryo-language v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/crates/language)
+   Compiling idiomatic-sh-ryo-values v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/crates/values)
+   Compiling idiomatic-sh-ryo-query_language v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/crates/query_language)
+   Compiling idiomatic-sh-ryo-core v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/crates/core)
+   Compiling idiomatic-sh-ryo-sdk v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/crates/sdk)
+   Compiling idiomatic-sh-ryo-benchmark v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/crates/benchmark)
+   Compiling idiomatic-sh-ryo-python v0.1.0 (/workspaces/idiomatic-public-benchmark/crates/ryo/languages/python)
+warning: unused variable: `execution`
+  --> languages/python/benchmarks/linters/ruff/composition.rs:32:9
+   |
+32 |     let execution = Arc::new(ryo_benchmark::outbound::execution::factory::process());
+   |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_execution`
+   |
+   = note: `-W unused-variables` implied by `-W unused`
+   = help: to override `-W unused` add `#[allow(unused_variables)]`
+
+warning: `idiomatic-sh-ryo-python` (bench "ruff") generated 1 warning (run `cargo fix --bench "ruff" -p idiomatic-sh-ryo-python` to apply 1 suggestion)
+    Finished `bench` profile [optimized] target(s) in 44.08s
+     Running benchmarks/linters/ruff/bench.rs (target/release/deps/ruff-03a72f026389adc8)
+collector: executable=/workspaces/idiomatic-public-benchmark/crates/ryo/languages/python/target/benchmark/python/certification-SBRBKe/workload/collector sha256=c5648a8e264b7814f4d29e61640c0a6de6418398a1ab6d584ea50ff46ee536f9
+scope: Accounted; 54 verified / 413 shipped defaults; 359 assessed deferrals; 0 assessed pending; 0 unassessed; 0 authored outside subset; 1124 cases; certificate=aa5fad8634b9dc88942dba0870fe46374ebfe67173f90f12633a171857be6834; artifacts=/workspaces/idiomatic-public-benchmark/crates/ryo/languages/python/target/benchmark/python/certification-SBRBKe/profile
+environment: os=linux arch=aarch64 release=true workers=1; isolated collector Linux wait4 CPU=user+system, RSS=child peak bytes; child wall includes spawn/wait and pipe collection; collector launch, normalization and certificate/source hashing excluded; OS page cache uncontrolled; retained cache hits unverified
+django: matched Python source scope 2875 files; excluded default-discovered formats 1 files (source-kind capability gap): [RelativePath("pyproject.toml")]
+django: excluded invalid Python (pinned Ruff parser), path=tests/test_runner_apps/tagged/tests_syntax_error.py range=131..143; frontend parser capability gap
+django: measured source files=2874 bytes=18487487 digest=bbd95a92f564a597d21ba8b16d5c8d1d6ba3d82d189190c63c9dde1f8766bc5f input-profile=pinned-reference-valid-python
+django: exact matching findings per rule: {RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+findings: project=django contestant=ruff condition=empty-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ruff/empty-tool-cache order=ReferenceFirst wall_seconds=0.288172797 cpu_seconds=0.283891 rss_bytes=34750464
+findings: project=django contestant=ryo condition=empty-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ryo/empty-tool-cache order=ReferenceFirst wall_seconds=89.791504376 cpu_seconds=89.754031 rss_bytes=2928537600
+findings: project=django contestant=ruff condition=retained-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ruff/retained-tool-cache order=ReferenceFirst wall_seconds=0.041327884 cpu_seconds=0.038384 rss_bytes=28774400
+findings: project=django contestant=ryo condition=retained-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ryo/retained-tool-cache order=ReferenceFirst wall_seconds=0.221786945 cpu_seconds=0.22143 rss_bytes=48623616
+findings: project=django contestant=ruff condition=edited-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("E722"): FindingCount(1), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ruff/edited-tool-cache order=ReferenceFirst wall_seconds=0.042203056 cpu_seconds=0.039665 rss_bytes=29335552
+findings: project=django contestant=ryo condition=edited-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("E722"): FindingCount(1), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ryo/edited-tool-cache order=ReferenceFirst wall_seconds=0.270944094 cpu_seconds=0.270856 rss_bytes=78659584
+django: exact matching findings per rule: {RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+findings: project=django contestant=ruff condition=empty-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ruff/empty-tool-cache order=CandidateFirst wall_seconds=0.33215785 cpu_seconds=0.328308 rss_bytes=35553280
+findings: project=django contestant=ryo condition=empty-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ryo/empty-tool-cache order=CandidateFirst wall_seconds=97.241392297 cpu_seconds=94.210346 rss_bytes=2928394240
+findings: project=django contestant=ruff condition=retained-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ruff/retained-tool-cache order=CandidateFirst wall_seconds=0.053315394 cpu_seconds=0.054189 rss_bytes=28119040
+findings: project=django contestant=ryo condition=retained-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ryo/retained-tool-cache order=CandidateFirst wall_seconds=0.241134404 cpu_seconds=0.241083 rss_bytes=48680960
+findings: project=django contestant=ruff condition=edited-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("E722"): FindingCount(1), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ruff/edited-tool-cache order=CandidateFirst wall_seconds=0.036940507 cpu_seconds=0.034017 rss_bytes=28372992
+findings: project=django contestant=ryo condition=edited-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("E722"): FindingCount(1), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ryo/edited-tool-cache order=CandidateFirst wall_seconds=0.259909764 cpu_seconds=0.259717 rss_bytes=78667776
+django: exact matching findings per rule: {RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+findings: project=django contestant=ruff condition=empty-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ruff/empty-tool-cache order=ReferenceFirst wall_seconds=0.310571377 cpu_seconds=0.307585 rss_bytes=33910784
+findings: project=django contestant=ryo condition=empty-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ryo/empty-tool-cache order=ReferenceFirst wall_seconds=88.908103723 cpu_seconds=88.878402 rss_bytes=2928287744
+findings: project=django contestant=ruff condition=retained-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ruff/retained-tool-cache order=ReferenceFirst wall_seconds=0.040344624 cpu_seconds=0.036823 rss_bytes=27889664
+findings: project=django contestant=ryo condition=retained-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ryo/retained-tool-cache order=ReferenceFirst wall_seconds=0.212865399 cpu_seconds=0.212793 rss_bytes=48640000
+findings: project=django contestant=ruff condition=edited-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("E722"): FindingCount(1), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ruff/edited-tool-cache order=ReferenceFirst wall_seconds=0.036470226 cpu_seconds=0.031651 rss_bytes=27787264
+findings: project=django contestant=ryo condition=edited-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("E722"): FindingCount(1), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ryo/edited-tool-cache order=ReferenceFirst wall_seconds=0.25033088 cpu_seconds=0.250248 rss_bytes=78721024
+django: exact matching findings per rule: {RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+findings: project=django contestant=ruff condition=empty-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ruff/empty-tool-cache order=CandidateFirst wall_seconds=0.32685281 cpu_seconds=0.323985 rss_bytes=35155968
+findings: project=django contestant=ryo condition=empty-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ryo/empty-tool-cache order=CandidateFirst wall_seconds=87.754750354 cpu_seconds=87.722337 rss_bytes=2928394240
+findings: project=django contestant=ruff condition=retained-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ruff/retained-tool-cache order=CandidateFirst wall_seconds=0.04567199 cpu_seconds=0.042041 rss_bytes=28512256
+findings: project=django contestant=ryo condition=retained-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ryo/retained-tool-cache order=CandidateFirst wall_seconds=0.228885913 cpu_seconds=0.228859 rss_bytes=48746496
+findings: project=django contestant=ruff condition=edited-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("E722"): FindingCount(1), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ruff/edited-tool-cache order=CandidateFirst wall_seconds=0.037161229 cpu_seconds=0.034155 rss_bytes=28262400
+findings: project=django contestant=ryo condition=edited-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("E722"): FindingCount(1), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ryo/edited-tool-cache order=CandidateFirst wall_seconds=0.25792776 cpu_seconds=0.257805 rss_bytes=78733312
+django: exact matching findings per rule: {RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+findings: project=django contestant=ruff condition=empty-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ruff/empty-tool-cache order=ReferenceFirst wall_seconds=0.286089266 cpu_seconds=0.281934 rss_bytes=34848768
+findings: project=django contestant=ryo condition=empty-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ryo/empty-tool-cache order=ReferenceFirst wall_seconds=89.824814857 cpu_seconds=89.766091 rss_bytes=2928398336
+findings: project=django contestant=ruff condition=retained-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ruff/retained-tool-cache order=ReferenceFirst wall_seconds=0.049172762 cpu_seconds=0.045471 rss_bytes=27770880
+findings: project=django contestant=ryo condition=retained-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ryo/retained-tool-cache order=ReferenceFirst wall_seconds=0.236221836 cpu_seconds=0.235428 rss_bytes=48611328
+findings: project=django contestant=ruff condition=edited-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("E722"): FindingCount(1), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ruff/edited-tool-cache order=ReferenceFirst wall_seconds=0.04045125 cpu_seconds=0.035266 rss_bytes=28282880
+findings: project=django contestant=ryo condition=edited-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("E722"): FindingCount(1), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ryo/edited-tool-cache order=ReferenceFirst wall_seconds=0.267937572 cpu_seconds=0.267884 rss_bytes=78725120
+django: exact matching findings per rule: {RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+findings: project=django contestant=ruff condition=empty-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ruff/empty-tool-cache order=CandidateFirst wall_seconds=0.313756814 cpu_seconds=0.310005 rss_bytes=34217984
+findings: project=django contestant=ryo condition=empty-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ryo/empty-tool-cache order=CandidateFirst wall_seconds=90.880082481 cpu_seconds=90.774056 rss_bytes=2928283648
+findings: project=django contestant=ruff condition=retained-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ruff/retained-tool-cache order=CandidateFirst wall_seconds=0.045006319 cpu_seconds=0.042037 rss_bytes=28086272
+findings: project=django contestant=ryo condition=retained-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ryo/retained-tool-cache order=CandidateFirst wall_seconds=0.250480672 cpu_seconds=0.250304 rss_bytes=48697344
+findings: project=django contestant=ruff condition=edited-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("E722"): FindingCount(1), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ruff/edited-tool-cache order=CandidateFirst wall_seconds=0.041290588 cpu_seconds=0.035472 rss_bytes=28078080
+findings: project=django contestant=ryo condition=edited-tool-cache counts={RuleId("B015"): FindingCount(3), RuleId("B026"): FindingCount(7), RuleId("E722"): FindingCount(1), RuleId("PIE800"): FindingCount(2), RuleId("PLC3002"): FindingCount(1), RuleId("PLR1711"): FindingCount(5), RuleId("PLW0120"): FindingCount(1)}
+sample: name=django/ryo/edited-tool-cache order=CandidateFirst wall_seconds=0.287809611 cpu_seconds=0.287555 rss_bytes=78721024
+pandas: matched Python source scope 1553 files; excluded default-discovered formats 2 files (source-kind capability gap): [RelativePath("doc/source/user_guide/style.ipynb"), RelativePath("pyproject.toml")]
+pandas: measured source files=1553 bytes=21856668 digest=171895bd5d609c2119e4b94734a293d6ea5410d07acf9c2be30b94058b9ddffb input-profile=pinned-reference-valid-python
+pandas: exact matching findings per rule: {RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+findings: project=pandas contestant=ruff condition=empty-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ruff/empty-tool-cache order=ReferenceFirst wall_seconds=0.355456237 cpu_seconds=0.350034 rss_bytes=29978624
+findings: project=pandas contestant=ryo condition=empty-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ryo/empty-tool-cache order=ReferenceFirst wall_seconds=121.909675957 cpu_seconds=121.823194 rss_bytes=2016010240
+findings: project=pandas contestant=ruff condition=retained-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ruff/retained-tool-cache order=ReferenceFirst wall_seconds=0.052379449 cpu_seconds=0.048941 rss_bytes=27992064
+findings: project=pandas contestant=ryo condition=retained-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ryo/retained-tool-cache order=ReferenceFirst wall_seconds=0.221239783 cpu_seconds=0.221171 rss_bytes=50917376
+findings: project=pandas contestant=ruff condition=edited-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("E722"): FindingCount(1), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ruff/edited-tool-cache order=ReferenceFirst wall_seconds=0.044503483 cpu_seconds=0.039266 rss_bytes=27787264
+findings: project=pandas contestant=ryo condition=edited-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("E722"): FindingCount(1), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ryo/edited-tool-cache order=ReferenceFirst wall_seconds=0.287161148 cpu_seconds=0.287145 rss_bytes=110125056
+pandas: exact matching findings per rule: {RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+findings: project=pandas contestant=ruff condition=empty-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ruff/empty-tool-cache order=CandidateFirst wall_seconds=0.405469967 cpu_seconds=0.402309 rss_bytes=28958720
+findings: project=pandas contestant=ryo condition=empty-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ryo/empty-tool-cache order=CandidateFirst wall_seconds=122.595585048 cpu_seconds=122.562822 rss_bytes=2016026624
+findings: project=pandas contestant=ruff condition=retained-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ruff/retained-tool-cache order=CandidateFirst wall_seconds=0.044246308 cpu_seconds=0.042018 rss_bytes=27406336
+findings: project=pandas contestant=ryo condition=retained-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ryo/retained-tool-cache order=CandidateFirst wall_seconds=0.22185975 cpu_seconds=0.221843 rss_bytes=50855936
+findings: project=pandas contestant=ruff condition=edited-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("E722"): FindingCount(1), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ruff/edited-tool-cache order=CandidateFirst wall_seconds=0.044119932 cpu_seconds=0.040913 rss_bytes=26947584
+findings: project=pandas contestant=ryo condition=edited-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("E722"): FindingCount(1), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ryo/edited-tool-cache order=CandidateFirst wall_seconds=0.309402153 cpu_seconds=0.306675 rss_bytes=109932544
+pandas: exact matching findings per rule: {RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+findings: project=pandas contestant=ruff condition=empty-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ruff/empty-tool-cache order=ReferenceFirst wall_seconds=0.371950121 cpu_seconds=0.365962 rss_bytes=30552064
+findings: project=pandas contestant=ryo condition=empty-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ryo/empty-tool-cache order=ReferenceFirst wall_seconds=120.895078761 cpu_seconds=120.880394 rss_bytes=2016022528
+findings: project=pandas contestant=ruff condition=retained-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ruff/retained-tool-cache order=ReferenceFirst wall_seconds=0.049007937 cpu_seconds=0.045739 rss_bytes=28426240
+findings: project=pandas contestant=ryo condition=retained-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ryo/retained-tool-cache order=ReferenceFirst wall_seconds=0.218070369 cpu_seconds=0.218045 rss_bytes=50831360
+findings: project=pandas contestant=ruff condition=edited-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("E722"): FindingCount(1), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ruff/edited-tool-cache order=ReferenceFirst wall_seconds=0.04973444 cpu_seconds=0.04612 rss_bytes=27758592
+findings: project=pandas contestant=ryo condition=edited-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("E722"): FindingCount(1), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ryo/edited-tool-cache order=ReferenceFirst wall_seconds=0.305990853 cpu_seconds=0.302491 rss_bytes=110022656
+pandas: exact matching findings per rule: {RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+findings: project=pandas contestant=ruff condition=empty-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ruff/empty-tool-cache order=CandidateFirst wall_seconds=0.368721188 cpu_seconds=0.36442 rss_bytes=31358976
+findings: project=pandas contestant=ryo condition=empty-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ryo/empty-tool-cache order=CandidateFirst wall_seconds=120.841665466 cpu_seconds=120.834121 rss_bytes=2016018432
+findings: project=pandas contestant=ruff condition=retained-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ruff/retained-tool-cache order=CandidateFirst wall_seconds=0.044676431 cpu_seconds=0.042023 rss_bytes=28450816
+findings: project=pandas contestant=ryo condition=retained-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ryo/retained-tool-cache order=CandidateFirst wall_seconds=0.232720464 cpu_seconds=0.232642 rss_bytes=50843648
+findings: project=pandas contestant=ruff condition=edited-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("E722"): FindingCount(1), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ruff/edited-tool-cache order=CandidateFirst wall_seconds=0.048090327 cpu_seconds=0.044601 rss_bytes=28151808
+findings: project=pandas contestant=ryo condition=edited-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("E722"): FindingCount(1), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ryo/edited-tool-cache order=CandidateFirst wall_seconds=0.289451217 cpu_seconds=0.288292 rss_bytes=110112768
+pandas: exact matching findings per rule: {RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+findings: project=pandas contestant=ruff condition=empty-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ruff/empty-tool-cache order=ReferenceFirst wall_seconds=0.346571997 cpu_seconds=0.342458 rss_bytes=31313920
+findings: project=pandas contestant=ryo condition=empty-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ryo/empty-tool-cache order=ReferenceFirst wall_seconds=120.601830926 cpu_seconds=120.568118 rss_bytes=2015961088
+findings: project=pandas contestant=ruff condition=retained-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ruff/retained-tool-cache order=ReferenceFirst wall_seconds=0.042114672 cpu_seconds=0.041129 rss_bytes=28381184
+findings: project=pandas contestant=ryo condition=retained-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ryo/retained-tool-cache order=ReferenceFirst wall_seconds=0.213345087 cpu_seconds=0.213224 rss_bytes=50839552
+findings: project=pandas contestant=ruff condition=edited-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("E722"): FindingCount(1), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ruff/edited-tool-cache order=ReferenceFirst wall_seconds=0.050172804 cpu_seconds=0.045854 rss_bytes=28286976
+findings: project=pandas contestant=ryo condition=edited-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("E722"): FindingCount(1), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ryo/edited-tool-cache order=ReferenceFirst wall_seconds=0.30121083 cpu_seconds=0.301101 rss_bytes=110125056
+pandas: exact matching findings per rule: {RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+findings: project=pandas contestant=ruff condition=empty-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ruff/empty-tool-cache order=CandidateFirst wall_seconds=0.395361027 cpu_seconds=0.391237 rss_bytes=29134848
+findings: project=pandas contestant=ryo condition=empty-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ryo/empty-tool-cache order=CandidateFirst wall_seconds=121.351803127 cpu_seconds=121.2547 rss_bytes=2016079872
+findings: project=pandas contestant=ruff condition=retained-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ruff/retained-tool-cache order=CandidateFirst wall_seconds=0.048362502 cpu_seconds=0.045203 rss_bytes=27512832
+findings: project=pandas contestant=ryo condition=retained-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ryo/retained-tool-cache order=CandidateFirst wall_seconds=0.225557704 cpu_seconds=0.225553 rss_bytes=50950144
+findings: project=pandas contestant=ruff condition=edited-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("E722"): FindingCount(1), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ruff/edited-tool-cache order=CandidateFirst wall_seconds=0.046466491 cpu_seconds=0.043514 rss_bytes=27033600
+findings: project=pandas contestant=ryo condition=edited-tool-cache counts={RuleId("B015"): FindingCount(194), RuleId("E722"): FindingCount(1), RuleId("SIM210"): FindingCount(1), RuleId("SIM211"): FindingCount(3), RuleId("TRY203"): FindingCount(1)}
+sample: name=pandas/ryo/edited-tool-cache order=CandidateFirst wall_seconds=0.290686432 cpu_seconds=0.288741 rss_bytes=110059520
+fastapi: matched Python source scope 1239 files; excluded default-discovered formats 1 files (source-kind capability gap): [RelativePath("pyproject.toml")]
+fastapi: measured source files=1239 bytes=3692435 digest=453eefe0f737157ebe28b9c7a3a309e0b76215877caf89622be441b4a1eee46f input-profile=pinned-reference-valid-python
+fastapi: exact matching findings per rule: {RuleId("PLC0414"): FindingCount(23)}
+findings: project=fastapi contestant=ruff condition=empty-tool-cache counts={RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ruff/empty-tool-cache order=ReferenceFirst wall_seconds=0.062517296 cpu_seconds=0.058714 rss_bytes=23879680
+findings: project=fastapi contestant=ryo condition=empty-tool-cache counts={RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ryo/empty-tool-cache order=ReferenceFirst wall_seconds=16.712553148 cpu_seconds=16.701718 rss_bytes=1473843200
+findings: project=fastapi contestant=ruff condition=retained-tool-cache counts={RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ruff/retained-tool-cache order=ReferenceFirst wall_seconds=0.01876103 cpu_seconds=0.015094 rss_bytes=19943424
+findings: project=fastapi contestant=ryo condition=retained-tool-cache counts={RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ryo/retained-tool-cache order=ReferenceFirst wall_seconds=0.207865637 cpu_seconds=0.207828 rss_bytes=25886720
+findings: project=fastapi contestant=ruff condition=edited-tool-cache counts={RuleId("E722"): FindingCount(1), RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ruff/edited-tool-cache order=ReferenceFirst wall_seconds=0.021028086 cpu_seconds=0.01525 rss_bytes=20926464
+findings: project=fastapi contestant=ryo condition=edited-tool-cache counts={RuleId("E722"): FindingCount(1), RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ryo/edited-tool-cache order=ReferenceFirst wall_seconds=0.478904491 cpu_seconds=0.478702 rss_bytes=333279232
+fastapi: exact matching findings per rule: {RuleId("PLC0414"): FindingCount(23)}
+findings: project=fastapi contestant=ruff condition=empty-tool-cache counts={RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ruff/empty-tool-cache order=CandidateFirst wall_seconds=0.063406427 cpu_seconds=0.05977 rss_bytes=23568384
+findings: project=fastapi contestant=ryo condition=empty-tool-cache counts={RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ryo/empty-tool-cache order=CandidateFirst wall_seconds=16.89612229 cpu_seconds=16.89325 rss_bytes=1473814528
+findings: project=fastapi contestant=ruff condition=retained-tool-cache counts={RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ruff/retained-tool-cache order=CandidateFirst wall_seconds=0.016635309 cpu_seconds=0.013875 rss_bytes=20377600
+findings: project=fastapi contestant=ryo condition=retained-tool-cache counts={RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ryo/retained-tool-cache order=CandidateFirst wall_seconds=0.218502785 cpu_seconds=0.218435 rss_bytes=25972736
+findings: project=fastapi contestant=ruff condition=edited-tool-cache counts={RuleId("E722"): FindingCount(1), RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ruff/edited-tool-cache order=CandidateFirst wall_seconds=0.018301527 cpu_seconds=0.015195 rss_bytes=20500480
+findings: project=fastapi contestant=ryo condition=edited-tool-cache counts={RuleId("E722"): FindingCount(1), RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ryo/edited-tool-cache order=CandidateFirst wall_seconds=0.484442525 cpu_seconds=0.483723 rss_bytes=333180928
+fastapi: exact matching findings per rule: {RuleId("PLC0414"): FindingCount(23)}
+findings: project=fastapi contestant=ruff condition=empty-tool-cache counts={RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ruff/empty-tool-cache order=ReferenceFirst wall_seconds=0.061745708 cpu_seconds=0.057718 rss_bytes=23830528
+findings: project=fastapi contestant=ryo condition=empty-tool-cache counts={RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ryo/empty-tool-cache order=ReferenceFirst wall_seconds=16.705546049 cpu_seconds=16.704687 rss_bytes=1474002944
+findings: project=fastapi contestant=ruff condition=retained-tool-cache counts={RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ruff/retained-tool-cache order=ReferenceFirst wall_seconds=0.020485708 cpu_seconds=0.016552 rss_bytes=19968000
+findings: project=fastapi contestant=ryo condition=retained-tool-cache counts={RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ryo/retained-tool-cache order=ReferenceFirst wall_seconds=0.205000703 cpu_seconds=0.204846 rss_bytes=25960448
+findings: project=fastapi contestant=ruff condition=edited-tool-cache counts={RuleId("E722"): FindingCount(1), RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ruff/edited-tool-cache order=ReferenceFirst wall_seconds=0.018606696 cpu_seconds=0.015363 rss_bytes=20848640
+findings: project=fastapi contestant=ryo condition=edited-tool-cache counts={RuleId("E722"): FindingCount(1), RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ryo/edited-tool-cache order=ReferenceFirst wall_seconds=0.472862496 cpu_seconds=0.471065 rss_bytes=333336576
+fastapi: exact matching findings per rule: {RuleId("PLC0414"): FindingCount(23)}
+findings: project=fastapi contestant=ruff condition=empty-tool-cache counts={RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ruff/empty-tool-cache order=CandidateFirst wall_seconds=0.148884112 cpu_seconds=0.144352 rss_bytes=23449600
+findings: project=fastapi contestant=ryo condition=empty-tool-cache counts={RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ryo/empty-tool-cache order=CandidateFirst wall_seconds=16.728140603 cpu_seconds=16.725205 rss_bytes=1474011136
+findings: project=fastapi contestant=ruff condition=retained-tool-cache counts={RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ruff/retained-tool-cache order=CandidateFirst wall_seconds=0.016580892 cpu_seconds=0.012987 rss_bytes=20459520
+findings: project=fastapi contestant=ryo condition=retained-tool-cache counts={RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ryo/retained-tool-cache order=CandidateFirst wall_seconds=0.220256587 cpu_seconds=0.217654 rss_bytes=26021888
+findings: project=fastapi contestant=ruff condition=edited-tool-cache counts={RuleId("E722"): FindingCount(1), RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ruff/edited-tool-cache order=CandidateFirst wall_seconds=0.017570565 cpu_seconds=0.013865 rss_bytes=20750336
+findings: project=fastapi contestant=ryo condition=edited-tool-cache counts={RuleId("E722"): FindingCount(1), RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ryo/edited-tool-cache order=CandidateFirst wall_seconds=0.507632957 cpu_seconds=0.507389 rss_bytes=333402112
+fastapi: exact matching findings per rule: {RuleId("PLC0414"): FindingCount(23)}
+findings: project=fastapi contestant=ruff condition=empty-tool-cache counts={RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ruff/empty-tool-cache order=ReferenceFirst wall_seconds=0.064697559 cpu_seconds=0.060482 rss_bytes=23838720
+findings: project=fastapi contestant=ryo condition=empty-tool-cache counts={RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ryo/empty-tool-cache order=ReferenceFirst wall_seconds=16.697279166 cpu_seconds=16.691565 rss_bytes=1473933312
+findings: project=fastapi contestant=ruff condition=retained-tool-cache counts={RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ruff/retained-tool-cache order=ReferenceFirst wall_seconds=0.016318182 cpu_seconds=0.013482 rss_bytes=20213760
+findings: project=fastapi contestant=ryo condition=retained-tool-cache counts={RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ryo/retained-tool-cache order=ReferenceFirst wall_seconds=0.207136466 cpu_seconds=0.206941 rss_bytes=25968640
+findings: project=fastapi contestant=ruff condition=edited-tool-cache counts={RuleId("E722"): FindingCount(1), RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ruff/edited-tool-cache order=ReferenceFirst wall_seconds=0.018862323 cpu_seconds=0.014594 rss_bytes=20627456
+findings: project=fastapi contestant=ryo condition=edited-tool-cache counts={RuleId("E722"): FindingCount(1), RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ryo/edited-tool-cache order=ReferenceFirst wall_seconds=0.498274567 cpu_seconds=0.498283 rss_bytes=333221888
+fastapi: exact matching findings per rule: {RuleId("PLC0414"): FindingCount(23)}
+findings: project=fastapi contestant=ruff condition=empty-tool-cache counts={RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ruff/empty-tool-cache order=CandidateFirst wall_seconds=0.088865707 cpu_seconds=0.084173 rss_bytes=24223744
+findings: project=fastapi contestant=ryo condition=empty-tool-cache counts={RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ryo/empty-tool-cache order=CandidateFirst wall_seconds=16.664564711 cpu_seconds=16.662567 rss_bytes=1473978368
+findings: project=fastapi contestant=ruff condition=retained-tool-cache counts={RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ruff/retained-tool-cache order=CandidateFirst wall_seconds=0.018115068 cpu_seconds=0.014428 rss_bytes=20103168
+findings: project=fastapi contestant=ryo condition=retained-tool-cache counts={RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ryo/retained-tool-cache order=CandidateFirst wall_seconds=0.213358629 cpu_seconds=0.212213 rss_bytes=25980928
+findings: project=fastapi contestant=ruff condition=edited-tool-cache counts={RuleId("E722"): FindingCount(1), RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ruff/edited-tool-cache order=CandidateFirst wall_seconds=0.019057074 cpu_seconds=0.015072 rss_bytes=20725760
+findings: project=fastapi contestant=ryo condition=edited-tool-cache counts={RuleId("E722"): FindingCount(1), RuleId("PLC0414"): FindingCount(23)}
+sample: name=fastapi/ryo/edited-tool-cache order=CandidateFirst wall_seconds=0.499578076 cpu_seconds=0.499178 rss_bytes=333135872

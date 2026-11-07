@@ -1,0 +1,31 @@
+{
+  "output": {
+    "files": [
+      "z.py",
+      "雪/é.py"
+    ],
+    "diagnostics": [
+      {
+        "rule": "F821",
+        "file": "雪/é.py",
+        "start": 2,
+        "end": 7
+      },
+      {
+        "rule": "F821",
+        "file": "雪/é.py",
+        "start": 2,
+        "end": 7
+      }
+    ],
+    "skipped": []
+  },
+  "canonical_utf8": "{\"diagnostics\":[{\"end\":7,\"file\":\"雪/é.py\",\"rule\":\"F821\",\"start\":2},{\"end\":7,\"file\":\"雪/é.py\",\"rule\":\"F821\",\"start\":2}],\"files\":[\"z.py\",\"雪/é.py\"],\"skipped\":[]}",
+  "sha256": "fbf701690e0fda3c89da930b0fa5cc87c9a20f34684dfacee7ff3305d4a58e2b",
+  "source_files": {
+    ".py": "x = \"é\"\n",
+    "𐀀.py": "pass\n",
+    "雪/é.py": "é = 1\n"
+  },
+  "source_sha256": "ede0c2fc0704ffbf7a16d9a0e4c21692162b7427d73e6c7d3b0e181bbabcfd53"
+}

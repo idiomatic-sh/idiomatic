@@ -1,0 +1,102 @@
+description = "A CI job's `ci/<job>/command.py` defines, at module level (not in a class or another function), `run`, which runs the job a command line asks for and returns its exit status, and `main`, the entry that composes the real job and calls it."
+why = "The intent test and every CI host call the command through these two functions: `run` takes the job a test composes from fakes, and `main` the one `composition.build()` gives. The template contract does not compare Python declarations yet, so the two are held here."
+
+query = '''
+let listed-files = select l."path" as "file" from "filesystem.file" as l;
+let commands = capture(from=listed-files, path="file", pattern="ci/{job}/command.py", captures=["job"]);
+let scopes = project(from="scope", columns=["parent", "child"]);
+let modules = select * from scopes where parent = child;
+let outermost = select l."parent" as "parent", l."child" as "child" from scopes as l join modules as r on l."parent" = r."child";
+let enclosed = antijoin(left=scopes, right=outermost, left-on=["child"], right-on=["child"]);
+let module-functions = antijoin(left="function", right=enclosed, left-on=["id"], right-on=["child"]);
+let runs = select * from module-functions where name = "run";
+let mains = select * from module-functions where name = "main";
+let without-run = antijoin(left=commands, right=runs, left-on=["file"], right-on=["file"]);
+let without-main = antijoin(left=commands, right=mains, left-on=["file"], right-on=["file"]);
+let run-findings = extend(from=without-run, values={"entry": "run"});
+let main-findings = extend(from=without-main, values={"entry": "main"});
+let findings = union(left=run-findings, right=main-findings);
+emit findings subject "file" key("file", "entry");
+'''
+
+[diagnostic]
+primary = "file"
+message = "the `{job}` job's command defines no `{entry}`"
+help = "Define it as `tm scaffold idiomatic.arch/ci --at ci/{job}` writes it: `run(argv, job)` parses the command line, runs `job` and returns 0, 1 when a step fails, or 2 when the request is refused; `main()` returns `run(sys.argv[1:], composition.build())`. An ignore is never the fix."
+
+[given]
+include = ['ci/**']
+
+[[scenarios]]
+id = 'command-defines-both'
+scenario = 'The command defines both.'
+given.files.'ci/demo/command.py' = '''
+"""The `demo` job's command."""
+
+import sys
+
+
+def run(argv: list[str], job) -> int:
+    """Runs `job` as the command line asks."""
+    return job.run(argv)
+
+
+def main() -> int:
+    """The entry: the job with its real adapters."""
+    return run(sys.argv[1:], None)
+'''
+
+[[scenarios]]
+id = 'no-run'
+scenario = 'The command has no `run`.'
+given.files.'ci/demo/command.py' = '''
+"""The `demo` job's command, whose entry runs the job itself."""
+
+import sys
+
+
+def main() -> int:
+    """The entry: the job with its real adapters."""
+    return len(sys.argv)
+'''
+then.findings = [
+  { path = 'ci/demo/command.py' },
+]
+
+[[scenarios]]
+id = 'entries-in-a-class'
+scenario = "The command's `run` and `main` are a class's methods."
+given.files.'ci/demo/command.py' = '''
+"""The `demo` job's command, whose entries are a class's methods, not the module's."""
+
+
+class Command:
+    """Holds what should be the module's functions."""
+
+    def run(self, argv: list[str], job) -> int:
+        """Runs `job` as the command line asks."""
+        return job.run(argv)
+
+    def main(self) -> int:
+        """The entry."""
+        return 0
+'''
+then.findings = [
+  { path = 'ci/demo/command.py' },
+  { path = 'ci/demo/command.py' },
+]
+
+[[scenarios]]
+id = 'no-main'
+scenario = 'The command has no `main`.'
+given.files.'ci/demo/command.py' = '''
+"""The `demo` job's command, with no entry of its own."""
+
+
+def run(argv: list[str], job) -> int:
+    """Runs `job` as the command line asks."""
+    return job.run(argv)
+'''
+then.findings = [
+  { path = 'ci/demo/command.py' },
+]

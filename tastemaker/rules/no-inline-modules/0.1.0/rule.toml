@@ -1,0 +1,158 @@
+description = "A role file declares no inline module: a `mod name { ... }` with a body is a finding, unless the body holds only traits (the sealed-trait idiom, `mod sealed { pub trait Sealed {} }`) or only imports and macro invocations (a module a macro expands into)."
+why = "A file's role (an adapter, a port's interface, a part's types, a test) says what it holds; a module with a body inside it is a second concept hidden in the file, out of reach of the specs that place files and of the rules placed by path. A concept that needs a module of its own is a directory or a file of the role that holds it. A test's cases live in its `_test.rs`, never in a `#[cfg(test)] mod tests { ... }` beside the code. Two exceptions: the Rust API guidelines' sealed trait (C-SEALED), a module holding only traits that seal a public trait against outside impls; and a module holding only `use` items and macro invocations, the scope a macro that writes items at its call site needs, as a test of that macro expanding it twice does (each expansion its own module). Read from the syntax tree: a `module` node with an `item-list` body, at any depth, whose body holds an item other than a trait (inner attributes and comments are not items). Not seen: a module written by a macro."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let modules = select * from tree-nodes where kind = "module";
+let item-lists = select * from tree-nodes where kind = "item-list";
+let module-kids = select l."id" as "id", l."file" as "file", l."span" as "span", r."child" as "child" from modules as l join "syntax-child" as r on l."id" = r."parent";
+let bodies = select l."id" as "id", l."file" as "file", l."span" as "span", r."id" as "body" from module-kids as l join item-lists as r on l."child" = r."id";
+let body-edges = select l."id" as "id", r."child" as "child" from bodies as l join "syntax-child" as r on l."body" = r."parent";
+let body-items = select l."id" as "id", r."kind" as "kind" from body-edges as l join tree-nodes as r on l."child" = r."id";
+let trait-items = select * from body-items where kind = "trait";
+let other-items = select * from body-items where not glob_any(kind, "{trait,attr}");
+let with-traits = project(from=trait-items, columns=["id"]);
+let sealing = antijoin(left=with-traits, right=other-items, left-on=["id"], right-on=["id"]);
+let macro-items = select * from body-items where kind = "macro-call";
+let unexpanded-items = select * from body-items where not glob_any(kind, "{use,macro-call,attr}");
+let with-macros = project(from=macro-items, columns=["id"]);
+let expanding = antijoin(left=with-macros, right=unexpanded-items, left-on=["id"], right-on=["id"]);
+let sealing-0 = antijoin(left=bodies, right=sealing, left-on=["id"], right-on=["id"]);
+let inline = antijoin(left=sealing-0, right=expanding, left-on=["id"], right-on=["id"]);
+let found = project(from=inline, columns=["file", "span"]);
+emit found subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this inline module is a concept hidden inside a role file"
+help = "Move what the module holds to where its role puts it: a directory or a role file of its own (a concept's `service.rs` and `types.rs`, a test's `_test.rs`). Only a module holding nothing but traits (a sealed trait), or nothing but imports and macro invocations (a macro's expansion scope), stays inline."
+
+[given]
+include = ['src/**']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = '''
+//! The fixture.
+
+pub mod types;
+'''
+
+[[scenarios]]
+id = 'types-without-inline-module'
+scenario = 'A types file of plain items, and a sealed trait module: nothing is reported.'
+given.files.'src/types.rs' = '''
+//! The types.
+
+/// A name.
+pub struct Name(pub String);
+
+pub(crate) mod sealed {
+    /// The seal.
+    pub trait Sealed {}
+}
+
+/// A sealed shape.
+pub trait Shape: sealed::Sealed {}
+'''
+
+[[scenarios]]
+id = 'types-with-inline-module'
+scenario = 'A types file holding a module of functions, and a test module with a body: both are reported.'
+given.files.'src/types.rs' = '''
+//! The types.
+
+/// A name.
+pub struct Name(pub String);
+
+mod wire {
+    pub(super) fn write() {}
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn writes() {}
+}
+'''
+then.findings = [
+  { path = 'src/types.rs', line = 6 },
+  { path = 'src/types.rs', line = 10 },
+]
+
+[[scenarios]]
+id = 'seal-beside-a-function'
+scenario = 'A module holding a trait and a function is no seal: it is reported.'
+given.files.'src/lib.rs' = '''
+//! The fixture.
+
+pub mod interface;
+'''
+given.files.'src/interface.rs' = '''
+//! The interface.
+
+pub(crate) mod sealed {
+    /// The seal.
+    pub trait Sealed {}
+
+    pub(crate) fn helper() {}
+}
+'''
+then.findings = [
+  { path = 'src/interface.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'macro-expansion-modules'
+scenario = 'A test expands an item-writing macro twice, each in a module holding only its imports and the invocation: nothing is reported.'
+given.files.'src/lib.rs' = '''
+//! The fixture.
+
+#[cfg(test)]
+mod service_test;
+'''
+given.files.'src/service_test.rs' = '''
+//! The proof of the macro.
+
+enum Kind {
+    One,
+}
+
+mod first {
+    use super::Kind;
+
+    numbered!(Kind);
+}
+
+mod second {
+    use super::Kind;
+
+    numbered!(Kind);
+}
+'''
+
+[[scenarios]]
+id = 'macro-beside-a-function'
+scenario = 'A module holds a macro invocation and a function: it is reported.'
+given.files.'src/lib.rs' = '''
+//! The fixture.
+
+#[cfg(test)]
+mod service_test;
+'''
+given.files.'src/service_test.rs' = '''
+//! The proof of the macro.
+
+mod first {
+    numbered!(Kind);
+
+    fn helper() {}
+}
+'''
+then.findings = [
+  { path = 'src/service_test.rs', line = 3 },
+]

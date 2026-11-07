@@ -1,0 +1,2 @@
+# This placement is scoped to this one pure concept; the language keeps its parent ownership.
+specs = [{ spec = "idiomatic.arch/concept", include = ["."], params = { item-trait = [] } }]

@@ -1,0 +1,140 @@
+description = "An adapter's `adapter_test.rs` holds our whole tree to the pinned standard: a case named for `pinned` that reads `tests/fixtures/standard`, and a negative control, a case named `..._is_a_difference`."
+why = "The standard that defines a language's nodes and tokens is pinned in `tests/fixtures/standard/`, and the proof that the adapter's tree is the standard's is a comparison of the whole tree of every pinned file with the standard's own dump, not a few spot checks of nodes. A comparison that cannot report a difference proves nothing, so a negative control feeds it a tree that is not the standard's and expects the difference to be reported. The evidence is in the file's string literals, which are the case names and paths: a literal holding `pinned` (the case over every pinned file), a literal `standard` or ending `/standard` (the directory it reads) and a literal ending `is_a_difference` (the control). Not seen: what the case does with them; the name and the directory are the mechanical trigger, the review reads the body."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let files = select * from tree-nodes where kind = "source-file";
+let required = project(from=files, columns=["file", "span"]);
+let literals = project(from="string-literal", columns=["file", "value"]);
+let pinned-literals = select * from literals where glob_any(value, "*pinned*");
+let pinned = project(from=pinned-literals, columns=["file"]);
+let standard-literals = select * from literals where glob_any(value, "{standard,*/standard,*/standard/*}");
+let standard = project(from=standard-literals, columns=["file"]);
+let control-literals = select * from literals where glob_any(value, "*is_a_difference");
+let control = project(from=control-literals, columns=["file"]);
+let no-pinned = antijoin(left=required, right=pinned, left-on=["file"], right-on=["file"]);
+let no-standard = antijoin(left=required, right=standard, left-on=["file"], right-on=["file"]);
+let no-control = antijoin(left=required, right=control, left-on=["file"], right-on=["file"]);
+let missing-pinned = extend(from=no-pinned, values={"part": "a case named for `pinned` that compares the whole tree of every pinned file with the standard's dump"});
+let missing-standard = extend(from=no-standard, values={"part": "a read of `tests/fixtures/standard`, the pinned standard (a string literal `standard` or ending `/standard`)"});
+let missing-control = extend(from=no-control, values={"part": "a negative control, a case named `..._is_a_difference`, that feeds the comparison a tree that is not the standard's"});
+let first = union(left=missing-pinned, right=missing-standard);
+let rows = union(left=first, right=missing-control);
+emit rows subject "file" key("file", "part");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this adapter test lacks {part}"
+help = "Compare the whole tree of each file pinned in `tests/fixtures/standard/` with the standard's own dump (the pinned case of the Python adapter is the model), and add a case that gives the comparison a tree that is not the standard's and expects it to be reported as a difference. A language with no tool to print the standard's dump pins the standard's own grammar or listing and compares the tree's shape with it. An ignore is never the fix."
+
+[given]
+include = ['adapter_test.rs']
+
+[[scenarios]]
+id = 'holds-the-standard'
+scenario = "A case over every pinned file, the standard's directory and a negative control."
+given.files.'adapter_test.rs' = '''
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("every_pinned_file_has_the_standards_tree"),
+        word: Word::Succeeds,
+        input: || Given::Pinned,
+        expect: Expect::Value(Seen::Pinned(&[])),
+    },
+    Case {
+        name: CaseName("a_tree_that_is_not_the_standards_is_a_difference"),
+        word: Word::Succeeds,
+        input: || Given::Control,
+        expect: Expect::Value(Seen::Difference(true)),
+    },
+];
+
+fn dir() -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures").join("standard")
+}
+'''
+
+[[scenarios]]
+id = 'without-pinned-case'
+scenario = 'No case over the pinned files.'
+given.files.'adapter_test.rs' = '''
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_tree_that_is_not_the_standards_is_a_difference"),
+        word: Word::Succeeds,
+        input: || Given::Control,
+        expect: Expect::Value(Seen::Difference(true)),
+    },
+];
+
+fn dir() -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures").join("standard")
+}
+'''
+then.findings = [
+  { path = 'adapter_test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'without-control'
+scenario = 'No negative control: it is reported.'
+given.files.'adapter_test.rs' = '''
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("every_pinned_file_has_the_standards_tree"),
+        word: Word::Succeeds,
+        input: || Given::Pinned,
+        expect: Expect::Value(Seen::Pinned(&[])),
+    },
+];
+
+fn dir() -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures").join("standard")
+}
+'''
+then.findings = [
+  { path = 'adapter_test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'without-standard-directory'
+scenario = "The standard's directory is never read."
+given.files.'adapter_test.rs' = '''
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("every_pinned_file_has_the_standards_tree"),
+        word: Word::Succeeds,
+        input: || Given::Pinned,
+        expect: Expect::Value(Seen::Pinned(&[])),
+    },
+    Case {
+        name: CaseName("a_tree_that_is_not_the_standards_is_a_difference"),
+        word: Word::Succeeds,
+        input: || Given::Control,
+        expect: Expect::Value(Seen::Difference(true)),
+    },
+];
+'''
+then.findings = [
+  { path = 'adapter_test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'spot-checks-only'
+scenario = 'Spot checks of nodes and nothing else.'
+given.files.'adapter_test.rs' = '''
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_call_is_nodes_with_its_punctuation_as_tokens"),
+        word: Word::Succeeds,
+        input: || Given::Tree("f(x)"),
+        expect: Expect::Value(Seen::Elements(&[])),
+    },
+];
+'''
+then.findings = [
+  { path = 'adapter_test.rs', line = 1 },
+  { path = 'adapter_test.rs', line = 1 },
+  { path = 'adapter_test.rs', line = 1 },
+]

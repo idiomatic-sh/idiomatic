@@ -1,0 +1,14 @@
+root[5]
+├─0 heading[1]
+│   │ depth: 1
+│   └─0 text "Heading"
+├─1 code "foo"
+│     lang: null
+│     meta: null
+├─2 heading[1]
+│   │ depth: 2
+│   └─0 text "Heading"
+├─3 code "foo"
+│     lang: null
+│     meta: null
+└─4 thematicBreak

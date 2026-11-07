@@ -1,0 +1,12 @@
+title = "demo"
+[package]
+name = 'x'
+version.major = 1
+[[bin]]
+path = "a"
+[[bin]]
+path = "b"
+[a.b]
+c = { d = 1.5 }
+list = [1, 2]
+[a]

@@ -1,0 +1,45 @@
+description = "A Rust file the parser could only read by recovering from a syntax error."
+why = "A file that does not parse does not compile, and every rule reading its syntax reads a recovered tree that may hold nodes the author never wrote. Read from `syntax-error`: one finding per parser diagnostic, with its message. Not seen: code the parser accepts that the compiler rejects (types, names, borrows), and the tokens of a macro invocation, which parse later."
+
+query = '''
+let errors = project(from="syntax-error", columns=["file", "span", "message"]);
+emit errors subject "file" key("span", "message");
+'''
+
+[diagnostic]
+primary = "span"
+message = "the file does not parse: {message}"
+help = "Fix the syntax; until it parses, every other rule reads a recovered tree."
+
+[given]
+include = ['**']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'function-missing-closing-brace'
+scenario = 'A function missing its closing brace.'
+given.files.'src/lib.rs' = '''
+pub fn broken() -> u32 {
+    let value = 1
+    value
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 2 },
+  { path = 'src/lib.rs', line = 3 },
+  { path = 'src/lib.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'file-parses'
+scenario = 'A file that parses.'
+given.files.'src/lib.rs' = '''
+pub fn fine() -> u32 {
+    let value = 1;
+    value
+}
+'''

@@ -1,0 +1,23 @@
+toml 0-18
+ expression 0-17
+  keyval 0-17
+   key 0-1
+    simple-key 0-1
+     unquoted-key 0-1
+   keyval-sep 1-4
+    ws 1-2
+    ws 3-4
+   val 4-17
+    array 4-17
+     array-open 4-5
+     array-values 5-16
+      val 5-9
+       boolean 5-9
+      array-sep 9-10
+      array-values 10-16
+       ws-comment-newline 10-11
+        wschar 10-11
+       val 11-16
+        boolean 11-16
+     array-close 16-17
+ newline 17-18

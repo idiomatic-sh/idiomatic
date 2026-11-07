@@ -1,0 +1,77 @@
+[[cases]]
+name = "invalid-string"
+comparison = "full"
+files = { "case.py" = "__all__ = \"name\"\n" }
+expected = [{ rule = "PLE0605", file = "case.py", start = 0, end = 7 }]
+
+[[cases]]
+name = "invalid-number"
+comparison = "full"
+files = { "case.py" = "__all__ = 1\n" }
+expected = [{ rule = "PLE0605", file = "case.py", start = 0, end = 7 }]
+
+[[cases]]
+name = "valid-list"
+comparison = "full"
+files = { "case.py" = "__all__ = [\"name\"]\n" }
+expected = []
+
+[[cases]]
+name = "valid-tuple"
+comparison = "full"
+files = { "case.py" = "__all__ = (\"name\",)\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "__all__ = 1  # noqa: PLE0605\n" }
+expected = []
+
+[[cases]]
+name = "concatenated-list-format-gap"
+comparison = "full"
+files = { "case.py" = "__all__ = [\"A\"] + [\"B\"]\n" }
+expected = []
+
+[[cases]]
+name = "self-name-valid-format-gap"
+comparison = "full"
+files = { "case.py" = "__all__ = __all__\n" }
+expected = []
+
+[[cases]]
+name = "attribute-name-valid-format-gap"
+comparison = "full"
+files = { "case.py" = "__all__ = other.__all__\n" }
+expected = []
+
+[[cases]]
+name = "builtin-list-call-valid-format-gap"
+comparison = "full"
+files = { "case.py" = "__all__ = list([\"A\"])\n" }
+expected = []
+
+[[cases]]
+name = "too-many-positional-invalid-format"
+comparison = "full"
+files = { "case.py" = "__all__ = list([], [])\n" }
+expected = [{ rule = "PLE0605", file = "case.py", start = 0, end = 7 }]
+
+[[cases]]
+name = "nested-function-is-not-module-export"
+comparison = "full"
+files = { "case.py" = "def f():\n    __all__ = 1\n" }
+expected = []
+
+[[cases]]
+name = "named-expression-is-not-an-export-assignment"
+comparison = "full"
+files = { "case.py" = "__all__ = (names := [\"missing\"])\n" }
+expected = []
+
+[[cases]]
+name = "right-nested-sequence-concatenation-is-invalid"
+comparison = "full"
+files = { "case.py" = "__all__ = [] + ([\"missing\"] + [])\n" }
+expected = [{ rule = "PLE0605", file = "case.py", start = 0, end = 7 }]

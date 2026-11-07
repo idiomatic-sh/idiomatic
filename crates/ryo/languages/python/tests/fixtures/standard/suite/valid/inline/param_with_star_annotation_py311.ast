@@ -1,0 +1,1 @@
+Module(body=[FunctionDef(name='foo', args=arguments(vararg=arg(arg='args', annotation=Starred(value=Name(id='Ts')))), body=[Expr(value=Constant(value=Ellipsis))])])

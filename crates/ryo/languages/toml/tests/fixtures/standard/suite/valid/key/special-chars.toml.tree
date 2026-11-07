@@ -1,0 +1,13 @@
+toml 0-44
+ expression 0-43
+  keyval 0-43
+   key 0-39
+    simple-key 0-39
+     quoted-key 0-39
+      basic-string 0-39
+   keyval-sep 39-42
+    ws 39-40
+    ws 41-42
+   val 42-43
+    integer 42-43
+ newline 43-44

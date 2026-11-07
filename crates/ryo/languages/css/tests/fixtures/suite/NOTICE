@@ -1,0 +1,10 @@
+The files of `suite/` are the inputs of css-parsing-tests as rust-cssparser v0.38.0 vendors them (commit d128a90e12), each input written
+unchanged as a file named by its place in its JSON list. `stylesheet/` holds every input of `stylesheet.json` (Parse a stylesheet): the 4 whose
+expected result holds an `["error", ..]` are under `invalid/`, the other 14 under `valid/`. `stylesheet_bytes/` holds the inputs of
+`stylesheet_bytes.json` that are UTF-8 and that the byte stream decodes as UTF-8 (numbers 0, 1, 2, 10, 17, 19 and 27, all valid): the
+language reads a stylesheet as UTF-8, so the 21 that are UTF-16, Latin-1 or another encoding a protocol or a `@charset` names are left
+out. The other files of the suite are left out because none is a stylesheet: `rule_list.json`, `one_rule.json`, `declaration_list.json`,
+`one_declaration.json`, `component_value_list.json` and `one_component_value.json` parse a part of one (a list of rules inside a block, a
+declaration, a value), whose verdict of valid or invalid is not a stylesheet's (`div {} -->` is invalid as a rule list and valid as a
+stylesheet), and `An+B.json`, `urange.json` and the `color*.json` files test the grammar of values above the syntax. The licence of the
+suite is `LICENSE`.

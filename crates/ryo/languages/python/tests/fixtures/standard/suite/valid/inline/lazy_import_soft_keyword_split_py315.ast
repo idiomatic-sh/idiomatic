@@ -1,0 +1,1 @@
+Module(body=[Expr(value=Name(id='lazy')), Import(names=[alias(name='os')], is_lazy=0), Expr(value=Name(id='lazy')), ImportFrom(module='sys', names=[alias(name='path')], level=0, is_lazy=0)])

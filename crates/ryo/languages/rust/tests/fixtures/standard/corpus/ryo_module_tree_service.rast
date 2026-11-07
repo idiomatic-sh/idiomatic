@@ -1,0 +1,3848 @@
+SOURCE_FILE
+  COMMENT "//! The `module_tree` service: free functions named by verb that draw the module tree of a crate from the facts of its files and"
+  WHITESPACE "\n"
+  COMMENT "//! resolve the paths a file writes against it, with no IO and no ports."
+  WHITESPACE "\n\n"
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              SUPER_KW "super"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "constants"
+      COLON2 "::"
+      USE_TREE_LIST
+        L_CURLY "{"
+        WHITESPACE "\n    "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "CRATE"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "DIRECTORY_OWNER"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "GLOB"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "MACRO_CRATE"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "MODULE_SEPARATOR"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "SELF"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "SELF_TYPE"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "SOURCE"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "SUPER"
+        COMMA ","
+        WHITESPACE "\n"
+        R_CURLY "}"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              SUPER_KW "super"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "types"
+      COLON2 "::"
+      USE_TREE_LIST
+        L_CURLY "{"
+        WHITESPACE "\n    "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "Body"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "Declared"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "Facts"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "Gap"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "ModulePath"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "ModuleText"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "Placing"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "Segment"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "SourceCount"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "Tree"
+        COMMA ","
+        WHITESPACE "\n"
+        R_CURLY "}"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  CRATE_KW "crate"
+            COLON2 "::"
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "domain"
+          COLON2 "::"
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "paths"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "service"
+      COLON2 "::"
+      USE_TREE_LIST
+        L_CURLY "{"
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "directory_of"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "lexical_join"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "owns_directory"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "stem"
+        R_CURLY "}"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH
+            PATH
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    CRATE_KW "crate"
+              COLON2 "::"
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "domain"
+            COLON2 "::"
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "paths"
+          COLON2 "::"
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "types"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "RepoPath"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH
+            PATH
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    CRATE_KW "crate"
+              COLON2 "::"
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "domain"
+            COLON2 "::"
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "paths"
+          COLON2 "::"
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "types"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Section"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  CRATE_KW "crate"
+            COLON2 "::"
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "domain"
+          COLON2 "::"
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "paths"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "types"
+      COLON2 "::"
+      USE_TREE_LIST
+        L_CURLY "{"
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "Ownership"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "Relative"
+        R_CURLY "}"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "std"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "collections"
+      COLON2 "::"
+      USE_TREE_LIST
+        L_CURLY "{"
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "BTreeMap"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "BTreeSet"
+        R_CURLY "}"
+    SEMICOLON ";"
+  WHITESPACE "\n\n"
+  FN
+    COMMENT "/// The files declaring `module` in the tree."
+    WHITESPACE "\n"
+    FN_KW "fn"
+    WHITESPACE " "
+    NAME
+      IDENT "files_for"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      LIFETIME_PARAM
+        LIFETIME
+          LIFETIME_IDENT "'a"
+      R_ANGLE ">"
+    PARAM_LIST
+      L_PAREN "("
+      PARAM
+        IDENT_PAT
+          NAME
+            IDENT "tree"
+        COLON ":"
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          LIFETIME
+            LIFETIME_IDENT "'a"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "Tree"
+      COMMA ","
+      WHITESPACE " "
+      PARAM
+        IDENT_PAT
+          NAME
+            IDENT "module"
+        COLON ":"
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          SLICE_TYPE
+            L_BRACK "["
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Segment"
+            R_BRACK "]"
+      R_PAREN ")"
+    WHITESPACE " "
+    RET_TYPE
+      THIN_ARROW "->"
+      WHITESPACE " "
+      REF_TYPE
+        AMP "&"
+        LIFETIME
+          LIFETIME_IDENT "'a"
+        WHITESPACE " "
+        SLICE_TYPE
+          L_BRACK "["
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "RepoPath"
+          R_BRACK "]"
+    WHITESPACE " "
+    BLOCK_EXPR
+      STMT_LIST
+        L_CURLY "{"
+        WHITESPACE "\n    "
+        METHOD_CALL_EXPR
+          METHOD_CALL_EXPR
+            FIELD_EXPR
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "tree"
+              DOT "."
+              NAME_REF
+                IDENT "modules"
+            WHITESPACE "\n        "
+            DOT "."
+            NAME_REF
+              IDENT "get"
+            ARG_LIST
+              L_PAREN "("
+              REF_EXPR
+                AMP "&"
+                CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "ModulePath"
+                  ARG_LIST
+                    L_PAREN "("
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "module"
+                      DOT "."
+                      NAME_REF
+                        IDENT "to_vec"
+                      ARG_LIST
+                        L_PAREN "("
+                        R_PAREN ")"
+                    R_PAREN ")"
+              R_PAREN ")"
+          WHITESPACE "\n        "
+          DOT "."
+          NAME_REF
+            IDENT "map_or"
+          ARG_LIST
+            L_PAREN "("
+            REF_EXPR
+              AMP "&"
+              ARRAY_EXPR
+                L_BRACK "["
+                R_BRACK "]"
+            COMMA ","
+            WHITESPACE " "
+            PATH_EXPR
+              PATH
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "Vec"
+                COLON2 "::"
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "as_slice"
+            R_PAREN ")"
+        WHITESPACE "\n"
+        R_CURLY "}"
+  WHITESPACE "\n\n"
+  FN
+    COMMENT "/// The files that own the longest module prefix of `written`, seen from `module`. Paths that start outside the crate"
+    WHITESPACE "\n"
+    COMMENT "/// (external crates, the prelude, `Self`) resolve to nothing; the compiler owns whether they are valid. Several files own one"
+    WHITESPACE "\n"
+    COMMENT "/// prefix when the module is declared under alternate `#[cfg]`s."
+    WHITESPACE "\n"
+    ATTR
+      POUND "#"
+      L_BRACK "["
+      PATH_META
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "must_use"
+      R_BRACK "]"
+    WHITESPACE "\n"
+    VISIBILITY
+      PUB_KW "pub"
+      VISIBILITY_INNER
+        L_PAREN "("
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              CRATE_KW "crate"
+        R_PAREN ")"
+    WHITESPACE " "
+    FN_KW "fn"
+    WHITESPACE " "
+    NAME
+      IDENT "resolve"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      LIFETIME_PARAM
+        LIFETIME
+          LIFETIME_IDENT "'a"
+      R_ANGLE ">"
+    PARAM_LIST
+      L_PAREN "("
+      WHITESPACE "\n    "
+      PARAM
+        IDENT_PAT
+          NAME
+            IDENT "tree"
+        COLON ":"
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          LIFETIME
+            LIFETIME_IDENT "'a"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "Tree"
+      COMMA ","
+      WHITESPACE "\n    "
+      PARAM
+        IDENT_PAT
+          NAME
+            IDENT "module"
+        COLON ":"
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          SLICE_TYPE
+            L_BRACK "["
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Segment"
+            R_BRACK "]"
+      COMMA ","
+      WHITESPACE "\n    "
+      PARAM
+        IDENT_PAT
+          NAME
+            IDENT "written"
+        COLON ":"
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          SLICE_TYPE
+            L_BRACK "["
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Segment"
+            R_BRACK "]"
+      COMMA ","
+      WHITESPACE "\n"
+      R_PAREN ")"
+    WHITESPACE " "
+    RET_TYPE
+      THIN_ARROW "->"
+      WHITESPACE " "
+      PATH_TYPE
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "Option"
+            GENERIC_ARG_LIST
+              L_ANGLE "<"
+              TYPE_ARG
+                REF_TYPE
+                  AMP "&"
+                  LIFETIME
+                    LIFETIME_IDENT "'a"
+                  WHITESPACE " "
+                  SLICE_TYPE
+                    L_BRACK "["
+                    PATH_TYPE
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "RepoPath"
+                    R_BRACK "]"
+              R_ANGLE ">"
+    WHITESPACE " "
+    BLOCK_EXPR
+      STMT_LIST
+        L_CURLY "{"
+        WHITESPACE "\n    "
+        LET_STMT
+          LET_KW "let"
+          WHITESPACE " "
+          IDENT_PAT
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              IDENT "segments"
+          WHITESPACE " "
+          EQ "="
+          WHITESPACE " "
+          METHOD_CALL_EXPR
+            PATH_EXPR
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "written"
+            DOT "."
+            NAME_REF
+              IDENT "iter"
+            ARG_LIST
+              L_PAREN "("
+              R_PAREN ")"
+          SEMICOLON ";"
+        WHITESPACE "\n    "
+        LET_STMT
+          LET_KW "let"
+          WHITESPACE " "
+          IDENT_PAT
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              IDENT "base"
+          COLON ":"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "Vec"
+                GENERIC_ARG_LIST
+                  L_ANGLE "<"
+                  TYPE_ARG
+                    PATH_TYPE
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "Segment"
+                  R_ANGLE ">"
+          WHITESPACE " "
+          EQ "="
+          WHITESPACE " "
+          MATCH_EXPR
+            MATCH_KW "match"
+            WHITESPACE " "
+            REF_EXPR
+              AMP "&"
+              PREFIX_EXPR
+                STAR "*"
+                PREFIX_EXPR
+                  STAR "*"
+                  TRY_EXPR
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "segments"
+                      DOT "."
+                      NAME_REF
+                        IDENT "next"
+                      ARG_LIST
+                        L_PAREN "("
+                        R_PAREN ")"
+                    QUESTION "?"
+            WHITESPACE " "
+            MATCH_ARM_LIST
+              L_CURLY "{"
+              WHITESPACE "\n        "
+              MATCH_ARM
+                IDENT_PAT
+                  NAME
+                    IDENT "CRATE"
+                WHITESPACE " "
+                FAT_ARROW "=>"
+                WHITESPACE " "
+                CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "Vec"
+                      COLON2 "::"
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "new"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                COMMA ","
+              WHITESPACE "\n        "
+              MATCH_ARM
+                IDENT_PAT
+                  NAME
+                    IDENT "SELF"
+                WHITESPACE " "
+                FAT_ARROW "=>"
+                WHITESPACE " "
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "module"
+                  DOT "."
+                  NAME_REF
+                    IDENT "to_vec"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                COMMA ","
+              WHITESPACE "\n        "
+              MATCH_ARM
+                IDENT_PAT
+                  NAME
+                    IDENT "SUPER"
+                WHITESPACE " "
+                FAT_ARROW "=>"
+                WHITESPACE " "
+                BLOCK_EXPR
+                  STMT_LIST
+                    L_CURLY "{"
+                    WHITESPACE "\n            "
+                    LET_STMT
+                      LET_KW "let"
+                      WHITESPACE " "
+                      IDENT_PAT
+                        MUT_KW "mut"
+                        WHITESPACE " "
+                        NAME
+                          IDENT "base"
+                      WHITESPACE " "
+                      EQ "="
+                      WHITESPACE " "
+                      METHOD_CALL_EXPR
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "module"
+                        DOT "."
+                        NAME_REF
+                          IDENT "to_vec"
+                        ARG_LIST
+                          L_PAREN "("
+                          R_PAREN ")"
+                      SEMICOLON ";"
+                    WHITESPACE "\n            "
+                    EXPR_STMT
+                      TRY_EXPR
+                        METHOD_CALL_EXPR
+                          PATH_EXPR
+                            PATH
+                              PATH_SEGMENT
+                                NAME_REF
+                                  IDENT "base"
+                          DOT "."
+                          NAME_REF
+                            IDENT "pop"
+                          ARG_LIST
+                            L_PAREN "("
+                            R_PAREN ")"
+                        QUESTION "?"
+                      SEMICOLON ";"
+                    WHITESPACE "\n            "
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "base"
+                    WHITESPACE "\n        "
+                    R_CURLY "}"
+              WHITESPACE "\n        "
+              MATCH_ARM
+                OR_PAT
+                  IDENT_PAT
+                    NAME
+                      IDENT "MACRO_CRATE"
+                  WHITESPACE " "
+                  PIPE "|"
+                  WHITESPACE " "
+                  IDENT_PAT
+                    NAME
+                      IDENT "SELF_TYPE"
+                WHITESPACE " "
+                FAT_ARROW "=>"
+                WHITESPACE " "
+                RETURN_EXPR
+                  RETURN_KW "return"
+                  WHITESPACE " "
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "None"
+                COMMA ","
+              WHITESPACE "\n        "
+              MATCH_ARM
+                IDENT_PAT
+                  NAME
+                    IDENT "first"
+                WHITESPACE " "
+                FAT_ARROW "=>"
+                WHITESPACE " "
+                BLOCK_EXPR
+                  STMT_LIST
+                    L_CURLY "{"
+                    WHITESPACE "\n            "
+                    LET_STMT
+                      LET_KW "let"
+                      WHITESPACE " "
+                      IDENT_PAT
+                        MUT_KW "mut"
+                        WHITESPACE " "
+                        NAME
+                          IDENT "child"
+                      WHITESPACE " "
+                      EQ "="
+                      WHITESPACE " "
+                      METHOD_CALL_EXPR
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "module"
+                        DOT "."
+                        NAME_REF
+                          IDENT "to_vec"
+                        ARG_LIST
+                          L_PAREN "("
+                          R_PAREN ")"
+                      SEMICOLON ";"
+                    WHITESPACE "\n            "
+                    EXPR_STMT
+                      METHOD_CALL_EXPR
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "child"
+                        DOT "."
+                        NAME_REF
+                          IDENT "push"
+                        ARG_LIST
+                          L_PAREN "("
+                          CALL_EXPR
+                            PATH_EXPR
+                              PATH
+                                PATH_SEGMENT
+                                  NAME_REF
+                                    IDENT "Segment"
+                            ARG_LIST
+                              L_PAREN "("
+                              METHOD_CALL_EXPR
+                                PATH_EXPR
+                                  PATH
+                                    PATH_SEGMENT
+                                      NAME_REF
+                                        IDENT "first"
+                                DOT "."
+                                NAME_REF
+                                  IDENT "into"
+                                ARG_LIST
+                                  L_PAREN "("
+                                  R_PAREN ")"
+                              R_PAREN ")"
+                          R_PAREN ")"
+                      SEMICOLON ";"
+                    WHITESPACE "\n            "
+                    EXPR_STMT
+                      IF_EXPR
+                        IF_KW "if"
+                        WHITESPACE " "
+                        PREFIX_EXPR
+                          BANG "!"
+                          METHOD_CALL_EXPR
+                            FIELD_EXPR
+                              PATH_EXPR
+                                PATH
+                                  PATH_SEGMENT
+                                    NAME_REF
+                                      IDENT "tree"
+                              DOT "."
+                              NAME_REF
+                                IDENT "modules"
+                            DOT "."
+                            NAME_REF
+                              IDENT "contains_key"
+                            ARG_LIST
+                              L_PAREN "("
+                              REF_EXPR
+                                AMP "&"
+                                CALL_EXPR
+                                  PATH_EXPR
+                                    PATH
+                                      PATH_SEGMENT
+                                        NAME_REF
+                                          IDENT "ModulePath"
+                                  ARG_LIST
+                                    L_PAREN "("
+                                    PATH_EXPR
+                                      PATH
+                                        PATH_SEGMENT
+                                          NAME_REF
+                                            IDENT "child"
+                                    R_PAREN ")"
+                              R_PAREN ")"
+                        WHITESPACE " "
+                        BLOCK_EXPR
+                          STMT_LIST
+                            L_CURLY "{"
+                            WHITESPACE "\n                "
+                            EXPR_STMT
+                              RETURN_EXPR
+                                RETURN_KW "return"
+                                WHITESPACE " "
+                                PATH_EXPR
+                                  PATH
+                                    PATH_SEGMENT
+                                      NAME_REF
+                                        IDENT "None"
+                              SEMICOLON ";"
+                            WHITESPACE "\n            "
+                            R_CURLY "}"
+                    WHITESPACE "\n            "
+                    COMMENT "// A child module named bare: the first segment is part of the target."
+                    WHITESPACE "\n            "
+                    EXPR_STMT
+                      BIN_EXPR
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "segments"
+                        WHITESPACE " "
+                        EQ "="
+                        WHITESPACE " "
+                        METHOD_CALL_EXPR
+                          PATH_EXPR
+                            PATH
+                              PATH_SEGMENT
+                                NAME_REF
+                                  IDENT "written"
+                          DOT "."
+                          NAME_REF
+                            IDENT "iter"
+                          ARG_LIST
+                            L_PAREN "("
+                            R_PAREN ")"
+                      SEMICOLON ";"
+                    WHITESPACE "\n            "
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "module"
+                      DOT "."
+                      NAME_REF
+                        IDENT "to_vec"
+                      ARG_LIST
+                        L_PAREN "("
+                        R_PAREN ")"
+                    WHITESPACE "\n        "
+                    R_CURLY "}"
+              WHITESPACE "\n    "
+              R_CURLY "}"
+          SEMICOLON ";"
+        WHITESPACE "\n    "
+        EXPR_STMT
+          FOR_EXPR
+            FOR_KW "for"
+            WHITESPACE " "
+            IDENT_PAT
+              NAME
+                IDENT "segment"
+            WHITESPACE " "
+            IN_KW "in"
+            WHITESPACE " "
+            PATH_EXPR
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "segments"
+            WHITESPACE " "
+            BLOCK_EXPR
+              STMT_LIST
+                L_CURLY "{"
+                WHITESPACE "\n        "
+                MATCH_EXPR
+                  MATCH_KW "match"
+                  WHITESPACE " "
+                  REF_EXPR
+                    AMP "&"
+                    PREFIX_EXPR
+                      STAR "*"
+                      PREFIX_EXPR
+                        STAR "*"
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "segment"
+                  WHITESPACE " "
+                  MATCH_ARM_LIST
+                    L_CURLY "{"
+                    WHITESPACE "\n            "
+                    MATCH_ARM
+                      IDENT_PAT
+                        NAME
+                          IDENT "SUPER"
+                      WHITESPACE " "
+                      FAT_ARROW "=>"
+                      WHITESPACE " "
+                      BLOCK_EXPR
+                        STMT_LIST
+                          L_CURLY "{"
+                          WHITESPACE "\n                "
+                          EXPR_STMT
+                            TRY_EXPR
+                              METHOD_CALL_EXPR
+                                PATH_EXPR
+                                  PATH
+                                    PATH_SEGMENT
+                                      NAME_REF
+                                        IDENT "base"
+                                DOT "."
+                                NAME_REF
+                                  IDENT "pop"
+                                ARG_LIST
+                                  L_PAREN "("
+                                  R_PAREN ")"
+                              QUESTION "?"
+                            SEMICOLON ";"
+                          WHITESPACE "\n            "
+                          R_CURLY "}"
+                    WHITESPACE "\n            "
+                    MATCH_ARM
+                      OR_PAT
+                        IDENT_PAT
+                          NAME
+                            IDENT "GLOB"
+                        WHITESPACE " "
+                        PIPE "|"
+                        WHITESPACE " "
+                        IDENT_PAT
+                          NAME
+                            IDENT "SELF"
+                      WHITESPACE " "
+                      FAT_ARROW "=>"
+                      WHITESPACE " "
+                      BLOCK_EXPR
+                        STMT_LIST
+                          L_CURLY "{"
+                          R_CURLY "}"
+                    WHITESPACE "\n            "
+                    MATCH_ARM
+                      WILDCARD_PAT
+                        UNDERSCORE "_"
+                      WHITESPACE " "
+                      FAT_ARROW "=>"
+                      WHITESPACE " "
+                      METHOD_CALL_EXPR
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "base"
+                        DOT "."
+                        NAME_REF
+                          IDENT "push"
+                        ARG_LIST
+                          L_PAREN "("
+                          METHOD_CALL_EXPR
+                            PATH_EXPR
+                              PATH
+                                PATH_SEGMENT
+                                  NAME_REF
+                                    IDENT "segment"
+                            DOT "."
+                            NAME_REF
+                              IDENT "clone"
+                            ARG_LIST
+                              L_PAREN "("
+                              R_PAREN ")"
+                          R_PAREN ")"
+                      COMMA ","
+                    WHITESPACE "\n        "
+                    R_CURLY "}"
+                WHITESPACE "\n    "
+                R_CURLY "}"
+        WHITESPACE "\n    "
+        METHOD_CALL_EXPR
+          METHOD_CALL_EXPR
+            METHOD_CALL_EXPR
+              PAREN_EXPR
+                L_PAREN "("
+                RANGE_EXPR
+                  LITERAL
+                    INT_NUMBER "0"
+                  DOT2EQ "..="
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "base"
+                    DOT "."
+                    NAME_REF
+                      IDENT "len"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                R_PAREN ")"
+              WHITESPACE "\n        "
+              DOT "."
+              NAME_REF
+                IDENT "rev"
+              ARG_LIST
+                L_PAREN "("
+                R_PAREN ")"
+            WHITESPACE "\n        "
+            DOT "."
+            NAME_REF
+              IDENT "map"
+            ARG_LIST
+              L_PAREN "("
+              CLOSURE_EXPR
+                PARAM_LIST
+                  PIPE "|"
+                  PARAM
+                    IDENT_PAT
+                      NAME
+                        IDENT "length"
+                  PIPE "|"
+                WHITESPACE " "
+                CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "files_for"
+                  ARG_LIST
+                    L_PAREN "("
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "tree"
+                    COMMA ","
+                    WHITESPACE " "
+                    REF_EXPR
+                      AMP "&"
+                      INDEX_EXPR
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "base"
+                        L_BRACK "["
+                        RANGE_EXPR
+                          DOT2 ".."
+                          PATH_EXPR
+                            PATH
+                              PATH_SEGMENT
+                                NAME_REF
+                                  IDENT "length"
+                        R_BRACK "]"
+                    R_PAREN ")"
+              R_PAREN ")"
+          WHITESPACE "\n        "
+          DOT "."
+          NAME_REF
+            IDENT "find"
+          ARG_LIST
+            L_PAREN "("
+            CLOSURE_EXPR
+              PARAM_LIST
+                PIPE "|"
+                PARAM
+                  IDENT_PAT
+                    NAME
+                      IDENT "files"
+                PIPE "|"
+              WHITESPACE " "
+              PREFIX_EXPR
+                BANG "!"
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "files"
+                  DOT "."
+                  NAME_REF
+                    IDENT "is_empty"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+            R_PAREN ")"
+        WHITESPACE "\n"
+        R_CURLY "}"
+  WHITESPACE "\n\n"
+  FN
+    COMMENT "/// What a file declares, as the module it declares and where that module's own children and `#[path]` are relative to, given"
+    WHITESPACE "\n"
+    COMMENT "/// the module the file is and the directory its children resolve under."
+    WHITESPACE "\n"
+    FN_KW "fn"
+    WHITESPACE " "
+    NAME
+      IDENT "placed"
+    PARAM_LIST
+      L_PAREN "("
+      PARAM
+        IDENT_PAT
+          NAME
+            IDENT "declared"
+        COLON ":"
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "Declared"
+      COMMA ","
+      WHITESPACE " "
+      PARAM
+        IDENT_PAT
+          NAME
+            IDENT "file"
+        COLON ":"
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "RepoPath"
+      COMMA ","
+      WHITESPACE " "
+      PARAM
+        IDENT_PAT
+          NAME
+            IDENT "module"
+        COLON ":"
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          SLICE_TYPE
+            L_BRACK "["
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Segment"
+            R_BRACK "]"
+      COMMA ","
+      WHITESPACE " "
+      PARAM
+        IDENT_PAT
+          NAME
+            IDENT "base"
+        COLON ":"
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "RepoPath"
+      R_PAREN ")"
+    WHITESPACE " "
+    RET_TYPE
+      THIN_ARROW "->"
+      WHITESPACE " "
+      PATH_TYPE
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "Placing"
+    WHITESPACE " "
+    BLOCK_EXPR
+      STMT_LIST
+        L_CURLY "{"
+        WHITESPACE "\n    "
+        LET_STMT
+          LET_KW "let"
+          WHITESPACE " "
+          TUPLE_PAT
+            L_PAREN "("
+            IDENT_PAT
+              MUT_KW "mut"
+              WHITESPACE " "
+              NAME
+                IDENT "base"
+            COMMA ","
+            WHITESPACE " "
+            IDENT_PAT
+              MUT_KW "mut"
+              WHITESPACE " "
+              NAME
+                IDENT "path_base"
+            R_PAREN ")"
+          WHITESPACE " "
+          EQ "="
+          WHITESPACE " "
+          TUPLE_EXPR
+            L_PAREN "("
+            METHOD_CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "base"
+              DOT "."
+              NAME_REF
+                IDENT "clone"
+              ARG_LIST
+                L_PAREN "("
+                R_PAREN ")"
+            COMMA ","
+            WHITESPACE " "
+            CALL_EXPR
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "directory_of"
+              ARG_LIST
+                L_PAREN "("
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "file"
+                R_PAREN ")"
+            R_PAREN ")"
+          SEMICOLON ";"
+        WHITESPACE "\n    "
+        LET_STMT
+          LET_KW "let"
+          WHITESPACE " "
+          IDENT_PAT
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              IDENT "child"
+          WHITESPACE " "
+          EQ "="
+          WHITESPACE " "
+          METHOD_CALL_EXPR
+            PATH_EXPR
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "module"
+            DOT "."
+            NAME_REF
+              IDENT "to_vec"
+            ARG_LIST
+              L_PAREN "("
+              R_PAREN ")"
+          SEMICOLON ";"
+        WHITESPACE "\n    "
+        EXPR_STMT
+          FOR_EXPR
+            FOR_KW "for"
+            WHITESPACE " "
+            IDENT_PAT
+              NAME
+                IDENT "step"
+            WHITESPACE " "
+            IN_KW "in"
+            WHITESPACE " "
+            REF_EXPR
+              AMP "&"
+              FIELD_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "declared"
+                DOT "."
+                NAME_REF
+                  IDENT "around"
+            WHITESPACE " "
+            BLOCK_EXPR
+              STMT_LIST
+                L_CURLY "{"
+                WHITESPACE "\n        "
+                LET_STMT
+                  LET_KW "let"
+                  WHITESPACE " "
+                  IDENT_PAT
+                    NAME
+                      IDENT "inline"
+                  WHITESPACE " "
+                  EQ "="
+                  WHITESPACE " "
+                  MATCH_EXPR
+                    MATCH_KW "match"
+                    WHITESPACE " "
+                    REF_EXPR
+                      AMP "&"
+                      FIELD_EXPR
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "step"
+                        DOT "."
+                        NAME_REF
+                          IDENT "path"
+                    WHITESPACE " "
+                    MATCH_ARM_LIST
+                      L_CURLY "{"
+                      WHITESPACE "\n            "
+                      MATCH_ARM
+                        TUPLE_STRUCT_PAT
+                          PATH
+                            PATH
+                              PATH_SEGMENT
+                                NAME_REF
+                                  IDENT "Section"
+                            COLON2 "::"
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "Present"
+                          L_PAREN "("
+                          IDENT_PAT
+                            NAME
+                              IDENT "explicit"
+                          R_PAREN ")"
+                        WHITESPACE " "
+                        FAT_ARROW "=>"
+                        WHITESPACE " "
+                        CALL_EXPR
+                          PATH_EXPR
+                            PATH
+                              PATH_SEGMENT
+                                NAME_REF
+                                  IDENT "lexical_join"
+                          ARG_LIST
+                            L_PAREN "("
+                            REF_EXPR
+                              AMP "&"
+                              PATH_EXPR
+                                PATH
+                                  PATH_SEGMENT
+                                    NAME_REF
+                                      IDENT "path_base"
+                            COMMA ","
+                            WHITESPACE " "
+                            REF_EXPR
+                              AMP "&"
+                              CALL_EXPR
+                                PATH_EXPR
+                                  PATH
+                                    PATH_SEGMENT
+                                      NAME_REF
+                                        IDENT "Relative"
+                                ARG_LIST
+                                  L_PAREN "("
+                                  METHOD_CALL_EXPR
+                                    FIELD_EXPR
+                                      PATH_EXPR
+                                        PATH
+                                          PATH_SEGMENT
+                                            NAME_REF
+                                              IDENT "explicit"
+                                      DOT "."
+                                      NAME_REF
+                                        INT_NUMBER "0"
+                                    DOT "."
+                                    NAME_REF
+                                      IDENT "clone"
+                                    ARG_LIST
+                                      L_PAREN "("
+                                      R_PAREN ")"
+                                  R_PAREN ")"
+                            R_PAREN ")"
+                        COMMA ","
+                      WHITESPACE "\n            "
+                      MATCH_ARM
+                        PATH_PAT
+                          PATH
+                            PATH
+                              PATH_SEGMENT
+                                NAME_REF
+                                  IDENT "Section"
+                            COLON2 "::"
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "Absent"
+                        WHITESPACE " "
+                        FAT_ARROW "=>"
+                        WHITESPACE " "
+                        CALL_EXPR
+                          PATH_EXPR
+                            PATH
+                              PATH_SEGMENT
+                                NAME_REF
+                                  IDENT "lexical_join"
+                          ARG_LIST
+                            L_PAREN "("
+                            REF_EXPR
+                              AMP "&"
+                              PATH_EXPR
+                                PATH
+                                  PATH_SEGMENT
+                                    NAME_REF
+                                      IDENT "base"
+                            COMMA ","
+                            WHITESPACE " "
+                            REF_EXPR
+                              AMP "&"
+                              CALL_EXPR
+                                PATH_EXPR
+                                  PATH
+                                    PATH_SEGMENT
+                                      NAME_REF
+                                        IDENT "Relative"
+                                ARG_LIST
+                                  L_PAREN "("
+                                  METHOD_CALL_EXPR
+                                    FIELD_EXPR
+                                      FIELD_EXPR
+                                        PATH_EXPR
+                                          PATH
+                                            PATH_SEGMENT
+                                              NAME_REF
+                                                IDENT "step"
+                                        DOT "."
+                                        NAME_REF
+                                          IDENT "name"
+                                      DOT "."
+                                      NAME_REF
+                                        INT_NUMBER "0"
+                                    DOT "."
+                                    NAME_REF
+                                      IDENT "clone"
+                                    ARG_LIST
+                                      L_PAREN "("
+                                      R_PAREN ")"
+                                  R_PAREN ")"
+                            R_PAREN ")"
+                        COMMA ","
+                      WHITESPACE "\n        "
+                      R_CURLY "}"
+                  SEMICOLON ";"
+                WHITESPACE "\n        "
+                EXPR_STMT
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "base"
+                    DOT "."
+                    NAME_REF
+                      IDENT "clone_from"
+                    ARG_LIST
+                      L_PAREN "("
+                      REF_EXPR
+                        AMP "&"
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "inline"
+                      R_PAREN ")"
+                  SEMICOLON ";"
+                WHITESPACE "\n        "
+                EXPR_STMT
+                  BIN_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "path_base"
+                    WHITESPACE " "
+                    EQ "="
+                    WHITESPACE " "
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "inline"
+                  SEMICOLON ";"
+                WHITESPACE "\n        "
+                EXPR_STMT
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "child"
+                    DOT "."
+                    NAME_REF
+                      IDENT "push"
+                    ARG_LIST
+                      L_PAREN "("
+                      METHOD_CALL_EXPR
+                        FIELD_EXPR
+                          PATH_EXPR
+                            PATH
+                              PATH_SEGMENT
+                                NAME_REF
+                                  IDENT "step"
+                          DOT "."
+                          NAME_REF
+                            IDENT "name"
+                        DOT "."
+                        NAME_REF
+                          IDENT "clone"
+                        ARG_LIST
+                          L_PAREN "("
+                          R_PAREN ")"
+                      R_PAREN ")"
+                  SEMICOLON ";"
+                WHITESPACE "\n    "
+                R_CURLY "}"
+        WHITESPACE "\n    "
+        EXPR_STMT
+          METHOD_CALL_EXPR
+            PATH_EXPR
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "child"
+            DOT "."
+            NAME_REF
+              IDENT "push"
+            ARG_LIST
+              L_PAREN "("
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "declared"
+                  DOT "."
+                  NAME_REF
+                    IDENT "name"
+                DOT "."
+                NAME_REF
+                  IDENT "clone"
+                ARG_LIST
+                  L_PAREN "("
+                  R_PAREN ")"
+              R_PAREN ")"
+          SEMICOLON ";"
+        WHITESPACE "\n    "
+        RECORD_EXPR
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "Placing"
+          WHITESPACE " "
+          RECORD_EXPR_FIELD_LIST
+            L_CURLY "{"
+            WHITESPACE "\n        "
+            RECORD_EXPR_FIELD
+              NAME_REF
+                IDENT "module"
+              COLON ":"
+              WHITESPACE " "
+              CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "ModulePath"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "child"
+                  R_PAREN ")"
+            COMMA ","
+            WHITESPACE "\n        "
+            RECORD_EXPR_FIELD
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "base"
+            COMMA ","
+            WHITESPACE "\n        "
+            RECORD_EXPR_FIELD
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "path_base"
+            COMMA ","
+            WHITESPACE "\n    "
+            R_CURLY "}"
+        WHITESPACE "\n"
+        R_CURLY "}"
+  WHITESPACE "\n\n"
+  FN
+    COMMENT "/// The tree of the crate rooted at `root`, of the package in `package`, its module files found among `files`."
+    WHITESPACE "\n"
+    VISIBILITY
+      PUB_KW "pub"
+      VISIBILITY_INNER
+        L_PAREN "("
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              CRATE_KW "crate"
+        R_PAREN ")"
+    WHITESPACE " "
+    FN_KW "fn"
+    WHITESPACE " "
+    NAME
+      IDENT "tree"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      LIFETIME_PARAM
+        LIFETIME
+          LIFETIME_IDENT "'f"
+      R_ANGLE ">"
+    PARAM_LIST
+      L_PAREN "("
+      WHITESPACE "\n    "
+      PARAM
+        IDENT_PAT
+          NAME
+            IDENT "files"
+        COLON ":"
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "BTreeSet"
+                GENERIC_ARG_LIST
+                  L_ANGLE "<"
+                  TYPE_ARG
+                    PATH_TYPE
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "RepoPath"
+                  R_ANGLE ">"
+      COMMA ","
+      WHITESPACE "\n    "
+      PARAM
+        IDENT_PAT
+          NAME
+            IDENT "package"
+        COLON ":"
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "RepoPath"
+      COMMA ","
+      WHITESPACE "\n    "
+      PARAM
+        IDENT_PAT
+          NAME
+            IDENT "root"
+        COLON ":"
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "RepoPath"
+      COMMA ","
+      WHITESPACE "\n    "
+      PARAM
+        IDENT_PAT
+          NAME
+            IDENT "facts_of"
+        COLON ":"
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          PAREN_TYPE
+            L_PAREN "("
+            DYN_TRAIT_TYPE
+              DYN_KW "dyn"
+              WHITESPACE " "
+              TYPE_BOUND_LIST
+                TYPE_BOUND
+                  PATH_TYPE
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "Fn"
+                        PARENTHESIZED_ARG_LIST
+                          L_PAREN "("
+                          TYPE_ARG
+                            REF_TYPE
+                              AMP "&"
+                              PATH_TYPE
+                                PATH
+                                  PATH_SEGMENT
+                                    NAME_REF
+                                      IDENT "RepoPath"
+                          R_PAREN ")"
+                        WHITESPACE " "
+                        RET_TYPE
+                          THIN_ARROW "->"
+                          WHITESPACE " "
+                          PATH_TYPE
+                            PATH
+                              PATH_SEGMENT
+                                NAME_REF
+                                  IDENT "Option"
+                                GENERIC_ARG_LIST
+                                  L_ANGLE "<"
+                                  TYPE_ARG
+                                    REF_TYPE
+                                      AMP "&"
+                                      LIFETIME
+                                        LIFETIME_IDENT "'f"
+                                      WHITESPACE " "
+                                      PATH_TYPE
+                                        PATH
+                                          PATH_SEGMENT
+                                            NAME_REF
+                                              IDENT "Facts"
+                                  R_ANGLE ">"
+                WHITESPACE " "
+                PLUS "+"
+                WHITESPACE " "
+                TYPE_BOUND
+                  PATH_TYPE
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "Sync"
+            R_PAREN ")"
+      COMMA ","
+      WHITESPACE "\n"
+      R_PAREN ")"
+    WHITESPACE " "
+    RET_TYPE
+      THIN_ARROW "->"
+      WHITESPACE " "
+      PATH_TYPE
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "Tree"
+    WHITESPACE " "
+    BLOCK_EXPR
+      STMT_LIST
+        L_CURLY "{"
+        WHITESPACE "\n    "
+        LET_STMT
+          LET_KW "let"
+          WHITESPACE " "
+          IDENT_PAT
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              IDENT "drawn"
+          WHITESPACE " "
+          EQ "="
+          WHITESPACE " "
+          RECORD_EXPR
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "Tree"
+            WHITESPACE " "
+            RECORD_EXPR_FIELD_LIST
+              L_CURLY "{"
+              WHITESPACE "\n        "
+              RECORD_EXPR_FIELD
+                NAME_REF
+                  IDENT "package"
+                COLON ":"
+                WHITESPACE " "
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "package"
+                  DOT "."
+                  NAME_REF
+                    IDENT "clone"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+              COMMA ","
+              WHITESPACE "\n        "
+              RECORD_EXPR_FIELD
+                NAME_REF
+                  IDENT "modules"
+                COLON ":"
+                WHITESPACE " "
+                CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "BTreeMap"
+                      COLON2 "::"
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "new"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+              COMMA ","
+              WHITESPACE "\n        "
+              RECORD_EXPR_FIELD
+                NAME_REF
+                  IDENT "files"
+                COLON ":"
+                WHITESPACE " "
+                CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "BTreeMap"
+                      COLON2 "::"
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "new"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+              COMMA ","
+              WHITESPACE "\n        "
+              RECORD_EXPR_FIELD
+                NAME_REF
+                  IDENT "gaps"
+                COLON ":"
+                WHITESPACE " "
+                CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "Vec"
+                      COLON2 "::"
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "new"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+              COMMA ","
+              WHITESPACE "\n    "
+              R_CURLY "}"
+          SEMICOLON ";"
+        WHITESPACE "\n    "
+        EXPR_STMT
+          CALL_EXPR
+            PATH_EXPR
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "declare"
+            ARG_LIST
+              L_PAREN "("
+              REF_EXPR
+                AMP "&"
+                MUT_KW "mut"
+                WHITESPACE " "
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "drawn"
+              COMMA ","
+              WHITESPACE " "
+              CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "ModulePath"
+                    COLON2 "::"
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "default"
+                ARG_LIST
+                  L_PAREN "("
+                  R_PAREN ")"
+              COMMA ","
+              WHITESPACE " "
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "root"
+              R_PAREN ")"
+          SEMICOLON ";"
+        WHITESPACE "\n    "
+        LET_STMT
+          LET_KW "let"
+          WHITESPACE " "
+          IDENT_PAT
+            MUT_KW "mut"
+            WHITESPACE " "
+            NAME
+              IDENT "active"
+          WHITESPACE " "
+          EQ "="
+          WHITESPACE " "
+          MACRO_EXPR
+            MACRO_CALL
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "vec"
+              BANG "!"
+              TOKEN_TREE
+                L_BRACK "["
+                IDENT "root"
+                DOT "."
+                IDENT "clone"
+                TOKEN_TREE
+                  L_PAREN "("
+                  R_PAREN ")"
+                R_BRACK "]"
+          SEMICOLON ";"
+        WHITESPACE "\n    "
+        EXPR_STMT
+          CALL_EXPR
+            PATH_EXPR
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "visit"
+            ARG_LIST
+              L_PAREN "("
+              WHITESPACE "\n        "
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "files"
+              COMMA ","
+              WHITESPACE "\n        "
+              REF_EXPR
+                AMP "&"
+                MUT_KW "mut"
+                WHITESPACE " "
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "drawn"
+              COMMA ","
+              WHITESPACE "\n        "
+              REF_EXPR
+                AMP "&"
+                MUT_KW "mut"
+                WHITESPACE " "
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "active"
+              COMMA ","
+              WHITESPACE "\n        "
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "root"
+              COMMA ","
+              WHITESPACE "\n        "
+              REF_EXPR
+                AMP "&"
+                ARRAY_EXPR
+                  L_BRACK "["
+                  R_BRACK "]"
+              COMMA ","
+              WHITESPACE "\n        "
+              REF_EXPR
+                AMP "&"
+                CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "directory_of"
+                  ARG_LIST
+                    L_PAREN "("
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "root"
+                    R_PAREN ")"
+              COMMA ","
+              WHITESPACE "\n        "
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "facts_of"
+              COMMA ","
+              WHITESPACE "\n    "
+              R_PAREN ")"
+          SEMICOLON ";"
+        WHITESPACE "\n    "
+        PATH_EXPR
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "drawn"
+        WHITESPACE "\n"
+        R_CURLY "}"
+  WHITESPACE "\n\n"
+  FN
+    COMMENT "/// Declares the module `module` in `file`."
+    WHITESPACE "\n"
+    FN_KW "fn"
+    WHITESPACE " "
+    NAME
+      IDENT "declare"
+    PARAM_LIST
+      L_PAREN "("
+      PARAM
+        IDENT_PAT
+          NAME
+            IDENT "tree"
+        COLON ":"
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          MUT_KW "mut"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "Tree"
+      COMMA ","
+      WHITESPACE " "
+      PARAM
+        IDENT_PAT
+          NAME
+            IDENT "module"
+        COLON ":"
+        WHITESPACE " "
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "ModulePath"
+      COMMA ","
+      WHITESPACE " "
+      PARAM
+        IDENT_PAT
+          NAME
+            IDENT "file"
+        COLON ":"
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "RepoPath"
+      R_PAREN ")"
+    WHITESPACE " "
+    BLOCK_EXPR
+      STMT_LIST
+        L_CURLY "{"
+        WHITESPACE "\n    "
+        EXPR_STMT
+          METHOD_CALL_EXPR
+            METHOD_CALL_EXPR
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "tree"
+                  DOT "."
+                  NAME_REF
+                    IDENT "files"
+                WHITESPACE "\n        "
+                DOT "."
+                NAME_REF
+                  IDENT "entry"
+                ARG_LIST
+                  L_PAREN "("
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "file"
+                    DOT "."
+                    NAME_REF
+                      IDENT "clone"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                  R_PAREN ")"
+              WHITESPACE "\n        "
+              DOT "."
+              NAME_REF
+                IDENT "or_default"
+              ARG_LIST
+                L_PAREN "("
+                R_PAREN ")"
+            WHITESPACE "\n        "
+            DOT "."
+            NAME_REF
+              IDENT "push"
+            ARG_LIST
+              L_PAREN "("
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "module"
+                DOT "."
+                NAME_REF
+                  IDENT "clone"
+                ARG_LIST
+                  L_PAREN "("
+                  R_PAREN ")"
+              R_PAREN ")"
+          SEMICOLON ";"
+        WHITESPACE "\n    "
+        EXPR_STMT
+          METHOD_CALL_EXPR
+            METHOD_CALL_EXPR
+              METHOD_CALL_EXPR
+                FIELD_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "tree"
+                  DOT "."
+                  NAME_REF
+                    IDENT "modules"
+                DOT "."
+                NAME_REF
+                  IDENT "entry"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "module"
+                  R_PAREN ")"
+              DOT "."
+              NAME_REF
+                IDENT "or_default"
+              ARG_LIST
+                L_PAREN "("
+                R_PAREN ")"
+            DOT "."
+            NAME_REF
+              IDENT "push"
+            ARG_LIST
+              L_PAREN "("
+              METHOD_CALL_EXPR
+                PATH_EXPR
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "file"
+                DOT "."
+                NAME_REF
+                  IDENT "clone"
+                ARG_LIST
+                  L_PAREN "("
+                  R_PAREN ")"
+              R_PAREN ")"
+          SEMICOLON ";"
+        WHITESPACE "\n"
+        R_CURLY "}"
+  WHITESPACE "\n\n"
+  FN
+    COMMENT "/// Follows every module `file` declares as module `module`, its children resolving under `base`. `active` is the chain of files"
+    WHITESPACE "\n"
+    COMMENT "/// being visited: a file declaring itself, directly or through `#[path]`, is a cycle; a file placed twice under different modules is not."
+    WHITESPACE "\n"
+    FN_KW "fn"
+    WHITESPACE " "
+    NAME
+      IDENT "visit"
+    GENERIC_PARAM_LIST
+      L_ANGLE "<"
+      LIFETIME_PARAM
+        LIFETIME
+          LIFETIME_IDENT "'f"
+      R_ANGLE ">"
+    PARAM_LIST
+      L_PAREN "("
+      WHITESPACE "\n    "
+      PARAM
+        IDENT_PAT
+          NAME
+            IDENT "files"
+        COLON ":"
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "BTreeSet"
+                GENERIC_ARG_LIST
+                  L_ANGLE "<"
+                  TYPE_ARG
+                    PATH_TYPE
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "RepoPath"
+                  R_ANGLE ">"
+      COMMA ","
+      WHITESPACE "\n    "
+      PARAM
+        IDENT_PAT
+          NAME
+            IDENT "tree"
+        COLON ":"
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          MUT_KW "mut"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "Tree"
+      COMMA ","
+      WHITESPACE "\n    "
+      PARAM
+        IDENT_PAT
+          NAME
+            IDENT "active"
+        COLON ":"
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          MUT_KW "mut"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "Vec"
+                GENERIC_ARG_LIST
+                  L_ANGLE "<"
+                  TYPE_ARG
+                    PATH_TYPE
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "RepoPath"
+                  R_ANGLE ">"
+      COMMA ","
+      WHITESPACE "\n    "
+      PARAM
+        IDENT_PAT
+          NAME
+            IDENT "file"
+        COLON ":"
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "RepoPath"
+      COMMA ","
+      WHITESPACE "\n    "
+      PARAM
+        IDENT_PAT
+          NAME
+            IDENT "module"
+        COLON ":"
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          SLICE_TYPE
+            L_BRACK "["
+            PATH_TYPE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Segment"
+            R_BRACK "]"
+      COMMA ","
+      WHITESPACE "\n    "
+      PARAM
+        IDENT_PAT
+          NAME
+            IDENT "base"
+        COLON ":"
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "RepoPath"
+      COMMA ","
+      WHITESPACE "\n    "
+      PARAM
+        IDENT_PAT
+          NAME
+            IDENT "facts_of"
+        COLON ":"
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          PAREN_TYPE
+            L_PAREN "("
+            DYN_TRAIT_TYPE
+              DYN_KW "dyn"
+              WHITESPACE " "
+              TYPE_BOUND_LIST
+                TYPE_BOUND
+                  PATH_TYPE
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "Fn"
+                        PARENTHESIZED_ARG_LIST
+                          L_PAREN "("
+                          TYPE_ARG
+                            REF_TYPE
+                              AMP "&"
+                              PATH_TYPE
+                                PATH
+                                  PATH_SEGMENT
+                                    NAME_REF
+                                      IDENT "RepoPath"
+                          R_PAREN ")"
+                        WHITESPACE " "
+                        RET_TYPE
+                          THIN_ARROW "->"
+                          WHITESPACE " "
+                          PATH_TYPE
+                            PATH
+                              PATH_SEGMENT
+                                NAME_REF
+                                  IDENT "Option"
+                                GENERIC_ARG_LIST
+                                  L_ANGLE "<"
+                                  TYPE_ARG
+                                    REF_TYPE
+                                      AMP "&"
+                                      LIFETIME
+                                        LIFETIME_IDENT "'f"
+                                      WHITESPACE " "
+                                      PATH_TYPE
+                                        PATH
+                                          PATH_SEGMENT
+                                            NAME_REF
+                                              IDENT "Facts"
+                                  R_ANGLE ">"
+                WHITESPACE " "
+                PLUS "+"
+                WHITESPACE " "
+                TYPE_BOUND
+                  PATH_TYPE
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "Sync"
+            R_PAREN ")"
+      COMMA ","
+      WHITESPACE "\n"
+      R_PAREN ")"
+    WHITESPACE " "
+    BLOCK_EXPR
+      STMT_LIST
+        L_CURLY "{"
+        WHITESPACE "\n    "
+        LET_STMT
+          LET_KW "let"
+          WHITESPACE " "
+          TUPLE_STRUCT_PAT
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "Some"
+            L_PAREN "("
+            IDENT_PAT
+              NAME
+                IDENT "facts"
+            R_PAREN ")"
+          WHITESPACE " "
+          EQ "="
+          WHITESPACE " "
+          CALL_EXPR
+            PATH_EXPR
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "facts_of"
+            ARG_LIST
+              L_PAREN "("
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "file"
+              R_PAREN ")"
+          WHITESPACE " "
+          LET_ELSE
+            ELSE_KW "else"
+            WHITESPACE " "
+            BLOCK_EXPR
+              STMT_LIST
+                L_CURLY "{"
+                WHITESPACE " "
+                RETURN_EXPR
+                  RETURN_KW "return"
+                WHITESPACE " "
+                R_CURLY "}"
+          SEMICOLON ";"
+        WHITESPACE "\n    "
+        FOR_EXPR
+          FOR_KW "for"
+          WHITESPACE " "
+          IDENT_PAT
+            NAME
+              IDENT "declared"
+          WHITESPACE " "
+          IN_KW "in"
+          WHITESPACE " "
+          REF_EXPR
+            AMP "&"
+            FIELD_EXPR
+              PATH_EXPR
+                PATH
+                  PATH_SEGMENT
+                    NAME_REF
+                      IDENT "facts"
+              DOT "."
+              NAME_REF
+                IDENT "declared"
+          WHITESPACE " "
+          BLOCK_EXPR
+            STMT_LIST
+              L_CURLY "{"
+              WHITESPACE "\n        "
+              LET_STMT
+                LET_KW "let"
+                WHITESPACE " "
+                RECORD_PAT
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "Placing"
+                  WHITESPACE " "
+                  RECORD_PAT_FIELD_LIST
+                    L_CURLY "{"
+                    WHITESPACE "\n            "
+                    RECORD_PAT_FIELD
+                      NAME_REF
+                        IDENT "module"
+                      COLON ":"
+                      WHITESPACE " "
+                      IDENT_PAT
+                        NAME
+                          IDENT "child"
+                    COMMA ","
+                    WHITESPACE "\n            "
+                    RECORD_PAT_FIELD
+                      NAME_REF
+                        IDENT "base"
+                      COLON ":"
+                      WHITESPACE " "
+                      IDENT_PAT
+                        NAME
+                          IDENT "child_base"
+                    COMMA ","
+                    WHITESPACE "\n            "
+                    RECORD_PAT_FIELD
+                      IDENT_PAT
+                        NAME
+                          IDENT "path_base"
+                    COMMA ","
+                    WHITESPACE "\n        "
+                    R_CURLY "}"
+                WHITESPACE " "
+                EQ "="
+                WHITESPACE " "
+                CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "placed"
+                  ARG_LIST
+                    L_PAREN "("
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "declared"
+                    COMMA ","
+                    WHITESPACE " "
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "file"
+                    COMMA ","
+                    WHITESPACE " "
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "module"
+                    COMMA ","
+                    WHITESPACE " "
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "base"
+                    R_PAREN ")"
+                SEMICOLON ";"
+              WHITESPACE "\n        "
+              EXPR_STMT
+                IF_EXPR
+                  IF_KW "if"
+                  WHITESPACE " "
+                  BIN_EXPR
+                    FIELD_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "declared"
+                      DOT "."
+                      NAME_REF
+                        IDENT "body"
+                    WHITESPACE " "
+                    EQ2 "=="
+                    WHITESPACE " "
+                    PATH_EXPR
+                      PATH
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "Body"
+                        COLON2 "::"
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "Inline"
+                  WHITESPACE " "
+                  BLOCK_EXPR
+                    STMT_LIST
+                      L_CURLY "{"
+                      WHITESPACE "\n            "
+                      EXPR_STMT
+                        METHOD_CALL_EXPR
+                          METHOD_CALL_EXPR
+                            METHOD_CALL_EXPR
+                              FIELD_EXPR
+                                PATH_EXPR
+                                  PATH
+                                    PATH_SEGMENT
+                                      NAME_REF
+                                        IDENT "tree"
+                                DOT "."
+                                NAME_REF
+                                  IDENT "modules"
+                              DOT "."
+                              NAME_REF
+                                IDENT "entry"
+                              ARG_LIST
+                                L_PAREN "("
+                                PATH_EXPR
+                                  PATH
+                                    PATH_SEGMENT
+                                      NAME_REF
+                                        IDENT "child"
+                                R_PAREN ")"
+                            DOT "."
+                            NAME_REF
+                              IDENT "or_default"
+                            ARG_LIST
+                              L_PAREN "("
+                              R_PAREN ")"
+                          DOT "."
+                          NAME_REF
+                            IDENT "push"
+                          ARG_LIST
+                            L_PAREN "("
+                            METHOD_CALL_EXPR
+                              PATH_EXPR
+                                PATH
+                                  PATH_SEGMENT
+                                    NAME_REF
+                                      IDENT "file"
+                              DOT "."
+                              NAME_REF
+                                IDENT "clone"
+                              ARG_LIST
+                                L_PAREN "("
+                                R_PAREN ")"
+                            R_PAREN ")"
+                        SEMICOLON ";"
+                      WHITESPACE "\n            "
+                      EXPR_STMT
+                        CONTINUE_EXPR
+                          CONTINUE_KW "continue"
+                        SEMICOLON ";"
+                      WHITESPACE "\n        "
+                      R_CURLY "}"
+              WHITESPACE "\n        "
+              LET_STMT
+                LET_KW "let"
+                WHITESPACE " "
+                IDENT_PAT
+                  NAME
+                    IDENT "candidates"
+                WHITESPACE " "
+                EQ "="
+                WHITESPACE " "
+                MATCH_EXPR
+                  MATCH_KW "match"
+                  WHITESPACE " "
+                  REF_EXPR
+                    AMP "&"
+                    FIELD_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "declared"
+                      DOT "."
+                      NAME_REF
+                        IDENT "path"
+                  WHITESPACE " "
+                  MATCH_ARM_LIST
+                    L_CURLY "{"
+                    WHITESPACE "\n            "
+                    MATCH_ARM
+                      TUPLE_STRUCT_PAT
+                        PATH
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "Section"
+                          COLON2 "::"
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "Present"
+                        L_PAREN "("
+                        IDENT_PAT
+                          NAME
+                            IDENT "explicit"
+                        R_PAREN ")"
+                      WHITESPACE " "
+                      FAT_ARROW "=>"
+                      WHITESPACE " "
+                      BLOCK_EXPR
+                        STMT_LIST
+                          L_CURLY "{"
+                          WHITESPACE "\n                "
+                          MACRO_EXPR
+                            MACRO_CALL
+                              PATH
+                                PATH_SEGMENT
+                                  NAME_REF
+                                    IDENT "vec"
+                              BANG "!"
+                              TOKEN_TREE
+                                L_BRACK "["
+                                IDENT "lexical_join"
+                                TOKEN_TREE
+                                  L_PAREN "("
+                                  AMP "&"
+                                  IDENT "path_base"
+                                  COMMA ","
+                                  WHITESPACE " "
+                                  AMP "&"
+                                  IDENT "Relative"
+                                  TOKEN_TREE
+                                    L_PAREN "("
+                                    IDENT "explicit"
+                                    DOT "."
+                                    INT_NUMBER "0"
+                                    DOT "."
+                                    IDENT "clone"
+                                    TOKEN_TREE
+                                      L_PAREN "("
+                                      R_PAREN ")"
+                                    R_PAREN ")"
+                                  R_PAREN ")"
+                                R_BRACK "]"
+                          WHITESPACE "\n            "
+                          R_CURLY "}"
+                    WHITESPACE "\n            "
+                    MATCH_ARM
+                      PATH_PAT
+                        PATH
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "Section"
+                          COLON2 "::"
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "Absent"
+                      WHITESPACE " "
+                      FAT_ARROW "=>"
+                      WHITESPACE " "
+                      BLOCK_EXPR
+                        STMT_LIST
+                          L_CURLY "{"
+                          WHITESPACE "\n                "
+                          LET_STMT
+                            LET_KW "let"
+                            WHITESPACE " "
+                            IDENT_PAT
+                              NAME
+                                IDENT "sibling"
+                            WHITESPACE " "
+                            EQ "="
+                            WHITESPACE " "
+                            CALL_EXPR
+                              PATH_EXPR
+                                PATH
+                                  PATH_SEGMENT
+                                    NAME_REF
+                                      IDENT "Relative"
+                              ARG_LIST
+                                L_PAREN "("
+                                METHOD_CALL_EXPR
+                                  MACRO_EXPR
+                                    MACRO_CALL
+                                      PATH
+                                        PATH_SEGMENT
+                                          NAME_REF
+                                            IDENT "format"
+                                      BANG "!"
+                                      TOKEN_TREE
+                                        L_PAREN "("
+                                        STRING "\"{}{SOURCE}\""
+                                        COMMA ","
+                                        WHITESPACE " "
+                                        IDENT "declared"
+                                        DOT "."
+                                        IDENT "name"
+                                        R_PAREN ")"
+                                  DOT "."
+                                  NAME_REF
+                                    IDENT "into"
+                                  ARG_LIST
+                                    L_PAREN "("
+                                    R_PAREN ")"
+                                R_PAREN ")"
+                            SEMICOLON ";"
+                          WHITESPACE "\n                "
+                          LET_STMT
+                            LET_KW "let"
+                            WHITESPACE " "
+                            IDENT_PAT
+                              NAME
+                                IDENT "owner"
+                            WHITESPACE " "
+                            EQ "="
+                            WHITESPACE " "
+                            CALL_EXPR
+                              PATH_EXPR
+                                PATH
+                                  PATH_SEGMENT
+                                    NAME_REF
+                                      IDENT "Relative"
+                              ARG_LIST
+                                L_PAREN "("
+                                METHOD_CALL_EXPR
+                                  MACRO_EXPR
+                                    MACRO_CALL
+                                      PATH
+                                        PATH_SEGMENT
+                                          NAME_REF
+                                            IDENT "format"
+                                      BANG "!"
+                                      TOKEN_TREE
+                                        L_PAREN "("
+                                        STRING "\"{}/{DIRECTORY_OWNER}\""
+                                        COMMA ","
+                                        WHITESPACE " "
+                                        IDENT "declared"
+                                        DOT "."
+                                        IDENT "name"
+                                        R_PAREN ")"
+                                  DOT "."
+                                  NAME_REF
+                                    IDENT "into"
+                                  ARG_LIST
+                                    L_PAREN "("
+                                    R_PAREN ")"
+                                R_PAREN ")"
+                            SEMICOLON ";"
+                          WHITESPACE "\n                "
+                          MACRO_EXPR
+                            MACRO_CALL
+                              PATH
+                                PATH_SEGMENT
+                                  NAME_REF
+                                    IDENT "vec"
+                              BANG "!"
+                              TOKEN_TREE
+                                L_BRACK "["
+                                WHITESPACE "\n                    "
+                                IDENT "lexical_join"
+                                TOKEN_TREE
+                                  L_PAREN "("
+                                  AMP "&"
+                                  IDENT "child_base"
+                                  COMMA ","
+                                  WHITESPACE " "
+                                  AMP "&"
+                                  IDENT "sibling"
+                                  R_PAREN ")"
+                                COMMA ","
+                                WHITESPACE "\n                    "
+                                IDENT "lexical_join"
+                                TOKEN_TREE
+                                  L_PAREN "("
+                                  AMP "&"
+                                  IDENT "child_base"
+                                  COMMA ","
+                                  WHITESPACE " "
+                                  AMP "&"
+                                  IDENT "owner"
+                                  R_PAREN ")"
+                                COMMA ","
+                                WHITESPACE "\n                "
+                                R_BRACK "]"
+                          WHITESPACE "\n            "
+                          R_CURLY "}"
+                    WHITESPACE "\n        "
+                    R_CURLY "}"
+                SEMICOLON ";"
+              WHITESPACE "\n        "
+              LET_STMT
+                LET_KW "let"
+                WHITESPACE " "
+                IDENT_PAT
+                  NAME
+                    IDENT "present"
+                COLON ":"
+                WHITESPACE " "
+                PATH_TYPE
+                  PATH
+                    PATH_SEGMENT
+                      NAME_REF
+                        IDENT "Vec"
+                      GENERIC_ARG_LIST
+                        L_ANGLE "<"
+                        TYPE_ARG
+                          PATH_TYPE
+                            PATH
+                              PATH_SEGMENT
+                                NAME_REF
+                                  IDENT "RepoPath"
+                        R_ANGLE ">"
+                WHITESPACE " "
+                EQ "="
+                WHITESPACE " "
+                METHOD_CALL_EXPR
+                  METHOD_CALL_EXPR
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "candidates"
+                      WHITESPACE "\n            "
+                      DOT "."
+                      NAME_REF
+                        IDENT "into_iter"
+                      ARG_LIST
+                        L_PAREN "("
+                        R_PAREN ")"
+                    WHITESPACE "\n            "
+                    DOT "."
+                    NAME_REF
+                      IDENT "filter"
+                    ARG_LIST
+                      L_PAREN "("
+                      CLOSURE_EXPR
+                        PARAM_LIST
+                          PIPE "|"
+                          PARAM
+                            IDENT_PAT
+                              NAME
+                                IDENT "candidate"
+                          PIPE "|"
+                        WHITESPACE " "
+                        METHOD_CALL_EXPR
+                          PATH_EXPR
+                            PATH
+                              PATH_SEGMENT
+                                NAME_REF
+                                  IDENT "files"
+                          DOT "."
+                          NAME_REF
+                            IDENT "contains"
+                          ARG_LIST
+                            L_PAREN "("
+                            PATH_EXPR
+                              PATH
+                                PATH_SEGMENT
+                                  NAME_REF
+                                    IDENT "candidate"
+                            R_PAREN ")"
+                      R_PAREN ")"
+                  WHITESPACE "\n            "
+                  DOT "."
+                  NAME_REF
+                    IDENT "collect"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                SEMICOLON ";"
+              WHITESPACE "\n        "
+              COMMENT "// A module with no file, or with two, is not followed."
+              WHITESPACE "\n        "
+              LET_STMT
+                LET_KW "let"
+                WHITESPACE " "
+                SLICE_PAT
+                  L_BRACK "["
+                  IDENT_PAT
+                    NAME
+                      IDENT "target"
+                  R_BRACK "]"
+                WHITESPACE " "
+                EQ "="
+                WHITESPACE " "
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "present"
+                  DOT "."
+                  NAME_REF
+                    IDENT "as_slice"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                WHITESPACE " "
+                LET_ELSE
+                  ELSE_KW "else"
+                  WHITESPACE " "
+                  BLOCK_EXPR
+                    STMT_LIST
+                      L_CURLY "{"
+                      WHITESPACE "\n            "
+                      EXPR_STMT
+                        METHOD_CALL_EXPR
+                          FIELD_EXPR
+                            PATH_EXPR
+                              PATH
+                                PATH_SEGMENT
+                                  NAME_REF
+                                    IDENT "tree"
+                            DOT "."
+                            NAME_REF
+                              IDENT "gaps"
+                          DOT "."
+                          NAME_REF
+                            IDENT "push"
+                          ARG_LIST
+                            L_PAREN "("
+                            RECORD_EXPR
+                              PATH
+                                PATH
+                                  PATH_SEGMENT
+                                    NAME_REF
+                                      IDENT "Gap"
+                                COLON2 "::"
+                                PATH_SEGMENT
+                                  NAME_REF
+                                    IDENT "Files"
+                              WHITESPACE " "
+                              RECORD_EXPR_FIELD_LIST
+                                L_CURLY "{"
+                                WHITESPACE "\n                "
+                                RECORD_EXPR_FIELD
+                                  NAME_REF
+                                    IDENT "file"
+                                  COLON ":"
+                                  WHITESPACE " "
+                                  METHOD_CALL_EXPR
+                                    PATH_EXPR
+                                      PATH
+                                        PATH_SEGMENT
+                                          NAME_REF
+                                            IDENT "file"
+                                    DOT "."
+                                    NAME_REF
+                                      IDENT "clone"
+                                    ARG_LIST
+                                      L_PAREN "("
+                                      R_PAREN ")"
+                                COMMA ","
+                                WHITESPACE "\n                "
+                                RECORD_EXPR_FIELD
+                                  NAME_REF
+                                    IDENT "module"
+                                  COLON ":"
+                                  WHITESPACE " "
+                                  CALL_EXPR
+                                    PATH_EXPR
+                                      PATH
+                                        PATH_SEGMENT
+                                          NAME_REF
+                                            IDENT "module_text"
+                                    ARG_LIST
+                                      L_PAREN "("
+                                      REF_EXPR
+                                        AMP "&"
+                                        PATH_EXPR
+                                          PATH
+                                            PATH_SEGMENT
+                                              NAME_REF
+                                                IDENT "child"
+                                      R_PAREN ")"
+                                COMMA ","
+                                WHITESPACE "\n                "
+                                RECORD_EXPR_FIELD
+                                  NAME_REF
+                                    IDENT "count"
+                                  COLON ":"
+                                  WHITESPACE " "
+                                  IF_EXPR
+                                    IF_KW "if"
+                                    WHITESPACE " "
+                                    METHOD_CALL_EXPR
+                                      PATH_EXPR
+                                        PATH
+                                          PATH_SEGMENT
+                                            NAME_REF
+                                              IDENT "present"
+                                      DOT "."
+                                      NAME_REF
+                                        IDENT "is_empty"
+                                      ARG_LIST
+                                        L_PAREN "("
+                                        R_PAREN ")"
+                                    WHITESPACE " "
+                                    BLOCK_EXPR
+                                      STMT_LIST
+                                        L_CURLY "{"
+                                        WHITESPACE "\n                    "
+                                        PATH_EXPR
+                                          PATH
+                                            PATH
+                                              PATH_SEGMENT
+                                                NAME_REF
+                                                  IDENT "SourceCount"
+                                            COLON2 "::"
+                                            PATH_SEGMENT
+                                              NAME_REF
+                                                IDENT "None"
+                                        WHITESPACE "\n                "
+                                        R_CURLY "}"
+                                    WHITESPACE " "
+                                    ELSE_KW "else"
+                                    WHITESPACE " "
+                                    BLOCK_EXPR
+                                      STMT_LIST
+                                        L_CURLY "{"
+                                        WHITESPACE "\n                    "
+                                        PATH_EXPR
+                                          PATH
+                                            PATH
+                                              PATH_SEGMENT
+                                                NAME_REF
+                                                  IDENT "SourceCount"
+                                            COLON2 "::"
+                                            PATH_SEGMENT
+                                              NAME_REF
+                                                IDENT "Two"
+                                        WHITESPACE "\n                "
+                                        R_CURLY "}"
+                                COMMA ","
+                                WHITESPACE "\n            "
+                                R_CURLY "}"
+                            R_PAREN ")"
+                        SEMICOLON ";"
+                      WHITESPACE "\n            "
+                      EXPR_STMT
+                        CONTINUE_EXPR
+                          CONTINUE_KW "continue"
+                        SEMICOLON ";"
+                      WHITESPACE "\n        "
+                      R_CURLY "}"
+                SEMICOLON ";"
+              WHITESPACE "\n        "
+              EXPR_STMT
+                CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "declare"
+                  ARG_LIST
+                    L_PAREN "("
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "tree"
+                    COMMA ","
+                    WHITESPACE " "
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "child"
+                      DOT "."
+                      NAME_REF
+                        IDENT "clone"
+                      ARG_LIST
+                        L_PAREN "("
+                        R_PAREN ")"
+                    COMMA ","
+                    WHITESPACE " "
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "target"
+                    R_PAREN ")"
+                SEMICOLON ";"
+              WHITESPACE "\n        "
+              EXPR_STMT
+                IF_EXPR
+                  IF_KW "if"
+                  WHITESPACE " "
+                  METHOD_CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "active"
+                    DOT "."
+                    NAME_REF
+                      IDENT "contains"
+                    ARG_LIST
+                      L_PAREN "("
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "target"
+                      R_PAREN ")"
+                  WHITESPACE " "
+                  BLOCK_EXPR
+                    STMT_LIST
+                      L_CURLY "{"
+                      WHITESPACE "\n            "
+                      EXPR_STMT
+                        METHOD_CALL_EXPR
+                          FIELD_EXPR
+                            PATH_EXPR
+                              PATH
+                                PATH_SEGMENT
+                                  NAME_REF
+                                    IDENT "tree"
+                            DOT "."
+                            NAME_REF
+                              IDENT "gaps"
+                          DOT "."
+                          NAME_REF
+                            IDENT "push"
+                          ARG_LIST
+                            L_PAREN "("
+                            RECORD_EXPR
+                              PATH
+                                PATH
+                                  PATH_SEGMENT
+                                    NAME_REF
+                                      IDENT "Gap"
+                                COLON2 "::"
+                                PATH_SEGMENT
+                                  NAME_REF
+                                    IDENT "Loading"
+                              WHITESPACE " "
+                              RECORD_EXPR_FIELD_LIST
+                                L_CURLY "{"
+                                WHITESPACE "\n                "
+                                RECORD_EXPR_FIELD
+                                  NAME_REF
+                                    IDENT "file"
+                                  COLON ":"
+                                  WHITESPACE " "
+                                  METHOD_CALL_EXPR
+                                    PATH_EXPR
+                                      PATH
+                                        PATH_SEGMENT
+                                          NAME_REF
+                                            IDENT "file"
+                                    DOT "."
+                                    NAME_REF
+                                      IDENT "clone"
+                                    ARG_LIST
+                                      L_PAREN "("
+                                      R_PAREN ")"
+                                COMMA ","
+                                WHITESPACE "\n                "
+                                RECORD_EXPR_FIELD
+                                  NAME_REF
+                                    IDENT "module"
+                                  COLON ":"
+                                  WHITESPACE " "
+                                  CALL_EXPR
+                                    PATH_EXPR
+                                      PATH
+                                        PATH_SEGMENT
+                                          NAME_REF
+                                            IDENT "module_text"
+                                    ARG_LIST
+                                      L_PAREN "("
+                                      REF_EXPR
+                                        AMP "&"
+                                        PATH_EXPR
+                                          PATH
+                                            PATH_SEGMENT
+                                              NAME_REF
+                                                IDENT "child"
+                                      R_PAREN ")"
+                                COMMA ","
+                                WHITESPACE "\n                "
+                                RECORD_EXPR_FIELD
+                                  NAME_REF
+                                    IDENT "target"
+                                  COLON ":"
+                                  WHITESPACE " "
+                                  METHOD_CALL_EXPR
+                                    PATH_EXPR
+                                      PATH
+                                        PATH_SEGMENT
+                                          NAME_REF
+                                            IDENT "target"
+                                    DOT "."
+                                    NAME_REF
+                                      IDENT "clone"
+                                    ARG_LIST
+                                      L_PAREN "("
+                                      R_PAREN ")"
+                                COMMA ","
+                                WHITESPACE "\n            "
+                                R_CURLY "}"
+                            R_PAREN ")"
+                        SEMICOLON ";"
+                      WHITESPACE "\n            "
+                      EXPR_STMT
+                        CONTINUE_EXPR
+                          CONTINUE_KW "continue"
+                        SEMICOLON ";"
+                      WHITESPACE "\n        "
+                      R_CURLY "}"
+              WHITESPACE "\n        "
+              COMMENT "// A file loaded through `#[path]` or `mod.rs` owns its directory; `x.rs` owns `x/`."
+              WHITESPACE "\n        "
+              LET_STMT
+                LET_KW "let"
+                WHITESPACE " "
+                IDENT_PAT
+                  NAME
+                    IDENT "next_base"
+                WHITESPACE " "
+                EQ "="
+                WHITESPACE " "
+                IF_EXPR
+                  IF_KW "if"
+                  WHITESPACE " "
+                  BIN_EXPR
+                    MACRO_EXPR
+                      MACRO_CALL
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "matches"
+                        BANG "!"
+                        TOKEN_TREE
+                          L_PAREN "("
+                          IDENT "declared"
+                          DOT "."
+                          IDENT "path"
+                          COMMA ","
+                          WHITESPACE " "
+                          IDENT "Section"
+                          COLON ":"
+                          COLON ":"
+                          IDENT "Present"
+                          TOKEN_TREE
+                            L_PAREN "("
+                            UNDERSCORE "_"
+                            R_PAREN ")"
+                          R_PAREN ")"
+                    WHITESPACE "\n            "
+                    PIPE2 "||"
+                    WHITESPACE " "
+                    BIN_EXPR
+                      CALL_EXPR
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "owns_directory"
+                        ARG_LIST
+                          L_PAREN "("
+                          PATH_EXPR
+                            PATH
+                              PATH_SEGMENT
+                                NAME_REF
+                                  IDENT "target"
+                          R_PAREN ")"
+                      WHITESPACE " "
+                      EQ2 "=="
+                      WHITESPACE " "
+                      PATH_EXPR
+                        PATH
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "Ownership"
+                          COLON2 "::"
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "Owns"
+                  WHITESPACE "\n        "
+                  BLOCK_EXPR
+                    STMT_LIST
+                      L_CURLY "{"
+                      WHITESPACE "\n            "
+                      CALL_EXPR
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "directory_of"
+                        ARG_LIST
+                          L_PAREN "("
+                          PATH_EXPR
+                            PATH
+                              PATH_SEGMENT
+                                NAME_REF
+                                  IDENT "target"
+                          R_PAREN ")"
+                      WHITESPACE "\n        "
+                      R_CURLY "}"
+                  WHITESPACE " "
+                  ELSE_KW "else"
+                  WHITESPACE " "
+                  BLOCK_EXPR
+                    STMT_LIST
+                      L_CURLY "{"
+                      WHITESPACE "\n            "
+                      CALL_EXPR
+                        PATH_EXPR
+                          PATH
+                            PATH_SEGMENT
+                              NAME_REF
+                                IDENT "lexical_join"
+                        ARG_LIST
+                          L_PAREN "("
+                          REF_EXPR
+                            AMP "&"
+                            CALL_EXPR
+                              PATH_EXPR
+                                PATH
+                                  PATH_SEGMENT
+                                    NAME_REF
+                                      IDENT "directory_of"
+                              ARG_LIST
+                                L_PAREN "("
+                                PATH_EXPR
+                                  PATH
+                                    PATH_SEGMENT
+                                      NAME_REF
+                                        IDENT "target"
+                                R_PAREN ")"
+                          COMMA ","
+                          WHITESPACE " "
+                          REF_EXPR
+                            AMP "&"
+                            CALL_EXPR
+                              PATH_EXPR
+                                PATH
+                                  PATH_SEGMENT
+                                    NAME_REF
+                                      IDENT "Relative"
+                              ARG_LIST
+                                L_PAREN "("
+                                FIELD_EXPR
+                                  CALL_EXPR
+                                    PATH_EXPR
+                                      PATH
+                                        PATH_SEGMENT
+                                          NAME_REF
+                                            IDENT "stem"
+                                    ARG_LIST
+                                      L_PAREN "("
+                                      PATH_EXPR
+                                        PATH
+                                          PATH_SEGMENT
+                                            NAME_REF
+                                              IDENT "target"
+                                      R_PAREN ")"
+                                  DOT "."
+                                  NAME_REF
+                                    INT_NUMBER "0"
+                                R_PAREN ")"
+                          R_PAREN ")"
+                      WHITESPACE "\n        "
+                      R_CURLY "}"
+                SEMICOLON ";"
+              WHITESPACE "\n        "
+              EXPR_STMT
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "active"
+                  DOT "."
+                  NAME_REF
+                    IDENT "push"
+                  ARG_LIST
+                    L_PAREN "("
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "target"
+                      DOT "."
+                      NAME_REF
+                        IDENT "clone"
+                      ARG_LIST
+                        L_PAREN "("
+                        R_PAREN ")"
+                    R_PAREN ")"
+                SEMICOLON ";"
+              WHITESPACE "\n        "
+              EXPR_STMT
+                CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "visit"
+                  ARG_LIST
+                    L_PAREN "("
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "files"
+                    COMMA ","
+                    WHITESPACE " "
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "tree"
+                    COMMA ","
+                    WHITESPACE " "
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "active"
+                    COMMA ","
+                    WHITESPACE " "
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "target"
+                    COMMA ","
+                    WHITESPACE " "
+                    REF_EXPR
+                      AMP "&"
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "child"
+                    COMMA ","
+                    WHITESPACE " "
+                    REF_EXPR
+                      AMP "&"
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "next_base"
+                    COMMA ","
+                    WHITESPACE " "
+                    PATH_EXPR
+                      PATH
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "facts_of"
+                    R_PAREN ")"
+                SEMICOLON ";"
+              WHITESPACE "\n        "
+              EXPR_STMT
+                METHOD_CALL_EXPR
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "active"
+                  DOT "."
+                  NAME_REF
+                    IDENT "pop"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                SEMICOLON ";"
+              WHITESPACE "\n    "
+              R_CURLY "}"
+        WHITESPACE "\n"
+        R_CURLY "}"
+  WHITESPACE "\n\n"
+  FN
+    COMMENT "/// A module path as it is read in a finding: its segments joined with `::`."
+    WHITESPACE "\n"
+    FN_KW "fn"
+    WHITESPACE " "
+    NAME
+      IDENT "module_text"
+    PARAM_LIST
+      L_PAREN "("
+      PARAM
+        IDENT_PAT
+          NAME
+            IDENT "module"
+        COLON ":"
+        WHITESPACE " "
+        REF_TYPE
+          AMP "&"
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "ModulePath"
+      R_PAREN ")"
+    WHITESPACE " "
+    RET_TYPE
+      THIN_ARROW "->"
+      WHITESPACE " "
+      PATH_TYPE
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "ModuleText"
+    WHITESPACE " "
+    BLOCK_EXPR
+      STMT_LIST
+        L_CURLY "{"
+        WHITESPACE "\n    "
+        CALL_EXPR
+          PATH_EXPR
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "ModuleText"
+          ARG_LIST
+            L_PAREN "("
+            WHITESPACE "\n        "
+            METHOD_CALL_EXPR
+              METHOD_CALL_EXPR
+                METHOD_CALL_EXPR
+                  METHOD_CALL_EXPR
+                    METHOD_CALL_EXPR
+                      PATH_EXPR
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "module"
+                      WHITESPACE "\n            "
+                      DOT "."
+                      NAME_REF
+                        IDENT "iter"
+                      ARG_LIST
+                        L_PAREN "("
+                        R_PAREN ")"
+                    WHITESPACE "\n            "
+                    DOT "."
+                    NAME_REF
+                      IDENT "map"
+                    ARG_LIST
+                      L_PAREN "("
+                      CLOSURE_EXPR
+                        PARAM_LIST
+                          PIPE "|"
+                          PARAM
+                            IDENT_PAT
+                              NAME
+                                IDENT "segment"
+                          PIPE "|"
+                        WHITESPACE " "
+                        REF_EXPR
+                          AMP "&"
+                          PREFIX_EXPR
+                            STAR "*"
+                            PREFIX_EXPR
+                              STAR "*"
+                              PATH_EXPR
+                                PATH
+                                  PATH_SEGMENT
+                                    NAME_REF
+                                      IDENT "segment"
+                      R_PAREN ")"
+                  WHITESPACE "\n            "
+                  DOT "."
+                  NAME_REF
+                    IDENT "collect"
+                  GENERIC_ARG_LIST
+                    COLON2 "::"
+                    L_ANGLE "<"
+                    TYPE_ARG
+                      PATH_TYPE
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "Vec"
+                            GENERIC_ARG_LIST
+                              L_ANGLE "<"
+                              TYPE_ARG
+                                INFER_TYPE
+                                  UNDERSCORE "_"
+                              R_ANGLE ">"
+                    R_ANGLE ">"
+                  ARG_LIST
+                    L_PAREN "("
+                    R_PAREN ")"
+                WHITESPACE "\n            "
+                DOT "."
+                NAME_REF
+                  IDENT "join"
+                ARG_LIST
+                  L_PAREN "("
+                  PATH_EXPR
+                    PATH
+                      PATH_SEGMENT
+                        NAME_REF
+                          IDENT "MODULE_SEPARATOR"
+                  R_PAREN ")"
+              WHITESPACE "\n            "
+              DOT "."
+              NAME_REF
+                IDENT "into"
+              ARG_LIST
+                L_PAREN "("
+                R_PAREN ")"
+            COMMA ","
+            WHITESPACE "\n    "
+            R_PAREN ")"
+        WHITESPACE "\n"
+        R_CURLY "}"
+  WHITESPACE "\n"

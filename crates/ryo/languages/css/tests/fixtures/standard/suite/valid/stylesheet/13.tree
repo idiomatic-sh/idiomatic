@@ -1,0 +1,9 @@
+stylesheet
+  whitespace
+  whitespace
+  whitespace
+  qualified-rule
+    ident
+    literal <!--
+    literal -->
+    block

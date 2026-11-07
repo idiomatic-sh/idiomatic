@@ -1,0 +1,4 @@
+This directory holds the standards that define the nodes and the tokens of the markdown language, copied unchanged and pinned: README.md names their sources and the versions pinned.
+
+- mdast.md: the mdast specification, from github.com/syntax-tree/mdast. Its license is NOTICE-mdast-LICENSE.
+- micromark-util-types.d.ts: the types of micromark, whose `TokenTypeMap` lists the token types, from github.com/micromark/micromark. Its license is NOTICE-micromark-LICENSE.

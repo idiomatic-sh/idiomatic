@@ -1,0 +1,3 @@
+`json.abnf` is the ABNF of RFC 8259, "The JavaScript Object Notation (JSON) Data Interchange Format" (STD 90, T. Bray, Ed., December 2017), sections 2 to 7, copied unchanged from https://www.rfc-editor.org/rfc/rfc8259. Copyright (c) 2017 IETF Trust and the persons identified as the document authors. All rights reserved. Code Components extracted from the document are provided under the Revised BSD License, as the IETF Trust's Legal Provisions Relating to IETF Documents (https://trustee.ietf.org/license-info) say.
+
+The `.tree` files are the output of the ABNF engine over the files of `../corpus`, `../suite`, `../relations` and `../allocation`; they are part of this repository's tests and carry its licence.

@@ -1,0 +1,8 @@
+version = 1
+parents = ["4c7246cb2eb611812649babfa795d41cd41632ba063f2cc75748bd178b070118", "23d1126f29ff21c78c6df41247436db66e90cdb27881d4e8c74ac56496e9c2a9"]
+
+[[accepted]]
+reasons = ["Tastemaker is held at cargo-workspace 0.10.0 until 0.11.0's lint block lands with its fixes; `asymptote ratchet down` drains this then"]
+records = [
+  { tool = "tastemaker", rule = "idiomatic.arch/cargo-workspace#outdated", path = "tastemaker.toml", level = "warning", fingerprint = "b38a6c348fd3539f", count = 1, message = "`idiomatic.arch/cargo-workspace` follows 0.10.0; its source offers 0.11.0: `tm update -n` lists what moves, `tm update` moves it", since_rev = "9670f6bb3584e24317cd64a1c65bfbaacf1e3f4d", since = "2026-10-27" },
+]

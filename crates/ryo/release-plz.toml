@@ -1,0 +1,118 @@
+# The release pull request of ryo, which `ci/release_pr/command.py --product ryo` opens with release-plz (the release-pr
+# workflow): every crate at one new version, the workspace's, bumped from the conventional commits since the release on crates.io,
+# and one changelog for the product, this directory's CHANGELOG.md, grouped by commit type. release-plz opens the pull request and
+# nothing else: merging it is the release, which the release workflow tags and publishes.
+[workspace]
+publish = false
+git_tag_enable = false
+git_release_enable = false
+semver_check = false
+changelog_update = false
+pr_name = "chore(ryo): release {{ version }}"
+# Each product's own branches: release-plz closes every other open pull request whose branch has its prefix.
+pr_branch_prefix = "release-plz-ryo-"
+
+# The command line's changelog is the product's, every crate's commits in it.
+[[package]]
+name = "idiomatic-sh-ryo"
+version_group = "ryo"
+git_tag_name = "idiomatic-sh-ryo-v{{ version }}"
+changelog_update = true
+changelog_path = "CHANGELOG.md"
+changelog_include = ["idiomatic-sh-ryo-core", "idiomatic-sh-ryo-css", "idiomatic-sh-ryo-go", "idiomatic-sh-ryo-html", "idiomatic-sh-ryo-javascript", "idiomatic-sh-ryo-json", "idiomatic-sh-ryo-language", "idiomatic-sh-ryo-markdown", "idiomatic-sh-ryo-python", "idiomatic-sh-ryo-query_language", "idiomatic-sh-ryo-relations", "idiomatic-sh-ryo-rust", "idiomatic-sh-ryo-sdk", "idiomatic-sh-ryo-toml", "idiomatic-sh-ryo-typescript", "idiomatic-sh-ryo-values"]
+
+[[package]]
+name = "idiomatic-sh-ryo-core"
+version_group = "ryo"
+
+[[package]]
+name = "idiomatic-sh-ryo-css"
+version_group = "ryo"
+
+[[package]]
+name = "idiomatic-sh-ryo-go"
+version_group = "ryo"
+
+[[package]]
+name = "idiomatic-sh-ryo-html"
+version_group = "ryo"
+
+[[package]]
+name = "idiomatic-sh-ryo-javascript"
+version_group = "ryo"
+
+[[package]]
+name = "idiomatic-sh-ryo-json"
+version_group = "ryo"
+
+[[package]]
+name = "idiomatic-sh-ryo-language"
+version_group = "ryo"
+
+[[package]]
+name = "idiomatic-sh-ryo-markdown"
+version_group = "ryo"
+
+[[package]]
+name = "idiomatic-sh-ryo-python"
+version_group = "ryo"
+
+[[package]]
+name = "idiomatic-sh-ryo-query_language"
+version_group = "ryo"
+
+[[package]]
+name = "idiomatic-sh-ryo-relations"
+version_group = "ryo"
+
+[[package]]
+name = "idiomatic-sh-ryo-rust"
+version_group = "ryo"
+
+[[package]]
+name = "idiomatic-sh-ryo-sdk"
+version_group = "ryo"
+
+[[package]]
+name = "idiomatic-sh-ryo-toml"
+version_group = "ryo"
+
+[[package]]
+name = "idiomatic-sh-ryo-typescript"
+version_group = "ryo"
+
+[[package]]
+name = "idiomatic-sh-ryo-values"
+version_group = "ryo"
+
+# release-plz's own entry with a section per commit type, in this order: the number in each group's comment sorts it and is
+# stripped from the heading. Untrimmed, the entry keeps its blank line under the heading before it.
+[changelog]
+trim = false
+body = """
+## [{{ version }}]{%- if release_link -%}({{ release_link }}){% endif %} - {{ timestamp | date(format="%Y-%m-%d") }}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim | upper_first }}
+
+{% for commit in commits %}
+{%- if commit.scope -%}
+- *({{commit.scope}})* {% if commit.breaking %}[**breaking**] {% endif %}{{ commit.message }}{%- if commit.links %} ({% for link in commit.links %}[{{link.text}}]({{link.href}}) {% endfor -%}){% endif %}
+{% else -%}
+- {% if commit.breaking %}[**breaking**] {% endif %}{{ commit.message }}
+{% endif -%}
+{% endfor -%}
+{% endfor %}"""
+commit_parsers = [
+  { message = "^feat", group = "<!-- 00 -->Features" },
+  { message = "^fix", group = "<!-- 01 -->Bug fixes" },
+  { message = "^perf", group = "<!-- 02 -->Performance" },
+  { message = "^refactor", group = "<!-- 03 -->Refactoring" },
+  { message = "^docs", group = "<!-- 04 -->Documentation" },
+  { message = "^test", group = "<!-- 05 -->Tests" },
+  { message = "^build", group = "<!-- 06 -->Build" },
+  { message = "^ci", group = "<!-- 07 -->CI" },
+  { message = "^style", group = "<!-- 08 -->Style" },
+  { message = "^revert", group = "<!-- 09 -->Reverts" },
+  { message = "^chore", group = "<!-- 10 -->Chores" },
+  { message = ".*", group = "<!-- 11 -->Other" },
+]

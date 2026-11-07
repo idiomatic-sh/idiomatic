@@ -1,0 +1,7 @@
+root[1]
+└─0 paragraph[2]
+    ├─0 text "[foo"
+    └─1 link[1]
+        │ title: null
+        │ url: "https://example.com/?search=](uri)"
+        └─0 text "https://example.com/?search=](uri)"

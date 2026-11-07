@@ -1,0 +1,445 @@
+{
+  "schema": "ruff-fixed-counterparts/v1",
+  "reference_executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "source_revision": "ruff-0.16.5",
+  "items": [
+    {
+      "name": "review5-comment-gap-leading-def",
+      "file": "input.py",
+      "source": "import os\n\n\n\n# c\ndef f(): pass\n",
+      "source_sha256": "85ef4f27c977deb98c9fba8cd8f129802d75d23b704998bcc5e50b19b3b02162",
+      "fixed": "import os\n\n\n# c\ndef f(): pass\n",
+      "fixed_sha256": "0363f219746afa058b50bdde70af67513e8c67dbe6ffd10d5445dd783974bbf0",
+      "expected": [
+        {
+          "rule": "I001",
+          "file": "input.py",
+          "start": 0,
+          "end": 9
+        }
+      ],
+      "reference_raw": [
+        {
+          "cell": null,
+          "code": "I001",
+          "end_location": {
+            "column": 10,
+            "row": 1
+          },
+          "filename": "namespace/input.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "import os\n\n\n",
+                "end_location": {
+                  "column": 1,
+                  "row": 5
+                },
+                "location": {
+                  "column": 1,
+                  "row": 1
+                }
+              }
+            ],
+            "message": "Organize imports"
+          },
+          "location": {
+            "column": 1,
+            "row": 1
+          },
+          "message": "Import block is un-sorted or un-formatted",
+          "name": "unsorted-imports",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/unsorted-imports"
+        }
+      ],
+      "reference_stdout_sha256": "c7535f00a06c16929a257ee60e7da32906a7d1f76201c4f6518f0dccd4c1af60",
+      "reference_fix_stderr": "Found 1 error (1 fixed, 0 remaining).\n"
+    },
+    {
+      "name": "review5-comment-gap-leading-stub",
+      "file": "input.pyi",
+      "source": "import os\n\n\n# c\ndef f(): ...\n",
+      "source_sha256": "c7d331df5b429c48f0c2aa7869dc5c63668ac64ea95b4e9783ac6addb1d9a2ca",
+      "fixed": "import os\n\n# c\ndef f(): ...\n",
+      "fixed_sha256": "eb50f6bd7eec2ff0b13b05bd022020497058833e5c18397c422f400325af0d31",
+      "expected": [
+        {
+          "rule": "I001",
+          "file": "input.pyi",
+          "start": 0,
+          "end": 9
+        }
+      ],
+      "reference_raw": [
+        {
+          "cell": null,
+          "code": "I001",
+          "end_location": {
+            "column": 10,
+            "row": 1
+          },
+          "filename": "namespace/input.pyi",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "import os\n\n",
+                "end_location": {
+                  "column": 1,
+                  "row": 4
+                },
+                "location": {
+                  "column": 1,
+                  "row": 1
+                }
+              }
+            ],
+            "message": "Organize imports"
+          },
+          "location": {
+            "column": 1,
+            "row": 1
+          },
+          "message": "Import block is un-sorted or un-formatted",
+          "name": "unsorted-imports",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/unsorted-imports"
+        }
+      ],
+      "reference_stdout_sha256": "33cfe1a31005c38c8296f34d67107044396776672611d10a3f390b056a7fdd53",
+      "reference_fix_stderr": "Found 1 error (1 fixed, 0 remaining).\n"
+    },
+    {
+      "name": "review6-comment-gap-def-clean",
+      "file": "input.py",
+      "source": "import os\n\n\n# c\ndef f(): pass\n",
+      "source_sha256": "0363f219746afa058b50bdde70af67513e8c67dbe6ffd10d5445dd783974bbf0",
+      "fixed": "import os\n\n\n# c\ndef f(): pass\n",
+      "fixed_sha256": "0363f219746afa058b50bdde70af67513e8c67dbe6ffd10d5445dd783974bbf0",
+      "expected": [],
+      "reference_raw": [],
+      "reference_stdout_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "reference_fix_stderr": "All checks passed!\n"
+    },
+    {
+      "name": "review6-comment-gap-class-clean",
+      "file": "input.py",
+      "source": "import os\n\n\n# c\nclass C: pass\n",
+      "source_sha256": "6fdfb61b9d26507011f67900029aeae939ed61ee1dbe7b9fc7f72eedee13baca",
+      "fixed": "import os\n\n\n# c\nclass C: pass\n",
+      "fixed_sha256": "6fdfb61b9d26507011f67900029aeae939ed61ee1dbe7b9fc7f72eedee13baca",
+      "expected": [],
+      "reference_raw": [],
+      "reference_stdout_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "reference_fix_stderr": "All checks passed!\n"
+    },
+    {
+      "name": "review6-comment-gap-decorated-clean",
+      "file": "input.py",
+      "source": "import os\n\n\n# c\n@d\ndef f(): pass\n",
+      "source_sha256": "01c545803ac7308b84341d67638d51c2ee8df97a92e914c71c006c85f91c0e77",
+      "fixed": "import os\n\n\n# c\n@d\ndef f(): pass\n",
+      "fixed_sha256": "01c545803ac7308b84341d67638d51c2ee8df97a92e914c71c006c85f91c0e77",
+      "expected": [],
+      "reference_raw": [],
+      "reference_stdout_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "reference_fix_stderr": "All checks passed!\n"
+    },
+    {
+      "name": "review6-comment-gap-two-comments-clean",
+      "file": "input.py",
+      "source": "import os\n\n\n# a\n# b\ndef f(): pass\n",
+      "source_sha256": "10977ab14dbbeefb566a056043d45505a84e4e295f634802cfcb29bebb2e52b0",
+      "fixed": "import os\n\n\n# a\n# b\ndef f(): pass\n",
+      "fixed_sha256": "10977ab14dbbeefb566a056043d45505a84e4e295f634802cfcb29bebb2e52b0",
+      "expected": [],
+      "reference_raw": [],
+      "reference_stdout_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "reference_fix_stderr": "All checks passed!\n"
+    },
+    {
+      "name": "review6-comment-gap-blank-after-comment",
+      "file": "input.py",
+      "source": "import os\n\n\n# c\n\ndef f(): pass\n",
+      "source_sha256": "d9af494c73cf18d9469072ad033f84e016222769d3f46a14f0f2e0596ba0b5d7",
+      "fixed": "import os\n\n# c\n\ndef f(): pass\n",
+      "fixed_sha256": "6464d297691d4d0c9b412ceb5869dc8085409f68ef046a3412dc06896cb1523c",
+      "expected": [
+        {
+          "rule": "I001",
+          "file": "input.py",
+          "start": 0,
+          "end": 9
+        }
+      ],
+      "reference_raw": [
+        {
+          "cell": null,
+          "code": "I001",
+          "end_location": {
+            "column": 10,
+            "row": 1
+          },
+          "filename": "namespace/input.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "import os\n\n",
+                "end_location": {
+                  "column": 1,
+                  "row": 4
+                },
+                "location": {
+                  "column": 1,
+                  "row": 1
+                }
+              }
+            ],
+            "message": "Organize imports"
+          },
+          "location": {
+            "column": 1,
+            "row": 1
+          },
+          "message": "Import block is un-sorted or un-formatted",
+          "name": "unsorted-imports",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/unsorted-imports"
+        }
+      ],
+      "reference_stdout_sha256": "59665c3d9ba4922c39510cd1719ce434a402466144895e28fd4a0b9477747945",
+      "reference_fix_stderr": "Found 1 error (1 fixed, 0 remaining).\n"
+    },
+    {
+      "name": "review6-multialias-same-line",
+      "file": "input.py",
+      "source": "from os import (\n    environ, path,\n)\n",
+      "source_sha256": "52433e585a62812b25d51186c828efa280c492361127451f186543aef11d857f",
+      "fixed": "from os import (\n    environ,\n    path,\n)\n",
+      "fixed_sha256": "afda5cddd252e8d85242bb2a378c823da430e9b12f79d4408f5e600e2e9332c0",
+      "expected": [
+        {
+          "rule": "I001",
+          "file": "input.py",
+          "start": 0,
+          "end": 37
+        }
+      ],
+      "reference_raw": [
+        {
+          "cell": null,
+          "code": "I001",
+          "end_location": {
+            "column": 2,
+            "row": 3
+          },
+          "filename": "namespace/input.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "from os import (\n    environ,\n    path,\n)\n",
+                "end_location": {
+                  "column": 1,
+                  "row": 4
+                },
+                "location": {
+                  "column": 1,
+                  "row": 1
+                }
+              }
+            ],
+            "message": "Organize imports"
+          },
+          "location": {
+            "column": 1,
+            "row": 1
+          },
+          "message": "Import block is un-sorted or un-formatted",
+          "name": "unsorted-imports",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/unsorted-imports"
+        }
+      ],
+      "reference_stdout_sha256": "3bde793f7930c50ae94af3c054917d1f9985b96b7b23aa13d8e9268745de2bca",
+      "reference_fix_stderr": "Found 1 error (1 fixed, 0 remaining).\n"
+    },
+    {
+      "name": "review6-multialias-opening-line",
+      "file": "input.py",
+      "source": "from os import (environ,\n    path,\n)\n",
+      "source_sha256": "5fdbc290f16ed37db63a02a47ca8e3bc30e5433035ef0b45046bae2d76adb124",
+      "fixed": "from os import (\n    environ,\n    path,\n)\n",
+      "fixed_sha256": "afda5cddd252e8d85242bb2a378c823da430e9b12f79d4408f5e600e2e9332c0",
+      "expected": [
+        {
+          "rule": "I001",
+          "file": "input.py",
+          "start": 0,
+          "end": 36
+        }
+      ],
+      "reference_raw": [
+        {
+          "cell": null,
+          "code": "I001",
+          "end_location": {
+            "column": 2,
+            "row": 3
+          },
+          "filename": "namespace/input.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "from os import (\n    environ,\n    path,\n)\n",
+                "end_location": {
+                  "column": 1,
+                  "row": 4
+                },
+                "location": {
+                  "column": 1,
+                  "row": 1
+                }
+              }
+            ],
+            "message": "Organize imports"
+          },
+          "location": {
+            "column": 1,
+            "row": 1
+          },
+          "message": "Import block is un-sorted or un-formatted",
+          "name": "unsorted-imports",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/unsorted-imports"
+        }
+      ],
+      "reference_stdout_sha256": "3bde793f7930c50ae94af3c054917d1f9985b96b7b23aa13d8e9268745de2bca",
+      "reference_fix_stderr": "Found 1 error (1 fixed, 0 remaining).\n"
+    },
+    {
+      "name": "review6-multialias-closing-line",
+      "file": "input.py",
+      "source": "from os import (\n    path,)\n",
+      "source_sha256": "63d427243fa33f6d3e3e8c6ad3af6201f8470fa7a8a83b731636cfaadb9f9c09",
+      "fixed": "from os import (\n    path,\n)\n",
+      "fixed_sha256": "d2b17e39bc6071ee528cc79aa2397ca26de1be94218e0ebd2111977f7bd33c66",
+      "expected": [
+        {
+          "rule": "I001",
+          "file": "input.py",
+          "start": 0,
+          "end": 27
+        }
+      ],
+      "reference_raw": [
+        {
+          "cell": null,
+          "code": "I001",
+          "end_location": {
+            "column": 11,
+            "row": 2
+          },
+          "filename": "namespace/input.py",
+          "fix": {
+            "applicability": "safe",
+            "edits": [
+              {
+                "content": "from os import (\n    path,\n)\n",
+                "end_location": {
+                  "column": 1,
+                  "row": 3
+                },
+                "location": {
+                  "column": 1,
+                  "row": 1
+                }
+              }
+            ],
+            "message": "Organize imports"
+          },
+          "location": {
+            "column": 1,
+            "row": 1
+          },
+          "message": "Import block is un-sorted or un-formatted",
+          "name": "unsorted-imports",
+          "noqa_row": 1,
+          "severity": "error",
+          "url": "https://docs.astral.sh/ruff/rules/unsorted-imports"
+        }
+      ],
+      "reference_stdout_sha256": "29290e3e0498f8fffa396ef188da1b8e5fcc2b6d5f3e08a8cf26dc507c888e95",
+      "reference_fix_stderr": "Found 1 error (1 fixed, 0 remaining).\n"
+    },
+    {
+      "name": "review6-comment-backslash-clean",
+      "file": "input.py",
+      "source": "from os import (\n    environ,  # C:\\\n)\n",
+      "source_sha256": "9222b61835a183ed6286bfdc8080c099c33dc262c4d33131774dc2d4ba5c0539",
+      "fixed": "from os import (\n    environ,  # C:\\\n)\n",
+      "fixed_sha256": "9222b61835a183ed6286bfdc8080c099c33dc262c4d33131774dc2d4ba5c0539",
+      "expected": [],
+      "reference_raw": [],
+      "reference_stdout_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "reference_fix_stderr": "All checks passed!\n"
+    },
+    {
+      "name": "review6-comment-gap-blank-after-comment-ruff-fixed",
+      "file": "input.py",
+      "source": "import os\n\n# c\n\ndef f(): pass\n",
+      "source_sha256": "6464d297691d4d0c9b412ceb5869dc8085409f68ef046a3412dc06896cb1523c",
+      "fixed": "import os\n\n# c\n\ndef f(): pass\n",
+      "fixed_sha256": "6464d297691d4d0c9b412ceb5869dc8085409f68ef046a3412dc06896cb1523c",
+      "expected": [],
+      "reference_raw": [],
+      "reference_stdout_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "reference_fix_stderr": "All checks passed!\n"
+    },
+    {
+      "name": "review6-multialias-same-line-ruff-fixed",
+      "file": "input.py",
+      "source": "from os import (\n    environ,\n    path,\n)\n",
+      "source_sha256": "afda5cddd252e8d85242bb2a378c823da430e9b12f79d4408f5e600e2e9332c0",
+      "fixed": "from os import (\n    environ,\n    path,\n)\n",
+      "fixed_sha256": "afda5cddd252e8d85242bb2a378c823da430e9b12f79d4408f5e600e2e9332c0",
+      "expected": [],
+      "reference_raw": [],
+      "reference_stdout_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "reference_fix_stderr": "All checks passed!\n"
+    },
+    {
+      "name": "review6-multialias-opening-line-ruff-fixed",
+      "file": "input.py",
+      "source": "from os import (\n    environ,\n    path,\n)\n",
+      "source_sha256": "afda5cddd252e8d85242bb2a378c823da430e9b12f79d4408f5e600e2e9332c0",
+      "fixed": "from os import (\n    environ,\n    path,\n)\n",
+      "fixed_sha256": "afda5cddd252e8d85242bb2a378c823da430e9b12f79d4408f5e600e2e9332c0",
+      "expected": [],
+      "reference_raw": [],
+      "reference_stdout_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "reference_fix_stderr": "All checks passed!\n"
+    },
+    {
+      "name": "review6-multialias-closing-line-ruff-fixed",
+      "file": "input.py",
+      "source": "from os import (\n    path,\n)\n",
+      "source_sha256": "d2b17e39bc6071ee528cc79aa2397ca26de1be94218e0ebd2111977f7bd33c66",
+      "fixed": "from os import (\n    path,\n)\n",
+      "fixed_sha256": "d2b17e39bc6071ee528cc79aa2397ca26de1be94218e0ebd2111977f7bd33c66",
+      "expected": [],
+      "reference_raw": [],
+      "reference_stdout_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "reference_fix_stderr": "All checks passed!\n"
+    }
+  ]
+}

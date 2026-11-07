@@ -1,0 +1,9 @@
+import suppress_directives from "python/ruff/suppress-directives";
+input candidates: relation<id: node, file: file, span: span, line: number>;
+param inline-pattern: string;
+param range-pattern: string;
+output relation<id: node, file: file, span: span>;
+let candidate_locations = select id, file, span, line from candidates;
+let empty_additional = select id, file, line from candidate_locations where id != id;
+let violations = suppress_directives(candidates=candidate_locations, locations=candidate_locations, additional_locations=empty_additional, inline-pattern=$inline-pattern, range-pattern=$range-pattern);
+return violations;

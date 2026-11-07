@@ -1,0 +1,25 @@
+toml 0-15
+ expression 0-14
+  keyval 0-14
+   key 0-4
+    simple-key 0-4
+     unquoted-key 0-4
+   keyval-sep 4-7
+    ws 4-5
+    ws 6-7
+   val 7-14
+    array 7-14
+     array-open 7-8
+     array-values 8-13
+      val 8-9
+       integer 8-9
+      array-sep 9-10
+      array-values 10-13
+       val 10-11
+        integer 10-11
+       array-sep 11-12
+       array-values 12-13
+        val 12-13
+         integer 12-13
+     array-close 13-14
+ newline 14-15

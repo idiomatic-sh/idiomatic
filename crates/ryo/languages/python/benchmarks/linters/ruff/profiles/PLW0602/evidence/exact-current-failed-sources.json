@@ -1,0 +1,1841 @@
+[
+  {
+    "files": {
+      "case.pyi": "from typing import TypeVar\nT=TypeVar(\"T\")\nclass A(type): ...\ndef outer(x:(A:=unknown)):\n class Subject(A):\n  def m(self:T): ...\n"
+    },
+    "consumers": [
+      {
+        "rule": "F811",
+        "case": "cross-PYI019-metaclass-function-annotation-typescope",
+        "actual": [],
+        "expected": [
+          {
+            "end": 84,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 74
+          }
+        ]
+      },
+      {
+        "rule": "PYI019",
+        "case": "metaclass-function-annotation-typescope",
+        "actual": [],
+        "expected": [
+          {
+            "end": 84,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 74
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.pyi": "from typing import TypeVar\nT=TypeVar(\"T\")\nclass A(type): ...\ndef outer(x:(A:=unknown)):\n class Subject(A):\n  def __enter__(self)->Subject: ...\n"
+    },
+    "consumers": [
+      {
+        "rule": "F811",
+        "case": "cross-PYI034-metaclass-function-annotation-typescope",
+        "actual": [],
+        "expected": [
+          {
+            "end": 84,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 74
+          }
+        ]
+      },
+      {
+        "rule": "F821",
+        "case": "cross-PYI034-metaclass-function-annotation-typescope",
+        "actual": [
+          {
+            "end": 84,
+            "file": "case.pyi",
+            "rule": "F821",
+            "start": 77
+          }
+        ],
+        "expected": [
+          {
+            "end": 84,
+            "file": "case.pyi",
+            "rule": "F821",
+            "start": 77
+          },
+          {
+            "end": 84,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 74
+          }
+        ]
+      },
+      {
+        "rule": "PYI034",
+        "case": "metaclass-function-annotation-typescope",
+        "actual": [],
+        "expected": [
+          {
+            "end": 84,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 74
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "class C:\n from __future__ import annotations\n def f(x:(value:=object)): pass\ndef later(x:(other:=object)): pass\n"
+    },
+    "consumers": [
+      {
+        "rule": "F811",
+        "case": "future-scope-class-scoped-import",
+        "actual": [],
+        "expected": [
+          {
+            "end": 68,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 55
+          }
+        ]
+      },
+      {
+        "rule": "F821",
+        "case": "future-scope-class-scoped-import",
+        "actual": [],
+        "expected": [
+          {
+            "end": 68,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 55
+          }
+        ]
+      },
+      {
+        "rule": "F841",
+        "case": "future-scope-class-scoped-import",
+        "actual": [],
+        "expected": [
+          {
+            "end": 68,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 55
+          }
+        ]
+      },
+      {
+        "rule": "PLW0602",
+        "case": "future-scope-class-scoped-import",
+        "actual": [],
+        "expected": [
+          {
+            "end": 68,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 55
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "def f(x:(value:=object)):\n global value\n nonlocal value\nfrom __future__ import annotations\n"
+    },
+    "consumers": [
+      {
+        "rule": "F811",
+        "case": "future-scope-early-definition",
+        "actual": [
+          {
+            "end": 55,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 50
+          }
+        ],
+        "expected": []
+      },
+      {
+        "rule": "F821",
+        "case": "future-scope-early-definition",
+        "actual": [
+          {
+            "end": 55,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 50
+          }
+        ],
+        "expected": []
+      },
+      {
+        "rule": "F841",
+        "case": "nonlocal-policy-early-annotation-before-late-future",
+        "actual": [
+          {
+            "end": 55,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 50
+          }
+        ],
+        "expected": []
+      },
+      {
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-early-annotation-before-late-future",
+        "actual": [
+          {
+            "end": 55,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 50
+          }
+        ],
+        "expected": []
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "def outer():\n from __future__ import annotations\n def inner(x:(value:=object)): pass\ndef later(x:(other:=object)): pass\n"
+    },
+    "consumers": [
+      {
+        "rule": "F811",
+        "case": "future-scope-function-scoped-import",
+        "actual": [],
+        "expected": [
+          {
+            "end": 76,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 63
+          }
+        ]
+      },
+      {
+        "rule": "F821",
+        "case": "future-scope-function-scoped-import",
+        "actual": [],
+        "expected": [
+          {
+            "end": 76,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 63
+          }
+        ]
+      },
+      {
+        "rule": "F841",
+        "case": "future-scope-function-scoped-import",
+        "actual": [],
+        "expected": [
+          {
+            "end": 76,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 63
+          }
+        ]
+      },
+      {
+        "rule": "PLW0602",
+        "case": "future-scope-function-scoped-import",
+        "actual": [],
+        "expected": [
+          {
+            "end": 76,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 63
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "def early(x:(value:=object)): pass\nfrom __future__ import annotations\ndef later(x:(other:=object)): pass\n"
+    },
+    "consumers": [
+      {
+        "rule": "F811",
+        "case": "future-scope-later-definition",
+        "actual": [],
+        "expected": [
+          {
+            "end": 96,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 83
+          }
+        ]
+      },
+      {
+        "rule": "F821",
+        "case": "future-scope-later-definition",
+        "actual": [],
+        "expected": [
+          {
+            "end": 96,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 83
+          }
+        ]
+      },
+      {
+        "rule": "F841",
+        "case": "future-scope-later-definition",
+        "actual": [],
+        "expected": [
+          {
+            "end": 96,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 83
+          }
+        ]
+      },
+      {
+        "rule": "PLW0602",
+        "case": "future-scope-later-definition",
+        "actual": [],
+        "expected": [
+          {
+            "end": 96,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 83
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "lazy from __future__ import annotations\ndef f(x:(value:=object)): ...\n"
+    },
+    "consumers": [
+      {
+        "rule": "F811",
+        "case": "future-scope-lazy-future-does-not-enable",
+        "actual": [
+          {
+            "end": 4,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 0
+          }
+        ],
+        "expected": [
+          {
+            "end": 4,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 0
+          },
+          {
+            "end": 39,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 0
+          }
+        ]
+      },
+      {
+        "rule": "F821",
+        "case": "future-scope-lazy-future-does-not-enable",
+        "actual": [
+          {
+            "end": 4,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 0
+          }
+        ],
+        "expected": [
+          {
+            "end": 4,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 0
+          },
+          {
+            "end": 39,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 0
+          }
+        ]
+      },
+      {
+        "rule": "F841",
+        "case": "future-scope-lazy-future-does-not-enable",
+        "actual": [
+          {
+            "end": 4,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 0
+          }
+        ],
+        "expected": [
+          {
+            "end": 4,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 0
+          },
+          {
+            "end": 39,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 0
+          }
+        ]
+      },
+      {
+        "rule": "PLW0602",
+        "case": "future-scope-lazy-future-does-not-enable",
+        "actual": [
+          {
+            "end": 4,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 0
+          }
+        ],
+        "expected": [
+          {
+            "end": 4,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 0
+          },
+          {
+            "end": 39,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 0
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "def outer():\n from __future__ import annotations\n def f(x:(value:=object)):\n  global value\n  nonlocal value\n"
+    },
+    "consumers": [
+      {
+        "rule": "F811",
+        "case": "future-scope-nested-future-blocks-type-scope-walrus",
+        "actual": [
+          {
+            "end": 107,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 102
+          }
+        ],
+        "expected": [
+          {
+            "end": 72,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 59
+          }
+        ]
+      },
+      {
+        "rule": "F821",
+        "case": "future-scope-nested-future-blocks-type-scope-walrus",
+        "actual": [
+          {
+            "end": 107,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 102
+          }
+        ],
+        "expected": [
+          {
+            "end": 72,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 59
+          }
+        ]
+      },
+      {
+        "rule": "F841",
+        "case": "future-scope-nested-future-blocks-type-scope-walrus",
+        "actual": [
+          {
+            "end": 107,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 102
+          }
+        ],
+        "expected": [
+          {
+            "end": 72,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 59
+          }
+        ]
+      },
+      {
+        "rule": "PLW0602",
+        "case": "future-scope-nested-future-blocks-type-scope-walrus",
+        "actual": [
+          {
+            "end": 107,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 102
+          }
+        ],
+        "expected": [
+          {
+            "end": 90,
+            "file": "case.py",
+            "rule": "PLW0602",
+            "start": 85
+          },
+          {
+            "end": 72,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 59
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "from .__future__ import annotations\ndef f(x:(value:=object)): ...\n"
+    },
+    "consumers": [
+      {
+        "rule": "F811",
+        "case": "future-scope-relative-future-flag",
+        "actual": [],
+        "expected": [
+          {
+            "end": 58,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 45
+          }
+        ]
+      },
+      {
+        "rule": "F821",
+        "case": "future-scope-relative-future-flag",
+        "actual": [],
+        "expected": [
+          {
+            "end": 58,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 45
+          }
+        ]
+      },
+      {
+        "rule": "F841",
+        "case": "future-scope-relative-future-flag",
+        "actual": [],
+        "expected": [
+          {
+            "end": 58,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 45
+          }
+        ]
+      },
+      {
+        "rule": "PLW0602",
+        "case": "future-scope-relative-future-flag",
+        "actual": [],
+        "expected": [
+          {
+            "end": 58,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 45
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.pyi": "def f(x:(value:=object)): ...\nfrom __future__ import annotations\n"
+    },
+    "consumers": [
+      {
+        "rule": "F811",
+        "case": "future-scope-stub-remains-postponed",
+        "actual": [],
+        "expected": [
+          {
+            "end": 22,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 9
+          }
+        ]
+      },
+      {
+        "rule": "F821",
+        "case": "future-scope-stub-remains-postponed",
+        "actual": [],
+        "expected": [
+          {
+            "end": 22,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 9
+          }
+        ]
+      },
+      {
+        "rule": "F841",
+        "case": "future-scope-stub-remains-postponed",
+        "actual": [],
+        "expected": [
+          {
+            "end": 22,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 9
+          }
+        ]
+      },
+      {
+        "rule": "PLW0602",
+        "case": "future-scope-stub-remains-postponed",
+        "actual": [],
+        "expected": [
+          {
+            "end": 22,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 9
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "class C:\n from __future__ import annotations\n def f(self)->Later: ...\n class Later: ...\n"
+    },
+    "consumers": [
+      {
+        "rule": "F821",
+        "case": "future-scope-class-forward-type",
+        "actual": [
+          {
+            "end": 64,
+            "file": "case.py",
+            "rule": "F821",
+            "start": 59
+          }
+        ],
+        "expected": []
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "try: ...\nexcept Exception:\n from __future__ import annotations\n def inner()->Inside: ...\n class Inside: ...\ndef later()->Outside: ...\nclass Outside: ...\n"
+    },
+    "consumers": [
+      {
+        "rule": "F821",
+        "case": "future-scope-except-restoration",
+        "actual": [
+          {
+            "end": 83,
+            "file": "case.py",
+            "rule": "F821",
+            "start": 77
+          },
+          {
+            "end": 128,
+            "file": "case.py",
+            "rule": "F821",
+            "start": 121
+          }
+        ],
+        "expected": [
+          {
+            "end": 128,
+            "file": "case.py",
+            "rule": "F821",
+            "start": 121
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "def outer():\n from __future__ import annotations\n def inner()->Later: ...\n class Later: ...\n"
+    },
+    "consumers": [
+      {
+        "rule": "F821",
+        "case": "future-scope-function-forward-type",
+        "actual": [
+          {
+            "end": 68,
+            "file": "case.py",
+            "rule": "F821",
+            "start": 63
+          }
+        ],
+        "expected": []
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "if flag:\n from __future__ import annotations\nelse:\n def f()->Later: ...\n class Later: ...\n"
+    },
+    "consumers": [
+      {
+        "rule": "F821",
+        "case": "future-scope-if-else-inheritance",
+        "actual": [
+          {
+            "end": 66,
+            "file": "case.py",
+            "rule": "F821",
+            "start": 61
+          },
+          {
+            "end": 7,
+            "file": "case.py",
+            "rule": "F821",
+            "start": 3
+          }
+        ],
+        "expected": [
+          {
+            "end": 7,
+            "file": "case.py",
+            "rule": "F821",
+            "start": 3
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "if flag:\n from __future__ import annotations\n def inner()->Inside: ...\n class Inside: ...\ndef later()->Outside: ...\nclass Outside: ...\n"
+    },
+    "consumers": [
+      {
+        "rule": "F821",
+        "case": "future-scope-if-restoration",
+        "actual": [
+          {
+            "end": 65,
+            "file": "case.py",
+            "rule": "F821",
+            "start": 59
+          },
+          {
+            "end": 7,
+            "file": "case.py",
+            "rule": "F821",
+            "start": 3
+          },
+          {
+            "end": 110,
+            "file": "case.py",
+            "rule": "F821",
+            "start": 103
+          }
+        ],
+        "expected": [
+          {
+            "end": 7,
+            "file": "case.py",
+            "rule": "F821",
+            "start": 3
+          },
+          {
+            "end": 110,
+            "file": "case.py",
+            "rule": "F821",
+            "start": 103
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "try:\n from __future__ import annotations\nexcept Exception:\n def f()->Later: ...\n class Later: ...\n"
+    },
+    "consumers": [
+      {
+        "rule": "F821",
+        "case": "future-scope-try-handler-inheritance",
+        "actual": [
+          {
+            "end": 74,
+            "file": "case.py",
+            "rule": "F821",
+            "start": 69
+          }
+        ],
+        "expected": []
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.pyi": "def f(x: (a := b)): ...\n"
+    },
+    "consumers": [
+      {
+        "rule": "F821",
+        "case": "stub-named-expression-preserves-undefined-read",
+        "actual": [
+          {
+            "end": 16,
+            "file": "case.pyi",
+            "rule": "F821",
+            "start": 15
+          }
+        ],
+        "expected": [
+          {
+            "end": 16,
+            "file": "case.pyi",
+            "rule": "F821",
+            "start": 15
+          },
+          {
+            "end": 16,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 10
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "def outer():\n    value=1\n    def inner():\n        global value\n        nonlocal value\n"
+    },
+    "consumers": [
+      {
+        "rule": "F841",
+        "case": "cross-PLE0117-own-global-conflict-with-real-outer-binding",
+        "actual": [
+          {
+            "end": 85,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 80
+          }
+        ],
+        "expected": []
+      },
+      {
+        "rule": "PLW0602",
+        "case": "cross-PLE0117-own-global-conflict-with-real-outer-binding",
+        "actual": [
+          {
+            "end": 85,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 80
+          }
+        ],
+        "expected": []
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "def outer():\n value:int\n def f():\n  global value\n  nonlocal value\n"
+    },
+    "consumers": [
+      {
+        "rule": "F841",
+        "case": "nonlocal-policy-annotation-outer",
+        "actual": [
+          {
+            "end": 65,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 60
+          }
+        ],
+        "expected": []
+      },
+      {
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-annotation-outer",
+        "actual": [
+          {
+            "end": 65,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 60
+          }
+        ],
+        "expected": []
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "class C[T]:\n def f(self):\n  global T\n  nonlocal T\n"
+    },
+    "consumers": [
+      {
+        "rule": "F841",
+        "case": "nonlocal-policy-class-type-parameter",
+        "actual": [
+          {
+            "end": 10,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 7
+          },
+          {
+            "end": 49,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 48
+          }
+        ],
+        "expected": [
+          {
+            "end": 10,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 7
+          }
+        ]
+      },
+      {
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-class-type-parameter",
+        "actual": [
+          {
+            "end": 10,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 7
+          },
+          {
+            "end": 49,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 48
+          }
+        ],
+        "expected": [
+          {
+            "end": 10,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 7
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "def outer():\n def inner(x=(value:=1)):\n  global value\n  nonlocal value\n"
+    },
+    "consumers": [
+      {
+        "rule": "F841",
+        "case": "nonlocal-policy-default-real-binding",
+        "actual": [
+          {
+            "end": 70,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 65
+          }
+        ],
+        "expected": []
+      },
+      {
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-default-real-binding",
+        "actual": [
+          {
+            "end": 70,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 65
+          }
+        ],
+        "expected": []
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "def outer():\n value=1\n value:int\n def inner():\n  global value\n  nonlocal value\n"
+    },
+    "consumers": [
+      {
+        "rule": "F841",
+        "case": "nonlocal-policy-delayed-annotation-keeps-outer-value",
+        "actual": [
+          {
+            "end": 78,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 73
+          }
+        ],
+        "expected": []
+      },
+      {
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-delayed-annotation-keeps-outer-value",
+        "actual": [
+          {
+            "end": 78,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 73
+          }
+        ],
+        "expected": []
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "def outer():\n value=1\n del value\n def f():\n  global value\n  nonlocal value\n"
+    },
+    "consumers": [
+      {
+        "rule": "F841",
+        "case": "nonlocal-policy-deleted-outer",
+        "actual": [
+          {
+            "end": 74,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 69
+          }
+        ],
+        "expected": []
+      },
+      {
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-deleted-outer",
+        "actual": [
+          {
+            "end": 74,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 69
+          }
+        ],
+        "expected": []
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "from __future__ import annotations\ndef f(x:(value:=object)):\n global value\n nonlocal value\n"
+    },
+    "consumers": [
+      {
+        "rule": "F841",
+        "case": "nonlocal-policy-future-annotation-not-visible",
+        "actual": [
+          {
+            "end": 90,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 85
+          },
+          {
+            "end": 57,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 44
+          }
+        ],
+        "expected": [
+          {
+            "end": 57,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 44
+          }
+        ]
+      },
+      {
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-future-annotation-not-visible",
+        "actual": [
+          {
+            "end": 74,
+            "file": "case.py",
+            "rule": "PLW0602",
+            "start": 69
+          },
+          {
+            "end": 90,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 85
+          },
+          {
+            "end": 57,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 44
+          }
+        ],
+        "expected": [
+          {
+            "end": 74,
+            "file": "case.py",
+            "rule": "PLW0602",
+            "start": 69
+          },
+          {
+            "end": 57,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 44
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "def f():\n global value\n nonlocal value\n"
+    },
+    "consumers": [
+      {
+        "rule": "F841",
+        "case": "nonlocal-policy-global-no-valid-nonlocal",
+        "actual": [
+          {
+            "end": 38,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 33
+          }
+        ],
+        "expected": []
+      },
+      {
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-global-no-valid-nonlocal",
+        "actual": [
+          {
+            "end": 22,
+            "file": "case.py",
+            "rule": "PLW0602",
+            "start": 17
+          },
+          {
+            "end": 38,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 33
+          }
+        ],
+        "expected": [
+          {
+            "end": 22,
+            "file": "case.py",
+            "rule": "PLW0602",
+            "start": 17
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "def outer():\n nonlocal value\n def f():\n  global value\n  nonlocal value\n"
+    },
+    "consumers": [
+      {
+        "rule": "F841",
+        "case": "nonlocal-policy-invalid-outer-nonlocal",
+        "actual": [
+          {
+            "end": 70,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 65
+          }
+        ],
+        "expected": []
+      },
+      {
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-invalid-outer-nonlocal",
+        "actual": [
+          {
+            "end": 53,
+            "file": "case.py",
+            "rule": "PLW0602",
+            "start": 48
+          },
+          {
+            "end": 70,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 65
+          }
+        ],
+        "expected": [
+          {
+            "end": 53,
+            "file": "case.py",
+            "rule": "PLW0602",
+            "start": 48
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.pyi": "def outer():\n class C((value:=object)):\n  def f(self):\n   global value\n   nonlocal value\n"
+    },
+    "consumers": [
+      {
+        "rule": "F841",
+        "case": "nonlocal-policy-local-stub-class-header-is-late",
+        "actual": [
+          {
+            "end": 88,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 83
+          }
+        ],
+        "expected": []
+      },
+      {
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-local-stub-class-header-is-late",
+        "actual": [
+          {
+            "end": 70,
+            "file": "case.pyi",
+            "rule": "PLW0602",
+            "start": 65
+          },
+          {
+            "end": 88,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 83
+          }
+        ],
+        "expected": [
+          {
+            "end": 70,
+            "file": "case.pyi",
+            "rule": "PLW0602",
+            "start": 65
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "def outer[T]():\n def middle():\n  T=1\n  def inner():\n   global T\n   nonlocal T\n"
+    },
+    "consumers": [
+      {
+        "rule": "F841",
+        "case": "nonlocal-policy-nearer-function-over-type-parameter",
+        "actual": [
+          {
+            "end": 12,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 9
+          },
+          {
+            "end": 77,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 76
+          }
+        ],
+        "expected": [
+          {
+            "end": 12,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 9
+          }
+        ]
+      },
+      {
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-nearer-function-over-type-parameter",
+        "actual": [
+          {
+            "end": 12,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 9
+          },
+          {
+            "end": 77,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 76
+          }
+        ],
+        "expected": [
+          {
+            "end": 12,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 9
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "def outer[T]():\n def f():\n  global T\n  nonlocal T\n"
+    },
+    "consumers": [
+      {
+        "rule": "F841",
+        "case": "nonlocal-policy-nested-function-type-parameter",
+        "actual": [
+          {
+            "end": 12,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 9
+          },
+          {
+            "end": 49,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 48
+          }
+        ],
+        "expected": [
+          {
+            "end": 12,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 9
+          }
+        ]
+      },
+      {
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-nested-function-type-parameter",
+        "actual": [
+          {
+            "end": 12,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 9
+          },
+          {
+            "end": 49,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 48
+          }
+        ],
+        "expected": [
+          {
+            "end": 12,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 9
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "def outer():\n value=1\n def f():\n  nonlocal value\n  global value\n"
+    },
+    "consumers": [
+      {
+        "rule": "F841",
+        "case": "nonlocal-policy-nonlocal-then-global",
+        "actual": [
+          {
+            "end": 48,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 43
+          }
+        ],
+        "expected": []
+      },
+      {
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-nonlocal-then-global",
+        "actual": [
+          {
+            "end": 63,
+            "file": "case.py",
+            "rule": "PLW0602",
+            "start": 58
+          },
+          {
+            "end": 48,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 43
+          }
+        ],
+        "expected": [
+          {
+            "end": 63,
+            "file": "case.py",
+            "rule": "PLW0602",
+            "start": 58
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "def outer():\n value=1\n class C:\n  value=2\n  def f(self):\n   global value\n   nonlocal value\n"
+    },
+    "consumers": [
+      {
+        "rule": "F841",
+        "case": "nonlocal-policy-skip-class-namespace",
+        "actual": [
+          {
+            "end": 90,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 85
+          }
+        ],
+        "expected": []
+      },
+      {
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-skip-class-namespace",
+        "actual": [
+          {
+            "end": 90,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 85
+          }
+        ],
+        "expected": []
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "def f(x:(value:=object)):\n global value\n nonlocal value\n"
+    },
+    "consumers": [
+      {
+        "rule": "F841",
+        "case": "nonlocal-policy-type-scope-annotation-py",
+        "actual": [
+          {
+            "end": 55,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 50
+          }
+        ],
+        "expected": []
+      },
+      {
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-type-scope-annotation-py",
+        "actual": [
+          {
+            "end": 55,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 50
+          }
+        ],
+        "expected": []
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.pyi": "def f(x:(value:=object)):\n global value\n nonlocal value\n"
+    },
+    "consumers": [
+      {
+        "rule": "F841",
+        "case": "nonlocal-policy-type-scope-annotation-pyi",
+        "actual": [
+          {
+            "end": 55,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 50
+          }
+        ],
+        "expected": [
+          {
+            "end": 22,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 9
+          }
+        ]
+      },
+      {
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-type-scope-annotation-pyi",
+        "actual": [
+          {
+            "end": 39,
+            "file": "case.pyi",
+            "rule": "PLW0602",
+            "start": 34
+          },
+          {
+            "end": 55,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 50
+          }
+        ],
+        "expected": [
+          {
+            "end": 39,
+            "file": "case.pyi",
+            "rule": "PLW0602",
+            "start": 34
+          },
+          {
+            "end": 22,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 9
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "class C((value:=object)):\n global value\n nonlocal value\n"
+    },
+    "consumers": [
+      {
+        "rule": "F841",
+        "case": "nonlocal-policy-type-scope-class-body-py",
+        "actual": [
+          {
+            "end": 55,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 50
+          }
+        ],
+        "expected": []
+      },
+      {
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-type-scope-class-body-py",
+        "actual": [
+          {
+            "end": 55,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 50
+          }
+        ],
+        "expected": []
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.pyi": "class C((value:=object)):\n global value\n nonlocal value\n"
+    },
+    "consumers": [
+      {
+        "rule": "F841",
+        "case": "nonlocal-policy-type-scope-class-body-pyi",
+        "actual": [
+          {
+            "end": 55,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 50
+          }
+        ],
+        "expected": []
+      },
+      {
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-type-scope-class-body-pyi",
+        "actual": [
+          {
+            "end": 39,
+            "file": "case.pyi",
+            "rule": "PLW0602",
+            "start": 34
+          },
+          {
+            "end": 55,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 50
+          }
+        ],
+        "expected": [
+          {
+            "end": 39,
+            "file": "case.pyi",
+            "rule": "PLW0602",
+            "start": 34
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "class C((value:=object)):\n def f(self):\n  global value\n  nonlocal value\n"
+    },
+    "consumers": [
+      {
+        "rule": "F841",
+        "case": "nonlocal-policy-type-scope-class-method-py",
+        "actual": [
+          {
+            "end": 71,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 66
+          }
+        ],
+        "expected": []
+      },
+      {
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-type-scope-class-method-py",
+        "actual": [
+          {
+            "end": 71,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 66
+          }
+        ],
+        "expected": []
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.pyi": "class C((value:=object)):\n def f(self):\n  global value\n  nonlocal value\n"
+    },
+    "consumers": [
+      {
+        "rule": "F841",
+        "case": "nonlocal-policy-type-scope-class-method-pyi",
+        "actual": [
+          {
+            "end": 71,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 66
+          }
+        ],
+        "expected": []
+      },
+      {
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-type-scope-class-method-pyi",
+        "actual": [
+          {
+            "end": 71,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 66
+          }
+        ],
+        "expected": []
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.py": "def f[T]():\n global T\n nonlocal T\n"
+    },
+    "consumers": [
+      {
+        "rule": "F841",
+        "case": "nonlocal-policy-type-scope-parameter-py",
+        "actual": [
+          {
+            "end": 8,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 5
+          },
+          {
+            "end": 33,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 32
+          }
+        ],
+        "expected": [
+          {
+            "end": 8,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 5
+          }
+        ]
+      },
+      {
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-type-scope-parameter-py",
+        "actual": [
+          {
+            "end": 8,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 5
+          },
+          {
+            "end": 33,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 32
+          }
+        ],
+        "expected": [
+          {
+            "end": 8,
+            "file": "case.py",
+            "rule": "invalid-syntax",
+            "start": 5
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "files": {
+      "case.pyi": "def f[T]():\n global T\n nonlocal T\n"
+    },
+    "consumers": [
+      {
+        "rule": "F841",
+        "case": "nonlocal-policy-type-scope-parameter-pyi",
+        "actual": [
+          {
+            "end": 8,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 5
+          },
+          {
+            "end": 33,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 32
+          }
+        ],
+        "expected": [
+          {
+            "end": 8,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 5
+          }
+        ]
+      },
+      {
+        "rule": "PLW0602",
+        "case": "nonlocal-policy-type-scope-parameter-pyi",
+        "actual": [
+          {
+            "end": 8,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 5
+          },
+          {
+            "end": 33,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 32
+          }
+        ],
+        "expected": [
+          {
+            "end": 8,
+            "file": "case.pyi",
+            "rule": "invalid-syntax",
+            "start": 5
+          }
+        ]
+      }
+    ]
+  }
+]

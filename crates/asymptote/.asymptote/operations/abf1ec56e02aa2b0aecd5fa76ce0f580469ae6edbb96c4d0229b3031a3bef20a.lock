@@ -1,0 +1,10 @@
+version = 1
+parents = ["ba04f41071169d327a77c21283af851c24fe655d0826a28405c7b78f3331f1e8"]
+
+[[perf]]
+reasons = ["Seeded with the median of five runs of the benchmark on the development machine, each run the median of its rounds; the tolerance is three times the spread of those five medians, rounded up to a multiple of 5, and at least 100% for a workload under 100 ms or 20% above it: the machine is shared, and a workload that short moves by its own rounding."]
+records = [
+  { tool = "performance", benchmark = "core/cold-check", measure = "cpu-ms", best = 0.005 },
+  { tool = "performance", benchmark = "core/warm-check", measure = "cpu-ms", best = 0.004 },
+  { tool = "performance", benchmark = "ratchet/init", measure = "cpu-ms", best = 1.271 },
+]

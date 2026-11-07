@@ -1,0 +1,84 @@
+description = "A language's allocation row: the engine's test, placed closed, that runs alone in its process with `dhat` as the global allocator, and checks that reading a file allocates no more than the parser library does on its own."
+why = "The flow every language follows has no allocation of its own per file after warm-up: the table, the names and the rows are the worker's, cleared and refilled. Only a count proves it, and only a process of its own can count: a global allocator counts every thread, so the test has no harness and no other test beside it. The test is the engine's, written once: the contract's `allocations_of_fixtures` takes the language's parse use case and its fixtures, and the baseline it compares with is the language's required `Parse::baseline`, what the parser library does for a file alone. The file is placed closed, exactly as the template renders it, so test logic added to a language is a finding."
+match = "declarations"
+content = '''
+//! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
+
+#[global_allocator]
+static ALLOCATOR: dhat::Alloc = dhat::Alloc;
+
+fn main() {
+    let linked = ryo_{{ lang }}::linked();
+    ryo::languages::contract::allocations_of_linked(
+        &linked,
+        ryo::languages::contract::ManifestDir(env!("CARGO_MANIFEST_DIR")),
+    );
+}
+'''
+
+[params]
+lang = { type = "identifier", from = "directory-name", description = "The language, its directory's name: its crate is `ryo_<lang>`." }
+
+[given]
+file = 'tests/allocation.rs'
+params = { lang = 'demo' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'tests/allocation.rs' = '''
+//! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
+
+#[global_allocator]
+static ALLOCATOR: dhat::Alloc = dhat::Alloc;
+
+fn main() {
+    let linked = ryo_demo::linked();
+    ryo::languages::contract::allocations_of_linked(
+        &linked,
+        ryo::languages::contract::ManifestDir(env!("CARGO_MANIFEST_DIR")),
+    );
+}
+'''
+
+[[scenarios]]
+id = 'missing-allocator'
+scenario = 'The global allocator is not installed.'
+given.files.'tests/allocation.rs' = '''
+//! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
+
+fn main() {
+    let linked = ryo_demo::linked();
+    ryo::languages::contract::allocations_of_linked(
+        &linked,
+        ryo::languages::contract::ManifestDir(env!("CARGO_MANIFEST_DIR")),
+    );
+}
+'''
+then.findings = [
+  { rule = 'language-allocation-test#template', path = 'tests/allocation.rs' },
+]
+
+[[scenarios]]
+id = 'extra-logic'
+scenario = "A test of the language's own in a file that is the engine's."
+given.files.'tests/allocation.rs' = '''
+//! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
+
+#[global_allocator]
+static ALLOCATOR: dhat::Alloc = dhat::Alloc;
+
+fn main() {
+    let linked = ryo_demo::linked();
+    ryo::languages::contract::allocations_of_linked(
+        &linked,
+        ryo::languages::contract::ManifestDir(env!("CARGO_MANIFEST_DIR")),
+    );
+}
+
+#[test]
+fn also_this() {}
+'''
+then.findings = [
+  { rule = 'language-allocation-test#template', path = 'tests/allocation.rs' },
+]

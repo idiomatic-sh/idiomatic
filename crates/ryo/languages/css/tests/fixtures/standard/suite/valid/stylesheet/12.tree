@@ -1,0 +1,8 @@
+stylesheet
+  whitespace
+  comment
+  whitespace
+  whitespace
+  whitespace
+  qualified-rule
+    block

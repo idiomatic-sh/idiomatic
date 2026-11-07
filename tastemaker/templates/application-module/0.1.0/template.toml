@@ -1,0 +1,31 @@
+description = "One concrete application operation and its proof."
+why = "Declare the service and behavioral tests; shared module-declares holds optional data and fixture declarations."
+content = '''
+//! The `{{ application }}` application operation.
+pub mod service;
+#[cfg(test)]
+mod service_test;
+'''
+[params]
+application = { type = "identifier", description = "The operation captured from its directory." }
+
+[given]
+file = 'application/short.rs'
+params = { application = 'short' }
+
+[[scenarios]]
+id = 'operation-module-declares-service-and-test'
+scenario = 'An application operation declares its service and its behavioral test.'
+given.files.'application/short.rs' = '''
+//! The `short` application operation.
+pub mod service;
+#[cfg(test)]
+mod service_test;
+'''
+
+[[scenarios]]
+id = 'operation-module-missing'
+scenario = 'An application operation without its module file is reported.'
+then.findings = [
+  { rule = 'application-module#count', path = 'tastemaker.toml' },
+]

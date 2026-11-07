@@ -1,0 +1,148 @@
+# idiomatic-sh-ryo-python
+
+The Python language of ryo: it reads `.py`, `.pyi` and `.pyw` files with `ruff_python_parser` 0.0.18, the parser ruff and ty run, for the latest Python it reads, into syntax trees whose tokens spell the file, and their definitions, imports, names, calls, strings and comments into ryo's code relations. A name it cannot resolve statically is an unknown value with its reason. It is held to the parser's own test resources, pinned in `tests/fixtures/suite`.
+
+## Usage
+
+Link the language with `ryo_python::linked()` and hand the result to the SDK's calls.
+
+```rust
+let language = ryo_python::linked();
+assert_eq!(&*language.name().0, "python");
+```
+
+## Domains
+
+### definitions
+
+The python domain's `definitions` concept: what an element defines, as the `defines` and `parameter` relations say it: a function, a class, an imported or assigned name, a parameter and its place, an exception's name, a pattern's capture or a type parameter, with Python's own word for each.
+
+### extras
+
+The python domain's `extras` concept: the kinds of its trees that `ruff_python_ast` has no name for.
+
+### `fact_notes`
+
+The python domain's `fact_notes` concept: what the parse leaves of a file for the project to read, the imports it writes.
+
+### language
+
+The python domain's `language` concept: which files are Python.
+
+### links
+
+The python domain's `links` concept: which file of the repository each import of a file names, from the imports the parse noted of each file and the packages the manifests declared.
+
+### manifests
+
+The python domain's `manifests` concept: one reader for each relation the language reads from the manifests of a project and the links between its files.
+
+### indentation
+
+Lexical `indent-region` facts pair actual INDENT and DEDENT tokens, preserving raw tabs and form feeds. The root is the module node, covers `0..EOF`, and parents itself; other IDs are INDENT tokens and their half-open byte intervals end at matching DEDENT.end. Leading comments before INDENT stay outside the interval; trailing comments before DEDENT stay inside. Parser diagnostics or an unbalanced stream make the relation partial. A root-only reader builds this index lazily and reuses storage between files.
+
+### model
+
+The file model retains scope redirects, a sorted lexical binding index, and reusable lazy indentation storage. Parsing invalidates indentation state; requesting the relation computes it once.
+
+### names
+
+The python domain's `names` concept: dotted paths, the bindings and targets of imports, the values of strings, and the reasons a name cannot be resolved statically.
+
+### nodes
+
+The python domain's `nodes` concept: the nodes of its trees, named as `ruff_python_ast` names its node kinds in `ast.toml`.
+
+### packages
+
+The python domain's `packages` concept: the packages the manifests of a repository declare, and how they hold and need one another.
+
+### relations
+
+The python domain's `relations` concept: one reader for each relation the language reads.
+
+### scopes
+
+The python domain's `scopes` concept: the scope each element is evaluated in, and where a name is bound once `global` and `nonlocal` have been read.
+
+### syntax
+
+The python domain's `syntax` concept: its kinds, and how a reader moves about a file's tree.
+
+### tokens
+
+The python domain's `tokens` concept: the tokens of its trees, named as `ruff_python_ast` names its token kinds (`TokenKind`).
+
+## Differences from the standard
+
+The standard is `CPython` 3.15.0rc2's `ast` and `token` (`tests/fixtures/standard/README.md`). Our trees are `ruff_python_parser`'s, kept whole with their tokens; projected onto the standard they have its nodes, in every pinned file, but for these differences.
+
+- One kind where the standard has two: `async def`, `async for`, `async with` and `except*` are `FunctionDef`, `For`, `With` and `Try`, the `async` or `*` token saying which; the standard has `AsyncFunctionDef`, `AsyncFor`, `AsyncWith` and `TryStar`.
+- One `Constant` for strings, bytes, numbers, booleans, `None` and `...`: the library has six kinds and the tree keeps the one `Constant` with its token; the standard's `Constant.kind` and value are the token's text.
+- Operators, expression contexts and type comments are not nodes: `Add`, `And`, `Load`, `Store`, `Del`, `TypeIgnore` and the rest are the tokens of the operator or nothing; the standard prints them as nodes.
+- Extras, kinds the standard has no node for: identifiers, decorators, `elif` and `else` clauses, call arguments, a parameter with its default, type parameter brackets, class pattern arguments and keywords, the parts of an implicit string concatenation, and `IPython` escape commands. Each holds tokens or a place the standard keeps in a field; the projection drops them.
+- An `elif` is a flat clause of its `if`; the standard nests it as an `If` in `orelse`. The projection nests it.
+- A lambda with no parameters has no `arguments` node; the standard has an empty one. The projection adds it.
+- The text of a self-documenting interpolation, `{x=}`, is tokens of the interpolation; the standard prints a `Constant` before it. The projection adds it.
+- Tokens: a keyword is a `NAME` as Python's tokenizer gives it; the white space the tokenizer gives no token for is a `whitespace` extra, so the tokens spell the file; `?`, an unknown character and an `IPython` escape are `ERRORTOKEN`.
+- Stated exception, `suite/valid/inline/unary_plus_py315.py`: `CPython` folds the key `+1` of a mapping pattern into a `Constant`; the library keeps the `UnaryOp` written, so the tree has one node more than the standard's there. It is the one pinned file whose projected tree is not the standard's.
+- Accepted where `CPython` refuses: a `try` with `else` and no `except`, and an unknown `__future__` feature. The library reads both without an error; the language reports `CPython`'s message on the same line (`tests/fixtures/standard/refused/`).
+
+`qualified-name` describes lexical source provenance for load names and attribute expressions,
+including nested prefixes. `path` is a canonical import path or `builtins.<name>`; `provenance`
+is `import`, `builtin`, `local`, `unresolved`, or `ambiguous`. A local value or dynamic receiver
+has an unknown path, not a guessed name. Wildcard imports and intervening deletion preserve
+explicit uncertainty. Ordinary unknown expressions do not make unrelated proven origins partial;
+only an incomplete syntax tree makes the relation incomplete. The relation describes lexical
+origin, not runtime object identity or the absence of monkey-patching.
+
+The numeric `since-major` and `since-minor` columns say when a builtin root binding entered the language. These do not assert when an attribute
+of that builtin was introduced, or whether any named attribute exists.
+Consumers must compare both components with their target version: the provider's parser version
+is not a linter's target version. Non-builtin origins carry zero components, which mean
+inapplicable, not proof of availability. Imported builtin aliases retain import provenance;
+their lexical import path is independent of whether executing that import would succeed on a
+particular runtime. The first query consumers target Python 3.10; newer builtin identities must
+therefore be filtered by these columns.
+
+The shared parse contract rejects invented local paths, missing builtin availability, unknown
+provenance labels, and versioned import rows. Provider tests independently cover aliases,
+shadowing, scope timing, deletes, wildcard uncertainty, mixed dynamic/known calls, and model
+reuse. All languages inherit the row contract and must either implement the reader or declare
+it not yet read where the construct applies.
+
+The `identifier` relation exposes Python's parser-normalized lexical names while `syntax-tree` tokens preserve the original spelling. Its occurrence is the `Name` expression or identifier field node (including attribute names and import aliases); spans always describe source bytes before NFKC normalization. Dotted import fields retain their full canonical path, and wildcard imports are not identifiers. This relation does not resolve bindings. Shared conformance rejects unknown or empty names and non-source spans; Python cases exercise normalized aliases, builtin shadowing, attributes, raw token preservation, and model reuse.
+
+Qualified names follow static lexical binding provenance: wildcard imports do not erase an explicitly known binding or builtin fallback. An unresolved name under a wildcard remains ambiguous, and explicit assignments or deletions still change provenance. This contract does not claim the runtime value imported by a wildcard cannot replace that binding.
+
+### Embedded annotation expressions
+
+`syntax-tree` and `syntax-child` retain the physical, lossless Python tree. The
+explicit `semantic-syntax` and `semantic-child` projection also includes parsed
+quoted type expressions. `embedded-expression` relates each parsed root to its
+source carrier and records its evaluation context and source-map fidelity.
+Identifiers, lexical qualified names, string literals, and source coordinates
+use the same occurrence identities in this view.
+
+A single string whose raw content equals its decoded value has precise content
+coordinates. Escaped or implicitly concatenated strings retain decoded logical
+tokens but map every embedded diagnostic interval to the whole source carrier.
+Different occurrences can therefore have identical physical spans; consumers
+must retain occurrence identity when preserving diagnostic multiplicity.
+
+Explicit annotation fields and resolved `typing`/`typing_extensions` cast,
+NewType, TypeVar, and explicit TypeAlias operands establish type context.
+Literal arguments and Annotated metadata remain values. Callable shadowing is
+resolved through lexical provenance, and ordinary strings never become visible
+semantic expressions merely because their contents parse. An invalid quoted
+expression contributes no fabricated AST and does not make unrelated native
+syntax incomplete. Other typing API contexts remain outside this initial
+implementation.
+
+The shared provider contract checks native projection equality, physical span
+bounds, matching source coordinates, and field-predicate equivalence. The core
+visit tests require semantic child field predicates to request role metadata.
+Python examples independently cover decoding, deferred imports, literal and
+metadata exclusions, callable shadowing, and valid/invalid/empty model reuse.
+The parser-baseline contract also checks that a discarding builder traverses an
+embedded expression without dereferencing a nonexistent stored carrier.

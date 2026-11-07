@@ -1,0 +1,33 @@
+description = "The job's intent test: it runs the command's entry end to end over `composition.compose` with every port faked, and asserts what the command promises its caller."
+why = "Proves the job's intent, not its parts: the command line, the wiring and the orchestration together, with nothing real run, so it is fast and runs everywhere."
+content = '''
+"""The `{{ job }}` job's intent: its command run end to end, every port faked through
+`composition.compose`."""
+
+from __future__ import annotations
+
+from ci.{{ job }} import command, composition
+'''
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'ci/{job}/command_test.py'
+given.count = { min = 1 }
+given.files.'ci/demo/command_test.py' = '''
+"""The `demo` job's intent: its command run end to end, every port faked through
+`composition.compose`."""
+
+from __future__ import annotations
+
+from ci.demo import command, composition
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'ci/{job}/command_test.py'
+given.count = { min = 1 }
+then.findings = [
+  { rule = 'job-command-test#count', path = '.' },
+]

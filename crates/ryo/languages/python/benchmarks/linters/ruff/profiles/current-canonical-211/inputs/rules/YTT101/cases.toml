@@ -1,0 +1,53 @@
+[[cases]]
+name = "truncated_minor"
+files = { "case.py" = "import sys\nvalue = sys.version[:3]\n" }
+expected = [{ rule = "YTT101", file = "case.py", start = 19, end = 30 }]
+comparison = "full"
+
+[[cases]]
+name = "hex_upper"
+files = { "case.py" = "import sys\nvalue = sys.version[:0x3]\n" }
+expected = [{ rule = "YTT101", file = "case.py", start = 19, end = 30 }]
+comparison = "full"
+
+[[cases]]
+name = "wrong_bound"
+files = { "case.py" = "import sys\nvalue = sys.version[:2]\n" }
+expected = []
+comparison = "full"
+
+[[cases]]
+name = "nested-arithmetic-bound"
+files = { "case.py" = "import sys\nvalue = sys.version[:3 + 0]\n" }
+expected = []
+comparison = "full"
+
+[[cases]]
+name = "lower_bound"
+files = { "case.py" = "import sys\nvalue = sys.version[0:3]\n" }
+expected = []
+comparison = "full"
+
+[[cases]]
+name = "step"
+files = { "case.py" = "import sys\nvalue = sys.version[:3:1]\n" }
+expected = []
+comparison = "full"
+
+[[cases]]
+name = "unrelated_attribute"
+files = { "case.py" = "value = other.version[:3]\n" }
+expected = []
+comparison = "full"
+
+[[cases]]
+name = "inline_noqa"
+files = { "case.py" = "import sys\nvalue = sys.version[:3]  # noqa: YTT101\n" }
+expected = []
+comparison = "full"
+
+[[cases]]
+name = "alias"
+files = { "case.py" = "import sys as runtime\nvalue = runtime.version[:3]\n" }
+expected = [{ rule = "YTT101", file = "case.py", start = 30, end = 45 }]
+comparison = "full"

@@ -1,0 +1,134 @@
+description = "A schemas.rs and its schemas_test.rs stand at exactly the outbound ports the entry lists as `plugins`: each listed port has both, and no other port has either."
+why = "Validation exists only where the shape of the data is not ours, and a plugin port is such an edge for a core: the rows a provider emits are checked in `outbound/<port>/schemas.rs`, which is today's admission. \"This is something that has to happen reliably and deterministically\", so the ports that are plugin ports are listed in the entry, each must have the file where its data is checked, and a port that is not listed must not grow one. Read as written: the ports are the directories of `outbound/<port>/interface.rs`; a plugin port is one whose name is in `plugins`. Not seen: a listed name that is no port of this core."
+
+query = '''
+param plugins: set<string>;
+let ports = capture(from="filesystem.file", path="path", pattern="{*hex}/outbound/{port}/interface.rs", captures=["hex", "port"]);
+let port-rows = project(from=ports, columns=["path", "hex", "port"]);
+let schemas = capture(from="filesystem.file", path="path", pattern="{*hex}/outbound/{port}/schemas.rs", captures=["hex", "port"]);
+let schemas-rows = project(from=schemas, columns=["path", "hex", "port"]);
+let tests = capture(from="filesystem.file", path="path", pattern="{*hex}/outbound/{port}/schemas_test.rs", captures=["hex", "port"]);
+let test-rows = project(from=tests, columns=["path", "hex", "port"]);
+let plugin-ports = select * from port-rows where port in $plugins;
+let plugin-keys = project(from=plugin-ports, columns=["hex", "port"]);
+let without-schemas = antijoin(left=plugin-ports, right=schemas-rows, left-on=["hex", "port"], right-on=["hex", "port"]);
+let without-schemas-rows = project(from=without-schemas, columns=["path", "port"]);
+let schemas-missing = extend(from=without-schemas-rows, values={"problem": "is a plugin port and has no `schemas.rs` where its data is checked"});
+let without-tests = antijoin(left=plugin-ports, right=test-rows, left-on=["hex", "port"], right-on=["hex", "port"]);
+let without-tests-rows = project(from=without-tests, columns=["path", "port"]);
+let tests-missing = extend(from=without-tests-rows, values={"problem": "is a plugin port and has no `schemas_test.rs` holding the inputs its schemas accept and refuse"});
+let plain-schemas = antijoin(left=schemas-rows, right=plugin-keys, left-on=["hex", "port"], right-on=["hex", "port"]);
+let plain-schemas-rows = project(from=plain-schemas, columns=["path", "port"]);
+let schemas-unlisted = extend(from=plain-schemas-rows, values={"problem": "is not a plugin port and has a `schemas.rs`: validation stands only where the data's shape is not ours"});
+let plain-tests = antijoin(left=test-rows, right=plugin-keys, left-on=["hex", "port"], right-on=["hex", "port"]);
+let plain-tests-rows = project(from=plain-tests, columns=["path", "port"]);
+let tests-unlisted = extend(from=plain-tests-rows, values={"problem": "is not a plugin port and has a `schemas_test.rs`"});
+let missing = union(left=schemas-missing, right=tests-missing);
+let unlisted = union(left=schemas-unlisted, right=tests-unlisted);
+let findings = union(left=missing, right=unlisted);
+emit findings subject "path" key("port", "problem");
+'''
+
+[params.plugins]
+type = "set<string>"
+description = "The outbound ports whose data a plugin emits, each with a schemas.rs and its test."
+
+[diagnostic]
+primary = "path"
+message = "the port `{port}` {problem}"
+help = "List the port in the entry's `plugins` and give it `schemas.rs` and `schemas_test.rs`, or delete the schemas of a port that is not a plugin's: its data is the core's own, so nothing there needs checking."
+
+[given]
+include = ['src/outbound/**']
+params = { plugins = ['relation'] }
+files.'src/outbound/names/interface.rs' = '''
+//! The names port.
+
+/// What every names adapter implements.
+pub trait NamesPort {
+    /// Rows.
+    fn rows(&self) -> usize;
+}
+'''
+files.'src/outbound/relation/interface.rs' = '''
+//! The relation port.
+
+/// What every relation adapter implements.
+pub trait RelationPort {
+    /// Rows.
+    fn rows(&self) -> usize;
+}
+'''
+
+[[scenarios]]
+id = 'plugin-port-schemas-their-test'
+scenario = 'A plugin port with its schemas and their test.'
+given.files.'src/outbound/relation/schemas.rs' = '''
+//! The shape of the data this edge does not control.
+'''
+given.files.'src/outbound/relation/schemas_test.rs' = '''
+//! What the schemas next to it accept and refuse.
+'''
+
+[[scenarios]]
+id = 'no-plugins'
+scenario = 'A core with no plugin port.'
+given.params = { plugins = [] }
+
+[[scenarios]]
+id = 'unknown-plugin'
+scenario = 'A listed name that is no port of the core.'
+given.params = { plugins = ['ghost'] }
+
+[[scenarios]]
+id = 'plugin-without-schemas'
+scenario = 'A plugin port without schemas.'
+then.findings = [
+  { path = 'src/outbound/relation/interface.rs' },
+  { path = 'src/outbound/relation/interface.rs' },
+]
+
+[[scenarios]]
+id = 'plugin-without-test'
+scenario = 'A plugin port without the test of its schemas.'
+given.files.'src/outbound/relation/schemas.rs' = '''
+//! The shape of the data this edge does not control.
+'''
+then.findings = [
+  { path = 'src/outbound/relation/interface.rs' },
+]
+
+[[scenarios]]
+id = 'schemas-at-a-plain-port'
+scenario = "Schemas at a port that is not a plugin's."
+given.files.'src/outbound/names/schemas.rs' = '''
+//! The shape of the data this edge does not control.
+'''
+given.files.'src/outbound/names/schemas_test.rs' = '''
+//! What the schemas next to it accept and refuse.
+'''
+given.files.'src/outbound/relation/schemas.rs' = '''
+//! The shape of the data this edge does not control.
+'''
+given.files.'src/outbound/relation/schemas_test.rs' = '''
+//! What the schemas next to it accept and refuse.
+'''
+then.findings = [
+  { path = 'src/outbound/names/schemas.rs' },
+  { path = 'src/outbound/names/schemas_test.rs' },
+]
+
+[[scenarios]]
+id = 'schemas-without-plugins'
+scenario = 'Schemas at a port when no plugin port is listed.'
+given.params = { plugins = [] }
+given.files.'src/outbound/names/schemas.rs' = '''
+//! The shape of the data this edge does not control.
+'''
+given.files.'src/outbound/names/schemas_test.rs' = '''
+//! What the schemas next to it accept and refuse.
+'''
+then.findings = [
+  { path = 'src/outbound/names/schemas.rs' },
+  { path = 'src/outbound/names/schemas_test.rs' },
+]

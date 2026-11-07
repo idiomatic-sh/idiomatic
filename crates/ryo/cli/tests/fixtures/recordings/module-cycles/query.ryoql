@@ -1,0 +1,9 @@
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let dependencies = project(from="source-dependency", columns=["source", "target"]);
+let foreign = select * from dependencies where source != target;
+let files = select * from tree-nodes where kind = "source-file";
+let from-files = select r."id" as "from", l."target" as "target" from foreign as l join files as r on l."source" = r."file";
+let edges = select l."from" as "from", r."id" as "to" from from-files as l join files as r on l."target" = r."file";
+let cycles = cycles(edges=edges, source="from", destination="to");
+let cyclic-files = select r."file" as "file", r."span" as "span" from cycles as l join files as r on l."from" = r."id";
+emit cyclic-files subject "file" key("file");

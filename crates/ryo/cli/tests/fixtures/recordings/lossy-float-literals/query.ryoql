@@ -1,0 +1,5 @@
+param limit: string;
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let floats = select * from tree-tokens where kind = "float-number";
+let lossy = select * from floats where float_text_gte(text, $limit);
+emit lossy subject "file" key("span");

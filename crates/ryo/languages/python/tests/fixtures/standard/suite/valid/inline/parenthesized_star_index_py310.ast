@@ -1,0 +1,1 @@
+Module(body=[Assign(targets=[Subscript(value=Name(id='out'), slice=Tuple(elts=[Starred(value=GeneratorExp(elt=Call(func=Name(id='slice'), args=[Constant(value=None)]), generators=[comprehension(target=Name(id='_', ctx=Store()), iter=Call(func=Name(id='range'), args=[Constant(value=2)]), is_async=0)])), Starred(value=Name(id='ind'))]), ctx=Store())], value=Constant(value=1))])

@@ -1,0 +1,46 @@
+description = "Two functions in two files, each holding at least `min-tokens` distinct token texts, spell the same set of token texts, signature included: a likely copied function."
+why = "A function copied between files is one behaviour kept in several places, and a fix to one copy misses the others. The query compares what it can relate: a group digest of the distinct token texts of each function, so two functions are a copy when neither holds a token text the other lacks. Equal sets are a strong sign of a copy, not proof: order and repetition are not compared, and a copy that renamed the function or changed one token is not seen. The finding is at the function whose file path sorts first, so a pair is one finding."
+
+query = '''
+param min-tokens: integer;
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let functions = select * from tree-nodes where kind = "function-def";
+let function-nodes = axis(from=functions, relation="syntax-child", direction=descendant, domain=tree-nodes);
+let below-edges = select r."child" as "child", l."id" as "id", l."file" as "file", l."span" as "span" from function-nodes as l join "syntax-child" as r on l."related" = r."parent";
+let own-edges = select r."child" as "child", l."id" as "id", l."file" as "file", l."span" as "span" from functions as l join "syntax-child" as r on l."id" = r."parent";
+let function-edges = union(left=below-edges, right=own-edges);
+let significant = select * from tree-tokens where kind != "whitespace";
+let code-tokens = select * from significant where kind != "comment";
+let function-tokens = select l."id" as "function", l."file" as "file", l."span" as "span", r."text" as "text" from function-edges as l join code-tokens as r on l."child" = r."id";
+let digested = group-digest(from=function-tokens, keys=["function", "file", "span"], distinct="text", digest="body", count="tokens");
+let large = select * from digested where tokens >= $min-tokens;
+let pairs = select l."file" as "file", l."span" as "span", r."file" as "other" from large as l join large as r on l."body" = r."body";
+let first = select * from pairs where file < other;
+emit first subject "file" key("span", "other");
+'''
+
+[params.min-tokens]
+type = "integer"
+description = "The fewest distinct token texts a function must hold to be compared."
+
+[diagnostic]
+primary = "span"
+message = "this function spells the same tokens as one in `{other}`"
+help = "Keep one copy and import it where the other was."
+
+[given]
+include = ["**"]
+params = { min-tokens = 5 }
+files."src/a.py" = "def clean(text: str) -> str:\n    return text.strip().lower()\n"
+
+[[scenarios]]
+id = "copied-function"
+scenario = "The same function in two files is reported once."
+given.files."src/b.py" = "def clean(text: str) -> str:\n    return text.strip().lower()\n"
+then.findings = [{ path = "src/a.py", line = 1 }]
+
+[[scenarios]]
+id = "different-functions"
+scenario = "Two functions that differ are not reported."
+given.files."src/b.py" = "def clean(text: str) -> str:\n    return text.strip().upper()\n"

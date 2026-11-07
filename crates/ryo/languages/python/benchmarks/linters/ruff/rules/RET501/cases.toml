@@ -1,0 +1,120 @@
+
+[[cases]]
+name = "tagged-ruff-0-16-5-RET501"
+comparison = "full"
+files = { "case.py" = "def x(y):\n    if not y:\n        return\n    return None  # error\n\n\nclass BaseCache:\n    def get(self, key: str) -> str | None:\n        print(f\"{key} not found\")\n        return None\n\n    def get(self, key: str) -> None:\n        print(f\"{key} not found\")\n        return None\n\n    @property\n    def prop(self) -> None:\n        print(\"Property not found\")\n        return None\n\n\nfrom functools import cached_property\n\n\nclass BaseCache2:\n    @cached_property\n    def prop(self) -> None:\n        print(\"Property not found\")\n        return None\n\n\nimport abc\nimport enum\nimport types\n\n\nclass Baz:\n    @abc.abstractproperty\n    def prop2(self) -> None:\n        print(\"Override me\")\n        return None\n\n    @types.DynamicClassAttribute\n    def prop3(self) -> None:\n        print(\"Gotta make this a multiline function for it to be a meaningful test\")\n        return None\n\n    @enum.property\n    def prop4(self) -> None:\n        print(\"I've run out of things to say\")\n        return None\n\n\n# https://github.com/astral-sh/ruff/issues/18774\nclass _:\n    def foo(bar):\n        if not bar:\n            return\n        return (\n            None # comment\n        )\n" }
+expected = [{ rule = "RET501", file = "case.py", start = 43, end = 54 }, { rule = "RET501", file = "case.py", start = 260, end = 271 }, { rule = "RET501", file = "case.py", start = 1100, end = 1145 }]
+
+[[cases]]
+name = "single-return-ignored"
+comparison = "full"
+files = { "case.py" = "def f():\n return None\n" }
+expected = []
+
+[[cases]]
+name = "only-none-multiple"
+comparison = "full"
+files = { "case.py" = "def f():\n work()\n return None\n" }
+expected = [{ rule = "RET501", file = "case.py", start = 18, end = 29 }]
+
+[[cases]]
+name = "mixed-returns"
+comparison = "full"
+files = { "case.py" = "def f(flag):\n if flag: return 1\n return None\n" }
+expected = []
+
+[[cases]]
+name = "none-annotation"
+comparison = "full"
+files = { "case.py" = "def f()->None:\n work()\n return None\n" }
+expected = [{ rule = "RET501", file = "case.py", start = 24, end = 35 }]
+
+[[cases]]
+name = "other-annotation"
+comparison = "full"
+files = { "case.py" = "def f()->object:\n work()\n return None\n" }
+expected = []
+
+[[cases]]
+name = "string-annotation"
+comparison = "full"
+files = { "case.py" = "def f()->\"None\":\n work()\n return None\n" }
+expected = []
+
+[[cases]]
+name = "nested-return-not-counted"
+comparison = "full"
+files = { "case.py" = "def f():\n def g(): return 1\n return None\n" }
+expected = [{ rule = "RET501", file = "case.py", start = 29, end = 40 }]
+
+[[cases]]
+name = "generator-skipped"
+comparison = "full"
+files = { "case.py" = "def f():\n yield 1\n return None\n" }
+expected = []
+
+[[cases]]
+name = "lambda-yield-visitor"
+comparison = "full"
+files = { "case.py" = "def f():\n g=lambda:(yield 1)\n return None\n" }
+expected = []
+
+[[cases]]
+name = "nested-header-yield-visitor"
+comparison = "full"
+files = { "case.py" = "def f():\n def g(x=(yield 1)): pass\n return None\n" }
+expected = []
+
+[[cases]]
+name = "class-base-yield-not-visited"
+comparison = "full"
+files = { "case.py" = "def f():\n class C((yield 1)): pass\n return None\n" }
+expected = [{ rule = "RET501", file = "case.py", start = 36, end = 47 }]
+
+[[cases]]
+name = "property-classification-0"
+comparison = "full"
+files = { "case.py" = "import enum,functools,abc,types\nclass C:\n @property\n def f(self):\n  work()\n  return None\n" }
+expected = []
+
+[[cases]]
+name = "property-classification-1"
+comparison = "full"
+files = { "case.py" = "import enum,functools,abc,types\nclass C:\n @property()\n def f(self):\n  work()\n  return None\n" }
+expected = []
+
+[[cases]]
+name = "property-classification-2"
+comparison = "full"
+files = { "case.py" = "import enum,functools,abc,types\nclass C:\n @enum.property\n def f(self):\n  work()\n  return None\n" }
+expected = []
+
+[[cases]]
+name = "property-classification-3"
+comparison = "full"
+files = { "case.py" = "import enum,functools,abc,types\nclass C:\n @functools.cached_property\n def f(self):\n  work()\n  return None\n" }
+expected = []
+
+[[cases]]
+name = "property-classification-4"
+comparison = "full"
+files = { "case.py" = "import enum,functools,abc,types\nclass C:\n @abc.abstractproperty\n def f(self):\n  work()\n  return None\n" }
+expected = []
+
+[[cases]]
+name = "property-classification-5"
+comparison = "full"
+files = { "case.py" = "import enum,functools,abc,types\nclass C:\n @types.DynamicClassAttribute\n def f(self):\n  work()\n  return None\n" }
+expected = []
+
+[[cases]]
+name = "property-classification-6"
+comparison = "full"
+files = { "case.py" = "import enum,functools,abc,types\nclass C:\n @unknown\n def f(self):\n  work()\n  return None\n" }
+expected = [{ rule = "RET501", file = "case.py", start = 76, end = 87 }]
+
+[[cases]]
+name = "file-suppression"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: RET501\ndef f():\n return None\n" }
+expected = []

@@ -1,0 +1,19 @@
+language = "python"
+
+[[projects]]
+name = "django"
+repository = "https://github.com/django/django.git"
+revision = "36b5f39d9372147f0e758f590e35ee2b2bc317dd"
+patch = "patches/django.patch"
+
+[[projects]]
+name = "pandas"
+repository = "https://github.com/pandas-dev/pandas.git"
+revision = "366ccdfcd8ed1e5543bfb6d4ee0c9bc519898670"
+patch = "patches/pandas.patch"
+
+[[projects]]
+name = "fastapi"
+repository = "https://github.com/fastapi/fastapi.git"
+revision = "8322a4445a3b25acd9b26b61192571b2d92f9bcd"
+patch = "patches/fastapi.patch"

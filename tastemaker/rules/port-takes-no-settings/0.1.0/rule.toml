@@ -1,0 +1,143 @@
+description = "A port's methods take and give no settings: no build identity, worker count, memory budget, output format or per-call constant, no machine path that names a cache, store or temporary location, and no cache, store or temporary directory handed back to the core."
+why = "A setting is decided once, at the edge, and injected into the factory that builds the adapter; it is no concern of the port's interface. A port method that takes the cache directory or the build on every call, or tells the core how many workers it has, makes every use case carry the setting through each call and branch on it: the same value drilled through ten layers. The settings are the types the entry lists in `settings`, wherever they are written in a method's parameters or result (`&super::types::BuildName`, `Result<WorkerCount, E>`); a machine path type the entry lists in `locations` is a setting when a parameter of that type is named as a location in `location-names` (`directory`, `cache`), or when a method of such a name hands one back to the core (`fn scratch(&self) -> MachinePath`). A path a request names, the repository's root, and a path the port finds for the caller (`fn repository(&self, start: &MachinePath) -> Result<MachinePath, _>`) are the core's question and are not reported. Read as written in the port's interface files: the type's own name, not what it aliases."
+
+query = '''
+param settings: set<string>;
+param locations: set<string>;
+param location-names: set<string>;
+let tree = select l."id" as "id", l."kind" as "kind", l."text" as "text", l."file" as "file", l."span" as "span" from "syntax-tree" as l;
+let types = select l."occurrence" as "id", l."owner" as "owner", l."annotation" as "annotation", l."file" as "file", l."span" as "span" from "annotates" as l;
+let below = axis(from=types, relation="syntax-child", direction=descendant, domain=tree);
+let words = select l."owner" as "owner", l."annotation" as "annotation", l."file" as "file", l."span" as "span", r."text" as "word" from below as l join tree as r on l."related" = r."id" where r."kind" = "ident";
+let set-words = select * from words where word in $settings;
+let place-words = select * from words where word in $locations;
+let methods = select l."id" as "owner" from "defines" as l where (l."kind" = "method" or l."kind" = "function") and l."name" in $location-names;
+let given-back = select l."owner" as "owner", l."annotation" as "annotation", l."file" as "file", l."span" as "span", l."word" as "word" from place-words as l join methods as r on l."owner" = r."owner";
+let named-places = select l."owner" as "owner", l."annotation" as "annotation", l."file" as "file", l."span" as "span", l."word" as "word" from place-words as l join "parameter" as r on l."owner" = r."id" where r."name" in $location-names;
+let leaks = union(left=set-words, right=given-back);
+let all = union(left=leaks, right=named-places);
+let found = project(from=all, columns=["file", "span", "annotation", "word"]);
+emit found subject "file" key("span", "word");
+'''
+
+[params.settings]
+type = "set<string>"
+description = "The setting types no port method takes or gives: build identities, worker counts, memory budgets, output formats and per-call constants, each as its type is named."
+
+[params.locations]
+type = "set<string>"
+description = "The machine path types: a parameter of one named as a location, or a result of one, is a setting."
+
+[params.location-names]
+type = "set<string>"
+description = "The parameter and method names that make a machine path a cache, store or temporary location."
+
+[diagnostic]
+primary = "span"
+message = "this port method takes or gives `{word}`, a setting (`{annotation}`)"
+help = "Decide the setting once at the edge and inject it into the factory that builds the adapter (`store::postcard(Store { directory, build })`, `scheduler::rayon(workers)`); the adapter keeps it, and the port's methods speak only of what the core asks. A path the request names, as the repository's root, stays a parameter. An ignore is never the fix."
+
+[given]
+include = ['src/outbound/*/interface.rs']
+params = { settings = ['BuildName', 'EngineBuild', 'ProgramBuild', 'Build', 'WorkerCount', 'Workers', 'MemoryBudget', 'SourceBytes', 'Expanding', 'Logging'], locations = ['MachinePath', 'PathBuf', 'Path', 'SystemPath'], location-names = ['directory', 'cache', 'store', 'temp', 'scratch'] }
+
+[[scenarios]]
+id = 'store-port-takes-its-directory-and-build'
+scenario = 'A store port that takes the cache directory and the build on every call, as Tastemaker`s did, is reported at both.'
+given.files.'src/outbound/store/interface.rs' = '''
+//! What the `store` port asks of the outside.
+
+use super::errors::StoreError;
+use super::types::Image;
+use crate::domain::files::types::MachinePath;
+
+/// What every `store` adapter implements.
+pub trait StorePort: Send + Sync {
+    /// The image kept in `directory` by `build`.
+    fn load(
+        &self,
+        directory: &MachinePath,
+        build: &super::types::BuildName,
+    ) -> super::types::Loaded;
+
+    /// Keeps `image` in `directory`.
+    ///
+    /// # Errors
+    ///
+    /// `Unwritable` when the directory cannot be written.
+    fn save(&self, directory: &MachinePath, image: &Image) -> Result<(), StoreError>;
+}
+'''
+then.findings = [
+  { path = 'src/outbound/store/interface.rs', line = 12 },
+  { path = 'src/outbound/store/interface.rs', line = 13 },
+  { path = 'src/outbound/store/interface.rs', line = 21 },
+]
+
+[[scenarios]]
+id = 'scheduler-tells-its-worker-count'
+scenario = 'A scheduler port that tells the core its worker count is reported.'
+given.files.'src/outbound/scheduler/interface.rs' = '''
+//! What the `scheduler` port asks of the outside.
+
+/// What every `scheduler` adapter implements.
+pub trait SchedulerPort: Send + Sync {
+    /// How many workers the adapter runs jobs on.
+    fn workers(&self) -> WorkerCount;
+}
+'''
+then.findings = [{ path = 'src/outbound/scheduler/interface.rs', line = 6 }]
+
+[[scenarios]]
+id = 'a-scratch-directory-handed-back'
+scenario = 'A port that hands the core a temporary directory, and takes it back to discard it, is reported at both.'
+given.files.'src/outbound/repository/interface.rs' = '''
+//! What the `repository` port asks of the outside.
+
+/// What every `repository` adapter implements.
+pub trait RepositoryPort: Send + Sync {
+    /// A new, empty temporary directory.
+    fn scratch(&self) -> Result<MachinePath, RepositoryError>;
+
+    /// Removes a directory `scratch` made.
+    fn discard(&self, directory: &MachinePath) -> Result<(), RepositoryError>;
+}
+'''
+then.findings = [
+  { path = 'src/outbound/repository/interface.rs', line = 6 },
+  { path = 'src/outbound/repository/interface.rs', line = 9 },
+]
+
+[[scenarios]]
+id = 'a-root-the-request-names-and-a-package-directory'
+scenario = 'The repository root a request names, the repository a port finds, and a package`s own directory, are what the core asks about: nothing is reported.'
+given.files.'src/outbound/repository/interface.rs' = '''
+//! What the `repository` port asks of the outside.
+
+/// What every `repository` adapter implements.
+pub trait RepositoryPort: Send + Sync {
+    /// The workspace nearest at or above `start`.
+    fn find(&self, start: &MachinePath) -> Result<Found, RepositoryError>;
+
+    /// A file's text.
+    fn read(&self, repository: &MachinePath, path: &RepoPath) -> Result<FileText, RepositoryError>;
+}
+'''
+given.files.'src/outbound/workspace/interface.rs' = '''
+//! What the `workspace` port asks of the outside.
+
+/// What every `workspace` adapter implements.
+pub trait WorkspacePort: Send + Sync {
+    /// The git repository at or above `start`.
+    fn repository(&self, start: &MachinePath) -> Result<MachinePath, WorkspaceError>;
+}
+'''
+given.files.'src/outbound/packages/interface.rs' = '''
+//! What the `packages` port asks of the outside.
+
+/// What every `packages` adapter implements.
+pub trait PackagesPort: Send + Sync {
+    /// A file of the package found at `directory`.
+    fn read(&self, directory: &PackageRoot, file: &PackageFile) -> Result<FileText, PackagesError>;
+}
+'''

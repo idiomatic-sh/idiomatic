@@ -1,0 +1,17 @@
+description = "Actual compiled-program lifecycle controls in generic directory roles."
+why = "The program runtime owns nested demand, reentrant refusal, publication, and retry. Both declared test parts stay next to the owner; production source cannot silently replace these proofs with a detached mock scheduler. The product applies test-directory-layout and orphan-rust-files to these placements: generic role names and real Cargo/module registration are required, not just file existence."
+content = '''
+//! Compiled program lifecycle proof with a real owner.
+'''
+
+[[scenarios]]
+id = "declared-proof"
+scenario = "One explicitly placed lifecycle proof exists."
+given.file = "lifecycle/mod.rs"
+given.files."lifecycle/mod.rs" = "//! Compiled program lifecycle proof with a real owner.\n"
+
+[[scenarios]]
+id = "missing-proof"
+scenario = "An explicitly placed lifecycle proof cannot disappear."
+given.file = "lifecycle/mod.rs"
+then.findings = [{ rule = "#count", path = "tastemaker.toml" }]

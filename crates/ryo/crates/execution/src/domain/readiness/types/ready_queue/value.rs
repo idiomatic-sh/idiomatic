@@ -1,0 +1,179 @@
+//! A producer completion wakes exactly the admissions waiting for that producer.
+use super::super::{
+    ReadinessAction, ReadinessCounts, ReadinessEntryCount, ReadinessOutcome, RegionCount,
+    WaitingCount,
+};
+use crate::domain::{executable_program::types::RegionId, operating::errors::OperatingError};
+use std::collections::{HashMap, VecDeque};
+
+#[derive(Clone, Copy)]
+enum State {
+    Unseen,
+    Queued,
+    Polling,
+    Waiting(RegionId),
+    Ready,
+    Terminal,
+}
+struct Entry {
+    state: State,
+    waiters: Vec<RegionId>,
+}
+/// Owns only readiness transitions. The application polls the sole actual interpreter.
+pub(crate) struct ReadyQueue {
+    region_count: RegionCount,
+    entries: HashMap<RegionId, Entry>,
+    pending: VecDeque<RegionId>,
+    ready: VecDeque<RegionId>,
+    cohort: VecDeque<RegionId>,
+    blocked: WaitingCount,
+    counts: ReadinessCounts,
+}
+impl ReadyQueue {
+    pub(crate) fn new(
+        region_count: RegionCount,
+        roots: &[RegionId],
+    ) -> Result<Self, OperatingError> {
+        let mut queue = Self {
+            region_count,
+            entries: HashMap::new(),
+            pending: VecDeque::new(),
+            ready: VecDeque::new(),
+            cohort: VecDeque::new(),
+            blocked: WaitingCount(0),
+            counts: ReadinessCounts::default(),
+        };
+        for &root in roots {
+            queue.discover(root)?;
+        }
+        Ok(queue)
+    }
+    fn discover(&mut self, id: RegionId) -> Result<(), OperatingError> {
+        if id.0 >= self.region_count.0 {
+            return Err(OperatingError::NotRun);
+        }
+        let entry = self.entries.entry(id).or_insert_with(|| Entry {
+            state: State::Unseen,
+            waiters: Vec::new(),
+        });
+        if matches!(entry.state, State::Unseen) {
+            entry.state = State::Queued;
+            self.pending.push_back(id);
+        }
+        Ok(())
+    }
+    /// Finish the current evaluation cohort before admitting newly woken parents.
+    /// Otherwise drain all reachable admissions before evaluating any ready head.
+    pub(crate) fn next(&mut self) -> Result<Option<ReadinessAction>, OperatingError> {
+        let action = if let Some(id) = self.cohort.pop_front() {
+            self.counts.evaluations.0 += 1;
+            ReadinessAction::Evaluate(id)
+        } else if let Some(id) = self.pending.pop_front() {
+            self.counts.preparations.0 += 1;
+            ReadinessAction::Prepare(id)
+        } else if !self.ready.is_empty() {
+            std::mem::swap(&mut self.ready, &mut self.cohort);
+            return self.next();
+        } else if self.blocked.0 != 0 {
+            // Every actual dependency is parked, with no producer able to advance.
+            return Err(OperatingError::NotRun);
+        } else {
+            return Ok(None);
+        };
+        let id = match action {
+            ReadinessAction::Prepare(id) | ReadinessAction::Evaluate(id) => id,
+        };
+        self.entries
+            .get_mut(&id)
+            .ok_or(OperatingError::NotRun)?
+            .state = State::Polling;
+        Ok(Some(action))
+    }
+    pub(crate) fn observe(
+        &mut self,
+        id: RegionId,
+        outcome: ReadinessOutcome,
+    ) -> Result<(), OperatingError> {
+        if !matches!(
+            self.entries.get(&id).map(|entry| entry.state),
+            Some(State::Polling)
+        ) {
+            return Err(OperatingError::NotRun);
+        }
+        match outcome {
+            ReadinessOutcome::Ready => {
+                self.entries
+                    .get_mut(&id)
+                    .ok_or(OperatingError::NotRun)?
+                    .state = State::Ready;
+                self.ready.push_back(id);
+            }
+            ReadinessOutcome::Waiting(dependency) => {
+                if dependency == id {
+                    return Err(OperatingError::NotRun);
+                }
+                if dependency.0 >= self.region_count.0 {
+                    return Err(OperatingError::NotRun);
+                }
+                let dependency_state = self
+                    .entries
+                    .get(&dependency)
+                    .map_or(State::Unseen, |entry| entry.state);
+                self.counts.suspensions.0 += 1;
+                if matches!(dependency_state, State::Terminal) {
+                    // Canonical admission consumes a completed producer or its
+                    // error; another Waiting event cannot make further progress.
+                    return Err(OperatingError::NotRun);
+                }
+                self.entries
+                    .get_mut(&id)
+                    .ok_or(OperatingError::NotRun)?
+                    .state = State::Waiting(dependency);
+                self.entries
+                    .entry(dependency)
+                    .or_insert_with(|| Entry {
+                        state: State::Unseen,
+                        waiters: Vec::new(),
+                    })
+                    .waiters
+                    .push(id);
+                self.blocked.0 += 1;
+                self.discover(dependency)?;
+            }
+            ReadinessOutcome::Terminal => {
+                self.entries
+                    .get_mut(&id)
+                    .ok_or(OperatingError::NotRun)?
+                    .state = State::Terminal;
+                let waiters = std::mem::take(
+                    &mut self
+                        .entries
+                        .get_mut(&id)
+                        .ok_or(OperatingError::NotRun)?
+                        .waiters,
+                );
+                for waiter in waiters {
+                    if !matches!(self.entries.get_mut(&waiter).ok_or(OperatingError::NotRun)?.state, State::Waiting(producer) if producer == id)
+                    {
+                        return Err(OperatingError::NotRun);
+                    }
+                    self.entries
+                        .get_mut(&waiter)
+                        .ok_or(OperatingError::NotRun)?
+                        .state = State::Queued;
+                    self.blocked.0 -= 1;
+                    self.counts.wakeups.0 += 1;
+                    self.pending.push_back(waiter);
+                }
+            }
+        }
+        Ok(())
+    }
+    #[cfg(test)]
+    pub(super) fn reached_entries(&self) -> ReadinessEntryCount {
+        ReadinessEntryCount(self.entries.len())
+    }
+    pub(crate) fn counts(&self) -> ReadinessCounts {
+        self.counts
+    }
+}

@@ -1,0 +1,118 @@
+description = "Benchmark: duplicates clippy's `unreadable_literal`; ruff and eslint core have none (eslint-plugin-unicorn's `numeric-separators-style` is the nearest); not placed on this repo. A decimal integer literal of six or more digits groups them with `_` separators, in Rust, Python (3.6 and later) and TypeScript (ES2021 and later)."
+why = "`1000000` and `10000000` look alike; `1_000_000` cannot be misread (clippy's `unreadable_literal`). Read from the token as written: an integer literal starting with six decimal digits and holding no `_`, a suffix allowed (Rust's `1000000u64`, TypeScript's `1000000n`, Python's `1000000j`). Hexadecimal, octal and binary literals, and floats (a `.` or an exponent), are not read. No shared relation holds a number, so the literal is each language's own token: Rust's integer token, TypeScript's numeric token, and Python's number token under a constant (data formats' numbers are not code). Not seen: a literal inside a macro invocation's tokens."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let rust-integers = select * from tree-tokens where kind = "int-number";
+let numerics = select * from tree-tokens where kind = "numeric";
+let numbers = select * from tree-tokens where kind = "number";
+let number-parents = select r."parent" as "node", l."id" as "id" from numbers as l join "syntax-child" as r on l."id" = r."child";
+let constants = select * from tree-nodes where kind = "constant";
+let constant-numbers = select l."id" as "id" from number-parents as l join constants as r on l."node" = r."id";
+let code-numbers = select r."id" as "id", r."kind" as "kind", r."file" as "file", r."span" as "span", r."text" as "text" from constant-numbers as l join numbers as r on l."id" = r."id";
+let script-numbers = union(left=numerics, right=code-numbers);
+let fractional = select * from script-numbers where glob_any(text, "{*.*,*e*,*E*}");
+let script-integers = difference(left=script-numbers, right=fractional);
+let integers = union(left=rust-integers, right=script-integers);
+let long = select * from integers where glob_any(text, "[0-9][0-9][0-9][0-9][0-9][0-9]*");
+let separated = select * from long where glob_any(text, "*_*");
+let unseparated = antijoin(left=long, right=separated, left-on=["id"], right-on=["id"]);
+emit unseparated subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`{text}` has no digit separators"
+help = "Group the digits in threes with `_`, e.g. `1_000_000`."
+
+[given]
+include = ['**']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = '''
+mod code;
+'''
+
+[[scenarios]]
+id = 'short-separated-non-decimal-literals'
+scenario = 'Short, separated and non-decimal literals.'
+given.files.'src/lib.rs' = '''
+pub fn f() -> u64 {
+    99999 + 1_000_000 + 0xFFFFFFFF + 0b1010101010 + 1000000.0 as u64
+}
+'''
+
+[[scenarios]]
+id = 'long-literal-without-separators'
+scenario = 'A long literal without separators.'
+given.files.'src/code.rs' = '''
+pub fn f() -> u64 {
+    1000000
+}
+'''
+then.findings = [
+  { path = 'src/code.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'long-literal-type-suffix'
+scenario = 'A long literal with a type suffix.'
+given.files.'src/code.rs' = '''
+pub fn f() -> u64 {
+    2500000u64
+}
+'''
+then.findings = [
+  { path = 'src/code.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'typescript-separated-short-and-fractional-numbers'
+scenario = 'TypeScript numbers that are separated, short, fractional or hexadecimal.'
+given.files.'src/limits.ts' = '''
+export const big = 1_000_000
+export const small = 99_999
+export const short = 12345
+export const ratio = 1000000.5
+export const mask = 0xFFFFFF
+'''
+
+[[scenarios]]
+id = 'typescript-unseparated-integers'
+scenario = 'TypeScript integers of seven digits, one a BigInt.'
+given.files.'src/limits.ts' = '''
+export const big = 1000000
+export const huge = 1000000n
+'''
+then.findings = [
+  { path = 'src/limits.ts', line = 1 },
+  { path = 'src/limits.ts', line = 2 },
+]
+
+[[scenarios]]
+id = 'python-separated-short-and-fractional-numbers'
+scenario = 'Python numbers that are separated, short, fractional or hexadecimal, and a data file number.'
+given.files.'pkg/limits.py' = '''
+BIG = 1_000_000
+SHORT = 12345
+RATIO = 1000000.5
+MASK = 0xFFFFFF
+'''
+given.files.'data.json' = '''
+{"big": 1000000}
+'''
+
+[[scenarios]]
+id = 'python-unseparated-integer'
+scenario = 'A Python integer of seven digits.'
+given.files.'pkg/limits.py' = '''
+BIG = 1000000
+'''
+then.findings = [
+  { path = 'pkg/limits.py', line = 1 },
+]

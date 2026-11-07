@@ -1,0 +1,286 @@
+# Source-only expectations derived from pinned Ruff lexer and redirect table.
+# Runtime parity against the same inventory runner is pending.
+
+[[cases]]
+name = "inline-redirect"
+comparison = "full"
+files = {"case.py" = "x = 1  # noqa: PGH001\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 15, "end" = 21}]
+
+[[cases]]
+name = "own-line-redirect"
+comparison = "full"
+files = {"case.py" = "# noqa: TCH002\nx = 1\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 8, "end" = 14}]
+
+[[cases]]
+name = "mixed-case-marker"
+comparison = "full"
+files = {"case.py" = "x = 1 # nOqA: U001\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 14, "end" = 18}]
+
+[[cases]]
+name = "canonical-and-unknown"
+comparison = "full"
+files = {"case.py" = "x = 1 # noqa: S307, TC002, XYZ999\n"}
+expected = []
+
+[[cases]]
+name = "duplicate-exact-spans"
+comparison = "full"
+files = {"case.py" = "x = 1 # noqa: PGH001, PGH001, TCH006\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 14, "end" = 20}, {"rule" = "RUF101", "file" = "case.py", "start" = 22, "end" = 28}, {"rule" = "RUF101", "file" = "case.py", "start" = 30, "end" = 36}]
+
+[[cases]]
+name = "comma-whitespace-and-squashed-codes"
+comparison = "full"
+files = {"case.py" = "x = 1 # noqa : ,,PGH001TCH002,  U001\tPGH002,\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 17, "end" = 23}, {"rule" = "RUF101", "file" = "case.py", "start" = 23, "end" = 29}, {"rule" = "RUF101", "file" = "case.py", "start" = 32, "end" = 36}, {"rule" = "RUF101", "file" = "case.py", "start" = 37, "end" = 43}]
+
+[[cases]]
+name = "code-prefix-redirects"
+comparison = "full"
+files = {"case.py" = "# noqa: C9 R5 U0 I2 M0 PDV9 TRIO1\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 8, "end" = 10}, {"rule" = "RUF101", "file" = "case.py", "start" = 11, "end" = 13}, {"rule" = "RUF101", "file" = "case.py", "start" = 14, "end" = 16}, {"rule" = "RUF101", "file" = "case.py", "start" = 17, "end" = 19}, {"rule" = "RUF101", "file" = "case.py", "start" = 20, "end" = 22}, {"rule" = "RUF101", "file" = "case.py", "start" = 23, "end" = 27}, {"rule" = "RUF101", "file" = "case.py", "start" = 28, "end" = 33}]
+
+[[cases]]
+name = "letters-only-not-a-code"
+comparison = "full"
+files = {"case.py" = "# noqa: R, U, TRIO\n"}
+expected = []
+
+[[cases]]
+name = "test-only-redirects-excluded"
+comparison = "full"
+files = {"case.py" = "# noqa: RUF940 RUF96\n"}
+expected = []
+
+[[cases]]
+name = "lowercase-codes-stop-list"
+comparison = "full"
+files = {"case.py" = "# noqa: pgh001 PGH002\n"}
+expected = []
+
+[[cases]]
+name = "trailing-prose-stops-list"
+comparison = "full"
+files = {"case.py" = "# noqa: PGH001 because TCH002 is unrelated\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 8, "end" = 14}]
+
+[[cases]]
+name = "uppercase-prose-stops-list"
+comparison = "full"
+files = {"case.py" = "# noqa: PGH001 A comment about TCH002\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 8, "end" = 14}]
+
+[[cases]]
+name = "comma-prose-stops-list"
+comparison = "full"
+files = {"case.py" = "# noqa: PGH001,Reason TCH002\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 8, "end" = 14}]
+
+[[cases]]
+name = "hash-stops-list"
+comparison = "full"
+files = {"case.py" = "# noqa: PGH001# TCH002\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 8, "end" = 14}]
+
+[[cases]]
+name = "invalid-code-punctuation-invalidates-directive"
+comparison = "full"
+files = {"case.py" = "# noqa: PGH001; TCH002\n"}
+expected = []
+
+[[cases]]
+name = "invalid-squashed-suffix-invalidates-directive"
+comparison = "full"
+files = {"case.py" = "# noqa: PGH001TCH\n"}
+expected = []
+
+[[cases]]
+name = "first-invalid-marker-is-not-skipped"
+comparison = "full"
+files = {"case.py" = "# noqaBAD # noqa: PGH001\n"}
+expected = []
+
+[[cases]]
+name = "first-blanket-marker-wins"
+comparison = "full"
+files = {"case.py" = "# noqa # noqa: PGH001\n"}
+expected = []
+
+[[cases]]
+name = "first-coded-marker-wins"
+comparison = "full"
+files = {"case.py" = "# noqa: PGH001 # noqa: TCH002\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 8, "end" = 14}]
+
+[[cases]]
+name = "nested-comment-marker"
+comparison = "full"
+files = {"case.py" = "# ordinary explanation # noqa: PGH001\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 31, "end" = 37}]
+
+[[cases]]
+name = "file-ruff-directive"
+comparison = "full"
+files = {"case.py" = "# ruff: noqa: TCH002\nx = 1\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 14, "end" = 20}]
+
+[[cases]]
+name = "file-flake8-directive"
+comparison = "full"
+files = {"case.py" = "# flake8 : NOQA : PGH001\nx = 1\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 18, "end" = 24}]
+
+[[cases]]
+name = "file-tool-case-sensitive"
+comparison = "full"
+files = {"case.py" = "# RUFF: noqa: PGH001\n"}
+expected = []
+
+[[cases]]
+name = "trailing-file-directive-ignored"
+comparison = "full"
+files = {"case.py" = "x = 1 # ruff: noqa: PGH001\n"}
+expected = []
+
+[[cases]]
+name = "indented-file-directive"
+comparison = "full"
+files = {"case.py" = "if True:\n    # ruff: noqa: TCH001\n    pass\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 27, "end" = 33}]
+
+[[cases]]
+name = "nested-file-marker"
+comparison = "full"
+files = {"case.py" = "# explanation # ruff: noqa: TCH006\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 28, "end" = 34}]
+
+[[cases]]
+name = "inline-and-file-markers-independent"
+comparison = "full"
+files = {"case.py" = "# noqa: PGH001 # ruff: noqa: TCH002\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 8, "end" = 14}, {"rule" = "RUF101", "file" = "case.py", "start" = 29, "end" = 35}]
+
+[[cases]]
+name = "file-blanket-exempts-post-noqa"
+comparison = "full"
+files = {"case.py" = "# ruff: noqa\nx = 1 # noqa: PGH001\n"}
+expected = []
+
+[[cases]]
+name = "file-explicit-self-exemption"
+comparison = "full"
+files = {"case.py" = "# ruff: noqa: RUF101, PGH001\nx = 1 # noqa: TCH002\n"}
+expected = []
+
+[[cases]]
+name = "file-unrelated-code-does-not-exempt"
+comparison = "full"
+files = {"case.py" = "# ruff: noqa: F401\nx = 1 # noqa: PGH001\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 33, "end" = 39}]
+
+[[cases]]
+name = "inline-self-code-does-not-suppress-post-noqa"
+comparison = "full"
+files = {"case.py" = "x = 1 # noqa: PGH001, RUF101\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 14, "end" = 20}]
+
+[[cases]]
+name = "inline-blanket-other-line-does-not-exempt"
+comparison = "full"
+files = {"case.py" = "# noqa\nx = 1 # noqa: PGH001\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 21, "end" = 27}]
+
+[[cases]]
+name = "range-ignore-does-not-filter-post-noqa"
+comparison = "full"
+files = {"case.py" = "# ruff: ignore[RUF101]\nx = 1 # noqa: PGH001\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 37, "end" = 43}]
+
+[[cases]]
+name = "file-exemption-must-be-own-line"
+comparison = "full"
+files = {"case.py" = "x = 1 # ruff: noqa: RUF101\nx = 2 # noqa: PGH001\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 41, "end" = 47}]
+
+[[cases]]
+name = "string-lookalike-is-not-comment"
+comparison = "full"
+files = {"case.py" = "text = \"# noqa: PGH001\"\n"}
+expected = []
+
+[[cases]]
+name = "utf8-byte-offset-and-crlf"
+comparison = "full"
+files = {"case.py" = "value = \"é\" # noqa: PGH001\r\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 21, "end" = 27}]
+
+[[cases]]
+name = "stub-file"
+comparison = "full"
+files = {"case.pyi" = "# noqa: TCH002\nvalue: int\n"}
+expected = [{"rule" = "RUF101", "file" = "case.pyi", "start" = 8, "end" = 14}]
+
+[[cases]]
+name = "invalid-syntax-still-has-comments"
+comparison = "full"
+files = {"case.py" = "if ( # noqa: PGH001\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 13, "end" = 19}, {"rule" = "invalid-syntax", "file" = "case.py", "start" = 20, "end" = 20}]
+
+[[cases]]
+name = "all-pinned-production-numeric-redirect-keys"
+comparison = "full"
+files = {"case.py" = "# noqa: SIM111, C9, T1, T2, R5, R50, R501, R502, R503, R504, R505, R506, R507, R508, IC0, IC00, IC001, IC002, IC003, IC004, U0, U00, U001, U003, U004, U005, U006, U007, U008, U009, U01, U010, U011, U012, U013, U014, U015, U016, U017, U019, I2, I25, I252, M0, M001, PDV0, PDV002, PDV003, PDV004, PDV007, PDV008, PDV009, PDV01, PDV010, PDV011, PDV012, PDV013, PDV015, PDV9, PDV90, PDV901, TYP001, RUF004, PIE802, PLW0130, T001, T002, T003, T004, RUF011, TRY200, PGH001, PGH002, TRIO1, TRIO10, TRIO100, TRIO105, TRIO109, TRIO11, TRIO110, TRIO115, PLR1701, PLW0117, RUF025, TRY302, TCH001, TCH002, TCH003, TCH004, TCH005, TCH006, TCH010, RUF035\n"}
+expected = [{"rule" = "RUF101", "file" = "case.py", "start" = 8, "end" = 14}, {"rule" = "RUF101", "file" = "case.py", "start" = 16, "end" = 18}, {"rule" = "RUF101", "file" = "case.py", "start" = 20, "end" = 22}, {"rule" = "RUF101", "file" = "case.py", "start" = 24, "end" = 26}, {"rule" = "RUF101", "file" = "case.py", "start" = 28, "end" = 30}, {"rule" = "RUF101", "file" = "case.py", "start" = 32, "end" = 35}, {"rule" = "RUF101", "file" = "case.py", "start" = 37, "end" = 41}, {"rule" = "RUF101", "file" = "case.py", "start" = 43, "end" = 47}, {"rule" = "RUF101", "file" = "case.py", "start" = 49, "end" = 53}, {"rule" = "RUF101", "file" = "case.py", "start" = 55, "end" = 59}, {"rule" = "RUF101", "file" = "case.py", "start" = 61, "end" = 65}, {"rule" = "RUF101", "file" = "case.py", "start" = 67, "end" = 71}, {"rule" = "RUF101", "file" = "case.py", "start" = 73, "end" = 77}, {"rule" = "RUF101", "file" = "case.py", "start" = 79, "end" = 83}, {"rule" = "RUF101", "file" = "case.py", "start" = 85, "end" = 88}, {"rule" = "RUF101", "file" = "case.py", "start" = 90, "end" = 94}, {"rule" = "RUF101", "file" = "case.py", "start" = 96, "end" = 101}, {"rule" = "RUF101", "file" = "case.py", "start" = 103, "end" = 108}, {"rule" = "RUF101", "file" = "case.py", "start" = 110, "end" = 115}, {"rule" = "RUF101", "file" = "case.py", "start" = 117, "end" = 122}, {"rule" = "RUF101", "file" = "case.py", "start" = 124, "end" = 126}, {"rule" = "RUF101", "file" = "case.py", "start" = 128, "end" = 131}, {"rule" = "RUF101", "file" = "case.py", "start" = 133, "end" = 137}, {"rule" = "RUF101", "file" = "case.py", "start" = 139, "end" = 143}, {"rule" = "RUF101", "file" = "case.py", "start" = 145, "end" = 149}, {"rule" = "RUF101", "file" = "case.py", "start" = 151, "end" = 155}, {"rule" = "RUF101", "file" = "case.py", "start" = 157, "end" = 161}, {"rule" = "RUF101", "file" = "case.py", "start" = 163, "end" = 167}, {"rule" = "RUF101", "file" = "case.py", "start" = 169, "end" = 173}, {"rule" = "RUF101", "file" = "case.py", "start" = 175, "end" = 179}, {"rule" = "RUF101", "file" = "case.py", "start" = 181, "end" = 184}, {"rule" = "RUF101", "file" = "case.py", "start" = 186, "end" = 190}, {"rule" = "RUF101", "file" = "case.py", "start" = 192, "end" = 196}, {"rule" = "RUF101", "file" = "case.py", "start" = 198, "end" = 202}, {"rule" = "RUF101", "file" = "case.py", "start" = 204, "end" = 208}, {"rule" = "RUF101", "file" = "case.py", "start" = 210, "end" = 214}, {"rule" = "RUF101", "file" = "case.py", "start" = 216, "end" = 220}, {"rule" = "RUF101", "file" = "case.py", "start" = 222, "end" = 226}, {"rule" = "RUF101", "file" = "case.py", "start" = 228, "end" = 232}, {"rule" = "RUF101", "file" = "case.py", "start" = 234, "end" = 238}, {"rule" = "RUF101", "file" = "case.py", "start" = 240, "end" = 242}, {"rule" = "RUF101", "file" = "case.py", "start" = 244, "end" = 247}, {"rule" = "RUF101", "file" = "case.py", "start" = 249, "end" = 253}, {"rule" = "RUF101", "file" = "case.py", "start" = 255, "end" = 257}, {"rule" = "RUF101", "file" = "case.py", "start" = 259, "end" = 263}, {"rule" = "RUF101", "file" = "case.py", "start" = 265, "end" = 269}, {"rule" = "RUF101", "file" = "case.py", "start" = 271, "end" = 277}, {"rule" = "RUF101", "file" = "case.py", "start" = 279, "end" = 285}, {"rule" = "RUF101", "file" = "case.py", "start" = 287, "end" = 293}, {"rule" = "RUF101", "file" = "case.py", "start" = 295, "end" = 301}, {"rule" = "RUF101", "file" = "case.py", "start" = 303, "end" = 309}, {"rule" = "RUF101", "file" = "case.py", "start" = 311, "end" = 317}, {"rule" = "RUF101", "file" = "case.py", "start" = 319, "end" = 324}, {"rule" = "RUF101", "file" = "case.py", "start" = 326, "end" = 332}, {"rule" = "RUF101", "file" = "case.py", "start" = 334, "end" = 340}, {"rule" = "RUF101", "file" = "case.py", "start" = 342, "end" = 348}, {"rule" = "RUF101", "file" = "case.py", "start" = 350, "end" = 356}, {"rule" = "RUF101", "file" = "case.py", "start" = 358, "end" = 364}, {"rule" = "RUF101", "file" = "case.py", "start" = 366, "end" = 370}, {"rule" = "RUF101", "file" = "case.py", "start" = 372, "end" = 377}, {"rule" = "RUF101", "file" = "case.py", "start" = 379, "end" = 385}, {"rule" = "RUF101", "file" = "case.py", "start" = 387, "end" = 393}, {"rule" = "RUF101", "file" = "case.py", "start" = 395, "end" = 401}, {"rule" = "RUF101", "file" = "case.py", "start" = 403, "end" = 409}, {"rule" = "RUF101", "file" = "case.py", "start" = 411, "end" = 418}, {"rule" = "RUF101", "file" = "case.py", "start" = 420, "end" = 424}, {"rule" = "RUF101", "file" = "case.py", "start" = 426, "end" = 430}, {"rule" = "RUF101", "file" = "case.py", "start" = 432, "end" = 436}, {"rule" = "RUF101", "file" = "case.py", "start" = 438, "end" = 442}, {"rule" = "RUF101", "file" = "case.py", "start" = 444, "end" = 450}, {"rule" = "RUF101", "file" = "case.py", "start" = 452, "end" = 458}, {"rule" = "RUF101", "file" = "case.py", "start" = 460, "end" = 466}, {"rule" = "RUF101", "file" = "case.py", "start" = 468, "end" = 474}, {"rule" = "RUF101", "file" = "case.py", "start" = 476, "end" = 481}, {"rule" = "RUF101", "file" = "case.py", "start" = 483, "end" = 489}, {"rule" = "RUF101", "file" = "case.py", "start" = 491, "end" = 498}, {"rule" = "RUF101", "file" = "case.py", "start" = 500, "end" = 507}, {"rule" = "RUF101", "file" = "case.py", "start" = 509, "end" = 516}, {"rule" = "RUF101", "file" = "case.py", "start" = 518, "end" = 524}, {"rule" = "RUF101", "file" = "case.py", "start" = 526, "end" = 533}, {"rule" = "RUF101", "file" = "case.py", "start" = 535, "end" = 542}, {"rule" = "RUF101", "file" = "case.py", "start" = 544, "end" = 551}, {"rule" = "RUF101", "file" = "case.py", "start" = 553, "end" = 560}, {"rule" = "RUF101", "file" = "case.py", "start" = 562, "end" = 568}, {"rule" = "RUF101", "file" = "case.py", "start" = 570, "end" = 576}, {"rule" = "RUF101", "file" = "case.py", "start" = 578, "end" = 584}, {"rule" = "RUF101", "file" = "case.py", "start" = 586, "end" = 592}, {"rule" = "RUF101", "file" = "case.py", "start" = 594, "end" = 600}, {"rule" = "RUF101", "file" = "case.py", "start" = 602, "end" = 608}, {"rule" = "RUF101", "file" = "case.py", "start" = 610, "end" = 616}, {"rule" = "RUF101", "file" = "case.py", "start" = 618, "end" = 624}, {"rule" = "RUF101", "file" = "case.py", "start" = 626, "end" = 632}, {"rule" = "RUF101", "file" = "case.py", "start" = 634, "end" = 640}]
+
+[[cases]]
+name = "all-canonical-targets-are-controls"
+comparison = "full"
+files = {"case.py" = "# noqa: ASYNC1, ASYNC10, ASYNC100, ASYNC105, ASYNC109, ASYNC11, ASYNC110, ASYNC115, B026, B033, B035, B904, C419, C420, C90, FIX001, FIX002, FIX003, FIX004, G010, ICN0, ICN00, ICN001, PD0, PD002, PD003, PD004, PD007, PD008, PD009, PD01, PD010, PD011, PD012, PD013, PD015, PD9, PD90, PD901, PLW0177, RET5, RET50, RET501, RET502, RET503, RET504, RET505, RET506, RET507, RET508, RUF100, S307, S704, SIM101, SIM110, T10, T20, TC001, TC002, TC003, TC004, TC005, TC010, TID2, TID25, TID252, TRY203, UP0, UP00, UP001, UP003, UP004, UP005, UP006, UP007, UP008, UP009, UP01, UP010, UP011, UP012, UP013, UP014, UP015, UP016, UP017, UP019\n"}
+expected = []
+
+# Pinned Ruff 0.16.5 U001 redirect and RUF101 self-suppression controls.
+
+[[cases]]
+"name" = "redirect-baseline"
+"comparison" = "full"
+"files" = { "case.py" = "x = 1  # noqa: U001\n" }
+"expected" = [{ "end" = 19, "file" = "case.py", "rule" = "RUF101", "start" = 15 }]
+
+[[cases]]
+"name" = "redirect-file-blanket"
+"comparison" = "full"
+"files" = { "case.py" = "# ruff: noqa\nx = 1  # noqa: U001\n" }
+"expected" = []
+
+[[cases]]
+"name" = "redirect-file-code"
+"comparison" = "full"
+"files" = { "case.py" = "# ruff: noqa: RUF101\nx = 1  # noqa: U001\n" }
+"expected" = []
+
+[[cases]]
+"name" = "redirect-file-other-code"
+"comparison" = "full"
+"files" = { "case.py" = "# ruff: noqa: F401\nx = 1  # noqa: U001\n" }
+"expected" = [{ "end" = 38, "file" = "case.py", "rule" = "RUF101", "start" = 34 }]
+
+[[cases]]
+"name" = "redirect-inline-blanket-after"
+"comparison" = "full"
+"files" = { "case.py" = "x = 1  # noqa: U001  # noqa\n" }
+"expected" = [{ "end" = 19, "file" = "case.py", "rule" = "RUF101", "start" = 15 }]
+
+[[cases]]
+"name" = "redirect-inline-blanket-before"
+"comparison" = "full"
+"files" = { "case.py" = "x = 1  # noqa  # noqa: U001\n" }
+"expected" = []
+
+[[cases]]
+"name" = "redirect-inline-code"
+"comparison" = "full"
+"files" = { "case.py" = "x = 1  # noqa: U001, RUF101\n" }
+"expected" = [{ "end" = 19, "file" = "case.py", "rule" = "RUF101", "start" = 15 }]

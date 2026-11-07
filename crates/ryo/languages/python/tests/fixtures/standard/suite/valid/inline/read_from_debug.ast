@@ -1,0 +1,1 @@
+Module(body=[If(test=Name(id='__debug__'), body=[Expr(value=Constant(value=Ellipsis))]), Assign(targets=[Name(id='x', ctx=Store())], value=Name(id='__debug__'))])

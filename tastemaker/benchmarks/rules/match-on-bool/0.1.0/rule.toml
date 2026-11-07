@@ -1,0 +1,194 @@
+description = "Benchmark: duplicates clippy's `match_bool`; ruff and eslint have none; not placed on this repo. No Rust `match`, Python `match` or TypeScript `switch` of at most two arms whose patterns are only `true`/`True`, `false`/`False` and the catch-all (`_`, `case _:`, `default:`): it is an `if`."
+why = "A `match` or `switch` on a boolean spells `if`/`else` with more ceremony (clippy's `match_bool`). No shared relation holds a branch, so each language is read from its own syntax. Python's `match` with `case True:`/`case False:`/`case _:` and TypeScript's `switch` with `case true:`/`case false:`/`default:` are read the same way as Rust's patterns: a match with at least one arm whose pattern is the literal `true` or `false`, every arm's pattern such a literal or `_`, and at most two arms. Not seen: a match inside a macro invocation's tokens, and one whose scrutinee is a boolean matched with other patterns (`b @ true`)."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let matches = select * from tree-nodes where kind = "match-expr";
+let arm-lists = select r."child" as "list", l."id" as "match", l."file" as "file", l."span" as "span" from matches as l join "syntax-child" as r on l."id" = r."parent";
+let arm-edges = select r."child" as "arm", l."match" as "match", l."file" as "file", l."span" as "span" from arm-lists as l join "syntax-child" as r on l."list" = r."parent";
+let arm-nodes = select * from tree-nodes where kind = "match-arm";
+let arms = select l."arm" as "arm", l."match" as "match", l."file" as "file", l."span" as "span" from arm-edges as l join arm-nodes as r on l."arm" = r."id";
+let booleans = select * from tree-tokens where glob_any(kind, "{true-kw,false-kw}");
+let boolean-literals = select r."parent" as "literal" from booleans as l join "syntax-child" as r on l."id" = r."child";
+let boolean-patterns = select r."parent" as "pattern" from boolean-literals as l join "syntax-child" as r on l."literal" = r."child";
+let literal-patterns = select * from tree-nodes where kind = "literal-pat";
+let boolean-literal-patterns = select r."id" as "pattern" from boolean-patterns as l join literal-patterns as r on l."pattern" = r."id";
+let boolean-arms = select r."parent" as "arm" from boolean-literal-patterns as l join "syntax-child" as r on l."pattern" = r."child";
+let boolean-matches = select l."match" as "match", l."file" as "file", l."span" as "span" from arms as l join boolean-arms as r on l."arm" = r."arm";
+let wildcards = select * from tree-nodes where kind = "wildcard-pat";
+let wildcard-arms = select r."parent" as "arm" from wildcards as l join "syntax-child" as r on l."id" = r."child";
+let simple-arms = union(left=boolean-arms, right=wildcard-arms);
+let other-arms = antijoin(left=arms, right=simple-arms, left-on=["arm"], right-on=["arm"]);
+let only-simple = antijoin(left=boolean-matches, right=other-arms, left-on=["match"], right-on=["match"]);
+let arm-counts = group-count(from=arms, keys=["match"], count="arms");
+let small = select * from arm-counts where arms <= 2;
+let boolean-ifs = select l."file" as "file", l."span" as "span" from only-simple as l join small as r on l."match" = r."match";
+let statements = select * from tree-nodes where glob_any(kind, "{match,switch-statement}");
+let case-nodes = select * from tree-nodes where glob_any(kind, "{match-case,switch-case}");
+let statement-children = select r."child" as "case", l."id" as "match", l."file" as "file", l."span" as "span" from statements as l join "syntax-child" as r on l."id" = r."parent";
+let cases = select l."case" as "case", l."match" as "match", l."file" as "file", l."span" as "span" from statement-children as l join case-nodes as r on l."case" = r."id";
+let truths = select * from tree-tokens where glob_any(text, "{True,False,true,false}");
+let truth-holders = select r."parent" as "holder" from truths as l join "syntax-child" as r on l."id" = r."child";
+let literal-nodes = select * from tree-nodes where glob_any(kind, "{match-singleton,literal}");
+let truth-patterns = select r."id" as "pattern" from truth-holders as l join literal-nodes as r on l."holder" = r."id";
+let truth-cases = select r."parent" as "case" from truth-patterns as l join "syntax-child" as r on l."pattern" = r."child";
+let truth-statements = select l."match" as "match", l."file" as "file", l."span" as "span" from cases as l join truth-cases as r on l."case" = r."case";
+let captures = select * from tree-nodes where kind = "match-as";
+let underscores = select * from tree-tokens where text = "_";
+let underscore-holders = select r."parent" as "holder", l."id" as "token" from underscores as l join "syntax-child" as r on l."id" = r."child";
+let capture-underscores = select l."holder" as "pattern" from underscore-holders as l join captures as r on l."holder" = r."id";
+let capture-children = select l."pattern" as "pattern", r."child" as "child" from capture-underscores as l join "syntax-child" as r on l."pattern" = r."parent";
+let capture-subpatterns = select l."pattern" as "pattern" from capture-children as l join tree-nodes as r on l."child" = r."id";
+let bare-underscores = antijoin(left=capture-underscores, right=capture-subpatterns, left-on=["pattern"], right-on=["pattern"]);
+let underscore-cases = select r."parent" as "case" from bare-underscores as l join "syntax-child" as r on l."pattern" = r."child";
+let defaults = select * from tree-tokens where kind = "keyword" and text = "default";
+let default-cases = select r."parent" as "case" from defaults as l join "syntax-child" as r on l."id" = r."child";
+let catch-all-cases = union(left=underscore-cases, right=default-cases);
+let simple-cases = union(left=truth-cases, right=catch-all-cases);
+let other-cases = antijoin(left=cases, right=simple-cases, left-on=["case"], right-on=["case"]);
+let only-simple-statements = antijoin(left=truth-statements, right=other-cases, left-on=["match"], right-on=["match"]);
+let case-counts = group-count(from=cases, keys=["match"], count="cases");
+let few-cases = select * from case-counts where cases <= 2;
+let boolean-statements = select l."file" as "file", l."span" as "span" from only-simple-statements as l join few-cases as r on l."match" = r."match";
+let all-ifs = union(left=boolean-ifs, right=boolean-statements);
+emit all-ifs subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this `match` on a boolean is an `if`"
+help = "Write `if`/`else`."
+
+[given]
+include = ['**']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = '''
+mod code;
+'''
+
+[[scenarios]]
+id = 'other-matches'
+scenario = 'Matches that are not an if.'
+given.files.'src/lib.rs' = '''
+pub fn f(a: Option<u8>, b: (bool, bool)) -> u8 {
+    let x = match a {
+        Some(v) => v,
+        None => 0,
+    };
+    let y = match b {
+        (true, _) => 1,
+        _ => 2,
+    };
+    x + y
+}
+'''
+
+[[scenarios]]
+id = 'match-true-false'
+scenario = 'A match on true and false.'
+given.files.'src/code.rs' = '''
+pub fn f(a: bool) -> u8 {
+    match a {
+        true => 1,
+        false => 0,
+    }
+}
+'''
+then.findings = [
+  { path = 'src/code.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'match-true-wildcard'
+scenario = 'A match on true and a wildcard.'
+given.files.'src/code.rs' = '''
+pub fn f(a: bool) -> u8 {
+    match a {
+        true => 1,
+        _ => 0,
+    }
+}
+'''
+then.findings = [
+  { path = 'src/code.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'python-match-on-values-and-capture'
+scenario = 'A Python match on numbers, and one on True with a capture pattern.'
+given.files.'pkg/describe.py' = '''
+def describe(value, flag):
+    match value:
+        case 0:
+            return "none"
+        case _:
+            return "some"
+    match flag:
+        case True:
+            return "set"
+        case other:
+            return str(other)
+'''
+
+[[scenarios]]
+id = 'python-match-on-a-boolean'
+scenario = 'A Python match whose cases are True and the catch-all.'
+given.files.'pkg/describe.py' = '''
+def describe(flag):
+    match flag:
+        case True:
+            return "set"
+        case _:
+            return "unset"
+'''
+then.findings = [
+  { path = 'pkg/describe.py', line = 2 },
+]
+
+[[scenarios]]
+id = 'typescript-switch-on-values'
+scenario = 'A TypeScript switch on numbers, and one on true with a third case.'
+given.files.'src/describe.ts' = '''
+export function describe(value: number, flag: boolean | null): string {
+  switch (value) {
+    case 0:
+      return 'none'
+    default:
+      return 'some'
+  }
+}
+
+export function state(flag: boolean | null): string {
+  switch (flag) {
+    case true:
+      return 'set'
+    case false:
+      return 'unset'
+    default:
+      return 'unknown'
+  }
+}
+'''
+
+[[scenarios]]
+id = 'typescript-switch-on-a-boolean'
+scenario = 'A TypeScript switch whose cases are true and default.'
+given.files.'src/describe.ts' = '''
+export function describe(flag: boolean): string {
+  switch (flag) {
+    case true:
+      return 'set'
+    default:
+      return 'unset'
+  }
+}
+'''
+then.findings = [
+  { path = 'src/describe.ts', line = 2 },
+]

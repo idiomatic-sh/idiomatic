@@ -1,0 +1,466 @@
+description = "Every `#[test]` function of a `*_test.rs` is a runner named for a case word, `succeeds`, `refuses`, `fails` or `rejects`, and each runner calls `run` with its own case word; any other test, and a runner that runs nothing, is a finding."
+why = "Every test says its cases in one table and runs them by case word, so a test file holds a `CASES` table and a runner for each case word it has rows of (`test-runners-match-rows`), and a fifth test is a case that skipped the table. Read as written: a function with an attribute whose path ends in `test` (`#[test]`, `#[tokio::test]`) in the files the entry selects. The body of a runner is read too: it calls `run` with its own case word (`Word::Succeeds` in `succeeds`) among its arguments, so a runner emptied to `{}` or run with another runner's word is a finding. A contract's `pub fn check` is not a test and is not seen; a test written by a macro is not seen."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let functions = select * from tree-nodes where kind = "fn";
+let function-edges = select l."id" as "function", l."file" as "file", l."span" as "span", r."child" as "node" from functions as l join "syntax-child" as r on l."id" = r."parent";
+let attributes = select * from tree-nodes where kind = "attr";
+let function-attributes = select l."function" as "function", l."file" as "file", l."span" as "span", l."node" as "attribute" from function-edges as l join attributes as r on l."node" = r."id";
+let attribute-edges = select l."function" as "function", l."file" as "file", l."span" as "span", r."child" as "node" from function-attributes as l join "syntax-child" as r on l."attribute" = r."parent";
+let path-metas = select * from tree-nodes where kind = "path-meta";
+let function-metas = select l."function" as "function", l."file" as "file", l."span" as "span", l."node" as "meta" from attribute-edges as l join path-metas as r on l."node" = r."id";
+let meta-edges = select l."function" as "function", l."file" as "file", l."span" as "span", r."child" as "node" from function-metas as l join "syntax-child" as r on l."meta" = r."parent";
+let paths = select * from tree-nodes where kind = "path";
+let meta-paths = select l."function" as "function", l."file" as "file", l."span" as "span", l."node" as "attr-path" from meta-edges as l join paths as r on l."node" = r."id";
+let path-edges = select l."function" as "function", l."file" as "file", l."span" as "span", r."child" as "node" from meta-paths as l join "syntax-child" as r on l."attr-path" = r."parent";
+let segments = select * from tree-nodes where kind = "path-segment";
+let meta-segments = select l."function" as "function", l."file" as "file", l."span" as "span", l."node" as "segment" from path-edges as l join segments as r on l."node" = r."id";
+let segment-edges = select l."function" as "function", l."file" as "file", l."span" as "span", r."child" as "node" from meta-segments as l join "syntax-child" as r on l."segment" = r."parent";
+let name-refs = select * from tree-nodes where kind = "name-ref";
+let segment-refs = select l."function" as "function", l."file" as "file", l."span" as "span", l."node" as "ref" from segment-edges as l join name-refs as r on l."node" = r."id";
+let ref-edges = select l."function" as "function", l."file" as "file", l."span" as "span", r."child" as "token" from segment-refs as l join "syntax-child" as r on l."ref" = r."parent";
+let ref-texts = select l."function" as "function", l."file" as "file", l."span" as "span", r."text" as "text" from ref-edges as l join tree-tokens as r on l."token" = r."id";
+let test-functions = select * from ref-texts where text = "test";
+let test-ids = project(from=test-functions, columns=["function", "file", "span"]);
+let names = select * from tree-nodes where kind = "name";
+let function-names = select l."function" as "function", r."id" as "name" from function-edges as l join names as r on l."node" = r."id";
+let name-tokens = select l."function" as "function", r."child" as "token" from function-names as l join "syntax-child" as r on l."name" = r."parent";
+let name-texts = select l."function" as "function", r."text" as "text" from name-tokens as l join tree-tokens as r on l."token" = r."id";
+let tests = select l."file" as "file", l."span" as "span", r."text" as "name" from test-ids as l join name-texts as r on l."function" = r."function";
+let runners = select * from tests where glob_any(name, "{succeeds,refuses,fails,rejects}");
+let stray = antijoin(left=tests, right=runners, left-on=["file", "span"], right-on=["file", "span"]);
+let k-block-expr = select * from tree-nodes where kind = "block-expr";
+let k-stmt-list = select * from tree-nodes where kind = "stmt-list";
+let k-call-expr = select * from tree-nodes where kind = "call-expr";
+let k-expr-stmt = select * from tree-nodes where kind = "expr-stmt";
+let k-path-expr = select * from tree-nodes where kind = "path-expr";
+let k-path = select * from tree-nodes where kind = "path";
+let k-path-segment = select * from tree-nodes where kind = "path-segment";
+let k-name-ref = select * from tree-nodes where kind = "name-ref";
+let k-arg-list = select * from tree-nodes where kind = "arg-list";
+let named-tests = select l."function" as "function", l."file" as "file", l."span" as "span", r."text" as "name" from test-ids as l join name-texts as r on l."function" = r."function";
+let runner-fns = select * from named-tests where glob_any(name, "{succeeds,refuses,fails,rejects}");
+let fn-blocks = select l."function" as "function", r."id" as "node" from function-edges as l join k-block-expr as r on l."node" = r."id";
+let lists-edges = select l."function" as "function", r."child" as "node" from fn-blocks as l join "syntax-child" as r on l."node" = r."parent";
+let lists = select l."function" as "function", r."id" as "node" from lists-edges as l join k-stmt-list as r on l."node" = r."id";
+let direct-calls-edges = select l."function" as "function", r."child" as "node" from lists as l join "syntax-child" as r on l."node" = r."parent";
+let direct-calls = select l."function" as "function", r."id" as "node" from direct-calls-edges as l join k-call-expr as r on l."node" = r."id";
+let stmts-edges = select l."function" as "function", r."child" as "node" from lists as l join "syntax-child" as r on l."node" = r."parent";
+let stmts = select l."function" as "function", r."id" as "node" from stmts-edges as l join k-expr-stmt as r on l."node" = r."id";
+let stmt-calls-edges = select l."function" as "function", r."child" as "node" from stmts as l join "syntax-child" as r on l."node" = r."parent";
+let stmt-calls = select l."function" as "function", r."id" as "node" from stmt-calls-edges as l join k-call-expr as r on l."node" = r."id";
+let calls = union(left=direct-calls, right=stmt-calls);
+let call-ids = select l."function" as "function", l."node" as "site", r."node" as "node" from calls as l join calls as r on l."function" = r."function" and l."node" = r."node";
+let callee-exprs-edges = select l."function" as "function", l."site" as "site", r."child" as "node" from call-ids as l join "syntax-child" as r on l."node" = r."parent";
+let callee-exprs = select l."function" as "function", l."site" as "site", r."id" as "node" from callee-exprs-edges as l join k-path-expr as r on l."node" = r."id";
+let callee-paths-edges = select l."function" as "function", l."site" as "site", r."child" as "node" from callee-exprs as l join "syntax-child" as r on l."node" = r."parent";
+let callee-paths = select l."function" as "function", l."site" as "site", r."id" as "node" from callee-paths-edges as l join k-path as r on l."node" = r."id";
+let callee-segs-edges = select l."function" as "function", l."site" as "site", r."child" as "node" from callee-paths as l join "syntax-child" as r on l."node" = r."parent";
+let callee-segs = select l."function" as "function", l."site" as "site", r."id" as "node" from callee-segs-edges as l join k-path-segment as r on l."node" = r."id";
+let callee-refs-edges = select l."function" as "function", l."site" as "site", r."child" as "node" from callee-segs as l join "syntax-child" as r on l."node" = r."parent";
+let callee-refs = select l."function" as "function", l."site" as "site", r."id" as "node" from callee-refs-edges as l join k-name-ref as r on l."node" = r."id";
+let callee-tokens = select l."function" as "function", l."site" as "site", r."child" as "token" from callee-refs as l join "syntax-child" as r on l."node" = r."parent";
+let callee-texts = select l."function" as "function", l."site" as "site", r."text" as "text" from callee-tokens as l join tree-tokens as r on l."token" = r."id";
+let runs = select * from callee-texts where text = "run";
+let run-calls = project(from=runs, columns=["function", "site"]);
+let run-fns = project(from=runs, columns=["function"]);
+let no-run = antijoin(left=runner-fns, right=run-fns, left-on=["function"], right-on=["function"]);
+let arg-lists-edges = select l."function" as "function", l."site" as "site", r."child" as "node" from call-ids as l join "syntax-child" as r on l."node" = r."parent";
+let arg-lists = select l."function" as "function", l."site" as "site", r."id" as "node" from arg-lists-edges as l join k-arg-list as r on l."node" = r."id";
+let arg-exprs-edges = select l."function" as "function", l."site" as "site", r."child" as "node" from arg-lists as l join "syntax-child" as r on l."node" = r."parent";
+let arg-exprs = select l."function" as "function", l."site" as "site", r."id" as "node" from arg-exprs-edges as l join k-path-expr as r on l."node" = r."id";
+let arg-paths-edges = select l."function" as "function", l."site" as "site", r."child" as "node" from arg-exprs as l join "syntax-child" as r on l."node" = r."parent";
+let arg-paths = select l."function" as "function", l."site" as "site", r."id" as "node" from arg-paths-edges as l join k-path as r on l."node" = r."id";
+let arg-segs-edges = select l."function" as "function", l."site" as "site", r."child" as "node" from arg-paths as l join "syntax-child" as r on l."node" = r."parent";
+let arg-segs = select l."function" as "function", l."site" as "site", r."id" as "node" from arg-segs-edges as l join k-path-segment as r on l."node" = r."id";
+let arg-refs-edges = select l."function" as "function", l."site" as "site", r."child" as "node" from arg-segs as l join "syntax-child" as r on l."node" = r."parent";
+let arg-refs = select l."function" as "function", l."site" as "site", r."id" as "node" from arg-refs-edges as l join k-name-ref as r on l."node" = r."id";
+let arg-tokens = select l."function" as "function", l."site" as "site", r."child" as "token" from arg-refs as l join "syntax-child" as r on l."node" = r."parent";
+let arg-texts = select l."function" as "function", l."site" as "site", r."text" as "text" from arg-tokens as l join tree-tokens as r on l."token" = r."id";
+let run-arg-texts = select l."function" as "function", l."text" as "text" from arg-texts as l join run-calls as r on l."function" = r."function" and l."site" = r."site";
+let own-1 = select * from runner-fns where name = "succeeds";
+let want-1 = extend(from=own-1, values={"word": "Succeeds"});
+let own-2 = select * from runner-fns where name = "refuses";
+let want-2 = extend(from=own-2, values={"word": "Refuses"});
+let own-3 = select * from runner-fns where name = "fails";
+let want-3 = extend(from=own-3, values={"word": "Fails"});
+let own-4 = select * from runner-fns where name = "rejects";
+let want-4 = extend(from=own-4, values={"word": "Rejects"});
+let want-a = union(left=want-1, right=want-2);
+let want-b = union(left=want-3, right=want-4);
+let want = union(left=want-a, right=want-b);
+let right-word = select l."function" as "function" from want as l join run-arg-texts as r on l."function" = r."function" and l."word" = r."text";
+let wrong-word = antijoin(left=want, right=right-word, left-on=["function"], right-on=["function"]);
+let stray-rows = project(from=stray, columns=["file", "span"]);
+let no-run-rows = project(from=no-run, columns=["file", "span"]);
+let wrong-word-rows = project(from=wrong-word, columns=["file", "span"]);
+let bad-1 = union(left=stray-rows, right=no-run-rows);
+let bad = union(left=bad-1, right=wrong-word-rows);
+emit bad subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this test is not a runner named for a case word, or its body does not run the `CASES` table through `run` with its own case word"
+help = "Make it a row of the file's `CASES` table (a name, one case word, an input, the expected value or error variant) and let the runner of its case word run it; the runners are named `succeeds`, `refuses`, `fails` and `rejects`, one for each case word the table has rows of."
+
+[given]
+include = ['**/*_test.rs']
+
+[[scenarios]]
+id = 'four-runners'
+scenario = 'The runners: nothing is reported.'
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+//! Proves the short service.
+
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+    Case { name: "zero is refused", word: Word::Refuses, input: zero, expect: Expect::Error(Failure::Empty) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn fails() {
+    run(CASES, Word::Fails, subject);
+}
+
+#[test]
+fn rejects() {
+    run(CASES, Word::Rejects, subject);
+}
+'''
+
+[[scenarios]]
+id = 'contract-check'
+scenario = "A contract's check function."
+given.files.'src/greeting/outbound/names/interface_test.rs' = '''
+//! What every names adapter must pass.
+
+/// Runs the rows.
+pub fn check(adapter: &()) {
+    let _ = adapter;
+}
+'''
+
+[[scenarios]]
+id = 'cfg-test-module'
+scenario = 'A cfg(test) module is no test.'
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+//! Proves the short service.
+
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+    Case { name: "zero is refused", word: Word::Refuses, input: zero, expect: Expect::Error(Failure::Empty) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn fails() {
+    run(CASES, Word::Fails, subject);
+}
+
+#[test]
+fn rejects() {
+    run(CASES, Word::Rejects, subject);
+}
+
+#[cfg(test)]
+mod nested {}
+'''
+
+[[scenarios]]
+id = 'extra-test'
+scenario = 'A fifth test: it is reported.'
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+//! Proves the short service.
+
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+    Case { name: "zero is refused", word: Word::Refuses, input: zero, expect: Expect::Error(Failure::Empty) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn fails() {
+    run(CASES, Word::Fails, subject);
+}
+
+#[test]
+fn rejects() {
+    run(CASES, Word::Rejects, subject);
+}
+
+#[test]
+fn passes_the_interface_test() {}
+'''
+then.findings = [
+  { path = 'src/greeting/domain/short/service_test.rs', line = 30 },
+]
+
+[[scenarios]]
+id = 'tokio-test'
+scenario = 'An async test: it is reported.'
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+//! Proves the short service.
+
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+    Case { name: "zero is refused", word: Word::Refuses, input: zero, expect: Expect::Error(Failure::Empty) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn fails() {
+    run(CASES, Word::Fails, subject);
+}
+
+#[test]
+fn rejects() {
+    run(CASES, Word::Rejects, subject);
+}
+
+#[tokio::test]
+async fn runs() {}
+'''
+then.findings = [
+  { path = 'src/greeting/domain/short/service_test.rs', line = 30 },
+]
+
+[[scenarios]]
+id = 'two-extras'
+scenario = 'Two extra tests report twice.'
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+//! Proves the short service.
+
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+    Case { name: "zero is refused", word: Word::Refuses, input: zero, expect: Expect::Error(Failure::Empty) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn fails() {
+    run(CASES, Word::Fails, subject);
+}
+
+#[test]
+fn rejects() {
+    run(CASES, Word::Rejects, subject);
+}
+
+#[test]
+fn one() {}
+
+#[test]
+fn two() {}
+'''
+then.findings = [
+  { path = 'src/greeting/domain/short/service_test.rs', line = 30 },
+  { path = 'src/greeting/domain/short/service_test.rs', line = 33 },
+]
+
+[[scenarios]]
+id = 'renamed-runner'
+scenario = 'A runner renamed: it is reported.'
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+//! Proves the short service.
+
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+    Case { name: "zero is refused", word: Word::Refuses, input: zero, expect: Expect::Error(Failure::Empty) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn fails() {
+    run(CASES, Word::Fails, subject);
+}
+
+#[test]
+fn rejection() {
+    run(CASES, Word::Rejects, subject);
+}
+'''
+then.findings = [
+  { path = 'src/greeting/domain/short/service_test.rs', line = 25 },
+]
+
+[[scenarios]]
+id = 'empty-runner-body'
+scenario = 'A runner whose body is empty runs no case.'
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+//! Proves the short service.
+
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+    Case { name: "zero is refused", word: Word::Refuses, input: zero, expect: Expect::Error(Failure::Empty) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn fails() {
+    {}
+}
+
+#[test]
+fn rejects() {
+    run(CASES, Word::Rejects, subject);
+}
+'''
+then.findings = [
+  { path = 'src/greeting/domain/short/service_test.rs', line = 20 },
+]
+
+[[scenarios]]
+id = 'wrong-case-word'
+scenario = "A runner that runs another runner's case word."
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+//! Proves the short service.
+
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+    Case { name: "zero is refused", word: Word::Refuses, input: zero, expect: Expect::Error(Failure::Empty) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn fails() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn rejects() {
+    run(CASES, Word::Rejects, subject);
+}
+'''
+then.findings = [
+  { path = 'src/greeting/domain/short/service_test.rs', line = 20 },
+]
+
+[[scenarios]]
+id = 'word-in-another-call'
+scenario = 'A runner whose case word is only the argument of another call.'
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+//! Proves the short service.
+
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+    Case { name: "zero is refused", word: Word::Refuses, input: zero, expect: Expect::Error(Failure::Empty) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn fails() {
+    run(CASES, Word::Fails, subject);
+}
+
+#[test]
+fn rejects() {
+    run(CASES, Word::Refuses, subject);
+    drop(Word::Rejects);
+}
+'''
+then.findings = [
+  { path = 'src/greeting/domain/short/service_test.rs', line = 25 },
+]

@@ -1,0 +1,21 @@
+warning: unused import: `Elements`
+ --> tests/ui/fail_parse_missing_a_relation.rs:5:57
+  |
+5 | use ryo_language::domain::elements::types::{Completion, Elements, TableBuilder};
+  |                                                         ^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `ryo_language::domain::symbols::types::Symbols`
+ --> tests/ui/fail_parse_missing_a_relation.rs:6:5
+  |
+6 | use ryo_language::domain::symbols::types::Symbols;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0046]: not all trait items implemented, missing: `function`
+  --> tests/ui/fail_parse_missing_a_relation.rs:33:1
+   |
+33 | impl ParseUseCase for Missing {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `function` in implementation
+   |
+   = help: implement the missing item: `fn function(&self) -> Support<Reader<ryo_relations::domain::relations::collections::relations::function::item::Function, <Self as ParseUseCase>::FileModel>> { todo!() }`

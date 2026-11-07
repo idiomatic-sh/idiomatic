@@ -1,0 +1,13 @@
+import observation_matches from "python/ruff/suppress-matches";
+import suppress from "python/ruff/suppress";
+let type_comments = select id, file, span from "comment" where matches(file, "\.pyi$") and matches(text, "^\s*type:\s*([^#]+)(\s*#.*?)?$");
+let ignores = select id from "comment" where matches(text, "^\s*type:\s*ignore([^#]+)?(\s*#.*?)?$");
+let reportable = antijoin(left=type_comments, right=ignores, left-on=["id"], right-on=["id"]);
+let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let suppressed_candidates = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PYI033(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI033)(?:,|$)");
+let violations = select file, span from suppressed_candidates;
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PYI033(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI033)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "PYI033"});
+observe ruf100_used as noqa_matches;
+emit violations subject file key(span);

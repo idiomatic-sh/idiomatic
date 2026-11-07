@@ -1,0 +1,14 @@
+toml 0-56
+ expression 0-54
+  keyval 0-54
+   key 0-32
+    simple-key 0-32
+     quoted-key 0-32
+      basic-string 0-32
+   keyval-sep 32-35
+    ws 32-33
+    ws 34-35
+   val 35-54
+    date-time 35-54
+ newline 54-55
+ newline 55-56

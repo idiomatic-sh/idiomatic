@@ -1,0 +1,124 @@
+SOURCE_FILE
+  TRAIT
+    TRAIT_KW "trait"
+    WHITESPACE " "
+    NAME
+      IDENT "Parent"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      R_CURLY "}"
+  WHITESPACE " "
+  TRAIT
+    TRAIT_KW "trait"
+    WHITESPACE " "
+    NAME
+      IDENT "Child"
+    COLON ":"
+    WHITESPACE " "
+    TYPE_BOUND_LIST
+      TYPE_BOUND
+        L_PAREN "("
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "Parent"
+        R_PAREN ")"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      R_CURLY "}"
+  WHITESPACE " "
+  STRUCT
+    STRUCT_KW "struct"
+    WHITESPACE " "
+    NAME
+      IDENT "Service"
+    SEMICOLON ";"
+  WHITESPACE " "
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Parent"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Service"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  TRAIT
+    TRAIT_KW "trait"
+    WHITESPACE " "
+    NAME
+      IDENT "Base"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      R_CURLY "}"
+  WHITESPACE "\n"
+  TRAIT
+    TRAIT_KW "trait"
+    WHITESPACE " "
+    NAME
+      IDENT "Contract"
+    COLON ":"
+    WHITESPACE " "
+    TYPE_BOUND_LIST
+      TYPE_BOUND
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "Base"
+      WHITESPACE " "
+      PLUS "+"
+      WHITESPACE " "
+      TYPE_BOUND
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "Clone"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      R_CURLY "}"
+  WHITESPACE "\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Contract"
+    WHITESPACE " "
+    FOR_KW "for"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "module"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Service"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      R_CURLY "}"
+  WHITESPACE "\n"

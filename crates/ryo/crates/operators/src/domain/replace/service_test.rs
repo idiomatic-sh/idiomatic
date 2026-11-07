@@ -1,0 +1,51 @@
+//! Replacement text is literal, including dollar syntax and unmatched Unicode suffixes.
+use super::service::replace_compiled;
+use super::types::{ReplacedText, ReplacementText};
+use crate::domain::contract::types::PortableOperatorFault;
+use ryo_matching::inbound::use_cases::matching::{
+    interface::MatchingUseCase, types::{RegexSource, SearchText}, use_case::MatchingUseCaseImpl,
+};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::row_texts::types::CellText;
+type Input = (&'static str, &'static str, &'static str);
+type Value = std::borrow::Cow<'static, str>;
+type Failure = PortableOperatorFault;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("replacement_dollar_is_literal"),
+        word: Word::Succeeds,
+        input: || ("a", "aaé", "$1"),
+        expect: Expect::Value(std::borrow::Cow::Borrowed("$1$1é")),
+    },
+    Case {
+        name: CaseName("zero_width_matches_preserve_characters"),
+        word: Word::Succeeds,
+        input: || ("^|$", "é", "x"),
+        expect: Expect::Value(std::borrow::Cow::Borrowed("xéx")),
+    },
+    Case {
+        name: CaseName("no_matches_preserve_text"),
+        word: Word::Succeeds,
+        input: || ("x", "é", "y"),
+        expect: Expect::Value(std::borrow::Cow::Borrowed("é")),
+    },
+];
+fn subject((pattern, text, replacement): Input) -> Result<Value, Failure> {
+    let regex = MatchingUseCaseImpl::new()
+        .compile_regex(RegexSource(pattern))
+        .expect("valid test pattern");
+    let mut output = String::from("stale");
+    replace_compiled(
+        &|each| {
+            MatchingUseCaseImpl::new().visit_regex_matches(&regex, SearchText(text), &mut |found| each(found.0))
+        },
+        CellText(text),
+        ReplacementText(replacement),
+        ReplacedText(&mut output),
+    )?;
+    Ok(std::borrow::Cow::Owned(output))
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}

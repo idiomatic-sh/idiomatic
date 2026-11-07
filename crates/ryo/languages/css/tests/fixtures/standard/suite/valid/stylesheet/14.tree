@@ -1,0 +1,14 @@
+stylesheet
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration color
+        whitespace
+        hash
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    block

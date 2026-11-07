@@ -1,0 +1,153 @@
+[[cases]]
+name = "ruff-0.16.5-EXE001_1.py"
+comparison = "full"
+files = { "EXE001_1.py" = "#!/usr/bin/python\n\nif __name__ == '__main__':\n    print('I should be executable.')\n" }
+file-metadata = { "EXE001_1.py" = false }
+expected = [{ "rule" = "EXE001", "file" = "EXE001_1.py", "start" = 0, "end" = 17 }]
+
+[[cases]]
+name = "ruff-0.16.5-EXE001_2.py"
+comparison = "full"
+files = { "EXE001_2.py" = "if __name__ == '__main__':\n    print('I should be executable.')\n" }
+file-metadata = { "EXE001_2.py" = false }
+expected = []
+
+[[cases]]
+name = "ruff-0.16.5-EXE001_3.py"
+comparison = "full"
+files = { "EXE001_3.py" = "#!/usr/bin/python\n\nif __name__ == '__main__':\n    print('I should be executable.')\n" }
+file-metadata = { "EXE001_3.py" = true }
+expected = []
+
+[[cases]]
+name = "same-shebang-nonexecutable"
+comparison = "full"
+files = { "case.py" = "#!/usr/bin/env python\nprint(1)\n" }
+file-metadata = { "case.py" = false }
+expected = [{ "rule" = "EXE001", "file" = "case.py", "start" = 0, "end" = 21 }]
+
+[[cases]]
+name = "same-shebang-executable"
+comparison = "full"
+files = { "case.py" = "#!/usr/bin/env python\nprint(1)\n" }
+file-metadata = { "case.py" = true }
+expected = []
+
+[[cases]]
+name = "same-code-nonexecutable"
+comparison = "full"
+files = { "case.py" = "print(1)\n" }
+file-metadata = { "case.py" = false }
+expected = []
+
+[[cases]]
+name = "same-code-executable"
+comparison = "full"
+files = { "case.py" = "print(1)\n" }
+file-metadata = { "case.py" = true }
+expected = []
+
+[[cases]]
+name = "empty-executable"
+comparison = "full"
+files = { "case.py" = "" }
+file-metadata = { "case.py" = true }
+expected = []
+
+[[cases]]
+name = "empty-nonexecutable"
+comparison = "full"
+files = { "case.py" = "" }
+file-metadata = { "case.py" = false }
+expected = []
+
+[[cases]]
+name = "late-shebang-nonexecutable"
+comparison = "full"
+files = { "case.py" = "value = 1\n#!/usr/bin/python\n" }
+file-metadata = { "case.py" = false }
+expected = [{ "rule" = "EXE001", "file" = "case.py", "start" = 10, "end" = 27 }]
+
+[[cases]]
+name = "late-shebang-executable"
+comparison = "full"
+files = { "case.py" = "value = 1\n#!/usr/bin/python\n" }
+file-metadata = { "case.py" = true }
+expected = []
+
+[[cases]]
+name = "two-real-shebang-comments"
+comparison = "full"
+files = { "case.py" = "#!/usr/bin/python\n#!/bin/sh\n" }
+file-metadata = { "case.py" = false }
+expected = [{ "rule" = "EXE001", "file" = "case.py", "start" = 0, "end" = 17 }, { "rule" = "EXE001", "file" = "case.py", "start" = 18, "end" = 27 }]
+
+[[cases]]
+name = "string-is-not-comment"
+comparison = "full"
+files = { "case.py" = "value = \"#!/usr/bin/python\"\n" }
+file-metadata = { "case.py" = true }
+expected = []
+
+[[cases]]
+name = "fstring-is-not-comment"
+comparison = "full"
+files = { "case.py" = "value = f\"#!{1}python\"\n" }
+file-metadata = { "case.py" = true }
+expected = []
+
+[[cases]]
+name = "ordinary-comment-is-not-directive"
+comparison = "full"
+files = { "case.py" = "# ordinary comment\n" }
+file-metadata = { "case.py" = true }
+expected = []
+
+[[cases]]
+name = "bare-directive"
+comparison = "full"
+files = { "case.py" = "#!\n" }
+file-metadata = { "case.py" = false }
+expected = [{ "rule" = "EXE001", "file" = "case.py", "start" = 0, "end" = 2 }]
+
+[[cases]]
+name = "crlf-directive"
+comparison = "full"
+files = { "case.py" = "#!/usr/bin/python\r\nprint(1)\r\n" }
+file-metadata = { "case.py" = false }
+expected = [{ "rule" = "EXE001", "file" = "case.py", "start" = 0, "end" = 17 }]
+
+[[cases]]
+name = "unicode-before-comment"
+comparison = "full"
+files = { "case.py" = "λ = 1\n#!/usr/bin/python\n" }
+file-metadata = { "case.py" = false }
+expected = [{ "rule" = "EXE001", "file" = "case.py", "start" = 7, "end" = 24 }]
+
+[[cases]]
+name = "stub-executable-no-directive"
+comparison = "full"
+files = { "case.pyi" = "value: int\n" }
+file-metadata = { "case.pyi" = true }
+expected = []
+
+[[cases]]
+name = "named-txt-no-directive"
+comparison = "full"
+files = { "script.txt" = "print(1)\n" }
+file-metadata = { "script.txt" = true }
+expected = []
+
+[[cases]]
+name = "extensionless-directive"
+comparison = "full"
+files = { "script" = "#!/bin/sh\n" }
+file-metadata = { "script" = false }
+expected = [{ "rule" = "EXE001", "file" = "script", "start" = 0, "end" = 9 }]
+
+[[cases]]
+name = "file-exemption"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: EXE001\n#!/usr/bin/python\n" }
+file-metadata = { "case.py" = false }
+expected = []

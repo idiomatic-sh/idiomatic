@@ -1,0 +1,69 @@
+[[cases]]
+name = "typevar"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\")\n" }
+expected = [{ file = "case.pyi", start = 31, end = 43 }]
+
+[[cases]]
+name = "paramspec"
+files = { "case.pyi" = "import typing\nP = typing.ParamSpec(\"P\")\n" }
+expected = [{ file = "case.pyi", start = 18, end = 39 }]
+
+[[cases]]
+name = "extensions"
+files = { "case.pyi" = "from typing_extensions import TypeVarTuple as TVT\nTs = TVT(\"Ts\")\n" }
+expected = [{ file = "case.pyi", start = 55, end = 64 }]
+
+[[cases]]
+name = "private"
+files = { "case.pyi" = "from typing import TypeVar\n_T = TypeVar(\"T\")\n" }
+expected = []
+
+[[cases]]
+name = "function"
+files = { "case.pyi" = "from typing import TypeVar\ndef f():\n    T = TypeVar(\"T\")\n" }
+expected = []
+
+[[cases]]
+name = "nested-class-in-function"
+files = { "case.pyi" = "from typing import TypeVar\ndef f():\n    class C:\n        T = TypeVar(\"T\")\n" }
+expected = []
+
+[[cases]]
+name = "class"
+files = { "case.pyi" = "from typing import TypeVar\nclass C:\n    T = TypeVar(\"T\")\n" }
+expected = [{ file = "case.pyi", start = 44, end = 56 }]
+
+[[cases]]
+name = "chained"
+files = { "case.pyi" = "from typing import TypeVar\nT = U = TypeVar(\"T\")\n" }
+expected = []
+
+[[cases]]
+name = "annotated"
+files = { "case.pyi" = "from typing import TypeVar\nT: object = TypeVar(\"T\")\n" }
+expected = []
+
+[[cases]]
+name = "attribute"
+files = { "case.pyi" = "from typing import TypeVar\nobj.T = TypeVar(\"T\")\n" }
+expected = [{ file = "case.pyi", start = 35, end = 47 }]
+
+[[cases]]
+name = "tuple-target"
+files = { "case.pyi" = "from typing import TypeVar\nT, U = TypeVar(\"T\")\n" }
+expected = [{ file = "case.pyi", start = 34, end = 46 }]
+
+[[cases]]
+name = "unimported"
+files = { "case.pyi" = "T = TypeVar(\"T\")\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.pyi" = "from typing import TypeVar\nT = TypeVar(\"T\") # noqa: PYI001\n" }
+expected = []
+
+[[cases]]
+name = "python-source-excluded"
+files = { "case.py" = "from typing import TypeVar\nT = TypeVar(\"T\")\n" }
+expected = []

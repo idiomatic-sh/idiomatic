@@ -1,0 +1,12 @@
+
+[[cases]]
+name = "cross-PLE1132-class"
+comparison = "full"
+files = { "case.py" = "class C(value=1, **{\"value\": 2}):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "cross-PLE1132-fstring"
+comparison = "full"
+files = { "case.py" = "function(value=1, **{f\"value\": 2})\n" }
+expected = [{ end = 29, file = "case.py", rule = "F541", start = 21 }, { end = 8, file = "case.py", rule = "F821", start = 0 }]

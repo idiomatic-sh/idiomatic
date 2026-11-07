@@ -1,0 +1,66 @@
+SOURCE_FILE
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "std"
+      COLON2 "::"
+      USE_TREE_LIST
+        L_CURLY "{"
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "io"
+          COLON2 "::"
+          USE_TREE_LIST
+            L_CURLY "{"
+            USE_TREE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    SELF_KW "self"
+            COMMA ","
+            WHITESPACE " "
+            USE_TREE
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    IDENT "Write"
+            R_CURLY "}"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "fmt"
+          COLON2 "::"
+          STAR "*"
+        R_CURLY "}"
+    SEMICOLON ";"
+  WHITESPACE "\n\n"
+  USE
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              CRATE_KW "crate"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "service"
+      WHITESPACE " "
+      RENAME
+        AS_KW "as"
+        WHITESPACE " "
+        NAME
+          IDENT "svc"
+    SEMICOLON ";"
+  WHITESPACE "\n"

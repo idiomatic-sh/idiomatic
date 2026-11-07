@@ -1,0 +1,261 @@
+{
+  "worker_sha256": "2ea405976bf51410cea6829c29af140ff7ffbef026213fa7ad3ed5f9ceeb9f58",
+  "validator_sha256": "da13ea598d9fc95735cb145b074206ee9412835698a6c88e30f8b1bd6b4e1329",
+  "cases": [
+    {
+      "name": "positive-duplicate-candidates-and-markers",
+      "files": {
+        "case.py": "# ruff: noqa: ANCHOR001\n# ruff: noqa: ANCHOR001\npass\n# ruff: disable[ANCHOR001]\npass\n# ruff: enable[ANCHOR001]\npass\nx = (\n # ruff: ignore[ANCHOR001]\n 1\n)\npass # note # ruff: ignore[ANCHOR001]\n"
+      },
+      "plan": true,
+      "mode": "standard"
+    },
+    {
+      "name": "positive-duplicate-candidates-and-markers",
+      "files": {
+        "case.py": "# ruff: noqa: ANCHOR001\n# ruff: noqa: ANCHOR001\npass\n# ruff: disable[ANCHOR001]\npass\n# ruff: enable[ANCHOR001]\npass\nx = (\n # ruff: ignore[ANCHOR001]\n 1\n)\npass # note # ruff: ignore[ANCHOR001]\n"
+      },
+      "plan": true,
+      "mode": "unmapped"
+    },
+    {
+      "name": "no-markers",
+      "files": {
+        "case.py": "pass\npass\n"
+      },
+      "mode": "standard"
+    },
+    {
+      "name": "no-markers",
+      "files": {
+        "case.py": "pass\npass\n"
+      },
+      "mode": "unmapped"
+    },
+    {
+      "name": "no-candidates",
+      "files": {
+        "case.py": "# ruff: noqa: ANCHOR001\n# ruff: disable[ANCHOR001]\nx=1\n"
+      },
+      "mode": "standard"
+    },
+    {
+      "name": "no-candidates",
+      "files": {
+        "case.py": "# ruff: noqa: ANCHOR001\n# ruff: disable[ANCHOR001]\nx=1\n"
+      },
+      "mode": "unmapped"
+    },
+    {
+      "name": "nested-head-without-range-prefix",
+      "files": {
+        "case.py": "pass # note # ruff: ignore[ANCHOR001]\npass\n"
+      },
+      "mode": "standard"
+    },
+    {
+      "name": "nested-head-without-range-prefix",
+      "files": {
+        "case.py": "pass # note # ruff: ignore[ANCHOR001]\npass\n"
+      },
+      "mode": "unmapped"
+    },
+    {
+      "name": "different-rule-marker",
+      "files": {
+        "case.py": "# ruff: disable[OTHER001]\npass\n"
+      },
+      "mode": "standard"
+    },
+    {
+      "name": "different-rule-marker",
+      "files": {
+        "case.py": "# ruff: disable[OTHER001]\npass\n"
+      },
+      "mode": "unmapped"
+    },
+    {
+      "name": "lexically-complete-recovery",
+      "files": {
+        "case.py": "pass\nx = (\n # ruff: ignore[ANCHOR001]\n"
+      },
+      "partial": true,
+      "mode": "standard"
+    },
+    {
+      "name": "lexically-complete-recovery",
+      "files": {
+        "case.py": "pass\nx = (\n # ruff: ignore[ANCHOR001]\n"
+      },
+      "partial": true,
+      "mode": "unmapped"
+    },
+    {
+      "name": "incomplete-lexical-stream",
+      "files": {
+        "case.py": "pass\nx = '''unterminated\n # ruff: disable[ANCHOR001]\n"
+      },
+      "partial": true,
+      "mode": "standard"
+    },
+    {
+      "name": "incomplete-lexical-stream",
+      "files": {
+        "case.py": "pass\nx = '''unterminated\n # ruff: disable[ANCHOR001]\n"
+      },
+      "partial": true,
+      "mode": "unmapped"
+    },
+    {
+      "name": "multiple-files",
+      "files": {
+        "a.py": "# ruff: noqa: ANCHOR001\npass\n",
+        "b.py": "pass\n",
+        "c.py": "# ruff: disable[ANCHOR001]\nx=1\n"
+      },
+      "mode": "standard"
+    },
+    {
+      "name": "multiple-files",
+      "files": {
+        "a.py": "# ruff: noqa: ANCHOR001\npass\n",
+        "b.py": "pass\n",
+        "c.py": "# ruff: disable[ANCHOR001]\nx=1\n"
+      },
+      "mode": "unmapped"
+    },
+    {
+      "name": "unmapped-does-not-follow-continuation",
+      "mode": "unmapped",
+      "files": {
+        "case.py": "pass; x = \\\n 1  # noqa: ANCHOR001\n"
+      },
+      "expected_count": 1
+    },
+    {
+      "name": "standard-follows-continuation",
+      "mode": "standard",
+      "files": {
+        "case.py": "pass; x = \\\n 1  # noqa: ANCHOR001\n"
+      },
+      "expected_count": 0
+    },
+    {
+      "name": "empty-additional-lines",
+      "mode": "additional",
+      "files": {
+        "case.py": "pass\n"
+      },
+      "expected_count": 1
+    },
+    {
+      "name": "multiple-additional-lines-any-hidden",
+      "mode": "additional",
+      "files": {
+        "case.py": "pass\n# noqa: ANCHOR001\n# parent without noqa\n"
+      },
+      "expected_count": 0
+    },
+    {
+      "name": "duplicate-hidden-id-lines",
+      "mode": "additional",
+      "files": {
+        "case.py": "pass\n# noqa: ANCHOR001\n# noqa: ANCHOR001\n"
+      },
+      "expected_count": 0
+    },
+    {
+      "name": "additional-lines-wrong-code",
+      "mode": "additional",
+      "files": {
+        "case.py": "pass\n# noqa: OTHER001\n# parent without noqa\n"
+      },
+      "expected_count": 1
+    },
+    {
+      "name": "additional-lines-two-files",
+      "mode": "additional",
+      "files": {
+        "a.py": "pass\n# noqa: ANCHOR001\n",
+        "b.py": "pass\n# parent without noqa\n"
+      },
+      "expected_count": 1
+    }
+  ],
+  "profiles": {
+    "standard/baseline": {
+      "registry": {
+        "python/ruff/suppress": "fragments/suppress.ryoql"
+      },
+      "query_sha256": "cbdd7dbe8015aa387f066bd99629dacd4e84efe72b5d5fd7c82e37e9dda644a3",
+      "module_sha256": {
+        "python/ruff/suppress": "72eaeed41d5a9a6393d5048cb7bf7389479a9ce622f4748db92f980e724a8b80"
+      }
+    },
+    "standard/candidate": {
+      "registry": {
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql",
+        "python/ruff/suppress-unmapped": "fragments/suppress-unmapped.ryoql",
+        "python/ruff/suppress-with-additional-lines": "fragments/suppress-with-additional-lines.ryoql",
+        "python/ruff/suppress": "fragments/suppress.ryoql"
+      },
+      "query_sha256": "cbdd7dbe8015aa387f066bd99629dacd4e84efe72b5d5fd7c82e37e9dda644a3",
+      "module_sha256": {
+        "python/ruff/suppress-directives": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+        "python/ruff/suppress-unmapped": "d45584ef7d81bc8eff40e64c30d1d841acf679a79e5c1c0fd42fb32e4ed65417",
+        "python/ruff/suppress-with-additional-lines": "94fe4dc58c65a666377e9e969f7d1e328c0121376b90d821bddad506cdda53d5",
+        "python/ruff/suppress": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26"
+      }
+    },
+    "unmapped/baseline": {
+      "registry": {
+        "python/ruff/suppress-unmapped": "fragments/suppress-unmapped.ryoql"
+      },
+      "query_sha256": "0ababbd99e4e481aadcc8e3106af71825d8f8c5fa8b8bb0fe4dfb3a48dc5e1dd",
+      "module_sha256": {
+        "python/ruff/suppress-unmapped": "13313fae9c03c3174cf97c73b22ecffb3d1223766a0be4491b1f8a33b8b8ae62"
+      }
+    },
+    "unmapped/candidate": {
+      "registry": {
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql",
+        "python/ruff/suppress-unmapped": "fragments/suppress-unmapped.ryoql",
+        "python/ruff/suppress-with-additional-lines": "fragments/suppress-with-additional-lines.ryoql",
+        "python/ruff/suppress": "fragments/suppress.ryoql"
+      },
+      "query_sha256": "0ababbd99e4e481aadcc8e3106af71825d8f8c5fa8b8bb0fe4dfb3a48dc5e1dd",
+      "module_sha256": {
+        "python/ruff/suppress-directives": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+        "python/ruff/suppress-unmapped": "d45584ef7d81bc8eff40e64c30d1d841acf679a79e5c1c0fd42fb32e4ed65417",
+        "python/ruff/suppress-with-additional-lines": "94fe4dc58c65a666377e9e969f7d1e328c0121376b90d821bddad506cdda53d5",
+        "python/ruff/suppress": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26"
+      }
+    },
+    "additional/baseline": {
+      "registry": {
+        "python/ruff/suppress-with-additional-lines": "fragments/suppress-with-additional-lines.ryoql"
+      },
+      "query_sha256": "2dc9efacdfb342845a70dd44289d2c53925e8dbbd23fec3b122170cf477dbded",
+      "module_sha256": {
+        "python/ruff/suppress-with-additional-lines": "3c7be59c7d8ec8d1930833c629b263e913e314181d36c345ab3c7891d5b0908f"
+      }
+    },
+    "additional/candidate": {
+      "registry": {
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql",
+        "python/ruff/suppress-unmapped": "fragments/suppress-unmapped.ryoql",
+        "python/ruff/suppress-with-additional-lines": "fragments/suppress-with-additional-lines.ryoql",
+        "python/ruff/suppress": "fragments/suppress.ryoql"
+      },
+      "query_sha256": "2dc9efacdfb342845a70dd44289d2c53925e8dbbd23fec3b122170cf477dbded",
+      "module_sha256": {
+        "python/ruff/suppress-directives": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+        "python/ruff/suppress-unmapped": "d45584ef7d81bc8eff40e64c30d1d841acf679a79e5c1c0fd42fb32e4ed65417",
+        "python/ruff/suppress-with-additional-lines": "94fe4dc58c65a666377e9e969f7d1e328c0121376b90d821bddad506cdda53d5",
+        "python/ruff/suppress": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26"
+      }
+    }
+  },
+  "benchmark_measurement": false,
+  "no_ruff_invocations": true
+}

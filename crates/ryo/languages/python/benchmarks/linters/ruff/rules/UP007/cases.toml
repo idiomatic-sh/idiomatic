@@ -1,0 +1,198 @@
+[[cases]]
+name = "annotation"
+comparison = "full"
+files = { "case.py" = "from typing import Union\nx: Union[int, str]\n" }
+expected = [{ rule = "UP007", file = "case.py", start = 28, end = 43 }]
+
+[[cases]]
+name = "alias"
+comparison = "full"
+files = { "case.py" = "from typing import Union as T\nx: T[int]\n" }
+expected = [{ rule = "UP007", file = "case.py", start = 33, end = 39 }]
+
+[[cases]]
+name = "module"
+comparison = "full"
+files = { "case.py" = "import typing\nx: typing.Union[int]\n" }
+expected = [{ rule = "UP007", file = "case.py", start = 17, end = 34 }]
+
+[[cases]]
+name = "module-alias"
+comparison = "full"
+files = { "case.py" = "import typing as t\nx: t.Union[int]\n" }
+expected = [{ rule = "UP007", file = "case.py", start = 22, end = 34 }]
+
+[[cases]]
+name = "extensions"
+comparison = "full"
+files = { "case.py" = "from typing_extensions import Union\nx: Union[int, str]\n" }
+expected = [{ rule = "UP007", file = "case.py", start = 39, end = 54 }]
+
+[[cases]]
+name = "runtime-alias"
+comparison = "full"
+files = { "case.py" = "from typing import Union\nAlias = Union[int, str]\n" }
+expected = [{ rule = "UP007", file = "case.py", start = 33, end = 48 }]
+
+[[cases]]
+name = "signature"
+comparison = "full"
+files = { "case.py" = "from typing import Union\ndef f(x: Union[int, str]) -> Union[int, str]: pass\n" }
+expected = [{ rule = "UP007", file = "case.py", start = 34, end = 49 }, { rule = "UP007", file = "case.py", start = 54, end = 69 }]
+
+[[cases]]
+name = "async-signature"
+comparison = "full"
+files = { "case.py" = "from typing import Union\nasync def f(x: Union[int, str]): pass\n" }
+expected = [{ rule = "UP007", file = "case.py", start = 40, end = 55 }]
+
+[[cases]]
+name = "local-annotation"
+comparison = "full"
+files = { "case.py" = "from typing import Union\ndef f():\n    x: Union[int, str]\n" }
+expected = [{ rule = "UP007", file = "case.py", start = 41, end = 56 }]
+
+[[cases]]
+name = "shadowed"
+comparison = "full"
+files = { "case.py" = "from typing import Union\nUnion = other\nx: Union[int, str]\n" }
+expected = []
+
+[[cases]]
+name = "argument-shadow"
+comparison = "full"
+files = { "case.py" = "from typing import Union\ndef f(Union):\n    x = Union[int, str]\n" }
+expected = []
+
+[[cases]]
+name = "undefined"
+comparison = "full"
+files = { "case.py" = "x: Union[int, str]\n" }
+expected = []
+
+[[cases]]
+name = "other-operator"
+comparison = "full"
+files = { "case.py" = "from typing import Optional\nx: Optional[int]\n" }
+expected = []
+
+[[cases]]
+name = "quoted-runtime"
+comparison = "full"
+files = { "case.py" = "from typing import Union\nx = Union[\"Later\"]\n" }
+expected = []
+
+[[cases]]
+name = "quoted-future"
+comparison = "full"
+files = { "case.py" = "from __future__ import annotations\nfrom typing import Union\nx: Union[\"Later\"]\n" }
+expected = [{ rule = "UP007", file = "case.py", start = 63, end = 77 }]
+
+[[cases]]
+name = "nested-quoted-runtime"
+comparison = "full"
+files = { "case.py" = "from typing import Union\nx = Union[list[\"Later\"]]\n" }
+expected = [{ rule = "UP007", file = "case.py", start = 29, end = 49 }]
+
+[[cases]]
+name = "starred"
+comparison = "full"
+files = { "case.py" = "from typing import Union\nx = Union[*types]\n" }
+expected = [{ rule = "invalid-syntax", file = "case.py", start = 35, end = 41 }]
+
+[[cases]]
+name = "named-tuple"
+comparison = "full"
+files = { "case.py" = "from typing import Union, NamedTuple\nx: Union[NamedTuple]\n" }
+expected = []
+
+[[cases]]
+name = "guard"
+comparison = "full"
+files = { "case.py" = "from typing import Union, TYPE_CHECKING\nif TYPE_CHECKING:\n    x = Union[\"Later\"]\n" }
+expected = [{ rule = "UP007", file = "case.py", start = 66, end = 80 }]
+
+[[cases]]
+name = "stub"
+comparison = "full"
+files = { "case.pyi" = "from typing import Union\nx: Union[\"Later\"]\n" }
+expected = [{ rule = "UP007", file = "case.pyi", start = 28, end = 42 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "from typing import Union\nx: Union[int, str]  # noqa: UP007\n" }
+expected = []
+
+[[cases]]
+name = "unicode"
+comparison = "full"
+files = { "case.py" = "from typing import Union\nπ: Union[int, str]\n" }
+expected = [{ rule = "UP007", file = "case.py", start = 29, end = 44 }]
+
+[[cases]]
+name = "tagged-UP007_1.py"
+comparison = "full"
+files = { "case.py" = "import typing\nfrom typing import Union\n\n\ndef f(x: Union[str, int, Union[float, bytes]]) -> None:\n    ...\n\n\ndef f(x: typing.Union[str, int]) -> None:\n    ...\n\n\ndef f(x: typing.Union[(str, int)]) -> None:\n    ...\n\n\ndef f(x: typing.Union[(str, int), float]) -> None:\n    ...\n\n\ndef f(x: typing.Union[(int,)]) -> None:\n    ...\n\n\ndef f(x: typing.Union[()]) -> None:\n    ...\n\n\ndef f(x: \"Union[str, int, Union[float, bytes]]\") -> None:\n    ...\n\n\ndef f(x: \"typing.Union[str, int]\") -> None:\n    ...\n\n\ndef f(x: Union[\"str\", int]) -> None:\n    ...\n\n\ndef f(x: Union[(\"str\", \"int\"), float]) -> None:\n    ...\n\n\ndef f() -> None:\n    x = Union[str, int]\n    x = Union[\"str\", \"int\"]\n    x: Union[str, int]\n    x: Union[\"str\", \"int\"]\n\n\ndef f(x: Union[int : float]) -> None:\n    ...\n\n\ndef f(x: Union[str, int : float]) -> None:\n    ...\n\n\ndef f(x: Union[x := int]) -> None:\n    ...\n\n\ndef f(x: Union[str, x := int]) -> None:\n    ...\n\n\ndef f(x: Union[lambda: int]) -> None:\n    ...\n\n\ndef f(x: Union[str, lambda: int]) -> None:\n    ...\n\n\n# Regression test for: https://github.com/astral-sh/ruff/issues/7452\nclass Collection(Protocol[*_B0]):\n    def __iter__(self) -> Iterator[Union[*_B0]]:\n        ...\n\n\n# Regression test for: https://github.com/astral-sh/ruff/issues/8609\ndef f(x: Union[int, str, bytes]) -> None:\n    ...\n\n\n# Regression test for https://github.com/astral-sh/ruff/issues/14132\nclass AClass:\n    ...\n\ndef myfunc(param: \"tuple[Union[int, 'AClass', None], str]\"):\n    print(param)\n\n\nfrom typing import NamedTuple, Union\n\nimport typing_extensions\nfrom typing_extensions import (\n    NamedTuple as NamedTupleTE,\n    Union as UnionTE,\n)\n\n# Regression test for https://github.com/astral-sh/ruff/issues/18619\n# Don't emit lint for `NamedTuple`\na_plain_1: Union[NamedTuple, int] = None\na_plain_2: Union[int, NamedTuple] = None\na_plain_3: Union[NamedTuple, None] = None\na_plain_4: Union[None, NamedTuple] = None\na_plain_te_1: UnionTE[NamedTupleTE, int] = None\na_plain_te_2: UnionTE[int, NamedTupleTE] = None\na_plain_te_3: UnionTE[NamedTupleTE, None] = None\na_plain_te_4: UnionTE[None, NamedTupleTE] = None\na_plain_typing_1: UnionTE[typing.NamedTuple, int] = None\na_plain_typing_2: UnionTE[int, typing.NamedTuple] = None\na_plain_typing_3: UnionTE[typing.NamedTuple, None] = None\na_plain_typing_4: UnionTE[None, typing.NamedTuple] = None\na_string_1: \"Union[NamedTuple, int]\" = None\na_string_2: \"Union[int, NamedTuple]\" = None\na_string_3: \"Union[NamedTuple, None]\" = None\na_string_4: \"Union[None, NamedTuple]\" = None\na_string_te_1: \"UnionTE[NamedTupleTE, int]\" = None\na_string_te_2: \"UnionTE[int, NamedTupleTE]\" = None\na_string_te_3: \"UnionTE[NamedTupleTE, None]\" = None\na_string_te_4: \"UnionTE[None, NamedTupleTE]\" = None\na_string_typing_1: \"typing.Union[typing.NamedTuple, int]\" = None\na_string_typing_2: \"typing.Union[int, typing.NamedTuple]\" = None\na_string_typing_3: \"typing.Union[typing.NamedTuple, None]\" = None\na_string_typing_4: \"typing.Union[None, typing.NamedTuple]\" = None\n\nb_plain_1: Union[NamedTuple] = None\nb_plain_2: Union[NamedTuple, None] = None\nb_plain_te_1: UnionTE[NamedTupleTE] = None\nb_plain_te_2: UnionTE[NamedTupleTE, None] = None\nb_plain_typing_1: UnionTE[typing.NamedTuple] = None\nb_plain_typing_2: UnionTE[typing.NamedTuple, None] = None\nb_string_1: \"Union[NamedTuple]\" = None\nb_string_2: \"Union[NamedTuple, None]\" = None\nb_string_te_1: \"UnionTE[NamedTupleTE]\" = None\nb_string_te_2: \"UnionTE[NamedTupleTE, None]\" = None\nb_string_typing_1: \"typing.Union[typing.NamedTuple]\" = None\nb_string_typing_2: \"typing.Union[typing.NamedTuple, None]\" = None\n\n\n# Regression test for https://github.com/astral-sh/ruff/issues/23207\n# Multi-line single-argument Union should be wrapped in parentheses\nfrom __future__ import annotations\n\nif TYPE_CHECKING:\n    from typing import Literal, TypeAlias\n\n    LongLiterals: TypeAlias = Union[\n        Literal[\"LongLiteralNumberOne\"]\n        | Literal[\"LongLiteralNumberTwo\"]\n        | Literal[\"LongLiteralNumberThree\"]\n    ]\n" }
+expected = [{ rule = "UP007", file = "case.py", start = 50, end = 86 }, { rule = "UP007", file = "case.py", start = 66, end = 85 }, { rule = "UP007", file = "case.py", start = 116, end = 138 }, { rule = "UP007", file = "case.py", start = 168, end = 192 }, { rule = "UP007", file = "case.py", start = 222, end = 253 }, { rule = "UP007", file = "case.py", start = 283, end = 303 }, { rule = "UP007", file = "case.py", start = 333, end = 349 }, { rule = "UP007", file = "case.py", start = 380, end = 416 }, { rule = "UP007", file = "case.py", start = 396, end = 415 }, { rule = "UP007", file = "case.py", start = 448, end = 470 }, { rule = "UP007", file = "case.py", start = 622, end = 637 }, { rule = "UP007", file = "case.py", start = 673, end = 688 }, { rule = "UP007", file = "case.py", start = 696, end = 715 }, { rule = "UP007", file = "case.py", start = 727, end = 745 }, { rule = "UP007", file = "case.py", start = 775, end = 798 }, { rule = "UP007", file = "case.py", start = 828, end = 843 }, { rule = "UP007", file = "case.py", start = 873, end = 893 }, { rule = "UP007", file = "case.py", start = 923, end = 941 }, { rule = "UP007", file = "case.py", start = 971, end = 994 }, { rule = "invalid-syntax", file = "case.py", start = 1110, end = 1114 }, { rule = "invalid-syntax", file = "case.py", start = 1159, end = 1163 }, { rule = "UP007", file = "case.py", start = 1259, end = 1281 }, { rule = "UP007", file = "case.py", start = 1419, end = 1445 }, { rule = "UP007", file = "case.py", start = 3821, end = 3959 }]
+
+[[cases]]
+name = "tagged-UP007_2.py"
+comparison = "full"
+files = { "case.py" = "import typing\nfrom typing import Union\n\n\ndef f(x: Union[str, int, Union[float, bytes]]) -> None:\n    ...\n\n\ndef f(x: typing.Union[str, int]) -> None:\n    ...\n" }
+expected = [{ rule = "UP007", file = "case.py", start = 50, end = 86 }, { rule = "UP007", file = "case.py", start = 66, end = 85 }, { rule = "UP007", file = "case.py", start = 116, end = 138 }]
+
+[[cases]]
+name = "future-forward-import"
+comparison = "full"
+files = { "case.py" = "from __future__ import annotations\nx: Union[int]\nfrom typing import Union\n" }
+expected = [{ rule = "UP007", file = "case.py", start = 38, end = 48 }]
+
+[[cases]]
+name = "function-later-import"
+comparison = "full"
+files = { "case.py" = "def f():\n    x = Union[int]\nfrom typing import Union\n" }
+expected = [{ rule = "UP007", file = "case.py", start = 17, end = 27 }]
+
+[[cases]]
+name = "direct-quoted-annotation"
+comparison = "full"
+files = { "case.py" = "from typing import Union\nx: Union[\"Later\"]\n" }
+expected = []
+
+[[cases]]
+name = "guard-else"
+comparison = "full"
+files = { "case.py" = "from typing import Union, TYPE_CHECKING\nif TYPE_CHECKING:\n    pass\nelse:\n    x = Union[\"Later\"]\n" }
+expected = []
+
+[[cases]]
+name = "nested-direct-guard"
+comparison = "full"
+files = { "case.py" = "from typing import Union, TYPE_CHECKING\nif TYPE_CHECKING:\n    if condition:\n        x = Union[\"Later\"]\n" }
+expected = [{ rule = "UP007", file = "case.py", start = 88, end = 102 }]
+
+[[cases]]
+name = "union-nested-tuples"
+comparison = "full"
+files = { "case.py" = "from typing import Union\nx: Union[(int, str)]\n" }
+expected = [{ rule = "UP007", file = "case.py", start = 28, end = 45 }]
+
+[[cases]]
+name = "module-rebound"
+comparison = "full"
+files = { "case.py" = "import typing\ntyping = other\nx: typing.Union[int]\n" }
+expected = []
+
+[[cases]]
+name = "independent-callable-lexical-ownership-0"
+comparison = "full"
+files = { "case.py" = "import typing\ndef f():\n    value = typing.Union[int,str]\n    typing = object\n" }
+expected = []
+reference-discrepancy = { "expected" = [{ "end" = 56, "file" = "case.py", "rule" = "UP007", "start" = 35 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "f07bdd09d7306eea90c5c83ec48f57f3d92e06600ee22f4b04f025b88a6589fb", "settings-sha256" = "e4df1d5caf6e9a0dea329f1776c42a62da8abc47d379586c9ce9a6926692f137", "source-sha256" = "5814279a5094ae7c4f5ee849a14244c0bbcdd0bfa570658c3aa16c7ad43dc8ca", "reference-output-sha256" = "aea122b7648cc33b199b4e939b91a0908a891bac3e91f0de23b96752271bde11", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/lexical-ownership-cpython310.json", "sha256" = "4e5d7ea99c191d77e9fdc259181351605c916b3efb1d8d3ec1bb6bfec6e103e7", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact target3.10 interpreter is authoritative for this profile;3.13 corroborates. Full fixture source is compiled with dont_inherit=True and its original function f is invoked unchanged. These are ordinary body RHS/if/metaclass evaluations, not rewritten return probes, annotations, or local-variable annotation evaluation." }, { "path" = "evidence/lexical-ownership-cpython313.json", "sha256" = "4d9eeec555151780c45231a89079b71796c59beab8226796cd3caedd5e678463", "kind" = "independent-language-run", "language-version" = "CPython3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact target3.10 interpreter is authoritative for this profile;3.13 corroborates. Full fixture source is compiled with dont_inherit=True and its original function f is invoked unchanged. These are ordinary body RHS/if/metaclass evaluations, not rewritten return probes, annotations, or local-variable annotation evaluation." }, { "path" = "evidence/lexical-ownership-probe.py", "sha256" = "364a8266ae8bd7388eed10b5997901cdd5ae141d343c097d3c9ae099c4ec8791", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact probe source and complete fixture input payload; no source rewriting, no annotation substitution, no inherited compiler flags." }, { "path" = "evidence/lexical-ownership-probe-inputs.json", "sha256" = "0bc0fe2f4df94677e011220aa804266bc70f338312358059529d996503c41082", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact probe source and complete fixture input payload; no source rewriting, no annotation substitution, no inherited compiler flags." }], "reason" = "Python compiler-local ownership makes this earlier read unbound; it does not load the outer typing import or builtin. The intended origin-dependent modernization/type-checking policy declines the suggestion without an established read-time origin. Exact unmodified fixture execution raises UnboundLocalError in3.10 and3.13. This is not a claim about eager/deferred annotation evaluation or spelling-only style rules." }
+
+[[cases]]
+name = "independent-callable-lexical-ownership-1"
+comparison = "full"
+files = { "case.py" = "def f():\n    import typing\n    value = typing.Union[int,str]\n" }
+expected = [{ "rule" = "UP007", "file" = "case.py", "start" = 39, "end" = 60 }]

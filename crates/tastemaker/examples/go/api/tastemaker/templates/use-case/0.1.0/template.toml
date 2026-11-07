@@ -1,0 +1,18 @@
+description = "The starting comment for a use case operation."
+why = "A use case takes its dependencies as ports, so it can run without HTTP or storage details."
+content = '''
+// The operation of this use case, run with the ports it takes.
+'''
+
+[given]
+file = "use_case.go"
+
+[[scenarios]]
+id = "file-holds-content"
+scenario = "The operation file holds the starting content."
+given.files."use_case.go" = "// The operation of this use case, run with the ports it takes.\npackage example\n"
+
+[[scenarios]]
+id = "file-missing"
+scenario = "A missing operation file is reported."
+then.findings = [{ rule = "#count", path = "tastemaker.toml" }]

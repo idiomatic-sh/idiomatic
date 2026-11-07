@@ -1,0 +1,191 @@
+description = "Semantic construction belongs to the admitted derived owner; consumers borrow acquired views."
+why = "The execution owner alone binds live source proofs to semantic construction, shared keys and required leases for every derived kind. Resolved dependencies to the actual semantic bridge plus precise imported build spans reject renamed, qualified and newly added-module bypasses. Resolved injected-port users may prepare immutable descriptors but may not call build outside that bridge. Portable semantic API proofs are legitimate callers of the public semantic use case; production engine consumers are not. Rust private fields and required permit/source capabilities separately prohibit forged acquisition or raw invocation authority. The method guard associates resolved semantic-port references and build calls in the same file; it does not infer receiver types across macros or follow arbitrary re-export chains, so runtime and Rust controls remain required."
+
+query = '''
+let directory-sources = capture(from="source-dependency", path="source", pattern="{*source-root}/domain/{concept}/{*source-rest}", captures=["source-root", "concept", "source-rest"]);
+let module-sources = capture(from="source-dependency", path="source", pattern="{*source-root}/domain/{concept}.rs", captures=["source-root", "concept"]);
+let source-files = select source, target, span, source-root, concept from directory-sources;
+let source-modules = select source, target, span, source-root, concept from module-sources;
+let named-sources = union(left=source-files, right=source-modules);
+let other-concepts = select source, target, span, source-root from named-sources where concept != "derived_views";
+let root-source = capture(from="source-dependency", path="source", pattern="{*source-root}/domain.rs", captures=["source-root"]);
+let domain-root = select source, target, span, source-root from root-source;
+let outside = union(left=other-concepts, right=domain-root);
+let registry-target = capture(from=outside, path="target", pattern="{*target-root}/domain/derived_views/collections/views/registration.rs", captures=["target-root"]);
+let interface-target = capture(from=outside, path="target", pattern="{*target-root}/domain/derived_views/collections/views/interface.rs", captures=["target-root"]);
+let registry-rows = select source, span, source-root, target-root from registry-target;
+let interface-rows = select source, span, source-root, target-root from interface-target;
+let entrypoints = union(left=registry-rows, right=interface-rows);
+let local = select source as file, span from entrypoints where source-root = target-root;
+let paths = capture(from="source-dependency", path="source", pattern="{*source-root}/{*source-tail}", captures=["source-root", "source-tail"]);
+let bridges = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/derived/owner/acquisition/semantics/service.rs", captures=["target-root"]);
+let raw-builds = select source as file, span from bridges where source-root = target-root and glob_any(source-root, "{src,**/src}") and glob_any(written, "{build,*::build}") and source-tail != "application/file_dag/derived/owner/acquisition/service.rs";
+let build-imports = select file, span from "static-import" where glob_any(target, "{build,*::build}");
+let raw-aliases = select l.source as file, l.span as span from bridges as l join build-imports as r on l.source = r.file and l.span = r.span where l.source-root = l.target-root and glob_any(l.source-root, "{src,**/src}") and l.source-tail != "application/file_dag/derived/owner/acquisition/service.rs";
+let all-raw-builds = union(left=raw-builds, right=raw-aliases);
+let port-targets = capture(from=paths, path="target", pattern="{*target-root}/outbound/derived/interface.rs", captures=["target-root"]);
+let port-users = select source as file, source-tail from port-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
+let portable-targets = capture(from=paths, path="target", pattern="{*portable-root}/inbound/use_cases/derived/{portable-part}.rs", captures=["portable-root", "portable-part"]);
+let portable-users = select source as file, source-tail from portable-targets where glob_any(source-root, "{src,**/src}") and glob_any(portable-part, "{interface,use_case}");
+let semantic-users = union(left=port-users, right=portable-users);
+let method-builds = select file, span from "static-call" where glob_any(target, "{build,*::build}");
+let port-builds = select l.file as file, r.span as span from semantic-users as l join method-builds as r on l.file = r.file where l.source-tail != "application/file_dag/derived/owner/acquisition/semantics/service.rs";
+let semantic-proofs = select path as file from "tastemaker.placed" where glob_any(template, "{unit-test,item-test,value-test,composition-test,domain-test,edge-fixtures,program-runtime-proof}");
+let production-port-builds = antijoin(left=port-builds, right=semantic-proofs, left-on=["file"], right-on=["file"]);
+let ordinary = union(left=local, right=all-raw-builds);
+let violations = union(left=ordinary, right=production-port-builds);
+emit violations subject file key(span);
+'''
+
+[diagnostic]
+primary = "span"
+message = "a consumer reaches derived semantic construction outside admitted acquisition"
+help = "Declare the derived view in the operator contract and let the application owner acquire and release it. Metadata preparation may borrow the injected port; semantic build calls belong only to the admitted acquisition bridge. Never publish a semantic-port getter or a direct-build helper for engine consumers."
+
+[given]
+include = ["src/**"]
+files.'Cargo.toml' = '''
+[package]
+name = "view_ownership_fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = 'pub mod domain; pub mod application; pub mod outbound;'
+files.'src/domain.rs' = 'pub mod derived_views; pub mod operator; pub mod other;'
+files.'src/domain/derived_views.rs' = 'pub mod collections;'
+files.'src/domain/derived_views/collections.rs' = 'pub mod views;'
+files.'src/domain/derived_views/collections/views.rs' = 'pub mod registration; pub mod interface; pub mod item;'
+files.'src/domain/derived_views/collections/views/registration.rs' = 'pub fn registered() {}'
+files.'src/domain/derived_views/collections/views/interface.rs' = 'pub trait DerivedViewsItem { fn build(&self); }'
+files.'src/domain/derived_views/collections/views/item.rs' = 'pub fn build() { super::registration::registered(); }'
+files.'src/domain/operator.rs' = 'pub mod item;'
+files.'src/domain/operator/item.rs' = 'pub fn ordinary() {}'
+files.'src/domain/other.rs' = 'pub mod service;'
+files.'src/domain/other/service.rs' = 'pub fn ordinary() {}'
+files.'src/application.rs' = 'pub mod request; pub mod owner; pub mod file_dag;'
+files.'src/application/request.rs' = 'pub fn ordinary() {}'
+files.'src/application/owner.rs' = 'pub fn ordinary() {}'
+
+files.'src/application/file_dag.rs' = 'pub mod derived; pub mod consumer;'
+files.'src/application/file_dag/consumer.rs' = 'pub fn consume() {}'
+files.'src/application/file_dag/derived.rs' = 'pub mod owner;'
+files.'src/application/file_dag/derived/owner.rs' = 'pub mod acquisition;'
+files.'src/application/file_dag/derived/owner/acquisition/mod.rs' = 'pub mod semantics; pub mod service; pub mod future;'
+files.'src/application/file_dag/derived/owner/acquisition/future.rs' = 'pub fn ordinary() {}'
+files.'src/application/file_dag/derived/owner/acquisition/service.rs' = 'pub fn ordinary() {}'
+files.'src/application/file_dag/derived/owner/acquisition/semantics/mod.rs' = 'pub mod service;'
+files.'src/application/file_dag/derived/owner/acquisition/semantics/service.rs' = 'pub struct DerivedStorage; pub fn build() {}'
+files.'src/outbound.rs' = 'pub mod derived;'
+files.'src/outbound/derived.rs' = 'pub mod interface;'
+files.'src/outbound/derived/interface.rs' = 'pub trait DerivedPort { fn build(&self); fn prepare(&self); }'
+
+[[scenarios]]
+id = "operator-imports-registry"
+scenario = "A domain operator cannot import the resolved registration entrypoint."
+given.files.'src/domain/operator/item.rs' = 'use crate::domain::derived_views::collections::views::registration::registered;'
+then.findings = [{ path = "src/domain/operator/item.rs", line = 1 }]
+
+[[scenarios]]
+id = "operator-aliases-registry"
+scenario = "Renaming the registry import does not evade its resolved source target."
+given.files.'src/domain/operator/item.rs' = 'use crate::domain::derived_views::collections::views::registration::registered as acquire;'
+then.findings = [{ path = "src/domain/operator/item.rs", line = 1 }]
+
+[[scenarios]]
+id = "qualified-registry-call"
+scenario = "A qualified call without a use declaration still reaches the registry file."
+given.files.'src/domain/operator/item.rs' = 'pub fn run() { crate::domain::derived_views::collections::views::registration::registered(); }'
+then.findings = [{ path = "src/domain/operator/item.rs", line = 1 }]
+
+[[scenarios]]
+id = "other-domain-build-interface"
+scenario = "Another domain concept cannot import the build trait directly."
+given.files.'src/domain/other/service.rs' = 'use crate::domain::derived_views::collections::views::interface::DerivedViewsItem;'
+then.findings = [{ path = "src/domain/other/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "domain-root-registry"
+scenario = "The domain root module is also a consumer when it names the registry."
+given.files.'src/domain.rs' = '''
+pub mod derived_views; pub mod operator; pub mod other;
+use crate::domain::derived_views::collections::views::registration::registered;
+'''
+then.findings = [{ path = "src/domain.rs", line = 2 }]
+
+[[scenarios]]
+id = "derived-item-may-register"
+scenario = "The derived-view implementation itself may use the registry."
+given.files.'src/domain/derived_views/collections/views/item.rs' = 'pub fn build() { super::registration::registered(); }'
+
+[[scenarios]]
+id = "application-owner-may-register"
+scenario = "The application acquisition owner may call the registry."
+given.files.'src/application/owner.rs' = 'pub fn acquire() { crate::domain::derived_views::collections::views::registration::registered(); }'
+
+[[scenarios]]
+id = "application-request-may-bind"
+scenario = "Application request preparation may name the build interface."
+given.files.'src/application/request.rs' = 'use crate::domain::derived_views::collections::views::interface::DerivedViewsItem;'
+
+[[scenarios]]
+id = "other-domain-types-allowed"
+scenario = "Another concept may use ordinary derived-view types without taking acquisition."
+given.files.'src/domain/other/service.rs' = 'use crate::domain::derived_views::collections::views::item::build;'
+
+[[scenarios]]
+id = "comments-and-strings-allowed"
+scenario = "Text mentioning the registry is not a resolved dependency."
+given.files.'src/domain/operator/item.rs' = '''
+// crate::domain::derived_views::collections::views::registration::registered
+pub fn description() -> &'static str { "crate::domain::derived_views::collections::views::interface::DerivedViewsItem" }
+'''
+
+[[scenarios]]
+id = "actual-raw-build-qualified"
+scenario = "A qualified actual semantic bridge call cannot bypass source admission."
+given.files.'src/application/file_dag/consumer.rs' = 'pub fn run() { crate::application::file_dag::derived::owner::acquisition::semantics::service::build(); }'
+then.findings = [{ path = "src/application/file_dag/consumer.rs", line = 1 }]
+
+[[scenarios]]
+id = "actual-raw-build-alias"
+scenario = "Renaming the actual build function preserves its resolved forbidden target."
+given.files.'src/application/file_dag/consumer.rs' = 'use crate::application::file_dag::derived::owner::acquisition::semantics::service::build as pretend_admitted;'
+then.findings = [{ path = "src/application/file_dag/consumer.rs", line = 1 }]
+
+[[scenarios]]
+id = "new-acquisition-module-cannot-build"
+scenario = "Adding a module even under acquisition does not authorize direct semantic construction."
+given.files.'src/application/file_dag/derived/owner/acquisition/future.rs' = 'use super::semantics::service::build as unchecked;'
+then.findings = [{ path = "src/application/file_dag/derived/owner/acquisition/future.rs", line = 1 }]
+
+[[scenarios]]
+id = "actual-admitted-owner-may-build"
+scenario = "The one admitted acquisition operation invokes its real semantic bridge."
+given.files.'src/application/file_dag/derived/owner/acquisition/service.rs' = 'pub fn admitted() { super::semantics::service::build(); }'
+
+[[scenarios]]
+id = "read-only-payload-types-allowed"
+scenario = "Borrowing immutable storage metadata grants no build authority."
+given.files.'src/application/file_dag/consumer.rs' = 'use crate::application::file_dag::derived::owner::acquisition::semantics::service::DerivedStorage; pub fn consume(_: &DerivedStorage) {}'
+
+[[scenarios]]
+id = "raw-port-method-refused"
+scenario = "A consumer cannot invoke build on the actual injected semantic port."
+given.files.'src/application/file_dag/consumer.rs' = 'use crate::outbound::derived::interface::DerivedPort; pub fn run(port: &dyn DerivedPort) { port.build(); }'
+then.findings = [{ path = "src/application/file_dag/consumer.rs", line = 1 }]
+
+[[scenarios]]
+id = "raw-port-alias-refused"
+scenario = "A renamed port type still resolves to the semantic construction contract."
+given.files.'src/application/file_dag/consumer.rs' = 'use crate::outbound::derived::interface::DerivedPort as Alias; pub fn run(port: &dyn Alias) { port.build(); }'
+then.findings = [{ path = "src/application/file_dag/consumer.rs", line = 1 }]
+
+[[scenarios]]
+id = "pure-descriptor-preparation-allowed"
+scenario = "The same injected port may prepare immutable descriptors without constructing payloads."
+given.files.'src/application/file_dag/consumer.rs' = 'use crate::outbound::derived::interface::DerivedPort; pub fn descriptor(port: &dyn DerivedPort) { port.prepare(); }'
+
+[[scenarios]]
+id = "semantic-bridge-port-build-allowed"
+scenario = "The admitted bridge is the actual semantic port's construction caller."
+given.files.'src/application/file_dag/derived/owner/acquisition/semantics/service.rs' = 'use crate::outbound::derived::interface::DerivedPort; pub struct DerivedStorage; pub fn build(port: &dyn DerivedPort) { port.build(); }'

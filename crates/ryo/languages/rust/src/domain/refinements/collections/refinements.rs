@@ -1,0 +1,30 @@
+//! One collection: the interface every item implements, and its items in order.
+
+pub(crate) mod associated_function;
+pub(crate) mod const_;
+pub(crate) mod const_parameter;
+pub(crate) mod enum_;
+pub(crate) mod extern_crate;
+pub(crate) mod field;
+pub(crate) mod function;
+pub(crate) mod impl_;
+pub(crate) mod interface;
+pub(crate) mod label;
+pub(crate) mod lifetime_parameter;
+pub(crate) mod macro_;
+pub(crate) mod macro_rules;
+pub(crate) mod method;
+pub(crate) mod module;
+pub(crate) mod positional;
+pub(crate) mod receiver;
+pub(crate) mod static_;
+pub(crate) mod struct_;
+pub(crate) mod trait_;
+pub(crate) mod tuple_field;
+pub(crate) mod type_alias;
+pub(crate) mod type_parameter;
+pub(crate) mod union;
+pub(crate) mod use_;
+pub(crate) mod variable;
+pub(crate) mod variadic;
+pub(crate) mod variant;

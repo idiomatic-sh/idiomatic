@@ -1,0 +1,129 @@
+[[cases]]
+name = "mutable_list_default"
+files = { "case.py" = "def f(value=[]):\n    pass\n" }
+expected = [{ rule = "B006", file = "case.py", start = 12, end = 14 }]
+
+[[cases]]
+name = "nested_mutable_tuple_default"
+files = { "case.py" = "def f(value=([],)):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "immutable_tuple_default"
+files = { "case.py" = "def f(value=(1, 2)):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "immutable_annotation_skips_mutable_default"
+files = { "case.py" = "def f(value: tuple = []):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "mutable_set_call_default"
+files = { "case.py" = "def f(value=set()):\n    pass\n" }
+expected = [{ rule = "B006", file = "case.py", start = 12, end = 17 }]
+
+[[cases]]
+name = "mutable_dict_default"
+files = { "case.py" = "def f(value={}):\n    pass\n" }
+expected = [{ rule = "B006", file = "case.py", start = 12, end = 14 }]
+
+[[cases]]
+name = "mutable_list_constructor_default"
+files = { "case.py" = "def f(value=list()):\n    pass\n" }
+expected = [{ rule = "B006", file = "case.py", start = 12, end = 18 }]
+
+[[cases]]
+name = "builtin_tuple_annotation_skips_default"
+files = { "case.py" = "def f(value: tuple = []):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "builtin_generic_tuple_annotation_skips_default"
+files = { "case.py" = "def f(value: tuple[int, ...] = []):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "typing_tuple_annotation_skips_default"
+files = { "case.py" = "import typing\ndef f(value: typing.Tuple[int, ...] = []):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "shadowed_tuple_annotation_does_not_skip_default"
+files = { "case.py" = "tuple = custom\ndef f(value: tuple = []):\n    pass\n" }
+expected = [{ rule = "B006", file = "case.py", start = 36, end = 38 }]
+
+[[cases]]
+name = "only_matching_parameter_is_suppressed"
+files = { "case.py" = "def f(a: tuple = [], b=[]):\n    pass\n" }
+expected = [{ rule = "B006", file = "case.py", start = 23, end = 25 }]
+
+[[cases]]
+name = "right_aligned_default_keeps_its_annotation"
+files = { "case.py" = "def f(a, b: tuple = []):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "keyword_only_immutable_annotation_skips_default"
+files = { "case.py" = "def f(*, value: tuple = []):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "typing_tuple_import_alias_skips_default"
+files = { "case.py" = "from typing import Tuple\ndef f(value: Tuple[int, ...] = []):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "positional_only_immutable_annotation_skips_default"
+files = { "case.py" = "def f(value: tuple = [], /):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "positional_only_annotation_does_not_skip_other_default"
+files = { "case.py" = "def f(value: tuple = [], /, other=[]):\n    pass\n" }
+expected = [{ rule = "B006", file = "case.py", start = 34, end = 36 }]
+
+[[cases]]
+name = "immutable-non-generic"
+files = { "case.py" = "from typing import Sized\ndef f(value: int = []):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "immutable-collections-sequence"
+files = { "case.py" = "from collections.abc import Sequence\ndef f(value: Sequence[int] = []):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "immutable-union-recursive"
+files = { "case.py" = "from typing import Union\ndef f(value: Union[int, str] = []):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "immutable-optional-annotated"
+files = { "case.py" = "from typing import Optional, Annotated\ndef f(value: Optional[Annotated[int, list]] = []):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "immutable-pep604"
+files = { "case.py" = "def f(value: int | None = []):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "mutable-union-member"
+files = { "case.py" = "from typing import Union\ndef f(value: Union[int, list] = []):\n    pass\n" }
+expected = [{ rule = "B006", file = "case.py", start = 57, end = 59 }]
+
+[[cases]]
+name = "mutable-optional-member"
+files = { "case.py" = "from typing import Optional\ndef f(value: Optional[list] = []):\n    pass\n" }
+expected = [{ rule = "B006", file = "case.py", start = 58, end = 60 }]
+
+[[cases]]
+name = "mutable-pep604-member"
+files = { "case.py" = "def f(value: int | list = []):\n    pass\n" }
+expected = [{ rule = "B006", file = "case.py", start = 26, end = 28 }]
+
+[[cases]]
+name = "mutable-annotated-base"
+files = { "case.py" = "from typing import Annotated\ndef f(value: Annotated[list, int] = []):\n    pass\n" }
+expected = [{ rule = "B006", file = "case.py", start = 65, end = 67 }]

@@ -1,0 +1,234 @@
+description = "Every process a test runs has its exit checked: the result of `output()` or `status()` reaches `success()`, `code()` or the `status` field, or is handed back to the caller."
+why = "A test that runs a process and reads only its stdout passes when the process fails: an empty or partial report is read as `nothing found`, and a setup step that did not happen is not noticed. A test that asks only whether a process started (`output().is_ok()`) passes over a tool that is not installed, which hides every test behind it. Read from the syntax: each method call named `output` or `status` with no argument, through `expect`, `unwrap`, `unwrap_or_else`, `map_err`, `context`, `with_context` and `?` (three at most). It is checked when that value is the receiver of `success()` or `code()`, or the value of `.status`, or is bound by `let` to a name the same function reads with `.success()`, `.code()` or `.status`, in code or in a macro's tokens (`assert!(output.status.success())`); it is handed back when it ends a block or a closure, is returned or is passed to a function. It is reported when it is dropped (`drop(..)`, `let _`, a statement), bound to a name the function never checks, or read any other way (`.stdout`, `.map(..)` whose function reads no exit, `.is_ok()`); an adapter whose function reads the exit (`.is_ok_and(|status| status.success())`) checks it. A `status` method of another type is reported in those positions too."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let idents = select l."id" as "id", l."text" as "text" from "syntax-tree" as l where l."kind" = "ident";
+let name-edges = select * from "syntax-child" where field = "name-ref";
+let ref-tokens = select l."parent" as "owner", l."child" as "name-ref", r."child" as "token" from name-edges as l join "syntax-child" as r on l."child" = r."parent";
+let named = select l."owner" as "owner", l."name-ref" as "name-ref", r."text" as "name" from ref-tokens as l join idents as r on l."token" = r."id";
+let method-calls = select * from tree-nodes where kind = "method-call-expr";
+let method-names = select l."owner" as "id", l."name" as "name" from named as l join method-calls as r on l."owner" = r."id";
+let field-exprs = select * from tree-nodes where kind = "field-expr";
+let field-names = select l."owner" as "id", l."name" as "name" from named as l join field-exprs as r on l."owner" = r."id";
+let arg-list-edges = select * from "syntax-child" where field = "arg-list";
+let arg-edges = select * from "syntax-child" where field = "args";
+let receiver-edges = select * from "syntax-child" where field = "receiver";
+let expr-edges = select * from "syntax-child" where field = "expr";
+let given-args = select l."parent" as "id" from arg-list-edges as l join arg-edges as r on l."child" = r."parent";
+let run-names = select * from named where glob_any(name, "{output,status}");
+let run-calls = select l."owner" as "id", l."name-ref" as "name-ref" from run-names as l join method-calls as r on l."owner" = r."id";
+let bare-runs = antijoin(left=run-calls, right=given-args, left-on=["id"], right-on=["id"]);
+let level0 = select l."id" as "run", l."name-ref" as "name-ref", l."id" as "top" from bare-runs as l;
+let wrapper-names = select * from method-names where glob_any(name, "{expect,unwrap,unwrap_or_else,map_err,context,with_context}");
+let wrappers = select l."id" as "id" from wrapper-names as l;
+let tries = select * from tree-nodes where kind = "try-expr";
+let up1 = select l."run" as "run", l."name-ref" as "name-ref", r."parent" as "top", r."field" as "field" from level0 as l join "syntax-child" as r on l."top" = r."child";
+let up1-receivers = select * from up1 where field = "receiver";
+let wrapped1 = select l."run" as "run", l."name-ref" as "name-ref", l."top" as "top" from up1-receivers as l join wrappers as r on l."top" = r."id";
+let tried1 = select l."run" as "run", l."name-ref" as "name-ref", l."top" as "top" from up1 as l join tries as r on l."top" = r."id";
+let lifted1 = union(left=wrapped1, right=tried1);
+let kept1 = antijoin(left=level0, right=lifted1, left-on=["run"], right-on=["run"]);
+let level1 = union(left=kept1, right=lifted1);
+let up2 = select l."run" as "run", l."name-ref" as "name-ref", r."parent" as "top", r."field" as "field" from level1 as l join "syntax-child" as r on l."top" = r."child";
+let up2-receivers = select * from up2 where field = "receiver";
+let wrapped2 = select l."run" as "run", l."name-ref" as "name-ref", l."top" as "top" from up2-receivers as l join wrappers as r on l."top" = r."id";
+let tried2 = select l."run" as "run", l."name-ref" as "name-ref", l."top" as "top" from up2 as l join tries as r on l."top" = r."id";
+let lifted2 = union(left=wrapped2, right=tried2);
+let kept2 = antijoin(left=level1, right=lifted2, left-on=["run"], right-on=["run"]);
+let level2 = union(left=kept2, right=lifted2);
+let up3 = select l."run" as "run", l."name-ref" as "name-ref", r."parent" as "top", r."field" as "field" from level2 as l join "syntax-child" as r on l."top" = r."child";
+let up3-receivers = select * from up3 where field = "receiver";
+let wrapped3 = select l."run" as "run", l."name-ref" as "name-ref", l."top" as "top" from up3-receivers as l join wrappers as r on l."top" = r."id";
+let tried3 = select l."run" as "run", l."name-ref" as "name-ref", l."top" as "top" from up3 as l join tries as r on l."top" = r."id";
+let lifted3 = union(left=wrapped3, right=tried3);
+let kept3 = antijoin(left=level2, right=lifted3, left-on=["run"], right-on=["run"]);
+let level3 = union(left=kept3, right=lifted3);
+let context = select l."run" as "run", l."name-ref" as "name-ref", r."parent" as "parent", r."field" as "field" from level3 as l join "syntax-child" as r on l."top" = r."child";
+let statements = select * from tree-nodes where kind = "expr-stmt";
+let discarded = select l."run" as "run", l."name-ref" as "name-ref" from context as l join statements as r on l."parent" = r."id";
+let segments = select * from tree-nodes where kind = "path-segment";
+let segment-edges = select * from "syntax-child" where field = "segment";
+let path-edges = select * from "syntax-child" where field = "path";
+let drop-names = select * from named where name = "drop";
+let drop-segments = select l."owner" as "segment" from drop-names as l join segments as r on l."owner" = r."id";
+let drop-paths = select r."parent" as "path" from drop-segments as l join segment-edges as r on l."segment" = r."child";
+let drop-exprs = select r."parent" as "path-expr" from drop-paths as l join path-edges as r on l."path" = r."child";
+let drop-callees = select r."parent" as "call" from drop-exprs as l join expr-edges as r on l."path-expr" = r."child";
+let call-exprs = select * from tree-nodes where kind = "call-expr";
+let drop-calls = select l."call" as "call" from drop-callees as l join call-exprs as r on l."call" = r."id";
+let drop-lists = select r."child" as "list" from drop-calls as l join arg-list-edges as r on l."call" = r."parent";
+let dropped = select l."run" as "run", l."name-ref" as "name-ref" from context as l join drop-lists as r on l."parent" = r."list";
+let receivers = select * from context where field = "receiver";
+let used-methods = select l."run" as "run", l."name-ref" as "name-ref", l."parent" as "method", r."name" as "name" from receivers as l join method-names as r on l."parent" = r."id";
+let other-methods = select * from used-methods where not glob_any(name, "{success,code}");
+let checking-methods = select * from method-names where glob_any(name, "{success,code}");
+let status-fields = select * from field-names where name = "status";
+let checking-method-ids = project(from=checking-methods, columns=["id"]);
+let status-field-ids = project(from=status-fields, columns=["id"]);
+let checking-ids = union(left=checking-method-ids, right=status-field-ids);
+let other-lists = select l."run" as "run", r."child" as "id" from other-methods as l join arg-list-edges as r on l."method" = r."parent";
+let checks-in-lists = axis(from=other-lists, relation="syntax-child", direction=descendant, domain=checking-ids);
+let checked-in-arguments = project(from=checks-in-lists, columns=["run"]);
+let other-uses = project(from=other-methods, columns=["run", "name-ref"]);
+let misused = antijoin(left=other-uses, right=checked-in-arguments, left-on=["run"], right-on=["run"]);
+let exprs = select * from context where field = "expr";
+let read-fields = select l."run" as "run", l."name-ref" as "name-ref", r."name" as "name" from exprs as l join field-names as r on l."parent" = r."id";
+let other-fields = select * from read-fields where name != "status";
+let unread = project(from=other-fields, columns=["run", "name-ref"]);
+let initialized = select * from context where field = "initializer";
+let pat-edges = select * from "syntax-child" where field = "pat";
+let bound-patterns = select r."child" as "id", l."run" as "run", l."parent" as "let" from initialized as l join pat-edges as r on l."parent" = r."parent";
+let name-nodes = select * from tree-nodes where kind = "name";
+let pattern-names = axis(from=bound-patterns, relation="syntax-child", direction=descendant, domain=name-nodes);
+let binding-tokens = select l."run" as "run", l."let" as "let", r."child" as "token" from pattern-names as l join "syntax-child" as r on l."related" = r."parent";
+let binding-sites = select r."text" as "binding", l."run" as "run", l."let" as "id" from binding-tokens as l join idents as r on l."token" = r."id";
+let fns = select * from tree-nodes where kind = "fn";
+let binding-fns = axis(from=binding-sites, relation="syntax-child", direction=nearest-ancestor, domain=fns);
+let bound = select l."run" as "run", l."binding" as "binding", l."related" as "fn" from binding-fns as l;
+let checked-receivers = select r."child" as "id" from checking-methods as l join receiver-edges as r on l."id" = r."parent";
+let checked-fields = select r."child" as "id" from status-fields as l join expr-edges as r on l."id" = r."parent";
+let checked-nodes = union(left=checked-receivers, right=checked-fields);
+let path-exprs = select * from tree-nodes where kind = "path-expr";
+let checked-paths = select r."id" as "id" from checked-nodes as l join path-exprs as r on l."id" = r."id";
+let checked-tokens = axis(from=checked-paths, relation="syntax-child", direction=descendant, domain=idents);
+let checked-names = select r."text" as "binding", r."id" as "id" from checked-tokens as l join idents as r on l."related" = r."id";
+let checked-fns = axis(from=checked-names, relation="syntax-child", direction=nearest-ancestor, domain=fns);
+let written-checked = select l."binding" as "binding", l."related" as "fn" from checked-fns as l;
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let token-trees = select * from tree-nodes where kind = "token-tree";
+let tree-children = select r."child" as "id" from token-trees as l join "syntax-child" as r on l."id" = r."parent";
+let tree-idents = select r."id" as "id", r."text" as "binding" from tree-children as l join idents as r on l."id" = r."id";
+let next1 = axis(from=tree-idents, relation="syntax-child", direction=next-sibling, domain=tree-tokens);
+let next1-tokens = select l."id" as "start", l."binding" as "binding", r."id" as "id", r."kind" as "kind" from next1 as l join tree-tokens as r on l."related" = r."id";
+let dots = select * from next1-tokens where kind = "dot";
+let dot-starts = select l."id" as "id", l."start" as "start", l."binding" as "binding" from dots as l;
+let next2 = axis(from=dot-starts, relation="syntax-child", direction=next-sibling, domain=tree-tokens);
+let next2-tokens = select l."start" as "id", l."binding" as "binding", r."text" as "text" from next2 as l join tree-tokens as r on l."related" = r."id";
+let mentioned-checks = select * from next2-tokens where glob_any(text, "{status,success,code}");
+let mentioned-starts = select l."id" as "id", l."binding" as "binding" from mentioned-checks as l;
+let mentioned-fns = axis(from=mentioned-starts, relation="syntax-child", direction=nearest-ancestor, domain=fns);
+let mentioned-checked = select l."binding" as "binding", l."related" as "fn" from mentioned-fns as l;
+let checked = union(left=written-checked, right=mentioned-checked);
+let checked-runs = select l."run" as "run" from bound as l join checked as r on l."fn" = r."fn" and l."binding" = r."binding";
+let unchecked-lets = antijoin(left=initialized, right=checked-runs, left-on=["run"], right-on=["run"]);
+let unbound = project(from=unchecked-lets, columns=["run", "name-ref"]);
+let lost-a = union(left=discarded, right=dropped);
+let lost-b = union(left=lost-a, right=misused);
+let lost-c = union(left=lost-b, right=unread);
+let lost = union(left=lost-c, right=unbound);
+let found = select r."id" as "id", r."file" as "file", r."span" as "span" from lost as l join tree-nodes as r on l."name-ref" = r."id";
+emit found subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this process's exit is never checked"
+help = "Assert how it ended before reading its output: `assert!(output.status.success(), \"{}\", String::from_utf8_lossy(&output.stderr))`, or compare `output.status.code()` with the code the case expects. A tool the test needs is required: run it and fail when it does not start, never pass over the case."
+
+[given]
+include = ['**']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'tests/code.rs' = '''
+'''
+
+[[scenarios]]
+id = 'report-read-without-its-exit'
+scenario = 'A check whose report is read without its exit, a fix whose output is dropped, and a prefix read from git whatever git said (the replay tests at 5149cd075d).'
+given.files.'tests/code.rs' = '''
+use std::path::Path;
+use std::process::Command;
+fn fixed(tastemaker: &str, directory: &Path) -> serde_json::Value {
+    drop(
+        Command::new(tastemaker)
+            .args(["check", "--fix"])
+            .current_dir(directory)
+            .output()
+            .expect("tm check --fix ran"),
+    );
+    let checked = Command::new(tastemaker)
+        .args(["--json", "check", "--fix"])
+        .current_dir(directory)
+        .output()
+        .expect("check starts");
+    serde_json::from_slice(&checked.stdout).expect("check report")
+}
+pub(crate) fn repository_prefix(project: &Path) -> String {
+    Command::new("git")
+        .args(["rev-parse", "--show-prefix"])
+        .current_dir(project)
+        .output()
+        .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_owned())
+        .unwrap_or_default()
+}
+'''
+then.findings = [
+  { path = 'tests/code.rs', line = 8 },
+  { path = 'tests/code.rs', line = 14 },
+  { path = 'tests/code.rs', line = 22 },
+]
+
+[[scenarios]]
+id = 'tool-probed-and-passed-over'
+scenario = 'A sample whose toolchain does not start is passed over, by asking only whether `--version` started (the samples test at 861e39f970).'
+given.files.'tests/code.rs' = '''
+use std::process::Command;
+fn installed(program: &str) -> bool {
+    Command::new(program).arg("--version").output().is_ok()
+}
+fn quiet(program: &str) {
+    let _ = Command::new(program).status();
+    Command::new(program).status().unwrap();
+}
+'''
+then.findings = [
+  { path = 'tests/code.rs', line = 3 },
+  { path = 'tests/code.rs', line = 6 },
+  { path = 'tests/code.rs', line = 7 },
+]
+
+[[scenarios]]
+id = 'exits-checked'
+scenario = 'Exits checked through a binding, directly, through `?`, in the function of an adapter, and handed back to the caller (the replay and acceptance tests at 5149cd075d).'
+given.files.'tests/code.rs' = '''
+use std::path::Path;
+use std::process::{Command, Output};
+fn git(directory: &Path, arguments: &[&str]) {
+    let output = Command::new("git")
+        .args(arguments)
+        .current_dir(directory)
+        .output()
+        .expect("git runs");
+    assert!(output.status.success(), "git {arguments:?}: {output:?}");
+}
+fn copy_of(source: &Path, copy: &Path) {
+    let status = Command::new("cp").arg("-a").arg(source).arg(copy).status().expect("cp runs");
+    assert!(status.success(), "the source is copied");
+}
+fn init(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    assert!(Command::new("git").args(["init", "-q"]).arg(root).status()?.success());
+    let made = Command::new("git").arg("status").current_dir(root).output()?;
+    if !made.status.success() {
+        return Err("git status fails".into());
+    }
+    let Ok(listed) = Command::new("ls").output() else {
+        panic!("ls starts");
+    };
+    assert_eq!(listed.status.code(), Some(0));
+    Ok(())
+}
+fn tm(arguments: &[&str], directory: &Path) -> Output {
+    Command::new("tm").args(arguments).current_dir(directory).output().expect("tm starts")
+}
+fn run(command: &mut Command) -> std::io::Result<Output> {
+    command.output()
+}
+fn initialized(project: &Path) -> bool {
+    Command::new("git").args(["init", "-q"]).arg(project).status().is_ok_and(|status| status.success())
+}
+'''

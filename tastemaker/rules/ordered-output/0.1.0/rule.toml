@@ -1,0 +1,62 @@
+description = "A type that is serialized holds no hash map or hash set: what a report, a lock or a rendering writes comes out in an order that does not change from run to run (`BTreeMap`, `BTreeSet`, a sorted `Vec`)."
+why = "A hash map iterates in an order that changes with its seed, its capacity and what was inserted before, so a report that serializes one writes its entries in a different order from one run to the next: the same answer differs byte for byte, a diff shows changes that are not there, a lock rewrites itself and a test that compares the text fails at random. A serialized type keeps an ordered map or set, or a `Vec` sorted before it is built, so the bytes depend only on the content. Read from the derives written: a `HashMap`, `HashSet` (std, `hashbrown`, `rustc_hash`'s `FxHashMap` and `FxHashSet`, `ahash`'s `AHashMap` and `AHashSet`) or `DashMap` named anywhere inside a declaration that derives `Serialize`. Not seen: a hand-written `impl Serialize`, a hash map reached through a type alias, and a hash map iterated into a `Vec` without a sort."
+
+query = '''
+let tree-nodes = select * from "syntax-tree";
+let derives = select * from "decorates" where target = "derive" and glob_any(arguments, "*Serialize*");
+let serialized = select l."declaration" as "id" from derives as l;
+let parts = axis(from=serialized, relation="syntax-child", direction=descendant, domain=tree-nodes);
+let tokens = select l."id" as "declaration", r."child" as "token" from parts as l join "syntax-child" as r on l."related" = r."parent";
+let hashed = select * from tree-nodes where kind = "ident" and glob_any(text, "{HashMap,HashSet,FxHashMap,FxHashSet,AHashMap,AHashSet,DashMap}");
+let found = select r."file" as "file", r."span" as "span", r."text" as "text" from tokens as l join hashed as r on l."token" = r."id";
+emit found subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`{text}` in a serialized type writes in no fixed order"
+help = "Hold a `BTreeMap` or `BTreeSet`, or a `Vec` sorted before the value is built, so what is written depends only on the content."
+
+[given]
+include = ['**']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'report-with-hash-map'
+scenario = 'A report counts its findings per rule in a hash map and is serialized.'
+given.files.'src/lib.rs' = '''
+use std::collections::HashMap;
+
+#[derive(Debug, serde::Serialize)]
+pub struct Report {
+    pub rules: HashMap<String, u32>,
+    pub files: std::collections::HashSet<String>,
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 5 },
+  { path = 'src/lib.rs', line = 6 },
+]
+
+[[scenarios]]
+id = 'ordered-report-and-lookup-index'
+scenario = 'The serialized report holds ordered maps; a hash map that is only looked up by key is not serialized (Tastemaker proofs).'
+given.files.'src/lib.rs' = '''
+use std::collections::{BTreeMap, BTreeSet, HashMap};
+
+#[derive(Debug, serde::Serialize)]
+pub struct Report {
+    pub rules: BTreeMap<String, u32>,
+    pub files: BTreeSet<String>,
+}
+
+#[derive(Debug, Default)]
+pub struct ProofReads {
+    pub versions: HashMap<String, u32>,
+}
+'''

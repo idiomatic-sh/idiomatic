@@ -1,0 +1,11 @@
+version = 1
+parents = ["5c4837f4e4b20611a78806dfa359b5b93dcde1e9c970050c0f51a446198135fc"]
+
+suppressed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/pub-item-unreferenced-elsewhere", path = "cli/src/resources/ratchet/check/schemas.rs", level = "warning", fingerprint = "35efcd57f3ed9079", count = 1, message = "`pub` property `after_seconds` is named in no other file", since_rev = "3cbe8f728ae6818b4e59da15e4a6ae94bf255451", since = "2026-10-28" },
+  { tool = "tastemaker", rule = "idiomatic.arch/pub-item-unreferenced-elsewhere", path = "cli/src/resources/ratchet/check/schemas.rs", level = "warning", fingerprint = "7aaab352826f6995", count = 1, message = "`pub` property `finding` is named in no other file", since_rev = "3cbe8f728ae6818b4e59da15e4a6ae94bf255451", since = "2026-10-28" },
+]
+
+suppressed-removed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/pub-item-unreferenced-elsewhere", path = "cli/src/resources/ratchet/check/schemas.rs", level = "warning", fingerprint = "3b2b3905b1a308c9" },
+]

@@ -1,0 +1,52 @@
+{
+  "schema": "benchmark-inventory/v1",
+  "provider": "ruff",
+  "run_state": "complete",
+  "identity": {
+    "worker_sha256": "4c3825271775cabd1f72a71ac8d4af6353c3619ec4e9aff0f07d46ab72f9e9e1",
+    "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+  },
+  "counts": {
+    "PASS": 1,
+    "FAIL": 0
+  },
+  "rules": [
+    {
+      "rule_id": "SIM115",
+      "status": "PASS",
+      "reason": null,
+      "instance": {
+        "query_file": "rules/SIM115/query.ryoql",
+        "query_sha256": "1562cd0684bda3bdc0ce794724ae2b8caef37cb0908e3a4ff862c1bb34a38e03",
+        "cases_file": "rules/SIM115/cases.toml",
+        "cases_sha256": "898097d2f78aa6d9b60be67bc8c21d0b7f70c5a85e1fed9d0041b9d531b266ab",
+        "case_count": 26,
+        "settings_source": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/SIM115/benchmark.toml",
+        "settings_scope": "dedicated singleton profile (existing parser default contract)",
+        "parser_configuration": "python-target=3.10",
+        "settings_source_sha256": "d967c7cdb1fe97fdce4580d86f613959cef604b897a295ee421538ce2d8ee6c3",
+        "profile_sha256": "d967c7cdb1fe97fdce4580d86f613959cef604b897a295ee421538ce2d8ee6c3",
+        "module_sha256": {
+          "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+          "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
+        },
+        "effective_settings": {
+          "defaults": [
+            "SIM115"
+          ],
+          "parser_configuration": "python-target=3.10",
+          "project_context_mode": "isolated",
+          "rule_applicability": {
+            "SIM115": "accepted-syntax"
+          },
+          "flags": {}
+        }
+      },
+      "case_results_sha256": "0ea4115e1ac8dfd10ff92268dd364da750ea57ae807d7f0f0b58d313b3534ed2",
+      "case_count": 26,
+      "raw_exact": 26,
+      "documented_discrepancies": 0
+    }
+  ],
+  "receipt_origin": "Derived offline from preserved actual direct verify-cases output, not a collector execution or combined inventory replay."
+}

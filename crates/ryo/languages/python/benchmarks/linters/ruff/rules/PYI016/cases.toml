@@ -1,0 +1,487 @@
+[[cases]]
+name = "duplicate-name-member"
+files = { "case.pyi" = "value: int | int\n" }
+expected = [{ file = "case.pyi", start = 13, end = 16 }]
+
+[[cases]]
+name = "unique-members-control"
+files = { "case.pyi" = "value: int | str\n" }
+expected = []
+
+[[cases]]
+name = "python-file-duplicate"
+files = { "case.py" = "value: int | int\n" }
+expected = [{ file = "case.py", start = 13, end = 16 }]
+
+[[cases]]
+name = "third-repeated-member"
+files = { "case.pyi" = "value: int | int | int\n" }
+expected = [{ file = "case.pyi", start = 13, end = 16 }, { file = "case.pyi", start = 19, end = 22 }]
+
+[[cases]]
+name = "nested-union-member"
+files = { "case.pyi" = "value: int | (int | str)\n" }
+expected = [{ file = "case.pyi", start = 14, end = 17 }]
+
+[[cases]]
+name = "duplicate-generic-expression"
+files = { "case.pyi" = "value: list[int] | list[int]\n" }
+expected = [{ file = "case.pyi", start = 19, end = 28 }]
+
+[[cases]]
+name = "noqa-control"
+files = { "case.pyi" = "value: int | int  # noqa: PYI016\n" }
+expected = []
+
+[[cases]]
+name = "typing-union-duplicate"
+files = { "case.pyi" = "from typing import Union\nvalue: Union[int, int]\n" }
+expected = [{ file = "case.pyi", start = 43, end = 46 }]
+
+[[cases]]
+name = "optional-none-duplicate"
+files = { "case.pyi" = "from typing import Optional\nx: Optional[int] | None\n" }
+expected = [{ file = "case.pyi", start = 47, end = 51 }]
+
+[[cases]]
+name = "repeated-optional"
+files = { "case.pyi" = "from typing import Optional\nx: Optional[int] | Optional[str]\n" }
+expected = [{ file = "case.pyi", start = 47, end = 55 }]
+
+[[cases]]
+name="upstream-pinned-fixture-py"
+comparison="full"
+files={"upstream.py"="import typing\n\n# Shouldn't affect non-union field types.\nfield1: str\n\n# Should emit for duplicate field types.\nfield2: str | str  # PYI016: Duplicate union member `str`\n\n# Should emit for union types in arguments.\ndef func1(arg1: int | int):  # PYI016: Duplicate union member `int`\n    print(arg1)\n\n# Should emit for unions in return types.\ndef func2() -> str | str:  # PYI016: Duplicate union member `str`\n    return \"my string\"\n\n# Should emit in longer unions, even if not directly adjacent.\nfield3: str | str | int  # PYI016: Duplicate union member `str`\nfield4: int | int | str  # PYI016: Duplicate union member `int`\nfield5: str | int | str  # PYI016: Duplicate union member `str`\nfield6: int | bool | str | int  # PYI016: Duplicate union member `int`\n\n# Shouldn't emit for non-type unions.\nfield7 = str | str\n\n# Should emit for strangely-bracketed unions.\nfield8: int | (str | int)  # PYI016: Duplicate union member `int`\n\n# Should handle user brackets when fixing.\nfield9: int | (int | str)  # PYI016: Duplicate union member `int`\nfield10: (str | int) | str  # PYI016: Duplicate union member `str`\n\n# Should emit for nested unions.\nfield11: dict[int | int, str]\n\n# Should emit for unions with more than two cases\nfield12: int | int | int  # Error\nfield13: int | int | int | int  # Error\n\n# Should emit for unions with more than two cases, even if not directly adjacent\nfield14: int | int | str | int  # Error\n\n# Should emit for duplicate literal types; also covered by PYI030\nfield15: typing.Literal[1] | typing.Literal[1]  # Error\n\n# Shouldn't emit if in new parent type\nfield16: int | dict[int, str]  # OK\n\n# Shouldn't emit if not in a union parent\nfield17: dict[int, int]  # OK\n\n# Should emit in cases with newlines\nfield18: typing.Union[\n    set[\n        int  # foo\n    ],\n    set[\n        int  # bar\n    ],\n]  # Error, newline and comment will not be emitted in message\n\n# Should emit in cases with `typing.Union` instead of `|`\nfield19: typing.Union[int, int]  # Error\n\n# Should emit in cases with nested `typing.Union`\nfield20: typing.Union[int, typing.Union[int, str]]  # Error\n\n# Should emit in cases with mixed `typing.Union` and `|`\nfield21: typing.Union[int, int | str]  # Error\n\n# Should emit only once in cases with multiple nested `typing.Union`\nfield22: typing.Union[int, typing.Union[int, typing.Union[int, int]]]  # Error\n\n# Should emit in cases with newlines\nfield23: set[  # foo\n    int] | set[int]\n\n# Should emit twice (once for each `int` in the nested union, both of which are\n# duplicates of the outer `int`), but not three times (which would indicate that\n# we incorrectly re-checked the nested union).\nfield24: typing.Union[int, typing.Union[int, int]]  # PYI016: Duplicate union member `int`\n\n# Should emit twice (once for each `int` in the nested union, both of which are\n# duplicates of the outer `int`), but not three times (which would indicate that\n# we incorrectly re-checked the nested union).\nfield25: typing.Union[int, int | int]  # PYI016: Duplicate union member `int`\n\n# Should emit in cases with nested `typing.Union`\nfield26: typing.Union[typing.Union[int, int]]  # PYI016: Duplicate union member `int`\n\n# Should emit in cases with nested `typing.Union`\nfield27: typing.Union[typing.Union[typing.Union[int, int]]]  # PYI016: Duplicate union member `int`\n\n# Should emit in cases with mixed `typing.Union` and `|`\nfield28: typing.Union[int | int]  # Error\n\n# Should emit twice in cases with multiple nested `typing.Union`\nfield29: typing.Union[int, typing.Union[typing.Union[int, int]]]  # Error\n\n# Should emit once in cases with multiple nested `typing.Union`\nfield30: typing.Union[int, typing.Union[typing.Union[int, str]]]  # Error\n\n# Should emit once, and fix to `typing.Union[float, int]`\nfield31: typing.Union[float, typing.Union[int | int]]  # Error\n\n# Should emit once, and fix to `typing.Union[float, int]`\nfield32: typing.Union[float, typing.Union[int | int | int]]  # Error\n\n# Test case for mixed union type fix\nfield33: typing.Union[typing.Union[int | int] | typing.Union[int | int]] # Error\n\n# Test case for mixed union type\nfield34: typing.Union[list[int], str] | typing.Union[bytes, list[int]]  # Error\n\nfield35: \"int | str | int\"  # Error\n\n\n\n# Technically, this falls into the domain of the rule but it is an unlikely edge case,\n# only works if you have from `__future__ import annotations` at the top of the file,\n# and stringified annotations are discouraged in stub files.\nfield36: \"int | str\" | int  # Ok\n\n# https://github.com/astral-sh/ruff/issues/18546\n# Expand Optional[T] to Union[T, None]\n# OK\nfield37: typing.Optional[int]\nfield38: typing.Union[int, None]\n# equivalent to None\nfield39: typing.Optional[None]\n# equivalent to int | None\nfield40: typing.Union[typing.Optional[int], None]\nfield41: typing.Optional[typing.Union[int, None]]\nfield42: typing.Union[typing.Optional[int], typing.Optional[int]]\nfield43: typing.Optional[int] | None\nfield44: typing.Optional[int | None]\nfield45: typing.Optional[int] | typing.Optional[int]\n# equivalent to int | dict | None\nfield46: typing.Union[typing.Optional[int], typing.Optional[dict]]\nfield47: typing.Optional[int] | typing.Optional[dict]\n\n# avoid reporting twice\nfield48: typing.Union[typing.Optional[typing.Union[complex, complex]], complex]\nfield49: typing.Optional[complex | complex] | complex\n\n# Regression test for https://github.com/astral-sh/ruff/issues/19403\n# Should throw duplicate union member but not fix\nisinstance(None, typing.Union[None, None])\n\n# Regression test for https://github.com/astral-sh/ruff/issues/19914\n# f-string debug (=) specifier: different source text means different output\nfield50: typing.Literal[f\"{00=}\"] | typing.Literal[f\"{000=}\"]  # OK (f\"{00=}\" -> \"00=0\", f\"{000=}\" -> \"000=0\")\nfield51: typing.Literal[f\"{x=}\"] | typing.Literal[f\"{x}\"]  # OK (f\"{x=}\" -> \"x=1\", f\"{x}\" -> \"1\")\nfield52: typing.Literal[f\"{x=}\"] | typing.Literal[f\"{x=}\"]  # Error (true duplicate)\nfield53: typing.Literal[f\"{x:.2f}\"] | typing.Literal[f\"{x:.3f}\"]  # OK (different format specs)\nfield54: typing.Literal[f\"{x}\"] | typing.Literal[f\"{x}\"]  # Error (true duplicate)\nfield55: typing.Literal[f\"{x =}\"] | typing.Literal[f\"{x=}\"]  # OK (different debug text due to spaces)\nfield56: typing.Literal[f\"{0x0=}\"] | typing.Literal[f\"{0o0=}\"]  # OK (different source text: \"0x0\" vs \"0o0\")\n"}
+expected=[{rule="PYI016", file="upstream.py", start=125, end=128}, {rule="PYI016", file="upstream.py", start=236, end=239}, {rule="PYI016", file="upstream.py", start=362, end=365}, {rule="PYI016", file="upstream.py", start=508, end=511}, {rule="PYI016", file="upstream.py", start=572, end=575}, {rule="PYI016", file="upstream.py", start=642, end=645}, {rule="PYI016", file="upstream.py", start=713, end=716}, {rule="PYI016", file="upstream.py", start=883, end=886}, {rule="PYI016", file="upstream.py", start=987, end=990}, {rule="PYI016", file="upstream.py", start=1061, end=1064}, {rule="PYI016", file="upstream.py", start=1159, end=1162}, {rule="PYI016", file="upstream.py", start=1235, end=1238}, {rule="PYI016", file="upstream.py", start=1241, end=1244}, {rule="PYI016", file="upstream.py", start=1269, end=1272}, {rule="PYI016", file="upstream.py", start=1275, end=1278}, {rule="PYI016", file="upstream.py", start=1281, end=1284}, {rule="PYI016", file="upstream.py", start=1391, end=1394}, {rule="PYI016", file="upstream.py", start=1403, end=1406}, {rule="PYI016", file="upstream.py", start=1512, end=1529}, {rule="PYI016", file="upstream.py", start=1788, end=1817}, {rule="PYI016", file="upstream.py", start=1968, end=1971}, {rule="PYI016", file="upstream.py", start=2073, end=2076}, {rule="PYI016", file="upstream.py", start=2178, end=2181}, {rule="PYI016", file="upstream.py", start=2308, end=2311}, {rule="PYI016", file="upstream.py", start=2326, end=2329}, {rule="PYI016", file="upstream.py", start=2331, end=2334}, {rule="PYI016", file="upstream.py", start=2417, end=2425}, {rule="PYI016", file="upstream.py", start=2675, end=2678}, {rule="PYI016", file="upstream.py", start=2680, end=2683}, {rule="PYI016", file="upstream.py", start=2962, end=2965}, {rule="PYI016", file="upstream.py", start=2968, end=2971}, {rule="PYI016", file="upstream.py", start=3104, end=3107}, {rule="PYI016", file="upstream.py", start=3254, end=3257}, {rule="PYI016", file="upstream.py", start=3387, end=3390}, {rule="PYI016", file="upstream.py", start=3520, end=3523}, {rule="PYI016", file="upstream.py", start=3525, end=3528}, {rule="PYI016", file="upstream.py", start=3659, end=3662}, {rule="PYI016", file="upstream.py", start=3787, end=3790}, {rule="PYI016", file="upstream.py", start=3909, end=3912}, {rule="PYI016", file="upstream.py", start=3915, end=3918}, {rule="PYI016", file="upstream.py", start=4009, end=4012}, {rule="PYI016", file="upstream.py", start=4029, end=4032}, {rule="PYI016", file="upstream.py", start=4035, end=4038}, {rule="PYI016", file="upstream.py", start=4143, end=4152}, {rule="PYI016", file="upstream.py", start=4186, end=4189}, {rule="PYI016", file="upstream.py", start=4673, end=4677}, {rule="PYI016", file="upstream.py", start=4750, end=4754}, {rule="PYI016", file="upstream.py", start=4799, end=4803}, {rule="PYI016", file="upstream.py", start=4850, end=4865}, {rule="PYI016", file="upstream.py", start=4866, end=4869}, {rule="PYI016", file="upstream.py", start=4904, end=4908}, {rule="PYI016", file="upstream.py", start=4940, end=4944}, {rule="PYI016", file="upstream.py", start=4978, end=4993}, {rule="PYI016", file="upstream.py", start=4994, end=4997}, {rule="PYI016", file="upstream.py", start=5077, end=5092}, {rule="PYI016", file="upstream.py", start=5132, end=5147}, {rule="PYI016", file="upstream.py", start=5239, end=5246}, {rule="PYI016", file="upstream.py", start=5250, end=5257}, {rule="PYI016", file="upstream.py", start=5294, end=5301}, {rule="PYI016", file="upstream.py", start=5305, end=5312}, {rule="PYI016", file="upstream.py", start=5469, end=5473}, {rule="PYI016", file="upstream.py", start=5867, end=5890}, {rule="PYI016", file="upstream.py", start=6047, end=6069}]
+
+[[cases]]
+name="upstream-pinned-fixture-pyi"
+comparison="full"
+files={"upstream.pyi"="import typing\n\n# Shouldn't affect non-union field types.\nfield1: str\n\n# Should emit for duplicate field types.\nfield2: str | str  # PYI016: Duplicate union member `str`\n\n# Should emit for union types in arguments.\ndef func1(arg1: int | int):  # PYI016: Duplicate union member `int`\n    print(arg1)\n\n# Should emit for unions in return types.\ndef func2() -> str | str:  # PYI016: Duplicate union member `str`\n    return \"my string\"\n\n# Should emit in longer unions, even if not directly adjacent.\nfield3: str | str | int  # PYI016: Duplicate union member `str`\nfield4: int | int | str  # PYI016: Duplicate union member `int`\nfield5: str | int | str  # PYI016: Duplicate union member `str`\nfield6: int | bool | str | int  # PYI016: Duplicate union member `int`\n\n# Shouldn't emit for non-type unions.\nfield7 = str | str\n\n# Should emit for strangely-bracketed unions.\nfield8: int | (str | int)  # PYI016: Duplicate union member `int`\n\n# Should handle user brackets when fixing.\nfield9: int | (int | str)  # PYI016: Duplicate union member `int`\nfield10: (str | int) | str  # PYI016: Duplicate union member `str`\n\n# Should emit for nested unions.\nfield11: dict[int | int, str]\n\n# Should emit for unions with more than two cases\nfield12: int | int | int  # Error\nfield13: int | int | int | int  # Error\n\n# Should emit for unions with more than two cases, even if not directly adjacent\nfield14: int | int | str | int  # Error\n\n# Should emit for duplicate literal types; also covered by PYI030\nfield15: typing.Literal[1] | typing.Literal[1]  # Error\n\n# Shouldn't emit if in new parent type\nfield16: int | dict[int, str]  # OK\n\n# Shouldn't emit if not in a union parent\nfield17: dict[int, int]  # OK\n\n# Should emit in cases with newlines\nfield18: typing.Union[\n    set[\n        int  # foo\n    ],\n    set[\n        int  # bar\n    ],\n]  # Error, newline and comment will not be emitted in message\n\n# Should emit in cases with `typing.Union` instead of `|`\nfield19: typing.Union[int, int]  # Error\n\n# Should emit in cases with nested `typing.Union`\nfield20: typing.Union[int, typing.Union[int, str]]  # Error\n\n# Should emit in cases with mixed `typing.Union` and `|`\nfield21: typing.Union[int, int | str]  # Error\n\n# Should emit only once in cases with multiple nested `typing.Union`\nfield22: typing.Union[int, typing.Union[int, typing.Union[int, int]]]  # Error\n\n# Should emit in cases with newlines\nfield23: set[  # foo\n    int] | set[int]\n\n# Should emit twice (once for each `int` in the nested union, both of which are\n# duplicates of the outer `int`), but not three times (which would indicate that\n# we incorrectly re-checked the nested union).\nfield24: typing.Union[int, typing.Union[int, int]]  # PYI016: Duplicate union member `int`\n\n# Should emit twice (once for each `int` in the nested union, both of which are\n# duplicates of the outer `int`), but not three times (which would indicate that\n# we incorrectly re-checked the nested union).\nfield25: typing.Union[int, int | int]  # PYI016: Duplicate union member `int`\n\n# Should emit in cases with nested `typing.Union`\nfield26: typing.Union[typing.Union[int, int]]  # PYI016: Duplicate union member `int`\n\n# Should emit in cases with nested `typing.Union`\nfield27: typing.Union[typing.Union[typing.Union[int, int]]]  # PYI016: Duplicate union member `int`\n\n# Should emit in cases with mixed `typing.Union` and `|`\nfield28: typing.Union[int | int]  # Error\n\n# Should emit twice in cases with multiple nested `typing.Union`\nfield29: typing.Union[int, typing.Union[typing.Union[int, int]]]  # Error\n\n# Should emit once in cases with multiple nested `typing.Union`\nfield30: typing.Union[int, typing.Union[typing.Union[int, str]]]  # Error\n\n# Should emit once, and fix to `typing.Union[float, int]`\nfield31: typing.Union[float, typing.Union[int | int]]  # Error\n\n# Should emit once, and fix to `typing.Union[float, int]`\nfield32: typing.Union[float, typing.Union[int | int | int]]  # Error\n\n# Test case for mixed union type fix\nfield33: typing.Union[typing.Union[int | int] | typing.Union[int | int]] # Error\n\n# Test case for mixed union type\nfield34: typing.Union[list[int], str] | typing.Union[bytes, list[int]]  # Error\n\n# https://github.com/astral-sh/ruff/issues/18546\n# Expand Optional[T] to Union[T, None]\n# OK\nfield37: typing.Optional[int]\nfield38: typing.Union[int, None]\n# equivalent to None\nfield39: typing.Optional[None]\n# equivalent to int | None\nfield40: typing.Union[typing.Optional[int], None]\nfield41: typing.Optional[typing.Union[int, None]]\nfield42: typing.Union[typing.Optional[int], typing.Optional[int]]\nfield43: typing.Optional[int] | None\nfield44: typing.Optional[int | None]\nfield45: typing.Optional[int] | typing.Optional[int]\n# equivalent to int | dict | None\nfield46: typing.Union[typing.Optional[int], typing.Optional[dict]]\nfield47: typing.Optional[int] | typing.Optional[dict]\n\n# avoid reporting twice\nfield48: typing.Union[typing.Optional[typing.Union[complex, complex]], complex]\nfield49: typing.Optional[complex | complex] | complex\n"}
+expected=[{rule="PYI016", file="upstream.pyi", start=125, end=128}, {rule="PYI016", file="upstream.pyi", start=236, end=239}, {rule="PYI016", file="upstream.pyi", start=362, end=365}, {rule="PYI016", file="upstream.pyi", start=508, end=511}, {rule="PYI016", file="upstream.pyi", start=572, end=575}, {rule="PYI016", file="upstream.pyi", start=642, end=645}, {rule="PYI016", file="upstream.pyi", start=713, end=716}, {rule="PYI016", file="upstream.pyi", start=883, end=886}, {rule="PYI016", file="upstream.pyi", start=987, end=990}, {rule="PYI016", file="upstream.pyi", start=1061, end=1064}, {rule="PYI016", file="upstream.pyi", start=1159, end=1162}, {rule="PYI016", file="upstream.pyi", start=1235, end=1238}, {rule="PYI016", file="upstream.pyi", start=1241, end=1244}, {rule="PYI016", file="upstream.pyi", start=1269, end=1272}, {rule="PYI016", file="upstream.pyi", start=1275, end=1278}, {rule="PYI016", file="upstream.pyi", start=1281, end=1284}, {rule="PYI016", file="upstream.pyi", start=1391, end=1394}, {rule="PYI016", file="upstream.pyi", start=1403, end=1406}, {rule="PYI016", file="upstream.pyi", start=1512, end=1529}, {rule="PYI016", file="upstream.pyi", start=1788, end=1817}, {rule="PYI016", file="upstream.pyi", start=1968, end=1971}, {rule="PYI016", file="upstream.pyi", start=2073, end=2076}, {rule="PYI016", file="upstream.pyi", start=2178, end=2181}, {rule="PYI016", file="upstream.pyi", start=2308, end=2311}, {rule="PYI016", file="upstream.pyi", start=2326, end=2329}, {rule="PYI016", file="upstream.pyi", start=2331, end=2334}, {rule="PYI016", file="upstream.pyi", start=2417, end=2425}, {rule="PYI016", file="upstream.pyi", start=2675, end=2678}, {rule="PYI016", file="upstream.pyi", start=2680, end=2683}, {rule="PYI016", file="upstream.pyi", start=2962, end=2965}, {rule="PYI016", file="upstream.pyi", start=2968, end=2971}, {rule="PYI016", file="upstream.pyi", start=3104, end=3107}, {rule="PYI016", file="upstream.pyi", start=3254, end=3257}, {rule="PYI016", file="upstream.pyi", start=3387, end=3390}, {rule="PYI016", file="upstream.pyi", start=3520, end=3523}, {rule="PYI016", file="upstream.pyi", start=3525, end=3528}, {rule="PYI016", file="upstream.pyi", start=3659, end=3662}, {rule="PYI016", file="upstream.pyi", start=3787, end=3790}, {rule="PYI016", file="upstream.pyi", start=3909, end=3912}, {rule="PYI016", file="upstream.pyi", start=3915, end=3918}, {rule="PYI016", file="upstream.pyi", start=4009, end=4012}, {rule="PYI016", file="upstream.pyi", start=4029, end=4032}, {rule="PYI016", file="upstream.pyi", start=4035, end=4038}, {rule="PYI016", file="upstream.pyi", start=4143, end=4152}, {rule="PYI016", file="upstream.pyi", start=4366, end=4370}, {rule="PYI016", file="upstream.pyi", start=4443, end=4447}, {rule="PYI016", file="upstream.pyi", start=4492, end=4496}, {rule="PYI016", file="upstream.pyi", start=4543, end=4558}, {rule="PYI016", file="upstream.pyi", start=4559, end=4562}, {rule="PYI016", file="upstream.pyi", start=4597, end=4601}, {rule="PYI016", file="upstream.pyi", start=4633, end=4637}, {rule="PYI016", file="upstream.pyi", start=4671, end=4686}, {rule="PYI016", file="upstream.pyi", start=4687, end=4690}, {rule="PYI016", file="upstream.pyi", start=4770, end=4785}, {rule="PYI016", file="upstream.pyi", start=4825, end=4840}, {rule="PYI016", file="upstream.pyi", start=4932, end=4939}, {rule="PYI016", file="upstream.pyi", start=4943, end=4950}, {rule="PYI016", file="upstream.pyi", start=4987, end=4994}, {rule="PYI016", file="upstream.pyi", start=4998, end=5005}]
+
+[[cases]]
+name="cross-rule-recursive-none-grammar-8"
+comparison="full"
+files={"case.py"="from typing import Union\nx=isinstance(value,None|None)\n"}
+expected=[]
+
+[[cases]]
+name="type-context-policy-0"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: int|int\n"}
+expected=[{rule="PYI016", file="case.py", start=155, end=158}]
+
+[[cases]]
+name="type-context-policy-1"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=int|int\n"}
+expected=[]
+
+[[cases]]
+name="type-context-policy-2"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=isinstance(value,None|None)\n"}
+expected=[]
+
+[[cases]]
+name="type-context-policy-3"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=list[int|int]\n"}
+expected=[{rule="PYI016", file="case.py", start=159, end=162}]
+
+[[cases]]
+name="type-context-policy-4"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=Other[int|int]\n"}
+expected=[]
+
+[[cases]]
+name="type-context-policy-5"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: Other[int|int]\n"}
+expected=[{rule="PYI016", file="case.py", start=161, end=164}]
+
+[[cases]]
+name="type-context-policy-6"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=Literal[int|int]\n"}
+expected=[]
+
+[[cases]]
+name="type-context-policy-7"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx:Literal[int|int]\n"}
+expected=[{rule="PYI016", file="case.py", start=162, end=165}]
+
+[[cases]]
+name="type-context-policy-8"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=Annotated[int|int, str|str]\n"}
+expected=[{rule="PYI016", file="case.py", start=164, end=167}]
+
+[[cases]]
+name="type-context-policy-9"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx:Annotated[int|int, str|str]\n"}
+expected=[{rule="PYI016", file="case.py", start=164, end=167}]
+
+[[cases]]
+name="type-context-policy-10"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: Annotated[int,Union[str,str]]\n"}
+expected=[{rule="PYI016", file="case.py", start=175, end=178}]
+
+[[cases]]
+name="type-context-policy-11"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: TypeAlias=int|int\n"}
+expected=[{rule="PYI016", file="case.py", start=165, end=168}]
+
+[[cases]]
+name="type-context-policy-12"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=TypeAliasType(\"X\",int|int)\n"}
+expected=[{rule="PYI016", file="case.py", start=172, end=175}]
+
+[[cases]]
+name="type-context-policy-13"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=NewType(\"X\",int|int)\n"}
+expected=[{rule="PYI016", file="case.py", start=166, end=169}]
+
+[[cases]]
+name="type-context-policy-14"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=cast(int|int,value)\n"}
+expected=[{rule="PYI016", file="case.py", start=159, end=162}]
+
+[[cases]]
+name="type-context-policy-15"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=cast(value,typ=int|int)\n"}
+expected=[{rule="PYI016", file="case.py", start=169, end=172}]
+
+[[cases]]
+name="type-context-policy-16"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=TypeVar(\"T\",int|int)\n"}
+expected=[{rule="PYI016", file="case.py", start=166, end=169}]
+
+[[cases]]
+name="type-context-policy-17"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=TypeVar(\"T\",bound=int|int)\n"}
+expected=[{rule="PYI016", file="case.py", start=172, end=175}]
+
+[[cases]]
+name="type-context-policy-18"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=TypeVar(\"T\",default=int|int)\n"}
+expected=[{rule="PYI016", file="case.py", start=174, end=177}]
+
+[[cases]]
+name="type-context-policy-19"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=TypeVar(\"T\",other=int|int)\n"}
+expected=[]
+
+[[cases]]
+name="type-context-policy-20"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=NamedTuple(\"X\",[(\"a\",int|int)])\n"}
+expected=[{rule="PYI016", file="case.py", start=175, end=178}]
+
+[[cases]]
+name="type-context-policy-21"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=NamedTuple(\"X\",a=int|int)\n"}
+expected=[{rule="PYI016", file="case.py", start=171, end=174}]
+
+[[cases]]
+name="type-context-policy-22"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=NamedTuple(\"X\",**{\"a\":int|int})\n"}
+expected=[{rule="PYI016", file="case.py", start=176, end=179}]
+
+[[cases]]
+name="type-context-policy-23"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=NamedTuple(\"X\",[(int|int,str)])\n"}
+expected=[]
+
+[[cases]]
+name="type-context-policy-24"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=TypedDict(\"X\",{\"a\":int|int})\n"}
+expected=[{rule="PYI016", file="case.py", start=173, end=176}]
+
+[[cases]]
+name="type-context-policy-25"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=TypedDict(\"X\",a=int|int)\n"}
+expected=[{rule="PYI016", file="case.py", start=170, end=173}]
+
+[[cases]]
+name="type-context-policy-26"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=TypedDict(\"X\",{int|int:str})\n"}
+expected=[]
+
+[[cases]]
+name="type-context-policy-27"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nclass C(int|int):pass\n"}
+expected=[]
+
+[[cases]]
+name="type-context-policy-28"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nclass C(list[int|int]):pass\n"}
+expected=[{rule="PYI016", file="case.py", start=165, end=168}]
+
+[[cases]]
+name="type-context-policy-29"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\ndef f(x:int|int)->str|str:pass\n"}
+expected=[{rule="PYI016", file="case.py", start=160, end=163}, {rule="PYI016", file="case.py", start=170, end=173}]
+
+[[cases]]
+name="type-context-policy-30"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\ndef f(x=int|int):pass\n"}
+expected=[]
+
+[[cases]]
+name="type-context-policy-31"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: custom(int|int)\n"}
+expected=[]
+
+[[cases]]
+name="type-context-policy-32"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: bool(int|int)\n"}
+expected=[{rule="PYI016", file="case.py", start=160, end=163}]
+
+[[cases]]
+name="type-context-policy-33"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: bool(value=int|int)\n"}
+expected=[]
+
+[[cases]]
+name="type-context-policy-34"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: custom(Union[int,int])\n"}
+expected=[{rule="PYI016", file="case.py", start=168, end=171}]
+
+[[cases]]
+name="type-context-policy-35"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: bool(value=Union[int,int])\n"}
+expected=[]
+
+[[cases]]
+name="type-context-policy-36"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: list[int|int]\n"}
+expected=[{rule="PYI016", file="case.py", start=160, end=163}]
+
+[[cases]]
+name="type-context-policy-37"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nlist[int|int]=value\n"}
+expected=[]
+
+[[cases]]
+name="type-context-policy-38"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: \"int|int\"\n"}
+expected=[{rule="PYI016", file="case.py", start=156, end=159}]
+
+[[cases]]
+name="type-context-policy-39"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: \"Union[int,int]\"\n"}
+expected=[{rule="PYI016", file="case.py", start=162, end=165}]
+
+[[cases]]
+name="type-context-policy-40"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: Optional[int|int]\n"}
+expected=[{rule="PYI016", file="case.py", start=164, end=167}]
+
+[[cases]]
+name="type-context-policy-41"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: Union[Optional[int|int],str]\n"}
+expected=[{rule="PYI016", file="case.py", start=170, end=173}]
+
+[[cases]]
+name="type-context-policy-42"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: Union[list[None],Optional[int]]\n"}
+expected=[]
+
+[[cases]]
+name="type-context-policy-43"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: Union[Optional[int],list[None]]\n"}
+expected=[]
+
+[[cases]]
+name="type-context-policy-44"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: Union[Optional[int],Optional[str]]\n"}
+expected=[{rule="PYI016", file="case.py", start=171, end=179}]
+
+[[cases]]
+name="type-context-policy-45"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: Union[None,Optional[int],None]\n"}
+expected=[{rule="PYI016", file="case.py", start=162, end=170}, {rule="PYI016", file="case.py", start=176, end=180}]
+
+[[cases]]
+name="type-context-policy-46"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: Union[int,int]\n"}
+expected=[{rule="PYI016", file="case.py", start=161, end=164}]
+
+[[cases]]
+name="type-context-policy-47"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx=Union[int,int]\n"}
+expected=[{rule="PYI016", file="case.py", start=160, end=163}]
+
+[[cases]]
+name="type-context-policy-48"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: Union[Union[int]]\n"}
+expected=[]
+
+[[cases]]
+name="type-context-policy-49"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: Optional[tuple[int|int]]\n"}
+expected=[{rule="PYI016", file="case.py", start=170, end=173}]
+
+[[cases]]
+name="type-context-policy-50"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: Optional[int]|int\n"}
+expected=[{rule="PYI016", file="case.py", start=165, end=168}]
+
+[[cases]]
+name="type-context-policy-51"
+comparison="full"
+files={"case.py"="from typing import Union,Optional,Literal,Annotated,TypeAlias,TypeVar,NewType,NamedTuple,TypedDict,cast\nfrom typing_extensions import TypeAliasType\nx: list[int|int]|list[int|int]\n"}
+expected=[{rule="PYI016", file="case.py", start=160, end=163}, {rule="PYI016", file="case.py", start=165, end=178}, {rule="PYI016", file="case.py", start=174, end=177}]
+
+[[cases]]
+name="additional-type-context-0"
+comparison="full"
+files={"case.py"="from typing import TypedDict\nx=TypedDict[{\"a\":int|int}]\n"}
+expected=[{rule="PYI016", file="case.py", start=50, end=53}]
+
+[[cases]]
+name="additional-type-context-1"
+comparison="full"
+files={"case.py"="from typing import TypedDict\nx=TypedDict[{int|int:str}]\n"}
+expected=[]
+
+[[cases]]
+name="additional-type-context-2"
+comparison="full"
+files={"case.py"="from typing import TypedDict\nx=TypedDict[{**(int|int)}]\n"}
+expected=[]
+
+[[cases]]
+name="additional-type-context-3"
+comparison="full"
+files={"case.py"="from typing import TypedDict\nx=TypedDict[int|int]\n"}
+expected=[]
+
+[[cases]]
+name="additional-type-context-4"
+comparison="full"
+files={"case.py"="from mypy_extensions import Arg\nx=Arg(int|int)\n"}
+expected=[{rule="PYI016", file="case.py", start=42, end=45}]
+
+[[cases]]
+name="additional-type-context-5"
+comparison="full"
+files={"case.py"="from mypy_extensions import Arg\nx=Arg(type=int|int)\n"}
+expected=[{rule="PYI016", file="case.py", start=47, end=50}]
+
+[[cases]]
+name="additional-type-context-6"
+comparison="full"
+files={"case.py"="from mypy_extensions import Arg\nx=Arg(str,name=int|int)\n"}
+expected=[]
+
+[[cases]]
+name="additional-type-context-7"
+comparison="full"
+files={"case.py"="from typing import cast\nx=cast(**{int|int:None})\n"}
+expected=[]
+
+[[cases]]
+name="additional-type-context-8"
+comparison="full"
+files={"case.py"="from typing import cast\nx:cast(int|int,value)\n"}
+expected=[{rule="PYI016", file="case.py", start=35, end=38}]
+
+[[cases]]
+name="additional-type-context-9"
+comparison="full"
+files={"case.py"="from typing import cast\nx:cast(value,int|int)\n"}
+expected=[]
+
+[[cases]]
+name="additional-type-context-10"
+comparison="full"
+files={"case.py"="from typing import TypeVar\nx=TypeVar(name=\"T\",*[int|int])\n"}
+expected=[]
+
+[[cases]]
+name="additional-type-context-11"
+comparison="full"
+files={"case.py"="from typing import TypeVar\nx=TypeVar(\"T\",*[int|int])\n"}
+expected=[{rule="PYI016", file="case.py", start=47, end=50}]
+
+[[cases]]
+name="additional-type-context-12"
+comparison="full"
+files={"case.py"="from typing import NamedTuple\nx=NamedTuple(\"T\",**{**(int|int)})\n"}
+expected=[]
+
+[[cases]]
+name="additional-type-context-13"
+comparison="full"
+files={"case.py"="from typing import TypedDict\nx=TypedDict(\"T\",**{**(int|int)})\n"}
+expected=[{rule="PYI016", file="case.py", start=55, end=58}]
+
+[[cases]]
+name="additional-type-context-14"
+comparison="full"
+files={"case.py"="from typing import Annotated,Union\nx:Annotated[int,Union[str,str]]\n"}
+expected=[{rule="PYI016", file="case.py", start=61, end=64}]
+
+[[cases]]
+name="additional-type-context-15"
+comparison="full"
+files={"case.py"="from typing import Optional,Union\nx:Optional[None]\n"}
+expected=[{rule="PYI016", file="case.py", start=45, end=49}]
+
+[[cases]]
+name="additional-type-context-16"
+comparison="full"
+files={"case.py"="from typing import Optional,Union\nx:Optional[Optional[int]]\n"}
+expected=[{rule="PYI016", file="case.py", start=45, end=53}]
+
+[[cases]]
+name="additional-type-context-17"
+comparison="full"
+files={"case.py"="from typing import Optional,Union\nx:Union[Optional[None],None]\n"}
+expected=[{rule="PYI016", file="case.py", start=51, end=55}, {rule="PYI016", file="case.py", start=57, end=61}]

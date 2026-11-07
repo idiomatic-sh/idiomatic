@@ -1,0 +1,96 @@
+description = "npm's build, the product's cargo-dist 0.33 configuration: one archive per platform, which npm's platform packages repackage, linking the languages of npm's ecosystem alone when the product links any, with no generated CI, no installer and no hosting, since the registry's own packages carry the binary and nothing downloads it."
+why = "One pinned build tool makes every target's archive the same way, and a closed file keeps a downloading installer or generated CI from joining it unreviewed."
+params = { languages = { type = "identifier", description = "`linked`: each registry's build links the languages of its ecosystem alone, named in its build, and its smoke test holds the installed command to them. `none`: the product analyses no language, so every registry builds the crate as it is." } }
+match = "declarations"
+content = '''
+[workspace]
+members = ["cargo:../../../cli"]
+
+[dist]
+cargo-dist-version = "0.33.0"
+dist = true
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]
+source-tarball = false
+unix-archive = ".tar.gz"
+windows-archive = ".zip"
+{%- if languages == "linked" %}
+# The languages npm's build links: a language is added here, in this one place.
+default-features = false
+features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+{%- endif %}
+'''
+
+[given]
+file = 'dist-workspace.toml'
+params = { languages = 'linked' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'dist-workspace.toml' = '''
+[workspace]
+members = ["cargo:../../../cli"]
+
+[dist]
+cargo-dist-version = "0.33.0"
+dist = true
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]
+source-tarball = false
+unix-archive = ".tar.gz"
+windows-archive = ".zip"
+# The languages npm's build links: a language is added here, in this one place.
+default-features = false
+features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'dist-workspace#count', path = '.' },
+]
+
+[[scenarios]]
+id = 'npm-installer'
+scenario = 'An installer that downloads the binary is refused.'
+given.files.'dist-workspace.toml' = '''
+[workspace]
+members = ["cargo:../../../cli"]
+
+[dist]
+cargo-dist-version = "0.33.0"
+dist = true
+installers = ["npm"]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]
+source-tarball = false
+unix-archive = ".tar.gz"
+windows-archive = ".zip"
+# The languages npm's build links: a language is added here, in this one place.
+default-features = false
+features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+'''
+then.findings = [
+  { rule = 'dist-workspace#template', path = 'dist-workspace.toml' },
+  { rule = 'dist-workspace#template', path = 'dist-workspace.toml' },
+]
+
+[[scenarios]]
+id = 'no-version-pin'
+scenario = 'The cargo-dist version is not pinned.'
+given.files.'dist-workspace.toml' = '''
+[workspace]
+members = ["cargo:../../../cli"]
+
+[dist]
+dist = true
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]
+source-tarball = false
+unix-archive = ".tar.gz"
+windows-archive = ".zip"
+# The languages npm's build links: a language is added here, in this one place.
+default-features = false
+features = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+'''
+then.findings = [
+  { rule = 'dist-workspace#template', path = 'dist-workspace.toml' },
+]

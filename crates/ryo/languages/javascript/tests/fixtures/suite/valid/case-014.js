@@ -1,0 +1,1 @@
+import "./foo.json" with { a: "a", b: "b" };

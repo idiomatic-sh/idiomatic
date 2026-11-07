@@ -1,0 +1,36 @@
+//! The worker orchestrates transport and SDK evaluation without reading wire data.
+use super::interface::RunRyoUseCase;
+use crate::outbound::{engine::interface::EnginePort, worker::interface::WorkerPort};
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use std::sync::Arc;
+/// Handles one child-process request through independently injected boundaries.
+pub struct RunRyoUseCaseImpl {
+    /// SDK evaluation boundary selected by the language composition.
+    engine: Arc<dyn EnginePort>,
+    /// Child request and response transport boundary.
+    worker: Arc<dyn WorkerPort>,
+}
+impl RunRyoUseCaseImpl {
+    /// Bind the language-specific engine and shared process transport.
+    #[must_use]
+    pub fn new(engine: Arc<dyn EnginePort>, worker: Arc<dyn WorkerPort>) -> Self {
+        Self { engine, worker }
+    }
+}
+impl RunRyoUseCase for RunRyoUseCaseImpl {
+    fn run_ryo(&self) -> Result<(), Error> {
+        let request = self.worker.receive()?;
+        let prepared = crate::application::worker_request::service::prepare(request)?;
+        let session = self.engine.load(&prepared.request)?;
+        let configured =
+            crate::application::worker_request::service::configure(&prepared.request, session)?;
+        let report = configured.execute()?;
+        self.worker.respond(&report)
+    }
+}
+impl std::fmt::Debug for RunRyoUseCaseImpl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(std::any::type_name::<Self>())
+            .finish_non_exhaustive()
+    }
+}

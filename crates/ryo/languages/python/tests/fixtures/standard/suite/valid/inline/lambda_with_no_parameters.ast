@@ -1,0 +1,1 @@
+Module(body=[Expr(value=Lambda(args=arguments(), body=Constant(value=1)))])

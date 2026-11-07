@@ -1,0 +1,40 @@
+root[1]
+└─0 list[7]
+    │ ordered: false
+    │ start: null
+    │ spread: false
+    ├─0 listItem[1]
+    │   │ spread: false
+    │   │ checked: null
+    │   └─0 paragraph[1]
+    │       └─0 text "a"
+    ├─1 listItem[1]
+    │   │ spread: false
+    │   │ checked: null
+    │   └─0 paragraph[1]
+    │       └─0 text "b"
+    ├─2 listItem[1]
+    │   │ spread: false
+    │   │ checked: null
+    │   └─0 paragraph[1]
+    │       └─0 text "c"
+    ├─3 listItem[1]
+    │   │ spread: false
+    │   │ checked: null
+    │   └─0 paragraph[1]
+    │       └─0 text "d"
+    ├─4 listItem[1]
+    │   │ spread: false
+    │   │ checked: null
+    │   └─0 paragraph[1]
+    │       └─0 text "e"
+    ├─5 listItem[1]
+    │   │ spread: false
+    │   │ checked: null
+    │   └─0 paragraph[1]
+    │       └─0 text "f"
+    └─6 listItem[1]
+        │ spread: false
+        │ checked: null
+        └─0 paragraph[1]
+            └─0 text "g"

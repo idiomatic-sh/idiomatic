@@ -1,0 +1,30 @@
+description = "One of a product's asymptote lock files, written by asymptote."
+why = "Keeps the accepted findings asymptote ratchets, committed so a finding can only go away, and only through asymptote itself."
+content = ''
+
+[params]
+operation = { type = "identifier", description = "The operation's digest, captured from its path." }
+
+[given]
+file = '.asymptote/operations/0a1b.lock'
+params = { operation = '0a1b' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'.asymptote/operations/0a1b.lock' = ''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'.asymptote/operations/0a1b.lock' = '''
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'asymptote-lock#count', path = 'tastemaker.toml' },
+]

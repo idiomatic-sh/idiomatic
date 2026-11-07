@@ -1,0 +1,65 @@
+{
+  "cases": [
+    {
+      "context_files": {},
+      "fixed_reference_exit": 0,
+      "fixed_source": "import os.ｐａｔｈ\n\nimport numpy\n",
+      "name": "review-r1-dotted-stdlib-plain-clean",
+      "reference_diagnostics": [],
+      "reference_exit": 0,
+      "source": "import os.ｐａｔｈ\n\nimport numpy\n",
+      "source_sha256": "7a2807424db799086761395d2697d6d7a38d7ef5578e21ecf2d9926d394c3d41"
+    },
+    {
+      "context_files": {},
+      "fixed_reference_exit": 0,
+      "fixed_source": "import os.ｐａｔｈ\n\nimport numpy\n",
+      "name": "review-r1-dotted-stdlib-plain-misordered",
+      "reference_diagnostics": [
+        {
+          "code": "I001",
+          "end": 35,
+          "start": 0
+        }
+      ],
+      "reference_exit": 1,
+      "source": "import numpy\nimport os.ｐａｔｈ\n",
+      "source_sha256": "4cc7f70c0598a151de23c084eef6713c5f69ce05d13b5d285cd7e83e7094528c"
+    },
+    {
+      "context_files": {},
+      "fixed_reference_exit": 0,
+      "fixed_source": "from os.ｐａｔｈ import join\n\nimport numpy\n",
+      "name": "review-r1-dotted-stdlib-from-clean",
+      "reference_diagnostics": [],
+      "reference_exit": 0,
+      "source": "from os.ｐａｔｈ import join\n\nimport numpy\n",
+      "source_sha256": "ce679466e19b2b377de8c4842b71039d56a3a6ac6085bcdeb49e984ec5984da6"
+    },
+    {
+      "context_files": {},
+      "fixed_reference_exit": 0,
+      "fixed_source": "from os.ｐａｔｈ import join\n\nimport numpy\n",
+      "name": "review-r1-dotted-stdlib-from-misordered",
+      "reference_diagnostics": [
+        {
+          "code": "I001",
+          "end": 46,
+          "start": 0
+        }
+      ],
+      "reference_exit": 1,
+      "source": "import numpy\n\nfrom os.ｐａｔｈ import join\n",
+      "source_sha256": "668eea17f21d78210add22ded52400c4f305725915c0d6cbb2006c73fbd75863"
+    }
+  ],
+  "pinned_ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "pinned_ruff_version": "ruff 0.16.5",
+  "project_search_roots": [
+    "",
+    "src"
+  ],
+  "schema": "i001-pinned-reference-source-spelling/v1",
+  "selection": "I001",
+  "target_version": "py310"
+}

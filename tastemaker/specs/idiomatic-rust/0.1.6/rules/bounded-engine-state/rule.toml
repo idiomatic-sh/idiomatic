@@ -1,0 +1,524 @@
+description = "Retained interior-mutable state in a use case, adapter or application operation requires an owning named cache, bound constant and colocated test reference. This is structural evidence, not proof that a cap is enforced."
+why = "Operations can live across invocations, workers or sessions. Retained state needs an explicit owner and lifetime; an invocation-local lock is not retained state. Roots are use-case implementations, adapters and every struct in application/<operation>/service.rs, including FileAnalysis and CrossFile rather than only names ending in Service. Follow their own types.rs transitively. Named cache/constant/test references provide structural evidence only: executed cap, error and concurrency tests remain required, and naming alone does not prove memory safety, a numerical bound or speed. Atomic counters and owned set-once cells retain their existing exemptions; opaque foreign state in a set-once cell remains reported."
+
+query = '''
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let idents = select * from tree-tokens where kind = "ident";
+let structs = select d."id" as "id", d."name" as "name", d."file" as "file", d."span" as "span" from "defines" as d where d."kind" = "struct";
+let placed = capture(from=structs, path="file", pattern="{*dir}/{base}.rs", captures=["dir", "base"]);
+let use-cases = select u."id" as "id", u."name" as "name", u."file" as "file", u."span" as "span", u."dir" as "dir", u."base" as "base" from placed as u where u."base" = "use_case" and ends_with(u."name", "UseCaseImpl");
+let adapters = select a."id" as "id", a."name" as "name", a."file" as "file", a."span" as "span", a."dir" as "dir", a."base" as "base" from placed as a where a."base" = "adapter" and ends_with(a."name", "Adapter");
+let service-placed = capture(from=placed, path="file", pattern="{*root}/application/{operation}/service.rs", captures=["root", "operation"]);
+let services = select s."id" as "id", s."name" as "name", s."file" as "file", s."span" as "span", s."dir" as "dir", s."base" as "base" from service-placed as s;
+let edge-engines = union(left=use-cases, right=adapters);
+let engines = union(left=edge-engines, right=services);
+let kept-types = select * from placed where base = "types";
+let engine-nodes = select e."id" as "id", e."name" as "name", e."dir" as "dir" from engines as e;
+let type-nodes = select k."id" as "id", k."name" as "name", k."dir" as "dir" from kept-types as k;
+let nodes = union(left=engine-nodes, right=type-nodes);
+let node-tokens = axis(from=nodes, relation="syntax-child", direction=descendant, domain=idents);
+let written = select l."id" as "owner", l."dir" as "dir", r."text" as "text" from node-tokens as l join idents as r on l."related" = r."id";
+let names = select k."id" as "kept", k."name" as "name", k."dir" as "dir" from kept-types as k;
+let edges = select w."owner" as "owner", n."kept" as "kept" from written as w join names as n on w."dir" = n."dir" and w."text" = n."name";
+let reach = closure(edges=edges, source="owner", destination="kept");
+let reached = select r."kept" as "kept" from reach as r join engine-nodes as e on r."owner" = e."id";
+let held = select n."kept" as "id", n."name" as "name", n."dir" as "dir" from reached as r join names as n on r."kept" = n."kept";
+let holders = union(left=engine-nodes, right=held);
+let locks = select * from idents where glob_any(text, "{Mutex,RwLock,RefCell,Cell}");
+let inside = axis(from=holders, relation="syntax-child", direction=descendant, domain=locks);
+let cell-names = select * from idents where glob_any(text, "{OnceLock,OnceCell,LazyLock,LazyCell}");
+let cells-inside = axis(from=holders, relation="syntax-child", direction=descendant, domain=cell-names);
+let cell-at = select r."id" as "id", l."id" as "holder", l."dir" as "dir", r."file" as "file", r."span" as "span" from cells-inside as l join cell-names as r on l."related" = r."id";
+let segments = select * from "syntax-tree" as s where s."kind" = "path-segment";
+let cell-segments = axis(from=cell-at, relation="syntax-child", direction=ancestor, domain=segments);
+let segment-of = select c."related" as "id", a."holder" as "holder", a."dir" as "dir", a."file" as "file", a."span" as "span" from cell-segments as c join cell-at as a on c."id" = a."id";
+let cell-contents = axis(from=segment-of, relation="syntax-child", direction=descendant, domain=idents);
+let content-tokens = select c."id" as "id", r."text" as "text" from cell-contents as c join idents as r on c."related" = r."id";
+let content-names = select s."holder" as "holder", s."dir" as "dir", s."file" as "file", s."span" as "span", c."text" as "text" from content-tokens as c join segment-of as s on c."id" = s."id";
+let deps = select d."binding" as "text" from "package-dependency" as d;
+let import-nodes = select s."occurrence" as "id", s."binding" as "binding", s."file" as "file" from "static-import" as s;
+let import-tokens = axis(from=import-nodes, relation="syntax-child", direction=descendant, domain=idents);
+let import-words = select l."binding" as "binding", l."file" as "file", r."text" as "text" from import-tokens as l join idents as r on l."related" = r."id";
+let imported = select w."binding" as "text", w."file" as "file" from import-words as w join deps as d on w."text" = d."text";
+let by-path = select c."file" as "file", c."span" as "span" from content-names as c join deps as d on c."text" = d."text";
+let by-import = select c."file" as "file", c."span" as "span" from content-names as c join imported as i on c."text" = i."text" and c."file" = i."file";
+let foreign = union(left=by-path, right=by-import);
+let foreign-cells = project(from=foreign, columns=["file", "span"]);
+let mutable = select l."id" as "holder", l."name" as "name", l."dir" as "dir", r."file" as "file", r."span" as "span" from inside as l join locks as r on l."related" = r."id";
+let constants = select d."name" as "name", d."file" as "file" from "defines" as d where d."kind" = "constant";
+let bounds = capture(from=constants, path="file", pattern="{*dir}/constants.rs", captures=["dir"]);
+let bounded = select m."holder" as "holder", m."name" as "name", c."name" as "bound", m."dir" as "dir" from mutable as m join bounds as c on m."dir" = c."dir" where snake(m."name") = snake(c."name");
+let test-tokens = capture(from=idents, path="file", pattern="{*dir}/{base}_test.rs", captures=["dir", "base"]);
+let naming-bound = select b."holder" as "holder", b."dir" as "dir", b."name" as "name" from bounded as b join test-tokens as t on b."dir" = t."dir" and b."bound" = t."text";
+let covered = select n."holder" as "holder" from naming-bound as n join test-tokens as t on n."dir" = t."dir" and n."name" = t."text";
+let unbounded = antijoin(left=mutable, right=covered, left-on=["holder"], right-on=["holder"]);
+let found-locks = project(from=unbounded, columns=["file", "span"]);
+let found = union(left=found-locks, right=foreign-cells);
+emit found subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this operation retains interior-mutable state without an owning named cache, bound and colocated test reference"
+help = "Keep per-call state in a local of the call. State kept across calls goes in a type named for what it keeps, in the hex's `types.rs`, bounded by a constant of the same name in its `constants.rs` (`CompiledPlans` and `COMPILED_PLANS`), and a colocated test names the cache and the constant. These names are structural evidence only; execute cap, error and concurrency tests to prove the bound."
+
+[given]
+include = ['**/src/inbound/use_cases/*/*.rs', '**/src/outbound/*/adapters/*/*.rs', '**/src/application/*/*.rs']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ryo = "0.2.0"
+dashmap = "6.0.0"
+'''
+
+[[scenarios]]
+id = 'a-bare-map-on-the-use-case'
+scenario = 'A use case that keeps its compiled plans in a bare locked map is reported at the lock.'
+given.files.'src/inbound/use_cases/lint/fixtures/contract.rs' = '''
+pub const CASES: &[u8] = &[];
+'''
+given.files.'src/inbound/use_cases/lint/use_case.rs' = '''
+use std::collections::HashMap;
+use std::sync::Mutex;
+
+pub struct LintUseCaseImpl {
+    plans: Mutex<HashMap<u64, u64>>,
+    workers: u8,
+}
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/lint/use_case.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'an-unbounded-held-type'
+scenario = 'A type of the hex that the use case holds, with a lock and no constant of its name, is reported at the lock.'
+given.files.'src/inbound/use_cases/lint/fixtures/contract.rs' = '''
+pub const CASES: &[u8] = &[];
+'''
+given.files.'src/inbound/use_cases/lint/use_case.rs' = '''
+pub struct LintUseCaseImpl {
+    compiled: super::types::CompiledPlans,
+}
+'''
+given.files.'src/inbound/use_cases/lint/types.rs' = '''
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
+pub struct CompiledPlans(pub Arc<Mutex<HashMap<u64, u64>>>);
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/lint/types.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'a-bound-no-test-names'
+scenario = 'A named cache with its constant, but no test of the hex that names the constant, is reported.'
+given.files.'src/inbound/use_cases/lint/fixtures/contract.rs' = '''
+pub const CASES: &[u8] = &[];
+'''
+given.files.'src/inbound/use_cases/lint/use_case.rs' = '''
+pub struct LintUseCaseImpl {
+    compiled: super::types::CompiledPlans,
+}
+'''
+given.files.'src/inbound/use_cases/lint/types.rs' = '''
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
+pub struct CompiledPlans(pub Arc<Mutex<HashMap<u64, u64>>>);
+'''
+given.files.'src/inbound/use_cases/lint/constants.rs' = '''
+pub const COMPILED_PLANS: usize = 4096;
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/lint/types.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'a-counter-on-the-use-case'
+scenario = 'An atomic on a use case, a counter that names what the use case makes, is not reported.'
+given.files.'src/inbound/use_cases/lint/fixtures/contract.rs' = '''
+pub const CASES: &[u8] = &[];
+'''
+given.files.'src/inbound/use_cases/lint/use_case.rs' = '''
+pub struct LintUseCaseImpl {
+    runs: std::sync::atomic::AtomicU64,
+}
+'''
+
+[[scenarios]]
+id = 'a-counter-on-an-adapter'
+scenario = 'An atomic written with its path or imported, on an adapter, is not reported.'
+given.files.'src/outbound/facts/adapters/spill/adapter.rs' = '''
+use std::sync::atomic::AtomicUsize;
+
+pub struct FactsSpillAdapter {
+    next: AtomicUsize,
+}
+'''
+
+[[scenarios]]
+id = 'an-engine-built-once'
+scenario = 'A set-once cell on an adapter, holding an engine built by the first call, is not reported.'
+given.files.'src/outbound/analysis/adapters/ryo/adapter.rs' = '''
+use std::sync::OnceLock;
+
+pub struct AnalysisRyoAdapter {
+    linter: OnceLock<Result<u8, String>>,
+}
+'''
+
+[[scenarios]]
+id = 'a-lock-in-a-set-once-cell'
+scenario = 'A set-once cell that holds a lock is reported at the lock: the lock can still grow.'
+given.files.'src/outbound/analysis/adapters/ryo/adapter.rs' = '''
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
+
+pub struct AnalysisRyoAdapter {
+    plans: OnceLock<Mutex<HashMap<u64, u64>>>,
+}
+'''
+then.findings = [
+  { path = 'src/outbound/analysis/adapters/ryo/adapter.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'a-counter-beside-an-unbounded-map'
+scenario = 'A counter does not excuse the unbounded map beside it: the map is reported and the counter is not.'
+given.files.'src/inbound/use_cases/validate/use_case.rs' = '''
+use std::collections::HashMap;
+use std::sync::Mutex;
+use std::sync::atomic::AtomicU64;
+
+pub struct ValidateUseCaseImpl {
+    made: AtomicU64,
+    verdicts: Mutex<HashMap<u64, u64>>,
+}
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/validate/use_case.rs', line = 7 },
+]
+
+[[scenarios]]
+id = 'a-bounded-named-cache'
+scenario = 'A use case that holds a named cache, which drops a plan before it would hold more than the constant of its name, and a test of the hex that keeps more than the bound and finds the cache at it, is not reported.'
+given.files.'src/inbound/use_cases/lint/fixtures/contract.rs' = '''
+pub const CASES: &[u8] = &[];
+'''
+given.files.'src/inbound/use_cases/lint/use_case.rs' = '''
+pub struct LintUseCaseImpl {
+    compiled: super::types::CompiledPlans,
+    workers: u8,
+}
+'''
+given.files.'src/inbound/use_cases/lint/types.rs' = '''
+use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
+
+#[derive(Default)]
+pub struct CompiledPlans(Arc<Mutex<VecDeque<(u64, u64)>>>);
+
+impl CompiledPlans {
+    pub fn keep(&self, digest: u64, plan: u64) {
+        let mut plans = self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        plans.retain(|(kept, _)| *kept != digest);
+        if plans.len() == super::constants::COMPILED_PLANS {
+            plans.pop_front();
+        }
+        plans.push_back((digest, plan));
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner).len()
+    }
+}
+'''
+given.files.'src/inbound/use_cases/lint/constants.rs' = '''
+pub const COMPILED_PLANS: usize = 4096;
+'''
+given.files.'src/inbound/use_cases/lint/use_case_test.rs' = '''
+#[test]
+fn keeping_more_plans_than_the_bound_holds_the_bound() {
+    let plans = super::types::CompiledPlans::default();
+    let over = u64::try_from(super::constants::COMPILED_PLANS).unwrap_or(u64::MAX) + 1;
+    for digest in 0..over {
+        plans.keep(digest, digest);
+    }
+    assert_eq!(plans.len(), super::constants::COMPILED_PLANS);
+}
+'''
+
+[[scenarios]]
+id = 'per-call-state'
+scenario = 'A lock built in a call and a type of the hex the use case does not hold are not reported.'
+given.files.'src/inbound/use_cases/lint/fixtures/contract.rs' = '''
+pub const CASES: &[u8] = &[];
+'''
+given.files.'src/inbound/use_cases/lint/use_case.rs' = '''
+use std::sync::Mutex;
+
+pub struct LintUseCaseImpl {
+    workers: u8,
+}
+
+impl LintUseCaseImpl {
+    pub fn run(&self) -> u8 {
+        let streaming = super::types::Streaming { ordered: Mutex::new(self.workers) };
+        let kept: Mutex<u8> = Mutex::new(0);
+        drop(kept);
+        *streaming.ordered.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+}
+'''
+given.files.'src/inbound/use_cases/lint/types.rs' = '''
+use std::sync::Mutex;
+
+pub struct Streaming {
+    pub ordered: Mutex<u8>,
+}
+'''
+
+[[scenarios]]
+id = 'not-a-use-case'
+scenario = 'A lock on a struct that is not a use case, in a file that is not one, is not reported.'
+given.files.'src/inbound/use_cases/lint/service.rs' = '''
+use std::sync::Mutex;
+
+pub struct Pool {
+    free: Mutex<Vec<u8>>,
+}
+'''
+
+[[scenarios]]
+id = 'a-use-case-without-a-contract'
+scenario = 'A use case no other crate runs is held to the same: a bare locked map on it is reported at the lock.'
+given.files.'src/inbound/use_cases/validate/use_case.rs' = '''
+use std::collections::HashMap;
+use std::sync::Mutex;
+
+pub struct ValidateUseCaseImpl {
+    verdicts: Mutex<HashMap<u64, u64>>,
+}
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/validate/use_case.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'a-test-names-the-bound-and-not-the-cache'
+scenario = 'A test that reads the constant and never names the cache it bounds does not prove the cache: it is reported.'
+given.files.'src/inbound/use_cases/lint/use_case.rs' = '''
+pub struct LintUseCaseImpl {
+    compiled: super::types::CompiledPlans,
+}
+'''
+given.files.'src/inbound/use_cases/lint/types.rs' = '''
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
+pub struct CompiledPlans(pub Arc<Mutex<HashMap<u64, u64>>>);
+'''
+given.files.'src/inbound/use_cases/lint/constants.rs' = '''
+pub const COMPILED_PLANS: usize = 4096;
+'''
+given.files.'src/inbound/use_cases/lint/use_case_test.rs' = '''
+#[test]
+fn the_bound_is_positive() {
+    assert!(super::constants::COMPILED_PLANS > 0);
+}
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/lint/types.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'a-bare-lock-on-an-adapter'
+scenario = 'An adapter that keeps what it is given in a bare lock is reported at the lock.'
+given.files.'src/outbound/lint_store/adapters/memory/adapter.rs' = '''
+use std::sync::Mutex;
+
+pub struct LintStoreMemoryAdapter {
+    kept: Mutex<Vec<u8>>,
+}
+'''
+then.findings = [
+  { path = 'src/outbound/lint_store/adapters/memory/adapter.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'a-bounded-cache-on-an-adapter'
+scenario = 'An adapter that holds a named cache, bounded by the constant of its name, which a test of its hex names with the cache, is not reported.'
+given.files.'src/outbound/lint_store/adapters/memory/adapter.rs' = '''
+pub struct LintStoreMemoryAdapter {
+    kept: super::types::KeptStores,
+}
+'''
+given.files.'src/outbound/lint_store/adapters/memory/types.rs' = '''
+use std::sync::Mutex;
+
+#[derive(Default)]
+pub struct KeptStores(Mutex<Vec<u8>>);
+
+impl KeptStores {
+    pub fn keep(&self, store: u8) {
+        let mut kept = self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        if kept.len() == super::constants::KEPT_STORES {
+            kept.remove(0);
+        }
+        kept.push(store);
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner).len()
+    }
+}
+'''
+given.files.'src/outbound/lint_store/adapters/memory/constants.rs' = '''
+pub const KEPT_STORES: usize = 8;
+'''
+given.files.'src/outbound/lint_store/adapters/memory/adapter_test.rs' = '''
+#[test]
+fn keeping_more_stores_than_the_bound_holds_the_bound() {
+    let kept = super::types::KeptStores::default();
+    for store in 0..=u8::try_from(super::constants::KEPT_STORES).unwrap_or(u8::MAX) {
+        kept.keep(store);
+    }
+    assert_eq!(kept.len(), super::constants::KEPT_STORES);
+}
+'''
+
+[[scenarios]]
+id = 'a-set-once-cell-holding-a-foreign-engine'
+scenario = 'A set-once cell that holds a type from a crate the package depends on is reported at the cell: what that type keeps inside cannot be read.'
+given.files.'src/outbound/analysis/adapters/ryo/adapter.rs' = '''
+use std::sync::OnceLock;
+
+pub struct AnalysisRyoAdapter {
+    linter: OnceLock<Result<ryo::linter::Linter, String>>,
+}
+'''
+then.findings = [
+  { path = 'src/outbound/analysis/adapters/ryo/adapter.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'a-lazy-cell-holding-a-foreign-type'
+scenario = 'A lazy cell is held to the same as a set-once cell: one that holds a type from another crate is reported at the cell.'
+given.files.'src/outbound/analysis/adapters/ryo/adapter.rs' = '''
+use dashmap::DashMap;
+use std::sync::LazyLock;
+
+pub struct AnalysisRyoAdapter {
+    seen: LazyLock<DashMap<u64, u64>>,
+}
+'''
+then.findings = [
+  { path = 'src/outbound/analysis/adapters/ryo/adapter.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'a-lazy-cell-of-std-values'
+scenario = 'A lazy cell that holds only std values is not reported, as a set-once cell of them is not.'
+given.files.'src/outbound/analysis/adapters/ryo/adapter.rs' = '''
+use std::cell::LazyCell;
+
+pub struct AnalysisRyoAdapter {
+    names: LazyCell<Vec<String>>,
+}
+'''
+
+[[scenarios]]
+id = 'a-lock-two-types-down'
+scenario = 'A set-once cell that holds a type of the hex whose own type holds a locked map is reported at the lock, however many types down: the map can still grow.'
+given.files.'src/outbound/analysis/adapters/ryo/adapter.rs' = '''
+use std::sync::OnceLock;
+use super::types::PlanState;
+
+pub struct AnalysisRyoAdapter {
+    state: OnceLock<PlanState>,
+}
+'''
+given.files.'src/outbound/analysis/adapters/ryo/types.rs' = '''
+use std::collections::HashMap;
+use std::sync::Mutex;
+
+pub struct PlanState(pub Plans);
+
+pub struct Plans(pub Mutex<HashMap<u64, u64>>);
+'''
+then.findings = [
+  { path = 'src/outbound/analysis/adapters/ryo/types.rs', line = 6 },
+]
+
+[[scenarios]]
+id = 'a-one-slot-cache'
+scenario = 'An adapter that holds one slot, replaced by each keep, in a type named for what it keeps and bounded by the constant of its name that a test of its hex names with it, is not reported.'
+given.files.'src/outbound/validate_store/adapters/postcard/adapter.rs' = '''
+pub struct ValidateStorePostcardAdapter {
+    unwritten: super::types::Unwritten,
+}
+'''
+given.files.'src/outbound/validate_store/adapters/postcard/types.rs' = '''
+use std::sync::Mutex;
+
+pub struct Unwritten(pub Mutex<Option<Vec<u8>>>);
+'''
+given.files.'src/outbound/validate_store/adapters/postcard/constants.rs' = '''
+pub const UNWRITTEN: usize = 1;
+'''
+given.files.'src/outbound/validate_store/adapters/postcard/adapter_test.rs' = '''
+#[test]
+fn the_slot_holds_one_set() {
+    let slot = super::types::Unwritten::default();
+    assert!(usize::from(slot.0.lock().unwrap().is_some()) <= super::constants::UNWRITTEN);
+}
+'''
+
+
+[[scenarios]]
+id = 'application-operation-without-service-suffix-retains-a-bare-map'
+scenario = 'All structs in an application service are checked, without requiring a Service suffix.'
+given.files.'src/application/rules/service.rs' = '''
+pub struct RuleCompilation { plans: std::sync::Mutex<Vec<u64>> }
+'''
+then.findings = [{ path = 'src/application/rules/service.rs', line = 1 }]
+
+[[scenarios]]
+id = 'application-operation-owned-cache-has-structural-evidence'
+scenario = 'The owning operation names its cache, bound and test; this does not itself prove runtime enforcement.'
+given.files.'src/application/rules/service.rs' = '''
+pub struct RuleCompilation { plans: super::types::CompiledPlans }
+'''
+given.files.'src/application/rules/types.rs' = '''
+pub struct CompiledPlans(pub std::sync::Mutex<Vec<u64>>);
+'''
+given.files.'src/application/rules/constants.rs' = 'pub const COMPILED_PLANS: usize = 16;'
+given.files.'src/application/rules/service_test.rs' = '''
+use super::types::CompiledPlans;
+use super::constants::COMPILED_PLANS;
+#[test] fn names_the_owned_bound() { let _ = COMPILED_PLANS; let _ = std::mem::size_of::<CompiledPlans>(); }
+'''
+
+[[scenarios]]
+id = 'application-operation-transitive-owned-state-is-checked'
+scenario = 'A lock hidden behind multiple owning types remains retained state.'
+given.files.'src/application/rules/service.rs' = 'pub struct RuleCompilation { kept: super::types::Kept }'
+given.files.'src/application/rules/types.rs' = '''
+pub struct Kept { inner: Inner }
+pub struct Inner { values: std::sync::Mutex<Vec<u64>> }
+'''
+then.findings = [{ path = 'src/application/rules/types.rs', line = 2 }]
+
+[[scenarios]]
+id = 'application-operation-invocation-local-lock-is-not-retained'
+scenario = 'A local of a method is not state held by the operation across calls.'
+given.files.'src/application/rules/service.rs' = '''
+pub struct RuleCompilation;
+impl RuleCompilation { pub fn run(&self) { let scratch = std::sync::Mutex::new(Vec::<u64>::new()); drop(scratch); } }
+'''

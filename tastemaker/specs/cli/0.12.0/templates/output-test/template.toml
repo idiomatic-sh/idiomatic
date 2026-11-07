@@ -1,0 +1,22 @@
+description = "The proof of a command line's output, beside `src/output.rs`: each format an answer is printed in, and each error with its next step."
+why = "Every placed logic file has its test beside it: the output module is the one place an answer is written, so what each format prints is proven there."
+content = '''
+//! Proves how a command's answer is printed in each format, and each error with its next step.
+'''
+
+[given]
+file = 'cli/src/output_test.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'cli/src/output_test.rs' = '''
+//! Proves how a command's answer is printed in each format, and each error with its next step.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'output-test#count', path = '.' },
+]

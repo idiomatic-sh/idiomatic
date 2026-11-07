@@ -1,0 +1,6 @@
+The files named `ruff_*` are copied unchanged from the published crates of ruff (astral-sh/ruff, MIT License, Copyright (c) 2022 Charles Marsh):
+ruff_python_parser 0.0.9 (lexer.rs, string.rs), ruff_text_size 0.0.9 (range.rs), ruff_source_file 0.0.9 (line_index.rs),
+ruff_cache 0.0.9 (cache_key.rs), ruff_python_trivia 0.0.9 (cursor.rs), ruff_index 0.0.9 (vec.rs). The files named `ryo_*` are this
+repository's own. The files of `suite/` are copied unchanged from rust-analyzer's `crates/parser/test_data/parser/{ok,err,inline/ok,inline/err}`
+as published in `ra_ap_parser` 0.0.347 (MIT or Apache-2.0).
+Four files of the suite were left out because they are written for an edition other than the one the language reads (2024): valid/inline_dyn_trait_type_weak.rs, valid/inline_try_macro_fallback.rs and valid/inline_try_macro_rules.rs are edition 2015, and invalid/inline_gen_fn.rs is invalid before 2024 only.

@@ -1,0 +1,2 @@
+name = "idiomatic.benchmarks"
+description = "Benchmark-only rules: kept to measure Ryo and Tastemaker on other projects, and placed on none of this repository's products."

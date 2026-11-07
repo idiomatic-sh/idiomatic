@@ -1,0 +1,25 @@
+{
+  "schema": "standard-suppression-migration-proof/v1",
+  "claim": "All complete baseline/candidate reports exactly equal; existing Ruff expectation differences remain separate.",
+  "rules": 2,
+  "cases": 58,
+  "side_records": 116,
+  "all_process_statuses_zero": true,
+  "unknown_or_unread": 0,
+  "full_report_differences": 0,
+  "existing_expected_differences": [],
+  "accepted_syntax_skips": [],
+  "case_sha256": {
+    "SIM220": "908036406fb8ed7e6454fa0b4bce846c2f9690400d35ca1056b593a80c306735",
+    "SIM221": "2b1594c14bb04199a3642ceb06dde0e232d2e2635af3d6422a0d2899531bef27"
+  },
+  "records_sha256": "5ded10de89e67f2878e64030eb96806c23a1bee2830a274f10ab5ebc3fe6b05c",
+  "manifest_sha256": "2071e137f52de6e276ca2f8d59304153b8768a5c13b9d0b684d2177c9336d5fb",
+  "validator_sha256": "3583515b0cecfc9bfe7b55146e6ac644259027a155c6835fc129923eef782eb2",
+  "source_receipt_sha256": "a951bdb70fbdd6437f4d482e867f78db1bfdb0256cbc4dba3c2a4ac32b55b1f5",
+  "worker_sha256": "2ea405976bf51410cea6829c29af140ff7ffbef026213fa7ad3ed5f9ceeb9f58",
+  "helper_sha256": "72eaeed41d5a9a6393d5048cb7bf7389479a9ce622f4748db92f980e724a8b80",
+  "no_ruff_invocations": true,
+  "rejected_prior_run": "/tmp/suppress-migration-20261101-rejected-v1/REVOKED.txt",
+  "benchmark_measurement": false
+}

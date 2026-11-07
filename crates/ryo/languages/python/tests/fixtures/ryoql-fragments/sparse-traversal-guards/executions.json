@@ -1,0 +1,59 @@
+[
+  {
+    "guard": "pie794-rooted",
+    "command": [
+      "/usr/bin/python3",
+      "/workspaces/idiomatic-span-between/crates/ryo/languages/python/tests/fixtures/ryoql-fragments/pie794-rooted/generic.py",
+      "--candidate-root",
+      "/workspaces/idiomatic-span-between",
+      "--worker",
+      "/tmp/perfile-index-cache-worker-final-build-20261101/worker/ruff-2ea405976bf51410cea6829c29af140ff7ffbef026213fa7ad3ed5f9ceeb9f58",
+      "--output",
+      "/tmp/sparse-registered-guards-20261101/pie794-rooted"
+    ],
+    "script_sha256": "c138c8b8d1b5fd8e5ed5b5b0691b8207a5a55c70c2edb1dbb24fa1d6a2438f47",
+    "worker_sha256": "2ea405976bf51410cea6829c29af140ff7ffbef026213fa7ad3ed5f9ceeb9f58",
+    "status": 0,
+    "stdout": "{\"cases\": 8, \"all_processes_zero\": true, \"unknown_or_unread\": 0, \"counted_multiset_differences\": 0, \"nonvacuous_expected_names_per_file\": 12, \"records_sha256\": \"6b4e4dbe17d7d5343778d5bb59c5f238fdcb7085444390ae188316e4ad8651ed\", \"manifest_sha256\": \"e53a378755a39418e381ac88a32077c3393062dbe7b46ba2800010c1573015e3\", \"order_claim\": \"Final membership/multisets only; global entity order and axis breadth order are deliberately not equated.\"}\n",
+    "stderr": "",
+    "proof_sha256": "c10cc50f72a4d3c4064652bcb7b65dda8d9033e892a77d0f8fb97276336b7528"
+  },
+  {
+    "guard": "sparse-descendant-consumers",
+    "command": [
+      "/usr/bin/python3",
+      "/workspaces/idiomatic-span-between/crates/ryo/languages/python/tests/fixtures/ryoql-fragments/sparse-descendant-consumers/generic.py",
+      "--candidate-root",
+      "/workspaces/idiomatic-span-between",
+      "--worker",
+      "/tmp/perfile-index-cache-worker-final-build-20261101/worker/ruff-2ea405976bf51410cea6829c29af140ff7ffbef026213fa7ad3ed5f9ceeb9f58",
+      "--output",
+      "/tmp/sparse-registered-guards-20261101/sparse-descendant-consumers"
+    ],
+    "script_sha256": "2eb8ff682dfd51920ce4f8a266a0f995f30122f53875fdabda3cab05fbb3afce",
+    "worker_sha256": "2ea405976bf51410cea6829c29af140ff7ffbef026213fa7ad3ed5f9ceeb9f58",
+    "status": 0,
+    "stdout": "{\"cases\": 10, \"all_processes_zero\": true, \"unknown_or_unread\": 0, \"counted_multiset_differences\": 0, \"nonvacuous_expected_names_per_file\": 12, \"records_sha256\": \"66750302daa69312fe4eb4d72df780274c8c48e78cd98e86d6b26b685558f533\", \"manifest_sha256\": \"fd38ce1d9878c961a6fc91b1ff7d7fd3c718b4c36b166050ba2b5e4fe2166962\", \"order_claim\": \"Final membership/multisets only; global entity order and axis breadth order are deliberately not equated.\"}\n",
+    "stderr": "",
+    "proof_sha256": "88ad2db9f539e5ff1dcd2f2f774ec4ccd320cf4764e6514e9fd8d8c60c7f9fa8"
+  },
+  {
+    "guard": "plr1708-rooted",
+    "command": [
+      "/usr/bin/python3",
+      "/workspaces/idiomatic-span-between/crates/ryo/languages/python/tests/fixtures/ryoql-fragments/plr1708-rooted/generic.py",
+      "--candidate-root",
+      "/workspaces/idiomatic-span-between",
+      "--worker",
+      "/tmp/perfile-index-cache-worker-final-build-20261101/worker/ruff-2ea405976bf51410cea6829c29af140ff7ffbef026213fa7ad3ed5f9ceeb9f58",
+      "--output",
+      "/tmp/sparse-registered-guards-20261101/plr1708-rooted"
+    ],
+    "script_sha256": "a5a1d04b8d5450eeb68817cba76168e052b9d9632e22b8d09ae80fc487d8d706",
+    "worker_sha256": "2ea405976bf51410cea6829c29af140ff7ffbef026213fa7ad3ed5f9ceeb9f58",
+    "status": 0,
+    "stdout": "{\"cases\": 8, \"all_processes_zero\": true, \"unknown_or_unread\": 0, \"counted_multiset_differences\": 0, \"nonvacuous\": \"every input file must have reachable nodes\", \"records_sha256\": \"9e9c959b5c0f0274eb7dc97ca06e4bface5b32e3903e7fd24f2de727b13c2774\", \"manifest_sha256\": \"dc07ebd431095dfd9cabc1ec239e3e2435715ce0b51b80d6cb9d5b86957cfe80\", \"order_claim\": \"Final membership/multisets only; global entity order and axis breadth order are deliberately not equated.\"}\n",
+    "stderr": "",
+    "proof_sha256": "43734d062e3ba5f19e12f1dd1f0ed56ab2d62da5fdf08722a5dc5471da5acf77"
+  }
+]

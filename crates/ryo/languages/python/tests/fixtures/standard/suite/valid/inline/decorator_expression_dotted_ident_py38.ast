@@ -1,0 +1,1 @@
+Module(body=[FunctionDef(name='spam', args=arguments(), body=[Expr(value=Constant(value=Ellipsis))], decorator_list=[Attribute(value=Attribute(value=Name(id='buttons'), attr='clicked'), attr='connect')])])

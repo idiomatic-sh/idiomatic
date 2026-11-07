@@ -1,0 +1,130 @@
+description = "A collection declares its own item trait in `interface.rs` exactly when its items import it: a collection whose items implement a trait of another crate has no `interface.rs`."
+why = "A collection states the shape of its items once. Usually the collection declares it (`<Collection>Item` in `interface.rs`); a collection whose items implement a trait that another crate owns (a language's relations implement ryo's `ReadItem`) names that trait in the `item-trait` param instead and has no `interface.rs` of its own: two traits for one shape would let the items drift. The template count cannot depend on a param, and the param is a list of pairs from which a rule cannot pick its collection's, so this rule reads the files, which the `item` template already holds to the collection's pair: an item that imports `super::super::interface::` while the collection has no `interface.rs` is a finding (at the item), and an `interface.rs` that no item of its collection imports is a finding (at the file)."
+
+query = '''
+let listed-files = select l."path" as "file" from "filesystem.file" as l;
+let files = project(from=listed-files, columns=["file"]);
+let item-files = capture(from=files, path="file", pattern="{*dir}/{item}/item.rs", captures=["dir", "item"]);
+let interface-imports = select * from "static-import" where glob_any(target, "super::super::interface::*");
+let importing = select l."file" as "file", l."dir" as "dir" from item-files as l join interface-imports as r on l."file" = r."file";
+let interface-files = capture(from=files, path="file", pattern="{*dir}/interface.rs", captures=["dir"]);
+let interface-dirs = project(from=interface-files, columns=["dir"]);
+let missing = antijoin(left=importing, right=interface-dirs, left-on=["dir"], right-on=["dir"]);
+let missing-rows = project(from=missing, columns=["file", "dir"]);
+let missing-findings = extend(from=missing-rows, values={"problem": "has an item that imports its interface, and no `interface.rs`: declare the trait the items implement (scaffold entry `collection-interface`), or implement the trait of another crate and name it in `item-trait`"});
+let importing-dirs = project(from=importing, columns=["dir"]);
+let unused = antijoin(left=interface-files, right=importing-dirs, left-on=["dir"], right-on=["dir"]);
+let unused-rows = project(from=unused, columns=["file", "dir"]);
+let unused-findings = extend(from=unused-rows, values={"problem": "declares its own trait in `interface.rs`, but no item imports it: the items implement the trait of another crate (the collection's pair in `item-trait`), so delete the file"});
+let found = union(left=missing-findings, right=unused-findings);
+emit found subject "file" key("dir", "problem");
+'''
+
+[diagnostic]
+primary = "file"
+message = "`{dir}` {problem}"
+help = "Either declare the collection's own `<Collection>Item` in `interface.rs` and leave the collection out of `item-trait`, or give it a `<collection>=<trait path>` pair there, implement that trait in each item and delete `interface.rs`. An ignore is not legitimate here: a collection has one trait for its items, never two."
+
+[given]
+include = ['**/*.rs']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/collections/shapes/circle/item.rs' = '''
+use super::super::interface::ShapesItem;
+
+struct CircleItem;
+
+impl ShapesItem for CircleItem {}
+'''
+
+[[scenarios]]
+id = 'own-trait-with-interface'
+scenario = 'A collection that declares its own trait and whose items implement it.'
+given.files.'src/collections/shapes/interface.rs' = '''
+pub trait ShapesItem {}
+'''
+
+[[scenarios]]
+id = 'own-trait-without-interface'
+scenario = "An item imports the collection's interface and there is none."
+then.findings = [
+  { path = 'src/collections/shapes/circle/item.rs' },
+]
+
+[[scenarios]]
+id = 'trait-of-another-crate-without-interface'
+scenario = 'Items that implement a trait of another crate and no interface.rs.'
+given.files.'src/collections/shapes/circle/item.rs' = '''
+use ryo::languages::ReadItem;
+
+struct CircleItem;
+
+impl ReadItem for CircleItem {}
+'''
+
+[[scenarios]]
+id = 'reads-call-without-interface'
+scenario = 'Items declared by a reads call and no interface.rs.'
+given.files.'src/collections/shapes/circle/item.rs' = '''
+pub(crate) struct CircleItem;
+
+ryo::reads! {
+    CircleItem => languages::Circle |tree, at, _symbols| {
+        row { a: node(at) }
+    }
+}
+'''
+
+[[scenarios]]
+id = 'trait-of-another-crate-with-interface'
+scenario = 'Items implement a trait of another crate and the collection still declares its own.'
+given.files.'src/collections/shapes/circle/item.rs' = '''
+use ryo::languages::ReadItem;
+
+struct CircleItem;
+
+impl ReadItem for CircleItem {}
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+pub trait ShapesItem {}
+'''
+then.findings = [
+  { path = 'src/collections/shapes/interface.rs' },
+]
+
+[[scenarios]]
+id = 'reads-call-with-interface'
+scenario = 'Items declared by a reads call and the collection still declares its own trait.'
+given.files.'src/collections/shapes/circle/item.rs' = '''
+pub(crate) struct CircleItem;
+
+ryo::reads! {
+    CircleItem => languages::Circle |tree, at, _symbols| {
+        row { a: node(at) }
+    }
+}
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+pub trait ShapesItem {}
+'''
+then.findings = [
+  { path = 'src/collections/shapes/interface.rs' },
+]
+
+[[scenarios]]
+id = 'interface-one-item-uses'
+scenario = 'Two items import the interface, there is one.'
+given.files.'src/collections/shapes/interface.rs' = '''
+pub trait ShapesItem {}
+'''
+given.files.'src/collections/shapes/square/item.rs' = '''
+use super::super::interface::ShapesItem;
+
+struct SquareItem;
+
+impl ShapesItem for SquareItem {}
+'''

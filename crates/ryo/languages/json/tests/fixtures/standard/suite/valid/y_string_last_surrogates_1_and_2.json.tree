@@ -1,0 +1,7 @@
+json-text 0-16
+ value 0-16
+  array 0-16
+   begin-array 0-1
+   value 1-15
+    string 1-15
+   end-array 15-16

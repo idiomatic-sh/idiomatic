@@ -1,0 +1,94 @@
+[[cases]]
+name = "direct"
+files = { "case.py" = "dict({\"x\": 1})\n" }
+expected = [{ file = "case.py", start = 0, end = 14 }]
+
+[[cases]]
+name = "assignment"
+files = { "case.py" = "result = dict({\"x\": 1})\n" }
+expected = [{ file = "case.py", start = 9, end = 23 }]
+
+[[cases]]
+name = "parenthesized-function"
+files = { "case.py" = "(dict)({\"x\": 1})\n" }
+expected = [{ file = "case.py", start = 0, end = 16 }]
+
+[[cases]]
+name = "shadowed"
+files = { "case.py" = "def f(dict):\n    dict({\"x\": 1})\n" }
+expected = []
+
+[[cases]]
+name = "rebound"
+files = { "case.py" = "dict = custom\ndict({\"x\": 1})\n" }
+expected = []
+
+[[cases]]
+name = "qualified"
+files = { "case.py" = "import builtins\nbuiltins.dict({\"x\": 1})\n" }
+expected = []
+
+[[cases]]
+name = "imported-same-name"
+files = { "case.py" = "from builtins import dict\ndict({\"x\": 1})\n" }
+expected = []
+
+[[cases]]
+name = "imported-alias"
+files = { "case.py" = "from builtins import dict as convert\nconvert({\"x\": 1})\n" }
+expected = []
+
+[[cases]]
+name = "extra-positional"
+files = { "case.py" = "dict({\"x\": 1}, other)\n" }
+expected = []
+
+[[cases]]
+name = "keyword"
+files = { "case.py" = "dict({\"x\": 1}, unexpected=True)\n" }
+expected = []
+
+[[cases]]
+name = "unpacked-keyword"
+files = { "case.py" = "dict({\"x\": 1}, **kwargs)\n" }
+expected = []
+
+[[cases]]
+name = "starred-argument"
+files = { "case.py" = "dict(*[({\"x\": 1})])\n" }
+expected = []
+
+[[cases]]
+name = "empty"
+files = { "case.py" = "dict()\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "dict({\"x\": 1}) # noqa: C418\n" }
+expected = []
+
+[[cases]]
+name = "range"
+files = { "case.py" = "# ruff: disable[C418]\ndict({\"x\": 1})\n# ruff: enable[C418]\n" }
+expected = []
+
+[[cases]]
+name = "comprehension"
+files = { "case.py" = "dict({x: y for x, y in values})\n" }
+expected = [{ file = "case.py", start = 0, end = 31 }]
+
+[[cases]]
+name = "empty-dict"
+files = { "case.py" = "dict({})\n" }
+expected = [{ file = "case.py", start = 0, end = 8 }]
+
+[[cases]]
+name = "unpacked-dict"
+files = { "case.py" = "dict({**other})\n" }
+expected = [{ file = "case.py", start = 0, end = 15 }]
+
+[[cases]]
+name = "variable"
+files = { "case.py" = "dict(other)\n" }
+expected = []

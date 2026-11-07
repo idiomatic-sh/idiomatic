@@ -1,0 +1,8 @@
+version = 1
+parents = ["8e235bad27c5d63842b56fbf4f29d3fa758288403f1b7b35d98736ae281cb995"]
+
+[[perf]]
+reasons = ["Seeded with the median of five runs of the benchmark on the development machine, each run the median of its rounds; the tolerance is three times the spread of those five medians, rounded up to a multiple of 5, and at least 100% for a workload under 100 ms or 20% above it: the machine is shared, and a workload that short moves by its own rounding."]
+records = [
+  { tool = "performance", benchmark = "cost/ryo-warm-lint", measure = "cpu-ms", best = 496.001 },
+]

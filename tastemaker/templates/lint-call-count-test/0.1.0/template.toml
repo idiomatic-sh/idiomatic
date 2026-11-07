@@ -1,0 +1,84 @@
+description = "The call-count row of the whole per-file path: a test that lints the corpus the fixtures state, once as it is and once with ten times the rows in every file, and checks that the facts port is called as often for both."
+why = "A port is called for a file, never for a row: syntax-scale relations have about 10M rows on ruff, and a call per row would be paid ten million times. Only a count proves it: the facts fake counts its calls, and the counting and the comparison are the core's contract (`ryo_core::inbound::use_cases::lint::fixtures::contract::call_count`), the same in every product. The corpus is the fixtures of the items the product lists (rule `item-fixtures`), so a new relation or operator is covered without anyone editing the test."
+content = '''
+//! A port is called for a file, never for a row: `lint` over the corpus the fixtures state, with
+//! the real Rust language and real queries, calls the facts port as often when every file has ten
+//! times the rows. The counting and the comparison are the core's contract, the same for every product.
+
+use std::path::Path;
+use std::sync::Arc;
+
+use ryo_core::inbound::use_cases::lint::fixtures::contract;
+use ryo_core::outbound::language;
+use ryo_core::outbound::language::factory::LanguageHandles;
+
+#[test]
+fn port_calls_for_a_file_do_not_grow_with_its_rows() {
+    let rust = ryo_rust::linked();
+    let corpus = contract::corpus(
+        Arc::new(language::factory::use_case(vec![LanguageHandles::from(rust)])),
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../languages/rust/tests/fixtures"),
+        &ryo_rust::fixtures::expected(),
+    );
+    contract::call_count(&corpus);
+}
+'''
+
+[given]
+file = 'tests/call_count.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'tests/call_count.rs' = '''
+//! A port is called for a file, never for a row: `lint` over the corpus the fixtures state, with
+//! the real Rust language and real queries, calls the facts port as often when every file has ten
+//! times the rows. The counting and the comparison are the core's contract, the same for every product.
+
+use std::path::Path;
+use std::sync::Arc;
+
+use ryo_core::inbound::use_cases::lint::fixtures::contract;
+use ryo_core::outbound::language;
+use ryo_core::outbound::language::factory::LanguageHandles;
+
+#[test]
+fn port_calls_for_a_file_do_not_grow_with_its_rows() {
+    let rust = ryo_rust::linked();
+    let corpus = contract::corpus(
+        Arc::new(language::factory::use_case(vec![LanguageHandles::from(rust)])),
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../languages/rust/tests/fixtures"),
+        &ryo_rust::fixtures::expected(),
+    );
+    contract::call_count(&corpus);
+}
+'''
+
+[[scenarios]]
+id = 'missing-test'
+scenario = 'The test is missing.'
+given.files.'tests/call_count.rs' = '''
+//! A port is called for a file, never for a row: `lint` over the corpus the fixtures state, with
+//! the real Rust language and real queries, calls the facts port as often when every file has ten
+//! times the rows. The counting and the comparison are the core's contract, the same for every product.
+
+use std::path::Path;
+use std::sync::Arc;
+
+use ryo_core::inbound::use_cases::lint::fixtures::contract;
+use ryo_core::outbound::language;
+use ryo_core::outbound::language::factory::LanguageHandles;
+
+fn port_calls_for_a_file_do_not_grow_with_its_rows() {
+    let rust = ryo_rust::linked();
+    let corpus = contract::corpus(
+        Arc::new(language::factory::use_case(vec![LanguageHandles::from(rust)])),
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../languages/rust/tests/fixtures"),
+        &ryo_rust::fixtures::expected(),
+    );
+    contract::call_count(&corpus);
+}
+'''
+then.findings = [
+  { rule = 'lint-call-count-test#template', path = 'tests/call_count.rs' },
+]

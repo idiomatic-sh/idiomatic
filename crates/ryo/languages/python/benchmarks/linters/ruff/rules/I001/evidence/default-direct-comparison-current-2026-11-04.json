@@ -1,0 +1,167 @@
+{
+  "comparison_version": "i001-default-bag/v1",
+  "comparison_script_sha256": "65f2dc148ea5473bd5806f83e49d6846cebdb8100f72ae3e93efa4c2ae8df859",
+  "normalized_fields": [
+    "rule",
+    "file",
+    "start",
+    "end"
+  ],
+  "candidate_exit": 0,
+  "reference_exit": 1,
+  "worker_sha256": "d025a7b0a13443fb36b9d70647744ddc6ccbd2526a8b71b9e542f42086656166",
+  "ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "request_sha256": "1fe9e1e790e1edce0577f9054933ae064280450445dfdf96f4c3651c80e0e2b9",
+  "query_sha256": "5b5d2c80f91a6b63bc1e0705e9b8e8c0dd61a1418a59b798a83331947cbb07e0",
+  "fixture_manifest_sha256": "e4f90892e325b1da4d5acad1a89b440a1ee2547c4883b2e89ee7b85084cd8f13",
+  "candidate_stdout_sha256": "c67b3dd0db65bafccd154943d7e074687318f3932ef9f040ca9daa68278e36cb",
+  "reference_stdout_sha256": "e4820bcd535e7c8bbd0ad42f908c19a86a99b9535a33c1d8db17feb57bd97a8a",
+  "fixture_count": 54,
+  "mismatches": {
+    "bom_unsorted.py": {
+      "candidate": [
+        [
+          3,
+          24
+        ]
+      ],
+      "reference": [
+        [
+          0,
+          24
+        ]
+      ]
+    },
+    "fit_line_length.py": {
+      "candidate": [],
+      "reference": [
+        [
+          206,
+          767
+        ]
+      ]
+    },
+    "fit_line_length_comment.py": {
+      "candidate": [],
+      "reference": [
+        [
+          0,
+          459
+        ]
+      ]
+    },
+    "force_wrap_aliases.py": {
+      "candidate": [],
+      "reference": [
+        [
+          0,
+          75
+        ]
+      ]
+    },
+    "insert_empty_lines.py": {
+      "candidate": [
+        [
+          427,
+          436
+        ],
+        [
+          480,
+          489
+        ],
+        [
+          532,
+          541
+        ]
+      ],
+      "reference": [
+        [
+          0,
+          17
+        ],
+        [
+          24,
+          44
+        ],
+        [
+          143,
+          163
+        ],
+        [
+          480,
+          489
+        ]
+      ]
+    },
+    "insert_empty_lines.pyi": {
+      "candidate": [
+        [
+          427,
+          436
+        ],
+        [
+          480,
+          489
+        ],
+        [
+          532,
+          541
+        ]
+      ],
+      "reference": [
+        [
+          0,
+          17
+        ],
+        [
+          24,
+          44
+        ],
+        [
+          143,
+          163
+        ]
+      ]
+    },
+    "no_wrap_star.py": {
+      "candidate": [],
+      "reference": [
+        [
+          0,
+          27
+        ]
+      ]
+    },
+    "trailing_comment.py": {
+      "candidate": [
+        [
+          77,
+          159
+        ]
+      ],
+      "reference": [
+        [
+          77,
+          159
+        ],
+        [
+          181,
+          281
+        ],
+        [
+          351,
+          404
+        ],
+        [
+          412,
+          465
+        ],
+        [
+          477,
+          535
+        ]
+      ]
+    }
+  },
+  "matching_files": 46
+}

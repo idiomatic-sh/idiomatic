@@ -1,0 +1,41 @@
+# The repository root, closed over the whole repository: every top-level directory and file has an entry here, and one
+# that has none is a `#closed` finding. The workflows under .github/workflows/ (the `workflows` spec) and the release job and
+# scripts under ci/ (the `ci` spec) are checked; asymptote.toml is the tools no product owns. A directory whose contents are
+# their owner's is placed as it is (`unchecked`), its files not read. A symbolic link is a path like any other, placed
+# or `#closed`, and never followed. Each
+# product under crates/ is a workspace of its own, with its own tastemaker.toml (and so is each of Tastemaker's samples), and
+# tastemaker/ is the packages this workspace depends on; neither is the root's to place. It depends on idiomatic.benchmarks, the rules kept only for benchmarks and placed on
+# no product, so validating here proves them.
+tastemaker = "0.1.0"
+workspace = { name = "idiomatic", dependencies = [
+  { package = "idiomatic.arch", path = "tastemaker" },
+  { package = "idiomatic.benchmarks", path = "tastemaker/benchmarks" },
+] }
+templates = [
+  { template = "idiomatic.arch/asymptote-workspace", file = "asymptote.toml", description = "The workspace: the products as members, and the tools no product owns." },
+  { template = "idiomatic.arch/tastemaker-lock", file = "tastemaker.lock", description = "This file's lock: the definition versions the root resolved." },
+  { template = "idiomatic.arch/cargo-config", file = ".cargo/config.toml", description = "The Cargo configuration every workspace of the repository builds with: the linker, the debug info, the aliases (coverage with no threshold)." },
+  { template = "idiomatic.arch/unchecked", file = "tools/{*tools}", description = "The pinned command-line tools and their installer." },
+  { template = "idiomatic.arch/unchecked", file = ".agents/agents/{*agents}", description = "The agent instruction files the repository's agents read." },
+  { template = "idiomatic.arch/unchecked", file = ".claude/settings.json", description = "The Claude Code harness settings: the hooks every agent session runs." },
+  { template = "idiomatic.arch/unchecked", file = ".claude/hooks/{*hooks}", description = "The harness hooks and their tests." },
+  { template = "idiomatic.arch/unchecked", file = "AGENTS.md", description = "The instructions every agent working in the repository follows, including the builder brief contract." },
+  { template = "idiomatic.arch/unchecked", file = ".editorconfig", description = "The editor settings every text file is held to." },
+  { template = "idiomatic.arch/unchecked", file = ".editorconfig-checker.json", description = "The editorconfig checker's settings." },
+  { template = "idiomatic.arch/unchecked", file = ".github/actionlint.yaml", description = "The workflow linter's settings: the hosted runner labels newer than it knows." },
+  { template = "idiomatic.arch/unchecked", file = ".gitattributes", description = "Git's attributes: every file checked out as committed." },
+  { template = "idiomatic.arch/unchecked", file = ".gitignore", description = "The files git leaves out." },
+  { template = "idiomatic.arch/unchecked", file = ".yamllint.yaml", description = "The YAML lint settings." },
+  { template = "idiomatic.arch/unchecked", file = "LICENSE", description = "The MIT license." },
+  { template = "idiomatic.arch/unchecked", file = "README.md", description = "The repository's README." },
+  { template = "idiomatic.arch/unchecked", file = "_typos.toml", description = "The spelling checker's settings." },
+  { template = "idiomatic.arch/unchecked", file = "clippy.toml", description = "The clippy settings every workspace inherits." },
+  { template = "idiomatic.arch/unchecked", file = "cz.toml", description = "The commit message settings." },
+  { template = "idiomatic.arch/unchecked", file = "rust-toolchain.toml", description = "The pinned Rust toolchain." },
+  { template = "idiomatic.arch/unchecked", file = "rustfmt.toml", description = "The rustfmt settings." },
+  { template = "idiomatic.arch/unchecked", file = "taplo.toml", description = "The TOML formatter's settings." },
+]
+specs = [
+  { spec = "idiomatic.arch/ci", include = ["ci"], description = "The release job, the workflows' test and the scripts under ci/, each placed." },
+  { spec = "idiomatic.arch/workflows", include = [".github/workflows"], description = "The workflows, each a thin edge over one `asymptote check` call." },
+]

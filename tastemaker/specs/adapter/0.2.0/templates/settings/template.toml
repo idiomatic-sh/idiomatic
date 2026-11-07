@@ -1,0 +1,129 @@
+description = "An adapter's settings: the values and injected parts its composition configures it with."
+why = "Gathers what an adapter's composition configures it with in one type, so an adapter is built from explicit settings rather than reading its environment. The struct is named for the port and the adapter, `<Port><Part>Settings`, like the adapter it configures. A store adapter's settings are the directory its file is kept in and the build that reads and writes it; its factory takes them and no port method does."
+content = '''
+//! What the {{ part }} {{ port }} adapter is configured with.
+
+/// The {{ part }} {{ port }} adapter's settings: the values and parts its
+/// composition chooses.
+#[derive(Debug)]
+struct {{ port | pascal }}{{ part | pascal }}Settings {}
+'''
+
+[params]
+port = { type = "identifier", from = "directory-name", description = "The outbound port the adapter implements, captured from the path of its part; the directory's own name where the part has no port." }
+part = { type = "identifier", from = "directory-name", description = "The adapter's directory name: the implementation." }
+
+[[scenarios]]
+id = 'example-adapter'
+scenario = 'The rendered template passes.'
+given.file = 'src/names/adapters/memory/settings.rs'
+given.params = { port = 'names', part = 'memory' }
+given.files.'src/names/adapters/memory/settings.rs' = '''
+//! What the memory names adapter is configured with.
+
+/// The memory names adapter's settings: the values and parts its
+/// composition chooses.
+#[derive(Debug)]
+pub struct NamesMemorySettings {
+    root: std::path::PathBuf,
+}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.file = 'src/names/adapters/memory/settings.rs'
+given.params = { port = 'names', part = 'memory' }
+given.files.'src/names/adapters/memory/settings.rs' = '''
+//! What the memory names adapter is configured with.
+
+/// The memory names adapter's settings: the values and parts its
+/// composition chooses.
+#[derive(Debug)]
+pub struct NamesMemorySettings {
+    root: std::path::PathBuf,
+}
+
+impl NamesMemorySettings {
+    /// Settings over `root`.
+    pub(crate) fn new(root: std::path::PathBuf) -> Self {
+        Self { root }
+    }
+}
+'''
+
+[[scenarios]]
+id = 'crate-settings'
+scenario = 'The crate keeps the settings to itself.'
+given.file = 'src/names/adapters/memory/settings.rs'
+given.params = { port = 'names', part = 'memory' }
+given.files.'src/names/adapters/memory/settings.rs' = '''
+//! What the memory names adapter is configured with.
+
+/// The memory names adapter's settings: the values and parts its
+/// composition chooses.
+#[derive(Debug)]
+pub(crate) struct NamesMemorySettings {
+    root: std::path::PathBuf,
+}
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'src/names/adapters/memory/settings.rs'
+given.params = { port = 'names', part = 'memory' }
+then.findings = [
+  { rule = 'settings#count', path = '.' },
+]
+
+[[scenarios]]
+id = 'settings-named-their-port-part'
+scenario = 'The settings are not named for their port and part.'
+given.file = 'src/names/adapters/memory/settings.rs'
+given.params = { port = 'names', part = 'memory' }
+given.files.'src/names/adapters/memory/settings.rs' = '''
+//! What the memory names adapter is configured with.
+
+/// The memory names adapter's settings: the values and parts its
+/// composition chooses.
+#[derive(Debug)]
+pub struct MemoryOptions {
+    root: std::path::PathBuf,
+}
+'''
+then.findings = [
+  { rule = 'settings#template', path = 'src/names/adapters/memory/settings.rs' },
+]
+
+[[scenarios]]
+id = 'no-debug'
+scenario = 'The settings do not derive Debug, which their adapter derives over them.'
+given.file = 'src/names/adapters/memory/settings.rs'
+given.params = { port = 'names', part = 'memory' }
+given.files.'src/names/adapters/memory/settings.rs' = '''
+//! What the memory names adapter is configured with.
+
+/// The memory names adapter's settings: the values and parts its
+/// composition chooses.
+pub struct NamesMemorySettings {
+    root: std::path::PathBuf,
+}
+'''
+then.findings = [
+  { rule = 'settings#template', path = 'src/names/adapters/memory/settings.rs' },
+]
+
+[[scenarios]]
+id = 'multi-word-adapter'
+scenario = 'Settings named by several words are named for all of them.'
+given.file = 'src/user_names/adapters/in_memory/settings.rs'
+given.params = { port = 'user_names', part = 'in_memory' }
+given.files.'src/user_names/adapters/in_memory/settings.rs' = '''
+//! What the in_memory user_names adapter is configured with.
+
+/// The in_memory user_names adapter's settings: the values and parts its
+/// composition chooses.
+#[derive(Debug)]
+struct UserNamesInMemorySettings {}
+'''

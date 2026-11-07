@@ -1,0 +1,6 @@
+root[3]
+├─0 paragraph[1]
+│   └─0 text "Foo\n= ="
+├─1 paragraph[1]
+│   └─0 text "Foo"
+└─2 thematicBreak

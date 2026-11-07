@@ -1,0 +1,56 @@
+# Identifiers that are correct here but that typos rewrites. Each entry exists
+# because the tool changed real text in this repository, not as a precaution.
+[default.extend-words]
+# serde-sarif 0.8 names its SARIF suppression enums `SupressionKind` and
+# `SupressionStatus`; typos rewrote their imports and broke the build.
+Supression = "Supression"
+# The repository writes British English ("catalogue", "recognise"); typos renamed the test
+# an_uncatalogued_relation_is_refused_by_name to the American spelling.
+uncatalogued = "uncatalogued"
+# Stichting Mathematisch Centrum, the Dutch institute named in CPython's licence; typos rewrote the licence text pinned beside
+# ryo's Python standard to "Stitching Mathematics".
+Stichting = "Stichting"
+Mathematisch = "Mathematisch"
+STICHTING = "STICHTING"
+MATHEMATISCH = "MATHEMATISCH"
+# The crate `writeable` (ICU4X) is named in the products' Cargo.lock files; typos rewrote it to "writable",
+# a crate that is not there.
+writeable = "writeable"
+# The `toml` crate names its serializer module `ser` (`toml::ser::Error`), which the serialize-dont-format rule's scenarios
+# quote; typos reads it as "set".
+ser = "ser"
+
+# Commit SHAs (the canonical ryo pin, README revision rows) split into words at
+# their digits; `7ba46a81...` read as `ba`.
+[default]
+# The catch-all-names rule names its result `catch-alls`, a plural typos reads as a
+# misspelling of "all".
+# A hash written straight after a word (`source6bf638e1f...`) has no word
+# boundary before it.
+extend-ignore-re = ['\b[0-9a-f]{7,40}\b', '[0-9a-f]{10,}', '\bcatch-alls\b']
+
+# RyoQL tests misspell a field ("colums") and an operation ("projct", "selekt") on
+# purpose, to prove the reader refuses an unknown one; typos rewrote them, which made each
+# replace a no-op and the tests meaningless.
+[type.rust]
+extend-ignore-re = ['"[0-9a-f]{16}:[0-9]+"', '"colums=?"', '\bprojct\b', '\bselekt\b']
+
+# Quotations in Markdown are kept as written, misspellings included; one that wraps
+# across lines in a CHANGELOG may span a few wrapped lines.
+[type.md]
+extend-ignore-re = ['"[^"\n]*(\n[^"\n]*){0,6}"']
+
+# The standards a language is pinned to are copied unchanged (crates/ryo/languages/*/tests/fixtures/standard): a typo in them is the
+# standard's own, and correcting it would make the copy something else than the pinned file.
+[files]
+extend-exclude = [
+  "crates/ryo/languages/*/tests/fixtures/standard/**",
+  # A language's pinned suite is its test files byte for byte.
+  "crates/ryo/languages/*/tests/fixtures/suite/**",
+  # A refusal fixture's manifest is unreadable on purpose.
+  "crates/ryo/languages/*/tests/fixtures/refusals/unreadable/Cargo.toml",
+  # Other people's files, held byte for byte.
+  "**/snapshots/**",
+  "**/resources/**",
+  "crates/ryo/languages/*/tests/fixtures/corpus/**",
+]

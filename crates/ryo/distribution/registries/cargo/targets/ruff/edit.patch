@@ -1,0 +1,10 @@
+diff --git a/crates/ruff_cache/src/filetime.rs b/crates/ruff_cache/src/filetime.rs
+index 3733173..814b9ee 100644
+--- a/crates/ruff_cache/src/filetime.rs
++++ b/crates/ruff_cache/src/filetime.rs
+@@ -9,3 +9,5 @@ impl CacheKey for FileTime {
+         self.hash(&mut *state);
+     }
+ }
++
++// distribution-proof

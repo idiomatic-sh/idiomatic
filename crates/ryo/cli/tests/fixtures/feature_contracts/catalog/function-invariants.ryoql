@@ -1,0 +1,7 @@
+let terminals = select id, outcome, file, span from "function-terminal";
+let functions = select id, file from "semantic-syntax" where kind = "function-def" or kind = "async-function-def";
+let absent_functions = antijoin(left=terminals, right=functions, left-on=["id", "file"], right-on=["id", "file"]);
+let bad_outcomes = select id, file, span from terminals where outcome != "implicit" and outcome != "raise" and outcome != "return-or-raise" and outcome != "conditional-return";
+let missing = select id, file, span from absent_functions;
+let violations = union(left=missing, right=bad_outcomes);
+emit violations subject file key(id, span);

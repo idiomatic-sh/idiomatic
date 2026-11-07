@@ -1,0 +1,1 @@
+Module(body=[AsyncFor(target=Name(id='target', ctx=Store()), iter=Name(id='iter'), body=[Expr(value=Constant(value=Ellipsis))])])

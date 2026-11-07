@@ -1,0 +1,54 @@
+description = "A file of an embedded adapter, the implementation of the embedded port for one host format or framework: `src/outbound/embedded/adapters/<adapter>/adapter.rs`."
+why = "A language that has the embedded port has one adapter for each host format or framework it serves, each in this shape: a module file, `adapter.rs` and `adapter_test.rs`, the test running the port's contract (`adapter-contract`). The entry's count is at least none because the embedded port is the language's own, and what a language owes is said by `language-parts` (a test beside each adapter); where the file exists it is held to this template's declarations, and `tm scaffold` writes a new adapter from it. The template asks for the declarations the file makes; the bodies and the language's words are the author's."
+content = '''
+//! The embedded port, implemented for `{{ adapter }}` files.
+
+use crate::outbound::embedded::interface::EmbeddedPort;
+
+/// The `{{ adapter }}` embedded adapter.
+#[derive(Debug)]
+pub(crate) struct Embedded{{ adapter | pascal }}Adapter;
+
+impl EmbeddedPort for Embedded{{ adapter | pascal }}Adapter {}
+'''
+
+[given]
+file = 'src/outbound/embedded/adapters/{adapter}/adapter.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'src/outbound/embedded/adapters/demo_framework/adapter.rs' = '''
+//! The embedded port, implemented for `demo_framework` files.
+
+use crate::outbound::embedded::interface::EmbeddedPort;
+
+/// The `demo_framework` embedded adapter.
+#[derive(Debug)]
+pub(crate) struct EmbeddedDemoFrameworkAdapter;
+
+impl EmbeddedPort for EmbeddedDemoFrameworkAdapter {}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'src/outbound/embedded/adapters/demo_framework/adapter.rs' = '''
+//! The embedded port, implemented for `demo_framework` files.
+
+use crate::outbound::embedded::interface::EmbeddedPort;
+
+/// The `demo_framework` embedded adapter.
+#[derive(Debug)]
+pub(crate) struct EmbeddedDemoFrameworkAdapter;
+
+impl EmbeddedPort for EmbeddedDemoFrameworkAdapter {}
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'language-embedded-adapter#count', path = '.' },
+]

@@ -1,0 +1,31 @@
+description = "The use case's promises, each proven over fakes of every port: the order of the steps, what a failing step stops, and what a request is refused for."
+why = "Proves the job's orchestration without its tools, so it is exact and fast."
+content = '''
+"""What the `{{ job }}` job's use case promises, over fakes of every port."""
+
+from __future__ import annotations
+
+from ci.{{ job }}.use_case import Request, UseCase
+'''
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'ci/{job}/use_case_test.py'
+given.count = { min = 1 }
+given.files.'ci/demo/use_case_test.py' = '''
+"""What the `demo` job's use case promises, over fakes of every port."""
+
+from __future__ import annotations
+
+from ci.demo.use_case import Request, UseCase
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'ci/{job}/use_case_test.py'
+given.count = { min = 1 }
+then.findings = [
+  { rule = 'job-use-case-test#count', path = '.' },
+]

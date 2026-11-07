@@ -1,0 +1,8 @@
+rows = [
+  { path = "crates/ty_python_semantic/src/types.rs", key = "230953..231840" },
+  { path = "crates/ty_python_semantic/src/types.rs", key = "231854..234544" },
+  { path = "crates/ty_python_semantic/src/types/class/static_literal.rs", key = "138785..140567" },
+  { path = "crates/ty_python_semantic/src/types/constraints.rs", key = "80870..80968" },
+  { path = "crates/ty_python_semantic/src/types/constraints.rs", key = "80982..81071" },
+  { path = "crates/ty_python_semantic/src/types/constraints.rs", key = "81085..82550" },
+]

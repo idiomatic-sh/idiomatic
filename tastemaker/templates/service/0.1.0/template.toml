@@ -1,0 +1,35 @@
+description = "One domain concept's service: pure functions over the domain's types, with no IO and no ports."
+why = "Gives each rule across a domain's types one place, named for its concept, that use cases and adapters both call, importing only the domain's own types and errors, so a business rule is never an adapter's private helper, never reaches the outside world, and never shares one file with every other rule."
+content = '''
+//! The `{{ concept }}` service: pure functions over the domain's types, with no IO and no ports.
+'''
+
+[params]
+concept = { type = "identifier", description = "The concept, its directory's name." }
+
+[given]
+file = 'src/domain/short/service.rs'
+params = { concept = 'short' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'src/domain/short/service.rs' = '''
+//! The `short` service: pure functions over the domain's types, with no IO and no ports.
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'src/domain/short/service.rs' = '''
+//! The `short` service: pure functions over the domain's types, with no IO and no ports.
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'service#count', path = 'tastemaker.toml' },
+]

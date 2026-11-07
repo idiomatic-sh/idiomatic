@@ -1,0 +1,8 @@
+json-text 0-84
+ value 0-84
+  array 0-84
+   begin-array 0-1
+   value 1-82
+    number 1-82
+   end-array 82-84
+    ws 83-84

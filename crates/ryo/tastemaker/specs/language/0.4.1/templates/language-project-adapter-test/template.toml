@@ -1,0 +1,128 @@
+description = "A file of a manifest reading adapter, the implementation of the manifest reading port for one manifest format or tool: `src/outbound/manifest_reading/adapters/<adapter>/adapter_test.rs`."
+why = "A language that has the manifest reading port has one adapter for each manifest format or tool it serves, each in this shape: a module file, `adapter.rs` and `adapter_test.rs`, the test running the port's contract (`adapter-contract`). The entry's count is at least none because the manifest reading port is the language's own, and what a language owes is said by `language-parts` (a test beside each adapter); where the file exists it is held to this template's declarations, and `tm scaffold` writes a new adapter from it. The template asks for the declarations the file makes; the bodies and the language's words are the author's."
+content = '''
+//! The `{{ adapter }}` adapter runs the manifest reading port's contract: the shared cases, then the cases specific to it.
+
+use super::adapter::ManifestReading{{ adapter | pascal }}Adapter;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::manifest_reading::fixtures::contract::check;
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+/// The rows of what is specific to this adapter.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("the_{{ adapter }}_adapter_holds_the_project_contract"),
+    word: Word::Succeeds,
+    input: || (),
+    expect: Expect::Value(()),
+}];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |()| {
+        check(&ManifestReading{{ adapter | pascal }}Adapter);
+        Ok(())
+    });
+}
+'''
+
+[given]
+file = 'src/outbound/manifest_reading/adapters/{adapter}/adapter_test.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'src/outbound/manifest_reading/adapters/demo_tool/adapter_test.rs' = '''
+//! The `demo_tool` adapter runs the manifest reading port's contract: the shared cases, then the cases specific to it.
+
+use super::adapter::ManifestReadingDemoToolAdapter;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::manifest_reading::fixtures::contract::check;
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+/// The rows of what is specific to this adapter.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("the_demo_tool_adapter_holds_the_project_contract"),
+    word: Word::Succeeds,
+    input: || (),
+    expect: Expect::Value(()),
+}];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |()| {
+        check(&ManifestReadingDemoToolAdapter);
+        Ok(())
+    });
+}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'src/outbound/manifest_reading/adapters/demo_tool/adapter_test.rs' = '''
+//! The `demo_tool` adapter runs the manifest reading port's contract: the shared cases, then the cases specific to it.
+
+use super::adapter::ManifestReadingDemoToolAdapter;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::manifest_reading::fixtures::contract::check;
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+/// The rows of what is specific to this adapter.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("the_demo_tool_adapter_holds_the_project_contract"),
+    word: Word::Succeeds,
+    input: || (),
+    expect: Expect::Value(()),
+}];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |()| {
+        check(&ManifestReadingDemoToolAdapter);
+        Ok(())
+    });
+}
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'language-project-adapter-test#count', path = '.' },
+]
+
+[[scenarios]]
+id = 'without-test-fn'
+scenario = 'The test declares no test.'
+given.files.'src/outbound/manifest_reading/adapters/demo_tool/adapter_test.rs' = '''
+//! The `demo_tool` adapter runs the manifest reading port's contract: the shared cases, then the cases specific to it.
+
+use super::adapter::ManifestReadingDemoToolAdapter;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::manifest_reading::fixtures::contract::check;
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+/// The rows of what is specific to this adapter.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("the_demo_tool_adapter_holds_the_project_contract"),
+    word: Word::Succeeds,
+    input: || (),
+    expect: Expect::Value(()),
+}];
+'''
+then.findings = [
+  { rule = 'language-project-adapter-test#template', path = 'src/outbound/manifest_reading/adapters/demo_tool/adapter_test.rs' },
+]

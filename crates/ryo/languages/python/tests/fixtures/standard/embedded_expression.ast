@@ -1,0 +1,6 @@
+Module(
+  body=[
+    AnnAssign(
+      target=Name(id='x', ctx=Store()),
+      annotation=Constant(value='T'),
+      simple=1)])

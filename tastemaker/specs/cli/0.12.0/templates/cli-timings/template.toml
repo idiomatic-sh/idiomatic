@@ -1,0 +1,1522 @@
+description = "A CLI's `--timings[=tree|chrome]` flag and the tracing layer behind it: entered wall attribution by crate, hex and port method."
+why = "Attributes entered wall time, per crate, so the slowest crate can be tuned alone: every port method opens a span (`port-spans`), and this file is the one subscriber, installed with the flag or for the output module's progress line on a terminal (`crate::output::progress`, whose layer it adds), that sums the spans into a tree on exit or writes a Chrome trace. One timing owner per CLI, with an optional private diagnostic helper, so every product reports the same way and none grows a timings port of its own. The flag is never an environment variable, and its value is a variant, `off` by default, never an optional field."
+content = '''
+//! `--timings`: entered wall time attributed to crate, hex and port method.
+//!
+//! Busy time is the union of one span's entries; self wall time excludes the union
+//! of its active direct children, intersected with its own entries. These are wall
+//! attributions, not CPU measurements. Rows sum separate spans, so parallel and
+//! nested rows may exceed the command region's wall time. The external distribution
+//! runner measures whole-process wall and CPU, including startup and shutdown.
+
+{%- if present["timings-phases"] | default(false) %}
+#[cfg(all(feature = "phase-diagnostic", target_os = "linux"))]
+mod phases;
+{%- endif %}
+
+use std::collections::BTreeMap;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+
+use tracing_subscriber::layer::{Layer as _, SubscriberExt as _};
+
+#[cfg(test)]
+#[path = "timings_test.rs"]
+mod tests;
+
+/// How `--timings` reports.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, clap::ValueEnum)]
+pub enum Timings {
+    /// No subscriber or report.
+    #[default]
+    Off,
+    /// Time spent in each crate, in each part of it and in each call, as a tree on stderr.
+    Tree,
+    /// A Chrome trace file, for drilling into a run.
+    Chrome,
+}
+
+/// The global `--timings[=tree|chrome]` argument.
+#[derive(Clone, Debug, Default, clap::Args)]
+pub struct TimingsArgs {
+    /// Report entered wall time on stderr, or write a Chrome trace.
+    #[arg(long, global = true, value_enum, default_value = "off", num_args = 0..=1, require_equals = true, default_missing_value = "tree")]
+    pub timings: Timings,
+}
+
+/// Keeps reporting alive until the command exits.
+pub enum TimingsGuard {
+    /// Reporting is disabled.
+    Off,
+    /// The wall attribution tree and the command entry timestamp, before parsing.
+    Tree(TimingsTree, Instant),
+    /// The trace writer, flushed on drop.
+    Chrome(tracing_chrome::FlushGuard),
+}
+
+impl Drop for TimingsGuard {
+    fn drop(&mut self) {
+        if let Self::Tree(tree, started) = self {
+            let _ = tree.print(started.elapsed(), &mut std::io::stderr());
+        }
+    }
+}
+
+/// Installs the requested subscriber. `started` marks command entry, before parsing.
+///
+/// # Errors
+///
+/// Returns an error if another global subscriber is already installed.
+pub fn install(
+    timings: Timings,
+    started: Instant,
+) -> Result<TimingsGuard, tracing::subscriber::SetGlobalDefaultError> {
+    install_with_events(timings, started, &[])
+}
+
+/// Installs timings and an explicit diagnostic event allowlist on stderr.
+///
+/// # Errors
+///
+/// Returns an error if another global subscriber is already installed.
+pub fn install_with_events(
+    timings: Timings,
+    started: Instant,
+    targets: &'static [&'static str],
+) -> Result<TimingsGuard, tracing::subscriber::SetGlobalDefaultError> {
+    match timings {
+        Timings::Off => {
+            // The progress line alone, or the diagnostic events alone, install only what
+            // they need; a command off a terminal with neither installs nothing.
+            let progress = crate::output::progress::layer();
+            if !targets.is_empty() || progress.is_some() {
+                tracing::subscriber::set_global_default(
+                    tracing_subscriber::registry()
+                        .with(progress)
+                        .with((!targets.is_empty()).then(|| events(targets, std::io::stderr))),
+                )?;
+            }
+            Ok(TimingsGuard::Off)
+        }
+        Timings::Tree => {
+            let tree = TimingsTree::default();
+            tracing::subscriber::set_global_default(
+                tracing_subscriber::registry()
+                    .with(tracing_subscriber::filter::LevelFilter::INFO)
+                    .with(tree.clone())
+                    .with(events(targets, std::io::stderr))
+                    .with(crate::output::progress::layer()),
+            )?;
+            Ok(TimingsGuard::Tree(tree, started))
+        }
+        Timings::Chrome => {
+            let (layer, guard) = tracing_chrome::ChromeLayerBuilder::new()
+                .file(std::env::temp_dir().join(concat!(env!("CARGO_PKG_NAME"), "-trace.json")))
+                .build();
+            tracing::subscriber::set_global_default(
+                tracing_subscriber::registry()
+                    .with(tracing_subscriber::filter::LevelFilter::INFO)
+                    .with(layer)
+                    .with(events(targets, std::io::stderr))
+                    .with(crate::output::progress::layer()),
+            )?;
+            Ok(TimingsGuard::Chrome(guard))
+        }
+    }
+}
+
+fn events<S, W>(targets: &'static [&'static str], writer: W) -> impl tracing_subscriber::Layer<S>
+where
+    S: tracing::Subscriber + for<'span> tracing_subscriber::registry::LookupSpan<'span>,
+    W: for<'writer> tracing_subscriber::fmt::MakeWriter<'writer> + Send + Sync + 'static,
+{
+    tracing_subscriber::fmt::layer()
+        .with_writer(writer)
+        .with_timer(())
+        .with_target(false)
+        .with_ansi(false)
+        .with_filter(tracing_subscriber::filter::filter_fn(move |metadata| {
+            metadata.is_event()
+                && *metadata.level() <= tracing::Level::INFO
+                && targets.contains(&metadata.target())
+        }))
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct TimingsRow {
+    calls: u64,
+    busy: Duration,
+    own: Duration,
+}
+
+impl TimingsRow {
+    fn add(&mut self, other: Self) {
+        self.calls += other.calls;
+        self.busy += other.busy;
+        self.own += other.own;
+    }
+}
+
+/// A bounded online union: overlapping entries and distinct active children count once.
+#[derive(Default)]
+struct Clock {
+    busy: Duration,
+    own: Duration,
+    depth: usize,
+    children: usize,
+    last: Duration,
+}
+
+impl Clock {
+    fn advance(&mut self, now: Duration) {
+        let elapsed = now.saturating_sub(self.last);
+        if self.depth > 0 {
+            self.busy += elapsed;
+            if self.children == 0 {
+                self.own += elapsed;
+            }
+        }
+        self.last = now;
+    }
+
+    fn enter(&mut self, now: Duration) -> bool {
+        self.advance(now);
+        self.depth += 1;
+        self.depth == 1
+    }
+
+    fn exit(&mut self, now: Duration) -> bool {
+        self.advance(now);
+        self.depth -= 1;
+        self.depth == 0
+    }
+
+    fn child(&mut self, entered: bool, now: Duration) {
+        self.advance(now);
+        if entered {
+            self.children += 1;
+        } else {
+            self.children -= 1;
+        }
+    }
+}
+
+struct SpanClock {
+    clock: Clock,
+    parent: Option<u64>,
+    key: (String, String, String),
+}
+
+#[derive(Default)]
+struct State {
+    spans: BTreeMap<u64, SpanClock>,
+    rows: BTreeMap<(String, String, String), TimingsRow>,
+}
+
+impl State {
+    fn transition(&mut self, id: u64, entered: bool, now: Duration) {
+        let Some(span) = self.spans.get_mut(&id) else {
+            return;
+        };
+        let changed = if entered {
+            span.clock.enter(now)
+        } else {
+            span.clock.exit(now)
+        };
+        let parent = span.parent;
+        if changed && let Some(parent) = parent.and_then(|id| self.spans.get_mut(&id)) {
+            parent.clock.child(entered, now);
+        }
+    }
+}
+
+/// Aggregates entered wall time. A single lock orders transitions across threads;
+/// memory grows with live spans and distinct rows, never with the number of entries.
+#[derive(Clone)]
+pub struct TimingsTree {
+    state: Arc<Mutex<State>>,
+    origin: Instant,
+}
+
+impl Default for TimingsTree {
+    fn default() -> Self {
+        Self {
+            state: Arc::default(),
+            origin: Instant::now(),
+        }
+    }
+}
+
+impl<S> tracing_subscriber::Layer<S> for TimingsTree
+where
+    S: tracing::Subscriber + for<'span> tracing_subscriber::registry::LookupSpan<'span>,
+{
+    fn on_new_span(
+        &self,
+        _attributes: &tracing::span::Attributes<'_>,
+        id: &tracing::span::Id,
+        context: tracing_subscriber::layer::Context<'_, S>,
+    ) {
+        let Some(span) = context.span(id) else { return };
+        let mut target = span.metadata().target().split("::");
+        let key = (
+            target.next().unwrap_or_default().to_owned(),
+            target.next().unwrap_or_default().to_owned(),
+            span.name().to_owned(),
+        );
+        let parent = span.parent().map(|parent| parent.id().into_u64());
+        if let Ok(mut state) = self.state.lock() {
+            state.spans.insert(
+                id.into_u64(),
+                SpanClock {
+                    clock: Clock::default(),
+                    parent,
+                    key,
+                },
+            );
+        }
+    }
+
+    fn on_enter(
+        &self,
+        id: &tracing::span::Id,
+        _context: tracing_subscriber::layer::Context<'_, S>,
+    ) {
+        if let Ok(mut state) = self.state.lock() {
+            state.transition(id.into_u64(), true, self.origin.elapsed());
+        }
+    }
+
+    fn on_exit(&self, id: &tracing::span::Id, _context: tracing_subscriber::layer::Context<'_, S>) {
+        if let Ok(mut state) = self.state.lock() {
+            state.transition(id.into_u64(), false, self.origin.elapsed());
+        }
+    }
+
+    fn on_close(&self, id: tracing::span::Id, _context: tracing_subscriber::layer::Context<'_, S>) {
+        if let Ok(mut state) = self.state.lock()
+            && let Some(span) = state.spans.remove(&id.into_u64())
+        {
+            state.rows.entry(span.key).or_default().add(TimingsRow {
+                calls: 1,
+                busy: span.clock.busy,
+                own: span.clock.own,
+            });
+        }
+    }
+}
+
+impl TimingsTree {
+    /// Writes summed span wall attribution, ordered by self wall time at each level.
+    ///
+    /// # Errors
+    ///
+    /// Returns the writer's error if the report cannot be written.
+    pub fn print(&self, wall: Duration, out: &mut impl std::io::Write) -> std::io::Result<()> {
+        type Hexes<'a> = BTreeMap<&'a str, (TimingsRow, Vec<(&'a str, TimingsRow)>)>;
+        let Ok(state) = self.state.lock() else {
+            return Ok(());
+        };
+        let mut crates: BTreeMap<&str, (TimingsRow, Hexes<'_>)> = BTreeMap::new();
+        for ((owner, hex, method), row) in &state.rows {
+            let (crate_row, hexes) = crates.entry(owner.as_str()).or_default();
+            crate_row.add(*row);
+            let (hex_row, methods) = hexes.entry(hex.as_str()).or_default();
+            hex_row.add(*row);
+            methods.push((method.as_str(), *row));
+        }
+        writeln!(
+            out,
+            "WALL attribution; command-entry region {:.6} s (not whole-process CPU)",
+            wall.as_secs_f64()
+        )?;
+        writeln!(
+            out,
+            "Rows sum spans; parallel/nested rows may exceed region wall time."
+        )?;
+        writeln!(
+            out,
+            "{:<40} {:>8} {:>10} {:>10} {:>7}",
+            "crate / hex / method", "calls", "busy wall", "self wall", "share"
+        )?;
+        let mut crates: Vec<_> = crates.into_iter().collect();
+        crates.sort_by_key(|entry| std::cmp::Reverse(entry.1.0.own));
+        for (owner, (row, hexes)) in crates {
+            line(out, owner, 0, row, wall)?;
+            let mut hexes: Vec<_> = hexes.into_iter().collect();
+            hexes.sort_by_key(|entry| std::cmp::Reverse(entry.1.0.own));
+            for (hex, (row, mut methods)) in hexes {
+                line(out, hex, 1, row, wall)?;
+                methods.sort_by_key(|entry| std::cmp::Reverse(entry.1.own));
+                for (method, row) in methods {
+                    line(out, method, 2, row, wall)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+fn line(
+    out: &mut impl std::io::Write,
+    name: &str,
+    depth: usize,
+    row: TimingsRow,
+    wall: Duration,
+) -> std::io::Result<()> {
+    let share = if wall.is_zero() {
+        0.0
+    } else {
+        row.busy.as_secs_f64() / wall.as_secs_f64() * 100.0
+    };
+    let label = format!("{}{name}", "  ".repeat(depth));
+    writeln!(
+        out,
+        "{label:<40} {:>8} {:>8.3} s {:>8.3} s {share:>6.1}%",
+        row.calls,
+        row.busy.as_secs_f64(),
+        row.own.as_secs_f64()
+    )
+}
+'''
+
+[given]
+file = 'src/timings.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'src/timings.rs' = '''
+//! `--timings`: entered wall time attributed to crate, hex and port method.
+//!
+//! Busy time is the union of one span's entries; self wall time excludes the union
+//! of its active direct children, intersected with its own entries. These are wall
+//! attributions, not CPU measurements. Rows sum separate spans, so parallel and
+//! nested rows may exceed the command region's wall time. The external distribution
+//! runner measures whole-process wall and CPU, including startup and shutdown.
+
+use std::collections::BTreeMap;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+
+use tracing_subscriber::layer::{Layer as _, SubscriberExt as _};
+
+#[cfg(test)]
+#[path = "timings_test.rs"]
+mod tests;
+
+/// How `--timings` reports.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, clap::ValueEnum)]
+pub enum Timings {
+    /// No subscriber or report.
+    #[default]
+    Off,
+    /// Time spent in each crate, in each part of it and in each call, as a tree on stderr.
+    Tree,
+    /// A Chrome trace file, for drilling into a run.
+    Chrome,
+}
+
+/// The global `--timings[=tree|chrome]` argument.
+#[derive(Clone, Debug, Default, clap::Args)]
+pub struct TimingsArgs {
+    /// Report entered wall time on stderr, or write a Chrome trace.
+    #[arg(long, global = true, value_enum, default_value = "off", num_args = 0..=1, require_equals = true, default_missing_value = "tree")]
+    pub timings: Timings,
+}
+
+/// Keeps reporting alive until the command exits.
+pub enum TimingsGuard {
+    /// Reporting is disabled.
+    Off,
+    /// The wall attribution tree and the command entry timestamp, before parsing.
+    Tree(TimingsTree, Instant),
+    /// The trace writer, flushed on drop.
+    Chrome(tracing_chrome::FlushGuard),
+}
+
+impl Drop for TimingsGuard {
+    fn drop(&mut self) {
+        if let Self::Tree(tree, started) = self {
+            let _ = tree.print(started.elapsed(), &mut std::io::stderr());
+        }
+    }
+}
+
+/// Installs the requested subscriber. `started` marks command entry, before parsing.
+///
+/// # Errors
+///
+/// Returns an error if another global subscriber is already installed.
+pub fn install(
+    timings: Timings,
+    started: Instant,
+) -> Result<TimingsGuard, tracing::subscriber::SetGlobalDefaultError> {
+    install_with_events(timings, started, &[])
+}
+
+/// Installs timings and an explicit diagnostic event allowlist on stderr.
+///
+/// # Errors
+///
+/// Returns an error if another global subscriber is already installed.
+pub fn install_with_events(
+    timings: Timings,
+    started: Instant,
+    targets: &'static [&'static str],
+) -> Result<TimingsGuard, tracing::subscriber::SetGlobalDefaultError> {
+    match timings {
+        Timings::Off => {
+            // The progress line alone, or the diagnostic events alone, install only what
+            // they need; a command off a terminal with neither installs nothing.
+            let progress = crate::output::progress::layer();
+            if !targets.is_empty() || progress.is_some() {
+                tracing::subscriber::set_global_default(
+                    tracing_subscriber::registry()
+                        .with(progress)
+                        .with((!targets.is_empty()).then(|| events(targets, std::io::stderr))),
+                )?;
+            }
+            Ok(TimingsGuard::Off)
+        }
+        Timings::Tree => {
+            let tree = TimingsTree::default();
+            tracing::subscriber::set_global_default(
+                tracing_subscriber::registry()
+                    .with(tracing_subscriber::filter::LevelFilter::INFO)
+                    .with(tree.clone())
+                    .with(events(targets, std::io::stderr))
+                    .with(crate::output::progress::layer()),
+            )?;
+            Ok(TimingsGuard::Tree(tree, started))
+        }
+        Timings::Chrome => {
+            let (layer, guard) = tracing_chrome::ChromeLayerBuilder::new()
+                .file(std::env::temp_dir().join(concat!(env!("CARGO_PKG_NAME"), "-trace.json")))
+                .build();
+            tracing::subscriber::set_global_default(
+                tracing_subscriber::registry()
+                    .with(tracing_subscriber::filter::LevelFilter::INFO)
+                    .with(layer)
+                    .with(events(targets, std::io::stderr))
+                    .with(crate::output::progress::layer()),
+            )?;
+            Ok(TimingsGuard::Chrome(guard))
+        }
+    }
+}
+
+fn events<S, W>(targets: &'static [&'static str], writer: W) -> impl tracing_subscriber::Layer<S>
+where
+    S: tracing::Subscriber + for<'span> tracing_subscriber::registry::LookupSpan<'span>,
+    W: for<'writer> tracing_subscriber::fmt::MakeWriter<'writer> + Send + Sync + 'static,
+{
+    tracing_subscriber::fmt::layer()
+        .with_writer(writer)
+        .with_timer(())
+        .with_target(false)
+        .with_ansi(false)
+        .with_filter(tracing_subscriber::filter::filter_fn(move |metadata| {
+            metadata.is_event()
+                && *metadata.level() <= tracing::Level::INFO
+                && targets.contains(&metadata.target())
+        }))
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct TimingsRow {
+    calls: u64,
+    busy: Duration,
+    own: Duration,
+}
+
+impl TimingsRow {
+    fn add(&mut self, other: Self) {
+        self.calls += other.calls;
+        self.busy += other.busy;
+        self.own += other.own;
+    }
+}
+
+/// A bounded online union: overlapping entries and distinct active children count once.
+#[derive(Default)]
+struct Clock {
+    busy: Duration,
+    own: Duration,
+    depth: usize,
+    children: usize,
+    last: Duration,
+}
+
+impl Clock {
+    fn advance(&mut self, now: Duration) {
+        let elapsed = now.saturating_sub(self.last);
+        if self.depth > 0 {
+            self.busy += elapsed;
+            if self.children == 0 {
+                self.own += elapsed;
+            }
+        }
+        self.last = now;
+    }
+
+    fn enter(&mut self, now: Duration) -> bool {
+        self.advance(now);
+        self.depth += 1;
+        self.depth == 1
+    }
+
+    fn exit(&mut self, now: Duration) -> bool {
+        self.advance(now);
+        self.depth -= 1;
+        self.depth == 0
+    }
+
+    fn child(&mut self, entered: bool, now: Duration) {
+        self.advance(now);
+        if entered {
+            self.children += 1;
+        } else {
+            self.children -= 1;
+        }
+    }
+}
+
+struct SpanClock {
+    clock: Clock,
+    parent: Option<u64>,
+    key: (String, String, String),
+}
+
+#[derive(Default)]
+struct State {
+    spans: BTreeMap<u64, SpanClock>,
+    rows: BTreeMap<(String, String, String), TimingsRow>,
+}
+
+impl State {
+    fn transition(&mut self, id: u64, entered: bool, now: Duration) {
+        let Some(span) = self.spans.get_mut(&id) else {
+            return;
+        };
+        let changed = if entered {
+            span.clock.enter(now)
+        } else {
+            span.clock.exit(now)
+        };
+        let parent = span.parent;
+        if changed && let Some(parent) = parent.and_then(|id| self.spans.get_mut(&id)) {
+            parent.clock.child(entered, now);
+        }
+    }
+}
+
+/// Aggregates entered wall time. A single lock orders transitions across threads;
+/// memory grows with live spans and distinct rows, never with the number of entries.
+#[derive(Clone)]
+pub struct TimingsTree {
+    state: Arc<Mutex<State>>,
+    origin: Instant,
+}
+
+impl Default for TimingsTree {
+    fn default() -> Self {
+        Self {
+            state: Arc::default(),
+            origin: Instant::now(),
+        }
+    }
+}
+
+impl<S> tracing_subscriber::Layer<S> for TimingsTree
+where
+    S: tracing::Subscriber + for<'span> tracing_subscriber::registry::LookupSpan<'span>,
+{
+    fn on_new_span(
+        &self,
+        _attributes: &tracing::span::Attributes<'_>,
+        id: &tracing::span::Id,
+        context: tracing_subscriber::layer::Context<'_, S>,
+    ) {
+        let Some(span) = context.span(id) else { return };
+        let mut target = span.metadata().target().split("::");
+        let key = (
+            target.next().unwrap_or_default().to_owned(),
+            target.next().unwrap_or_default().to_owned(),
+            span.name().to_owned(),
+        );
+        let parent = span.parent().map(|parent| parent.id().into_u64());
+        if let Ok(mut state) = self.state.lock() {
+            state.spans.insert(
+                id.into_u64(),
+                SpanClock {
+                    clock: Clock::default(),
+                    parent,
+                    key,
+                },
+            );
+        }
+    }
+
+    fn on_enter(
+        &self,
+        id: &tracing::span::Id,
+        _context: tracing_subscriber::layer::Context<'_, S>,
+    ) {
+        if let Ok(mut state) = self.state.lock() {
+            state.transition(id.into_u64(), true, self.origin.elapsed());
+        }
+    }
+
+    fn on_exit(&self, id: &tracing::span::Id, _context: tracing_subscriber::layer::Context<'_, S>) {
+        if let Ok(mut state) = self.state.lock() {
+            state.transition(id.into_u64(), false, self.origin.elapsed());
+        }
+    }
+
+    fn on_close(&self, id: tracing::span::Id, _context: tracing_subscriber::layer::Context<'_, S>) {
+        if let Ok(mut state) = self.state.lock()
+            && let Some(span) = state.spans.remove(&id.into_u64())
+        {
+            state.rows.entry(span.key).or_default().add(TimingsRow {
+                calls: 1,
+                busy: span.clock.busy,
+                own: span.clock.own,
+            });
+        }
+    }
+}
+
+impl TimingsTree {
+    /// Writes summed span wall attribution, ordered by self wall time at each level.
+    ///
+    /// # Errors
+    ///
+    /// Returns the writer's error if the report cannot be written.
+    pub fn print(&self, wall: Duration, out: &mut impl std::io::Write) -> std::io::Result<()> {
+        let Ok(state) = self.state.lock() else {
+            return Ok(());
+        };
+        type Hexes<'a> = BTreeMap<&'a str, (TimingsRow, Vec<(&'a str, TimingsRow)>)>;
+        let mut crates: BTreeMap<&str, (TimingsRow, Hexes<'_>)> = BTreeMap::new();
+        for ((owner, hex, method), row) in &state.rows {
+            let (crate_row, hexes) = crates.entry(owner.as_str()).or_default();
+            crate_row.add(*row);
+            let (hex_row, methods) = hexes.entry(hex.as_str()).or_default();
+            hex_row.add(*row);
+            methods.push((method.as_str(), *row));
+        }
+        writeln!(
+            out,
+            "WALL attribution; command-entry region {:.6} s (not whole-process CPU)",
+            wall.as_secs_f64()
+        )?;
+        writeln!(
+            out,
+            "Rows sum spans; parallel/nested rows may exceed region wall time."
+        )?;
+        writeln!(
+            out,
+            "{:<40} {:>8} {:>10} {:>10} {:>7}",
+            "crate / hex / method", "calls", "busy wall", "self wall", "share"
+        )?;
+        let mut crates: Vec<_> = crates.into_iter().collect();
+        crates.sort_by(|left, right| right.1.0.own.cmp(&left.1.0.own));
+        for (owner, (row, hexes)) in crates {
+            line(out, owner, 0, row, wall)?;
+            let mut hexes: Vec<_> = hexes.into_iter().collect();
+            hexes.sort_by(|left, right| right.1.0.own.cmp(&left.1.0.own));
+            for (hex, (row, mut methods)) in hexes {
+                line(out, hex, 1, row, wall)?;
+                methods.sort_by(|left, right| right.1.own.cmp(&left.1.own));
+                for (method, row) in methods {
+                    line(out, method, 2, row, wall)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+fn line(
+    out: &mut impl std::io::Write,
+    name: &str,
+    depth: usize,
+    row: TimingsRow,
+    wall: Duration,
+) -> std::io::Result<()> {
+    let share = if wall.is_zero() {
+        0.0
+    } else {
+        row.busy.as_secs_f64() / wall.as_secs_f64() * 100.0
+    };
+    let label = format!("{}{name}", "  ".repeat(depth));
+    writeln!(
+        out,
+        "{label:<40} {:>8} {:>8.3} s {:>8.3} s {share:>6.1}%",
+        row.calls,
+        row.busy.as_secs_f64(),
+        row.own.as_secs_f64()
+    )
+}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'src/timings.rs' = '''
+//! `--timings`: entered wall time attributed to crate, hex and port method.
+//!
+//! Busy time is the union of one span's entries; self wall time excludes the union
+//! of its active direct children, intersected with its own entries. These are wall
+//! attributions, not CPU measurements. Rows sum separate spans, so parallel and
+//! nested rows may exceed the command region's wall time. The external distribution
+//! runner measures whole-process wall and CPU, including startup and shutdown.
+
+use std::collections::BTreeMap;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+
+use tracing_subscriber::layer::{Layer as _, SubscriberExt as _};
+
+#[cfg(test)]
+#[path = "timings_test.rs"]
+mod tests;
+
+/// How `--timings` reports.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, clap::ValueEnum)]
+pub enum Timings {
+    /// No subscriber or report.
+    #[default]
+    Off,
+    /// Time spent in each crate, in each part of it and in each call, as a tree on stderr.
+    Tree,
+    /// A Chrome trace file, for drilling into a run.
+    Chrome,
+}
+
+/// The global `--timings[=tree|chrome]` argument.
+#[derive(Clone, Debug, Default, clap::Args)]
+pub struct TimingsArgs {
+    /// Report entered wall time on stderr, or write a Chrome trace.
+    #[arg(long, global = true, value_enum, default_value = "off", num_args = 0..=1, require_equals = true, default_missing_value = "tree")]
+    pub timings: Timings,
+}
+
+/// Keeps reporting alive until the command exits.
+pub enum TimingsGuard {
+    /// Reporting is disabled.
+    Off,
+    /// The wall attribution tree and the command entry timestamp, before parsing.
+    Tree(TimingsTree, Instant),
+    /// The trace writer, flushed on drop.
+    Chrome(tracing_chrome::FlushGuard),
+}
+
+impl Drop for TimingsGuard {
+    fn drop(&mut self) {
+        if let Self::Tree(tree, started) = self {
+            let _ = tree.print(started.elapsed(), &mut std::io::stderr());
+        }
+    }
+}
+
+/// Installs the requested subscriber. `started` marks command entry, before parsing.
+///
+/// # Errors
+///
+/// Returns an error if another global subscriber is already installed.
+pub fn install(
+    timings: Timings,
+    started: Instant,
+) -> Result<TimingsGuard, tracing::subscriber::SetGlobalDefaultError> {
+    install_with_events(timings, started, &[])
+}
+
+/// Installs timings and an explicit diagnostic event allowlist on stderr.
+///
+/// # Errors
+///
+/// Returns an error if another global subscriber is already installed.
+pub fn install_with_events(
+    timings: Timings,
+    started: Instant,
+    targets: &'static [&'static str],
+) -> Result<TimingsGuard, tracing::subscriber::SetGlobalDefaultError> {
+    match timings {
+        Timings::Off => {
+            // The progress line alone, or the diagnostic events alone, install only what
+            // they need; a command off a terminal with neither installs nothing.
+            let progress = crate::output::progress::layer();
+            if !targets.is_empty() || progress.is_some() {
+                tracing::subscriber::set_global_default(
+                    tracing_subscriber::registry()
+                        .with(progress)
+                        .with((!targets.is_empty()).then(|| events(targets, std::io::stderr))),
+                )?;
+            }
+            Ok(TimingsGuard::Off)
+        }
+        Timings::Tree => {
+            let tree = TimingsTree::default();
+            tracing::subscriber::set_global_default(
+                tracing_subscriber::registry()
+                    .with(tracing_subscriber::filter::LevelFilter::INFO)
+                    .with(tree.clone())
+                    .with(events(targets, std::io::stderr))
+                    .with(crate::output::progress::layer()),
+            )?;
+            Ok(TimingsGuard::Tree(tree, started))
+        }
+        Timings::Chrome => {
+            let (layer, guard) = tracing_chrome::ChromeLayerBuilder::new()
+                .file(std::env::temp_dir().join(concat!(env!("CARGO_PKG_NAME"), "-trace.json")))
+                .build();
+            tracing::subscriber::set_global_default(
+                tracing_subscriber::registry()
+                    .with(tracing_subscriber::filter::LevelFilter::INFO)
+                    .with(layer)
+                    .with(events(targets, std::io::stderr))
+                    .with(crate::output::progress::layer()),
+            )?;
+            Ok(TimingsGuard::Chrome(guard))
+        }
+    }
+}
+
+fn events<S, W>(targets: &'static [&'static str], writer: W) -> impl tracing_subscriber::Layer<S>
+where
+    S: tracing::Subscriber + for<'span> tracing_subscriber::registry::LookupSpan<'span>,
+    W: for<'writer> tracing_subscriber::fmt::MakeWriter<'writer> + Send + Sync + 'static,
+{
+    tracing_subscriber::fmt::layer()
+        .with_writer(writer)
+        .with_timer(())
+        .with_target(false)
+        .with_ansi(false)
+        .with_filter(tracing_subscriber::filter::filter_fn(move |metadata| {
+            metadata.is_event()
+                && *metadata.level() <= tracing::Level::INFO
+                && targets.contains(&metadata.target())
+        }))
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct TimingsRow {
+    calls: u64,
+    busy: Duration,
+    own: Duration,
+}
+
+impl TimingsRow {
+    fn add(&mut self, other: Self) {
+        self.calls += other.calls;
+        self.busy += other.busy;
+        self.own += other.own;
+    }
+}
+
+/// A bounded online union: overlapping entries and distinct active children count once.
+#[derive(Default)]
+struct Clock {
+    busy: Duration,
+    own: Duration,
+    depth: usize,
+    children: usize,
+    last: Duration,
+}
+
+impl Clock {
+    fn advance(&mut self, now: Duration) {
+        let elapsed = now.saturating_sub(self.last);
+        if self.depth > 0 {
+            self.busy += elapsed;
+            if self.children == 0 {
+                self.own += elapsed;
+            }
+        }
+        self.last = now;
+    }
+
+    fn enter(&mut self, now: Duration) -> bool {
+        self.advance(now);
+        self.depth += 1;
+        self.depth == 1
+    }
+
+    fn exit(&mut self, now: Duration) -> bool {
+        self.advance(now);
+        self.depth -= 1;
+        self.depth == 0
+    }
+
+    fn child(&mut self, entered: bool, now: Duration) {
+        self.advance(now);
+        if entered {
+            self.children += 1;
+        } else {
+            self.children -= 1;
+        }
+    }
+}
+
+struct SpanClock {
+    clock: Clock,
+    parent: Option<u64>,
+    key: (String, String, String),
+}
+
+#[derive(Default)]
+struct State {
+    spans: BTreeMap<u64, SpanClock>,
+    rows: BTreeMap<(String, String, String), TimingsRow>,
+}
+
+impl State {
+    fn transition(&mut self, id: u64, entered: bool, now: Duration) {
+        let Some(span) = self.spans.get_mut(&id) else {
+            return;
+        };
+        let changed = if entered {
+            span.clock.enter(now)
+        } else {
+            span.clock.exit(now)
+        };
+        let parent = span.parent;
+        if changed && let Some(parent) = parent.and_then(|id| self.spans.get_mut(&id)) {
+            parent.clock.child(entered, now);
+        }
+    }
+}
+
+/// Aggregates entered wall time. A single lock orders transitions across threads;
+/// memory grows with live spans and distinct rows, never with the number of entries.
+#[derive(Clone)]
+pub struct TimingsTree {
+    state: Arc<Mutex<State>>,
+    origin: Instant,
+}
+
+impl Default for TimingsTree {
+    fn default() -> Self {
+        Self {
+            state: Arc::default(),
+            origin: Instant::now(),
+        }
+    }
+}
+
+impl<S> tracing_subscriber::Layer<S> for TimingsTree
+where
+    S: tracing::Subscriber + for<'span> tracing_subscriber::registry::LookupSpan<'span>,
+{
+    fn on_new_span(
+        &self,
+        _attributes: &tracing::span::Attributes<'_>,
+        id: &tracing::span::Id,
+        context: tracing_subscriber::layer::Context<'_, S>,
+    ) {
+        let Some(span) = context.span(id) else { return };
+        let mut target = span.metadata().target().split("::");
+        let key = (
+            target.next().unwrap_or_default().to_owned(),
+            target.next().unwrap_or_default().to_owned(),
+            span.name().to_owned(),
+        );
+        let parent = span.parent().map(|parent| parent.id().into_u64());
+        if let Ok(mut state) = self.state.lock() {
+            state.spans.insert(
+                id.into_u64(),
+                SpanClock {
+                    clock: Clock::default(),
+                    parent,
+                    key,
+                },
+            );
+        }
+    }
+
+    fn on_enter(
+        &self,
+        id: &tracing::span::Id,
+        _context: tracing_subscriber::layer::Context<'_, S>,
+    ) {
+        if let Ok(mut state) = self.state.lock() {
+            state.transition(id.into_u64(), true, self.origin.elapsed());
+        }
+    }
+
+    fn on_exit(&self, id: &tracing::span::Id, _context: tracing_subscriber::layer::Context<'_, S>) {
+        if let Ok(mut state) = self.state.lock() {
+            state.transition(id.into_u64(), false, self.origin.elapsed());
+        }
+    }
+
+    fn on_close(&self, id: tracing::span::Id, _context: tracing_subscriber::layer::Context<'_, S>) {
+        if let Ok(mut state) = self.state.lock()
+            && let Some(span) = state.spans.remove(&id.into_u64())
+        {
+            state.rows.entry(span.key).or_default().add(TimingsRow {
+                calls: 1,
+                busy: span.clock.busy,
+                own: span.clock.own,
+            });
+        }
+    }
+}
+
+impl TimingsTree {
+    /// Writes summed span wall attribution, ordered by self wall time at each level.
+    ///
+    /// # Errors
+    ///
+    /// Returns the writer's error if the report cannot be written.
+    pub fn print(&self, wall: Duration, out: &mut impl std::io::Write) -> std::io::Result<()> {
+        let Ok(state) = self.state.lock() else {
+            return Ok(());
+        };
+        type Hexes<'a> = BTreeMap<&'a str, (TimingsRow, Vec<(&'a str, TimingsRow)>)>;
+        let mut crates: BTreeMap<&str, (TimingsRow, Hexes<'_>)> = BTreeMap::new();
+        for ((owner, hex, method), row) in &state.rows {
+            let (crate_row, hexes) = crates.entry(owner.as_str()).or_default();
+            crate_row.add(*row);
+            let (hex_row, methods) = hexes.entry(hex.as_str()).or_default();
+            hex_row.add(*row);
+            methods.push((method.as_str(), *row));
+        }
+        writeln!(
+            out,
+            "WALL attribution; command-entry region {:.6} s (not whole-process CPU)",
+            wall.as_secs_f64()
+        )?;
+        writeln!(
+            out,
+            "Rows sum spans; parallel/nested rows may exceed region wall time."
+        )?;
+        writeln!(
+            out,
+            "{:<40} {:>8} {:>10} {:>10} {:>7}",
+            "crate / hex / method", "calls", "busy wall", "self wall", "share"
+        )?;
+        let mut crates: Vec<_> = crates.into_iter().collect();
+        crates.sort_by(|left, right| right.1.0.own.cmp(&left.1.0.own));
+        for (owner, (row, hexes)) in crates {
+            line(out, owner, 0, row, wall)?;
+            let mut hexes: Vec<_> = hexes.into_iter().collect();
+            hexes.sort_by(|left, right| right.1.0.own.cmp(&left.1.0.own));
+            for (hex, (row, mut methods)) in hexes {
+                line(out, hex, 1, row, wall)?;
+                methods.sort_by(|left, right| right.1.own.cmp(&left.1.own));
+                for (method, row) in methods {
+                    line(out, method, 2, row, wall)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+fn line(
+    out: &mut impl std::io::Write,
+    name: &str,
+    depth: usize,
+    row: TimingsRow,
+    wall: Duration,
+) -> std::io::Result<()> {
+    let share = if wall.is_zero() {
+        0.0
+    } else {
+        row.busy.as_secs_f64() / wall.as_secs_f64() * 100.0
+    };
+    let label = format!("{}{name}", "  ".repeat(depth));
+    writeln!(
+        out,
+        "{label:<40} {:>8} {:>8.3} s {:>8.3} s {share:>6.1}%",
+        row.calls,
+        row.busy.as_secs_f64(),
+        row.own.as_secs_f64()
+    )
+}
+
+const EXTRA: bool = true;
+'''
+
+[[scenarios]]
+id = 'no-flag'
+scenario = 'The file has the layer but not the global flag.'
+given.files.'src/timings.rs' = '''
+//! `--timings`: entered wall time attributed to crate, hex and port method.
+//!
+//! Busy time is the union of one span's entries; self wall time excludes the union
+//! of its active direct children, intersected with its own entries. These are wall
+//! attributions, not CPU measurements. Rows sum separate spans, so parallel and
+//! nested rows may exceed the command region's wall time. The external distribution
+//! runner measures whole-process wall and CPU, including startup and shutdown.
+
+use std::collections::BTreeMap;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+
+use tracing_subscriber::layer::{Layer as _, SubscriberExt as _};
+
+#[cfg(test)]
+#[path = "timings_test.rs"]
+mod tests;
+
+/// How `--timings` reports.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, clap::ValueEnum)]
+pub enum Timings {
+    /// No subscriber or report.
+    #[default]
+    Off,
+    /// Time spent in each crate, in each part of it and in each call, as a tree on stderr.
+    Tree,
+    /// A Chrome trace file, for drilling into a run.
+    Chrome,
+}
+
+/// Keeps reporting alive until the command exits.
+pub enum TimingsGuard {
+    /// Reporting is disabled.
+    Off,
+    /// The wall attribution tree and the command entry timestamp, before parsing.
+    Tree(TimingsTree, Instant),
+    /// The trace writer, flushed on drop.
+    Chrome(tracing_chrome::FlushGuard),
+}
+
+impl Drop for TimingsGuard {
+    fn drop(&mut self) {
+        if let Self::Tree(tree, started) = self {
+            let _ = tree.print(started.elapsed(), &mut std::io::stderr());
+        }
+    }
+}
+
+/// Installs the requested subscriber. `started` marks command entry, before parsing.
+///
+/// # Errors
+///
+/// Returns an error if another global subscriber is already installed.
+pub fn install(
+    timings: Timings,
+    started: Instant,
+) -> Result<TimingsGuard, tracing::subscriber::SetGlobalDefaultError> {
+    install_with_events(timings, started, &[])
+}
+
+/// Installs timings and an explicit diagnostic event allowlist on stderr.
+///
+/// # Errors
+///
+/// Returns an error if another global subscriber is already installed.
+pub fn install_with_events(
+    timings: Timings,
+    started: Instant,
+    targets: &'static [&'static str],
+) -> Result<TimingsGuard, tracing::subscriber::SetGlobalDefaultError> {
+    match timings {
+        Timings::Off => {
+            // The progress line alone, or the diagnostic events alone, install only what
+            // they need; a command off a terminal with neither installs nothing.
+            let progress = crate::output::progress::layer();
+            if !targets.is_empty() || progress.is_some() {
+                tracing::subscriber::set_global_default(
+                    tracing_subscriber::registry()
+                        .with(progress)
+                        .with((!targets.is_empty()).then(|| events(targets, std::io::stderr))),
+                )?;
+            }
+            Ok(TimingsGuard::Off)
+        }
+        Timings::Tree => {
+            let tree = TimingsTree::default();
+            tracing::subscriber::set_global_default(
+                tracing_subscriber::registry()
+                    .with(tracing_subscriber::filter::LevelFilter::INFO)
+                    .with(tree.clone())
+                    .with(events(targets, std::io::stderr))
+                    .with(crate::output::progress::layer()),
+            )?;
+            Ok(TimingsGuard::Tree(tree, started))
+        }
+        Timings::Chrome => {
+            let (layer, guard) = tracing_chrome::ChromeLayerBuilder::new()
+                .file(std::env::temp_dir().join(concat!(env!("CARGO_PKG_NAME"), "-trace.json")))
+                .build();
+            tracing::subscriber::set_global_default(
+                tracing_subscriber::registry()
+                    .with(tracing_subscriber::filter::LevelFilter::INFO)
+                    .with(layer)
+                    .with(events(targets, std::io::stderr))
+                    .with(crate::output::progress::layer()),
+            )?;
+            Ok(TimingsGuard::Chrome(guard))
+        }
+    }
+}
+
+fn events<S, W>(targets: &'static [&'static str], writer: W) -> impl tracing_subscriber::Layer<S>
+where
+    S: tracing::Subscriber + for<'span> tracing_subscriber::registry::LookupSpan<'span>,
+    W: for<'writer> tracing_subscriber::fmt::MakeWriter<'writer> + Send + Sync + 'static,
+{
+    tracing_subscriber::fmt::layer()
+        .with_writer(writer)
+        .with_timer(())
+        .with_target(false)
+        .with_ansi(false)
+        .with_filter(tracing_subscriber::filter::filter_fn(move |metadata| {
+            metadata.is_event()
+                && *metadata.level() <= tracing::Level::INFO
+                && targets.contains(&metadata.target())
+        }))
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct TimingsRow {
+    calls: u64,
+    busy: Duration,
+    own: Duration,
+}
+
+impl TimingsRow {
+    fn add(&mut self, other: Self) {
+        self.calls += other.calls;
+        self.busy += other.busy;
+        self.own += other.own;
+    }
+}
+
+/// A bounded online union: overlapping entries and distinct active children count once.
+#[derive(Default)]
+struct Clock {
+    busy: Duration,
+    own: Duration,
+    depth: usize,
+    children: usize,
+    last: Duration,
+}
+
+impl Clock {
+    fn advance(&mut self, now: Duration) {
+        let elapsed = now.saturating_sub(self.last);
+        if self.depth > 0 {
+            self.busy += elapsed;
+            if self.children == 0 {
+                self.own += elapsed;
+            }
+        }
+        self.last = now;
+    }
+
+    fn enter(&mut self, now: Duration) -> bool {
+        self.advance(now);
+        self.depth += 1;
+        self.depth == 1
+    }
+
+    fn exit(&mut self, now: Duration) -> bool {
+        self.advance(now);
+        self.depth -= 1;
+        self.depth == 0
+    }
+
+    fn child(&mut self, entered: bool, now: Duration) {
+        self.advance(now);
+        if entered {
+            self.children += 1;
+        } else {
+            self.children -= 1;
+        }
+    }
+}
+
+struct SpanClock {
+    clock: Clock,
+    parent: Option<u64>,
+    key: (String, String, String),
+}
+
+#[derive(Default)]
+struct State {
+    spans: BTreeMap<u64, SpanClock>,
+    rows: BTreeMap<(String, String, String), TimingsRow>,
+}
+
+impl State {
+    fn transition(&mut self, id: u64, entered: bool, now: Duration) {
+        let Some(span) = self.spans.get_mut(&id) else {
+            return;
+        };
+        let changed = if entered {
+            span.clock.enter(now)
+        } else {
+            span.clock.exit(now)
+        };
+        let parent = span.parent;
+        if changed && let Some(parent) = parent.and_then(|id| self.spans.get_mut(&id)) {
+            parent.clock.child(entered, now);
+        }
+    }
+}
+
+/// Aggregates entered wall time. A single lock orders transitions across threads;
+/// memory grows with live spans and distinct rows, never with the number of entries.
+#[derive(Clone)]
+pub struct TimingsTree {
+    state: Arc<Mutex<State>>,
+    origin: Instant,
+}
+
+impl Default for TimingsTree {
+    fn default() -> Self {
+        Self {
+            state: Arc::default(),
+            origin: Instant::now(),
+        }
+    }
+}
+
+impl<S> tracing_subscriber::Layer<S> for TimingsTree
+where
+    S: tracing::Subscriber + for<'span> tracing_subscriber::registry::LookupSpan<'span>,
+{
+    fn on_new_span(
+        &self,
+        _attributes: &tracing::span::Attributes<'_>,
+        id: &tracing::span::Id,
+        context: tracing_subscriber::layer::Context<'_, S>,
+    ) {
+        let Some(span) = context.span(id) else { return };
+        let mut target = span.metadata().target().split("::");
+        let key = (
+            target.next().unwrap_or_default().to_owned(),
+            target.next().unwrap_or_default().to_owned(),
+            span.name().to_owned(),
+        );
+        let parent = span.parent().map(|parent| parent.id().into_u64());
+        if let Ok(mut state) = self.state.lock() {
+            state.spans.insert(
+                id.into_u64(),
+                SpanClock {
+                    clock: Clock::default(),
+                    parent,
+                    key,
+                },
+            );
+        }
+    }
+
+    fn on_enter(
+        &self,
+        id: &tracing::span::Id,
+        _context: tracing_subscriber::layer::Context<'_, S>,
+    ) {
+        if let Ok(mut state) = self.state.lock() {
+            state.transition(id.into_u64(), true, self.origin.elapsed());
+        }
+    }
+
+    fn on_exit(&self, id: &tracing::span::Id, _context: tracing_subscriber::layer::Context<'_, S>) {
+        if let Ok(mut state) = self.state.lock() {
+            state.transition(id.into_u64(), false, self.origin.elapsed());
+        }
+    }
+
+    fn on_close(&self, id: tracing::span::Id, _context: tracing_subscriber::layer::Context<'_, S>) {
+        if let Ok(mut state) = self.state.lock()
+            && let Some(span) = state.spans.remove(&id.into_u64())
+        {
+            state.rows.entry(span.key).or_default().add(TimingsRow {
+                calls: 1,
+                busy: span.clock.busy,
+                own: span.clock.own,
+            });
+        }
+    }
+}
+
+impl TimingsTree {
+    /// Writes summed span wall attribution, ordered by self wall time at each level.
+    ///
+    /// # Errors
+    ///
+    /// Returns the writer's error if the report cannot be written.
+    pub fn print(&self, wall: Duration, out: &mut impl std::io::Write) -> std::io::Result<()> {
+        let Ok(state) = self.state.lock() else {
+            return Ok(());
+        };
+        type Hexes<'a> = BTreeMap<&'a str, (TimingsRow, Vec<(&'a str, TimingsRow)>)>;
+        let mut crates: BTreeMap<&str, (TimingsRow, Hexes<'_>)> = BTreeMap::new();
+        for ((owner, hex, method), row) in &state.rows {
+            let (crate_row, hexes) = crates.entry(owner.as_str()).or_default();
+            crate_row.add(*row);
+            let (hex_row, methods) = hexes.entry(hex.as_str()).or_default();
+            hex_row.add(*row);
+            methods.push((method.as_str(), *row));
+        }
+        writeln!(
+            out,
+            "WALL attribution; command-entry region {:.6} s (not whole-process CPU)",
+            wall.as_secs_f64()
+        )?;
+        writeln!(
+            out,
+            "Rows sum spans; parallel/nested rows may exceed region wall time."
+        )?;
+        writeln!(
+            out,
+            "{:<40} {:>8} {:>10} {:>10} {:>7}",
+            "crate / hex / method", "calls", "busy wall", "self wall", "share"
+        )?;
+        let mut crates: Vec<_> = crates.into_iter().collect();
+        crates.sort_by(|left, right| right.1.0.own.cmp(&left.1.0.own));
+        for (owner, (row, hexes)) in crates {
+            line(out, owner, 0, row, wall)?;
+            let mut hexes: Vec<_> = hexes.into_iter().collect();
+            hexes.sort_by(|left, right| right.1.0.own.cmp(&left.1.0.own));
+            for (hex, (row, mut methods)) in hexes {
+                line(out, hex, 1, row, wall)?;
+                methods.sort_by(|left, right| right.1.own.cmp(&left.1.own));
+                for (method, row) in methods {
+                    line(out, method, 2, row, wall)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+fn line(
+    out: &mut impl std::io::Write,
+    name: &str,
+    depth: usize,
+    row: TimingsRow,
+    wall: Duration,
+) -> std::io::Result<()> {
+    let share = if wall.is_zero() {
+        0.0
+    } else {
+        row.busy.as_secs_f64() / wall.as_secs_f64() * 100.0
+    };
+    let label = format!("{}{name}", "  ".repeat(depth));
+    writeln!(
+        out,
+        "{label:<40} {:>8} {:>8.3} s {:>8.3} s {share:>6.1}%",
+        row.calls,
+        row.busy.as_secs_f64(),
+        row.own.as_secs_f64()
+    )
+}
+'''
+then.findings = [
+  { rule = 'cli-timings#template', path = 'src/timings.rs' },
+]
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'cli-timings#count', path = '.' },
+]

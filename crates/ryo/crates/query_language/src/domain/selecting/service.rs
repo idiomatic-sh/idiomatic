@@ -1,0 +1,280 @@
+//! The `selecting` service: a `select` lowered to the steps that make it: a join, a filter and a
+//! projection, each only when the query wrote it.
+
+use crate::domain::comparing::service::comparison_of;
+use crate::domain::joining::service::{select_join, shown_of};
+use crate::domain::lowering::errors::LoweringError;
+use crate::domain::lowering::types::{
+    Addressable, Builder, Joined, LastStep, PlannedColumn, ShownColumns, Sourced,
+};
+use crate::domain::planning::service::{push, pushed};
+use crate::domain::resolving::service::{column_of, position, read_source, repeated_rows};
+use ryo_values::domain::plan_parts::types as parts;
+use ryo_values::domain::plans::types as plans;
+use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::query_tokens::types::QuerySpelling;
+
+/// The alternatives of a `where`, each the tests that all hold for it: one when there is no `or`, and an `or` inside an
+/// alternative multiplies it into one alternative for each of its own.
+fn alternatives_of(
+    conditions: &[ryo_values::domain::query_syntax::types::Condition],
+) -> Vec<Vec<&ryo_values::domain::query_syntax::types::Filter>> {
+    let mut alternatives: Vec<Vec<&ryo_values::domain::query_syntax::types::Filter>> =
+        vec![Vec::new()];
+    for condition in conditions {
+        match condition {
+            ryo_values::domain::query_syntax::types::Condition::Test(filter) => {
+                for alternative in &mut alternatives {
+                    alternative.push(filter);
+                }
+            }
+            ryo_values::domain::query_syntax::types::Condition::Any(choices) => {
+                let mut multiplied = Vec::new();
+                for alternative in &alternatives {
+                    for choice in choices {
+                        for inner in alternatives_of(choice) {
+                            let mut both = alternative.clone();
+                            both.extend(inner);
+                            multiplied.push(both);
+                        }
+                    }
+                }
+                alternatives = multiplied;
+            }
+        }
+    }
+    alternatives
+}
+
+/// Puts in `kept` the columns a projection keeps, each named as the query renamed it, and in `indexes` where each sits among `fields`.
+fn projected(
+    fields: &[PlannedColumn],
+    columns: &[ryo_values::domain::query_syntax::types::SelectColumn],
+    span: ryo_values::domain::query_tokens::types::QuerySpan,
+    kept: &mut Vec<PlannedColumn>,
+    indexes: &mut Vec<parts::ColumnIndex>,
+) -> Result<(), LoweringError> {
+    for column in columns {
+        let index = position(fields, QuerySpelling(&column.column.column.0), span)?;
+        indexes.push(index);
+        kept.push(PlannedColumn {
+            name: match &column.rename {
+                ryo_values::domain::query_syntax::types::Renaming::Renamed(renamed) => {
+                    renamed.clone()
+                }
+                ryo_values::domain::query_syntax::types::Renaming::Unchanged => {
+                    column.column.column.clone()
+                }
+            },
+            kind: column_of(fields, index).kind,
+            unique: column_of(fields, index).unique,
+            words: column_of(fields, index).words,
+        });
+    }
+    Ok(())
+}
+
+/// Lowers a `select` statement: its source, its join, its filters and its columns, into the steps that make the rows of
+/// `name`: a join, a filter and a projection, each only when the query wrote it. A `where` with `or` filters once for each
+/// alternative and the union of those keeps each row once; the columns a join gives only for its `where` are dropped after it.
+pub(crate) fn lower_select(
+    builder: &mut Builder<'_>,
+    name: &ryo_values::domain::query_tokens::types::StepName,
+    select: &ryo_values::domain::query_syntax::types::Select,
+) -> Result<(), LoweringError> {
+    let Sourced {
+        mut input,
+        mut fields,
+    } = read_source(builder, &select.from)?;
+    let projects = matches!(
+        select.join,
+        ryo_values::domain::query_syntax::types::Joining::Alone
+    ) && matches!(
+        select.columns,
+        ryo_values::domain::query_syntax::types::Columns::Listed(_)
+    );
+    let filtered = !select.filters.is_empty();
+    let last = if !filtered && !projects {
+        LastStep::Join
+    } else {
+        LastStep::Later
+    };
+    let (mut sides, mut shown) = (Vec::new(), ShownColumns(fields.len()));
+    if let ryo_values::domain::query_syntax::types::Joining::Joined(join) = &select.join {
+        shown = shown_of(&select.columns);
+        Joined {
+            sourced: Sourced { input, fields },
+            sides,
+        } = select_join(builder, name, select, join, Sourced { input, fields }, last)?;
+    }
+    // The columns only the `where` reads are dropped after it, so the filter is not the last step.
+    let select_is_last = !projects && shown.0 == fields.len();
+    let mut alternatives = comparisons_of(
+        builder,
+        &select.filters,
+        Addressable {
+            fields: &fields,
+            sides: &sides,
+        },
+    )?;
+    let mut kept = Vec::new();
+    let mut indexes = Vec::new();
+    if let (true, ryo_values::domain::query_syntax::types::Columns::Listed(columns)) =
+        (projects, &select.columns)
+    {
+        projected(&fields, columns, builder.span, &mut kept, &mut indexes)?;
+    }
+    let distinct = repeated_rows(&kept);
+    if projects && distinct == parts::RepeatedRows::Kept && alternatives.len() == 1 {
+        // The columns kept say which row each is, so no row repeats: the one step filters and keeps them.
+        push(
+            builder,
+            Some(name),
+            plans::Operation::Select {
+                from: input,
+                comparisons: alternatives.pop().unwrap_or_default(),
+                kept: indexes,
+            },
+            kept,
+        );
+        return Ok(());
+    }
+    if filtered {
+        input = filtered_by(
+            builder,
+            select_is_last.then_some(name),
+            input,
+            alternatives,
+            &fields,
+        );
+    }
+    if shown.0 < fields.len() {
+        fields.truncate(shown.0);
+        unshown(builder, name, input, fields);
+        return Ok(());
+    }
+    if projects {
+        push(
+            builder,
+            Some(name),
+            plans::Operation::Project {
+                from: input,
+                columns: indexes,
+                distinct,
+            },
+            kept,
+        );
+        return Ok(());
+    }
+    if !filtered
+        && matches!(
+            select.join,
+            ryo_values::domain::query_syntax::types::Joining::Alone
+        )
+    {
+        push(
+            builder,
+            Some(name),
+            plans::Operation::Select {
+                from: input,
+                comparisons: Vec::new(),
+                kept: Vec::new(),
+            },
+            fields,
+        );
+    }
+    Ok(())
+}
+
+/// The rows of `input` that one of the alternatives holds for: a filter for each,
+/// then a balanced union of the alternatives. Union keeps each row once, so
+/// regrouping contiguous alternatives preserves the relation while bounding
+/// the depth of a demanded plan. The final step is given `name`, when it has one.
+fn filtered_by(
+    builder: &mut Builder<'_>,
+    name: Option<&ryo_values::domain::query_tokens::types::StepName>,
+    input: parts::Input,
+    alternatives: Vec<Vec<parts::PlanComparison>>,
+    fields: &[PlannedColumn],
+) -> parts::Input {
+    let count = alternatives.len();
+    let mut level = alternatives
+        .into_iter()
+        .map(|comparisons| {
+            parts::Input::Step(pushed(
+                builder,
+                name.filter(|_| count == 1),
+                plans::Operation::Select {
+                    from: input,
+                    comparisons,
+                    kept: Vec::new(),
+                },
+                fields.to_vec(),
+            ))
+        })
+        .collect::<Vec<_>>();
+    if level.is_empty() {
+        return input;
+    }
+    while level.len() > 1 {
+        let last = level.len() == 2;
+        level = level
+            .chunks(2)
+            .map(|pair| match pair {
+                [left, right] => parts::Input::Step(pushed(
+                    builder,
+                    name.filter(|_| last),
+                    plans::Operation::Union {
+                        left: *left,
+                        right: *right,
+                    },
+                    fields.to_vec(),
+                )),
+                [single] => *single,
+                [] | [_, _, ..] => unreachable!("chunks of two"),
+            })
+            .collect();
+    }
+    level[0]
+}
+
+/// The comparisons of each alternative of a `where`, resolved over `columns`.
+fn comparisons_of(
+    builder: &mut Builder<'_>,
+    conditions: &[ryo_values::domain::query_syntax::types::Condition],
+    columns: Addressable<'_>,
+) -> Result<Vec<Vec<parts::PlanComparison>>, LoweringError> {
+    let mut alternatives = Vec::new();
+    for tests in alternatives_of(conditions) {
+        let mut comparisons = Vec::new();
+        for filter in tests {
+            comparisons.push(comparison_of(builder, filter, columns)?);
+        }
+        alternatives.push(comparisons);
+    }
+    Ok(alternatives)
+}
+
+/// The rows of `input` cut to `shown`, its first columns: the columns a join gave only for its `where` are dropped, and
+/// a row they alone told apart is kept once. The step is given `name`.
+fn unshown(
+    builder: &mut Builder<'_>,
+    name: &ryo_values::domain::query_tokens::types::StepName,
+    input: parts::Input,
+    shown: Vec<PlannedColumn>,
+) {
+    let columns = (0..shown.len())
+        .map(|place| parts::ColumnIndex(u32::try_from(place).unwrap_or(u32::MAX)))
+        .collect();
+    let distinct = repeated_rows(&shown);
+    push(
+        builder,
+        Some(name),
+        plans::Operation::Project {
+            from: input,
+            columns,
+            distinct,
+        },
+        shown,
+    );
+}

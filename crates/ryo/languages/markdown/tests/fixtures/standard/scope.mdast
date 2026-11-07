@@ -1,0 +1,20 @@
+root[7]
+├─0 paragraph[1]
+│   └─0 text "Before any heading."
+├─1 heading[1]
+│   │ depth: 1
+│   └─0 text "One"
+├─2 heading[1]
+│   │ depth: 2
+│   └─0 text "Two"
+├─3 heading[1]
+│   │ depth: 3
+│   └─0 text "Three"
+├─4 heading[1]
+│   │ depth: 2
+│   └─0 text "Two again"
+├─5 heading[1]
+│   │ depth: 1
+│   └─0 text "Four"
+└─6 paragraph[1]
+    └─0 text "End."

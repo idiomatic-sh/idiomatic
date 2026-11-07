@@ -1,0 +1,213 @@
+description = "The error a part produces: one thiserror enum `<Part>Error`, or `<Port><Part>Error` for an adapter."
+why = "An error lives with the part that produces it: a use case's wraps the errors of the ports it can meet with `#[from]`, a port's is the one failure its adapters construct so no dependency's error crosses the port, a concept's belongs to its service, and an adapter's is its own, named for its port and itself and mapped onto the port's. The enum carries the part's name and the suffix `Error`. It is `pub` where another part returns or matches it, a use case's through its trait and a port's across crates, and private to the module otherwise."
+content = '''
+{%- set noun = {"use-case": "use case", "concept": "concept", "port": "port", "adapter": "adapter", "item": "item", "command": "command", "entry": "entry"}[kind] -%}
+//! The `{{ part }}` {{ noun }}'s failures.
+
+/// Why an operation of `{{ part }}` failed.
+#[derive(Debug, thiserror::Error)]
+{% if kind == "use-case" or kind == "port" or kind == "entry" %}pub {% endif %}enum {% if kind == "adapter" %}{{ port | pascal }}{% endif %}{{ part | pascal }}Error {}
+'''
+
+[params]
+kind = { type = "string", description = "What the part is: use-case, concept, port or adapter." }
+part = { type = "identifier", from = "directory-name", description = "The part's directory name: the stem of every name in it." }
+port = { type = "identifier", from = "directory-name", description = "The outbound port an adapter implements, taken from the placing entry's `{port}` capture; the other kinds do not read it." }
+
+[[scenarios]]
+id = 'example-use-case'
+scenario = 'The rendered template passes for a use case.'
+given.file = 'errors.rs'
+given.params = { kind = 'use-case', part = 'greet' }
+given.files.'errors.rs' = '''
+//! The `greet` use case's failures.
+
+/// Why an operation of `greet` failed.
+#[derive(Debug, thiserror::Error)]
+pub enum GreetError {}
+'''
+
+[[scenarios]]
+id = 'example-concept'
+scenario = 'The rendered template passes for a concept.'
+given.file = 'errors.rs'
+given.params = { kind = 'concept', part = 'short' }
+given.files.'errors.rs' = '''
+//! The `short` concept's failures.
+
+/// Why an operation of `short` failed.
+#[derive(Debug, thiserror::Error)]
+enum ShortError {}
+'''
+
+[[scenarios]]
+id = 'example-port'
+scenario = 'The rendered template passes for a port.'
+given.file = 'errors.rs'
+given.params = { kind = 'port', part = 'names' }
+given.files.'errors.rs' = '''
+//! The `names` port's failures.
+
+/// Why an operation of `names` failed.
+#[derive(Debug, thiserror::Error)]
+pub enum NamesError {}
+'''
+
+[[scenarios]]
+id = 'example-adapter'
+scenario = 'The rendered template passes for an adapter.'
+given.file = 'errors.rs'
+given.params = { kind = 'adapter', part = 'memory', port = 'names' }
+given.files.'errors.rs' = '''
+//! The `memory` adapter's failures.
+
+/// Why an operation of `memory` failed.
+#[derive(Debug, thiserror::Error)]
+enum NamesMemoryError {}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template: a wrapped port error.'
+given.file = 'errors.rs'
+given.params = { kind = 'use-case', part = 'greet' }
+given.files.'errors.rs' = '''
+//! The `greet` use case's failures.
+
+/// Why a `greet` operation failed.
+#[derive(Debug, thiserror::Error)]
+pub enum GreetError {
+    /// The names port refused the lookup.
+    #[error("the names port refused the lookup")]
+    Names(#[from] crate::outbound::names::errors::NamesError),
+}
+'''
+
+[[scenarios]]
+id = 'multi-word-use-case'
+scenario = 'The stem of a multi-word name is its PascalCase for a use case.'
+given.file = 'errors.rs'
+given.params = { kind = 'use-case', part = 'list_names' }
+given.files.'errors.rs' = '''
+//! The `list_names` use case's failures.
+
+/// Why an operation of `list_names` failed.
+#[derive(Debug, thiserror::Error)]
+pub enum ListNamesError {}
+'''
+
+[[scenarios]]
+id = 'multi-word-adapter'
+scenario = 'The stem of a multi-word name is its PascalCase for an adapter.'
+given.file = 'errors.rs'
+given.params = { kind = 'adapter', part = 'in_memory', port = 'name_store' }
+given.files.'errors.rs' = '''
+//! The `in_memory` adapter's failures.
+
+/// Why an operation of `in_memory` failed.
+#[derive(Debug, thiserror::Error)]
+enum NameStoreInMemoryError {}
+'''
+
+[[scenarios]]
+id = 'public-concept-error'
+scenario = "A concept's error may be public where another crate matches it."
+given.file = 'errors.rs'
+given.params = { kind = 'concept', part = 'short' }
+given.files.'errors.rs' = '''
+//! The `short` concept's failures.
+
+/// Why an operation of `short` failed.
+#[derive(Debug, thiserror::Error)]
+pub enum ShortError {}
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'errors.rs'
+given.params = { kind = 'use-case', part = 'greet' }
+then.findings = [
+  { rule = 'errors#count', path = 'tastemaker.toml' },
+]
+
+[[scenarios]]
+id = 'no-error'
+scenario = 'The use case has no error type.'
+given.file = 'errors.rs'
+given.params = { kind = 'use-case', part = 'greet' }
+given.files.'errors.rs' = '''
+//! The `greet` use case's failures.
+'''
+given.files.'src/greeting/errors.rs' = '''
+//! The greeting domain's failures.
+
+/// Why a greeting operation failed.
+'''
+then.findings = [
+  { rule = 'errors#template', path = 'errors.rs' },
+]
+
+[[scenarios]]
+id = 'private-error'
+scenario = "The use case's error is not public, so its trait cannot return it."
+given.file = 'errors.rs'
+given.params = { kind = 'use-case', part = 'greet' }
+given.files.'errors.rs' = '''
+//! The `greet` use case's failures.
+
+/// Why an operation of `greet` failed.
+#[derive(Debug, thiserror::Error)]
+enum GreetError {}
+'''
+then.findings = [
+  { rule = 'errors#template', path = 'errors.rs' },
+]
+
+[[scenarios]]
+id = 'error-named-part'
+scenario = 'The error is not named for its part.'
+given.file = 'errors.rs'
+given.params = { kind = 'use-case', part = 'greet' }
+given.files.'errors.rs' = '''
+//! The `greet` use case's failures.
+
+/// Why an operation of `greet` failed.
+#[derive(Debug, thiserror::Error)]
+pub enum Failure {}
+'''
+then.findings = [
+  { rule = 'errors#template', path = 'errors.rs' },
+]
+
+[[scenarios]]
+id = 'adapter-without-port'
+scenario = "An adapter's error leaves out its port."
+given.file = 'errors.rs'
+given.params = { kind = 'adapter', part = 'memory', port = 'names' }
+given.files.'errors.rs' = '''
+//! The `memory` adapter's failures.
+
+/// Why an operation of `memory` failed.
+#[derive(Debug, thiserror::Error)]
+enum MemoryError {}
+'''
+then.findings = [
+  { rule = 'errors#template', path = 'errors.rs' },
+]
+
+[[scenarios]]
+id = 'not-thiserror'
+scenario = "The error does not derive thiserror's Error."
+given.file = 'errors.rs'
+given.params = { kind = 'port', part = 'names' }
+given.files.'errors.rs' = '''
+//! The `names` port's failures.
+
+/// Why an operation of `names` failed.
+#[derive(Debug)]
+pub enum NamesError {}
+'''
+then.findings = [
+  { rule = 'errors#template', path = 'errors.rs' },
+]

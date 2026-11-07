@@ -1,0 +1,150 @@
+
+[[cases]]
+name = "tagged-PYI066.py"
+comparison = "full"
+files = { "PYI066.py" = "import sys\n\nif sys.version_info < (3, 10):  # Y066 When using if/else with sys.version_info, put the code for new Python versions first, e.g. \"if sys.version_info >= (3, 10)\"\n    def foo(x): ...\nelse:\n    def foo(x, *, bar=True): ...\n\nif sys.version_info < (3, 8):  # Y066 When using if/else with sys.version_info, put the code for new Python versions first, e.g. \"if sys.version_info >= (3, 8)\"\n    def bar(x): ...\nelif sys.version_info < (3, 9):  # Y066 When using if/else with sys.version_info, put the code for new Python versions first, e.g. \"if sys.version_info >= (3, 9)\"\n    def bar(x, *, bar=True): ...\nelif sys.version_info < (3, 11):  # Y066 When using if/else with sys.version_info, put the code for new Python versions first, e.g. \"if sys.version_info >= (3, 10)\"\n    def bar(x, *, bar=True, baz=False): ...\nelse:\n    def bar(x, *, bar=True, baz=False, qux=1): ...\n\n\nif sys.version_info >= (3, 5):\n    ...\nelif sys.version_info < (3, 9):  # Y066 When using if/else with sys.version_info, put the code for new Python versions first, e.g. \"if sys.version_info >= (3, 10)\"\n    ...\nelse:\n    ...\n\n# Negative cases\n\nif sys.version_info[0] == 2: ...\nif sys.version_info[:1] == (2,): ...\nif sys.version_info[:1] == (True,): ...\nif sys.version_info < ('3', '0'): ...\nif sys.version_info >= (3, 4, 3): ...\nif sys.version_info == (3, 4): ...\nif sys.version_info < (3, 5): ...\nif sys.version_info >= (3, 5): ...\nif (2, 7) <= sys.version_info < (3, 5): ...\n\n\nif sys.version_info >= (3, 5):\n    ...\nelse:\n    ...\n\nif sys.version_info >= (3, 10):\n    def foo1(x, *, bar=True, baz=False): ...\nelif sys.version_info >= (3, 9):\n    def foo1(x, *, bar=True): ...\nelse:\n    def foo1(x): ...\n\nif sys.version_info < (3, 9):\n    def foo2(x): ...\nelif sys.version_info < (3, 10):\n    def foo2(x, *, bar=True): ...\n# no else case, no raise\n" }
+expected = []
+
+[[cases]]
+name = "tagged-PYI066.pyi"
+comparison = "full"
+files = { "PYI066.pyi" = "import sys\n\nif sys.version_info < (3, 10):  # Y066 When using if/else with sys.version_info, put the code for new Python versions first, e.g. \"if sys.version_info >= (3, 10)\"\n    def foo(x): ...\nelse:\n    def foo(x, *, bar=True): ...\n\nif sys.version_info < (3, 8):  # Y066 When using if/else with sys.version_info, put the code for new Python versions first, e.g. \"if sys.version_info >= (3, 8)\"\n    def bar(x): ...\nelif sys.version_info < (3, 9):  # Y066 When using if/else with sys.version_info, put the code for new Python versions first, e.g. \"if sys.version_info >= (3, 9)\"\n    def bar(x, *, bar=True): ...\nelif sys.version_info < (3, 11):  # Y066 When using if/else with sys.version_info, put the code for new Python versions first, e.g. \"if sys.version_info >= (3, 10)\"\n    def bar(x, *, bar=True, baz=False): ...\nelse:\n    def bar(x, *, bar=True, baz=False, qux=1): ...\n\n\nif sys.version_info >= (3, 5):\n    ...\nelif sys.version_info < (3, 9):  # Y066 When using if/else with sys.version_info, put the code for new Python versions first, e.g. \"if sys.version_info >= (3, 10)\"\n    ...\nelse:\n    ...\n\n# Negative cases\n\nif sys.version_info[0] == 2: ...\nif sys.version_info[:1] == (2,): ...\nif sys.version_info[:1] == (True,): ...\nif sys.version_info < ('3', '0'): ...\nif sys.version_info >= (3, 4, 3): ...\nif sys.version_info == (3, 4): ...\nif sys.version_info < (3, 5): ...\nif sys.version_info >= (3, 5): ...\nif (2, 7) <= sys.version_info < (3, 5): ...\n\n\nif sys.version_info >= (3, 5):\n    ...\nelse:\n    ...\n\nif sys.version_info >= (3, 10):\n    def foo1(x, *, bar=True, baz=False): ...\nelif sys.version_info >= (3, 9):\n    def foo1(x, *, bar=True): ...\nelse:\n    def foo1(x): ...\n\nif sys.version_info < (3, 9):\n    def foo2(x): ...\nelif sys.version_info < (3, 10):\n    def foo2(x, *, bar=True): ...\n# no else case, no raise\n" }
+expected = [{ rule = "PYI066", file = "PYI066.pyi", start = 15, end = 41 }, { rule = "PYI066", file = "PYI066.pyi", start = 238, end = 263 }, { rule = "PYI066", file = "PYI066.pyi", start = 421, end = 446 }, { rule = "PYI066", file = "PYI066.pyi", start = 617, end = 643 }, { rule = "PYI066", file = "PYI066.pyi", start = 924, end = 949 }]
+
+[[cases]]
+name = "comparison-matrix-0-py"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info < (3,10): ...\nelse: ...\n" }
+expected = []
+
+[[cases]]
+name = "comparison-matrix-0-pyi"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.version_info < (3,10): ...\nelse: ...\n" }
+expected = [{ rule = "PYI066", file = "case.pyi", start = 14, end = 39 }]
+
+[[cases]]
+name = "comparison-matrix-1-py"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info >= (3,10): ...\nelse: ...\n" }
+expected = []
+
+[[cases]]
+name = "comparison-matrix-1-pyi"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.version_info >= (3,10): ...\nelse: ...\n" }
+expected = []
+
+[[cases]]
+name = "comparison-matrix-2-py"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[:2] < (3,10): ...\nelse: ...\n" }
+expected = []
+
+[[cases]]
+name = "comparison-matrix-2-pyi"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.version_info[:2] < (3,10): ...\nelse: ...\n" }
+expected = []
+
+[[cases]]
+name = "comparison-matrix-3-py"
+comparison = "full"
+files = { "case.py" = "import sys\nif (3,10) < sys.version_info: ...\nelse: ...\n" }
+expected = []
+
+[[cases]]
+name = "comparison-matrix-3-pyi"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif (3,10) < sys.version_info: ...\nelse: ...\n" }
+expected = []
+
+[[cases]]
+name = "comparison-matrix-4-py"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info < (3,10) < upper: ...\nelse: ...\n" }
+expected = []
+
+[[cases]]
+name = "comparison-matrix-4-pyi"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.version_info < (3,10) < upper: ...\nelse: ...\n" }
+expected = []
+
+[[cases]]
+name = "comparison-matrix-5-py"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info < (3,10) and flag: ...\nelse: ...\n" }
+expected = []
+
+[[cases]]
+name = "comparison-matrix-5-pyi"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.version_info < (3,10) and flag: ...\nelse: ...\n" }
+expected = [{ rule = "PYI066", file = "case.pyi", start = 14, end = 39 }]
+
+[[cases]]
+name = "comparison-matrix-6-py"
+comparison = "full"
+files = { "case.py" = "import sys\nif flag or sys.version_info < (3,10): ...\nelse: ...\n" }
+expected = []
+
+[[cases]]
+name = "comparison-matrix-6-pyi"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif flag or sys.version_info < (3,10): ...\nelse: ...\n" }
+expected = [{ rule = "PYI066", file = "case.pyi", start = 22, end = 47 }]
+
+[[cases]]
+name = "comparison-matrix-7-py"
+comparison = "full"
+files = { "case.py" = "import sys\nif flag and (other or sys.version_info < (3,10)): ...\nelse: ...\n" }
+expected = []
+
+[[cases]]
+name = "comparison-matrix-7-pyi"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif flag and (other or sys.version_info < (3,10)): ...\nelse: ...\n" }
+expected = []
+
+[[cases]]
+name = "comparison-matrix-8-py"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info < anything: ...\nelse: ...\n" }
+expected = []
+
+[[cases]]
+name = "comparison-matrix-8-pyi"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.version_info < anything: ...\nelse: ...\n" }
+expected = [{ rule = "PYI066", file = "case.pyi", start = 14, end = 41 }]
+
+[[cases]]
+name = "without-else"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.version_info < (3,10): ...\n" }
+expected = []
+
+[[cases]]
+name = "elif-without-else"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif flag: ...\nelif sys.version_info < (3,10): ...\n" }
+expected = []
+
+[[cases]]
+name = "elif-with-else"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif flag: ...\nelif sys.version_info < (3,10): ...\nelse: ...\n" }
+expected = [{ rule = "PYI066", file = "case.pyi", start = 29, end = 54 }]
+
+[[cases]]
+name = "aliases"
+comparison = "full"
+files = { "case.pyi" = "from sys import version_info as v\nif v < (3,10): ...\nelse: ...\n" }
+expected = [{ rule = "PYI066", file = "case.pyi", start = 37, end = 47 }]
+
+[[cases]]
+name = "file-suppression"
+comparison = "full"
+files = { "case.pyi" = "# ruff: noqa: PYI066\nimport sys\nif sys.version_info < (3,10): ...\nelse: ...\n" }
+expected = []

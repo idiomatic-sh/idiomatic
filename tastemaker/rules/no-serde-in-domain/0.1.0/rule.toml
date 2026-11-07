@@ -1,0 +1,208 @@
+description = "Serde is used only at the edges that encode: an outbound adapter's private schemas, a command's schemas, the command line's own `output/schemas.rs`, and the types the SDK publishes. No other type derives `Serialize` or `Deserialize`, and no other file imports or calls serde."
+why = "A serde derive on a domain, application, use-case or port type ties the core's types to a file format: the encoding decides their shape, every change to them is a format change, and the format's needs (an owned copy, a field kept only to be written) leak inward. Each edge that encodes keeps private structs of its own and converts the canonical types to and from them: an outbound adapter in `outbound/<port>/adapters/<format>/schemas.rs` (or a `schemas/` collection beside it), a command in `cli/src/resources/**/schemas.rs`, the command line's one `output` module in `cli/src/output/schemas.rs` (the shapes of its machine-readable answers), and the SDK in its published `crates/sdk/src/resources/**/types.rs` and `schemas.rs`. Read as written: a `derive` whose arguments name `Serialize` or `Deserialize`, an import of `serde` or of a `serde_` crate, and a call of a path in one, in any file but those."
+
+query = '''
+let derive-rows = select l."file" as "file", l."span" as "span", l."arguments" as "what" from "decorates" as l where l."target" = "derive";
+let derives = select * from derive-rows where glob_any(what, "{*Serialize*,*Deserialize*}");
+let imports = select l."file" as "file", l."span" as "span", l."target" as "what" from "static-import" as l where glob_any(l."target", "{serde,serde::*,serde_*}");
+let calls = select l."file" as "file", l."span" as "span", l."target" as "what" from "static-call" as l where glob_any(l."target", "{serde::*,serde_*::*}");
+let written = union(left=derives, right=imports);
+let used = union(left=written, right=calls);
+let inward = select * from used where not glob_any(file, "{**/outbound/*/adapters/*/schemas.rs,**/outbound/*/adapters/*/schemas/**,**/cli/src/resources/**/schemas.rs,**/cli/src/output/schemas.rs,**/crates/sdk/src/resources/**/types.rs,**/crates/sdk/src/resources/**/schemas.rs}");
+let governed-roles = select l."path" as "file" from "tastemaker.placed" as l where l."package" = "idiomatic.arch" and l."spec" = "adapter" and glob_any(l."template", "{schemas}");
+let outside = antijoin(left=inward, right=governed-roles, left-on=["file"], right-on=["file"]);
+emit outside subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "serde is used outside an edge that encodes: `{what}`"
+help = "Drop it here. Give the edge that encodes the value private structs of its own (`outbound/<port>/adapters/<format>/schemas.rs`, a command's `schemas.rs`, a command line's `output/schemas.rs`, or a type the SDK publishes under `crates/sdk/src/resources/`) and convert the canonical type to and from them there. An ignore is never the fix."
+
+[given]
+include = ['**']
+
+[[scenarios]]
+id = 'a-store-type-derives-serde'
+scenario = 'A port type and a domain type that derive serde`s traits for the store, as Tastemaker`s image and file stamps did, are reported, and so is each name the import brings in.'
+given.files.'src/outbound/store/types.rs' = '''
+//! The types of the `store` port.
+
+use serde::{Deserialize, Serialize};
+
+/// What a project keeps between runs.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Image {
+    /// The build that wrote it.
+    pub build: BuildName,
+}
+'''
+given.files.'src/domain/files/types.rs' = '''
+//! The types of the `files` concept.
+
+/// A file's size and modification time.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Stamp {
+    /// Its size.
+    pub size: Size,
+}
+'''
+then.findings = [
+  { path = 'src/outbound/store/types.rs', line = 3 },
+  { path = 'src/outbound/store/types.rs', line = 3 },
+  { path = 'src/outbound/store/types.rs', line = 6 },
+  { path = 'src/domain/files/types.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'a-use-case-calls-serde-json'
+scenario = 'A use case that encodes with `serde_json` itself is reported.'
+given.files.'src/inbound/use_cases/check/use_case.rs' = '''
+//! `check`.
+
+/// The report, as text.
+pub fn text(report: &Report) -> String {
+    serde_json::to_string(report).unwrap_or_default()
+}
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/check/use_case.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'a-command-type-outside-its-schemas'
+scenario = 'A command`s own `command.rs` deriving serde is reported: only its `schemas.rs` encodes.'
+given.files.'cli/src/resources/workspace/check/command.rs' = '''
+//! `check`.
+
+/// The answer.
+#[derive(serde::Serialize)]
+pub struct Answer {
+    /// Its count.
+    pub count: usize,
+}
+'''
+then.findings = [
+  { path = 'cli/src/resources/workspace/check/command.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'the-edges-that-encode'
+scenario = 'Plain domain types, an adapter`s schemas and its schemas collection, a command`s schemas and the SDK`s published types are not reported.'
+given.files.'src/domain/files/types.rs' = '''
+//! The types of the `files` concept.
+
+/// A file's text.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FileText(pub Box<str>);
+'''
+given.files.'src/outbound/store/adapters/postcard/schemas.rs' = '''
+//! The rows the postcard adapter writes.
+
+use serde::{Deserialize, Serialize};
+
+/// One proven definition, as written.
+#[derive(Serialize, Deserialize)]
+pub(super) struct DefinitionSchema {
+    /// Its digest.
+    pub digest: [u8; 32],
+}
+'''
+given.files.'src/outbound/manifest/adapters/toml/schemas/lock.rs' = '''
+//! The lock, as written.
+
+/// A lock.
+#[derive(serde::Deserialize)]
+pub(super) struct LockSchema {
+    /// Its version.
+    pub version: i64,
+}
+'''
+given.files.'cli/src/resources/workspace/check/schemas.rs' = '''
+//! What `check` prints.
+
+/// The answer, as JSON writes it.
+#[derive(serde::Serialize)]
+pub(super) struct AnswerSchema {
+    /// Its count.
+    pub count: usize,
+}
+
+/// The answer, as text.
+pub(super) fn text(answer: &AnswerSchema) -> String {
+    serde_json::to_string(answer).unwrap_or_default()
+}
+'''
+given.files.'crates/sdk/src/resources/lint/types.rs' = '''
+//! The lint call's published types.
+
+/// One finding, as the SDK gives it.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Finding {
+    /// Its message.
+    pub message: String,
+}
+'''
+
+[[scenarios]]
+id = 'the-command-lines-output-schemas'
+scenario = 'The command line`s one `output/schemas.rs`, which writes the shapes of its machine-readable answers, is not reported; a sibling file of the output module is.'
+given.files.'cli/src/output/schemas.rs' = '''
+//! The shapes of the command line`s machine-readable answers.
+
+/// One finding, as JSON writes it.
+#[derive(serde::Serialize)]
+pub(super) struct FindingSchema {
+    /// Its message.
+    pub message: String,
+}
+'''
+given.files.'cli/src/output/text.rs' = '''
+//! The command line`s plain text.
+
+/// A finding, as a line.
+#[derive(serde::Serialize)]
+pub(super) struct Line {
+    /// Its message.
+    pub message: String,
+}
+'''
+then.findings = [
+  { path = 'cli/src/output/text.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'the-sdk-outside-its-published-types'
+scenario = 'An SDK file that is not one of its published types is reported.'
+given.files.'crates/sdk/src/domain/plans/types.rs' = '''
+//! The SDK's plans.
+
+/// A plan.
+#[derive(serde::Serialize)]
+pub struct Plan {
+    /// Its count.
+    pub count: usize,
+}
+'''
+then.findings = [
+  { path = 'crates/sdk/src/domain/plans/types.rs', line = 4 },
+]
+
+[[scenarios]]
+id = "governed-external-adapter-roles"
+scenario = "Only explicitly placed adapter roles gain boundary access; unplaced lookalikes and other roles remain rejected."
+given.include = ["**"]
+given.exclude = []
+given.files.'edge/schemas.rs' = 'use serde::Deserialize;'
+given.files.'edge/settings.rs' = 'use serde::Deserialize;'
+given.files.'domain/schemas.rs' = 'use serde::Deserialize;'
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+rules = [{ rule = "idiomatic.arch/no-serde-in-domain", include = ["**"] }]
+specs = [{ spec = "idiomatic.arch/adapter", include = ["edge"], params = { core = "foreign_core", port = "names" } }]
+'''
+then.only = ['idiomatic.arch/no-serde-in-domain', 'idiomatic.arch/no-serde-in-domain#unknown']
+then.findings = [
+  { path = 'edge/settings.rs', line = 1 },
+  { path = 'domain/schemas.rs', line = 1 },
+]

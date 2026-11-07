@@ -1,0 +1,139 @@
+{
+  "python": "3.10.19 (main, Feb 12 2026, 00:42:24) [Clang 21.1.4 ]",
+  "results": [
+    {
+      "files": {
+        "case.py": "from __future__ import annotations\ndef f(x:Later): pass\n"
+      },
+      "consumers": [],
+      "compiler": [
+        {
+          "file": "case.py",
+          "source_sha256": "4c02808e8cd35cc9023edc3bcad11696f83600780c4c9eb8e82f0b3608569d22",
+          "source_kind": "python",
+          "scope": "CPython compiler syntax/flags only; a .pyi filename does not establish static typing-checker semantics",
+          "ast_parse": {
+            "accepted": true
+          },
+          "compile": {
+            "accepted": true,
+            "future_annotations": true
+          }
+        }
+      ]
+    },
+    {
+      "files": {
+        "case.py": "from .__future__ import annotations\ndef f(x:Later): pass\n"
+      },
+      "consumers": [],
+      "compiler": [
+        {
+          "file": "case.py",
+          "source_sha256": "2b4d0ae860f7a285b93d0d00628955dbb059081619a02044ef6fb680b1a0ac8c",
+          "source_kind": "python",
+          "scope": "CPython compiler syntax/flags only; a .pyi filename does not establish static typing-checker semantics",
+          "ast_parse": {
+            "accepted": true
+          },
+          "compile": {
+            "accepted": true,
+            "future_annotations": true
+          }
+        }
+      ]
+    },
+    {
+      "files": {
+        "case.py": "from ..__future__ import annotations\ndef f(x:Later): pass\n"
+      },
+      "consumers": [],
+      "compiler": [
+        {
+          "file": "case.py",
+          "source_sha256": "5866d18a76d3233871033b0ce1d16b9687e32920cb9f0a80a59f2815a48b99d3",
+          "source_kind": "python",
+          "scope": "CPython compiler syntax/flags only; a .pyi filename does not establish static typing-checker semantics",
+          "ast_parse": {
+            "accepted": true
+          },
+          "compile": {
+            "accepted": true,
+            "future_annotations": true
+          }
+        }
+      ]
+    },
+    {
+      "files": {
+        "case.py": "from .other import annotations\ndef f(x:Later): pass\n"
+      },
+      "consumers": [],
+      "compiler": [
+        {
+          "file": "case.py",
+          "source_sha256": "cbda085bf9878dde088e19a1cfacb3ceaa4313d7998ecd8a59a2aafe56757703",
+          "source_kind": "python",
+          "scope": "CPython compiler syntax/flags only; a .pyi filename does not establish static typing-checker semantics",
+          "ast_parse": {
+            "accepted": true
+          },
+          "compile": {
+            "accepted": true,
+            "future_annotations": false
+          }
+        }
+      ]
+    },
+    {
+      "files": {
+        "case.py": "x=1\nfrom .__future__ import annotations\ndef f(x:Later): pass\n"
+      },
+      "consumers": [],
+      "compiler": [
+        {
+          "file": "case.py",
+          "source_sha256": "791e699ed8c59531b751345b57a747aa6c2af0ab208b167d05212ebf206536be",
+          "source_kind": "python",
+          "scope": "CPython compiler syntax/flags only; a .pyi filename does not establish static typing-checker semantics",
+          "ast_parse": {
+            "accepted": true
+          },
+          "compile": {
+            "accepted": false,
+            "message": "from __future__ imports must occur at the beginning of the file",
+            "line": 2,
+            "offset": 1,
+            "end_line": 2,
+            "end_offset": 36
+          }
+        }
+      ]
+    },
+    {
+      "files": {
+        "case.py": "def outer():\n from .__future__ import annotations\n def f(x:Later): pass\n"
+      },
+      "consumers": [],
+      "compiler": [
+        {
+          "file": "case.py",
+          "source_sha256": "1de0dd627429be74e4e1361fe40975afd9765277f54f327ed8a5cef088e2c6f6",
+          "source_kind": "python",
+          "scope": "CPython compiler syntax/flags only; a .pyi filename does not establish static typing-checker semantics",
+          "ast_parse": {
+            "accepted": true
+          },
+          "compile": {
+            "accepted": false,
+            "message": "from __future__ imports must occur at the beginning of the file",
+            "line": 2,
+            "offset": 2,
+            "end_line": 2,
+            "end_offset": 37
+          }
+        }
+      ]
+    }
+  ]
+}

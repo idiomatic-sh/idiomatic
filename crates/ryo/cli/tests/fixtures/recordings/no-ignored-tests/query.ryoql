@@ -1,0 +1,17 @@
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let paths = select * from tree-nodes where kind = "path";
+let path-parents = select l."id" as "id", r."parent" as "parent", l."file" as "file", l."span" as "span" from paths as l join "syntax-child" as r on l."id" = r."child";
+let metas = select * from tree-nodes where glob_any(kind, "*-meta");
+let meta-paths = select l."id" as "id", l."file" as "file", l."span" as "span" from path-parents as l join metas as r on l."parent" = r."id";
+let path-children = select r."child" as "child", l."id" as "id" from meta-paths as l join "syntax-child" as r on l."id" = r."parent";
+let qualified = select l."id" as "id" from path-children as l join paths as r on l."child" = r."id";
+let single-segment = antijoin(left=meta-paths, right=qualified, left-on=["id"], right-on=["id"]);
+let segments = select * from tree-nodes where kind = "path-segment";
+let segment-children = select l."id" as "id", l."child" as "segment" from path-children as l join segments as r on l."child" = r."id";
+let name-refs = select l."id" as "id", r."child" as "name" from segment-children as l join "syntax-child" as r on l."segment" = r."parent";
+let name-tokens = select l."id" as "id", r."child" as "token" from name-refs as l join "syntax-child" as r on l."name" = r."parent";
+let ignore-tokens = select * from tree-tokens where text = "ignore";
+let ignore-paths = select l."id" as "id" from name-tokens as l join ignore-tokens as r on l."token" = r."id";
+let ignored = select l."file" as "file", l."span" as "span" from single-segment as l join ignore-paths as r on l."id" = r."id";
+emit ignored subject "file" key("span");

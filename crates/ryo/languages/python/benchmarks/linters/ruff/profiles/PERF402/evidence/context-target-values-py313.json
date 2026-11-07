@@ -1,0 +1,98 @@
+{
+  "python": "3.13.5 (main, Jul 15 2026, 20:25:40) [GCC 14.2.0]",
+  "results": [
+    {
+      "name": "ruf051-function-definition",
+      "source": "def d()->dict: ...\nif key in d: del d[key]\n",
+      "passed": true,
+      "observed_error": "TypeError",
+      "namespace_model": "key=x and custom=int supplied explicitly; source unchanged. Function calls with built-in dict are separate live controls; type annotation is static evidence, not runtime argument enforcement."
+    },
+    {
+      "name": "ruf051-future-parameter-shadow",
+      "source": "from __future__ import annotations\ndef f(d:dict,dict):\n if key in d: del d[key]\n",
+      "passed": true,
+      "observed_error": null,
+      "namespace_model": "key=x and custom=int supplied explicitly; source unchanged. Function calls with built-in dict are separate live controls; type annotation is static evidence, not runtime argument enforcement."
+    },
+    {
+      "name": "ruf051-eager-module-rebind",
+      "source": "def f(d:dict):\n if key in d: del d[key]\ndict=custom\n",
+      "passed": true,
+      "observed_error": null,
+      "namespace_model": "key=x and custom=int supplied explicitly; source unchanged. Function calls with built-in dict are separate live controls; type annotation is static evidence, not runtime argument enforcement."
+    },
+    {
+      "name": "ruf051-future-body-earlier-bind",
+      "source": "from __future__ import annotations\ndef f(d:dict):\n dict=custom\n if key in d: del d[key]\n",
+      "passed": true,
+      "observed_error": null,
+      "namespace_model": "key=x and custom=int supplied explicitly; source unchanged. Function calls with built-in dict are separate live controls; type annotation is static evidence, not runtime argument enforcement."
+    },
+    {
+      "name": "ruf051-future-type-parameter",
+      "source": "from __future__ import annotations\ndef f[dict](d:dict):\n if key in d: del d[key]\n",
+      "passed": true,
+      "observed_error": null,
+      "namespace_model": "key=x and custom=int supplied explicitly; source unchanged. Function calls with built-in dict are separate live controls; type annotation is static evidence, not runtime argument enforcement."
+    },
+    {
+      "name": "ruf051-with-target",
+      "source": "with {} as d:\n if key in d: del d[key]\n",
+      "passed": true,
+      "observed_error": "TypeError",
+      "namespace_model": "key=x and custom=int supplied explicitly; source unchanged. Function calls with built-in dict are separate live controls; type annotation is static evidence, not runtime argument enforcement."
+    },
+    {
+      "name": "ruf051-async-with-target",
+      "source": "async def f():\n async with {} as d:\n  if key in d: del d[key]\n",
+      "passed": true,
+      "observed_error": null,
+      "namespace_model": "key=x and custom=int supplied explicitly; source unchanged. Function calls with built-in dict are separate live controls; type annotation is static evidence, not runtime argument enforcement."
+    },
+    {
+      "name": "ruf051-eager-module-rebind-unseen-later-function",
+      "source": "def f(d:dict):\n if key in d: del d[key]\ndef g():\n import builtins\ndict=custom\n",
+      "passed": true,
+      "observed_error": null,
+      "namespace_model": "key=x and custom=int supplied explicitly; source unchanged. Function calls with built-in dict are separate live controls; type annotation is static evidence, not runtime argument enforcement."
+    },
+    {
+      "name": "ruf051-builtin-variable-name-shadow",
+      "source": "dict={}\nif key in dict: del dict[key]\n",
+      "passed": true,
+      "observed_error": null,
+      "namespace_model": "key=x and custom=int supplied explicitly; source unchanged. Function calls with built-in dict are separate live controls; type annotation is static evidence, not runtime argument enforcement."
+    },
+    {
+      "name": "ruf051-constructor-before-current-rebind",
+      "source": "d=dict()\ndef f():\n if key in d: del d[key]\ndict=custom\n",
+      "passed": true,
+      "observed_error": null,
+      "namespace_model": "key=x and custom=int supplied explicitly; source unchanged. Function calls with built-in dict are separate live controls; type annotation is static evidence, not runtime argument enforcement."
+    },
+    {
+      "name": "ruf051-function-type-parameter-return-fast",
+      "source": "def d[dict]()->dict: ...\nif key in d: del d[key]\n",
+      "passed": true,
+      "observed_error": "TypeError",
+      "namespace_model": "key=x and custom=int supplied explicitly; source unchanged. Function calls with built-in dict are separate live controls; type annotation is static evidence, not runtime argument enforcement."
+    },
+    {
+      "name": "ruf051-future-function-generic-return-slow",
+      "source": "from __future__ import annotations\nimport builtins\ndef d[dict]()->dict: ...\nif key in d: del d[key]\n",
+      "passed": true,
+      "observed_error": "TypeError",
+      "namespace_model": "key=x and custom=int supplied explicitly; source unchanged. Function calls with built-in dict are separate live controls; type annotation is static evidence, not runtime argument enforcement."
+    },
+    {
+      "name": "context_manager_result_is_not_manager",
+      "passed": true,
+      "source": "class Manager: __enter__ returns list, __exit__ does nothing; with Manager() as target yields list"
+    },
+    {
+      "name": "context_manager_self_return",
+      "passed": true
+    }
+  ]
+}

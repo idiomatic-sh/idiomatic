@@ -1,0 +1,2 @@
+`Python.asdl` is copied unchanged from CPython (github.com/python/cpython, tag v3.15.0rc2), and each `<relation>.ast` is what that
+CPython printed; both under the Python Software Foundation License Version 2, whose text is `NOTICE-cpython-LICENSE`.

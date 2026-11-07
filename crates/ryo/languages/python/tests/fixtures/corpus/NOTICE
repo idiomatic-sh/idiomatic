@@ -1,0 +1,10 @@
+The files of `corpus/` are real Python from three public projects, copied unchanged and pinned at a release. They are parse inputs
+only: the tests read their bytes and never import or run them. Each project's licence is beside this file, as `NOTICE-<project>-LICENSE`.
+
+| files | project | source | version | licence |
+|---|---|---|---|---|
+| `fastapi_*.py` (`routing`, `applications`, `encoders`, `params`, `dependencies/utils`) | FastAPI | github.com/fastapi/fastapi, `fastapi/` | tag `0.115.0` | MIT, Copyright (c) 2018 Sebastián Ramírez |
+| `requests_*.py` (`models`, `sessions`, `utils`, `adapters`) | Requests | github.com/psf/requests, `src/requests/` | tag `v2.32.3` | Apache License 2.0 |
+| `cpython_*.py` (`dataclasses`, `functools`, `textwrap`, `enum`, `typing`, `json/decoder`, `asyncio/tasks`, `contextlib`) | CPython's standard library | github.com/python/cpython, `Lib/` | tag `v3.14.0` | Python Software Foundation License Version 2 |
+
+A file's name is its project and its path in the project, `/` written `_`.

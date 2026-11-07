@@ -1,0 +1,18 @@
+title = "demo"
+strict = true
+debug = false
+port = 8_080
+mask = 0xFF
+delta = -3
+ratio = 2.5
+[package]
+name = 'x'
+version.major = 1
+[[bin]]
+path = "a"
+[[bin]]
+path = "b"
+[a.b]
+c = { d = 1.5 }
+list = [1, 2]
+born = 1979-05-27T07:32:00Z

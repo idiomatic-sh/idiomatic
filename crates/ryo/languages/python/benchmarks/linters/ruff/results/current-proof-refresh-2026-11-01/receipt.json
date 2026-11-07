@@ -1,0 +1,286 @@
+{
+  "schema": "actual-proof-assets/v2",
+  "profiles": [
+    {
+      "rule": "PLW0406",
+      "profile_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLW0406/benchmark.toml",
+      "profile_sha256": "a24b8725238b45fe817fe8d8f1ac4b5b1f297e0015ba92867888c6643f3598cb",
+      "settings": {
+        "defaults": [
+          "PLW0406"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "listed-disk",
+        "rule_applicability": {
+          "PLW0406": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql",
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/text-units": "fragments/text-units.ryoql"
+      },
+      "query": {
+        "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLW0406/candidate.ryoql",
+        "proof_sha256": "f79d6ea92595289218894271769bd1a8635d70b1324221865952a928065740dc"
+      },
+      "modules": {
+        "python/ruff/suppress-directives": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/suppress-directives.ryoql",
+          "proof_sha256": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382"
+        },
+        "python/ruff/suppress": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/suppress.ryoql",
+          "proof_sha256": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26"
+        },
+        "python/ruff/text-units": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/text-units.ryoql",
+          "proof_sha256": "e9beaf583559c23cf68c94cbc41e2ef9ae8d7d65e6dc4e702b625138fbc70b0e"
+        }
+      },
+      "case_file": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PLW0406/cases.toml",
+      "cases_sha256": "503b6de29cf575454a5925dae7ce7e19ae4208b5f3cd670e275489639f47065e",
+      "case_records": "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PLW0406/cases.jsonl",
+      "case_records_sha256": "5cd1704177efab2105869de694ce9e5bb9c1d0cc78ee2c0c6818ad7546f803b5",
+      "execution_result": "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PLW0406/result.json",
+      "execution_result_sha256": "2936e43a2c9c3389219ace2da09b021970f8ff5d7b8757bb599d62ea09941f61",
+      "executed_profile_sha256": "553cc7d2732bc2598752e3fd9bb0a039ea98279b64e2678203cbdcfc1a66bab4",
+      "worker_sha256": "8eabb206f8a265d8901e9ad2c0ba9e3d4c9edc1fe83460ed38690b3c9392bd81"
+    },
+    {
+      "rule": "F401",
+      "profile_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/F401/benchmark.toml",
+      "profile_sha256": "24b7a05f960ed2d9d820018bdc9ad5d813344a23e389e71aa6a453e0b1ca7b7e",
+      "settings": {
+        "defaults": [
+          "F401"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "F401": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql",
+        "python/ruff/suppress-with-additional-lines": "fragments/suppress-with-additional-lines.ryoql"
+      },
+      "query": {
+        "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F401/candidate.ryoql",
+        "proof_sha256": "6349162b87c85926e698327931ed62f38491ae63897c59f1cd91e2543fd6f23e"
+      },
+      "modules": {
+        "python/ruff/suppress-directives": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/suppress-directives.ryoql",
+          "proof_sha256": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382"
+        },
+        "python/ruff/suppress-with-additional-lines": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/suppress-with-additional-lines.ryoql",
+          "proof_sha256": "94fe4dc58c65a666377e9e969f7d1e328c0121376b90d821bddad506cdda53d5"
+        }
+      },
+      "case_file": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/F401/cases.toml",
+      "cases_sha256": "1c27c3197317e4b1829b71143e0dd69be83f0d3207bb8e22e633089b1f0c0696",
+      "case_records": "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/F401/cases.jsonl",
+      "case_records_sha256": "4170f6997e33e1b2987b81200dde3f292d96da5ee8e647c25bfc495a3af6ae05",
+      "execution_result": "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/F401/result.json",
+      "execution_result_sha256": "d234fefe60ceb47f93dd220a9ec3c7596741f7328dd30eeaf9b80cf42f3fe989",
+      "executed_profile_sha256": "fd981523665258e239319074e5ba5f27fcea2071c2ce54787058c6c7d421e4ef",
+      "worker_sha256": "8eabb206f8a265d8901e9ad2c0ba9e3d4c9edc1fe83460ed38690b3c9392bd81"
+    },
+    {
+      "rule": "PYI003",
+      "profile_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PYI003/benchmark.toml",
+      "profile_sha256": "c34961896bc31959e0b10f718e2b045abf7c203d077dd123e6b1a24975ee2be6",
+      "settings": {
+        "defaults": [
+          "PYI003"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "PYI003": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql",
+        "python/ruff/version-checks": "fragments/version-checks.ryoql",
+        "python/ruff/suppress": "fragments/suppress.ryoql"
+      },
+      "query": {
+        "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PYI003/candidate.ryoql",
+        "proof_sha256": "252862c576f99ea9651b00e5d7056ee87e5edafd9e1a103a5dbbdd0a2441f1c1"
+      },
+      "modules": {
+        "python/ruff/suppress-directives": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/suppress-directives.ryoql",
+          "proof_sha256": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382"
+        },
+        "python/ruff/version-checks": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/version-checks.ryoql",
+          "proof_sha256": "4c4890ac0f3b49b047c5b679082254cc2fc2f35de7dab440e88843ef414d0771"
+        },
+        "python/ruff/suppress": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/suppress.ryoql",
+          "proof_sha256": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26"
+        }
+      },
+      "case_file": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PYI003/cases.toml",
+      "cases_sha256": "70206808d0aa75b26de7d4f0b5458219ee420b60de84672b3ebb643461def011",
+      "case_records": "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PYI003/cases.jsonl",
+      "case_records_sha256": "502b295a31f03618027efc8e9a8d97ac13b4a1a9213d29b92e487e89e9d5b17c",
+      "execution_result": "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PYI003/result.json",
+      "execution_result_sha256": "23f5920776447e6fbbac496a7a0a8580c8b1862488dcadd12618412e05fa1757",
+      "executed_profile_sha256": "961dcd5e48c1cbff653fb17872a2ef08df4cbdcf2d62157a14101d407c465c8d",
+      "worker_sha256": "8eabb206f8a265d8901e9ad2c0ba9e3d4c9edc1fe83460ed38690b3c9392bd81"
+    },
+    {
+      "rule": "PYI004",
+      "profile_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PYI004/benchmark.toml",
+      "profile_sha256": "9a50f9ffb601642d9d27fffaf17adb1dcd0e2babe2d9a7fdbdbd9cf88c62a6b2",
+      "settings": {
+        "defaults": [
+          "PYI004"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "PYI004": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql",
+        "python/ruff/version-checks": "fragments/version-checks.ryoql",
+        "python/ruff/suppress": "fragments/suppress.ryoql"
+      },
+      "query": {
+        "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PYI004/candidate.ryoql",
+        "proof_sha256": "cdfaa4032d636cde04ebdaa77c614b95802d549f126f7071fe137b79cc815632"
+      },
+      "modules": {
+        "python/ruff/suppress-directives": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/suppress-directives.ryoql",
+          "proof_sha256": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382"
+        },
+        "python/ruff/version-checks": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/version-checks.ryoql",
+          "proof_sha256": "4c4890ac0f3b49b047c5b679082254cc2fc2f35de7dab440e88843ef414d0771"
+        },
+        "python/ruff/suppress": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/suppress.ryoql",
+          "proof_sha256": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26"
+        }
+      },
+      "case_file": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PYI004/cases.toml",
+      "cases_sha256": "1c5d6648b48ae7c99d4f7d57377c87d94eea8c3f00d612a4c0a64b643bd7ee64",
+      "case_records": "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PYI004/cases.jsonl",
+      "case_records_sha256": "a80ec88f3ea4b6f55ee6a1dc19435f5c07eb535028e16b61f24c3a47c0c1aade",
+      "execution_result": "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PYI004/result.json",
+      "execution_result_sha256": "8ef7cf6d52eeb7b24d6dad4b9fe818f2542c6c023afa71edd4af9f15233f8e7c",
+      "executed_profile_sha256": "e4d9b501c400009f8e4d89fc559f64a84cf668d7aa68dca04af4ff1cdce9dfa1",
+      "worker_sha256": "8eabb206f8a265d8901e9ad2c0ba9e3d4c9edc1fe83460ed38690b3c9392bd81"
+    },
+    {
+      "rule": "PYI015",
+      "profile_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PYI015/benchmark.toml",
+      "profile_sha256": "0ad8eda4ea4ff1f40da52b0ee89db2490c5170c2bf4f93ead95c5c124c7fc34a",
+      "settings": {
+        "defaults": [
+          "PYI015"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "PYI015": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql",
+        "python/ruff/simple-stub-defaults": "fragments/simple-stub-defaults.ryoql",
+        "python/ruff/suppress": "fragments/suppress.ryoql"
+      },
+      "query": {
+        "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PYI015/candidate.ryoql",
+        "proof_sha256": "f8bcc7d21dc2a1ae85ecfbfc0714e6081d943d3d8328f8aaf157c64f23e5be44"
+      },
+      "modules": {
+        "python/ruff/suppress-directives": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/suppress-directives.ryoql",
+          "proof_sha256": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382"
+        },
+        "python/ruff/simple-stub-defaults": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/simple-stub-defaults.ryoql",
+          "proof_sha256": "230a35648a917693061cd3c651f834b66e0bc4170ac39921248a0f07a23a050a"
+        },
+        "python/ruff/suppress": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/suppress.ryoql",
+          "proof_sha256": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26"
+        }
+      },
+      "case_file": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/PYI015/cases.toml",
+      "cases_sha256": "9456a5b4d4654114c58d1bf6d8251785aebc64b86f7c7a0f215ae0229298f930",
+      "case_records": "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PYI015/cases.jsonl",
+      "case_records_sha256": "0d3e12867ddc317b274b0cfa1d1b6d92bf77823c4562c373718306a795d80072",
+      "execution_result": "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PYI015/result.json",
+      "execution_result_sha256": "d43ed9e85a55396e2d496693fb103527a46bc926e71336494928d3f7b46d6a17",
+      "executed_profile_sha256": "2a200ca7d696b7fdc041803b478845b70af82ef77f5b5f2f06cb0490ed9ab828",
+      "worker_sha256": "8eabb206f8a265d8901e9ad2c0ba9e3d4c9edc1fe83460ed38690b3c9392bd81"
+    }
+  ],
+  "phase_registry": {
+    "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/pinned-rule-phases.json",
+    "proof_sha256": "51f2c210f75d1275cd68369a1c69289a91ca87f83b7c486a2b348edd89c4a8f4"
+  },
+  "worker": {
+    "executable": "/tmp/compiler-feature-language-baseline-gate-5-20261101/worker/ruff-8eabb206f8a265d8901e9ad2c0ba9e3d4c9edc1fe83460ed38690b3c9392bd81",
+    "sha256": "8eabb206f8a265d8901e9ad2c0ba9e3d4c9edc1fe83460ed38690b3c9392bd81",
+    "build_receipt": "/tmp/compiler-feature-language-baseline-gate-5-20261101/result.json",
+    "build_receipt_sha256": "e93a894cafeee7301fb93764b68310ad27c3b8523192173be9f63f0f774ffeac",
+    "source_tree_sha256": "a12ab4a9e885ec21d6a15f441abdadff4d03fa557a0ec9e716f83d5126b33a45",
+    "source_head": "7fa3c0da66ab47dca5227b9b91889e6d01eb57e8",
+    "role": "pre-demand-closure graph baseline with language-correct compiler-feature producer and shared compact selection engine",
+    "source_freeze_preserved": true
+  },
+  "limits": "Five current canonical profile closures passed native verify-cases with complete exact reports. F821 is excluded from current admission:32raw mismatches retained in adjacent summary. Historical v1 receipts are unchanged; these are fresh executions, not upgraded historical claims.",
+  "execution_artifacts": {
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/actual-proof-assets-2026-11-01.json": "c4fc9d5a5050863eeafa8a8e51df9152afdf000c5cb9dfa096a41c5bb796913c",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/F401/cases.jsonl": "4170f6997e33e1b2987b81200dde3f292d96da5ee8e647c25bfc495a3af6ae05",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/F401/executed-benchmark.toml": "fd981523665258e239319074e5ba5f27fcea2071c2ce54787058c6c7d421e4ef",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/F401/result.json": "d234fefe60ceb47f93dd220a9ec3c7596741f7328dd30eeaf9b80cf42f3fe989",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/F401/stderr.bin": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/F401/stdout.bin": "92300ee8f058d1fce7ef6e62350d1ff31c21629d58110f9b276ac86bc71de053",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/F821/cases.jsonl": "e496199843417849bfdb4a36463973281166bd8802053cec95be54b66bcba790",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/F821/classification.json": "f6aed934d464da9d589ba82ae921931be79bc17532aaa7f0799d554800bf6a76",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/F821/executed-benchmark.toml": "82b72a797ca793bce1794b20ef8d839fe724a05ef67a840bcf4f300daea70794",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/F821/mismatch-groups.json": "6b7f58d9d7a1ac82c6ab0514bb5f0100703398e5ae8a2f1f303147650dff569c",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/F821/result.json": "dd3723c627c63976c96159d129bee21c501100b9eb27798236bc706ba0db67f1",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/F821/stderr.bin": "08110a0e133906d900cf1775b4ffef504666a9646e2ba216dcd50d9a51d50a4d",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/F821/stdout.bin": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PLW0406/cases.jsonl": "5cd1704177efab2105869de694ce9e5bb9c1d0cc78ee2c0c6818ad7546f803b5",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PLW0406/executed-benchmark.toml": "553cc7d2732bc2598752e3fd9bb0a039ea98279b64e2678203cbdcfc1a66bab4",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PLW0406/result.json": "2936e43a2c9c3389219ace2da09b021970f8ff5d7b8757bb599d62ea09941f61",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PLW0406/stderr.bin": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PLW0406/stdout.bin": "59c2a1994f343d889e4fd3e68a766b1cb94fa9f31476632da85c0972049694bd",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PYI003/cases.jsonl": "502b295a31f03618027efc8e9a8d97ac13b4a1a9213d29b92e487e89e9d5b17c",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PYI003/executed-benchmark.toml": "961dcd5e48c1cbff653fb17872a2ef08df4cbdcf2d62157a14101d407c465c8d",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PYI003/result.json": "23f5920776447e6fbbac496a7a0a8580c8b1862488dcadd12618412e05fa1757",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PYI003/stderr.bin": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PYI003/stdout.bin": "8d436a67bff6cdd027f106c839f48e8f1f3e3d4554474784466ec76f11d5104b",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PYI004/cases.jsonl": "a80ec88f3ea4b6f55ee6a1dc19435f5c07eb535028e16b61f24c3a47c0c1aade",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PYI004/executed-benchmark.toml": "e4d9b501c400009f8e4d89fc559f64a84cf668d7aa68dca04af4ff1cdce9dfa1",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PYI004/result.json": "8ef7cf6d52eeb7b24d6dad4b9fe818f2542c6c023afa71edd4af9f15233f8e7c",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PYI004/stderr.bin": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PYI004/stdout.bin": "13aaae2f6e8a2a93527387da768544a15a8911800fe8f8fc2148c050106adae4",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PYI015/cases.jsonl": "0d3e12867ddc317b274b0cfa1d1b6d92bf77823c4562c373718306a795d80072",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PYI015/executed-benchmark.toml": "2a200ca7d696b7fdc041803b478845b70af82ef77f5b5f2f06cb0490ed9ab828",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PYI015/result.json": "d43ed9e85a55396e2d496693fb103527a46bc926e71336494928d3f7b46d6a17",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PYI015/stderr.bin": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/PYI015/stdout.bin": "b3bf1f9ef97a8c9c8c770e3bab98a4154b3731c4860d55d8f2de8fedd37b7c4c",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/current-proof-refresh-2026-11-01/summary.json": "77c59ed7cb290918a5264762327eb5b66270b9e9fafdee28752f1e3d66714f73"
+  }
+}

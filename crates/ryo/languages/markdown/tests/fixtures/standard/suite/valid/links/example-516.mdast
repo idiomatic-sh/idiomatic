@@ -1,0 +1,12 @@
+root[1]
+└─0 paragraph[1]
+    └─0 link[2]
+        │ title: null
+        │ url: "/uri"
+        ├─0 text "link "
+        └─1 emphasis[4]
+            ├─0 text "foo "
+            ├─1 strong[1]
+            │   └─0 text "bar"
+            ├─2 text " "
+            └─3 inlineCode "#"

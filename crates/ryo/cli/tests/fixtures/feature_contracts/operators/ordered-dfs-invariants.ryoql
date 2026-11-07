@@ -1,0 +1,17 @@
+let nodes = select id, file, span from "syntax-tree";
+let edges = select parent as source, child as destination, ordinal as position, child as edge, file from "syntax-child";
+let children = select destination as id, file from edges;
+let roots0 = antijoin(left=nodes, right=children, left-on=["id", "file"], right-on=["id", "file"]);
+let roots = select id as entry, file from roots0;
+let visited = ordered-dfs(from=roots, root="entry", edges=edges, source="source", destination="destination", order="position", edge="edge", keys=["file"], output="visit");
+let absent = antijoin(left=edges, right=visited, left-on=["edge", "file"], right-on=["edge", "file"]);
+let repeated0 = group-count(from=visited, keys=["edge", "file"], count="count");
+let repeated = select edge as id, file from repeated0 where count != 1;
+let ordered = select l.source as source, l.edge as edge, l.visit as visit, l.entry as entry, l.file as file, r.position as position from visited as l join edges as r on l.edge = r.edge and l.file = r.file;
+let reversed_siblings = select l.edge as id, l.file as file from ordered as l join ordered as r on l.source = r.source and l.entry = r.entry and l.file = r.file where l.position < r.position and l.visit >= r.visit;
+let reversed_parent = select l.edge as id, l.file as file from visited as l join visited as r on l.destination = r.source and l.entry = r.entry and l.file = r.file where l.visit >= r.visit;
+let missing = select edge as id, file from absent;
+let bad_identity = union(left=missing, right=repeated);
+let bad_order = union(left=reversed_siblings, right=reversed_parent);
+let violations = union(left=bad_identity, right=bad_order);
+emit violations subject file key(id);

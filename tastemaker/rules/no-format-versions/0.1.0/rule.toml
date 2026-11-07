@@ -1,0 +1,166 @@
+description = "Nothing the program writes carries a format version: no `MAGIC`, `VERSION` or `FORMAT` constant of a number or bytes, no integer `version` or `format` field, no `FormatVersion` type, no `-v4` name."
+why = "A format version is a promise to read old bytes, and the code that keeps it (a check, a refusal, a branch per version, a `Retired` error) grows with every change and is rarely run. What a store holds is rebuilt when it does not decode: the store is empty, never migrated, so no version is needed. What a person writes is read as it is today. A release version (`env!(\"CARGO_PKG_VERSION\")`, `\"0.1.0\"`) names a release, not a format, and is allowed; so is a committed lock's `version = 1`, which stays 1 until the first release and is declared as `LOCK_VERSION`, and so is the `version` field that every operation of a lock directory states, which a lock adapter reads in its own `schemas.rs` (`outbound/lock/adapters/<format>/`): the lock's one documented version, which stays 1 until the first release. Read as written: a `const` or `static` named `MAGIC`, `VERSION` or `FORMAT`, or ending `_MAGIC`, `_VERSION` or `_FORMAT`, whose value is an integer or a byte string literal; a named field called `version`, `format` or ending `_version` or `_format` whose type is a primitive integer; a struct, enum or type alias named `FormatVersion` or ending in it; and a string literal holding `-v` or `_v` followed by a digit (`manifest-v4.postcard`, `source-inventory-v1`). Not seen: a version written through another name, or computed."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let constants = select * from tree-nodes where glob_any(kind, "{const,static}");
+let constant-children = select l."id" as "constant", r."child" as "child" from constants as l join "syntax-child" as r on l."id" = r."parent";
+let constant-name-nodes = select l."constant" as "constant", l."child" as "node" from constant-children as l join tree-nodes as r on l."child" = r."id" where r."kind" = "name";
+let constant-name-tokens = select l."constant" as "constant", r."child" as "token" from constant-name-nodes as l join "syntax-child" as r on l."node" = r."parent";
+let constant-names = select l."constant" as "constant", r."id" as "id", r."text" as "text", r."file" as "file", r."span" as "span" from constant-name-tokens as l join tree-tokens as r on l."token" = r."id";
+let versioned-names = select * from constant-names where glob_any(text, "{MAGIC,VERSION,FORMAT,*_MAGIC,*_VERSION,*_FORMAT}") and not glob_any(text, "{LOCK_VERSION,*_LOCK_VERSION}");
+let constant-literals = select l."constant" as "constant", l."child" as "node" from constant-children as l join tree-nodes as r on l."child" = r."id" where r."kind" = "literal";
+let literal-tokens = select l."constant" as "constant", r."child" as "token" from constant-literals as l join "syntax-child" as r on l."node" = r."parent";
+let number-literals = select l."constant" as "constant" from literal-tokens as l join tree-tokens as r on l."token" = r."id" where r."kind" = "int-number" or r."kind" = "byte-string";
+let version-constants = select l."id" as "id", l."text" as "text", l."file" as "file", l."span" as "span" from versioned-names as l join number-literals as r on l."constant" = r."constant";
+let fields = select * from tree-nodes where kind = "record-field";
+let field-children = select l."id" as "field", r."child" as "child" from fields as l join "syntax-child" as r on l."id" = r."parent";
+let field-name-nodes = select l."field" as "field", l."child" as "node" from field-children as l join tree-nodes as r on l."child" = r."id" where r."kind" = "name";
+let field-name-tokens = select l."field" as "field", r."child" as "token" from field-name-nodes as l join "syntax-child" as r on l."node" = r."parent";
+let field-names = select l."field" as "field", r."id" as "id", r."text" as "text", r."file" as "file", r."span" as "span" from field-name-tokens as l join tree-tokens as r on l."token" = r."id";
+let versioned-fields = select * from field-names where glob_any(text, "{version,format,*_version,*_format}");
+let field-types = select l."field" as "field", l."child" as "node" from field-children as l join tree-nodes as r on l."child" = r."id" where r."kind" = "path-type";
+let type-paths = select l."field" as "field", r."child" as "node" from field-types as l join "syntax-child" as r on l."node" = r."parent";
+let type-segments = select l."field" as "field", r."child" as "node" from type-paths as l join "syntax-child" as r on l."node" = r."parent";
+let type-refs = select l."field" as "field", r."child" as "node" from type-segments as l join "syntax-child" as r on l."node" = r."parent";
+let type-tokens = select l."field" as "field", r."child" as "token" from type-refs as l join "syntax-child" as r on l."node" = r."parent";
+let integer-types = select l."field" as "field" from type-tokens as l join tree-tokens as r on l."token" = r."id" where glob_any(r."text", "{u8,u16,u32,u64,u128,usize,i8,i16,i32,i64,i128,isize}");
+let all-version-fields = select l."id" as "id", l."text" as "text", l."file" as "file", l."span" as "span" from versioned-fields as l join integer-types as r on l."field" = r."field";
+let version-fields = select * from all-version-fields where not glob_any(file, "{**/outbound/lock/adapters/*/schemas.rs,outbound/lock/adapters/*/schemas.rs}");
+let literals = select l."occurrence" as "id", l."value" as "text", l."file" as "file", l."span" as "span" from "string-literal" as l where glob_any(l."value", "{*-v[0-9]*,*_v[0-9]*}");
+let version-types = select l."id" as "id", l."name" as "text", l."file" as "file", l."span" as "span" from "defines" as l where glob_any(l."kind", "{struct,enum,type-alias}") and glob_any(l."name", "{FormatVersion,*FormatVersion}");
+let named = union(left=version-constants, right=version-types);
+let declared = union(left=named, right=version-fields);
+let versions = union(left=declared, right=literals);
+emit versions subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`{text}` is a format version"
+help = "Delete it and the code that checks it: a store that does not decode is empty and rebuilt (never migrated), and a file a person writes is read as it is today. Name a store file for what it holds, without a version (`manifest.postcard`, not `manifest-v4.postcard`). A release version comes from `env!(\"CARGO_PKG_VERSION\")`."
+
+[given]
+include = ['**']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'cache-versions'
+scenario = "Asymptote's cache, ryo's image and Tastemaker's manifest at 5149cd075d: a versioned file name, a `VERSION` number, a `MAGIC` byte string, a `FORMAT` number and the schema field that holds it."
+given.files.'src/lib.rs' = '''
+/// The store's file.
+pub const IMAGE: &str = "manifest-v4.postcard";
+/// The version of what the store writes.
+pub const VERSION: u32 = 4;
+/// The first bytes of an image.
+pub const MAGIC: &[u8] = b"RYOIMG03";
+/// The format of a manifest.
+pub const FORMAT: i64 = 3;
+/// The format of the lock.
+pub const LOCK_FORMAT: i64 = 2;
+
+/// A manifest as TOML writes it.
+pub struct ManifestSchema {
+    /// The format.
+    pub version: i64,
+    /// The package's name.
+    pub name: String,
+}
+
+/// The version of a file's format: `2` today, `3` with the additions.
+pub struct FormatVersion(pub i64);
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 2 },
+  { path = 'src/lib.rs', line = 4 },
+  { path = 'src/lib.rs', line = 6 },
+  { path = 'src/lib.rs', line = 8 },
+  { path = 'src/lib.rs', line = 10 },
+  { path = 'src/lib.rs', line = 15 },
+  { path = 'src/lib.rs', line = 21 },
+]
+
+[[scenarios]]
+id = 'inventory-name'
+scenario = "Tastemaker's check composition at 5149cd075d naming its source inventory `source-inventory-v1`."
+given.files.'src/lib.rs' = '''
+/// The directory of the source inventory, under the cache.
+#[must_use]
+pub fn inventory(cache: &std::path::Path) -> std::path::PathBuf {
+    cache.join("source-inventory-v1")
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'release-versions'
+scenario = "Tastemaker's SARIF tool version, its first package version and a package's string version, and the store named for what it holds."
+given.files.'src/lib.rs' = '''
+/// The version of this release.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+/// The version a new package starts at.
+pub const FIRST_VERSION: &str = "0.1.0";
+/// The mark that a manifest's version was replaced.
+pub const REPLACED_VERSION: char = ':';
+/// The store's file.
+pub const STORE: &str = "check.arrow";
+
+/// A package as TOML writes it.
+pub struct PackageSchema {
+    /// Its name.
+    pub name: String,
+    /// Its release.
+    pub version: String,
+}
+'''
+
+[[scenarios]]
+id = 'the-operation-version-of-a-lock-adapter'
+scenario = "The `version` every operation of a lock directory states, declared as `LOCK_VERSION` in the lock adapter's constants and read in its schemas, is the lock's documented version: not reported; the same field in any other adapter is, and so is a lock adapter's constant called `VERSION`."
+given.files.'src/outbound/lock/adapters/toml/constants.rs' = '''
+/// The version every operation states.
+pub(super) const LOCK_VERSION: u32 = 1;
+'''
+given.files.'src/outbound/lock/adapters/yaml/constants.rs' = '''
+/// The version every operation states.
+pub(super) const VERSION: u32 = 1;
+'''
+given.files.'src/outbound/lock/adapters/toml/schemas.rs' = '''
+/// An operation as written.
+pub(super) struct OperationSchema {
+    /// The version, which must be `LOCK_VERSION`.
+    version: u32,
+}
+'''
+given.files.'src/outbound/cache/adapters/postcard/constants.rs' = '''
+/// The version of what the cache writes.
+pub(super) const VERSION: u32 = 4;
+'''
+given.files.'src/outbound/cache/adapters/postcard/schemas.rs' = '''
+/// The cache as written.
+pub(super) struct CacheSchema {
+    /// The version of the cache.
+    version: u32,
+}
+'''
+then.findings = [
+  { path = 'src/outbound/cache/adapters/postcard/constants.rs', line = 2 },
+  { path = 'src/outbound/lock/adapters/yaml/constants.rs', line = 2 },
+  { path = 'src/outbound/cache/adapters/postcard/schemas.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'the-lock-version'
+scenario = "A committed lock's `version = 1`, which stays 1 until the first release, declared as `LOCK_VERSION`, is no format version."
+given.files.'src/lib.rs' = '''
+/// The version every lock writes first: it stays 1 until the first release.
+pub const LOCK_VERSION: i64 = 1;
+'''

@@ -1,0 +1,191 @@
+description = "One function keeps its work in one cache directory once: a second keeping call (a keeping constructor such as `ryo_kept` or `Cache::At`, or the `lint` call of a keeping engine) of the same callee on the same receiver or the same named cache in one function, or in the functions of the same file that function calls, is reported at every such call."
+why = "An engine that keeps its work rewrites the cache directory's store when its call ends. A second lint call on the same keeping engine, or a second keeping engine over the same directory, in one run, such as the check's count judgment beside its primary lint (`self.analysis.lint(..)` twice at 445fd040a6), rewrites what the first just kept, so the store ends holding only the second call's files and the next run reads everything again. Two engines in one run are fine only when one keeps and the other keeps nothing, so the wiring builds a keeping engine once, makes the run's primary lint call on it, and makes every other lint call on an engine that keeps nothing (`self.counting.lint(..)` beside `self.analysis.lint(..)`). Read as written: each call of a path or a method the entry's `kept` globs match, with what it is called on: for a method call, its receiver (position 0 of `call-argument`); for a path call, each of its arguments; an argument read as its name (`store`, `&store`, `*store`) or as the field it reads (`self.analysis` is `analysis`). Two or more calls of one callee in one function on the same receiver or argument are reported at each. Not seen: the two calls made in two functions of one use case, a receiver or argument that is neither a name nor a field (a call such as `directory.to_path_buf()`, a field behind a reference), and the engine reached through two names. Seen although nothing is rewritten: two calls on one engine that keeps nothing, and two fields of one name on two different values (`self.analysis` and `other.analysis`)."
+
+query = '''
+param kept: set<string>;
+let tree-nodes = select l."id" as "id", l."kind" as "kind" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let calls = select l."occurrence" as "call", l."owner" as "owner", l."target" as "target", l."file" as "file", l."span" as "span" from "static-call" as l where glob_any(l."target", $kept);
+let arguments = select l."call" as "call", l."owner" as "owner", l."target" as "target", l."file" as "file", l."span" as "span", r."position" as "position", r."expression" as "expression", r."passes" as "passes" from calls as l join "call-argument" as r on l."call" = r."call";
+let receivers = select l."call" as "call", l."owner" as "owner", l."target" as "target", l."file" as "file", l."span" as "span", l."position" as "position", l."expression" as "expression", l."passes" as "passes" from arguments as l join tree-nodes as r on l."call" = r."id" where r."kind" = "name-ref" and l."position" = 0;
+let path-arguments = select l."call" as "call", l."owner" as "owner", l."target" as "target", l."file" as "file", l."span" as "span", l."position" as "position", l."expression" as "expression", l."passes" as "passes" from arguments as l join tree-nodes as r on l."call" = r."id" where r."kind" = "path-expr";
+let compared = union(left=receivers, right=path-arguments);
+let named = select l."owner" as "owner", l."target" as "target", l."position" as "position", l."passes" as "cache", l."file" as "file", l."span" as "span" from compared as l where l."passes" != "";
+let fields = select l."owner" as "owner", l."target" as "target", l."position" as "position", l."expression" as "expression", l."file" as "file", l."span" as "span" from compared as l join tree-nodes as r on l."expression" = r."id" where r."kind" = "field-expr";
+let field-refs = select l."owner" as "owner", l."target" as "target", l."position" as "position", r."child" as "ref", l."file" as "file", l."span" as "span" from fields as l join "syntax-child" as r on l."expression" = r."parent";
+let field-ref-nodes = select l."owner" as "owner", l."target" as "target", l."position" as "position", l."ref" as "ref", l."file" as "file", l."span" as "span" from field-refs as l join tree-nodes as r on l."ref" = r."id" where r."kind" = "name-ref";
+let field-tokens = select l."owner" as "owner", l."target" as "target", l."position" as "position", r."child" as "token", l."file" as "file", l."span" as "span" from field-ref-nodes as l join "syntax-child" as r on l."ref" = r."parent";
+let field-names = select l."owner" as "owner", l."target" as "target", l."position" as "position", r."text" as "cache", l."file" as "file", l."span" as "span" from field-tokens as l join tree-tokens as r on l."token" = r."id";
+let keyed = union(left=named, right=field-names);
+let function-defs = select d."id" as "function", d."name" as "name", d."file" as "file" from "defines" as d where glob_any(d."kind", "{function,method}");
+let called = select c."owner" as "caller", f."function" as "callee" from "static-call" as c join function-defs as f on c."target" = f."name" and c."file" = f."file";
+let lifted = select e."caller" as "owner", k."target" as "target", k."position" as "position", k."cache" as "cache", k."file" as "file", k."span" as "span" from called as e join keyed as k on e."callee" = k."owner";
+let reached = union(left=keyed, right=lifted);
+let distinct-calls = project(from=reached, columns=["owner", "target", "position", "cache", "file", "span"]);
+let counted = group-count(from=distinct-calls, keys=["owner", "target", "position", "cache"], count="engines");
+let repeated = select * from counted where engines >= 2;
+let matched = select l."target" as "target", l."file" as "file", l."span" as "span" from distinct-calls as l join repeated as r on l."owner" = r."owner" and l."target" = r."target" and l."position" = r."position" and l."cache" = r."cache";
+let found = project(from=matched, columns=["target", "file", "span"]);
+emit found subject "file" key("span");
+'''
+
+[params.kept]
+type = "set<string>"
+description = "The calls that keep an engine's work in a cache directory, each as a path glob as it is written in code: the constructors of a keeping engine (`ryo_kept`, `*::ryo_kept`, `Cache::At`, `*::Cache::At`) and the lint call of one (`lint`)."
+
+[diagnostic]
+primary = "span"
+message = "this function makes a second keeping call (`{target}`) on the same engine or cache"
+help = "Build the keeping engine once and make only the run's primary lint call on it; give every other lint call an engine that keeps nothing (`ryo`, or `Cache::None`), held in its own field (`self.counting.lint(..)` beside `self.analysis.lint(..)`): two keeping calls over one cache directory rewrite each other's store. An ignore is never the fix."
+
+[given]
+include = ['**/*.rs']
+params = { kept = ['ryo_kept', '*::ryo_kept', 'Cache::At', '*::Cache::At', 'lint'] }
+
+[[scenarios]]
+id = 'two-kept-engines-in-one-composition'
+scenario = 'A composition that builds the primary engine and the count judgment`s engine both over the store`s cache, as the check`s composition did, is reported at both calls.'
+given.files.'cli/src/resources/workspace/check/composition.rs' = '''
+//! The wiring of `check`.
+
+pub(crate) fn build(store: &Store) {
+    let primary = analysis::factory::ryo_kept(crate::languages::linked(), store);
+    let counting = analysis::factory::ryo_kept(crate::languages::linked(), store);
+}
+'''
+then.findings = [
+  { path = 'cli/src/resources/workspace/check/composition.rs', line = 4 },
+  { path = 'cli/src/resources/workspace/check/composition.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'two-cache-handles-in-one-function'
+scenario = 'A function that hands the SDK a cache directory twice, one for each of two lint calls, is reported at both.'
+given.files.'sdk/src/lint.rs' = '''
+pub fn both(directory: &Path) {
+    let first = Cache::At(directory);
+    let second = Cache::At(directory);
+}
+'''
+then.findings = [
+  { path = 'sdk/src/lint.rs', line = 2 },
+  { path = 'sdk/src/lint.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'one-kept-engine-and-one-that-keeps-nothing'
+scenario = 'A composition that builds the primary engine over the cache and the count judgment`s engine to keep nothing, as the check`s composition does, is not reported.'
+given.files.'cli/src/resources/workspace/check/composition.rs' = '''
+//! The wiring of `check`.
+
+pub(crate) fn build(store: &Store) {
+    let primary = analysis::factory::ryo_kept(crate::languages::linked(), store);
+    let counting = analysis::factory::ryo(crate::languages::linked());
+}
+'''
+
+[[scenarios]]
+id = 'a-kept-engine-in-each-of-two-functions'
+scenario = 'Two functions that each build one keeping engine are not reported: the rule counts the calls of one function.'
+given.files.'cli/src/resources/workspace/check/composition.rs' = '''
+//! The wiring of `check`.
+
+pub(crate) fn build(store: &Store) {
+    let primary = analysis::factory::ryo_kept(crate::languages::linked(), store);
+}
+
+pub(crate) fn rebuild(store: &Store) {
+    let primary = analysis::factory::ryo_kept(crate::languages::linked(), store);
+}
+'''
+
+[[scenarios]]
+id = 'two-lint-calls-on-one-keeping-engine'
+scenario = 'A use case that makes its primary lint call and the count judgment`s lint call both on `self.analysis`, the keeping engine, as the check did at 445fd040a6, is reported at both calls.'
+given.files.'core/src/inbound/use_cases/check/use_case.rs' = '''
+impl CheckService {
+    fn run(&self, plan: &Plan) -> Result<Vec<Finding>, CheckError> {
+        let report = self.analysis.lint(primary(plan))?;
+        let counted = self.analysis.lint(counts(plan, &report))?;
+        Ok(judged(report, counted))
+    }
+}
+'''
+then.findings = [
+  { path = 'core/src/inbound/use_cases/check/use_case.rs', line = 3 },
+  { path = 'core/src/inbound/use_cases/check/use_case.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'one-lint-call-on-each-of-two-engines'
+scenario = 'A use case that makes its primary lint call on `self.analysis`, the keeping engine, and the count judgment`s lint call on `self.counting`, an engine that keeps nothing, as the check does, is not reported.'
+given.files.'core/src/inbound/use_cases/check/use_case.rs' = '''
+impl CheckService {
+    fn run(&self, plan: &Plan) -> Result<Vec<Finding>, CheckError> {
+        let report = self.analysis.lint(primary(plan))?;
+        let counted = self.counting.lint(counts(plan, &report))?;
+        Ok(judged(report, counted))
+    }
+}
+'''
+
+[[scenarios]]
+id = 'two-lint-calls-in-two-functions-one-run-calls'
+scenario = 'A run function that calls two functions of the file, each making a lint call on `self.analysis`, the keeping engine, as the check did at 445fd040a6 (its lint and its count judgment were two functions), is reported at both calls.'
+given.files.'core/src/inbound/use_cases/check/use_case.rs' = '''
+impl CheckService {
+    fn check(&self, plan: &Plan) -> Result<Vec<Finding>, CheckError> {
+        let report = self.primary(plan)?;
+        let counted = self.counted(plan, &report)?;
+        Ok(judged(report, counted))
+    }
+
+    fn primary(&self, plan: &Plan) -> Result<Report, CheckError> {
+        self.analysis.lint(primary_request(plan))
+    }
+
+    fn counted(&self, plan: &Plan, report: &Report) -> Result<Report, CheckError> {
+        self.analysis.lint(counts(plan, report))
+    }
+}
+'''
+then.findings = [
+  { path = 'core/src/inbound/use_cases/check/use_case.rs', line = 9 },
+  { path = 'core/src/inbound/use_cases/check/use_case.rs', line = 13 },
+]
+
+[[scenarios]]
+id = 'two-functions-one-run-calls-each-on-its-own-engine'
+scenario = 'The same run function whose count judgment calls `self.counting`, an engine that keeps nothing, is not reported.'
+given.files.'core/src/inbound/use_cases/check/use_case.rs' = '''
+impl CheckService {
+    fn check(&self, plan: &Plan) -> Result<Vec<Finding>, CheckError> {
+        let report = self.primary(plan)?;
+        let counted = self.counted(plan, &report)?;
+        Ok(judged(report, counted))
+    }
+
+    fn primary(&self, plan: &Plan) -> Result<Report, CheckError> {
+        self.analysis.lint(primary_request(plan))
+    }
+
+    fn counted(&self, plan: &Plan, report: &Report) -> Result<Report, CheckError> {
+        self.counting.lint(counts(plan, report))
+    }
+}
+'''
+
+[[scenarios]]
+id = 'two-functions-no-run-calls-together'
+scenario = 'Two functions of a file that each make a lint call on `self.analysis` and are called by no function that calls both (two entry points of an engine used one at a time) are not reported.'
+given.files.'core/src/inbound/use_cases/validate/use_case.rs' = '''
+impl ValidateService {
+    fn validate(&self, query: &Query) -> Result<Verdict, ValidateError> {
+        self.analysis.lint(request(query))
+    }
+
+    fn verdict(&self, query: &Query) -> Result<Verdict, ValidateError> {
+        self.analysis.lint(other(query))
+    }
+}
+'''

@@ -1,0 +1,2 @@
+include = ["**"]
+exclude = ["**/tests/**", "**/benches/**", "**/*_test.rs", "**/tests.rs", "**/build.rs"]

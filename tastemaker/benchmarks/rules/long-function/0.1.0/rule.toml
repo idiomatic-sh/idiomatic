@@ -1,0 +1,159 @@
+description = "Benchmark: duplicates clippy's `too_many_lines` and eslint's `max-lines-per-function`; ruff has no line count of a function (its `PLR0915` too-many-statements is the nearest); not placed on this repo. A function spans at most `max-lines` line breaks between its signature and its end."
+why = "A long function does several things that each want a name and a test of their own (clippy's `too_many_lines`, eslint's `max-lines-per-function`). The functions are the shared `function` relation of every language; the count is the tokens holding a line break anywhere under the function's parts, and the line ends a language writes directly under the function itself (Python's statement ends; not the whitespace around a Rust or TypeScript signature), so where a language writes a run of blank lines as one whitespace token (Rust, TypeScript) it counts once, while Python's one newline token per line counts each; a nested function or closure counts toward every function around it. Not seen: lines produced by a macro's expansion."
+
+query = '''
+param max-lines: integer;
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let functions = project(from="function", columns=["id", "file", "span"]);
+let function-nodes = axis(from=functions, relation="syntax-child", direction=descendant, domain=tree-nodes);
+let function-edges = select r."child" as "child", l."id" as "id", l."file" as "file", l."span" as "span" from function-nodes as l join "syntax-child" as r on l."related" = r."parent";
+let line-breaks = select * from tree-tokens where glob_any(text, "*
+*");
+let function-breaks = select l."id" as "id", l."file" as "file", l."span" as "span", r."id" as "token" from function-edges as l join line-breaks as r on l."child" = r."id";
+let own-edges = select r."child" as "child", l."id" as "id", l."file" as "file", l."span" as "span" from functions as l join "syntax-child" as r on l."id" = r."parent";
+let statement-breaks = select * from line-breaks where kind != "whitespace";
+let own-breaks = select l."id" as "id", l."file" as "file", l."span" as "span", r."id" as "token" from own-edges as l join statement-breaks as r on l."child" = r."id";
+let all-breaks = union(left=function-breaks, right=own-breaks);
+let counted = group-count(from=all-breaks, keys=["id", "file", "span"], count="lines", distinct="token");
+let long = select * from counted where $max-lines < lines;
+emit long subject "file" key("span");
+'''
+
+[params.max-lines]
+type = "integer"
+description = "The most line breaks a function may hold (clippy's default is 100)."
+
+[diagnostic]
+primary = "span"
+message = "this function spans {lines} line breaks, over the limit"
+help = "Split it into functions that each do one named thing."
+
+[given]
+include = ['**']
+params = { max-lines = 5 }
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'short-function'
+scenario = 'A short function: nothing is reported.'
+given.files.'src/lib.rs' = '''
+pub fn short() -> u8 {
+    let a = 1;
+    a
+}
+'''
+
+[[scenarios]]
+id = 'function-over-limit'
+scenario = 'A function over the limit.'
+given.files.'src/code.rs' = '''
+pub fn long() -> u8 {
+    let a = 1;
+    let b = 2;
+    let c = 3;
+    let d = 4;
+    let e = 5;
+    a + b + c + d + e
+}
+'''
+given.files.'src/lib.rs' = '''
+mod code;
+'''
+then.findings = [
+  { path = 'src/code.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'blank-lines'
+scenario = 'Blank lines and a multi-line string count once.'
+given.files.'src/lib.rs' = '''
+pub fn spaced() -> u8 {
+    let a = 1;
+
+
+
+
+
+
+    let b = "
+string
+lines
+";
+    a
+}
+'''
+
+[[scenarios]]
+id = 'typescript-short-function'
+scenario = 'A TypeScript function of three line breaks.'
+given.params = { max-lines = 3 }
+given.files.'src/sum.ts' = '''
+export function sum(a: number, b: number): number {
+  const total = a + b
+  return total
+}
+'''
+
+[[scenarios]]
+id = 'typescript-long-function-and-method'
+scenario = 'A TypeScript function and a method of four line breaks each.'
+given.params = { max-lines = 3 }
+given.files.'src/sum.ts' = '''
+export function sum(a: number, b: number): number {
+  const first = a
+  const second = b
+  return first + second
+}
+
+export class Sum {
+  sum(a: number, b: number): number {
+    const first = a
+    const second = b
+    return first + second
+  }
+}
+'''
+then.findings = [
+  { path = 'src/sum.ts', line = 1 },
+  { path = 'src/sum.ts', line = 8 },
+]
+
+[[scenarios]]
+id = 'python-short-function'
+scenario = 'A Python function of three line breaks.'
+given.params = { max-lines = 3 }
+given.files.'pkg/sum.py' = '''
+def total(a, b):
+    first = a
+    return first + b
+'''
+
+[[scenarios]]
+id = 'python-long-function-and-method'
+scenario = 'A Python function and a method of five line breaks each.'
+given.params = { max-lines = 3 }
+given.files.'pkg/sum.py' = '''
+def total(a, b):
+    first = a
+    second = b
+    third = first + second
+    return third
+
+
+class Sum:
+    def total(self, a, b):
+        first = a
+        second = b
+        third = first + second
+        return third
+'''
+then.findings = [
+  { path = 'pkg/sum.py', line = 1 },
+  { path = 'pkg/sum.py', line = 9 },
+]

@@ -1,0 +1,499 @@
+{
+  "ruff": "/home/vscode/.local/bin/ruff",
+  "ruff_version": "ruff 0.16.5",
+  "ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "worker": "/tmp/ruff-shape-worker-9003086b",
+  "worker_sha256": "270f5ee96ba67f94c85d27de7cad9a50a27a01a4d0a39173144cf66aa661e3c7",
+  "query_sha256": "e1bd4b006198a60a34e7ba5907a94ab583a31311cabe98138ab1f11627afbef3",
+  "cases_sha256": "1668fc67ebe3eb461aad74eedae8270a074cc25cd986a57534219ec6fd51a6c6",
+  "case_count": 27,
+  "matches": 27,
+  "runs": [
+    {
+      "name": "logging-module",
+      "expected": [
+        [
+          23,
+          27
+        ]
+      ],
+      "ruff": [
+        [
+          23,
+          27
+        ]
+      ],
+      "old_worker": [
+        [
+          23,
+          27
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "aliased-module",
+      "expected": [
+        [
+          26,
+          30
+        ]
+      ],
+      "ruff": [
+        [
+          26,
+          30
+        ]
+      ],
+      "old_worker": [
+        [
+          26,
+          30
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "from-import",
+      "expected": [
+        [
+          25,
+          29
+        ]
+      ],
+      "ruff": [
+        [
+          25,
+          29
+        ]
+      ],
+      "old_worker": [
+        [
+          25,
+          29
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "from-import-alias",
+      "expected": [
+        [
+          40,
+          51
+        ]
+      ],
+      "ruff": [
+        [
+          40,
+          51
+        ]
+      ],
+      "old_worker": [
+        [
+          40,
+          51
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "logger-name",
+      "expected": [
+        [
+          7,
+          11
+        ]
+      ],
+      "ruff": [
+        [
+          7,
+          11
+        ]
+      ],
+      "old_worker": [
+        [
+          7,
+          11
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "upper-logger-name",
+      "expected": [
+        [
+          7,
+          11
+        ]
+      ],
+      "ruff": [
+        [
+          7,
+          11
+        ]
+      ],
+      "old_worker": [
+        [
+          7,
+          11
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "log-prefix",
+      "expected": [
+        [
+          8,
+          12
+        ]
+      ],
+      "ruff": [
+        [
+          8,
+          12
+        ]
+      ],
+      "old_worker": [
+        [
+          8,
+          12
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "logging-suffix",
+      "expected": [
+        [
+          11,
+          15
+        ]
+      ],
+      "ruff": [
+        [
+          11,
+          15
+        ]
+      ],
+      "old_worker": [
+        [
+          11,
+          15
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "my-logger-suffix",
+      "expected": [
+        [
+          10,
+          14
+        ]
+      ],
+      "ruff": [
+        [
+          10,
+          14
+        ]
+      ],
+      "old_worker": [
+        [
+          10,
+          14
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "self-logger",
+      "expected": [
+        [
+          46,
+          50
+        ]
+      ],
+      "ruff": [
+        [
+          46,
+          50
+        ]
+      ],
+      "old_worker": [
+        [
+          46,
+          50
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "attribute-logger-suffix",
+      "expected": [
+        [
+          43,
+          47
+        ]
+      ],
+      "ruff": [
+        [
+          43,
+          47
+        ]
+      ],
+      "old_worker": [
+        [
+          43,
+          47
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "inline-getlogger",
+      "expected": [
+        [
+          35,
+          39
+        ]
+      ],
+      "ruff": [
+        [
+          35,
+          39
+        ]
+      ],
+      "old_worker": [
+        [
+          35,
+          39
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "getlogger-import-alias",
+      "expected": [
+        [
+          59,
+          63
+        ]
+      ],
+      "ruff": [
+        [
+          59,
+          63
+        ]
+      ],
+      "old_worker": [
+        [
+          59,
+          63
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "inline-logger-class",
+      "expected": [
+        [
+          32,
+          36
+        ]
+      ],
+      "ruff": [
+        [
+          32,
+          36
+        ]
+      ],
+      "old_worker": [
+        [
+          32,
+          36
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "flask-current-app",
+      "expected": [
+        [
+          49,
+          53
+        ]
+      ],
+      "ruff": [
+        [
+          49,
+          53
+        ]
+      ],
+      "old_worker": [
+        [
+          49,
+          53
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "wrong-imported-object",
+      "expected": [],
+      "ruff": [],
+      "old_worker": [],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "logging-class-method",
+      "expected": [],
+      "ruff": [],
+      "old_worker": [],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "imported-logger-object",
+      "expected": [],
+      "ruff": [],
+      "old_worker": [],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "ordinary-object",
+      "expected": [],
+      "ruff": [],
+      "old_worker": [],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "warning-method",
+      "expected": [],
+      "ruff": [],
+      "old_worker": [],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "no-message-args",
+      "expected": [
+        [
+          7,
+          11
+        ]
+      ],
+      "ruff": [
+        [
+          7,
+          11
+        ]
+      ],
+      "old_worker": [
+        [
+          7,
+          11
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "attribute-not-call",
+      "expected": [],
+      "ruff": [],
+      "old_worker": [],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "noqa",
+      "expected": [],
+      "ruff": [],
+      "old_worker": [],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "file-noqa",
+      "expected": [],
+      "ruff": [],
+      "old_worker": [],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "logging-module-alias-name",
+      "expected": [
+        [
+          32,
+          36
+        ]
+      ],
+      "ruff": [
+        [
+          32,
+          36
+        ]
+      ],
+      "old_worker": [
+        [
+          32,
+          36
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "unknown-chained-logger",
+      "expected": [
+        [
+          15,
+          19
+        ]
+      ],
+      "ruff": [
+        [
+          15,
+          19
+        ]
+      ],
+      "old_worker": [
+        [
+          15,
+          19
+        ]
+      ],
+      "matched": true,
+      "stderr": ""
+    },
+    {
+      "name": "imported-unknown-chained-logger",
+      "expected": [],
+      "ruff": [],
+      "old_worker": [],
+      "matched": true,
+      "stderr": ""
+    }
+  ]
+}

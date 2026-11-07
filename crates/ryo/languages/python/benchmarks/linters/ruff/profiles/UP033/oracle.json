@@ -1,0 +1,116 @@
+{
+  "direct-module": {
+    "source": "import functools\n@functools.lru_cache(maxsize=None)\ndef f(): pass\n",
+    "expected": [
+      {
+        "rule": "UP033",
+        "file": "case.py",
+        "start": 37,
+        "end": 51,
+        "row": 2,
+        "col": 21,
+        "message": "Use `@functools.cache` instead of `@functools.lru_cache(maxsize=None)`"
+      }
+    ]
+  },
+  "module-alias": {
+    "source": "import functools as ft\n@ft.lru_cache(maxsize=None)\ndef f(): pass\n",
+    "expected": [
+      {
+        "rule": "UP033",
+        "file": "case.py",
+        "start": 36,
+        "end": 50,
+        "row": 2,
+        "col": 14,
+        "message": "Use `@functools.cache` instead of `@functools.lru_cache(maxsize=None)`"
+      }
+    ]
+  },
+  "from-import": {
+    "source": "from functools import lru_cache\n@lru_cache(maxsize=None)\ndef f(): pass\n",
+    "expected": [
+      {
+        "rule": "UP033",
+        "file": "case.py",
+        "start": 42,
+        "end": 56,
+        "row": 2,
+        "col": 11,
+        "message": "Use `@functools.cache` instead of `@functools.lru_cache(maxsize=None)`"
+      }
+    ]
+  },
+  "from-alias": {
+    "source": "from functools import lru_cache as cache\n@cache(maxsize=None)\ndef f(): pass\n",
+    "expected": [
+      {
+        "rule": "UP033",
+        "file": "case.py",
+        "start": 47,
+        "end": 61,
+        "row": 2,
+        "col": 7,
+        "message": "Use `@functools.cache` instead of `@functools.lru_cache(maxsize=None)`"
+      }
+    ]
+  },
+  "class-decorator": {
+    "source": "import functools\n@functools.lru_cache(maxsize=None)\nclass C: pass\n",
+    "expected": []
+  },
+  "no-parentheses": {
+    "source": "import functools\n@functools.lru_cache\ndef f(): pass\n",
+    "expected": []
+  },
+  "no-maxsize": {
+    "source": "import functools\n@functools.lru_cache()\ndef f(): pass\n",
+    "expected": []
+  },
+  "non-none": {
+    "source": "import functools\n@functools.lru_cache(maxsize=128)\ndef f(): pass\n",
+    "expected": []
+  },
+  "positional-none": {
+    "source": "import functools\n@functools.lru_cache(None)\ndef f(): pass\n",
+    "expected": []
+  },
+  "extra-keyword": {
+    "source": "import functools\n@functools.lru_cache(maxsize=None, typed=True)\ndef f(): pass\n",
+    "expected": []
+  },
+  "other-call": {
+    "source": "import functools\nfunctools.lru_cache(maxsize=None)\n",
+    "expected": []
+  },
+  "nested-decorator-call": {
+    "source": "import functools\n@wrapper(functools.lru_cache(maxsize=None))\ndef f(): pass\n",
+    "expected": []
+  },
+  "wrong-module": {
+    "source": "import other as functools\n@functools.lru_cache(maxsize=None)\ndef f(): pass\n",
+    "expected": []
+  },
+  "noqa": {
+    "source": "import functools\n@functools.lru_cache(maxsize=None)  # noqa: UP033\ndef f(): pass\n",
+    "expected": []
+  },
+  "file-noqa": {
+    "source": "# ruff: noqa: UP033\nimport functools\n@functools.lru_cache(maxsize=None)\ndef f(): pass\n",
+    "expected": []
+  },
+  "multiline": {
+    "source": "import functools\n@functools.lru_cache(\n    maxsize=None,\n)\ndef f(): pass\n",
+    "expected": [
+      {
+        "rule": "UP033",
+        "file": "case.py",
+        "start": 37,
+        "end": 58,
+        "row": 2,
+        "col": 21,
+        "message": "Use `@functools.cache` instead of `@functools.lru_cache(maxsize=None)`"
+      }
+    ]
+  }
+}

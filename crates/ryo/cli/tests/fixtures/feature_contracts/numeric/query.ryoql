@@ -1,0 +1,4 @@
+let locations = select id, file, span, "start-byte" as begin, "end-byte" as finish from "source-location";
+let ordered = select id, file from locations where numeric_gte(finish, begin);
+let invalid = antijoin(left=locations, right=ordered, left-on=["id", "file"], right-on=["id", "file"]);
+emit invalid subject file key(id, span);

@@ -1,0 +1,1 @@
+Module(body=[Import(names=[alias(name='__debug__', asname='debug')], is_lazy=0), ImportFrom(module='__debug__', names=[alias(name='Some')], level=0, is_lazy=0), ImportFrom(module='x', names=[alias(name='__debug__', asname='debug')], level=0, is_lazy=0)])

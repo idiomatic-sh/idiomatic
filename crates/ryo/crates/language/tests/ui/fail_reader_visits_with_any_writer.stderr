@@ -1,0 +1,14 @@
+error[E0053]: method `visit` has an incompatible type for trait
+  --> tests/ui/fail_reader_visits_with_any_writer.rs:13:5
+   |
+13 | /     fn visit(
+14 | |         &self,
+15 | |         _tree: &Tree<'_>,
+16 | |         _model: &(),
+...  |
+19 | |         _out: &mut dyn RowWriter,
+20 | |     ) {
+   | |_____^ expected trait `Rows`, found trait `RowWriter`
+   |
+   = note: expected signature `fn(&Mine, &Tree<'_>, &(), &mut Symbols, ryo_relations::domain::relations::types::Position, &mut dyn Rows<FunctionRow>)`
+              found signature `fn(&Mine, &Tree<'_>, &(), &mut Symbols, ryo_relations::domain::relations::types::Position, &mut dyn RowWriter)`

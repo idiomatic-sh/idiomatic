@@ -1,0 +1,75 @@
+[package]
+name = "idiomatic-sh-ryo-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = true
+description = "Source query execution services for Ryo"
+keywords = ["query", "lint", "static-analysis", "ryoql", "ryo"]
+categories = ["development-tools"]
+autobenches = false
+
+[lib]
+name = "ryo_core"
+
+[dependencies]
+ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.1.2" }
+ryo_execution = { package = "idiomatic-sh-ryo-execution", path = "../execution", version = "0.1.2" }
+ryo_derived = { package = "idiomatic-sh-ryo-derived", path = "../derived", version = "0.1.2" }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.2" }
+thiserror.workspace = true
+ignore.workspace = true
+rayon.workspace = true
+memchr.workspace = true
+num-bigint.workspace = true
+serde.workspace = true
+blake3.workspace = true
+hashbrown.workspace = true
+heck.workspace = true
+rustc-hash.workspace = true
+sysinfo.workspace = true
+tracing.workspace = true
+unicode-width.workspace = true
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.2" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.2" }
+ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators", version = "0.1.2" }
+ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.1.2" }
+dhat = { workspace = true, optional = true }
+postcard.workspace = true
+tempfile.workspace = true
+
+[dev-dependencies]
+toml.workspace = true
+cargo_metadata.workspace = true
+cucumber.workspace = true
+divan.workspace = true
+tokio.workspace = true
+dhat.workspace = true
+# The crate itself, with its fixtures: its tests need them, and no test is run with a flag.
+idiomatic-sh-ryo-core = { path = ".", features = ["fixtures"] }
+
+[[test]]
+name = "bdd"
+harness = false
+
+[[test]]
+name = "allocation"
+harness = false
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
+[features]
+diagnostic-row-progress = []
+fixtures = ["dep:dhat", "ryo_execution/fixtures", "ryo_language/fixtures", "ryo_values/fixtures"]
+
+[lints]
+workspace = true
+
+[[test]]
+name = "project_batch_boundary"
+path = "tests/test.rs"

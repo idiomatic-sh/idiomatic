@@ -1,0 +1,2 @@
+let diagnostics = select d.file as file, d.span as span from "manifest-diagnostic" as d where d.schema = "python-project-metadata";
+emit diagnostics subject file key(file);

@@ -1,0 +1,110 @@
+description = "The npm package's command: finds the platform package npm installed for this machine among the package's optionalDependencies and runs its binary with the same arguments, standard streams, signals and exit status, the launcher shape of biome, esbuild and turbo, with no install script."
+why = "npm can only put a script on PATH for a package that is the same on every machine, so a small script hands over to the machine's binary without changing how the command behaves."
+params = { command = { type = "identifier", description = "The command the product installs: the binary's name, which the launcher, the entry point and the smoke tests run, and the name of the binary in every archive. It is the product's name where the product installs a command of that name." }, organization = { type = "identifier", description = "The organization every package is published under, written as a Python identifier (`idiomatic_sh`): the npm scope and the PyPI distribution's name use its hyphenated form (`idiomatic-sh`), the Python module this form." }, product = { type = "identifier", description = "The product: its command, and the binary's name." } }
+content = '''
+#!/usr/bin/env node
+// Runs the native {{ product }} binary from the platform package npm installed for this
+// machine, one of this package's optionalDependencies, passing its arguments, standard
+// streams, signals and exit status through.
+"use strict";
+
+const { spawn } = require("node:child_process");
+const { optionalDependencies } = require("./package.json");
+
+const executable = process.platform === "win32" ? "{{ command }}.exe" : "{{ command }}";
+
+function binary() {
+  for (const name of Object.keys(optionalDependencies ?? {})) {
+    try {
+      return require.resolve(`${name}/bin/${executable}`);
+    } catch {
+      // Not this machine's platform: npm skipped the package.
+    }
+  }
+  throw new Error(
+    `@{{ organization | kebab }}/{{ product }}: no platform package is installed for ${process.platform}-${process.arch}; reinstall without --omit=optional`,
+  );
+}
+
+const forwarded = ["SIGINT", "SIGTERM", "SIGHUP"];
+const child = spawn(binary(), process.argv.slice(2), { stdio: "inherit" });
+for (const signal of forwarded) {
+  // A signal sent to this process alone reaches the binary too.
+  process.on(signal, () => child.kill(signal));
+}
+child.on("error", (error) => {
+  throw error;
+});
+child.on("exit", (status, signal) => {
+  if (signal) {
+    // End the way the binary ended, so the caller sees the same signal.
+    for (const name of forwarded) {
+      process.removeAllListeners(name);
+    }
+    process.kill(process.pid, signal);
+    return;
+  }
+  process.exit(status ?? 1);
+});
+'''
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'registries/npm/launcher.js'
+given.params = { organization = 'idiomatic_sh', command = 'tastemaker', product = 'tastemaker' }
+given.files.'registries/npm/launcher.js' = '''
+#!/usr/bin/env node
+// Runs the native tastemaker binary from the platform package npm installed for this
+// machine, one of this package's optionalDependencies, passing its arguments, standard
+// streams, signals and exit status through.
+"use strict";
+
+const { spawn } = require("node:child_process");
+const { optionalDependencies } = require("./package.json");
+
+const executable = process.platform === "win32" ? "tastemaker.exe" : "tastemaker";
+
+function binary() {
+  for (const name of Object.keys(optionalDependencies ?? {})) {
+    try {
+      return require.resolve(`${name}/bin/${executable}`);
+    } catch {
+      // Not this machine's platform: npm skipped the package.
+    }
+  }
+  throw new Error(
+    `@idiomatic-sh/tastemaker: no platform package is installed for ${process.platform}-${process.arch}; reinstall without --omit=optional`,
+  );
+}
+
+const forwarded = ["SIGINT", "SIGTERM", "SIGHUP"];
+const child = spawn(binary(), process.argv.slice(2), { stdio: "inherit" });
+for (const signal of forwarded) {
+  // A signal sent to this process alone reaches the binary too.
+  process.on(signal, () => child.kill(signal));
+}
+child.on("error", (error) => {
+  throw error;
+});
+child.on("exit", (status, signal) => {
+  if (signal) {
+    // End the way the binary ended, so the caller sees the same signal.
+    for (const name of forwarded) {
+      process.removeAllListeners(name);
+    }
+    process.kill(process.pid, signal);
+    return;
+  }
+  process.exit(status ?? 1);
+});
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'registries/npm/launcher.js'
+given.params = { organization = 'idiomatic_sh', command = 'tastemaker', product = 'tastemaker' }
+then.findings = [
+  { rule = 'npm-launcher#count', path = '.' },
+]

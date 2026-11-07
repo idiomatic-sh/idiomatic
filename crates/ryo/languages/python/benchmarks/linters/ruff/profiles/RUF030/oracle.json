@@ -1,0 +1,147 @@
+{
+  "ruff_version": "0.16.5",
+  "ruff_binary_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "target_version": "py310",
+  "mode": "isolated selected-rule full report",
+  "cases": [
+    {
+      "rule": "RUF030",
+      "case": "direct",
+      "source_sha256": "f44aae75596b0f8676191f6a32287efd6428b4e7dbd98706642ecae507f66148",
+      "diagnostics": [
+        {
+          "rule": "RUF030",
+          "file": "case.py",
+          "start": 18,
+          "end": 30
+        }
+      ]
+    },
+    {
+      "rule": "RUF030",
+      "case": "empty-print",
+      "source_sha256": "fd76cbe19e5bcffa17544a46ef65287bf697b645efb179ca2fd2cab75a39a21b",
+      "diagnostics": [
+        {
+          "rule": "RUF030",
+          "file": "case.py",
+          "start": 18,
+          "end": 25
+        }
+      ]
+    },
+    {
+      "rule": "RUF030",
+      "case": "format-print",
+      "source_sha256": "0bb329729361cdc3262da4477b09c0ee85f928abf4ac629d440d222e46394485",
+      "diagnostics": [
+        {
+          "rule": "RUF030",
+          "file": "case.py",
+          "start": 18,
+          "end": 37
+        }
+      ]
+    },
+    {
+      "rule": "RUF030",
+      "case": "keyword-print",
+      "source_sha256": "bda77124d3777ebc56cf30055012e457448b8ef5ef6a04dbf313683a89032b0e",
+      "diagnostics": [
+        {
+          "rule": "RUF030",
+          "file": "case.py",
+          "start": 18,
+          "end": 39
+        }
+      ]
+    },
+    {
+      "rule": "RUF030",
+      "case": "no-message",
+      "source_sha256": "f65bbb398a6493af05cd0b9b50b6ebb0b0a4df17c2d33a2de2cece4fd1bd8dde",
+      "diagnostics": []
+    },
+    {
+      "rule": "RUF030",
+      "case": "not-assert",
+      "source_sha256": "dce5355ab82c73c6a9f1cc224b3963124ade46b6fa11434c321c498a83cc24de",
+      "diagnostics": []
+    },
+    {
+      "rule": "RUF030",
+      "case": "other-message",
+      "source_sha256": "fb25ffd58223c3a1809f7f9e4d3ced764bf273c8db0545191c89f4cd7492e825",
+      "diagnostics": []
+    },
+    {
+      "rule": "RUF030",
+      "case": "print-expression",
+      "source_sha256": "cacdccc8416e52578499d3f115918cca786ba3df7bfbbb344dc9620808ce2b3a",
+      "diagnostics": [
+        {
+          "rule": "RUF030",
+          "file": "case.py",
+          "start": 19,
+          "end": 31
+        }
+      ]
+    },
+    {
+      "rule": "RUF030",
+      "case": "shadowed-parameter",
+      "source_sha256": "cd99daf12af6a8d51908d5980d2e441f841893e60c3a0cd315ff30548b074c7f",
+      "diagnostics": []
+    },
+    {
+      "rule": "RUF030",
+      "case": "shadowed-module",
+      "source_sha256": "343ae77ee7bc61b88dbd78109cadef657563f5b6ae1e941425d23248ee08f20e",
+      "diagnostics": []
+    },
+    {
+      "rule": "RUF030",
+      "case": "noqa",
+      "source_sha256": "a089ef834b8b37e7d2a06d6f40565cf3f7497c8a195e4fe473cf53811794839b",
+      "diagnostics": []
+    },
+    {
+      "rule": "RUF030",
+      "case": "file-noqa",
+      "source_sha256": "b624d46e4b1f4c20bf588c5869f292897d3cc8a86ba59d622013b6b82a6bebc5",
+      "diagnostics": []
+    },
+    {
+      "rule": "RUF030",
+      "case": "other-code",
+      "source_sha256": "4d8504fe62faf85ca791dccd97481ef1ee5e975a9346b48e6b09524ca32abf60",
+      "diagnostics": [
+        {
+          "rule": "RUF030",
+          "file": "case.py",
+          "start": 18,
+          "end": 30
+        }
+      ]
+    },
+    {
+      "rule": "RUF030",
+      "case": "multiple",
+      "source_sha256": "a02782eed9131ca9b176bb723a21a019edc09eb32ad7b3bd149583db0aebbfa1",
+      "diagnostics": [
+        {
+          "rule": "RUF030",
+          "file": "case.py",
+          "start": 14,
+          "end": 26
+        },
+        {
+          "rule": "RUF030",
+          "file": "case.py",
+          "start": 42,
+          "end": 54
+        }
+      ]
+    }
+  ]
+}

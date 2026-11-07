@@ -1,0 +1,39 @@
+description = "Selects each concept that has a `service.rs`: the condition on which its `service_test.rs` is required."
+why = "A concept holds its verbs in one service.rs and its data in types.rs, errors.rs and constants.rs; a concept that declares no function has no service.rs and no service_test.rs, and one that declares a function has both. The trigger is mechanical: where a function is written."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let files = select * from tree-nodes where kind = "source-file";
+let found = project(from=files, columns=["file", "span"]);
+emit found subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this concept has a service"
+help = "A concept with a service has its service_test.rs beside it."
+
+[given]
+include = ['**/service.rs']
+
+[[scenarios]]
+id = 'service-file-selected'
+scenario = 'A service file is selected.'
+given.files.'src/service.rs' = '''
+pub fn double(value: u8) -> u8 {
+    value
+}
+'''
+then.findings = [
+  { path = 'src/service.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'no-service'
+scenario = 'A concept without a service is not selected.'
+given.files.'src/types.rs' = '''
+#[derive(Debug)]
+pub struct Point {
+    pub x: u8,
+}
+'''

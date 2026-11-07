@@ -1,0 +1,26 @@
+description = "Route path literals include their HTTP method."
+why = "Go 1.22 ServeMux patterns dispatch on method and extract wildcard values. A bare path accepts every method unless its handler checks them itself."
+
+query = '''
+let found = select * from "string-literal" where glob_any(value, "/*");
+emit found subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "route path `{value}` has no HTTP method"
+help = "Use a method-aware pattern such as GET /todos or POST /todos/{id}/done."
+
+[given]
+include = ["src"]
+
+[[scenarios]]
+id = "bare-path"
+scenario = "A route path without its method is reported."
+given.files."src/routes.go" = "package routes\nfunc routes() { mux.HandleFunc(\"/todos\", list) }\n"
+then.findings = [{ path = "src/routes.go", line = 2 }]
+
+[[scenarios]]
+id = "method-pattern"
+scenario = "Method-aware patterns are allowed."
+given.files."src/routes.go" = "package routes\nfunc routes() { mux.HandleFunc(\"GET /todos\", list); mux.HandleFunc(\"POST /todos/{id}/done\", complete) }\n"

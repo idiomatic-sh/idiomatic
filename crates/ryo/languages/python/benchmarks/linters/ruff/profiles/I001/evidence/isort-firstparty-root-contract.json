@@ -1,0 +1,17 @@
+{
+  "contract_assertion": "return (sections.FIRSTPARTY, f\"Found in one of the configured src_paths: {src_path}.\")",
+  "default_settings": {
+    "source_path": "isort/settings.py",
+    "source_sha256": "a1f51ca5301a46d5b1e4dc4bb1c5a5b7a982d0ab4069703b469a43cb2468988f",
+    "source_text": "    auto_identify_namespace_packages: bool = True\n    namespace_packages: FrozenSet[str] = frozenset()\n",
+    "source_url": "https://github.com/PyCQA/isort/blob/12cc5fbd67eebf92eb2213b03c07b138ae1fb448/isort/settings.py#L231-L232",
+    "upstream_file_sha256": "dc6bb91912a5b16ebc0c11da32aef6d807508679ca59898ef668ba0d998c089f"
+  },
+  "schema": "public-tool-contract/v1",
+  "source_path": "isort/place.py",
+  "source_revision": "12cc5fbd67eebf92eb2213b03c07b138ae1fb448",
+  "source_sha256": "a40f7cb9048c215b5280f17632cdd06dbc2ca58785468eed9e87ad44fd26afa7",
+  "source_text": "    root_module_name, *nested_module = name.split(\".\", 1)\n    new_prefix = prefix + (root_module_name,)\n    namespace = \".\".join(new_prefix)\n\n    for src_path in src_paths:\n        module_path = (src_path / root_module_name).resolve()\n        if not prefix and not module_path.is_dir() and src_path.name == root_module_name:\n            module_path = src_path.resolve()\n        if nested_module and (\n            namespace in config.namespace_packages\n            or (\n                config.auto_identify_namespace_packages\n                and _is_namespace_package(module_path, config.supported_extensions)\n            )\n        ):\n            return _src_path(nested_module[0], config, (module_path,), new_prefix)\n        if (\n            _is_module(module_path)\n            or _is_package(module_path)\n            or _src_path_is_module(src_path, root_module_name)\n        ):\n            return (sections.FIRSTPARTY, f\"Found in one of the configured src_paths: {src_path}.\")\n",
+  "source_url": "https://github.com/PyCQA/isort/blob/12cc5fbd67eebf92eb2213b03c07b138ae1fb448/isort/place.py#L72-L93",
+  "upstream_file_sha256": "113dd4fdb5040c4335d534ca3a7f17c2ff6a1b8eae47b8d91ea355eb5748cf5e"
+}

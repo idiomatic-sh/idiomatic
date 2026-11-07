@@ -1,0 +1,6 @@
+Unchanged production AST definitions from typescript-eslint v8.72.0, commit a4c2603d3e4fd43b33bc25b82457716e9f7cef71. MIT license in ../standard/NOTICE-LICENSE.
+
+TSConditionalType.ts	packages/ast-spec/src/type/TSConditionalType/spec.ts
+TSTupleType.ts	packages/ast-spec/src/type/TSTupleType/spec.ts
+TSAsExpression.ts	packages/ast-spec/src/expression/TSAsExpression/spec.ts
+TSNonNullExpression.ts	packages/ast-spec/src/expression/TSNonNullExpression/spec.ts

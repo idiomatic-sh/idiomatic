@@ -1,0 +1,5 @@
+Implements Ruff 0.16.5 `nan_comparison` and `nan_comparison_match`. NaN candidates are restricted to actual comparison operands or the direct MatchValue pattern of a match case. Nested OR/as patterns are not recursively checked. A `float` NaN constructor requires exactly one positional ordinary-string argument, no keywords, and Ruff's signed, whitespace-trimmed NaN spelling.
+
+All original 14 cases remain. The exact tagged fixture and final Decimal/float interaction are retained, with full combined reference arrays. One new invalid OR-pattern control additionally expects `invalid-syntax` at bytes 15..31; the historical 65b5 provider misses that semantic syntax diagnostic. The query's PLW0177 results agree in that control. The original expected array is retained, and that provider limitation prevents a clean whole-profile claim on that worker.
+
+Source pin: `astral-sh/ruff` tag `0.16.5`, Python target `py310`. New source controls use actual pinned reference output; final cross-rule inputs reuse sealed reference records without rerunning Ruff.

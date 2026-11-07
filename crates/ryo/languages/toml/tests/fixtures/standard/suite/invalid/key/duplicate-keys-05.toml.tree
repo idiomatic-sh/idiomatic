@@ -1,0 +1,24 @@
+toml 0-26
+ expression 0-12
+  keyval 0-12
+   key 0-1
+    simple-key 0-1
+     unquoted-key 0-1
+   keyval-sep 1-11
+    ws 1-9
+    ws 10-11
+   val 11-12
+    integer 11-12
+ newline 12-13
+ expression 13-25
+  keyval 13-25
+   key 13-21
+    simple-key 13-21
+     quoted-key 13-21
+      basic-string 13-21
+   keyval-sep 21-24
+    ws 21-22
+    ws 23-24
+   val 24-25
+    integer 24-25
+ newline 25-26

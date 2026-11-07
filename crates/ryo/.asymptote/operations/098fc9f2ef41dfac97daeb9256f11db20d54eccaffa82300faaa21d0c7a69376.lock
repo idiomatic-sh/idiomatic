@@ -1,0 +1,20 @@
+version = 1
+parents = ["5bde6ba76148ac94a335aeacd6b91571c5f25a5226ad93503e38f7c887aa50f7"]
+
+[[perf]]
+reasons = ["Median of 15 rounds in 3 sets of 5 (831, 830, 890 ms), the sets differing by 7.2%; seeded 2026-10-17 on a machine shared with other work and re-seeded 2026-10-18 idle with the build lock held (914, 860, 827 ms)."]
+records = [
+  { tool = "performance-lint", benchmark = "ruff", measure = "cold-milliseconds", best = 720.0 },
+]
+
+[[perf]]
+reasons = ["Median of 3 rounds; 6 rounds read 252 241 259 259 269 244 ms. The page cache is made equal before every round: before it was, the edit read 243 to 522 ms and its tolerance was 45%."]
+records = [
+  { tool = "performance-lint", benchmark = "ruff", measure = "edit-milliseconds", best = 224.0 },
+]
+
+[[perf]]
+reasons = ["Median of 5 rounds. Three sets of medians, 5387, 5388 and 5389 ms, held against 5445 ms; re-seeded 2026-10-18 idle: 5608, 5513, 5445 ms."]
+records = [
+  { tool = "performance-lint", benchmark = "ruff", measure = "cold-cpu-milliseconds", best = 4329.0 },
+]

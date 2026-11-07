@@ -1,0 +1,4 @@
+root[1]
+└─0 paragraph[2]
+    ├─0 inlineCode "hi"
+    └─1 text "lo`"

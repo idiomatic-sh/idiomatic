@@ -1,0 +1,149 @@
+[
+  {
+    "rule": "FURB132",
+    "name": "effect-policy-12",
+    "files": {
+      "case.py": "out=set()\nif (lambda: factory()) in out:\n    out.remove((lambda: factory()))\n"
+    }
+  },
+  {
+    "rule": "FURB132",
+    "name": "lambda-phase-body-call",
+    "files": {
+      "case.py": "out=set()\nif (lambda: effect()) in out:\n    out.remove((lambda: effect()))\n"
+    }
+  },
+  {
+    "rule": "FURB132",
+    "name": "lambda-phase-body-subscript",
+    "files": {
+      "case.py": "out=set()\nif (lambda: values[0]) in out:\n    out.remove((lambda: values[0]))\n"
+    }
+  },
+  {
+    "rule": "FURB132",
+    "name": "lambda-phase-default-call",
+    "files": {
+      "case.py": "out=set()\nif (lambda x=effect(): x) in out:\n    out.remove((lambda x=effect(): x))\n"
+    }
+  },
+  {
+    "rule": "FURB132",
+    "name": "lambda-phase-keyword-default-subscript",
+    "files": {
+      "case.py": "out=set()\nif (lambda *, x=values[0]: x) in out:\n    out.remove((lambda *, x=values[0]: x))\n"
+    }
+  },
+  {
+    "rule": "FURB132",
+    "name": "lambda-phase-nested-deferred-default",
+    "files": {
+      "case.py": "out=set()\nif (lambda x=(lambda: effect()): x) in out:\n    out.remove((lambda x=(lambda: effect()): x))\n"
+    }
+  },
+  {
+    "rule": "FURB132",
+    "name": "lambda-phase-nested-eager-default",
+    "files": {
+      "case.py": "out=set()\nif (lambda x=(lambda y=effect(): y): x) in out:\n    out.remove((lambda x=(lambda y=effect(): y): x))\n"
+    }
+  },
+  {
+    "rule": "FURB132",
+    "name": "lambda-phase-nested-body-root",
+    "files": {
+      "case.py": "out=set()\nif (lambda: lambda: effect()) in out:\n    out.remove((lambda: lambda: effect()))\n"
+    }
+  },
+  {
+    "rule": "RUF019",
+    "name": "ruf019-lambda-effect",
+    "files": {
+      "case.py": "if (lambda:make()) in data and data[lambda:make()]: ...\n"
+    }
+  },
+  {
+    "rule": "RUF019",
+    "name": "lambda-phase-body-call",
+    "files": {
+      "case.py": "if (lambda: effect()) in data and data[(lambda: effect())]: ...\n"
+    }
+  },
+  {
+    "rule": "RUF019",
+    "name": "lambda-phase-body-subscript",
+    "files": {
+      "case.py": "if (lambda: values[0]) in data and data[(lambda: values[0])]: ...\n"
+    }
+  },
+  {
+    "rule": "RUF019",
+    "name": "lambda-phase-default-call",
+    "files": {
+      "case.py": "if (lambda x=effect(): x) in data and data[(lambda x=effect(): x)]: ...\n"
+    }
+  },
+  {
+    "rule": "RUF019",
+    "name": "lambda-phase-keyword-default-subscript",
+    "files": {
+      "case.py": "if (lambda *, x=values[0]: x) in data and data[(lambda *, x=values[0]: x)]: ...\n"
+    }
+  },
+  {
+    "rule": "RUF019",
+    "name": "lambda-phase-nested-deferred-default",
+    "files": {
+      "case.py": "if (lambda x=(lambda: effect()): x) in data and data[(lambda x=(lambda: effect()): x)]: ...\n"
+    }
+  },
+  {
+    "rule": "RUF019",
+    "name": "lambda-phase-nested-eager-default",
+    "files": {
+      "case.py": "if (lambda x=(lambda y=effect(): y): x) in data and data[(lambda x=(lambda y=effect(): y): x)]: ...\n"
+    }
+  },
+  {
+    "rule": "RUF019",
+    "name": "lambda-phase-nested-body-root",
+    "files": {
+      "case.py": "if (lambda: lambda: effect()) in data and data[(lambda: lambda: effect())]: ...\n"
+    }
+  },
+  {
+    "rule": "RUF019",
+    "name": "explicit-dict-ruf019-lambda-effect",
+    "files": {
+      "case.py": "data = {}\nif (lambda:make()) in data and data[lambda:make()]: ...\n"
+    }
+  },
+  {
+    "rule": "RUF019",
+    "name": "explicit-dict-lambda-phase-body-call",
+    "files": {
+      "case.py": "data = {}\nif (lambda: effect()) in data and data[(lambda: effect())]: ...\n"
+    }
+  },
+  {
+    "rule": "RUF019",
+    "name": "explicit-dict-lambda-phase-body-subscript",
+    "files": {
+      "case.py": "data = {}\nif (lambda: values[0]) in data and data[(lambda: values[0])]: ...\n"
+    }
+  },
+  {
+    "rule": "RUF019",
+    "name": "explicit-dict-lambda-phase-nested-body-root",
+    "files": {
+      "case.py": "data = {}\nif (lambda: lambda: effect()) in data and data[(lambda: lambda: effect())]: ...\n"
+    }
+  },
+  {
+    "rule": "RUF019",
+    "name": "explicit-dict-lambda-phase-nested-deferred-default",
+    "files": {
+      "case.py": "data = {}\nif (lambda x=(lambda: effect()): x) in data and data[(lambda x=(lambda: effect()): x)]: ...\n"
+    }
+  }
+]

@@ -1,0 +1,16 @@
+import observation_matches from "python/ruff/suppress-matches";
+import suppress from "python/ruff/suppress";
+let statements = select id from "semantic-syntax" where kind = "if" or kind = "elif-else-clause";
+let tests = select parent, child from "semantic-child" where field = "test";
+let tuples = select * from "semantic-syntax" where kind = "tuple";
+let elements = select parent from "semantic-child" where field = "elts";
+let nonempty = select l.id as id, l.file as file, l.span as span from tuples as l join elements as r on l.id = r.parent;
+let branch_tests = select r.child as child from statements as l join tests as r on l.id = r.parent;
+let reportable = select r.id as id, r.file as file, r.span as span from branch_tests as l join nonempty as r on l.child = r.id;
+let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*F634(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:F634)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*F634(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:F634)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "F634"});
+observe ruf100_used as noqa_matches;
+emit violations subject file key(id);

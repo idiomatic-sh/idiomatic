@@ -1,0 +1,5 @@
+root[2]
+├─0 html "<!-- foo -->*bar*"
+└─1 paragraph[1]
+    └─0 emphasis[1]
+        └─0 text "baz"

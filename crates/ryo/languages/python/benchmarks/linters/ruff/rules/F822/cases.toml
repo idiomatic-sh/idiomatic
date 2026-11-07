@@ -1,0 +1,161 @@
+[[cases]]
+name = "undefined-export"
+comparison = "full"
+files = { "case.py" = "__all__ = [\"missing\"]\n" }
+expected = [{ rule = "F822", file = "case.py", start = 11, end = 20 }]
+
+[[cases]]
+name = "async-method-all-is-not-module-export"
+comparison = "full"
+files = { "case.py" = "class C:\n    async def f(self):\n        __all__ = [\"missing\"]\n" }
+expected = []
+
+[[cases]]
+name = "sync-method-all-is-not-module-export-control"
+comparison = "full"
+files = { "case.py" = "class C:\n    def f(self):\n        __all__ = [\"missing\"]\n" }
+expected = []
+
+[[cases]]
+name = "defined-export"
+comparison = "full"
+files = { "case.py" = "x = 1\n__all__ = [\"x\"]\n" }
+expected = []
+
+[[cases]]
+name = "imported-export"
+comparison = "full"
+files = { "case.py" = "from module import x\n__all__ = [\"x\"]\n" }
+expected = []
+
+[[cases]]
+name = "later-module-definition"
+comparison = "full"
+files = { "case.py" = "__all__ = [\"x\"]\nx = 1\n" }
+expected = []
+
+[[cases]]
+name = "augmented-exports"
+comparison = "full"
+files = { "case.py" = "__all__ = []\n__all__ += [\"missing\"]\n" }
+expected = [{ rule = "F822", file = "case.py", start = 25, end = 34 }]
+
+[[cases]]
+name = "duplicate-missing-exports"
+comparison = "full"
+files = { "case.py" = "__all__ = [\"missing\", \"missing\"]\n" }
+expected = [{ rule = "F822", file = "case.py", start = 11, end = 20 }, { rule = "F822", file = "case.py", start = 22, end = 31 }]
+
+[[cases]]
+name = "deleted-export"
+comparison = "full"
+files = { "case.py" = "x = 1\ndel x\n__all__ = [\"x\"]\n" }
+expected = []
+
+[[cases]]
+name = "nested-local-not-exported"
+comparison = "full"
+files = { "case.py" = "def f():\n    x = 1\n__all__ = [\"x\"]\n" }
+expected = [{ rule = "F822", file = "case.py", start = 30, end = 33 }]
+
+[[cases]]
+name = "normalized-binding-export"
+comparison = "full"
+files = { "case.py" = "ｘ = 1\n__all__ = [\"x\"]\n" }
+expected = []
+
+[[cases]]
+name = "export-string-is-not-normalized"
+comparison = "full"
+files = { "case.py" = "x = 1\n__all__ = [\"ｘ\"]\n" }
+expected = [{ rule = "F822", file = "case.py", start = 17, end = 22 }]
+
+[[cases]]
+name = "wildcard-export-uncertainty"
+comparison = "full"
+files = { "case.py" = "from module import *\n__all__ = [\"missing\"]\n" }
+expected = []
+
+[[cases]]
+name = "noqa-export"
+comparison = "full"
+files = { "case.py" = "__all__ = [\"missing\"]  # noqa: F822\n" }
+expected = []
+
+[[cases]]
+name = "escaped-export-matches-decoded-name"
+comparison = "full"
+files = { "case.py" = "x = 1\n__all__ = [\"\\x78\"]\n" }
+expected = []
+
+[[cases]]
+name = "concatenated-export-is-one-decoded-name"
+comparison = "full"
+files = { "case.py" = "exported = 1\n__all__ = [\"ex\" \"ported\"]\n" }
+expected = []
+
+[[cases]]
+name = "concatenated-missing-export-whole-literal-span"
+comparison = "full"
+files = { "case.py" = "__all__ = [\"mis\" \"sing\"]\n" }
+expected = [{ rule = "F822", file = "case.py", start = 11, end = 23 }]
+
+[[cases]]
+name = "export-string-preserves-compatibility-spelling"
+comparison = "full"
+files = { "case.py" = "x = 1\n__all__ = [\"\\uff58\"]\n" }
+expected = [{ rule = "F822", file = "case.py", start = 17, end = 25 }]
+
+[[cases]]
+name = "builtin-export-without-name-read"
+comparison = "full"
+files = { "case.py" = "__all__ = [\"len\"]\n" }
+expected = []
+
+[[cases]]
+name = "implicit-module-global-export"
+comparison = "full"
+files = { "case.py" = "__all__ = [\"__file__\"]\n" }
+expected = []
+
+[[cases]]
+name = "later-version-implicit-global-is-missing"
+comparison = "full"
+files = { "case.py" = "__all__ = [\"__annotate__\"]\n" }
+expected = [{ rule = "F822", file = "case.py", start = 11, end = 25 }]
+
+[[cases]]
+name = "export-parent-noqa"
+comparison = "full"
+files = { "case.py" = "__all__ = [  # noqa: F822\n    \"missing\",\n]\n" }
+expected = []
+
+[[cases]]
+name = "nested-right-binop-not-recursively-extracted"
+comparison = "full"
+files = { "case.py" = "__all__ = [] + ([\"missing\"] + [])\n" }
+expected = []
+
+[[cases]]
+name = "named-expression-export-container"
+comparison = "full"
+files = { "case.py" = "__all__ = (names := [\"missing\"])\n" }
+expected = [{ rule = "F822", file = "case.py", start = 21, end = 30 }]
+
+[[cases]]
+name = "aliased-builtin-constructor"
+comparison = "full"
+files = { "case.py" = "from builtins import tuple as sequence\n__all__ = sequence({\"missing\"})\n" }
+expected = [{ rule = "F822", file = "case.py", start = 59, end = 68 }]
+
+[[cases]]
+name = "only-first-chained-target-defines-exports"
+comparison = "full"
+files = { "case.py" = "other = __all__ = [\"missing\"]\n" }
+expected = []
+
+[[cases]]
+name = "file-ruff-noqa-export"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: F822\n__all__ = [\"missing\"]\n" }
+expected = []

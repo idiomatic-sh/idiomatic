@@ -1,0 +1,12 @@
+root[2]
+├─0 paragraph[1]
+│   └─0 imageReference
+│         alt: "foo bar"
+│         label: "foobar"
+│         identifier: "foobar"
+│         referenceType: "full"
+└─1 definition
+      identifier: "foobar"
+      label: "FOOBAR"
+      title: "train & tracks"
+      url: "train.jpg"

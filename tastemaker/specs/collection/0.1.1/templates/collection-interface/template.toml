@@ -1,0 +1,87 @@
+description = "The one trait every item of a collection implements, named for the collection."
+why = "A collection is N implementations of one shape, and the shape is this trait: it holds the items to one role, not to be mocked. It is named `<Collection>Item` after the collection's directory, so the name of every item trait says what it is the shape of; it is the one trait inside a core that is neither a port nor a use case, and the interface rules apply to it as to any interface."
+content = '''
+//! The shape every item of the `{{ collection }}` collection implements.
+
+/// What every item of the `{{ collection }}` collection offers.
+trait {{ collection | pascal }}Item {}
+'''
+
+[params]
+collection = { type = "identifier", description = "The collection, captured from its path." }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'src/collections/passes/interface.rs'
+given.params = { collection = 'passes' }
+given.files.'src/collections/passes/interface.rs' = '''
+//! The shape every item of the `passes` collection implements.
+
+/// What every item of the `passes` collection offers.
+pub trait PassesItem {}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.file = 'src/collections/passes/interface.rs'
+given.params = { collection = 'passes' }
+given.files.'src/collections/passes/interface.rs' = '''
+//! The shape every item of the `passes` collection implements.
+
+/// What every item of the `passes` collection offers.
+pub trait PassesItem {
+    /// Runs one item.
+    fn run(&self);
+}
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'src/collections/passes/interface.rs'
+given.params = { collection = 'passes' }
+then.findings = [
+  { rule = 'collection-interface#count', path = '.' },
+]
+
+# The name is not given as a param: the collection is captured from the path.
+[[scenarios]]
+id = 'named-by-its-directory'
+scenario = "Each collection's trait is named for the collection's own directory."
+given.file = 'src/collections/{collection}/interface.rs'
+given.count = { min = 1 }
+given.files.'src/collections/line_endings/interface.rs' = '''
+//! The shape every item of the `line_endings` collection implements.
+
+/// What every item of the `line_endings` collection offers.
+pub trait LineEndingsItem {}
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The shape every item of the `shapes` collection implements.
+
+/// What every item of the `shapes` collection offers.
+pub trait ShapesItem {}
+'''
+
+[[scenarios]]
+id = 'named-by-another-directory'
+scenario = "A trait named for another collection's directory."
+given.file = 'src/collections/{collection}/interface.rs'
+given.count = { min = 1 }
+given.files.'src/collections/line_endings/interface.rs' = '''
+//! The shape every item of the `line_endings` collection implements.
+
+/// What every item of the `line_endings` collection offers.
+pub trait ShapesItem {}
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The shape every item of the `shapes` collection implements.
+
+/// What every item of the `shapes` collection offers.
+pub trait ShapesItem {}
+'''
+then.findings = [
+  { rule = 'collection-interface#template', path = 'src/collections/line_endings/interface.rs' },
+]

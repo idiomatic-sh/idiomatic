@@ -1,0 +1,138 @@
+
+[[cases]]
+name = "tagged-ruff-0-16-5-misplaced_bare_raise"
+comparison = "full"
+files = { "case.py" = "# bare raise is an except block\ntry:\n    pass\nexcept Exception:\n    raise\n\ntry:\n    pass\nexcept Exception:\n    if True:\n        raise\n\n# bare raise is in a finally block which is in an except block\ntry:\n    raise Exception\nexcept Exception:\n    try:\n        raise Exception\n    finally:\n        raise\n\n# bare raise is in an __exit__ method\nclass ContextManager:\n    def __enter__(self):\n        return self\n    def __exit__(self, *args):\n        raise\n\ntry:\n    raise # [misplaced-bare-raise]\nexcept Exception:\n    pass\n\ndef f():\n    try:\n        raise # [misplaced-bare-raise]\n    except Exception:\n        pass\n\ndef g():\n    raise # [misplaced-bare-raise]\n\ndef h():\n    try:\n        if True:\n            def i():\n                raise # [misplaced-bare-raise]\n    except Exception:\n        pass\n    raise # [misplaced-bare-raise]\n\nraise # [misplaced-bare-raise]\n\ntry:\n    pass\nexcept:\n    def i():\n        raise # [misplaced-bare-raise]\n\ntry:\n    pass\nexcept:\n    class C:\n        raise # [misplaced-bare-raise]\n\ntry:\n    pass\nexcept:\n    pass\nfinally:\n    raise # [misplaced-bare-raise]\n" }
+expected = [{ rule = "PLE0704", file = "case.py", start = 462, end = 467 }, { rule = "PLE0704", file = "case.py", start = 547, end = 552 }, { rule = "PLE0704", file = "case.py", start = 627, end = 632 }, { rule = "PLE0704", file = "case.py", start = 731, end = 736 }, { rule = "PLE0704", file = "case.py", start = 801, end = 806 }, { rule = "PLE0704", file = "case.py", start = 833, end = 838 }, { rule = "PLE0704", file = "case.py", start = 908, end = 913 }, { rule = "PLE0704", file = "case.py", start = 983, end = 988 }, { rule = "PLE0704", file = "case.py", start = 1059, end = 1064 }]
+
+[[cases]]
+name = "module-bare"
+comparison = "full"
+files = { "case.py" = "raise\n" }
+expected = [{ rule = "PLE0704", file = "case.py", start = 0, end = 5 }]
+
+[[cases]]
+name = "handler-bare"
+comparison = "full"
+files = { "case.py" = "try: work()\nexcept Exception:\n raise\n" }
+expected = []
+
+[[cases]]
+name = "handler-nested-function"
+comparison = "full"
+files = { "case.py" = "try: work()\nexcept Exception:\n def f():\n  raise\n" }
+expected = [{ rule = "PLE0704", file = "case.py", start = 42, end = 47 }]
+
+[[cases]]
+name = "handler-nested-class"
+comparison = "full"
+files = { "case.py" = "try: work()\nexcept Exception:\n class C:\n  raise\n" }
+expected = [{ rule = "PLE0704", file = "case.py", start = 42, end = 47 }]
+
+[[cases]]
+name = "finally-outside-handler"
+comparison = "full"
+files = { "case.py" = "try: work()\nfinally:\n raise\n" }
+expected = [{ rule = "PLE0704", file = "case.py", start = 22, end = 27 }]
+
+[[cases]]
+name = "finally-inside-handler"
+comparison = "full"
+files = { "case.py" = "try: work()\nexcept Exception:\n try: work()\n finally:\n  raise\n" }
+expected = []
+
+[[cases]]
+name = "explicit-exception"
+comparison = "full"
+files = { "case.py" = "raise RuntimeError\n" }
+expected = []
+
+[[cases]]
+name = "module-dunder-exit"
+comparison = "full"
+files = { "case.py" = "def __exit__(self):\n raise\n" }
+expected = [{ rule = "PLE0704", file = "case.py", start = 21, end = 26 }]
+
+[[cases]]
+name = "nested-function-in-exit"
+comparison = "full"
+files = { "case.py" = "class C:\n def __exit__(self):\n  def inner():\n   raise\n" }
+expected = [{ rule = "PLE0704", file = "case.py", start = 48, end = 53 }]
+
+[[cases]]
+name = "exit-classification-0-False"
+comparison = "full"
+files = { "case.py" = "import abc\nclass C:\n def __exit__(self):\n  raise\n" }
+expected = []
+
+[[cases]]
+name = "exit-classification-0-True"
+comparison = "full"
+files = { "case.py" = "import abc\nclass C:\n async def __exit__(self):\n  raise\n" }
+expected = []
+
+[[cases]]
+name = "exit-classification-1-False"
+comparison = "full"
+files = { "case.py" = "import abc\nclass C:\n @staticmethod\n def __exit__(self):\n  raise\n" }
+expected = [{ rule = "PLE0704", file = "case.py", start = 58, end = 63 }]
+
+[[cases]]
+name = "exit-classification-1-True"
+comparison = "full"
+files = { "case.py" = "import abc\nclass C:\n @staticmethod\n async def __exit__(self):\n  raise\n" }
+expected = [{ rule = "PLE0704", file = "case.py", start = 64, end = 69 }]
+
+[[cases]]
+name = "exit-classification-2-False"
+comparison = "full"
+files = { "case.py" = "import abc\nclass C:\n @classmethod\n def __exit__(self):\n  raise\n" }
+expected = [{ rule = "PLE0704", file = "case.py", start = 57, end = 62 }]
+
+[[cases]]
+name = "exit-classification-2-True"
+comparison = "full"
+files = { "case.py" = "import abc\nclass C:\n @classmethod\n async def __exit__(self):\n  raise\n" }
+expected = [{ rule = "PLE0704", file = "case.py", start = 63, end = 68 }]
+
+[[cases]]
+name = "exit-classification-3-False"
+comparison = "full"
+files = { "case.py" = "import abc\nclass C:\n @staticmethod()\n def __exit__(self):\n  raise\n" }
+expected = [{ rule = "PLE0704", file = "case.py", start = 60, end = 65 }]
+
+[[cases]]
+name = "exit-classification-3-True"
+comparison = "full"
+files = { "case.py" = "import abc\nclass C:\n @staticmethod()\n async def __exit__(self):\n  raise\n" }
+expected = [{ rule = "PLE0704", file = "case.py", start = 66, end = 71 }]
+
+[[cases]]
+name = "exit-classification-4-False"
+comparison = "full"
+files = { "case.py" = "import abc\nclass C:\n @abc.abstractmethod\n def __exit__(self):\n  raise\n" }
+expected = []
+
+[[cases]]
+name = "exit-classification-4-True"
+comparison = "full"
+files = { "case.py" = "import abc\nclass C:\n @abc.abstractmethod\n async def __exit__(self):\n  raise\n" }
+expected = []
+
+[[cases]]
+name = "exit-classification-5-False"
+comparison = "full"
+files = { "case.py" = "import abc\nclass C:\n @abc.abstractstaticmethod\n def __exit__(self):\n  raise\n" }
+expected = [{ rule = "PLE0704", file = "case.py", start = 70, end = 75 }]
+
+[[cases]]
+name = "exit-classification-5-True"
+comparison = "full"
+files = { "case.py" = "import abc\nclass C:\n @abc.abstractstaticmethod\n async def __exit__(self):\n  raise\n" }
+expected = [{ rule = "PLE0704", file = "case.py", start = 76, end = 81 }]
+
+[[cases]]
+name = "file-suppression"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: PLE0704\nraise\n" }
+expected = []

@@ -1,0 +1,16 @@
+toml 0-56
+ expression 0-32
+  comment 0-32
+ newline 32-33
+ expression 33-55
+  keyval 33-55
+   key 33-37
+    simple-key 33-37
+     unquoted-key 33-37
+   keyval-sep 37-40
+    ws 37-38
+    ws 39-40
+   val 40-55
+    string 40-55
+     basic-string 40-55
+ newline 55-56

@@ -1,0 +1,489 @@
+description = "The repository's workflow test: it reads every workflow under `.github/workflows/` and holds each to its allowed triggers (a hand run, a pull request, a push to main; a schedule only for the workflows `SCHEDULED` names; a hand run or a push to main alone for a workflow that publishes) and to a thin edge over Asymptote, where the checks run through one `asymptote check` call at the end of a job."
+why = "No YAML provider exists, so Tastemaker cannot read a workflow's triggers or steps; this test does, in the `ci-tests` tool of the root. Hosted runs start only on the triggers the test allows, never on `pull_request_target`, which runs a fork's code with the repository's secrets, and never a publish but by hand or on a push to main, which only a gated pull request makes; Asymptote decides what a check runs, so no workflow holds logic of its own."
+content = '''
+"""The repository's workflows are a thin edge over Asymptote: each starts only on its allowed triggers and checks through one `asymptote check` call."""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+import pytest
+import yaml
+
+DIRECTORY = Path(__file__).resolve().parents[1] / ".github/workflows"
+WORKFLOWS = sorted(DIRECTORY.glob("*.yml"))
+
+# The one command a job's checks are, with the product root and the groups it names: Asymptote decides what runs.
+CHECK = re.compile(r"asymptote check( --root [\w./-]+)?( --groups [a-z]+(,[a-z]+)*)?")
+# The release itself: a job that does not check runs one job command (`ci/<job>/command.py`) with plain arguments, which no shell
+# chains anything to. The one value it is handed is crates.io's token, from the `release` environment or its trusted publishing.
+COMMAND = re.compile(r"uv run ci/[a-z_]+/command\.py( [\w./=-]+)*")
+HANDED = {"CARGO_REGISTRY_TOKEN"}
+# What may start a workflow: a hand run, a pull request, a push to main. A schedule starts only the workflows `SCHEDULED` names, and a
+# workflow that publishes starts only by hand or on a push to main, which only a gated pull request makes; `pull_request_target`,
+# which runs a fork's code with the repository's secrets, never.
+ALLOWED = {"workflow_dispatch", "pull_request", "push"}
+SCHEDULED = {"benchmarks.yml"}
+# What may follow a job's check: uploading what its tools left (a bench's documents) as the run's artifact.
+UPLOAD = "actions/upload-artifact@"
+
+
+def triggers(workflow: dict) -> set[str]:
+    """What starts the workflow. YAML 1.1, which PyYAML reads, takes the key `on` for true."""
+    return set(workflow["on" if "on" in workflow else True])
+
+
+def environment(job: dict) -> str | None:
+    """The environment a job runs in, named alone or as `name:`."""
+    named = job.get("environment")
+    return named.get("name") if isinstance(named, dict) else named
+
+
+def trigger_problems(name: str, workflow: dict) -> list[str]:
+    """What starts the workflow that may not: a trigger outside `ALLOWED` (a schedule outside `SCHEDULED`), a push to a branch other
+    than main, and anything but a hand run or a push to main for a workflow that publishes (a `publish` job, or a job in the
+    `release` environment)."""
+    started = triggers(workflow)
+    allowed = ALLOWED | ({"schedule"} if name in SCHEDULED else set())
+    found = [f"{name} starts on {each}" for each in sorted(started - allowed)]
+    on = workflow["on" if "on" in workflow else True]
+    if "push" in started and (on.get("push") if isinstance(on, dict) else None) != {"branches": ["main"]}:
+        found.append(f"{name} starts on a push to more than main")
+    jobs = workflow["jobs"]
+    if ("publish" in jobs or any(environment(job) == "release" for job in jobs.values())) and started - {"workflow_dispatch", "push"}:
+        found.append(f"{name} publishes, so it starts only by hand or on a push to main")
+    return found
+
+
+def checks(job: dict) -> list[int]:
+    """The positions of the job's steps that call `asymptote check`."""
+    return [index for index, step in enumerate(job["steps"]) if re.search(r"(^|\s)asymptote check\b", step.get("run", ""))]
+
+
+def needs(job: dict) -> list[str]:
+    """The jobs this job waits for."""
+    waits = job.get("needs", [])
+    return [waits] if isinstance(waits, str) else list(waits)
+
+
+def problems(workflow: dict) -> list[str]:
+    """What keeps the workflow from being a thin edge over `asymptote check`: a job that calls it more than once, anywhere but
+    last, or with more than the one command line; a job that does not check and runs more than one job command; a job neither
+    checking, nor waiting for one that does, nor deciding what one runs (a job such a job waits for); a workflow no job of which
+    checks."""
+    jobs = workflow["jobs"]
+    found = []
+    for name, job in jobs.items():
+        positions = checks(job)
+        if len(positions) > 1:
+            found.append(f"{name} calls asymptote check {len(positions)} times")
+        elif positions:
+            run = re.sub(r"\$\{\{[^}]*\}\}", "value", job["steps"][positions[0]]["run"].strip())
+            if any(not step.get("uses", "").startswith(UPLOAD) for step in job["steps"][positions[0] + 1 :]):
+                found.append(f"{name} does not end in its asymptote check step")
+            if not CHECK.fullmatch(run):
+                found.append(f"{name} runs {run!r}, not one `asymptote check [--root <dir>] [--groups <groups>]`")
+        else:
+            runs = [re.sub(r"\$\{\{[^}]*\}\}", "value", step["run"].strip()) for step in job["steps"] if "run" in step]
+            if len(runs) != 1 or not COMMAND.fullmatch(runs[0]):
+                found.append(f"{name} does not check and does not run exactly one job command: {runs}")
+            if any(set(step.get("env", {})) - HANDED for step in job["steps"]):
+                found.append(f"{name} hands a step more than {sorted(HANDED)}")
+
+    def gated(name: str, seen: frozenset[str] = frozenset()) -> bool:
+        return bool(checks(jobs[name])) or any(gated(each, seen | {name}) for each in needs(jobs[name]) if each not in seen)
+
+    # The jobs a gated job waits for: the ones that decide what it runs (which products a change reaches, which a push releases).
+    deciding = {each for name in jobs if gated(name) for each in needs(jobs[name])}
+    found += [f"{name} neither checks nor waits for a job that does" for name in jobs if not gated(name) and name not in deciding]
+    if not any(checks(job) for job in jobs.values()):
+        found.append("no job calls asymptote check")
+    return found
+
+
+def job(*run: str, needs: str | None = None) -> dict:
+    """A job whose steps run the given commands in order."""
+    return {"steps": [{"run": each} for each in run]} | ({"needs": needs} if needs else {})
+
+
+@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda path: path.name)
+def test_every_workflow_runs_only_on_its_allowed_triggers(path: Path) -> None:
+    """A workflow starts by hand, on a pull request or on a push to main; a schedule starts only the workflows `SCHEDULED` names, and
+    a workflow that publishes starts only by hand or on a push to main. The git hook `asymptote init` installs stays the per-change gate."""
+    assert trigger_problems(path.name, yaml.safe_load(path.read_text())) == []
+
+
+@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda path: path.name)
+def test_every_workflow_checks_through_one_asymptote_call(path: Path) -> None:
+    """Beside the steps that set up its machine and install the tools, a job that checks ends in one `asymptote check` call, and
+    every other job of the workflow waits for one that does."""
+    assert problems(yaml.safe_load(path.read_text())) == []
+
+
+def test_there_are_workflows_to_hold() -> None:
+    assert [path.name for path in WORKFLOWS]
+
+
+def test_a_job_that_installs_and_ends_in_one_check_is_a_thin_edge() -> None:
+    workflow = {"jobs": {"check": job("cargo install --path crates/asymptote/cli --locked", "asymptote check --groups lint,perf")}}
+    assert problems(workflow) == []
+
+
+def test_a_job_that_installs_with_the_script_and_ends_in_one_check_is_a_thin_edge() -> None:
+    assert problems({"jobs": {"check": job("uv run --script tools/install.py", "asymptote check --groups test")}}) == []
+
+
+def test_a_job_that_waits_for_the_checking_job_is_gated_by_it() -> None:
+    workflow = {"jobs": {"check": job("asymptote check"), "publish": job("uv run ci/release/command.py --publish", needs="check")}}
+    assert problems(workflow) == []
+
+
+def test_a_job_that_runs_more_than_its_job_command_is_refused() -> None:
+    workflow = {"jobs": {"check": job("asymptote check"), "publish": job("echo", "uv run ci/release/command.py", needs="check")}}
+    assert len(problems(workflow)) == 1 and "exactly one job command" in problems(workflow)[0]
+    chained = {"jobs": {"check": job("asymptote check"), "publish": job("uv run ci/release/command.py && echo", needs="check")}}
+    assert len(problems(chained)) == 1
+
+
+def test_a_step_handed_more_than_the_tokens_is_refused() -> None:
+    publish = job("uv run ci/release/command.py", needs="check")
+    publish["steps"][0]["env"] = {"CARGO_REGISTRY_TOKEN": "x", "OTHER": "y"}
+    assert problems({"jobs": {"check": job("asymptote check"), "publish": publish}}) == [
+        "publish hands a step more than ['CARGO_REGISTRY_TOKEN']"
+    ]
+
+
+def test_a_job_that_does_not_end_in_its_check_is_refused() -> None:
+    assert problems({"jobs": {"check": job("asymptote check", "echo done")}}) == ["check does not end in its asymptote check step"]
+
+
+def test_a_check_may_take_its_group_from_the_matrix_and_upload_what_its_tools_left() -> None:
+    # The expression is written in pieces, since the template this file is rendered from reads two braces as its own.
+    expression = "$" + "{" * 2 + " matrix.group " + "}" * 2
+    checking = job("uv run --script tools/install.py", f"asymptote check --groups {expression}")
+    checking["steps"].append({"uses": "actions/upload-artifact@0000000000000000000000000000000000000000", "with": {"path": "target"}})
+    assert problems({"jobs": {"check": checking}}) == []
+
+
+def test_a_job_that_checks_twice_is_refused() -> None:
+    assert problems({"jobs": {"check": job("asymptote check --groups lint", "asymptote check --groups test")}}) == [
+        "check calls asymptote check 2 times"
+    ]
+
+
+def test_a_check_that_chains_another_command_is_refused() -> None:
+    assert problems({"jobs": {"check": job("asymptote check && echo done")}}) == [
+        "check runs 'asymptote check && echo done', not one `asymptote check [--root <dir>] [--groups <groups>]`"
+    ]
+
+
+def test_a_job_that_neither_checks_nor_waits_for_a_check_is_refused() -> None:
+    workflow = {"jobs": {"check": job("asymptote check"), "publish": job("uv run ci/release/command.py --publish")}}
+    assert problems(workflow) == ["publish neither checks nor waits for a job that does"]
+
+
+def test_a_workflow_that_never_calls_asymptote_is_refused() -> None:
+    assert "no job calls asymptote check" in problems({"jobs": {"build": job("uv run ci/release/command.py")}})
+
+
+def test_a_trigger_other_than_dispatch_is_told_apart() -> None:
+    pushed = yaml.safe_load("on:\n  push:\n  workflow_dispatch:\njobs: {}\n")
+    dispatched = yaml.safe_load("on:\n  workflow_dispatch:\njobs: {}\n")
+    assert triggers(pushed) != {"workflow_dispatch"}
+    assert triggers(dispatched) == {"workflow_dispatch"}
+
+
+def test_a_schedule_starts_only_the_scheduled_workflows() -> None:
+    scheduled = yaml.safe_load("on:\n  schedule:\n    - cron: '0 3 * * 0'\njobs: {}\n")
+    assert trigger_problems("check.yml", scheduled) == ["check.yml starts on schedule"]
+    assert trigger_problems("benchmarks.yml", scheduled) == []
+
+
+def test_a_pull_request_target_is_refused() -> None:
+    """`pull_request_target` runs a fork's code with the repository's secrets."""
+    target = yaml.safe_load("on:\n  pull_request_target:\njobs: {}\n")
+    assert trigger_problems("check.yml", target) == ["check.yml starts on pull_request_target"]
+
+
+def test_a_push_starts_a_workflow_only_on_main() -> None:
+    main = yaml.safe_load("on:\n  push:\n    branches: [main]\njobs: {}\n")
+    every = yaml.safe_load("on:\n  push:\njobs: {}\n")
+    other = yaml.safe_load("on:\n  push:\n    branches: [main, release]\njobs: {}\n")
+    assert trigger_problems("check.yml", main) == []
+    assert trigger_problems("check.yml", every) == trigger_problems("check.yml", other) == ["check.yml starts on a push to more than main"]
+
+
+def test_a_workflow_that_publishes_starts_only_by_hand_or_on_a_push_to_main() -> None:
+    """A push to main is a merged pull request, which its gate checked; a pull request's own run never publishes."""
+    publish = {"environment": "release", "steps": [{"run": "uv run ci/release/command.py --publish"}]}
+    on_a_pull_request = {"on": {"workflow_dispatch": None, "pull_request": None}, "jobs": {"publish": publish}}
+    assert trigger_problems("release.yml", on_a_pull_request) == ["release.yml publishes, so it starts only by hand or on a push to main"]
+    by_hand = {"on": {"workflow_dispatch": None}, "jobs": {"upload": {"environment": {"name": "release"}, "steps": []}}}
+    assert trigger_problems("release.yml", by_hand) == []
+    on_a_push = by_hand | {"on": {"push": {"branches": ["main"]}, "workflow_dispatch": None}}
+    assert trigger_problems("release.yml", on_a_push) == []
+    on_any_push = by_hand | {"on": {"push": None}}
+    assert trigger_problems("release.yml", on_any_push) == ["release.yml starts on a push to more than main"]
+
+
+def test_a_job_that_decides_what_a_gated_job_runs_is_gated_by_it() -> None:
+    """The jobs a gated job waits for, such as the one naming the products a change reaches, need not check themselves."""
+    changes = {"steps": [{"uses": "dorny/paths-filter@0000000000000000000000000000000000000000"}]}
+    workflow = {"jobs": {"changes": changes, "check": job("asymptote check", needs="changes")}}
+    assert problems(workflow) == []
+    tagging = {"jobs": {"tag": job("uv run ci/tag/command.py --push"), "check": job("asymptote check"), "build": job(needs="check")}}
+    tagging["jobs"]["build"]["needs"] = ["tag", "check"]
+    assert problems(tagging) == []
+'''
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'ci/workflows_test.py'
+given.count = { min = 1 }
+given.files.'ci/workflows_test.py' = '''
+"""The repository's workflows are a thin edge over Asymptote: each starts only on its allowed triggers and checks through one `asymptote check` call."""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+import pytest
+import yaml
+
+DIRECTORY = Path(__file__).resolve().parents[1] / ".github/workflows"
+WORKFLOWS = sorted(DIRECTORY.glob("*.yml"))
+
+# The one command a job's checks are, with the product root and the groups it names: Asymptote decides what runs.
+CHECK = re.compile(r"asymptote check( --root [\w./-]+)?( --groups [a-z]+(,[a-z]+)*)?")
+# The release itself: a job that does not check runs one job command (`ci/<job>/command.py`) with plain arguments, which no shell
+# chains anything to. The one value it is handed is crates.io's token, from the `release` environment or its trusted publishing.
+COMMAND = re.compile(r"uv run ci/[a-z_]+/command\.py( [\w./=-]+)*")
+HANDED = {"CARGO_REGISTRY_TOKEN"}
+# What may start a workflow: a hand run, a pull request, a push to main. A schedule starts only the workflows `SCHEDULED` names, and a
+# workflow that publishes starts only by hand or on a push to main, which only a gated pull request makes; `pull_request_target`,
+# which runs a fork's code with the repository's secrets, never.
+ALLOWED = {"workflow_dispatch", "pull_request", "push"}
+SCHEDULED = {"benchmarks.yml"}
+# What may follow a job's check: uploading what its tools left (a bench's documents) as the run's artifact.
+UPLOAD = "actions/upload-artifact@"
+
+
+def triggers(workflow: dict) -> set[str]:
+    """What starts the workflow. YAML 1.1, which PyYAML reads, takes the key `on` for true."""
+    return set(workflow["on" if "on" in workflow else True])
+
+
+def environment(job: dict) -> str | None:
+    """The environment a job runs in, named alone or as `name:`."""
+    named = job.get("environment")
+    return named.get("name") if isinstance(named, dict) else named
+
+
+def trigger_problems(name: str, workflow: dict) -> list[str]:
+    """What starts the workflow that may not: a trigger outside `ALLOWED` (a schedule outside `SCHEDULED`), a push to a branch other
+    than main, and anything but a hand run or a push to main for a workflow that publishes (a `publish` job, or a job in the
+    `release` environment)."""
+    started = triggers(workflow)
+    allowed = ALLOWED | ({"schedule"} if name in SCHEDULED else set())
+    found = [f"{name} starts on {each}" for each in sorted(started - allowed)]
+    on = workflow["on" if "on" in workflow else True]
+    if "push" in started and (on.get("push") if isinstance(on, dict) else None) != {"branches": ["main"]}:
+        found.append(f"{name} starts on a push to more than main")
+    jobs = workflow["jobs"]
+    if ("publish" in jobs or any(environment(job) == "release" for job in jobs.values())) and started - {"workflow_dispatch", "push"}:
+        found.append(f"{name} publishes, so it starts only by hand or on a push to main")
+    return found
+
+
+def checks(job: dict) -> list[int]:
+    """The positions of the job's steps that call `asymptote check`."""
+    return [index for index, step in enumerate(job["steps"]) if re.search(r"(^|\s)asymptote check\b", step.get("run", ""))]
+
+
+def needs(job: dict) -> list[str]:
+    """The jobs this job waits for."""
+    waits = job.get("needs", [])
+    return [waits] if isinstance(waits, str) else list(waits)
+
+
+def problems(workflow: dict) -> list[str]:
+    """What keeps the workflow from being a thin edge over `asymptote check`: a job that calls it more than once, anywhere but
+    last, or with more than the one command line; a job that does not check and runs more than one job command; a job neither
+    checking, nor waiting for one that does, nor deciding what one runs (a job such a job waits for); a workflow no job of which
+    checks."""
+    jobs = workflow["jobs"]
+    found = []
+    for name, job in jobs.items():
+        positions = checks(job)
+        if len(positions) > 1:
+            found.append(f"{name} calls asymptote check {len(positions)} times")
+        elif positions:
+            run = re.sub(r"\$\{\{[^}]*\}\}", "value", job["steps"][positions[0]]["run"].strip())
+            if any(not step.get("uses", "").startswith(UPLOAD) for step in job["steps"][positions[0] + 1 :]):
+                found.append(f"{name} does not end in its asymptote check step")
+            if not CHECK.fullmatch(run):
+                found.append(f"{name} runs {run!r}, not one `asymptote check [--root <dir>] [--groups <groups>]`")
+        else:
+            runs = [re.sub(r"\$\{\{[^}]*\}\}", "value", step["run"].strip()) for step in job["steps"] if "run" in step]
+            if len(runs) != 1 or not COMMAND.fullmatch(runs[0]):
+                found.append(f"{name} does not check and does not run exactly one job command: {runs}")
+            if any(set(step.get("env", {})) - HANDED for step in job["steps"]):
+                found.append(f"{name} hands a step more than {sorted(HANDED)}")
+
+    def gated(name: str, seen: frozenset[str] = frozenset()) -> bool:
+        return bool(checks(jobs[name])) or any(gated(each, seen | {name}) for each in needs(jobs[name]) if each not in seen)
+
+    # The jobs a gated job waits for: the ones that decide what it runs (which products a change reaches, which a push releases).
+    deciding = {each for name in jobs if gated(name) for each in needs(jobs[name])}
+    found += [f"{name} neither checks nor waits for a job that does" for name in jobs if not gated(name) and name not in deciding]
+    if not any(checks(job) for job in jobs.values()):
+        found.append("no job calls asymptote check")
+    return found
+
+
+def job(*run: str, needs: str | None = None) -> dict:
+    """A job whose steps run the given commands in order."""
+    return {"steps": [{"run": each} for each in run]} | ({"needs": needs} if needs else {})
+
+
+@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda path: path.name)
+def test_every_workflow_runs_only_on_its_allowed_triggers(path: Path) -> None:
+    """A workflow starts by hand, on a pull request or on a push to main; a schedule starts only the workflows `SCHEDULED` names, and
+    a workflow that publishes starts only by hand or on a push to main. The git hook `asymptote init` installs stays the per-change gate."""
+    assert trigger_problems(path.name, yaml.safe_load(path.read_text())) == []
+
+
+@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda path: path.name)
+def test_every_workflow_checks_through_one_asymptote_call(path: Path) -> None:
+    """Beside the steps that set up its machine and install the tools, a job that checks ends in one `asymptote check` call, and
+    every other job of the workflow waits for one that does."""
+    assert problems(yaml.safe_load(path.read_text())) == []
+
+
+def test_there_are_workflows_to_hold() -> None:
+    assert [path.name for path in WORKFLOWS]
+
+
+def test_a_job_that_installs_and_ends_in_one_check_is_a_thin_edge() -> None:
+    workflow = {"jobs": {"check": job("cargo install --path crates/asymptote/cli --locked", "asymptote check --groups lint,perf")}}
+    assert problems(workflow) == []
+
+
+def test_a_job_that_installs_with_the_script_and_ends_in_one_check_is_a_thin_edge() -> None:
+    assert problems({"jobs": {"check": job("uv run --script tools/install.py", "asymptote check --groups test")}}) == []
+
+
+def test_a_job_that_waits_for_the_checking_job_is_gated_by_it() -> None:
+    workflow = {"jobs": {"check": job("asymptote check"), "publish": job("uv run ci/release/command.py --publish", needs="check")}}
+    assert problems(workflow) == []
+
+
+def test_a_job_that_runs_more_than_its_job_command_is_refused() -> None:
+    workflow = {"jobs": {"check": job("asymptote check"), "publish": job("echo", "uv run ci/release/command.py", needs="check")}}
+    assert len(problems(workflow)) == 1 and "exactly one job command" in problems(workflow)[0]
+    chained = {"jobs": {"check": job("asymptote check"), "publish": job("uv run ci/release/command.py && echo", needs="check")}}
+    assert len(problems(chained)) == 1
+
+
+def test_a_step_handed_more_than_the_tokens_is_refused() -> None:
+    publish = job("uv run ci/release/command.py", needs="check")
+    publish["steps"][0]["env"] = {"CARGO_REGISTRY_TOKEN": "x", "OTHER": "y"}
+    assert problems({"jobs": {"check": job("asymptote check"), "publish": publish}}) == [
+        "publish hands a step more than ['CARGO_REGISTRY_TOKEN']"
+    ]
+
+
+def test_a_job_that_does_not_end_in_its_check_is_refused() -> None:
+    assert problems({"jobs": {"check": job("asymptote check", "echo done")}}) == ["check does not end in its asymptote check step"]
+
+
+def test_a_check_may_take_its_group_from_the_matrix_and_upload_what_its_tools_left() -> None:
+    # The expression is written in pieces, since the template this file is rendered from reads two braces as its own.
+    expression = "$" + "{" * 2 + " matrix.group " + "}" * 2
+    checking = job("uv run --script tools/install.py", f"asymptote check --groups {expression}")
+    checking["steps"].append({"uses": "actions/upload-artifact@0000000000000000000000000000000000000000", "with": {"path": "target"}})
+    assert problems({"jobs": {"check": checking}}) == []
+
+
+def test_a_job_that_checks_twice_is_refused() -> None:
+    assert problems({"jobs": {"check": job("asymptote check --groups lint", "asymptote check --groups test")}}) == [
+        "check calls asymptote check 2 times"
+    ]
+
+
+def test_a_check_that_chains_another_command_is_refused() -> None:
+    assert problems({"jobs": {"check": job("asymptote check && echo done")}}) == [
+        "check runs 'asymptote check && echo done', not one `asymptote check [--root <dir>] [--groups <groups>]`"
+    ]
+
+
+def test_a_job_that_neither_checks_nor_waits_for_a_check_is_refused() -> None:
+    workflow = {"jobs": {"check": job("asymptote check"), "publish": job("uv run ci/release/command.py --publish")}}
+    assert problems(workflow) == ["publish neither checks nor waits for a job that does"]
+
+
+def test_a_workflow_that_never_calls_asymptote_is_refused() -> None:
+    assert "no job calls asymptote check" in problems({"jobs": {"build": job("uv run ci/release/command.py")}})
+
+
+def test_a_trigger_other_than_dispatch_is_told_apart() -> None:
+    pushed = yaml.safe_load("on:\n  push:\n  workflow_dispatch:\njobs: {}\n")
+    dispatched = yaml.safe_load("on:\n  workflow_dispatch:\njobs: {}\n")
+    assert triggers(pushed) != {"workflow_dispatch"}
+    assert triggers(dispatched) == {"workflow_dispatch"}
+
+
+def test_a_schedule_starts_only_the_scheduled_workflows() -> None:
+    scheduled = yaml.safe_load("on:\n  schedule:\n    - cron: '0 3 * * 0'\njobs: {}\n")
+    assert trigger_problems("check.yml", scheduled) == ["check.yml starts on schedule"]
+    assert trigger_problems("benchmarks.yml", scheduled) == []
+
+
+def test_a_pull_request_target_is_refused() -> None:
+    """`pull_request_target` runs a fork's code with the repository's secrets."""
+    target = yaml.safe_load("on:\n  pull_request_target:\njobs: {}\n")
+    assert trigger_problems("check.yml", target) == ["check.yml starts on pull_request_target"]
+
+
+def test_a_push_starts_a_workflow_only_on_main() -> None:
+    main = yaml.safe_load("on:\n  push:\n    branches: [main]\njobs: {}\n")
+    every = yaml.safe_load("on:\n  push:\njobs: {}\n")
+    other = yaml.safe_load("on:\n  push:\n    branches: [main, release]\njobs: {}\n")
+    assert trigger_problems("check.yml", main) == []
+    assert trigger_problems("check.yml", every) == trigger_problems("check.yml", other) == ["check.yml starts on a push to more than main"]
+
+
+def test_a_workflow_that_publishes_starts_only_by_hand_or_on_a_push_to_main() -> None:
+    """A push to main is a merged pull request, which its gate checked; a pull request's own run never publishes."""
+    publish = {"environment": "release", "steps": [{"run": "uv run ci/release/command.py --publish"}]}
+    on_a_pull_request = {"on": {"workflow_dispatch": None, "pull_request": None}, "jobs": {"publish": publish}}
+    assert trigger_problems("release.yml", on_a_pull_request) == ["release.yml publishes, so it starts only by hand or on a push to main"]
+    by_hand = {"on": {"workflow_dispatch": None}, "jobs": {"upload": {"environment": {"name": "release"}, "steps": []}}}
+    assert trigger_problems("release.yml", by_hand) == []
+    on_a_push = by_hand | {"on": {"push": {"branches": ["main"]}, "workflow_dispatch": None}}
+    assert trigger_problems("release.yml", on_a_push) == []
+    on_any_push = by_hand | {"on": {"push": None}}
+    assert trigger_problems("release.yml", on_any_push) == ["release.yml starts on a push to more than main"]
+
+
+def test_a_job_that_decides_what_a_gated_job_runs_is_gated_by_it() -> None:
+    """The jobs a gated job waits for, such as the one naming the products a change reaches, need not check themselves."""
+    changes = {"steps": [{"uses": "dorny/paths-filter@0000000000000000000000000000000000000000"}]}
+    workflow = {"jobs": {"changes": changes, "check": job("asymptote check", needs="changes")}}
+    assert problems(workflow) == []
+    tagging = {"jobs": {"tag": job("uv run ci/tag/command.py --push"), "check": job("asymptote check"), "build": job(needs="check")}}
+    tagging["jobs"]["build"]["needs"] = ["tag", "check"]
+    assert problems(tagging) == []
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'ci/workflows_test.py'
+given.count = { min = 1 }
+then.findings = [
+  { rule = 'workflows-test#count', path = '.' },
+]

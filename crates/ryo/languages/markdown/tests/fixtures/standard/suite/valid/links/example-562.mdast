@@ -1,0 +1,13 @@
+root[2]
+├─0 paragraph[2]
+│   ├─0 linkReference[1]
+│   │   │ label: "foo"
+│   │   │ identifier: "foo"
+│   │   │ referenceType: "shortcut"
+│   │   └─0 text "foo"
+│   └─1 text " bar"
+└─1 definition
+      identifier: "foo"
+      label: "foo"
+      title: null
+      url: "/url"

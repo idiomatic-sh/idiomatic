@@ -1,0 +1,39 @@
+description = "A performance target's `pin.toml` runs the command over the whole project: its `directory` is `.`, never a directory inside it."
+why = "A target is a real project the release is measured and proven on, and a project is read whole: a run over one small directory of it (`crates/ruff_cache/src` of Ruff, `src/helper/accepts` of Hono) times a few files, so a cost that grows with the project's size, a whole-tree walk or a cross-file relation, never shows in the numbers, and the findings it proves are a sample of what a user sees. Point the target at the project's root and let its configuration say what is read."
+
+query = '''
+let directories = select * from "entry" where key = "directory" and kind = "string";
+let inside = select * from directories where decoded != ".";
+emit inside subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "the target runs over `{decoded}`, not the whole project"
+help = "Set `directory = \".\"`: the command runs at the project's root, and the target's configuration says which files it reads."
+
+[given]
+include = ['pin.toml']
+
+[[scenarios]]
+id = 'ruff-cache-directory'
+scenario = 'The Ruff target pinned to one crate of Ruff.'
+given.files.'pin.toml' = '''
+repository = "https://github.com/astral-sh/ruff"
+revision = "0be08a206f9c3180afd3e93bcc792ed5cb1f4db1"
+directory = "crates/ruff_cache/src"
+dependencies = [{ source = "crates/tastemaker/cli/tests/fixtures/distribution/cargo", destination = ".policy" }]
+'''
+then.findings = [
+  { path = 'pin.toml', line = 3 },
+]
+
+[[scenarios]]
+id = 'ruff-whole-repository'
+scenario = 'The Ruff target run over the whole repository.'
+given.files.'pin.toml' = '''
+repository = "https://github.com/astral-sh/ruff"
+revision = "0be08a206f9c3180afd3e93bcc792ed5cb1f4db1"
+directory = "."
+dependencies = [{ source = "crates/tastemaker/cli/tests/fixtures/distribution/cargo", destination = ".policy" }, { source = "tastemaker/benchmarks", destination = ".benchmarks" }]
+'''

@@ -1,0 +1,9 @@
+version = 1
+parents = ["0ef0c7eb2efc13311f8e87bc4166e2a326b400cf0f31000139745d04c3467406"]
+
+[[perf]]
+reasons = ["re-recorded on the development machine under the Asymptote ratchet"]
+records = [
+  { tool = "performance-lint", benchmark = "ruff", measure = "peak-megabytes", best = 570.0 },
+  { tool = "performance-lint", benchmark = "ruff", measure = "warm-milliseconds", best = 97.0 },
+]

@@ -1,0 +1,21 @@
+toml 0-40
+ expression 0-28
+  comment 0-28
+ newline 28-29
+ expression 29-36
+  table 29-36
+   std-table 29-36
+    std-table-open 29-30
+    key 30-35
+     simple-key 30-35
+      unquoted-key 30-35
+    std-table-close 35-36
+ newline 36-37
+ expression 37-40
+  keyval 37-40
+   key 37-38
+    simple-key 37-38
+     unquoted-key 37-38
+   keyval-sep 38-39
+   val 39-40
+    integer 39-40

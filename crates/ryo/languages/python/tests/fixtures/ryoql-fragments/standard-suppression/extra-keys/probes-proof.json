@@ -1,0 +1,10 @@
+{
+  "cases": 6,
+  "side_records": 12,
+  "all_process_statuses_zero": true,
+  "full_report_differences": 0,
+  "unknown_or_unread": 0,
+  "extra_key_duplicate_diagnostics_retained": true,
+  "records_sha256": "a22373058a315c689a1fa5e65033a7055694c8e24c9271a908360e35d19614a5",
+  "manifest_sha256": "a21049bca88dcf74397062a588b35c661457070d73cde9879d167ccfa8d7ee11"
+}

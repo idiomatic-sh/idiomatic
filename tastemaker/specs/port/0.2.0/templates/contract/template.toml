@@ -1,0 +1,215 @@
+description = "A port's contract: the rows every implementation must pass, the core's fake and each of its adapters alike."
+why = "Holds every implementation of the port to one promise: each adapter of the port runs it from its own `adapter_test.rs`, so an adapter cannot pass by skipping the promised behavior. It exports its rows, `CASES`, and `check`, which runs them, as `pub`: every implementation reaches them through the port's `fixtures` module, and a failing row names its case. The row types are private aliases: a public alias would be a re-export."
+content = '''
+//! What every `{{ part }}` adapter must pass.
+
+use super::super::interface::{{ part | pascal }}Port;
+use crate::cases::Case;
+
+/// What a row of the contract is given.
+type Input = ();
+/// What a row of the contract expects when it succeeds.
+type Value = ();
+/// What a row of the contract expects when it is refused.
+type Failure = ();
+
+/// The contract's rows: a name, one case word, an input and the expected value or error variant. Every implementation runs them.
+pub const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Runs the contract's rows against one implementation: the fake, or an adapter of another crate.
+pub fn check(adapter: &impl {{ part | pascal }}Port) {
+    let _ = adapter;
+    todo!("execute the contract rows through the supplied adapter and assert its observations");
+}
+'''
+
+[params]
+part = { type = "identifier", from = "directory-name", description = "The part's directory name: the stem of every name in it." }
+
+[given]
+file = 'fixtures/contract.rs'
+params = { part = 'names' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'fixtures/contract.rs' = '''
+//! What every `names` adapter must pass.
+
+use super::super::interface::NamesPort;
+use crate::cases::Case;
+
+/// What a row of the contract is given.
+type Input = ();
+/// What a row of the contract expects when it succeeds.
+type Value = ();
+/// What a row of the contract expects when it is refused.
+type Failure = ();
+
+/// The contract's rows: a name, one case word, an input and the expected value or error variant. Every implementation runs them.
+pub const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Runs the contract's rows against one implementation: the fake, or an adapter of another crate.
+pub fn check(adapter: &impl NamesPort) {
+    let _ = adapter;
+    assert!(
+        CASES.is_empty(),
+        "the contract has rows and no call of the port that runs them: write the call here"
+    );
+}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template: typed rows.'
+given.files.'fixtures/contract.rs' = '''
+//! What every `names` adapter must pass.
+
+use super::super::interface::NamesPort;
+use crate::cases::Case;
+
+/// What a row of the contract is given.
+type Input = u8;
+/// What a row of the contract expects when it succeeds.
+type Value = u16;
+/// What a row of the contract expects when it is refused.
+type Failure = ();
+
+/// The contract's rows: a name, one case word, an input and the expected value or error variant. Every implementation runs them.
+pub const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Runs the contract's rows against one implementation: the fake, or an adapter of another crate.
+pub fn check(adapter: &impl NamesPort) {
+    let _ = adapter;
+    assert!(
+        CASES.is_empty(),
+        "the contract has rows and no call of the port that runs them: write the call here"
+    );
+}
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'contract#count', path = '.' },
+]
+
+[[scenarios]]
+id = 'no-check'
+scenario = 'The contract declares no check.'
+given.files.'fixtures/contract.rs' = '''
+//! What every `names` adapter must pass.
+
+use super::super::interface::NamesPort;
+use crate::cases::Case;
+
+/// What a row of the contract is given.
+type Input = ();
+/// What a row of the contract expects when it succeeds.
+type Value = ();
+/// What a row of the contract expects when it is refused.
+type Failure = ();
+
+/// The contract's rows: a name, one case word, an input and the expected value or error variant. Every implementation runs them.
+pub const CASES: &[Case<Input, Value, Failure>] = &[];
+'''
+then.findings = [
+  { rule = 'contract#template', path = 'fixtures/contract.rs' },
+]
+
+[[scenarios]]
+id = 'private-check'
+scenario = 'The check is private, so no adapter can run it.'
+given.files.'fixtures/contract.rs' = '''
+//! What every `names` adapter must pass.
+
+use super::super::interface::NamesPort;
+use crate::cases::Case;
+
+/// What a row of the contract is given.
+type Input = ();
+/// What a row of the contract expects when it succeeds.
+type Value = ();
+/// What a row of the contract expects when it is refused.
+type Failure = ();
+
+/// The contract's rows: a name, one case word, an input and the expected value or error variant. Every implementation runs them.
+pub const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Runs the contract's rows against one implementation: the fake, or an adapter of another crate.
+pub(super) fn check(adapter: &impl NamesPort) {
+    let _ = adapter;
+    assert!(
+        CASES.is_empty(),
+        "the contract has rows and no call of the port that runs them: write the call here"
+    );
+}
+'''
+then.findings = [
+  { rule = 'contract#template', path = 'fixtures/contract.rs' },
+]
+
+[[scenarios]]
+id = 'no-rows'
+scenario = 'The contract exports no rows.'
+given.files.'fixtures/contract.rs' = '''
+//! What every `names` adapter must pass.
+
+use super::super::interface::NamesPort;
+use crate::cases::Case;
+
+/// What a row of the contract is given.
+type Input = ();
+/// What a row of the contract expects when it succeeds.
+type Value = ();
+/// What a row of the contract expects when it is refused.
+type Failure = ();
+
+/// The contract's rows: a name, one case word, an input and the expected value or error variant. Every implementation runs them.
+/// Runs the contract's rows against one implementation: the fake, or an adapter of another crate.
+pub fn check(adapter: &impl NamesPort) {
+    let _ = adapter;
+    assert!(
+        CASES.is_empty(),
+        "the contract has rows and no call of the port that runs them: write the call here"
+    );
+}
+'''
+then.findings = [
+  { rule = 'contract#template', path = 'fixtures/contract.rs' },
+]
+
+[[scenarios]]
+id = 'private-rows'
+scenario = 'The rows are private, so no adapter can run them.'
+given.files.'fixtures/contract.rs' = '''
+//! What every `names` adapter must pass.
+
+use super::super::interface::NamesPort;
+use crate::cases::Case;
+
+/// What a row of the contract is given.
+type Input = ();
+/// What a row of the contract expects when it succeeds.
+type Value = ();
+/// What a row of the contract expects when it is refused.
+type Failure = ();
+
+/// The contract's rows: a name, one case word, an input and the expected value or error variant. Every implementation runs them.
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Runs the contract's rows against one implementation: the fake, or an adapter of another crate.
+pub fn check(adapter: &impl NamesPort) {
+    let _ = adapter;
+    assert!(
+        CASES.is_empty(),
+        "the contract has rows and no call of the port that runs them: write the call here"
+    );
+}
+'''
+then.findings = [
+  { rule = 'contract#template', path = 'fixtures/contract.rs' },
+]

@@ -1,0 +1,418 @@
+stylesheet
+  comment
+  whitespace
+  comment
+  whitespace
+  comment
+  whitespace
+  qualified-rule
+    literal *
+    literal ,
+    whitespace
+    literal :
+    literal :
+    ident
+    literal ,
+    whitespace
+    literal :
+    literal :
+    ident
+    whitespace
+    block
+      whitespace
+      declaration box-sizing
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      comment
+      whitespace
+      declaration font-family
+        whitespace
+        ident
+        literal ,
+        whitespace
+        string
+        literal ,
+        whitespace
+        ident
+        literal ,
+        whitespace
+        ident
+        literal ,
+        whitespace
+        ident
+        literal ,
+        whitespace
+        ident
+        literal ,
+        whitespace
+        string
+        literal ,
+        whitespace
+        string
+      whitespace
+      declaration line-height
+        whitespace
+        number
+      whitespace
+      comment
+      whitespace
+      declaration -webkit-text-size-adjust
+        whitespace
+        percentage
+      whitespace
+      comment
+      whitespace
+      declaration tab-size
+        whitespace
+        number
+      whitespace
+      comment
+      whitespace
+  whitespace
+  comment
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration margin
+        whitespace
+        number
+      whitespace
+      comment
+      whitespace
+  whitespace
+  comment
+  whitespace
+  comment
+  whitespace
+  qualified-rule
+    ident
+    literal ,
+    whitespace
+    ident
+    whitespace
+    block
+      whitespace
+      declaration font-weight
+        whitespace
+        ident
+      whitespace
+  whitespace
+  comment
+  whitespace
+  qualified-rule
+    ident
+    literal ,
+    whitespace
+    ident
+    literal ,
+    whitespace
+    ident
+    literal ,
+    whitespace
+    ident
+    whitespace
+    block
+      whitespace
+      declaration font-family
+        whitespace
+        ident
+        literal ,
+        whitespace
+        ident
+        literal ,
+        whitespace
+        ident
+        literal ,
+        whitespace
+        string
+        literal ,
+        whitespace
+        ident
+        literal ,
+        whitespace
+        ident
+      whitespace
+      comment
+      whitespace
+      declaration font-size
+        whitespace
+        dimension
+      whitespace
+      comment
+      whitespace
+  whitespace
+  comment
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration font-size
+        whitespace
+        percentage
+      whitespace
+  whitespace
+  comment
+  whitespace
+  qualified-rule
+    ident
+    literal ,
+    whitespace
+    ident
+    whitespace
+    block
+      whitespace
+      declaration font-size
+        whitespace
+        percentage
+      whitespace
+      declaration line-height
+        whitespace
+        number
+      whitespace
+      declaration position
+        whitespace
+        ident
+      whitespace
+      declaration vertical-align
+        whitespace
+        ident
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration bottom
+        whitespace
+        dimension
+      whitespace
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration top
+        whitespace
+        dimension
+      whitespace
+  whitespace
+  comment
+  whitespace
+  comment
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration border-color
+        whitespace
+        ident
+      whitespace
+  whitespace
+  comment
+  whitespace
+  comment
+  whitespace
+  qualified-rule
+    ident
+    literal ,
+    whitespace
+    ident
+    literal ,
+    whitespace
+    ident
+    literal ,
+    whitespace
+    ident
+    literal ,
+    whitespace
+    ident
+    whitespace
+    block
+      whitespace
+      declaration font-family
+        whitespace
+        ident
+      whitespace
+      comment
+      whitespace
+      declaration font-size
+        whitespace
+        percentage
+      whitespace
+      comment
+      whitespace
+      declaration line-height
+        whitespace
+        number
+      whitespace
+      comment
+      whitespace
+      declaration margin
+        whitespace
+        number
+      whitespace
+      comment
+      whitespace
+  whitespace
+  comment
+  whitespace
+  qualified-rule
+    ident
+    literal ,
+    whitespace
+    block [
+      ident
+      literal =
+      string
+    literal ,
+    whitespace
+    block [
+      ident
+      literal =
+      string
+    literal ,
+    whitespace
+    block [
+      ident
+      literal =
+      string
+    whitespace
+    block
+      whitespace
+      declaration -webkit-appearance
+        whitespace
+        ident
+      whitespace
+  whitespace
+  comment
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration padding
+        whitespace
+        number
+      whitespace
+  whitespace
+  comment
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration vertical-align
+        whitespace
+        ident
+      whitespace
+  whitespace
+  comment
+  whitespace
+  qualified-rule
+    literal :
+    literal :
+    ident
+    literal ,
+    whitespace
+    literal :
+    literal :
+    ident
+    whitespace
+    block
+      whitespace
+      declaration height
+        whitespace
+        ident
+      whitespace
+  whitespace
+  comment
+  whitespace
+  qualified-rule
+    block [
+      ident
+      literal =
+      string
+    whitespace
+    block
+      whitespace
+      declaration -webkit-appearance
+        whitespace
+        ident
+      whitespace
+      comment
+      whitespace
+      declaration outline-offset
+        whitespace
+        dimension
+      whitespace
+      comment
+      whitespace
+  whitespace
+  comment
+  whitespace
+  qualified-rule
+    literal :
+    literal :
+    ident
+    whitespace
+    block
+      whitespace
+      declaration -webkit-appearance
+        whitespace
+        ident
+      whitespace
+  whitespace
+  comment
+  whitespace
+  qualified-rule
+    literal :
+    literal :
+    ident
+    whitespace
+    block
+      whitespace
+      declaration -webkit-appearance
+        whitespace
+        ident
+      whitespace
+      comment
+      whitespace
+      declaration font
+        whitespace
+        ident
+      whitespace
+      comment
+      whitespace
+  whitespace
+  comment
+  whitespace
+  comment
+  whitespace
+  qualified-rule
+    ident
+    whitespace
+    block
+      whitespace
+      declaration display
+        whitespace
+        ident
+      whitespace
+  whitespace

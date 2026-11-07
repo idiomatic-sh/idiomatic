@@ -1,0 +1,32 @@
+description = "A file imports nothing whose module matches `forbidden`."
+why = "A use case that imports the web framework or a route can no longer run without them: the dependency points from the inside out. The entry names the modules it may not import as globs."
+
+query = '''
+param forbidden: set<string>;
+let found = select * from "static-import" where glob_any(target, $forbidden);
+emit found subject "file" key("span");
+'''
+
+[params.forbidden]
+type = "set<string>"
+description = "The globs of the module paths the files may not import."
+
+[diagnostic]
+primary = "span"
+message = "this file imports `{target}`, which it may not"
+help = "Take what the framework gives as a port the edge passes in, or move the code to the edge."
+
+[given]
+include = ["**"]
+params = { forbidden = ["net/http", "net/http/*"] }
+
+[[scenarios]]
+id = "http-import"
+scenario = "A use case importing net/http is reported."
+given.files."src/use_case.go" = "package p\nimport \"net/http\"\nvar status = http.StatusOK\n"
+then.findings = [{ path = "src/use_case.go", line = 2 }]
+
+[[scenarios]]
+id = "domain-import"
+scenario = "A use case importing its domain is allowed."
+given.files."src/use_case.go" = "package p\nimport \"example.com/app/domain\"\nvar todo domain.Todo\n"

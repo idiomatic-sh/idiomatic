@@ -1,0 +1,7 @@
+root[2]
+├─0 blockquote[1]
+│   └─0 paragraph[1]
+│       └─0 text "foo"
+└─1 blockquote[1]
+    └─0 paragraph[1]
+        └─0 text "bar"

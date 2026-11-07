@@ -1,0 +1,144 @@
+description = "TOML and JSON are written through their serializer, never assembled from text: no string literal of the code is a fragment of a TOML or JSON document (a `[table]` header line, a `key = {value}` pair, an inline `{{ key = .. }}` table or a JSON member)."
+why = "A document assembled with `format!` and `push_str` quotes, escapes and orders every value by hand, and each place that does it is a place to get it wrong: a value holding a quote or a newline breaks the file, two writers disagree on the layout, and the type's own `Serialize` (which the reader already uses) is bypassed. The serializer (`toml`, `serde_json`, the SARIF crate) writes the type the reader reads, so what is written is what is read back. Read from the string tokens as written: a header line between newlines, a `key = {` or quoted `key = {` pair at the start of the text, after a newline, a comma, a brace or a placeholder, a `key = [{` array after a newline or at the start, an inline table opened with `{{ key = ` or `{{ {..} }}`, and a JSON member opened after a brace or a comma. A one-line message that quotes code in backticks is not a document and is left out; a literal with real newlines (a raw string) is read line by line whatever it quotes: a header line, or a `key = {` or `key = [` line at the start of a line. Not seen: a document assembled from fragments that hold no key (`{} = {}` reads like a message), and text built with `write!` from single values."
+
+query = '''
+let strings = select * from "syntax-tree" where kind = "string" or kind = "byte-string";
+let lined = select * from strings where glob_any(text, "*
+*");
+let single = antijoin(left=strings, right=lined, left-on=["id"], right-on=["id"]);
+let ticked = select * from single where glob_any(text, "*`*");
+let quoted = antijoin(left=strings, right=ticked, left-on=["id"], right-on=["id"]);
+let headers = select * from quoted where glob_any(text, "*\\n\[*\]\\n*");
+let keys = select * from quoted where glob_any(text, "?[a-z]* = \{*") or glob_any(text, "?[a-z]* = \\?\{*") or glob_any(text, "*\\n[a-z]* = \{*") or glob_any(text, "*\\n[a-z]* = \\?\{*") or glob_any(text, "*, [a-z]* = \{*") or glob_any(text, "*, [a-z]* = \\?\{*") or glob_any(text, "*\{ [a-z]* = \{*") or glob_any(text, "*\\n[a-z]* = \[\{*") or glob_any(text, "?[a-z]* = \[\{*") or glob_any(text, "*\}[a-z]* = \{*");
+let tables = select * from quoted where glob_any(text, "*\{\{ [a-z]* = *") or glob_any(text, "*\{\{ \{*\} \}\}*");
+let lined-headers = select * from lined where glob_any(text, "*
+\[*\]
+*");
+let lined-keys = select * from lined where glob_any(text, "*
+[a-z]* = \{*") or glob_any(text, "*
+[a-z]* = \[\{*");
+let json = select * from quoted where glob_any(text, "*\{\\?[a-z]*\\?:*") or glob_any(text, "*,\\?[a-z]*\\?:*");
+let toml-headers-keys = union(left=headers, right=keys);
+let toml = union(left=toml-headers-keys, right=tables);
+let lined-toml = union(left=lined-headers, right=lined-keys);
+let written = union(left=toml, right=lined-toml);
+let found = union(left=written, right=json);
+emit found subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`{text}` assembles a document by hand"
+help = "Build the document as its type (a struct with serde derives, a `toml::Table`, a `serde_json::Value`) and write it with the serializer; keep the layout in the type's attributes, not in string literals."
+
+[given]
+include = ['**']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'lock-written-by-hand'
+scenario = 'The operation lock is written line by line with format! (asymptote at 5149cd075d).'
+given.files.'src/lib.rs' = '''
+const VERSION: u32 = 1;
+pub struct Record {
+    pub tool: String,
+    pub rule: String,
+    pub count: u32,
+}
+
+pub fn render(parents: &str, records: &[Record]) -> String {
+    let mut out = format!("version = {VERSION}\nparents = [{parents}]\n\naccepted = [\n");
+    for record in records {
+        let fields = vec![
+            format!("tool = \"{}\"", record.tool),
+            format!("rule = \"{}\"", record.rule),
+            format!("count = {}", record.count),
+        ];
+        out.push_str(&fields.join(", "));
+    }
+    out
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 9 },
+  { path = 'src/lib.rs', line = 12 },
+  { path = 'src/lib.rs', line = 13 },
+  { path = 'src/lib.rs', line = 14 },
+]
+
+[[scenarios]]
+id = 'json-bytes-by-hand'
+scenario = 'A JSON answer is written from byte constants (ryo rows at 5149cd075d).'
+given.files.'src/lib.rs' = '''
+pub const COLUMNS_OPEN: &[u8] = b"{\"columns\":";
+pub const ROWS_OPEN: &[u8] = b",\"rows\":[";
+pub const COMMA: &[u8] = b",";
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 1 },
+  { path = 'src/lib.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'lock-head-by-hand'
+scenario = 'The Tastemaker lock is written after its comment head with format! (Tastemaker manifest at 5149cd075d).'
+given.files.'src/lib.rs' = '''
+const LOCK_HEAD: &str = "# Written by tm.\n";
+
+pub fn lock(version: i64, names: &str, packages: &str) -> String {
+    format!("{LOCK_HEAD}version = {}\ndependencies = [{}]\n{packages}", version, names)
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'serialized-and-messages'
+scenario = 'The lock is a serde type written by the serializer; a message quotes code in backticks; Rust code is generated from text.'
+given.files.'src/lib.rs' = '''
+#[derive(serde::Serialize)]
+pub struct Lock {
+    pub parents: Vec<String>,
+}
+
+pub fn render(lock: &Lock) -> Result<String, toml::ser::Error> {
+    toml::to_string(lock)
+}
+
+pub fn refused(key: &str, value: &str) -> String {
+    format!("`{key} = {value}` is not a level")
+}
+
+pub fn feature(name: &str) -> String {
+    format!("#[cfg(feature = \"{name}\")]\n")
+}
+'''
+
+[[scenarios]]
+id = 'raw-document-with-backticks'
+scenario = "Tastemaker at c2da5dd666: `INIT_WORKSPACE` is a raw string of real newlines holding a workspace file, with a description that quotes code in backticks; a multi-line help text that names no key stays out."
+given.files.'src/lib.rs' = '''
+pub const INIT_WORKSPACE: &str = concat!(
+    "tastemaker = \"",
+    env!("CARGO_PKG_VERSION"),
+    r#""
+workspace = { name = "local", dependencies = [{ package = "local", path = "tastemaker" }] }
+templates = [
+  { template = "local/unchecked", file = "tastemaker.lock", description = "The lock `tm check --fix` writes." },
+]
+"#
+);
+
+pub const HELP: &str = "Usage:
+  run `tm check`
+  then read the answer";
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 4 },
+]

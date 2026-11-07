@@ -1,0 +1,5 @@
+root[1]
+└─0 paragraph[3]
+    ├─0 inlineCode " "
+    ├─1 text "\n"
+    └─2 inlineCode "  "

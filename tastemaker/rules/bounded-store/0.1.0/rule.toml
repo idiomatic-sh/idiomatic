@@ -1,0 +1,53 @@
+description = "Legacy case-name marker; retired from the pipeline spec because it cannot prove bounded retention."
+why = "This historical rule only searches for a string literal containing `bounded`. Such a name can accompany an unbounded writer, so the rule is no longer applied by the pipeline spec and must not be used as behavioral evidence. The product's repeated real-store lifecycle test measures retained files and bytes, and its deliberately accumulating control must fail that same bound."
+
+query = '''
+let tests = select l."path" as "file" from "filesystem.file" as l where glob_any(l."path", "{use_case_test.rs,**/use_case_test.rs}");
+let proving = select l."file" as "file" from "string-literal" as l where glob_any(l."value", "*bounded*") and glob_any(l."file", "{use_case_test.rs,**/use_case_test.rs}");
+let proved = project(from=proving, columns=["file"]);
+let missing = antijoin(left=tests, right=proved, left-on=["file"], right-on=["file"]);
+emit missing subject "file" key("file");
+'''
+
+[diagnostic]
+primary = "file"
+message = "legacy naming marker: no string literal containing bounded was found"
+help = "This rule cannot certify bounded retention. Run a repeated real-store lifecycle test that measures retained files and bytes, including unchanged and edited inputs and a deliberately accumulating negative control."
+
+[given]
+include = ['**']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'an-operation-log-with-no-bound'
+scenario = 'Asymptote`s `up`, which appends to the operation log, at 5149cd075d: its cases prove an operation is recorded and read back, and none runs it many times, so its growth goes unseen.'
+given.files.'src/inbound/use_cases/up/use_case_test.rs' = '''
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("an_accepted_finding_is_recorded"),
+        word: Word::Succeeds,
+        input: || 1,
+        expect: Expect::Value(true),
+    },
+];
+'''
+then.findings = [{ path = 'src/inbound/use_cases/up/use_case_test.rs' }]
+
+[[scenarios]]
+id = 'a-named-stub-is-not-proof'
+scenario = 'A string containing bounded produces no finding even when it is only a stub; this is why the rule is retired from the pipeline spec.'
+given.files.'src/inbound/use_cases/lint/use_case_test.rs' = '''
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("many_runs_in_a_row_leave_a_bounded_number_of_files"),
+        word: Word::Succeeds,
+        input: || 40,
+        expect: Expect::Value(true),
+    },
+];
+'''

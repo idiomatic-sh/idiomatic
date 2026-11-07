@@ -1,0 +1,159 @@
+description = "An entry's function takes a `<Verb>Request` (none when the verb has no input) and returns `Result<<Verb>Report, <Verb>Error>`: a parameter, an answer ending `Report` and an error ending `Error`."
+why = "The SDK mirrors the command line's `resource`, then `verb`: the entry is `<resource>::<verb>(request)`, the request is `<Verb>Request` with plain fields, the answer `<Verb>Report` and the error `<Verb>Error`, so a user finds every call the same way. RyoQL cannot compare a PascalCase name with a snake_case directory, so the stem of each name is pinned by the entry template, which writes the signature from the directory; this rule gives the answer and the error their roles and their suffixes and requires the request. Read as written: each top-level `fn` of `entry.rs` has a parameter whose type name ends `Request`, and its return type is a generic whose first argument names a type ending `Report` and whose second names a type ending `Error` (`Result<ShowReport, ShowError>`); a name written by a macro or a type alias is not seen."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let source-files = select * from tree-nodes where kind = "source-file";
+let top-edges = select r."child" as "child" from source-files as l join "syntax-child" as r on l."id" = r."parent";
+let fn-kinds = select * from tree-nodes where kind = "fn";
+let top-fns = select r."id" as "fn", r."file" as "file", r."span" as "span" from top-edges as l join fn-kinds as r on l."child" = r."id";
+let fn-kids = select l."fn" as "fn", l."file" as "file", l."span" as "span", r."child" as "child" from top-fns as l join "syntax-child" as r on l."fn" = r."parent";
+let ret-kinds = select * from tree-nodes where kind = "ret-type";
+let fn-rets = select l."fn" as "fn", l."file" as "file", l."span" as "span", r."id" as "id" from fn-kids as l join ret-kinds as r on l."child" = r."id";
+let name-refs = select * from tree-nodes where kind = "name-ref";
+let arg-lists = select * from tree-nodes where kind = "generic-arg-list";
+let ret-lists = axis(from=fn-rets, relation="syntax-child", direction=descendant, domain=arg-lists);
+let list-edges = select l."id" as "ret", l."related" as "list", r."child" as "child", r."ordinal" as "ordinal" from ret-lists as l join "syntax-child" as r on l."related" = r."parent";
+let type-args = select * from tree-nodes where kind = "type-arg";
+let args = select l."ret" as "ret", l."list" as "list", l."ordinal" as "ordinal", r."id" as "id" from list-edges as l join type-args as r on l."child" = r."id";
+let arg-starts = project(from=args, columns=["id", "ret", "list", "ordinal"]);
+let arg-axis = axis(from=arg-starts, relation="syntax-child", direction=descendant, domain=name-refs);
+let arg-refs = project(from=arg-axis, columns=["id", "related"]);
+let ref-token-edges = select l."id" as "id", r."child" as "token" from arg-refs as l join "syntax-child" as r on l."related" = r."parent";
+let ref-texts = select l."id" as "id", r."text" as "text" from ref-token-edges as l join tree-tokens as r on l."token" = r."id";
+let report-texts = select * from ref-texts where glob_any(text, "*Report");
+let error-texts = select * from ref-texts where glob_any(text, "*Error");
+let report-args = select l."list" as "list", l."ordinal" as "report-at", l."ret" as "ret" from arg-starts as l join report-texts as r on l."id" = r."id";
+let error-args = select l."list" as "list", l."ordinal" as "error-at" from arg-starts as l join error-texts as r on l."id" = r."id";
+let arg-pairs = select l."ret" as "ret", l."report-at" as "report-at", r."error-at" as "error-at" from report-args as l join error-args as r on l."list" = r."list";
+let in-order = select * from arg-pairs where report-at < error-at;
+let ordered-reports = project(from=in-order, columns=["ret"]);
+let tuple-types = select * from tree-nodes where kind = "tuple-type";
+let arg-kids = select l."ret" as "ret", l."list" as "list", r."child" as "child" from args as l join "syntax-child" as r on l."id" = r."parent";
+let unit-args = select l."ret" as "ret", l."list" as "list" from arg-kids as l join tuple-types as r on l."child" = r."id";
+let unit-pairs = select l."ret" as "ret" from unit-args as l join error-args as r on l."list" = r."list";
+let ordered = union(left=ordered-reports, right=unit-pairs);
+let unordered = antijoin(left=fn-rets, right=ordered, left-on=["id"], right-on=["ret"]);
+let unordered-rows = project(from=unordered, columns=["file", "span"]);
+let no-ret = antijoin(left=top-fns, right=fn-rets, left-on=["fn"], right-on=["fn"]);
+let no-ret-rows = project(from=no-ret, columns=["file", "span"]);
+let unordered-found = extend(from=unordered-rows, values={"problem": "does not return `Result<<Verb>Report, <Verb>Error>` (or `Result<(), <Verb>Error>`): the answer ending `Report`, or `()`, comes first and the error ending `Error` second"});
+let no-ret-found = extend(from=no-ret-rows, values={"problem": "returns nothing: an entry returns `Result<<Verb>Report, <Verb>Error>`"});
+let param-lists = select * from tree-nodes where kind = "param-list";
+let fn-plists = select l."fn" as "fn", l."file" as "file", l."span" as "span", r."id" as "list" from fn-kids as l join param-lists as r on l."child" = r."id";
+let plist-edges = select l."fn" as "fn", r."child" as "child" from fn-plists as l join "syntax-child" as r on l."list" = r."parent";
+let params = select * from tree-nodes where kind = "param";
+let fn-params = select l."fn" as "fn", r."id" as "id" from plist-edges as l join params as r on l."child" = r."id";
+let param-axis = axis(from=fn-params, relation="syntax-child", direction=descendant, domain=name-refs);
+let param-refs = project(from=param-axis, columns=["id", "related"]);
+let param-token-edges = select l."id" as "id", r."child" as "token" from param-refs as l join "syntax-child" as r on l."related" = r."parent";
+let param-texts = select l."id" as "id", r."text" as "text" from param-token-edges as l join tree-tokens as r on l."token" = r."id";
+let request-texts = select * from param-texts where glob_any(text, "*Request");
+let requesting = select l."fn" as "fn" from fn-params as l join request-texts as r on l."id" = r."id";
+let taking = select l."fn" as "fn", l."file" as "file", l."span" as "span" from top-fns as l join fn-params as r on l."fn" = r."fn";
+let taking-rows = project(from=taking, columns=["fn", "file", "span"]);
+let no-request = antijoin(left=taking-rows, right=requesting, left-on=["fn"], right-on=["fn"]);
+let no-request-rows = project(from=no-request, columns=["file", "span"]);
+let no-request-found = extend(from=no-request-rows, values={"problem": "takes a parameter that is not a request: an entry takes the request `<Verb>Request`, a type whose name ends `Request`, or nothing"});
+let found-1 = union(left=unordered-found, right=no-ret-found);
+let found-3 = union(left=found-1, right=no-request-found);
+emit found-3 subject "file" key("span", "problem");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this entry function {problem}"
+help = "Write the entry as `pub fn <verb>(request: <Verb>Request) -> Result<<Verb>Report, <Verb>Error>` (`pub fn <verb>() ->...` when the verb has no input, then it has no request.rs; `Result<(), <Verb>Error>` when no caller reads an answer), the request (`Request`), the answer (`Report`) and the error (`Error`) named for the verb directory in PascalCase, as the entry template writes it. An ignore is not legitimate here: every entry has the one shape."
+
+[given]
+include = ['src/entry.rs']
+
+[[scenarios]]
+id = 'request-report-error'
+scenario = 'A request, a report and an error.'
+given.files.'src/entry.rs' = '''
+//! `greeting show`.
+
+pub fn show(request: ShowRequest) -> Result<ShowReport, ShowError> {
+    Ok(ShowReport { text: request.name })
+}
+'''
+
+[[scenarios]]
+id = 'reversed-result'
+scenario = 'The error before the report.'
+given.files.'src/entry.rs' = '''
+//! `greeting show`.
+
+pub fn show(request: ShowRequest) -> Result<ShowError, ShowReport> {
+    Err(ShowError { reason: request.name })
+}
+'''
+then.findings = [
+  { path = 'src/entry.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'tuple-return'
+scenario = 'A tuple instead of a result.'
+given.files.'src/entry.rs' = '''
+//! `greeting show`.
+
+pub fn show(request: ShowRequest) -> (ShowReport, ShowError) {
+    (ShowReport { text: request.name }, ShowError)
+}
+'''
+then.findings = [
+  { path = 'src/entry.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'no-request'
+scenario = 'An entry with no input takes no request.'
+given.files.'src/entry.rs' = '''
+//! `greeting show`.
+
+pub fn show() -> Result<ShowReport, ShowError> {
+    Ok(ShowReport { text: String::new() })
+}
+'''
+
+[[scenarios]]
+id = 'no-answer'
+scenario = 'An entry that returns nothing.'
+given.files.'src/entry.rs' = '''
+//! `greeting show`.
+
+pub fn show(request: ShowRequest) {
+    let _ = request;
+}
+'''
+then.findings = [
+  { path = 'src/entry.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'request-without-suffix'
+scenario = 'The request type does not end in Request.'
+given.files.'src/entry.rs' = '''
+//! `greeting show`.
+
+pub fn show(request: Show) -> Result<ShowReport, ShowError> {
+    Ok(ShowReport { text: request.name })
+}
+'''
+then.findings = [
+  { path = 'src/entry.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'unit-report'
+scenario = 'No caller reads an answer, so the report is the unit.'
+given.files.'src/entry.rs' = '''
+//! `greeting show`.
+
+pub fn show(request: ShowRequest) -> Result<(), ShowError> {
+    Ok(())
+}
+'''

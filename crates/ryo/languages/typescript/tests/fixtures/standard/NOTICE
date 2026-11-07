@@ -1,0 +1,4 @@
+TypeScript reference inventories and suite fixtures are copied unchanged from typescript-eslint/typescript-eslint, tag v8.72.0, commit a4c2603d3e4fd43b33bc25b82457716e9f7cef71.
+Source: https://github.com/typescript-eslint/typescript-eslint/tree/a4c2603d3e4fd43b33bc25b82457716e9f7cef71/packages/ast-spec
+License: MIT, reproduced in NOTICE-LICENSE.
+The independently executed parser is @typescript-eslint/typescript-estree 8.72.0 with TypeScript 6.0.3; package-lock.json pins dependencies and integrity hashes.

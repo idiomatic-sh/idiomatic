@@ -1,0 +1,58 @@
+{
+  "direct-module": {
+    "source": "import datetime\ndatetime.timezone.utc\n",
+    "expected": []
+  },
+  "module-alias": {
+    "source": "import datetime as dt\ndt.timezone.utc\n",
+    "expected": []
+  },
+  "from-timezone": {
+    "source": "from datetime import timezone\ntimezone.utc\n",
+    "expected": []
+  },
+  "from-alias": {
+    "source": "from datetime import timezone as tz\ntz.utc\n",
+    "expected": []
+  },
+  "qualified-import": {
+    "source": "import datetime.timezone\ndatetime.timezone.utc\n",
+    "expected": []
+  },
+  "wrong-module": {
+    "source": "import other\nother.timezone.utc\n",
+    "expected": []
+  },
+  "local-shadow": {
+    "source": "datetime = custom\ndatetime.timezone.utc\n",
+    "expected": []
+  },
+  "not-utc": {
+    "source": "import datetime\ndatetime.timezone.local\n",
+    "expected": []
+  },
+  "utc-other": {
+    "source": "import datetime\ndatetime.UTC\n",
+    "expected": []
+  },
+  "multiple": {
+    "source": "import datetime\ndatetime.timezone.utc\ndatetime.timezone.utc\n",
+    "expected": []
+  },
+  "noqa": {
+    "source": "import datetime\ndatetime.timezone.utc  # noqa: UP017\n",
+    "expected": []
+  },
+  "other-noqa": {
+    "source": "import datetime\ndatetime.timezone.utc  # noqa: F401\n",
+    "expected": []
+  },
+  "file-noqa": {
+    "source": "# ruff: noqa: UP017\nimport datetime\ndatetime.timezone.utc\n",
+    "expected": []
+  },
+  "unicode-prefix": {
+    "source": "import datetime\ndatetime.timezone.ｕｔｃ\n",
+    "expected": []
+  }
+}

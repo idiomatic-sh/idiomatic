@@ -1,0 +1,25 @@
+root[1]
+└─0 list[3]
+    │ ordered: false
+    │ start: null
+    │ spread: false
+    ├─0 listItem[1]
+    │   │ spread: false
+    │   │ checked: null
+    │   └─0 paragraph[1]
+    │       └─0 text "a"
+    ├─1 listItem[2]
+    │   │ spread: true
+    │   │ checked: null
+    │   ├─0 paragraph[1]
+    │   │   └─0 text "b"
+    │   └─1 definition
+    │         identifier: "ref"
+    │         label: "ref"
+    │         title: null
+    │         url: "/url"
+    └─2 listItem[1]
+        │ spread: false
+        │ checked: null
+        └─0 paragraph[1]
+            └─0 text "d"

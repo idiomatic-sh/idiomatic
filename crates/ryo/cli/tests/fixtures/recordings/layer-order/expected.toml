@@ -1,0 +1,4 @@
+rows = [
+  { path = "crates/ruff_macros/Cargo.toml", key = "crates/ruff_macros/Cargo.toml,ruff_python_trivia" },
+  { path = "crates/ruff_python_ast/Cargo.toml", key = "crates/ruff_python_ast/Cargo.toml,ruff_python_trivia" },
+]

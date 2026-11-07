@@ -1,0 +1,296 @@
+description = "A `types.rs` owns a top-level nominal type, directly or through a declared canonical behavior value."
+why = "A part owns nominal data directly in types.rs or in a canonical behavior value: types.rs declares types/name.rs, which declares types/name/value.rs, whose own top level declares a struct, enum or union. Both declarations are bodyless and carry no attributes redirecting or conditionally replacing that chain. Unrelated, undeclared, inline, local, macro-only and empty children do not count. Value-companions separately requires the adjacent proof; placement grants no construction authority."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let files = select * from tree-nodes where kind = "source-file";
+let roots = capture(from=files, path="file", pattern="{*root}/types.rs", captures=["root"]);
+let top-edges = select r."child" as "child" from files as l join "syntax-child" as r on l."id" = r."parent";
+let top-items = select r."id" as "id", r."kind" as "kind", r."file" as "file", r."span" as "span" from top-edges as l join tree-nodes as r on l."child" = r."id";
+let types = select * from top-items where glob_any(kind, "{struct,enum,union}");
+let direct = select l."id" as "id" from roots as l join types as r on l."file" = r."file";
+let modules = select * from top-items where kind = "module";
+let bodies = select * from tree-nodes where kind = "item-list";
+let attrs = select * from tree-nodes where kind = "attr";
+let module-kids = select l."id" as "id", r."child" as "child" from modules as l join "syntax-child" as r on l."id" = r."parent";
+let with-body = select l."id" as "id" from module-kids as l join bodies as r on l."child" = r."id";
+let with-attrs = select l."id" as "id" from module-kids as l join attrs as r on l."child" = r."id";
+let bodyless = antijoin(left=modules, right=with-body, left-on=["id"], right-on=["id"]);
+let declarations = antijoin(left=bodyless, right=with-attrs, left-on=["id"], right-on=["id"]);
+let names = select * from tree-nodes where kind = "name";
+let name-edges = select l."id" as "id", l."file" as "file", r."child" as "child" from declarations as l join "syntax-child" as r on l."id" = r."parent";
+let module-names = select l."id" as "id", l."file" as "file", r."id" as "name-id" from name-edges as l join names as r on l."child" = r."id";
+let token-edges = select l."id" as "id", l."file" as "file", r."child" as "child" from module-names as l join "syntax-child" as r on l."name-id" = r."parent";
+let named = select l."file" as "file", r."text" as "name" from token-edges as l join tree-tokens as r on l."child" = r."id";
+let root-declarations = select l."id" as "id", l."root" as "root", r."name" as "value" from roots as l join named as r on l."file" = r."file";
+let module-files = capture(from=files, path="file", pattern="{*root}/types/{value}.rs", captures=["root", "value"]);
+let declared-modules = select l."id" as "id", l."root" as "root", l."value" as "value", r."file" as "module-file" from root-declarations as l join module-files as r on l."root" = r."root" and l."value" = r."value";
+let value-declarations = select * from named where name = "value";
+let declared-bodies = select l."id" as "id", l."root" as "root", l."value" as "value" from declared-modules as l join value-declarations as r on l."module-file" = r."file";
+let value-types = capture(from=types, path="file", pattern="{*root}/types/{value}/value.rs", captures=["root", "value"]);
+let indirect = select l."id" as "id" from declared-bodies as l join value-types as r on l."root" = r."root" and l."value" = r."value";
+let owned = union(left=direct, right=indirect);
+let typeless = antijoin(left=roots, right=owned, left-on=["id"], right-on=["id"]);
+emit typeless subject "file" key("file");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this file declares no struct, enum or union"
+help = "Declare a nominal type directly, or declare types/name.rs with its bodyless value module and an actual nominal type in types/name/value.rs; otherwise delete the empty file and its mod line."
+
+[given]
+include = ['**/types.rs', '**/types/*.rs', '**/types/*/value.rs']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = '''
+pub mod greeting;
+'''
+
+[[scenarios]]
+id = 'types-rs-holding-only-comment'
+scenario = 'A types.rs holding only a comment.'
+given.files.'src/greeting.rs' = '''
+pub mod types;
+'''
+given.files.'src/greeting/types.rs' = '''
+// The domain's types, still to come.
+'''
+then.findings = [
+  { path = 'src/greeting/types.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'types-rs-holding-import-function'
+scenario = 'A types.rs holding an import and a function.'
+given.files.'src/greeting.rs' = '''
+pub mod types;
+'''
+given.files.'src/greeting/types.rs' = '''
+use std::fmt::Display;
+pub fn show(value: &impl Display) -> String {
+    value.to_string()
+}
+'''
+then.findings = [
+  { path = 'src/greeting/types.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'types-rs-whose-only-type-inline-module'
+scenario = 'A types.rs whose only type is in an inline module.'
+given.files.'src/greeting.rs' = '''
+pub mod types;
+'''
+given.files.'src/greeting/types.rs' = '''
+pub mod inner {
+    pub struct Hidden;
+}
+'''
+then.findings = [
+  { path = 'src/greeting/types.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'types-rs-whose-only-type-local-function'
+scenario = 'A types.rs whose only type is local to a function.'
+given.files.'src/greeting.rs' = '''
+pub mod types;
+'''
+given.files.'src/greeting/types.rs' = '''
+pub fn make() {
+    struct Local;
+    let _ = Local;
+}
+'''
+then.findings = [
+  { path = 'src/greeting/types.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'struct'
+scenario = 'A struct: nothing is reported.'
+given.files.'src/greeting.rs' = '''
+pub mod types;
+'''
+given.files.'src/greeting/types.rs' = '''
+pub struct Name(pub String);
+'''
+
+[[scenarios]]
+id = 'enum'
+scenario = 'An enum: nothing is reported.'
+given.files.'src/greeting.rs' = '''
+pub mod types;
+'''
+given.files.'src/greeting/types.rs' = '''
+pub enum Mode {
+    Fast,
+    Slow,
+}
+'''
+
+[[scenarios]]
+id = 'union'
+scenario = 'A union: nothing is reported.'
+given.files.'src/greeting.rs' = '''
+pub mod types;
+'''
+given.files.'src/greeting/types.rs' = '''
+pub union Bits {
+    pub word: u32,
+    pub bytes: [u8; 4],
+}
+'''
+
+[[scenarios]]
+id = 'inline-module-named-types-types-rs-file'
+scenario = 'An inline module named types is not a types.rs file.'
+given.files.'src/inline.rs' = '''
+/// An inline module named `types` is not a types.rs file.
+pub mod types {
+    pub fn nothing() {}
+}
+'''
+given.files.'src/lib.rs' = '''
+pub mod inline;
+'''
+given.files.'src/types.rs' = '''
+//! The crate's types.
+
+/// A name.
+pub struct Name {
+    /// Its text.
+    pub text: String,
+}
+'''
+
+[[scenarios]]
+id = 'declared-behavior-value'
+scenario = 'An actual nominal type reached through both canonical declarations counts.'
+given.files.'src/greeting/types.rs' = '''
+pub mod token;
+'''
+given.files.'src/greeting/types/token.rs' = '''
+pub mod value;
+'''
+given.files.'src/greeting/types/token/value.rs' = '''
+pub struct Token(String);
+'''
+
+[[scenarios]]
+id = 'empty-behavior-value'
+scenario = 'Canonical filenames alone cannot hide an empty implementation.'
+given.files.'src/greeting/types.rs' = '''
+pub mod token;
+'''
+given.files.'src/greeting/types/token.rs' = '''
+pub mod value;
+'''
+given.files.'src/greeting/types/token/value.rs' = '''
+// no nominal type
+'''
+then.findings = [{ path = 'src/greeting/types.rs', line = 1 }]
+
+[[scenarios]]
+id = 'undeclared-behavior-value'
+scenario = 'An unreferenced nominal child cannot satisfy a hollow namespace.'
+given.files.'src/greeting/types.rs' = '''
+// no token declaration
+'''
+given.files.'src/greeting/types/token.rs' = '''
+pub mod value;
+'''
+given.files.'src/greeting/types/token/value.rs' = '''
+pub struct Token(String);
+'''
+then.findings = [{ path = 'src/greeting/types.rs', line = 1 }]
+
+[[scenarios]]
+id = 'body-not-declared'
+scenario = 'A nominal value must be declared by its module file.'
+given.files.'src/greeting/types.rs' = '''
+pub mod token;
+'''
+given.files.'src/greeting/types/token.rs' = '''
+// no value declaration
+'''
+given.files.'src/greeting/types/token/value.rs' = '''
+pub struct Token(String);
+'''
+then.findings = [{ path = 'src/greeting/types.rs', line = 1 }]
+
+[[scenarios]]
+id = 'wrong-child-name'
+scenario = 'Another module declaration does not own this value.'
+given.files.'src/greeting/types.rs' = '''
+pub mod other;
+'''
+given.files.'src/greeting/types/token.rs' = '''
+pub mod value;
+'''
+given.files.'src/greeting/types/token/value.rs' = '''
+pub struct Token(String);
+'''
+then.findings = [{ path = 'src/greeting/types.rs', line = 1 }]
+
+[[scenarios]]
+id = 'inline-value-module'
+scenario = 'An inline module cannot redirect the canonical body.'
+given.files.'src/greeting/types.rs' = '''
+pub mod token;
+'''
+given.files.'src/greeting/types/token.rs' = '''
+pub mod value {}
+'''
+given.files.'src/greeting/types/token/value.rs' = '''
+pub struct Token(String);
+'''
+then.findings = [{ path = 'src/greeting/types.rs', line = 1 }]
+
+[[scenarios]]
+id = 'inline-nominal-in-value'
+scenario = 'A value body still needs a top-level nominal declaration.'
+given.files.'src/greeting/types.rs' = '''
+pub mod token;
+'''
+given.files.'src/greeting/types/token.rs' = '''
+pub mod value;
+'''
+given.files.'src/greeting/types/token/value.rs' = '''
+pub mod inner { pub struct Token(String); }
+'''
+then.findings = [{ path = 'src/greeting/types.rs', line = 1 }]
+
+[[scenarios]]
+id = 'redirected-value-module'
+scenario = 'A path attribute cannot substitute an unrelated file for the value body.'
+given.files.'src/greeting/types.rs' = '''
+pub mod token;
+'''
+given.files.'src/greeting/types/token.rs' = '''
+#[path = "elsewhere.rs"] pub mod value;
+'''
+given.files.'src/greeting/types/token/value.rs' = '''
+pub struct Token(String);
+'''
+then.findings = [{ path = 'src/greeting/types.rs', line = 1 }]
+
+[[scenarios]]
+id = 'conditionally-absent-value-module'
+scenario = 'A disabled module cannot prove the namespace owns a concrete type.'
+given.files.'src/greeting/types.rs' = '''
+pub mod token;
+'''
+given.files.'src/greeting/types/token.rs' = '''
+#[cfg(any())] pub mod value;
+'''
+given.files.'src/greeting/types/token/value.rs' = '''
+pub struct Token(String);
+'''
+then.findings = [{ path = 'src/greeting/types.rs', line = 1 }]

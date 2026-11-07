@@ -1,0 +1,50 @@
+{
+  "python": "3.10.19 (main, Feb 12 2026, 00:42:24) [Clang 21.1.4 ]",
+  "executable": "/home/vscode/.local/bin/python3.10",
+  "observations": [
+    {
+      "name": "literal-zero",
+      "source": "if text.endswith(\"\"):\n    text = text[:-0]\n",
+      "source_sha256": "00102eaf8d845b42784e1df9bf7a38f15529b29168601046576c6e06ee356240",
+      "replacement": "text = text.removesuffix(\"\")",
+      "applicability": "safe",
+      "initial_text": "data.txt",
+      "original_result": "",
+      "replacement_result": "data.txt",
+      "equal": false
+    },
+    {
+      "name": "literal-len",
+      "source": "if text.endswith(\"\"):\n    text = text[:-len(\"\")]\n",
+      "source_sha256": "f684bc14166b216d73bd23859467e725ff0fc54b6f351e5f2dcfd52128a14c55",
+      "replacement": "text = text.removesuffix(\"\")",
+      "applicability": "safe",
+      "initial_text": "data.txt",
+      "original_result": "",
+      "replacement_result": "data.txt",
+      "equal": false
+    },
+    {
+      "name": "suffix-statement",
+      "source": "if text.endswith(\".txt\"):\n    text = text[:-4]\n",
+      "source_sha256": "b1a783a0c5b96015cc51bbab746c2b5fbe05aae0d1e0a032b4b436cccbe18643",
+      "replacement": "text = text.removesuffix(\".txt\")",
+      "applicability": "safe",
+      "initial_text": "data.txt",
+      "original_result": "data",
+      "replacement_result": "data",
+      "equal": true
+    },
+    {
+      "name": "empty-prefix",
+      "source": "if text.startswith(\"\"):\n    text = text[0:]\n",
+      "source_sha256": "6bb72a6553c289dd445370b312f447c25adcc3d19dfe21a93e94d723963cac5a",
+      "replacement": "text = text.removeprefix(\"\")",
+      "applicability": "safe",
+      "initial_text": "data.txt",
+      "original_result": "data.txt",
+      "replacement_result": "data.txt",
+      "equal": true
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+root[18]
+├─0  heading[1]
+│    │ depth: 1
+│    └─0 text "idiomatic-sh-ryo-toml"
+├─1  paragraph[11]
+│    ├─0  text "The TOML language of ryo: it reads "
+│    ├─1  inlineCode ".toml"
+│    ├─2  text " files as TOML 1.1, the version "
+│    ├─3  inlineCode "toml_parser"
+│    ├─4  text " and the "
+│    ├─5  inlineCode "toml"
+│    ├─6  text " crate parse, into syntax trees, and their tables, keys and values into ryo's keyed relations. It is held to toml-test as "
+│    ├─7  inlineCode "toml-test-data"
+│    ├─8  text " 2.14.1 publishes it, every file of its TOML 1.1 list, pinned in "
+│    ├─9  inlineCode "tests/fixtures/suite"
+│    └─10 text "."
+├─2  heading[1]
+│    │ depth: 2
+│    └─0 text "Usage"
+├─3  paragraph[3]
+│    ├─0 text "Link the language with "
+│    ├─1 inlineCode "ryo_toml::linked()"
+│    └─2 text " and hand the result to the SDK's calls."
+├─4  code "let language = ryo_toml::linked();\nassert_eq!(&*language.name().0, \"toml\");"
+│      lang: "rust"
+│      meta: null
+├─5  heading[1]
+│    │ depth: 2
+│    └─0 text "Domains"
+├─6  heading[1]
+│    │ depth: 3
+│    └─0 text "documents"
+├─7  paragraph[3]
+│    ├─0 text "The toml domain's "
+│    ├─1 inlineCode "documents"
+│    └─2 text " concept."
+├─8  heading[1]
+│    │ depth: 3
+│    └─0 text "keys"
+├─9  paragraph[3]
+│    ├─0 text "The toml domain's "
+│    ├─1 inlineCode "keys"
+│    └─2 text " concept: how the pass knows a key of a document again."
+├─10 heading[1]
+│    │ depth: 3
+│    └─0 text "language"
+├─11 paragraph[3]
+│    ├─0 text "The toml domain's "
+│    ├─1 inlineCode "language"
+│    └─2 text " concept."
+├─12 heading[1]
+│    │ depth: 3
+│    └─0 text "models"
+├─13 paragraph[3]
+│    ├─0 text "The toml domain's "
+│    ├─1 inlineCode "models"
+│    └─2 text " concept: how a reader is answered from the model of its file."
+├─14 heading[1]
+│    │ depth: 3
+│    └─0 text "relations"
+├─15 paragraph[3]
+│    ├─0 text "The toml domain's "
+│    ├─1 inlineCode "relations"
+│    └─2 text " concept: one reader for each relation the language reads."
+├─16 heading[1]
+│    │ depth: 3
+│    └─0 text "syntax"
+└─17 paragraph[3]
+     ├─0 text "The toml domain's "
+     ├─1 inlineCode "syntax"
+     └─2 text " concept."

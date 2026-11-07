@@ -1,0 +1,60 @@
+[package]
+name = "idiomatic-sh-ryo-rust"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+autobenches = false
+autotests = false
+
+[lib]
+name = "ryo_rust"
+
+[dependencies]
+thiserror.workspace = true
+toml.workspace = true
+serde.workspace = true
+globset.workspace = true
+rayon.workspace = true
+strum.workspace = true
+# Cargo is the reference the in-process reader is certified against, never a part of a run.
+cargo_metadata = { workspace = true, optional = true }
+ra_ap_syntax = "=0.0.347"
+ra_ap_parser = "=0.0.347"
+ryo = { package = "idiomatic-sh-ryo", path = "../../crates/sdk" }
+
+[dev-dependencies]
+ryo = { package = "idiomatic-sh-ryo", path = "../../crates/sdk", features = ["fixtures"] }
+dhat.workspace = true
+cargo_metadata.workspace = true
+tempfile.workspace = true
+# The crate itself, with its fixtures: its tests need them, and no test is run with a flag.
+idiomatic-sh-ryo-rust = { path = ".", features = ["fixtures"] }
+cucumber.workspace = true
+divan.workspace = true
+cpu-time.workspace = true
+tokio.workspace = true
+
+[[test]]
+name = "bdd"
+harness = false
+
+[[test]]
+name = "allocation"
+harness = false
+
+[[test]]
+name = "conformance"
+harness = false
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
+[features]
+fixtures = ["dep:cargo_metadata", "ryo/fixtures"]
+
+[lints]
+workspace = true

@@ -1,0 +1,144 @@
+SOURCE_FILE
+  FN
+    ATTR
+      POUND "#"
+      L_BRACK "["
+      PATH_META
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "inline"
+      R_BRACK "]"
+    WHITESPACE "\n"
+    FN_KW "fn"
+    WHITESPACE " "
+    NAME
+      IDENT "run"
+    PARAM_LIST
+      L_PAREN "("
+      R_PAREN ")"
+    WHITESPACE " "
+    BLOCK_EXPR
+      STMT_LIST
+        L_CURLY "{"
+        R_CURLY "}"
+  WHITESPACE "\n\n"
+  STRUCT
+    ATTR
+      POUND "#"
+      L_BRACK "["
+      TOKEN_TREE_META
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "derive"
+        TOKEN_TREE
+          L_PAREN "("
+          IDENT "Debug"
+          COMMA ","
+          WHITESPACE " "
+          IDENT "Clone"
+          R_PAREN ")"
+      R_BRACK "]"
+    WHITESPACE "\n"
+    ATTR
+      POUND "#"
+      L_BRACK "["
+      TOKEN_TREE_META
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "serde"
+        TOKEN_TREE
+          L_PAREN "("
+          IDENT "rename"
+          WHITESPACE " "
+          EQ "="
+          WHITESPACE " "
+          STRING "\"x\""
+          R_PAREN ")"
+      R_BRACK "]"
+    WHITESPACE "\n"
+    STRUCT_KW "struct"
+    WHITESPACE " "
+    NAME
+      IDENT "S"
+    WHITESPACE " "
+    RECORD_FIELD_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      RECORD_FIELD
+        ATTR
+          POUND "#"
+          L_BRACK "["
+          TOKEN_TREE_META
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  IDENT "allow"
+            TOKEN_TREE
+              L_PAREN "("
+              IDENT "dead_code"
+              R_PAREN ")"
+          R_BRACK "]"
+        WHITESPACE "\n    "
+        NAME
+          IDENT "field"
+        COLON ":"
+        WHITESPACE " "
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "u8"
+      COMMA ","
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n\n"
+  MODULE
+    ATTR
+      POUND "#"
+      L_BRACK "["
+      KEY_VALUE_META
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "path"
+        WHITESPACE " "
+        EQ "="
+        WHITESPACE " "
+        LITERAL
+          STRING "\"inner.rs\""
+      R_BRACK "]"
+    WHITESPACE "\n"
+    MOD_KW "mod"
+    WHITESPACE " "
+    NAME
+      IDENT "inner"
+    SEMICOLON ";"
+  WHITESPACE "\n\n"
+  FN
+    ATTR
+      POUND "#"
+      L_BRACK "["
+      CFG_META
+        CFG_KW "cfg"
+        L_PAREN "("
+        CFG_ATOM
+          IDENT "test"
+        R_PAREN ")"
+      R_BRACK "]"
+    WHITESPACE "\n"
+    FN_KW "fn"
+    WHITESPACE " "
+    NAME
+      IDENT "check"
+    PARAM_LIST
+      L_PAREN "("
+      R_PAREN ")"
+    WHITESPACE " "
+    BLOCK_EXPR
+      STMT_LIST
+        L_CURLY "{"
+        R_CURLY "}"
+  WHITESPACE "\n"

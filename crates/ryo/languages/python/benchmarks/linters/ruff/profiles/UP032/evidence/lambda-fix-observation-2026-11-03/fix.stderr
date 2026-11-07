@@ -1,0 +1,9 @@
+
+error: Fix introduced a syntax error. Reverting all changes.
+
+This indicates a bug in Ruff. If you could open an issue at:
+
+    https://github.com/astral-sh/ruff/issues/new?title=%5BFix%20error%5D
+
+...quoting the contents of `/tmp/lambda-allocation-evidence-20261103/function-repr/case.py`, the rule codes UP032, along with the `pyproject.toml` settings and executed command, we'd be very appreciative!
+

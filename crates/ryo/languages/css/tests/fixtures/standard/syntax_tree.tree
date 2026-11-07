@@ -1,0 +1,7 @@
+stylesheet
+  qualified-rule
+    ident
+    block
+      declaration b
+        ident
+  whitespace

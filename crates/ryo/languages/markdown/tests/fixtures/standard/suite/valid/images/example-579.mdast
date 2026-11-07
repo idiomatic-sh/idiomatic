@@ -1,0 +1,7 @@
+root[1]
+└─0 paragraph[2]
+    ├─0 text "My "
+    └─1 image
+          title: "title"
+          url: "/path/to/train.jpg"
+          alt: "foo bar"

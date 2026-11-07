@@ -1,0 +1,24 @@
+{
+  "name": "todo-api-javascript",
+  "description": "",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "node src/main.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "hono": "4.13.14",
+    "@hono/node-server": "2.1.5",
+    "todo-label": "file:packages/label"
+  },
+  "devDependencies": {
+    "picocolors": "^1.1.1"
+  },
+  "_sample": [
+    "// planted: JSON: name and description",
+    "// planted: JSON: dependencies in order",
+    "// planted: JSON: dependencies pinned"
+  ]
+}

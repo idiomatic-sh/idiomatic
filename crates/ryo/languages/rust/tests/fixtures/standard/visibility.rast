@@ -1,0 +1,382 @@
+SOURCE_FILE
+  STRUCT
+    VISIBILITY
+      PUB_KW "pub"
+    WHITESPACE " "
+    STRUCT_KW "struct"
+    WHITESPACE " "
+    NAME
+      IDENT "Service"
+    WHITESPACE " "
+    RECORD_FIELD_LIST
+      L_CURLY "{"
+      WHITESPACE "\n    "
+      RECORD_FIELD
+        VISIBILITY
+          PUB_KW "pub"
+          VISIBILITY_INNER
+            L_PAREN "("
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  CRATE_KW "crate"
+            R_PAREN ")"
+        WHITESPACE " "
+        NAME
+          IDENT "name"
+        COLON ":"
+        WHITESPACE " "
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "String"
+      COMMA ","
+      WHITESPACE "\n    "
+      RECORD_FIELD
+        NAME
+          IDENT "count"
+        COLON ":"
+        WHITESPACE " "
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "u8"
+      COMMA ","
+      WHITESPACE "\n"
+      R_CURLY "}"
+  WHITESPACE "\n"
+  ENUM
+    VISIBILITY
+      PUB_KW "pub"
+      VISIBILITY_INNER
+        L_PAREN "("
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              SUPER_KW "super"
+        R_PAREN ")"
+    WHITESPACE " "
+    ENUM_KW "enum"
+    WHITESPACE " "
+    NAME
+      IDENT "Mode"
+    WHITESPACE " "
+    VARIANT_LIST
+      L_CURLY "{"
+      WHITESPACE " "
+      VARIANT
+        NAME
+          IDENT "On"
+      WHITESPACE " "
+      R_CURLY "}"
+  WHITESPACE "\n"
+  FN
+    VISIBILITY
+      PUB_KW "pub"
+      VISIBILITY_INNER
+        L_PAREN "("
+        IN_KW "in"
+        WHITESPACE " "
+        PATH
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                CRATE_KW "crate"
+          COLON2 "::"
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "a"
+        R_PAREN ")"
+    WHITESPACE " "
+    FN_KW "fn"
+    WHITESPACE " "
+    NAME
+      IDENT "run"
+    PARAM_LIST
+      L_PAREN "("
+      R_PAREN ")"
+    WHITESPACE " "
+    BLOCK_EXPR
+      STMT_LIST
+        L_CURLY "{"
+        R_CURLY "}"
+  WHITESPACE "\n"
+  STRUCT
+    VISIBILITY
+      PUB_KW "pub"
+    WHITESPACE " "
+    STRUCT_KW "struct"
+    WHITESPACE " "
+    NAME
+      IDENT "Pair"
+    TUPLE_FIELD_LIST
+      L_PAREN "("
+      TUPLE_FIELD
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "u8"
+      COMMA ","
+      WHITESPACE " "
+      TUPLE_FIELD
+        PATH_TYPE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "u16"
+      R_PAREN ")"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  USE
+    VISIBILITY
+      PUB_KW "pub"
+    WHITESPACE " "
+    USE_KW "use"
+    WHITESPACE " "
+    USE_TREE
+      PATH
+        PATH
+          PATH_SEGMENT
+            NAME_REF
+              IDENT "std"
+        COLON2 "::"
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "fmt"
+      COLON2 "::"
+      USE_TREE_LIST
+        L_CURLY "{"
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                SELF_KW "self"
+        COMMA ","
+        WHITESPACE " "
+        USE_TREE
+          PATH
+            PATH_SEGMENT
+              NAME_REF
+                IDENT "Display"
+        R_CURLY "}"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  CONST
+    VISIBILITY
+      PUB_KW "pub"
+    WHITESPACE " "
+    CONST_KW "const"
+    WHITESPACE " "
+    NAME
+      IDENT "LIMIT"
+    COLON ":"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "u8"
+    WHITESPACE " "
+    EQ "="
+    WHITESPACE " "
+    LITERAL
+      INT_NUMBER "1"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  STATIC
+    VISIBILITY
+      PUB_KW "pub"
+    WHITESPACE " "
+    STATIC_KW "static"
+    WHITESPACE " "
+    NAME
+      IDENT "COUNT"
+    COLON ":"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "u8"
+    WHITESPACE " "
+    EQ "="
+    WHITESPACE " "
+    LITERAL
+      INT_NUMBER "0"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  MODULE
+    VISIBILITY
+      PUB_KW "pub"
+    WHITESPACE " "
+    MOD_KW "mod"
+    WHITESPACE " "
+    NAME
+      IDENT "inner"
+    WHITESPACE " "
+    ITEM_LIST
+      L_CURLY "{"
+      R_CURLY "}"
+  WHITESPACE "\n"
+  TRAIT
+    VISIBILITY
+      PUB_KW "pub"
+    WHITESPACE " "
+    TRAIT_KW "trait"
+    WHITESPACE " "
+    NAME
+      IDENT "Run"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      R_CURLY "}"
+  WHITESPACE "\n"
+  TYPE_ALIAS
+    VISIBILITY
+      PUB_KW "pub"
+    WHITESPACE " "
+    TYPE_KW "type"
+    WHITESPACE " "
+    NAME
+      IDENT "Alias"
+    WHITESPACE " "
+    EQ "="
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "u8"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  EXTERN_CRATE
+    VISIBILITY
+      PUB_KW "pub"
+    WHITESPACE " "
+    EXTERN_KW "extern"
+    WHITESPACE " "
+    CRATE_KW "crate"
+    WHITESPACE " "
+    NAME_REF
+      IDENT "alloc"
+    SEMICOLON ";"
+  WHITESPACE "\n"
+  IMPL
+    IMPL_KW "impl"
+    WHITESPACE " "
+    PATH_TYPE
+      PATH
+        PATH_SEGMENT
+          NAME_REF
+            IDENT "Service"
+    WHITESPACE " "
+    ASSOC_ITEM_LIST
+      L_CURLY "{"
+      WHITESPACE " "
+      FN
+        VISIBILITY
+          PUB_KW "pub"
+        WHITESPACE " "
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "new"
+        PARAM_LIST
+          L_PAREN "("
+          R_PAREN ")"
+        WHITESPACE " "
+        RET_TYPE
+          THIN_ARROW "->"
+          WHITESPACE " "
+          PATH_TYPE
+            PATH
+              PATH_SEGMENT
+                NAME_REF
+                  SELF_TYPE_KW "Self"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            WHITESPACE " "
+            RECORD_EXPR
+              PATH
+                PATH_SEGMENT
+                  NAME_REF
+                    SELF_TYPE_KW "Self"
+              WHITESPACE " "
+              RECORD_EXPR_FIELD_LIST
+                L_CURLY "{"
+                WHITESPACE " "
+                RECORD_EXPR_FIELD
+                  NAME_REF
+                    IDENT "name"
+                  COLON ":"
+                  WHITESPACE " "
+                  CALL_EXPR
+                    PATH_EXPR
+                      PATH
+                        PATH
+                          PATH_SEGMENT
+                            NAME_REF
+                              IDENT "String"
+                        COLON2 "::"
+                        PATH_SEGMENT
+                          NAME_REF
+                            IDENT "new"
+                    ARG_LIST
+                      L_PAREN "("
+                      R_PAREN ")"
+                COMMA ","
+                WHITESPACE " "
+                RECORD_EXPR_FIELD
+                  NAME_REF
+                    IDENT "count"
+                  COLON ":"
+                  WHITESPACE " "
+                  LITERAL
+                    INT_NUMBER "0"
+                WHITESPACE " "
+                R_CURLY "}"
+            WHITESPACE " "
+            R_CURLY "}"
+      WHITESPACE " "
+      FN
+        FN_KW "fn"
+        WHITESPACE " "
+        NAME
+          IDENT "hidden"
+        PARAM_LIST
+          L_PAREN "("
+          SELF_PARAM
+            AMP "&"
+            NAME
+              SELF_KW "self"
+          R_PAREN ")"
+        WHITESPACE " "
+        BLOCK_EXPR
+          STMT_LIST
+            L_CURLY "{"
+            R_CURLY "}"
+      WHITESPACE " "
+      R_CURLY "}"
+  WHITESPACE "\n"
+  FN
+    FN_KW "fn"
+    WHITESPACE " "
+    NAME
+      IDENT "private"
+    PARAM_LIST
+      L_PAREN "("
+      R_PAREN ")"
+    WHITESPACE " "
+    BLOCK_EXPR
+      STMT_LIST
+        L_CURLY "{"
+        R_CURLY "}"
+  WHITESPACE "\n"

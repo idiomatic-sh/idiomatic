@@ -1,0 +1,118 @@
+{
+  "first-line": {
+    "source": "# coding: utf-8\nx = 1\n",
+    "expected": [
+      {
+        "rule": "UP009",
+        "file": "case.py",
+        "start": 0,
+        "end": 15
+      }
+    ]
+  },
+  "shebang-second": {
+    "source": "#!/usr/bin/python\n# coding=utf8\nx = 1\n",
+    "expected": [
+      {
+        "rule": "UP009",
+        "file": "case.py",
+        "start": 18,
+        "end": 31
+      }
+    ]
+  },
+  "leading-comment-second": {
+    "source": "# generated file\n# coding: utf-8\n",
+    "expected": [
+      {
+        "rule": "UP009",
+        "file": "case.py",
+        "start": 17,
+        "end": 32
+      }
+    ]
+  },
+  "code-before-second": {
+    "source": "x = 1\n# coding: utf-8\n",
+    "expected": []
+  },
+  "other-encoding-next": {
+    "source": "# coding: utf-8\n# coding: latin-1\n",
+    "expected": []
+  },
+  "other-after-one-comment": {
+    "source": "# coding: utf-8\n# ordinary\n# coding: latin-1\n",
+    "expected": []
+  },
+  "other-after-two-comments": {
+    "source": "# coding: utf-8\n# ordinary\n# another ordinary\n# coding: latin-1\n",
+    "expected": [
+      {
+        "rule": "UP009",
+        "file": "case.py",
+        "start": 0,
+        "end": 15
+      }
+    ]
+  },
+  "utf8-next": {
+    "source": "# coding: utf-8\n# coding: utf8\n",
+    "expected": [
+      {
+        "rule": "UP009",
+        "file": "case.py",
+        "start": 0,
+        "end": 15
+      }
+    ]
+  },
+  "separated-by-code": {
+    "source": "# coding: utf-8\nx = 1\n# coding: latin-1\n",
+    "expected": [
+      {
+        "rule": "UP009",
+        "file": "case.py",
+        "start": 0,
+        "end": 15
+      }
+    ]
+  },
+  "middle-of-line": {
+    "source": "x = 1  # coding: utf-8\n",
+    "expected": []
+  },
+  "upper-name": {
+    "source": "# coding: UTF-8\n",
+    "expected": []
+  },
+  "third-line": {
+    "source": "# generated\n# second\n# coding: utf-8\n",
+    "expected": []
+  },
+  "first-of-two": {
+    "source": "# coding: utf8\n# coding: utf-8\n",
+    "expected": [
+      {
+        "rule": "UP009",
+        "file": "case.py",
+        "start": 0,
+        "end": 14
+      }
+    ]
+  },
+  "other-first": {
+    "source": "# coding: latin-1\n# coding: utf-8\n",
+    "expected": []
+  },
+  "formfeed": {
+    "source": "#\fcoding: utf-8\n",
+    "expected": [
+      {
+        "rule": "UP009",
+        "file": "case.py",
+        "start": 0,
+        "end": 15
+      }
+    ]
+  }
+}

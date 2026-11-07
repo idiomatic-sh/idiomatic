@@ -1,0 +1,38 @@
+description = "A workflow on GitHub Actions: its one trigger, `workflow_dispatch`, so a hosted run starts only by hand; its steps, which `ci/workflows_test.py` holds to a machine, the toolchain, the tools installed and, for a job that checks, one `asymptote check` call at the end."
+why = "Keeps GitHub a thin edge over Asymptote: what a check runs and in which groups is decided by `asymptote check` from the tools in the `asymptote.toml` files, so moving to another CI replaces the workflows alone."
+content = '''
+name: {{ workflow }}
+on:
+  workflow_dispatch:
+'''
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = '.github/workflows/{workflow}.yml'
+given.count = { min = 1 }
+given.files.'.github/workflows/demo.yml' = '''
+name: demo
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  demo:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: cargo install --path crates/asymptote/cli --locked
+      - run: asymptote check
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = '.github/workflows/{workflow}.yml'
+given.count = { min = 1 }
+then.findings = [
+  { rule = 'thin-workflow#count', path = '.' },
+]

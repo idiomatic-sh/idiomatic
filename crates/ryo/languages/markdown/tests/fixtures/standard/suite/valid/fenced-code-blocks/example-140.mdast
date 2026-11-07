@@ -1,0 +1,8 @@
+root[3]
+├─0 paragraph[1]
+│   └─0 text "foo"
+├─1 code "bar"
+│     lang: null
+│     meta: null
+└─2 paragraph[1]
+    └─0 text "baz"

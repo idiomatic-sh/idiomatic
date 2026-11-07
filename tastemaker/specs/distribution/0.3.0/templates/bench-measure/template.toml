@@ -1,0 +1,653 @@
+description = "One measured run of the distribution bench: wall and child-inclusive CPU from hyperfine and peak memory from hyperfine and the sampled process tree, under a 16 GiB address-space cap on a fixed CPU allocation of `WORKERS` logical CPUs, its cold run taken over `ROUNDS` rounds and its warm and edit runs over the first `WARM_ROUNDS`, its output and exit code held to the target's expected findings."
+why = "A number is only worth reporting for a run that printed the expected findings, on the same CPUs every time."
+match = "text"
+content = '''
+//! One measured run: wall and child-inclusive CPU from hyperfine, peak memory from hyperfine
+//! and the sampled process tree, under an address-space cap on a fixed CPU allocation.
+
+use super::resources;
+use super::smoke::{output, target_test};
+use std::io::Write as _;
+use std::path::Path;
+use std::process::Command;
+
+/// How many rounds the cold run of a target is taken over: its `value` is the median of these.
+pub(super) const ROUNDS: usize = 5;
+
+/// How many rounds the warm run and the run after the edit are taken over (the first of the rounds).
+pub(super) const WARM_ROUNDS: usize = 3;
+
+/// The logical CPUs a run is given, 0 through this many less one: the same allocation on every run, so a number is
+/// the engine's and not the machine's.
+pub(super) const WORKERS: usize = 10;
+
+/// The address space one run may take, in kibibytes (16 GiB): a runaway run fails instead
+/// of taking the machine with it.
+const CAP: u64 = 16 * 1024 * 1024;
+
+/// One round: wall and CPU milliseconds in cold/warm/edit order (the cold run alone in a round past
+/// [`WARM_ROUNDS`]), and the peak memory in bytes.
+#[derive(Clone, Debug)]
+pub(super) struct Numbers {
+    /// Each run's wall milliseconds.
+    pub wall: Vec<u128>,
+    /// Each run's CPU milliseconds, its children's included.
+    pub cpu: Vec<u128>,
+    /// The largest memory any of the round's runs took, in bytes.
+    pub peak: u128,
+}
+
+/// `duration` in milliseconds, to the microsecond, for a line meant for a person.
+pub(super) fn milliseconds(duration: std::time::Duration) -> String {
+    format!("{:.3}ms", duration.as_secs_f64() * 1000.0_f64)
+}
+
+/// `path` as one word of a shell command.
+fn quoted(path: &Path) -> String {
+    format!("'{}'", path.display().to_string().replace('\'', "'\\''"))
+}
+
+/// The same numbered logical CPUs on every run; unavailable allocations are refused.
+pub(super) fn allocation() -> std::io::Result<()> {
+    let workers = WORKERS;
+    let requested = if workers == 1 {
+        "0".to_owned()
+    } else {
+        format!("0-{}", workers - 1)
+    };
+    let actual = output(Command::new("taskset").args([
+        "--cpu-list",
+        &requested,
+        "sh",
+        "-c",
+        "taskset --pid --cpu-list $$",
+    ]))?;
+    if actual.rsplit(':').next().map(str::trim) != Some(requested.as_str()) {
+        return Err(std::io::Error::other(format!(
+            "requested CPUs {requested}, actual {actual}"
+        )));
+    }
+    Ok(())
+}
+
+/// Times the full command, holds its output to `expected`, and observes sampled
+/// process-tree RSS: its wall and CPU milliseconds and its peak bytes.
+pub(super) fn measure(
+    command: &Path,
+    project: &Path,
+    scratch: &Path,
+    expected: &Path,
+) -> std::io::Result<(u128, u128, u64)> {
+    let workers = WORKERS;
+    let printed = scratch.join("printed");
+    let report = scratch.join("hyperfine.json");
+    let pidfile = scratch.join("measured.pid");
+    if pidfile.exists() {
+        std::fs::remove_file(&pidfile)?;
+    }
+    let line = format!(
+        "cd {} && ulimit -v {CAP} && echo $$ >{} && exec taskset --cpu-list 0-{} {} {} >{} 2>/dev/null",
+        quoted(project),
+        quoted(&pidfile),
+        workers - 1,
+        quoted(command),
+        target_test::CHECK,
+        quoted(&printed)
+    );
+    let child = Command::new("hyperfine")
+        .args(["--runs", "1", "--style", "none"])
+        .arg("--ignore-failure")
+        .arg("--export-json")
+        .arg(&report)
+        .arg(line)
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()?;
+    let (output, sampled) = resources::observe(child, &pidfile)?;
+    if !output.status.success() {
+        return Err(std::io::Error::other(
+            String::from_utf8_lossy(&output.stderr).into_owned(),
+        ));
+    }
+    let report: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&report)?).map_err(std::io::Error::other)?;
+    let missing = |what: &str| std::io::Error::other(format!("hyperfine reports no {what}"));
+    let result = report
+        .get("results")
+        .and_then(|results| results.get(0))
+        .ok_or_else(|| missing("result"))?;
+    // The first entry of the result's list `key`: the one run hyperfine was asked for.
+    let first = |key: &str| result.get(key)?.get(0);
+    let seconds = first("times")
+        .and_then(serde_json::Value::as_f64)
+        .ok_or_else(|| missing("time"))?;
+    let peak = first("memory_usage_byte")
+        .and_then(serde_json::Value::as_u64)
+        .ok_or_else(|| missing("memory"))?;
+    // The command ends with the exit code its expected findings state.
+    let ended = first("exit_codes")
+        .and_then(serde_json::Value::as_i64)
+        .and_then(|code| i32::try_from(code).ok());
+    let findings = target_test::hold(&std::fs::read(&printed)?, ended, expected)?;
+    let user = result
+        .get("user")
+        .and_then(serde_json::Value::as_f64)
+        .ok_or_else(|| missing("user CPU"))?;
+    let system = result
+        .get("system")
+        .and_then(serde_json::Value::as_f64)
+        .ok_or_else(|| missing("system CPU"))?;
+    let duration =
+        |value| std::time::Duration::try_from_secs_f64(value).map_err(std::io::Error::other);
+    writeln!(
+        std::io::stderr().lock(),
+        "workers={workers} cpus=0-{} wall={seconds:.6}s user={user:.6}s system={system:.6}s kernel-max-rss={peak} sampled-tree-rss={} interval=5ms samples={} sampler-cpu={} longest-gap={} findings={findings}",
+        workers - 1,
+        sampled.peak,
+        sampled.samples,
+        milliseconds(sampled.cpu),
+        milliseconds(sampled.longest_gap)
+    )?;
+    Ok((
+        duration(seconds)?.as_millis(),
+        duration(user + system)?.as_millis(),
+        peak.max(sampled.peak),
+    ))
+}
+'''
+
+[given]
+file = 'measure.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'measure.rs' = '''
+//! One measured run: wall and child-inclusive CPU from hyperfine, peak memory from hyperfine
+//! and the sampled process tree, under an address-space cap on a fixed CPU allocation.
+
+use super::resources;
+use super::smoke::{output, target_test};
+use std::io::Write as _;
+use std::path::Path;
+use std::process::Command;
+
+/// How many rounds the cold run of a target is taken over: its `value` is the median of these.
+pub(super) const ROUNDS: usize = 5;
+
+/// How many rounds the warm run and the run after the edit are taken over (the first of the rounds).
+pub(super) const WARM_ROUNDS: usize = 3;
+
+/// The logical CPUs a run is given, 0 through this many less one: the same allocation on every run, so a number is
+/// the engine's and not the machine's.
+pub(super) const WORKERS: usize = 10;
+
+/// The address space one run may take, in kibibytes (16 GiB): a runaway run fails instead
+/// of taking the machine with it.
+const CAP: u64 = 16 * 1024 * 1024;
+
+/// One round: wall and CPU milliseconds in cold/warm/edit order (the cold run alone in a round past
+/// [`WARM_ROUNDS`]), and the peak memory in bytes.
+#[derive(Clone, Debug)]
+pub(super) struct Numbers {
+    /// Each run's wall milliseconds.
+    pub wall: Vec<u128>,
+    /// Each run's CPU milliseconds, its children's included.
+    pub cpu: Vec<u128>,
+    /// The largest memory any of the round's runs took, in bytes.
+    pub peak: u128,
+}
+
+/// `duration` in milliseconds, to the microsecond, for a line meant for a person.
+pub(super) fn milliseconds(duration: std::time::Duration) -> String {
+    format!("{:.3}ms", duration.as_secs_f64() * 1000.0_f64)
+}
+
+/// `path` as one word of a shell command.
+fn quoted(path: &Path) -> String {
+    format!("'{}'", path.display().to_string().replace('\'', "'\\''"))
+}
+
+/// The same numbered logical CPUs on every run; unavailable allocations are refused.
+pub(super) fn allocation() -> std::io::Result<()> {
+    let workers = WORKERS;
+    let requested = if workers == 1 {
+        "0".to_owned()
+    } else {
+        format!("0-{}", workers - 1)
+    };
+    let actual = output(Command::new("taskset").args([
+        "--cpu-list",
+        &requested,
+        "sh",
+        "-c",
+        "taskset --pid --cpu-list $$",
+    ]))?;
+    if actual.rsplit(':').next().map(str::trim) != Some(requested.as_str()) {
+        return Err(std::io::Error::other(format!(
+            "requested CPUs {requested}, actual {actual}"
+        )));
+    }
+    Ok(())
+}
+
+/// Times the full command, holds its output to `expected`, and observes sampled
+/// process-tree RSS: its wall and CPU milliseconds and its peak bytes.
+pub(super) fn measure(
+    command: &Path,
+    project: &Path,
+    scratch: &Path,
+    expected: &Path,
+) -> std::io::Result<(u128, u128, u64)> {
+    let workers = WORKERS;
+    let printed = scratch.join("printed");
+    let report = scratch.join("hyperfine.json");
+    let pidfile = scratch.join("measured.pid");
+    if pidfile.exists() {
+        std::fs::remove_file(&pidfile)?;
+    }
+    let line = format!(
+        "cd {} && ulimit -v {CAP} && echo $$ >{} && exec taskset --cpu-list 0-{} {} {} >{} 2>/dev/null",
+        quoted(project),
+        quoted(&pidfile),
+        workers - 1,
+        quoted(command),
+        target_test::CHECK,
+        quoted(&printed)
+    );
+    let child = Command::new("hyperfine")
+        .args(["--runs", "1", "--style", "none"])
+        .arg("--ignore-failure")
+        .arg("--export-json")
+        .arg(&report)
+        .arg(line)
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()?;
+    let (output, sampled) = resources::observe(child, &pidfile)?;
+    if !output.status.success() {
+        return Err(std::io::Error::other(
+            String::from_utf8_lossy(&output.stderr).into_owned(),
+        ));
+    }
+    let report: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&report)?).map_err(std::io::Error::other)?;
+    let missing = |what: &str| std::io::Error::other(format!("hyperfine reports no {what}"));
+    let result = report
+        .get("results")
+        .and_then(|results| results.get(0))
+        .ok_or_else(|| missing("result"))?;
+    // The first entry of the result's list `key`: the one run hyperfine was asked for.
+    let first = |key: &str| result.get(key)?.get(0);
+    let seconds = first("times")
+        .and_then(serde_json::Value::as_f64)
+        .ok_or_else(|| missing("time"))?;
+    let peak = first("memory_usage_byte")
+        .and_then(serde_json::Value::as_u64)
+        .ok_or_else(|| missing("memory"))?;
+    // The command ends with the exit code its expected findings state.
+    let ended = first("exit_codes")
+        .and_then(serde_json::Value::as_i64)
+        .and_then(|code| i32::try_from(code).ok());
+    let findings = target_test::hold(&std::fs::read(&printed)?, ended, expected)?;
+    let user = result
+        .get("user")
+        .and_then(serde_json::Value::as_f64)
+        .ok_or_else(|| missing("user CPU"))?;
+    let system = result
+        .get("system")
+        .and_then(serde_json::Value::as_f64)
+        .ok_or_else(|| missing("system CPU"))?;
+    let duration =
+        |value| std::time::Duration::try_from_secs_f64(value).map_err(std::io::Error::other);
+    writeln!(
+        std::io::stderr().lock(),
+        "workers={workers} cpus=0-{} wall={seconds:.6}s user={user:.6}s system={system:.6}s kernel-max-rss={peak} sampled-tree-rss={} interval=5ms samples={} sampler-cpu={} longest-gap={} findings={findings}",
+        workers - 1,
+        sampled.peak,
+        sampled.samples,
+        milliseconds(sampled.cpu),
+        milliseconds(sampled.longest_gap)
+    )?;
+    Ok((
+        duration(seconds)?.as_millis(),
+        duration(user + system)?.as_millis(),
+        peak.max(sampled.peak),
+    ))
+}
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.files.'.gitkeep' = ''
+then.findings = [
+  { rule = 'bench-measure#count', path = '.' },
+]
+
+[[scenarios]]
+id = 'comment-added'
+scenario = 'A line the verbatim template does not have is reported, though the file declares the same items.'
+given.files.'measure.rs' = '''
+//! One measured run: wall and child-inclusive CPU from hyperfine, peak memory from hyperfine
+//! and the sampled process tree, under an address-space cap on a fixed CPU allocation.
+
+use super::resources;
+use super::smoke::{output, target_test};
+use std::io::Write as _;
+use std::path::Path;
+use std::process::Command;
+
+/// How many rounds the cold run of a target is taken over: its `value` is the median of these.
+pub(super) const ROUNDS: usize = 5;
+
+/// How many rounds the warm run and the run after the edit are taken over (the first of the rounds).
+pub(super) const WARM_ROUNDS: usize = 3;
+
+/// The logical CPUs a run is given, 0 through this many less one: the same allocation on every run, so a number is
+/// the engine's and not the machine's.
+pub(super) const WORKERS: usize = 10;
+
+/// The address space one run may take, in kibibytes (16 GiB): a runaway run fails instead
+/// of taking the machine with it.
+const CAP: u64 = 16 * 1024 * 1024;
+
+/// One round: wall and CPU milliseconds in cold/warm/edit order (the cold run alone in a round past
+/// [`WARM_ROUNDS`]), and the peak memory in bytes.
+#[derive(Clone, Debug)]
+pub(super) struct Numbers {
+    /// Each run's wall milliseconds.
+    pub wall: Vec<u128>,
+    /// Each run's CPU milliseconds, its children's included.
+    pub cpu: Vec<u128>,
+    /// The largest memory any of the round's runs took, in bytes.
+    pub peak: u128,
+}
+
+/// `duration` in milliseconds, to the microsecond, for a line meant for a person.
+pub(super) fn milliseconds(duration: std::time::Duration) -> String {
+    format!("{:.3}ms", duration.as_secs_f64() * 1000.0_f64)
+}
+
+/// `path` as one word of a shell command.
+fn quoted(path: &Path) -> String {
+    format!("'{}'", path.display().to_string().replace('\'', "'\\''"))
+}
+
+/// The same numbered logical CPUs on every run; unavailable allocations are refused.
+pub(super) fn allocation() -> std::io::Result<()> {
+    let workers = WORKERS;
+    let requested = if workers == 1 {
+        "0".to_owned()
+    } else {
+        format!("0-{}", workers - 1)
+    };
+    let actual = output(Command::new("taskset").args([
+        "--cpu-list",
+        &requested,
+        "sh",
+        "-c",
+        "taskset --pid --cpu-list $$",
+    ]))?;
+    if actual.rsplit(':').next().map(str::trim) != Some(requested.as_str()) {
+        return Err(std::io::Error::other(format!(
+            "requested CPUs {requested}, actual {actual}"
+        )));
+    }
+    Ok(())
+}
+
+/// Times the full command, holds its output to `expected`, and observes sampled
+/// process-tree RSS: its wall and CPU milliseconds and its peak bytes.
+pub(super) fn measure(
+    command: &Path,
+    project: &Path,
+    scratch: &Path,
+    expected: &Path,
+) -> std::io::Result<(u128, u128, u64)> {
+    let workers = WORKERS;
+    let printed = scratch.join("printed");
+    let report = scratch.join("hyperfine.json");
+    let pidfile = scratch.join("measured.pid");
+    if pidfile.exists() {
+        std::fs::remove_file(&pidfile)?;
+    }
+    let line = format!(
+        "cd {} && ulimit -v {CAP} && echo $$ >{} && exec taskset --cpu-list 0-{} {} {} >{} 2>/dev/null",
+        quoted(project),
+        quoted(&pidfile),
+        workers - 1,
+        quoted(command),
+        target_test::CHECK,
+        quoted(&printed)
+    );
+    let child = Command::new("hyperfine")
+        .args(["--runs", "1", "--style", "none"])
+        .arg("--ignore-failure")
+        .arg("--export-json")
+        .arg(&report)
+        .arg(line)
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()?;
+    let (output, sampled) = resources::observe(child, &pidfile)?;
+    if !output.status.success() {
+        return Err(std::io::Error::other(
+            String::from_utf8_lossy(&output.stderr).into_owned(),
+        ));
+    }
+    let report: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&report)?).map_err(std::io::Error::other)?;
+    let missing = |what: &str| std::io::Error::other(format!("hyperfine reports no {what}"));
+    let result = report
+        .get("results")
+        .and_then(|results| results.get(0))
+        .ok_or_else(|| missing("result"))?;
+    // The first entry of the result's list `key`: the one run hyperfine was asked for.
+    let first = |key: &str| result.get(key)?.get(0);
+    let seconds = first("times")
+        .and_then(serde_json::Value::as_f64)
+        .ok_or_else(|| missing("time"))?;
+    let peak = first("memory_usage_byte")
+        .and_then(serde_json::Value::as_u64)
+        .ok_or_else(|| missing("memory"))?;
+    // The command ends with the exit code its expected findings state.
+    let ended = first("exit_codes")
+        .and_then(serde_json::Value::as_i64)
+        .and_then(|code| i32::try_from(code).ok());
+    let findings = target_test::hold(&std::fs::read(&printed)?, ended, expected)?;
+    let user = result
+        .get("user")
+        .and_then(serde_json::Value::as_f64)
+        .ok_or_else(|| missing("user CPU"))?;
+    let system = result
+        .get("system")
+        .and_then(serde_json::Value::as_f64)
+        .ok_or_else(|| missing("system CPU"))?;
+    let duration =
+        |value| std::time::Duration::try_from_secs_f64(value).map_err(std::io::Error::other);
+    writeln!(
+        std::io::stderr().lock(),
+        "workers={workers} cpus=0-{} wall={seconds:.6}s user={user:.6}s system={system:.6}s kernel-max-rss={peak} sampled-tree-rss={} interval=5ms samples={} sampler-cpu={} longest-gap={} findings={findings}",
+        workers - 1,
+        sampled.peak,
+        sampled.samples,
+        milliseconds(sampled.cpu),
+        milliseconds(sampled.longest_gap)
+    )?;
+    Ok((
+        duration(seconds)?.as_millis(),
+        duration(user + system)?.as_millis(),
+        peak.max(sampled.peak),
+    ))
+}
+// A line the template does not have.
+'''
+then.findings = [
+  { rule = 'bench-measure#template', path = 'measure.rs' },
+]
+
+[[scenarios]]
+id = 'value-changed'
+scenario = 'A value the verbatim template fixes is reported, though the file declares the same items.'
+given.files.'measure.rs' = '''
+//! One measured run: wall and child-inclusive CPU from hyperfine, peak memory from hyperfine
+//! and the sampled process tree, under an address-space cap on a fixed CPU allocation.
+
+use super::resources;
+use super::smoke::{output, target_test};
+use std::io::Write as _;
+use std::path::Path;
+use std::process::Command;
+
+/// How many rounds the cold run of a target is taken over: its `value` is the median of these.
+pub(super) const ROUNDS: usize = 5;
+
+/// How many rounds the warm run and the run after the edit are taken over (the first of the rounds).
+pub(super) const WARM_ROUNDS: usize = 3;
+
+/// The logical CPUs a run is given, 0 through this many less one: the same allocation on every run, so a number is
+/// the engine's and not the machine's.
+pub(super) const WORKERS: usize = 8;
+
+/// The address space one run may take, in kibibytes (16 GiB): a runaway run fails instead
+/// of taking the machine with it.
+const CAP: u64 = 16 * 1024 * 1024;
+
+/// One round: wall and CPU milliseconds in cold/warm/edit order (the cold run alone in a round past
+/// [`WARM_ROUNDS`]), and the peak memory in bytes.
+#[derive(Clone, Debug)]
+pub(super) struct Numbers {
+    /// Each run's wall milliseconds.
+    pub wall: Vec<u128>,
+    /// Each run's CPU milliseconds, its children's included.
+    pub cpu: Vec<u128>,
+    /// The largest memory any of the round's runs took, in bytes.
+    pub peak: u128,
+}
+
+/// `duration` in milliseconds, to the microsecond, for a line meant for a person.
+pub(super) fn milliseconds(duration: std::time::Duration) -> String {
+    format!("{:.3}ms", duration.as_secs_f64() * 1000.0_f64)
+}
+
+/// `path` as one word of a shell command.
+fn quoted(path: &Path) -> String {
+    format!("'{}'", path.display().to_string().replace('\'', "'\\''"))
+}
+
+/// The same numbered logical CPUs on every run; unavailable allocations are refused.
+pub(super) fn allocation() -> std::io::Result<()> {
+    let workers = WORKERS;
+    let requested = if workers == 1 {
+        "0".to_owned()
+    } else {
+        format!("0-{}", workers - 1)
+    };
+    let actual = output(Command::new("taskset").args([
+        "--cpu-list",
+        &requested,
+        "sh",
+        "-c",
+        "taskset --pid --cpu-list $$",
+    ]))?;
+    if actual.rsplit(':').next().map(str::trim) != Some(requested.as_str()) {
+        return Err(std::io::Error::other(format!(
+            "requested CPUs {requested}, actual {actual}"
+        )));
+    }
+    Ok(())
+}
+
+/// Times the full command, holds its output to `expected`, and observes sampled
+/// process-tree RSS: its wall and CPU milliseconds and its peak bytes.
+pub(super) fn measure(
+    command: &Path,
+    project: &Path,
+    scratch: &Path,
+    expected: &Path,
+) -> std::io::Result<(u128, u128, u64)> {
+    let workers = WORKERS;
+    let printed = scratch.join("printed");
+    let report = scratch.join("hyperfine.json");
+    let pidfile = scratch.join("measured.pid");
+    if pidfile.exists() {
+        std::fs::remove_file(&pidfile)?;
+    }
+    let line = format!(
+        "cd {} && ulimit -v {CAP} && echo $$ >{} && exec taskset --cpu-list 0-{} {} {} >{} 2>/dev/null",
+        quoted(project),
+        quoted(&pidfile),
+        workers - 1,
+        quoted(command),
+        target_test::CHECK,
+        quoted(&printed)
+    );
+    let child = Command::new("hyperfine")
+        .args(["--runs", "1", "--style", "none"])
+        .arg("--ignore-failure")
+        .arg("--export-json")
+        .arg(&report)
+        .arg(line)
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()?;
+    let (output, sampled) = resources::observe(child, &pidfile)?;
+    if !output.status.success() {
+        return Err(std::io::Error::other(
+            String::from_utf8_lossy(&output.stderr).into_owned(),
+        ));
+    }
+    let report: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&report)?).map_err(std::io::Error::other)?;
+    let missing = |what: &str| std::io::Error::other(format!("hyperfine reports no {what}"));
+    let result = report
+        .get("results")
+        .and_then(|results| results.get(0))
+        .ok_or_else(|| missing("result"))?;
+    // The first entry of the result's list `key`: the one run hyperfine was asked for.
+    let first = |key: &str| result.get(key)?.get(0);
+    let seconds = first("times")
+        .and_then(serde_json::Value::as_f64)
+        .ok_or_else(|| missing("time"))?;
+    let peak = first("memory_usage_byte")
+        .and_then(serde_json::Value::as_u64)
+        .ok_or_else(|| missing("memory"))?;
+    // The command ends with the exit code its expected findings state.
+    let ended = first("exit_codes")
+        .and_then(serde_json::Value::as_i64)
+        .and_then(|code| i32::try_from(code).ok());
+    let findings = target_test::hold(&std::fs::read(&printed)?, ended, expected)?;
+    let user = result
+        .get("user")
+        .and_then(serde_json::Value::as_f64)
+        .ok_or_else(|| missing("user CPU"))?;
+    let system = result
+        .get("system")
+        .and_then(serde_json::Value::as_f64)
+        .ok_or_else(|| missing("system CPU"))?;
+    let duration =
+        |value| std::time::Duration::try_from_secs_f64(value).map_err(std::io::Error::other);
+    writeln!(
+        std::io::stderr().lock(),
+        "workers={workers} cpus=0-{} wall={seconds:.6}s user={user:.6}s system={system:.6}s kernel-max-rss={peak} sampled-tree-rss={} interval=5ms samples={} sampler-cpu={} longest-gap={} findings={findings}",
+        workers - 1,
+        sampled.peak,
+        sampled.samples,
+        milliseconds(sampled.cpu),
+        milliseconds(sampled.longest_gap)
+    )?;
+    Ok((
+        duration(seconds)?.as_millis(),
+        duration(user + system)?.as_millis(),
+        peak.max(sampled.peak),
+    ))
+}
+'''
+then.findings = [
+  { rule = 'bench-measure#template', path = 'measure.rs' },
+]

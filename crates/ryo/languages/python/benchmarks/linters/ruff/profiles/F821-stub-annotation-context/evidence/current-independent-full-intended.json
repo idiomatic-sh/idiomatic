@@ -1,0 +1,1110 @@
+[
+  {
+    "rule": "F821",
+    "name": "cross-PYI034-metaclass-function-annotation-typescope",
+    "files": {
+      "case.pyi": "from typing import TypeVar\nT=TypeVar(\"T\")\nclass A(type): ...\ndef outer(x:(A:=unknown)):\n class Subject(A):\n  def __enter__(self)->Subject: ...\n"
+    },
+    "reference_expected": [
+      {
+        "end": 84,
+        "file": "case.pyi",
+        "rule": "F821",
+        "start": 77
+      },
+      {
+        "end": 84,
+        "file": "case.pyi",
+        "rule": "invalid-syntax",
+        "start": 74
+      }
+    ],
+    "independent_intended": [
+      {
+        "end": 84,
+        "file": "case.pyi",
+        "rule": "F821",
+        "start": 77
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-class-forward-type",
+    "files": {
+      "case.py": "class C:\n from __future__ import annotations\n def f(self)->Later: ...\n class Later: ...\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "F821",
+        "file": "case.py",
+        "start": 59,
+        "end": 64
+      }
+    ],
+    "basis": [
+      "Independent AST name-token span for Later. Existing target3.10 original/valid-pair and both unbound/bound runtime controls show this eager annotation lookup; nested future cannot enable postponement. Original other F821 findings retained."
+    ]
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-class-scoped-import",
+    "files": {
+      "case.py": "class C:\n from __future__ import annotations\n def f(x:(value:=object)): pass\ndef later(x:(other:=object)): pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 55,
+        "end": 68
+      }
+    ],
+    "independent_intended": [],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-early-definition",
+    "files": {
+      "case.py": "def f(x:(value:=object)):\n global value\n nonlocal value\nfrom __future__ import annotations\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 50,
+        "end": 55
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-except-restoration",
+    "files": {
+      "case.py": "try: ...\nexcept Exception:\n from __future__ import annotations\n def inner()->Inside: ...\n class Inside: ...\ndef later()->Outside: ...\nclass Outside: ...\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "F821",
+        "file": "case.py",
+        "start": 121,
+        "end": 128
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "F821",
+        "file": "case.py",
+        "start": 121,
+        "end": 128
+      },
+      {
+        "rule": "F821",
+        "file": "case.py",
+        "start": 77,
+        "end": 83
+      }
+    ],
+    "basis": [
+      "Independent AST name-token span for Inside. Existing target3.10 original/valid-pair and both unbound/bound runtime controls show this eager annotation lookup; nested future cannot enable postponement. Original other F821 findings retained."
+    ]
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-function-forward-type",
+    "files": {
+      "case.py": "def outer():\n from __future__ import annotations\n def inner()->Later: ...\n class Later: ...\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "F821",
+        "file": "case.py",
+        "start": 63,
+        "end": 68
+      }
+    ],
+    "basis": [
+      "Independent AST name-token span for Later. Existing target3.10 original/valid-pair and both unbound/bound runtime controls show this eager annotation lookup; nested future cannot enable postponement. Original other F821 findings retained."
+    ]
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-function-scoped-import",
+    "files": {
+      "case.py": "def outer():\n from __future__ import annotations\n def inner(x:(value:=object)): pass\ndef later(x:(other:=object)): pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 63,
+        "end": 76
+      }
+    ],
+    "independent_intended": [],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-if-else-inheritance",
+    "files": {
+      "case.py": "if flag:\n from __future__ import annotations\nelse:\n def f()->Later: ...\n class Later: ...\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "F821",
+        "file": "case.py",
+        "start": 3,
+        "end": 7
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "F821",
+        "file": "case.py",
+        "start": 3,
+        "end": 7
+      },
+      {
+        "rule": "F821",
+        "file": "case.py",
+        "start": 61,
+        "end": 66
+      }
+    ],
+    "basis": [
+      "Independent AST name-token span for Later. Existing target3.10 original/valid-pair and both unbound/bound runtime controls show this eager annotation lookup; nested future cannot enable postponement. Original other F821 findings retained."
+    ]
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-if-restoration",
+    "files": {
+      "case.py": "if flag:\n from __future__ import annotations\n def inner()->Inside: ...\n class Inside: ...\ndef later()->Outside: ...\nclass Outside: ...\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "F821",
+        "file": "case.py",
+        "start": 3,
+        "end": 7
+      },
+      {
+        "rule": "F821",
+        "file": "case.py",
+        "start": 103,
+        "end": 110
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "F821",
+        "file": "case.py",
+        "start": 3,
+        "end": 7
+      },
+      {
+        "rule": "F821",
+        "file": "case.py",
+        "start": 103,
+        "end": 110
+      },
+      {
+        "rule": "F821",
+        "file": "case.py",
+        "start": 59,
+        "end": 65
+      }
+    ],
+    "basis": [
+      "Independent AST name-token span for Inside. Existing target3.10 original/valid-pair and both unbound/bound runtime controls show this eager annotation lookup; nested future cannot enable postponement. Original other F821 findings retained."
+    ]
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-later-definition",
+    "files": {
+      "case.py": "def early(x:(value:=object)): pass\nfrom __future__ import annotations\ndef later(x:(other:=object)): pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 83,
+        "end": 96
+      }
+    ],
+    "independent_intended": [],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-nested-future-blocks-type-scope-walrus",
+    "files": {
+      "case.py": "def outer():\n from __future__ import annotations\n def f(x:(value:=object)):\n  global value\n  nonlocal value\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 59,
+        "end": 72
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 102,
+        "end": 107
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-relative-future-flag",
+    "files": {
+      "case.py": "from .__future__ import annotations\ndef f(x:(value:=object)): ...\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 45,
+        "end": 58
+      }
+    ],
+    "independent_intended": [],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-stub-remains-postponed",
+    "files": {
+      "case.pyi": "def f(x:(value:=object)): ...\nfrom __future__ import annotations\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 9,
+        "end": 22
+      }
+    ],
+    "independent_intended": [],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-try-handler-inheritance",
+    "files": {
+      "case.py": "try:\n from __future__ import annotations\nexcept Exception:\n def f()->Later: ...\n class Later: ...\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "F821",
+        "file": "case.py",
+        "start": 69,
+        "end": 74
+      }
+    ],
+    "basis": [
+      "Independent AST name-token span for Later. Existing target3.10 original/valid-pair and both unbound/bound runtime controls show this eager annotation lookup; nested future cannot enable postponement. Original other F821 findings retained."
+    ]
+  },
+  {
+    "rule": "F821",
+    "name": "stub-named-expression-preserves-undefined-read",
+    "files": {
+      "case.pyi": "def f(x: (a := b)): ...\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 10,
+        "end": 16
+      },
+      {
+        "rule": "F821",
+        "file": "case.pyi",
+        "start": 15,
+        "end": 16
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "F821",
+        "file": "case.pyi",
+        "start": 15,
+        "end": 16
+      }
+    ],
+    "basis": [
+      "Grammar-valid stub expression is distinct from portable typing-expression validity. Existing F821 unknown b read retained unchanged; no generic grammar finding inferred solely from typing rejection."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "cross-PLE0117-own-global-conflict-with-real-outer-binding",
+    "files": {
+      "case.py": "def outer():\n    value=1\n    def inner():\n        global value\n        nonlocal value\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 80,
+        "end": 85
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "future-scope-class-scoped-import",
+    "files": {
+      "case.py": "class C:\n from __future__ import annotations\n def f(x:(value:=object)): pass\ndef later(x:(other:=object)): pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 55,
+        "end": 68
+      }
+    ],
+    "independent_intended": [],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "future-scope-function-scoped-import",
+    "files": {
+      "case.py": "def outer():\n from __future__ import annotations\n def inner(x:(value:=object)): pass\ndef later(x:(other:=object)): pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 63,
+        "end": 76
+      }
+    ],
+    "independent_intended": [],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "future-scope-later-definition",
+    "files": {
+      "case.py": "def early(x:(value:=object)): pass\nfrom __future__ import annotations\ndef later(x:(other:=object)): pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 83,
+        "end": 96
+      }
+    ],
+    "independent_intended": [],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "future-scope-nested-future-blocks-type-scope-walrus",
+    "files": {
+      "case.py": "def outer():\n from __future__ import annotations\n def f(x:(value:=object)):\n  global value\n  nonlocal value\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "PLW0602",
+        "file": "case.py",
+        "start": 85,
+        "end": 90
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 59,
+        "end": 72
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 102,
+        "end": 107
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated.",
+      "Specific surviving-binding analysis correction: valid eager outer function annotation binds value; subsequent nonlocal replaces Global under established PLW query policy. Preserved target control removes conflicting global and invalid nested directive and executes outer() is object. Compiler conflict remains generic diagnostic; invalidity alone does not justify this lint omission."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "future-scope-relative-future-flag",
+    "files": {
+      "case.py": "from .__future__ import annotations\ndef f(x:(value:=object)): ...\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 45,
+        "end": 58
+      }
+    ],
+    "independent_intended": [],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "future-scope-stub-remains-postponed",
+    "files": {
+      "case.pyi": "def f(x:(value:=object)): ...\nfrom __future__ import annotations\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 9,
+        "end": 22
+      }
+    ],
+    "independent_intended": [],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-annotation-outer",
+    "files": {
+      "case.py": "def outer():\n value:int\n def f():\n  global value\n  nonlocal value\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 60,
+        "end": 65
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-class-type-parameter",
+    "files": {
+      "case.py": "class C[T]:\n def f(self):\n  global T\n  nonlocal T\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 7,
+        "end": 10
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 7,
+        "end": 10
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 48,
+        "end": 49
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-default-real-binding",
+    "files": {
+      "case.py": "def outer():\n def inner(x=(value:=1)):\n  global value\n  nonlocal value\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 65,
+        "end": 70
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-delayed-annotation-keeps-outer-value",
+    "files": {
+      "case.py": "def outer():\n value=1\n value:int\n def inner():\n  global value\n  nonlocal value\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 73,
+        "end": 78
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-deleted-outer",
+    "files": {
+      "case.py": "def outer():\n value=1\n del value\n def f():\n  global value\n  nonlocal value\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 69,
+        "end": 74
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-early-annotation-before-late-future",
+    "files": {
+      "case.py": "def f(x:(value:=object)):\n global value\n nonlocal value\nfrom __future__ import annotations\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 50,
+        "end": 55
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-future-annotation-not-visible",
+    "files": {
+      "case.py": "from __future__ import annotations\ndef f(x:(value:=object)):\n global value\n nonlocal value\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "PLW0602",
+        "file": "case.py",
+        "start": 69,
+        "end": 74
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 44,
+        "end": 57
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "PLW0602",
+        "file": "case.py",
+        "start": 69,
+        "end": 74
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 44,
+        "end": 57
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 85,
+        "end": 90
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-global-no-valid-nonlocal",
+    "files": {
+      "case.py": "def f():\n global value\n nonlocal value\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "PLW0602",
+        "file": "case.py",
+        "start": 17,
+        "end": 22
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "PLW0602",
+        "file": "case.py",
+        "start": 17,
+        "end": 22
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 33,
+        "end": 38
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-invalid-outer-nonlocal",
+    "files": {
+      "case.py": "def outer():\n nonlocal value\n def f():\n  global value\n  nonlocal value\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "PLW0602",
+        "file": "case.py",
+        "start": 48,
+        "end": 53
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "PLW0602",
+        "file": "case.py",
+        "start": 48,
+        "end": 53
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 65,
+        "end": 70
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-local-stub-class-header-is-late",
+    "files": {
+      "case.pyi": "def outer():\n class C((value:=object)):\n  def f(self):\n   global value\n   nonlocal value\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "PLW0602",
+        "file": "case.pyi",
+        "start": 65,
+        "end": 70
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "PLW0602",
+        "file": "case.pyi",
+        "start": 65,
+        "end": 70
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 83,
+        "end": 88
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-nearer-function-over-type-parameter",
+    "files": {
+      "case.py": "def outer[T]():\n def middle():\n  T=1\n  def inner():\n   global T\n   nonlocal T\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 9,
+        "end": 12
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 9,
+        "end": 12
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 76,
+        "end": 77
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-nested-function-type-parameter",
+    "files": {
+      "case.py": "def outer[T]():\n def f():\n  global T\n  nonlocal T\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 9,
+        "end": 12
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 9,
+        "end": 12
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 48,
+        "end": 49
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-nonlocal-then-global",
+    "files": {
+      "case.py": "def outer():\n value=1\n def f():\n  nonlocal value\n  global value\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "PLW0602",
+        "file": "case.py",
+        "start": 58,
+        "end": 63
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "PLW0602",
+        "file": "case.py",
+        "start": 58,
+        "end": 63
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 43,
+        "end": 48
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-skip-class-namespace",
+    "files": {
+      "case.py": "def outer():\n value=1\n class C:\n  value=2\n  def f(self):\n   global value\n   nonlocal value\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 85,
+        "end": 90
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-type-scope-annotation-py",
+    "files": {
+      "case.py": "def f(x:(value:=object)):\n global value\n nonlocal value\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 50,
+        "end": 55
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-type-scope-annotation-pyi",
+    "files": {
+      "case.pyi": "def f(x:(value:=object)):\n global value\n nonlocal value\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "PLW0602",
+        "file": "case.pyi",
+        "start": 34,
+        "end": 39
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 9,
+        "end": 22
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "PLW0602",
+        "file": "case.pyi",
+        "start": 34,
+        "end": 39
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 50,
+        "end": 55
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-type-scope-class-body-py",
+    "files": {
+      "case.py": "class C((value:=object)):\n global value\n nonlocal value\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 50,
+        "end": 55
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-type-scope-class-body-pyi",
+    "files": {
+      "case.pyi": "class C((value:=object)):\n global value\n nonlocal value\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "PLW0602",
+        "file": "case.pyi",
+        "start": 34,
+        "end": 39
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "PLW0602",
+        "file": "case.pyi",
+        "start": 34,
+        "end": 39
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 50,
+        "end": 55
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-type-scope-class-method-py",
+    "files": {
+      "case.py": "class C((value:=object)):\n def f(self):\n  global value\n  nonlocal value\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 66,
+        "end": 71
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-type-scope-class-method-pyi",
+    "files": {
+      "case.pyi": "class C((value:=object)):\n def f(self):\n  global value\n  nonlocal value\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 66,
+        "end": 71
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-type-scope-parameter-py",
+    "files": {
+      "case.py": "def f[T]():\n global T\n nonlocal T\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 5,
+        "end": 8
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 5,
+        "end": 8
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 32,
+        "end": 33
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-type-scope-parameter-pyi",
+    "files": {
+      "case.pyi": "def f[T]():\n global T\n nonlocal T\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 5,
+        "end": 8
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 5,
+        "end": 8
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 32,
+        "end": 33
+      }
+    ],
+    "basis": [
+      "Exact source-identical prior independent token/AST validity oracle; retains all prior selected-rule lint findings unless a separately justified binding correction is stated."
+    ]
+  }
+]

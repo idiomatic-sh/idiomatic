@@ -1,0 +1,79 @@
+[[cases]]
+name = "reversed"
+files = { "case.py" = "reversed(values[::-1])\n" }
+expected = [{ file = "case.py", start = 0, end = 22 }]
+
+[[cases]]
+name = "set"
+files = { "case.py" = "set(values[::-1])\n" }
+expected = [{ file = "case.py", start = 0, end = 17 }]
+
+[[cases]]
+name = "sorted"
+files = { "case.py" = "sorted(values[::-1], key=key)\n" }
+expected = [{ file = "case.py", start = 0, end = 29 }]
+
+[[cases]]
+name = "hex"
+files = { "case.py" = "set(values[::-0x_0001])\n" }
+expected = [{ file = "case.py", start = 0, end = 23 }]
+
+[[cases]]
+name = "octal"
+files = { "case.py" = "set(values[::-0O0_1])\n" }
+expected = [{ file = "case.py", start = 0, end = 21 }]
+
+[[cases]]
+name = "binary"
+files = { "case.py" = "set(values[::-0b0001])\n" }
+expected = [{ file = "case.py", start = 0, end = 22 }]
+
+[[cases]]
+name = "float"
+files = { "case.py" = "set(values[::-1.0])\n" }
+expected = []
+
+[[cases]]
+name = "boolean"
+files = { "case.py" = "set(values[::-True])\n" }
+expected = []
+
+[[cases]]
+name = "double-sign"
+files = { "case.py" = "set(values[::-+1])\n" }
+expected = []
+
+[[cases]]
+name = "bound"
+files = { "case.py" = "set(values[0::-1])\n" }
+expected = []
+
+[[cases]]
+name = "none-bound"
+files = { "case.py" = "set(values[None::-1])\n" }
+expected = []
+
+[[cases]]
+name = "list"
+files = { "case.py" = "list(values[::-1])\n" }
+expected = []
+
+[[cases]]
+name = "shadowed"
+files = { "case.py" = "def f(set):\n    set(values[::-1])\n" }
+expected = []
+
+[[cases]]
+name = "qualified"
+files = { "case.py" = "import builtins\nbuiltins.set(values[::-1])\n" }
+expected = [{ file = "case.py", start = 16, end = 42 }]
+
+[[cases]]
+name = "extra-positional"
+files = { "case.py" = "set(values[::-1], extra)\n" }
+expected = [{ file = "case.py", start = 0, end = 24 }]
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "set(values[::-1]) # noqa: C415\n" }
+expected = []

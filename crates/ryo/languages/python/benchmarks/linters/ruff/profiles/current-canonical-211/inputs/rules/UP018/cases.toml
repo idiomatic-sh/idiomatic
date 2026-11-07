@@ -1,0 +1,173 @@
+[[cases]]
+name = "int"
+comparison = "full"
+files = { "case.py" = "int(1)\n" }
+expected = [{ rule = "UP018", file = "case.py", start = 0, end = 6 }]
+
+[[cases]]
+name = "negative-int"
+comparison = "full"
+files = { "case.py" = "int(-1)\n" }
+expected = [{ rule = "UP018", file = "case.py", start = 0, end = 7 }]
+
+[[cases]]
+name = "positive-float"
+comparison = "full"
+files = { "case.py" = "float(+1.5)\n" }
+expected = [{ rule = "UP018", file = "case.py", start = 0, end = 11 }]
+
+[[cases]]
+name = "complex"
+comparison = "full"
+files = { "case.py" = "complex(1j)\n" }
+expected = [{ rule = "UP018", file = "case.py", start = 0, end = 11 }]
+
+[[cases]]
+name = "bool"
+comparison = "full"
+files = { "case.py" = "bool(True)\n" }
+expected = [{ rule = "UP018", file = "case.py", start = 0, end = 10 }]
+
+[[cases]]
+name = "str"
+comparison = "full"
+files = { "case.py" = "str(\"x\")\n" }
+expected = [{ rule = "UP018", file = "case.py", start = 0, end = 8 }]
+
+[[cases]]
+name = "bytes"
+comparison = "full"
+files = { "case.py" = "bytes(b\"x\")\n" }
+expected = [{ rule = "UP018", file = "case.py", start = 0, end = 11 }]
+
+[[cases]]
+name = "int-empty"
+comparison = "full"
+files = { "case.py" = "int()\n" }
+expected = [{ rule = "UP018", file = "case.py", start = 0, end = 5 }]
+
+[[cases]]
+name = "str-empty"
+comparison = "full"
+files = { "case.py" = "str()\n" }
+expected = [{ rule = "UP018", file = "case.py", start = 0, end = 5 }]
+
+[[cases]]
+name = "complex-empty"
+comparison = "full"
+files = { "case.py" = "complex()\n" }
+expected = [{ rule = "UP018", file = "case.py", start = 0, end = 9 }]
+
+[[cases]]
+name = "string-object-keyword"
+comparison = "full"
+files = { "case.py" = "str(object=\"x\")\n" }
+expected = [{ rule = "UP018", file = "case.py", start = 0, end = 15 }]
+
+[[cases]]
+name = "complex-real-keyword"
+comparison = "full"
+files = { "case.py" = "complex(real=1j)\n" }
+expected = [{ rule = "UP018", file = "case.py", start = 0, end = 16 }]
+
+[[cases]]
+name = "int-wrong-kind"
+comparison = "full"
+files = { "case.py" = "int(1.0)\n" }
+expected = []
+
+[[cases]]
+name = "float-wrong-kind"
+comparison = "full"
+files = { "case.py" = "float(1)\n" }
+expected = []
+
+[[cases]]
+name = "bool-wrong-kind"
+comparison = "full"
+files = { "case.py" = "bool(1)\n" }
+expected = []
+
+[[cases]]
+name = "str-wrong-kind"
+comparison = "full"
+files = { "case.py" = "str(1)\n" }
+expected = []
+
+[[cases]]
+name = "bytes-wrong-kind"
+comparison = "full"
+files = { "case.py" = "bytes(\"x\")\n" }
+expected = []
+
+[[cases]]
+name = "complex-wrong-kind"
+comparison = "full"
+files = { "case.py" = "complex(1)\n" }
+expected = []
+
+[[cases]]
+name = "two-arguments"
+comparison = "full"
+files = { "case.py" = "int(\"1\", 10)\n" }
+expected = []
+
+[[cases]]
+name = "starred-argument"
+comparison = "full"
+files = { "case.py" = "int(*arguments)\n" }
+expected = []
+
+[[cases]]
+name = "wrong-keyword"
+comparison = "full"
+files = { "case.py" = "str(value=\"x\")\n" }
+expected = []
+
+[[cases]]
+name = "keyword-and-positional"
+comparison = "full"
+files = { "case.py" = "str(\"x\", object=\"y\")\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-builtin"
+comparison = "full"
+files = { "case.py" = "int = custom\nint(1)\n" }
+expected = []
+
+[[cases]]
+name = "builtin-import-alias"
+comparison = "full"
+files = { "case.py" = "from builtins import int as integer\ninteger(1)\n" }
+expected = [{ rule = "UP018", file = "case.py", start = 36, end = 46 }]
+
+[[cases]]
+name = "builtins-module"
+comparison = "full"
+files = { "case.py" = "import builtins\nbuiltins.str(\"x\")\n" }
+expected = [{ rule = "UP018", file = "case.py", start = 16, end = 33 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "int(1)  # noqa: UP018\n" }
+expected = []
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: UP018\nint(1)\n" }
+expected = []
+
+[[cases]]
+name = "simple-fstring"
+comparison = "full"
+files = { "case.py" = "f\"{str()}\"\n" }
+expected = [{ rule = "UP018", file = "case.py", start = 3, end = 8 }]
+
+[[cases]]
+name = "nested-fstring"
+comparison = "full"
+files = { "case.py" = "f\"{f'{str()}'}\"\n" }
+expected = []

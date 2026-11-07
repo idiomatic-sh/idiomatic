@@ -1,0 +1,2 @@
+param names: list<table>;
+let n = rows(from=$names, columns=["name"]); let a = select l."name" as "name" from "function" as l join n as r on l."name" = r."name"; let b = project(from=a, columns=["name"]); emit b subject name key(name);

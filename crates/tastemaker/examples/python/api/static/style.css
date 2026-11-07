@@ -1,0 +1,9 @@
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+}
+
+/* planted: CSS: low-specificity styles */
+#todos {
+  color: #333;
+}

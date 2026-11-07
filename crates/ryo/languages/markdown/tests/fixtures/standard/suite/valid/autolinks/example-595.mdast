@@ -1,0 +1,6 @@
+root[1]
+└─0 paragraph[1]
+    └─0 link[1]
+        │ title: null
+        │ url: "https://foo.bar.baz/test?q=hello&id=22&boolean"
+        └─0 text "https://foo.bar.baz/test?q=hello&id=22&boolean"

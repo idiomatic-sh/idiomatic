@@ -1,0 +1,86 @@
+{
+  "schema": "pinned-reference-control/v1",
+  "tool": "ruff",
+  "version": "ruff 0.16.5",
+  "executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "invocation": [
+    "ruff",
+    "check",
+    "--isolated",
+    "--select",
+    "I001",
+    "--output-format",
+    "json",
+    "input.py"
+  ],
+  "configuration": "Ruff isolated defaults; root/input.py and root/src/acme/billing/__init__.py are staged for each case",
+  "isort_contract_sha256": "ae462206e9b4d800ef933db69765b21cc6526a9f9311dbea3fda1de840ac52c5",
+  "cases": [
+    {
+      "name": "namespace_missing_child_first",
+      "source": "import acme.storage\nimport numpy\n",
+      "source_sha256": "eeef4a8cecbbf894349d2488b04e7b046463776b382d4d2fbdce5ebd01b42f28",
+      "context": {
+        "src/acme/billing/__init__.py": ""
+      },
+      "exit_code": 0,
+      "diagnostics": []
+    },
+    {
+      "name": "namespace_missing_child_second",
+      "source": "import numpy\n\nimport acme.storage\n",
+      "source_sha256": "d57e6a8aed684e7498a03cbf4664af0212f4186481b748cf9ff390be3c71a552",
+      "context": {
+        "src/acme/billing/__init__.py": ""
+      },
+      "exit_code": 1,
+      "diagnostics": [
+        {
+          "code": "I001",
+          "start": {
+            "column": 1,
+            "row": 1
+          },
+          "end": {
+            "column": 20,
+            "row": 3
+          },
+          "fix": "import acme.storage\nimport numpy\n"
+        }
+      ]
+    },
+    {
+      "name": "namespace_existing_child_first",
+      "source": "import acme.billing\nimport numpy\n",
+      "source_sha256": "9ce8338364103cf06cc56e0054f1f7d33eb4dda64ec0800cbbd63b11de5c64c3",
+      "context": {
+        "src/acme/billing/__init__.py": ""
+      },
+      "exit_code": 1,
+      "diagnostics": [
+        {
+          "code": "I001",
+          "start": {
+            "column": 1,
+            "row": 1
+          },
+          "end": {
+            "column": 13,
+            "row": 2
+          },
+          "fix": "import numpy\n\nimport acme.billing\n"
+        }
+      ]
+    },
+    {
+      "name": "namespace_existing_child_second",
+      "source": "import numpy\n\nimport acme.billing\n",
+      "source_sha256": "a9bcc4e37f31baaccfc9455164d3b05cb3d65a804bd64aa516b8a5142c728f7b",
+      "context": {
+        "src/acme/billing/__init__.py": ""
+      },
+      "exit_code": 0,
+      "diagnostics": []
+    }
+  ]
+}

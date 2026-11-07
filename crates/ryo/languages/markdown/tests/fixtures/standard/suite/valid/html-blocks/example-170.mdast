@@ -1,0 +1,4 @@
+root[2]
+├─0 html "<script type=\"text/javascript\">\n// JavaScript example\n\ndocument.getElementById(\"demo\").innerHTML = \"Hello JavaScript!\";\n</script>"
+└─1 paragraph[1]
+    └─0 text "okay"

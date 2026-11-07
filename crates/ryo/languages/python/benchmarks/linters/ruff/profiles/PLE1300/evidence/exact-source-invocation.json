@@ -1,0 +1,11 @@
+{
+  "command": [
+    "/home/vscode/.local/bin/python3.10",
+    "/tmp/ple1300-exact-source-controls-20261102.py",
+    "/tmp/ple1300-exact-source-input-20261102.json"
+  ],
+  "tool_sha256": "2c2bf2087b89419f609369de36aa7ba7ae9f8e67bd8ae495e51afb964cd9db27",
+  "script_sha256": "5e868aabbb3b78ae1672d78574a5912d73397121a3a45f076b3379d18b01c126",
+  "inputs_sha256": "6bcca714b34f504e8dc063271bd0cb91f8aff2fb580b92deda9743a05909cca5",
+  "stdout_sha256": "66250adf34d407638f909ce1be7747720374d9d7c06ff23272a7ea041e590770"
+}

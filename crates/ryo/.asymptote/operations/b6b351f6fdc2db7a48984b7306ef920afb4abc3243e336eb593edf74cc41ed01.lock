@@ -1,0 +1,6 @@
+version = 1
+parents = ["1a9a90d6f78778c83fe1ac6bc600e59d37cec82eaf49dc4dd24c8d75f96362e2"]
+
+suppressed-removed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/idiomatic-rust/bounded-engine-state", path = "crates/core/src/outbound/facts/adapters/spill/adapter.rs", level = "error", fingerprint = "acb85fe09e413b54" },
+]

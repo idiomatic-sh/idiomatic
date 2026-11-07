@@ -1,0 +1,138 @@
+[[cases]]
+name = "builtin-open"
+comparison = "full"
+files = { "case.py" = "async def f():\n    open(\"x\")\n" }
+expected = [{ rule = "ASYNC230", file = "case.py", start = 19, end = 23 }]
+
+[[cases]]
+name = "builtin-open-with"
+comparison = "full"
+files = { "case.py" = "async def f():\n    with open(\"x\") as f:\n        pass\n" }
+expected = [{ rule = "ASYNC230", file = "case.py", start = 24, end = 28 }]
+
+[[cases]]
+name = "io-open"
+comparison = "full"
+files = { "case.py" = "import io\nasync def f():\n    io.open(\"x\")\n" }
+expected = [{ rule = "ASYNC230", file = "case.py", start = 29, end = 36 }]
+
+[[cases]]
+name = "io-open-code"
+comparison = "full"
+files = { "case.py" = "import io\nasync def f():\n    io.open_code(\"x\")\n" }
+expected = [{ rule = "ASYNC230", file = "case.py", start = 29, end = 41 }]
+
+[[cases]]
+name = "builtin-open-import-alias"
+comparison = "full"
+files = { "case.py" = "from io import open as o\nasync def f():\n    o(\"x\")\n" }
+expected = [{ rule = "ASYNC230", file = "case.py", start = 44, end = 45 }]
+
+[[cases]]
+name = "pathlib-inline"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nasync def f():\n    Path(\"x\").open()\n" }
+expected = [{ rule = "ASYNC230", file = "case.py", start = 44, end = 58 }]
+
+[[cases]]
+name = "pathlib-module-alias-inline"
+comparison = "full"
+files = { "case.py" = "import pathlib as p\nasync def f():\n    p.Path(\"x\").open()\n" }
+expected = [{ rule = "ASYNC230", file = "case.py", start = 39, end = 55 }]
+
+[[cases]]
+name = "pathlib-variable"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nasync def f():\n    path = Path(\"x\")\n    path.open()\n" }
+expected = [{ rule = "ASYNC230", file = "case.py", start = 65, end = 74 }]
+
+[[cases]]
+name = "pathlib-variable-module-alias"
+comparison = "full"
+files = { "case.py" = "import pathlib as p\nasync def f():\n    path = p.Path(\"x\")\n    path.open()\n" }
+expected = [{ rule = "ASYNC230", file = "case.py", start = 62, end = 71 }]
+
+[[cases]]
+name = "other-object-open"
+comparison = "full"
+files = { "case.py" = "async def f(path):\n    path.open()\n" }
+expected = []
+
+[[cases]]
+name = "other-constructor-open"
+comparison = "full"
+files = { "case.py" = "async def f():\n    Other(\"x\").open()\n" }
+expected = []
+
+[[cases]]
+name = "outside-async"
+comparison = "full"
+files = { "case.py" = "open(\"x\")\n" }
+expected = []
+
+[[cases]]
+name = "nested-sync-barrier"
+comparison = "full"
+files = { "case.py" = "async def f():\n    def g():\n        open(\"x\")\n" }
+expected = []
+
+[[cases]]
+name = "class-barrier"
+comparison = "full"
+files = { "case.py" = "async def f():\n    class C:\n        open(\"x\")\n" }
+expected = []
+
+[[cases]]
+name = "lambda-barrier"
+comparison = "full"
+files = { "case.py" = "async def f():\n    callback = lambda: open(\"x\")\n" }
+expected = []
+
+[[cases]]
+name = "nested-async"
+comparison = "full"
+files = { "case.py" = "async def f():\n    async def g():\n        open(\"x\")\n" }
+expected = [{ rule = "ASYNC230", file = "case.py", start = 42, end = 46 }]
+
+[[cases]]
+name = "shadowed-open"
+comparison = "full"
+files = { "case.py" = "async def f(open):\n    open(\"x\")\n" }
+expected = []
+
+[[cases]]
+name = "suppressed"
+comparison = "full"
+files = { "case.py" = "async def f():\n    open(\"x\")  # noqa: ASYNC230\n" }
+expected = []
+
+[[cases]]
+name = "pathlib-from-import-inline-alias"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path as P\nasync def f():\n    P(\"x\").open()\n" }
+expected = [{ rule = "ASYNC230", file = "case.py", start = 49, end = 60 }]
+
+[[cases]]
+name = "pathlib-from-import-variable-alias"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path as P\nasync def f():\n    p = P(\"x\")\n    p.open()\n" }
+expected = [{ rule = "ASYNC230", file = "case.py", start = 64, end = 70 }]
+
+[[cases]]
+name = "builtin-open-explicit-builtins-alias"
+comparison = "full"
+files = { "case.py" = "from builtins import open as file_open\nasync def f():\n    file_open(\"x\")\n" }
+expected = []
+
+[[cases]]
+name = "path-reassigned-away"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nasync def f():\n    path = Path(\"x\")\n    path = object()\n    path.open()\n" }
+expected = []
+
+[[cases]]
+name = "path-reassigned-to-path"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nasync def f():\n    path = object()\n    path = Path(\"x\")\n    path.open()\n" }
+expected = [{ rule = "ASYNC230", file = "case.py", start = 85, end = 94 }]
+

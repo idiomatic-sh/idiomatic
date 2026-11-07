@@ -1,0 +1,11 @@
+# UP046
+
+Reports the first `typing.Generic[...]` base of a module-level class. Nested declarations and existing PEP 695 parameter lists are excluded. A duplicate or defaulted known type variable prevents conversion when Generic is last; unknown external parameters and non-final Generic bases retain the diagnostic independently of whether a safe fix can be generated.
+
+The query uses existing semantic syntax, binding-use, qualified-name and language-target facts. It emits diagnostics only. Type-variable lookup follows explicit binding identities; literal-string embedded type reads are distinguished from physical expression reads.
+
+The canonical profile targets Python 3.12, the first version supporting PEP 695. The Python 3.10 countertarget preserves the same source files and retains target-specific syntax diagnostics rather than treating every source as an empty negative. Suppression remains in the canonical shared helper.
+
+`cases.toml` preserves every pinned Ruff 0.16.5 upstream fixture for this rule, plus independent exact-span, alias, shadowing, nesting, default, suppression and existing-parameter controls. Expectation origins and full pinned outputs are retained with the source-bound proof. Passing this fixture set does not certify the safety of Ruff's generated fixes.
+
+Sources: [pinned rule implementation](https://github.com/astral-sh/ruff/blob/9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a/crates/ruff_linter/src/rules/pyupgrade/rules/pep695/non_pep695_generic_class.rs), [PEP 695](https://peps.python.org/pep-0695/).

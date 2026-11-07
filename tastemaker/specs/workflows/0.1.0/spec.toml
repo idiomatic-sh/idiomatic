@@ -1,0 +1,102 @@
+description = "The repository's workflows under `.github/workflows/`, each a thin edge on GitHub Actions over one `asymptote check` call, started only by hand."
+why = "Keeps the CI host a thin edge: Asymptote decides what a check runs from the tools in the `asymptote.toml` files, so a workflow only provides a machine, the tools and the one call, and moving off GitHub replaces the workflows alone. The `ci` spec's `workflows_test.py` holds each workflow to that."
+templates = [
+  { template = "thin-workflow", file = "{workflow}.yml", description = "A workflow on GitHub Actions, started only by hand (`workflow_dispatch`): a machine, the toolchain, the tools and one `asymptote check` call." },
+]
+
+[given]
+at = '.github/workflows'
+
+[[scenarios]]
+id = 'one-workflow'
+scenario = 'One workflow is placed.'
+given.files.'.github/workflows/demo.yml' = '''
+name: demo
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  demo:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: cargo install --path crates/asymptote/cli --locked
+      - run: asymptote check
+'''
+
+[[scenarios]]
+id = 'workflow-beside-the-workflows'
+scenario = 'A second workflow beside the first is placed too.'
+given.files.'.github/workflows/demo.yml' = '''
+name: demo
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  demo:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: cargo install --path crates/asymptote/cli --locked
+      - run: asymptote check
+'''
+given.files.'.github/workflows/other.yml' = '''
+name: other
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  other:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: cargo install --path crates/asymptote/cli --locked
+      - run: asymptote check
+'''
+
+[[scenarios]]
+id = 'script-in-the-workflows'
+scenario = 'A script among the workflows is placed by nothing.'
+given.files.'.github/workflows/demo.yml' = '''
+name: demo
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  demo:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: cargo install --path crates/asymptote/cli --locked
+      - run: asymptote check
+'''
+given.files.'.github/workflows/release.sh' = '''
+#!/bin/sh
+echo logic in the CI host
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/workflows#closed', path = '.github/workflows/release.sh' },
+]
+
+[[scenarios]]
+id = 'workflow-missing'
+scenario = 'A repository has no workflow: its workflows directory holds a README and nothing to run.'
+given.files.'.github/workflows/README.md' = '''
+# Workflows
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/workflows/thin-workflow#count', path = '.github/workflows' },
+  { rule = 'idiomatic.arch/workflows#closed', path = '.github/workflows/README.md' },
+]

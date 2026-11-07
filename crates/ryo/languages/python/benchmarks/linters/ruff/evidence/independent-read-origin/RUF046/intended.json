@@ -1,0 +1,62 @@
+[
+  {
+    "name": "ruf046-integer",
+    "diagnostics": [
+      {
+        "rule": "RUF046",
+        "file": "case.py",
+        "start": 2,
+        "end": 10
+      }
+    ],
+    "classification": "independent-intended-semantics"
+  },
+  {
+    "name": "ruf046-len",
+    "diagnostics": [
+      {
+        "rule": "RUF046",
+        "file": "case.py",
+        "start": 2,
+        "end": 17
+      }
+    ],
+    "classification": "independent-intended-semantics"
+  },
+  {
+    "name": "ruf046-cached-inner-vs-fresh",
+    "diagnostics": [
+      {
+        "rule": "RUF046",
+        "file": "case.py",
+        "start": 2,
+        "end": 25
+      }
+    ],
+    "classification": "independent-intended-semantics"
+  },
+  {
+    "name": "ruf046-fresh-outer-late-rebind",
+    "diagnostics": [
+      {
+        "rule": "RUF046",
+        "file": "case.py",
+        "start": 2,
+        "end": 15
+      }
+    ],
+    "classification": "independent-intended-semantics"
+  },
+  {
+    "name": "ruf046-future-generic-shadow",
+    "diagnostics": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 56,
+        "end": 61
+      }
+    ],
+    "classification": "scope-guard-only"
+  }
+]

@@ -1,0 +1,13 @@
+root[2]
+├─0 list[1]
+│   │ ordered: false
+│   │ start: null
+│   │ spread: false
+│   └─0 listItem[1]
+│       │ spread: false
+│       │ checked: null
+│       └─0 paragraph[1]
+│           └─0 text "one"
+└─1 code " two"
+      lang: null
+      meta: null

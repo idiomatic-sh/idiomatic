@@ -1,0 +1,15 @@
+version = 1
+parents = ["dd5c94b3ada92e4104f8f7677516774a6d00a69851d53e17772eb2550d54b505"]
+
+[[perf]]
+reasons = ["Seeded with the median of five runs of the benchmark on the development machine, each run the median of its rounds; the tolerance is three times the spread of those five medians, rounded up to a multiple of 5, and at least 100% for a workload under 100 ms or 20% above it: the machine is shared, and a workload that short moves by its own rounding."]
+records = [
+  { tool = "performance", benchmark = "operator/list", measure = "cpu-ms", best = 0.004 },
+  { tool = "performance", benchmark = "relation/list", measure = "cpu-ms", best = 0.004 },
+]
+
+[[perf]]
+reasons = ["re-recorded on the development machine under the Asymptote ratchet"]
+records = [
+  { tool = "performance-lint", benchmark = "ruff", measure = "warm-milliseconds", best = 93.0 },
+]

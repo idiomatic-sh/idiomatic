@@ -1,0 +1,53 @@
+description = "Each use case directory `src/inbound/use_cases/<use_case>/` has its module file `src/inbound/use_cases/<use_case>.rs` beside it."
+why = "A use case is compiled only through its module file, so a directory without one is never built. The `nu-hex` spec's count cannot say it: a core may have no use case at all, so the count is `min = 0`, and a rule the spec places does not read the directories of the use cases nested in it. A product places this rule over `src/inbound/use_cases/**` instead."
+
+query = '''
+let files = project(from="filesystem.file", columns=["path"]);
+let bodies = capture(from=files, path="path", pattern="{*root}/src/inbound/use_cases/{use_case}/use_case.rs", captures=["root", "use_case"]);
+let modules = capture(from=files, path="path", pattern="{*root}/src/inbound/use_cases/{use_case}.rs", captures=["root", "use_case"]);
+let module-keys = project(from=modules, columns=["root", "use_case"]);
+let bare = antijoin(left=bodies, right=module-keys, left-on=["root", "use_case"], right-on=["root", "use_case"]);
+let bare-rows = project(from=bare, columns=["path", "use_case"]);
+emit bare-rows subject "path" key("use_case");
+'''
+
+[diagnostic]
+primary = "path"
+message = "use case `{use_case}` has no module file `src/inbound/use_cases/{use_case}.rs` beside its directory"
+help = "Write the module file that declares the use case's interface, body and test: `tm scaffold use-case-module --at src/inbound/use_cases/<use_case>.rs`. An ignore is not legitimate here: a use case without its module file is never compiled."
+
+[given]
+include = ['**/*.rs']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'use-case-module-file-beside-directory'
+scenario = 'A use case with its module file beside its directory.'
+given.files.'greeting/src/inbound/use_cases/greet.rs' = '''
+pub mod use_case;
+'''
+given.files.'greeting/src/inbound/use_cases/greet/use_case.rs' = '''
+pub struct Greet(pub u32);
+'''
+
+[[scenarios]]
+id = 'use-case-directory-no-module-file'
+scenario = 'A use case directory with no module file.'
+given.files.'greeting/src/inbound/use_cases/greet/use_case.rs' = '''
+pub struct Greet(pub u32);
+'''
+then.findings = [
+  { path = 'greeting/src/inbound/use_cases/greet/use_case.rs' },
+]
+
+[[scenarios]]
+id = 'no-use-cases'
+scenario = 'A core with no use case needs no module file.'
+given.files.'greeting/src/lib.rs' = '''
+pub struct Core(pub u32);
+'''

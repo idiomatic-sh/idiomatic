@@ -1,0 +1,5 @@
+error[E0609]: no field `elements` on type `&mut Completion<'_>`
+ --> tests/ui/fail_complete_reaches_the_table.rs:7:16
+  |
+7 |     completion.elements.kind.0.push(0);
+  |                ^^^^^^^^ unknown field

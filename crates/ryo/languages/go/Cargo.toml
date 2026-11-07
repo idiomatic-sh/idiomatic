@@ -1,0 +1,65 @@
+[package]
+name = "idiomatic-sh-ryo-go"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = true
+description = "Go language provider for Ryo"
+keywords = ["go", "parser", "static-analysis", "language-provider", "ryo"]
+categories = ["development-tools", "parser-implementations"]
+autobenches = false
+autotests = false
+# The standard library's parse dump the conformance test compares against (30 MB): a test input of this repository, not of the
+# package a user builds.
+exclude = ["tests/fixtures/standard/output.txt"]
+
+[lib]
+name = "ryo_go"
+
+[dependencies]
+postcard.workspace = true
+serde.workspace = true
+strum.workspace = true
+thiserror.workspace = true
+# The parser Zed, Helix, GitHub code navigation, difftastic and ast-grep read Go with (tree-sitter-go: 5M recent downloads), with the runtime it needs.
+tree-sitter = "=0.26.9"
+tree-sitter-go = "=0.25.0"
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.1.2" }
+
+[dev-dependencies]
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", features = ["fixtures"] }
+dhat.workspace = true
+# The crate itself, with its fixtures: its tests need them, and no test is run with a flag.
+idiomatic-sh-ryo-go = { path = ".", features = ["fixtures"] }
+divan.workspace = true
+
+[[test]]
+name = "allocation"
+harness = false
+
+[[test]]
+name = "conformance"
+harness = false
+
+[[bench]]
+name = "provider"
+path = "benchmarks/provider/bench.rs"
+harness = false
+
+[features]
+fixtures = ["ryo/fixtures"]
+
+[lints]
+workspace = true
+
+# Its `allocation` test target (`harness = false`) sets `dhat` as the global allocator, which machete does not see.
+[package.metadata.cargo-machete]
+ignored = ["dhat"]
+
+# Established generated parser timing identities; native CPU/RSS are not inferred from Divan.
+[package.metadata.ryo.performance]
+schema = "divan-timing/v1"
+workloads = { generated_every_relation = [2500, 10000] }
+metrics = ["median-ns"]

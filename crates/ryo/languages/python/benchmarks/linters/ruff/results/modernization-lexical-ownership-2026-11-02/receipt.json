@@ -1,0 +1,268 @@
+{
+  "schema": "actual-proof-assets/v2",
+  "profiles": [
+    {
+      "rule": "UP045",
+      "profile_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/UP045/benchmark.toml",
+      "profile_sha256": "c845cb1f8b64776ff8d41e53962438b4852c137a2979c15d3a92fdf97b4956e7",
+      "settings": {
+        "defaults": [
+          "UP045"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "UP045": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/annotation-evaluation-context": "fragments/annotation-evaluation-context.ryoql",
+        "python/ruff/future-annotation-context": "fragments/future-annotation-context.ryoql",
+        "python/ruff/modernization-symbols": "fragments/modernization-symbols.ryoql",
+        "python/ruff/pep604-candidates": "fragments/pep604-candidates.ryoql",
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
+      },
+      "query": {
+        "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP045/candidate.ryoql",
+        "proof_sha256": "76aded66b14a1c842177837c14f7bab120d95adeb9c640cb2e7e68946875aa09"
+      },
+      "modules": {
+        "python/ruff/annotation-evaluation-context": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/annotation-evaluation-context.ryoql",
+          "proof_sha256": "b176d58a1687fe99f5b41d85fc781c0b33d2dcd58b49c6a16670216b78361ef5"
+        },
+        "python/ruff/future-annotation-context": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/future-annotation-context.ryoql",
+          "proof_sha256": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b"
+        },
+        "python/ruff/modernization-symbols": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/modernization-symbols.ryoql",
+          "proof_sha256": "76bbb893f2ddd68018c968fcf8fa9ea15d237a17919c8c898c1144d4c098bf42"
+        },
+        "python/ruff/pep604-candidates": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/pep604-candidates.ryoql",
+          "proof_sha256": "43f2f3b710aa286bfcf76937171731295562dd0112e1c512d5a0648aad182ee0"
+        },
+        "python/ruff/suppress": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/suppress.ryoql",
+          "proof_sha256": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26"
+        },
+        "python/ruff/suppress-directives": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/suppress-directives.ryoql",
+          "proof_sha256": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382"
+        }
+      },
+      "case_file": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP045/cases.toml",
+      "cases_sha256": "3cb66b7b5fe44008b71048db4e4c401967264df8f9dfa239904545e5adacf0a0",
+      "case_records": "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP045/cases.jsonl",
+      "case_records_sha256": "92c1d5908ce9d4ae49140cb076f221efbcb4e299549fbeb4e3759349b3498ab5",
+      "execution_result": "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP045/result.json",
+      "execution_result_sha256": "433a3500ac7b977d42451f689a7d8e73071ec8c4d96e1b181445605604ee2f16",
+      "executed_profile_sha256": "845946ce1982b4c940a51a9296fb2f1dc0ce7cac02cd6db74fcd1c859a651e3c",
+      "worker_sha256": "afb2cd5552ebf24f09d41ec9ad2652ebb6d031b79e8e37d5f7d84b9508a2fc88",
+      "case_expectation_summary": {
+        "complete_case_pairs": 33,
+        "incomplete_cases": 0,
+        "raw_parity_matches": 32,
+        "raw_parity_mismatches": 1,
+        "documented_reference_discrepancies": 1,
+        "unexplained_mismatches": 0,
+        "intended_behavior_passes": 33,
+        "intended_behavior_failures": 0,
+        "diagnostic_parity_matches": 32,
+        "diagnostic_parity_mismatches": 1,
+        "execution_metadata_exact": 0,
+        "execution_metadata_different": 0,
+        "execution_metadata_incomparable": 33,
+        "typed_candidate_execution_complete": 33,
+        "legacy_or_unknown_candidate_execution": 0
+      }
+    },
+    {
+      "rule": "UP050",
+      "profile_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/UP050/benchmark.toml",
+      "profile_sha256": "fd7766959c6152a88ca7cb98eef0730eb698bb5e5106c6e4be76db622f10045d",
+      "settings": {
+        "defaults": [
+          "UP050"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "UP050": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/modernization-symbols": "fragments/modernization-symbols.ryoql",
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
+      },
+      "query": {
+        "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP050/candidate.ryoql",
+        "proof_sha256": "265307a41298e884883cf171b33cb0890c2a9d144f35a35de0853b93750b9556"
+      },
+      "modules": {
+        "python/ruff/modernization-symbols": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/modernization-symbols.ryoql",
+          "proof_sha256": "76bbb893f2ddd68018c968fcf8fa9ea15d237a17919c8c898c1144d4c098bf42"
+        },
+        "python/ruff/suppress": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/suppress.ryoql",
+          "proof_sha256": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26"
+        },
+        "python/ruff/suppress-directives": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/suppress-directives.ryoql",
+          "proof_sha256": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382"
+        }
+      },
+      "case_file": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/UP050/cases.toml",
+      "cases_sha256": "72cf9b848b648db14b60dd74eb6e5bdb4975ce5612d45c948e59edba72168096",
+      "case_records": "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP050/cases.jsonl",
+      "case_records_sha256": "3b389728f2c94ff2d7d57e964a08e01014b6e32ba9455e517f4d7ed2fc605973",
+      "execution_result": "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP050/result.json",
+      "execution_result_sha256": "8a6bff72967ddedbde92b1e4eba877f54c4313357256ee3c67b882080b6bf25e",
+      "executed_profile_sha256": "2f5051764126d5468fa8d2fdf9adf04ce3adfeffa8c06b7504e5cd54289882ce",
+      "worker_sha256": "afb2cd5552ebf24f09d41ec9ad2652ebb6d031b79e8e37d5f7d84b9508a2fc88",
+      "case_expectation_summary": {
+        "complete_case_pairs": 18,
+        "incomplete_cases": 0,
+        "raw_parity_matches": 17,
+        "raw_parity_mismatches": 1,
+        "documented_reference_discrepancies": 1,
+        "unexplained_mismatches": 0,
+        "intended_behavior_passes": 18,
+        "intended_behavior_failures": 0,
+        "diagnostic_parity_matches": 17,
+        "diagnostic_parity_mismatches": 1,
+        "execution_metadata_exact": 0,
+        "execution_metadata_different": 0,
+        "execution_metadata_incomparable": 18,
+        "typed_candidate_execution_complete": 18,
+        "legacy_or_unknown_candidate_execution": 0
+      }
+    },
+    {
+      "rule": "TC005",
+      "profile_file": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/TC005/benchmark.toml",
+      "profile_sha256": "e40bd89c190d563199a909b494a7307b7c03db11e16f4598346050e594c3a9ae",
+      "settings": {
+        "defaults": [
+          "TC005"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "TC005": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/modernization-symbols": "fragments/modernization-symbols.ryoql",
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
+      },
+      "query": {
+        "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/TC005/candidate.ryoql",
+        "proof_sha256": "8899b9cf03baefd5cc52b1ab79f3177f24de9c203fa88178494654ebbe7992cc"
+      },
+      "modules": {
+        "python/ruff/modernization-symbols": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/modernization-symbols.ryoql",
+          "proof_sha256": "76bbb893f2ddd68018c968fcf8fa9ea15d237a17919c8c898c1144d4c098bf42"
+        },
+        "python/ruff/suppress": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/suppress.ryoql",
+          "proof_sha256": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26"
+        },
+        "python/ruff/suppress-directives": {
+          "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/fragments/suppress-directives.ryoql",
+          "proof_sha256": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382"
+        }
+      },
+      "case_file": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/TC005/cases.toml",
+      "cases_sha256": "02ca813f191c125611d8839a438ad1d73046ee2eb253c6c8ab7279d8982c4a63",
+      "case_records": "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/TC005/cases.jsonl",
+      "case_records_sha256": "a15e52a5647b17151cbdb41977abd42f0f8ca8a56e819e6beab1b11ac58b5823",
+      "execution_result": "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/TC005/result.json",
+      "execution_result_sha256": "0da3bf159ac9a14e6b2cca418252c03df29cccaafafb0b4c27ebe87ee11c3ff3",
+      "executed_profile_sha256": "d69d9a861c55d9d0949719aa57e9e147c96a276620e2c12b4d7f25bf549a43f6",
+      "worker_sha256": "afb2cd5552ebf24f09d41ec9ad2652ebb6d031b79e8e37d5f7d84b9508a2fc88",
+      "case_expectation_summary": {
+        "complete_case_pairs": 58,
+        "incomplete_cases": 0,
+        "raw_parity_matches": 56,
+        "raw_parity_mismatches": 2,
+        "documented_reference_discrepancies": 2,
+        "unexplained_mismatches": 0,
+        "intended_behavior_passes": 58,
+        "intended_behavior_failures": 0,
+        "diagnostic_parity_matches": 56,
+        "diagnostic_parity_mismatches": 2,
+        "execution_metadata_exact": 0,
+        "execution_metadata_different": 0,
+        "execution_metadata_incomparable": 58,
+        "typed_candidate_execution_complete": 58,
+        "legacy_or_unknown_candidate_execution": 0
+      }
+    }
+  ],
+  "phase_registry": {
+    "canonical_path": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/pinned-rule-phases.json",
+    "proof_sha256": "51f2c210f75d1275cd68369a1c69289a91ca87f83b7c486a2b348edd89c4a8f4"
+  },
+  "limits": "OnlyUP04533/UP05018/TC00558:109 actual complete/intended passes, four independently documented source-bound origin differences. All execution metadata candidate Complete/reference Unavailable, incomparable. UP007 remains pending32/33 and is not admitted. OldA327 source/evidence remains historical; no old source hash refreshed.",
+  "execution_artifacts": {
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/exact-context-audit.json": "1e39f88a2129a9eeb283dabbea73a65185ebc002d68951336cef22eb7063bf22",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/full142-summary.json": "3cfe95dee9213a88f248f112b34c8e5f58b8b393c6490f9b33961001f81a7d5f",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/executed-helper-52b2.py": "52b2cbb925f0da6370cea681057c6b5b3f50ed4bb58d050f52fe5f984efb1411",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/summary.json": "8ed317b53a5dcbcfb6e45965babce69d8476996c7480cd1df528de32b3baa829",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP045/cases.jsonl": "92c1d5908ce9d4ae49140cb076f221efbcb4e299549fbeb4e3759349b3498ab5",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP045/stdout.bin": "6eb53bad4e77cb7aa042a3764c5812868fe91286e5b7d2ecab22e5ead20d9498",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP045/stderr.bin": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP045/result.json": "433a3500ac7b977d42451f689a7d8e73071ec8c4d96e1b181445605604ee2f16",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP050/cases.jsonl": "3b389728f2c94ff2d7d57e964a08e01014b6e32ba9455e517f4d7ed2fc605973",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP050/stdout.bin": "72dd91507daa0d59fdb8c5621beb11bc594f02d6656ca612d983ae800bd02fde",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP050/stderr.bin": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP050/result.json": "8a6bff72967ddedbde92b1e4eba877f54c4313357256ee3c67b882080b6bf25e",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/TC005/cases.jsonl": "a15e52a5647b17151cbdb41977abd42f0f8ca8a56e819e6beab1b11ac58b5823",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/TC005/stdout.bin": "dd9e1f96b5dd627f53083784da7cde95558f82984fa74964589fbffd8de054e7",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/TC005/stderr.bin": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/TC005/result.json": "0da3bf159ac9a14e6b2cca418252c03df29cccaafafb0b4c27ebe87ee11c3ff3",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/TC005/repro/benchmark.toml": "d69d9a861c55d9d0949719aa57e9e147c96a276620e2c12b4d7f25bf549a43f6",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/TC005/repro/fragments/modernization-symbols.ryoql": "76bbb893f2ddd68018c968fcf8fa9ea15d237a17919c8c898c1144d4c098bf42",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/TC005/repro/fragments/suppress-directives.ryoql": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/TC005/repro/fragments/suppress.ryoql": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/TC005/repro/evidence/lexical-ownership-cpython310.json": "4e5d7ea99c191d77e9fdc259181351605c916b3efb1d8d3ec1bb6bfec6e103e7",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/TC005/repro/evidence/lexical-ownership-cpython313.json": "4d9eeec555151780c45231a89079b71796c59beab8226796cd3caedd5e678463",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/TC005/repro/evidence/lexical-ownership-probe.py": "364a8266ae8bd7388eed10b5997901cdd5ae141d343c097d3c9ae099c4ec8791",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/TC005/repro/evidence/lexical-ownership-probe-inputs.json": "0bc0fe2f4df94677e011220aa804266bc70f338312358059529d996503c41082",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/TC005/repro/rules/TC005/query.ryoql": "8899b9cf03baefd5cc52b1ab79f3177f24de9c203fa88178494654ebbe7992cc",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/TC005/repro/rules/TC005/cases.toml": "02ca813f191c125611d8839a438ad1d73046ee2eb253c6c8ab7279d8982c4a63",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP050/repro/benchmark.toml": "2f5051764126d5468fa8d2fdf9adf04ce3adfeffa8c06b7504e5cd54289882ce",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP050/repro/fragments/modernization-symbols.ryoql": "76bbb893f2ddd68018c968fcf8fa9ea15d237a17919c8c898c1144d4c098bf42",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP050/repro/fragments/suppress-directives.ryoql": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP050/repro/fragments/suppress.ryoql": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP050/repro/evidence/lexical-ownership-cpython310.json": "4e5d7ea99c191d77e9fdc259181351605c916b3efb1d8d3ec1bb6bfec6e103e7",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP050/repro/evidence/lexical-ownership-cpython313.json": "4d9eeec555151780c45231a89079b71796c59beab8226796cd3caedd5e678463",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP050/repro/evidence/lexical-ownership-probe.py": "364a8266ae8bd7388eed10b5997901cdd5ae141d343c097d3c9ae099c4ec8791",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP050/repro/evidence/lexical-ownership-probe-inputs.json": "0bc0fe2f4df94677e011220aa804266bc70f338312358059529d996503c41082",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP050/repro/rules/UP050/query.ryoql": "265307a41298e884883cf171b33cb0890c2a9d144f35a35de0853b93750b9556",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP050/repro/rules/UP050/cases.toml": "72cf9b848b648db14b60dd74eb6e5bdb4975ce5612d45c948e59edba72168096",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP045/repro/benchmark.toml": "845946ce1982b4c940a51a9296fb2f1dc0ce7cac02cd6db74fcd1c859a651e3c",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP045/repro/fragments/annotation-evaluation-context.ryoql": "b176d58a1687fe99f5b41d85fc781c0b33d2dcd58b49c6a16670216b78361ef5",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP045/repro/fragments/future-annotation-context.ryoql": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP045/repro/fragments/modernization-symbols.ryoql": "76bbb893f2ddd68018c968fcf8fa9ea15d237a17919c8c898c1144d4c098bf42",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP045/repro/fragments/pep604-candidates.ryoql": "43f2f3b710aa286bfcf76937171731295562dd0112e1c512d5a0648aad182ee0",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP045/repro/fragments/suppress-directives.ryoql": "29efaa45457a591ccd20d340327095ef9f6d9644feec94929f245cc420fc3382",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP045/repro/fragments/suppress.ryoql": "b3f9278dec26f739d1ee68a53b834629bc51b26fa868ec250e0eaaf5854d9c26",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP045/repro/evidence/lexical-ownership-cpython310.json": "4e5d7ea99c191d77e9fdc259181351605c916b3efb1d8d3ec1bb6bfec6e103e7",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP045/repro/evidence/lexical-ownership-cpython313.json": "4d9eeec555151780c45231a89079b71796c59beab8226796cd3caedd5e678463",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP045/repro/evidence/lexical-ownership-probe.py": "364a8266ae8bd7388eed10b5997901cdd5ae141d343c097d3c9ae099c4ec8791",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP045/repro/evidence/lexical-ownership-probe-inputs.json": "0bc0fe2f4df94677e011220aa804266bc70f338312358059529d996503c41082",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP045/repro/rules/UP045/query.ryoql": "76aded66b14a1c842177837c14f7bab120d95adeb9c640cb2e7e68946875aa09",
+    "crates/ryo/languages/python/benchmarks/linters/ruff/results/modernization-lexical-ownership-2026-11-02/UP045/repro/rules/UP045/cases.toml": "3cb66b7b5fe44008b71048db4e4c401967264df8f9dfa239904545e5adacf0a0"
+  }
+}

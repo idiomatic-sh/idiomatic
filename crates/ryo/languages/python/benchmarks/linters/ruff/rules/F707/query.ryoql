@@ -1,0 +1,18 @@
+import observation_matches from "python/ruff/suppress-matches";
+import suppress from "python/ruff/suppress";
+let handlers = select * from "semantic-syntax" where kind = "except-handler";
+let types = select parent from "semantic-child" where field = "type";
+let bare = antijoin(left=handlers, right=types, left-on=["id"], right-on=["parent"]);
+let positions = select parent, child, ordinal from "semantic-child" where field = "handlers";
+let later = select l.child as child from positions as l join positions as r on l.parent = r.parent where l.ordinal < r.ordinal;
+let invalid = select l.id as id from bare as l join later as r on l.id = r.child;
+let children = select r.child as child from invalid as l join "semantic-child" as r on l.id = r.parent;
+let keywords = select * from "semantic-syntax" where kind = "name-token" and text = "except";
+let reportable = select r.id as id, r.file as file, r.span as span from children as l join keywords as r on l.child = r.id;
+let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*F707(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:F707)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*F707(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:F707)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "F707"});
+observe ruf100_used as noqa_matches;
+emit violations subject file key(id);

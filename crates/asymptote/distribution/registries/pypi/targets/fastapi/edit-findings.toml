@@ -1,0 +1,12 @@
+# The findings the command prints over this target: the sha256 of the whole
+# findings document in canonical form, the exit status the run must end with and
+# their count per rule; the total is the sum of the counts, never stored beside them.
+digest = "326336cdc4dafccd1f80bcb8e10f593e0ecb4dac3601af9e1abd80573b280cfa"
+exit_code = 1
+
+[rules]
+"idiomatic.benchmarks/glob-imports#unknown" = 3
+"idiomatic.benchmarks/long-function" = 184
+"idiomatic.benchmarks/long-function#unknown" = 3
+"idiomatic.benchmarks/too-many-parameters" = 51
+"idiomatic.benchmarks/too-many-parameters#unknown" = 6

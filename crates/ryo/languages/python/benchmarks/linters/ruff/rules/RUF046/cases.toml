@@ -1,0 +1,144 @@
+[[cases]]
+name = "upstream-RUF046.py"
+files = { "RUF046.py" = "import math\n\n\ninferred_int = 1\ninferred_float = 1.\n\n\n### Safely fixable\n\nint(id())\nint(len([]))\nint(ord(foo))\nint(hash(foo, bar))\nint(int(''))\n\nint(math.comb())\nint(math.factorial())\nint(math.gcd())\nint(math.lcm())\nint(math.isqrt())\nint(math.perm())\n\nint(round(1, 0))\nint(round(1, 10))\n\nint(round(1))\nint(round(1, None))\n\nint(round(1.))\nint(round(1., None))\n\nint(1)\nint(v := 1)\nint(~1)\nint(-1)\nint(+1)\n\nint(1 + 1)\nint(1 - 1)\nint(1 * 1)\nint(1 % 1)\nint(1 ** 1)\nint(1 << 1)\nint(1 >> 1)\nint(1 | 1)\nint(1 ^ 1)\nint(1 & 1)\nint(1 // 1)\n\nint(1 if ... else 2)\n\nint(1 and 0)\nint(0 or -1)\n\n\nif int(1 + 2) * 3:\n    ...\n\n\n### Unsafe\n\nint(math.ceil())\nint(math.floor())\nint(math.trunc())\n\nint(round(inferred_int, 0))\nint(round(inferred_int, 10))\n\nint(round(inferred_int))\nint(round(inferred_int, None))\n\nint(round(inferred_float))\nint(round(inferred_float, None))\n\nint(round(unknown))\nint(round(unknown, None))\n\n\n### No errors\n\nint(round(1, unknown))\nint(round(1., unknown))\n\nint(round(1., 0))\nint(round(inferred_float, 0))\n\nint(round(inferred_int, unknown))\nint(round(inferred_float, unknown))\n\nint(round(unknown, 0))\nint(round(unknown, unknown))\n\nint(round(0, 3.14))\nint(round(inferred_int, 3.14))\n\nint(round(0, 0), base)\nint(round(0, 0, extra=keyword))\n\nint(foo if ... else 4)\n\nint(3.14)\nint(2.8j)\n\nasync def f():\n    int(await f())\n\nint(foo.bar)\nint(bar([1][False]))\n\nint(1 == 1)\nint(1 != 1)\nint(1 < 1)\nint(1 <= 1)\nint(1 > 1)\nint(1 >= 1)\nint(1 in 1)\nint(1 not in 1)\nint(1 is 1)\nint(2 is not 3)\nint(foo in 1)\nint(foo not in 1)\nint(foo is 1)\nint(foo is not 1)\n\nint(1 == 2 == 3)\nint(foo == 1)\nint(foo != 1)\nint(foo < 1)\nint(foo <= 1)\nint(foo > 1)\nint(foo >= 1)\n\nint(v := {}[{}['']])\n\nint(foo + 1)\nint(foo - 1)\nint(foo * 1)\nint(foo @ 1)\nint(foo / 1)\nint(foo % 1)\nint(foo ** 1)\nint(foo << 1)\nint(foo >> 1)\nint(foo | 1)\nint(foo ^ 1)\nint(foo & 1)\nint(foo // 1)\n\nint(v := 3.7)\n\nint(not 109)\n\nint(1 / 1)\nint(1 @ 1)\n\nint(1. if ... else .2)\n\nint(1 +\n    1)\n\nint(round(1,\n          0))\n\n# function calls may need to retain parentheses\n# if the parentheses for the call itself\n# lie on the next line.\n# See https://github.com/astral-sh/ruff/issues/15263\nint(round\n(1))\n\nint(round # a comment\n# and another comment\n(10)\n)\n\nint(round (17)) # this is safe without parens\n\nint( round (\n                17\n            )) # this is also safe without parens\n\nint((round)  # Comment\n(42)\n)\n\nint((round  # Comment\n)(42)\n)\n\nint(  # Unsafe fix because of this comment\n(  # Comment\n    (round\n)  # Comment\n)(42)\n)\n\nint(\n    round(\n        42\n    ) # unsafe fix because of this comment\n)\n\nint(\n    round(\n        42\n    ) \n# unsafe fix because of this comment\n)\n" }
+expected = [{ rule = "RUF046", file = "RUF046.py", start = 73, end = 82 }, { rule = "RUF046", file = "RUF046.py", start = 83, end = 95 }, { rule = "RUF046", file = "RUF046.py", start = 96, end = 109 }, { rule = "RUF046", file = "RUF046.py", start = 110, end = 129 }, { rule = "RUF046", file = "RUF046.py", start = 130, end = 142 }, { rule = "RUF046", file = "RUF046.py", start = 144, end = 160 }, { rule = "RUF046", file = "RUF046.py", start = 161, end = 182 }, { rule = "RUF046", file = "RUF046.py", start = 183, end = 198 }, { rule = "RUF046", file = "RUF046.py", start = 199, end = 214 }, { rule = "RUF046", file = "RUF046.py", start = 215, end = 232 }, { rule = "RUF046", file = "RUF046.py", start = 233, end = 249 }, { rule = "RUF046", file = "RUF046.py", start = 251, end = 267 }, { rule = "RUF046", file = "RUF046.py", start = 268, end = 285 }, { rule = "RUF046", file = "RUF046.py", start = 287, end = 300 }, { rule = "RUF046", file = "RUF046.py", start = 301, end = 320 }, { rule = "RUF046", file = "RUF046.py", start = 322, end = 336 }, { rule = "RUF046", file = "RUF046.py", start = 337, end = 357 }, { rule = "RUF046", file = "RUF046.py", start = 359, end = 365 }, { rule = "RUF046", file = "RUF046.py", start = 366, end = 377 }, { rule = "RUF046", file = "RUF046.py", start = 378, end = 385 }, { rule = "RUF046", file = "RUF046.py", start = 386, end = 393 }, { rule = "RUF046", file = "RUF046.py", start = 394, end = 401 }, { rule = "RUF046", file = "RUF046.py", start = 403, end = 413 }, { rule = "RUF046", file = "RUF046.py", start = 414, end = 424 }, { rule = "RUF046", file = "RUF046.py", start = 425, end = 435 }, { rule = "RUF046", file = "RUF046.py", start = 436, end = 446 }, { rule = "RUF046", file = "RUF046.py", start = 447, end = 458 }, { rule = "RUF046", file = "RUF046.py", start = 459, end = 470 }, { rule = "RUF046", file = "RUF046.py", start = 471, end = 482 }, { rule = "RUF046", file = "RUF046.py", start = 483, end = 493 }, { rule = "RUF046", file = "RUF046.py", start = 494, end = 504 }, { rule = "RUF046", file = "RUF046.py", start = 505, end = 515 }, { rule = "RUF046", file = "RUF046.py", start = 516, end = 527 }, { rule = "RUF046", file = "RUF046.py", start = 529, end = 549 }, { rule = "RUF046", file = "RUF046.py", start = 551, end = 563 }, { rule = "RUF046", file = "RUF046.py", start = 564, end = 576 }, { rule = "RUF046", file = "RUF046.py", start = 582, end = 592 }, { rule = "RUF046", file = "RUF046.py", start = 620, end = 636 }, { rule = "RUF046", file = "RUF046.py", start = 637, end = 654 }, { rule = "RUF046", file = "RUF046.py", start = 655, end = 672 }, { rule = "RUF046", file = "RUF046.py", start = 674, end = 701 }, { rule = "RUF046", file = "RUF046.py", start = 702, end = 730 }, { rule = "RUF046", file = "RUF046.py", start = 732, end = 756 }, { rule = "RUF046", file = "RUF046.py", start = 757, end = 787 }, { rule = "RUF046", file = "RUF046.py", start = 789, end = 815 }, { rule = "RUF046", file = "RUF046.py", start = 816, end = 848 }, { rule = "RUF046", file = "RUF046.py", start = 850, end = 869 }, { rule = "RUF046", file = "RUF046.py", start = 870, end = 895 }, { rule = "RUF046", file = "RUF046.py", start = 1920, end = 1934 }, { rule = "RUF046", file = "RUF046.py", start = 1936, end = 1962 }, { rule = "RUF046", file = "RUF046.py", start = 2130, end = 2144 }, { rule = "RUF046", file = "RUF046.py", start = 2146, end = 2196 }, { rule = "RUF046", file = "RUF046.py", start = 2198, end = 2213 }, { rule = "RUF046", file = "RUF046.py", start = 2245, end = 2291 }, { rule = "RUF046", file = "RUF046.py", start = 2328, end = 2357 }, { rule = "RUF046", file = "RUF046.py", start = 2359, end = 2388 }, { rule = "RUF046", file = "RUF046.py", start = 2390, end = 2477 }, { rule = "RUF046", file = "RUF046.py", start = 2479, end = 2550 }, { rule = "RUF046", file = "RUF046.py", start = 2552, end = 2624 }]
+
+[[cases]]
+name = "upstream-RUF046_CR.py"
+files = { "RUF046_CR.py" = "int(-\r    1) # Carriage return as newline\r" }
+expected = [{ rule = "RUF046", file = "RUF046_CR.py", start = 0, end = 12 }]
+
+[[cases]]
+name = "upstream-RUF046_LF.py"
+files = { "RUF046_LF.py" = "# \\n as newline\nint(-\n    1)\n" }
+expected = [{ rule = "RUF046", file = "RUF046_LF.py", start = 16, end = 28 }]
+
+[[cases]]
+name = "integer"
+files = { "case.py" = "import math\nimport builtins\nint(42)\n" }
+expected = [{ rule = "RUF046", file = "case.py", start = 28, end = 35 }]
+
+[[cases]]
+name = "float"
+files = { "case.py" = "import math\nimport builtins\nint(42.0)\n" }
+expected = []
+
+[[cases]]
+name = "boolean"
+files = { "case.py" = "import math\nimport builtins\nint(True)\n" }
+expected = []
+
+[[cases]]
+name = "arithmetic"
+files = { "case.py" = "import math\nimport builtins\nint(4 + 2)\n" }
+expected = [{ rule = "RUF046", file = "case.py", start = 28, end = 38 }]
+
+[[cases]]
+name = "division"
+files = { "case.py" = "import math\nimport builtins\nint(4 / 2)\n" }
+expected = []
+
+[[cases]]
+name = "direct-name"
+files = { "case.py" = "import math\nimport builtins\nint(value)\n" }
+expected = []
+
+[[cases]]
+name = "length"
+files = { "case.py" = "import math\nimport builtins\nint(len(items))\n" }
+expected = [{ rule = "RUF046", file = "case.py", start = 28, end = 43 }]
+
+[[cases]]
+name = "custom-function"
+files = { "case.py" = "import math\nimport builtins\nint(custom(items))\n" }
+expected = []
+
+[[cases]]
+name = "math-floor"
+files = { "case.py" = "import math\nimport builtins\nint(math.floor(value))\n" }
+expected = [{ rule = "RUF046", file = "case.py", start = 28, end = 50 }]
+
+[[cases]]
+name = "math-isqrt"
+files = { "case.py" = "import math\nimport builtins\nint(math.isqrt(value))\n" }
+expected = [{ rule = "RUF046", file = "case.py", start = 28, end = 50 }]
+
+[[cases]]
+name = "round-unknown"
+files = { "case.py" = "import math\nimport builtins\nint(round(value))\n" }
+expected = [{ rule = "RUF046", file = "case.py", start = 28, end = 45 }]
+
+[[cases]]
+name = "round-float-none"
+files = { "case.py" = "import math\nimport builtins\nint(round(1.2, None))\n" }
+expected = [{ rule = "RUF046", file = "case.py", start = 28, end = 49 }]
+
+[[cases]]
+name = "round-float-digits"
+files = { "case.py" = "import math\nimport builtins\nint(round(1.2, 2))\n" }
+expected = []
+
+[[cases]]
+name = "round-int-negative"
+files = { "case.py" = "import math\nimport builtins\nint(round(42, -2))\n" }
+expected = [{ rule = "RUF046", file = "case.py", start = 28, end = 46 }]
+
+[[cases]]
+name = "round-int-arithmetic"
+files = { "case.py" = "import math\nimport builtins\nint(round(42, 1 + 2))\n" }
+expected = [{ rule = "RUF046", file = "case.py", start = 28, end = 49 }]
+
+[[cases]]
+name = "round-unknown-digits"
+files = { "case.py" = "import math\nimport builtins\nint(round(value, 2))\n" }
+expected = []
+
+[[cases]]
+name = "two-args"
+files = { "case.py" = "import math\nimport builtins\nint(42, 10)\n" }
+expected = []
+
+[[cases]]
+name = "keyword"
+files = { "case.py" = "import math\nimport builtins\nint(x=42)\n" }
+expected = []
+
+[[cases]]
+name = "star-args"
+files = { "case.py" = "import math\nimport builtins\nint(*[42])\n" }
+expected = []
+
+[[cases]]
+name = "kwargs"
+files = { "case.py" = "import math\nimport builtins\nint(**{\"x\": 42})\n" }
+expected = []
+
+[[cases]]
+name = "qualified"
+files = { "case.py" = "import math\nimport builtins\nbuiltins.int(42)\n" }
+expected = [{ rule = "RUF046", file = "case.py", start = 28, end = 44 }]
+
+[[cases]]
+name = "annotated-direct-name"
+files = { "case.py" = "def f(value: int):\n    return int(value)\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-builtin"
+files = { "case.py" = "def int(x): return x\nint(42)\n" }
+expected = []
+
+[[cases]]
+name = "suppressed"
+files = { "case.py" = "int(42)  # noqa: RUF046\n" }
+expected = []
+
+[[cases]]
+name = "unrelated-noqa"
+files = { "case.py" = "int(42)  # noqa: F401\n" }
+expected = [{ rule = "RUF046", file = "case.py", start = 0, end = 7 }]
+
+[[cases]]
+name = "unicode-offset"
+files = { "case.py" = "text = \"\u00e9\"\nint(42)\n" }
+expected = [{ rule = "RUF046", file = "case.py", start = 12, end = 19 }]

@@ -1,0 +1,1013 @@
+{
+  "schema": "contract-review-verdict/v1",
+  "source": {
+    "base": "1bf821a3e3ea3e06517721c875e5bc9551353e29",
+    "head": "293ca1a9a2617eb9b928731ec9a1ac5c36bb30e4",
+    "tree": "87b9273be5fff18ebbadf165a86f842a22c54c85",
+    "worktree": "/tmp/ryo-admitted-walk-work-20261105",
+    "status_before": "clean",
+    "status_after": "clean",
+    "head_after": "293ca1a9a2617eb9b928731ec9a1ac5c36bb30e4",
+    "tree_after": "87b9273be5fff18ebbadf165a86f842a22c54c85",
+    "binding": "Both source reads completed on frozen293; source freeze released afterward for parent checkpoint work."
+  },
+  "verdict": "blocking",
+  "verdict_scope": "Bounded functional corrections pass. Combined structural acceptance remains blocked by current source findings; no full Phase2/3/4 or category closure.",
+  "axes": {
+    "enforced_boundaries": "FAIL",
+    "clear_ownership_and_flow": "PASS",
+    "proof": "PASS"
+  },
+  "axis_reasons": {
+    "enforced_boundaries": "All concrete runtime/privacy/registration/visibility corrections pass; current source still violates placed structural contracts. Actual123-path TM493/0 and overlapping current observer55/0 are unwaived. Functional boundary PASS does not establish structural acceptance.",
+    "clear_ownership_and_flow": "PASS for reviewed owner/registration/publication/lifecycle family: actual engine retains required Population backing until last compute consumer, then releases it; weak observers only measure that behavior. No retention, authority or import-permission expansion. Three named target SCC families remain zero;ten other SCCs explicitly excluded.",
+    "proof": "PASS for bounded corrective claims:459 execution tests,all86 actual compiler controls,112 guard scenarios and8 actual built-CLI cases; precise307/305 evidence reuse and current308 receipts documented. Broader sparse-work,route-coverage,normal-CI and full-corpus claims remain outside this PASS."
+  },
+  "bounded_functional": {
+    "verdict": "pass",
+    "axes": {
+      "enforced_boundaries": "PASS",
+      "clear_ownership_and_flow": "PASS",
+      "proof": "PASS"
+    },
+    "scope": [
+      "restored actual producer last-use and terminal delivery/replay/error/cancellation",
+      "test-only witness/default-feature compiler context",
+      "all86 actual compiler controls including publication detachment refusals and leased-clone positive",
+      "custom program guard exact visibility-span exclusion preserving same-path real dependencies",
+      "built CLI eight import-policy cases with genuine template validation"
+    ]
+  },
+  "reviewers": {
+    "lead": {
+      "model": "gpt-6-astra",
+      "agent": "/root/ownership_review_astra",
+      "round_uuid": "962a9c69-6bd1-4520-b336-0e153912f326"
+    },
+    "independent": {
+      "model": [
+        "claude-opus-5-5"
+      ],
+      "session": "a810a5aa-f1ef-4428-bf1f-624ed4b791b2",
+      "round_uuid": "37937686-dc07-4ef6-a03f-82560aade621",
+      "exit": 0,
+      "command_metadata": "/tmp/ryo-derived-review-opus-293c/metadata.json",
+      "raw_result": "/tmp/ryo-derived-review-opus-293c/raw.json",
+      "raw_sha256": "4c77dc42f6d974c271894c7a4cc4a7f3efe890052e1ede81d55a3fffb4971e67",
+      "verdict": "/tmp/ryo-derived-review-opus-293c/verdict.json",
+      "reported_verdict": "pass",
+      "reported_axes": {
+        "enforced_boundaries": "PASS",
+        "clear_ownership_and_flow": "PASS",
+        "proof": "PASS"
+      },
+      "reported_scope": "bounded functional corrections; no phase/category/checkbox approval",
+      "source_before": "293ca1a9a2617eb9b928731ec9a1ac5c36bb30e4",
+      "source_after": "293ca1a9a2617eb9b928731ec9a1ac5c36bb30e4",
+      "reconciliation": "Lead accepts independent bounded functional PASS. Overall structural verdict remains blocking on actual placed owner/fixture/collection support contracts. Opus style-only summary omits25 closed placements,9 fixture-context,7 module-declaration and6 collection-template findings. The separately reported interface-import occurrence is now confirmed visibility-only and is not a real dependency defect. Raw493 source report and independent verdict remain unchanged."
+    }
+  },
+  "findings": [
+    {
+      "id": "TM-STRUCTURAL-307",
+      "severity": "blocking",
+      "type": "actual unresolved source structural contracts",
+      "family": "Owner/route/test placement and existing dependency contracts",
+      "paths": [
+        "crates/ryo/crates/execution/src/application/file_dag/derived/owner/observations.rs",
+        "crates/ryo/crates/execution/src/application/file_dag/relations.rs",
+        "crates/ryo/crates/execution/src/application/file_dag/derived/owner.rs",
+        "crates/ryo/crates/execution/src/domain/table_model/collections/representations/registration.rs"
+      ],
+      "failure": "Actual307 check across123 Rust paths reports493 findings,0 suppressed. Current308 runtime observer source reports55,0 suppressed and overlaps that scope. The current CLI source check is0/0. Program boundary false positive and stale forbidden import are fixed; placement/fixture/module/template findings remain. The one reported collection-interface import finding is separately confirmed to be a visibility-span false positive, not a real dependency.",
+      "falsifier": "Passing guard assets and behavioral controls do not satisfy source placement roles: observations.rs/relations.rs remain unplaced in a closed application service; owner fixture/declarations mismatch placed rules; representation registration/service/test support files are matched by item-module templates. These structural classifications require a coherent source/rule disposition. The OperatorsItem visibility restriction is not a prohibited import.",
+      "required_proof": "Resolve or precisely source-adjudicate the existing owner/route/fixture structural families through meaningful placement and shared contracts, retaining privacy and production cfg. Any rule correction needs real bad/good controls; no broad allowlist, suppression or mere receipt exemption. Re-run affected actual source checks. Ten recorded out-of-filter SCCs are separately open, not a regression in the three targeted families.",
+      "owner": "root with retained ownership and TM authors",
+      "scope_counts": {
+        "idiomatic.arch/application-service#closed": 25,
+        "idiomatic.arch/idiomatic-rust/no-bare-integers": 166,
+        "idiomatic.arch/validation-at-edges": 4,
+        "idiomatic.arch/idiomatic-rust/no-bare-bool": 93,
+        "idiomatic.arch/idiomatic-rust/no-string-literals": 66,
+        "idiomatic.arch/no-heap-accounting": 13,
+        "idiomatic.arch/module-declares": 7,
+        "idiomatic.arch/no-language-names": 2,
+        "idiomatic.arch/idiomatic-rust/no-bare-tuples": 34,
+        "idiomatic.arch/no-ok-on-result": 6,
+        "idiomatic.arch/file-length": 18,
+        "idiomatic.arch/one-type-per-name": 4,
+        "idiomatic.arch/no-runtime-fixtures": 9,
+        "idiomatic.arch/idiomatic-rust/no-bare-text": 1,
+        "idiomatic.arch/idiomatic-rust/module-cycles": 5,
+        "idiomatic.arch/no-reexports": 5,
+        "idiomatic.arch/idiomatic-rust/no-bare-keys": 5,
+        "idiomatic.arch/idiomatic-rust/field-written-never-read": 3,
+        "idiomatic.arch/unit-cases": 2,
+        "idiomatic.arch/test-shape": 12,
+        "idiomatic.arch/pub-item-unreferenced-elsewhere": 1,
+        "idiomatic.arch/collection/collection-interface#imports": 1,
+        "idiomatic.arch/concept#closed": 1,
+        "idiomatic.arch/collection-members": 3,
+        "idiomatic.arch/collection/item-module#template": 6,
+        "idiomatic.arch/no-domain-aliases": 1
+      },
+      "visibility_diagnostic_disposition": {
+        "fingerprint": "ccd90c39658137aa",
+        "path": "crates/ryo/crates/execution/src/domain/operator/collections/operators/interface.rs",
+        "line": 11,
+        "column": 8,
+        "source": "pub(in super::super::super) trait OperatorsItem: Sync",
+        "status": "confirmed_visibility_false_positive_in_recorded_installed_tool_output",
+        "basis": "The only referenced span is an access scope. Current core import_rows/constants.rs SEMANTIC_EDGES excludes exact syntax path source/span beneath visibility; service.rs uses that query. Rebuilt actualCLI8 cases prove restricted visibility does not authorize real import/type/call dependencies. The installed-source-check receipt is retained unchanged; do not alter valid Rust privacy or grant an import permission. Binary-postimage provenance should be recorded when rechecking with the rebuilt CLI; no specific installed binary build hash was established in this read-only review."
+      }
+    }
+  ],
+  "dispositions": [
+    {
+      "id": "LIFE-RESTORE / LIFE-INVARIANT",
+      "disposition": "fixed",
+      "basis": "Actual healthy Join is selected from original_steps; its compiled Equality input must equal the observed upstream producer. ProjectRun supplies actual bound identity; runtime validates state and filters scope+consumer; RelationOwner maps exact(scope,producer) to population/backing IDs; DerivedOwner matches Equality and refuses ambiguity. Before:Published/remaining>0/required bytes>0/live weak witness. After:same allocation/remaining0/Terminal/bytes0/released. All Complete/SemanticFailure/RefusedBinding/CancelledDelivery cases execute307; terminal replay/output remains independent. No production retention change."
+    },
+    {
+      "id": "WITNESS-CONTEXT / PROBE-FEATURE",
+      "disposition": "fixed",
+      "basis": "Default-feature Origin initializer now mirrors diagnostic-row-progress field cfg. All86 source probes complete307:79 Library and7 LibraryTests;18 authorized68 forbidden. Positive test-only probe requires actual lib-test artifact; negatives retain exact code,message and primary inserted-source span. No skipped or unrelated-error certification."
+    },
+    {
+      "id": "PUB-RAW",
+      "disposition": "fixed_source_runtime_compiler",
+      "basis": "Relations-private raw record, borrowed immutable RelationResult and leased publication clones unchanged. Actual required-backing clone/drop controls pass; new detached record E0624,borrowed escape E0515 and leased-clone positive all execute in completed86-probe suite."
+    },
+    {
+      "id": "TM-CLI-306 / TM-GUARD-IMPORT",
+      "disposition": "fixed",
+      "basis": "Fixture uses genuine passing/failing template assets, actual tm validate and exactly four explicit support-file placements. Guarded src/owner/{module}.rs import default-deny remains.308 builtCLI test completes all8 unchanged cases/status/rule/count assertions;CLI source0/0."
+    },
+    {
+      "id": "TM-OWNER-FINDINGS visibility",
+      "disposition": "fixed",
+      "basis": "Only syntax path occurrences beneath visibility nodes matching exact source+span are excluded from custom guard input. Provider facts and source permissions unchanged.112 actual scenarios:104 retained+2 visibility positives+6 same-path real dependency negatives. Before query fails same controls;after passes.307 actual source has0 program-boundary findings."
+    },
+    {
+      "id": "Unused DerivedStorage dependency",
+      "disposition": "fixed",
+      "basis": "Removed one stale local use in invocation/index.rs, not an allowance. Actual admission acquisition and AcquiredView operations unchanged. No production runtime behavior changes."
+    },
+    {
+      "id": "REG-PHYS-VALUE / REG-1 / SP1 / DG1 / held reads / issuer aliases / readiness census",
+      "disposition": "fixed_retained",
+      "basis": "All existing authority,classification,publication,graph/raw,held-read and ready-before-callback controls pass307. No repaired leaf defect reopened."
+    },
+    {
+      "id": "Opus invocation SCC concern",
+      "disposition": "rejected_as_targeted_zero_contradiction",
+      "basis": "Exact307 graph5104occurrences/2872edges explicitly places invocation/groups/index among10 residual SCCs;three named target families havezero. No whole-engine acyclic claim."
+    },
+    {
+      "id": "Opus493 residual style-only characterization",
+      "disposition": "rejected_in_part",
+      "basis": "Raw493 source report contains substantive placement,fixture,module-declaration,template and import-contract findings in addition to representation/style rules and5 residual-cycle findings. These remain unwaived."
+    },
+    {
+      "id": "collection-interface#imports ccd90c39658137aa",
+      "disposition": "rejected_as_real_import_defect",
+      "basis": "interface.rs:11:8 is pub(in super::super::super), not use/type/call. Keep existing privacy; classify old-tool reported occurrence separately and verify with the already-corrected built CLI import-row semantics."
+    }
+  ],
+  "validation": {
+    "307": {
+      "source": "839190fd547ff7e8d08b05a7c314741a7eec3f47",
+      "receipts": {
+        "libraries": {
+          "source": "839190fd547ff7e8d08b05a7c314741a7eec3f47",
+          "command": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "crates/ryo/Cargo.toml",
+            "--target-dir",
+            "/workspaces/idiomatic-benchmark-guards/target",
+            "--locked",
+            "--offline",
+            "-j6",
+            "--all-features",
+            "-p",
+            "idiomatic-sh-ryo-execution",
+            "-p",
+            "idiomatic-sh-ryo-core",
+            "-p",
+            "idiomatic-sh-ryo-sdk",
+            "-p",
+            "idiomatic-sh-ryo-values",
+            "-p",
+            "idiomatic-sh-ryo-query_language",
+            "-p",
+            "idiomatic-sh-ryo-operators",
+            "-p",
+            "idiomatic-sh-ryo-matching",
+            "-p",
+            "idiomatic-sh-ryo-derived",
+            "--lib",
+            "--no-fail-fast",
+            "-p",
+            "idiomatic-sh-ryo-benchmark",
+            "--",
+            "--test-threads=6"
+          ],
+          "exit": 101,
+          "elapsed_seconds": 52.94202208518982
+        },
+        "boundary": {
+          "source": "839190fd547ff7e8d08b05a7c314741a7eec3f47",
+          "command": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "crates/ryo/Cargo.toml",
+            "--target-dir",
+            "/workspaces/idiomatic-benchmark-guards/target",
+            "--locked",
+            "--offline",
+            "-j6",
+            "--all-features",
+            "-p",
+            "idiomatic-sh-ryo-execution",
+            "--test",
+            "boundary_contract",
+            "--",
+            "--test-threads=6"
+          ],
+          "exit": 0,
+          "elapsed_seconds": 237.63641142845154
+        },
+        "tm_guards": {
+          "source": "839190fd547ff7e8d08b05a7c314741a7eec3f47",
+          "command": [
+            "tm",
+            "--root",
+            "crates/ryo",
+            "validate",
+            "rule/program-implementation-boundary",
+            "rule/shared-walk-owner",
+            "rule/collection-members",
+            "rule/runtime-authority",
+            "template/value",
+            "template/value-module",
+            "template/value-test",
+            "--format",
+            "json"
+          ],
+          "exit": 0,
+          "elapsed_seconds": 0.04442572593688965
+        },
+        "tm_source": {
+          "source": "839190fd547ff7e8d08b05a7c314741a7eec3f47",
+          "command": [
+            "tm",
+            "--root",
+            "crates/ryo",
+            "check",
+            "--fix",
+            "crates/execution/src/application/file_dag/closure_partitions.rs",
+            "crates/execution/src/application/file_dag/derived.rs",
+            "crates/execution/src/application/file_dag/derived/owner.rs",
+            "crates/execution/src/application/file_dag/derived/owner/acquisition/admission/service.rs",
+            "crates/execution/src/application/file_dag/derived/owner/acquisition/admission/service/issuance/mod.rs",
+            "crates/execution/src/application/file_dag/derived/owner/acquisition/admission/service/issuance/service.rs",
+            "crates/execution/src/application/file_dag/derived/owner/acquisition/graph/construction/service.rs",
+            "crates/execution/src/application/file_dag/derived/owner/acquisition/graph/service.rs",
+            "crates/execution/src/application/file_dag/derived/owner/acquisition/selection/service.rs",
+            "crates/execution/src/application/file_dag/derived/owner/acquisition/service.rs",
+            "crates/execution/src/application/file_dag/derived/owner/fixtures/mod.rs",
+            "crates/execution/src/application/file_dag/derived/owner/graph.rs",
+            "crates/execution/src/application/file_dag/derived/owner/graph_fixture.rs",
+            "crates/execution/src/application/file_dag/derived/owner/graph_key.rs",
+            "crates/execution/src/application/file_dag/derived/owner/graph_lifetime_test.rs",
+            "crates/execution/src/application/file_dag/derived/owner/graph_policy.rs",
+            "crates/execution/src/application/file_dag/derived/owner/graphs/types/retained/types.rs",
+            "crates/execution/src/application/file_dag/derived/owner/observations.rs",
+            "crates/execution/src/application/file_dag/derived/owner/raw_scope.rs",
+            "crates/execution/src/application/file_dag/derived/owner/resource_fixture.rs",
+            "crates/execution/src/application/file_dag/derived/owner/selection/candidates/service.rs",
+            "crates/execution/src/application/file_dag/derived/owner/selection/fanout/service.rs",
+            "crates/execution/src/application/file_dag/derived/owner/selection/fixtures/mod.rs",
+            "crates/execution/src/application/file_dag/derived/owner/selection/literals/mod.rs",
+            "crates/execution/src/application/file_dag/derived/owner/selection/literals/service.rs",
+            "crates/execution/src/application/file_dag/derived/owner/selection/mod.rs",
+            "crates/execution/src/application/file_dag/derived/owner/selection/preparation/service.rs",
+            "crates/execution/src/application/file_dag/derived/owner/selection/retention/test.rs",
+            "crates/execution/src/application/file_dag/derived/owner/selection/types.rs",
+            "crates/execution/src/application/file_dag/derived/owner/witness/mod.rs",
+            "crates/execution/src/application/file_dag/derived/owner/witness/service.rs",
+            "crates/execution/src/application/file_dag/derived/owner_test.rs",
+            "crates/execution/src/application/file_dag/derived/population/mod.rs",
+            "crates/execution/src/application/file_dag/derived/population/types.rs",
+            "crates/execution/src/application/file_dag/execution.rs",
+            "crates/execution/src/application/file_dag/execution/lease.rs",
+            "crates/execution/src/application/file_dag/execution/lease/capability/mod.rs",
+            "crates/execution/src/application/file_dag/execution/lease/capability/service.rs",
+            "crates/execution/src/application/file_dag/executor.rs",
+            "crates/execution/src/application/file_dag/executor/response/mod.rs",
+            "crates/execution/src/application/file_dag/executor/response/types.rs",
+            "crates/execution/src/application/file_dag/invocation.rs",
+            "crates/execution/src/application/file_dag/invocation/index.rs",
+            "crates/execution/src/application/file_dag/invocation/native/mod.rs",
+            "crates/execution/src/application/file_dag/invocation/native/service.rs",
+            "crates/execution/src/application/file_dag/observations/cross.rs",
+            "crates/execution/src/application/file_dag/ordered_existence.rs",
+            "crates/execution/src/application/file_dag/program/admission.rs",
+            "crates/execution/src/application/file_dag/program/facade_runtime.rs",
+            "crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/external/fixtures/mod.rs",
+            "crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/external/mod.rs",
+            "crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/external/test.rs",
+            "crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/mod.rs",
+            "crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/project/fixtures/mod.rs",
+            "crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/project/mod.rs",
+            "crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/project/test.rs",
+            "crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/restoration/fixtures/mod.rs",
+            "crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/restoration/mod.rs",
+            "crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/restoration/test.rs",
+            "crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/test.rs",
+            "crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/readiness/fixtures/mod.rs",
+            "crates/execution/src/application/file_dag/program/facade_runtime/project_execution.rs",
+            "crates/execution/src/application/file_dag/program/facade_runtime/source_admission.rs",
+            "crates/execution/src/application/file_dag/program/kernel_session.rs",
+            "crates/execution/src/application/file_dag/program/native_join.rs",
+            "crates/execution/src/application/file_dag/program/native_join/lease/mod.rs",
+            "crates/execution/src/application/file_dag/program/native_join/lease/service.rs",
+            "crates/execution/src/application/file_dag/program/native_join/lease/service/dispatch/mod.rs",
+            "crates/execution/src/application/file_dag/program/native_join/lease/service/dispatch/service.rs",
+            "crates/execution/src/application/file_dag/program/native_walk.rs",
+            "crates/execution/src/application/file_dag/program/native_walk/lease/mod.rs",
+            "crates/execution/src/application/file_dag/program/native_walk/lease/service.rs",
+            "crates/execution/src/application/file_dag/program/project_population/types.rs",
+            "crates/execution/src/application/file_dag/program/runtime/service.rs",
+            "crates/execution/src/application/file_dag/program/runtime/service/lifecycle/fixtures.rs",
+            "crates/execution/src/application/file_dag/program/runtime/service/lifecycle/inputs/fixtures.rs",
+            "crates/execution/src/application/file_dag/program/runtime/types.rs",
+            "crates/execution/src/application/file_dag/program/selection.rs",
+            "crates/execution/src/application/file_dag/relations.rs",
+            "crates/execution/src/application/file_dag/relations/admission/mod.rs",
+            "crates/execution/src/application/file_dag/relations/admission/service.rs",
+            "crates/execution/src/application/file_dag/relations/admission/service/issuance/mod.rs",
+            "crates/execution/src/application/file_dag/relations/admission/service/issuance/service.rs",
+            "crates/execution/src/application/file_dag/relations/generation/mod.rs",
+            "crates/execution/src/application/file_dag/relations/generation/service.rs",
+            "crates/execution/src/application/file_dag/relations/handle/mod.rs",
+            "crates/execution/src/application/file_dag/relations/handle/service.rs",
+            "crates/execution/src/application/file_dag/relations/identity.rs",
+            "crates/execution/src/application/file_dag/relations/number/mod.rs",
+            "crates/execution/src/application/file_dag/relations/number/service.rs",
+            "crates/execution/src/application/file_dag/relations/number/service/issuance/mod.rs",
+            "crates/execution/src/application/file_dag/relations/number/service/issuance/service.rs",
+            "crates/execution/src/application/file_dag/relations/number/service/test.rs",
+            "crates/execution/src/application/file_dag/relations/owner_test.rs",
+            "crates/execution/src/application/file_dag/relations/owner_test/publication/mod.rs",
+            "crates/execution/src/application/file_dag/relations/owner_test/publication/test.rs",
+            "crates/execution/src/application/file_dag/relations/packed/mod.rs",
+            "crates/execution/src/application/file_dag/relations/packed/service.rs",
+            "crates/execution/src/application/file_dag/relations/packed/service/issuance/mod.rs",
+            "crates/execution/src/application/file_dag/relations/packed/service/issuance/service.rs",
+            "crates/execution/src/application/file_dag/relations/publication/mod.rs",
+            "crates/execution/src/application/file_dag/relations/publication/types.rs",
+            "crates/execution/src/application/file_dag/route_counts_test.rs",
+            "crates/execution/src/application/file_dag/scope.rs",
+            "crates/execution/src/application/file_dag/scope/types.rs",
+            "crates/execution/src/application/file_dag/workspace.rs",
+            "crates/execution/src/domain/operator/collections/operators/interface.rs",
+            "crates/execution/src/domain/operator/contract/registration.rs",
+            "crates/execution/src/domain/table_model/collections/representations/interface.rs",
+            "crates/execution/src/domain/table_model/collections/representations/registration.rs",
+            "crates/execution/src/domain/table_model/collections/representations/service.rs",
+            "crates/execution/src/domain/table_model/collections/representations/service_test.rs",
+            "crates/execution/src/domain/table_model/collections/representations/types.rs",
+            "crates/execution/src/domain/table_model/collections/representations/types/registered_representation/mod.rs",
+            "crates/execution/src/domain/table_model/collections/representations/types/registered_representation/value.rs",
+            "crates/execution/src/domain/table_model/collections/representations/types/registered_representation/value_test.rs",
+            "crates/execution/tests/source_boundary/derived/mod.rs",
+            "crates/execution/tests/source_boundary/derived/witness/mod.rs",
+            "crates/execution/tests/source_boundary/fixtures.rs",
+            "crates/execution/tests/source_boundary/mod.rs",
+            "crates/execution/tests/source_boundary/publication/fixtures/mod.rs",
+            "crates/execution/tests/source_boundary/publication/mod.rs",
+            "crates/execution/tests/source_boundary/test.rs",
+            "--format",
+            "json"
+          ],
+          "exit": 1,
+          "elapsed_seconds": 25.399353981018066
+        },
+        "ownership_edges": {
+          "source": "839190fd547ff7e8d08b05a7c314741a7eec3f47",
+          "command": [
+            "ryo",
+            "query",
+            "run",
+            "--root",
+            "crates/ryo",
+            "--text",
+            "let nodes = select id, kind, file, span from \"syntax-tree\" where text = \"\" and glob_any(file, \"crates/execution/src/**\");\nlet paths = select * from nodes where kind = \"path\";\nlet visibility = select * from nodes where kind = \"visibility\";\nlet nested = axis(from=visibility, relation=\"syntax-child\", direction=descendant, domain=paths);\nlet restricted = select r.file as source, r.span as span from nested as l join paths as r on l.related = r.id;\nlet declared = select source, target, written, span from \"source-dependency\" where glob_any(source, \"crates/execution/src/**\");\nlet dependencies = antijoin(left=declared, right=restricted, left-on=[\"source\",\"span\"], right-on=[\"source\",\"span\"]);\nemit dependencies subject source key(source,target,written,span);\n",
+            "--limit",
+            "100000",
+            "--format",
+            "json"
+          ],
+          "exit": 0,
+          "elapsed_seconds": 1.5312514305114746
+        }
+      },
+      "libraries": {
+        "execution": {
+          "passed": 459,
+          "failed": 0
+        },
+        "core": {
+          "passed": 177,
+          "failed": 6,
+          "disposition": "same deferred output/store failures"
+        },
+        "benchmark": {
+          "passed": 191,
+          "failed": 0
+        },
+        "sdk": {
+          "passed": 43,
+          "failed": 0
+        },
+        "other_five": {
+          "passed": 155,
+          "failed": 0
+        }
+      },
+      "boundary": {
+        "passed": 90,
+        "failed": 0,
+        "compiler_controls": 86,
+        "authorized": 18,
+        "forbidden": 68,
+        "Library": 79,
+        "LibraryTests": 7,
+        "inventory_by_home": {
+          "test.rs": 52,
+          "derived/mod.rs": 24,
+          "derived/witness/mod.rs": 7,
+          "publication/mod.rs": 3
+        }
+      },
+      "guard_assets": {
+        "proven": 7,
+        "kept": 7,
+        "failed": []
+      },
+      "source_tm": {
+        "findings": 493,
+        "suppressed": 0,
+        "paths": 123
+      },
+      "ownership_graph": {
+        "source": "839190fd547ff7e8d08b05a7c314741a7eec3f47",
+        "raw": "ownership_edges.log",
+        "occurrences": 5104,
+        "unique_edges": 2872,
+        "target_filter": [
+          "/file_dag/derived/owner",
+          "/program/runtime/",
+          "/program/native_walk"
+        ],
+        "targeted_cycles": [],
+        "other_cycles": [
+          [
+            "crates/execution/src/domain/matching/service.rs",
+            "crates/execution/src/domain/matching/types/prepared/value.rs"
+          ],
+          [
+            "crates/execution/src/domain/column_kernel/types.rs",
+            "crates/execution/src/domain/derived_views/types.rs",
+            "crates/execution/src/domain/file_program/types.rs",
+            "crates/execution/src/domain/operator/contract/types.rs",
+            "crates/execution/src/domain/ordered_existence/types.rs",
+            "crates/execution/src/domain/stored_selection/types.rs",
+            "crates/execution/src/domain/table_model/collections/representations/publication.rs"
+          ],
+          [
+            "crates/execution/src/domain/executable_program/column.rs",
+            "crates/execution/src/domain/executable_program/selection.rs",
+            "crates/execution/src/domain/executable_program/types.rs"
+          ],
+          [
+            "crates/execution/src/domain/tree_join/service.rs",
+            "crates/execution/src/domain/tree_join/service/driver.rs"
+          ],
+          [
+            "crates/execution/src/domain/operation_schema/service.rs",
+            "crates/execution/src/domain/operation_schema/types/traversal/value.rs"
+          ],
+          [
+            "crates/execution/src/domain/column_kernel/service.rs",
+            "crates/execution/src/domain/column_kernel/service/driver.rs"
+          ],
+          [
+            "crates/execution/src/application/file_dag/derived/prepare.rs",
+            "crates/execution/src/application/file_dag/derived/request.rs",
+            "crates/execution/src/application/file_dag/derived/request/identity.rs"
+          ],
+          [
+            "crates/execution/src/application/file_dag/invocation.rs",
+            "crates/execution/src/application/file_dag/invocation/groups.rs",
+            "crates/execution/src/application/file_dag/invocation/index.rs"
+          ],
+          [
+            "crates/execution/src/application/file_dag/frontiers/service.rs",
+            "crates/execution/src/application/file_dag/frontiers/types.rs",
+            "crates/execution/src/application/file_dag/program/context.rs",
+            "crates/execution/src/application/file_dag/program/facade_runtime.rs",
+            "crates/execution/src/application/file_dag/program/facade_runtime/file_execution.rs",
+            "crates/execution/src/application/file_dag/program/facade_runtime/project_execution.rs",
+            "crates/execution/src/application/file_dag/program/facade_runtime/source_admission.rs",
+            "crates/execution/src/application/file_dag/program/restored.rs"
+          ],
+          [
+            "crates/execution/src/application/file_dag/acceptance/operator_contract_test/fixtures.rs",
+            "crates/execution/src/application/file_dag/acceptance/operator_contract_test/fixtures/expectations.rs"
+          ]
+        ],
+        "unread_count": 5404,
+        "unread_rust": []
+      }
+    },
+    "308": {
+      "source": "293ca1a9a2617eb9b928731ec9a1ac5c36bb30e4",
+      "receipts": {
+        "tm_import_cli": {
+          "source": "293ca1a9a2617eb9b928731ec9a1ac5c36bb30e4",
+          "command": [
+            "cargo",
+            "test",
+            "--manifest-path",
+            "crates/tastemaker/Cargo.toml",
+            "--target-dir",
+            "/workspaces/idiomatic-benchmark-guards/target",
+            "--locked",
+            "--offline",
+            "-j6",
+            "-p",
+            "idiomatic-sh-tastemaker",
+            "--no-default-features",
+            "--features",
+            "rust,toml",
+            "--test",
+            "replay",
+            "imports::visibility_scopes_do_not_authorize_real_imports_types_or_calls",
+            "--",
+            "--exact"
+          ],
+          "exit": 0,
+          "elapsed_seconds": 2.64020037651062
+        },
+        "tm_cli_source": {
+          "source": "293ca1a9a2617eb9b928731ec9a1ac5c36bb30e4",
+          "command": [
+            "tm",
+            "--root",
+            "crates/tastemaker",
+            "check",
+            "--fix",
+            "cli/tests/replay/imports.rs",
+            "--format",
+            "json"
+          ],
+          "exit": 0,
+          "elapsed_seconds": 0.5689122676849365
+        },
+        "observer_source": {
+          "source": "293ca1a9a2617eb9b928731ec9a1ac5c36bb30e4",
+          "command": [
+            "tm",
+            "--root",
+            "crates/ryo",
+            "check",
+            "--fix",
+            "crates/execution/src/application/file_dag/program/runtime/service.rs",
+            "--format",
+            "json"
+          ],
+          "exit": 1,
+          "elapsed_seconds": 25.563862323760986
+        }
+      },
+      "cli_policy": {
+        "passed_tests": 1,
+        "failed_tests": 0,
+        "cases_executed": 8
+      },
+      "cli_source": {
+        "findings": 0,
+        "suppressed": 0
+      },
+      "observer_source": {
+        "findings": 55,
+        "suppressed": 0,
+        "overlap": "Subset of307 source scope, previously57 on this path. Counts must not be added; no current whole-workspace check claimed."
+      }
+    },
+    "guard112": {
+      "receipt": "/tmp/ryo-program-visibility-evidence.json",
+      "source_sha256": "56f460202982eccfb38a968795f5e54ff54617cf6af748016af77554a0fe2b90",
+      "hash_matches_current": true,
+      "before": {
+        "path": "/tmp/ryo-program-visibility-before.json",
+        "sha256": "c4db913d3f0b677b734f69514d1028b6830f867bc84d91857ea9274a59bbd505",
+        "command": "flock /workspaces/.cargo-build.lock flock /tmp/ryo-cargo-serial.lock tm --root crates/ryo validate rule/program-implementation-boundary --format json",
+        "exit": 1
+      },
+      "after": {
+        "path": "/tmp/ryo-program-visibility-validate.json",
+        "sha256": "00be585cc8569444e285f02d04e85adb2d56290897fa878d4179ea275e54c9c0",
+        "command": "flock /workspaces/.cargo-build.lock flock /tmp/ryo-cargo-serial.lock tm --root crates/ryo validate rule/program-implementation-boundary --format json",
+        "exit": 0
+      },
+      "total_scenarios": 112
+    }
+  },
+  "evidence_reuse": [
+    {
+      "from": "307 on839190fd547ff7e8d08b05a7c314741a7eec3f47",
+      "to": "293ca1a9a2617eb9b928731ec9a1ac5c36bb30e4",
+      "accepted": [
+        "libraries",
+        "all86 compiler controls",
+        "guard validation",
+        "execution ownership edge census"
+      ],
+      "basis": "Exact diff has only runtime service test-only expect\u2192unwrap/assert message removal and CLI test support placement. Observer conditions,scope/population selection,weak witnesses,all assertions and every compiler probe unchanged. Runtime change affects failure diagnostics only;CLI actually reruns308. No fresh ten-package build claimed."
+    },
+    {
+      "from": "305 on4067e8e93a13ddc27672bd29c79ab7df11e692aa",
+      "to": "293ca1a9a2617eb9b928731ec9a1ac5c36bb30e4",
+      "accepted": [
+        "core project boundary8",
+        "configured413 onefile sharing"
+      ],
+      "basis": "Reviewed complete Rust diff:all observer additions cfg(test),restoration/value/source-probe/CLI files test-only;only non-test executable-source edit removes an unused local DerivedStorage import. Actual production behavior/authority,core probe files and benchmark sharing sources are otherwise identical.307 libraries/boundaries compile and execute successor source. Reuse is explicit semantic nonchange plus identical relevant assertions,not a claim the whole Git tree matches.",
+      "limits": "Onefile reached eligible heads only;not fullRuff/fullcorpus parity or performance."
+    }
+  ],
+  "matrix_dispositions": [
+    {
+      "rows": [
+        "A3",
+        "A5",
+        "A6",
+        "B5.12",
+        "B5.14",
+        "C7"
+      ],
+      "disposition": "bounded_functional_complete_structural_blocking",
+      "source_or_evidence": "307 execution459/459;all86 compiler controls;308 realCLI8cases;guard112 and7proven7kept;explicit305/307reuse. Actual source493/0 and currentobserver55/0 overlap;CLI0/0.",
+      "remaining_responsibility": "Update current checkpoint and detailed rows to293 evidence;retain structural obligations. No full category or full-suite parity claim."
+    },
+    {
+      "rows": [
+        "B3",
+        "B4d.13",
+        "B5.5"
+      ],
+      "disposition": "assigned_caller_and_registration_family_proven",
+      "source_or_evidence": "Private runtime/derived/publication issuers,69/26/13/6 current catalog families,closed operator/physical routes and all86 compiler controls pass;five outer lifecycle families now execute successfully.",
+      "remaining_responsibility": "Broad census row requires durable reconciliation of current construction/admission/dispatch/publication/retry/retirement mapping to its existing controls. No known callable bypass remains;do not commission another leaf repair without a concrete uncovered route."
+    },
+    {
+      "rows": [
+        "B4a.4",
+        "B4d.4",
+        "B4d.6"
+      ],
+      "disposition": "retain_fixed_current_behavior_pass",
+      "source_or_evidence": "Exact publication/proof pairing,same-owner aliases,current/restored provenance and normalized observation controls pass307. PUB-RAW compiler controls now pass too.",
+      "remaining_responsibility": "No SP1 or publication-detachment repair remains;broader route claims use the explicit route inventory."
+    },
+    {
+      "rows": [
+        "B4a.9",
+        "B4b.10",
+        "B4c.12",
+        "B5.8"
+      ],
+      "disposition": "assigned_outer_lifecycle_family_complete",
+      "source_or_evidence": "Runtime primary-error/cleanup precedence,ordinary/external capture/collected callback refusal,duplicate cancellation,project exits and real restored last-use/terminal replay cases all pass307.",
+      "remaining_responsibility": "Reconcile broad row coverage against actual available entry routes;project delivery is collected-only. No remaining failing lifecycle fixture or request to retain Equality through replay."
+    },
+    {
+      "rows": [
+        "B4b.1",
+        "B4b.4",
+        "B4b.5",
+        "B4b.12"
+      ],
+      "disposition": "retain_fixed_supplied_batch_contract",
+      "source_or_evidence": "Complete supplied ordered ordinary/named batch sealing and17guard controls retained;8 core compiler controls from305 accepted on unchanged production semantics. SDK43 pass307.",
+      "remaining_responsibility": "Supplied-inventory completeness remains the claim;not proof that callers chose every global root. Legal singleton/cached/unselected filtering remains supported."
+    },
+    {
+      "rows": [
+        "B4c.9",
+        "B4c.11",
+        "A7"
+      ],
+      "disposition": "unchanged_specific_sparse_work_obligation",
+      "source_or_evidence": "This corrective batch proves no new independent count of activation metadata work/allocation as dormant compiled roots increase.",
+      "remaining_responsibility": "Existing A7/B4c.9/B4c.11 obligation:independently count relevant-rule activation work and reject added work from dormant roots. Use deterministic counters/mutations,not a performance run."
+    },
+    {
+      "rows": [
+        "B4d.12",
+        "P3.7"
+      ],
+      "disposition": "current_refusal_identity_controls_pass_barrier_scope_bounded",
+      "source_or_evidence": "All-six physical classification and missing/malformed/foreign-before-read controls pass307;current provider,partition,observation and explicit representation-refusal controls retained.",
+      "remaining_responsibility": "P3.7 broader continuation/strategy barrier coverage needs its existing route-to-control mapping;do not retain the fixed physical-value oracle as open."
+    },
+    {
+      "rows": [
+        "B4d.14"
+      ],
+      "disposition": "registration_and_visibility_family_complete",
+      "source_or_evidence": "REG1 selected-item AST owner/tail/ref constraints and uniform26+6 routes retained;112guard scenarios pass after exact visibility-span filtering;6 registration compiler controls pass.",
+      "remaining_responsibility": "Kind-to-item behavior remains a behavioral obligation covered by controls;macros/reexports outside static source policy remain explicit. Structural source placement findings are separate."
+    },
+    {
+      "rows": [
+        "B5.2",
+        "B5.3",
+        "P3.6"
+      ],
+      "disposition": "retain_fixed_complete_compiler_family",
+      "source_or_evidence": "All runtime/ordinary/ordered/column/ready capabilities and source guard controls pass307;pre-callback obligation,five demanded roots and actual omitted-callback negative pass.",
+      "remaining_responsibility": "No issuer alias or readiness bypass remains in the reviewed family. Do not reopen P3-1 as a current defect."
+    },
+    {
+      "rows": [
+        "B5.4",
+        "B5.11"
+      ],
+      "disposition": "complete86_compiler_inventory",
+      "source_or_evidence": "All86 completed:18 authorized68 forbidden;79 production7 test-only;52 runtime+24 derived+7 witness+3 publication. Actual lib-test artifact required for witnesspositive;all refusal codes/messages/inserted spans remain exact.",
+      "remaining_responsibility": "No remaining witness/publication probe context work. Broader phase boundaries remain tied to their complete source inventory."
+    },
+    {
+      "rows": [
+        "A9",
+        "B5.9",
+        "B5.10",
+        "P3.11"
+      ],
+      "disposition": "targeted_cycles_and_visibility_fixed_structural_findings_open",
+      "source_or_evidence": "307 graph5104occurrences/2872edges:0 targeted SCCs,10 others,0 unread Rust;reused at293 after diagnostic-only execution delta. Custom program guard0findings,112scenarios;actualCLI8casespass308.493 source findings and overlapping55 remain.",
+      "remaining_responsibility": "Resolve existing placement/module/fixture/template/import families without widening permissions or production cfg. Ten other SCCs remain explicitly outside targeted-zero;no global TM-green claim."
+    },
+    {
+      "rows": [
+        "B5.13"
+      ],
+      "disposition": "unchanged_open_normal_CI_obligation",
+      "source_or_evidence": "Trusted validator remains ci/contract_review/command.py;this batch changes no CI workflow or review governance.",
+      "remaining_responsibility": "Missing/stale/invalid review failure and valid-review success in normalCI remain the existing acceptance obligation;no new migration-only executor."
+    },
+    {
+      "rows": [
+        "P3.2",
+        "P3.5",
+        "P3.9"
+      ],
+      "disposition": "retain_current_runtime_controls_pass",
+      "source_or_evidence": "Synthetic IDs/independent physical totals,normalized observation barriers,zero-column semantics,five demanded roots and actual omitted-callback controls pass307.",
+      "remaining_responsibility": "No current census defect;all-route acceptance stays bounded to explicit strategies and controls."
+    },
+    {
+      "rows": [
+        "P3.10",
+        "D7"
+      ],
+      "disposition": "publication_and_last_use_proofs_complete",
+      "source_or_evidence": "PUB-RAW E0624/E0515 negatives and authorized leased clone all pass;computed/normalized required publication lifetime,held immutable reads and exact restored producer last-use/replay controls pass307.",
+      "remaining_responsibility": "No mutable borrow/raw backing escape remains in reviewed family. Broader result-consumer/continuation inventory is still a phase-level mapping obligation,not a failing lease test."
+    },
+    {
+      "rows": [
+        "P3.12",
+        "matrix20b"
+      ],
+      "disposition": "configured413_reached_head_proof_retained",
+      "source_or_evidence": "305 production RunRyoUseCase configured413 onefile sharing reused on unchanged production semantics;307 independent demanded-root/omitted-callback controls pass.",
+      "remaining_responsibility": "Do not infer dormant heads execute or every production physical route is proved by onefile. Complete explicit barrier/continuation route mapping;no full corpus parity/performance claim."
+    },
+    {
+      "rows": [
+        "D2",
+        "D4",
+        "D6"
+      ],
+      "disposition": "all13_owner_and_raw_lifecycle_family_proven",
+      "source_or_evidence": "All13 acquired families,graph/Axis/raw/selection/held-read,new stale demands,publication detachment and five outer lifecycle families pass307;private issuer ownership and target SCC0 retained.",
+      "remaining_responsibility": "Current structural findings and full consumer/direct-builder inventory reconciliation remain;do not reopen DG1/raw storage or require new acquisition architecture."
+    },
+    {
+      "rows": [
+        "D3",
+        "matrix15",
+        "matrix16"
+      ],
+      "disposition": "current_owner_migration_behavior_complete",
+      "source_or_evidence": "Selector/candidates/graph-policy imports build and controls pass;required producer/result backing remains owner-issued;unused DerivedStorage import removed without acquisition change.",
+      "remaining_responsibility": "Resolve actual source placement/import contract findings;no BUILD302 compiler migration remains."
+    },
+    {
+      "rows": [
+        "D5"
+      ],
+      "disposition": "raw_family_complete",
+      "source_or_evidence": "RawKeyOrder stays required scoped acquisition through live owner/runtime permit;raw success/fault controls pass307.",
+      "remaining_responsibility": "No current raw builder bypass;structural/full-category scope remains separate."
+    },
+    {
+      "rows": [
+        "D8"
+      ],
+      "disposition": "existing_builder_classification_retained",
+      "source_or_evidence": "Matching helpers borrow existing indexes;materialization returns caller-owned rows;table_groups is invocation reduction;table_reach uses prebuilt leased graphs and invocation scratch. Existing controls pass307.",
+      "remaining_responsibility": "No newly retained family identified. Bind existing classification to final route inventory;do not repeat source classification as an active bug."
+    },
+    {
+      "rows": [
+        "matrix14a",
+        "matrix14b",
+        "matrix17",
+        "matrix18",
+        "matrix21b",
+        "matrix22"
+      ],
+      "disposition": "bounded_functional_pass_keep_full_categories_open",
+      "source_or_evidence": "Both reviewers accept corrected functional family:all86compiler,459runtime,8CLI and112guard controls;targetSCC0. Whole source TM remains493/overlapping55 with0suppressed.",
+      "remaining_responsibility": "Advance fixed detailed rows and remove stale fixture/probe failures. Remaining work is existing structural contracts,sparse-work proof and explicit barrier/consumer route coverage;no new architecture/performance wave."
+    },
+    {
+      "rows": [
+        "C4a"
+      ],
+      "disposition": "actual_admission_and_restored_route_proven",
+      "source_or_evidence": "Mixed HostedCrossFile+captured restored route,exact compiled producer admission and qualified lifetime interval all pass;core supplied-batch and source boundaries retained.",
+      "remaining_responsibility": "No PerFile setup or postcompute retention oracle remains. Broader all-entry reconciliation and deferred output lineage stay separate."
+    },
+    {
+      "rows": [
+        "C5"
+      ],
+      "disposition": "unchanged_deferred",
+      "source_or_evidence": "Only prior authorized directional singleton measurement exists;307/308 are contract validations.",
+      "remaining_responsibility": "No performance fixes or additional runs;full corpus/output acceptance remains deferred."
+    },
+    {
+      "rows": [
+        "D1"
+      ],
+      "disposition": "derived_preparation_family_controls_pass",
+      "source_or_evidence": "All13 registered derived mechanism preparation/admission controls pass307, including separately scoped RawKeyOrder. Actual engine-issued acquisition and private owner boundaries remain mandatory.",
+      "remaining_responsibility": "Use the existing derived consumer/direct-builder census to finish concrete cross-route conjunction mapping. Operator/physical selected-item registration and six registration compiler controls belong to B4d.14, not the primary proof of this13-derived preparation row."
+    }
+  ],
+  "remaining_phase_work": [
+    {
+      "family": "Existing structural source contracts",
+      "phases": [
+        2,
+        3,
+        4
+      ],
+      "rows": [
+        "A9",
+        "B5.9",
+        "B5.10",
+        "P3.11",
+        "D2",
+        "D4",
+        "D6"
+      ],
+      "concrete_work": "Reconcile owner/route/test module placement with existing closed templates;repair fixture declarations and representation catalog support-role matching. Preserve private issuers and cfg(test) observations. Use actual493/55 fingerprints to batch whole families;classify visibility-only interface diagnostic as a tool false positive rather than changing valid privacy/import permissions. Ten non-target SCCs remain named separately.",
+      "not_a_claim": "No new runtime authority defect and no targeted owner SCC regression."
+    },
+    {
+      "family": "Independent sparse activation proof",
+      "phases": [
+        2
+      ],
+      "rows": [
+        "A7",
+        "B4c.9",
+        "B4c.11"
+      ],
+      "concrete_work": "Add the existing requested independent activation-work/allocation oracle:increasing dormant compiled roots must not increase relevant-rule activation work. Negative control should inject dense dormant processing. No timing/performance run."
+    },
+    {
+      "family": "Current route and continuation proof mapping",
+      "phases": [
+        2,
+        3,
+        4
+      ],
+      "rows": [
+        "B3",
+        "B4d.13",
+        "B5.5",
+        "P3.7",
+        "P3.10",
+        "P3.12"
+      ],
+      "concrete_work": "Reconcile authoritative existing constructor/admission/dispatch/publication/retry/retirement and source-barrier/result-consumer inventories with the now-passing controls. Mark nonexistent project callback combinations inapplicable;add tests only for concretely uncovered reachable routes. Onefile configured413 reached-head proof and all13 mechanism tests must not be relabeled every-route/fullcorpus proof.",
+      "not_a_claim": "Do not reopen fixed alias/publication/raw/witness/CLI/lifecycle defects or invent a new ownership architecture."
+    }
+  ],
+  "proof_scope": {
+    "included": "Whole corrective10-file family with concrete prior blockers;all86 actual compiler controls;exact restored real-route last-use;actual custom guard112 and CLI8cases.",
+    "excluded": [
+      "whole Phase2/3/4/category acceptance",
+      "ten other SCC closure",
+      "global TM-green",
+      "full configured Ruff/corpus parity",
+      "performance",
+      "upstream global root-selection completeness",
+      "normal-CI governance acceptance outside this delta"
+    ],
+    "manual_judgment": [
+      "Actual source file/guard placement for meaningful responsibilities remains manually reviewed.",
+      "Static TM selected-arm registration does not prove kind-to-item behavioral equivalence or macro/reexport completeness.",
+      "Evidence reuse is explicit source inspection of excluded test-only and unused-import changes,not a claim of identical whole Git trees."
+    ]
+  },
+  "previous_review": {
+    "path": "/tmp/ryo-derived-review-1bf8-paired.json",
+    "sha256": "375cd563f51f90a5b686f9a60e524bfb95890a510d7ef92553660bae5c74d552",
+    "verdict": "blocking",
+    "axes": {
+      "enforced_boundaries": "FAIL",
+      "clear_ownership_and_flow": "PASS",
+      "proof": "FAIL"
+    }
+  },
+  "file_postimages": {
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/observations.rs": "e53eb1b96ba2b00ebaf9e6b179f7baaae29a71d1b15b00a031a0e499c4b01b58",
+    "crates/ryo/crates/execution/src/application/file_dag/invocation/index.rs": "0bbe317a57cc89808dbd38c65ba3ae07a81faaa5d09c10528a0fde113bfe96bf",
+    "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/restoration/test.rs": "cd87ff2a71d37178749173f99c55fb12099d7d81490f93cb63930a3f25c9a54e",
+    "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/project_execution.rs": "f5addc4dc19ef08fd72543cf8d222e9972dbb660b357461bda558d876545271c",
+    "crates/ryo/crates/execution/src/application/file_dag/program/runtime/service.rs": "4ac2c2519ecf30d3a83e974b52d263434bec81a832eb1f771a4dbc65ea9913c8",
+    "crates/ryo/crates/execution/src/application/file_dag/relations.rs": "1b150df5783521675d28a7d9e4bb32b79e9c689def33d41dcfdef9c0372d9035",
+    "crates/ryo/crates/execution/src/application/file_dag/route_counts_test.rs": "6e566895f8eb32479f85fef5ccb6bc6f55a5496b68ddfc97f494bc08d71bfdc9",
+    "crates/ryo/docs/contracts/README.md": "9623f3f2a9a3883b435b6457adc1705706648e371a40bf7934cdfeb735ee5c9c",
+    "crates/ryo/tastemaker/rules/program-implementation-boundary/0.1.0/rule.toml": "56f460202982eccfb38a968795f5e54ff54617cf6af748016af77554a0fe2b90",
+    "crates/tastemaker/cli/tests/replay/imports.rs": "cffa64808bb32ed2e29b342c6af53a82bab8826e56457713d17b003e66ac3683"
+  },
+  "evidence_sha256": {
+    "/tmp/ryo-contract-validation307-20261106/commands.json": "a3f3b137972ff8c6c683d9e1f88be0f702e469ebb6f521d53103fd488fae33d2",
+    "/tmp/ryo-contract-validation307-20261106/identity.json": "497116f6f3087beb4931551716de1ad299573dba93b613727f83b976738e3f9b",
+    "/tmp/ryo-contract-validation307-20261106/libraries.log": "8de8438c38432c67a3bd2c8569dd802f46c93c305964c2ac5d654510065deb80",
+    "/tmp/ryo-contract-validation307-20261106/libraries.json": "3d2a3cf9e451a6c4235f4f9cee9aaa7e98c626172781767a04f8aa52f2f5d4a5",
+    "/tmp/ryo-contract-validation307-20261106/boundary.log": "150f2c698260c4a3ec5f7f96b71eb2e9bc699de4df23f7d86d5214f4d11f14b3",
+    "/tmp/ryo-contract-validation307-20261106/boundary.json": "0d30fd21abb54f647c2a1d84ef0b1abef7f8929fe799ed7eb66dd7575b4ae95b",
+    "/tmp/ryo-contract-validation307-20261106/tm_import_cli.log": "c05e3d3e580bdb4838b7cadab99976909a1fbb19d2175b54a26b4f343ad09945",
+    "/tmp/ryo-contract-validation307-20261106/tm_import_cli.json": "4af70a6c9f7c71026aba546c4915f33e181d32d565602a263fd0d8f53b4fad49",
+    "/tmp/ryo-contract-validation307-20261106/tm_cli_source.log": "cf8ddca7f0e5e39a588683788156004bc9b13e2055c329c5679a11af9c932ffd",
+    "/tmp/ryo-contract-validation307-20261106/tm_cli_source.json": "aa426b9852051d2dc552fbce467210f3966b90f42a3ec8b87c86d765cdfb16de",
+    "/tmp/ryo-contract-validation307-20261106/tm_source.log": "21d0ee0d709960e145fdb0bee9252076b4fd9d0d2b2986906db883ece28b9407",
+    "/tmp/ryo-contract-validation307-20261106/tm_source.json": "f6eefacd169272ec6d7d9b9cbdb8a7135b0e9419f3645173911f13a1cf0e5b2a",
+    "/tmp/ryo-contract-validation307-20261106/tm_guards.log": "a3637f3606ff44143baa56360b5d1a00520a0b4bee2386350652db4be48e12f4",
+    "/tmp/ryo-contract-validation307-20261106/tm_guards.json": "c2149a01246e0924214664d835d443162c27d5bb6ac0210e01a1305076107f2e",
+    "/tmp/ryo-contract-validation307-20261106/ownership_edges.log": "c748545f2f7a2f855313028e8760dafca140c6a9c365ea4cea6e0bd11005c86c",
+    "/tmp/ryo-contract-validation307-20261106/ownership_edges.json": "bed300ec0e7a153cd988c7f64ad25bcfd5f10c8e3d83ee8ff87358b4237085fd",
+    "/tmp/ryo-contract-validation307-20261106/ownership_inventory.json": "947f1be0eb0c2e85eb53710c23050f149343476e03d23c07af7e413bfa3e3601",
+    "/tmp/ryo-contract-validation308-20261106/commands.json": "fd4313fc8bfffe247fa4b4d25859411ff1800f99690d2f93f939686d0c0e0d39",
+    "/tmp/ryo-contract-validation308-20261106/identity.json": "2444b5df6dcc628a7624d03dee180fd122b04da163352c55a26bf9ac2732be84",
+    "/tmp/ryo-contract-validation308-20261106/tm_import_cli.log": "d2362796dba8eba4c6757df23d51bcef1ac7e8641c9e380efc5ef8f3b85970de",
+    "/tmp/ryo-contract-validation308-20261106/tm_import_cli.json": "109e65aae3d2ec3c64f57550683a32d03c3ea1fb255d57fd61453681b252ed46",
+    "/tmp/ryo-contract-validation308-20261106/tm_cli_source.log": "cf8ddca7f0e5e39a588683788156004bc9b13e2055c329c5679a11af9c932ffd",
+    "/tmp/ryo-contract-validation308-20261106/tm_cli_source.json": "c165d3912f5deba860a430dda489b94637eb9b6becef60c2967fded7fe85286c",
+    "/tmp/ryo-contract-validation308-20261106/observer_source.log": "609127eda0b7bffd0e39835469b950d934028f8d67d05b790fe51a9cce4e4663",
+    "/tmp/ryo-contract-validation308-20261106/observer_source.json": "6af506666c09e10e4f98982935ba5af0b44b64d99c1978efb0d43b9975ed16ea",
+    "/tmp/ryo-derived-review-opus-293c/metadata.json": "39ea9952585d85f2a9d09a86ed4fc505d8030bf29d473bf6c64b41459bfa48c8",
+    "/tmp/ryo-derived-review-opus-293c/raw.json": "4c77dc42f6d974c271894c7a4cc4a7f3efe890052e1ede81d55a3fffb4971e67",
+    "/tmp/ryo-derived-review-opus-293c/verdict.json": "ef670f307e00517d715006cb372816d0b71c0a6f3fb2a066aff5eee98cc22f8d",
+    "/tmp/ryo-program-visibility-evidence.json": "723ae0563ce836ed402cdaf827745d33680b039d6b32222d137b5ea87030aa44",
+    "/tmp/ryo-program-visibility-before.json": "c4db913d3f0b677b734f69514d1028b6830f867bc84d91857ea9274a59bbd505",
+    "/tmp/ryo-program-visibility-validate.json": "00be585cc8569444e285f02d04e85adb2d56290897fa878d4179ea275e54c9c0"
+  },
+  "completed_at": "2026-11-06T06:00:26.376124+00:00",
+  "lead_correction": {
+    "issued_at": "2026-11-06T06:06:58.692540+00:00",
+    "original_artifact": "/tmp/ryo-derived-review-293c-paired.json",
+    "original_sha256": "15e455cf010ce9d18af3422e7625dbafd793874e984fc9313cbb64af6624945f",
+    "reason": "Parent identified exact interface visibility span. Read-only follow-up confirmed it and corrected one overstatement plus D1 evidence attribution. No source/runtime/Opus rerun;all functional verdicts and raw evidence unchanged.",
+    "affected_fields": [
+      "TM structural finding classification",
+      "independent residual-summary reconciliation",
+      "D1 row evidence attribution"
+    ]
+  }
+}

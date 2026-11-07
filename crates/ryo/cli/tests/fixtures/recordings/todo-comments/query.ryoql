@@ -1,0 +1,4 @@
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let comments = select * from tree-tokens where kind = "comment";
+let marked = select * from comments where glob_any(text, "{*TODO*,*FIXME*,*XXX*}");
+emit marked subject "file" key("span");

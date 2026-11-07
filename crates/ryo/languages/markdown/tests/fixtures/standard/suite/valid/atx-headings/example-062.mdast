@@ -1,0 +1,19 @@
+root[6]
+├─0 heading[1]
+│   │ depth: 1
+│   └─0 text "foo"
+├─1 heading[1]
+│   │ depth: 2
+│   └─0 text "foo"
+├─2 heading[1]
+│   │ depth: 3
+│   └─0 text "foo"
+├─3 heading[1]
+│   │ depth: 4
+│   └─0 text "foo"
+├─4 heading[1]
+│   │ depth: 5
+│   └─0 text "foo"
+└─5 heading[1]
+    │ depth: 6
+    └─0 text "foo"

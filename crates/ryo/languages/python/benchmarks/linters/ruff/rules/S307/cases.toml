@@ -1,0 +1,139 @@
+[[cases]]
+name = "direct"
+files = { "case.py" = "eval(code)\n" }
+expected = [{ file = "case.py", start = 0, end = 4 }]
+
+[[cases]]
+name = "qualified"
+files = { "case.py" = "import builtins\nbuiltins.eval(code)\n" }
+expected = [{ file = "case.py", start = 16, end = 29 }]
+
+[[cases]]
+name = "alias"
+files = { "case.py" = "from builtins import eval as evalute\nevalute(code)\n" }
+expected = [{ file = "case.py", start = 37, end = 44 }]
+
+[[cases]]
+name = "shadowed"
+files = { "case.py" = "def f(eval):\n    eval(code)\n" }
+expected = []
+
+[[cases]]
+name = "rebound"
+files = { "case.py" = "eval = custom\neval(code)\n" }
+expected = []
+
+[[cases]]
+name = "attribute"
+files = { "case.py" = "obj.eval(code)\n" }
+expected = []
+
+[[cases]]
+name = "bare"
+files = { "case.py" = "value = eval\n" }
+expected = []
+
+[[cases]]
+name = "empty"
+files = { "case.py" = "eval()\n" }
+expected = [{ file = "case.py", start = 0, end = 4 }]
+
+[[cases]]
+name = "keyword"
+files = { "case.py" = "eval(source=code)\n" }
+expected = [{ file = "case.py", start = 0, end = 4 }]
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "eval(code) # noqa: S307\n" }
+expected = []
+
+[[cases]]
+name = "range"
+files = { "case.py" = "# ruff: disable[S307]\neval(code)\n# ruff: enable[S307]\n" }
+expected = []
+
+[[cases]]
+name = "nested"
+files = { "case.py" = "result = wrapper(eval(code))\n" }
+expected = [{ file = "case.py", start = 17, end = 21 }]
+
+[[cases]]
+name = "nfkc-identifier-spelling"
+files = { "case.py" = "\uff45\uff56\uff41\uff4c(code)\n" }
+expected = [{ file = "case.py", start = 0, end = 12 }]
+
+[[cases]]
+name = "wildcard-preserves-known-origin"
+files = { "case.py" = "from m import *\neval(code)\n" }
+expected = [{ file = "case.py", start = 16, end = 20 }]
+
+[[cases]]
+name = "explicit-shadow-after-wildcard"
+files = { "case.py" = "from m import *\neval = custom\neval(code)\n" }
+expected = []
+
+[[cases]]
+name = "explicit-shadow-before-wildcard"
+files = { "case.py" = "eval = custom\nfrom m import *\neval(code)\n" }
+expected = []
+
+[[cases]]
+name = "runtime-lambda-shadow"
+files = { "case.py" = "(lambda eval: eval(code))(f)\n" }
+expected = []
+
+[[cases]]
+name = "embedded-lambda-shadow"
+files = { "case.py" = "x: \"(lambda eval: eval(code))(f)\"\n" }
+expected = []
+
+[[cases]]
+name = "runtime-lambda-builtin"
+files = { "case.py" = "(lambda value: eval(value))(code)\n" }
+expected = [{ file = "case.py", start = 15, end = 19 }]
+
+[[cases]]
+name = "embedded-lambda-builtin"
+files = { "case.py" = "x: \"(lambda value: eval(value))(code)\"\n" }
+expected = [{ file = "case.py", start = 19, end = 23 }]
+
+[[cases]]
+name = "runtime-comprehension-shadow"
+files = { "case.py" = "[eval(code) for eval in values]\n" }
+expected = []
+
+[[cases]]
+name = "embedded-comprehension-shadow"
+files = { "case.py" = "x: \"[eval(code) for eval in values]\"\n" }
+expected = []
+
+[[cases]]
+name = "runtime-comprehension-builtin"
+files = { "case.py" = "[eval(value) for value in values]\n" }
+expected = [{ file = "case.py", start = 1, end = 5 }]
+
+[[cases]]
+name = "embedded-comprehension-builtin"
+files = { "case.py" = "x: \"[eval(value) for value in values]\"\n" }
+expected = [{ file = "case.py", start = 5, end = 9 }]
+
+[[cases]]
+name = "runtime-walrus-shadow"
+files = { "case.py" = "((eval := custom), eval(code))\n" }
+expected = []
+
+[[cases]]
+name = "embedded-walrus-shadow"
+files = { "case.py" = "x: \"((eval := custom), eval(code))\"\n" }
+expected = []
+
+[[cases]]
+name = "runtime-lambda-default-builtin"
+files = { "case.py" = "(lambda eval=eval(code): eval)(f)\n" }
+expected = [{ file = "case.py", start = 13, end = 17 }]
+
+[[cases]]
+name = "embedded-lambda-default-builtin"
+files = { "case.py" = "x: \"(lambda eval=eval(code): eval)(f)\"\n" }
+expected = [{ file = "case.py", start = 17, end = 21 }]

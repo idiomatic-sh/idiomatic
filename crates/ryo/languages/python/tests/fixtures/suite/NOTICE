@@ -1,0 +1,84 @@
+Files of ruff's resources left out of `suite/`, by name, with the reason:
+
+Written for another Python than the one the language reads (the latest the library reads, 3.15): each states its target version in a `# parse_options` comment on its first line, and is invalid (or, for the one valid file, valid) only for that version:
+
+- valid/inline/parenthesized_kwarg_py37.py (3.7)
+- invalid/inline/decorator_await_expression_py38.py (3.8)
+- invalid/inline/decorator_dict_literal_py38.py (3.8)
+- invalid/inline/decorator_expression_py38.py (3.8)
+- invalid/inline/decorator_float_literal_py38.py (3.8)
+- invalid/inline/decorator_named_expression_py37.py (3.7)
+- invalid/inline/decorator_non_toplevel_call_expression_py38.py (3.8)
+- invalid/inline/del_debug_py39.py (3.9)
+- invalid/inline/except_star_py310.py (3.10)
+- invalid/inline/except_stmt_unparenthesized_tuple_no_as_py313.py (3.13)
+- invalid/inline/for_iter_unpack_py38.py (3.8)
+- invalid/inline/invalid_annotation_function_py314.py (3.14)
+- invalid/inline/invalid_annotation_py314.py (3.14)
+- invalid/inline/iter_unpack_return_py37.py (3.7)
+- invalid/inline/iter_unpack_yield_py37.py (3.7)
+- invalid/inline/lazy_import_invalid_context_py315.py (3.15)
+- invalid/inline/lazy_import_invalid_from_py315.py (3.15)
+- invalid/inline/lazy_import_stmt_py314.py (3.14)
+- invalid/inline/match_before_py310.py (3.9)
+- invalid/inline/nested_async_comprehension_py310.py (3.10)
+- invalid/inline/param_with_star_annotation_py310.py (3.10)
+- invalid/inline/parenthesized_context_manager_py38.py (3.8)
+- invalid/inline/pep701_f_string_py311.py (3.11)
+- invalid/inline/pep701_nested_interpolation_py311.py (3.11)
+- invalid/inline/pep_798_unpacking_comprehensions_py314.py (3.14)
+- invalid/inline/star_index_py310.py (3.10)
+- invalid/inline/starred_list_comp_py314.py (3.14)
+- invalid/inline/template_strings_py313.py (3.13)
+- invalid/inline/tuple_context_manager_py38.py (3.8)
+- invalid/inline/type_param_default_py312.py (3.12)
+- invalid/inline/type_stmt_py311.py (3.11)
+- invalid/inline/unary_plus_py314.py (3.14)
+- invalid/inline/unparenthesized_named_expr_index_py38.py (3.8)
+- invalid/inline/unparenthesized_named_expr_set_comp_py38.py (3.8)
+- invalid/inline/unparenthesized_named_expr_set_literal_py38.py (3.8)
+- invalid/inline/walrus_py37.py (3.7)
+
+Compile-time, deferred to semantic analysis: CPython 3.15.0rc2 refuses each only when it compiles, and its parser (`ast.parse`, what `syntax_error` matches) reads it without an error, as the library does; semantic analysis, a relation of its own, will report them:
+
+- invalid/expressions/arguments/duplicate_keyword_arguments.py
+- invalid/inline/assign_stmt_starred_expr_value.py
+- invalid/inline/debug_shadow_class.py
+- invalid/inline/debug_shadow_function.py
+- invalid/inline/debug_shadow_import.py
+- invalid/inline/debug_shadow_match.py
+- invalid/inline/debug_shadow_try.py
+- invalid/inline/debug_shadow_type_alias.py
+- invalid/inline/debug_shadow_with.py
+- invalid/inline/different_match_pattern_bindings.py
+- invalid/inline/duplicate_keyword_args.py
+- invalid/inline/duplicate_match_class_attr.py
+- invalid/inline/duplicate_match_key.py
+- invalid/inline/duplicate_type_parameter_names.py
+- invalid/inline/invalid_annotation_class.py
+- invalid/inline/invalid_annotation_function.py
+- invalid/inline/invalid_annotation_type_alias.py
+- invalid/inline/irrefutable_case_pattern.py
+- invalid/inline/multiple_assignment_in_case_pattern.py
+- invalid/inline/multiple_starred_assignment_target.py
+- invalid/inline/multiple_starred_names_in_sequence_pattern.py
+- invalid/inline/nonlocal_declaration_at_module_level.py
+- invalid/inline/params_duplicate_names.py
+- invalid/inline/rebound_comprehension_variable.py
+- invalid/inline/single_star_for.py
+- invalid/inline/single_star_return.py
+- invalid/inline/single_star_yield.py
+- invalid/inline/single_starred_assignment_target.py
+- invalid/inline/starred_comprehension_target.py
+- invalid/inline/type_parameter_default_order.py
+- invalid/inline/write_to_debug_expr.py
+- invalid/inline/yield_from_in_async_function.py
+
+Valid to the library and refused by CPython's parser, so no file the language is held to as valid: the language reports what CPython
+refuses (its pinned refusal is `standard/refused/`):
+
+- valid/statement/try.py: a `try` with `else` and `finally` and no `except` (CPython 3.15.0rc2: "expected 'except' or 'finally' block")
+
+Invalid to the library's suite and valid to CPython 3.15.0rc2, whose parser reads it without an error:
+
+- invalid/statements/match/unary_add_usage.py

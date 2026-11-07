@@ -1,0 +1,267 @@
+# The release workflow on GitHub Actions, its thin edge, as ruff's is. A push to main releases each product whose version it
+# changes: the `tag` job runs `ci/tag/command.py --push`, which names each product whose workspace version in crates/<product>/Cargo.toml
+# differs from the parent commit's and whose tag (`idiomatic-sh-<product>-v<version>`) does not exist yet, and creates that tag at
+# the commit; the build and publish jobs then run for those products alone, each product's builds beside the others', its publish
+# in a concurrency group of its own, one product's publish at a time, ryo's first. A push runs no check: every commit to main comes through a pull request, whose `gate` (check.yml)
+# ran the same check fan-out over the same tree. A maintainer's hand run releases ONE product, the `product` input, and checks
+# it first: `asymptote check --root crates/<product> --groups <group>` runs each of that product's groups (its tests and packaging
+# tests, one job per group and machine, lint from the repository's root). Tastemaker depends on ryo's crates, so a ryo version
+# it needs is on crates.io before tastemaker's publish. The `build` job builds each product's wheel (Ryo's only for
+# its binary) on each of eight targets' own machines through PyO3/maturin-action (the manylinux 2_17 and musllinux_1_2 containers
+# on Linux), one matrix whose rows run the same steps; then the `publish` job runs `ci/release/command.py --product <product>`
+# once per product over what the rows built: it makes the product's npm packages and its GitHub Release archives from the wheels'
+# binaries, hands every package to its registry's dry run, and, when it publishes, uploads to crates.io (skipping a version
+# already there), then npm and PyPI, and last creates the product's GitHub Release with `gh`. A push publishes; a hand run is a
+# dry run unless all three hold: a maintainer dispatches it with `publish` from the product's own tag, the maintainer is the
+# repository variable RELEASE_MAINTAINER (unset until a maintainer sets it), and each registry trusts this workflow for
+# publishing: crates.io, npm and PyPI each through its trusted publishing (OIDC), with no token kept in the repository, which only
+# a maintainer can arrange (the `distribution` spec).
+name: release
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      product:
+        description: The one product this run releases (publish ryo before tastemaker, which depends on its crates)
+        type: choice
+        required: true
+        options: [ryo, tastemaker, asymptote]
+      publish:
+        description: Upload to npm, PyPI and crates.io (maintainers only); otherwise every publish is a dry run
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  # The products a push to main releases, each one's tag created at the pushed commit.
+  tag:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+    outputs:
+      products: ${{ steps.tag.outputs.products }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The pushed commit and its parent, whose versions are compared.
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: false
+      - id: tag
+        run: uv run ci/tag/command.py --push
+        env:
+          GH_TOKEN: ${{ github.token }}
+  # A hand run's checks: the pull request gate already checked a push's tree.
+  check:
+    if: github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      # One job per independent build: the tools of a group share one, and no two groups do. The tests (check, release-tests) run on
+      # every machine; the groups whose verdict is the same on every platform run once, on Linux, but the SDK's API, on macOS, where
+      # cargo-public-api ships a prebuilt. check.yml's pull request gate runs these rows for each product a change reaches; a hand
+      # run runs them for its product, lint from the repository's root, which runs the root's tools and every product's.
+      matrix:
+        include:
+          - { runner: ubuntu-26.04, group: lint, root: . }
+          - { runner: ubuntu-26.04, group: clippy }
+          - { runner: macos-26, group: api }
+          - { runner: ubuntu-26.04, group: check }
+          - { runner: ubuntu-26.04-arm, group: check }
+          - { runner: macos-26, group: check }
+          - { runner: windows-2025, group: check }
+          - { runner: ubuntu-26.04, group: release-tests }
+          - { runner: ubuntu-26.04-arm, group: release-tests }
+          - { runner: macos-26, group: release-tests }
+          - { runner: windows-2025, group: release-tests }
+          - { runner: ubuntu-26.04, group: release-clippy }
+          - { runner: ubuntu-26.04, group: release-coverage }
+          - { runner: ubuntu-26.04, group: release-msrv }
+          - { runner: ubuntu-26.04, group: release-dylint }
+          - { runner: ubuntu-26.04, group: release-hack }
+          - { runner: ubuntu-26.04, group: release-resolution }
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: rui314/setup-mold@10ca16bf91dc22e05ebdc935cad9c75ea248f621 # v1
+        if: runner.os == 'Linux'
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          # No go.mod at the root: there is nothing for the module cache to key on.
+          cache: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: Rust toolchain (rust-toolchain.toml)
+        run: rustup toolchain install
+      # Match check.yml's cache for this machine, group and product. Clean only the product's workspace.
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          cache-bin: false
+          cache-workspace-crates: true
+          shared-key: ${{ matrix.runner }}-${{ matrix.group }}-${{ inputs.product }}
+          save-if: true
+          workspaces: crates/${{ inputs.product }} -> ../../target
+      # The installed tools, restored whole while the tool table is unchanged: install.py then leaves every tool at its declared
+      # version as it is.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
+      - name: The tools the checks run, each at the version declared for it
+        run: uv run --script tools/install.py
+        env:
+          # cargo-binstall asks GitHub for each release: unauthenticated, the rate limit stalls it.
+          GH_TOKEN: ${{ github.token }}
+      - run: asymptote check --root ${{ matrix.root || format('crates/{0}', inputs.product) }} --groups ${{ matrix.group }}
+  build:
+    needs: [tag, check]
+    # A push's products are the `tag` job's (its check skipped); a hand run's is its input, once its check passed.
+    if: ${{ !cancelled() && !failure() && (github.event_name == 'workflow_dispatch' || needs.tag.outputs.products != '[]') }}
+    name: build (${{ matrix.product }}, ${{ matrix.platform.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        product: ${{ fromJSON(github.event_name == 'push' && needs.tag.outputs.products || format('["{0}"]', inputs.product)) }}
+        platform:
+          - { target: x86_64-unknown-linux-gnu, runner: ubuntu-26.04, manylinux: 2_17 }
+          - { target: aarch64-unknown-linux-gnu, runner: ubuntu-26.04-arm, manylinux: 2_17 }
+          - { target: x86_64-unknown-linux-musl, runner: ubuntu-26.04, manylinux: musllinux_1_2 }
+          - { target: aarch64-unknown-linux-musl, runner: ubuntu-26.04-arm, manylinux: musllinux_1_2 }
+          - { target: x86_64-apple-darwin, runner: macos-26, macosx-deployment-target: "10.12" }
+          - { target: aarch64-apple-darwin, runner: macos-26, macosx-deployment-target: "11.0" }
+          - { target: x86_64-pc-windows-msvc, runner: windows-2025 }
+          - { target: aarch64-pc-windows-msvc, runner: windows-2025 }
+    runs-on: ${{ matrix.platform.runner }}
+    env:
+      # The repository's .cargo/config.toml links with mold on Linux, which the build containers lack, and links the C runtime
+      # statically on Windows: RUSTFLAGS replaces that configuration, with the same flag on Windows and none elsewhere.
+      RUSTFLAGS: ${{ contains(matrix.platform.target, 'windows') && '-C target-feature=+crt-static' || ' ' }}
+      # The oldest macOS each binary runs on, maturin's and rustc's defaults, so building on a newer macOS does not raise it.
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.platform.macosx-deployment-target }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        if: matrix.product == 'asymptote'
+        with:
+          maturin-version: v1.15.0
+          target: ${{ matrix.platform.target }}
+          manylinux: ${{ matrix.platform.manylinux }}
+          working-directory: crates/asymptote/distribution/registries/pypi
+          args: --locked --out ${{ github.workspace }}/dist/${{ matrix.platform.target }}
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        if: matrix.product == 'tastemaker'
+        with:
+          maturin-version: v1.15.0
+          target: ${{ matrix.platform.target }}
+          manylinux: ${{ matrix.platform.manylinux }}
+          working-directory: crates/tastemaker/distribution/registries/pypi
+          args: --locked --out ${{ github.workspace }}/dist/${{ matrix.platform.target }}
+      # Ryo ships to Cargo alone, so it has no PyPI project: its command line crate's wheel is built only for the binary its GitHub
+      # Release archives, with the profile a PyPI project names.
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        if: matrix.product == 'ryo'
+        with:
+          maturin-version: v1.15.0
+          target: ${{ matrix.platform.target }}
+          manylinux: ${{ matrix.platform.manylinux }}
+          working-directory: crates/ryo/cli
+          args: --locked --bindings bin --profile dist --out ${{ github.workspace }}/dist/${{ matrix.platform.target }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        # The artifact holds `<target>/<wheel>`, so the publish job's merged download of a product's artifacts is `dist/<target>`.
+        with:
+          name: ${{ matrix.product }}-${{ matrix.platform.target }}
+          path: dist
+  publish:
+    needs: [tag, build]
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    strategy:
+      fail-fast: false
+      # One product's publish at a time, in the `tag` job's order (ryo, tastemaker, asymptote): tastemaker depends on ryo's crates,
+      # so when a push releases both, ryo's are on crates.io before tastemaker's publish starts.
+      max-parallel: 1
+      matrix:
+        product: ${{ fromJSON(github.event_name == 'push' && needs.tag.outputs.products || format('["{0}"]', inputs.product)) }}
+    # Each product's publish in a group of its own: one product's publishes never overlap, and products publish side by side.
+    concurrency:
+      group: release-${{ matrix.product }}
+      cancel-in-progress: false
+    runs-on: ubuntu-26.04
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      # A push to main publishes the products its `tag` job tagged. A hand run publishes only from the product's own tag and by the
+      # maintainer's dispatch; otherwise the job builds and dry-runs the product and uploads nothing.
+      PUBLISH: ${{ github.event_name == 'push' || (inputs.publish && github.ref_type == 'tag' && startsWith(github.ref_name, format('idiomatic-sh-{0}-v', matrix.product)) && vars.RELEASE_MAINTAINER != '' && github.triggering_actor == vars.RELEASE_MAINTAINER) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: rui314/setup-mold@10ca16bf91dc22e05ebdc935cad9c75ea248f621 # v1
+      # npm's trusted publishing needs npm 11.5.1 or later: the latest Node 24, not a runner's cached one, bundles it.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          check-latest: true
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: false
+      - name: Rust toolchain (rust-toolchain.toml)
+        run: rustup toolchain install
+      # This product's artifacts, merged: a directory per target.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ${{ matrix.product }}-*
+          merge-multiple: true
+          path: dist
+      # crates.io: its trusted publishing, the short-lived token its auth action exchanges this run's OIDC token for.
+      - uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
+        id: crates-io
+        if: env.PUBLISH == 'true'
+      # crates.io, then npm and PyPI, all three through OIDC trusted publishing (`id-token: write`); npm and PyPI exchange the
+      # OIDC token themselves.
+      - run: uv run ci/release/command.py --dist dist --product ${{ matrix.product }} ${{ env.PUBLISH == 'true' && '--publish' || '--dry-run' }}
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ env.PUBLISH == 'true' && steps.crates-io.outputs.token || '' }}
+      # The GitHub Release, last: the product's one, tagged `<package>-v<version>` (the directory its archives were written
+      # to, and the tag cargo-binstall's `pkg-url` names), the tag made at this run's commit when it does not exist yet. Each is a
+      # draft while its archives and their checksums upload, then published; a published release is immutable.
+      - name: GitHub Release
+        if: env.PUBLISH == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for archives in dist/archives/*/; do
+            tag="$(basename "$archives")"
+            (cd "$archives" && sha256sum -- * > SHA256SUMS)
+            gh release create "$tag" --draft --target "$GITHUB_SHA" --title "$tag" --generate-notes
+            gh release upload "$tag" "$archives"*
+            gh release edit "$tag" --draft=false
+          done

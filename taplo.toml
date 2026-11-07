@@ -1,0 +1,30 @@
+# check-toml's exclusions, held here now taplo checks the TOML: files that are other people's, or malformed on purpose.
+exclude = [
+  # Not the repository's: build output and installed tools (git ignores them too).
+  "**/target/**",
+  "**/node_modules/**",
+  "**/.venv/**",
+  # Held byte for byte.
+  "**/snapshots/**",
+  "**/resources/**",
+  # The domain-linters fixture reads a deliberately malformed document, to prove the linter reports it.
+  "crates/ryo/crates/query_language/query_language/tests/fixtures/domain-linters/fixtures/document-malformed.toml",
+  # A provider's fixture inputs are what its cases feed its parser, malformed or not UTF-8 on purpose.
+  "crates/ryo/languages/*/src/**/fixtures/*/input/**/*.toml",
+  # A language's syntax_error input is the broken file its conformance reads.
+  "crates/ryo/languages/*/tests/fixtures/relations/syntax_error/input.toml",
+  "crates/ryo/languages/*/tests/fixtures/refusals/unreadable/Cargo.toml",
+  # An allocation fixture is a standard's own file, pinned byte for byte (toml's cargo-lock.toml is the standard's tree).
+  "crates/ryo/languages/*/tests/fixtures/allocation/**",
+  # A language's pinned suite and corpus are the language's own test files, invalid on purpose and held byte for byte.
+  "crates/ryo/languages/*/tests/fixtures/suite/**",
+  "crates/ryo/languages/*/tests/fixtures/corpus/**",
+]
+
+# Formatting keeps the files as they are written: nothing is wrapped or aligned, only indentation, spacing and blank lines are made one.
+[formatting]
+column_width = 1000
+array_auto_expand = false
+array_auto_collapse = false
+align_entries = false
+allowed_blank_lines = 2

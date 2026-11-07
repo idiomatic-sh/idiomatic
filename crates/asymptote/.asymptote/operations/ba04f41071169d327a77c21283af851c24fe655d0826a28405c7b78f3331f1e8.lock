@@ -1,0 +1,6 @@
+version = 1
+parents = []
+
+suppressed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/outbound/sarif/adapters/serde_sarif/adapter_test.rs", level = "warning", fingerprint = "b38a6c348fd3539f", count = 1, message = "`crates/asymptote/crates/core/src/outbound/sarif/adapters/serde_sarif/adapter_test.rs` has 441 lines, over the file-length limit", since_rev = "864c9c6e30c95e1dd443fc7cbfa2e624c7f6cbfa", since = "2026-10-23" },
+]

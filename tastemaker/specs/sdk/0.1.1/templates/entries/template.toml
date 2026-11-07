@@ -1,0 +1,37 @@
+description = "The root of the functions a user of the product calls: one module per resource."
+why = "Is the one place a user finds what the product does, `<resource>::<entry>`, so the SDK's surface has one shape and every function is reachable. The resources are the ones the product's entry parts sit under, so a resource with a function is declared, and none without."
+content = '''
+//! What a user of the product calls: `<resource>::<entry>`, one module per resource.
+{#- The resources are told by the resource files the product places, in path order: one `pub mod` for each resource, a resource that holds no entry included (it exposes types and traits only). #}
+{% for name in captures.resource | default([]) %}
+pub mod {{ name }};
+{%- endfor %}
+'''
+
+[given]
+file = 'sdk/src/resources.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'sdk/src/resources.rs' = '''
+//! What a user of the product calls: `<resource>::<entry>`, one module per resource.
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'sdk/src/resources.rs' = '''
+//! What a user of the product calls: `<resource>::<entry>`, one module per resource.
+
+pub mod greeting;
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'entries#count', path = '.' },
+]

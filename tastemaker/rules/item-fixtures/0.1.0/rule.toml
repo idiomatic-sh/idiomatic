@@ -1,0 +1,156 @@
+description = "Each item of a `relations` or `operators` collection has `tests/fixtures/<collection>/<item>/` in its crate, holding an `expected.rs` file of typed rows, and an `operators` item an `input` file (with or without an extension) beside it; the rule counts the files and reads none. The input of a `relations` item is held by placement (the `language` spec pairs it with its expected rows): a workspace keeps rules off some of those inputs, which this rule cannot see."
+why = "The tests that prove the whole path (the allocation test and the call-count test of the core) read every item the product lists and its fixtures: the input the item is run on and the rows it must give. A new relation or operator is then covered without anyone editing a test, and an item with no fixtures is a finding, not a gap nobody sees. The item's directory name is the fixtures' directory name, and a collection other than `relations` and `operators`, or one outside the `operator` and `relations` concepts (a language's syntax operators), is left alone. The rule counts files: it asks that `input` (or `input.<extension>`) and `expected.rs` exist and reads neither, so a file's content is the tests' to judge."
+
+query = '''
+let files = project(from="filesystem.file", columns=["path"]);
+let items = capture(from=files, path="path", pattern="{*crate}/src/{*mid}/collections/{collection}/{item}/item.rs", captures=["crate", "mid", "collection", "item"]);
+let in-concept = select * from items where glob_any(mid, "{domain/operator,domain/relations}");
+let listed = select * from in-concept where glob_any(collection, "{relations,operators}");
+let wanted = project(from=listed, columns=["path", "crate", "collection", "item"]);
+let fixtures = capture(from=files, path="path", pattern="{*crate}/tests/fixtures/{collection}/{item}/{stem}.{ext}", captures=["crate", "collection", "item", "stem", "ext"]);
+let ext-inputs = select * from fixtures where stem = "input";
+let bare-inputs = capture(from=files, path="path", pattern="{*crate}/tests/fixtures/{collection}/{item}/input", captures=["crate", "collection", "item"]);
+let ext-keys = project(from=ext-inputs, columns=["crate", "collection", "item"]);
+let bare-keys = project(from=bare-inputs, columns=["crate", "collection", "item"]);
+let inputs = union(left=ext-keys, right=bare-keys);
+let named = select * from fixtures where stem = "expected";
+let expecteds = select * from named where ext = "rs";
+let operator-items = select * from wanted where collection = "operators";
+let no-input = antijoin(left=operator-items, right=inputs, left-on=["crate", "collection", "item"], right-on=["crate", "collection", "item"]);
+let no-expected = antijoin(left=wanted, right=expecteds, left-on=["crate", "collection", "item"], right-on=["crate", "collection", "item"]);
+let missing-input = extend(from=no-input, values={"what": "input"});
+let missing-expected = extend(from=no-expected, values={"what": "expected"});
+let found = union(left=missing-input, right=missing-expected);
+emit found subject "path" key("collection", "item", "what");
+'''
+
+[diagnostic]
+primary = "path"
+message = "the {collection} item `{item}` has no `{what}` file in `tests/fixtures/{collection}/{item}/` of its crate"
+help = "Write `tests/fixtures/{collection}/{item}/input.<extension>` and `expected.rs` beside the crate's other tests: the input the item is run on and the rows it must give, typed rows and not a table file. An ignore is not legitimate here: an item without fixtures is not proven by the tests that read every item."
+
+[given]
+include = ['**']
+
+[[scenarios]]
+id = 'item-input-expected-rows'
+scenario = 'An item with an input and expected rows.'
+given.files.'crates/core/src/domain/operator/collections/operators/join/item.rs' = '''
+//! The join.
+'''
+given.files.'crates/core/tests/fixtures/operators/join/expected.rs' = '''
+pub const ROWS: &[&str] = &[];
+'''
+given.files.'crates/core/tests/fixtures/operators/join/input.ryoql' = '''
+a
+'''
+
+[[scenarios]]
+id = 'without-expected'
+scenario = 'An item without expected rows.'
+given.files.'crates/core/src/domain/operator/collections/operators/join/item.rs' = '''
+//! The join.
+'''
+given.files.'crates/core/tests/fixtures/operators/join/input.ryoql' = '''
+a
+'''
+then.findings = [
+  { path = 'crates/core/src/domain/operator/collections/operators/join/item.rs' },
+]
+
+[[scenarios]]
+id = 'without-input'
+scenario = 'An item without an input.'
+given.files.'crates/core/src/domain/operator/collections/operators/join/item.rs' = '''
+//! The join.
+'''
+given.files.'crates/core/tests/fixtures/operators/join/expected.rs' = '''
+pub const ROWS: &[&str] = &[];
+'''
+then.findings = [
+  { path = 'crates/core/src/domain/operator/collections/operators/join/item.rs' },
+]
+
+[[scenarios]]
+id = 'nested-collection'
+scenario = 'An item of another collection needs none.'
+given.files.'crates/core/src/domain/operator/collections/operators/select/collections/comparisons/equality/item.rs' = '''
+//! The equality.
+'''
+given.files.'crates/core/src/domain/operator/collections/operators/select/item.rs' = '''
+//! The select.
+'''
+given.files.'crates/core/tests/fixtures/operators/select/expected.rs' = '''
+pub const ROWS: &[&str] = &[];
+'''
+given.files.'crates/core/tests/fixtures/operators/select/input.ryoql' = '''
+a
+'''
+
+[[scenarios]]
+id = 'other-concept'
+scenario = 'Syntax operators of a language need none.'
+given.files.'crates/core/src/domain/syntax/collections/operators/placeholder/item.rs' = '''
+//! x
+'''
+
+[[scenarios]]
+id = 'table-expected'
+scenario = 'A table file is not the typed rows.'
+given.files.'crates/core/src/domain/operator/collections/operators/join/item.rs' = '''
+//! The join.
+'''
+given.files.'crates/core/tests/fixtures/operators/join/expected.tsv' = '''
+a
+'''
+given.files.'crates/core/tests/fixtures/operators/join/input.ryoql' = '''
+a
+'''
+then.findings = [
+  { path = 'crates/core/src/domain/operator/collections/operators/join/item.rs' },
+]
+
+[[scenarios]]
+id = 'empty-files'
+scenario = 'The files are only counted, whatever they hold.'
+given.files.'crates/core/src/domain/operator/collections/operators/join/item.rs' = '''
+//! The join.
+'''
+given.files.'crates/core/tests/fixtures/operators/join/expected.rs' = ''
+given.files.'crates/core/tests/fixtures/operators/join/input.ryoql' = ''
+
+[[scenarios]]
+id = 'bare-input'
+scenario = 'An input without an extension is an input.'
+given.files.'crates/core/src/domain/operator/collections/operators/join/item.rs' = '''
+//! The join.
+'''
+given.files.'crates/core/tests/fixtures/operators/join/expected.rs' = '''
+pub const ROWS: &[&str] = &[];
+'''
+given.files.'crates/core/tests/fixtures/operators/join/input' = '''
+a
+'''
+
+[[scenarios]]
+id = 'relation-input-held-by-placement'
+scenario = 'A relation item with its expected rows needs no input here.'
+given.files.'crates/lang/src/domain/relations/collections/relations/syntax_error/item.rs' = '''
+pub struct SyntaxErrorItem;
+'''
+given.files.'crates/lang/tests/fixtures/relations/syntax_error/expected.rs' = '''
+pub const ROWS: () = ();
+'''
+
+[[scenarios]]
+id = 'relation-without-expected'
+scenario = 'A relation item without expected rows.'
+given.files.'crates/lang/src/domain/relations/collections/relations/syntax_error/item.rs' = '''
+pub struct SyntaxErrorItem;
+'''
+given.files.'crates/lang/tests/fixtures/relations/syntax_error/input.txt' = '''
+x
+'''
+then.findings = [
+  { path = 'crates/lang/src/domain/relations/collections/relations/syntax_error/item.rs' },
+]

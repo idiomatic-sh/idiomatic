@@ -1,0 +1,9 @@
+[project]
+name = "demo"
+dependencies = ["requests>=2", 'rich']
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.ruff.lint]
+select = ["E", "F"]

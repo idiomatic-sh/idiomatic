@@ -1,0 +1,1 @@
+Module(body=[ImportFrom(names=[alias(name='basic2')], level=1, is_lazy=1), ImportFrom(module='basic2', names=[alias(name='x'), alias(name='f')], level=1, is_lazy=1), ImportFrom(names=[alias(name='b'), alias(name='x')], level=1, is_lazy=1)])

@@ -1,0 +1,22 @@
+{
+  "modeled_versions": [
+    [
+      3,
+      10,
+      0,
+      "final",
+      0
+    ],
+    [
+      3,
+      10,
+      3,
+      "final",
+      0
+    ]
+  ],
+  "sources": {
+    "case.py": "import sys\nif sys.version_info[2] == 3:\n    branch = \"micro-three\"\nelse:\n    branch = \"other-micro\"\n",
+    "major-positive-control.py": "import sys\nif sys.version_info[0] == 3:\n    branch = \"major-three\"\nelse:\n    branch = \"other-major\"\n"
+  }
+}

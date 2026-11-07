@@ -1,0 +1,7 @@
+{
+  "target": "python-target=3.10",
+  "authority": "https://docs.python.org/3.10/reference/simple_stmts.html#future-statements",
+  "annotation_authority": "https://docs.python.org/3.10/reference/expressions.html#assignment-expressions",
+  "cross_version_rationale": "These sources use Python3.10 syntax. CPython3.13.5 independently accepts ordinary function annotation named expressions in both .py and .pyi and rejects a named expression in a postponed module annotation. Filename suffix does not introduce a Python annotation scope. Relative-future behavior is deliberately excluded because observed implementations disagree.",
+  "probe": "compile_controls.py uses compile(..., dont_inherit=True). Evidence identity is checked; semantic interpretation remains reviewable."
+}

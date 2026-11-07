@@ -1,0 +1,1607 @@
+root[136]
+├─0   heading[1]
+│     │ depth: 1
+│     └─0 text "FAQ"
+├─1   heading[1]
+│     │ depth: 2
+│     └─0 text "Is the Ruff linter compatible with Black?"
+├─2   paragraph[5]
+│     ├─0 text "Yes. The Ruff linter is compatible with "
+│     ├─1 link[1]
+│     │   │ title: null
+│     │   │ url: "https://github.com/psf/black"
+│     │   └─0 text "Black"
+│     ├─2 text " out-of-the-box, as\nlong as the "
+│     ├─3 link[1]
+│     │   │ title: null
+│     │   │ url: "settings.md#line-length"
+│     │   └─0 inlineCode "line-length"
+│     └─4 text " setting is consistent between the two."
+├─3   paragraph[1]
+│     └─0 text "Ruff is designed to be used alongside a formatter (like Ruff's own formatter, or Black) and, as\nsuch, will defer implementing stylistic rules that are obviated by automated formatting."
+├─4   paragraph[15]
+│     ├─0  text "Note that Ruff's linter and Black treat line-length enforcement a little differently. Black, like\nRuff's formatter, makes a best-effort attempt to adhere to the\n"
+│     ├─1  link[1]
+│     │    │ title: null
+│     │    │ url: "settings.md#line-length"
+│     │    └─0 inlineCode "line-length"
+│     ├─2  text ", but avoids automatic line-wrapping in some cases (e.g.,\nwithin comments). Ruff, on the other hand, will flag "
+│     ├─3  link[1]
+│     │    │ title: null
+│     │    │ url: "rules/line-too-long.md"
+│     │    └─0 inlineCode "line-too-long"
+│     ├─4  text "\n("
+│     ├─5  inlineCode "E501"
+│     ├─6  text ") for any line that exceeds the "
+│     ├─7  link[1]
+│     │    │ title: null
+│     │    │ url: "settings.md#line-length"
+│     │    └─0 inlineCode "line-length"
+│     ├─8  text " setting. As such, if\n"
+│     ├─9  link[1]
+│     │    │ title: null
+│     │    │ url: "rules/line-too-long.md"
+│     │    └─0 inlineCode "line-too-long"
+│     ├─10 text " ("
+│     ├─11 inlineCode "E501"
+│     ├─12 text ") is enabled, Ruff can still trigger line-length\nviolations even when Black or "
+│     ├─13 inlineCode "ruff format"
+│     └─14 text " is enabled."
+├─5   heading[1]
+│     │ depth: 2
+│     └─0 text "How does Ruff's formatter compare to Black?"
+├─6   paragraph[3]
+│     ├─0 text "The Ruff formatter is designed to be a drop-in replacement for "
+│     ├─1 link[1]
+│     │   │ title: null
+│     │   │ url: "https://github.com/psf/black"
+│     │   └─0 text "Black"
+│     └─2 text "."
+├─7   paragraph[1]
+│     └─0 text "Specifically, the formatter is intended to emit near-identical output when run over Black-formatted\ncode. When run over extensive Black-formatted projects like Django and Zulip, > 99.9% of lines\nare formatted identically. When migrating an existing project from Black to Ruff, you should expect\nto see a few differences on the margins, but the vast majority of your code should be unchanged."
+├─8   paragraph[3]
+│     ├─0 text "When run over "
+│     ├─1 emphasis[1]
+│     │   └─0 text "non"
+│     └─2 text "-Black-formatted code, the formatter makes some different decisions than Black,\nand so more deviations should be expected, especially around the treatment of end-of-line comments."
+├─9   paragraph[3]
+│     ├─0 text "See "
+│     ├─1 link[1]
+│     │   │ title: null
+│     │   │ url: "formatter.md#style-guide"
+│     │   └─0 emphasis[1]
+│     │       └─0 text "Style Guide"
+│     └─2 text " for more."
+├─10  heading[1]
+│     │ depth: 2
+│     └─0 text "How does Ruff's linter compare to Flake8?"
+├─11  paragraph[1]
+│     └─0 text "Ruff can be used as a drop-in replacement for Flake8 when used (1) without or with a small number of\nplugins, (2) alongside Black, and (3) on Python 3 code."
+├─12  paragraph[7]
+│     ├─0 text "Under those conditions, Ruff implements every rule in Flake8. In practice, that means Ruff\nimplements all of the "
+│     ├─1 inlineCode "F"
+│     ├─2 text " rules (which originate from Pyflakes), along with a subset of the "
+│     ├─3 inlineCode "E"
+│     ├─4 text " and\n"
+│     ├─5 inlineCode "W"
+│     └─6 text " rules (which originate from pycodestyle)."
+├─13  paragraph[1]
+│     └─0 text "Ruff also re-implements some of the most popular Flake8 plugins and related code quality tools\nnatively, including:"
+├─14  list[52]
+│     │ ordered: false
+│     │ start: null
+│     │ spread: false
+│     ├─0  listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/autoflake/"
+│     │            └─0 text "autoflake"
+│     ├─1  listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/eradicate/"
+│     │            └─0 text "eradicate"
+│     ├─2  listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-2020/"
+│     │            └─0 text "flake8-2020"
+│     ├─3  listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-annotations/"
+│     │            └─0 text "flake8-annotations"
+│     ├─4  listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-async"
+│     │            └─0 text "flake8-async"
+│     ├─5  listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[4]
+│     │        ├─0 link[1]
+│     │        │   │ title: null
+│     │        │   │ url: "https://pypi.org/project/flake8-bandit/"
+│     │        │   └─0 text "flake8-bandit"
+│     │        ├─1 text " ("
+│     │        ├─2 link[1]
+│     │        │   │ title: null
+│     │        │   │ url: "https://github.com/astral-sh/ruff/issues/1646"
+│     │        │   └─0 text "#1646"
+│     │        └─3 text ")"
+│     ├─6  listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-blind-except/"
+│     │            └─0 text "flake8-blind-except"
+│     ├─7  listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-boolean-trap/"
+│     │            └─0 text "flake8-boolean-trap"
+│     ├─8  listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-bugbear/"
+│     │            └─0 text "flake8-bugbear"
+│     ├─9  listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-builtins/"
+│     │            └─0 text "flake8-builtins"
+│     ├─10 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-commas/"
+│     │            └─0 text "flake8-commas"
+│     ├─11 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-comprehensions/"
+│     │            └─0 text "flake8-comprehensions"
+│     ├─12 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-copyright/"
+│     │            └─0 text "flake8-copyright"
+│     ├─13 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-datetimez/"
+│     │            └─0 text "flake8-datetimez"
+│     ├─14 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-debugger/"
+│     │            └─0 text "flake8-debugger"
+│     ├─15 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-django/"
+│     │            └─0 text "flake8-django"
+│     ├─16 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-docstrings/"
+│     │            └─0 text "flake8-docstrings"
+│     ├─17 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-eradicate/"
+│     │            └─0 text "flake8-eradicate"
+│     ├─18 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-errmsg/"
+│     │            └─0 text "flake8-errmsg"
+│     ├─19 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-executable/"
+│     │            └─0 text "flake8-executable"
+│     ├─20 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-gettext/"
+│     │            └─0 text "flake8-gettext"
+│     ├─21 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-implicit-str-concat/"
+│     │            └─0 text "flake8-implicit-str-concat"
+│     ├─22 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-import-conventions/"
+│     │            └─0 text "flake8-import-conventions"
+│     ├─23 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-logging-format/"
+│     │            └─0 text "flake8-logging"
+│     ├─24 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-logging-format/"
+│     │            └─0 text "flake8-logging-format"
+│     ├─25 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-no-pep420"
+│     │            └─0 text "flake8-no-pep420"
+│     ├─26 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-pie/"
+│     │            └─0 text "flake8-pie"
+│     ├─27 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-print/"
+│     │            └─0 text "flake8-print"
+│     ├─28 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-pyi/"
+│     │            └─0 text "flake8-pyi"
+│     ├─29 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-pytest-style/"
+│     │            └─0 text "flake8-pytest-style"
+│     ├─30 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-quotes/"
+│     │            └─0 text "flake8-quotes"
+│     ├─31 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-raise/"
+│     │            └─0 text "flake8-raise"
+│     ├─32 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-return/"
+│     │            └─0 text "flake8-return"
+│     ├─33 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-self/"
+│     │            └─0 text "flake8-self"
+│     ├─34 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-simplify/"
+│     │            └─0 text "flake8-simplify"
+│     ├─35 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-slots/"
+│     │            └─0 text "flake8-slots"
+│     ├─36 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-super/"
+│     │            └─0 text "flake8-super"
+│     ├─37 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-tidy-imports/"
+│     │            └─0 text "flake8-tidy-imports"
+│     ├─38 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-todos/"
+│     │            └─0 text "flake8-todos"
+│     ├─39 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-type-checking/"
+│     │            └─0 text "flake8-type-checking"
+│     ├─40 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-use-pathlib/"
+│     │            └─0 text "flake8-use-pathlib"
+│     ├─41 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[4]
+│     │        ├─0 link[1]
+│     │        │   │ title: null
+│     │        │   │ url: "https://pypi.org/project/flynt/"
+│     │        │   └─0 text "flynt"
+│     │        ├─1 text " ("
+│     │        ├─2 link[1]
+│     │        │   │ title: null
+│     │        │   │ url: "https://github.com/astral-sh/ruff/issues/2102"
+│     │        │   └─0 text "#2102"
+│     │        └─3 text ")"
+│     ├─42 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/isort/"
+│     │            └─0 text "isort"
+│     ├─43 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/mccabe/"
+│     │            └─0 text "mccabe"
+│     ├─44 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/pandas-vet/"
+│     │            └─0 text "pandas-vet"
+│     ├─45 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/pep8-naming/"
+│     │            └─0 text "pep8-naming"
+│     ├─46 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[4]
+│     │        ├─0 link[1]
+│     │        │   │ title: null
+│     │        │   │ url: "https://pypi.org/project/perflint/"
+│     │        │   └─0 text "perflint"
+│     │        ├─1 text " ("
+│     │        ├─2 link[1]
+│     │        │   │ title: null
+│     │        │   │ url: "https://github.com/astral-sh/ruff/issues/4789"
+│     │        │   └─0 text "#4789"
+│     │        └─3 text ")"
+│     ├─47 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/pydocstyle/"
+│     │            └─0 text "pydocstyle"
+│     ├─48 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://github.com/pre-commit/pygrep-hooks"
+│     │            └─0 text "pygrep-hooks"
+│     ├─49 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/pyupgrade/"
+│     │            └─0 text "pyupgrade"
+│     ├─50 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/tryceratops/"
+│     │            └─0 text "tryceratops"
+│     └─51 listItem[1]
+│          │ spread: false
+│          │ checked: null
+│          └─0 paragraph[1]
+│              └─0 link[1]
+│                  │ title: null
+│                  │ url: "https://pypi.org/project/yesqa/"
+│                  └─0 text "yesqa"
+├─15  paragraph[11]
+│     ├─0  text "Note that, in some cases, Ruff uses different rule codes and prefixes than would be found in the\noriginating Flake8 plugins. For example, Ruff uses "
+│     ├─1  inlineCode "TID252"
+│     ├─2  text " to represent the "
+│     ├─3  inlineCode "I252"
+│     ├─4  text " rule from\nflake8-tidy-imports. This helps minimize conflicts across plugins and allows any individual plugin\nto be toggled on or off with a single (e.g.) "
+│     ├─5  inlineCode "--select TID"
+│     ├─6  text ", as opposed to "
+│     ├─7  inlineCode "--select I2"
+│     ├─8  text " (to avoid\nconflicts with the isort rules, like "
+│     ├─9  inlineCode "I001"
+│     └─10 text ")."
+├─16  paragraph[1]
+│     └─0 text "Beyond the rule set, Ruff's primary limitation vis-à-vis Flake8 is that it does not support custom\nlint rules. (Instead, popular Flake8 plugins are re-implemented in Rust as part of Ruff itself.)\nOne minor difference is that Ruff doesn't include all the 'opinionated' rules from flake8-bugbear."
+├─17  heading[1]
+│     │ depth: 2
+│     └─0 text "How does Ruff's linter compare to Pylint?"
+├─18  paragraph[3]
+│     ├─0 text "At time of writing, Pylint implements ~409 total rules, while Ruff implements over 900, of which at\nleast 209 overlap with the Pylint rule set (see: "
+│     ├─1 link[1]
+│     │   │ title: null
+│     │   │ url: "https://github.com/astral-sh/ruff/issues/970"
+│     │   └─0 text "#970"
+│     └─2 text ")."
+├─19  paragraph[1]
+│     └─0 text "Pylint implements many rules that Ruff does not, and vice versa. For example, Pylint does more type\ninference than Ruff (e.g., Pylint can validate the number of arguments in a function call). As such,\nRuff is not a \"pure\" drop-in replacement for Pylint (and vice versa), as they enforce different sets\nof rules."
+├─20  paragraph[3]
+│     ├─0 text "Despite these differences, many users have successfully switched from Pylint to Ruff, especially\nthose using Ruff alongside a "
+│     ├─1 link[1]
+│     │   │ title: null
+│     │   │ url: "faq.md#how-does-ruff-compare-to-mypy-or-pyright-or-pyre"
+│     │   └─0 text "type checker"
+│     └─2 text ",\nwhich can cover some of the functionality that Pylint provides."
+├─21  paragraph[1]
+│     └─0 text "Like Flake8, Pylint supports plugins (called \"checkers\"), while Ruff implements all rules natively\nand does not support custom or third-party rules. Unlike Pylint, Ruff is capable of automatically\nfixing its own lint violations."
+├─22  paragraph[15]
+│     ├─0  text "In some cases, Ruff's rules may yield slightly different results than their Pylint counterparts. For\nexample, Ruff's "
+│     ├─1  link[1]
+│     │    │ title: null
+│     │    │ url: "rules/too-many-branches.md"
+│     │    └─0 inlineCode "too-many-branches"
+│     ├─2  text " does not count "
+│     ├─3  inlineCode "try"
+│     ├─4  text " blocks as\ntheir own branches, unlike Pylint's "
+│     ├─5  inlineCode "R0912"
+│     ├─6  text ". Ruff's "
+│     ├─7  inlineCode "PL"
+│     ├─8  text " rule group also includes a small number of\nrules from Pylint "
+│     ├─9  emphasis[1]
+│     │    └─0 text "extensions"
+│     ├─10 text " (like "
+│     ├─11 link[1]
+│     │    │ title: null
+│     │    │ url: "rules/magic-value-comparison.md"
+│     │    └─0 inlineCode "magic-value-comparison"
+│     ├─12 text "),\nwhich need to be explicitly activated when using Pylint. By enabling Ruff's "
+│     ├─13 inlineCode "PL"
+│     └─14 text " group, you may\nsee violations for rules that weren't previously enabled through your Pylint configuration."
+├─23  paragraph[3]
+│     ├─0 text "Pylint parity is being tracked in "
+│     ├─1 link[1]
+│     │   │ title: null
+│     │   │ url: "https://github.com/astral-sh/ruff/issues/970"
+│     │   └─0 text "#970"
+│     └─2 text "."
+├─24  heading[1]
+│     │ depth: 2
+│     └─0 text "How does Ruff compare to Mypy, or Pyright, or Pyre?"
+├─25  paragraph[1]
+│     └─0 text "Ruff is a linter, not a type checker. It can detect some of the same problems that a type checker\ncan, but a type checker will catch certain errors that Ruff would miss. The opposite is also true:\nRuff will catch certain errors that a type checker would typically ignore."
+├─26  paragraph[1]
+│     └─0 text "For example, unlike a type checker, Ruff will notify you if an import is unused, by looking for\nreferences to that import in the source code; on the other hand, a type checker could flag that you\npassed an integer argument to a function that expects a string, which Ruff would miss. The\ntools are complementary."
+├─27  paragraph[1]
+│     └─0 text "It's recommended that you use Ruff in conjunction with a type checker, like Mypy, Pyright, or Pyre,\nwith Ruff providing faster feedback on lint violations and the type checker providing more detailed\nfeedback on type errors."
+├─28  heading[1]
+│     │ depth: 2
+│     └─0 text "Which tools does Ruff replace?"
+├─29  paragraph[1]
+│     └─0 text "Today, Ruff can be used to replace Flake8 when used with any of the following plugins:"
+├─30  list[45]
+│     │ ordered: false
+│     │ start: null
+│     │ spread: false
+│     ├─0  listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-2020/"
+│     │            └─0 text "flake8-2020"
+│     ├─1  listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-annotations/"
+│     │            └─0 text "flake8-annotations"
+│     ├─2  listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-async"
+│     │            └─0 text "flake8-async"
+│     ├─3  listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[4]
+│     │        ├─0 link[1]
+│     │        │   │ title: null
+│     │        │   │ url: "https://pypi.org/project/flake8-bandit/"
+│     │        │   └─0 text "flake8-bandit"
+│     │        ├─1 text " ("
+│     │        ├─2 link[1]
+│     │        │   │ title: null
+│     │        │   │ url: "https://github.com/astral-sh/ruff/issues/1646"
+│     │        │   └─0 text "#1646"
+│     │        └─3 text ")"
+│     ├─4  listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-blind-except/"
+│     │            └─0 text "flake8-blind-except"
+│     ├─5  listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-boolean-trap/"
+│     │            └─0 text "flake8-boolean-trap"
+│     ├─6  listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-bugbear/"
+│     │            └─0 text "flake8-bugbear"
+│     ├─7  listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-builtins/"
+│     │            └─0 text "flake8-builtins"
+│     ├─8  listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-commas/"
+│     │            └─0 text "flake8-commas"
+│     ├─9  listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-comprehensions/"
+│     │            └─0 text "flake8-comprehensions"
+│     ├─10 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-copyright/"
+│     │            └─0 text "flake8-copyright"
+│     ├─11 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-datetimez/"
+│     │            └─0 text "flake8-datetimez"
+│     ├─12 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-debugger/"
+│     │            └─0 text "flake8-debugger"
+│     ├─13 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-django/"
+│     │            └─0 text "flake8-django"
+│     ├─14 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-docstrings/"
+│     │            └─0 text "flake8-docstrings"
+│     ├─15 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-eradicate/"
+│     │            └─0 text "flake8-eradicate"
+│     ├─16 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-errmsg/"
+│     │            └─0 text "flake8-errmsg"
+│     ├─17 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-executable/"
+│     │            └─0 text "flake8-executable"
+│     ├─18 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-gettext/"
+│     │            └─0 text "flake8-gettext"
+│     ├─19 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-implicit-str-concat/"
+│     │            └─0 text "flake8-implicit-str-concat"
+│     ├─20 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-import-conventions/"
+│     │            └─0 text "flake8-import-conventions"
+│     ├─21 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-logging/"
+│     │            └─0 text "flake8-logging"
+│     ├─22 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-logging-format/"
+│     │            └─0 text "flake8-logging-format"
+│     ├─23 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-no-pep420"
+│     │            └─0 text "flake8-no-pep420"
+│     ├─24 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-pie/"
+│     │            └─0 text "flake8-pie"
+│     ├─25 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-print/"
+│     │            └─0 text "flake8-print"
+│     ├─26 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-pytest-style/"
+│     │            └─0 text "flake8-pytest-style"
+│     ├─27 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-quotes/"
+│     │            └─0 text "flake8-quotes"
+│     ├─28 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-raise/"
+│     │            └─0 text "flake8-raise"
+│     ├─29 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-return/"
+│     │            └─0 text "flake8-return"
+│     ├─30 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-self/"
+│     │            └─0 text "flake8-self"
+│     ├─31 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-simplify/"
+│     │            └─0 text "flake8-simplify"
+│     ├─32 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-slots/"
+│     │            └─0 text "flake8-slots"
+│     ├─33 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-super/"
+│     │            └─0 text "flake8-super"
+│     ├─34 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-tidy-imports/"
+│     │            └─0 text "flake8-tidy-imports"
+│     ├─35 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-todos/"
+│     │            └─0 text "flake8-todos"
+│     ├─36 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-type-checking/"
+│     │            └─0 text "flake8-type-checking"
+│     ├─37 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/flake8-use-pathlib/"
+│     │            └─0 text "flake8-use-pathlib"
+│     ├─38 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[4]
+│     │        ├─0 link[1]
+│     │        │   │ title: null
+│     │        │   │ url: "https://pypi.org/project/flynt/"
+│     │        │   └─0 text "flynt"
+│     │        ├─1 text " ("
+│     │        ├─2 link[1]
+│     │        │   │ title: null
+│     │        │   │ url: "https://github.com/astral-sh/ruff/issues/2102"
+│     │        │   └─0 text "#2102"
+│     │        └─3 text ")"
+│     ├─39 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/mccabe/"
+│     │            └─0 text "mccabe"
+│     ├─40 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/pandas-vet/"
+│     │            └─0 text "pandas-vet"
+│     ├─41 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/pep8-naming/"
+│     │            └─0 text "pep8-naming"
+│     ├─42 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[4]
+│     │        ├─0 link[1]
+│     │        │   │ title: null
+│     │        │   │ url: "https://pypi.org/project/perflint/"
+│     │        │   └─0 text "perflint"
+│     │        ├─1 text " ("
+│     │        ├─2 link[1]
+│     │        │   │ title: null
+│     │        │   │ url: "https://github.com/astral-sh/ruff/issues/4789"
+│     │        │   └─0 text "#4789"
+│     │        └─3 text ")"
+│     ├─43 listItem[1]
+│     │    │ spread: false
+│     │    │ checked: null
+│     │    └─0 paragraph[1]
+│     │        └─0 link[1]
+│     │            │ title: null
+│     │            │ url: "https://pypi.org/project/pydocstyle/"
+│     │            └─0 text "pydocstyle"
+│     └─44 listItem[1]
+│          │ spread: false
+│          │ checked: null
+│          └─0 paragraph[1]
+│              └─0 link[1]
+│                  │ title: null
+│                  │ url: "https://pypi.org/project/tryceratops/"
+│                  └─0 text "tryceratops"
+├─31  paragraph[11]
+│     ├─0  text "Ruff can also replace "
+│     ├─1  link[1]
+│     │    │ title: null
+│     │    │ url: "https://pypi.org/project/black/"
+│     │    └─0 text "Black"
+│     ├─2  text ", "
+│     ├─3  link[1]
+│     │    │ title: null
+│     │    │ url: "https://pypi.org/project/isort/"
+│     │    └─0 text "isort"
+│     ├─4  text ",\n"
+│     ├─5  link[1]
+│     │    │ title: null
+│     │    │ url: "https://pypi.org/project/yesqa/"
+│     │    └─0 text "yesqa"
+│     ├─6  text ", "
+│     ├─7  link[1]
+│     │    │ title: null
+│     │    │ url: "https://pypi.org/project/eradicate/"
+│     │    └─0 text "eradicate"
+│     ├─8  text ", and\nmost of the rules implemented in "
+│     ├─9  link[1]
+│     │    │ title: null
+│     │    │ url: "https://pypi.org/project/pyupgrade/"
+│     │    └─0 text "pyupgrade"
+│     └─10 text "."
+├─32  paragraph[3]
+│     ├─0 text "If you're looking to use Ruff, but rely on an unsupported Flake8 plugin, feel free to file an\n"
+│     ├─1 link[1]
+│     │   │ title: null
+│     │   │ url: "https://github.com/astral-sh/ruff/issues/new"
+│     │   └─0 text "issue"
+│     └─2 text "."
+├─33  heading[1]
+│     │ depth: 2
+│     └─0 text "Do I have to use Ruff's linter and formatter together?"
+├─34  paragraph[1]
+│     └─0 text "Nope! Ruff's linter and formatter can be used independently of one another -- you can use\nRuff as a formatter, but not a linter, or vice versa."
+├─35  heading[1]
+│     │ depth: 2
+│     └─0 text "What versions of Python does Ruff support?"
+├─36  paragraph[1]
+│     └─0 text "Ruff can lint code for any Python version from 3.7 onwards, including Python 3.13."
+├─37  paragraph[5]
+│     ├─0 text "Ruff does not support Python 2. Ruff "
+│     ├─1 emphasis[1]
+│     │   └─0 text "may"
+│     ├─2 text " run on pre-Python 3.7 code, although such versions\nare not officially supported (e.g., Ruff does "
+│     ├─3 emphasis[1]
+│     │   └─0 text "not"
+│     └─4 text " respect type comments)."
+├─38  paragraph[1]
+│     └─0 text "Ruff is installable under any Python version from 3.7 onwards."
+├─39  heading[1]
+│     │ depth: 2
+│     └─0 text "Do I need to install Rust to use Ruff?"
+├─40  paragraph[11]
+│     ├─0  text "Nope! Ruff is available as "
+│     ├─1  link[1]
+│     │    │ title: null
+│     │    │ url: "https://pypi.org/project/ruff/"
+│     │    └─0 inlineCode "ruff"
+│     ├─2  text " on PyPI. We recommend installing Ruff with "
+│     ├─3  link[1]
+│     │    │ title: null
+│     │    │ url: "https://docs.astral.sh/uv/"
+│     │    └─0 text "uv"
+│     ├─4  text ",\nthough it's also installable with "
+│     ├─5  inlineCode "pip"
+│     ├─6  text ", "
+│     ├─7  inlineCode "pipx"
+│     ├─8  text ", and a "
+│     ├─9  link[1]
+│     │    │ title: null
+│     │    │ url: "installation.md"
+│     │    └─0 text "variety of other package managers"
+│     └─10 text ":"
+├─41  code "$ # Install Ruff globally.\n$ uv tool install ruff@latest\n\n$ # Or add Ruff to your project.\n$ uv add --dev ruff\n\n$ # With pip.\n$ pip install ruff\n\n$ # With pipx.\n$ pipx install ruff"
+│       lang: "console"
+│       meta: null
+├─42  paragraph[3]
+│     ├─0 text "Starting with version "
+│     ├─1 inlineCode "0.5.0"
+│     └─2 text ", Ruff can also be installed with our standalone installers:"
+├─43  code "$ # On macOS and Linux.\n$ curl -LsSf https://astral.sh/ruff/install.sh | sh\n\n$ # On Windows.\n$ powershell -c \"irm https://astral.sh/ruff/install.ps1 | iex\"\n\n$ # For a specific version.\n$ curl -LsSf https://astral.sh/ruff/0.5.0/install.sh | sh\n$ powershell -c \"irm https://astral.sh/ruff/0.5.0/install.ps1 | iex\""
+│       lang: "console"
+│       meta: null
+├─44  paragraph[5]
+│     ├─0 text "Ruff ships with wheels for all major platforms, which enables "
+│     ├─1 inlineCode "uv"
+│     ├─2 text ", "
+│     ├─3 inlineCode "pip"
+│     └─4 text ", and other tools to install Ruff without\nrelying on a Rust toolchain at all."
+├─45  heading[1]
+│     │ depth: 2
+│     └─0 text "Can I write my own linter plugins for Ruff?"
+├─46  paragraph[3]
+│     ├─0 text "Ruff does not yet support third-party plugins, though a plugin system is within-scope for the\nproject. See "
+│     ├─1 link[1]
+│     │   │ title: null
+│     │   │ url: "https://github.com/astral-sh/ruff/issues/283"
+│     │   └─0 text "#283"
+│     └─2 text " for more."
+├─47  heading[3]
+│     │ depth: 2
+│     ├─0 text "How does Ruff's import sorting compare to "
+│     ├─1 link[1]
+│     │   │ title: null
+│     │   │ url: "https://pypi.org/project/isort/"
+│     │   └─0 text "isort"
+│     └─2 text "?"
+├─48  paragraph[3]
+│     ├─0 text "Ruff's import sorting is intended to be near-equivalent to isort's when using isort's\n"
+│     ├─1 inlineCode "profile = \"black\""
+│     └─2 text "."
+├─49  paragraph[5]
+│     ├─0 text "There are a few known differences in how Ruff and isort treat aliased imports, and in how Ruff and\nisort treat inline comments in some cases (see: "
+│     ├─1 link[1]
+│     │   │ title: null
+│     │   │ url: "https://github.com/astral-sh/ruff/issues/1381"
+│     │   └─0 text "#1381"
+│     ├─2 text ",\n"
+│     ├─3 link[1]
+│     │   │ title: null
+│     │   │ url: "https://github.com/astral-sh/ruff/issues/2104"
+│     │   └─0 text "#2104"
+│     └─4 text ")."
+├─50  paragraph[1]
+│     └─0 text "For example, Ruff tends to group non-aliased imports from the same module:"
+├─51  code "from numpy import cos, int8, int16, int32, int64, tan, uint8, uint16, uint32, uint64\nfrom numpy import sin as np_sin"
+│       lang: "python"
+│       meta: null
+├─52  paragraph[1]
+│     └─0 text "Whereas isort splits them into separate import statements at each aliased boundary:"
+├─53  code "from numpy import cos, int8, int16, int32, int64\nfrom numpy import sin as np_sin\nfrom numpy import tan, uint8, uint16, uint32, uint64"
+│       lang: "python"
+│       meta: null
+├─54  paragraph[5]
+│     ├─0 text "Ruff also correctly classifies some modules as standard-library that aren't recognized\nby isort, like "
+│     ├─1 inlineCode "_string"
+│     ├─2 text " and "
+│     ├─3 inlineCode "idlelib"
+│     └─4 text "."
+├─55  paragraph[1]
+│     └─0 text "Like isort, Ruff's import sorting is compatible with Black."
+├─56  heading[1]
+│     │ depth: 2
+│     └─0 text "How does Ruff determine which of my imports are first-party, third-party, etc.?"
+├─57  paragraph[9]
+│     ├─0 text "Ruff accepts a "
+│     ├─1 inlineCode "src"
+│     ├─2 text " option that in your "
+│     ├─3 inlineCode "pyproject.toml"
+│     ├─4 text ", "
+│     ├─5 inlineCode "ruff.toml"
+│     ├─6 text ", or "
+│     ├─7 inlineCode ".ruff.toml"
+│     └─8 text " file,\nspecifies the directories that Ruff should consider when determining whether an import is\nfirst-party."
+├─58  paragraph[1]
+│     └─0 text "For example, if you have a project with the following structure:"
+├─59  code "my_project\n├── pyproject.toml\n└── src\n    └── foo\n        ├── __init__.py\n        └── bar\n            ├── __init__.py\n            └── baz.py"
+│       lang: "tree"
+│       meta: null
+├─60  paragraph[21]
+│     ├─0  text "When Ruff sees an import like "
+│     ├─1  inlineCode "import foo"
+│     ├─2  text ", it will then iterate over the "
+│     ├─3  inlineCode "src"
+│     ├─4  text " directories,\nlooking for a corresponding Python module (in reality, a directory named "
+│     ├─5  inlineCode "foo"
+│     ├─6  text " or a file named\n"
+│     ├─7  inlineCode "foo.py"
+│     ├─8  text "). For module paths with multiple components like "
+│     ├─9  inlineCode "import foo.bar"
+│     ├─10 text ",\nRuff will require that the full relative path "
+│     ├─11 inlineCode "foo/bar"
+│     ├─12 text " exists as a directory, or that "
+│     ├─13 inlineCode "foo/bar.py"
+│     ├─14 text " or "
+│     ├─15 inlineCode "foo/bar.pyi"
+│     ├─16 text " exist as files. Finally, for imports of the form "
+│     ├─17 inlineCode "from foo import bar"
+│     ├─18 text ", Ruff will only use "
+│     ├─19 inlineCode "foo"
+│     └─20 text " when determining whether a module is first-party or third-party."
+├─61  paragraph[7]
+│     ├─0 text "If there is a directory\nwhose name matches a third-party package, but does not contain Python code,\nit could happen that the above algorithm incorrectly infers an import to be first-party.\nTo prevent this, you can modify the "
+│     ├─1 link[1]
+│     │   │ title: null
+│     │   │ url: "settings.md#lint_isort_known-third-party"
+│     │   └─0 inlineCode "known-third-party"
+│     ├─2 text " setting. For example, if you import\nthe package "
+│     ├─3 inlineCode "wandb"
+│     ├─4 text " but also have a subdirectory of your "
+│     ├─5 inlineCode "src"
+│     └─6 text " with\nthe same name, you can add the following:"
+├─62  paragraph[1]
+│     └─0 text "=== \"pyproject.toml\""
+├─63  code "```toml\n[tool.ruff.lint.isort]\nknown-third-party = [\"wandb\"]\n```"
+│       lang: null
+│       meta: null
+├─64  paragraph[1]
+│     └─0 text "=== \"ruff.toml\""
+├─65  code "```toml\n[lint.isort]\nknown-third-party = [\"wandb\"]\n```"
+│       lang: null
+│       meta: null
+├─66  paragraph[13]
+│     ├─0  text "If the "
+│     ├─1  inlineCode "src"
+│     ├─2  text " field is omitted, Ruff will default to using the \"project root\", along with a "
+│     ├─3  inlineCode "\"src\""
+│     ├─4  text "\nsubdirectory, as the first-party sources, to support both flat and nested project layouts.\nThe \"project root\" is typically the directory containing your "
+│     ├─5  inlineCode "pyproject.toml"
+│     ├─6  text ", "
+│     ├─7  inlineCode "ruff.toml"
+│     ├─8  text ", or\n"
+│     ├─9  inlineCode ".ruff.toml"
+│     ├─10 text " file, unless a configuration file is provided on the command-line via the "
+│     ├─11 inlineCode "--config"
+│     └─12 text "\noption, in which case, the current working directory is used as the project root."
+├─67  paragraph[3]
+│     ├─0 text "In this case, Ruff would check the "
+│     ├─1 inlineCode "\"src\""
+│     └─2 text " directory by default, but we can configure it as an\nexplicit, exclusive first-party source like so:"
+├─68  paragraph[1]
+│     └─0 text "=== \"pyproject.toml\""
+├─69  code "```toml\n[tool.ruff]\n# Ruff supports a top-level `src` option in lieu of isort's `src_paths` setting.\n# All paths are relative to the project root, which is the directory containing the pyproject.toml.\nsrc = [\"src\"]\n```"
+│       lang: null
+│       meta: null
+├─70  paragraph[1]
+│     └─0 text "=== \"ruff.toml\""
+├─71  code "```toml\n# Ruff supports a top-level `src` option in lieu of isort's `src_paths` setting.\n# All paths are relative to the project root, which is the directory containing the pyproject.toml.\nsrc = [\"src\"]\n```"
+│       lang: null
+│       meta: null
+├─72  paragraph[15]
+│     ├─0  text "If your "
+│     ├─1  inlineCode "pyproject.toml"
+│     ├─2  text ", "
+│     ├─3  inlineCode "ruff.toml"
+│     ├─4  text ", or "
+│     ├─5  inlineCode ".ruff.toml"
+│     ├─6  text " extends another configuration file, Ruff\nwill still use the directory containing your "
+│     ├─7  inlineCode "pyproject.toml"
+│     ├─8  text ", "
+│     ├─9  inlineCode "ruff.toml"
+│     ├─10 text ", or "
+│     ├─11 inlineCode ".ruff.toml"
+│     ├─12 text " file as\nthe project root (as opposed to the directory of the file pointed to via the "
+│     ├─13 inlineCode "extends"
+│     └─14 text " option)."
+├─73  paragraph[5]
+│     ├─0 text "For example, if you add a configuration file to the "
+│     ├─1 inlineCode "tests"
+│     ├─2 text " directory in the above example, you'll\nwant to explicitly set the "
+│     ├─3 inlineCode "src"
+│     └─4 text " option in the extended configuration file:"
+├─74  paragraph[1]
+│     └─0 text "=== \"pyproject.toml\""
+├─75  code "```toml\n[tool.ruff]\nextend = \"../pyproject.toml\"\nsrc = [\"../src\"]\n```"
+│       lang: null
+│       meta: null
+├─76  paragraph[1]
+│     └─0 text "=== \"ruff.toml\""
+├─77  code "```toml\nextend = \"../pyproject.toml\"\nsrc = [\"../src\"]\n```"
+│       lang: null
+│       meta: null
+├─78  paragraph[15]
+│     ├─0  text "Beyond this "
+│     ├─1  inlineCode "src"
+│     ├─2  text "-based detection, Ruff will also attempt to determine the current Python package\nfor a given Python file (determined via the existence of a "
+│     ├─3  inlineCode "__init__.py"
+│     ├─4  text " file in a directory),\nand mark imports from within the same package as first-party. For example,\nabove, "
+│     ├─5  inlineCode "baz.py"
+│     ├─6  text " would be identified as part of the Python package beginning at\n"
+│     ├─7  inlineCode "./my_project/src/foo"
+│     ├─8  text ", and so any imports in "
+│     ├─9  inlineCode "baz.py"
+│     ├─10 text " that begin with "
+│     ├─11 inlineCode "foo"
+│     ├─12 text " (like "
+│     ├─13 inlineCode "import foo.bar"
+│     └─14 text ")\nwould be considered first-party based on this same-package heuristic."
+├─79  paragraph[5]
+│     ├─0 text "For a detailed explanation of "
+│     ├─1 inlineCode "src"
+│     ├─2 text " resolution, see the "
+│     ├─3 link[1]
+│     │   │ title: null
+│     │   │ url: "contributing.md"
+│     │   └─0 text "contributing guide"
+│     └─4 text "."
+├─80  paragraph[3]
+│     ├─0 text "Ruff can also be configured to treat certain modules as (e.g.) always first-party, regardless of\ntheir location on the filesystem. For example, you can set "
+│     ├─1 link[1]
+│     │   │ title: null
+│     │   │ url: "settings.md#lint_isort_known-first-party"
+│     │   └─0 inlineCode "known-first-party"
+│     └─2 text "\nlike so:"
+├─81  paragraph[1]
+│     └─0 text "=== \"pyproject.toml\""
+├─82  code "```toml\n[tool.ruff]\nsrc = [\"src\", \"tests\"]\n\n[tool.ruff.lint]\nselect = [\n    # Pyflakes\n    \"F\",\n    # Pycodestyle\n    \"E\",\n    \"W\",\n    # isort\n    \"I001\"\n]\n\n[tool.ruff.lint.isort]\nknown-first-party = [\"my_module1\", \"my_module2\"]\n```"
+│       lang: null
+│       meta: null
+├─83  paragraph[1]
+│     └─0 text "=== \"ruff.toml\""
+├─84  code "```toml\nsrc = [\"src\", \"tests\"]\n\n[lint]\nselect = [\n    # Pyflakes\n    \"F\",\n    # Pycodestyle\n    \"E\",\n    \"W\",\n    # isort\n    \"I001\"\n]\n\n[lint.isort]\nknown-first-party = [\"my_module1\", \"my_module2\"]\n```"
+│       lang: null
+│       meta: null
+├─85  paragraph[3]
+│     ├─0 text "Ruff does not yet support all of isort's configuration options, though it does support many of\nthem. You can find the supported settings in the "
+│     ├─1 link[1]
+│     │   │ title: null
+│     │   │ url: "settings.md#lintisort"
+│     │   └─0 text "API reference"
+│     └─2 text "."
+├─86  heading[1]
+│     │ depth: 2
+│     └─0 text "Does Ruff support Jupyter Notebooks?"
+├─87  paragraph[5]
+│     ├─0 text "Ruff has built-in support for linting and formatting "
+│     ├─1 link[1]
+│     │   │ title: null
+│     │   │ url: "https://jupyter.org/"
+│     │   └─0 text "Jupyter Notebooks"
+│     ├─2 text ". Refer to the\n"
+│     ├─3 link[1]
+│     │   │ title: null
+│     │   │ url: "configuration.md#jupyter-notebook-discovery"
+│     │   └─0 text "Jupyter Notebook section"
+│     └─4 text " for more details."
+├─88  paragraph[3]
+│     ├─0 text "Ruff also integrates with "
+│     ├─1 link[1]
+│     │   │ title: null
+│     │   │ url: "https://github.com/nbQA-dev/nbQA"
+│     │   └─0 text "nbQA"
+│     └─2 text ", a tool for running linters and\ncode formatters over Jupyter Notebooks."
+├─89  paragraph[5]
+│     ├─0 text "After installing "
+│     ├─1 inlineCode "ruff"
+│     ├─2 text " and "
+│     ├─3 inlineCode "nbqa"
+│     └─4 text ", you can run Ruff over a notebook like so:"
+├─90  code "$ nbqa ruff Untitled.ipynb\nUntitled.ipynb:cell_1:2:5: F841 Local variable `x` is assigned to but never used\nUntitled.ipynb:cell_2:1:1: E402 Module level import not at top of file\nUntitled.ipynb:cell_2:1:8: F401 `os` imported but unused\nFound 3 errors.\n1 potentially fixable with the `--fix` option."
+│       lang: "console"
+│       meta: null
+├─91  heading[1]
+│     │ depth: 2
+│     └─0 text "Does Ruff support NumPy- or Google-style docstrings?"
+├─92  paragraph[3]
+│     ├─0 text "Yes! To enforce a docstring convention, add a "
+│     ├─1 link[1]
+│     │   │ title: null
+│     │   │ url: "settings.md#lint_pydocstyle_convention"
+│     │   └─0 inlineCode "convention"
+│     └─2 text "\nsetting following to your configuration file:"
+├─93  paragraph[1]
+│     └─0 text "=== \"pyproject.toml\""
+├─94  code "```toml\n[tool.ruff.lint.pydocstyle]\nconvention = \"google\"  # Accepts: \"google\", \"numpy\", or \"pep257\".\n```"
+│       lang: null
+│       meta: null
+├─95  paragraph[1]
+│     └─0 text "=== \"ruff.toml\""
+├─96  code "```toml\n[lint.pydocstyle]\nconvention = \"google\"  # Accepts: \"google\", \"numpy\", or \"pep257\".\n```"
+│       lang: null
+│       meta: null
+├─97  paragraph[7]
+│     ├─0 text "For example, if you're coming from flake8-docstrings, and your originating configuration uses\n"
+│     ├─1 inlineCode "--docstring-convention=numpy"
+│     ├─2 text ", you'd instead set "
+│     ├─3 inlineCode "convention = \"numpy\""
+│     ├─4 text " in your "
+│     ├─5 inlineCode "pyproject.toml"
+│     └─6 text ",\nas above."
+├─98  paragraph[7]
+│     ├─0 text "Alongside "
+│     ├─1 link[1]
+│     │   │ title: null
+│     │   │ url: "settings.md#lint_pydocstyle_convention"
+│     │   └─0 inlineCode "convention"
+│     ├─2 text ", you'll want to\nexplicitly enable the "
+│     ├─3 inlineCode "D"
+│     ├─4 text " rule code prefix, since the "
+│     ├─5 inlineCode "D"
+│     └─6 text " rules are not enabled by default:"
+├─99  paragraph[1]
+│     └─0 text "=== \"pyproject.toml\""
+├─100 code "```toml\n[tool.ruff.lint]\nselect = [\"D\"]\n\n[tool.ruff.lint.pydocstyle]\nconvention = \"google\"\n```"
+│       lang: null
+│       meta: null
+├─101 paragraph[1]
+│     └─0 text "=== \"ruff.toml\""
+├─102 code "```toml\n[lint]\nselect = [\"D\"]\n\n[lint.pydocstyle]\nconvention = \"google\"\n```"
+│       lang: null
+│       meta: null
+├─103 paragraph[3]
+│     ├─0 text "Enabling a "
+│     ├─1 link[1]
+│     │   │ title: null
+│     │   │ url: "settings.md#lint_pydocstyle_convention"
+│     │   └─0 inlineCode "convention"
+│     └─2 text " will disable any rules that are not\nincluded in the specified convention. As such, the intended workflow is to enable a convention and\nthen selectively enable or disable any additional rules on top of it:"
+├─104 paragraph[1]
+│     └─0 text "=== \"pyproject.toml\""
+├─105 code "```toml\n[tool.ruff.lint]\nselect = [\n    \"D\",\n    # Augment the convention by requiring an imperative mood for all docstrings.\n    \"D401\",\n]\n\nignore = [\n    # Relax the convention by _not_ requiring documentation for every function parameter.\n    \"D417\",\n]\n\n[tool.ruff.lint.pydocstyle]\nconvention = \"google\"\n```"
+│       lang: null
+│       meta: null
+├─106 paragraph[1]
+│     └─0 text "=== \"ruff.toml\""
+├─107 code "```toml\n[lint]\nselect = [\n    \"D\",\n    # Augment the convention by requiring an imperative mood for all docstrings.\n    \"D401\",\n]\n\nignore = [\n    # Relax the convention by _not_ requiring documentation for every function parameter.\n    \"D417\",\n]\n\n[lint.pydocstyle]\nconvention = \"google\"\n```"
+│       lang: null
+│       meta: null
+├─108 paragraph[5]
+│     ├─0 text "By default, no "
+│     ├─1 link[1]
+│     │   │ title: null
+│     │   │ url: "settings.md#lint_pydocstyle_convention"
+│     │   └─0 inlineCode "convention"
+│     ├─2 text " is set, and so the enabled rules\nare determined by the "
+│     ├─3 link[1]
+│     │   │ title: null
+│     │   │ url: "settings.md#lint_select"
+│     │   └─0 inlineCode "select"
+│     └─4 text " setting alone."
+├─109 heading[1]
+│     │ depth: 2
+│     └─0 text "What is \"preview\"?"
+├─110 paragraph[5]
+│     ├─0 text "Preview enables a collection of newer rules and fixes that are considered experimental or unstable.\nSee the "
+│     ├─1 link[1]
+│     │   │ title: null
+│     │   │ url: "preview.md"
+│     │   └─0 text "preview documentation"
+│     ├─2 text " for more details; or, to see which rules are currently\nin preview, visit the "
+│     ├─3 link[1]
+│     │   │ title: null
+│     │   │ url: "rules.md"
+│     │   └─0 text "rules reference"
+│     └─4 text "."
+├─111 heading[1]
+│     │ depth: 2
+│     └─0 text "How can I tell what settings Ruff is using to check my code?"
+├─112 paragraph[3]
+│     ├─0 text "Run "
+│     ├─1 inlineCode "ruff check /path/to/code.py --show-settings"
+│     └─2 text " to view the resolved settings for a given file."
+├─113 heading[3]
+│     │ depth: 2
+│     ├─0 text "I want to use Ruff, but I don't want to use "
+│     ├─1 inlineCode "pyproject.toml"
+│     └─2 text ". What are my options?"
+├─114 paragraph[9]
+│     ├─0 text "In lieu of a "
+│     ├─1 inlineCode "pyproject.toml"
+│     ├─2 text " file, you can use a "
+│     ├─3 inlineCode "ruff.toml"
+│     ├─4 text " file for configuration. The two\nfiles are functionally equivalent and have an identical schema, with the exception that a "
+│     ├─5 inlineCode "ruff.toml"
+│     ├─6 text "\nfile can omit the "
+│     ├─7 inlineCode "[tool.ruff]"
+│     └─8 text " section header. For example:"
+├─115 paragraph[1]
+│     └─0 text "=== \"pyproject.toml\""
+├─116 code "[tool.ruff]\nline-length = 88\n\n[tool.ruff.lint.pydocstyle]\nconvention = \"google\""
+│       lang: "toml"
+│       meta: null
+├─117 paragraph[1]
+│     └─0 text "=== \"ruff.toml\""
+├─118 code "line-length = 88\n\n[lint.pydocstyle]\nconvention = \"google\""
+│       lang: "toml"
+│       meta: null
+├─119 paragraph[5]
+│     ├─0 text "Ruff doesn't currently support INI files, like "
+│     ├─1 inlineCode "setup.cfg"
+│     ├─2 text " or "
+│     ├─3 inlineCode "tox.ini"
+│     └─4 text "."
+├─120 heading[1]
+│     │ depth: 2
+│     └─0 text "How can I change Ruff's default configuration?"
+├─121 paragraph[5]
+│     ├─0 text "When no configuration file is found, Ruff will look for a user-specific "
+│     ├─1 inlineCode "ruff.toml"
+│     ├─2 text " file as a\nlast resort. This behavior is similar to Flake8's "
+│     ├─3 inlineCode "~/.config/flake8"
+│     └─4 text "."
+├─122 paragraph[5]
+│     ├─0 text "On macOS and Linux, Ruff expects that file to be located at "
+│     ├─1 inlineCode "~/.config/ruff/ruff.toml"
+│     ├─2 text ",\nand respects the "
+│     ├─3 inlineCode "XDG_CONFIG_HOME"
+│     └─4 text " specification."
+├─123 paragraph[3]
+│     ├─0 text "On Windows, Ruff expects that file to be located at "
+│     ├─1 inlineCode "~\\AppData\\Roaming\\ruff\\ruff.toml"
+│     └─2 text "."
+├─124 paragraph[7]
+│     ├─0 text "!!! note\nPrior to "
+│     ├─1 inlineCode "v0.5.0"
+│     ├─2 text ", Ruff would read user-specific configuration from\n"
+│     ├─3 inlineCode "~/Library/Application Support/ruff/ruff.toml"
+│     ├─4 text " on macOS. While Ruff will still respect\nsuch configuration files, the use of "
+│     ├─5 inlineCode "~/Library/Application Support"
+│     └─6 text " is considered deprecated."
+├─125 paragraph[3]
+│     ├─0 text "For more, see the "
+│     ├─1 link[1]
+│     │   │ title: null
+│     │   │ url: "https://crates.io/crates/etcetera"
+│     │   └─0 inlineCode "etcetera"
+│     └─2 text " crate."
+├─126 heading[1]
+│     │ depth: 2
+│     └─0 text "Ruff tried to fix something — but it broke my code. What's going on?"
+├─127 paragraph[9]
+│     ├─0 text "Ruff labels fixes as \"safe\" and \"unsafe\". By default, Ruff will fix all violations for which safe\nfixes are available, while unsafe fixes can be enabled via the "
+│     ├─1 link[1]
+│     │   │ title: null
+│     │   │ url: "settings.md#unsafe-fixes"
+│     │   └─0 inlineCode "unsafe-fixes"
+│     ├─2 text "\nsetting, or passing the "
+│     ├─3 link[1]
+│     │   │ title: null
+│     │   │ url: "settings.md#unsafe-fixes"
+│     │   └─0 inlineCode "--unsafe-fixes"
+│     ├─4 text " flag to "
+│     ├─5 inlineCode "ruff check"
+│     ├─6 text ". For\nmore, see "
+│     ├─7 link[1]
+│     │   │ title: null
+│     │   │ url: "linter.md#fixes"
+│     │   └─0 text "the fix documentation"
+│     └─8 text "."
+├─128 paragraph[5]
+│     ├─0 text "Even still, given the dynamic nature of Python, it's difficult to have "
+│     ├─1 emphasis[1]
+│     │   └─0 text "complete"
+│     ├─2 text " certainty when\nmaking changes to code, even for seemingly trivial fixes. If a \"safe\" fix breaks your code, please\n"
+│     ├─3 link[1]
+│     │   │ title: null
+│     │   │ url: "https://github.com/astral-sh/ruff/issues/new"
+│     │   └─0 text "file an Issue"
+│     └─4 text "."
+├─129 heading[1]
+│     │ depth: 2
+│     └─0 text "How can I disable/force Ruff's color output?"
+├─130 paragraph[11]
+│     ├─0  text "Ruff's color output is powered by the "
+│     ├─1  link[1]
+│     │    │ title: null
+│     │    │ url: "https://crates.io/crates/colored"
+│     │    └─0 inlineCode "colored"
+│     ├─2  text " crate, which\nattempts to automatically detect whether the output stream supports color. However, you can force\ncolors off by setting the "
+│     ├─3  inlineCode "NO_COLOR"
+│     ├─4  text " environment variable to any value (e.g., "
+│     ├─5  inlineCode "NO_COLOR=1"
+│     ├─6  text "), or\nforce colors on by setting "
+│     ├─7  inlineCode "FORCE_COLOR"
+│     ├─8  text " to any non-empty value (e.g., "
+│     ├─9  inlineCode "FORCE_COLOR=1"
+│     └─10 text ")."
+├─131 paragraph[8]
+│     ├─0 link[1]
+│     │   │ title: null
+│     │   │ url: "https://crates.io/crates/colored"
+│     │   └─0 inlineCode "colored"
+│     ├─1 text " also supports the "
+│     ├─2 inlineCode "CLICOLOR"
+│     ├─3 text " and "
+│     ├─4 inlineCode "CLICOLOR_FORCE"
+│     ├─5 text "\nenvironment variables (see the "
+│     ├─6 link[1]
+│     │   │ title: null
+│     │   │ url: "https://bixense.com/clicolors/"
+│     │   └─0 text "spec"
+│     └─7 text ")."
+├─132 heading[3]
+│     │ depth: 2
+│     ├─0 text "Ruff behaves unexpectedly when using "
+│     ├─1 inlineCode "source.*"
+│     └─2 text " code actions in Notebooks. What's going on? {: #source-code-actions-in-notebooks }"
+├─133 paragraph[13]
+│     ├─0  text "Ruff does not support "
+│     ├─1  inlineCode "source.organizeImports"
+│     ├─2  text " and "
+│     ├─3  inlineCode "source.fixAll"
+│     ├─4  text " code actions in Jupyter Notebooks\n("
+│     ├─5  inlineCode "notebook.codeActionsOnSave"
+│     ├─6  text " in VS Code). It's recommended to use the "
+│     ├─7  inlineCode "notebook"
+│     ├─8  text " prefixed code\nactions for the same such as "
+│     ├─9  inlineCode "notebook.source.organizeImports"
+│     ├─10 text " and "
+│     ├─11 inlineCode "notebook.source.fixAll"
+│     └─12 text "\nrespectively."
+├─134 paragraph[1]
+│     └─0 text "Ruff requires to have a full view of the notebook to provide accurate diagnostics and fixes. For\nexample, if you have a cell that imports a module and another cell that uses that module, Ruff\nneeds to see both cells to mark the import as used. If Ruff were to only see one cell at a time,\nit would incorrectly mark the import as unused."
+└─135 paragraph[11]
+      ├─0  text "When using the "
+      ├─1  inlineCode "source.*"
+      ├─2  text " code actions for a Notebook, Ruff will be asked to fix any issues for each\ncell in parallel, which can lead to unexpected behavior. For example, if a user has configured to\nrun "
+      ├─3  inlineCode "source.organizeImports"
+      ├─4  text " code action on save for a Notebook, Ruff will attempt to fix the\nimports for the entire notebook corresponding to each cell. This leads to the client making the same\nchanges to the notebook multiple times, which can lead to unexpected behavior\n("
+      ├─5  link[1]
+      │    │ title: null
+      │    │ url: "https://github.com/astral-sh/ruff-vscode/issues/680"
+      │    └─0 text "astral-sh/ruff-vscode#680"
+      ├─6  text ",\n"
+      ├─7  link[1]
+      │    │ title: null
+      │    │ url: "https://github.com/astral-sh/ruff-vscode/issues/640"
+      │    └─0 text "astral-sh/ruff-vscode#640"
+      ├─8  text ",\n"
+      ├─9  link[1]
+      │    │ title: null
+      │    │ url: "https://github.com/astral-sh/ruff-vscode/issues/391"
+      │    └─0 text "astral-sh/ruff-vscode#391"
+      └─10 text ")."

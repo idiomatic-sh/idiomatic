@@ -1,0 +1,16 @@
+toml 0-13
+ expression 0-12
+  keyval 0-12
+   key 0-3
+    dotted-key 0-3
+     simple-key 0-1
+      unquoted-key 0-1
+     dot-sep 1-2
+     simple-key 2-3
+      unquoted-key 2-3
+   keyval-sep 3-8
+    ws 3-6
+    ws 7-8
+   val 8-12
+    boolean 8-12
+ newline 12-13

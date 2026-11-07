@@ -1,0 +1,7 @@
+json-text 0-4
+ ws 0-1
+ value 1-4
+  array 1-4
+   begin-array 1-2
+   end-array 2-4
+    ws 3-4

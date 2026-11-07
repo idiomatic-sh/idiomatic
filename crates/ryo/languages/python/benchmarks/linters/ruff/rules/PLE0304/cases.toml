@@ -1,0 +1,113 @@
+[[cases]]
+name = "wrong-literal"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __bool__(self):\n        return 1\n" }
+expected = [{ rule = "PLE0304", file = "case.py", start = 48, end = 49 }]
+
+[[cases]]
+name = "right-literal"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __bool__(self):\n        return True\n" }
+expected = []
+
+[[cases]]
+name = "bare-return"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __bool__(self):\n        return\n" }
+expected = [{ rule = "PLE0304", file = "case.py", start = 41, end = 47 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __bool__(self):\n        return 1  # noqa: PLE0304\n" }
+expected = []
+
+[[cases]]
+name = "implicit-return-gap"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __bool__(self):\n        if condition:\n            pass\n" }
+expected = [{ rule = "PLE0304", file = "case.py", start = 17, end = 25 }]
+
+[[cases]]
+name = "pass-only-no-diagnostic"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __bool__(self):\n        pass\n" }
+expected = []
+
+[[cases]]
+name = "try-handler-fallthrough-gap"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __bool__(self):\n        try:\n            raise ValueError\n        except ValueError:\n            pass\n" }
+expected = [{ rule = "PLE0304", file = "case.py", start = 17, end = 25 }]
+
+[[cases]]
+name = "module-function-is-not-magic-method"
+comparison = "full"
+files = { "case.py" = "def __bool__(self):\n    return 1\n" }
+expected = []
+
+[[cases]]
+name = "nested-function-return-is-not-owned"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __bool__(self):\n        def nested():\n            return 1\n        return True\n" }
+expected = []
+
+[[cases]]
+name = "nested-class-method-return-is-not-owned"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __bool__(self):\n        class D:\n            def other(self):\n                return 1\n        return True\n" }
+expected = []
+
+[[cases]]
+name = "always-raise-is-exempt"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __bool__(self):\n        raise NotImplementedError\n" }
+expected = []
+
+[[cases]]
+name = "ellipsis-body-is-stub"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __bool__(self):\n        ...\n" }
+expected = []
+
+[[cases]]
+name = "docstring-body-is-stub"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __bool__(self):\n        \"documentation only\"\n" }
+expected = []
+
+[[cases]]
+name = "conditional-bad-return"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __bool__(self):\n        if flag:\n            return 1\n" }
+expected = [{ "rule" = "PLE0304", "file" = "case.py", "start" = 69, "end" = 70 }]
+
+[[cases]]
+name = "conditional-good-return-keeps-implicit-path"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __bool__(self):\n        if flag:\n            return True\n" }
+expected = []
+
+[[cases]]
+name = "unknown-return-type-is-permitted"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __bool__(self):\n        return unknown_value\n" }
+expected = []
+
+[[cases]]
+name = "try-except-all-raise-is-exempt"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __bool__(self):\n        try:\n            raise ValueError\n        except ValueError:\n            raise RuntimeError\n" }
+expected = [{ "rule" = "PLE0304", "file" = "case.py", "start" = 17, "end" = 25 }]
+
+[[cases]]
+name = "try-return-bad-except-raise"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __bool__(self):\n        try:\n            return 1\n        except Exception:\n            raise RuntimeError\n" }
+expected = [{ "rule" = "PLE0304", "file" = "case.py", "start" = 65, "end" = 66 }]
+
+[[cases]]
+name = "conditional-union-return-is-rejected"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __bool__(self):\n        return True if flag else 1\n" }
+expected = [{ "rule" = "PLE0304", "file" = "case.py", "start" = 48, "end" = 67 }]

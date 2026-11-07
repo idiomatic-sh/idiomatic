@@ -1,0 +1,102 @@
+{
+  "version": "3.13.5 (main, Jul 15 2026, 20:25:40) [GCC 14.2.0]",
+  "executable": "/usr/bin/python3.13",
+  "interpreter_sha256": "bd241b38381974ae27d7d5098a6d0e6dda0a744b5e9fdd6fe3a1ae632588961e",
+  "probe_sha256": "e7a9136e1d85c4b682a8af2990987c914119687d949aa8a50d1f546047a1e4e8",
+  "inputs_sha256": "cfe49ee44e9b7121986b3b59075a54ed3f28777607345b6e06715047764d6aaa",
+  "dont_inherit": true,
+  "execution": "compile and code-object inspection only; no module/function body or file IO from fixture source executed",
+  "scope": "Exact target3.10 compiler-local namespace evidence;3.13 corroboration. Supports diagnostic idiom ownership, not universal rewrite equivalence or reflection/frame invariance.",
+  "cases": [
+    {
+      "case": "nested-scope-prebinding",
+      "source": "x=0\ndef a():\n    f=open(\"a\")\n    for x in rows:\n        f.write(x)\n",
+      "source_sha256": "ab80dc5cc7fa0f4212bbcea62928481c8c89cc5c271f6c589528670da9a801f6",
+      "function": "a",
+      "varnames": [
+        "f",
+        "x"
+      ],
+      "freevars": [],
+      "x_operations": [
+        {
+          "opcode": "STORE_FAST",
+          "name": "x",
+          "offset": 40
+        },
+        {
+          "opcode": "LOAD_FAST",
+          "name": "x",
+          "offset": 64
+        }
+      ],
+      "read_before_first_local_store": false,
+      "interpretation": "The module x is a separate binding. Compiler-local x is stored by the loop before its only read inside write(x)."
+    },
+    {
+      "case": "independent-target-namespace-outer-binding-is-not-function-local-value",
+      "source": "x=7\ndef fn():\n    f=open(\"x\")\n    for x in rows:\n        f.write(x)\n",
+      "source_sha256": "374afe1a7dc93a7ef6e50533ecdbc2f47ef65b06a638bb4d85566f1f2d7ab039",
+      "function": "fn",
+      "varnames": [
+        "f",
+        "x"
+      ],
+      "freevars": [],
+      "x_operations": [
+        {
+          "opcode": "LOAD_CONST",
+          "name": "x",
+          "offset": 12
+        },
+        {
+          "opcode": "STORE_FAST",
+          "name": "x",
+          "offset": 40
+        },
+        {
+          "opcode": "LOAD_FAST",
+          "name": "x",
+          "offset": 64
+        }
+      ],
+      "read_before_first_local_store": false,
+      "interpretation": "The module x is a separate binding. Compiler-local x is stored by the loop before its only read inside write(x)."
+    },
+    {
+      "case": "independent-target-namespace-earlier-local-read-must-remain-unbound",
+      "source": "x=7\ndef fn():\n    print(x)\n    f=open(\"x\")\n    for x in rows:\n        f.write(x)\n",
+      "source_sha256": "a13a3f8d13a793d52a03d3842443892fe926d919773589d0526b8e51bc51a150",
+      "function": "fn",
+      "varnames": [
+        "x",
+        "f"
+      ],
+      "freevars": [],
+      "x_operations": [
+        {
+          "opcode": "LOAD_FAST_CHECK",
+          "name": "x",
+          "offset": 12
+        },
+        {
+          "opcode": "LOAD_CONST",
+          "name": "x",
+          "offset": 34
+        },
+        {
+          "opcode": "STORE_FAST",
+          "name": "x",
+          "offset": 62
+        },
+        {
+          "opcode": "LOAD_FAST",
+          "name": "x",
+          "offset": 86
+        }
+      ],
+      "read_before_first_local_store": true,
+      "interpretation": "The earlier read is compiler-local x before initialization; removing the loop declaration could turn it into an outer-name read, so the guard must reject this idiom."
+    }
+  ]
+}

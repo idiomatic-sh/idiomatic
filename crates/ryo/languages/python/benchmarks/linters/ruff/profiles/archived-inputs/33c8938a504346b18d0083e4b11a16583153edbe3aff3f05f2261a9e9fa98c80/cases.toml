@@ -1,0 +1,157 @@
+# Exact Ruff 0.16.5 tag 9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a; target py310; shipped default settings.
+
+[[cases]]
+name = "upstream-pinned-fixture"
+comparison = "full"
+files = { "case.py" = "class Wolf:\n    @staticmethod\n    def eat(self):  # [bad-staticmethod-argument]\n        pass\n\n\nclass Wolf:\n    @staticmethod\n    def eat(sheep):\n        pass\n\n\nclass Sheep:\n    @staticmethod\n    def eat(cls, x, y, z):  # [bad-staticmethod-argument]\n        pass\n\n    @staticmethod\n    def sleep(self, x, y, z):  # [bad-staticmethod-argument]\n        pass\n\n    def grow(self, x, y, z):\n        pass\n\n    @classmethod\n    def graze(cls, x, y, z):\n        pass\n\n\nclass Foo:\n    @staticmethod\n    def eat(x, self, z):\n        pass\n\n    @staticmethod\n    def sleep(x, cls, z):\n        pass\n\n    def grow(self, x, y, z):\n        pass\n\n    @classmethod\n    def graze(cls, x, y, z):\n        pass\n\n\nclass Foo:\n    @staticmethod\n    def __new__(cls, x, y, z):  # OK, see https://docs.python.org/3/reference/datamodel.html#basic-customization\n        pass\n\n# `__new__` is an implicit staticmethod, so this should still trigger (with\n# `self` but not with `cls` as first argument - see above).\nclass Foo:\n    def __new__(self, x, y, z):  # [bad-staticmethod-argument]\n        pass\n" }
+expected = [{ rule = "PLW0211", file = "case.py", start = 42, end = 46 }, { rule = "PLW0211", file = "case.py", start = 203, end = 206 }, { rule = "PLW0211", file = "case.py", start = 295, end = 299 }, { rule = "PLW0211", file = "case.py", start = 1009, end = 1013 }]
+
+[[cases]]
+name = "self-and-cls"
+comparison = "full"
+files = { "case.py" = "class C:\n    @staticmethod\n    def one(self): pass\n    @staticmethod\n    def two(cls): pass\n" }
+expected = [{ rule = "PLW0211", file = "case.py", start = 39, end = 43 }, { rule = "PLW0211", file = "case.py", start = 81, end = 84 }]
+
+[[cases]]
+name = "ordinary-method-and-classmethod"
+comparison = "full"
+files = { "case.py" = "class C:\n    def one(self): pass\n    @classmethod\n    def two(cls): pass\n" }
+expected = []
+
+[[cases]]
+name = "ordinary-static-parameter"
+comparison = "full"
+files = { "case.py" = "class C:\n    @staticmethod\n    def value(other): pass\n" }
+expected = []
+
+[[cases]]
+name = "new-implicit-static"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __new__(self): pass\n" }
+expected = [{ rule = "PLW0211", file = "case.py", start = 25, end = 29 }]
+
+[[cases]]
+name = "new-cls-exemption"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __new__(cls): pass\n    @staticmethod\n    def __new__(cls,x): pass\n" }
+expected = []
+
+[[cases]]
+name = "classmethod-new"
+comparison = "full"
+files = { "case.py" = "class C:\n    @classmethod\n    def __new__(self): pass\n" }
+expected = []
+
+[[cases]]
+name = "static-over-class-precedence"
+comparison = "full"
+files = { "case.py" = "class C:\n    @classmethod\n    @staticmethod\n    def __new__(self): pass\n" }
+expected = [{ rule = "PLW0211", file = "case.py", start = 60, end = 64 }]
+
+[[cases]]
+name = "implicit-class-methods"
+comparison = "full"
+files = { "case.py" = "class C:\n    def __init_subclass__(self): pass\n    def __class_getitem__(self): pass\n" }
+expected = []
+
+[[cases]]
+name = "static-over-implicit-class"
+comparison = "full"
+files = { "case.py" = "class C:\n    @staticmethod\n    def __class_getitem__(self): pass\n" }
+expected = [{ rule = "PLW0211", file = "case.py", start = 53, end = 57 }]
+
+[[cases]]
+name = "positional-only"
+comparison = "full"
+files = { "case.py" = "class C:\n    @staticmethod\n    def value(self, /, other): pass\n" }
+expected = [{ rule = "PLW0211", file = "case.py", start = 41, end = 45 }]
+
+[[cases]]
+name = "annotated-default-parameter-span"
+comparison = "full"
+files = { "case.py" = "class C:\n    @staticmethod\n    def value(self: object = None): pass\n" }
+expected = [{ rule = "PLW0211", file = "case.py", start = 41, end = 53 }]
+
+[[cases]]
+name = "only-variadic-parameters"
+comparison = "full"
+files = { "case.py" = "class C:\n    @staticmethod\n    def one(*self): pass\n    @staticmethod\n    def two(**cls): pass\n" }
+expected = []
+
+[[cases]]
+name = "only-keyword-parameters"
+comparison = "full"
+files = { "case.py" = "class C:\n    @staticmethod\n    def value(*, self): pass\n" }
+expected = []
+
+[[cases]]
+name = "module-level-static-decorator"
+comparison = "full"
+files = { "case.py" = "@staticmethod\ndef value(self): pass\n" }
+expected = []
+
+[[cases]]
+name = "nested-static-decorator"
+comparison = "full"
+files = { "case.py" = "class C:\n    def outer(self):\n        @staticmethod\n        def inner(self): pass\n" }
+expected = []
+
+[[cases]]
+name = "aliased-static-decorator"
+comparison = "full"
+files = { "case.py" = "from builtins import staticmethod as sm\nclass C:\n    @sm\n    def value(self): pass\n" }
+expected = [{ rule = "PLW0211", file = "case.py", start = 71, end = 75 }]
+
+[[cases]]
+name = "abstract-static-decorator"
+comparison = "full"
+files = { "case.py" = "from abc import abstractstaticmethod as sm\nclass C:\n    @sm\n    def value(cls): pass\n" }
+expected = [{ rule = "PLW0211", file = "case.py", start = 74, end = 77 }]
+
+[[cases]]
+name = "called-static-decorator"
+comparison = "full"
+files = { "case.py" = "class C:\n    @staticmethod()\n    def value(self): pass\n" }
+expected = [{ rule = "PLW0211", file = "case.py", start = 43, end = 47 }]
+
+[[cases]]
+name = "double-called-static-decorator"
+comparison = "full"
+files = { "case.py" = "class C:\n    @staticmethod()()\n    def value(self): pass\n" }
+expected = []
+
+[[cases]]
+name = "decorator-argument-not-static"
+comparison = "full"
+files = { "case.py" = "class C:\n    @unknown(staticmethod)\n    def value(self): pass\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-static-decorator"
+comparison = "full"
+files = { "case.py" = "staticmethod = unknown\nclass C:\n    @staticmethod\n    def value(self): pass\n" }
+expected = []
+
+[[cases]]
+name = "unicode-parameter"
+comparison = "full"
+files = { "case.py" = "class C:\n    @staticmethod\n    def value(ｓｅｌｆ): pass\n" }
+expected = [{ rule = "PLW0211", file = "case.py", start = 41, end = 53 }]
+
+[[cases]]
+name = "async-static"
+comparison = "full"
+files = { "case.py" = "class C:\n    @staticmethod\n    async def value(self): pass\n" }
+expected = [{ rule = "PLW0211", file = "case.py", start = 47, end = 51 }]
+
+[[cases]]
+name = "inline-suppression"
+comparison = "full"
+files = { "case.py" = "class C:\n    @staticmethod\n    def value(self): pass  # noqa: PLW0211\n" }
+expected = []
+
+[[cases]]
+name = "file-suppression"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: PLW0211\nclass C:\n    @staticmethod\n    def value(self): pass\n" }
+expected = []

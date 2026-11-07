@@ -1,0 +1,76 @@
+ryo
+  --format <FORMAT>
+  --json
+  --no-color
+  --quiet -q
+  --root <ROOT>
+  --timings <TIMINGS>
+ryo operator
+  --format <FORMAT>
+  --json
+  --no-color
+  --quiet -q
+  --root <ROOT>
+  --timings <TIMINGS>
+ryo operator describe
+  --format <FORMAT>
+  --json
+  --no-color
+  --quiet -q
+  --root <ROOT>
+  --timings <TIMINGS>
+  <NAME>
+ryo operator list
+  --format <FORMAT>
+  --json
+  --no-color
+  --quiet -q
+  --root <ROOT>
+  --timings <TIMINGS>
+ryo query
+  --format <FORMAT>
+  --json
+  --no-color
+  --quiet -q
+  --root <ROOT>
+  --timings <TIMINGS>
+ryo query run
+  --format <FORMAT>
+  --json
+  --limit <LIMIT>
+  --memory-budget <MEMORY_BUDGET>
+  --no-color
+  --quiet -q
+  --root <ROOT>
+  --text <TEXT>
+  --timings <TIMINGS>
+ryo query validate
+  --format <FORMAT>
+  --json
+  --no-color
+  --quiet -q
+  --root <ROOT>
+  --text <TEXT>
+  --timings <TIMINGS>
+ryo relation
+  --format <FORMAT>
+  --json
+  --no-color
+  --quiet -q
+  --root <ROOT>
+  --timings <TIMINGS>
+ryo relation describe
+  --format <FORMAT>
+  --json
+  --no-color
+  --quiet -q
+  --root <ROOT>
+  --timings <TIMINGS>
+  <NAME>
+ryo relation list
+  --format <FORMAT>
+  --json
+  --no-color
+  --quiet -q
+  --root <ROOT>
+  --timings <TIMINGS>

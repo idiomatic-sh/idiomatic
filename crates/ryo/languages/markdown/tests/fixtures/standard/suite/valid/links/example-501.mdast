@@ -1,0 +1,16 @@
+root[3]
+├─0 paragraph[1]
+│   └─0 link[1]
+│       │ title: null
+│       │ url: "#fragment"
+│       └─0 text "link"
+├─1 paragraph[1]
+│   └─0 link[1]
+│       │ title: null
+│       │ url: "https://example.com#fragment"
+│       └─0 text "link"
+└─2 paragraph[1]
+    └─0 link[1]
+        │ title: null
+        │ url: "https://example.com?foo=3#frag"
+        └─0 text "link"

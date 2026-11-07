@@ -1,0 +1,6 @@
+version = 1
+parents = ["d7bf8fcff5763eed3d12896a85265f3ce63324a8d563d191a2804a362cb58652"]
+
+suppressed-removed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/no-env-reads", path = "cli/src/resources.rs", level = "error", fingerprint = "1ac6fd976e0e92ba" },
+]

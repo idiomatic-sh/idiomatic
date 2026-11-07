@@ -1,0 +1,1504 @@
+{
+  "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "version": "0.16.5",
+  "target": "py310",
+  "tag_commit": "9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a",
+  "records": [
+    {
+      "name": "ascii-utf-8",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/0",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 24,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/0/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"hello\\\"\",\n          \"end_location\": {\n            \"column\": 24,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 23
+        }
+      ]
+    },
+    {
+      "name": "unicode-utf-8",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/1",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 32,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/1/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"()\",\n          \"end_location\": {\n            \"column\": 32,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 14,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Remove unnecessary `encoding` argument\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary UTF-8 `encoding` argument to `encode`\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 32
+        }
+      ]
+    },
+    {
+      "name": "ascii-utf8",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/2",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 23,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/2/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"hello\\\"\",\n          \"end_location\": {\n            \"column\": 23,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 22
+        }
+      ]
+    },
+    {
+      "name": "unicode-utf8",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/3",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 31,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/3/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"()\",\n          \"end_location\": {\n            \"column\": 31,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 14,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Remove unnecessary `encoding` argument\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary UTF-8 `encoding` argument to `encode`\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 31
+        }
+      ]
+    },
+    {
+      "name": "ascii-utf_8",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/4",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 24,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/4/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"hello\\\"\",\n          \"end_location\": {\n            \"column\": 24,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 23
+        }
+      ]
+    },
+    {
+      "name": "unicode-utf_8",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/5",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 32,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/5/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"()\",\n          \"end_location\": {\n            \"column\": 32,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 14,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Remove unnecessary `encoding` argument\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary UTF-8 `encoding` argument to `encode`\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 32
+        }
+      ]
+    },
+    {
+      "name": "ascii-u8",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/6",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 21,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/6/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"hello\\\"\",\n          \"end_location\": {\n            \"column\": 21,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 20
+        }
+      ]
+    },
+    {
+      "name": "unicode-u8",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/7",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 29,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/7/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"()\",\n          \"end_location\": {\n            \"column\": 29,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 14,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Remove unnecessary `encoding` argument\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary UTF-8 `encoding` argument to `encode`\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 29
+        }
+      ]
+    },
+    {
+      "name": "ascii-utf",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/8",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 22,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/8/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"hello\\\"\",\n          \"end_location\": {\n            \"column\": 22,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 21
+        }
+      ]
+    },
+    {
+      "name": "unicode-utf",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/9",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 30,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/9/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"()\",\n          \"end_location\": {\n            \"column\": 30,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 14,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Remove unnecessary `encoding` argument\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary UTF-8 `encoding` argument to `encode`\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 30
+        }
+      ]
+    },
+    {
+      "name": "ascii-cp65001",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/10",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 26,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/10/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"hello\\\"\",\n          \"end_location\": {\n            \"column\": 26,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 25
+        }
+      ]
+    },
+    {
+      "name": "unicode-cp65001",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/11",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 34,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/11/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"()\",\n          \"end_location\": {\n            \"column\": 34,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 14,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Remove unnecessary `encoding` argument\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary UTF-8 `encoding` argument to `encode`\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 34
+        }
+      ]
+    },
+    {
+      "name": "ascii-UTF-8",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/12",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 24,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/12/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"hello\\\"\",\n          \"end_location\": {\n            \"column\": 24,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 23
+        }
+      ]
+    },
+    {
+      "name": "unicode-UTF-8",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/13",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 32,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/13/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"()\",\n          \"end_location\": {\n            \"column\": 32,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 14,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Remove unnecessary `encoding` argument\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary UTF-8 `encoding` argument to `encode`\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 32
+        }
+      ]
+    },
+    {
+      "name": "empty-encoding-ascii",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/14",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 17,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/14/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"hello\\\"\",\n          \"end_location\": {\n            \"column\": 17,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 16
+        }
+      ]
+    },
+    {
+      "name": "empty-encoding-unicode",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/15",
+      "status": 0,
+      "stdout": "[]",
+      "stderr": "",
+      "expected": []
+    },
+    {
+      "name": "fstring-encoding",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/16",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 31,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/16/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"()\",\n          \"end_location\": {\n            \"column\": 31,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 22,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Remove unnecessary `encoding` argument\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary UTF-8 `encoding` argument to `encode`\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 30
+        }
+      ]
+    },
+    {
+      "name": "fstring-empty",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/17",
+      "status": 0,
+      "stdout": "[]",
+      "stderr": "",
+      "expected": []
+    },
+    {
+      "name": "nonliteral-receiver",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/18",
+      "status": 0,
+      "stdout": "[]",
+      "stderr": "",
+      "expected": []
+    },
+    {
+      "name": "bytes-receiver",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/19",
+      "status": 0,
+      "stdout": "[]",
+      "stderr": "",
+      "expected": []
+    },
+    {
+      "name": "unknown-encoding",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/20",
+      "status": 0,
+      "stdout": "[]",
+      "stderr": "",
+      "expected": []
+    },
+    {
+      "name": "different-encoding",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/21",
+      "status": 0,
+      "stdout": "[]",
+      "stderr": "",
+      "expected": []
+    },
+    {
+      "name": "errors-keyword",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/22",
+      "status": 0,
+      "stdout": "[]",
+      "stderr": "",
+      "expected": []
+    },
+    {
+      "name": "multiple-args",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/23",
+      "status": 0,
+      "stdout": "[]",
+      "stderr": "",
+      "expected": []
+    },
+    {
+      "name": "multiple-keywords",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/24",
+      "status": 0,
+      "stdout": "[]",
+      "stderr": "",
+      "expected": []
+    },
+    {
+      "name": "unknown-keyword",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/25",
+      "status": 0,
+      "stdout": "[]",
+      "stderr": "",
+      "expected": []
+    },
+    {
+      "name": "starred-string",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/26",
+      "status": 0,
+      "stdout": "[]",
+      "stderr": "",
+      "expected": []
+    },
+    {
+      "name": "starred-tuple",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/27",
+      "status": 0,
+      "stdout": "[]",
+      "stderr": "",
+      "expected": []
+    },
+    {
+      "name": "unpacked-keyword",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/28",
+      "status": 0,
+      "stdout": "[]",
+      "stderr": "",
+      "expected": []
+    },
+    {
+      "name": "unicode-escape",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/29",
+      "status": 0,
+      "stdout": "[]",
+      "stderr": "",
+      "expected": []
+    },
+    {
+      "name": "unicode-escape-explicit",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/30",
+      "status": 0,
+      "stdout": "[]",
+      "stderr": "",
+      "expected": []
+    },
+    {
+      "name": "named-unicode",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/31",
+      "status": 0,
+      "stdout": "[]",
+      "stderr": "",
+      "expected": []
+    },
+    {
+      "name": "long-unicode",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/32",
+      "status": 0,
+      "stdout": "[]",
+      "stderr": "",
+      "expected": []
+    },
+    {
+      "name": "unicode-escaped-backslash",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/33",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 19,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/33/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"\\\\\\\\u0031\\\"\",\n          \"end_location\": {\n            \"column\": 19,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 18
+        }
+      ]
+    },
+    {
+      "name": "triple-backslash-unicode",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/34",
+      "status": 0,
+      "stdout": "[]",
+      "stderr": "",
+      "expected": []
+    },
+    {
+      "name": "raw-unicode",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/35",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 19,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/35/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"br\\\"\\\\u0031\\\"\",\n          \"end_location\": {\n            \"column\": 19,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 18
+        }
+      ]
+    },
+    {
+      "name": "raw-uppercase-prefix",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/36",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 32,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/36/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"bR\\\"\\\\N{DIGIT ONE}\\\"\",\n          \"end_location\": {\n            \"column\": 32,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 31
+        }
+      ]
+    },
+    {
+      "name": "octal-byte-boundary",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/37",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 22,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/37/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"()\",\n          \"end_location\": {\n            \"column\": 22,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 14,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Remove unnecessary `encoding` argument\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary UTF-8 `encoding` argument to `encode`\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 21
+        }
+      ]
+    },
+    {
+      "name": "octal-overflow",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/38",
+      "status": 0,
+      "stdout": "[]",
+      "stderr": "",
+      "expected": []
+    },
+    {
+      "name": "escaped-octal-prefix",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/39",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 17,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/39/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"\\\\\\\\400\\\"\",\n          \"end_location\": {\n            \"column\": 17,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 16
+        }
+      ]
+    },
+    {
+      "name": "concat-bad-segment",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/40",
+      "status": 0,
+      "stdout": "[]",
+      "stderr": "",
+      "expected": []
+    },
+    {
+      "name": "concat-good-segments",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/41",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 30,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/41/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"(b\\\"a\\\" b\\\"\\\\b\\\" br\\\"\\\\u0031\\\")\",\n          \"end_location\": {\n            \"column\": 30,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 29
+        }
+      ]
+    },
+    {
+      "name": "escaped-control-nul",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/42",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 20,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/42/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"\\\\x00\\\\0\\\\b\\\"\",\n          \"end_location\": {\n            \"column\": 20,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 19
+        }
+      ]
+    },
+    {
+      "name": "encoding-concat",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/43",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 26,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/43/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"hello\\\"\",\n          \"end_location\": {\n            \"column\": 26,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 25
+        }
+      ]
+    },
+    {
+      "name": "encoding-fstring-not-literal",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/44",
+      "status": 0,
+      "stdout": "[]",
+      "stderr": "",
+      "expected": []
+    },
+    {
+      "name": "multiline-and-comments",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/45",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 2,\n      \"row\": 4\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/45/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"(b\\\"hel\\\" # comment\\n b\\\"lo\\\")\",\n          \"end_location\": {\n            \"column\": 2,\n            \"row\": 4\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 0,
+          "end": 50
+        }
+      ]
+    },
+    {
+      "name": "suppression",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/46",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 17,\n      \"row\": 2\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/46/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"world\\\"\",\n          \"end_location\": {\n            \"column\": 17,\n            \"row\": 2\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 2\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 2\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 2,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 31,
+          "end": 47
+        }
+      ]
+    },
+    {
+      "name": "embedded-annotation-expression",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "case.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/47",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 24,\n      \"row\": 1\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/47/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"foo\\\"\",\n          \"end_location\": {\n            \"column\": 24,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 4,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 4,\n      \"row\": 1\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "case.py",
+          "start": 3,
+          "end": 23
+        }
+      ]
+    },
+    {
+      "name": "tagged-UP012",
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--target-version",
+        "py310",
+        "--select",
+        "UP012",
+        "--output-format",
+        "json",
+        "UP012.py"
+      ],
+      "directory": "/tmp/up012-oracle-20261101/48",
+      "status": 1,
+      "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 22,\n      \"row\": 2\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"foo\\\"\",\n          \"end_location\": {\n            \"column\": 22,\n            \"row\": 2\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 2\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 2\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 2,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 19,\n      \"row\": 3\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"foo\\\"\",\n          \"end_location\": {\n            \"column\": 19,\n            \"row\": 3\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 3\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 3\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 3,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 15,\n      \"row\": 4\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"foo\\\"\",\n          \"end_location\": {\n            \"column\": 15,\n            \"row\": 4\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 4\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 4\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 4,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 21,\n      \"row\": 5\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"foo\\\"\",\n          \"end_location\": {\n            \"column\": 21,\n            \"row\": 5\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 5\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 5\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 5,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 23,\n      \"row\": 6\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"foo\\\"\",\n          \"end_location\": {\n            \"column\": 23,\n            \"row\": 6\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 6\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 6\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 6,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 31,\n      \"row\": 7\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"foo\\\"\",\n          \"end_location\": {\n            \"column\": 31,\n            \"row\": 7\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 7\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 7\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 7,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 2,\n      \"row\": 14\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"\\\"\\\"\\nLorem\\n\\nIpsum\\n\\\"\\\"\\\"\",\n          \"end_location\": {\n            \"column\": 2,\n            \"row\": 14\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 8\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 8\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 12,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 21,\n      \"row\": 17\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"Lorem \\\"\\n    b\\\"Ipsum\\\"\",\n          \"end_location\": {\n            \"column\": 21,\n            \"row\": 17\n          },\n          \"location\": {\n            \"column\": 5,\n            \"row\": 16\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 5,\n      \"row\": 16\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 16,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 21,\n      \"row\": 21\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"Lorem \\\"  # Comment\\n    b\\\"Ipsum\\\"\",\n          \"end_location\": {\n            \"column\": 21,\n            \"row\": 21\n          },\n          \"location\": {\n            \"column\": 5,\n            \"row\": 20\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 5,\n      \"row\": 20\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 20,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 30,\n      \"row\": 24\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"Lorem \\\" b\\\"Ipsum\\\"\",\n          \"end_location\": {\n            \"column\": 30,\n            \"row\": 24\n          },\n          \"location\": {\n            \"column\": 5,\n            \"row\": 24\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 5,\n      \"row\": 24\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 24,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 28,\n      \"row\": 32\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"()\",\n          \"end_location\": {\n            \"column\": 28,\n            \"row\": 32\n          },\n          \"location\": {\n            \"column\": 19,\n            \"row\": 32\n          }\n        }\n      ],\n      \"message\": \"Remove unnecessary `encoding` argument\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 32\n    },\n    \"message\": \"Unnecessary UTF-8 `encoding` argument to `encode`\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 32,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 2,\n      \"row\": 38\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"()\",\n          \"end_location\": {\n            \"column\": 2,\n            \"row\": 38\n          },\n          \"location\": {\n            \"column\": 20,\n            \"row\": 36\n          }\n        }\n      ],\n      \"message\": \"Remove unnecessary `encoding` argument\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 36\n    },\n    \"message\": \"Unnecessary UTF-8 `encoding` argument to `encode`\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 36,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 32,\n      \"row\": 53\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"()\",\n          \"end_location\": {\n            \"column\": 32,\n            \"row\": 53\n          },\n          \"location\": {\n            \"column\": 23,\n            \"row\": 53\n          }\n        }\n      ],\n      \"message\": \"Remove unnecessary `encoding` argument\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 53\n    },\n    \"message\": \"Unnecessary UTF-8 `encoding` argument to `encode`\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 53,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 40,\n      \"row\": 55\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"()\",\n          \"end_location\": {\n            \"column\": 40,\n            \"row\": 55\n          },\n          \"location\": {\n            \"column\": 23,\n            \"row\": 55\n          }\n        }\n      ],\n      \"message\": \"Remove unnecessary `encoding` argument\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 55\n    },\n    \"message\": \"Unnecessary UTF-8 `encoding` argument to `encode`\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 55,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 25,\n      \"row\": 57\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"br\\\"foo\\\\o\\\"\",\n          \"end_location\": {\n            \"column\": 25,\n            \"row\": 57\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 57\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 57\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 57,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 23,\n      \"row\": 58\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"foo\\\"\",\n          \"end_location\": {\n            \"column\": 23,\n            \"row\": 58\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 58\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 58\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 58,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 25,\n      \"row\": 59\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"bR\\\"foo\\\\o\\\"\",\n          \"end_location\": {\n            \"column\": 25,\n            \"row\": 59\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 59\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 59\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 59,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 23,\n      \"row\": 60\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"foo\\\"\",\n          \"end_location\": {\n            \"column\": 23,\n            \"row\": 60\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 60\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 60\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 60,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 21,\n      \"row\": 61\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"foo\\\"\",\n          \"end_location\": {\n            \"column\": 21,\n            \"row\": 61\n          },\n          \"location\": {\n            \"column\": 7,\n            \"row\": 61\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 7,\n      \"row\": 61\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 61,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 11,\n      \"row\": 67\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"(\\n    b\\\"abc\\\"\\n    b\\\"def\\\"\\n)\",\n          \"end_location\": {\n            \"column\": 11,\n            \"row\": 67\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 64\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 64\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 64,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 12,\n      \"row\": 72\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"((\\n    b\\\"abc\\\"\\n    b\\\"def\\\"\\n))\",\n          \"end_location\": {\n            \"column\": 12,\n            \"row\": 72\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 69\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 69\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 69,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 30,\n      \"row\": 74\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"()\",\n          \"end_location\": {\n            \"column\": 30,\n            \"row\": 74\n          },\n          \"location\": {\n            \"column\": 21,\n            \"row\": 74\n          }\n        }\n      ],\n      \"message\": \"Remove unnecessary `encoding` argument\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 74\n    },\n    \"message\": \"Unnecessary UTF-8 `encoding` argument to `encode`\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 74,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 39,\n      \"row\": 75\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"()\",\n          \"end_location\": {\n            \"column\": 39,\n            \"row\": 75\n          },\n          \"location\": {\n            \"column\": 21,\n            \"row\": 75\n          }\n        }\n      ],\n      \"message\": \"Remove unnecessary `encoding` argument\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 75\n    },\n    \"message\": \"Unnecessary UTF-8 `encoding` argument to `encode`\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 75,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 34,\n      \"row\": 76\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"()\",\n          \"end_location\": {\n            \"column\": 34,\n            \"row\": 76\n          },\n          \"location\": {\n            \"column\": 25,\n            \"row\": 76\n          }\n        }\n      ],\n      \"message\": \"Remove unnecessary `encoding` argument\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 76\n    },\n    \"message\": \"Unnecessary UTF-8 `encoding` argument to `encode`\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 76,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 43,\n      \"row\": 77\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"()\",\n          \"end_location\": {\n            \"column\": 43,\n            \"row\": 77\n          },\n          \"location\": {\n            \"column\": 25,\n            \"row\": 77\n          }\n        }\n      ],\n      \"message\": \"Remove unnecessary `encoding` argument\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 77\n    },\n    \"message\": \"Unnecessary UTF-8 `encoding` argument to `encode`\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 77,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 30,\n      \"row\": 82\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \" b'\\\\n' \",\n          \"end_location\": {\n            \"column\": 30,\n            \"row\": 82\n          },\n          \"location\": {\n            \"column\": 17,\n            \"row\": 82\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 17,\n      \"row\": 82\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 82,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 26,\n      \"row\": 86\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"foo\\\"\",\n          \"end_location\": {\n            \"column\": 26,\n            \"row\": 86\n          },\n          \"location\": {\n            \"column\": 5,\n            \"row\": 86\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 5,\n      \"row\": 86\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 86,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"invalid-syntax\",\n    \"end_location\": {\n      \"column\": 13,\n      \"row\": 89\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": null,\n    \"location\": {\n      \"column\": 2,\n      \"row\": 89\n    },\n    \"message\": \"Cannot use t-strings on Python 3.10 (syntax was added in Python 3.14)\",\n    \"name\": \"invalid-syntax\",\n    \"noqa_row\": null,\n    \"severity\": \"error\",\n    \"url\": null\n  },\n  {\n    \"cell\": null,\n    \"code\": \"invalid-syntax\",\n    \"end_location\": {\n      \"column\": 13,\n      \"row\": 90\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": null,\n    \"location\": {\n      \"column\": 2,\n      \"row\": 90\n    },\n    \"message\": \"Cannot use t-strings on Python 3.10 (syntax was added in Python 3.14)\",\n    \"name\": \"invalid-syntax\",\n    \"noqa_row\": null,\n    \"severity\": \"error\",\n    \"url\": null\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 19,\n      \"row\": 96\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"(b\\\"a\\\" b\\\"b\\\")\",\n          \"end_location\": {\n            \"column\": 19,\n            \"row\": 96\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 96\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 96\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 96,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 13,\n      \"row\": 99\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b'''\\\\\\n'''\",\n          \"end_location\": {\n            \"column\": 13,\n            \"row\": 99\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 98\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 98\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 99,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 18,\n      \"row\": 101\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b'\\\\x20\\\\\\\\'\",\n          \"end_location\": {\n            \"column\": 18,\n            \"row\": 101\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 101\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 101\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 101,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 17,\n      \"row\": 102\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b'\\\\0\\\\b0'\",\n          \"end_location\": {\n            \"column\": 17,\n            \"row\": 102\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 102\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 102\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 102,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 18,\n      \"row\": 103\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b'\\\\01\\\\fc'\",\n          \"end_location\": {\n            \"column\": 18,\n            \"row\": 103\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 103\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 103\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 103,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 18,\n      \"row\": 104\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b'\\\\143\\\\\\\\'\",\n          \"end_location\": {\n            \"column\": 18,\n            \"row\": 104\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 104\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 104\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 104,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 20,\n      \"row\": 106\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"(b\\\"a\\\" b\\\"\\\\b\\\")\",\n          \"end_location\": {\n            \"column\": 20,\n            \"row\": 106\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 106\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 106\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 106,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 20,\n      \"row\": 107\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"(b\\\"\\\\a\\\" b\\\"b\\\")\",\n          \"end_location\": {\n            \"column\": 20,\n            \"row\": 107\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 107\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 107\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 107,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 22,\n      \"row\": 108\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"(b\\\"\\\\a\\\" br\\\"\\\\b\\\")\",\n          \"end_location\": {\n            \"column\": 22,\n            \"row\": 108\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 108\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 108\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 108,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 22,\n      \"row\": 109\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"(br\\\"\\\\a\\\" b\\\"\\\\b\\\")\",\n          \"end_location\": {\n            \"column\": 22,\n            \"row\": 109\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 109\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 109\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 109,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 14,\n      \"row\": 111\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b'\\\\\\\"'\",\n          \"end_location\": {\n            \"column\": 14,\n            \"row\": 111\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 111\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 111\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 111,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 14,\n      \"row\": 112\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b\\\"\\\\'\\\"\",\n          \"end_location\": {\n            \"column\": 14,\n            \"row\": 112\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 112\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 112\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 112,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 21,\n      \"row\": 114\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b'\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\ '\",\n          \"end_location\": {\n            \"column\": 21,\n            \"row\": 114\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 114\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 114\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 114,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 21,\n      \"row\": 115\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b'\\\\\\\\\\\\\\\\\\\\\\\\\\\\  '\",\n          \"end_location\": {\n            \"column\": 21,\n            \"row\": 115\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 115\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 115\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 115,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 15,\n      \"row\": 117\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b'\\\\\\\\a'\",\n          \"end_location\": {\n            \"column\": 15,\n            \"row\": 117\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 117\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 117\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 117,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 17,\n      \"row\": 118\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b'a\\\\\\\\\\\\b'\",\n          \"end_location\": {\n            \"column\": 17,\n            \"row\": 118\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 118\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 118\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 118,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP012\",\n    \"end_location\": {\n      \"column\": 21,\n      \"row\": 120\n    },\n    \"filename\": \"/tmp/up012-oracle-20261101/48/UP012.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"b'\\\\\\\\ u0000 '\",\n          \"end_location\": {\n            \"column\": 21,\n            \"row\": 120\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 120\n          }\n        }\n      ],\n      \"message\": \"Rewrite as bytes literal\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 120\n    },\n    \"message\": \"Unnecessary call to `encode` as UTF-8\",\n    \"name\": \"unnecessary-encode-utf8\",\n    \"noqa_row\": 120,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/unnecessary-encode-utf8\"\n  }\n]",
+      "stderr": "",
+      "expected": [
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 55,
+          "end": 76
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 87,
+          "end": 105
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 116,
+          "end": 130
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 141,
+          "end": 161
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 172,
+          "end": 194
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 205,
+          "end": 235
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 246,
+          "end": 288
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 295,
+          "end": 324
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 333,
+          "end": 373
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 393,
+          "end": 418
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 530,
+          "end": 557
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 629,
+          "end": 664
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 1221,
+          "end": 1253
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 1309,
+          "end": 1349
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 1380,
+          "end": 1404
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 1418,
+          "end": 1440
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 1451,
+          "end": 1475
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 1489,
+          "end": 1511
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 1528,
+          "end": 1542
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 1599,
+          "end": 1631
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 1633,
+          "end": 1667
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 1669,
+          "end": 1698
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 1699,
+          "end": 1737
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 1738,
+          "end": 1772
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 1773,
+          "end": 1816
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 1953,
+          "end": 1966
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 2108,
+          "end": 2129
+        },
+        {
+          "rule": "invalid-syntax",
+          "file": "UP012.py",
+          "start": 2177,
+          "end": 2188
+        },
+        {
+          "rule": "invalid-syntax",
+          "file": "UP012.py",
+          "start": 2207,
+          "end": 2218
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 2307,
+          "end": 2325
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 2327,
+          "end": 2344
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 2346,
+          "end": 2363
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 2364,
+          "end": 2380
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 2381,
+          "end": 2398
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 2399,
+          "end": 2416
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 2418,
+          "end": 2437
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 2438,
+          "end": 2457
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 2458,
+          "end": 2479
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 2480,
+          "end": 2501
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 2503,
+          "end": 2516
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 2517,
+          "end": 2530
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 2532,
+          "end": 2552
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 2570,
+          "end": 2590
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 2643,
+          "end": 2657
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 2658,
+          "end": 2674
+        },
+        {
+          "rule": "UP012",
+          "file": "UP012.py",
+          "start": 2676,
+          "end": 2696
+        }
+      ]
+    }
+  ],
+  "two_file_lineage": "Disjoint composition of pinned per-file outputs, no crossfile rule state."
+}

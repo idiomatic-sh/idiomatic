@@ -1,0 +1,13 @@
+input expressions: relation<id: node,file: file>;
+output relation<id: node,file: file>;
+let integers=select id,file from "expression-type" where resolution="atom" and type="integer";
+let constants=select id,file from "semantic-syntax" where kind="constant";
+let integer_constants=select l.id as id,l.file as file from expressions as l join constants as r on l.id=r.id and l.file=r.file;
+let integer_inputs0=select l.id as id,l.file as file from integer_constants as l join integers as r on l.id=r.id and l.file=r.file;
+let integer_locations=select l.id as id,r."start-byte" as start,r."end-byte" as end,l.file as file from integer_inputs0 as l join "source-location" as r on l.id=r.id and l.file=r.file;
+let tokens=select id,text,file from "semantic-syntax" where kind="number";
+let token_locations=select l.id as token,l.text as text,r."start-byte" as start,r."end-byte" as end,l.file as file from tokens as l join "source-location" as r on l.id=r.id and l.file=r.file;
+let integer_inputs=select l.id as id,r.text as text,l.file as file from integer_locations as l join token_locations as r on l.start=r.start and l.end=r.end and l.file=r.file;
+let normalized=replace(from=integer_inputs,text="text",pattern="_",replacement="",output="clean");
+let result=select id,file from normalized where matches(clean,"^(?:0+|(?:[0-9]{1,18}|9223372036854775807|[0-8][0-9]{18}|9[0-1][0-9]{17}|92[0-1][0-9]{16}|922[0-2][0-9]{15}|9223[0-2][0-9]{14}|92233[0-6][0-9]{13}|922337[0-1][0-9]{12}|92233720[0-2][0-9]{10}|922337203[0-5][0-9]{9}|9223372036[0-7][0-9]{8}|92233720368[0-4][0-9]{7}|922337203685[0-3][0-9]{6}|9223372036854[0-6][0-9]{5}|92233720368547[0-6][0-9]{4}|922337203685477[0-4][0-9]{3}|9223372036854775[0-7][0-9]{2}|922337203685477580[0-6])|0[xX]0*(?:[0-9a-fA-F]{1,15}|[0-7][0-9a-fA-F]{15})|0[oO]0*[0-7]{1,21}|0[bB]0*[01]{1,63})$");
+return result;

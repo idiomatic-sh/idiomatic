@@ -1,0 +1,12 @@
+root[2]
+├─0 paragraph[1]
+│   └─0 imageReference
+│         alt: "Foo"
+│         label: "Foo"
+│         identifier: "foo"
+│         referenceType: "collapsed"
+└─1 definition
+      identifier: "foo"
+      label: "foo"
+      title: "title"
+      url: "/url"

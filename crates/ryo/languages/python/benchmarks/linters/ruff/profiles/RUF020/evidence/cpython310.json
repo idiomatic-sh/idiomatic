@@ -1,0 +1,27 @@
+{
+  "python": "3.10.19 (main, Feb 12 2026, 00:42:24) [Clang 21.1.4 ]",
+  "results": [
+    {
+      "name": "module-vs-enclosing-local",
+      "annotations": "{'return': 'Never | int'}",
+      "parameters": [],
+      "return": "str | int",
+      "bottom_present": false,
+      "type_parameter_present": false,
+      "str_present": true,
+      "explicit_local_return": "typing.Union[typing.NoReturn, int]",
+      "explicit_local_bottom_present": true,
+      "passed": true
+    },
+    {
+      "name": "eager-enclosing-local-positive",
+      "annotations": "{'return': typing.Union[typing.NoReturn, int]}",
+      "parameters": [],
+      "return": "typing.Union[typing.NoReturn, int]",
+      "bottom_present": true,
+      "type_parameter_present": false,
+      "str_present": false,
+      "passed": true
+    }
+  ]
+}

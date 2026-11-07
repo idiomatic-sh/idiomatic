@@ -1,0 +1,398 @@
+description = "Runtime admission authority is sealed to its declaring owner concept."
+why = "The runtime concept owns invocation state, permits, and semantic/physical authority. Runtime service records have strictly private fields in runtime/service.rs, and construction and retargeting are confined to the service.rs files of the runtime directory tree (runtime/**/service.rs: concept directories beneath the record module are its Rust-private descendants); independent scratch, counters and observed DTOs stay in types.rs and never depend back on issuance. The program source/proof admission module retains private admitted-input fields, while the separately qualified relation BorrowedInput proof has strictly private data in relations/admission/service.rs, with owner-dependent admission methods in its private issuance child and validates explicit owner, generation, partition and root requirements, never an interpreter object. KernelAdmission remains the unforgeable prerequisite of all three KernelPermit constructors. This AST rule rejects moved/widened representations, every visible field on every runtime issuer record including newly added records, and written named authority construction outside the runtime directory's service.rs files. It does not resolve constructor aliases or Self: those are rejected by Rust privacy on the actual production records, with independent source-overlay controls covering every catalog member. Aliased/Self field-widening scenarios prove TM rejects the representation weakening that previously made those constructions legal. Rust privacy independently resolves aliases and rejects sibling program construction or field retargeting. Constructor contracts, macro expansion and runtime admission behavior remain compiler/production obligations."
+query = '''
+let nodes = select id, kind, file, span from "syntax-tree" where text = "";
+let tokens = select id, kind, file, span, text from "syntax-tree" where text != "";
+let structs = select * from nodes where kind = "struct";
+let names = select * from nodes where kind = "name";
+let struct-children = select l.id as id, l.file as file, l.span as span, r.child as child from structs as l join "syntax-child" as r on l.id = r.parent;
+let struct-names = select l.id as id, l.file as file, l.span as span, l.child as node from struct-children as l join names as r on l.child = r.id;
+let name-children = select l.id as id, l.file as file, l.span as span, r.child as token from struct-names as l join "syntax-child" as r on l.node = r.parent;
+let named-structs = select l.id as id, l.file as file, l.span as span, r.text as name from name-children as l join tokens as r on l.token = r.id;
+let catalog = select * from named-structs where glob_any(name, "{KernelAdmission,KernelPermit,ReadySelection,SemanticPermit,PermittedPhysical,ProgramExecution,AdmittedInput,BorrowedInput,RuntimeState}");
+let issuer-records = select * from named-structs where glob_any(file, "{src,**/src}/application/file_dag/program/runtime/**/service.rs");
+let sealed = union(left=catalog, right=issuer-records);
+let wrong-runtime = select file, span from sealed where name != "AdmittedInput" and name != "BorrowedInput" and not glob_any(file, "{src,**/src}/application/file_dag/program/runtime/**/service.rs");
+let wrong-program-admission = select file, span from sealed where name = "AdmittedInput" and not glob_any(file, "{src,**/src}/application/file_dag/program/admission.rs");
+let wrong-relation-admission = select file, span from sealed where name = "BorrowedInput" and not glob_any(file, "{src,**/src}/application/file_dag/relations/admission/service.rs");
+let wrong-admission = union(left=wrong-program-admission, right=wrong-relation-admission);
+let lists = select r.child as list from sealed as l join "syntax-child" as r on l.id = r.parent;
+let field-edges = select r.child as field from lists as l join "syntax-child" as r on l.list = r.parent;
+let fields = select * from nodes where glob_any(kind, "{record-field,tuple-field}");
+let sealed-fields = select r.id as id, r.file as file, r.span as span from field-edges as l join fields as r on l.field = r.id;
+let visibilities = select * from nodes where kind = "visibility";
+let visible-owners = select l.parent as id, r.id as visibility from "syntax-child" as l join visibilities as r on l.child = r.id;
+let widened = select l.file as file, l.span as span from sealed-fields as l join visible-owners as r on l.id = r.id;
+let records = select * from nodes where kind = "record-expr";
+let paths = select * from nodes where kind = "path";
+let record-children = select l.id as id, l.file as file, l.span as span, r.child as child from records as l join "syntax-child" as r on l.id = r.parent;
+let record-paths = select l.id as id, l.file as file, l.span as span, l.child as path from record-children as l join paths as r on l.child = r.id;
+let path-names = axis(from=paths, relation="syntax-child", direction=descendant, domain=tokens);
+let authority-names = select l.id as path from path-names as l join tokens as r on l.related = r.id where r.kind = "ident" and glob_any(r.text, "{KernelAdmission,KernelPermit,ReadySelection,SemanticPermit,PermittedPhysical,ProgramExecution,RuntimeState}");
+let authority-records = select l.file as file, l.span as span from record-paths as l join authority-names as r on l.path = r.path;
+let foreign-issuers = select file, span from authority-records where not glob_any(file, "{src,**/src}/application/file_dag/program/runtime/**/service.rs");
+let wrong-placement = union(left=wrong-runtime, right=wrong-admission);
+let sealed-placement = union(left=wrong-placement, right=widened);
+let violations = union(left=sealed-placement, right=foreign-issuers);
+emit violations subject file key(span);
+'''
+
+[diagnostic]
+primary = "span"
+message = "runtime admission authority escapes its sealed owner"
+help = "Keep runtime state and capability records in runtime/service.rs with strictly private fields; only the service.rs files of the runtime directory tree may construct or retarget them. Keep each qualified AdmittedInput private beside its actual admission operation. Independent DTOs stay in types.rs. Rust rejects aliases and Self constructors from parent and sibling modules."
+
+[given]
+include = ["src/**"]
+files.'Cargo.toml' = '''
+[package]
+name = "runtime_authority_fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = 'mod application;'
+files.'src/application.rs' = 'mod file_dag;'
+files.'src/application/file_dag.rs' = 'mod program;'
+files.'src/application/file_dag/program.rs' = 'mod runtime; mod admission; mod kernel_session;'
+files.'src/application/file_dag/program/runtime/service.rs' = '''
+pub(in crate::application::file_dag::program) struct KernelAdmission { execution: (), region: usize }
+pub(in crate::application::file_dag::program) struct RuntimeState { generation: (), slots: () }
+pub(in crate::application::file_dag::program) struct KernelPermit { region: usize }
+fn issue() -> KernelAdmission { KernelAdmission { execution: (), region: 0 } }
+'''
+files.'src/application/file_dag/program/runtime/types.rs' = 'pub(super) struct WorkCount(pub usize);'
+files.'src/application/file_dag/program/admission.rs' = 'pub(super) struct AdmittedInput { proof: () }'
+files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service;'
+files.'src/application/file_dag/program/kernel_session.rs' = 'fn consume(_: &super::runtime::service::KernelPermit) {}'
+
+[[scenarios]]
+id = "private-owner-issuance"
+scenario = "The runtime issues sealed authority and a sibling only borrows an existing permit."
+
+[[scenarios]]
+id = "sibling-cannot-issue"
+scenario = "A real program sibling writing the authority record is rejected."
+given.files.'src/application/file_dag/program/kernel_session.rs' = 'fn bypass() { let _ = super::runtime::service::KernelAdmission { execution: (), region: 0 }; }'
+then.findings = [{ path = "src/application/file_dag/program/kernel_session.rs", line = 1 }]
+
+[[scenarios]]
+id = "authority-field-program-is-not-owner-private"
+scenario = "Widening an owner field to the whole program permits sibling construction and is rejected."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct KernelAdmission { pub(in crate::application::file_dag::program) execution: (), region: usize }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "permit-field-crate-is-not-private"
+scenario = "Permit representation cannot be widened to the crate."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct KernelPermit { pub(crate) region: usize }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "input-field-public-is-not-private"
+scenario = "A public admitted proof would bypass the sealed record."
+given.files.'src/application/file_dag/program/admission.rs' = 'pub(super) struct AdmittedInput { pub proof: () }'
+then.findings = [{ path = "src/application/file_dag/program/admission.rs", line = 1 }]
+
+[[scenarios]]
+id = "state-field-super-is-not-private"
+scenario = "Runtime slot state cannot be widened beyond its owner concept."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct RuntimeState { pub(crate) generation: (), slots: () }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "authority-declaration-cannot-move"
+scenario = "A sibling must not become the new authority issuer by moving its record."
+given.files.'src/application/file_dag/program/kernel_session.rs' = 'pub(super) struct KernelAdmission { execution: (), region: usize }'
+then.findings = [{ path = "src/application/file_dag/program/kernel_session.rs", line = 1 }]
+
+[[scenarios]]
+id = "comments-do-not-issue-authority"
+scenario = "A comment or string mentioning record syntax is not a construction."
+given.files.'src/application/file_dag/program/kernel_session.rs' = '''
+// KernelAdmission { execution: (), region: 0 }
+const NOTE: &str = "KernelAdmission { execution: (), region: 0 }";
+fn consume(_: &super::runtime::service::KernelPermit) {}
+'''
+[[scenarios]]
+id = "nested-runtime-helper-cannot-issue-authority"
+scenario = "A new helper inside the runtime concept cannot become an independent authority issuer."
+given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service; mod rogue;'
+given.files.'src/application/file_dag/program/runtime/rogue.rs' = 'fn bypass() { let _ = super::service::KernelAdmission { execution: (), region: 0 }; }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/rogue.rs", line = 1 }]
+
+[[scenarios]]
+id = "execution-owner-generation-cannot-be-widened"
+scenario = "The program execution owner cannot expose its generation for caller retargeting."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(crate) struct ProgramExecution { pub(in crate::application::file_dag::program) generation: () }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "relation-proof-keeps-its-own-qualified-owner"
+scenario = "The relation owner's distinct admitted representation proof keeps its fields private in the actual admission issuer."
+given.files.'src/application/file_dag.rs' = 'mod program; mod relations;'
+given.files.'src/application/file_dag/relations.rs' = 'mod admission;'
+given.files.'src/application/file_dag/relations/admission/mod.rs' = 'pub(super) mod service;'
+given.files.'src/application/file_dag/relations/admission/service.rs' = 'pub(super) struct BorrowedInput { population: () }'
+
+[[scenarios]]
+id = "relation-proof-cannot-widen-to-crate"
+scenario = "Qualifying the relation proof separately does not allow its representation to escape its own owner."
+given.files.'src/application/file_dag.rs' = 'mod program; mod relations;'
+given.files.'src/application/file_dag/relations.rs' = 'mod admission;'
+given.files.'src/application/file_dag/relations/admission/mod.rs' = 'pub(super) mod service;'
+given.files.'src/application/file_dag/relations/admission/service.rs' = 'pub(super) struct BorrowedInput { pub(crate) population: () }'
+then.findings = [{ path = "src/application/file_dag/relations/admission/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "kerneladmission-alias-cannot-regain-parent-fields"
+scenario = "KernelAdmission alias access cannot be made legal by restoring fields visible to the issuer parent; Rust source probes independently reject the same form with private production fields."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct KernelAdmission { pub(super) region: usize }'
+given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service; use self::service::KernelAdmission as Authority; fn forge(value: Authority) -> Authority { Authority { region: 0, ..value } }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "kerneladmission-self-cannot-regain-parent-fields"
+scenario = "KernelAdmission self access cannot be made legal by restoring fields visible to the issuer parent; Rust source probes independently reject the same form with private production fields."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct KernelAdmission { pub(super) region: usize }'
+given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service; use self::service::KernelAdmission as Authority; impl Authority { fn forge(value: Self) -> Self { Self { region: 0, ..value } } }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "kerneladmission-retarget-cannot-regain-parent-fields"
+scenario = "KernelAdmission retarget access cannot be made legal by restoring fields visible to the issuer parent; Rust source probes independently reject the same form with private production fields."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct KernelAdmission { pub(super) region: usize }'
+given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service; use self::service::KernelAdmission as Authority; fn forge(value: &mut Authority) { value.region = 0; }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "kernelpermit-alias-cannot-regain-parent-fields"
+scenario = "KernelPermit alias access cannot be made legal by restoring fields visible to the issuer parent; Rust source probes independently reject the same form with private production fields."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct KernelPermit { pub(super) region: usize }'
+given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service; use self::service::KernelPermit as Authority; fn forge(value: Authority) -> Authority { Authority { region: 0, ..value } }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "kernelpermit-self-cannot-regain-parent-fields"
+scenario = "KernelPermit self access cannot be made legal by restoring fields visible to the issuer parent; Rust source probes independently reject the same form with private production fields."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct KernelPermit { pub(super) region: usize }'
+given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service; use self::service::KernelPermit as Authority; impl Authority { fn forge(value: Self) -> Self { Self { region: 0, ..value } } }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "kernelpermit-retarget-cannot-regain-parent-fields"
+scenario = "KernelPermit retarget access cannot be made legal by restoring fields visible to the issuer parent; Rust source probes independently reject the same form with private production fields."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct KernelPermit { pub(super) region: usize }'
+given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service; use self::service::KernelPermit as Authority; fn forge(value: &mut Authority) { value.region = 0; }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "readyselection-alias-cannot-regain-parent-fields"
+scenario = "ReadySelection alias access cannot be made legal by restoring fields visible to the issuer parent; Rust source probes independently reject the same form with private production fields."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct ReadySelection { pub(super) region: usize }'
+given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service; use self::service::ReadySelection as Authority; fn forge(value: Authority) -> Authority { Authority { region: 0, ..value } }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "readyselection-self-cannot-regain-parent-fields"
+scenario = "ReadySelection self access cannot be made legal by restoring fields visible to the issuer parent; Rust source probes independently reject the same form with private production fields."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct ReadySelection { pub(super) region: usize }'
+given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service; use self::service::ReadySelection as Authority; impl Authority { fn forge(value: Self) -> Self { Self { region: 0, ..value } } }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "readyselection-retarget-cannot-regain-parent-fields"
+scenario = "ReadySelection retarget access cannot be made legal by restoring fields visible to the issuer parent; Rust source probes independently reject the same form with private production fields."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct ReadySelection { pub(super) region: usize }'
+given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service; use self::service::ReadySelection as Authority; fn forge(value: &mut Authority) { value.region = 0; }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "semanticpermit-alias-cannot-regain-parent-fields"
+scenario = "SemanticPermit alias access cannot be made legal by restoring fields visible to the issuer parent; Rust source probes independently reject the same form with private production fields."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct SemanticPermit { pub(super) region: usize }'
+given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service; use self::service::SemanticPermit as Authority; fn forge(value: Authority) -> Authority { Authority { region: 0, ..value } }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "semanticpermit-self-cannot-regain-parent-fields"
+scenario = "SemanticPermit self access cannot be made legal by restoring fields visible to the issuer parent; Rust source probes independently reject the same form with private production fields."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct SemanticPermit { pub(super) region: usize }'
+given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service; use self::service::SemanticPermit as Authority; impl Authority { fn forge(value: Self) -> Self { Self { region: 0, ..value } } }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "semanticpermit-retarget-cannot-regain-parent-fields"
+scenario = "SemanticPermit retarget access cannot be made legal by restoring fields visible to the issuer parent; Rust source probes independently reject the same form with private production fields."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct SemanticPermit { pub(super) region: usize }'
+given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service; use self::service::SemanticPermit as Authority; fn forge(value: &mut Authority) { value.region = 0; }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "permittedphysical-alias-cannot-regain-parent-fields"
+scenario = "PermittedPhysical alias access cannot be made legal by restoring fields visible to the issuer parent; Rust source probes independently reject the same form with private production fields."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct PermittedPhysical { pub(super) region: usize }'
+given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service; use self::service::PermittedPhysical as Authority; fn forge(value: Authority) -> Authority { Authority { region: 0, ..value } }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "permittedphysical-self-cannot-regain-parent-fields"
+scenario = "PermittedPhysical self access cannot be made legal by restoring fields visible to the issuer parent; Rust source probes independently reject the same form with private production fields."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct PermittedPhysical { pub(super) region: usize }'
+given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service; use self::service::PermittedPhysical as Authority; impl Authority { fn forge(value: Self) -> Self { Self { region: 0, ..value } } }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "permittedphysical-retarget-cannot-regain-parent-fields"
+scenario = "PermittedPhysical retarget access cannot be made legal by restoring fields visible to the issuer parent; Rust source probes independently reject the same form with private production fields."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct PermittedPhysical { pub(super) region: usize }'
+given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service; use self::service::PermittedPhysical as Authority; fn forge(value: &mut Authority) { value.region = 0; }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "programexecution-alias-cannot-regain-parent-fields"
+scenario = "ProgramExecution alias access cannot be made legal by restoring fields visible to the issuer parent; Rust source probes independently reject the same form with private production fields."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct ProgramExecution { pub(super) region: usize }'
+given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service; use self::service::ProgramExecution as Authority; fn forge(value: Authority) -> Authority { Authority { region: 0, ..value } }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "programexecution-self-cannot-regain-parent-fields"
+scenario = "ProgramExecution self access cannot be made legal by restoring fields visible to the issuer parent; Rust source probes independently reject the same form with private production fields."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct ProgramExecution { pub(super) region: usize }'
+given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service; use self::service::ProgramExecution as Authority; impl Authority { fn forge(value: Self) -> Self { Self { region: 0, ..value } } }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "programexecution-retarget-cannot-regain-parent-fields"
+scenario = "ProgramExecution retarget access cannot be made legal by restoring fields visible to the issuer parent; Rust source probes independently reject the same form with private production fields."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct ProgramExecution { pub(super) region: usize }'
+given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service; use self::service::ProgramExecution as Authority; fn forge(value: &mut Authority) { value.region = 0; }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "runtimestate-alias-cannot-regain-parent-fields"
+scenario = "RuntimeState alias access cannot be made legal by restoring fields visible to the issuer parent; Rust source probes independently reject the same form with private production fields."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct RuntimeState { pub(super) region: usize }'
+given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service; use self::service::RuntimeState as Authority; fn forge(value: Authority) -> Authority { Authority { region: 0, ..value } }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "runtimestate-self-cannot-regain-parent-fields"
+scenario = "RuntimeState self access cannot be made legal by restoring fields visible to the issuer parent; Rust source probes independently reject the same form with private production fields."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct RuntimeState { pub(super) region: usize }'
+given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service; use self::service::RuntimeState as Authority; impl Authority { fn forge(value: Self) -> Self { Self { region: 0, ..value } } }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "runtimestate-retarget-cannot-regain-parent-fields"
+scenario = "RuntimeState retarget access cannot be made legal by restoring fields visible to the issuer parent; Rust source probes independently reject the same form with private production fields."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct RuntimeState { pub(super) region: usize }'
+given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub(super) mod types; pub(super) mod service; use self::service::RuntimeState as Authority; fn forge(value: &mut Authority) { value.region = 0; }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "new-issuer-record-cannot-silently-expose-fields"
+scenario = "A newly added issuer record is checked without depending on its catalog spelling."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct NewAuthority { pub(super) scope: () }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "issuer-may-use-alias-and-self-with-private-fields"
+scenario = "The sole issuer may construct its private records through aliases and Self without exposing those fields to its parent."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(super) struct KernelAdmission { region: usize } type Authority = KernelAdmission; impl Authority { fn issue() -> Self { Self { region: 0 } } } fn issue_alias() -> Authority { Authority { region: 0 } }'
+
+[[scenarios]]
+id = "program-proof-alias-cannot-regain-parent-fields"
+scenario = "The qualified program-proof alias path cannot regain issuer-parent field access; actual Rust overlays independently reject private production-field access."
+given.files.'src/application/file_dag/program/admission.rs' = 'pub(super) struct AdmittedInput { pub(super) root: usize }'
+given.files.'src/application/file_dag/program.rs' = 'mod runtime; mod admission; mod kernel_session; use self::admission::AdmittedInput as Authority; fn forge(value: Authority) -> Authority { Authority { root: 0, ..value } }'
+then.findings = [{ path = "src/application/file_dag/program/admission.rs", line = 1 }]
+
+[[scenarios]]
+id = "program-proof-self-cannot-regain-parent-fields"
+scenario = "The qualified program-proof self path cannot regain issuer-parent field access; actual Rust overlays independently reject private production-field access."
+given.files.'src/application/file_dag/program/admission.rs' = 'pub(super) struct AdmittedInput { pub(super) root: usize }'
+given.files.'src/application/file_dag/program.rs' = 'mod runtime; mod admission; mod kernel_session; use self::admission::AdmittedInput as Authority; impl Authority { fn forge(value: Self) -> Self { Self { root: 0, ..value } } }'
+then.findings = [{ path = "src/application/file_dag/program/admission.rs", line = 1 }]
+
+[[scenarios]]
+id = "program-proof-retarget-cannot-regain-parent-fields"
+scenario = "The qualified program-proof retarget path cannot regain issuer-parent field access; actual Rust overlays independently reject private production-field access."
+given.files.'src/application/file_dag/program/admission.rs' = 'pub(super) struct AdmittedInput { pub(super) root: usize }'
+given.files.'src/application/file_dag/program.rs' = 'mod runtime; mod admission; mod kernel_session; use self::admission::AdmittedInput as Authority; fn retarget(value: &mut Authority) { value.root = 0; }'
+then.findings = [{ path = "src/application/file_dag/program/admission.rs", line = 1 }]
+
+[[scenarios]]
+id = "program-proof-issuer-alias-and-self-remain-private"
+scenario = "The actual qualified issuer may construct and retarget its private representation through aliases and Self."
+given.files.'src/application/file_dag/program/admission.rs' = 'pub(super) struct AdmittedInput { root: usize } use self::AdmittedInput as Authority; impl Authority { fn issue(value: Self) -> Self { Self { root: 0, ..value } } } fn retarget(value: &mut Authority) { value.root = 0; }'
+
+[[scenarios]]
+id = "relation-proof-alias-cannot-regain-parent-fields"
+scenario = "The qualified relation-proof alias path cannot regain issuer-parent field access; actual Rust overlays independently reject private production-field access."
+given.files.'src/application/file_dag.rs' = 'mod program; mod relations;'
+given.files.'src/application/file_dag/relations/admission/mod.rs' = 'pub(super) mod service;'
+given.files.'src/application/file_dag/relations/admission/service.rs' = 'pub(super) struct BorrowedInput { pub(super) rows: usize }'
+given.files.'src/application/file_dag/relations.rs' = 'mod admission; use self::admission::service::BorrowedInput as Authority; fn forge(value: Authority) -> Authority { Authority { rows: 0, ..value } }'
+then.findings = [{ path = "src/application/file_dag/relations/admission/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "relation-proof-self-cannot-regain-parent-fields"
+scenario = "The qualified relation-proof self path cannot regain issuer-parent field access; actual Rust overlays independently reject private production-field access."
+given.files.'src/application/file_dag.rs' = 'mod program; mod relations;'
+given.files.'src/application/file_dag/relations/admission/mod.rs' = 'pub(super) mod service;'
+given.files.'src/application/file_dag/relations/admission/service.rs' = 'pub(super) struct BorrowedInput { pub(super) rows: usize }'
+given.files.'src/application/file_dag/relations.rs' = 'mod admission; use self::admission::service::BorrowedInput as Authority; impl Authority { fn forge(value: Self) -> Self { Self { rows: 0, ..value } } }'
+then.findings = [{ path = "src/application/file_dag/relations/admission/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "relation-proof-retarget-cannot-regain-parent-fields"
+scenario = "The qualified relation-proof retarget path cannot regain issuer-parent field access; actual Rust overlays independently reject private production-field access."
+given.files.'src/application/file_dag.rs' = 'mod program; mod relations;'
+given.files.'src/application/file_dag/relations/admission/mod.rs' = 'pub(super) mod service;'
+given.files.'src/application/file_dag/relations/admission/service.rs' = 'pub(super) struct BorrowedInput { pub(super) rows: usize }'
+given.files.'src/application/file_dag/relations.rs' = 'mod admission; use self::admission::service::BorrowedInput as Authority; fn retarget(value: &mut Authority) { value.rows = 0; }'
+then.findings = [{ path = "src/application/file_dag/relations/admission/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "relation-proof-issuer-alias-and-self-remain-private"
+scenario = "The actual qualified issuer may construct and retarget its private representation through aliases and Self."
+given.files.'src/application/file_dag.rs' = 'mod program; mod relations;'
+given.files.'src/application/file_dag/relations.rs' = 'mod admission;'
+given.files.'src/application/file_dag/relations/admission/mod.rs' = 'pub(super) mod service;'
+given.files.'src/application/file_dag/relations/admission/service.rs' = 'pub(super) struct BorrowedInput { rows: usize } use self::BorrowedInput as Authority; impl Authority { fn issue(value: Self) -> Self { Self { rows: 0, ..value } } } fn retarget(value: &mut Authority) { value.rows = 0; }'
+
+[[scenarios]]
+id = "relation-proof-cannot-return-to-parent-module"
+scenario = "Moving admission behavior into a private child does not allow the parent to regain the proof representation."
+given.files.'src/application/file_dag.rs' = 'mod program; mod relations;'
+given.files.'src/application/file_dag/relations.rs' = 'mod admission;'
+given.files.'src/application/file_dag/relations/admission.rs' = 'pub(super) struct BorrowedInput { rows: usize }'
+then.findings = [{ path = "src/application/file_dag/relations/admission.rs", line = 1 }]
+
+[[scenarios]]
+id = "runtime-concept-directory-may-issue-authority"
+scenario = "A concept directory beneath the runtime record module issues authority through its own service.rs."
+given.files.'src/application/file_dag/program/runtime/service.rs' = 'pub(in crate::application::file_dag::program) struct KernelAdmission { execution: (), region: usize } mod admission;'
+given.files.'src/application/file_dag/program/runtime/service/admission/mod.rs' = 'mod service;'
+given.files.'src/application/file_dag/program/runtime/service/admission/service.rs' = 'fn issue() -> super::super::KernelAdmission { super::super::KernelAdmission { execution: (), region: 0 } }'
+
+[[scenarios]]
+id = "runtime-concept-directory-record-cannot-be-widened"
+scenario = "A record declared in a concept directory's service.rs is an issuer record too and keeps strictly private fields."
+given.files.'src/application/file_dag/program/runtime/service/admission/service.rs' = 'pub(super) struct Cursor { pub(super) region: usize }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service/admission/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "runtime-concept-directory-non-service-file-cannot-issue"
+scenario = "Only the service.rs files of the runtime directory tree issue authority; another file in a concept directory is rejected."
+given.files.'src/application/file_dag/program/runtime/service/admission/mod.rs' = 'mod service; mod types;'
+given.files.'src/application/file_dag/program/runtime/service/admission/types.rs' = 'fn bypass() { let _ = super::super::KernelAdmission { execution: (), region: 0 }; }'
+then.findings = [{ path = "src/application/file_dag/program/runtime/service/admission/types.rs", line = 1 }]
+
+[[scenarios]]
+id = "directory-lookalike-outside-runtime-cannot-issue"
+scenario = "A service.rs outside the runtime directory, even one whose directory name begins with runtime, cannot issue authority."
+given.files.'src/application/file_dag/program.rs' = 'mod runtime; mod admission; mod kernel_session; mod runtime_shadow;'
+given.files.'src/application/file_dag/program/runtime_shadow/service.rs' = 'fn bypass() { let _ = super::runtime::service::KernelAdmission { execution: (), region: 0 }; }'
+then.findings = [{ path = "src/application/file_dag/program/runtime_shadow/service.rs", line = 1 }]

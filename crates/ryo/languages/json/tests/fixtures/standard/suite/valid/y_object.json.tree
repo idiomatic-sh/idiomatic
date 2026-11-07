@@ -1,0 +1,17 @@
+json-text 0-26
+ value 0-26
+  object 0-26
+   begin-object 0-1
+   member 1-12
+    string 1-6
+    name-separator 6-7
+    value 7-12
+     string 7-12
+   value-separator 12-14
+    ws 13-14
+   member 14-25
+    string 14-19
+    name-separator 19-20
+    value 20-25
+     string 20-25
+   end-object 25-26

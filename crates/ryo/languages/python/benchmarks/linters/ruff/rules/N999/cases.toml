@@ -1,0 +1,385 @@
+
+[[cases]]
+name = "upstream-N999-module-mod with spaces-__init__.py"
+comparison = "full"
+files = { "N999/module/mod with spaces/__init__.py" = "" }
+context = { "logical-root" = "inventory", "auxiliary-files" = {  }, "missing" = ["__init__.py", "inventory/__init__.py", "inventory/N999/__init__.py", "inventory/N999/module/__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "N999/module/mod with spaces/__init__.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "upstream-N999-module-mod with spaces-file.py"
+comparison = "full"
+files = { "N999/module/mod with spaces/file.py" = "" }
+context = { "logical-root" = "inventory", "auxiliary-files" = { "inventory/N999/module/mod with spaces/__init__.py" = "" }, "missing" = ["__init__.py", "inventory/__init__.py", "inventory/N999/__init__.py", "inventory/N999/module/__init__.py"] }
+expected = []
+
+[[cases]]
+name = "upstream-N999-module-flake9-__init__.py"
+comparison = "full"
+files = { "N999/module/flake9/__init__.py" = "" }
+context = { "logical-root" = "inventory", "auxiliary-files" = {  }, "missing" = ["__init__.py", "inventory/__init__.py", "inventory/N999/__init__.py", "inventory/N999/module/__init__.py"] }
+expected = []
+
+[[cases]]
+name = "upstream-N999-module-MODULE-__init__.py"
+comparison = "full"
+files = { "N999/module/MODULE/__init__.py" = "" }
+context = { "logical-root" = "inventory", "auxiliary-files" = {  }, "missing" = ["__init__.py", "inventory/__init__.py", "inventory/N999/__init__.py", "inventory/N999/module/__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "N999/module/MODULE/__init__.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "upstream-N999-module-MODULE-file.py"
+comparison = "full"
+files = { "N999/module/MODULE/file.py" = "" }
+context = { "logical-root" = "inventory", "auxiliary-files" = { "inventory/N999/module/MODULE/__init__.py" = "" }, "missing" = ["__init__.py", "inventory/__init__.py", "inventory/N999/__init__.py", "inventory/N999/module/__init__.py"] }
+expected = []
+
+[[cases]]
+name = "upstream-N999-module-mod-with-dashes-__init__.py"
+comparison = "full"
+files = { "N999/module/mod-with-dashes/__init__.py" = "" }
+context = { "logical-root" = "inventory", "auxiliary-files" = {  }, "missing" = ["__init__.py", "inventory/__init__.py", "inventory/N999/__init__.py", "inventory/N999/module/__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "N999/module/mod-with-dashes/__init__.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "upstream-N999-module-valid_name-__init__.py"
+comparison = "full"
+files = { "N999/module/valid_name/__init__.py" = "" }
+context = { "logical-root" = "inventory", "auxiliary-files" = {  }, "missing" = ["__init__.py", "inventory/__init__.py", "inventory/N999/__init__.py", "inventory/N999/module/__init__.py"] }
+expected = []
+
+[[cases]]
+name = "upstream-N999-module-no_module-test.txt"
+comparison = "full"
+files = { "N999/module/no_module/test.txt" = "" }
+context = { "logical-root" = "inventory", "auxiliary-files" = {  }, "missing" = ["__init__.py", "inventory/__init__.py", "inventory/N999/__init__.py", "inventory/N999/module/__init__.py", "inventory/N999/module/no_module/__init__.py"] }
+expected = []
+
+[[cases]]
+name = "upstream-N999-module-valid_name-file-with-dashes.py"
+comparison = "full"
+files = { "N999/module/valid_name/file-with-dashes.py" = "" }
+context = { "logical-root" = "inventory", "auxiliary-files" = { "inventory/N999/module/valid_name/__init__.py" = "" }, "missing" = ["__init__.py", "inventory/__init__.py", "inventory/N999/__init__.py", "inventory/N999/module/__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "N999/module/valid_name/file-with-dashes.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "upstream-N999-module-valid_name-__main__.py"
+comparison = "full"
+files = { "N999/module/valid_name/__main__.py" = "" }
+context = { "logical-root" = "inventory", "auxiliary-files" = { "inventory/N999/module/valid_name/__init__.py" = "" }, "missing" = ["__init__.py", "inventory/__init__.py", "inventory/N999/__init__.py", "inventory/N999/module/__init__.py"] }
+expected = []
+
+[[cases]]
+name = "upstream-N999-module-invalid_name-0001_initial.py"
+comparison = "full"
+files = { "N999/module/invalid_name/0001_initial.py" = "" }
+context = { "logical-root" = "inventory", "auxiliary-files" = { "inventory/N999/module/invalid_name/__init__.py" = "" }, "missing" = ["__init__.py", "inventory/__init__.py", "inventory/N999/__init__.py", "inventory/N999/module/__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "N999/module/invalid_name/0001_initial.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "upstream-N999-module-valid_name-__setup__.py"
+comparison = "full"
+files = { "N999/module/valid_name/__setup__.py" = "" }
+context = { "logical-root" = "inventory", "auxiliary-files" = { "inventory/N999/module/valid_name/__init__.py" = "" }, "missing" = ["__init__.py", "inventory/__init__.py", "inventory/N999/__init__.py", "inventory/N999/module/__init__.py"] }
+expected = []
+
+[[cases]]
+name = "upstream-N999-module-valid_name-file-with-dashes"
+comparison = "full"
+files = { "N999/module/valid_name/file-with-dashes" = "" }
+context = { "logical-root" = "inventory", "auxiliary-files" = { "inventory/N999/module/valid_name/__init__.py" = "" }, "missing" = ["__init__.py", "inventory/__init__.py", "inventory/N999/__init__.py", "inventory/N999/module/__init__.py"] }
+expected = []
+
+[[cases]]
+name = "upstream-N999-module-invalid_name-import.py"
+comparison = "full"
+files = { "N999/module/invalid_name/import.py" = "" }
+context = { "logical-root" = "inventory", "auxiliary-files" = { "inventory/N999/module/invalid_name/__init__.py" = "" }, "missing" = ["__init__.py", "inventory/__init__.py", "inventory/N999/__init__.py", "inventory/N999/module/__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "N999/module/invalid_name/import.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "uppercase-module"
+comparison = "full"
+files = { "BadModule.py" = "" }
+context = { "logical-root" = "pkg", "auxiliary-files" = { "pkg/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "BadModule.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "dotted-module"
+comparison = "full"
+files = { "bad.name.py" = "" }
+context = { "logical-root" = "pkg", "auxiliary-files" = { "pkg/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "bad.name.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "dash-module"
+comparison = "full"
+files = { "bad-name.py" = "" }
+context = { "logical-root" = "pkg", "auxiliary-files" = { "pkg/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "bad-name.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "space-module"
+comparison = "full"
+files = { "bad name.py" = "" }
+context = { "logical-root" = "pkg", "auxiliary-files" = { "pkg/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "bad name.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "ordinary-lowercase"
+comparison = "full"
+files = { "good_module2.py" = "" }
+context = { "logical-root" = "pkg", "auxiliary-files" = { "pkg/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = []
+
+[[cases]]
+name = "private-extension"
+comparison = "full"
+files = { "_socket.py" = "" }
+context = { "logical-root" = "pkg", "auxiliary-files" = { "pkg/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = []
+
+[[cases]]
+name = "hard-keyword"
+comparison = "full"
+files = { "import.py" = "" }
+context = { "logical-root" = "pkg", "auxiliary-files" = { "pkg/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "import.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "soft-keyword"
+comparison = "full"
+files = { "match.py" = "" }
+context = { "logical-root" = "pkg", "auxiliary-files" = { "pkg/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = []
+
+[[cases]]
+name = "unicode-module"
+comparison = "full"
+files = { "δ.py" = "" }
+context = { "logical-root" = "pkg", "auxiliary-files" = { "pkg/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "δ.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "ignored-default"
+comparison = "full"
+files = { "setUpClass.py" = "" }
+context = { "logical-root" = "pkg", "auxiliary-files" = { "pkg/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = []
+
+[[cases]]
+name = "stub-uppercase"
+comparison = "full"
+files = { "BadModule.pyi" = "" }
+context = { "logical-root" = "pkg", "auxiliary-files" = { "pkg/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "BadModule.pyi", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "root-uppercase"
+comparison = "full"
+files = { "__init__.py" = "" }
+context = { "logical-root" = "BadPackage", "auxiliary-files" = {  }, "missing" = ["__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "__init__.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "root-dotted"
+comparison = "full"
+files = { "__init__.py" = "" }
+context = { "logical-root" = "bad.name", "auxiliary-files" = {  }, "missing" = ["__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "__init__.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "root-dash"
+comparison = "full"
+files = { "__init__.py" = "" }
+context = { "logical-root" = "bad-name", "auxiliary-files" = {  }, "missing" = ["__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "__init__.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "root-good"
+comparison = "full"
+files = { "__init__.py" = "" }
+context = { "logical-root" = "good_package", "auxiliary-files" = {  }, "missing" = ["__init__.py"] }
+expected = []
+
+[[cases]]
+name = "root-main-dotted"
+comparison = "full"
+files = { "__main__.py" = "" }
+context = { "logical-root" = "bad.name", "auxiliary-files" = { "bad.name/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "__main__.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "regular-file-in-invalid-package"
+comparison = "full"
+files = { "good.py" = "" }
+context = { "logical-root" = "bad.name", "auxiliary-files" = { "bad.name/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = []
+
+[[cases]]
+name = "setup-is-not-package-special"
+comparison = "full"
+files = { "__setup__.py" = "" }
+context = { "logical-root" = "BadPackage", "auxiliary-files" = { "BadPackage/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = []
+
+[[cases]]
+name = "standalone-uppercase"
+comparison = "full"
+files = { "BAD.py" = "" }
+context = { "logical-root" = "standalone", "auxiliary-files" = {  }, "missing" = ["__init__.py", "standalone/__init__.py"] }
+expected = []
+
+[[cases]]
+name = "dotted-nonpackage-parent"
+comparison = "full"
+files = { "BAD.py" = "" }
+context = { "logical-root" = "no.package", "auxiliary-files" = {  }, "missing" = ["__init__.py", "no.package/__init__.py"] }
+expected = []
+
+[[cases]]
+name = "numeric-migrations"
+comparison = "full"
+files = { "0001_initial.py" = "" }
+context = { "logical-root" = "migrations", "auxiliary-files" = { "migrations/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = []
+
+[[cases]]
+name = "numeric-versions"
+comparison = "full"
+files = { "0001_initial.py" = "" }
+context = { "logical-root" = "versions", "auxiliary-files" = { "versions/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = []
+
+[[cases]]
+name = "numeric-Migrations"
+comparison = "full"
+files = { "0001_initial.py" = "" }
+context = { "logical-root" = "Migrations", "auxiliary-files" = { "Migrations/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "0001_initial.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "nonmigration-numeric"
+comparison = "full"
+files = { "0001_initial.py" = "" }
+context = { "logical-root" = "pkg", "auxiliary-files" = { "pkg/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "0001_initial.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "inline-noqa"
+comparison = "full"
+files = { "BAD.py" = "# noqa: N999\n" }
+context = { "logical-root" = "pkg", "auxiliary-files" = { "pkg/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = []
+
+[[cases]]
+name = "inline-unrelated"
+comparison = "full"
+files = { "BAD.py" = "# noqa: N998\n" }
+context = { "logical-root" = "pkg", "auxiliary-files" = { "pkg/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "BAD.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "BAD.py" = "# ruff: noqa: N999\n" }
+context = { "logical-root" = "pkg", "auxiliary-files" = { "pkg/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = []
+
+[[cases]]
+name = "blanket-noqa"
+comparison = "full"
+files = { "BAD.py" = "# flake8: noqa\n" }
+context = { "logical-root" = "pkg", "auxiliary-files" = { "pkg/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = []
+
+[[cases]]
+name = "later-inline"
+comparison = "full"
+files = { "BAD.py" = "\n# noqa: N999\n" }
+context = { "logical-root" = "pkg", "auxiliary-files" = { "pkg/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "BAD.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "invalid-syntax"
+comparison = "full"
+files = { "BAD.py" = "x= (\n" }
+context = { "logical-root" = "pkg", "auxiliary-files" = { "pkg/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "BAD.py", "start" = 0, "end" = 0 }, { "rule" = "invalid-syntax", "file" = "BAD.py", "start" = 5, "end" = 5 }]
+
+[[cases]]
+name = "content-shadowing"
+comparison = "full"
+files = { "BAD.py" = "dict = object\nset = object\n" }
+context = { "logical-root" = "pkg", "auxiliary-files" = { "pkg/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "BAD.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "nested-dotted-initializer"
+comparison = "full"
+files = { "outer/inner.name/__init__.py" = "" }
+context = { "logical-root" = "inventory", "auxiliary-files" = { "inventory/outer/__init__.py" = "" }, "missing" = ["__init__.py", "inventory/__init__.py"] }
+expected = []
+
+[[cases]]
+name = "root-stub-initializer-with-runtime-marker"
+comparison = "full"
+files = { "__init__.pyi" = "" }
+context = { "logical-root" = "BadStubPackage", "auxiliary-files" = { "BadStubPackage/__init__.py" = "" }, "missing" = ["__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "__init__.pyi", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "nested-uppercase-child-root-policy"
+comparison = "full"
+files = { "outer/BadName/__init__.py" = "" }
+context = { "logical-root" = "inventory", "auxiliary-files" = { "inventory/outer/__init__.py" = "" }, "missing" = ["__init__.py", "inventory/__init__.py"] }
+expected = []
+
+[[cases]]
+name = "nested-bad-package-root"
+comparison = "full"
+files = { "BadRoot/child/__init__.py" = "" }
+context = { "logical-root" = "inventory", "auxiliary-files" = { "inventory/BadRoot/__init__.py" = "" }, "missing" = ["__init__.py", "inventory/__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "BadRoot/child/__init__.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "namespace-prefix-bad-package-root"
+comparison = "full"
+files = { "namespace/BadRoot/child/__init__.py" = "" }
+context = { "logical-root" = "inventory", "auxiliary-files" = { "inventory/namespace/BadRoot/__init__.py" = "" }, "missing" = ["__init__.py", "inventory/__init__.py", "inventory/namespace/__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "namespace/BadRoot/child/__init__.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "nested-dotted-package-root"
+comparison = "full"
+files = { "root.name/child/__init__.py" = "" }
+context = { "logical-root" = "inventory", "auxiliary-files" = { "inventory/root.name/__init__.py" = "" }, "missing" = ["__init__.py", "inventory/__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "root.name/child/__init__.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "nested-main-root-policy"
+comparison = "full"
+files = { "outer/BadName/__main__.py" = "" }
+context = { "logical-root" = "inventory", "auxiliary-files" = { "inventory/outer/__init__.py" = "", "inventory/outer/BadName/__init__.py" = "" }, "missing" = ["__init__.py", "inventory/__init__.py"] }
+expected = []
+
+[[cases]]
+name = "ordinary-module-retains-own-name"
+comparison = "full"
+files = { "outer/child/BadModule.py" = "" }
+context = { "logical-root" = "inventory", "auxiliary-files" = { "inventory/outer/__init__.py" = "", "inventory/outer/child/__init__.py" = "" }, "missing" = ["__init__.py", "inventory/__init__.py"] }
+expected = [{ "rule" = "N999", "file" = "outer/child/BadModule.py", "start" = 0, "end" = 0 }]
+
+[[cases]]
+name = "numeric-migration-retains-immediate-directory-policy"
+comparison = "full"
+files = { "BadRoot/migrations/0001_initial.py" = "" }
+context = { "logical-root" = "inventory", "auxiliary-files" = { "inventory/BadRoot/__init__.py" = "", "inventory/BadRoot/migrations/__init__.py" = "" }, "missing" = ["__init__.py", "inventory/__init__.py"] }
+expected = []
+
+[[cases]]
+name = "namespace-prefix-good-root"
+comparison = "full"
+files = { "namespace/outer/inner.name/__init__.py" = "" }
+context = { "logical-root" = "inventory", "auxiliary-files" = { "inventory/namespace/outer/__init__.py" = "" }, "missing" = ["__init__.py", "inventory/__init__.py", "inventory/namespace/__init__.py"] }
+expected = []

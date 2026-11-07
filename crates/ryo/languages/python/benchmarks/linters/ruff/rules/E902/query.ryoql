@@ -1,0 +1,2 @@
+let violations = select path as file, detail, span from "filesystem.read-failure";
+emit violations subject file key(file);

@@ -1,0 +1,104 @@
+description = "A language's README has the section `## Differences from the standard`: where its trees and answers differ from the standard that defines the language, and why."
+why = "A language fulfils ryo's catalog over a parser library, and a parser library is never exactly the standard: it keeps a node the standard folds, refuses what the standard accepts, or names a part the standard has no name for. The README is where a user and a reviewer look first, and a difference that is written nowhere is found as a bug. So the README has a section of this exact heading, and a language that has no difference says so in it. The evidence is a level-2 heading whose text is `Differences from the standard`. Not seen: the section's text, which the review reads against the pinned standard and the comparison of the adapter's test."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let documents = select * from tree-nodes where kind = "root";
+let headings = select * from tree-nodes where kind = "heading";
+let markers = select * from tree-tokens where kind = "markup" and glob_any(text, "## *");
+let titles = select * from tree-tokens where kind = "text" and text = "Differences from the standard";
+let marker-edges = select l."parent" as "heading" from "syntax-child" as l join markers as r on l."child" = r."id";
+let title-edges = select l."parent" as "heading" from "syntax-child" as l join titles as r on l."child" = r."id";
+let both = select l."heading" as "id" from marker-edges as l join title-edges as r on l."heading" = r."heading";
+let stated = select r."file" as "file" from both as l join headings as r on l."id" = r."id";
+let required = project(from=documents, columns=["file", "span"]);
+let silent = antijoin(left=required, right=stated, left-on=["file"], right-on=["file"]);
+emit silent subject "file" key("file");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this README has no section `## Differences from the standard`"
+help = "Add the section `## Differences from the standard`: each place where the language's trees or answers differ from the standard that defines it (a node the parser keeps and the standard folds, a file it accepts and the standard refuses) and why, or that there is none. An ignore is never the fix."
+
+[given]
+include = ['README.md']
+
+[[scenarios]]
+id = 'section-differences'
+scenario = 'The section with its differences.'
+given.files.'README.md' = '''
+# idiomatic-sh-ryo-demo
+
+The demo language of ryo.
+
+## Usage
+
+Link it.
+
+## Differences from the standard
+
+The parser keeps the unary plus of a key where the standard folds it into a constant.
+
+## Domains
+
+### nodes
+
+The nodes.
+'''
+
+[[scenarios]]
+id = 'none-to-state'
+scenario = 'The section saying there is none.'
+given.files.'README.md' = '''
+# idiomatic-sh-ryo-demo
+
+## Differences from the standard
+
+There are none: the tree is the standard's, node for node.
+'''
+
+[[scenarios]]
+id = 'no-such-section'
+scenario = 'No such section: it is reported.'
+given.files.'README.md' = '''
+# idiomatic-sh-ryo-demo
+
+The demo language of ryo.
+
+## Usage
+
+Link it.
+'''
+then.findings = [
+  { path = 'README.md', line = 1 },
+]
+
+[[scenarios]]
+id = 'wrong-level'
+scenario = 'The heading is not of the second level.'
+given.files.'README.md' = '''
+# idiomatic-sh-ryo-demo
+
+### Differences from the standard
+
+Under another heading.
+'''
+then.findings = [
+  { path = 'README.md', line = 1 },
+]
+
+[[scenarios]]
+id = 'another-title'
+scenario = 'Another title: it is reported.'
+given.files.'README.md' = '''
+# idiomatic-sh-ryo-demo
+
+## Differences
+
+Not this section.
+'''
+then.findings = [
+  { path = 'README.md', line = 1 },
+]

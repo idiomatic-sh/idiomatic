@@ -1,0 +1,41 @@
+[[cases]]
+name = "extra-name"
+comparison = "full"
+files = { "case.py" = "\"{name}\".format(name=value, unused=other)\n" }
+expected = [{ rule = "F522", file = "case.py", start = 0, end = 41 }]
+
+[[cases]]
+name = "all-names-used"
+comparison = "full"
+files = { "case.py" = "\"{name}\".format(name=value)\n" }
+expected = []
+
+[[cases]]
+name = "duplicate-field-still-used"
+comparison = "full"
+files = { "case.py" = "\"{name} {name}\".format(name=value)\n" }
+expected = []
+
+[[cases]]
+name = "nested-format-spec-name-used"
+comparison = "full"
+files = { "case.py" = "\"{value:{width}}\".format(value=1, width=3, unused=4)\n" }
+expected = [{ rule = "F522", file = "case.py", start = 0, end = 52 }]
+
+[[cases]]
+name = "dynamic-keywords-disable-check"
+comparison = "full"
+files = { "case.py" = "\"{name}\".format(**values, unused=1)\n" }
+expected = []
+
+[[cases]]
+name = "noqa-extra-name"
+comparison = "full"
+files = { "case.py" = "\"{name}\".format(name=value, unused=other)  # noqa: F522\n" }
+expected = []
+
+[[cases]]
+name = "non-format-method"
+comparison = "full"
+files = { "case.py" = "render(\"{name}\", name=value, unused=other)\n" }
+expected = []

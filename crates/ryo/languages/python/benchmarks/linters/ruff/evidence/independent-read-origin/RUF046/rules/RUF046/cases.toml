@@ -1,0 +1,234 @@
+
+[[cases]]
+name="ruf046-integer"
+comparison="full"
+files={"case.py"="x=int(123)\n"}
+expected=[{rule="RUF046", file="case.py", start=2, end=10}]
+
+[[cases]]
+name="ruf046-boolean"
+comparison="full"
+files={"case.py"="x=int(True)\n"}
+expected=[]
+
+[[cases]]
+name="ruf046-float"
+comparison="full"
+files={"case.py"="x=int(1.5)\n"}
+expected=[]
+
+[[cases]]
+name="ruf046-arithmetic"
+comparison="full"
+files={"case.py"="x=int(3+4*2)\n"}
+expected=[{rule="RUF046", file="case.py", start=2, end=12}]
+
+[[cases]]
+name="ruf046-bool-arithmetic"
+comparison="full"
+files={"case.py"="x=int(True+False)\n"}
+expected=[{rule="RUF046", file="case.py", start=2, end=17}]
+
+[[cases]]
+name="ruf046-name-not-inferred"
+comparison="full"
+files={"case.py"="a=1\nx=int(a)\n"}
+expected=[]
+
+[[cases]]
+name="ruf046-two-args"
+comparison="full"
+files={"case.py"="x=int(10,2)\n"}
+expected=[]
+
+[[cases]]
+name="ruf046-keyword"
+comparison="full"
+files={"case.py"="x=int(x=10)\n"}
+expected=[]
+
+[[cases]]
+name="ruf046-star"
+comparison="full"
+files={"case.py"="x=int(*items)\n"}
+expected=[]
+
+[[cases]]
+name="ruf046-len"
+comparison="full"
+files={"case.py"="x=int(len(items))\n"}
+expected=[{rule="RUF046", file="case.py", start=2, end=17}]
+
+[[cases]]
+name="ruf046-len-invalid-arity"
+comparison="full"
+files={"case.py"="x=int(len(*items,key=unknown))\n"}
+expected=[{rule="RUF046", file="case.py", start=2, end=30}]
+
+[[cases]]
+name="ruf046-math"
+comparison="full"
+files={"case.py"="import math\nx=int(math.ceil(value))\n"}
+expected=[{rule="RUF046", file="case.py", start=14, end=35}]
+
+[[cases]]
+name="ruf046-math-import"
+comparison="full"
+files={"case.py"="from math import isqrt as q\nx=int(q(value))\n"}
+expected=[{rule="RUF046", file="case.py", start=30, end=43}]
+
+[[cases]]
+name="ruf046-builtin-alias"
+comparison="full"
+files={"case.py"="from builtins import len as size\nx=int(size(value))\n"}
+expected=[{rule="RUF046", file="case.py", start=35, end=51}]
+
+[[cases]]
+name="ruf046-builtin-shadow"
+comparison="full"
+files={"case.py"="len=custom\nx=int(len(value))\n"}
+expected=[]
+
+[[cases]]
+name="ruf046-outer-shadow"
+comparison="full"
+files={"case.py"="int=custom\nx=int(len(value))\n"}
+expected=[]
+
+[[cases]]
+name="ruf046-cached-inner-vs-fresh"
+comparison="full"
+files={"case.py"="x=int(len((len:=custom)))\n"}
+expected=[{rule="RUF046", file="case.py", start=2, end=25}]
+
+[[cases]]
+name="ruf046-fresh-outer-late-rebind"
+comparison="full"
+files={"case.py"="x=int((int:=5))\n"}
+expected=[]
+
+[[cases]]
+name="ruf046-slow-outer-late-rebind"
+comparison="full"
+files={"case.py"="import builtins\nx=int((int:=5))\n"}
+expected=[{rule="RUF046", file="case.py", start=18, end=31}]
+
+[[cases]]
+name="ruf046-inner-round-cached-rebind"
+comparison="full"
+files={"case.py"="x=int(round(1,(round:=2)))\n"}
+expected=[{rule="RUF046", file="case.py", start=2, end=26}]
+
+[[cases]]
+name="ruf046-round-integer"
+comparison="full"
+files={"case.py"="x=int(round(1))\n"}
+expected=[{rule="RUF046", file="case.py", start=2, end=15}]
+
+[[cases]]
+name="ruf046-round-float"
+comparison="full"
+files={"case.py"="x=int(round(1.25))\n"}
+expected=[{rule="RUF046", file="case.py", start=2, end=18}]
+
+[[cases]]
+name="ruf046-round-unknown"
+comparison="full"
+files={"case.py"="x=int(round(value))\n"}
+expected=[{rule="RUF046", file="case.py", start=2, end=19}]
+
+[[cases]]
+name="ruf046-round-unknown-none"
+comparison="full"
+files={"case.py"="x=int(round(value,None))\n"}
+expected=[{rule="RUF046", file="case.py", start=2, end=24}]
+
+[[cases]]
+name="ruf046-round-float-precision"
+comparison="full"
+files={"case.py"="x=int(round(1.25,2))\n"}
+expected=[]
+
+[[cases]]
+name="ruf046-round-integer-negative"
+comparison="full"
+files={"case.py"="x=int(round(1,-2))\n"}
+expected=[{rule="RUF046", file="case.py", start=2, end=18}]
+
+[[cases]]
+name="ruf046-round-ndigits-expression"
+comparison="full"
+files={"case.py"="x=int(round(1,1+2))\n"}
+expected=[{rule="RUF046", file="case.py", start=2, end=19}]
+
+[[cases]]
+name="ruf046-round-ndigits-bound-int"
+comparison="full"
+files={"case.py"="n:int=2\nx=int(round(1,n))\n"}
+expected=[]
+
+[[cases]]
+name="ruf046-round-number-bound-int"
+comparison="full"
+files={"case.py"="n:int=2\nx=int(round(n,-2))\n"}
+expected=[{rule="RUF046", file="case.py", start=10, end=26}]
+
+[[cases]]
+name="ruf046-round-too-many"
+comparison="full"
+files={"case.py"="x=int(round(1,2,3))\n"}
+expected=[]
+
+[[cases]]
+name="ruf046-round-keywords"
+comparison="full"
+files={"case.py"="x=int(round(number=1,ndigits=None))\n"}
+expected=[{rule="RUF046", file="case.py", start=2, end=35}]
+
+[[cases]]
+name="ruf046-quoted-annotation"
+comparison="full"
+files={"case.py"="x:\"int(len(items))\"\n"}
+expected=[{rule="RUF046", file="case.py", start=3, end=18}]
+
+[[cases]]
+name="ruf046-future-forward-import"
+comparison="full"
+files={"case.py"="from __future__ import annotations\nx:int(m.ceil(value))\nimport math as m\n"}
+expected=[{rule="RUF046", file="case.py", start=37, end=55}]
+
+[[cases]]
+name="ruf046-native-generic-shadow"
+comparison="full"
+files={"case.py"="def f[len]()->int(len(value)): ...\n"}
+expected=[{rule="invalid-syntax", file="case.py", start=5, end=10}]
+
+[[cases]]
+name="ruf046-future-generic-shadow"
+comparison="full"
+files={"case.py"="from __future__ import annotations\nimport builtins\ndef f[len]()->int(len(value)): ...\n"}
+expected=[{rule="RUF046", file="case.py", start=65, end=80}, {rule="invalid-syntax", file="case.py", start=56, end=61}]
+
+[[cases]]
+name="ruf046-noqa"
+comparison="full"
+files={"case.py"="x=int(len(value)) # noqa: RUF046\n"}
+expected=[]
+
+[[cases]]
+name="ruf046-tagged-RUF046"
+comparison="full"
+files={"case.py"="import math\n\n\ninferred_int = 1\ninferred_float = 1.\n\n\n### Safely fixable\n\nint(id())\nint(len([]))\nint(ord(foo))\nint(hash(foo, bar))\nint(int(''))\n\nint(math.comb())\nint(math.factorial())\nint(math.gcd())\nint(math.lcm())\nint(math.isqrt())\nint(math.perm())\n\nint(round(1, 0))\nint(round(1, 10))\n\nint(round(1))\nint(round(1, None))\n\nint(round(1.))\nint(round(1., None))\n\nint(1)\nint(v := 1)\nint(~1)\nint(-1)\nint(+1)\n\nint(1 + 1)\nint(1 - 1)\nint(1 * 1)\nint(1 % 1)\nint(1 ** 1)\nint(1 << 1)\nint(1 >> 1)\nint(1 | 1)\nint(1 ^ 1)\nint(1 & 1)\nint(1 // 1)\n\nint(1 if ... else 2)\n\nint(1 and 0)\nint(0 or -1)\n\n\nif int(1 + 2) * 3:\n    ...\n\n\n### Unsafe\n\nint(math.ceil())\nint(math.floor())\nint(math.trunc())\n\nint(round(inferred_int, 0))\nint(round(inferred_int, 10))\n\nint(round(inferred_int))\nint(round(inferred_int, None))\n\nint(round(inferred_float))\nint(round(inferred_float, None))\n\nint(round(unknown))\nint(round(unknown, None))\n\n\n### No errors\n\nint(round(1, unknown))\nint(round(1., unknown))\n\nint(round(1., 0))\nint(round(inferred_float, 0))\n\nint(round(inferred_int, unknown))\nint(round(inferred_float, unknown))\n\nint(round(unknown, 0))\nint(round(unknown, unknown))\n\nint(round(0, 3.14))\nint(round(inferred_int, 3.14))\n\nint(round(0, 0), base)\nint(round(0, 0, extra=keyword))\n\nint(foo if ... else 4)\n\nint(3.14)\nint(2.8j)\n\nasync def f():\n    int(await f())\n\nint(foo.bar)\nint(bar([1][False]))\n\nint(1 == 1)\nint(1 != 1)\nint(1 < 1)\nint(1 <= 1)\nint(1 > 1)\nint(1 >= 1)\nint(1 in 1)\nint(1 not in 1)\nint(1 is 1)\nint(2 is not 3)\nint(foo in 1)\nint(foo not in 1)\nint(foo is 1)\nint(foo is not 1)\n\nint(1 == 2 == 3)\nint(foo == 1)\nint(foo != 1)\nint(foo < 1)\nint(foo <= 1)\nint(foo > 1)\nint(foo >= 1)\n\nint(v := {}[{}['']])\n\nint(foo + 1)\nint(foo - 1)\nint(foo * 1)\nint(foo @ 1)\nint(foo / 1)\nint(foo % 1)\nint(foo ** 1)\nint(foo << 1)\nint(foo >> 1)\nint(foo | 1)\nint(foo ^ 1)\nint(foo & 1)\nint(foo // 1)\n\nint(v := 3.7)\n\nint(not 109)\n\nint(1 / 1)\nint(1 @ 1)\n\nint(1. if ... else .2)\n\nint(1 +\n    1)\n\nint(round(1,\n          0))\n\n# function calls may need to retain parentheses\n# if the parentheses for the call itself\n# lie on the next line.\n# See https://github.com/astral-sh/ruff/issues/15263\nint(round\n(1))\n\nint(round # a comment\n# and another comment\n(10)\n)\n\nint(round (17)) # this is safe without parens\n\nint( round (\n                17\n            )) # this is also safe without parens\n\nint((round)  # Comment\n(42)\n)\n\nint((round  # Comment\n)(42)\n)\n\nint(  # Unsafe fix because of this comment\n(  # Comment\n    (round\n)  # Comment\n)(42)\n)\n\nint(\n    round(\n        42\n    ) # unsafe fix because of this comment\n)\n\nint(\n    round(\n        42\n    ) \n# unsafe fix because of this comment\n)\n"}
+expected=[{rule="RUF046", file="case.py", start=73, end=82}, {rule="RUF046", file="case.py", start=83, end=95}, {rule="RUF046", file="case.py", start=96, end=109}, {rule="RUF046", file="case.py", start=110, end=129}, {rule="RUF046", file="case.py", start=130, end=142}, {rule="RUF046", file="case.py", start=144, end=160}, {rule="RUF046", file="case.py", start=161, end=182}, {rule="RUF046", file="case.py", start=183, end=198}, {rule="RUF046", file="case.py", start=199, end=214}, {rule="RUF046", file="case.py", start=215, end=232}, {rule="RUF046", file="case.py", start=233, end=249}, {rule="RUF046", file="case.py", start=251, end=267}, {rule="RUF046", file="case.py", start=268, end=285}, {rule="RUF046", file="case.py", start=287, end=300}, {rule="RUF046", file="case.py", start=301, end=320}, {rule="RUF046", file="case.py", start=322, end=336}, {rule="RUF046", file="case.py", start=337, end=357}, {rule="RUF046", file="case.py", start=359, end=365}, {rule="RUF046", file="case.py", start=366, end=377}, {rule="RUF046", file="case.py", start=378, end=385}, {rule="RUF046", file="case.py", start=386, end=393}, {rule="RUF046", file="case.py", start=394, end=401}, {rule="RUF046", file="case.py", start=403, end=413}, {rule="RUF046", file="case.py", start=414, end=424}, {rule="RUF046", file="case.py", start=425, end=435}, {rule="RUF046", file="case.py", start=436, end=446}, {rule="RUF046", file="case.py", start=447, end=458}, {rule="RUF046", file="case.py", start=459, end=470}, {rule="RUF046", file="case.py", start=471, end=482}, {rule="RUF046", file="case.py", start=483, end=493}, {rule="RUF046", file="case.py", start=494, end=504}, {rule="RUF046", file="case.py", start=505, end=515}, {rule="RUF046", file="case.py", start=516, end=527}, {rule="RUF046", file="case.py", start=529, end=549}, {rule="RUF046", file="case.py", start=551, end=563}, {rule="RUF046", file="case.py", start=564, end=576}, {rule="RUF046", file="case.py", start=582, end=592}, {rule="RUF046", file="case.py", start=620, end=636}, {rule="RUF046", file="case.py", start=637, end=654}, {rule="RUF046", file="case.py", start=655, end=672}, {rule="RUF046", file="case.py", start=674, end=701}, {rule="RUF046", file="case.py", start=702, end=730}, {rule="RUF046", file="case.py", start=732, end=756}, {rule="RUF046", file="case.py", start=757, end=787}, {rule="RUF046", file="case.py", start=789, end=815}, {rule="RUF046", file="case.py", start=816, end=848}, {rule="RUF046", file="case.py", start=850, end=869}, {rule="RUF046", file="case.py", start=870, end=895}, {rule="RUF046", file="case.py", start=1920, end=1934}, {rule="RUF046", file="case.py", start=1936, end=1962}, {rule="RUF046", file="case.py", start=2130, end=2144}, {rule="RUF046", file="case.py", start=2146, end=2196}, {rule="RUF046", file="case.py", start=2198, end=2213}, {rule="RUF046", file="case.py", start=2245, end=2291}, {rule="RUF046", file="case.py", start=2328, end=2357}, {rule="RUF046", file="case.py", start=2359, end=2388}, {rule="RUF046", file="case.py", start=2390, end=2477}, {rule="RUF046", file="case.py", start=2479, end=2550}, {rule="RUF046", file="case.py", start=2552, end=2624}]
+
+[[cases]]
+name="ruf046-future-attribute-generic-later-import"
+comparison="full"
+files={"case.py"="from __future__ import annotations\ndef f[m]()->int(m.ceil(value)): ...\nimport math as m\n"}
+expected=[{rule="RUF046", file="case.py", start=47, end=65}, {rule="invalid-syntax", file="case.py", start=40, end=43}]
+
+[[cases]]
+name="ruf046-future-module-rebind-later"
+comparison="full"
+files={"case.py"="from __future__ import annotations\nx:int(len(items))\nlen=custom\n"}
+expected=[]

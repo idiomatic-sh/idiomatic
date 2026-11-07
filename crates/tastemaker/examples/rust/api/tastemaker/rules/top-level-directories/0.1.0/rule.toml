@@ -1,0 +1,34 @@
+description = "Every file is at one of the paths `allowed` names: no directory exists at the top level except the ones the structure declares."
+why = "A tree that anyone may add a top-level directory to stops being the tree the team agreed on. The entry lists the allowed paths as globs: each declared directory with everything beneath it, and each file at the top level by its name. A finding names the file; move it under a declared directory, or add its directory to the structure on purpose."
+
+query = '''
+param allowed: set<string>;
+let outside = select * from "filesystem.file" where not glob_any(path, $allowed);
+emit outside subject "path" key("path");
+'''
+
+[params.allowed]
+type = "set<string>"
+description = "The globs of the paths a file may have."
+
+[diagnostic]
+primary = "path"
+message = "`{path}` is outside the declared directory structure"
+help = "Move the file under a declared directory, or declare its directory in the entry's `allowed` on purpose."
+
+[given]
+include = ["**"]
+params = { allowed = ["tastemaker.toml", "Cargo.toml", "src/**", "tests/**"] }
+files."src/main.rs" = "fn main() {}\n"
+
+[[scenarios]]
+id = "file-in-an-undeclared-directory"
+scenario = "A file in a top-level directory the entry does not declare is reported."
+given.files."scripts/seed.rs" = "fn main() {}\n"
+then.findings = [{ path = "scripts/seed.rs" }]
+
+[[scenarios]]
+id = "files-in-declared-directories"
+scenario = "Files in the declared directories and at the top level are not reported."
+given.files."tests/main.rs" = "fn main() {}\n"
+given.files."Cargo.toml" = "[package]\nname = \"app\"\n"

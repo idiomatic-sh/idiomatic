@@ -1,0 +1,6 @@
+version = 1
+parents = ["03c3896695a8e27bc0de857557b2c84ae7217c3232d53672564406822d1c5b48"]
+
+suppressed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/outbound/manifest/adapters/toml/adapter_test.rs", level = "warning", fingerprint = "b38a6c348fd3539f", count = 1, message = "`crates/asymptote/crates/core/src/outbound/manifest/adapters/toml/adapter_test.rs` has 467 lines, over the file-length limit", since_rev = "861e39f970352abd14f8c8c24e8ce2a743d45af7", since = "2026-10-28" },
+]

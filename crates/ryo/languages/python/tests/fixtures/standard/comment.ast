@@ -1,0 +1,1 @@
+Module(body=[Assign(targets=[Name(id='value', ctx=Store())], value=Constant(value=1)), Assign(targets=[Name(id='text', ctx=Store())], value=Constant(value='# not a comment')), FunctionDef(name='run', args=arguments(), body=[Pass()])])

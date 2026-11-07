@@ -1,0 +1,7 @@
+root[1]
+└─0 blockquote[2]
+    ├─0 heading[1]
+    │   │ depth: 1
+    │   └─0 text "Foo"
+    └─1 paragraph[1]
+        └─0 text "bar\nbaz"

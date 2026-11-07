@@ -1,0 +1,17 @@
+let shapes = select id, shape, file, span from "expression-shape";
+let nodes = select id, kind, file, span from "semantic-syntax";
+let missing_nodes = antijoin(left=shapes, right=nodes, left-on=["id", "file", "span"], right-on=["id", "file", "span"]);
+let representatives = select id, file from shapes where id = shape;
+let missing_representatives = antijoin(left=shapes, right=representatives, left-on=["shape", "file"], right-on=["id", "file"]);
+let classified = select l.id as id, l.shape as shape, l.file as file, l.span as span, r.kind as kind from shapes as l join nodes as r on l.id = r.id and l.file = r.file;
+let different_kinds = select l.id as id, l.file as file, l.span as span from classified as l join nodes as r on l.shape = r.id and l.file = r.file where l.kind != r.kind;
+let multiple_classes = select l.id as id, l.file as file, l.span as span from shapes as l join shapes as r on l.id = r.id and l.file = r.file where l.shape != r.shape;
+let names = select id, file, span from nodes where kind = "name";
+let missing_names = antijoin(left=names, right=shapes, left-on=["id", "file"], right-on=["id", "file"]);
+let absent_nodes = select id, file, span from missing_nodes;
+let absent_representatives = select id, file, span from missing_representatives;
+let absent = union(left=absent_nodes, right=absent_representatives);
+let inconsistent = union(left=different_kinds, right=multiple_classes);
+let invalid = union(left=absent, right=inconsistent);
+let violations = union(left=invalid, right=missing_names);
+emit violations subject file key(id, span);

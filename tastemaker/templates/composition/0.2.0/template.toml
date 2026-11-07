@@ -1,0 +1,173 @@
+description = "An edge's wiring: `compose` takes the clients its connections opened and the parts its caller supplies, and builds the service the edge calls; it only constructs."
+why = "Composition is the edge's concern, one per command or function a user calls: its composition.rs takes the clients its connections.rs opened and the parts its caller supplies (the edge's `Parts`, declared in its composition.rs), chooses implementations, passes each shared client and typed partition binding to every adapter that uses it, and builds the use case, so no hex composes and no user wires the product. It only constructs, in a function named `compose` in every edge, so a test runs the real wiring over fake connections and substitute parts; opening a store is connections.rs's I/O."
+content = '''
+{% if present["connections"] | default(false) -%}
+//! The wiring of `{{ resource }} {{ part }}`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::{{ resource | pascal }}{{ part | pascal }}Connections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct {{ resource | pascal }}{{ part | pascal }}Parts;
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: {{ resource | pascal }}{{ part | pascal }}Connections, parts: {{ resource | pascal }}{{ part | pascal }}Parts) {
+    let {{ resource | pascal }}{{ part | pascal }}Connections = connections;
+    let {{ resource | pascal }}{{ part | pascal }}Parts = parts;
+}
+{%- else -%}
+//! The wiring of `{{ resource }} {{ part }}`: the edge takes the parts its caller supplies, chooses each
+//! implementation, and builds the service it calls. It only constructs: the verb opens no client, so it
+//! has no connections. Nothing here implements a port.
+
+/// The dependencies the caller supplies.
+pub(crate) struct {{ resource | pascal }}{{ part | pascal }}Parts;
+
+/// Wires the service from the supplied dependencies; it only constructs.
+pub(crate) fn compose(parts: {{ resource | pascal }}{{ part | pascal }}Parts) {
+    let {{ resource | pascal }}{{ part | pascal }}Parts = parts;
+}
+{%- endif %}
+'''
+
+[params]
+resource = { type = "identifier", from = "directory-name", description = "The resource, captured from the path of the edge's part; the directory's own name where the part has no resource." }
+part = { type = "identifier", from = "directory-name", description = "The edge's directory name: the command or the function." }
+
+[[scenarios]]
+id = 'example-command'
+scenario = 'The rendered template passes for a command.'
+given.file = 'src/commands/greeting/show/composition.rs'
+given.params = { resource = 'greeting', part = 'show' }
+given.files.'src/commands/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts;
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections = connections;
+    let GreetingShowParts = parts;
+}
+'''
+
+[[scenarios]]
+id = 'example-entry'
+scenario = 'The rendered template passes for an entry.'
+given.file = 'src/entries/greeting/show/composition.rs'
+given.params = { resource = 'greeting', part = 'show' }
+given.files.'src/entries/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts;
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections = connections;
+    let GreetingShowParts = parts;
+}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template, such as the parts the wiring takes and the service it builds.'
+given.file = 'src/commands/greeting/show/composition.rs'
+given.params = { resource = 'greeting', part = 'show' }
+given.files.'src/commands/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts<Storage> {
+    pub storage: Storage,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+
+use demo_greeting::greeting::use_cases::Greeting;
+
+/// The service `greeting show` calls, composed from the clients and the parts its caller supplies.
+pub(crate) fn compose<Storage>(connections: GreetingShowConnections, parts: GreetingShowParts<Storage>) -> Greeting<Storage> {
+    let _ = connections;
+    Greeting::new(parts.storage)
+}
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'src/commands/greeting/show/composition.rs'
+given.params = { resource = 'greeting', part = 'show' }
+then.findings = [
+  { rule = 'composition#count', path = 'tastemaker.toml' },
+]
+
+[[scenarios]]
+id = 'no-compose'
+scenario = 'The composition has no compose function.'
+given.file = 'src/commands/greeting/show/composition.rs'
+given.params = { resource = 'greeting', part = 'show' }
+given.files.'src/commands/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts;
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub fn wire(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections = connections;
+    let GreetingShowParts = parts;
+}
+'''
+then.findings = [
+  { rule = 'composition#template', path = 'src/commands/greeting/show/composition.rs' },
+]
+
+[[scenarios]]
+id = 'private-compose'
+scenario = 'The compose function is private.'
+given.file = 'src/commands/greeting/show/composition.rs'
+given.params = { resource = 'greeting', part = 'show' }
+given.files.'src/commands/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts;
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections = connections;
+    let GreetingShowParts = parts;
+}
+'''
+then.findings = [
+  { rule = 'composition#template', path = 'src/commands/greeting/show/composition.rs' },
+]

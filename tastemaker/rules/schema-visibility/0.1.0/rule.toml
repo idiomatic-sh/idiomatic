@@ -1,0 +1,193 @@
+description = "Every module-level declaration in a `schemas.rs` is at most `pub(super)`: private, `pub(self)`, `pub(super)`, `pub(in self)` or `pub(in super)`."
+why = "A schema is the wire representation of data its part does not control (a file on disk, a plugin's rows, a command's arguments), owned by that part, which converts it to a domain type and back; visible beyond the module that declares `mod schemas;`, it leaks the representation into the domain. Rustc's `private_interfaces` and `unnameable_types` do not see a `pub(crate)` escape. A refusal ending `SchemaError` may be `pub`: it is the error of a port's own type that validates the text it is made from, and its callers name it. The visibility is read as written: `pub(in crate::..)` is a finding even when it names the parent module, since `pub(super)` says the same."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let declarations = select * from tree-nodes where glob_any(kind, "{struct,enum,union,type-alias,fn,const,static,trait,trait-alias}");
+let declaration-parents = select l."id" as "id", l."kind" as "kind", r."parent" as "parent", l."file" as "file", l."span" as "span" from declarations as l join "syntax-child" as r on l."id" = r."child";
+let modules = select * from tree-nodes where glob_any(kind, "{source-file,item-list}");
+let module-declarations = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from declaration-parents as l join modules as r on l."parent" = r."id";
+let declaration-children = select r."child" as "child", l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from module-declarations as l join "syntax-child" as r on l."id" = r."parent";
+let visibilities = select * from tree-nodes where kind = "visibility";
+let visible = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."child" as "visibility" from declaration-children as l join visibilities as r on l."child" = r."id";
+let restrictions = select * from tree-nodes where kind = "visibility-inner";
+let restriction-parents = select l."child" as "restriction", l."parent" as "visibility" from "syntax-child" as l join restrictions as r on l."child" = r."id";
+let restriction-children = select r."child" as "node", l."visibility" as "visibility" from restriction-parents as l join "syntax-child" as r on l."restriction" = r."parent";
+let paths = select * from tree-nodes where kind = "path";
+let qualified-paths = select l."parent" as "id" from "syntax-child" as l join paths as r on l."child" = r."id";
+let single-paths = antijoin(left=paths, right=qualified-paths, left-on=["id"], right-on=["id"]);
+let restriction-paths = select l."node" as "node", l."visibility" as "visibility" from restriction-children as l join single-paths as r on l."node" = r."id";
+let path-segments = select r."child" as "node", l."visibility" as "visibility" from restriction-paths as l join "syntax-child" as r on l."node" = r."parent";
+let segment-names = select r."child" as "node", l."visibility" as "visibility" from path-segments as l join "syntax-child" as r on l."node" = r."parent";
+let name-tokens = select r."child" as "token", l."visibility" as "visibility" from segment-names as l join "syntax-child" as r on l."node" = r."parent";
+let local-keywords = select * from tree-tokens where glob_any(kind, "{self-kw,super-kw}");
+let local-visibilities = select l."visibility" as "visibility" from name-tokens as l join local-keywords as r on l."token" = r."id";
+let name-nodes = select * from tree-nodes where kind = "name";
+let decl-kids = select l."id" as "id", r."child" as "child" from visible as l join "syntax-child" as r on l."id" = r."parent";
+let decl-names = select l."id" as "id", r."id" as "name-node" from decl-kids as l join name-nodes as r on l."child" = r."id";
+let decl-tokens = select l."id" as "id", r."child" as "token" from decl-names as l join "syntax-child" as r on l."name-node" = r."parent";
+let error-tokens = select * from tree-tokens where kind = "ident";
+let error-names = select * from error-tokens where glob_any(text, "*SchemaError");
+let public-errors = select l."id" as "id" from decl-tokens as l join error-names as r on l."token" = r."id";
+let local = antijoin(left=visible, right=local-visibilities, left-on=["visibility"], right-on=["visibility"]);
+let escaping = antijoin(left=local, right=public-errors, left-on=["id"], right-on=["id"]);
+emit escaping subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "a schema is visible beyond its part"
+help = "Make the declaration `pub(super)` or private, and convert the schema to a domain type inside its part, so nothing outside the part names a schema. An ignore is not legitimate here: a schema visible beyond its part is the leak itself."
+
+[given]
+include = ['schemas.rs']
+
+[[scenarios]]
+id = 'crate-visible-struct'
+scenario = 'A crate-visible struct: it is reported.'
+given.files.'schemas.rs' = '''
+pub(crate) struct LeakSchema;
+'''
+then.findings = [
+  { path = 'schemas.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'public-struct'
+scenario = 'A public struct: it is reported.'
+given.files.'schemas.rs' = '''
+pub struct OpenSchema;
+'''
+then.findings = [
+  { path = 'schemas.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'struct-visible-ancestor-wider-than-adapter'
+scenario = 'A struct visible in an ancestor wider than the adapter.'
+given.files.'schemas.rs' = '''
+pub(in crate::names) struct WiderSchema;
+'''
+then.findings = [
+  { path = 'schemas.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'struct-restricted-written-path-even-one-naming'
+scenario = 'A struct restricted by a written path, even one naming the parent module.'
+given.files.'schemas.rs' = '''
+pub(in crate::names::adapters::memory) struct ExactSchema;
+'''
+then.findings = [
+  { path = 'schemas.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'crate-visible-enum'
+scenario = 'A crate-visible enum: it is reported.'
+given.files.'schemas.rs' = '''
+pub(crate) enum ShapeSchema {
+    Round,
+}
+'''
+then.findings = [
+  { path = 'schemas.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'crate-visible-union'
+scenario = 'A crate-visible union: it is reported.'
+given.files.'schemas.rs' = '''
+pub(crate) union BitsSchema {
+    whole: u8,
+}
+'''
+then.findings = [
+  { path = 'schemas.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'crate-visible-function'
+scenario = 'A crate-visible function: it is reported.'
+given.files.'schemas.rs' = '''
+pub(crate) fn convert() {}
+'''
+then.findings = [
+  { path = 'schemas.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'crate-visible-constant'
+scenario = 'A crate-visible constant: it is reported.'
+given.files.'schemas.rs' = '''
+pub(crate) const LIMIT: u8 = 1;
+'''
+then.findings = [
+  { path = 'schemas.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'crate-visible-static'
+scenario = 'A crate-visible static: it is reported.'
+given.files.'schemas.rs' = '''
+pub(crate) static NAME: &str = "memory";
+'''
+then.findings = [
+  { path = 'schemas.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'crate-visible-trait'
+scenario = 'A crate-visible trait: it is reported.'
+given.files.'schemas.rs' = '''
+pub(crate) trait Codec {}
+'''
+then.findings = [
+  { path = 'schemas.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'crate-visible-type-alias'
+scenario = 'A crate-visible type alias.'
+given.files.'schemas.rs' = '''
+pub(super) struct RecordSchema;
+pub(crate) type RecordAlias = RecordSchema;
+'''
+then.findings = [
+  { path = 'schemas.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'private-pub-self-pub-super-pub-super'
+scenario = 'Private, pub(self), pub(super) and pub(in super) declarations, and pub fields.'
+given.files.'schemas.rs' = '''
+pub(super) struct RecordSchema {
+    pub limit: Option<u32>,
+}
+struct PrivateSchema;
+pub(self) struct OwnSchema;
+pub(in super) struct ParentSchema;
+pub(super) enum KindSchema {
+    Plain,
+}
+pub(super) fn helper() {}
+pub(super) const LIMIT: u8 = 1;
+mod nested {
+    pub(super) struct InnerSchema;
+}
+impl RecordSchema {
+    pub fn limit(&self) -> Option<u32> {
+        self.limit
+    }
+}
+'''
+
+[[scenarios]]
+id = 'public-error'
+scenario = 'A refusal ending SchemaError may be public.'
+given.files.'schemas.rs' = '''
+pub enum NameSchemaError {
+    Empty,
+}
+'''

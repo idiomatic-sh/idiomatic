@@ -1,0 +1,20 @@
+description = "A service's `service.py`: its docstring, to be filled in with the service's operations."
+why = "Every `services/<service>/` holds a `service.py`, so a reader finds a service's operations in the same file. The template is the file a new service starts from; an existing file may hold more than the template."
+content = '''
+"""The operations of this service."""
+'''
+
+[given]
+file = "service.py"
+
+[[scenarios]]
+id = "file-holds-the-content"
+scenario = "A placed file that holds the template's content has no finding."
+given.files."service.py" = '''
+"""The operations of this service."""
+'''
+
+[[scenarios]]
+id = "file-is-missing"
+scenario = "A placed file that is missing is reported."
+then.findings = [{ rule = "#count", path = "tastemaker.toml" }]

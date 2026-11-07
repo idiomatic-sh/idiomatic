@@ -1,0 +1,6 @@
+Module(
+  body=[
+    Expr(
+      value=Name(id='ExceptionGroup')),
+    Expr(
+      value=Name(id='dynamic'))])

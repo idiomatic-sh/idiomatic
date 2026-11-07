@@ -1,0 +1,10 @@
+version = 1
+parents = ["5aeefc7da0f2e68aea6c533d540ec58374d9ee65c75203c4c2ed5171dc3ba18f"]
+
+suppressed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/adapter/stateless-adapters", path = "crates/core/src/outbound/image/adapters/file/adapter.rs", level = "error", fingerprint = "cca31bb1a5e4bad7", count = 1, message = "this adapter holds process-global state", since_rev = "8b2a16b6700979c948797b4cfd79926a3cbca620", since = "2026-10-27" },
+]
+
+suppressed-removed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/adapter/stateless-adapters", path = "crates/core/src/outbound/image/adapters/file/adapter.rs", level = "error", fingerprint = "99b74e44839533ee" },
+]

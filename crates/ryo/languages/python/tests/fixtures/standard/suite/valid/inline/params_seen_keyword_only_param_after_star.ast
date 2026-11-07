@@ -1,0 +1,1 @@
+Module(body=[FunctionDef(name='foo', args=arguments(kwonlyargs=[arg(arg='a')], kw_defaults=[None], kwarg=arg(arg='kwargs')), body=[Expr(value=Constant(value=Ellipsis))]), FunctionDef(name='foo', args=arguments(kwonlyargs=[arg(arg='a')], kw_defaults=[Constant(value=10)], kwarg=arg(arg='kwargs')), body=[Expr(value=Constant(value=Ellipsis))])])

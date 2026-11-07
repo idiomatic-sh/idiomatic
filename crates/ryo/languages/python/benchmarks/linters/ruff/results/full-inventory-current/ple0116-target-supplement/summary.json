@@ -1,0 +1,52 @@
+{
+  "schema": "benchmark-inventory/v1",
+  "provider": "ruff",
+  "run_state": "complete",
+  "identity": {
+    "collector_sha256": "813f50ad3cf909b23a48da6801a50d756c349ab47129e7dd07815c6e277dd004",
+    "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+    "worker_sha256": "92b623314c19b12e0678f77b2248287a329e41254a1340b9ec1245b04641390f"
+  },
+  "counts": {
+    "FAIL": 0,
+    "PASS": 1
+  },
+  "rules": [
+    {
+      "rule_id": "PLE0116",
+      "status": "PASS",
+      "reason": null,
+      "instance": {
+        "case_count": 12,
+        "cases_file": "rules/PLE0116/cases.toml",
+        "cases_sha256": "db28cecfd461a9cd42780f183f4b29987fa3f4cfdd9aaa371fe2e92d26fa3b18",
+        "effective_settings": {
+          "defaults": [
+            "PLE0116"
+          ],
+          "flags": {},
+          "parser_configuration": "python-target=3.7",
+          "project_context_mode": "isolated",
+          "rule_applicability": {
+            "PLE0116": "accepted-syntax"
+          }
+        },
+        "module_sha256": {
+          "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+          "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
+        },
+        "parser_configuration": "python-target=3.7",
+        "profile_sha256": "4504b7868686de606c504862fb3ba8457842bdeaae4fc727cbacb2d644f900f7",
+        "query_file": "rules/PLE0116/query.ryoql",
+        "query_sha256": "c93c57b59ffa688b95cc46d53cb1b753b0bcae4bb4ce779caf5aa67caa594ff5",
+        "settings_scope": "dedicated singleton profile (existing parser default contract)",
+        "settings_source": "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/PLE0116/benchmark.toml",
+        "settings_source_sha256": "8c03c6883b0c0e47f84dcca86cd92b9f8b95891a1a86ac51385e5149b3bcfbb3"
+      },
+      "case_results_sha256": "59572557a9f74df56b242570db64a8070b863c3b029b9952841cd1f07872fd53",
+      "case_count": 12,
+      "raw_exact": 12,
+      "documented_discrepancies": 0
+    }
+  ]
+}

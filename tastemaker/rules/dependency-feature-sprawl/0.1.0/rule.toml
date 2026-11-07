@@ -1,0 +1,85 @@
+description = "A Cargo dependency that enables more than `max-features` features, or whose version requirement is `*`, is reported at its entry."
+why = "Every enabled feature is code compiled into each build and a surface to audit, so a long `features` list is worth a second look; a `*` requirement accepts any release, breaking ones included (cargo's own `publish` refuses it). Read from the manifest's TOML: an entry of a `dependencies`, `dev-dependencies` or `build-dependencies` table at any depth (the workspace's, a target's), written inline (`foo = {.. }`) or as a string (`foo = \"*\"`). Not seen: a dependency written as its own `[dependencies.foo]` table header, and features a `workspace = true` dependency inherits."
+
+query = '''
+param max-features: integer;
+let dependency-keys = select * from "entry" where glob_any(key, "{dependencies,dev-dependencies,build-dependencies}");
+let dependency-tables = select r."id" as "table" from dependency-keys as l join "mapping" as r on l."occurrence" = r."owner";
+let dependencies = select r."decoded" as "decoded", r."occurrence" as "dependency", r."key" as "name", r."file" as "file", r."span" as "span" from dependency-tables as l join "entry" as r on l."table" = r."owner";
+let dependency-bodies = select r."id" as "body", l."dependency" as "dependency" from dependencies as l join "mapping" as r on l."dependency" = r."owner";
+let body-entries = select r."decoded" as "decoded", l."dependency" as "dependency", r."occurrence" as "features", r."key" as "key" from dependency-bodies as l join "entry" as r on l."body" = r."owner";
+let feature-lists = select * from body-entries where key = "features";
+let features = select l."dependency" as "dependency", r."decoded" as "feature" from feature-lists as l join "sequence-element" as r on l."features" = r."owner";
+let feature-counts = group-count(from=features, keys=["dependency"], count="features", distinct="feature");
+let sprawling = select * from feature-counts where features > $max-features;
+let sprawling-ids = project(from=sprawling, columns=["dependency"]);
+let star-strings = select * from dependencies where decoded = "*";
+let star-string-ids = project(from=star-strings, columns=["dependency"]);
+let versions = select * from body-entries where key = "version";
+let star-versions = select * from versions where decoded = "*";
+let star-version-ids = project(from=star-versions, columns=["dependency"]);
+let stars = union(left=star-string-ids, right=star-version-ids);
+let flagged = union(left=sprawling-ids, right=stars);
+let reported = select r."name" as "name", r."file" as "file", r."span" as "span" from flagged as l join dependencies as r on l."dependency" = r."dependency";
+emit reported subject "file" key("span");
+'''
+
+[params.max-features]
+type = "integer"
+description = "The most features one dependency may enable."
+
+[diagnostic]
+primary = "span"
+message = "dependency `{name}` enables too many features or accepts any version"
+help = "Enable only the features the crate uses, and require a version range."
+
+[given]
+include = ['**']
+params = { max-features = 2 }
+files.'src/lib.rs' = ''
+
+[[scenarios]]
+id = 'dependency-enables-three-features'
+scenario = 'A dependency enables three features.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde = { version = "1", features = ["derive", "rc", "std"] }
+'''
+then.findings = [
+  { path = 'Cargo.toml', line = 7 },
+]
+
+[[scenarios]]
+id = 'dev-dependency-accepts-any-version'
+scenario = 'A dev-dependency accepts any version.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[dev-dependencies]
+anyhow = "*"
+'''
+then.findings = [
+  { path = 'Cargo.toml', line = 7 },
+]
+
+[[scenarios]]
+id = 'dependencies-one-feature-version-range'
+scenario = 'Dependencies with one feature and a version range.'
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+anyhow = "1"
+'''

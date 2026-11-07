@@ -1,0 +1,73 @@
+description = "What one adapter promises beside the port's contract, proven without running the tool it wraps: it conforms to the port, and it asks its tool for the right thing."
+why = "Proves each adapter fast and everywhere, and holds it to its port through the step's one contract."
+content = '''
+"""What the {{ adapter }} adapter of `{{ step }}` promises beside the port's contract, proven
+without running the tool it wraps."""
+
+from __future__ import annotations
+
+from ci.{{ job }}.{{ step }}.adapters.{{ adapter }}.adapter import {{ adapter | pascal }}{{ step | pascal }}
+from ci.{{ job }}.{{ step }}.interface_test import conforms
+
+
+def test_the_{{ adapter }}_adapter_implements_the_port() -> None:
+    """It is a `{{ step }}` adapter."""
+    conforms({{ adapter | pascal }}{{ step | pascal }})
+'''
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'ci/{job}/{step}/adapters/{adapter}/adapter_test.py'
+given.count = { min = 1 }
+given.files.'ci/demo/run/adapters/local/adapter_test.py' = '''
+"""What the local adapter of `run` promises beside the port's contract, proven
+without running the tool it wraps."""
+
+from __future__ import annotations
+
+from ci.demo.run.adapters.local.adapter import LocalRun
+from ci.demo.run.interface_test import conforms
+
+
+def test_the_local_adapter_implements_the_port() -> None:
+    """It is a `run` adapter."""
+    conforms(LocalRun)
+'''
+
+[[scenarios]]
+id = 'one-too-many'
+scenario = "A second one where the entry's count allows one per group."
+given.file = 'ci/{job}/{step}/adapters/{adapter}/adapter_test.py'
+given.count = { min = 1, max = 1 }
+given.files.'ci/demo/run/adapters/local/adapter_test.py' = '''
+"""What the local adapter of `run` promises beside the port's contract, proven
+without running the tool it wraps."""
+
+from __future__ import annotations
+
+from ci.demo.run.adapters.local.adapter import LocalRun
+from ci.demo.run.interface_test import conforms
+
+
+def test_the_local_adapter_implements_the_port() -> None:
+    """It is a `run` adapter."""
+    conforms(LocalRun)
+'''
+given.files.'ci/demo/run/adapters/remote/adapter_test.py' = '''
+"""What the remote adapter of `run` promises beside the port's contract, proven
+without running the tool it wraps."""
+
+from __future__ import annotations
+
+from ci.demo.run.adapters.remote.adapter import RemoteRun
+from ci.demo.run.interface_test import conforms
+
+
+def test_the_remote_adapter_implements_the_port() -> None:
+    """It is a `run` adapter."""
+    conforms(RemoteRun)
+'''
+then.findings = [
+  { rule = 'step-adapter-test#count', path = 'ci/demo/run/adapters' },
+]

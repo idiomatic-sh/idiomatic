@@ -1,0 +1,9 @@
+let placed-files = select l."path" as "file", l."entry" as "entry", l."package" as "package", l."template" as "template", l."version" as "version", l."spec" as "spec" from "tastemaker.placed" as l;
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let names = select * from tree-tokens where text = "serde_json";
+let idents = select * from names where kind = "ident";
+let json = project(from=idents, columns=["file", "span", "text"]);
+let cli = select * from placed-files where spec = "cli";
+let outputs = select * from cli where template = "output";
+let internal = antijoin(left=json, right=outputs, left-on=["file"], right-on=["file"]);
+emit internal subject "file" key("span");

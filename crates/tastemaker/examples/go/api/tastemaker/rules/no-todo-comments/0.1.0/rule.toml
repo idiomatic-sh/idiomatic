@@ -1,0 +1,26 @@
+description = "No comment holds an open-work marker: the upper-case to-do, fix-me or triple-X words."
+why = "An open-work marker is work the code admits it still owes, and nobody is tracking it there. The marker is matched in upper case anywhere in a comment. Not seen: a marker inside a string literal."
+
+query = '''
+let found = select * from "comment" where glob_any(text, "{*TODO*,*FIXME*,*XXX*}");
+emit found subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this comment marks work still owed"
+help = "Do the work, or file it where work is tracked and remove the marker."
+
+[given]
+include = ["**"]
+
+[[scenarios]]
+id = "todo-comment"
+scenario = "A comment with a TODO is reported."
+given.files."src/main.go" = "// TODO: read the port\npackage main\n"
+then.findings = [{ path = "src/main.go", line = 1 }]
+
+[[scenarios]]
+id = "plain-comment"
+scenario = "A comment without a marker is not reported."
+given.files."src/main.go" = "// the port\npackage main\n"

@@ -1,0 +1,46 @@
+description = "One value's module file: its `value`, and its `value_test` under #[cfg(test)]."
+why = "The module-declaration file is the Rust rule the value's directory needs: it declares `value.rs`, which holds the value and its hand-written impls, and its test, which a value with behaviour always has."
+content = '''
+//! One value with behaviour: its declaration and impls, and its proof.
+
+pub mod value;
+
+#[cfg(test)]
+mod value_test;
+'''
+
+[given]
+file = 'src/greeting/types/{value}.rs'
+
+[[scenarios]]
+id = 'example'
+scenario = 'Example: nothing is reported.'
+given.files.'src/greeting/types/greeting.rs' = '''
+//! The `Greeting` value.
+
+pub mod value;
+
+#[cfg(test)]
+mod value_test;
+'''
+
+[[scenarios]]
+id = 'missing-value-module'
+scenario = 'Missing value module: it is reported.'
+given.file = 'src/greeting/types/greeting.rs'
+then.findings = [
+  { rule = 'value-module#count', path = 'tastemaker.toml' },
+]
+
+[[scenarios]]
+id = 'no-value'
+scenario = 'The module file does not declare its value.'
+given.files.'src/greeting/types/greeting.rs' = '''
+//! The `Greeting` value.
+
+mod implementation;
+'''
+then.findings = [
+  { rule = 'value-module#template', path = 'src/greeting/types/greeting.rs' },
+  { rule = 'value-module#template', path = 'src/greeting/types/greeting.rs' },
+]

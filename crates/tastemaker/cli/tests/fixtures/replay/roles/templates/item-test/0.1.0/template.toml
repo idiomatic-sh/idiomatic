@@ -1,0 +1,15 @@
+description = "What the file is, on one line."
+why         = "What the file is for, and what someone needs before placing or filling it."
+content     = ''
+
+[[scenarios]]
+id       = "file-holds-the-content"
+scenario = "A placed file that holds the template's content has no finding."
+given.file = "example.rs"
+given.files."example.rs" = ""
+
+[[scenarios]]
+id       = "file-is-missing"
+scenario = "A placed file that is missing is reported."
+given.file = "example.rs"
+then.findings = [{ rule = "#count", path = "tastemaker.toml" }]

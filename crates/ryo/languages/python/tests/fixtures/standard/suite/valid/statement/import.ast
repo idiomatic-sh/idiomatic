@@ -1,0 +1,1 @@
+Module(body=[Import(names=[alias(name='a')], is_lazy=0), Import(names=[alias(name='a.b.c')], is_lazy=0), Import(names=[alias(name='a.b.c', asname='d')], is_lazy=0), Import(names=[alias(name='a'), alias(name='b'), alias(name='c')], is_lazy=0), Import(names=[alias(name='foo.bar', asname='a'), alias(name='a.b.c.d', asname='abcd')], is_lazy=0)])

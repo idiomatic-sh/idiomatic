@@ -1,0 +1,671 @@
+description = "One collection."
+why = "A collection is N items sharing one role and one shape, the shape stated once: `interface.rs` declares one trait `<Collection>Item`, `fixtures/contract.rs` the cases every item runs, `types.rs` and `errors.rs` what the items share. Each item is placed by the item spec, with its module file beside it. A collection whose items implement a trait that another crate owns names it in `item-trait` and has no `interface.rs`: two traits for one shape would let the items drift. One spec wherever a collection appears: a core, an adapter hex, a concept or an adapter."
+specs = [
+  { spec = "idiomatic.arch/item@0.1.0", include = ["{item}"], exclude = ["fixtures"], params = { item-trait = { param = "item-trait" } }, description = "The items of the collection, one directory each." },
+]
+templates = [
+  { template = "collection-interface", file = "interface.rs", count = { min = 0 }, imports = { default = "deny", allow = ["collection-types", "collection-errors", "*::domain::*::types", "*::domain::*::errors", "*::outbound::*::types", "*::outbound::*::errors", "std::*", "core::*", "alloc::*"] }, description = "The one trait every item of the collection implements, named `<Collection>Item`: the shape stated once, not a port to mock. Present exactly when its items import it (the shared rule `interface-present-unless-item-trait`, placed over the workspace); a collection whose items implement a trait of another crate (its pair in `item-trait`) has none." },
+  { template = "collection-fixtures", file = "fixtures.rs", count = { min = 0 }, description = "The collection's test support module file, declaring its contract, present exactly when the collection has a contract (`module-declares`)." },
+  { template = "collection-contract", file = "fixtures/contract.rs", count = { min = 0 }, params = { item-trait = { param = "item-trait" } }, description = "The cases every item of the collection shares, when it has any: each item runs them (`item-contract`)." },
+  { template = "collection-types", file = "types.rs", count = { min = 0 }, imports = { default = "deny", allow = ["collection-errors", "*::inbound::use_cases::*::types", "*::inbound::use_cases::*::errors", "*::domain::*::types", "*::domain::*::errors", "*::outbound::*::types", "*::outbound::*::errors", "std::*", "core::*", "alloc::*", "serde::*"] }, description = "The plain types the items of the collection share, when they share any." },
+  { template = "collection-errors", file = "errors.rs", count = { min = 0 }, description = "The error the items of the collection produce, named `<Collection>Error`, when they have one." },
+  { template = "item-module", file = "{item}.rs", params = { item-trait = { param = "item-trait" } }, description = "One item's module file in a collection of the part, declaring its code and its test; the item itself is a part of kind item." },
+]
+rules = [
+  { rule = "idiomatic.arch/orphan-rust-files@0.1.0", include = ["**"], exclude = ["**/tests/fixtures/**", "**/tests/ui/**"], description = "Every Rust file of the collection is a module the crate reaches: a file its module files do not declare is never compiled." },
+  { rule = "idiomatic.arch/kind-suffix@0.1.0", include = ["interface.rs"], params = { kind = "collection", exposed = [] }, description = "A use case's or a port's interface.rs declares exactly one pub trait, named <Dir>UseCase or <Dir>Port." },
+  { rule = "idiomatic.arch/interface-shape@0.1.0", include = ["interface.rs"], description = "A use case's or a port's interface.rs declares exactly one trait, no free function, and default bodies that call only the trait itself." },
+  { rule = "idiomatic.arch/error-name@0.1.0", include = ["errors.rs"], description = "A part's errors.rs, and the errors.rs of a collection below it, declares exactly one enum named <Name>Error and no other type." },
+  { rule = "idiomatic.arch/no-inherent-impls@0.1.0", include = ["types.rs"], description = "A part's types.rs is its data and its trait impls: no `impl Type { }` block." },
+  { rule = "idiomatic.arch/hollow-types@0.1.0", include = ["types.rs"], description = "A part's types.rs declares at least one type." },
+  { rule = "idiomatic.arch/public-fields@0.1.0", include = ["types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data." },
+  { rule = "idiomatic.arch/no-domain-aliases@0.1.0", include = ["types.rs", "errors.rs"], description = "A part's types and errors are nominal types, never type aliases." },
+  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["*_test.rs"], description = "Every test of a part is a runner named for a case word over a `CASES` table." },
+  { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["*_test.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of." },
+  { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["*_test.rs"], description = "A row of a part's table expects a value or an error variant, never any success." },
+  { rule = "idiomatic.arch/unit-cases@0.1.0", include = ["*.rs"], description = "A part's test has a `succeeds` row, and a `refuses` row where its errors.rs has a variant of its own." },
+  { rule = "idiomatic.arch/proof-beside@0.1.0", include = ["*.rs"], description = "A schemas test exists exactly beside the schemas it proves: schemas_test.rs beside schemas.rs." },
+  { rule = "idiomatic.arch/hollow-artifacts@0.1.0", include = ["*.rs"], description = "No file of a part is only comments and imports, and no type in it is an empty placeholder." },
+  { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["*.rs"], exclude = ["schemas.rs", "*_test.rs"], description = "A `TryFrom`, an `impl FromStr` or a fallible constructor is written only in a schemas.rs." },
+  { rule = "idiomatic.arch/no-runtime-fixtures@0.1.0", include = ["*.rs"], exclude = ["*_test.rs", "fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module." },
+  { rule = "idiomatic.arch/factory-calls@0.1.0", include = ["*.rs"], exclude = ["composition.rs", "fixtures.rs", "*_test.rs"], description = "Only an edge's composition (and the part's fixtures and tests) names a `factory` module: only an edge builds an adapter." },
+]
+
+[params]
+item-trait = { type = "list<string>", description = "The `<collection>=<trait path>` pairs of the crate (`relations=ryo::languages::ReadItem`): a collection with a pair has items that implement that trait of another crate and no interface.rs; a collection with none declares its own `<Collection>Item` in interface.rs. `[]` when no collection names one. Required, so each product states it." }
+
+[given]
+at = 'src/domain/{concept}/collections/{collection}'
+params = { item-trait = [] }
+files.'Cargo.toml' = '''
+[package]
+name = "demo-greeting"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+thiserror = "2"
+'''
+files.'src/cases.rs' = '''
+//! The crate's test support: the rows every `*_test.rs` states its cases in, and the one `run` that checks them.
+
+use std::fmt::Debug;
+
+/// The case word of a row: the four a part's cases are named with.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Word {
+    /// The operation completes and answers the expected value.
+    Succeeds,
+    /// The input is refused with the expected error variant.
+    Refuses,
+    /// A dependency fails and its failure becomes the expected error variant.
+    Fails,
+    /// A weaker implementation is supplied and the expected error variant rejects it.
+    Rejects,
+}
+
+/// What a row expects: a value or a full error.
+#[derive(Debug)]
+pub enum Expect<V, E> {
+    /// The value the subject answers, compared by equality.
+    Value(V),
+    /// The error the subject fails with, compared in full by equality.
+    Error(E),
+}
+
+/// What a case shows, in the product's nouns.
+#[derive(Clone, Copy, Debug)]
+pub struct CaseName(pub &'static str);
+
+/// One row of a part's cases.
+#[derive(Debug)]
+pub struct Case<I, V, E> {
+    /// What the case shows.
+    pub name: CaseName,
+    /// The row's one case word.
+    pub word: Word,
+    /// Builds the row's input from the fixtures or a constructor.
+    pub input: fn() -> I,
+    /// The expected value or error.
+    pub expect: Expect<V, E>,
+}
+
+/// Runs every row of `cases` whose word is `word` through `subject` and asserts its expectation.
+///
+/// A `Succeeds` row expects a `Value` and every other word expects an `Error`; a row that names
+/// the other kind is a failure of the table, reported with the row's name. An `Error` is compared by value, in full. A word no row has
+/// is a failure too: a runner with nothing to run proves nothing.
+///
+/// # Panics
+///
+/// When a row's expectation is not met, or its kind does not match its word.
+pub fn run<I, V: PartialEq + Debug, E: PartialEq + Debug>(
+    cases: &[Case<I, V, E>],
+    word: Word,
+    subject: impl Fn(I) -> Result<V, E>,
+) {
+    assert!(
+        cases.iter().any(|case| case.word == word),
+        "no row has the case word {word:?}: a runner with nothing to run proves nothing"
+    );
+    for case in cases.iter().filter(|case| case.word == word) {
+        let kind_matches = matches!(
+            (case.word, &case.expect),
+            (Word::Succeeds, Expect::Value(_))
+                | (Word::Refuses | Word::Fails | Word::Rejects, Expect::Error(_))
+        );
+        assert!(
+            kind_matches,
+            "{}: a {:?} row expects the wrong kind",
+            case.name.0, case.word
+        );
+        let answer = subject((case.input)());
+        let met = match (&case.expect, &answer) {
+            (Expect::Value(expected), Ok(actual)) => expected == actual,
+            (Expect::Error(expected), Err(actual)) => expected == actual,
+            _ => false,
+        };
+        assert!(
+            met,
+            "{}: expected {:?}, answered {:?}",
+            case.name.0, case.expect, answer
+        );
+    }
+}
+'''
+files.'src/domain.rs' = '''
+//! The greeting domain's concepts, one module each.
+
+pub mod polite;
+'''
+files.'src/domain/polite.rs' = '''
+//! The `polite` concept.
+
+pub mod service;
+
+#[cfg(test)]
+mod service_test;
+
+pub mod collections;
+'''
+files.'src/domain/polite/collections.rs' = '''
+//! The collections here: each a repeated domain concept, one directory per item.
+
+pub(crate) mod shapes;
+'''
+files.'src/domain/polite/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+
+
+pub(crate) mod circle;
+#[cfg(any(test, feature = "fixtures"))]
+pub(crate) mod fixtures;
+'''
+files.'src/domain/polite/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+files.'src/domain/polite/collections/shapes/circle/item.rs' = '''
+//! The `circle` item of the `shapes` collection: one implementation of the collection's shape.
+
+use super::super::interface::ShapesItem;
+
+/// `circle`, one item of the `shapes` collection.
+pub struct CircleItem {
+    pub radius: u32,
+}
+
+impl ShapesItem for CircleItem {
+    fn area(&self) -> u32 {
+        3 * self.radius * self.radius
+    }
+}
+'''
+files.'src/domain/polite/collections/shapes/circle/item_test.rs' = '''
+//! The `circle` item's cases, and the collection's shared cases when it has any.
+
+use super::super::interface::ShapesItem;
+use super::item::CircleItem;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = CircleItem;
+type Value = u32;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "measures a circle of radius two",
+        word: Word::Succeeds,
+        input: || CircleItem { radius: 2 },
+        expect: Expect::Value(12),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject(circle: Input) -> Result<Value, Failure> {
+    Ok(circle.area())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+files.'src/domain/polite/service.rs' = '''
+//! The `polite` service: free functions named by verb over the domain's types, with no IO and no ports.
+
+/// Whether the phrase opens politely.
+#[must_use]
+pub fn is_polite(phrase: &str) -> bool {
+    phrase.starts_with("good day")
+}
+'''
+files.'src/domain/polite/service_test.rs' = '''
+//! What the `polite` service promises, on values alone.
+
+use super::service::is_polite;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = bool;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts a phrase that opens politely",
+        word: Word::Succeeds,
+        input: || "good day, Ada",
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: "recognizes a phrase that does not",
+        word: Word::Succeeds,
+        input: || "hey Ada",
+        expect: Expect::Value(false),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject(phrase: Input) -> Result<Value, Failure> {
+    Ok(is_polite(phrase))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+files.'src/lib.rs' = '''
+pub mod domain;
+
+#[cfg(any(test, feature = "fixtures"))]
+pub mod cases;
+'''
+
+[[scenarios]]
+id = 'collection-contract-private-check'
+scenario = "A collection's shared cases whose `check` is not `pub`."
+given.files.'src/domain/polite/collections/shapes/fixtures.rs' = '''
+pub(crate) mod contract;
+'''
+given.files.'src/domain/polite/collections/shapes/fixtures/contract.rs' = '''
+//! What every item of the `shapes` collection must pass.
+
+use super::super::interface::ShapesItem;
+use crate::cases::Case;
+
+/// What a shared row is given.
+type Input = ();
+
+/// What a shared row expects when it succeeds.
+type Value = ();
+
+/// What a shared row expects when it is refused.
+type Failure = ();
+
+/// The shared rows: a name, one case word, an input and the expected value or error variant. Every item runs them.
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Runs the shared rows against one item.
+fn check(item: &impl ShapesItem) {
+    let _ = item;
+    todo!("run the shared rows against the item")
+}
+'''
+given.files.'src/domain/polite/collections/shapes/interface.rs' = '''
+//! The shape every item of the `shapes` collection implements.
+
+/// What every item of the `shapes` collection offers.
+pub(crate) trait ShapesItem {
+    /// The area the item covers.
+    fn area(&self) -> u32;
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/collection/collection-contract#template', path = 'src/domain/polite/collections/shapes/fixtures/contract.rs' },
+]
+
+[[scenarios]]
+id = 'collection-errors-misnamed'
+scenario = "A collection's errors.rs enum that is not `<Collection>Error`."
+given.files.'src/domain/polite/collections/shapes/errors.rs' = '''
+//! The failures of the items of the `shapes` collection.
+
+/// Why an item of the `shapes` collection failed.
+#[derive(Debug, thiserror::Error)]
+pub enum ShapesFailure {}
+'''
+given.files.'src/domain/polite/collections/shapes/fixtures.rs' = '''
+pub(crate) mod contract;
+'''
+given.files.'src/domain/polite/collections/shapes/fixtures/contract.rs' = '''
+//! What every item of the `shapes` collection must pass.
+
+use super::super::interface::ShapesItem;
+use crate::cases::Case;
+
+/// What a shared row is given.
+type Input = ();
+
+/// What a shared row expects when it succeeds.
+type Value = ();
+
+/// What a shared row expects when it is refused.
+type Failure = ();
+
+/// The shared rows: a name, one case word, an input and the expected value or error variant. Every item runs them.
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Runs the shared rows against one item.
+pub(crate) fn check(item: &impl ShapesItem) {
+    let _ = item;
+    todo!("run the shared rows against the item")
+}
+'''
+given.files.'src/domain/polite/collections/shapes/interface.rs' = '''
+//! The shape every item of the `shapes` collection implements.
+
+/// What every item of the `shapes` collection offers.
+pub(crate) trait ShapesItem {
+    /// The area the item covers.
+    fn area(&self) -> u32;
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/collection/collection-errors#template', path = 'src/domain/polite/collections/shapes/errors.rs' },
+  { rule = 'idiomatic.arch/error-name', path = 'src/domain/polite/collections/shapes/errors.rs', line = 4 },
+  { rule = 'idiomatic.arch/orphan-rust-files', path = 'src/domain/polite/collections/shapes/errors.rs' },
+]
+
+[[scenarios]]
+id = 'collection-interface-retired-suffix'
+scenario = "A collection's trait named `<Collection>Interface` instead of `<Collection>Item`."
+given.files.'src/domain/polite/collections/shapes/fixtures.rs' = '''
+pub(crate) mod contract;
+'''
+given.files.'src/domain/polite/collections/shapes/fixtures/contract.rs' = '''
+//! What every item of the `shapes` collection must pass.
+
+use super::super::interface::ShapesItem;
+use crate::cases::Case;
+
+/// What a shared row is given.
+type Input = ();
+
+/// What a shared row expects when it succeeds.
+type Value = ();
+
+/// What a shared row expects when it is refused.
+type Failure = ();
+
+/// The shared rows: a name, one case word, an input and the expected value or error variant. Every item runs them.
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Runs the shared rows against one item.
+pub(crate) fn check(item: &impl ShapesItem) {
+    let _ = item;
+    todo!("run the shared rows against the item")
+}
+'''
+given.files.'src/domain/polite/collections/shapes/interface.rs' = '''
+//! The shape every item of the `shapes` collection implements.
+
+/// What every item of the `shapes` collection offers.
+pub trait ShapesInterface {
+    /// The area the item covers.
+    fn area(&self) -> u32;
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/collection/collection-interface#template', path = 'src/domain/polite/collections/shapes/interface.rs' },
+  { rule = 'idiomatic.arch/kind-suffix', path = 'src/domain/polite/collections/shapes/interface.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'complete-collection'
+scenario = 'Complete collection: nothing is reported.'
+given.files.'src/domain/polite/collections/shapes/fixtures.rs' = '''
+pub(crate) mod contract;
+'''
+given.files.'src/domain/polite/collections/shapes/fixtures/contract.rs' = '''
+//! What every item of the `shapes` collection must pass.
+
+use super::super::interface::ShapesItem;
+use crate::cases::Case;
+
+/// What a shared row is given.
+type Input = ();
+
+/// What a shared row expects when it succeeds.
+type Value = ();
+
+/// What a shared row expects when it is refused.
+type Failure = ();
+
+/// The shared rows: a name, one case word, an input and the expected value or error variant. Every item runs them.
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Runs the shared rows against one item.
+pub(crate) fn check(item: &impl ShapesItem) {
+    let _ = item;
+    todo!("run the shared rows against the item")
+}
+'''
+given.files.'src/domain/polite/collections/shapes/interface.rs' = '''
+//! The shape every item of the `shapes` collection implements.
+
+/// What every item of the `shapes` collection offers.
+pub(crate) trait ShapesItem {
+    /// The area the item covers.
+    fn area(&self) -> u32;
+}
+'''
+
+[[scenarios]]
+id = 'item-module-without-item'
+scenario = "An item's module file that does not declare its item."
+given.files.'src/domain/polite/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/domain/polite/collections/shapes/fixtures.rs' = '''
+pub(crate) mod contract;
+'''
+given.files.'src/domain/polite/collections/shapes/fixtures/contract.rs' = '''
+//! What every item of the `shapes` collection must pass.
+
+use super::super::interface::ShapesItem;
+use crate::cases::Case;
+
+/// What a shared row is given.
+type Input = ();
+
+/// What a shared row expects when it succeeds.
+type Value = ();
+
+/// What a shared row expects when it is refused.
+type Failure = ();
+
+/// The shared rows: a name, one case word, an input and the expected value or error variant. Every item runs them.
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Runs the shared rows against one item.
+pub(crate) fn check(item: &impl ShapesItem) {
+    let _ = item;
+    todo!("run the shared rows against the item")
+}
+'''
+given.files.'src/domain/polite/collections/shapes/interface.rs' = '''
+//! The shape every item of the `shapes` collection implements.
+
+/// What every item of the `shapes` collection offers.
+pub(crate) trait ShapesItem {
+    /// The area the item covers.
+    fn area(&self) -> u32;
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/orphan-rust-files', path = 'src/domain/polite/collections/shapes/circle/item.rs' },
+  { rule = 'idiomatic.arch/collection/item-module#template', path = 'src/domain/polite/collections/shapes/circle.rs' },
+]
+
+[[scenarios]]
+id = 'item-trait-named'
+scenario = 'A collection whose items implement a named trait and which has no interface.rs.'
+given.params = { item-trait = ['shapes=ryo::languages::ReadItem'] }
+given.files.'src/domain/polite/collections/shapes.rs' = '''
+//! One collection: the interface every item implements (when it declares its own), its items in order, and the types, errors and contract it has.
+
+pub(crate) mod circle;
+'''
+given.files.'src/domain/polite/collections/shapes/circle/item.rs' = '''
+//! The `circle` item of the `shapes` collection: one implementation of the collection's shape.
+
+use ryo::languages;
+
+pub(crate) struct CircleItem;
+
+ryo::reads! {
+    CircleItem => languages::Circle |tree, at, _symbols| {
+        kinds: every,
+        row { }
+    }
+}
+'''
+given.files.'src/domain/polite/collections/shapes/circle/item_test.rs' = '''
+//! The `circle` item's cases, and the collection's shared cases when it has any.
+
+use super::item::CircleItem;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = CircleItem;
+type Value = u32;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "keeps the radius it is given",
+        word: Word::Succeeds,
+        input: || CircleItem { radius: 2 },
+        expect: Expect::Value(2),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject(circle: Input) -> Result<Value, Failure> {
+    Ok(circle.radius)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+
+[[scenarios]]
+id = 'item-trait-not-implemented'
+scenario = 'An item that does not implement the trait its collection names.'
+given.params = { item-trait = ['shapes=ryo::languages::ReadItem'] }
+given.files.'src/domain/polite/collections/shapes.rs' = '''
+//! One collection: the interface every item implements (when it declares its own), its items in order, and the types, errors and contract it has.
+
+pub(crate) mod circle;
+'''
+given.files.'src/domain/polite/collections/shapes/circle/item.rs' = '''
+//! The `circle` item of the `shapes` collection: one implementation of the collection's shape.
+
+use ryo::languages;
+
+pub(crate) struct CircleItem {
+    pub radius: u32,
+}
+'''
+given.files.'src/domain/polite/collections/shapes/circle/item_test.rs' = '''
+//! The `circle` item's cases, and the collection's shared cases when it has any.
+
+use super::item::CircleItem;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = CircleItem;
+type Value = u32;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "keeps the radius it is given",
+        word: Word::Succeeds,
+        input: || CircleItem { radius: 2 },
+        expect: Expect::Value(2),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject(circle: Input) -> Result<Value, Failure> {
+    Ok(circle.radius)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/item/item-implements-trait', path = 'src/domain/polite/collections/shapes/circle/item.rs' },
+]
+
+[[scenarios]]
+id = 'provider-item-module-private'
+scenario = "A provider's item code is declared private to its module file."
+given.params = { item-trait = ['shapes=ryo::languages::ReadItem'] }
+given.files.'src/domain/polite/collections/shapes.rs' = '''
+//! One collection: the interface every item implements (when it declares its own), its items in order, and the types, errors and contract it has.
+
+pub(crate) mod circle;
+'''
+given.files.'src/domain/polite/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/domain/polite/collections/shapes/circle/item.rs' = '''
+//! The `circle` item of the `shapes` collection: one implementation of the collection's shape.
+
+use ryo::languages;
+
+pub(crate) struct CircleItem;
+
+ryo::reads! {
+    CircleItem => languages::Circle |tree, at, _symbols| {
+        kinds: every,
+        row { }
+    }
+}
+'''
+given.files.'src/domain/polite/collections/shapes/circle/item_test.rs' = '''
+//! The `circle` item's cases, and the collection's shared cases when it has any.
+
+use super::item::CircleItem;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = CircleItem;
+type Value = u32;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "keeps the radius it is given",
+        word: Word::Succeeds,
+        input: || CircleItem { radius: 2 },
+        expect: Expect::Value(2),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject(circle: Input) -> Result<Value, Failure> {
+    Ok(circle.radius)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/collection/item-module#template', path = 'src/domain/polite/collections/shapes/circle.rs' },
+]

@@ -1,0 +1,6 @@
+version = 1
+parents = ["02056d4d8750ff5efd75111b546bf96d97c7456d7fedb08f13aa98119d824bf3"]
+
+suppressed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/idiomatic-rust/bounded-engine-state", path = "crates/core/src/outbound/facts/adapters/spill/adapter.rs", level = "error", fingerprint = "acb85fe09e413b54", count = 1, message = "a use case or an adapter holds this interior-mutable state outside a bounded cache a test proves", since_rev = "3ac408014b00a17ccc0f7bac86eab054b92b840b", since = "2026-10-30" },
+]

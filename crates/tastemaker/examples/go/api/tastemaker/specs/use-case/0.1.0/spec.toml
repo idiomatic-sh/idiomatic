@@ -1,0 +1,22 @@
+description = "A use case holds its operation in use_case.go."
+why = "The filename and named type let readers find an operation consistently; its imports keep HTTP at the boundary."
+closed = false
+templates = [{ template = "local/use-case@0.1.0", file = "use_case.go", description = "The use case operation." }]
+rules = [
+  { rule = "local/use-case-type-name@0.1.0", include = ["use_case.go"], description = "The type is the directory in PascalCase followed by UseCase." },
+  { rule = "local/no-framework-imports@0.1.0", include = ["use_case.go"], params = { forbidden = ["net/http", "net/http/*"] }, description = "Use cases import no HTTP package." },
+]
+
+[given]
+at = "src/inbound/use_cases/{use-case}"
+
+[[scenarios]]
+id = "complete-use-case"
+scenario = "A named use case with its operation file is complete."
+given.files."src/inbound/use_cases/list_todos/use_case.go" = "// The operation of this use case, run with the ports it takes.\npackage list_todos\ntype ListTodosUseCase struct {}\n"
+
+[[scenarios]]
+id = "misnamed-operation"
+scenario = "An operation under a different filename is reported."
+given.files."src/inbound/use_cases/archive_todo/archive.go" = "package archive_todo\ntype ArchiveTodoUseCase struct {}\n"
+then.findings = [{ rule = "#count", path = "src/inbound/use_cases/archive_todo" }]

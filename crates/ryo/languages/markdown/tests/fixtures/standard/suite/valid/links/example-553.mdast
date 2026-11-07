@@ -1,0 +1,12 @@
+root[2]
+├─0 paragraph[1]
+│   └─0 linkReference[1]
+│       │ label: "foo"
+│       │ identifier: "foo"
+│       │ referenceType: "collapsed"
+│       └─0 text "foo"
+└─1 definition
+      identifier: "foo"
+      label: "foo"
+      title: "title"
+      url: "/url"

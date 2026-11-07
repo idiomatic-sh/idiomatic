@@ -1,0 +1,79 @@
+//! The `compile` service: local free-function helpers, private to this use case unless it is an SDK contract.
+
+use super::errors::CompileError;
+use crate::domain::lowering::errors::LoweringError;
+use crate::domain::validation::errors::ValidationError;
+
+/// Says a refusal of the validation as the use case's error.
+pub(super) fn invalid(error: ValidationError) -> CompileError {
+    match error {
+        ValidationError::Located { origin, error } => CompileError::Located {
+            origin,
+            error: Box::new(invalid(*error)),
+        },
+        ValidationError::UnknownRelation { name, span } => {
+            CompileError::UnknownRelation { name, span }
+        }
+        ValidationError::UnknownStep { span, .. }
+        | ValidationError::UnknownParameter { span, .. }
+        | ValidationError::UnknownOperation { span, .. }
+        | ValidationError::MissingArgument { span, .. }
+        | ValidationError::DuplicateStep { span, .. }
+        | ValidationError::DuplicateObservation { span, .. }
+        | ValidationError::BlankObservation { span }
+        | ValidationError::JoinNeedsColumns { span } => CompileError::Invalid {
+            span,
+            message: error.to_string(),
+        },
+    }
+}
+
+/// Says a refusal of the lowering as the use case's error.
+pub(super) fn unresolved(error: LoweringError) -> CompileError {
+    match error {
+        LoweringError::Located { origin, error } => CompileError::Located {
+            origin,
+            error: Box::new(unresolved(*error)),
+        },
+        LoweringError::FragmentContract { origin, message } => {
+            let span = origin.span;
+            CompileError::Located {
+                origin,
+                error: Box::new(CompileError::Invalid { span, message }),
+            }
+        }
+        LoweringError::UnknownRelation { name, span } => {
+            CompileError::UnknownRelation { name, span }
+        }
+        LoweringError::KindMismatch { span }
+        | LoweringError::UnknownWord { span, .. }
+        | LoweringError::NotText { span, .. } => CompileError::Type {
+            span,
+            message: error.to_string(),
+        },
+        LoweringError::SpanBoundsArgument { span, .. }
+        | LoweringError::SemanticArgument { span, .. }
+        | LoweringError::CrossFileSemantic { span }
+        | LoweringError::InvalidSemanticLiteral { span, .. }
+        | LoweringError::SourceMatchesArgument { span, .. }
+        | LoweringError::SourceMatchesCapturePair { span, .. }
+        | LoweringError::SourceMatchesCaptureMissing { span, .. }
+        | LoweringError::CrossFileSourceMatches { span }
+        | LoweringError::SourceMatchesLinePair { span }
+        | LoweringError::CrossFileSpan { span }
+        | LoweringError::SpanArgument { span, .. }
+        | LoweringError::UnknownStep { span, .. }
+        | LoweringError::DuplicateOutput { span, .. }
+        | LoweringError::InvalidRegex { span, .. }
+        | LoweringError::UnknownColumn { span, .. }
+        | LoweringError::UnknownSide { span, .. }
+        | LoweringError::UnknownSideColumn { span, .. }
+        | LoweringError::UnknownParameterType { span, .. }
+        | LoweringError::FunctionArity { span, .. }
+        | LoweringError::TooManyComparisonOrigins { span }
+        | LoweringError::BadArgument { span, .. } => CompileError::Invalid {
+            span,
+            message: error.to_string(),
+        },
+    }
+}

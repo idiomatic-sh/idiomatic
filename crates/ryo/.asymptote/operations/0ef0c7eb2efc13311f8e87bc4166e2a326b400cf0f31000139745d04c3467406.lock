@@ -1,0 +1,8 @@
+version = 1
+parents = ["098fc9f2ef41dfac97daeb9256f11db20d54eccaffa82300faaa21d0c7a69376"]
+
+[[perf]]
+reasons = ["The CPU of the eight benchmark rules, median of 3 rounds. Three sets of medians, 1691, 1712 and 1703 ms, held against 1658 ms; re-seeded 2026-10-18 idle: 1755, 1658, 1794 ms."]
+records = [
+  { tool = "performance-lint", benchmark = "ruff", measure = "spike-cpu-milliseconds", best = 1401.0 },
+]

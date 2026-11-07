@@ -1,0 +1,54 @@
+description = "Every `pyproject.toml` has a `[project]` table with a non-empty `name` and `description`."
+why = "The name and the one-line description are what an index, a lock and a reader of the dependency tree show for the package; an empty one says nothing about what it is. The rule reads each `pyproject.toml` from the file down: a file with no `[project]` table at its root, and a project without a name or a description, are both reported; a `project` table nested under another (`[tool.project]`) is a tool's, not the package's."
+
+query = '''
+let manifests = select * from "filesystem.file" where glob_any(path, "{pyproject.toml,**/pyproject.toml}");
+let tops = antijoin(left="syntax-tree", right="syntax-child", left-on=["id"], right-on=["child"]);
+let keyed = select * from "entry" where key = "project" and kind = "mapping";
+let projects = select l."file" as "file", l."span" as "span", l."occurrence" as "occurrence" from keyed as l join tops as r on l."owner" = r."id";
+let bodies = select l."file" as "file", l."span" as "span", r."id" as "body" from projects as l join "mapping" as r on l."occurrence" = r."owner";
+let named = select l."body" as "body" from bodies as l join "entry" as r on l."body" = r."owner" where r."key" = "name" and r."kind" = "string" and r."decoded" != "";
+let described = select l."body" as "body" from bodies as l join "entry" as r on l."body" = r."owner" where r."key" = "description" and r."kind" = "string" and r."decoded" != "";
+let unnamed = antijoin(left=bodies, right=named, left-on=["body"], right-on=["body"]);
+let undescribed = antijoin(left=bodies, right=described, left-on=["body"], right-on=["body"]);
+let unnamed-places = project(from=unnamed, columns=["file", "span"]);
+let undescribed-places = project(from=undescribed, columns=["file", "span"]);
+let lacking = union(left=unnamed-places, right=undescribed-places);
+let with-project = project(from=bodies, columns=["file"]);
+let without-project = antijoin(left=manifests, right=with-project, left-on=["path"], right-on=["file"]);
+let bare = select r."file" as "file", r."span" as "span" from without-project as l join tops as r on l."path" = r."file";
+let found = union(left=lacking, right=bare);
+emit found subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this `pyproject.toml` has no `[project]` with a non-empty `name` and `description`"
+help = "Give the project its name and a one-line description of what it is, in `[project]`."
+
+[given]
+include = ["**"]
+
+[[scenarios]]
+id = "empty-description"
+scenario = "A project with an empty description is reported at its table."
+given.files."pyproject.toml" = "[project]\nname = \"app\"\ndescription = \"\"\n"
+then.findings = [{ path = "pyproject.toml", line = 1 }]
+
+[[scenarios]]
+id = "no-project-table"
+scenario = "A `pyproject.toml` with no `[project]` table is reported at its top."
+given.files."pyproject.toml" = "[tool.pytest.ini_options]\naddopts = \"-q\"\n"
+then.findings = [{ path = "pyproject.toml", line = 1 }]
+
+[[scenarios]]
+id = "named-and-described"
+scenario = "A project with a name and a description is not reported."
+given.files."pyproject.toml" = "[project]\nname = \"app\"\ndescription = \"A todo API.\"\n"
+then.findings = []
+
+[[scenarios]]
+id = "nested-project-only"
+scenario = "A `project` table nested under a tool's is no `[project]`: the file is reported at its top."
+given.files."pyproject.toml" = "[tool.project]\nname = \"app\"\ndescription = \"A todo API.\"\n"
+then.findings = [{ path = "pyproject.toml", line = 1 }]

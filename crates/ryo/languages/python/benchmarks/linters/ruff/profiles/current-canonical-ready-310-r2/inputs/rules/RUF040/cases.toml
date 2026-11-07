@@ -1,0 +1,94 @@
+[[cases]]
+name = "number"
+files = { "case.py" = "assert value, 42\n" }
+expected = [{ file = "case.py", start = 14, end = 16 }]
+
+[[cases]]
+name = "none"
+files = { "case.py" = "assert value, None\n" }
+expected = [{ file = "case.py", start = 14, end = 18 }]
+
+[[cases]]
+name = "bytes"
+files = { "case.py" = "assert value, b\"message\"\n" }
+expected = [{ file = "case.py", start = 14, end = 24 }]
+
+[[cases]]
+name = "bool"
+files = { "case.py" = "assert value, False\n" }
+expected = [{ file = "case.py", start = 14, end = 19 }]
+
+[[cases]]
+name = "ellipsis"
+files = { "case.py" = "assert value, ...\n" }
+expected = [{ file = "case.py", start = 14, end = 17 }]
+
+[[cases]]
+name = "str"
+files = { "case.py" = "assert value, \"message\"\n" }
+expected = []
+
+[[cases]]
+name = "fstr"
+files = { "case.py" = "assert value, f\"{message}\"\n" }
+expected = []
+
+[[cases]]
+name = "negative"
+files = { "case.py" = "assert value, -1\n" }
+expected = []
+
+[[cases]]
+name = "name"
+files = { "case.py" = "assert value, message\n" }
+expected = []
+
+[[cases]]
+name = "missing"
+files = { "case.py" = "assert value\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "assert value, 42 # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "assert value, 42 # noqa: RUF040\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "assert value, 42 # noqa: F401\n" }
+expected = [{ file = "case.py", start = 14, end = 16 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\nassert value, 42\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[RUF040]\nassert value, 42\n\n# ruff: enable[RUF040]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[RUF040]\n# ruff: enable[RUF040]\nassert value, 42\n" }
+expected = [{ file = "case.py", start = 61, end = 63 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[RUF040]\nassert value, 42\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\nassert value, 42\n" }
+expected = [{ file = "case.py", start = 36, end = 38 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[RUF040]\nassert value, 42\n" }
+expected = []

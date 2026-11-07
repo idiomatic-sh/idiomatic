@@ -1,0 +1,32 @@
+description = "The dependencies of each table or list of a manifest are in alphabetical order."
+why = "A sorted list shows a duplicate and a missing entry at a glance, and two branches that each add one merge without a conflict. The rule reads the dependencies the manifest declares, whatever its format, and their places in the table or list that holds them."
+
+query = '''
+let deps = select * from "package-dependency";
+let keyed = select l."source" as "file", l."package" as "package", r."owner" as "table", r."ordinal" as "ordinal", r."span" as "span" from deps as l join "entry" as r on l."source" = r."file" where r."key" = l."package" and r."kind" != "mapping";
+let listed = select l."source" as "file", l."package" as "package", r."owner" as "table", r."ordinal" as "ordinal", r."span" as "span" from deps as l join "sequence-element" as r on l."source" = r."file" where r."decoded" = l."package" or starts_with(r."decoded", concat(l."package", "=")) or starts_with(r."decoded", concat(l."package", "[")) or starts_with(r."decoded", concat(l."package", ">")) or starts_with(r."decoded", concat(l."package", "<")) or starts_with(r."decoded", concat(l."package", "~")) or starts_with(r."decoded", concat(l."package", "!"));
+let located = union(left=keyed, right=listed);
+let pairs = select l."package" as "earlier", r."package" as "package", l."ordinal" as "before", r."ordinal" as "after", r."file" as "file", r."span" as "span" from located as l join located as r on l."table" = r."table";
+let inverted = select * from pairs where before < after and package < earlier;
+emit inverted subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`{package}` sorts before `{earlier}`, which comes earlier in its table"
+help = "Put the dependencies of each table or list in alphabetical order."
+
+[given]
+include = ["**"]
+
+[[scenarios]]
+id = "out-of-order"
+scenario = "A dependency written after one it sorts before is reported, in the manifest."
+given.files."go/go.mod" = "module example.com/app\n\ngo 1.22\n\nrequire (\n\texample.com/zeta v1.0.0\n\texample.com/alpha v1.0.0\n)\n"
+then.findings = [{ path = "go/go.mod", line = 7 }]
+
+[[scenarios]]
+id = "sorted"
+scenario = "Sorted tables and lists are not reported, and each table is sorted on its own."
+given.files."go/go.mod" = "module example.com/app\n\ngo 1.22\n\nrequire (\n\texample.com/alpha v1.0.0\n\texample.com/zeta v1.0.0\n)\n"
+then.findings = []

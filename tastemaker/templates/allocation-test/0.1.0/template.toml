@@ -1,0 +1,787 @@
+description = "A crate's allocation test: a test of its own, with no harness, that installs `dhat` as the global allocator and counts the blocks of a run, alone in its process. A kernel crate's allocation test."
+why = "Only a count proves a run allocates no more than it should, and only a process of its own can count: a global allocator counts every thread, so the test has `harness = false` and no other test beside it, and its `main` is the whole test. The file is the `#[global_allocator]` static and the `main` that runs the profile; it may carry more (the helpers, doubles and assertions of the count), as the language crate's `tests/allocation.rs` does. Two specs place it, each at the file name its crate has (the command line's `tests/blocks.rs`, the kernel crate's `tests/allocation.rs`), so it is one template, moved out of the `cli` spec, rather than a copy in each. The crate's manifest declares it `[[test]] harness = false`."
+content = '''
+//! The allocation row of the engine, proved on language doubles: the allocations of a language's own library parse (`read_tree`) are in
+//! the count of reading and in the count of the baseline alike, so they cancel, and only the table and the readers are judged. A
+//! `read_tree` that allocates a scratch buffer in every file passes; a reader that allocates in every file fails. It runs alone in its
+//! process, with `dhat` as the global allocator, so nothing else counts.
+
+use ryo_relations::domain::terms::types::UnknownName;
+use std::marker::PhantomData;
+use std::panic::{AssertUnwindSafe, catch_unwind};
+
+use ryo_language::domain::answers::service::{absent, reads};
+use ryo_language::domain::answers::types::{ReadItem, Reader, Reads, Support};
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_language::domain::elements::service::{enter_node, leave_node, token};
+use ryo_language::domain::elements::types::{Completion, TableBuilder, Tree};
+use ryo_relations::domain::relations::collections::relations::function::item::{
+    Function, FunctionRow,
+};
+use ryo_relations::domain::relations::types::{Count, KindBits, Offset, Position, Rows};
+use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_language::inbound::use_cases::parse::errors::ParseError;
+use ryo_language::inbound::use_cases::parse::fixtures::samples::allocations;
+use ryo_language::inbound::use_cases::parse::interface::ParseUseCase;
+use ryo_language::inbound::use_cases::parse::service::baseline;
+use ryo_language::inbound::use_cases::parse::types::Recognition;
+use ryo_language::inbound::use_cases::parse::types::{ParseRequest, SourceFile, SourcePath};
+
+#[global_allocator]
+static ALLOCATOR: dhat::Alloc = dhat::Alloc;
+
+/// Answers every relation but `function` as not in the language.
+macro_rules! all_but_function {
+    (
+        syntax { $( $variant:ident $module:ident $row:ident $column:ident ; )* }
+        manifest { $( $manifest:tt )* }
+        engine { $( $engine:tt )* }
+    ) => {
+        $( all_but_function!(@one $module $variant); )*
+    };
+    (@one function Function) => {};
+    (@one $module:ident $variant:ident) => {
+        fn $module(
+            &self,
+        ) -> Support<Reader<ryo_relations::domain::relations::collections::relations::$module::item::$variant, Self::FileModel>> {
+            absent(AbsenceCause::NoSuchConstruct)
+        }
+    };
+}
+
+/// A visit that writes nothing and allocates nothing.
+#[expect(
+    clippy::trivially_copy_pass_by_ref,
+    reason = "the signature is the reader\'s: it is given the model of the file by reference"
+)]
+fn quiet(
+    _tree: &Tree<'_>,
+    _model: &(),
+    _symbols: &mut Symbols,
+    _at: Position,
+    _out: &mut dyn Rows<FunctionRow>,
+) {
+}
+
+/// A visit that allocates a block in every element it is given.
+#[expect(
+    clippy::trivially_copy_pass_by_ref,
+    reason = "the signature is the reader\'s: it is given the model of the file by reference"
+)]
+fn greedy(
+    _tree: &Tree<'_>,
+    _model: &(),
+    _symbols: &mut Symbols,
+    _at: Position,
+    _out: &mut dyn Rows<FunctionRow>,
+) {
+    std::hint::black_box(Box::new(0_u8));
+}
+
+/// The item that reads `function` and allocates nothing.
+struct QuietItem;
+
+impl ryo_language::domain::answers::types::declared::Syntax for QuietItem {}
+
+impl ryo_language::domain::answers::types::Visiting<Function, ()> for QuietItem {
+    fn visit(
+        &self,
+        tree: &Tree<'_>,
+        model: &(),
+        symbols: &mut Symbols,
+        at: Position,
+        out: &mut dyn Rows<FunctionRow>,
+    ) {
+        quiet(tree, model, symbols, at, out);
+    }
+}
+
+impl ReadItem for QuietItem {
+    type Relation = Function;
+    type Model = ();
+
+    const READER: Reader<Function, ()> = Reader {
+        reads: Reads::Every,
+        visit: &QuietItem,
+        expansions: ryo_language::domain::answers::types::Expansions::Ignored,
+        relation: PhantomData,
+    };
+}
+
+/// The item that reads `function` and allocates in every element.
+struct GreedyItem;
+
+impl ryo_language::domain::answers::types::declared::Syntax for GreedyItem {}
+
+impl ryo_language::domain::answers::types::Visiting<Function, ()> for GreedyItem {
+    fn visit(
+        &self,
+        tree: &Tree<'_>,
+        model: &(),
+        symbols: &mut Symbols,
+        at: Position,
+        out: &mut dyn Rows<FunctionRow>,
+    ) {
+        greedy(tree, model, symbols, at, out);
+    }
+}
+
+impl ReadItem for GreedyItem {
+    type Relation = Function;
+    type Model = ();
+
+    const READER: Reader<Function, ()> = Reader {
+        reads: Reads::Every,
+        visit: &GreedyItem,
+        expansions: ryo_language::domain::answers::types::Expansions::Ignored,
+        relation: PhantomData,
+    };
+}
+
+/// A language whose library parse allocates a scratch buffer in every file, and whose reader allocates in every element or not.
+struct Language {
+    greedy_reader: bool,
+}
+
+impl ParseUseCase for Language {
+    type FileModel = ();
+
+    fn file_model(&self, _tree: &ryo_language::domain::elements::types::Tree<'_>, _model: &mut ()) {
+    }
+
+    fn recognizes(&self, _request: &ParseRequest<'_>) -> Recognition {
+        Recognition::Reads
+    }
+
+    fn skips(&self) -> &'static [ryo_language::inbound::use_cases::parse::types::SkippedDirectory] {
+        &[]
+    }
+
+    fn unknown_reasons(&self) -> &'static [UnknownName] {
+        &[]
+    }
+
+    fn kind_count(&self) -> Count {
+        Count(1)
+    }
+
+    fn kind_names(&self) -> ryo_language::inbound::use_cases::parse::types::KindNames {
+        ryo_language::inbound::use_cases::parse::types::KindNames(Vec::new())
+    }
+
+    fn read_tree(
+        &self,
+        request: &ParseRequest<'_>,
+        builder: &mut TableBuilder<'_>,
+    ) -> Result<(), ParseError> {
+        // The scratch of the library: one block in every file, whatever the builder builds.
+        std::hint::black_box(Vec::<u8>::with_capacity(request.bytes.0.len() + 64));
+        let end = Offset(u32::try_from(request.bytes.0.len()).unwrap_or(u32::MAX));
+        enter_node(builder, KindBits(0), Offset(0));
+        token(builder, KindBits(0), Offset(0), end);
+        leave_node(builder, end);
+        Ok(())
+    }
+
+    fn complete(&self, _request: &ParseRequest<'_>, _completion: &mut Completion<'_>) {}
+
+    fn function(&self) -> Support<Reader<Function, ()>> {
+        if self.greedy_reader {
+            reads::<GreedyItem>()
+        } else {
+            reads::<QuietItem>()
+        }
+    }
+
+    ryo_language::each_relation!(all_but_function);
+}
+
+/// Runs the allocation row over the double and says whether it held.
+fn held(language: &Language) -> bool {
+    let sample = SourceFile {
+        path: SourcePath("sample.double"),
+        bytes: ByteSlice(b"fn one() {}\nfn two() {}\n"),
+    };
+    // The refusal is the row's answer here, not a failure: its message is not printed.
+    let printed = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_| {}));
+    let held = catch_unwind(AssertUnwindSafe(|| {
+        allocations(language, sample, &|bytes| {
+            baseline(
+                language,
+                &ParseRequest {
+                    path: sample.path,
+                    file: ryo_relations::domain::relations::types::FileId(0),
+                    bytes,
+                    notes: ryo_language::inbound::use_cases::parse::types::NoteRequest::Unwanted,
+                    fields: ryo_language::inbound::use_cases::parse::types::FieldRequest::Unwanted,
+                },
+            )
+        });
+    }))
+    .is_ok();
+    std::panic::set_hook(printed);
+    held
+}
+
+fn main() {
+    assert!(
+        held(&Language {
+            greedy_reader: false
+        }),
+        "a library parse that allocates in every file is the library's, and the row holds"
+    );
+    assert!(
+        !held(&Language {
+            greedy_reader: true
+        }),
+        "a reader that allocates in every element is not the library's, and the row does not hold"
+    );
+}
+'''
+
+[given]
+file = 'tests/allocation.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'tests/allocation.rs' = '''
+//! The allocation row of the engine, proved on language doubles: the allocations of a language's own library parse (`read_tree`) are in
+//! the count of reading and in the count of the baseline alike, so they cancel, and only the table and the readers are judged. A
+//! `read_tree` that allocates a scratch buffer in every file passes; a reader that allocates in every file fails. It runs alone in its
+//! process, with `dhat` as the global allocator, so nothing else counts.
+
+use ryo_relations::domain::terms::types::UnknownName;
+use std::marker::PhantomData;
+use std::panic::{AssertUnwindSafe, catch_unwind};
+
+use ryo_language::domain::answers::service::{absent, reads};
+use ryo_language::domain::answers::types::{ReadItem, Reader, Reads, Support};
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_language::domain::elements::service::{enter_node, leave_node, token};
+use ryo_language::domain::elements::types::{Completion, TableBuilder, Tree};
+use ryo_relations::domain::relations::collections::relations::function::item::{
+    Function, FunctionRow,
+};
+use ryo_relations::domain::relations::types::{Count, KindBits, Offset, Position, Rows};
+use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_language::inbound::use_cases::parse::errors::ParseError;
+use ryo_language::inbound::use_cases::parse::fixtures::samples::allocations;
+use ryo_language::inbound::use_cases::parse::interface::ParseUseCase;
+use ryo_language::inbound::use_cases::parse::service::baseline;
+use ryo_language::inbound::use_cases::parse::types::Recognition;
+use ryo_language::inbound::use_cases::parse::types::{ParseRequest, SourceFile, SourcePath};
+
+#[global_allocator]
+static ALLOCATOR: dhat::Alloc = dhat::Alloc;
+
+/// Answers every relation but `function` as not in the language.
+macro_rules! all_but_function {
+    (
+        syntax { $( $variant:ident $module:ident $row:ident $column:ident ; )* }
+        manifest { $( $manifest:tt )* }
+        engine { $( $engine:tt )* }
+    ) => {
+        $( all_but_function!(@one $module $variant); )*
+    };
+    (@one function Function) => {};
+    (@one $module:ident $variant:ident) => {
+        fn $module(
+            &self,
+        ) -> Support<Reader<ryo_relations::domain::relations::collections::relations::$module::item::$variant, Self::FileModel>> {
+            absent(AbsenceCause::NoSuchConstruct)
+        }
+    };
+}
+
+/// A visit that writes nothing and allocates nothing.
+#[expect(
+    clippy::trivially_copy_pass_by_ref,
+    reason = "the signature is the reader\'s: it is given the model of the file by reference"
+)]
+fn quiet(
+    _tree: &Tree<'_>,
+    _model: &(),
+    _symbols: &mut Symbols,
+    _at: Position,
+    _out: &mut dyn Rows<FunctionRow>,
+) {
+}
+
+/// A visit that allocates a block in every element it is given.
+#[expect(
+    clippy::trivially_copy_pass_by_ref,
+    reason = "the signature is the reader\'s: it is given the model of the file by reference"
+)]
+fn greedy(
+    _tree: &Tree<'_>,
+    _model: &(),
+    _symbols: &mut Symbols,
+    _at: Position,
+    _out: &mut dyn Rows<FunctionRow>,
+) {
+    std::hint::black_box(Box::new(0_u8));
+}
+
+/// The item that reads `function` and allocates nothing.
+struct QuietItem;
+
+impl ryo_language::domain::answers::types::declared::Syntax for QuietItem {}
+
+impl ryo_language::domain::answers::types::Visiting<Function, ()> for QuietItem {
+    fn visit(
+        &self,
+        tree: &Tree<'_>,
+        model: &(),
+        symbols: &mut Symbols,
+        at: Position,
+        out: &mut dyn Rows<FunctionRow>,
+    ) {
+        quiet(tree, model, symbols, at, out);
+    }
+}
+
+impl ReadItem for QuietItem {
+    type Relation = Function;
+    type Model = ();
+
+    const READER: Reader<Function, ()> = Reader {
+        reads: Reads::Every,
+        visit: &QuietItem,
+        expansions: ryo_language::domain::answers::types::Expansions::Ignored,
+        relation: PhantomData,
+    };
+}
+
+/// The item that reads `function` and allocates in every element.
+struct GreedyItem;
+
+impl ryo_language::domain::answers::types::declared::Syntax for GreedyItem {}
+
+impl ryo_language::domain::answers::types::Visiting<Function, ()> for GreedyItem {
+    fn visit(
+        &self,
+        tree: &Tree<'_>,
+        model: &(),
+        symbols: &mut Symbols,
+        at: Position,
+        out: &mut dyn Rows<FunctionRow>,
+    ) {
+        greedy(tree, model, symbols, at, out);
+    }
+}
+
+impl ReadItem for GreedyItem {
+    type Relation = Function;
+    type Model = ();
+
+    const READER: Reader<Function, ()> = Reader {
+        reads: Reads::Every,
+        visit: &GreedyItem,
+        expansions: ryo_language::domain::answers::types::Expansions::Ignored,
+        relation: PhantomData,
+    };
+}
+
+/// A language whose library parse allocates a scratch buffer in every file, and whose reader allocates in every element or not.
+struct Language {
+    greedy_reader: bool,
+}
+
+impl ParseUseCase for Language {
+    type FileModel = ();
+
+    fn file_model(&self, _tree: &ryo_language::domain::elements::types::Tree<'_>, _model: &mut ()) {
+    }
+
+    fn recognizes(&self, _request: &ParseRequest<'_>) -> Recognition {
+        Recognition::Reads
+    }
+
+    fn skips(&self) -> &'static [ryo_language::inbound::use_cases::parse::types::SkippedDirectory] {
+        &[]
+    }
+
+    fn unknown_reasons(&self) -> &'static [UnknownName] {
+        &[]
+    }
+
+    fn kind_count(&self) -> Count {
+        Count(1)
+    }
+
+    fn kind_names(&self) -> ryo_language::inbound::use_cases::parse::types::KindNames {
+        ryo_language::inbound::use_cases::parse::types::KindNames(Vec::new())
+    }
+
+    fn read_tree(
+        &self,
+        request: &ParseRequest<'_>,
+        builder: &mut TableBuilder<'_>,
+    ) -> Result<(), ParseError> {
+        // The scratch of the library: one block in every file, whatever the builder builds.
+        std::hint::black_box(Vec::<u8>::with_capacity(request.bytes.0.len() + 64));
+        let end = Offset(u32::try_from(request.bytes.0.len()).unwrap_or(u32::MAX));
+        enter_node(builder, KindBits(0), Offset(0));
+        token(builder, KindBits(0), Offset(0), end);
+        leave_node(builder, end);
+        Ok(())
+    }
+
+    fn complete(&self, _request: &ParseRequest<'_>, _completion: &mut Completion<'_>) {}
+
+    fn function(&self) -> Support<Reader<Function, ()>> {
+        if self.greedy_reader {
+            reads::<GreedyItem>()
+        } else {
+            reads::<QuietItem>()
+        }
+    }
+
+    ryo_language::each_relation!(all_but_function);
+}
+
+/// Runs the allocation row over the double and says whether it held.
+fn held(language: &Language) -> bool {
+    let sample = SourceFile {
+        path: SourcePath("sample.double"),
+        bytes: ByteSlice(b"fn one() {}\nfn two() {}\n"),
+    };
+    // The refusal is the row's answer here, not a failure: its message is not printed.
+    let printed = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_| {}));
+    let held = catch_unwind(AssertUnwindSafe(|| {
+        allocations(language, sample, &|bytes| {
+            baseline(
+                language,
+                &ParseRequest {
+                    path: sample.path,
+                    file: ryo_relations::domain::relations::types::FileId(0),
+                    bytes,
+                    notes: ryo_language::inbound::use_cases::parse::types::NoteRequest::Unwanted,
+                    fields: ryo_language::inbound::use_cases::parse::types::FieldRequest::Unwanted,
+                },
+            )
+        });
+    }))
+    .is_ok();
+    std::panic::set_hook(printed);
+    held
+}
+
+fn main() {
+    assert!(
+        held(&Language {
+            greedy_reader: false
+        }),
+        "a library parse that allocates in every file is the library's, and the row holds"
+    );
+    assert!(
+        !held(&Language {
+            greedy_reader: true
+        }),
+        "a reader that allocates in every element is not the library's, and the row does not hold"
+    );
+}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'tests/allocation.rs' = '''
+//! The allocation row of the engine, proved on language doubles: the allocations of a language's own library parse (`read_tree`) are in
+//! the count of reading and in the count of the baseline alike, so they cancel, and only the table and the readers are judged. A
+//! `read_tree` that allocates a scratch buffer in every file passes; a reader that allocates in every file fails. It runs alone in its
+//! process, with `dhat` as the global allocator, so nothing else counts.
+
+use ryo_relations::domain::terms::types::UnknownName;
+use std::marker::PhantomData;
+use std::panic::{AssertUnwindSafe, catch_unwind};
+
+use ryo_language::domain::answers::service::{absent, reads};
+use ryo_language::domain::answers::types::{ReadItem, Reader, Reads, Support};
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_language::domain::elements::service::{enter_node, leave_node, token};
+use ryo_language::domain::elements::types::{Completion, TableBuilder, Tree};
+use ryo_relations::domain::relations::collections::relations::function::item::{
+    Function, FunctionRow,
+};
+use ryo_relations::domain::relations::types::{Count, KindBits, Offset, Position, Rows};
+use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_language::inbound::use_cases::parse::errors::ParseError;
+use ryo_language::inbound::use_cases::parse::fixtures::samples::allocations;
+use ryo_language::inbound::use_cases::parse::interface::ParseUseCase;
+use ryo_language::inbound::use_cases::parse::service::baseline;
+use ryo_language::inbound::use_cases::parse::types::Recognition;
+use ryo_language::inbound::use_cases::parse::types::{ParseRequest, SourceFile, SourcePath};
+
+#[global_allocator]
+static ALLOCATOR: dhat::Alloc = dhat::Alloc;
+
+/// Answers every relation but `function` as not in the language.
+macro_rules! all_but_function {
+    (
+        syntax { $( $variant:ident $module:ident $row:ident $column:ident ; )* }
+        manifest { $( $manifest:tt )* }
+        engine { $( $engine:tt )* }
+    ) => {
+        $( all_but_function!(@one $module $variant); )*
+    };
+    (@one function Function) => {};
+    (@one $module:ident $variant:ident) => {
+        fn $module(
+            &self,
+        ) -> Support<Reader<ryo_relations::domain::relations::collections::relations::$module::item::$variant, Self::FileModel>> {
+            absent(AbsenceCause::NoSuchConstruct)
+        }
+    };
+}
+
+/// A visit that writes nothing and allocates nothing.
+#[expect(
+    clippy::trivially_copy_pass_by_ref,
+    reason = "the signature is the reader\'s: it is given the model of the file by reference"
+)]
+fn quiet(
+    _tree: &Tree<'_>,
+    _model: &(),
+    _symbols: &mut Symbols,
+    _at: Position,
+    _out: &mut dyn Rows<FunctionRow>,
+) {
+}
+
+/// A visit that allocates a block in every element it is given.
+#[expect(
+    clippy::trivially_copy_pass_by_ref,
+    reason = "the signature is the reader\'s: it is given the model of the file by reference"
+)]
+fn greedy(
+    _tree: &Tree<'_>,
+    _model: &(),
+    _symbols: &mut Symbols,
+    _at: Position,
+    _out: &mut dyn Rows<FunctionRow>,
+) {
+    std::hint::black_box(Box::new(0_u8));
+}
+
+/// The item that reads `function` and allocates nothing.
+struct QuietItem;
+
+impl ryo_language::domain::answers::types::declared::Syntax for QuietItem {}
+
+impl ryo_language::domain::answers::types::Visiting<Function, ()> for QuietItem {
+    fn visit(
+        &self,
+        tree: &Tree<'_>,
+        model: &(),
+        symbols: &mut Symbols,
+        at: Position,
+        out: &mut dyn Rows<FunctionRow>,
+    ) {
+        quiet(tree, model, symbols, at, out);
+    }
+}
+
+impl ReadItem for QuietItem {
+    type Relation = Function;
+    type Model = ();
+
+    const READER: Reader<Function, ()> = Reader {
+        reads: Reads::Every,
+        visit: &QuietItem,
+        expansions: ryo_language::domain::answers::types::Expansions::Ignored,
+        relation: PhantomData,
+    };
+}
+
+/// The item that reads `function` and allocates in every element.
+struct GreedyItem;
+
+impl ryo_language::domain::answers::types::declared::Syntax for GreedyItem {}
+
+impl ryo_language::domain::answers::types::Visiting<Function, ()> for GreedyItem {
+    fn visit(
+        &self,
+        tree: &Tree<'_>,
+        model: &(),
+        symbols: &mut Symbols,
+        at: Position,
+        out: &mut dyn Rows<FunctionRow>,
+    ) {
+        greedy(tree, model, symbols, at, out);
+    }
+}
+
+impl ReadItem for GreedyItem {
+    type Relation = Function;
+    type Model = ();
+
+    const READER: Reader<Function, ()> = Reader {
+        reads: Reads::Every,
+        visit: &GreedyItem,
+        expansions: ryo_language::domain::answers::types::Expansions::Ignored,
+        relation: PhantomData,
+    };
+}
+
+/// A language whose library parse allocates a scratch buffer in every file, and whose reader allocates in every element or not.
+struct Language {
+    greedy_reader: bool,
+}
+
+impl ParseUseCase for Language {
+    type FileModel = ();
+
+    fn file_model(&self, _tree: &ryo_language::domain::elements::types::Tree<'_>, _model: &mut ()) {
+    }
+
+    fn recognizes(&self, _request: &ParseRequest<'_>) -> Recognition {
+        Recognition::Reads
+    }
+
+    fn skips(&self) -> &'static [ryo_language::inbound::use_cases::parse::types::SkippedDirectory] {
+        &[]
+    }
+
+    fn unknown_reasons(&self) -> &'static [UnknownName] {
+        &[]
+    }
+
+    fn kind_count(&self) -> Count {
+        Count(1)
+    }
+
+    fn kind_names(&self) -> ryo_language::inbound::use_cases::parse::types::KindNames {
+        ryo_language::inbound::use_cases::parse::types::KindNames(Vec::new())
+    }
+
+    fn read_tree(
+        &self,
+        request: &ParseRequest<'_>,
+        builder: &mut TableBuilder<'_>,
+    ) -> Result<(), ParseError> {
+        // The scratch of the library: one block in every file, whatever the builder builds.
+        std::hint::black_box(Vec::<u8>::with_capacity(request.bytes.0.len() + 64));
+        let end = Offset(u32::try_from(request.bytes.0.len()).unwrap_or(u32::MAX));
+        enter_node(builder, KindBits(0), Offset(0));
+        token(builder, KindBits(0), Offset(0), end);
+        leave_node(builder, end);
+        Ok(())
+    }
+
+    fn complete(&self, _request: &ParseRequest<'_>, _completion: &mut Completion<'_>) {}
+
+    fn function(&self) -> Support<Reader<Function, ()>> {
+        if self.greedy_reader {
+            reads::<GreedyItem>()
+        } else {
+            reads::<QuietItem>()
+        }
+    }
+
+    ryo_language::each_relation!(all_but_function);
+}
+
+/// Runs the allocation row over the double and says whether it held.
+fn held(language: &Language) -> bool {
+    let sample = SourceFile {
+        path: SourcePath("sample.double"),
+        bytes: ByteSlice(b"fn one() {}\nfn two() {}\n"),
+    };
+    // The refusal is the row's answer here, not a failure: its message is not printed.
+    let printed = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_| {}));
+    let held = catch_unwind(AssertUnwindSafe(|| {
+        allocations(language, sample, &|bytes| {
+            baseline(
+                language,
+                &ParseRequest {
+                    path: sample.path,
+                    file: ryo_relations::domain::relations::types::FileId(0),
+                    bytes,
+                    notes: ryo_language::inbound::use_cases::parse::types::NoteRequest::Unwanted,
+                    fields: ryo_language::inbound::use_cases::parse::types::FieldRequest::Unwanted,
+                },
+            )
+        });
+    }))
+    .is_ok();
+    std::panic::set_hook(printed);
+    held
+}
+
+fn main() {
+    assert!(
+        held(&Language {
+            greedy_reader: false
+        }),
+        "a library parse that allocates in every file is the library's, and the row holds"
+    );
+    assert!(
+        !held(&Language {
+            greedy_reader: true
+        }),
+        "a reader that allocates in every element is not the library's, and the row does not hold"
+    );
+}
+
+/// More than the template gives: the test may carry its own helpers.
+fn more() {}
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'allocation-test#count', path = 'tastemaker.toml' },
+]
+
+[[scenarios]]
+id = 'missing-allocator'
+scenario = 'The global allocator is not installed.'
+given.files.'tests/allocation.rs' = '''
+//! The allocation row, without the global allocator that counts it.
+
+fn main() {}
+'''
+then.findings = [
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+  { rule = 'allocation-test#template', path = 'tests/allocation.rs' },
+]

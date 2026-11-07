@@ -1,0 +1,69 @@
+[[cases]]
+name = "module"
+files = { "case.py" = "import datetime\ndatetime.date.today()\n" }
+expected = [{ file = "case.py", start = 16, end = 37 }]
+
+[[cases]]
+name = "alias"
+files = { "case.py" = "import datetime as alias\nalias.date.today()\n" }
+expected = [{ file = "case.py", start = 25, end = 43 }]
+
+[[cases]]
+name = "from-import"
+files = { "case.py" = "from datetime.date import today as target\ntarget()\n" }
+expected = [{ file = "case.py", start = 42, end = 50 }]
+
+[[cases]]
+name = "unimported"
+files = { "case.py" = "datetime.date.today()\n" }
+expected = []
+
+[[cases]]
+name = "shadowed"
+files = { "case.py" = "import datetime\ndef f(datetime):\n    datetime.date.today()\n" }
+expected = []
+
+[[cases]]
+name = "rebound"
+files = { "case.py" = "import datetime\ndatetime = other\ndatetime.date.today()\n" }
+expected = []
+
+[[cases]]
+name = "before-import"
+files = { "case.py" = "datetime.date.today()\nimport datetime\n" }
+expected = []
+
+[[cases]]
+name = "deferred-body"
+files = { "case.py" = "def f():\n    datetime.date.today()\nimport datetime\n" }
+expected = [{ file = "case.py", start = 13, end = 34 }]
+
+[[cases]]
+name = "ordinary-call"
+files = { "case.py" = "import datetime\ndef f(x):\n    x()\n    datetime.date.today()\n" }
+expected = [{ file = "case.py", start = 38, end = 59 }]
+
+[[cases]]
+name = "attribute-only"
+files = { "case.py" = "import datetime\ndatetime.date.today\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "import datetime\ndatetime.date.today() # noqa: DTZ011\n" }
+expected = []
+
+[[cases]]
+name = "range"
+files = { "case.py" = "import datetime\n# ruff: disable[DTZ011]\ndatetime.date.today()\n# ruff: enable[DTZ011]\n" }
+expected = []
+
+[[cases]]
+name = "other-type"
+files = { "case.py" = "import datetime\ndatetime.datetime.now()\n" }
+expected = []
+
+[[cases]]
+name = "assigned"
+files = { "case.py" = "import datetime\nvalue = datetime.date.today()\n" }
+expected = [{ file = "case.py", start = 24, end = 45 }]

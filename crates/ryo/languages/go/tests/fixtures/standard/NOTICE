@@ -1,0 +1,6 @@
+This directory holds the standard that defines the nodes and the tokens of the go language, copied unchanged and pinned: README.md names its source and the version pinned.
+
+- ast.go: the package `go/ast` of Go 1.26.5, from go.dev. Go is licensed under the BSD 3-Clause license (NOTICE-LICENSE).
+- token.go: the package `go/token` of Go 1.26.5, from go.dev, under the same license.
+- dump/main.go: a program written for this language that reads files with `go/parser`; it is the only file here that is not Go's.
+- dump.txt: what that program prints for the inputs of the language's fixtures, its suite and its corpus.

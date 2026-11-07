@@ -1,0 +1,26 @@
+version = 1
+parents = ["29ef3c564a9abc26edbfeeadcab26cab93ae1c3a2bdf5a8ab3617a44b0d8cb12"]
+
+[[perf]]
+reasons = ["Seeded with the median of five runs of the benchmark on the development machine, each run the median of its rounds; the tolerance is three times the spread of those five medians, rounded up to a multiple of 5, and at least 100% for a workload under 100 ms or 20% above it: the machine is shared, and a workload that short moves by its own rounding."]
+records = [
+  { tool = "performance", benchmark = "query/run", measure = "cpu-ms", best = 1.899 },
+]
+
+[[perf]]
+reasons = ["The store a warm run leaves in the cache directory of the target: the image and one words file. The store is bounded (the first version left an 18 GB store)."]
+records = [
+  { tool = "performance-lint", benchmark = "ruff", measure = "store-megabytes", best = 2.0 },
+]
+
+[[perf]]
+reasons = ["The store holds exactly the image and one words file, because a save removes every words file the image does not name."]
+records = [
+  { tool = "performance-lint", benchmark = "ruff", measure = "store-files", best = 1.0 },
+]
+
+[[perf]]
+reasons = ["re-recorded on the development machine under the Asymptote ratchet"]
+records = [
+  { tool = "performance-lint", benchmark = "ruff", measure = "peak-megabytes", best = 521.0 },
+]

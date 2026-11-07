@@ -1,0 +1,11 @@
+{
+  "Exclude": [
+    "/snapshots/",
+    "/resources/",
+    "\\.bundle$",
+    "\\.patch$",
+    "^crates/ryo/languages/[^/]+/tests/fixtures/(suite|corpus)/"
+  ],
+  "SpacesAfterTabs": false,
+  "NoColor": true
+}
