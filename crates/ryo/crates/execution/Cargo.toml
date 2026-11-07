@@ -46,7 +46,14 @@ ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations",
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.2", features = ["fixtures"] }
 cargo_metadata.workspace = true
 cucumber.workspace = true
+divan.workspace = true
 tokio.workspace = true
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+required-features = ["fixtures"]
 
 [[test]]
 name = "bdd"

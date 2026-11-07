@@ -1,4 +1,4 @@
-//! core's facts workload.
+//! The execution crate's facts workload.
 //!
 //! The facts hex's adapters back to back: the memory adapter and the spill adapter, in a directory and in the system's temporary one,
 //! each give two workers the rows of a few files and the words they keep, and finish them, so the fastest is chosen by measurement.

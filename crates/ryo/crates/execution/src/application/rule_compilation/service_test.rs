@@ -1,5 +1,8 @@
 //! Rule compilation keeps bounded session plans and request-local bindings over injected ports.
 use super::errors::RuleCompilationError;
+use crate::domain::operator::constants::{OPERATORS, describe};
+use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
+use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
 use super::service::RuleCompilation;
 use super::service::CompiledPlans;
 use crate::outbound::query_language::errors::QueryLanguageError;
@@ -291,9 +294,41 @@ fn subject(input: Input) -> Result<Value, Failure> {
     input()
 }
 
+/// The rows of the examples the operators print: no input, and the count of examples that do not compile as the value.
+const EXAMPLES: &[Case<(), usize, QueryLanguageError>] = &[Case {
+    name: CaseName("every_operator_example_compiles_as_it_is_printed"),
+    word: Word::Succeeds,
+    input: || (),
+    expect: Expect::Value(0),
+}];
+
+/// How many of the examples the operators print do not compile through the real query language adapter.
+fn uncompiled() -> usize {
+    let compile = Arc::new(CompileUseCaseImpl::new(
+        Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
+        Arc::new(ryo_query_language::outbound::catalog::factory::language()),
+    ));
+    let typecheck = Arc::new(TypecheckUseCaseImpl::new(
+        Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
+        Arc::new(ryo_query_language::outbound::catalog::factory::language()),
+    ));
+    let adapter = crate::outbound::query_language::factory::use_case(compile, typecheck);
+    OPERATORS
+        .iter()
+        .filter(|operator| {
+            let described = describe(**operator);
+            matches!(
+                adapter.compile(&QueryBundle::from(QueryText(described.example.0.clone())), &[], &[]),
+                Err(QueryLanguageError::Refused { .. })
+            )
+        })
+        .count()
+}
+
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+    run(EXAMPLES, Word::Succeeds, |()| Ok(uncompiled()));
 }
 #[test]
 fn refuses() {
