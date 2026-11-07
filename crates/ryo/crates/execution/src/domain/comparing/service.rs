@@ -7,10 +7,11 @@ use ryo_relations::domain::relations::types::{CellKind, TextHash, Value};
 use crate::domain::comparing::collections::comparisons::affix::item::AffixItem;
 use crate::domain::comparing::collections::comparisons::equality::item::EqualityItem;
 use crate::domain::comparing::collections::comparisons::float_text::item::FloatTextItem;
-use crate::domain::comparing::collections::comparisons::glob::item::GlobItem;
+use crate::domain::comparing::collections::comparisons::glob::item::{GlobItem, compiled_glob};
 use crate::domain::comparing::collections::comparisons::interface::ComparisonsItem as _;
 use crate::domain::comparing::collections::comparisons::membership::item::MembershipItem;
 use crate::domain::comparing::collections::comparisons::ordering::item::OrderingItem;
+use crate::domain::comparing::types::{DecisionWorkspace, NumberedComparison, RowShape};
 use crate::domain::functions::types::MadeText;
 use crate::domain::matching::types::prepared::value::PreparedMatchers;
 use crate::domain::operands::service::resolve;
@@ -19,17 +20,12 @@ use crate::domain::operating::service::family_of;
 use crate::domain::operating::types::{ComparisonNumber, Family, Memo, NameCount, OperatorContext};
 use crate::domain::table_model::types::Verdict;
 use crate::domain::table_scratch::types::{
-    ComparisonNumbers, ComparisonSlot, GlobSubject, MemoPlace, MemoSlot, SelectScratch,
-    SubjectHash, SubjectTag, VerdictKey,
+    ComparisonNumbers, ComparisonSlot, GlobSubject, MemoPlace, MemoSlot, SubjectHash, SubjectTag, VerdictKey,
 };
-use crate::domain::table_texts::types::{Datum, Texts};
-use ryo_matching::inbound::use_cases::matching::types::{GlobPattern, MatchOutcome, SearchText};
-use ryo_matching::inbound::use_cases::matching::{
-    compiled::CompiledTextGlobs, interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
-};
-use ryo_values::domain::plan_parts::service::columns_of;
+use crate::domain::table_texts::types::Texts;
+use ryo_matching::inbound::use_cases::matching::compiled::CompiledTextGlobs;
 use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
-use {ryo_values::domain::rows::service::cell, ryo_values::domain::rows::service::column_in};
+use ryo_values::domain::rows::service::{cell, column_in};
 
 /// How many verdicts about texts a worker keeps from file to file.
 const VERDICTS: usize = 1 << 14;
@@ -116,53 +112,6 @@ pub(crate) fn evaluate_comparison(
     }
 }
 
-/// Uses a fixed operand's compiled matcher; a column operand remains row-dependent.
-fn compiled_glob(
-    comparison: &PlanComparison,
-    left: &Datum<'_>,
-    right: &Datum<'_>,
-    prepared: Option<&PreparedMatchers>,
-    compiled: &mut hashbrown::HashMap<ComparisonSlot, CompiledTextGlobs>,
-) -> Option<Verdict> {
-    let Datum::Text(text) = left else {
-        return None;
-    };
-    let matching = MatchingUseCaseImpl::new();
-    let literal = match (prepared, &comparison.right) {
-        (Some(prepared), Operand::Literal(QueryLiteral::Text(pattern))) => {
-            prepared.glob(comparison.test, &pattern.0)
-        }
-        _ => None,
-    };
-    let ready = match literal {
-        Some(ready) => ready,
-        None if !columns_of(&comparison.right).is_empty() => return None,
-        None => {
-            let key = ComparisonSlot(std::ptr::from_ref(comparison).addr());
-            &*compiled.entry(key).or_insert_with(|| match right {
-                Datum::Text(pattern) => matching.compile_text_globs(&[GlobPattern(pattern.0)]),
-                Datum::Texts(patterns) => matching.compile_text_globs(
-                    &patterns
-                        .iter()
-                        .map(|pattern| GlobPattern(pattern.0.as_ref()))
-                        .collect::<Vec<_>>(),
-                ),
-                Datum::Unlocated | Datum::Number(_) | Datum::Flag(_) | Datum::Numbers(_) => {
-                    CompiledTextGlobs::default()
-                }
-            })
-        }
-    };
-    let outcome = matching.matches_text_globs(ready, SearchText(text.0));
-    Some(
-        if (outcome == MatchOutcome::Matches) == (comparison.test == Test::GlobAny) {
-            Verdict::Holds
-        } else {
-            Verdict::Fails
-        },
-    )
-}
-
 /// What the verdict of a glob is kept under when it asks of one name or of one file's path something that does not depend on the
 /// row: the tag of the key (0 for a name, 1 for a file) and the hash of the name's text or the number of the file.
 fn glob_subject(comparison: &PlanComparison, row: &[Value]) -> Option<GlobSubject> {
@@ -218,20 +167,20 @@ fn memo_place(
 /// decided once for each distinct name of the file, as the prototype decides a name's predicates once
 /// when it interns the name.
 fn holds_one_bound(
-    numbered: (ComparisonNumber, &PlanComparison),
+    numbered: NumberedComparison<'_>,
     row: &[Value],
-    shape: (&[CellKind], NameCount),
+    shape: RowShape<'_>,
     texts: &Texts<'_>,
     bindings: &[ParameterBinding],
     prepared: Option<&PreparedMatchers>,
-    work: (&mut SelectScratch, &mut Vec<Memo>),
+    work: DecisionWorkspace<'_>,
 ) -> Result<Verdict, OperatingError> {
-    let (number, comparison) = numbered;
-    let (kinds, names) = shape;
+    let NumberedComparison { number, comparison } = numbered;
+    let RowShape { kinds, names } = shape;
     if let Some(verdict) = equal_to_text(comparison, row, texts) {
         return Ok(verdict);
     }
-    let (select, memo) = work;
+    let DecisionWorkspace { select, memo } = work;
     // A glob of a name that left its file is decided once for each name of the run, as the hash of its text tells: a name
     // is the same text in every file. A glob of a file's path is decided once for each file of the run: the path of a file is
     // the same text in every row that names it (the key of a file is the comparison's address with its low bit set, which
@@ -320,22 +269,28 @@ fn holds_one_bound(
 pub(crate) fn holds_bound(
     comparisons: &[PlanComparison],
     row: &[Value],
-    shape: (&[CellKind], NameCount),
+    shape: RowShape<'_>,
     texts: &Texts<'_>,
     bindings: &[ParameterBinding],
     prepared: Option<&PreparedMatchers>,
-    work: (&mut SelectScratch, &mut Vec<Memo>),
+    work: DecisionWorkspace<'_>,
 ) -> Result<Verdict, OperatingError> {
-    let (select, memo) = work;
+    let DecisionWorkspace { select, memo } = work;
     for (number, comparison) in comparisons.iter().enumerate() {
         if holds_one_bound(
-            (ComparisonNumber(number), comparison),
+            NumberedComparison {
+                number: ComparisonNumber(number),
+                comparison,
+            },
             row,
             shape,
             texts,
             bindings,
             prepared,
-            (&mut *select, &mut *memo),
+            DecisionWorkspace {
+                select: &mut *select,
+                memo: &mut *memo,
+            },
         )? == Verdict::Fails
         {
             return Ok(Verdict::Fails);
@@ -364,13 +319,16 @@ fn holds_one(
         return Ok(verdict);
     }
     holds_one_bound(
-        (number, comparison),
+        NumberedComparison { number, comparison },
         row,
-        (kinds, names),
+        RowShape { kinds, names },
         &texts,
         context.bindings,
         context.prepared_matchers,
-        (&mut *context.scratch.select_scratch, &mut *context.memo),
+        DecisionWorkspace {
+            select: &mut *context.scratch.select_scratch,
+            memo: &mut *context.memo,
+        },
     )
 }
 

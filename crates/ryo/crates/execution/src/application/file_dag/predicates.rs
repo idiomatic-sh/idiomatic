@@ -56,11 +56,17 @@ impl PredicateProgram for BoundPredicate<'_> {
         crate::domain::comparing::service::holds_bound(
             &self.program.comparisons,
             row,
-            (&self.program.kinds, names),
+            crate::domain::comparing::types::RowShape {
+                kinds: &self.program.kinds,
+                names,
+            },
             &texts,
             self.bindings,
             self.prepared,
-            (&mut *self.state, self.memo),
+            crate::domain::comparing::types::DecisionWorkspace {
+                select: &mut *self.state,
+                memo: &mut *self.memo,
+            },
         )
     }
 }

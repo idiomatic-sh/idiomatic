@@ -5,7 +5,7 @@ use std::cmp::Ordering;
 use super::super::interface::ComparisonsItem;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::types::Verdict;
-use crate::domain::table_texts::types::Datum;
+use crate::domain::table_texts::types::{Datum, TextView};
 use ryo_values::domain::plan_parts::types::Test;
 
 /// `ordering`, one item of the `comparisons` collection.
@@ -21,7 +21,7 @@ impl ComparisonsItem for OrderingItem {
         if test == Test::NaturalLessThan {
             return Ok(match (left, right) {
                 (Datum::Text(left), Datum::Text(right))
-                    if natural_compare(left.0, right.0).is_lt() =>
+                    if natural_compare(*left, *right).is_lt() =>
                 {
                     Verdict::Holds
                 }
@@ -66,7 +66,8 @@ impl ComparisonsItem for OrderingItem {
 /// Unicode scalar order. Unicode whitespace separates runs but has no own weight.
 /// A zero-prefixed run compares lexically ("02" < "1", "01" < "010");
 /// other runs compare length before digits ("2" < "10"). No normalization occurs.
-pub(super) fn natural_compare(mut left: &str, mut right: &str) -> Ordering {
+pub(super) fn natural_compare(left: TextView<'_>, right: TextView<'_>) -> Ordering {
+    let (mut left, mut right) = (left.0, right.0);
     loop {
         left = left.trim_start_matches(char::is_whitespace);
         right = right.trim_start_matches(char::is_whitespace);

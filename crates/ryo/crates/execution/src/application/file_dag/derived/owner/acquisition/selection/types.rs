@@ -61,11 +61,17 @@ impl PredicateProgram for PredicateDecision<'_> {
         holds_bound(
             self.comparisons,
             row,
-            (self.kinds, self.names),
+            crate::domain::comparing::types::RowShape {
+                kinds: self.kinds,
+                names: self.names,
+            },
             &texts,
             self.bindings,
             self.prepared,
-            (&mut *self.select, &mut *self.memo),
+            crate::domain::comparing::types::DecisionWorkspace {
+                select: &mut *self.select,
+                memo: &mut *self.memo,
+            },
         )
     }
 }
