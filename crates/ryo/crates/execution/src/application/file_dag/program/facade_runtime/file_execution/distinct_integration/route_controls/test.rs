@@ -1,4 +1,5 @@
 //! Refusal and physical-route controls through the real compiled owner.
+use crate::outbound::operators::interface::OperatorsPort as _;
 use super::super::*;
 use crate::domain::coverage::types::{Lacking, Partial};
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
@@ -18,8 +19,7 @@ struct MeaningCalls {
     joins: AtomicUsize,
     sets: AtomicUsize,
 }
-impl crate::outbound::operators::interface::OperatorsPort for MeaningCalls {}
-impl OperatorsUseCase for MeaningCalls {
+impl crate::outbound::operators::interface::OperatorsPort for MeaningCalls {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         match &call {
             OperatorCall::OrderedExistence { .. } => {

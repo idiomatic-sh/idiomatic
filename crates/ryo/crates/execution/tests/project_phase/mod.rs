@@ -1,4 +1,5 @@
 //! A compiled project emit defers at file scope while real file frontiers remain available.
+use ryo_execution::outbound::operators::interface::OperatorsPort as _;
 use ryo_execution::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
@@ -793,8 +794,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
     #[derive(Debug, Default)]
     struct UnionSemanticCalls(AtomicUsize);
-    impl ryo_execution::outbound::operators::interface::OperatorsPort for UnionSemanticCalls {}
-    impl OperatorsUseCase for UnionSemanticCalls {
+    impl ryo_execution::outbound::operators::interface::OperatorsPort for UnionSemanticCalls {
         fn operators(
             &self,
             call: OperatorCall<'_>,

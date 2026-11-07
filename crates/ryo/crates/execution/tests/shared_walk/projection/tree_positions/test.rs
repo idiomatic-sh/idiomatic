@@ -1,4 +1,5 @@
 //! Shared tree positions keep native join projection refusal and replay, and pure projections share one scan.
+use ryo_execution::outbound::operators::interface::OperatorsPort as _;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
@@ -38,8 +39,7 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
         calls: AtomicUsize,
         refuse: bool,
     }
-    impl ryo_execution::outbound::operators::interface::OperatorsPort for ObservedJoin {}
-    impl OperatorsUseCase for ObservedJoin {
+    impl ryo_execution::outbound::operators::interface::OperatorsPort for ObservedJoin {
         fn operators(
             &self,
             call: OperatorCall<'_>,

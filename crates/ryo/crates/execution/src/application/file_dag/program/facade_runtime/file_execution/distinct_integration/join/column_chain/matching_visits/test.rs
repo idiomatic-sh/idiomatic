@@ -1,4 +1,5 @@
 //! The column join counts matching visits, not population size, even on refusal.
+use crate::outbound::operators::interface::OperatorsPort as _;
 use super::super::super::capability::fixtures::Witness;
 use super::super::super::*;
 use super::super::fixtures::{plan, stored};
@@ -19,8 +20,7 @@ fn actual_column_join_counts_matching_visits_not_population_size_even_on_refusal
         witness: Arc<Witness>,
         refuse: bool,
     }
-    impl crate::outbound::operators::interface::OperatorsPort for AfterFirstMatch {}
-    impl OperatorsUseCase for AfterFirstMatch {
+    impl crate::outbound::operators::interface::OperatorsPort for AfterFirstMatch {
         fn operators(
             &self,
             call: OperatorCall<'_>,

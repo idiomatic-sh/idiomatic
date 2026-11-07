@@ -1,4 +1,5 @@
 //! Recursive producers and roots use the actual injected semantic capability, with terminal refusal.
+use crate::outbound::operators::interface::OperatorsPort as _;
 use super::super::super::fixtures::{Authored, Preparation};
 use crate::outbound::facts::types::ResidentStability;
 use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
@@ -50,8 +51,7 @@ struct ObservedSemantics {
     projects: AtomicUsize,
     appends: AtomicUsize,
 }
-impl crate::outbound::operators::interface::OperatorsPort for ObservedSemantics {}
-impl OperatorsUseCase for ObservedSemantics {
+impl crate::outbound::operators::interface::OperatorsPort for ObservedSemantics {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         let refuse = match &call {
             OperatorCall::SetRow { .. } => {

@@ -1,4 +1,5 @@
 //! Actual lint dependencies; memory changes only after successful semantic reduction.
+use ryo_execution::outbound::operators::interface::OperatorsPort as _;
 use super::super::*;
 use crate::outbound::memory::{errors::MemoryError, interface::MemoryPort};
 use ryo_execution::outbound::query_language::errors::QueryLanguageError;
@@ -25,8 +26,7 @@ struct ProjectPressure {
     reductions: AtomicUsize,
     pressure: MemoryPressure,
 }
-impl ryo_execution::outbound::operators::interface::OperatorsPort for ProjectPressure {}
-impl OperatorsUseCase for ProjectPressure {
+impl ryo_execution::outbound::operators::interface::OperatorsPort for ProjectPressure {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         let reduction = matches!(&call, OperatorCall::ReduceCount { .. });
         let answer =

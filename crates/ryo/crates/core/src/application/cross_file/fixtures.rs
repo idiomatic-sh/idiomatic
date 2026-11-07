@@ -1,5 +1,6 @@
 //! Test support for `cross_file`: the worlds, plans and frontier rows its cases are stated over.
 #![cfg(test)]
+use ryo_execution::outbound::operators::interface::OperatorsPort as _;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
@@ -354,8 +355,7 @@ pub(super) struct ProjectCalls {
     pub(super) aggregates: std::sync::atomic::AtomicUsize,
 }
 
-impl ryo_execution::outbound::operators::interface::OperatorsPort for ProjectCalls {}
-impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase for ProjectCalls {
+impl ryo_execution::outbound::operators::interface::OperatorsPort for ProjectCalls {
     fn operators(
         &self,
         call: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,

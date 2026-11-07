@@ -1,4 +1,5 @@
 //! Completed source data and authored requests; every execution enters the public owner.
+use ryo_execution::outbound::operators::interface::OperatorsPort as _;
 use ryo_execution::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
@@ -45,8 +46,7 @@ use std::sync::{
 };
 #[derive(Debug, Default)]
 pub(super) struct SemanticCalls(AtomicUsize);
-impl ryo_execution::outbound::operators::interface::OperatorsPort for SemanticCalls {}
-impl OperatorsUseCase for SemanticCalls {
+impl ryo_execution::outbound::operators::interface::OperatorsPort for SemanticCalls {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         if matches!(&call, OperatorCall::Select { .. }) {
             let _previous = self.0.fetch_add(1, Ordering::Relaxed);

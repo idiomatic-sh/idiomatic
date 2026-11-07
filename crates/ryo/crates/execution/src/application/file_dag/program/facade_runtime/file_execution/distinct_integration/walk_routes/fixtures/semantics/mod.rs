@@ -6,6 +6,7 @@ use ryo_derived::domain::contract::types::{
 use ryo_derived::inbound::use_cases::derived::{
     interface::DerivedUseCase, use_case::DerivedUseCaseImpl,
 };
+use crate::outbound::operators::interface::OperatorsPort as _;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
@@ -42,8 +43,7 @@ impl Meanings {
         }
     }
 }
-impl crate::outbound::operators::interface::OperatorsPort for Meanings {}
-impl OperatorsUseCase for Meanings {
+impl crate::outbound::operators::interface::OperatorsPort for Meanings {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         match &call {
             OperatorCall::Append { appended, .. } if *appended == [Value::Number(Integer(99))] => {

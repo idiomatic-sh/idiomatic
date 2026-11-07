@@ -1,4 +1,5 @@
 //! Real semantic refusal at one compiled root cannot erase the independent root.
+use crate::outbound::operators::interface::OperatorsPort as _;
 use super::super::*;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
@@ -14,8 +15,7 @@ use ryo_values::domain::records::types::ObservationReadinessLayout;
 use ryo_values::domain::records::types::ProducerReadiness;
 #[derive(Debug)]
 struct RefuseCount;
-impl crate::outbound::operators::interface::OperatorsPort for RefuseCount {}
-impl OperatorsUseCase for RefuseCount {
+impl crate::outbound::operators::interface::OperatorsPort for RefuseCount {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         if matches!(
             &call,

@@ -1,5 +1,5 @@
 //! Compose the portable operator adapter at an SDK edge.
-use crate::outbound::operators::adapter::OperatorsAdapter;
+use crate::outbound::operators::adapters::use_case::adapter::OperatorsUseCaseAdapter;
 use crate::outbound::operators::interface::OperatorsPort;
 
 /// The adapter over the operators use case; the edge constructs it once per lint service.
@@ -10,5 +10,5 @@ pub fn use_case(
     + Sync
     + std::fmt::Debug,
 ) -> impl OperatorsPort {
-    OperatorsAdapter::new(operators)
+    OperatorsUseCaseAdapter::new(operators)
 }

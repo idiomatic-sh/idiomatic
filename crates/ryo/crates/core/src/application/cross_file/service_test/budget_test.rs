@@ -1,4 +1,5 @@
 //! The memory budget stops a later population, and a refused frontier keeps its compiled source.
+use ryo_execution::outbound::operators::interface::OperatorsPort as _;
 use super::batch_test::sealed_fixture_batch;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
@@ -37,8 +38,7 @@ struct GrowingMemory {
     actual: ProjectCalls,
     resident: AtomicU64,
 }
-impl ryo_execution::outbound::operators::interface::OperatorsPort for GrowingMemory {}
-impl OperatorsUseCase for GrowingMemory {
+impl ryo_execution::outbound::operators::interface::OperatorsPort for GrowingMemory {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         let answer = self.actual.operators(call);
         self.resident.store(200, Ordering::SeqCst);

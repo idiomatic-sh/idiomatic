@@ -1,7 +1,7 @@
 //! The operator fake preserves the port contract and a controlled refusal.
 use super::{super::contract, OperatorsFake};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase as _;
+use crate::outbound::operators::interface::OperatorsPort as _;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::domain::contract::types::PortableOperatorFault;

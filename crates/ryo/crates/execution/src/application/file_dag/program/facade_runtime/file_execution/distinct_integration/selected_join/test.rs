@@ -1,4 +1,5 @@
 //! Selected RHS projection and duplicate order through the real compiled Join.
+use crate::outbound::operators::interface::OperatorsPort as _;
 use super::super::*;
 use crate::domain::table_model::service::{read_row_counts, take_read_row_counts};
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
@@ -9,8 +10,7 @@ use ryo_operators::domain::contract::types::PortableOperatorFault;
 /// Observe only actual Join driver work, excluding prepared walks and publication delivery.
 #[derive(Debug, Default)]
 struct JoinReads(std::sync::Mutex<Vec<(u64, u64)>>);
-impl crate::outbound::operators::interface::OperatorsPort for JoinReads {}
-impl OperatorsUseCase for JoinReads {
+impl crate::outbound::operators::interface::OperatorsPort for JoinReads {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         let before = matches!(&call, OperatorCall::EqualityJoin { .. }).then(read_row_counts);
         let answer =

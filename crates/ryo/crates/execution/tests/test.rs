@@ -1,4 +1,5 @@
 //! The public protocol is the only execution entry used by these controls.
+use ryo_execution::outbound::operators::interface::OperatorsPort as _;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_execution::outbound::query_language::errors::QueryLanguageError;
 use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
@@ -645,8 +646,7 @@ struct ReductionAudit {
     reductions: std::sync::atomic::AtomicUsize,
     emissions: std::sync::atomic::AtomicUsize,
 }
-impl ryo_execution::outbound::operators::interface::OperatorsPort for ReductionAudit {}
-impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase for ReductionAudit {
+impl ryo_execution::outbound::operators::interface::OperatorsPort for ReductionAudit {
     fn operators(
         &self,
         call: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,

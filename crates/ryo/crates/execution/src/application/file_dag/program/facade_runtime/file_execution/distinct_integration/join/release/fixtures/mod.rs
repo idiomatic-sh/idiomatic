@@ -1,4 +1,5 @@
 //! Strategy inputs and the one real semantic dependency whose answers are refused.
+use crate::outbound::operators::interface::OperatorsPort as _;
 use super::super::capability::fixtures::REFUSAL;
 use super::super::*;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
@@ -13,8 +14,7 @@ pub(super) struct OrderedPort {
     pub(super) calls: AtomicUsize,
     pub(super) refuse: bool,
 }
-impl crate::outbound::operators::interface::OperatorsPort for OrderedPort {}
-impl OperatorsUseCase for OrderedPort {
+impl crate::outbound::operators::interface::OperatorsPort for OrderedPort {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         if matches!(call, OperatorCall::OrderedExistence { .. }) {
             self.calls.fetch_add(1, Ordering::Relaxed);

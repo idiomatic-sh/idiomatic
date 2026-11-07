@@ -12,6 +12,7 @@
     reason = "a contract run over the corpus fails by panicking: the panic is the failure of the check that calls it"
 )]
 
+use ryo_execution::outbound::operators::interface::OperatorsPort as _;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::atomic::Ordering;

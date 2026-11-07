@@ -1,4 +1,5 @@
 //! Semantic permits and the physical request that carries its validated authority.
+use crate::outbound::operators::interface::OperatorsPort as _;
 use super::super::{PermittedPhysical, SemanticPermit};
 use crate::domain::executable_program::types::RouteKind;
 use crate::domain::operating::errors::OperatingError;
