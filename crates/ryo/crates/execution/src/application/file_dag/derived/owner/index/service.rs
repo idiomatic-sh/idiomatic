@@ -60,7 +60,7 @@ pub(in crate::application::file_dag::derived::owner) fn new(
         graph_domains: Vec::new(),
         nearest: Vec::new(),
         graph_counts: crate::domain::stored_graph::types::GraphCounts {
-            peak_bytes: bytes,
+            peak_bytes: crate::domain::stored_graph::types::PeakBytes(bytes),
             ..Default::default()
         },
         selectors: Vec::new(),
@@ -90,7 +90,7 @@ pub(in crate::application::file_dag::derived::owner) fn non_graph_limit(
 pub(in crate::application::file_dag::derived::owner) fn candidate_columns(
     cache: &mut CacheBackend,
 ) {
-    use crate::domain::stored_selection::types::CandidateColumn;
+    use crate::domain::stored_selection::types::{CandidateColumn, CandidateRepeat};
     use ryo_values::domain::plan_parts::types::{Operand, Test};
     let mut columns = std::collections::BTreeMap::new();
     for selector in &cache.selectors {
@@ -108,10 +108,13 @@ pub(in crate::application::file_dag::derived::owner) fn candidate_columns(
                     relation: selector.relation,
                     column: *column,
                     first: (selector).clone(),
-                    repeated: false,
+                    repeat: CandidateRepeat::Single,
                 });
-            entry.repeated |= entry.first.identity.comparisons != selector.identity.comparisons
-                || entry.first.identity.bindings != selector.identity.bindings;
+            if entry.first.identity.comparisons != selector.identity.comparisons
+                || entry.first.identity.bindings != selector.identity.bindings
+            {
+                entry.repeat = CandidateRepeat::Repeated;
+            }
         }
     }
     let columns: Vec<_> = columns.into_values().collect();
@@ -123,7 +126,7 @@ pub(in crate::application::file_dag::derived::owner) fn candidate_columns(
         .filter(|bytes| *bytes <= non_graph_limit(cache).0)
     {
         cache.bytes = bytes;
-        cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
+        cache.graph_counts.peak_bytes.0 = cache.graph_counts.peak_bytes.0.max(bytes);
         cache.discriminator_columns = columns;
     }
 }

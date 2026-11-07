@@ -56,7 +56,7 @@ fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<()
     let selector = |word: LiteralText| {
         Arc::new(Selector {
             relation: Relation::Defines,
-            identity: Arc::new(crate::domain::table_model::types::SelectionIdentity {
+            identity: Arc::new(crate::domain::stored_selection::types::SelectionIdentity {
                 comparisons: vec![PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(0)),
@@ -155,7 +155,7 @@ fn absent_symbol_literal_preserves_ordered_errors() -> Result<(), Failure> {
     let selector = |comparisons| {
         Arc::new(Selector {
             relation: Relation::Defines,
-            identity: Arc::new(crate::domain::table_model::types::SelectionIdentity {
+            identity: Arc::new(crate::domain::stored_selection::types::SelectionIdentity {
                 comparisons,
                 bindings: vec![ParameterBinding::Tables(Vec::new())],
             }),
@@ -259,7 +259,7 @@ fn empty_literal_preserves_malformed_symbol_fallback() -> Result<(), Failure> {
     };
     let selector = Arc::new(Selector {
         relation: Relation::Defines,
-        identity: Arc::new(crate::domain::table_model::types::SelectionIdentity {
+        identity: Arc::new(crate::domain::stored_selection::types::SelectionIdentity {
             comparisons: vec![PlanComparison {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(0)),

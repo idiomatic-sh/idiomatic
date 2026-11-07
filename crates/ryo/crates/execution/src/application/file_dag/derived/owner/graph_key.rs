@@ -9,7 +9,7 @@ use std::sync::{Arc, Weak};
 #[derive(Clone, Debug)]
 pub(in crate::application::file_dag::derived::owner) struct GraphSelection {
     rows: Weak<Vec<u32>>,
-    identity: Arc<crate::domain::table_model::types::SelectionIdentity>,
+    identity: Arc<crate::domain::stored_selection::types::SelectionIdentity>,
 }
 impl PartialEq for GraphSelection {
     fn eq(&self, other: &Self) -> bool {
@@ -26,7 +26,7 @@ impl std::hash::Hash for GraphSelection {
 impl GraphSelection {
     pub(in crate::application::file_dag::derived::owner) fn new(
         rows: &Arc<Vec<u32>>,
-        identity: &Arc<crate::domain::table_model::types::SelectionIdentity>,
+        identity: &Arc<crate::domain::stored_selection::types::SelectionIdentity>,
     ) -> Self {
         Self {
             rows: Arc::downgrade(rows),

@@ -98,7 +98,7 @@ pub(in crate::application::file_dag::derived::owner) fn acquire(
         .iter()
         .any(|entry| Arc::ptr_eq(&entry.graph, &graph));
     if !invoked.get() {
-        cache.graph_counts.reuses += 1;
+        cache.graph_counts.reuses.0 += 1;
         if !shared {
             shared = owner.retain_graph(
                 cache,
@@ -126,7 +126,7 @@ pub(super) fn graph_requirement(
     }
 }
 pub(super) fn graph_selection(
-    population: &crate::domain::stored_graph::types::Population,
+    population: &crate::domain::stored_graph::types::RelationPopulation,
 ) -> Option<GraphSelection> {
     population
         .positions

@@ -69,7 +69,7 @@ mod dependency_authorized {
 }
 "#;
 const CACHE_MUTATOR: &str = r#"
-mod cache_mutator { use crate::application::file_dag::derived::owner::cache::types::CacheBackend; fn mutate(cache: &mut CacheBackend) { cache.observe_graph_walk(crate::application::file_dag::derived::owner::cache::types::ExpandedVertices(1), crate::application::file_dag::derived::owner::cache::types::ExaminedVertices(1)); } const _: fn(&mut CacheBackend) = mutate; }
+mod cache_mutator { use crate::application::file_dag::derived::owner::cache::types::CacheBackend; fn mutate(cache: &mut CacheBackend) { cache.observe_graph_walk(crate::domain::stored_graph::types::ExpandedVertices(1), crate::domain::stored_graph::types::ExaminedVertices(1)); } const _: fn(&mut CacheBackend) = mutate; }
 "#;
 const CACHE_BINDING: &str = r#"
 mod cache_binding {
@@ -182,7 +182,7 @@ pub(super) fn controls(root: &'static str, module: &'static str) -> Vec<Probe> {
             compilation: Compilation::Library,
             owner: CACHE,
             source: format!(
-                "mod cache_owner {{ use super::CacheBackend; use crate::domain::derived_views::types::PreparedSelectionViews; use std::sync::Arc; fn own(cache: &mut CacheBackend, views: Arc<PreparedSelectionViews>) {{ {field_reads} cache.observe_graph_walk(crate::application::file_dag::derived::owner::cache::types::ExpandedVertices(1), crate::application::file_dag::derived::owner::cache::types::ExaminedVertices(1)); cache.bind_request_views(views); }} const _: fn(&mut CacheBackend, Arc<PreparedSelectionViews>) = own; }}"
+                "mod cache_owner {{ use super::CacheBackend; use crate::domain::derived_views::types::PreparedSelectionViews; use std::sync::Arc; fn own(cache: &mut CacheBackend, views: Arc<PreparedSelectionViews>) {{ {field_reads} cache.observe_graph_walk(crate::domain::stored_graph::types::ExpandedVertices(1), crate::domain::stored_graph::types::ExaminedVertices(1)); cache.bind_request_views(views); }} const _: fn(&mut CacheBackend, Arc<PreparedSelectionViews>) = own; }}"
             ),
             expected: Expectation::Accept,
         },

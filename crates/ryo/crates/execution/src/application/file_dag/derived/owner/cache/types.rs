@@ -1,6 +1,7 @@
 //! Private application backend storage. Only derived-owner algorithms can access mutable fields.
 
 use crate::application::file_dag::derived::owner::types::{BuildCount, RefusalCount, ReuseCount};
+use crate::domain::stored_graph::types::{ExaminedVertices, ExpandedVertices};
 use ryo_relations::domain::relations::types::Relation;
 use std::sync::Arc;
 
@@ -30,14 +31,6 @@ pub enum RepetitionTracking {
     Tracked,
     Failed,
 }
-
-/// Graph vertices expanded by one walk.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct ExpandedVertices(pub u64);
-
-/// Graph vertices examined by one walk.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct ExaminedVertices(pub u64);
 
 /// A file-local owner: dropping it releases all admitted allocations without eviction.
 #[derive(Debug)]
@@ -122,7 +115,7 @@ impl CacheBackend {
         expanded: ExpandedVertices,
         examined: ExaminedVertices,
     ) {
-        self.graph_counts.expanded += expanded.0;
-        self.graph_counts.examined += examined.0;
+        self.graph_counts.expanded.0 += expanded.0;
+        self.graph_counts.examined.0 += examined.0;
     }
 }

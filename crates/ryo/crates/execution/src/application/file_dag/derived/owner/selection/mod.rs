@@ -56,7 +56,7 @@ fn make<'a>(
 ) -> Result<Option<SelectionOutput<'a>>, OperatingError> {
     check_columns(source.kinds, &program.columns)?;
     if let Some(entry) = histogram(cache, program) {
-        entry.calls += 1;
+        entry.calls.0 += 1;
     }
     let population = source.columns.first().map_or(0, |column| column.0.len());
     let Some(views) = cache

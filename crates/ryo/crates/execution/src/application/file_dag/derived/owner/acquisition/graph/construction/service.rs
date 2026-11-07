@@ -41,7 +41,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adja
                 .graph_identity()
                 .is_some_and(|identity| identity.as_ref() == &source.identity)
     }) {
-        cache.graph_counts.reuses += 1;
+        cache.graph_counts.reuses.0 += 1;
         return Ok(Some(BuiltGraph {
             storage: Arc::clone(&entry.storage),
             construction: Construction::Reused,
@@ -76,7 +76,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adja
         .ok_or(OperatingError::WrongOperation)?;
     let storage = Arc::new(storage);
     let backings = owner.graph_backings(&storage)?;
-    cache.graph_counts.builds += 1;
+    cache.graph_counts.builds.0 += 1;
     let shared =
         owner.retain_graph(cache, population, &storage, &backings, &graph)? == GraphSharing::Shared;
     tracing::trace!(target: constants::TARGET_GRAPH, event = constants::EVENT_ADJACENCY, reused = false, shared,

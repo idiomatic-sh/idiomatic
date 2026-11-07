@@ -79,7 +79,7 @@ pub(in crate::application::file_dag::derived::owner::selection) fn prepare_activ
         .filter(|bytes| *bytes <= cache.limit)
     {
         cache.bytes = bytes;
-        cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
+        cache.graph_counts.peak_bytes.0 = cache.graph_counts.peak_bytes.0.max(bytes);
         cache.active_postings = active;
     }
 }
@@ -134,7 +134,7 @@ pub(in crate::application::file_dag::derived::owner::selection) fn fanout_candid
         .share_posting_positions(wanted)
         .ok_or(OperatingError::WrongOperation)?;
     if acquired.construction() == Construction::Built {
-        cache.selection_counts.scanned += population as u64;
+        cache.selection_counts.scanned.0 += population as u64;
     }
     let path = if acquired.construction() == Construction::Built {
         SelectionPath::FanoutBuilt

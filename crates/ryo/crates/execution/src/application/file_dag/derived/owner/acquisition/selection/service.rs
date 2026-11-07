@@ -274,7 +274,7 @@ pub(in crate::application::file_dag::derived::owner) fn histogram<'a>(
         .iter()
         .position(|entry| Arc::ptr_eq(&entry.selector, program));
     let at = at.unwrap_or_else(|| {
-        entries.push(SelectorHistogram::new(program));
+        entries.push(SelectorHistogram::from(program));
         entries.len() - 1
     });
     entries.get_mut(at)

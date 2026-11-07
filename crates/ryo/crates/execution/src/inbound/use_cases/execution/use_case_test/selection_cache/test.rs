@@ -260,7 +260,7 @@ fn literal(text: &str, columns: Vec<ColumnIndex>) -> Selector {
     };
     Selector {
         relation: Relation::Defines,
-        identity: Arc::new(crate::domain::table_model::types::SelectionIdentity {
+        identity: Arc::new(crate::domain::stored_selection::types::SelectionIdentity {
             comparisons: vec![PlanComparison {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(0)),

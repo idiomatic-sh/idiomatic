@@ -10,7 +10,7 @@ impl DerivedOwner {
         let backend = self.backend.borrow();
         let backend = backend.as_ref().ok_or(OperatingError::NotRun)?;
         Ok(crate::domain::operator::types::RowsFed([
-            backend.selection_counts.predicate_rows,
+            backend.selection_counts.predicate_rows.0,
             0,
             0,
         ]))

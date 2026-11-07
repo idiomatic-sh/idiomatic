@@ -184,7 +184,7 @@ pub(in crate::application::file_dag::derived::owner) fn activate_program(
                 .0
     }) {
         cache.bytes = bytes;
-        cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
+        cache.graph_counts.peak_bytes.0 = cache.graph_counts.peak_bytes.0.max(bytes);
         cache.selectors = selectors;
         crate::application::file_dag::derived::owner::index::service::candidate_columns(cache);
     }

@@ -1,7 +1,7 @@
 //! Root keys carry orientation and positive reach cannot invent a missing root.
 use super::constants;
 use crate::application::file_dag::derived::owner::fixtures::graph::GraphFixture;
-use crate::domain::stored_graph::types::GraphWalk;
+use crate::domain::stored_graph::types::{GraphWalk, VertexId};
 use crate::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::{CellKind, FactColumn, Integer, Relation, Value};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
@@ -28,7 +28,7 @@ fn empty_graph_and_absent_partition_clear_previous_answer() {
         .expect(constants::VALID_COLUMNS)
         .expect(constants::EMPTY_GRAPH);
     let mut walk = GraphWalk::default();
-    walk.reached.push(99);
+    walk.reached.push(VertexId(99));
     assert!(
         fixture
             .reach(&access, &[], Value::Number(Integer(1)), &mut walk)

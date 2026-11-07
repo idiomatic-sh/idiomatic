@@ -3,7 +3,10 @@ use super::super::super::fixtures;
 
 use crate::application::file_dag::testing::CompleteTableRows;
 use crate::domain::stored_graph::types::traversal::value::GraphTraversal;
-use crate::domain::stored_graph::types::{GraphIdentity, GraphWalk, Orientation, Population};
+use crate::domain::stored_graph::types::{
+    ExaminedVertices, ExpandedVertices, GraphIdentity, GraphWalk, Orientation,
+    RelationPopulation, VertexId, VisitEpoch,
+};
 use crate::domain::table_model::types::Rows;
 use ryo_derived::domain::contract::types::{
     BuildOutcome, BuildWorkspace, CompactGraph, DerivedInputs, ViewRequest,
@@ -35,10 +38,10 @@ fn table(rows: &[&[i64]], width: usize) -> Table {
 /// Identity need not correspond to the schema of the named frontend relation in a standalone graph test.
 fn identity(keys: Vec<ColumnIndex>, rows: usize) -> GraphIdentity {
     GraphIdentity {
-        population: Population {
+        population: RelationPopulation {
             relation: Relation::Function,
             kinds: &[CellKind::Number, CellKind::Number, CellKind::Number],
-            rows,
+            rows: ryo_values::domain::rows::types::RowCount(rows),
             native_file: None,
             selected: None,
             positions: None,
@@ -55,7 +58,7 @@ fn build(
 ) -> Result<Option<Arc<CompactGraph>>, crate::domain::operating::errors::OperatingError> {
     assert_eq!(
         identity.population.rows,
-        crate::domain::table_model::service::count_of(rows).0
+        crate::domain::table_model::service::count_of(rows)
     );
     // The portable request carries the actual endpoints and keys. The old
     // GraphIdentity belongs to the former local builder and is not an input
@@ -130,12 +133,12 @@ fn compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_dupl
             .partition_values(graph.vertex_partitions()[root] as usize)
             .expect("prepared partition");
         let mut traversal = GraphTraversal::new(&graph, &mut walk);
-        let _ = traversal.breadth(root as u32, Orientation::Forward, None);
+        let _ = traversal.breadth(VertexId(root as u32), Orientation::Forward, None);
         traversal.sort();
         let actual: Vec<_> = walk
             .reached
             .iter()
-            .map(|vertex| graph.vertices()[*vertex as usize])
+            .map(|vertex| graph.vertices()[vertex.0 as usize])
             .collect();
         let expected: Vec<_> = (0..ordinary.count.0)
             .filter_map(|row| row_in(&ordinary, ryo_values::domain::rows::types::RowIndex(row)))
@@ -170,16 +173,20 @@ fn sparse_demand_work_is_independent_of_unrelated_components() {
         .vertex(0, Value::Number(Integer(1)))
         .expect("prepared vertex");
     let mut walk = GraphWalk::default();
+    let root = VertexId(root);
     let _ = GraphTraversal::new(&graph, &mut walk).breadth(root, Orientation::Forward, None);
     assert_eq!(
         (walk.expanded, walk.examined, walk.reached.len()),
-        (3, 2, 2)
+        (ExpandedVertices(3), ExaminedVertices(2), 2)
     );
     // Repeated requests reuse epoch memory, not a global O(vertices) clear.
     let epoch = walk.epoch;
     let _ = GraphTraversal::new(&graph, &mut walk).breadth(root, Orientation::Forward, None);
-    assert_eq!(walk.epoch, epoch + 1);
-    assert_eq!((walk.expanded, walk.examined), (3, 2));
+    assert_eq!(walk.epoch, VisitEpoch(epoch.0 + 1));
+    assert_eq!(
+        (walk.expanded, walk.examined),
+        (ExpandedVertices(3), ExaminedVertices(2))
+    );
 }
 
 #[test]

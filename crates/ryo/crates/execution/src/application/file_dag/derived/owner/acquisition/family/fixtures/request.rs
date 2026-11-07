@@ -2,8 +2,8 @@
 use super::super::super::admission::service::AcquiredView;
 use crate::domain::{
     derived_views::types::ViewRequest, operating::errors::OperatingError,
-    operator::contract::resources::DfsResources, stored_selection::types::Selector,
-    table_model::types::SelectionIdentity,
+    operator::contract::resources::DfsResources,
+    stored_selection::types::{SelectionIdentity, Selector},
 };
 use ryo_derived::domain::contract::types::{DerivedKind, DerivedView};
 use ryo_relations::domain::relations::types::Relation;

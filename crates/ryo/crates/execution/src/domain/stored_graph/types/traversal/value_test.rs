@@ -2,7 +2,10 @@
 
 use super::value::{ABSENT, GraphTraversal, UNKNOWN};
 
-use crate::domain::stored_graph::types::{GraphDomain, GraphWalk, Orientation};
+use crate::domain::stored_graph::types::{
+    BreadthEnd, ExaminedVertices, ExpandedVertices, GraphDomain, GraphWalk, MemoStatus, Nearest,
+    Orientation, VertexId, VisitEpoch,
+};
 use ryo_derived::domain::contract::types::{
     BuildOutcome, BuildWorkspace, BulkRows, DerivedFault, DerivedInputs, RowCells, ViewRequest,
 };
@@ -80,10 +83,12 @@ fn graph(edges: &[[i64; 2]]) -> Arc<ryo_derived::domain::contract::types::Compac
         .expect("successful adjacency payload")
 }
 
-fn vertex(graph: &ryo_derived::domain::contract::types::CompactGraph, value: i64) -> u32 {
-    graph
-        .vertex(0, Value::Number(Integer(value)))
-        .expect("stored vertex")
+fn vertex(graph: &ryo_derived::domain::contract::types::CompactGraph, value: i64) -> VertexId {
+    VertexId(
+        graph
+            .vertex(0, Value::Number(Integer(value)))
+            .expect("stored vertex"),
+    )
 }
 
 #[test]
@@ -94,17 +99,16 @@ fn bfs_nearest_stops_in_edge_encounter_order_and_direct_retains_duplicates() {
         identity: None,
         members: Arc::new(vec![false; graph.vertices().len()]),
     };
-    Arc::make_mut(&mut domain.members)[vertex(&graph, 9) as usize] = true;
-    Arc::make_mut(&mut domain.members)[vertex(&graph, 2) as usize] = true;
+    Arc::make_mut(&mut domain.members)[vertex(&graph, 9).0 as usize] = true;
+    Arc::make_mut(&mut domain.members)[vertex(&graph, 2).0 as usize] = true;
     let mut walk = GraphWalk::default();
     let root = vertex(&graph, 1);
-    assert!(GraphTraversal::new(&graph, &mut walk).breadth(
-        root,
-        Orientation::Forward,
-        Some(&domain.members)
-    ));
+    assert_eq!(
+        GraphTraversal::new(&graph, &mut walk).breadth(root, Orientation::Forward, Some(&domain)),
+        BreadthEnd::Stopped
+    );
     assert_eq!(walk.reached, [vertex(&graph, 9)]);
-    assert_eq!(walk.expanded, 1);
+    assert_eq!(walk.expanded, ExpandedVertices(1));
     GraphTraversal::new(&graph, &mut walk).direct(root, Orientation::Forward);
     assert_eq!(
         walk.reached,
@@ -116,10 +120,10 @@ fn bfs_nearest_stops_in_edge_encounter_order_and_direct_retains_duplicates() {
         1,
         "positive cycle emits root exactly once"
     );
-    assert_eq!(walk.expanded, 4);
-    walk.epoch = u32::MAX;
+    assert_eq!(walk.expanded, ExpandedVertices(4));
+    walk.epoch = VisitEpoch(u32::MAX);
     let _ = GraphTraversal::new(&graph, &mut walk).breadth(root, Orientation::Forward, None);
-    assert_eq!(walk.epoch, 1);
+    assert_eq!(walk.epoch, VisitEpoch(1));
     assert_eq!(walk.reached.len(), 4);
 }
 
@@ -131,34 +135,43 @@ fn validated_forest_compresses_shared_chains_without_including_the_start() {
         identity: None,
         members: Arc::new(vec![false; graph.vertices().len()]),
     };
-    Arc::make_mut(&mut domain.members)[vertex(&graph, 4) as usize] = true;
-    Arc::make_mut(&mut domain.members)[vertex(&graph, 1) as usize] = true;
+    Arc::make_mut(&mut domain.members)[vertex(&graph, 4).0 as usize] = true;
+    Arc::make_mut(&mut domain.members)[vertex(&graph, 1).0 as usize] = true;
     let mut walk = GraphWalk::default();
     let mut answers = Vec::new();
     let first = GraphTraversal::new(&graph, &mut walk).nearest(
         vertex(&graph, 1),
         Orientation::Forward,
-        &domain.members,
+        &domain,
         &mut answers,
     );
-    assert_eq!(first, (Some(vertex(&graph, 4)), false));
-    assert_eq!(walk.examined, 3);
+    assert_eq!(
+        first,
+        Nearest {
+            vertex: Some(vertex(&graph, 4)),
+            memo: MemoStatus::Fresh
+        }
+    );
+    assert_eq!(walk.examined, ExaminedVertices(3));
     let next = GraphTraversal::new(&graph, &mut walk).nearest(
         vertex(&graph, 8),
         Orientation::Forward,
-        &domain.members,
+        &domain,
         &mut answers,
     );
-    assert_eq!(next.0, Some(vertex(&graph, 4)));
-    assert_eq!(walk.examined, 1);
+    assert_eq!(next.vertex, Some(vertex(&graph, 4)));
+    assert_eq!(walk.examined, ExaminedVertices(1));
     assert_eq!(
         GraphTraversal::new(&graph, &mut walk).nearest(
             vertex(&graph, 1),
             Orientation::Forward,
-            &domain.members,
+            &domain,
             &mut answers
         ),
-        (first.0, true)
+        Nearest {
+            vertex: first.vertex,
+            memo: MemoStatus::Memoized
+        }
     );
     assert_ne!(UNKNOWN, ABSENT);
 }

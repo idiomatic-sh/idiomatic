@@ -15,7 +15,7 @@ use crate::application::file_dag::{
 use crate::domain::{
     coverage::types::Partial,
     operator::contract::views::BorrowedRows,
-    stored_graph::types::{GraphWalk, Orientation},
+    stored_graph::types::{GraphWalk, Orientation, VertexId},
     table_model::types::Rows,
 };
 use ryo_relations::domain::relations::types::{Relation, Value};
@@ -300,7 +300,7 @@ impl GraphFixture {
         domain: &DomainHandle,
         root: u32,
         orientation: Orientation,
-        local: &mut Vec<u32>,
+        local: &mut Vec<VertexId>,
         walk: &mut GraphWalk,
     ) -> Result<Option<u32>, OperatingError> {
         let mut cache = self.owner.derived().graph_cache()?;

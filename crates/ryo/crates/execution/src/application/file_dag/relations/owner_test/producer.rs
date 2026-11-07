@@ -17,7 +17,7 @@ use {
     crate::domain::operator::contract::views::BorrowedRows,
     crate::domain::stored_selection::types::Selector,
     crate::domain::table_model::collections::representations::types::PhysicalShape,
-    crate::domain::table_model::types::Rows, crate::domain::table_model::types::SelectionIdentity,
+    crate::domain::table_model::types::Rows, crate::domain::stored_selection::types::SelectionIdentity,
     crate::domain::table_scratch::types::OperatorScratch,
     ryo_values::domain::files::types::SourceView,
 };

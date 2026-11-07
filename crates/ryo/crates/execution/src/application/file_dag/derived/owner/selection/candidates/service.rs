@@ -8,7 +8,7 @@ use crate::domain::{
     derived_views::types::{DerivedInputs, DerivedScratch, PreparedSelectorViews},
     operating::{errors::OperatingError, types::OperatorContext},
     operator::contract::views::BorrowedRows,
-    stored_selection::types::Selector,
+    stored_selection::types::{CandidateRepeat, Selector},
     table_model::service::matching_stored,
 };
 use ryo_derived::domain::contract::types::DerivedView;
@@ -43,7 +43,7 @@ pub(in crate::application::file_dag::derived::owner) fn candidates(
         path,
     }) = fanout_candidates(cache, resources, program, &views.postings, source, context)?
     {
-        cache.selection_counts.candidates += rows.0.len() as u64;
+        cache.selection_counts.candidates.0 += rows.0.len() as u64;
         return Ok(CandidateChoice {
             rows: Some(CandidateRows::Shared {
                 rows,
@@ -68,7 +68,9 @@ pub(in crate::application::file_dag::derived::owner) fn candidates(
         };
         path = path.max(SelectionPath::NotRepeated);
         let reused = cache.discriminator_columns.iter().any(|entry| {
-            entry.relation == program.relation && entry.column == column && entry.repeated
+            entry.relation == program.relation
+                && entry.column == column
+                && entry.repeat == CandidateRepeat::Repeated
         });
         if !reused {
             continue;
@@ -104,7 +106,7 @@ pub(in crate::application::file_dag::derived::owner) fn candidates(
             }),
         )?;
         if acquired.construction() == Construction::Built {
-            cache.selection_counts.scanned += population as u64;
+            cache.selection_counts.scanned.0 += population as u64;
         }
         let DerivedView::Equality(order) = acquired.view()? else {
             return Err(OperatingError::WrongOperation);
@@ -119,7 +121,7 @@ pub(in crate::application::file_dag::derived::owner) fn candidates(
         )
         .flat_map(|index| u32::try_from(index.0))
         .collect();
-        cache.selection_counts.candidates += result.len() as u64;
+        cache.selection_counts.candidates.0 += result.len() as u64;
         return Ok(CandidateChoice {
             rows: Some(CandidateRows::Owned(CandidatePositions(result))),
             path: if acquired.construction() == Construction::Built {

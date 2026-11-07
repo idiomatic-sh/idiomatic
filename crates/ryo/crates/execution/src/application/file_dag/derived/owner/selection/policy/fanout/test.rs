@@ -59,7 +59,7 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
     let selector = |text: LiteralText| {
         Arc::new(Selector {
             relation: Relation::Defines,
-            identity: Arc::new(crate::domain::table_model::types::SelectionIdentity {
+            identity: Arc::new(crate::domain::stored_selection::types::SelectionIdentity {
                 comparisons: vec![PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(ColumnIndex(0)),
@@ -82,13 +82,13 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
         origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let mut error_selector = (*selectors[0]).clone();
-    error_selector.identity = Arc::new(crate::domain::table_model::types::SelectionIdentity {
+    error_selector.identity = Arc::new(crate::domain::stored_selection::types::SelectionIdentity {
         comparisons: vec![selectors[0].identity.comparisons[0].clone(), bad.clone()],
         bindings: vec![ParameterBinding::Tables(Vec::new())],
     });
     let error_selector = Arc::new(error_selector);
     let mut absent_then_error = (*selectors[0]).clone();
-    absent_then_error.identity = Arc::new(crate::domain::table_model::types::SelectionIdentity {
+    absent_then_error.identity = Arc::new(crate::domain::stored_selection::types::SelectionIdentity {
         comparisons: vec![
             selector(LiteralText("absent".into())).identity.comparisons[0].clone(),
             bad,

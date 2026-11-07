@@ -180,7 +180,7 @@ impl DerivedOwner {
                         cache.reuses += 1_u64;
                     }
                     if plan.kind == DerivedKind::PredicateMatches {
-                        cache.selection_counts.reuses += 1;
+                        cache.selection_counts.reuses.0 += 1;
                     }
                 }
                 return Ok(Some(handle));
@@ -257,7 +257,7 @@ impl DerivedOwner {
         }) {
             let lease = self.optional_lease(&backings)?;
             cache.bytes += additional_bytes;
-            cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(cache.bytes);
+            cache.graph_counts.peak_bytes.0 = cache.graph_counts.peak_bytes.0.max(cache.bytes);
             state.retained_bytes += bytes;
             state.retained_predicates += usize::from(plan.kind == DerivedKind::PredicateMatches);
             Some(OwnedView {
@@ -279,9 +279,10 @@ impl DerivedOwner {
                 cache.refusals += 1_u64;
             }
             if plan.kind == DerivedKind::PredicateMatches {
-                cache.selection_counts.builds += u64::from(built);
-                cache.selection_counts.reuses += u64::from(!built);
-                cache.selection_counts.refusals += u64::from(allow_optional && retained.is_none());
+                cache.selection_counts.builds.0 += u64::from(built);
+                cache.selection_counts.reuses.0 += u64::from(!built);
+                cache.selection_counts.refusals.0 +=
+                    u64::from(allow_optional && retained.is_none());
             }
         }
         if required {

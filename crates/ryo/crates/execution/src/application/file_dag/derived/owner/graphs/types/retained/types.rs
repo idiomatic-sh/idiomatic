@@ -3,7 +3,7 @@ use crate::application::file_dag::derived::ledger::types::Backing;
 use crate::application::file_dag::derived::ledger::types::ResourceLease;
 use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage;
 use crate::application::file_dag::derived::population::types::PopulationId;
-use crate::domain::stored_graph::types::{GraphDomain, Orientation};
+use crate::domain::stored_graph::types::{GraphDomain, Orientation, VertexId};
 use ryo_derived::domain::contract::types::CompactGraph;
 use std::sync::Arc;
 #[derive(Debug)]
@@ -53,6 +53,6 @@ pub(in crate::application::file_dag::derived::owner) struct NearestMemo {
     /// Parent direction whose forest was validated.
     pub(in crate::application::file_dag::derived::owner) orientation: Orientation,
     /// Unknown/absent/answer sentinels or dense IDs, never public values.
-    pub(in crate::application::file_dag::derived::owner) answers: Vec<u32>,
+    pub(in crate::application::file_dag::derived::owner) answers: Vec<VertexId>,
     pub(in crate::application::file_dag::derived::owner) _lease: Arc<ResourceLease>,
 }

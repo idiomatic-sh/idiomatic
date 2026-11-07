@@ -8,8 +8,10 @@ use crate::domain::{
         errors::OperatingError,
         types::{AfterTheFiles, OperatorContext},
     },
-    stored_selection::{fixtures::program, types::Selector},
-    table_model::types::SelectionIdentity,
+    stored_selection::{
+        fixtures::program,
+        types::{SelectionIdentity, Selector},
+    },
     table_scratch::types::OperatorScratch,
 };
 use ryo_derived::domain::contract::types::DerivedKind;

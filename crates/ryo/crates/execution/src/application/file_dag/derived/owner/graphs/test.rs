@@ -5,7 +5,8 @@ use crate::application::file_dag::derived::owner::{
     fixtures::graph::GraphFixture, index::service::LIMIT,
 };
 use crate::domain::stored_graph::types::{GraphWalk, Orientation};
-use crate::domain::table_model::types::{Rows, SelectedRows, SelectionIdentity, StoredSelection};
+use crate::domain::stored_selection::types::SelectionIdentity;
+use crate::domain::table_model::types::{Rows, SelectedRows, StoredSelection};
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Integer, Relation, Value,
 };

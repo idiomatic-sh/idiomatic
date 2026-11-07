@@ -130,7 +130,8 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
         operation_schema::types::InputShape,
         operator::contract::views::{BorrowedRows, PredicateProgram},
         stored_selection::types::Selector,
-        table_model::types::{SelectionIdentity, Verdict},
+        stored_selection::types::SelectionIdentity,
+        table_model::types::Verdict,
     };
     use ryo_relations::domain::relations::types::Value;
 
@@ -273,7 +274,7 @@ fn every_possible_discriminator_column_is_prepared_once() -> Result<(), Failure>
         ColumnIndex, PlanComparison, Operand, QueryLiteral, Test,
     };
     let mut selector = (*program(2)).clone();
-    selector.identity = Arc::new(crate::domain::table_model::types::SelectionIdentity {
+    selector.identity = Arc::new(crate::domain::stored_selection::types::SelectionIdentity {
         comparisons: vec![1, 2]
             .into_iter()
             .map(|column| PlanComparison {

@@ -10,7 +10,7 @@ use std::sync::Arc;
 pub(crate) fn program(value: i64) -> Arc<Selector> {
     Arc::new(Selector {
         relation: Relation::Function,
-        identity: Arc::new(crate::domain::table_model::types::SelectionIdentity {
+        identity: Arc::new(crate::domain::stored_selection::types::SelectionIdentity {
             comparisons: vec![PlanComparison {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(0)),

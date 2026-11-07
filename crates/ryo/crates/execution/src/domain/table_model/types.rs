@@ -4,6 +4,7 @@
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::rows::types::Table;
 
+use crate::domain::stored_selection::types::SelectionIdentity;
 use crate::domain::table_cells::types::TreeRows;
 use ryo_relations::domain::relations::types::ColumnsView;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -67,9 +68,13 @@ pub(crate) struct SelectedRows<'a> {
 #[derive(Clone, Copy)]
 pub(crate) struct SelectedView<'a> {
     pub source: ColumnsView<'a>,
-    pub positions: &'a [u32],
+    pub positions: PhysicalRows<'a>,
     pub columns: &'a [ColumnIndex],
 }
+
+/// The original rows of a source that a selection keeps, in output order.
+#[derive(Clone, Copy)]
+pub(crate) struct PhysicalRows<'a>(pub &'a [u32]);
 
 /// Owned, generation-local metadata; it contains no provider/source references.
 #[derive(Debug)]
@@ -84,15 +89,6 @@ pub(crate) struct StoredSelection {
     pub kinds: Vec<CellKind>,
     /// Exact ordered physical predicates and referenced bindings that selected these positions.
     pub identity: std::sync::Arc<SelectionIdentity>,
-}
-
-/// Immutable semantic identity shared by prepared selectors and compact graph populations.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub(crate) struct SelectionIdentity {
-    /// Ordered predicates over physical provider columns.
-    pub comparisons: Vec<ryo_values::domain::plan_parts::types::PlanComparison>,
-    /// Only the binding values referenced by these predicates.
-    pub bindings: Vec<ParameterBinding>,
 }
 
 /// The rows of one input that the per-file steps hand to the cross-file steps: the rows of every
@@ -138,4 +134,3 @@ pub(crate) enum Verdict {
 
 use ryo_values::domain::rows::types::RowIndex;
 
-use ryo_values::domain::query_bindings::types::ParameterBinding;

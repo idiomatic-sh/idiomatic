@@ -50,10 +50,10 @@ pub(in crate::application::file_dag::derived::owner) fn matches(
     let rows = shared_positions(&acquired, RowBound(population), RowBound(population))?.0;
     if let Some(entry) = histogram(cache, program) {
         let built = acquired.construction() == Construction::Built;
-        entry.builds += u64::from(built);
-        entry.reuses += u64::from(!built);
+        entry.builds.0 += u64::from(built);
+        entry.reuses.0 += u64::from(!built);
         if built {
-            entry.matched_rows += rows.len() as u64;
+            entry.matched_rows.0 += rows.len() as u64;
         }
     }
     Ok(acquired)
@@ -117,30 +117,31 @@ fn build_matches(
         },
     );
     let visited = decision.visits.0;
-    cache.selection_counts.predicate_rows = cache
+    cache.selection_counts.predicate_rows.0 = cache
         .selection_counts
         .predicate_rows
+        .0
         .saturating_add(visited);
     if !indexed {
-        cache.selection_counts.scanned = cache.selection_counts.scanned.saturating_add(visited);
+        cache.selection_counts.scanned.0 = cache.selection_counts.scanned.0.saturating_add(visited);
     }
-    cache.selection_counts.predicate_cells += visited * needed.0.len() as u64;
+    cache.selection_counts.predicate_cells.0 += visited * needed.0.len() as u64;
     if cache.selection_histogram.is_some() {
         if let Some(entry) = histogram(cache, program) {
-            entry.paths[path as usize] += 1;
+            entry.paths[path as usize].0 += 1;
             if indexed {
-                entry.indexed_candidates += candidates
+                entry.indexed_candidates.0 += candidates
                     .as_ref()
                     .map_or(0, |rows| rows.as_slice().0.len())
                     as u64;
                 if matches!(path, SelectionPath::IndexBuilt | SelectionPath::FanoutBuilt) {
-                    entry.index_build_rows += population as u64;
+                    entry.index_build_rows.0 += population as u64;
                 }
             } else {
-                entry.full_scan_rows += visited;
+                entry.full_scan_rows.0 += visited;
             }
-            entry.predicate_cells += visited * needed.0.len() as u64;
-            entry.errors += u64::from(outcome.is_err());
+            entry.predicate_cells.0 += visited * needed.0.len() as u64;
+            entry.errors.0 += u64::from(outcome.is_err());
         }
     }
     outcome
