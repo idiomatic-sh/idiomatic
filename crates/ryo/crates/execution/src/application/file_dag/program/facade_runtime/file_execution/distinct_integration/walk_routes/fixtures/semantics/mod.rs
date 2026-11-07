@@ -1,5 +1,5 @@
-use crate::outbound::derived::interface::DerivedPort;
 //! Real portable use cases with counted calls and one explicit dependency failure.
+use crate::outbound::derived::interface::DerivedPort;
 use ryo_derived::domain::contract::types::BuildOutcome;
 use ryo_derived::domain::contract::types::BuildWorkspace;
 use ryo_derived::domain::fault::types::DerivedFault;
