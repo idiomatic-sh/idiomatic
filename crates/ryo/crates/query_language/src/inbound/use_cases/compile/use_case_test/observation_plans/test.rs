@@ -3,7 +3,7 @@
 use super::super::compiler_over_the_language;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::compile::interface::CompileUseCase as _;
-use crate::inbound::use_cases::compile::types::CompileRequest;
+use ryo_values::domain::plans::types::QueryRequest;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::observations::types::BoundObservationInput;
@@ -81,7 +81,7 @@ fn raw_tree_file_joins_keep_single_and_and_or_filters_outside_the_join() {
                  emit result subject file key(id);"
             );
             let report = compiler
-                .compile(CompileRequest {
+                .compile(QueryRequest {
                     observations: Vec::new(),
                     text: QueryBundle::from(QueryText(text.into())),
                     hosted: Vec::new(),
@@ -114,7 +114,7 @@ fn authored_observation_keeps_independent_root_through_optimization() {
     use ryo_values::domain::query_tokens::types::QueryBundle;
     let compiler = compiler_over_the_language();
     let report = compiler
-        .compile(CompileRequest {
+        .compile(QueryRequest {
             observations: Vec::new(),
             hosted: Vec::new(),
             text: QueryBundle::from(QueryText(
@@ -155,7 +155,7 @@ fn bound_observation_preserves_declared_schema_and_phase() {
     use ryo_values::domain::plan_parts::types::StepScope;
     use ryo_values::domain::query_tokens::types::QueryBundle;
     let compiler = compiler_over_the_language();
-    let report = compiler.compile(CompileRequest {
+    let report = compiler.compile(QueryRequest {
         hosted: Vec::new(),
         observations: vec![BoundObservationInput {
             name: ObservationBindingName("published".into()),

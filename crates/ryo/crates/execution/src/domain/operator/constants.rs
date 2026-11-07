@@ -331,7 +331,7 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
                     FieldRequirement::Required,
                 ),
                 field(
-                    "relation",
+                    ryo_values::domain::descriptions::constants::RELATION,
                     "Typed parent-child edges, in parent and child.",
                     FieldRequirement::Required,
                 ),
@@ -364,7 +364,7 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
                 field("edges", "Directed edge rows.", FieldRequirement::Required),
                 field(SOURCE, "Edge source.", FieldRequirement::Required),
                 field(
-                    "destination",
+                    ryo_values::domain::descriptions::constants::DESTINATION,
                     "Edge destination.",
                     FieldRequirement::Required,
                 ),
@@ -402,7 +402,7 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
                 field("edges", "Directed edge rows.", FieldRequirement::Required),
                 field(SOURCE, "Edge source.", FieldRequirement::Required),
                 field(
-                    "destination",
+                    ryo_values::domain::descriptions::constants::DESTINATION,
                     "Edge destination.",
                     FieldRequirement::Required,
                 ),

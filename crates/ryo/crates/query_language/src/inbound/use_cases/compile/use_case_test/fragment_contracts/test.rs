@@ -4,7 +4,7 @@ use super::super::compiler_over;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::compile::errors::CompileError;
 use crate::inbound::use_cases::compile::interface::CompileUseCase as _;
-use crate::inbound::use_cases::compile::types::CompileRequest;
+use ryo_values::domain::plans::types::QueryRequest;
 use ryo_relations::domain::relations::types::Relation;
 
 type Input = fn();
@@ -68,7 +68,7 @@ fn fragment_contract_compiles_against_real_relation_columns() {
     .unwrap();
     let use_case = compiler_over(vec![Relation::SyntaxTree]);
     let report = use_case
-        .compile(CompileRequest {
+        .compile(QueryRequest {
             observations: Vec::new(),
             text: root,
             hosted: Vec::new(),
@@ -102,7 +102,7 @@ fn fragment_relation_contracts_reject_input_and_output_shape_mismatches() {
         )
         .unwrap();
         let error = use_case
-            .compile(CompileRequest {
+            .compile(QueryRequest {
                 observations: Vec::new(),
                 text: bundle,
                 hosted: Vec::new(),
@@ -124,7 +124,7 @@ fn fragment_relation_contracts_reject_input_and_output_shape_mismatches() {
     )
     .unwrap();
     let error = use_case
-        .compile(CompileRequest {
+        .compile(QueryRequest {
             observations: Vec::new(),
             text: invalid_body,
             hosted: Vec::new(),
@@ -155,7 +155,7 @@ fn nested_fragment_validation_error_keeps_the_inner_source_and_import_trace() {
     .unwrap();
     let use_case = compiler_over(vec![Relation::SyntaxTree]);
     let error = use_case
-        .compile(CompileRequest {
+        .compile(QueryRequest {
             observations: Vec::new(),
             text: bundle,
             hosted: Vec::new(),
@@ -230,7 +230,7 @@ fn fragment_calls_cannot_capture_caller_or_nested_private_steps() {
     let use_case = compiler_over(vec![Relation::SyntaxTree]);
     for (bundle, source) in bundles {
         let error = use_case
-            .compile(CompileRequest {
+            .compile(QueryRequest {
                 observations: Vec::new(),
                 text: bundle,
                 hosted: Vec::new(),
@@ -259,7 +259,7 @@ fn a_fused_fragment_comparison_keeps_its_original_source_span() {
     .unwrap();
     let use_case = compiler_over(vec![Relation::SyntaxTree]);
     let plan = use_case
-        .compile(CompileRequest {
+        .compile(QueryRequest {
             observations: Vec::new(),
             text: bundle,
             hosted: Vec::new(),

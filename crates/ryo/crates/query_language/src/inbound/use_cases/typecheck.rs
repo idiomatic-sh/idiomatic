@@ -3,7 +3,6 @@
 pub mod errors;
 pub mod interface;
 pub mod service;
-pub mod types;
 pub mod use_case;
 
 #[cfg(test)]

@@ -6,7 +6,7 @@ use crate::Behavior;
 use std::sync::Arc;
 
 use ryo_query_language::inbound::use_cases::compile::interface::CompileUseCase as _;
-use ryo_query_language::inbound::use_cases::compile::types::CompileRequest;
+use ryo_values::domain::plans::types::QueryRequest;
 use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
 use ryo_values::domain::plan_parts::types::QueryText;
 
@@ -30,7 +30,7 @@ fn runs(world: &mut Behavior) {
     };
     let syntax = Arc::new(ryo_query_language::outbound::syntax::factory::winnow());
     let catalog = Arc::new(ryo_query_language::outbound::catalog::factory::language());
-    world.answer = match CompileUseCaseImpl::new(syntax, catalog).compile(CompileRequest {
+    world.answer = match CompileUseCaseImpl::new(syntax, catalog).compile(QueryRequest {
         observations: Vec::new(),
         text: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(text.into())),
         hosted: Vec::new(),

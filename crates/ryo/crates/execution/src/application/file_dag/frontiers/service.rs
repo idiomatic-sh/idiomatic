@@ -8,6 +8,7 @@ use crate::outbound::facts::{
 };
 use ryo_language::domain::symbols::{service::places_mut, types::Symbols};
 use ryo_values::domain::{
+    table_words::constants::LIFECYCLE_TARGET,
     plan_parts::types::{Input, InputNumber},
     stored_facts::types::Bucket,
 };
@@ -67,9 +68,9 @@ pub(super) fn prepare(
     let mut admitted = Vec::new();
     let mut refused = Vec::new();
     let memory =
-        tracing::enabled!(target: "ryo::diagnostic::lifecycle_memory", tracing::Level::TRACE);
+        tracing::enabled!(target: LIFECYCLE_TARGET, tracing::Level::TRACE);
     for (place, input) in program.frontiers(rule)?.iter().copied().enumerate() {
-        let _input = memory.then(|| tracing::trace_span!(target:"ryo::diagnostic::lifecycle_memory", "cross_input_memory", input_index=place, input=?input).entered());
+        let _input = memory.then(|| tracing::trace_span!(target: LIFECYCLE_TARGET, "cross_input_memory", input_index=place, input=?input).entered());
         if let PreparationPolicy::Observations { ready } = policy {
             if !ready.get(place).copied().ok_or(OperatingError::NotRun)? {
                 refused.push(RefusedFrontier {
@@ -118,7 +119,7 @@ pub(super) fn prepare(
             let bytes = ryo_values::domain::stores::types::retention::value::RetainedBytes::packed(
                 &words.words,
             );
-            tracing::trace!(target:"ryo::diagnostic::lifecycle_memory", phase="cross_input_packed", owner="packed_input", packed_live_bytes=bytes.packed_live.0, packed_capacity_bytes=bytes.packed_capacity.0);
+            tracing::trace!(target: LIFECYCLE_TARGET, phase="cross_input_packed", owner="packed_input", packed_live_bytes=bytes.packed_live.0, packed_capacity_bytes=bytes.packed_capacity.0);
         }
         let mode = match policy {
             PreparationPolicy::Diagnostic => DecodeMode::Permissive,
@@ -152,7 +153,7 @@ pub(super) fn prepare(
                 FrontierInput::Decoded { .. } | FrontierInput::Packed(_) => 0,
             })
             .sum::<usize>();
-        tracing::trace!(target:"ryo::diagnostic::lifecycle_memory", phase="compact_inputs_prepared", owner="frontier_descriptors", inputs=admitted.len(), compact_rows, spelling_capacity_bytes=spelling_capacity);
+        tracing::trace!(target: LIFECYCLE_TARGET, phase="compact_inputs_prepared", owner="frontier_descriptors", inputs=admitted.len(), compact_rows, spelling_capacity_bytes=spelling_capacity);
     }
     Ok(PreparedFrontiers {
         producer: rule,

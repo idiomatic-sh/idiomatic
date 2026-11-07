@@ -20,7 +20,7 @@ pub(crate) fn description() -> OperatorDescription {
                 "Span column supplying the end offset.",
                 FieldRequirement::Required,
             ),
-            field("output", "New span column.", FieldRequirement::Required),
+            field(ryo_values::domain::descriptions::constants::OUTPUT, "New span column.", FieldRequirement::Required),
         ],
         &[],
         r#"let example = span-between(from="function", start="span", end="span", output="diagnostic_span"); emit example subject file key(diagnostic_span);"#,

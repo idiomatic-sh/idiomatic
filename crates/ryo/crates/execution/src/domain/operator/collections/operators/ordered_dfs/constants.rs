@@ -12,7 +12,7 @@ pub(crate) fn description() -> OperatorDescription {
             field("edges", "Directed edge rows.", FieldRequirement::Required),
             field("source", "Edge source column.", FieldRequirement::Required),
             field(
-                "destination",
+                ryo_values::domain::descriptions::constants::DESTINATION,
                 "Edge destination column.",
                 FieldRequirement::Required,
             ),
@@ -32,7 +32,7 @@ pub(crate) fn description() -> OperatorDescription {
                 FieldRequirement::Optional,
             ),
             field(
-                "output",
+                ryo_values::domain::descriptions::constants::OUTPUT,
                 "Name of the zero-based visit ordinal column.",
                 FieldRequirement::Required,
             ),

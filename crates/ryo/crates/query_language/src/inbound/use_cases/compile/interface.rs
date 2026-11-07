@@ -1,7 +1,8 @@
 //! What the `compile` use case promises its callers.
 
 use super::errors::CompileError;
-use super::types::{CompileReport, CompileRequest};
+use super::types::CompileReport;
+use ryo_values::domain::plans::types::QueryRequest;
 
 /// What `compile` offers its callers.
 pub trait CompileUseCase: Send + Sync {
@@ -10,5 +11,5 @@ pub trait CompileUseCase: Send + Sync {
     /// # Errors
     ///
     /// Whatever `validate` refuses the text for.
-    fn compile(&self, request: CompileRequest) -> Result<CompileReport, CompileError>;
+    fn compile(&self, request: QueryRequest) -> Result<CompileReport, CompileError>;
 }

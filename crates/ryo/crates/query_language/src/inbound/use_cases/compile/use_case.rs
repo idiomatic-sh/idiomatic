@@ -5,7 +5,8 @@ use std::sync::Arc;
 use super::errors::CompileError;
 use super::interface::CompileUseCase;
 use super::service::{invalid, unresolved};
-use super::types::{CompileReport, CompileRequest};
+use super::types::CompileReport;
+use ryo_values::domain::plans::types::QueryRequest;
 use crate::domain::assembling::service::lower_with_observations;
 use crate::domain::linking::errors::LinkingError;
 use crate::domain::validation::service::validate_with_observations;
@@ -38,7 +39,7 @@ impl CompileUseCaseImpl {
 }
 
 impl CompileUseCase for CompileUseCaseImpl {
-    fn compile(&self, request: CompileRequest) -> Result<CompileReport, CompileError> {
+    fn compile(&self, request: QueryRequest) -> Result<CompileReport, CompileError> {
         let parsed = self
             .syntax
             .read_bundle(&request.text)

@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use super::errors::TypecheckError;
 use super::interface::TypecheckUseCase as _;
-use super::types::TypecheckRequest;
+use ryo_values::domain::plans::types::QueryRequest;
 use super::use_case::TypecheckUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::catalog::fixtures::fake::CatalogFake;
@@ -350,7 +350,7 @@ fn subject(given: fn() -> Given) -> Result<Value, Failure> {
     let given = given();
     let use_case = TypecheckUseCaseImpl::new(Arc::new(given.syntax), Arc::new(given.catalog));
     use_case
-        .typecheck(TypecheckRequest {
+        .typecheck(QueryRequest {
             observations: given.observations,
             text: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(
                 given.text.into(),

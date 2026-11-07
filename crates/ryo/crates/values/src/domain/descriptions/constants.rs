@@ -20,6 +20,12 @@ pub const RIGHT_ON: &str = "right-on";
 /// Explicit output names or projection.
 pub const OUTPUT: &str = "output";
 
+/// The argument that names the relation an operator walks, also a grammar keyword.
+pub const RELATION: &str = "relation";
+
+/// The argument that names the column holding an edge's destination.
+pub const DESTINATION: &str = "destination";
+
 /// A constant matching pattern.
 pub const PATTERN: &str = "pattern";
 

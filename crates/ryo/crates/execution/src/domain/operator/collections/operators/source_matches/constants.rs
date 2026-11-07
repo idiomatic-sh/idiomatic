@@ -20,7 +20,7 @@ pub(crate) fn description() -> OperatorDescription {
                 FieldRequirement::Required,
             ),
             field(
-                "output",
+                ryo_values::domain::descriptions::constants::OUTPUT,
                 "New absolute occurrence span column.",
                 FieldRequirement::Required,
             ),

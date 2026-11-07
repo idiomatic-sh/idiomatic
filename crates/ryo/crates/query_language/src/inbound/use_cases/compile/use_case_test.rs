@@ -2,7 +2,7 @@
 
 use super::errors::CompileError;
 use super::interface::CompileUseCase;
-use super::types::CompileRequest;
+use ryo_values::domain::plans::types::QueryRequest;
 use super::use_case::CompileUseCaseImpl;
 use crate::cases::Case;
 use crate::cases::CaseName;
@@ -54,6 +54,17 @@ const NOWHERE: QuerySpan = QuerySpan {
     start: ByteOffset(0),
     end: ByteOffset(0),
 };
+
+/// The functions of each name counted by the files they are in: only the name and the file are asked of the rows.
+const DISTINCT_COUNT: &str = "let f = select * from \"function\"; let c = group-count(from=f, keys=[\"name\"], count=\"n\", distinct=\"file\"); emit c subject name key(n);";
+/// The operations of a plan that only projects.
+const SELECT_PROJECT: &str = "select project";
+/// The operations of a plan that selects a closure.
+const SELECT_CLOSURE: &str = "select closure";
+/// The operation of a plan that walks edges depth first.
+const ORDERED_DFS: &str = "ordered-dfs";
+/// The operations of a plan that counts groups by distinct values, with the rows cut to the columns asked.
+const SELECT_GROUP_COUNT_STAR: &str = "select group-count*";
 
 /// What a row gives the use case: the ports it calls, and the text.
 struct Given {
@@ -299,7 +310,7 @@ fn compiler_over_the_language() -> impl CompileUseCase {
 /// What the use case answers, twice, for what a row gives it: how many steps the plan has.
 fn compile_twice(given: Given) -> Result<Value, Failure> {
     let use_case = CompileUseCaseImpl::new(Arc::new(given.syntax), Arc::new(given.catalog));
-    let request = CompileRequest {
+    let request = QueryRequest {
         observations: given.observations,
         text: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(
             given.text.into(),
