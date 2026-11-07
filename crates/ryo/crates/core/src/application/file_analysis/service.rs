@@ -17,7 +17,7 @@ use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 // this operation owns one bounded worker and the read, parse, admission, evaluation, and retention sequence for its file; its private methods share that invocation state, while domain computations remain separate pure functions.
 use super::errors::FileAnalysisError;
-use super::types::{Completeness, FileVisit, RequestVisitSetting, RuleGate, Worker};
+use super::types::{FileCompleteness, FileVisit, RequestVisitSetting, RuleGate, Worker};
 use crate::domain::admission::errors::AdmissionError;
 use crate::domain::admission::service::{admit_elements, admit_view, limits_of};
 
@@ -1254,7 +1254,7 @@ impl FileAnalysis {
             FileReading::Read(_) | FileReading::Manifest => {
                 index_kinds(&mut worker.tables.elements);
                 self.read_file(worker, visit, number, &semantic)?;
-                if semantic.completeness() == Completeness::Incomplete {
+                if semantic.completeness() == FileCompleteness::Incomplete {
                     None
                 } else {
                     self.recorded(worker, visit, number, base)
@@ -1294,7 +1294,7 @@ impl FileAnalysis {
                         Some(FileOutcome::Unread { reason, ran: None })
                     }
                     (Answering::Findings, EngineRows::Asked) => {
-                        if semantic.completeness() == Completeness::Incomplete {
+                        if semantic.completeness() == FileCompleteness::Incomplete {
                             None
                         } else {
                             self.recorded(worker, visit, number, base).map(|ran| {

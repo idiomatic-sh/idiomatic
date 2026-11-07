@@ -7,7 +7,7 @@ use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 /// Whether the rule results of one file generation are all there.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Completeness {
+pub(crate) enum FileCompleteness {
     /// Every rule result is whole.
     Complete,
     /// A rule result is missing, so no warm or edit record may be made of the file.

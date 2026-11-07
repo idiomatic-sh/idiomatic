@@ -3,7 +3,7 @@
 use crate::application::file_analysis::constants::{
     FILE, NODES, SEMANTICSTATE, THE_SELECTED_LANGUAGE_DOES_NOT_OFFER,
 };
-use super::types::Completeness;
+use super::types::FileCompleteness;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
@@ -22,7 +22,7 @@ pub(crate) struct SemanticState {
     file: FileId,
     nodes: Count,
     session: RefCell<Option<Box<dyn SemanticSession>>>,
-    completeness: Cell<Completeness>,
+    completeness: Cell<FileCompleteness>,
 }
 
 impl std::fmt::Debug for SemanticState {
@@ -45,17 +45,17 @@ impl SemanticState {
             file,
             nodes: real_count(elements),
             session: RefCell::new(session),
-            completeness: Cell::new(Completeness::Complete),
+            completeness: Cell::new(FileCompleteness::Complete),
         }
     }
 
     /// An incomplete rule result cannot become a complete warm/edit record.
     pub(crate) fn mark_incomplete(&self) {
-        self.completeness.set(Completeness::Incomplete);
+        self.completeness.set(FileCompleteness::Incomplete);
     }
 
     /// Whether every rule result of this file generation is whole.
-    pub(crate) fn completeness(&self) -> Completeness {
+    pub(crate) fn completeness(&self) -> FileCompleteness {
         self.completeness.get()
     }
 }
