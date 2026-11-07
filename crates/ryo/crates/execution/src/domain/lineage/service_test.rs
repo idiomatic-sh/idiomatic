@@ -21,8 +21,6 @@ enum Scenario {
     ACountKeepsItsRowsInOneFileOnlyWhenKeyedByFile,
     /// The rows of a union lie in one file each; a column lies in it only when it does in every member.
     AUnionLiesInOneFileWhereEveryMemberDoes,
-    /// A hosted row comes from the file its one file column names; with two file columns no column says which.
-    AHostedRowLiesInTheFileItsOneFileColumnNames,
 }
 
 type Input = Scenario;
@@ -134,24 +132,6 @@ fn subject(input: Input) {
                 Lineage::Mixed
             );
         }
-        Scenario::AHostedRowLiesInTheFileItsOneFileColumnNames => {
-            let hosted = Operation::Hosted {
-                relation: ryo_values::domain::plan_parts::types::HostedNumber(0),
-            };
-            assert_eq!(
-                of_step(&hosted, &[Lineage::Mixed], &[CellKind::File, CellKind::Node, CellKind::Number]),
-                columns(&[InFile, Elsewhere, Elsewhere]),
-                "a hosted node may lie in any file"
-            );
-            assert_eq!(
-                of_step(&hosted, &[Lineage::Mixed], &[CellKind::File, CellKind::File]),
-                Lineage::Mixed
-            );
-            assert_eq!(
-                of_step(&hosted, &[Lineage::Mixed], &[CellKind::Number]),
-                Lineage::Mixed
-            );
-        }
     }
 }
 
@@ -185,15 +165,45 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::AUnionLiesInOneFileWhereEveryMemberDoes,
         expect: Expect::Value(()),
-    },    Case {
-        name: CaseName("a_hosted_row_lies_in_the_file_its_one_file_column_names"),
-        word: Word::Succeeds,
-        input: || Scenario::AHostedRowLiesInTheFileItsOneFileColumnNames,
-        expect: Expect::Value(()),
     },
 ];
+
+/// The lineage of a hosted step whose output columns are of the kinds a row names: a hosted row comes from the file its one file
+/// column names; with two file columns, or none, no column says which file it comes from.
+fn hosted(kinds: &[CellKind]) -> Lineage {
+    let hosted = Operation::Hosted {
+        relation: ryo_values::domain::plan_parts::types::HostedNumber(0),
+    };
+    of_step(&hosted, &[Lineage::Mixed], kinds)
+}
+
+/// The hosted rows answer a lineage, which is not a constant, so their table is made when the test runs.
+fn hosted_cases() -> [Case<&'static [CellKind], Lineage, Failure>; 3] {
+    use ColumnAnchor::{Elsewhere, InFile};
+    [
+        Case {
+            name: CaseName("a_hosted_row_lies_in_the_file_its_one_file_column_names"),
+            word: Word::Succeeds,
+            input: || &[CellKind::File, CellKind::Node, CellKind::Number],
+            expect: Expect::Value(columns(&[InFile, Elsewhere, Elsewhere])),
+        },
+        Case {
+            name: CaseName("a_hosted_row_with_two_file_columns_lies_in_no_one_file"),
+            word: Word::Succeeds,
+            input: || &[CellKind::File, CellKind::File],
+            expect: Expect::Value(Lineage::Mixed),
+        },
+        Case {
+            name: CaseName("a_hosted_row_with_no_file_column_lies_in_no_one_file"),
+            word: Word::Succeeds,
+            input: || &[CellKind::Number],
+            expect: Expect::Value(Lineage::Mixed),
+        },
+    ]
+}
 
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
+    run(&hosted_cases(), Word::Succeeds, |kinds| Ok(hosted(kinds)));
 }

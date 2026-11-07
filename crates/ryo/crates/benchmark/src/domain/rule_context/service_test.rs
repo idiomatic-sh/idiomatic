@@ -54,6 +54,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("disabled pairs are subtracted from the selected pairs"),
         word: Word::Succeeds,
         input: || Scenario::PairsAfterDisabled,
+        // 3 selected rules x 1 file - 2 disabled pairs = 1 pair left.
         expect: Expect::Value(Cow::Borrowed("1")),
     },
     Case {

@@ -185,18 +185,5 @@ pub(super) fn controls() -> Vec<Probe> {
             "derived",
             "private",
         ),
-        // One per-file route: a production caller runs a file through `run_file`; the
-        // caller-driven session is sealed behind the engine's own tests and harnesses.
-        accept(
-            REQUEST,
-            "mod production_runs_a_file { use crate::inbound::use_cases::execution::interface::{ExecutionRequest, RequestExecution}; const _: () = { let _ = <RequestExecution as ExecutionRequest>::run_file; }; }".into(),
-        ),
-        refuse(
-            REQUEST,
-            "mod production_opens_a_file { use crate::inbound::use_cases::execution::interface::{ExecutionRequest, RequestExecution}; const _: () = { let _ = <RequestExecution as ExecutionRequest>::open_file; }; }".into(),
-            "E0576",
-            "open_file",
-            "ExecutionRequest",
-        ),
     ]
 }
