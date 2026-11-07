@@ -3,7 +3,7 @@ why = "Makes the core the hexagon: one crate with one vocabulary, whose readable
 conditions = { domain-only = { description = "The crate's library root declares its domain public and no inbound module: a kernel crate with no use case (the values crate).", rule = { rule = "domain-only", include = ["src/lib.rs"] } } }
 specs = [
   { spec = "idiomatic.arch/application-service@0.1.1", include = ["src/application/{application}"], count = { min = 0 }, description = "Optional cohesive operations over injected ports and pure domain functions; use cases compose them and own publication." },
-  { spec = "idiomatic.arch/use-case@0.1.1", include = ["src/inbound/use_cases/{use-case}"], count = { min = 0 }, params = { implements = { param = "implements" } }, description = "The use cases of the core, one part each; a language provider has none, its contracts are the contract parts." },
+  { spec = "idiomatic.arch/use-case@0.1.2", include = ["src/inbound/use_cases/{use-case}"], count = { min = 0 }, params = { implements = { param = "implements" } }, description = "The use cases of the core, one part each; a language provider has none, its contracts are the contract parts." },
   { spec = "idiomatic.arch/port@0.3.1", include = ["src/outbound/{port}"], count = { min = 0 }, params = { exposed = { param = "exposed" } }, description = "The outbound ports of the core, one part each." },
   { spec = "idiomatic.arch/concept@0.1.1", include = ["src/domain/{concept}"], count = { min = 0 }, params = { item-trait = { param = "item-trait" } }, description = "The domain concepts of the core, one part each." },
 ]
