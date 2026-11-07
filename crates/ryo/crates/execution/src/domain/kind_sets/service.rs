@@ -8,7 +8,8 @@ use ryo_relations::domain::relations::constants::NO_SYMBOL;
 use ryo_relations::domain::relations::types::KindBits;
 
 use super::constants::{NO_NAME, SET_OF_TEST};
-use super::types::{KindScratch, PreparedKindTest, PreparedVocabulary};
+use super::types::vocabulary::value::{PreparedKindTest, PreparedVocabulary};
+use super::types::{ComparisonOrdinal, KindScratch, ListAddress};
 use crate::domain::comparing::collections::comparisons::affix::item::AffixItem;
 use crate::domain::comparing::collections::comparisons::equality::item::EqualityItem;
 use crate::domain::comparing::collections::comparisons::glob::item::GlobItem;
@@ -22,7 +23,10 @@ use crate::domain::table_scratch::types::{
     Candidates, KindSet, KindSetPlace, KindTest, NamingPlace, NamingTest,
 };
 use crate::domain::table_texts::types::{Datum, TextView};
-use ryo_values::domain::plan_parts::types::{ColumnIndex, PlanComparison, Operand, QueryLiteral, Test};
+use ryo_values::domain::descriptions::types::KindWord;
+use ryo_values::domain::plan_parts::types::{
+    ColumnIndex, LiteralText, Operand, PlanComparison, QueryLiteral, Test,
+};
 
 /// Whether the comparison asks of the kind of an element something fixed, which the sets of kinds decide.
 pub(crate) fn names_a_kind(comparison: &PlanComparison) -> KindNaming {
@@ -127,10 +131,10 @@ pub(crate) fn kind_tests(
             *set
         } else {
             let key = PreparedKindTest {
-                comparisons: comparisons.as_ptr().addr(),
-                ordinal,
+                comparisons: ListAddress(comparisons.as_ptr().addr()),
+                ordinal: ComparisonOrdinal(ordinal),
                 test: comparison.test,
-                text: named.0.clone(),
+                text: named.clone(),
             };
             let made = if let Some(prepared) = context.prepared_kinds {
                 #[cfg(test)]
@@ -146,12 +150,12 @@ pub(crate) fn kind_tests(
                     let _previous = prepared
                         .builds
                         .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                    std::sync::Arc::new(make_set(&prepared.names, comparison.test, &named.0))
+                    std::sync::Arc::new(make_set(&prepared.names, comparison.test, named))
                 }))
             } else {
                 let names =
                     vocabulary_names(tree.elements, context.symbols.as_ref(), context.source);
-                std::sync::Arc::new(make_set(&names, comparison.test, &named.0))
+                std::sync::Arc::new(make_set(&names, comparison.test, named))
             };
             scratch.sets.push(made);
             let _: Option<KindSetPlace> = scratch
@@ -241,14 +245,14 @@ fn vocabulary_names(
     elements: &ryo_language::domain::elements::types::Elements,
     symbols: &ryo_language::domain::symbols::types::Symbols,
     source: ryo_values::domain::files::types::SourceView<'_>,
-) -> Vec<Option<Box<str>>> {
+) -> Vec<Option<KindWord>> {
     kind_names(elements)
         .iter()
         .map(|symbol| {
             if *symbol == NO_SYMBOL {
-                Some(NO_NAME.into())
+                Some(KindWord(NO_NAME.into()))
             } else {
-                text_of(symbols, ByteSlice(source.0), *symbol).map(|text| text.0.into())
+                text_of(symbols, ByteSlice(source.0), *symbol).map(|text| KindWord(text.0.into()))
             }
         })
         .collect()
@@ -282,12 +286,12 @@ pub(crate) fn prepare_vocabulary(
 }
 
 /// Evaluate a literal predicate once over a vocabulary, never over source rows.
-fn make_set(names: &[Option<Box<str>>], test: Test, literal: &str) -> KindSet {
+fn make_set(names: &[Option<KindWord>], test: Test, literal: &LiteralText) -> KindSet {
     let mut made = KindSet::default();
     made.bits.0.resize(names.len().div_ceil(64), 0);
     for (bits, name) in names.iter().enumerate() {
         if name.as_ref().is_some_and(|name| {
-            satisfies(test, TextView(name), TextView(literal)) == Verdict::Holds
+            satisfies(test, TextView(&name.0), TextView(&literal.0)) == Verdict::Holds
         }) {
             if let Some(word) = made.bits.0.get_mut(bits / 64) {
                 *word |= 1 << (bits % 64);

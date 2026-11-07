@@ -18,7 +18,7 @@ use ryo_values::domain::{
     stored_facts::types::Bucket,
 };
 use {
-    crate::domain::crossing::types::RefusedFrontier,
+    crate::domain::frontiers::types::RefusedFrontier,
     crate::domain::frontiers::service::decode_input,
     crate::domain::frontiers::service::project_input,
     crate::domain::frontiers::service::project_relation,

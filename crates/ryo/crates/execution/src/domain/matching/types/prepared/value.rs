@@ -1,7 +1,7 @@
 //! Finite authored pattern slots with demand-driven thread-safe compilation.
 
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_texts::types::RegexPattern;
+use crate::domain::table_texts::types::{RegexPattern, TextView};
 use ryo_matching::inbound::use_cases::matching::{
     compiled::{CompiledRegex, CompiledTextGlobs},
     errors::MatchingError,
@@ -61,7 +61,7 @@ impl PreparedMatchers {
             };
             for comparison in comparisons {
                 if let Operand::Literal(QueryLiteral::Text(pattern)) = &comparison.right {
-                    prepared.declare(comparison.test, &pattern.0);
+                    prepared.declare(comparison.test, TextView(&pattern.0));
                 }
             }
         }
@@ -69,7 +69,7 @@ impl PreparedMatchers {
     }
 
     /// Preparation is the sole insertion boundary; parameters, functions and row cells never enter it.
-    fn declare(&mut self, test: Test, pattern: &str) {
+    fn declare(&mut self, test: Test, pattern: TextView<'_>) {
         let slot = match test {
             Test::Matches => PreparedPattern::Regex(OnceLock::new()),
             Test::GlobAny | Test::NotGlobAny => PreparedPattern::Glob(OnceLock::new()),
@@ -79,13 +79,13 @@ impl PreparedMatchers {
             .slots
             .entry(test)
             .or_default()
-            .entry(RegexPattern(pattern.to_owned()))
+            .entry(RegexPattern(pattern.0.to_owned()))
             .or_insert(slot);
     }
 
     /// Read an exact authored regex slot after the evaluator has validated both text operands.
-    pub(crate) fn regex(&self, pattern: &str) -> Option<Result<&CompiledRegex, OperatingError>> {
-        let PreparedPattern::Regex(slot) = self.slots.get(&Test::Matches)?.get(pattern)? else {
+    pub(crate) fn regex(&self, pattern: TextView<'_>) -> Option<Result<&CompiledRegex, OperatingError>> {
+        let PreparedPattern::Regex(slot) = self.slots.get(&Test::Matches)?.get(pattern.0)? else {
             return None;
         };
         Some(
@@ -102,8 +102,8 @@ impl PreparedMatchers {
     }
 
     /// Read an exact authored glob slot only after resolving an actual text subject.
-    pub(crate) fn glob(&self, test: Test, pattern: &str) -> Option<&CompiledTextGlobs> {
-        let PreparedPattern::Glob(slot) = self.slots.get(&test)?.get(pattern)? else {
+    pub(crate) fn glob(&self, test: Test, pattern: TextView<'_>) -> Option<&CompiledTextGlobs> {
+        let PreparedPattern::Glob(slot) = self.slots.get(&test)?.get(pattern.0)? else {
             return None;
         };
         Some(slot.get_or_init(|| {
@@ -111,15 +111,15 @@ impl PreparedMatchers {
             let _previous = self
                 .builds
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            MatchingUseCaseImpl::new().compile_text_globs(&[GlobPattern(pattern)])
+            MatchingUseCaseImpl::new().compile_text_globs(&[GlobPattern(pattern.0)])
         }))
     }
 }
 
 /// Adapt semantic compilation refusal without changing the engine's cache or error meaning.
-pub(crate) fn compile_regex(pattern: &str) -> Result<CompiledRegex, OperatingError> {
+pub(crate) fn compile_regex(pattern: TextView<'_>) -> Result<CompiledRegex, OperatingError> {
     MatchingUseCaseImpl::new()
-        .compile_regex(AuthoredRegex(pattern))
+        .compile_regex(AuthoredRegex(pattern.0))
         .map_err(|error| {
             let (MatchingError::InvalidRegex { reason } | MatchingError::BadGlob { reason, .. }) =
                 error;

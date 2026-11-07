@@ -62,7 +62,7 @@ pub(crate) struct OperatorContext<'a> {
     pub prepared_matchers:
         Option<&'a crate::domain::matching::types::prepared::value::PreparedMatchers>,
     /// Finite prepared literal-kind metadata for the current exact vocabulary.
-    pub prepared_kinds: Option<&'a crate::domain::kind_sets::types::PreparedVocabulary>,
+    pub prepared_kinds: Option<&'a crate::domain::kind_sets::types::vocabulary::value::PreparedVocabulary>,
 
     /// What each parameter is bound to, by the parameter's place.
     pub bindings: &'a [ParameterBinding],

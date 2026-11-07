@@ -193,8 +193,14 @@ fn equal_kind_sums_do_not_identify_prepared_vocabularies() {
     let b = prepare_vocabulary(&mut previous, &second, &second_symbols, SourceView(b"a")).unwrap();
     assert!(!std::sync::Arc::ptr_eq(&a, &b));
     assert_ne!(a.names, b.names);
-    assert_eq!(a.names.first().unwrap().as_deref(), Some(left));
-    assert_eq!(b.names.first().unwrap().as_deref(), Some(right));
+    assert_eq!(
+        a.names.first().unwrap().as_ref().map(|name| &*name.0),
+        Some(left)
+    );
+    assert_eq!(
+        b.names.first().unwrap().as_ref().map(|name| &*name.0),
+        Some(right)
+    );
 }
 
 /// Runtime operands are not admitted to finite prepared literal metadata.

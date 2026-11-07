@@ -43,7 +43,7 @@ pub struct PreparedFrontiers {
     pub(in crate::application::file_dag) required:
         crate::application::file_dag::program::admission::RequiredPartitions,
     pub(in crate::application::file_dag) refused:
-        std::sync::Arc<[crate::domain::crossing::types::RefusedFrontier]>,
+        std::sync::Arc<[crate::domain::frontiers::types::RefusedFrontier]>,
 }
 
 /// What makes two prepare calls one population: the same rule, first bucket, demand and request

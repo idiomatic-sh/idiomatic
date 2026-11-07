@@ -35,7 +35,7 @@ pub(crate) struct ProjectRun<'a> {
     frontier_producer: RuleIndex,
     frontier_sources: Arc<[crate::application::file_dag::frontiers::types::FrontierSource]>,
     ordinary: Vec<Rc<ProjectFrontierPopulation<AvailableInput>>>,
-    refused: Vec<crate::domain::crossing::types::RefusedFrontier>,
+    refused: Vec<crate::domain::frontiers::types::RefusedFrontier>,
     bound: Vec<Option<crate::application::file_dag::frontiers::types::BoundInput>>,
     cache: Vec<crate::application::file_dag::program::facade_runtime::types::CachedInput>,
     transport: ryo_language::domain::symbols::types::TransportPermit,

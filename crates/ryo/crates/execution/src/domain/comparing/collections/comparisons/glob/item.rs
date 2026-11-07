@@ -33,7 +33,10 @@ pub(crate) fn compiled_glob(
     let matching = MatchingUseCaseImpl::new();
     let literal = match (prepared, &comparison.right) {
         (Some(prepared), Operand::Literal(QueryLiteral::Text(pattern))) => {
-            prepared.glob(comparison.test, &pattern.0)
+            prepared.glob(
+                comparison.test,
+                crate::domain::table_texts::types::TextView(&pattern.0),
+            )
         }
         _ => None,
     };

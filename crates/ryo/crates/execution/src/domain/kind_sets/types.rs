@@ -14,5 +14,10 @@ pub(crate) struct KindScratch {
 
 pub(crate) mod vocabulary;
 
-pub(crate) use vocabulary::value::PreparedKindTest;
-pub use vocabulary::value::PreparedVocabulary;
+/// The stable address of a request-owned list of comparisons, never dereferenced.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct ListAddress(pub usize);
+
+/// The place of a comparison within its list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct ComparisonOrdinal(pub usize);

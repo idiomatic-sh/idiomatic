@@ -51,7 +51,7 @@ fn regex<'a>(
     prepared: Option<&'a PreparedMatchers>,
     compiled: &'a mut Patterns,
 ) -> Result<&'a CompiledRegex, OperatingError> {
-    if let Some(ready) = prepared.and_then(|prepared| prepared.regex(pattern.0)) {
+    if let Some(ready) = prepared.and_then(|prepared| prepared.regex(pattern)) {
         return ready;
     }
     compile(pattern, compiled)?;
@@ -64,7 +64,7 @@ fn regex<'a>(
 /// Compile an invocation-owned pattern in the bounded operator cache.
 fn compile(pattern: TextView<'_>, compiled: &mut Patterns) -> Result<(), OperatingError> {
     if !compiled.0.contains_key(pattern.0) {
-        let regex = compile_regex(pattern.0)?;
+        let regex = compile_regex(pattern)?;
         if compiled.0.len() >= 128 {
             compiled.0.clear();
         }

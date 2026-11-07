@@ -122,7 +122,7 @@ impl PublicationScope {
         &self,
         owner: &Rc<RelationOwner>,
         sources: &[Rc<ProjectFrontierPopulation<AvailableInput>>],
-        refused: &[crate::domain::crossing::types::RefusedFrontier],
+        refused: &[crate::domain::frontiers::types::RefusedFrontier],
         frontier_sources: &[crate::application::file_dag::frontiers::types::FrontierSource],
         bound: &[Option<crate::application::file_dag::frontiers::types::BoundInput>],
         prepared: &PreparedProgram,

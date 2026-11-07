@@ -89,7 +89,7 @@ pub(crate) fn open_file<'a>(
     reuse_eligible: ReuseEligibility,
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
     semantic: Option<&'a dyn crate::domain::operating::types::SemanticLookup>,
-    kinds: Option<Arc<crate::domain::kind_sets::types::PreparedVocabulary>>,
+    kinds: Option<Arc<crate::domain::kind_sets::types::vocabulary::value::PreparedVocabulary>>,
 ) -> Result<FileRun<'a>, OperatingError> {
     if intents.len() != program.rule_count().0 {
         return Err(OperatingError::ShapeMismatch);

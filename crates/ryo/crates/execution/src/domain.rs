@@ -35,7 +35,6 @@ pub(crate) mod trust;
 pub(crate) mod walks;
 
 pub(crate) mod column_kernel;
-pub(crate) mod crossing;
 pub(crate) mod describing;
 pub(crate) mod finish;
 pub(crate) mod frontiers;

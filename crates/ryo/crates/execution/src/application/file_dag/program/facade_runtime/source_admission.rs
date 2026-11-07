@@ -34,7 +34,7 @@ pub(super) struct ProjectSources<'a> {
     pub(super) ordinary: &'a [Rc<
         super::super::project_population::types::ProjectFrontierPopulation<AvailableInput>,
     >],
-    pub(super) refused: &'a [crate::domain::crossing::types::RefusedFrontier],
+    pub(super) refused: &'a [crate::domain::frontiers::types::RefusedFrontier],
     pub(super) bound:
         &'a mut [Option<crate::application::file_dag::frontiers::types::BoundInput>],
     pub(super) cache: &'a mut Vec<CachedInput>,

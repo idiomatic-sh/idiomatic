@@ -123,13 +123,13 @@ fn evaluate_once(
     let regex = if let Some(pattern) = &contract.literal_pattern {
         if let Some(prepared) = context
             .prepared_matchers
-            .and_then(|prepared| prepared.regex(&pattern.0))
+            .and_then(|prepared| prepared.regex(crate::domain::table_texts::types::TextView(&pattern.0)))
         {
             Some(prepared?)
         } else {
             if workspace.literal_regex.is_none() {
                 workspace.literal_regex = Some(
-                    crate::domain::matching::types::prepared::value::compile_regex(&pattern.0)?,
+                    crate::domain::matching::types::prepared::value::compile_regex(crate::domain::table_texts::types::TextView(&pattern.0))?,
                 );
             }
             workspace.literal_regex.as_ref()

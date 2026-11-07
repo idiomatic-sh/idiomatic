@@ -22,7 +22,7 @@ pub(super) struct RunContext<'a> {
     source: SourceView<'a>,
     symbols: TransportPermit,
     semantic: Option<&'a dyn crate::domain::operating::types::SemanticLookup>,
-    kinds: Option<Arc<crate::domain::kind_sets::types::PreparedVocabulary>>,
+    kinds: Option<Arc<crate::domain::kind_sets::types::vocabulary::value::PreparedVocabulary>>,
     arenas: &'a [ArenaBytes],
     memo: Vec<Memo>,
     scratch: OperatorScratch,
@@ -33,7 +33,7 @@ impl<'a> RunContext<'a> {
         source: SourceView<'a>,
         symbols: &mut Symbols,
         semantic: Option<&'a dyn crate::domain::operating::types::SemanticLookup>,
-        kinds: Option<Arc<crate::domain::kind_sets::types::PreparedVocabulary>>,
+        kinds: Option<Arc<crate::domain::kind_sets::types::vocabulary::value::PreparedVocabulary>>,
     ) -> Self {
         Self {
             request: Arc::clone(services.request()),
