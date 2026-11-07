@@ -5,7 +5,7 @@ use super::super::fixtures::describe;
 use crate::domain::executable_program::fusion::types::{Barrier, Fusibility};
 use ryo_values::domain::query_operators::types::OperationKind;
 fn engine() -> Arc<dyn crate::outbound::operators::interface::OperatorsPort> {
-    Arc::new(crate::application::file_dag::testing::operators())
+    Arc::new(crate::application::file_dag::fakes_test::operators())
 }
 #[test]
 fn all26_fused_and_single_instruction_programs_publish_identical_rows_in_identical_order() {

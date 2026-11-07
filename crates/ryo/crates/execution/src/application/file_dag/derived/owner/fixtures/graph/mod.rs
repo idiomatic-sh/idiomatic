@@ -55,7 +55,7 @@ impl GraphFixture {
                 },
                 crate::application::file_dag::relations::types::PinnedViewCount(max_views),
                 (std::sync::Arc::new(
-                    crate::application::file_dag::testing::derived(),
+                    crate::application::file_dag::fakes_test::derived(),
                 )
                     as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             )),

@@ -34,7 +34,7 @@ impl crate::outbound::operators::interface::OperatorsPort for KeepsCalling {
                 Ok(OperatorAnswer::Written)
             }
             call => {
-                crate::application::file_dag::testing::operators()
+                crate::application::file_dag::fakes_test::operators()
                     .operators(call)
             }
         }

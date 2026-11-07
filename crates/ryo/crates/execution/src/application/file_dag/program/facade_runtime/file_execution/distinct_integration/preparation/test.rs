@@ -89,7 +89,7 @@ fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_a
         &rules,
     )
     .unwrap();
-    let derived = crate::application::file_dag::testing::program_derived_port();
+    let derived = crate::application::file_dag::fakes_test::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         compiled,
         &rules,
@@ -149,7 +149,7 @@ fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_a
     );
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(Arc::new(
-            crate::application::file_dag::testing::operators(),
+            crate::application::file_dag::fakes_test::operators(),
         ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {

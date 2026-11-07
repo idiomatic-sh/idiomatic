@@ -50,7 +50,7 @@ fn output_requests(
             rule
         })
         .collect::<Vec<_>>();
-    let derived = crate::application::file_dag::testing::program_derived_port();
+    let derived = crate::application::file_dag::fakes_test::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
@@ -67,7 +67,7 @@ fn output_requests(
     .unwrap();
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(Arc::new(
-            crate::application::file_dag::testing::operators(),
+            crate::application::file_dag::fakes_test::operators(),
         ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {

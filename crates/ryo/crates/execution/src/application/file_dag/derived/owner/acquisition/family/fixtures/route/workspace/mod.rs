@@ -5,7 +5,7 @@ use crate::application::file_dag::derived::owner::acquisition::family::fixtures:
 use crate::application::file_dag::{
     derived::owner::{ViewContext, acquisition::admission::service::AcquiredView},
     relations::RelationOwner,
-    testing::program_derived_port,
+    fakes_test::program_derived_port,
     workspace::{InputAdmissions, InvocationWorkspace, ViewInputs},
 };
 use crate::domain::{

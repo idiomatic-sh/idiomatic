@@ -6,7 +6,7 @@ pub(in crate::application::file_dag) mod route;
 use self::demand::demand;
 use self::request::{observed, request};
 use crate::application::file_dag::{
-    relations::RelationOwner, testing::program_derived_port,
+    relations::RelationOwner, fakes_test::program_derived_port,
 };
 use crate::domain::{
     derived_views::types::{DerivedInputs, DerivedScratch, ViewRequest},

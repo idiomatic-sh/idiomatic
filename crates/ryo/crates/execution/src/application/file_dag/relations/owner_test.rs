@@ -59,7 +59,7 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            crate::application::file_dag::testing::derived(),
+            crate::application::file_dag::fakes_test::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let first = owner.source_compact(Arc::clone(&compact)).unwrap();
@@ -130,7 +130,7 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
 }
 #[cfg(test)]
 mod fixtures;
-mod producer;
+mod producer_test;
 mod projection;
 use fixtures::{columns, group, read, row, selected};
 
@@ -139,7 +139,7 @@ fn every_catalog_relation_is_admitted_resolved_and_read_with_its_actual_schema()
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            crate::application::file_dag::testing::derived(),
+            crate::application::file_dag::fakes_test::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let mut groups = [0; 3];
@@ -192,7 +192,7 @@ fn population_epoch_invalidates_proofs_even_when_same_buffer_and_count_are_reuse
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            crate::application::file_dag::testing::derived(),
+            crate::application::file_dag::fakes_test::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let original = {
@@ -255,7 +255,7 @@ fn population_epoch_invalidates_proofs_even_when_same_buffer_and_count_are_reuse
     let other = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            crate::application::file_dag::testing::derived(),
+            crate::application::file_dag::fakes_test::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     assert!(matches!(
@@ -281,7 +281,7 @@ fn stable_partial_population_reuses_structure_without_proving_semantic_absence()
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            crate::application::file_dag::testing::derived(),
+            crate::application::file_dag::fakes_test::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let first = owner.source(relation, &rows).unwrap();
@@ -297,7 +297,7 @@ fn stable_partial_population_reuses_structure_without_proving_semantic_absence()
     let plan = crate::application::file_dag::derived::owner::fixtures::source_plan(relation);
     let prepared = crate::application::file_dag::derived::owner::fixtures::prepared_sources(
         &[plan],
-        crate::application::file_dag::testing::program_derived_port(),
+        crate::application::file_dag::fakes_test::program_derived_port(),
     );
     owner
         .derived
@@ -326,7 +326,7 @@ fn normalization_reuses_one_owned_fallback_without_promoting_missing_rows() {
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            crate::application::file_dag::testing::derived(),
+            crate::application::file_dag::fakes_test::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let publication = owner

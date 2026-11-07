@@ -38,7 +38,7 @@ fn only_the_rule_with_an_errored_step_is_refused_on_its_roots() {
         ],
         scope: StepScope::PerFile,
     }];
-    let derived = crate::application::file_dag::testing::program_derived_port();
+    let derived = crate::application::file_dag::fakes_test::program_derived_port();
     let prepared = prepare(
         Compiled {
             schedule: RuleSchedule::Independent,

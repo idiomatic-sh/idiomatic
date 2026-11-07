@@ -124,7 +124,7 @@ fn projected(column: u32) -> Plan {
     ])
 }
 fn project_into(column: u32, sink: &mut dyn RowSink) -> Result<(), OperatingError> {
-    let derived = crate::application::file_dag::testing::program_derived_port();
+    let derived = crate::application::file_dag::fakes_test::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
@@ -140,7 +140,7 @@ fn project_into(column: u32, sink: &mut dyn RowSink) -> Result<(), OperatingErro
     )?;
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
-            crate::application::file_dag::testing::operators(),
+            crate::application::file_dag::fakes_test::operators(),
         ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {
@@ -279,7 +279,7 @@ fn indexed_join(key: i64, column: u32) -> Result<Table, OperatingError> {
             },
         },
     ];
-    let derived = crate::application::file_dag::testing::program_derived_port();
+    let derived = crate::application::file_dag::fakes_test::program_derived_port();
     let hosts = [
         hosted("left", 1, &[&[key]]),
         hosted("right", 2, &[&[1, 10], &[2, 20], &[1, 30]]),
@@ -299,7 +299,7 @@ fn indexed_join(key: i64, column: u32) -> Result<Table, OperatingError> {
     )?;
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
-            crate::application::file_dag::testing::operators(),
+            crate::application::file_dag::fakes_test::operators(),
         ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {

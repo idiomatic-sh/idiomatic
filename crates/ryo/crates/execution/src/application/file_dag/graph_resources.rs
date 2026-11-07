@@ -15,7 +15,7 @@ fn prepare_cycles(
     let owner = super::relations::RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            crate::application::file_dag::testing::derived(),
+            crate::application::file_dag::fakes_test::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let BorrowedRows::Computed(table) = input else {
@@ -55,7 +55,7 @@ fn prepare_closure(
     let owner = std::rc::Rc::new(super::relations::RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            crate::application::file_dag::testing::derived(),
+            crate::application::file_dag::fakes_test::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     ));
     let BorrowedRows::Computed(table) = input else {

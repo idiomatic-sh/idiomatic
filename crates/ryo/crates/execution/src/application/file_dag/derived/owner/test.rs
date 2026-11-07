@@ -30,7 +30,7 @@ fn plan() -> Arc<DerivedContract> {
     Arc::new(
         crate::application::file_dag::derived::prepare::view(
             (std::sync::Arc::new(
-                crate::application::file_dag::testing::derived(),
+                crate::application::file_dag::fakes_test::derived(),
             ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             &ViewRequest::PartitionOrder {
                 keys: vec![ColumnIndex(0)],
@@ -47,7 +47,7 @@ fn plan() -> Arc<DerivedContract> {
 fn owner(entries: EntryLimit) -> RelationOwner {
     let mut owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        crate::application::file_dag::testing::program_derived_port(),
+        crate::application::file_dag::fakes_test::program_derived_port(),
     );
     owner.derived_mut().max_entries = entries;
     owner
@@ -66,7 +66,7 @@ fn population(owner: &RelationOwner, publication: &PublishedInput) -> Population
 fn pair_plan() -> Arc<DerivedContract> {
     Arc::new(
         crate::application::file_dag::derived::prepare::view(
-            crate::application::file_dag::testing::program_derived_port(),
+            crate::application::file_dag::fakes_test::program_derived_port(),
             &ViewRequest::OrderedKeys {
                 left_on: vec![ColumnIndex(0)],
                 right_on: vec![ColumnIndex(0)],

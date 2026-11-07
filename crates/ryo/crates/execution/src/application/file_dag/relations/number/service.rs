@@ -16,6 +16,6 @@ impl AdmittedNumber<'_> {
 }
 
 #[cfg(test)]
-mod test;
+mod number_test;
 
 mod issuance;

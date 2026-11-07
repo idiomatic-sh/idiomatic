@@ -16,7 +16,7 @@ const ENDPOINTS: [ColumnIndex; 2] = [ColumnIndex(0), ColumnIndex(1)];
 fn an_unprepared_owner_refuses_graph_demand_with_a_typed_error() {
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        crate::application::file_dag::testing::program_derived_port(),
+        crate::application::file_dag::fakes_test::program_derived_port(),
     );
     assert!(matches!(
         owner.derived().graph_cache(),

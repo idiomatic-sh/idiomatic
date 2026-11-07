@@ -127,7 +127,7 @@ fn exercise(refusal: Refusal, fused: bool) {
     );
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(Arc::new(
-            crate::application::file_dag::testing::operators(),
+            crate::application::file_dag::fakes_test::operators(),
         ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {

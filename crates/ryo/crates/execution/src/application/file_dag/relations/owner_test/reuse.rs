@@ -5,7 +5,7 @@ fn many_selected_consumers_reacquire_one_generation_proof() {
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            crate::application::file_dag::testing::derived(),
+            crate::application::file_dag::fakes_test::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let relation = Relation::FilesystemLineCount;

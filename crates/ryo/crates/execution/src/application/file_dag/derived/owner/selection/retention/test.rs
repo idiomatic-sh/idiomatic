@@ -174,7 +174,7 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
     let proof = owner.admit(publication.as_ref(), rows)?;
     let plan = Arc::new(crate::application::file_dag::derived::prepare::view(
         (std::sync::Arc::new(
-            crate::application::file_dag::testing::derived(),
+            crate::application::file_dag::fakes_test::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
         &ViewRequest::PredicateMatches(selector),
         &[InputShape {
@@ -290,7 +290,7 @@ fn every_possible_discriminator_column_is_prepared_once() -> Result<(), Failure>
         [(selector).clone()],
         &|_| &[CellKind::Number; 3],
         (std::sync::Arc::new(
-            crate::application::file_dag::testing::derived(),
+            crate::application::file_dag::fakes_test::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     )?;
     let plans = &views.by_selector[&(Arc::as_ptr(&selector) as usize)].equalities;

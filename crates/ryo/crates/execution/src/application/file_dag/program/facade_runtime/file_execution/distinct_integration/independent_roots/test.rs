@@ -26,7 +26,7 @@ impl crate::outbound::operators::interface::OperatorsPort for RefuseCount {
         ) {
             return Err(PortableOperatorFault::WrongOperation);
         }
-        crate::application::file_dag::testing::operators().operators(call)
+        crate::application::file_dag::fakes_test::operators().operators(call)
     }
 }
 fn columns(failed_emit: bool) -> Vec<ObservationColumn> {
@@ -111,7 +111,7 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
             &rules,
         )
         .unwrap();
-        let derived = crate::application::file_dag::testing::program_derived_port();
+        let derived = crate::application::file_dag::fakes_test::program_derived_port();
         let prepared = crate::application::file_dag::program::preparation::service::prepare(
             compiled,
             &rules,

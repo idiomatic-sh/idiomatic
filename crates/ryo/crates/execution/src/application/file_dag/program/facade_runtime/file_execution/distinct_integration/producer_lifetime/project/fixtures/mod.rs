@@ -44,7 +44,7 @@ pub(super) fn prepare_case(exit: PhaseExit) -> Result<PreparedCase, OperatingErr
     for (at, rule) in rules.iter_mut().enumerate() {
         rule.id = RuleId(format!("phase-reader-{at}").into());
     }
-    let derived = crate::application::file_dag::testing::program_derived_port();
+    let derived = crate::application::file_dag::fakes_test::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
@@ -66,7 +66,7 @@ pub(super) fn prepare_case(exit: PhaseExit) -> Result<PreparedCase, OperatingErr
     })];
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(Arc::new(
-            crate::application::file_dag::testing::operators(),
+            crate::application::file_dag::fakes_test::operators(),
         ))),
         derived,
         &corpus,

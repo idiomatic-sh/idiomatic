@@ -23,7 +23,7 @@ impl ResourceFixture {
     pub(crate) fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> Option<Self> {
         let owner = Rc::new(RelationOwner::new(
             crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
-            crate::application::file_dag::testing::program_derived_port(),
+            crate::application::file_dag::fakes_test::program_derived_port(),
         ));
         let plans = wanted
             .iter()
@@ -142,7 +142,7 @@ impl DerivedPort for RecordedDerived {
         request: ryo_derived::domain::request::types::DerivedRequest,
         schemas: Vec<Vec<ryo_relations::domain::relations::types::CellKind>>,
     ) -> ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived {
-        crate::application::file_dag::testing::derived().prepare(request, schemas)
+        crate::application::file_dag::fakes_test::derived().prepare(request, schemas)
     }
     fn build(
         &self,
@@ -165,7 +165,7 @@ impl DerivedPort for RecordedDerived {
         {
             return Err(fault.clone());
         }
-        crate::application::file_dag::testing::derived().build(prepared, inputs, room, recycled)
+        crate::application::file_dag::fakes_test::derived().build(prepared, inputs, room, recycled)
     }
     fn view<'a>(
         &self,
@@ -175,7 +175,7 @@ impl DerivedPort for RecordedDerived {
         ryo_derived::domain::contract::types::DerivedView<'a>,
         ryo_derived::domain::fault::types::DerivedFault,
     > {
-        crate::application::file_dag::testing::derived().view(prepared, payload)
+        crate::application::file_dag::fakes_test::derived().view(prepared, payload)
     }
 }
 

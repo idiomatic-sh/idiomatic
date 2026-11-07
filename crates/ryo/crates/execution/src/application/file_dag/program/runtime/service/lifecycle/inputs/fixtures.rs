@@ -88,7 +88,7 @@ pub(in super::super) struct CompiledCase {
 
 pub(in super::super) fn compiled() -> CompiledCase {
     let plans = [plan(Relation::Function), plan(Relation::Identifier)];
-    let semantic = crate::application::file_dag::testing::program_derived_port();
+    let semantic = crate::application::file_dag::fakes_test::program_derived_port();
     let prepared =
         crate::application::file_dag::request::prepare(&plans, &[vec![], vec![]], &[], Arc::clone(&semantic)).unwrap();
     let graph = crate::domain::file_program::service::compile_prepared(&plans, &prepared);

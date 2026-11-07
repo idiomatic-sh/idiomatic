@@ -9,6 +9,9 @@ pub(crate) mod request;
 pub(crate) mod resources;
 #[cfg(any(test, feature = "fixtures"))]
 pub(crate) mod testing;
+
+#[cfg(test)]
+pub(crate) mod fakes_test;
 pub(crate) mod workspace;
 
 #[cfg(test)]

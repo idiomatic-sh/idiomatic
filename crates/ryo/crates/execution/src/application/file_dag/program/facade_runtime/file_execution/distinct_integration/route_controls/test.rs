@@ -33,7 +33,7 @@ impl crate::outbound::operators::interface::OperatorsPort for MeaningCalls {
             }
             _ => {}
         }
-        crate::application::file_dag::testing::operators().operators(call)
+        crate::application::file_dag::fakes_test::operators().operators(call)
     }
 }
 fn run(
@@ -42,7 +42,7 @@ fn run(
     partials: &[Partial],
     calls: Arc<MeaningCalls>,
 ) -> RootOutcome {
-    let derived = crate::application::file_dag::testing::program_derived_port();
+    let derived = crate::application::file_dag::fakes_test::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             plans: vec![plan],

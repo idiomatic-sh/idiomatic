@@ -154,7 +154,7 @@ pub(super) fn run(
         include: vec![],
         exclude: vec![],
     };
-    let derived = crate::application::file_dag::testing::program_derived_port();
+    let derived = crate::application::file_dag::fakes_test::program_derived_port();
     let prepared = match crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
@@ -179,7 +179,7 @@ pub(super) fn run(
     let result = (|| {
         let services = Arc::new(ProgramServices::new(
             Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
-                crate::application::file_dag::testing::operators(),
+                crate::application::file_dag::fakes_test::operators(),
             ))),
             derived,
             &[CorpusInput::Available(CorpusEntry {

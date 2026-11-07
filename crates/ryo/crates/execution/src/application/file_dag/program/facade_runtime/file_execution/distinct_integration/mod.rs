@@ -214,7 +214,7 @@ fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
         elements,
         mut symbols,
     } = small_tree();
-    let derived = crate::application::file_dag::testing::program_derived_port();
+    let derived = crate::application::file_dag::fakes_test::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
@@ -229,7 +229,7 @@ fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
         ObservationIdentity::Independent, crate::domain::executable_program::types::RoutePolicy::default(),
     )?;
     let engine = Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
-        crate::application::file_dag::testing::operators(),
+        crate::application::file_dag::fakes_test::operators(),
     )));
     let services = Arc::new(ProgramServices::new(
         engine,

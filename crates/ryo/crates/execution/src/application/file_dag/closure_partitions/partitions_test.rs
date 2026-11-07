@@ -6,7 +6,7 @@ use ryo_values::domain::rows::service::push_row;
 fn scope() -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
     std::rc::Rc::new(crate::application::file_dag::relations::RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        crate::application::file_dag::testing::program_derived_port(),
+        crate::application::file_dag::fakes_test::program_derived_port(),
     ))
 }
 

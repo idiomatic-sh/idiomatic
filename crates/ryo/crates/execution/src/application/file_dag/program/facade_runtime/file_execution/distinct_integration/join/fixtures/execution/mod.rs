@@ -302,7 +302,7 @@ pub(crate) fn execute(
     })
 }
 pub(crate) fn real_port() -> Arc<dyn crate::outbound::operators::interface::OperatorsPort> {
-    Arc::new(crate::application::file_dag::testing::operators())
+    Arc::new(crate::application::file_dag::fakes_test::operators())
 }
 pub(crate) fn made(
     op: &Operation,
