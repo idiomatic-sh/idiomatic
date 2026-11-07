@@ -21,6 +21,8 @@ enum Scenario {
     ACountKeepsItsRowsInOneFileOnlyWhenKeyedByFile,
     /// The rows of a union lie in one file each; a column lies in it only when it does in every member.
     AUnionLiesInOneFileWhereEveryMemberDoes,
+    /// A hosted row comes from the file its one file column names; with two file columns no column says which.
+    AHostedRowLiesInTheFileItsOneFileColumnNames,
 }
 
 type Input = Scenario;
@@ -132,6 +134,24 @@ fn subject(input: Input) {
                 Lineage::Mixed
             );
         }
+        Scenario::AHostedRowLiesInTheFileItsOneFileColumnNames => {
+            let hosted = Operation::Hosted {
+                relation: ryo_values::domain::plan_parts::types::HostedNumber(0),
+            };
+            assert_eq!(
+                of_step(&hosted, &[Lineage::Mixed], &[CellKind::File, CellKind::Node, CellKind::Number]),
+                columns(&[InFile, Elsewhere, Elsewhere]),
+                "a hosted node may lie in any file"
+            );
+            assert_eq!(
+                of_step(&hosted, &[Lineage::Mixed], &[CellKind::File, CellKind::File]),
+                Lineage::Mixed
+            );
+            assert_eq!(
+                of_step(&hosted, &[Lineage::Mixed], &[CellKind::Number]),
+                Lineage::Mixed
+            );
+        }
     }
 }
 
@@ -164,6 +184,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_union_lies_in_one_file_where_every_member_does"),
         word: Word::Succeeds,
         input: || Scenario::AUnionLiesInOneFileWhereEveryMemberDoes,
+        expect: Expect::Value(()),
+    },    Case {
+        name: CaseName("a_hosted_row_lies_in_the_file_its_one_file_column_names"),
+        word: Word::Succeeds,
+        input: || Scenario::AHostedRowLiesInTheFileItsOneFileColumnNames,
         expect: Expect::Value(()),
     },
 ];
