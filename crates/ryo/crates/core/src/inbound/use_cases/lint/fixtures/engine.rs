@@ -2,17 +2,17 @@
 
 use std::sync::Arc;
 
-use ryo_execution::outbound::publication::interface::PublicationPort;
+use ryo_execution::inbound::use_cases::publication::interface::PublicationUseCase;
 use ryo_execution::outbound::derived::interface::DerivedPort;
 use ryo_execution::outbound::digest::fixtures::fake::DigestFake;
 use ryo_execution::outbound::digest::interface::DigestPort;
 use ryo_execution::outbound::facts::interface::FactsPort;
 use ryo_execution::outbound::operators::interface::OperatorsPort;
 
-/// The publication port over the engine's publication use case.
+/// The engine's publication use case.
 #[must_use]
-pub fn publication() -> Arc<dyn PublicationPort> {
-    Arc::new(ryo_execution::outbound::publication::factory::execution())
+pub fn publication() -> Arc<dyn PublicationUseCase> {
+    Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())
 }
 
 /// The digest port over the engine's digest fake.

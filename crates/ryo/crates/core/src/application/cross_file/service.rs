@@ -22,7 +22,7 @@ use crate::domain::crossing::service::partials_for;
 use crate::domain::crossing::service::partials_for_reads;
 use crate::domain::render::types::Answering;
 use crate::outbound::corpus::interface::CorpusPort;
-use ryo_execution::outbound::publication::interface::PublicationPort;
+use ryo_execution::inbound::use_cases::publication::interface::PublicationUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::InputReadiness;
 use ryo_execution::inbound::use_cases::execution::interface::{AdmittedOutput, RuleSelection};
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
@@ -63,7 +63,7 @@ impl std::fmt::Debug for CrossFile {
 impl CrossFile {
     /// Bind source access once at composition.
     #[must_use]
-    pub fn new(corpus: Arc<dyn CorpusPort>, publication: Arc<dyn PublicationPort>) -> Self {
+    pub fn new(corpus: Arc<dyn CorpusPort>, publication: Arc<dyn PublicationUseCase>) -> Self {
         Self {
             completion: ProjectCompletion::new(Rendering::new(corpus), publication),
         }

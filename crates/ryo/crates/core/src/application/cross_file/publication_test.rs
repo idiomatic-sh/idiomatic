@@ -1,36 +1,31 @@
 //! Portable publication keeps earlier roots when a later root refuses.
 use super::publication::pack_roots;
 use crate::domain::crossing::types::ObservedRoot;
-use ryo_execution::outbound::publication::interface::PublicationPort;
+use ryo_execution::inbound::use_cases::publication::interface::{
+    PublicationError, PublicationInput, PublicationReason, PublicationUseCase,
+};
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::{CellKind, Integer, NamePlace, Value, WorkerNumber};
+use ryo_relations::domain::relations::types::{CellKind, Integer, Value, WorkerNumber};
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
         records::types::{ObservationIndex, ObservationReason, ProducerReadiness},
         rows::types::{RowCount, Table},
-        stored_facts::types::ArenaBytes,
     },
 };
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 struct RefusingPublication(AtomicUsize);
-impl PublicationPort for RefusingPublication {
-    fn publication(
-        &self,
-        _table: &mut Table,
-        _symbols: &mut Symbols,
-        _inherited: &[ArenaBytes],
-        _worker: WorkerNumber,
-        arena: &mut ArenaBytes,
-        _places: &mut Vec<NamePlace>,
-    ) -> Result<(), ObservationReason> {
+impl PublicationUseCase for RefusingPublication {
+    fn publication(&self, input: PublicationInput<'_>) -> Result<(), PublicationError> {
         let call = self.0.fetch_add(1, Ordering::SeqCst);
-        arena.0.push(if call == 0 { 8 } else { 9 });
+        input.arena.0.push(if call == 0 { 8 } else { 9 });
         if call == 0 {
             Ok(())
         } else {
-            Err(ObservationReason(Box::<str>::default()))
+            Err(PublicationError::Publication {
+                reason: PublicationReason::ReservedArena,
+            })
         }
     }
 }
