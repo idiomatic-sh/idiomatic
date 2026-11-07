@@ -67,7 +67,10 @@ pub(crate) fn measured(
     payload: String,
 ) -> Result<Measured, Box<dyn std::error::Error>> {
     let captured = Capture::default();
-    let worker = workers::json(payload.into(), Box::new(captured.clone()));
+    let worker = workers::json(
+        ryo_benchmark::outbound::worker::types::WorkerSource::Argument(payload.into()),
+        Box::new(captured.clone()),
+    );
     let engine = factory::local_with_frontend_diagnostic(
         ryo::linter::Languages(vec![ryo_python::linked_with_settings(
             ryo_python::settings::PythonParserSettings::new(
@@ -75,7 +78,7 @@ pub(crate) fn measured(
             ),
         )]),
         None,
-        factory::FrontendDiagnosticProjection {
+        ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection {
             rule: ryo::linter::RuleId::try_from("invalid-syntax")?,
             query: ryo::query::RyoQlQuery::try_from(
                 crate::frontend_projection::constants::FRONTEND_DIAGNOSTIC_QUERY,
@@ -85,7 +88,12 @@ pub(crate) fn measured(
     reset_peak();
     let cpu = process_cpu_seconds();
     let started = Instant::now();
-    let run = RunRyoUseCaseImpl::new(Arc::new(engine), Arc::new(worker)).run_ryo();
+    let run = RunRyoUseCaseImpl::new(
+        Arc::new(engine),
+        Arc::new(worker),
+        Arc::new(ryo_benchmark::outbound::context::factory::local()),
+    )
+    .run_ryo();
     let wall_seconds = started.elapsed().as_secs_f64();
     let cpu_seconds = process_cpu_seconds().zip(cpu).map(|(after, before)| after - before);
     let text = String::from_utf8(captured.0.lock().map_err(|_| "capture poisoned")?.clone())?;

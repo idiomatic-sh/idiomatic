@@ -174,7 +174,7 @@ pub(super) fn validate_skips(
 /// Load and validate every declared module inside the same sealed profile boundary.
 fn query_modules(
     directory: &std::path::Path,
-    registry: &BTreeMap<String, std::path::PathBuf>,
+    registry: &BTreeMap<QueryModuleName, std::path::PathBuf>,
 ) -> Result<ryo::query::QueryModuleCatalog, Error> {
     let profile = directory
         .parent()

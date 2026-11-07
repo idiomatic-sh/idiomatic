@@ -24,17 +24,19 @@ fn subject((): Input) -> Result<Value, Failure> {
         loaded,
         EngineConfiguration {
             selected_missing: Default::default(),
-            selected_rules: request
-                .selected_rules
-                .clone()
-                .expect("selected rules")
-                .into_iter()
-                .collect(),
+            selected_rules: match request.selected_rules.clone() {
+                ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
+                    selected,
+                ) => selected.into_iter().collect(),
+                ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen => {
+                    panic!("selected rules")
+                }
+            },
             selected_pairs: crate::outbound::engine::types::SelectedPairs(1),
             hosted: Vec::new(),
         },
     );
-    let report = configured.execute().expect("actual port fake executes");
+    let report = configured.execute().expect("actual port fake executes").report;
     assert_eq!(report.files, request.files);
     let ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(coverage) = report.coverage else {
         panic!("accounting retained");

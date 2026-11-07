@@ -75,3 +75,52 @@ impl std::fmt::Display for FindingCounts<'_> {
 /// What one agreement between two reports compares, named for the refusal that reports a difference.
 #[derive(Clone, Copy, Debug)]
 pub(super) struct ComparisonName(pub &'static str);
+
+/// One certified corpus and everything its measurement is bound to.
+#[derive(Clone, Debug)]
+pub struct CorpusMeasurement<'a> {
+    /// The projects measured, in order.
+    pub projects: Vec<Project>,
+    /// Whether the samples are published as a metric or only reported.
+    pub scope: BenchmarkCoverage,
+    /// Which sources of each project are measured.
+    pub profile: SourceProfile,
+    /// The directory retained state and trial directories live under.
+    pub cache: &'a Path,
+    /// The frozen workload directory the projects' edit patches are read from.
+    pub frozen_workload: &'a Path,
+    /// The certificate both contestants hold for this corpus.
+    pub certificate: &'a Certificate,
+    /// Whether the run is accounted or diagnostic.
+    pub mode: &'a MeasurementMode,
+    /// The rule cohort sent to both contestants.
+    pub cohort: &'a CohortSelection,
+    /// The profile's rule configuration declaration.
+    pub rule_context: &'a RuleContextProfile,
+    /// The ordered import roots of every project run.
+    pub search_roots: &'a SearchRoots,
+    /// How each project's context is sealed.
+    pub context_mode: ProjectContextMode,
+    /// The names and suffixes of the measured language.
+    pub language: CorpusLanguage<'a>,
+}
+
+/// The boundaries one corpus measurement calls, borrowed from the use case.
+pub(super) struct CorpusBoundaries<'a> {
+    /// The pinned reference linter.
+    pub reference: &'a dyn crate::outbound::linter::interface::LinterPort,
+    /// The candidate linter.
+    pub candidate: &'a dyn crate::outbound::linter::interface::LinterPort,
+    /// The reference tool's own selection of a worktree's files.
+    pub discovery: &'a dyn crate::outbound::discovery::interface::DiscoveryPort,
+    /// Process launch and observation.
+    pub execution: &'a dyn crate::outbound::execution::interface::ExecutionPort,
+    /// Artifact validation and fingerprinting.
+    pub suite: &'a dyn crate::outbound::suite::interface::SuitePort,
+    /// Sealed project context.
+    pub context: &'a dyn crate::outbound::context::interface::ContextPort,
+    /// Sample publication and comparison evidence.
+    pub evidence: &'a dyn crate::outbound::evidence::interface::EvidencePort,
+    /// Corpus worktrees.
+    pub workspace: &'a dyn crate::outbound::workspace::interface::WorkspacePort,
+}

@@ -265,9 +265,11 @@ pub(super) fn configuration_arguments(
             let text = absolute
                 .to_str()
                 .ok_or_else(|| Error::Invalid("non-UTF8 configuration path".into()))?;
-            let literal = ryo_benchmark::domain::rule_context::service::literal_glob(text);
+            let literal = ryo_benchmark::domain::rule_context::service::literal_glob(
+                &ryo::linter::RelativePath(text.into()),
+            );
             let rules: Vec<_> = rules.iter().map(ToString::to_string).collect();
-            entries.insert(literal, strings(rules));
+            entries.insert(literal.0, strings(rules));
         }
         arguments.push("--config".into());
         arguments.push(section("per-file-ignores", toml::Value::Table(entries))?);

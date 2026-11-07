@@ -281,14 +281,24 @@ pub(crate) fn write(
         },
         rule_context: match &case.request.rule_context {
             RuleContextPreparation::Prepared(prepared) => RuleContextRecord::Declared(
-                CanonicalJson(crate::outbound::worker::schemas::prepared_text(prepared)),
+                CanonicalJson(
+                    crate::outbound::linter::types::CanonicalText::from(
+                        crate::outbound::linter::types::RuleContextInput(prepared),
+                    )
+                    .0,
+                ),
             ),
             RuleContextPreparation::Unconfigured => RuleContextRecord::Undeclared,
         },
         rule_observations: match &case.request.rule_observations {
             InputDeclaration::Declared(declarations) => RuleObservationsRecord::Declared(
                 CanonicalJson(
-                    crate::outbound::worker::schemas::observation_declarations_text(declarations),
+                    serde_json::Value::from(
+                        crate::outbound::linter::types::ObservationsInput(
+                            declarations,
+                        ),
+                    )
+                    .to_string(),
                 ),
             ),
             InputDeclaration::Undeclared => RuleObservationsRecord::Undeclared,

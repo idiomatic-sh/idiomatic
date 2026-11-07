@@ -5,6 +5,7 @@ use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
 use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
 use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
+use ryo_benchmark_contracts::domain::measurements::types::{SignalNumber, TerminationSignal};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::{path::Path, time::Duration};
 #[derive(Clone, Debug)]
@@ -88,7 +89,9 @@ impl ExecutionPort for ExecutionFake {
             .expect("fixture history")
             .push(invocation);
         Ok(ProcessOutput {
-            signal,
+            signal: signal.map_or(TerminationSignal::Exited, |number| {
+                TerminationSignal::Signalled(SignalNumber(number))
+            }),
             status: ProcessExitCode(status),
             stdout: CapturedBytes(if signal.is_some() {
                 Vec::new()

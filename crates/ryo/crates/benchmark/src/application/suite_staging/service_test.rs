@@ -1,7 +1,8 @@
 //! A refused source observation stops staging before any snapshot writes, and a selected rule stages alone.
 use super::service;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::suite::constants::{BENCHMARK_TOML, RULES};
+use crate::domain::suite::constants::RULES;
+use ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST;
 use crate::outbound::suite::{factory::local, fixtures::fake::SuiteFake};
 use ryo_benchmark_contracts::domain::workloads::types::StagePurpose;
 
@@ -67,7 +68,7 @@ fn selected_rule() -> Result<Value, Failure> {
     let directory = root.path().join("profile");
     std::fs::create_dir_all(&directory).unwrap();
     std::fs::write(
-        directory.join(BENCHMARK_TOML),
+        directory.join(PROFILE_MANIFEST),
         "tool='fixture'\nversion='1'\nsha256=['pin']\ndefaults=['E722','F704']\n",
     )
     .unwrap();

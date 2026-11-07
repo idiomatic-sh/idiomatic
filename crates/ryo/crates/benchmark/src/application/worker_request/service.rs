@@ -136,12 +136,16 @@ pub fn configure<'a>(
     let configured = {
         let rules = session.rules_mut();
         let selected_pairs = diagnostic_rules.len().saturating_mul(request.files.len());
-        candidate_rules::project(request, rules, selected_pairs)?
+        candidate_rules::project(
+            request,
+            rules,
+            ryo_benchmark_contracts::domain::reports::types::PairCount(selected_pairs),
+        )?
     };
     let context = crate::outbound::engine::types::EngineConfiguration {
         selected_missing: missing.selected_missing,
         selected_rules,
-        selected_pairs: crate::outbound::engine::types::SelectedPairs(configured.selected_pairs),
+        selected_pairs: crate::outbound::engine::types::SelectedPairs(configured.selected_pairs.0),
         hosted: configured.hosted,
     };
     Ok(crate::outbound::engine::types::configured_engine_session::value::ConfiguredEngineSession::new(session, context))

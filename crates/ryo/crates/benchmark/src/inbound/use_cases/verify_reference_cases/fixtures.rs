@@ -53,6 +53,7 @@ pub fn exercise(scenario: Scenario, operate: Operate) -> Result<usize, Refusal> 
 #[cfg(test)]
 pub(crate) mod authored {
     use super::super::service::verify_prepared_reference_cases;
+    use crate::outbound::suite::fixtures::authored;
     use crate::outbound::{
         execution::fixtures::fake::ExecutionFake, linter::fixtures::fake::LinterFake,
         receipts::fixtures::fake::ReceiptsFake, suite::fixtures::fake::SuiteFake,

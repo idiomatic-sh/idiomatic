@@ -11,8 +11,9 @@ use ryo::linter::{
 };
 use ryo_benchmark_contracts::domain::context::types::CaseContext;
 use ryo_benchmark_contracts::domain::reports::types::SourceByteOffset;
+use ryo_benchmark_contracts::domain::workloads::types::ConfigurationOverride;
 use ryo_benchmark_contracts::domain::requests::types::{
-    CohortSelection, ConfigurationOverride, FileMetadataDeclaration, InputDeclaration, SearchRoots,
+    CohortSelection, FileMetadataDeclaration, InputDeclaration, SearchRoots,
 };
 use ryo_benchmark_contracts::domain::workloads::types::Case as SuiteCase;
 use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
@@ -80,7 +81,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a given project inventory stages an unselected local module"),
         word: Word::Succeeds,
-        input: || Check::Sources(sibling(ProjectEntryState::Regular)),
+        input: || Check::Sources(sibling(ProjectEntryState::File)),
         expect: Expect::Value(()),
     },
     Case {
@@ -147,7 +148,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             edited(explicit_missing(), |case| {
-                case.context.as_mut().unwrap().missing.clear();
+                let ryo_benchmark_contracts::domain::workloads::types::ContextDeclaration::Declared(context) = &mut case.context else {
+                    panic!("explicit missing context");
+                };
+                context.missing.clear();
             })
         },
         expect: Expect::Error(Cow::Borrowed(
@@ -192,7 +196,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("unselected bytes need an observation"),
         word: Word::Refuses,
         input: || {
-            edited(sibling(ProjectEntryState::Regular), |case| {
+            edited(sibling(ProjectEntryState::File), |case| {
                 case.given_project_inventory = InventoryDeclaration::Undeclared;
             })
         },

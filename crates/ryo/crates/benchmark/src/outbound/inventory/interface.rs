@@ -2,7 +2,7 @@
 //! and the handles (traits this file declares) it hands back. It never takes an adapter's
 //! configuration (a directory, a budget, a client): the port's factory takes that.
 use super::types::ContextFiles;
-use super::types::InvocationDocument;
+use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
 use super::types::RawArtifacts;
 use super::types::ReceiptFile;
 use super::types::Registration;

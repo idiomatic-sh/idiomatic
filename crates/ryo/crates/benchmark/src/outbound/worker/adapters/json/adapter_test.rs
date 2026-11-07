@@ -125,13 +125,13 @@ fn subject(operation: Input) -> Result<Value, Failure> {
         std::collections::BTreeMap::default(),
         if matches!(operation, Operation::RoundTrip) {
             std::collections::BTreeMap::from([
-                ("fixture".into(), "always".into()),
-                ("other".into(), "accepted-syntax".into()),
+                (ryo_benchmark_contracts::domain::requests::types::RuleLabel("fixture".into()), ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy("always".into())),
+                (ryo_benchmark_contracts::domain::requests::types::RuleLabel("other".into()), ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy("accepted-syntax".into())),
             ])
         } else {
             std::collections::BTreeMap::default()
         },
-        None,
+        ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
         vec![ryo::linter::RuleId::try_from("fixture").unwrap()],
         std::collections::BTreeMap::new().into(),
     );
@@ -175,12 +175,13 @@ fn subject(operation: Input) -> Result<Value, Failure> {
             path: ryo::linter::RelativePath("source.txt".into()),
             reason: ryo::linter::SkipReason::SyntaxRejected,
         });
-        let coverage = expected_report
-            .coverage
-            .as_mut()
-            .expect("complete fixture coverage");
-        coverage.selected = 2;
-        coverage.skipped = 1;
+        let ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(coverage) =
+            &mut expected_report.coverage
+        else {
+            panic!("complete fixture coverage");
+        };
+        coverage.selected = ryo_benchmark_contracts::domain::reports::types::PairCount(2);
+        coverage.skipped = ryo_benchmark_contracts::domain::reports::types::PairCount(1);
     }
     match operation {
         Operation::Malformed => child.receive().map(|_| false).map_err(classify),
@@ -197,7 +198,10 @@ fn subject(operation: Input) -> Result<Value, Failure> {
                 assert_eq!(received.rules, std::path::PathBuf::from("rules"));
                 assert_eq!(received.files, request.files);
                 assert_eq!(
-                    received.rule_applicability.get("other").map(String::as_str),
+                    received
+                        .rule_applicability
+                        .get(&ryo_benchmark_contracts::domain::requests::types::RuleLabel("other".into()))
+                        .map(|policy| policy.0.as_str()),
                     Some("accepted-syntax")
                 );
                 assert_eq!(

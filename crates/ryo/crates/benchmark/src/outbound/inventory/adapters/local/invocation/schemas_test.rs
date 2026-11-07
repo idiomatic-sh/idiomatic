@@ -27,15 +27,6 @@ fn named(text: &str) -> Failure {
     }
 }
 
-/// The text of one checked-in fixture document.
-fn fixture(path: &str) -> String {
-    std::fs::read_to_string(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/").to_owned() + path,
-    )
-    .expect("fixture document")
-}
-
-
 /// The record text a row reads.
 type Input = String;
 

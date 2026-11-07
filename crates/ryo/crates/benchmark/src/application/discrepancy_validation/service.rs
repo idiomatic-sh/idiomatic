@@ -237,7 +237,12 @@ pub(crate) fn validate_archives(
         .read_discrepancy_artifacts(ArtifactPath(profile_root), &artifacts)
         .map_err(refused)?
         .into_iter()
-        .map(|(path, bytes)| (path, bytes.0))
+        .map(|(path, bytes)| {
+            (
+                path,
+                ryo_benchmark_contracts::domain::measurements::types::CapturedBytes(bytes.0),
+            )
+        })
         .collect::<std::collections::BTreeMap<_, _>>();
     let files = case
         .request
@@ -258,15 +263,13 @@ pub(crate) fn validate_archives(
             Path::new(root),
             &files,
         )
-        .map_err(refused)?
-        .0;
+        .map_err(refused)?;
         let stderr = crate::domain::process_output::service::expand(
             &process.stderr,
             Path::new(root),
             &files,
         )
-        .map_err(refused)?
-        .0;
+        .map_err(refused)?;
         let source = identity.source_sha256.0.as_str();
         let file_metadata = match &identity.file_metadata_sha256 {
             ryo_benchmark_contracts::domain::workloads::types::MetadataDigestDeclaration::Declared(digest) => Pin::Sha256(

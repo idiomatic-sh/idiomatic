@@ -3,6 +3,9 @@ use super::{connection::EvidenceBmfConnection, constants, schemas};
 use crate::outbound::evidence::interface::EvidencePort;
 use crate::outbound::evidence::types::measured_publication::value::MeasuredPublication;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::{
+    ComparisonContract, ReportComparison, RunReport,
+};
 use std::io::Write as _;
 
 #[derive(Debug)]
@@ -29,5 +32,17 @@ impl EvidencePort for EvidenceBmfAdapter {
         output.write_all(constants::NEWLINE)?;
         output.flush()?;
         Ok(())
+    }
+    fn comparison(
+        &self,
+        reference: &RunReport,
+        candidate: &RunReport,
+        comparison: ReportComparison,
+        contract: ComparisonContract,
+    ) {
+        eprintln!(
+            "{}",
+            schemas::comparison(reference, candidate, comparison, contract)
+        );
     }
 }

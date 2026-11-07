@@ -72,11 +72,17 @@ fn prepared(root: &std::path::Path, sources: bool) -> PreparedCase {
 
 fn rows(receipt: &std::path::Path) -> Vec<(ContestantSide, YesNo)> {
     use crate::outbound::inventory::interface::InventoryPort as _;
-    crate::outbound::inventory::factory::local()
-        .observations(receipt)
-        .map(|loaded| {
-            loaded
-                .records
+    use crate::outbound::receipts::interface::ReceiptsPort as _;
+    crate::outbound::receipts::factory::local(CaseReceipts::Unrecorded)
+        .case_observations(crate::outbound::receipts::types::ReceiptPath(receipt))
+        .ok()
+        .filter(|records| {
+            crate::outbound::inventory::factory::local()
+                .raw_artifacts(receipt, records)
+                .is_ok()
+        })
+        .map(|records| {
+            records
                 .iter()
                 .map(|row| (row.side, row.case_passed))
                 .collect()
@@ -106,7 +112,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         None,
         YesNo::Yes,
         None,
-        None,
+        &crate::domain::process_failure::types::CaptureRecord::Absent,
     );
     match scenario {
         Scenario::NoSink => {

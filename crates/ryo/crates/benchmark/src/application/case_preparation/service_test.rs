@@ -292,7 +292,7 @@ fn given_sibling() -> Result<Value, ryo_benchmark_contracts::domain::reports::er
         panic!("the case declares its project inventory");
     };
     assert_eq!(inventory.entries.len(), 1);
-    assert_eq!(inventory.entries[0].state, ryo::linter::ProjectEntryState::Regular);
+    assert_eq!(inventory.entries[0].state, ryo::linter::ProjectEntryState::File);
     Ok(cases.len())
 }
 

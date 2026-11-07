@@ -189,7 +189,7 @@ pub(crate) fn materialize(
         let path = resolve(&manifest, Path::new(path.0.as_ref()))?;
         if manifest.auxiliary_files.contains_key(&path) {
             return Err(Error::Invalid(
-                AUXILIARY_FILE_ALSO_REQUESTED_FOR_LINT.into(),
+                constants::AUXILIARY_FILE_ALSO_REQUESTED_FOR_LINT.into(),
             ));
         }
         let actual = manifest.boundary.join(&path);
@@ -350,5 +350,8 @@ impl ContextPort for ContextLocalAdapter {
         observed: &ProjectContextReceipt,
     ) -> Result<(), Error> {
         verify_receipt(manifest, actual_root, observed)
+    }
+    fn receipt_text(&self, receipt: &ProjectContextReceipt) -> Result<String, Error> {
+        super::schemas::receipt_text(receipt)
     }
 }

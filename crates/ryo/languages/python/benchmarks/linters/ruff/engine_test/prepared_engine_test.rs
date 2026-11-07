@@ -24,7 +24,7 @@ impl<T: EnginePort + ?Sized> PreparedEngine for T {
                 &prepared.request,
                 session,
             )?;
-            configured.execute()
+            configured.execute().map(|run| run.report)
         }
     }
 }

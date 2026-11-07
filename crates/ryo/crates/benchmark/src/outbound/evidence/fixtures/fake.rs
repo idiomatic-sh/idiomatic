@@ -2,6 +2,9 @@
 use super::super::interface::EvidencePort;
 use crate::outbound::evidence::types::measured_publication::value::MeasuredPublication;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::{
+    ComparisonContract, ReportComparison, RunReport,
+};
 
 /// A deterministic publication stand-in for application tests.
 #[derive(Debug, Clone, Copy)]
@@ -22,6 +25,15 @@ impl EvidencePort for EvidenceFake {
             return Err(Error::Invalid("incomplete evidence fixture".into()));
         }
         Ok(())
+    }
+    /// The fake has no external effects, so the comparison evidence goes nowhere.
+    fn comparison(
+        &self,
+        _reference: &RunReport,
+        _candidate: &RunReport,
+        _comparison: ReportComparison,
+        _contract: ComparisonContract,
+    ) {
     }
 }
 #[cfg(test)]

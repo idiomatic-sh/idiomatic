@@ -124,7 +124,7 @@ fn actual_session(scenario: Scenario) {
     }
     let report = configured.execute();
     match scenario {
-        Scenario::Success => assert_eq!(report.unwrap().diagnostics.len(), 1),
+        Scenario::Success => assert_eq!(report.unwrap().report.diagnostics.len(), 1),
         Scenario::ExecuteRefusal => assert!(
             report
                 .unwrap_err()
@@ -190,7 +190,10 @@ fn request(scenario: Scenario, scratch: &Path, rules: std::path::PathBuf) -> Wor
         project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode: mode,
-        context_manifest: manifest,
+        context_manifest: manifest.map_or(
+            ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+            ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed,
+        ),
         root,
         rules,
         query_modules: BTreeMap::new(),

@@ -7,8 +7,9 @@ use ryo_benchmark_contracts::domain::requests::types::{
     CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration, ParserSelection,
     ProviderSelection, RuleContextPreparation, RunRequest, SearchRoots, StagedSources,
 };
+use ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy;
 use ryo_benchmark_contracts::domain::workloads::types::{
-    CaseComparison, FileObservation, ObservationSelectionPolicy, PreparedCase, PreparedReferenceBehavior,
+    CaseComparison, FileObservation, PreparedCase, PreparedReferenceBehavior,
     RuleContextProfile, Tool,
 };
 use std::collections::BTreeMap;

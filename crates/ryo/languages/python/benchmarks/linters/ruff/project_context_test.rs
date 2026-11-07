@@ -76,7 +76,7 @@ fn request(profile: &Path, case: &PreparedCase, cache: &Path) -> WorkerRequest {
                 "python/ruff/text-units".into(),
                 "fragments/text-units.ryoql".into(),
             );
-            modules
+            super::prepared_engine_test::module_names(modules)
         },
         rule_applicability: BTreeMap::new(),
         parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName("python-target=3.10".into())),

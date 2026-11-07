@@ -120,9 +120,9 @@ impl From<RuleContextTablesSchema>
 {
     fn from(value: RuleContextTablesSchema) -> Self {
         Self {
-            selected: value.selected,
-            disabled: value.disabled,
-            external: value.external,
+            selected: ryo_benchmark_contracts::domain::context::types::TableName(value.selected),
+            disabled: ryo_benchmark_contracts::domain::context::types::TableName(value.disabled),
+            external: ryo_benchmark_contracts::domain::context::types::TableName(value.external),
         }
     }
 }
@@ -132,7 +132,11 @@ impl TryFrom<RuleConfigurationSchema>
     type Error = String;
     fn try_from(value: RuleConfigurationSchema) -> Result<Self, Self::Error> {
         Ok(Self {
-            external_prefixes: value.external_prefixes,
+            external_prefixes: value
+                .external_prefixes
+                .into_iter()
+                .map(ryo_benchmark_contracts::domain::context::types::ExternalPrefix)
+                .collect(),
             disabled_rules: value
                 .disabled_rules
                 .into_iter()

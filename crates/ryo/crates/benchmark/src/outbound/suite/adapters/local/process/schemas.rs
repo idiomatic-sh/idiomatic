@@ -36,7 +36,7 @@ pub(in super::super) enum ProcessFailureSchema {
 /// Exact byte spelling or a declared source path in one explicit encoding.
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
-enum OutputPartSchema {
+pub(in super::super) enum OutputPartSchema {
     /// Unmodified UTF8 bytes, including whitespace.
     Literal { value: String },
     /// Authoritative invocation root joined to a declared input.
@@ -48,7 +48,7 @@ enum OutputPartSchema {
 /// Output path encoding, without inferred normalization.
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
-enum PathEncodingSchema {
+pub(in super::super) enum PathEncodingSchema {
     /// Exact UTF8 bytes.
     Utf8Bytes,
     /// Canonical JSON string content, without surrounding quotes.
@@ -66,7 +66,7 @@ struct ProcessArtifactSchema {
 /// Independent captured observation grouped by exact executable digest.
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
-struct ProcessObservationSchema {
+pub(in super::super) struct ProcessObservationSchema {
     /// No cross-architecture substitution is accepted.
     executable_sha256: String,
     /// Captured root/normalized settings/exit/source identity.

@@ -64,7 +64,7 @@ pub(crate) fn registered_inputs(case: &CaseDocument) -> RegisteredInputs {
                     .map(|entry| ProjectEntryObservation {
                         path: relative(&entry.path),
                         state: match entry.state {
-                            EntryState::Regular => ProjectEntryState::Regular,
+                            EntryState::Regular => ProjectEntryState::File,
                             EntryState::Directory => ProjectEntryState::Directory,
                             EntryState::Other => ProjectEntryState::Other,
                             EntryState::Missing => ProjectEntryState::Missing,
@@ -121,7 +121,7 @@ fn normalized(rows: Option<&Vec<RecordedFinding>>) -> Result<Vec<RecordedFinding
     let mut rows = rows.ok_or(Failure::DiagnosticsMissing)?.clone();
     if rows
         .iter()
-        .any(|row| row.rule.0.is_empty() || row.file.0.is_empty() || row.start > row.end)
+        .any(|row| row.rule.0.is_empty() || row.file.0.is_empty() || row.span.start > row.span.end)
     {
         return Err(Failure::DiagnosticSpanOrIdentityInvalid);
     }

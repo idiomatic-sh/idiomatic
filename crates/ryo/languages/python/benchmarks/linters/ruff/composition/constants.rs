@@ -109,3 +109,27 @@ const PYTHON_EXTENSION: &str = ".py";
 const STUB_EXTENSION: &str = ".pyi";
 /// The suffixes of the sources the matched input profile admits.
 pub(crate) const SOURCE_SUFFIXES: [&str; 2] = [PYTHON_EXTENSION, STUB_EXTENSION];
+/// Stable command, artifact or observation identity for rules directory.
+pub(crate) const RULES_DIRECTORY: &str = "rules";
+/// Text `linux`.
+pub(crate) const LINUX: &str = "linux";
+/// Text `/proc/sys/kernel/osrelease`.
+pub(crate) const PROC_SYS_KERNEL_OSRELEASE: &str = "/proc/sys/kernel/osrelease";
+/// Text `/proc/version`.
+pub(crate) const PROC_VERSION: &str = "/proc/version";
+/// Text `microsoft`.
+pub(crate) const MICROSOFT: &str = "microsoft";
+/// Text `/.dockerenv`.
+pub(crate) const DOCKERENV: &str = "/.dockerenv";
+/// Text `/run/.containerenv`.
+pub(crate) const RUN_CONTAINERENV: &str = "/run/.containerenv";
+/// Text `/proc/self/cgroup`.
+pub(crate) const PROC_SELF_CGROUP: &str = "/proc/self/cgroup";
+/// Text `docker`.
+pub(crate) const DOCKER: &str = "docker";
+/// Text `/container`.
+pub(crate) const CONTAINER: &str = "/container";
+/// Text `/lxc`.
+pub(crate) const LXC: &str = "/lxc";
+/// Text `kubepods`.
+pub(crate) const KUBEPODS: &str = "kubepods";

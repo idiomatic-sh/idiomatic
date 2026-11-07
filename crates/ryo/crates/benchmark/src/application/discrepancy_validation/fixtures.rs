@@ -77,12 +77,7 @@ pub(super) fn suite(validation: &Validation) -> SuiteFake {
 /// The case as registered, with the language evidence its profile supports.
 pub(super) fn evidenced() -> Validation {
     let mut prepared = case();
-    prepared
-        .reference_discrepancy
-        .as_mut()
-        .expect("fixture discrepancy")
-        .evidence
-        .push(evidence());
+    discrepancy(&mut prepared).evidence.push(evidence());
     Validation {
         case: prepared,
         rules: "rules/benchmark.toml",
@@ -108,11 +103,7 @@ pub(super) fn certified() -> Validation {
         .expect("fixture settings"),
     );
     let expected = output_digest(&validation.case.expected);
-    let item = validation
-        .case
-        .reference_discrepancy
-        .as_mut()
-        .expect("fixture discrepancy");
+    let item = discrepancy(&mut validation.case);
     item.identity.settings_sha256 = settings;
     item.identity.intended_output_sha256 = expected;
     item.identity.reference_output_sha256 = reference_digest(&item.expected);
@@ -179,5 +170,19 @@ pub(super) fn archived(record: Record) -> Validation {
             },
         }),
         ..evidenced()
+    }
+}
+
+/// The pinned reference discrepancy every case of these fixtures declares.
+pub(super) fn discrepancy(
+    case: &mut ryo_benchmark_contracts::domain::workloads::types::PreparedCase,
+) -> &mut ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceDiscrepancy {
+    match &mut case.reference_discrepancy {
+        ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(
+            item,
+        ) => item,
+        ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees => {
+            panic!("fixture discrepancy")
+        }
     }
 }

@@ -1,5 +1,9 @@
 //! Verification-only raw capture; measured runs keep their existing allocation path.
-use ryo_benchmark_contracts::domain::documents::types::text::value::{CanonicalJson, ExitStatus, PathText, ReasonText, Sha256Text, YesNo};
+use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{
+    ArgumentText, CompleteInvocation, EnvironmentName, EnvironmentValue, FailedInvocation,
+    InvocationDocument, NormalizedSettings,
+};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{CanonicalJson, ExitStatus, PathText, Pin, ReasonText, Sha256Text, Signal, YesNo};
 use super::constants;
 use super::types::AttemptOutcome;
 use crate::domain::process_failure::types::{CaptureRecord, ProcessCapture};
@@ -9,10 +13,6 @@ use crate::outbound::{
     context::interface::ContextPort,
     execution::interface::ExecutionPort,
     execution::types::ExitObservationMode,
-    inventory::types::{
-        ArgumentText, CompleteInvocation, EnvironmentName, EnvironmentValue, FailedInvocation,
-        InvocationDocument, NormalizedSettings, Pin, Signal,
-    },
     linter::interface::LinterPort,
     suite::{
         interface::SuitePort,
@@ -93,7 +93,7 @@ fn signal(output: &ProcessOutput) -> Signal {
 }
 
 /// Execute once and preserve failed process streams before adapter errors discard them.
-pub fn run(
+pub(crate) fn run(
     suite: &dyn SuitePort,
     context: &dyn ContextPort,
     linter: &dyn LinterPort,

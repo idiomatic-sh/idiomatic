@@ -146,7 +146,7 @@ fn subject(text: Input) -> Result<Value, Failure> {
         && tool.pending.is_empty()
         && if text.contains("[query-modules]") {
             tool.query_modules
-                .get("python/ruff/suppress")
+                .get(&ryo_benchmark_contracts::domain::requests::types::QueryModuleName("python/ruff/suppress".into()))
                 .is_some_and(|path| path == std::path::Path::new("fragments/suppress.ryoql"))
         } else {
             tool.query_modules.is_empty()
@@ -157,7 +157,10 @@ fn subject(text: Input) -> Result<Value, Failure> {
                 .map(ToString::to_string)
                 .collect::<Vec<_>>()
                 == ["E501"]
-                && tool.rule_applicability.get("E501").map(String::as_str)
+                && tool
+                    .rule_applicability
+                    .get(&ryo_benchmark_contracts::domain::requests::types::RuleLabel("E501".into()))
+                    .map(|policy| policy.0.as_str())
                     == Some("accepted-syntax")
         } else {
             tool.supporting_rules.is_empty()
@@ -170,14 +173,14 @@ fn subject(text: Input) -> Result<Value, Failure> {
                 == ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated
         }
         && if text.contains("project-search-roots=[]") {
-            tool.project_search_roots == Some(Vec::new())
+            tool.project_search_roots == ryo_benchmark_contracts::domain::requests::types::SearchRoots::Declared(Vec::new())
         } else {
-            tool.project_search_roots.is_none()
+            tool.project_search_roots == ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared
         }
         && if text.contains("[rule-applicability]") {
             tool.rule_applicability
-                .get("F401")
-                .is_some_and(|value| value == "accepted-syntax")
+                .get(&ryo_benchmark_contracts::domain::requests::types::RuleLabel("F401".into()))
+                .is_some_and(|value| value.0 == "accepted-syntax")
         } else {
             tool.rule_applicability.is_empty()
         })

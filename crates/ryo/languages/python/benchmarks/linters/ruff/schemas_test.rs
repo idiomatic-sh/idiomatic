@@ -240,9 +240,11 @@ fn rule_configuration_arguments_round_trip_as_toml_including_control_characters(
     );
     let disabled: toml::Value = toml::from_str(args[3].to_str().unwrap()).unwrap();
     let expected =
-        ryo_benchmark::domain::rule_context::service::literal_glob("/root/pkg/[é]\u{7f}.py");
+        ryo_benchmark::domain::rule_context::service::literal_glob(&ryo::linter::RelativePath(
+            "/root/pkg/[é]\u{7f}.py".into(),
+        ));
     assert_eq!(
-        disabled["lint"]["per-file-ignores"][expected.as_str()][0].as_str(),
+        disabled["lint"]["per-file-ignores"][expected.0.as_str()][0].as_str(),
         Some("F401")
     );
     args.len()

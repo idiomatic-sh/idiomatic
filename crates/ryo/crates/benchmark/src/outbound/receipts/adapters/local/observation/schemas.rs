@@ -8,8 +8,12 @@ use ryo_benchmark_contracts::domain::reports::types::{
     ComparisonContract, CoverageAccounting, ExecutionMetadata,
 };
 use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
+use crate::outbound::receipts::errors::ReceiptsError;
 use serde::{Serialize};
 
+fn is(value: YesNo) -> bool {
+    value == YesNo::Yes
+}
 fn text(value: &Sha256Text) -> String {
     value.0.clone()
 }

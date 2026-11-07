@@ -346,19 +346,19 @@ pub enum StagePurpose {
     Execution,
 }
 
-mod suite_language;
+pub mod suite_language;
 
-mod project_name;
+pub mod project_name;
 
-mod repository_url;
+pub mod repository_url;
 
-mod project_revision;
+pub mod project_revision;
 
 pub mod tool_name;
 
 pub mod tool_version;
 
-mod tool_digest;
+pub mod tool_digest;
 
 pub mod capability_name;
 

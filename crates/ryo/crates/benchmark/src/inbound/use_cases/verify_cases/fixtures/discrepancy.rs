@@ -1,5 +1,6 @@
 //! A documented reference difference keeps the intended contract and the pinned reference apart.
 use crate::outbound::linter::fixtures::fake::LinterFake;
+use crate::outbound::linter::interface::LinterPort as _;
 use crate::outbound::suite::fixtures::fake::SuiteFake;
 use crate::outbound::suite::types::CaseClaim;
 use crate::outbound::suite::types::ClaimedDiscrepancy;

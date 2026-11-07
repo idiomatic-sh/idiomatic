@@ -61,14 +61,12 @@ fn subject(text: Input) -> Result<Value, Failure> {
         ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Rule
     };
     let context_bytes = !text.contains("auxiliary-files")
-        || case.context.as_ref().is_some_and(|context| {
-            context.auxiliary_files[std::path::Path::new("pkg/__init__.py")] == [0, 1, 255]
-        });
+        || matches!(&case.context, ryo_benchmark_contracts::domain::workloads::types::ContextDeclaration::Declared(context)
+            if context.auxiliary_files[std::path::Path::new("pkg/__init__.py")].0 == [0, 1, 255]);
     let inventory = !text.contains("given-project-inventory")
-        || case.given_project_inventory.as_ref().is_some_and(|inventory| {
-            inventory.entries.len() == 1
-                && inventory.entries[0].state == ryo::linter::ProjectEntryState::File
-        });
+        || matches!(&case.given_project_inventory, ryo_benchmark_contracts::domain::workloads::types::InventoryDeclaration::Declared(inventory)
+            if inventory.entries.len() == 1
+                && inventory.entries[0].state == ryo::linter::ProjectEntryState::File);
     Ok(case.comparison == comparison && identity_preserved && context_bytes && inventory)
 }
 #[test]

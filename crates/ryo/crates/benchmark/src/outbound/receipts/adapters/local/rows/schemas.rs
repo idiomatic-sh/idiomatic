@@ -3,7 +3,7 @@
 use super::super::process_row::schemas::{KindSchema, ProcessRowSchema, pin};
 use crate::outbound::receipts::errors::ReceiptsError;
 use ryo_benchmark_contracts::domain::documents::types::finding::value::{
-    ExpectedFindings, Finding, FindingOffset, SkippedPair,
+    ExpectedFindings, FindingOffset, RecordedFinding, RecordedSpan, SkippedPair,
 };
 use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
     ContextMode, ContextRun, IntentMatch, ListedContext, ObservationDocument, RecordedMetadata,
@@ -172,13 +172,15 @@ struct RowSchema {
     process_observation: Option<ProcessRowSchema>,
 }
 
-fn findings(rows: Vec<FindingSchema>) -> Vec<Finding> {
+fn findings(rows: Vec<FindingSchema>) -> Vec<RecordedFinding> {
     rows.into_iter()
-        .map(|row| Finding {
+        .map(|row| RecordedFinding {
             rule: RuleName(row.rule),
             file: PathText(row.file),
-            start: FindingOffset(row.start),
-            end: FindingOffset(row.end),
+            span: RecordedSpan {
+                start: FindingOffset(row.start),
+                end: FindingOffset(row.end),
+            },
         })
         .collect()
 }

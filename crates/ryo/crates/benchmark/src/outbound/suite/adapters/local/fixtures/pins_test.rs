@@ -134,7 +134,7 @@ fn verify_pin((sha256, version, fixture): (&[&str], &str, PinFixture)) -> Result
         project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         defaults: vec!["E722".try_into().expect("rule identifier")],
     };
-    SuiteLocalAdapter::new(None)
+    SuiteLocalAdapter
         .verify_tool(ArtifactPath(&path), &tool)
         .map_err(|error| match error {
             Error::Invalid(message) if message == "tool executable hash differs from pin" => {

@@ -92,24 +92,28 @@ pub(super) fn a_rejected_file_leaves_pt020_pt025_and_pt026_answering_the_valid_f
     std::fs::write(root.path().join("broken.py"), "def broken(:\n    pass\n")?;
     let request = WorkerRequest {
         performance: Default::default(),
-        selected_rules: Some(fixture_cohort(&["PT020", "PT025", "PT026"])),
-        rule_observations: None,
-        rule_context: None,
-        project_search_roots: None,
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(fixture_cohort(&["PT020", "PT025", "PT026"])),
+        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode:
             ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
-        context_manifest: None,
+        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: root.path().to_owned(),
         rules,
-        query_modules: super::prepared_engine_test::suppress_modules(),
+        query_modules: super::prepared_engine_test::module_names(
+            super::prepared_engine_test::suppress_modules(),
+        ),
         rule_applicability: BTreeMap::from([
-            ("PT020".to_owned(), "accepted-syntax".to_owned()),
-            ("PT025".to_owned(), "accepted-syntax".to_owned()),
-            ("PT026".to_owned(), "accepted-syntax".to_owned()),
+            (ryo_benchmark_contracts::domain::requests::types::RuleLabel("PT020".to_owned()), ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy("accepted-syntax".to_owned())),
+            (ryo_benchmark_contracts::domain::requests::types::RuleLabel("PT025".to_owned()), ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy("accepted-syntax".to_owned())),
+            (ryo_benchmark_contracts::domain::requests::types::RuleLabel("PT026".to_owned()), ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy("accepted-syntax".to_owned())),
         ]),
-        parser_configuration: Some("python-target=3.10".to_owned()),
-        source_language: None,
+        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName(
+            "python-target=3.10".to_owned(),
+        )),
+        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: vec![
             ryo::linter::RelativePath("broken.py".into()),
             ryo::linter::RelativePath("case.py".into()),

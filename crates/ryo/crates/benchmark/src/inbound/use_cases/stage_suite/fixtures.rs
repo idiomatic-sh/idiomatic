@@ -386,3 +386,27 @@ pub fn exercise(scenario: Scenario) {
         }
     }
 }
+/// Stage a profile directory that does not exist: nothing is staged and the refusal names the missing profile.
+pub fn stage_missing() -> Result<(), Refusal> {
+    let root = tempfile::tempdir().unwrap();
+    let destination = root.path().join("snapshot");
+    let suite = local();
+    let result = super::use_case::StageSuiteUseCaseImpl::new(&suite).stage_suite(
+        &root.path().join("missing"),
+        &destination,
+        &[],
+        ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
+    );
+    assert_eq!(
+        std::fs::symlink_metadata(&destination).unwrap_err().kind(),
+        std::io::ErrorKind::NotFound
+    );
+    result.map_err(|error| match error {
+        ryo_benchmark_contracts::domain::reports::errors::ReportsError::Io(error)
+            if error.kind() == std::io::ErrorKind::NotFound =>
+        {
+            Refusal::MissingProfile
+        }
+        _ => Refusal::Unexpected,
+    })
+}

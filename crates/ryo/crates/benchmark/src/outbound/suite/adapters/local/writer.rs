@@ -27,7 +27,7 @@ pub(super) fn rule_directory(
 pub(super) fn validate_query_modules(directory: &Path, tool: &Tool) -> Result<(), Error> {
     let root = directory.canonicalize()?;
     for (id, relative) in &tool.query_modules {
-        let _module = ryo::query::QueryModuleSource::try_new(id, constants::MODULE_SOURCE)
+        let _module = ryo::query::QueryModuleSource::try_new(&id.0, constants::MODULE_SOURCE)
             .map_err(|error| Error::Invalid(error.to_string()))?;
         let relative = RelativeArtifactPath::try_from(relative.as_path())?;
         let mut current = root.clone();
@@ -242,7 +242,7 @@ pub(super) fn copy_evidence(
                 (path.clone(), sha256.0.clone())
             })
             .collect::<Vec<_>>();
-        if let ClaimedProcess::Failure(failure) = &claim.discrepancy.process {
+        if let ClaimedProcess::Failure(failure) = &claim.process {
             for observation in &failure.observations {
                 for item in [&observation.invocation, &observation.stdout, &observation.stderr] {
                     artifacts.push((item.path.clone(), item.sha256.0.clone()));

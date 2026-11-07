@@ -10,7 +10,8 @@ use ryo_benchmark_contracts::domain::requests::types::{
     ApplicabilityPolicy, CohortSelection, ContextSeal, InputDeclaration, ParserSelection,
     RuleLabel, WorkerRequest,
 };
-use super::types::{ReportBytes, RequestJson, RuleContextInput, SettingsInput};
+use super::types::{ReportBytes, RequestJson};
+use crate::outbound::linter::types::{RuleContextInput, SettingsInput};
 use crate::outbound::linter::types::CanonicalText;
 use ryo_benchmark_contracts::domain::context::types::PreparedRuleContext;
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;

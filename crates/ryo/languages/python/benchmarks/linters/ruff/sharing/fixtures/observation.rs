@@ -173,7 +173,10 @@ pub(crate) fn observe() -> Result<Observation, Box<dyn std::error::Error>> {
     );
     let invocation = candidate.prepare(&request)?;
     let payload = fs::read_to_string(Path::new(&invocation.arguments[2]))?;
-    let worker = workers::json(payload.into(), Box::new(std::io::sink()));
+    let worker = workers::json(
+        ryo_benchmark::outbound::worker::types::WorkerSource::Argument(payload.into()),
+        Box::new(std::io::sink()),
+    );
     let destination = temporary.path().join("events.jsonl");
     let engine = factory::local_with_diagnostic_events(
         ryo::linter::Languages(vec![ryo_python::linked_with_settings(

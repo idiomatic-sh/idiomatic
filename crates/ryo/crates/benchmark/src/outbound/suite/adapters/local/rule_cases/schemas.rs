@@ -130,38 +130,68 @@ impl TryFrom<CasesSchema> for types::Cases {
                         selected_rules: case
                             .selected_rules
                             .map(|rules| rules.into_iter().map(|id| rule(&id)).collect())
-                            .transpose()?,
+                            .transpose()?
+                            .map_or(ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen, ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit),
                         rule_context: case
                             .rule_context
                             .map(TryInto::try_into)
                             .transpose()
-                            .map_err(Error::Invalid)?,
+                            .map_err(Error::Invalid)?
+                            .map_or(
+                                types::ConfigurationOverride::Inherited,
+                                types::ConfigurationOverride::Overridden,
+                            ),
                         rule_observations: case
                             .rule_observations
                             .map(observation_declarations)
                             .transpose()
-                            .map_err(Error::Invalid)?,
-                        project_search_roots: project_search_roots(case.project_search_roots)?,
+                            .map_err(Error::Invalid)?
+                            .map_or(ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared, ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Declared),
+                        project_search_roots: project_search_roots(case.project_search_roots)?
+                            .map_or(ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared, ryo_benchmark_contracts::domain::requests::types::SearchRoots::Declared),
                         given_project_inventory: case
                             .given_project_inventory
                             .map(given_project_inventory)
-                            .transpose()?,
-                        requested_files: case.requested_files.map(|paths| {
-                            paths
-                                .into_iter()
-                                .map(|path| ryo::linter::RelativePath(path.into_boxed_str()))
-                                .collect()
-                        }),
-                        file_metadata: case.file_metadata.map(|values| {
-                            values
-                                .into_iter()
-                                .map(|(path, executable)| {
-                                    (ryo::linter::RelativePath(path.into_boxed_str()), executable)
-                                })
-                                .collect()
-                        }),
+                            .transpose()?
+                            .map_or(
+                                types::InventoryDeclaration::Undeclared,
+                                types::InventoryDeclaration::Declared,
+                            ),
+                        requested_files: case.requested_files.map_or(
+                            types::RequestedFiles::Legacy,
+                            |paths| {
+                                types::RequestedFiles::Explicit(
+                                    paths
+                                        .into_iter()
+                                        .map(|path| ryo::linter::RelativePath(path.into_boxed_str()))
+                                        .collect(),
+                                )
+                            },
+                        ),
+                        file_metadata: case.file_metadata.map_or(
+                            ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+                            |values| {
+                                ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(
+                                    values
+                                        .into_iter()
+                                        .map(|(path, executable)| {
+                                            (
+                                                ryo::linter::RelativePath(path.into_boxed_str()),
+                                                if executable {
+                                                    ryo_benchmark_contracts::domain::artifacts::types::FileExecutable::Set
+                                                } else {
+                                                    ryo_benchmark_contracts::domain::artifacts::types::FileExecutable::Unset
+                                                },
+                                            )
+                                        })
+                                        .collect(),
+                                )
+                            },
+                        ),
                         reference_discrepancy: ryo_benchmark_contracts::domain::workloads::types::ReferenceBehavior::Agrees,
-                        context: case.context.map(Into::into),
+                        context: case.context.map_or(types::ContextDeclaration::Undeclared, |context| {
+                            types::ContextDeclaration::Declared(context.into())
+                        }),
                         comparison: match case.comparison {
                             ComparisonSchema::Rule => types::CaseComparison::Rule,
                             ComparisonSchema::Full => types::CaseComparison::Full,

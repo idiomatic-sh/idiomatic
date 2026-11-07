@@ -140,8 +140,8 @@ fn authored_observations_survive_actual_parent_to_worker_transport_and_explicit_
         rules: "rules".into(),
         query_modules: BTreeMap::new(),
         rule_applicability: BTreeMap::new(),
-        parser_configuration: None,
-        source_language: None,
+        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
     };
     use ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared;
     use ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Selected;
@@ -166,8 +166,14 @@ fn authored_observations_survive_actual_parent_to_worker_transport_and_explicit_
             project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
             given_project_inventory: Default::default(),
             staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
-            selected_rules: (policy == Selected).then(|| vec![consumer.clone()]),
-            rule_observations: explicit.map(Into::into),
+            selected_rules: if policy == Selected {
+                ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(vec![consumer.clone()])
+            } else {
+                ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen
+            },
+            rule_observations: explicit.map_or(ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared, |declarations| {
+                ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Declared(declarations.into())
+            }),
             rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
             file_metadata: ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
             context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,

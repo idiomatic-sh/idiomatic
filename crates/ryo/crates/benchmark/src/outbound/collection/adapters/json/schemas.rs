@@ -7,6 +7,7 @@ use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
 use ryo_benchmark_contracts::domain::measurements::types::ResidentBytes;
 use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
 use ryo_benchmark_contracts::domain::measurements::types::Resources;
+use ryo_benchmark_contracts::domain::measurements::types::{SignalNumber, TerminationSignal};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use serde::{Deserialize, Serialize};
 use std::{ffi::OsString, time::Duration};
@@ -89,7 +90,10 @@ fn observation_wire(output: ProcessOutput) -> Result<ObservationSchema, Error> {
         return Err(Error::Invalid("collector returned no resources".into()));
     };
     Ok(ObservationSchema {
-        signal: output.signal,
+        signal: match output.signal {
+            TerminationSignal::Exited => None,
+            TerminationSignal::Signalled(number) => Some(number.0),
+        },
         status: output.status.0,
         stdout: output.stdout.0,
         stderr: output.stderr.0,
@@ -101,7 +105,9 @@ fn observation_wire(output: ProcessOutput) -> Result<ObservationSchema, Error> {
 impl From<ObservationSchema> for ProcessOutput {
     fn from(output: ObservationSchema) -> Self {
         Self {
-            signal: output.signal,
+            signal: output.signal.map_or(TerminationSignal::Exited, |number| {
+                TerminationSignal::Signalled(SignalNumber(number))
+            }),
             status: ProcessExitCode(output.status),
             stdout: CapturedBytes(output.stdout),
             stderr: CapturedBytes(output.stderr),

@@ -189,7 +189,7 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
                         ));
                     };
                     if !inventory.entries.iter().any(|entry| {
-                        entry.path == *path && entry.state == ryo::linter::ProjectEntryState::Regular
+                        entry.path == *path && entry.state == ryo::linter::ProjectEntryState::File
                     }) {
                         return Err(Error::Invalid(
                             constants::UNSELECTED_GIVEN_SOURCE_LACKS_A_MATCHING.into(),

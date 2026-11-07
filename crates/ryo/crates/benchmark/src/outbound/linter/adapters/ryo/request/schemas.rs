@@ -1,5 +1,6 @@
 //! The worker request document the parent process writes for its child.
-use crate::outbound::linter::adapters::ryo::types::{RequestJson, RuleContextInput, ObservationsInput};
+use crate::outbound::linter::adapters::ryo::types::RequestJson;
+use crate::outbound::linter::types::{ObservationsInput, RuleContextInput};
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::context::types::ContextManifest;
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;

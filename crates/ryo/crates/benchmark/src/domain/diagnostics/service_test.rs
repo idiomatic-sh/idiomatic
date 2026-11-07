@@ -70,7 +70,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             unobservable(
                 ExecutionMetadata::Unavailable {
-                    reason: "findings-only format".into(),
+                    reason: ryo_benchmark_contracts::domain::reports::types::UnavailableReason(
+                        "findings-only format".into(),
+                    ),
                 },
                 ComparisonContract::Diagnostics,
             )
@@ -135,7 +137,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             unobservable(
                 ExecutionMetadata::Unavailable {
-                    reason: "findings-only format".into(),
+                    reason: ryo_benchmark_contracts::domain::reports::types::UnavailableReason(
+                        "findings-only format".into(),
+                    ),
                 },
                 ComparisonContract::CompleteReport,
             )

@@ -72,7 +72,7 @@ pub struct ExternalPrefix(
 );
 
 /// The name of a hosted request-scope configuration table.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TableName(
     /// The table's exact name.
     pub String,

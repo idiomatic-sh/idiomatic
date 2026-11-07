@@ -5,11 +5,9 @@ use ryo::linter::{RelativePath, RuleId};
 use ryo_benchmark_contracts::domain::context::types::PreparedRuleContext;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::PairCount;
-use ryo_benchmark_contracts::domain::requests::types::{
-    CohortSelection, ConfigurationOverride, RuleContextPreparation,
-};
+use ryo_benchmark_contracts::domain::requests::types::{CohortSelection, RuleContextPreparation};
 use ryo_benchmark_contracts::domain::workloads::types::{
-    RuleConfigurationSupport, RuleContextProfile,
+    ConfigurationOverride, RuleConfigurationSupport, RuleContextProfile,
 };
 
 /// Resolve an explicit override against the profile declaration without guessing table names or defaults.

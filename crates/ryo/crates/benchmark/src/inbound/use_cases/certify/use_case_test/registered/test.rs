@@ -72,7 +72,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::MissingRule,
         expect: Expect::Error(Cow::Borrowed(
-            super::constants::REGISTERED_INDEPENDENT_CASE_CERTIFICATION_FA,
+            crate::application::inventory_verification::constants::REGISTERED_INDEPENDENT_CASE_CERTIFICATION_FA,
         )),
     },
     Case {

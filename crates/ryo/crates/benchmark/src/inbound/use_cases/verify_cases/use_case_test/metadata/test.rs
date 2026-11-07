@@ -111,6 +111,17 @@ impl LinterPort for DriftingReference {
     fn decode(&self, request: &RunRequest, output: ProcessOutput) -> Result<RunReport, Error> {
         LinterFake::default().decode(request, output)
     }
+    fn settings_text(
+        &self,
+        normalized: &Invocation,
+        case: &ryo_benchmark_contracts::domain::workloads::types::PreparedCase,
+        profile: &ryo_benchmark_contracts::domain::workloads::types::Tool,
+    ) -> Result<crate::outbound::linter::types::CanonicalText, Error> {
+        LinterFake::default().settings_text(normalized, case, profile)
+    }
+    fn rule_context_text(&self, prepared: &ryo_benchmark_contracts::domain::context::types::PreparedRuleContext) -> crate::outbound::linter::types::CanonicalText {
+        LinterFake::default().rule_context_text(prepared)
+    }
 }
 
 fn mode_drift(scenario: Scenario) -> Result<Value, Error> {

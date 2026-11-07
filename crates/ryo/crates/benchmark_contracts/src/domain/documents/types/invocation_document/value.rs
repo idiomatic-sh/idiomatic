@@ -1,5 +1,5 @@
 //! One raw invocation record kept beside a captured process, as a plain value.
-use crate::domain::documents::types::text::value::{CanonicalJson, ExitStatus, PathText, Pin, ReasonText, Signal, YesNo};
+use crate::domain::documents::types::text::value::{CanonicalJson, ExitStatus, PathText, Pin, ReasonText, Sha256Text, Signal, YesNo};
 use std::collections::BTreeMap;
 
 /// One argument of the captured command line.

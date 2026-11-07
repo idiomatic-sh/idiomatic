@@ -60,4 +60,9 @@ pub trait ContextPort {
         actual_root: &Path,
         observed: &ProjectContextReceipt,
     ) -> Result<(), Error>;
+    /// The canonical text of a receipt, as an observation document carries it.
+    ///
+    /// # Errors
+    /// Refuses a receipt the document encoding cannot spell.
+    fn receipt_text(&self, receipt: &ProjectContextReceipt) -> Result<String, Error>;
 }

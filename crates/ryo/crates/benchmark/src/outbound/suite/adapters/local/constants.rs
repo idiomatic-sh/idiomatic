@@ -45,53 +45,10 @@ pub(super) const DEFERRED: &str = "deferred";
 pub(super) const RULE_OBSERVATIONS: &str = "rule-observations";
 /// Text of the rule applicability in this part.
 pub(super) const RULE_APPLICABILITY: &str = "rule-applicability";
-/// Text of the check001 in this part.
-#[cfg(test)]
-pub(super) const CHECK001: &str = "CHECK001";
 /// Text of the name in this part.
 pub(super) const NAME: &str = "name";
-/// Text of the one in this part.
-#[cfg(test)]
-pub(super) const ONE: &str = "one";
 /// Text of the side in this part.
 pub(super) const SIDE: &str = "side";
-/// Text of the a in this part.
-#[cfg(test)]
-pub(super) const A: &str = "a";
-/// Text of the error in this part.
-#[cfg(test)]
-pub(super) const ERROR: &[u8] = b"error\n";
-/// Text of the n 001 cases jsonl in this part.
-#[cfg(test)]
-pub(super) const N_001_CASES_JSONL: &str = "001.cases.jsonl";
-/// Text of the n 001 cases jsonl process orphan in this part.
-#[cfg(test)]
-pub(super) const N_001_CASES_JSONL_PROCESS_ORPHAN: &str = "001.cases.jsonl.process-orphan";
-/// Text of the second in this part.
-#[cfg(test)]
-pub(super) const SECOND: &[u8] = b"second";
-/// Text of the first in this part.
-#[cfg(test)]
-pub(super) const FIRST: &[u8] = b"first";
-/// Text of the n 002 cases jsonl in this part.
-#[cfg(test)]
-pub(super) const N_002_CASES_JSONL: &str = "002.cases.jsonl";
-/// Text of the cases jsonl in this part.
-#[cfg(test)]
-pub(super) const CASES_JSONL: &str =
-    ryo_benchmark_contracts::domain::receipts::constants::CASES_JSONL;
-/// Text of the changed in this part.
-#[cfg(test)]
-pub(super) const CHANGED: &[u8] = b"changed";
-/// Text of the unexpected bin in this part.
-#[cfg(test)]
-pub(super) const UNEXPECTED_BIN: &str = "unexpected.bin";
-/// Text of the extra in this part.
-#[cfg(test)]
-pub(super) const EXTRA: &[u8] = b"extra";
-/// Text of the bytes in this part.
-#[cfg(test)]
-pub(super) const BYTES: &str = "bytes";
 /// Text of the non utf8 artifact path in this part.
 pub(super) const NON_UTF8_ARTIFACT_PATH: &str = "non-UTF8 artifact path";
 /// Text of the unsafe artifact relative path in this part.

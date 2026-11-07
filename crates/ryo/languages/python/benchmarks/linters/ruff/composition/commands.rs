@@ -183,7 +183,7 @@ pub(super) fn verify_cases(
     )?;
     let candidate = Arc::new(ryo_benchmark::outbound::linter::factory::ryo_context(
         std::env::current_exe()?,
-        profile.join(crate::constants::RULES_DIRECTORY),
+        profile.join(constants::RULES_DIRECTORY),
         query_modules,
         rule_applicability,
         parser_configuration,
@@ -204,7 +204,7 @@ pub(super) fn verify_cases(
             &ryo_benchmark::outbound::inventory::factory::local(),
         )
         .verify_cases(
-            &profile.join(crate::constants::RULES_DIRECTORY),
+            &profile.join(constants::RULES_DIRECTORY),
             &root.join(constants::CASES_DIRECTORY),
             ryo_benchmark_contracts::domain::requests::types::CaseSelection {
                 shard: run.shard,
@@ -247,7 +247,7 @@ pub(super) fn verify_reference_cases(
     )?;
     let root = suite_source.ensure_directory(ArtifactPath(scratch.path()))?;
     let count = ryo_benchmark::inbound::use_cases::verify_reference_cases::use_case::VerifyReferenceCasesUseCaseImpl::new(&suite_source, &ryo_benchmark::outbound::receipts::factory::local(ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded), &ryo_benchmark::outbound::context::factory::local(), &reference, &execution, &ryo_benchmark::outbound::inventory::factory::local()).verify_reference_cases(
-        &source.join(crate::constants::RULES_DIRECTORY),
+        &source.join(constants::RULES_DIRECTORY),
         &root,
     );
     drop(scratch);
@@ -258,7 +258,7 @@ pub(super) fn verify_reference_cases(
 pub(super) fn reference(executable: PathBuf, tool: Tool) -> Result<LinterRuffAdapter, Error> {
     if tool.file_observation
         != ryo_benchmark_contracts::domain::workloads::types::FileObservation::Undeclared
-        && super::super::adapter::permission_checks_supported()
+        && permission_checks_supported()
             == super::super::host_policy::Permissions::Unsupported
     {
         return Err(Error::Invalid(PINNED_REFERENCE_DOES_NOT_EVALUATE.into()));
@@ -349,4 +349,43 @@ pub(super) fn audit(
         tool.defaults.len()
     )?;
     AccountDefaultsUseCaseImpl::new().account_defaults(&result, &tool)
+}
+
+/// Whether this host honours the file permissions the pinned reference observes.
+#[cfg(unix)]
+fn permission_checks_supported() -> super::super::host_policy::Permissions {
+    if std::env::consts::OS != constants::LINUX {
+        return super::super::host_policy::Permissions::Supported;
+    }
+    let kernel = std::fs::read_to_string(constants::PROC_SYS_KERNEL_OSRELEASE)
+        .or_else(|_| std::fs::read_to_string(constants::PROC_VERSION));
+    let kernel = if kernel.is_ok_and(|value| value.to_ascii_lowercase().contains(constants::MICROSOFT)) {
+        super::super::host_policy::Kernel::Microsoft
+    } else {
+        super::super::host_policy::Kernel::Native
+    };
+    let marked = std::fs::metadata(constants::DOCKERENV).is_ok()
+        || std::fs::metadata(constants::RUN_CONTAINERENV).is_ok()
+        || std::fs::read_to_string(constants::PROC_SELF_CGROUP).is_ok_and(|value| {
+            let value = value.to_ascii_lowercase();
+            [
+                constants::DOCKER,
+                constants::CONTAINER,
+                constants::LXC,
+                constants::KUBEPODS,
+            ]
+            .iter()
+            .any(|marker| value.contains(marker))
+        });
+    let isolation = if marked {
+        super::super::host_policy::Isolation::Container
+    } else {
+        super::super::host_policy::Isolation::Bare
+    };
+    super::super::host_policy::supported(kernel, isolation)
+}
+/// Whether this host honours the file permissions the pinned reference observes.
+#[cfg(not(unix))]
+fn permission_checks_supported() -> super::super::host_policy::Permissions {
+    super::super::host_policy::Permissions::Unsupported
 }

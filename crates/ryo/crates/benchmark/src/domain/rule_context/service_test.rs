@@ -7,8 +7,9 @@ use ryo_benchmark_contracts::domain::context::types::{
     PreparedRuleContext, RuleConfiguration, RuleContextDeclaration, RuleContextTables, TableName,
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use ryo_benchmark_contracts::domain::workloads::types::ConfigurationOverride;
 use ryo_benchmark_contracts::domain::requests::types::{
-    CohortSelection, ConfigurationOverride, ContextSeal, FileMetadataDeclaration, InputDeclaration,
+    CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration,
     PerformanceOptions, RuleContextPreparation, RunRequest, SearchRoots, StagedSources,
 };
 use ryo_benchmark_contracts::domain::workloads::types::{

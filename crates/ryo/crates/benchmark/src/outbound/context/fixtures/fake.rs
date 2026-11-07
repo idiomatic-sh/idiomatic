@@ -217,6 +217,9 @@ impl ContextPort for ContextFake {
         }
         Ok(())
     }
+    fn receipt_text(&self, receipt: &ProjectContextReceipt) -> Result<String, Error> {
+        Ok(serde_json::Value::String(format!("{receipt:?}")).to_string())
+    }
 }
 
 #[cfg(test)]

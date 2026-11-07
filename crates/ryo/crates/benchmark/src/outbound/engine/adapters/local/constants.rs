@@ -34,9 +34,6 @@ pub(super) const RULES_DIRECTORY_HAS_NO_PROFILE_ROOT: &str = "rules directory ha
 /// Text of the module source in this part.
 pub(super) const MODULE_SOURCE: &str =
     ryo_benchmark_contracts::domain::requests::constants::MODULE_NAME_PROBE;
-/// Text of the worker context mode requires a matching in this part.
-pub(super) const WORKER_CONTEXT_MODE_REQUIRES_A_MATCHING: &str =
-    "worker context mode requires a matching explicit manifest";
 /// Text of the explicit primary role provider is missing in this part.
 pub(super) const EXPLICIT_PRIMARY_ROLE_PROVIDER_IS_MISSING: &str =
     "explicit primary-role provider is missing or ambiguous";

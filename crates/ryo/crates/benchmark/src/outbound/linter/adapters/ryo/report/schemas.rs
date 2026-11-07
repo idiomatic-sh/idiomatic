@@ -59,13 +59,17 @@ struct DiagnosticSchema {
     end: usize,
 }
 /// Missing legacy capability remains unknown and is refused for candidate evidence.
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "availability", rename_all = "kebab-case", deny_unknown_fields)]
 enum ExecutionMetadataSchema {
-    #[default]
     Unknown {},
     Unavailable { reason: String },
     Complete {},
+}
+impl Default for ExecutionMetadataSchema {
+    fn default() -> Self {
+        Self::Unknown {}
+    }
 }
 impl From<ExecutionMetadataSchema> for ExecutionMetadata {
     fn from(value: ExecutionMetadataSchema) -> Self {

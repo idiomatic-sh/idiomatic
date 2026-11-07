@@ -36,8 +36,8 @@ fn diagnostic_subscriber_writes_readable_jsonl_events() -> Result<(), Box<dyn st
     let dispatch = tracing::Dispatch::new(subscriber(
         &path,
         ryo_benchmark_contracts::domain::requests::types::DiagnosticOptions {
-            execution: true,
-            steps: true,
+            execution: ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On,
+            steps: ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On,
             ..Default::default()
         },
     )?);
@@ -64,8 +64,8 @@ fn diagnostic_subscriber_records_step_events_with_nested_context()
     let dispatch = tracing::Dispatch::new(subscriber(
         &path,
         ryo_benchmark_contracts::domain::requests::types::DiagnosticOptions {
-            execution: true,
-            steps: true,
+            execution: ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On,
+            steps: ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On,
             ..Default::default()
         },
     )?);
@@ -138,7 +138,11 @@ fn aggregate_profile_is_explicit_and_keeps_counter_fields() -> Result<(), Box<dy
         let dispatch = tracing::Dispatch::new(writer::subscriber(
             &path,
             ryo_benchmark_contracts::domain::requests::types::DiagnosticOptions {
-                execution: level == tracing_subscriber::filter::LevelFilter::TRACE,
+                execution: if level == tracing_subscriber::filter::LevelFilter::TRACE {
+                    ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On
+                } else {
+                    ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::Off
+                },
                 ..Default::default()
             },
         )?);
@@ -192,8 +196,8 @@ fn lifecycle_profile_excludes_per_file_steps_and_other_aggregates()
     let dispatch = tracing::Dispatch::new(writer::subscriber(
         &path,
         ryo_benchmark_contracts::domain::requests::types::DiagnosticOptions {
-            execution: true,
-            lifecycle_memory: true,
+            execution: ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On,
+            lifecycle_memory: ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On,
             ..Default::default()
         },
     )?);
@@ -223,7 +227,7 @@ fn resource_route_profile_preserves_generic_aggregate_payload()
         let dispatch = tracing::Dispatch::new(writer::subscriber(
             &path,
             ryo_benchmark_contracts::domain::requests::types::DiagnosticOptions {
-                resource_routes: enabled,
+                resource_routes: if enabled { ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On } else { ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::Off },
                 ..Default::default()
             },
         )?);

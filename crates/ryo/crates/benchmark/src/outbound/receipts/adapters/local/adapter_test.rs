@@ -18,8 +18,22 @@ use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use std::collections::BTreeMap;
 use std::path::Path;
 
-fn inventory() -> impl crate::outbound::inventory::interface::InventoryPort {
-    crate::outbound::inventory::factory::local()
+/// One receipt's rows and only the raw artifacts they reference.
+struct Loaded {
+    /// Every observation row of the receipt.
+    records: Vec<ObservationDocument>,
+    /// The verified raw process artifacts the rows reference.
+    artifacts: crate::outbound::inventory::types::RawArtifacts,
+}
+/// Read one receipt and only the raw artifacts its rows reference, refusing stale, extra or escaping bytes.
+fn observations(receipt: &Path) -> Result<Loaded, String> {
+    let records = local(CaseReceipts::Unrecorded)
+        .case_observations(ReceiptPath(receipt))
+        .map_err(|error| error.to_string())?;
+    let artifacts = crate::outbound::inventory::factory::local()
+        .raw_artifacts(receipt, &records)
+        .map_err(|error| error.to_string())?;
+    Ok(Loaded { records, artifacts })
 }
 fn physical_contract() {
     check(&local(CaseReceipts::Unrecorded), &CaseReceipts::Unrecorded);
@@ -84,8 +98,7 @@ fn raw_bytes_attempts_and_unreferenced_resume_history_are_retained() {
     let root = tempfile::tempdir().unwrap();
     let receipt = root.path().join("001.cases.jsonl");
     write(&receipt, &[255, 0, 1]);
-    let first = inventory()
-        .observations(&receipt)
+    let first = observations(&receipt)
         .unwrap();
     let pointer = attached(&first.records[0])
         .stdout
@@ -93,8 +106,8 @@ fn raw_bytes_attempts_and_unreferenced_resume_history_are_retained() {
         .0
         .as_str();
     assert_eq!(
-        first.artifacts.get(Path::new(pointer)),
-        Some(&vec![255, 0, 1])
+        first.artifacts.bytes.get(Path::new(pointer)),
+        Some(&CapturedBytes(vec![255, 0, 1]))
     );
     std::fs::create_dir(
         root.path()
@@ -102,14 +115,13 @@ fn raw_bytes_attempts_and_unreferenced_resume_history_are_retained() {
     )
     .unwrap();
     write(&receipt, b"second");
-    let next = inventory()
-        .observations(&receipt)
+    let next = observations(&receipt)
         .unwrap();
     assert_eq!(next.records.len(), 2);
-    assert_eq!(next.artifacts.len(), 6);
+    assert_eq!(next.artifacts.bytes.len(), 6);
     assert_eq!(
-        next.artifacts.get(Path::new(pointer)),
-        Some(&vec![255, 0, 1])
+        next.artifacts.bytes.get(Path::new(pointer)),
+        Some(&CapturedBytes(vec![255, 0, 1]))
     );
     assert!(
         root.path()
@@ -124,11 +136,11 @@ fn a_sibling_receipt_cannot_reuse_another_shards_artifact_namespace() {
     let sibling = root.path().join("002.cases.jsonl");
     std::fs::copy(&receipt, &sibling).unwrap();
     assert!(matches!(
-        inventory().observations(&sibling),
+        observations(&sibling),
         Err(_refused)
     ));
     assert!(matches!(
-        inventory().observations(&receipt),
+        observations(&receipt),
         Ok(_loaded)
     ));
 }
@@ -136,8 +148,7 @@ fn changed_raw_bytes_and_extra_files_in_referenced_attempts_are_refused() {
     let root = tempfile::tempdir().unwrap();
     let receipt = root.path().join("cases.jsonl");
     write(&receipt, b"first");
-    let loaded = inventory()
-        .observations(&receipt)
+    let loaded = observations(&receipt)
         .unwrap();
     let pointer = attached(&loaded.records[0])
         .stdout
@@ -147,7 +158,7 @@ fn changed_raw_bytes_and_extra_files_in_referenced_attempts_are_refused() {
     let path = root.path().join(pointer);
     std::fs::write(&path, b"changed").unwrap();
     assert!(matches!(
-        inventory().observations(&receipt),
+        observations(&receipt),
         Err(_refused)
     ));
     std::fs::write(&path, b"first").unwrap();
@@ -157,7 +168,7 @@ fn changed_raw_bytes_and_extra_files_in_referenced_attempts_are_refused() {
     )
     .unwrap();
     assert!(matches!(
-        inventory().observations(&receipt),
+        observations(&receipt),
         Err(_refused)
     ));
 }
@@ -174,8 +185,7 @@ fn a_raw_artifact_symlink_cannot_escape_the_receipt_boundary() {
     let outside = tempfile::tempdir().unwrap();
     let receipt = root.path().join("cases.jsonl");
     write(&receipt, b"first");
-    let loaded = inventory()
-        .observations(&receipt)
+    let loaded = observations(&receipt)
         .unwrap();
     let pointer = attached(&loaded.records[0])
         .stdout
@@ -188,7 +198,7 @@ fn a_raw_artifact_symlink_cannot_escape_the_receipt_boundary() {
     std::fs::remove_file(&path).unwrap();
     link(&target, &path);
     assert!(matches!(
-        inventory().observations(&receipt),
+        observations(&receipt),
         Err(_refused)
     ));
 }

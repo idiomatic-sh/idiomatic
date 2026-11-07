@@ -47,9 +47,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             edited(evidenced, |case| {
-                case.reference_discrepancy
-                    .as_mut()
-                    .unwrap()
+                super::fixtures::discrepancy(case)
                     .evidence
                     .clear()
             })
@@ -72,7 +70,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edited(evidenced, |case| {
                 let expected = case.expected.clone();
-                case.reference_discrepancy.as_mut().unwrap().expected =
+                super::fixtures::discrepancy(case).expected =
                     ReferenceExpectation::Diagnostics(expected);
             })
         },
@@ -105,16 +103,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             edited(evidenced, |case| {
-                let item = case.reference_discrepancy.as_mut().unwrap();
+                let item = super::fixtures::discrepancy(case);
                 item.evidence.clear();
                 item.evidence.push(
                 ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::DiscrepancyEvidence::Language {
                     path: "semantic-authority.txt".into(),
                     sha256: ArtifactDigest("f".repeat(64)),
                     kind: ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::DiscrepancyEvidenceKind::LanguageSpec,
-                    language_version: "toy-v1".into(),
-                    target_configuration: "python3.8".into(),
-                    version_rationale: "toy fixture contract".into(),
+                    language_version: ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::LanguageVersion("toy-v1".into()),
+                    target_configuration: ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::ParserTarget("python3.8".into()),
+                    version_rationale: ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::Rationale("toy fixture contract".into()),
                 },
             );
             })

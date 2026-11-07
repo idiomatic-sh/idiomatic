@@ -2,6 +2,7 @@
 
 pub(crate) mod adapter;
 mod constants;
+mod schemas;
 mod writer;
 
 #[cfg(test)]

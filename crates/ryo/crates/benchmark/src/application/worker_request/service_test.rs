@@ -161,7 +161,7 @@ fn actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread
     std::fs::create_dir_all(rules.join("R1")).unwrap();
     std::fs::write(rules.join("R1/query.ryoql"), "let failures = select path as file, span from \"filesystem.read-failure\"; emit failures subject file key(file);").unwrap();
     let boundary = scratch.path().join("snapshot");
-    let manifest = crate::outbound::context::adapters::local::adapter::materialize(
+    let manifest = crate::outbound::context::interface::ContextPort::materialize(&crate::outbound::context::factory::local(), 
         &boundary,
         &CaseContext {
             logical_root: "project".into(),
@@ -203,7 +203,7 @@ fn actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread
     );
     let session = engine.load(&prepared.request).unwrap();
     let configured = configure(&prepared.request, session).unwrap();
-    let report = configured.execute().unwrap();
+    let report = configured.execute().unwrap().report;
     assert_eq!(report.diagnostics.len(), 1);
     assert_eq!(report.diagnostics[0].file, request.files[0]);
     assert_eq!(report.diagnostics[0].start.0, 0);
@@ -215,7 +215,7 @@ fn actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread
     )]
     .into();
     readable.context_manifest = ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(
-        crate::outbound::context::adapters::local::adapter::materialize(
+        crate::outbound::context::interface::ContextPort::materialize(&crate::outbound::context::factory::local(), 
             &boundary,
             &CaseContext {
                 logical_root: "project".into(),

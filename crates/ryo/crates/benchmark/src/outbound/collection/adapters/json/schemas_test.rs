@@ -11,12 +11,12 @@ enum Observed {
     LaunchNotFound,
     /// The record is a signaled child whose resources survive an incomplete report.
     Signaled {
-        signal: Option<i32>,
+        signal: TerminationSignal,
         status: i32,
         wall: Duration,
         stdout: [u8; 1],
         peak_rss_bytes: u64,
-        roundtrip_signal: Option<i32>,
+        roundtrip_signal: TerminationSignal,
     },
 }
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -33,12 +33,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             r#"{"result":"Observed","output":{"status":-15,"signal":15,"stdout":[123],"stderr":[],"wall":{"secs":2,"nanos":0},"cpu":{"secs":1,"nanos":0},"rss":12345}}"#
         },
         expect: Expect::Value(Observed::Signaled {
-            signal: Some(15_i32),
+            signal: TerminationSignal::Signalled(SignalNumber(15_i32)),
             status: -15_i32,
             wall: Duration::from_secs(2),
             stdout: *b"{",
             peak_rss_bytes: 12345,
-            roundtrip_signal: Some(15_i32),
+            roundtrip_signal: TerminationSignal::Signalled(SignalNumber(15_i32)),
         }),
     },
     Case {

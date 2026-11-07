@@ -1,5 +1,5 @@
 //! The canonical identity texts a reference process is bound to, spelled exactly as receipts compare them.
-use crate::outbound::linter::adapters::ryo::types::{ObservationsInput, RuleContextInput, SettingsInput};
+use crate::outbound::linter::types::{ObservationsInput, RuleContextInput, SettingsInput};
 use crate::outbound::linter::types::CanonicalText;
 use ryo::linter::{ObservationKind, ObservationProducer};
 use ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
@@ -223,27 +223,6 @@ impl From<ObservationsInput<'_>> for serde_json::Value {
     }
 }
 
-/// The rule observations an invocation is bound to: the case's own, else the profile's projection.
-fn effective_observations(
-    case: &PreparedCase,
-    profile: &Tool,
-) -> Option<RuleObservationDeclarations> {
-    if let InputDeclaration::Declared(declarations) = &case.request.rule_observations {
-        return Some(declarations.clone());
-    }
-    if profile.rule_observations.is_empty() {
-        return None;
-    }
-    let declarations = profile.rule_observations.project_profile(
-        match &case.request.selected_rules {
-            CohortSelection::Explicit(selected) => selected,
-            CohortSelection::Frozen => &profile.defaults,
-        },
-        profile.rule_observation_selection,
-    );
-    (!declarations.is_empty()).then_some(declarations)
-}
-
 /// The canonical text of the normalized settings a reference process is bound to.
 impl TryFrom<SettingsInput<'_>> for CanonicalText {
     type Error = Error;
@@ -253,7 +232,8 @@ impl TryFrom<SettingsInput<'_>> for CanonicalText {
             case,
             profile,
         } = input;
-        let observations = effective_observations(case, profile);
+        let observations =
+            crate::domain::invocation_identity::service::effective_observations(case, profile);
         let spell = |value: &std::ffi::OsStr| value.to_string_lossy().into_owned();
         let environment: std::collections::BTreeMap<String, String> = normalized
             .environment

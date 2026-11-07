@@ -1,7 +1,11 @@
 //! Only this boundary knows the BMF field and metric names.
+use super::constants;
 use crate::outbound::evidence::types::measured_publication::value::MeasuredPublication;
 use ryo_benchmark_contracts::domain::measurements::types::PublicationSample;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::{
+    Comparison, ComparisonContract, ExecutionMetadata, ReportComparison, RunReport,
+};
 use serde::Serialize;
 use std::collections::BTreeMap;
 
@@ -122,3 +126,52 @@ pub(super) fn encode(publication: &MeasuredPublication<'_>) -> Result<Vec<u8>, E
 #[cfg(test)]
 #[path = "schemas_test.rs"]
 mod tests;
+
+/// One producer's execution metadata as the comparison evidence spells it.
+#[derive(Serialize)]
+#[serde(tag = "availability", rename_all = "kebab-case")]
+enum ExecutionMetadataSchema<'a> {
+    Unknown {},
+    Unavailable { reason: &'a str },
+    Complete {},
+}
+impl<'a> From<&'a ExecutionMetadata> for ExecutionMetadataSchema<'a> {
+    fn from(value: &'a ExecutionMetadata) -> Self {
+        match value {
+            ExecutionMetadata::Unknown => Self::Unknown {},
+            ExecutionMetadata::Unavailable { reason } => Self::Unavailable { reason: &reason.0 },
+            ExecutionMetadata::Complete => Self::Complete {},
+        }
+    }
+}
+
+/// The name of one comparison outcome.
+const fn comparison_name(value: Comparison) -> &'static str {
+    match value {
+        Comparison::Exact => constants::EXACT,
+        Comparison::Different => constants::DIFFERENT,
+        Comparison::Incomparable => constants::INCOMPARABLE,
+    }
+}
+
+/// The comparison evidence line: the declared contract, both dimensions and both producers' capabilities.
+pub(super) fn comparison(
+    reference: &RunReport,
+    candidate: &RunReport,
+    comparison: ReportComparison,
+    contract: ComparisonContract,
+) -> serde_json::Value {
+    serde_json::json!({
+        constants::SCHEMA: constants::BENCHMARK_COMPARISON_V1,
+        constants::CONTRACT: match contract {
+            ComparisonContract::Diagnostics => constants::DIAGNOSTICS,
+            ComparisonContract::CompleteReport => constants::COMPLETE_REPORT,
+        },
+        constants::COMPARISON: {
+            constants::DIAGNOSTICS: comparison_name(comparison.diagnostics),
+            constants::EXECUTION_METADATA: comparison_name(comparison.execution_metadata),
+        },
+        constants::REFERENCE_EXECUTION_METADATA: ExecutionMetadataSchema::from(&reference.execution_metadata),
+        constants::CANDIDATE_EXECUTION_METADATA: ExecutionMetadataSchema::from(&candidate.execution_metadata),
+    })
+}

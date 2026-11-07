@@ -113,7 +113,7 @@ pub(in super::super) fn verify_requirement(
                 || run[constants::COMMAND][3] != run[constants::STAGE_ROOT]
                 || run[constants::COMMAND][0]
                     .as_str()
-                    .is_none_or(|path| !path.ends_with(worker_sha256))
+                    .is_none_or(|path| !path.ends_with(&worker_sha256.0))
             {
                 return Err(fail());
             }

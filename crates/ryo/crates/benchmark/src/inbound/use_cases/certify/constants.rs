@@ -17,6 +17,7 @@ pub(crate) const FIXTURE_FAKE_PROGRAM: &str = "fixture";
 #[cfg(any(test, feature = "fixtures"))]
 /// Independent certification fixture profile directory.
 pub(crate) const FIXTURE_PROFILE_DIRECTORY: &str = "profile";
+#[cfg(any(test, feature = "fixtures"))]
 /// Independent certification fixture rule directory name.
 pub(crate) const FIXTURE_RULE_DIRECTORY_NAME: &str = "rules";
 #[cfg(any(test, feature = "fixtures"))]
@@ -34,6 +35,7 @@ pub(crate) const FIXTURE_TOOL_SCRIPT: &str = "#!/bin/sh\necho fixture 1\n";
 /// `std::process::Command` launches `.cmd` files through the platform command processor.
 #[cfg(all(windows, any(test, feature = "fixtures")))]
 pub(crate) const FIXTURE_TOOL_SCRIPT: &str = "@echo fixture 1\r\n";
+#[cfg(any(test, feature = "fixtures"))]
 /// Independent certification fixture profile file.
 pub(crate) const FIXTURE_PROFILE_FILE: &str = ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST;
 #[cfg(any(test, feature = "fixtures"))]
@@ -134,8 +136,3 @@ pub(crate) const FIXTURE_DIGEST_REQUIRED: &str =
 /// Each controlled mutation has an independently specified diagnostic.
 #[cfg(any(test, feature = "fixtures"))]
 pub(crate) const FIXTURE_REFUSAL_REQUIRED: &str = "mutation must produce its specific refusal";
-/// Text of the missing verification command in this part.
-pub(crate) const MISSING_VERIFICATION_COMMAND: &str =
-    crate::domain::suite::constants::MISSING_VERIFICATION_COMMAND;
-/// Text of the query ryoql in this part.
-pub(crate) const QUERY_RYOQL: &str = crate::domain::suite::constants::QUERY_RYOQL;

@@ -17,6 +17,7 @@
 //! The command returns verified identities and explicit errors; process differences count within documented discrepancies and never as raw full-report equality. Authoring adapters delegate to this command using a pinned validator executable. They do not match process failures themselves.
 //!
 //! For authoring tools that delegate process-receipt checks, set both `RYO_BENCHMARK_RECEIPT_VALIDATOR` to the absolute path of this collector and `RYO_BENCHMARK_RECEIPT_VALIDATOR_SHA256` to the independently recorded SHA256 of its bytes. Missing or incorrect configuration fails receipt validation and is retained in the shard error; it never falls back to local matching. A shard with no receipt is unfinished and is rerun on resume.
+use ryo_benchmark::domain::suite::types::inventory::value::InventoryVerdict;
 use ryo_benchmark::{
     inbound::use_cases::{
         collect::{
@@ -29,7 +30,7 @@ use ryo_benchmark::{
         },
         verify_inventory::{
             constants as inventory_constants, interface::VerifyInventoryUseCase as _,
-            types::InventoryVerdict, use_case::VerifyInventoryUseCaseImpl,
+            use_case::VerifyInventoryUseCaseImpl,
         },
     },
     outbound::{
@@ -61,7 +62,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             std::path::Path::new(&arguments[1]),
             std::path::Path::new(&arguments[2]),
         )?;
-        std::io::stdout().write_all(&store.audit_report(&audit)?)?;
+        std::io::stdout().write_all(&store.audit_report(&audit)?.0)?;
         return if audit.errors.is_empty() && audit.verified.len() == audit.case_count.0 {
             Ok(())
         } else {

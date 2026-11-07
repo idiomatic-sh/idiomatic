@@ -1,6 +1,7 @@
 //! Validate pins, cases and rule coverage before running contestants.
 use super::writer::{fingerprint_path, relative, rule_directory, validate_query_modules};
 use super::constants;
+use super::evidence::schemas::verify_requirement;
 use crate::outbound::suite::interface::{ScopedDirectory, SuitePort};
 use crate::outbound::suite::errors::SuiteError;
 use crate::outbound::suite::types::{
@@ -322,7 +323,7 @@ fn read(
             ));
         }
         let bytes = std::fs::read(path)?;
-        if format!("{:x}", Sha256::digest(&bytes)) != artifact.sha256 {
+        if format!("{:x}", Sha256::digest(&bytes)) != artifact.sha256.0 {
             return Err(SuiteError::Invalid(
                 constants::RAW_ARTIFACT_BYTE_IDENTITY_DIFFERS.into(),
             ));

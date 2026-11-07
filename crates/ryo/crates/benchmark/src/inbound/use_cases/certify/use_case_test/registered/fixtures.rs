@@ -285,7 +285,7 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn missing_rule() -> R
         refusal(
             &f,
             &error,
-            crate::inbound::use_cases::certify::constants::REGISTERED_INDEPENDENT_CASE_CERTIFICATION_FA,
+            crate::application::inventory_verification::constants::REGISTERED_INDEPENDENT_CASE_CERTIFICATION_FA,
             1,
         )
     })

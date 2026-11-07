@@ -24,7 +24,7 @@ fn document(roots: Option<&[RelativePath]>, inventory: &GivenProjectInventory) -
         .iter()
         .map(|entry| {
             let state = match entry.state {
-                ProjectEntryState::Regular => constants::ENTRY_FILE,
+                ProjectEntryState::File => constants::ENTRY_FILE,
                 ProjectEntryState::Directory => constants::ENTRY_DIRECTORY,
                 ProjectEntryState::Other => constants::ENTRY_OTHER,
                 ProjectEntryState::Missing => MISSING,

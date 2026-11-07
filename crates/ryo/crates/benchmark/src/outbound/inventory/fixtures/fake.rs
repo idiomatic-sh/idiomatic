@@ -2,8 +2,9 @@
 //! which outputs were published and which observation directories were captured.
 use super::super::interface::InventoryPort;
 use super::super::types::{
-    ContextFiles, InvocationDocument, RawArtifacts, ReceiptFile, Registration, Row, Summary,
+    ContextFiles, RawArtifacts, ReceiptFile, Registration, Row, Summary,
 };
+use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
 use ryo_benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::receipts::types::ReceiptAudit;

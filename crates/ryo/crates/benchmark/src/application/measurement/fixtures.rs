@@ -75,6 +75,17 @@ impl crate::outbound::linter::interface::LinterPort for Empty {
             files: vec![],
         })
     }
+    fn settings_text(
+        &self,
+        normalized: &Invocation,
+        _case: &ryo_benchmark_contracts::domain::workloads::types::PreparedCase,
+        _profile: &ryo_benchmark_contracts::domain::workloads::types::Tool,
+    ) -> Result<crate::outbound::linter::types::CanonicalText, Error> {
+        Ok(crate::outbound::linter::types::CanonicalText(format!("{normalized:?}")))
+    }
+    fn rule_context_text(&self, prepared: &ryo_benchmark_contracts::domain::context::types::PreparedRuleContext) -> crate::outbound::linter::types::CanonicalText {
+        crate::outbound::linter::types::CanonicalText(format!("{prepared:?}"))
+    }
 }
 impl crate::outbound::execution::interface::ExecutionPort for Empty {
     fn profile(&self) -> ExecutionProfile {
