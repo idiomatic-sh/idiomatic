@@ -2,11 +2,10 @@
 
 use std::borrow::Cow;
 use ryo_language::domain::files::types::FilePath;
-use ryo_values::domain::files::types::FileSize;
-use ryo_values::domain::files::types::Nanoseconds;
+use ryo_values::domain::files::types::{FileSize, Nanoseconds};
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::StoredFile;
-use super::schemas::{StringsSchema, TextSchema, named, text};
+use super::super::strings::schemas::{StringsSchema, TextSchema, named, text};
 
 /// Wire representation of permission knowledge; no integer sentinel means false.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

@@ -2,29 +2,17 @@
 
 use std::borrow::Cow;
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::project_context::types::EntryObservation;
-use ryo_language::domain::project_context::types::ObservedEntryState;
+use ryo_language::domain::project_context::types::{EntryObservation, ObservedEntryState};
 use ryo_language::domain::reasons::types::ToolMessage;
 use ryo_values::domain::descriptions::types::LanguageName;
 use ryo_values::domain::records::types::Unreadable;
 use ryo_values::domain::row_texts::types::PlacedRule;
 use ryo_values::domain::runs::constants::SYNTAX_REJECTED;
-use ryo_values::domain::runs::types::ManifestRefused;
-use ryo_values::domain::runs::types::RuleId;
-use ryo_values::domain::runs::types::SkipReason;
-use ryo_values::domain::runs::types::Skipped;
-use ryo_values::domain::stored_facts::types::Digest;
-use ryo_values::domain::stored_facts::types::ReadFailure;
-use ryo_values::domain::stored_findings::types::StoredUnknown;
-use ryo_values::domain::stored_findings::types::StoredUnread;
-use ryo_values::domain::stored_findings::types::UnknownText;
-use ryo_values::domain::stores::types::Crossing;
-use ryo_values::domain::stores::types::Stored;
-use ryo_values::domain::stores::types::StoredFile;
-use ryo_values::domain::stores::types::StoredFrontier;
-use ryo_values::domain::stores::types::StoredHanded;
-use ryo_values::domain::stores::types::StoredRule;
-use super::schemas::{StringsSchema, TextSchema, file_number, named, text};
+use ryo_values::domain::runs::types::{ManifestRefused, RuleId, SkipReason, Skipped};
+use ryo_values::domain::stored_facts::types::{Digest, ReadFailure};
+use ryo_values::domain::stored_findings::types::{StoredUnknown, StoredUnread, UnknownText};
+use ryo_values::domain::stores::types::{Crossing, Stored, StoredFile, StoredFrontier, StoredHanded, StoredRule};
+use super::super::strings::schemas::{StringsSchema, TextSchema, file_number, named, text};
 use super::super::files::schemas::{FileSchema, file_from, file_schema};
 use super::super::findings::schemas::{FindingSchema, KeySchema, ValueSchema, findings_from, findings_schema};
 
@@ -349,7 +337,13 @@ impl TryFrom<TablesSchema<'_>> for Stored {
                 })
             })
             .collect::<Result<_, postcard::Error>>()?;
-        let findings = findings_from(&tables, files.len())?;
+        let findings = findings_from(
+            &tables.strings,
+            &tables.findings,
+            &tables.finding_keys,
+            &tables.finding_values,
+            files.len(),
+        )?;
         Ok(Self {
             rules,
             files,

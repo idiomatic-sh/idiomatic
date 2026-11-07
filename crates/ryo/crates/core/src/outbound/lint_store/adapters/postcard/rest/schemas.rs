@@ -3,22 +3,10 @@
 use std::borrow::Cow;
 use ryo_values::domain::descriptions::types::RelationName;
 use ryo_values::domain::records::types::GoverningRules;
-use ryo_values::domain::stored_facts::types::ArenaBytes;
-use ryo_values::domain::stored_facts::types::Digest;
-use ryo_values::domain::stored_facts::types::FileNotes;
-use ryo_values::domain::stored_facts::types::LanguageNumber;
-use ryo_values::domain::stored_facts::types::NoteBytes;
-use ryo_values::domain::stored_facts::types::PartialAt;
-use ryo_values::domain::stored_facts::types::PartialCause;
-use ryo_values::domain::stored_facts::types::PartialKind;
-use ryo_values::domain::stored_facts::types::PartialScope;
-use ryo_values::domain::stored_facts::types::StoredPartial;
+use ryo_values::domain::stored_facts::types::{ArenaBytes, Digest, FileNotes, LanguageNumber, NoteBytes, PartialAt, PartialCause, PartialKind, PartialScope, StoredPartial};
 use ryo_values::domain::stored_findings::types::StoredFileNumber;
-use ryo_values::domain::stores::types::StoredCovered;
-use ryo_values::domain::stores::types::StoredHanded;
-use ryo_values::domain::stores::types::StoredNotes;
-use ryo_values::domain::stores::types::StoredText;
-use super::schemas::{StringsSchema, TextSchema, as_bytes, named, text};
+use ryo_values::domain::stores::types::{StoredCovered, StoredHanded, StoredNotes, StoredText};
+use super::super::strings::schemas::{StringsSchema, TextSchema, as_bytes, named, text};
 use super::super::proofs::schemas::{FrontierProofSchema, proof_row, proof_schema};
 
 /// Bytes of a file only the core reads, its names' text: one row for each file that has some.

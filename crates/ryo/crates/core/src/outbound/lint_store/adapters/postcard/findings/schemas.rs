@@ -1,22 +1,12 @@
 //! The findings document of the postcard store: its wire shapes and their conversion from and into the core's tables.
 
 use std::borrow::Cow;
-use ryo_relations::domain::relations::types::Integer;
-use ryo_relations::domain::relations::types::Offset;
-use ryo_relations::domain::relations::types::Span;
+use ryo_relations::domain::relations::types::{Integer, Offset, Span};
 use ryo_values::domain::descriptions::types::ColumnName;
-use ryo_values::domain::row_texts::types::Cell;
-use ryo_values::domain::row_texts::types::PlacedColumn;
-use ryo_values::domain::row_texts::types::PlacedLine;
+use ryo_values::domain::row_texts::types::{Cell, PlacedColumn, PlacedLine};
 use ryo_values::domain::runs::types::RuleId;
-use ryo_values::domain::stored_findings::types::FindingMade;
-use ryo_values::domain::stored_findings::types::FindingPlace;
-use ryo_values::domain::stored_findings::types::StoredCell;
-use ryo_values::domain::stored_findings::types::StoredFinding;
-use ryo_values::domain::stored_findings::types::StoredPlace;
-use ryo_values::domain::stored_findings::types::StoredValue;
-use super::schemas::{StringsSchema, TextSchema, file_number, named, text};
-use super::super::tables::schemas::{TablesSchema};
+use ryo_values::domain::stored_findings::types::{FindingMade, FindingPlace, StoredCell, StoredFinding, StoredPlace, StoredValue};
+use super::super::strings::schemas::{StringsSchema, TextSchema, file_number, named, text};
 
 /// A value a finding holds, typed: a file or a text by its place in the table of strings, a whole number, or a stretch of a file by
 /// its two ends.
@@ -129,12 +119,14 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn findings_schema<'a>(
 
 /// The findings of the tables, with their columns, of a store of `files` files.
 pub(in crate::outbound::lint_store::adapters::postcard) fn findings_from(
-    tables: &TablesSchema<'_>,
+    strings: &[Cow<'_, str>],
+    rows: &[FindingSchema],
+    keys: &[KeySchema],
+    values: &[ValueSchema],
     files: usize,
 ) -> Result<Vec<StoredFinding>, postcard::Error> {
-    let strings = &tables.strings;
-    let mut findings = Vec::with_capacity(tables.findings.len());
-    for each in &tables.findings {
+    let mut findings = Vec::with_capacity(rows.len());
+    for each in rows {
         findings.push(StoredFinding {
             rule: RuleId(named(strings, each.rule)?),
             made: match each.file {
@@ -156,7 +148,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn findings_from(
             values: Vec::new(),
         });
     }
-    for each in &tables.finding_keys {
+    for each in keys {
         let finding = findings
             .get_mut(usize::try_from(each.finding).unwrap_or(usize::MAX))
             .ok_or(postcard::Error::DeserializeBadEncoding)?;
@@ -166,7 +158,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn findings_from(
                 .transpose()?,
         ));
     }
-    for each in &tables.finding_values {
+    for each in values {
         let finding = findings
             .get_mut(usize::try_from(each.finding).unwrap_or(usize::MAX))
             .ok_or(postcard::Error::DeserializeBadEncoding)?;

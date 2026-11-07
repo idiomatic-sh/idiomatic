@@ -10,7 +10,7 @@ mod files;
 mod findings;
 mod proofs;
 mod rest;
-mod schemas;
+mod strings;
 mod tables;
 pub(crate) mod types;
 pub(crate) mod writer;

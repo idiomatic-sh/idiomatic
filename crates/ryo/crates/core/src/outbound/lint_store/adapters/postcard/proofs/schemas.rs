@@ -1,8 +1,6 @@
 //! The proofs document of the postcard store: its wire shapes and their conversion from and into the core's tables.
 
-use ryo_values::domain::stored_facts::types::Bucket;
-use ryo_values::domain::stored_facts::types::Digest;
-use ryo_values::domain::stored_facts::types::PartialKind;
+use ryo_values::domain::stored_facts::types::{Bucket, Digest, PartialKind};
 use ryo_values::domain::stored_findings::types::StoredFileNumber;
 
 /// Which scope of the repository a part of a frontier proof is still uncertain in, and what is missing of it.

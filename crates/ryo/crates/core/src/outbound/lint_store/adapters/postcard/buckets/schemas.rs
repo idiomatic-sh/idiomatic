@@ -7,7 +7,7 @@ use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_findings::types::StoredFileNumber;
 #[cfg(test)]
 use ryo_values::domain::stores::types::StoredWords;
-use super::schemas::{as_bytes};
+use super::super::strings::schemas::as_bytes;
 
 /// The words one file handed one bucket: one row for each file, in a section of the bucket's own.
 #[cfg(test)]

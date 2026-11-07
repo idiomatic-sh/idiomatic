@@ -1,7 +1,7 @@
 //! What the schemas of the findings of the store accept: a cell reads back as it was written.
 
 use super::{cell_from, cell_schema};
-use crate::outbound::lint_store::adapters::postcard::schemas::StringsSchema;
+use crate::outbound::lint_store::adapters::postcard::strings::schemas::StringsSchema;
 use ryo_values::domain::row_texts::types::Cell;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};

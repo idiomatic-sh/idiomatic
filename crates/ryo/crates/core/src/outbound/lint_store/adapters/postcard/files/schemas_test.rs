@@ -1,7 +1,7 @@
 //! What the schemas of the files of the store accept: a file reads back as it was written.
 
 use super::{file_from, file_schema};
-use crate::outbound::lint_store::adapters::postcard::schemas::StringsSchema;
+use crate::outbound::lint_store::adapters::postcard::strings::schemas::StringsSchema;
 use crate::outbound::lint_store::fixtures::tables::stored;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};

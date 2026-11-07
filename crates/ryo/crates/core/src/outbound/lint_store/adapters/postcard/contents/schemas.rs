@@ -1,10 +1,6 @@
 //! The contents document of the postcard store: its wire shapes and their conversion from and into the core's tables.
 
-use super::super::types::BucketSpan;
-use super::super::types::FileOffset;
-use super::super::types::SectionLength;
-use super::super::types::SectionSpan;
-use super::super::types::TableOfContents;
+use super::super::types::{BucketSpan, FileOffset, SectionLength, SectionSpan, TableOfContents};
 use std::borrow::Cow;
 use ryo_values::domain::stored_facts::types::Bucket;
 
