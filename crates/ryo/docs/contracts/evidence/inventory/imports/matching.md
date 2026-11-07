@@ -6,4 +6,4 @@ Per concept: the concepts of its own crate it imports from (source-dependency ed
 |---|---|---|---|
 | domain/globbing | - | - | matching:inbound/use_cases/matching (13) |
 | domain/matching | - | - | matching:inbound/use_cases/matching (10) |
-| inbound/use_cases/matching | matching:domain/globbing (13); matching:domain/matching (10) | - | core:outbound/matching/adapters/globset (4); execution:domain/comparing (6); execution:domain/comparing/collections/comparisons (5); execution:domain/matching (12); operators:domain/replace (4); operators:domain/source_matches (5) |
+| inbound/use_cases/matching | matching:domain/globbing (13); matching:domain/matching (10) | - | core:inbound/use_cases/lint (1); execution:domain/comparing (1); execution:domain/comparing/collections/comparisons (4); execution:domain/matching (8); execution:outbound/matching (1); execution:outbound/matching/adapters/globset (4); operators:inbound/use_cases/operators (3); operators:outbound/matching (5); operators:outbound/matching/adapters/use_case (6) |

@@ -4,13 +4,15 @@ One row per concept directory (a directory holding service.rs, types.rs, interfa
 
 | layer | concept | production lines | files | marker files |
 |---|---|---|---|---|
-| domain | artifacts | 129 | 6 | types |
-| domain | context | 163 | 6 | types |
-| domain | measurements | 148 | 1 | types |
-| domain | process | 89 | 1 | types |
-| domain | reports | 189 | 4 | service, types |
-| domain | requests | 176 | 4 | types |
-| domain | workloads | 692 | 27 | types |
+| domain | artifacts | 138 | 7 | types |
+| domain | context | 233 | 6 | types |
+| domain | documents | 855 | 13 | types |
+| domain | measurements | 173 | 1 | types |
+| domain | process | 72 | 1 | types |
+| domain | receipts | 84 | 2 | types |
+| domain | reports | 236 | 4 | service, types |
+| domain | requests | 364 | 4 | types |
+| domain | workloads | 818 | 27 | types |
 
 Production lines in directories with no concept ancestor:
 

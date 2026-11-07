@@ -11,6 +11,9 @@ One row per concept directory (a directory holding service.rs, types.rs, interfa
 | domain | language | 174 | 1 | types |
 | domain | observation | 100 | 1 | types |
 | domain | operator | 13 | 1 | types |
+| domain | parameter | 59 | 1 | types |
+| domain | place | 24 | 1 | types |
+| domain | project | 75 | 1 | types |
 | domain | query | 267 | 2 | types |
 | domain | relation | 13 | 1 | types |
 

@@ -19,7 +19,7 @@ One row per concept directory (a directory holding service.rs, types.rs, interfa
 | domain | joining | 369 | 2 | service |
 | domain | linking | 72 | 2 | service |
 | domain | lowering | 576 | 3 | types |
-| domain | observation_inputs | 68 | 2 | service |
+| domain | observation_inputs | 67 | 2 | service |
 | domain | planning | 270 | 2 | service |
 | domain | pruning | 74 | 1 | service |
 | domain | pushing | 391 | 2 | service, types |
@@ -34,18 +34,18 @@ One row per concept directory (a directory holding service.rs, types.rs, interfa
 | domain | substituting | 278 | 1 | service |
 | domain | syntax | 666 | 3 | service, types |
 | domain | traversing | 323 | 1 | service |
-| domain | validation | 506 | 3 | service, types |
+| domain | validation | 507 | 3 | service, types |
 | domain | walking | 403 | 2 | service, types |
-| inbound | use_cases/compile | 331 | 6 | interface, service, types, use_case |
+| inbound | use_cases/compile | 320 | 6 | interface, service, types, use_case |
 | inbound | use_cases/describe | 106 | 5 | interface, types, use_case |
-| inbound | use_cases/typecheck | 342 | 6 | interface, service, types, use_case |
+| inbound | use_cases/typecheck | 328 | 5 | interface, service, use_case |
 | outbound | catalog | 52 | 6 | interface, types |
 | outbound | catalog/adapters/language | 17 | 1 | adapter |
 | outbound | syntax | 70 | 5 | interface |
-| outbound | syntax/adapters/winnow | 1446 | 2 | adapter |
+| outbound | syntax/adapters/winnow | 1447 | 2 | adapter |
 
 Production lines in directories with no concept ancestor:
 
 | layer | production lines |
 |---|---|
-| inbound | 29 |
+| inbound | 31 |

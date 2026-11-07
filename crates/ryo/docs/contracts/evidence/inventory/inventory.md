@@ -47,56 +47,52 @@ Kinds come from RyoQL rows; the two macro-declared lists are read by grep. An im
 
 ### Operator kinds (OperationKind, grep: macro list)
 
-26 kinds, 8 with more than one implementation.
+26 kinds, 10 with more than one implementation.
 
 | kind | implementations | locations | port |
 |---|---|---|---|
-| Project | 7 | execution:application/file_dag/frontiers; execution:application/file_dag/program/facade_runtime; execution:domain/frontiers; execution:domain/native_positions; execution:domain/operation_schema; execution:domain/trust; operators:domain/project | RowSink |
-| Join | 6 | execution:domain/lowering; execution:domain/native_positions; execution:domain/operation_schema; execution:domain/operator/contract; execution:domain/tree_join; operators:domain/equality_join | PositionJoinDriver |
-| Select | 6 | execution:application/file_dag; execution:application/file_dag/derived/owner/selection; execution:domain/native_positions; execution:domain/operation_schema; execution:domain/selections; operators:domain/select | direct |
-| Rows | 5 | execution:application/file_dag; execution:application/file_dag/program/facade_runtime; execution:domain/completion; execution:domain/native_positions; execution:domain/operator/collections/operators | OperatorsItem, RowSink, SetPositionsDriver |
-| Axis | 4 | execution:application/file_dag; execution:domain/lowering; execution:domain/native_positions; execution:domain/operation_schema | direct |
-| Union | 3 | execution:application/file_dag/program/facade_runtime; execution:domain/native_positions; execution:domain/operation_schema | RowSink, SetPositionsDriver |
-| Capture | 2 | execution:application/file_dag; execution:domain/executable_program | direct |
-| Replace | 2 | execution:application/file_dag/derived/owner/graphs; operators:domain/replace | direct |
-| Antijoin | 1 | execution:domain/native_positions | SetPositionsDriver |
-| Closure | 1 | execution:application/file_dag | direct |
-| Cycles | 1 | execution:application/file_dag | direct |
+| Project | 5 | execution:application/file_dag/program/facade_runtime; execution:domain/frontiers; execution:domain/operation_schema; execution:domain/trust; operators:domain/project | direct |
+| Rows | 5 | execution:application/file_dag; execution:application/file_dag/program/facade_runtime; execution:application/file_dag/program/file_session; execution:domain/contributor_rows; operators:domain/table_rows | RowSink |
+| Replace | 3 | execution:application/file_dag/derived/owner/graphs; execution:domain/describing; operators:domain/replace | direct |
+| Select | 3 | execution:domain/completion; execution:domain/operation_schema; operators:domain/select | direct |
+| Axis | 2 | execution:application/file_dag; execution:domain/operation_schema | direct |
+| Capture | 2 | execution:application/file_dag/route_counts; execution:domain/operator/contract | RowDriver, TextRowsEvaluation |
+| Join | 2 | execution:domain/operation_schema; operators:domain/equality_join | direct |
+| SourceMatches | 2 | execution:domain/describing; execution:domain/operation_schema | direct |
+| SpanBounds | 2 | execution:domain/describing; execution:domain/operation_schema | direct |
+| Union | 2 | execution:domain/completion; execution:domain/operation_schema | direct |
+| Closure | 1 | operators:domain/equality_join | direct |
+| Cycles | 1 | operators:domain/cycles | direct |
+| FitsRendered | 1 | execution:domain/describing | direct |
+| Hosted | 1 | operators:domain/evaluation | direct |
+| OrderedDfs | 1 | execution:domain/describing | direct |
+| OrderedMatch | 1 | execution:domain/describing | direct |
 | Rank | 1 | operators:domain/rank | direct |
-| SourceMatches | 1 | execution:domain/operation_schema | direct |
-| SpanBounds | 1 | execution:domain/operation_schema | direct |
+| RenderSyntax | 1 | execution:domain/describing | direct |
+| SpanBetween | 1 | execution:domain/describing | direct |
+| Antijoin | 0 | - | direct |
 | Difference | 0 | - | direct |
 | Extend | 0 | - | direct |
-| FitsRendered | 0 | - | direct |
 | GroupCount | 0 | - | direct |
 | GroupDigest | 0 | - | direct |
-| Hosted | 0 | - | direct |
 | Intersection | 0 | - | direct |
-| OrderedDfs | 0 | - | direct |
-| OrderedMatch | 0 | - | direct |
-| RenderSyntax | 0 | - | direct |
-| SpanBetween | 0 | - | direct |
 | Words | 0 | - | direct |
 
 ### Derived kinds (DerivedKind::ALL, grep: macro list)
 
-13 kinds, 1 with more than one implementation.
+9 kinds, 0 with more than one implementation.
 
 | kind | implementations | locations | port |
 |---|---|---|---|
-| Adjacency | 2 | execution:application/file_dag; execution:application/file_dag/derived/owner/acquisition/graph/construction | direct |
+| Adjacency | 1 | execution:application/file_dag/derived/owner/acquisition/graph/construction | direct |
+| Equality | 1 | derived:domain/footprint | direct |
 | Membership | 1 | execution:application/file_dag/derived/owner | direct |
-| PartitionOrder | 1 | execution:application/file_dag | direct |
-| CandidatePostings | 0 | - | direct |
+| OrderedDfs | 1 | execution:domain/describing | direct |
 | ClosureAdjacency | 0 | - | direct |
 | CycleAdjacency | 0 | - | direct |
-| DistinctRepresentatives | 0 | - | direct |
-| Equality | 0 | - | direct |
 | NativeLookup | 0 | - | direct |
-| OrderedDfs | 0 | - | direct |
 | OrderedKeys | 0 | - | direct |
-| PredicateMatches | 0 | - | direct |
-| RawKeyOrder | 0 | - | direct |
+| PartitionOrder | 0 | - | direct |
 
 ### Relation members (relations catalog, RyoQL: member directories)
 
@@ -105,38 +101,27 @@ Kinds come from RyoQL rows; the two macro-declared lists are read by grep. An im
 | kind | implementations | locations | port |
 |---|---|---|---|
 | Function | 2 | core:inbound/use_cases/lint; execution:application/file_dag/program/facade_runtime | RowSink |
-| Scope | 1 | execution:application/file_dag | direct |
+| Scope | 1 | execution:application/file_dag/route_counts | direct |
 | SemanticChild | 1 | language:domain/answers | direct |
 | SemanticSyntax | 1 | language:domain/answers | direct |
 
 ### Walk and build routes (WalkRoute, WalkBarrier, Route, BuildRoute; RyoQL enum members)
 
-22 kinds, 5 with more than one implementation.
+11 kinds, 2 with more than one implementation.
 
 | kind | implementations | locations | port |
 |---|---|---|---|
-| Column | 4 | execution:domain/executable_program; execution:domain/operator/collections/operators; execution:domain/positions; execution:domain/tree_join | OperatorsItem |
+| Continuation | 3 | execution:application/file_dag/invocation; execution:application/file_dag/program/runtime/service/invocation; execution:domain/operation_schema | Emit |
 | Observation | 3 | execution:application/file_dag; execution:application/file_dag/program/facade_runtime; execution:domain/source_partitions | direct |
-| Selection | 3 | execution:application/file_dag/derived/owner; execution:application/file_dag/derived/owner/acquisition/graph; execution:domain/executable_program | direct |
-| Continuation | 2 | execution:application/file_dag/program/runtime/service/invocation; execution:domain/operation_schema | Emit |
-| Shared | 2 | execution:application/file_dag/derived/ledger; execution:application/file_dag/derived/owner/acquisition/selection | direct |
 | Barrier | 1 | execution:domain/shared_walk | direct |
-| NativePositions | 1 | execution:domain/executable_program | direct |
 | OrderedExistence | 1 | execution:domain/executable_program | direct |
-| Representation | 1 | execution:application/file_dag | direct |
-| ClosurePartition | 0 | - | direct |
+| Representation | 1 | execution:application/file_dag/route_counts | direct |
 | DependentInput | 0 | - | direct |
 | DerivedOrOrdered | 0 | - | direct |
 | Generic | 0 | - | direct |
-| GraphAdjacency | 0 | - | direct |
-| GraphDomain | 0 | - | direct |
-| OwnerAcquire | 0 | - | direct |
 | RequestOwnedSource | 0 | - | direct |
 | RowSemantics | 0 | - | direct |
-| SelectorCandidate | 0 | - | direct |
-| SelectorDistinct | 0 | - | direct |
-| SelectorPostings | 0 | - | direct |
-| SelectorPredicate | 0 | - | direct |
+| Shared | 0 | - | direct |
 
 ### Frontier decoders, finishers, renderers and text gates (functions by role word)
 
@@ -151,27 +136,29 @@ Free functions whose name starts with decode, finish, render, fits, gate, escape
 | escape | execution:domain/finish | service.rs |
 | escape_cross_publication | execution:domain/finish | publication.rs |
 | escape_frame | execution:domain/finish | service.rs |
-| finish | core:outbound/digest/adapters/blake3 | adapter.rs |
 | finish | execution:domain/shared_walk | service.rs |
+| finish | execution:outbound/digest/adapters/blake3 | adapter.rs |
 | finish_file | core:domain/recording | service.rs |
-| fits | execution:domain/operator/collections/operators | item.rs |
+| fits_rendered | execution:domain/describing | constants.rs |
 | render_finding | core:domain/render | service.rs |
 | render_placed | core:domain/render | service.rs |
 | render_rows | core:domain/render | service.rs |
+| render_syntax | execution:domain/describing | constants.rs |
 | rendered_limit | core:domain/render | service.rs |
 | rendered_of | core:domain/keeping | service.rs |
 
 ### Kinds with more than one implementation and no port
 
-- Operator kinds: `Axis` (4 implementations)
-- Operator kinds: `Capture` (2 implementations)
-- Operator kinds: `Replace` (2 implementations)
-- Operator kinds: `Select` (6 implementations)
-- Derived kinds: `Adjacency` (2 implementations)
+- Operator kinds: `Axis` (2 implementations)
+- Operator kinds: `Join` (2 implementations)
+- Operator kinds: `Project` (5 implementations)
+- Operator kinds: `Replace` (3 implementations)
+- Operator kinds: `Select` (3 implementations)
+- Operator kinds: `SourceMatches` (2 implementations)
+- Operator kinds: `SpanBounds` (2 implementations)
+- Operator kinds: `Union` (2 implementations)
 - Walk and build routes: `Observation` (3 implementations)
-- Walk and build routes: `Selection` (3 implementations)
-- Walk and build routes: `Shared` (2 implementations)
 
-Ports found (workspace traits with two or more impls): `ComparisonsItem` (7), `CorpusPort` (2), `DerivedUseCase` (2), `Emit` (5), `ExecutionPort` (3), `FactsFinish` (4), `FactsPort` (2), `FactsWorker` (2), `JoinDriver` (3), `LintStorePort` (3), `OperatorsItem` (26), `OperatorsUseCase` (2), `PositionJoinDriver` (3), `PredicateProgram` (2), `ProjectRootExecution` (3), `ReadItem` (3), `ReadStore` (3), `RepresentationsItem` (6), `RowCells` (3), `RowSink` (2), `SchedulerPort` (2), `Sealed` (70), `SetPositionsDriver` (2), `StrategiesItem` (2), `Syntax` (4), `ValueTexts` (3), `Visiting` (3).
+Ports found (workspace traits with two or more impls): `AxisEvaluation` (2), `CaptureOutput` (2), `ClosureEvaluation` (2), `ComparisonsItem` (7), `CorpusPort` (2), `CyclesEvaluation` (2), `DfsEvaluation` (2), `Emit` (4), `Encode` (18), `ExecutionCompilation` (2), `ExecutionPort` (3), `FactsFinish` (4), `FactsPort` (2), `FactsWorker` (2), `JoinEvaluation` (2), `LintStorePort` (3), `MatchingPort` (2), `OrderedMatchEvaluation` (2), `PrepareUseCase` (2), `ProgressObserver` (2), `ProjectRootExecution` (3), `ReadItem` (3), `ReadStore` (3), `RenderedOutput` (2), `RepresentationsItem` (4), `RowCells` (3), `RowDriver` (8), `RowSink` (2), `SchedulerPort` (2), `Sealed` (70), `SetRowsEvaluation` (2), `Syntax` (4), `TableRowOutput` (2), `TextRowsEvaluation` (2), `ValueTexts` (3), `Visiting` (3), `WordOutput` (2).
 
 <!-- implementations:end -->

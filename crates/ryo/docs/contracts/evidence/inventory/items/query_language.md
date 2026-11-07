@@ -36,9 +36,9 @@ One row per concept: every struct, enum, trait, function and type alias written 
 | domain/traversing | 3 | pub(crate) function call_axis; pub(crate) function call_closure; pub(crate) function call_ordered_dfs |
 | domain/validation | 4 | pub(crate) enum Identities; pub(crate) enum ValidationError; pub(crate) function validate_with_observations; pub(crate) struct Known |
 | domain/walking | 6 | pub(crate) enum ElementDemand; pub(crate) function fuse_descents; pub(crate) function fuse_neighbours; pub(crate) function width_of; pub(crate) struct InputWidth; pub(crate) struct StartingRow |
-| inbound/use_cases/compile | 7 | pub enum CompileError; pub(super) function invalid; pub(super) function unresolved; pub struct CompileReport; pub struct CompileRequest; pub struct CompileUseCaseImpl; pub trait CompileUseCase |
+| inbound/use_cases/compile | 6 | pub enum CompileError; pub(super) function invalid; pub(super) function unresolved; pub struct CompileReport; pub struct CompileUseCaseImpl; pub trait CompileUseCase |
 | inbound/use_cases/describe | 4 | pub enum DescribeError; pub struct DescribeReport; pub struct DescribeUseCaseImpl; pub trait DescribeUseCase |
-| inbound/use_cases/typecheck | 6 | pub enum TypecheckError; pub(super) function invalid; pub(super) function unresolved; pub struct TypecheckRequest; pub struct TypecheckUseCaseImpl; pub trait TypecheckUseCase |
+| inbound/use_cases/typecheck | 5 | pub enum TypecheckError; pub(super) function invalid; pub(super) function unresolved; pub struct TypecheckUseCaseImpl; pub trait TypecheckUseCase |
 | outbound/catalog | 4 | pub enum CatalogError; pub function language; pub struct Relations; pub trait CatalogPort |
 | outbound/catalog/adapters/language | 1 | pub(crate) struct CatalogLanguageAdapter |
 | outbound/syntax | 3 | pub enum SyntaxError; pub function winnow; pub trait SyntaxPort |

@@ -94,7 +94,7 @@ def registry(title, source, kinds, crates, layers=None, exact=False):
 
 op_kinds = grep_variants("values/src/domain/query_operators/types.rs", r"operation_kinds! \{", r"\n\}")
 registry("Operator kinds (OperationKind, grep: macro list)", "values/query_operators", op_kinds, {"operators", "execution"}, {"domain", "application"})
-dk = grep_variants("derived/src/domain/contract/types.rs", r"kinds!\(", r"\);")
+dk = grep_variants("derived/src/domain/request/types.rs", r"kinds!\(", r"\);")
 registry("Derived kinds (DerivedKind::ALL, grep: macro list)", "derived/contract", dk, {"derived", "execution"})
 members = sorted({f["dir"].split("/")[3] for f in files if f["crate"] == "relations" and f["dir"].startswith("relations/collections/relations/") and len(f["dir"].split("/")) > 3})
 registry("Relation members (relations catalog, RyoQL: member directories)", "relations/collections/relations", [m.title().replace("_", "") for m in members], {"language", "execution", "core"}, None)
