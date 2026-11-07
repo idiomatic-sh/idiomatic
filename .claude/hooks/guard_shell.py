@@ -18,6 +18,8 @@ CHECK_FORM = "cargo check -p <crate> --target-dir " + CHECK_TARGET
 BUILDERS_AUTHOR = ("Builders author; the integrator compiles. cargo builds only in an integration worktree "
                    "(branch claude/checkpoint-N); builders may run " + CHECK_FORM)
 COMMENT = re.compile(r"(^|\s)#.*$", re.MULTILINE)
+CONSOLIDATION = "claude/ryo-consolidation"
+RUST_REVIEW = "crates/ryo/docs/contracts/evidence/checkpoint/rust-review.json"
 
 
 def segments(text):
@@ -179,6 +181,66 @@ def tm_fix(words, command):
     return None
 
 
+def git_push(words):
+    """The -C directory and the arguments of a `git push`, or None when the words are not one."""
+    if len(words) < 2 or words[0] != "git":
+        return None
+    directory, i = None, 1
+    while i < len(words) and words[i].startswith("-"):
+        if words[i] == "-C" and i + 1 < len(words):
+            directory = words[i + 1]
+            i += 2
+        elif words[i] in ("-c", "--git-dir", "--work-tree") and i + 1 < len(words):
+            i += 2
+        else:
+            i += 1
+    if i >= len(words) or words[i] != "push":
+        return None
+    return directory, words[i + 1:]
+
+
+def names_consolidation(args):
+    """True when a refspec argument's destination is claude/ryo-consolidation."""
+    for arg in (a for a in args if not a.startswith("-")):
+        destination = arg.lstrip("+").rsplit(":", 1)[-1]
+        if destination in (CONSOLIDATION, "refs/heads/" + CONSOLIDATION):
+            return True
+    return False
+
+
+def git_out(directory, *args):
+    done = subprocess.run(["git", "-C", directory, *args], capture_output=True, text=True, check=False)
+    return done.returncode, done.stdout
+
+
+def rust_review(words, here):
+    """A push of claude/ryo-consolidation needs HEAD's rust-review.json at PASS with a source HEAD contains."""
+    push = git_push(words)
+    if push is None or not names_consolidation(push[1]):
+        return None
+    tree = os.path.join(here, push[0]) if push[0] else here
+    refused = "push of " + CONSOLIDATION + " refused: "
+    code, text = git_out(tree, "show", "HEAD:" + RUST_REVIEW)
+    if code != 0:
+        return (refused + "HEAD carries no " + RUST_REVIEW + "; run the rust-principal-review agent "
+                "(.agents/agents/rust-principal-review.md) on this tree and commit its PASS")
+    try:
+        review = json.loads(text)
+    except ValueError:
+        return refused + RUST_REVIEW + " at HEAD is not JSON"
+    if not isinstance(review, dict) or review.get("verdict") != "PASS":
+        verdict = review.get("verdict") if isinstance(review, dict) else None
+        return (refused + RUST_REVIEW + " at HEAD has verdict " + repr(verdict) +
+                ", not \"PASS\"; repair its findings and review again, or the owner overrules and pushes")
+    source = review.get("source")
+    if not isinstance(source, str) or not source or source.startswith("-"):
+        return refused + RUST_REVIEW + " at HEAD names no reviewed \"source\" sha"
+    if git_out(tree, "merge-base", "--is-ancestor", source, "HEAD")[0] != 0:
+        return (refused + "the reviewed source " + source + " in " + RUST_REVIEW +
+                " is not an ancestor of HEAD; review the tree being pushed")
+    return None
+
+
 def integration_tree(directory):
     if os.path.abspath(directory).startswith(MEASUREMENT):
         return True
@@ -214,10 +276,13 @@ def reason(command, cwd=None):
             found = builder_check(words, here) if runs_cargo_verb(words) else None
             if found:
                 return found
-    before = ""
+    before, here = "", cwd or os.getcwd()
     for segment in segments(clean):
         words = tokens(segment)
-        for found in (stash(words), removal(words), cargo_rules(words, before), tm_fix(words, clean)):
+        if len(words) > 1 and words[0] == "cd":
+            here = os.path.join(here, os.path.expanduser(words[1]))
+        for found in (stash(words), removal(words), cargo_rules(words, before), tm_fix(words, clean),
+                      rust_review(words, here)):
             if found:
                 return found
         before += segment + " "

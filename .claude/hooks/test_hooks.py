@@ -149,6 +149,87 @@ class GuardShell(unittest.TestCase):
                 self.assertEqual(shell(command, cwd), 0)
 
 
+def git(path, *args):
+    return subprocess.run(["git", "-C", path, "-c", "user.name=t", "-c", "user.email=t@t", *args],
+                          capture_output=True, text=True, check=True).stdout.strip()
+
+
+class RustReviewPush(unittest.TestCase):
+    REVIEW = "crates/ryo/docs/contracts/evidence/checkpoint/rust-review.json"
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.tree = repo(self.dir.name, "tree", "claude/checkpoint-9")
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "base")
+        self.base = git(self.tree, "rev-parse", "HEAD")
+
+    def commit_review(self, verdict, source):
+        path = os.path.join(self.tree, self.REVIEW)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump({"checkpoint": 9, "source": source, "verdict": verdict, "items": [],
+                       "reviewer": "rust-principal-review", "date": "2026-11-07"}, handle)
+        git(self.tree, "add", self.REVIEW)
+        git(self.tree, "commit", "-q", "-m", "review")
+
+    def push(self, command="git push origin claude/ryo-consolidation"):
+        return run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree})
+
+    def test_refused_without_the_review(self):
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("HEAD carries no " + self.REVIEW, result.stderr)
+
+    def test_refused_on_fail(self):
+        self.commit_review("FAIL", self.base)
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("verdict 'FAIL'", result.stderr)
+
+    def test_refused_when_source_is_not_an_ancestor(self):
+        git(self.tree, "checkout", "-q", "-b", "side")
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "elsewhere")
+        elsewhere = git(self.tree, "rev-parse", "HEAD")
+        git(self.tree, "checkout", "-q", "claude/checkpoint-9")
+        self.commit_review("PASS", elsewhere)
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("not an ancestor of HEAD", result.stderr)
+
+    def test_refused_when_not_json(self):
+        path = os.path.join(self.tree, self.REVIEW)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write("PASS")
+        git(self.tree, "add", self.REVIEW)
+        git(self.tree, "commit", "-q", "-m", "review")
+        self.assertEqual(self.push().returncode, 2)
+
+    def test_allowed_with_pass_and_an_ancestor_source(self):
+        self.commit_review("PASS", self.base)
+        for command in ["git push origin claude/ryo-consolidation", "git push origin HEAD:claude/ryo-consolidation",
+                        "git push -q origin +HEAD:refs/heads/claude/ryo-consolidation",
+                        "cd . && git -C . push origin claude/ryo-consolidation"]:
+            with self.subTest(command=command):
+                self.assertEqual(self.push(command).returncode, 0)
+
+    def test_every_refspec_form_is_guarded(self):
+        for command in ["git push origin HEAD:claude/ryo-consolidation", "git push -u origin claude/ryo-consolidation",
+                        "git push origin +x:refs/heads/claude/ryo-consolidation", "x && git push origin claude/ryo-consolidation",
+                        "git -C " + self.tree + " push origin claude/ryo-consolidation"]:
+            with self.subTest(command=command):
+                self.assertEqual(run_hook("guard_shell.py", {"tool_input": {"command": command}}).returncode
+                                 if command.startswith("git -C") else self.push(command).returncode, 2)
+
+    def test_other_branches_are_unaffected(self):
+        for command in ["git push origin claude/checkpoint-9", "git push -u origin claude/w4-rust-reviewer",
+                        "git push", "git push origin claude/ryo-consolidation-notes", "git log claude/ryo-consolidation",
+                        "git commit -m 'git push origin claude/ryo-consolidation'"]:
+            with self.subTest(command=command):
+                self.assertEqual(self.push(command).returncode, 0)
+
+
 class Acceptance(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()

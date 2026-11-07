@@ -47,7 +47,11 @@ base/head/tree each round.
 
 ## Requesting a review
 
-A request carries three receipts, and a request without all three is refused by
+A request names both reviews: the contract review above and the
+[rust-principal-review agent](../../../../../.agents/agents/rust-principal-review.md),
+which scores seven Rust items PASS or FAIL on the same merged source and
+writes `evidence/checkpoint/rust-review.json`. A FAIL from either stops the
+landing. A request carries three receipts, and a request without all three is refused by
 the reviewer, because what a linter or check catches is resolved before a
 person reads the source:
 
@@ -105,4 +109,5 @@ Not covered by the latest validation (`validation.json`, validated source
 - Language conformance targets print no pass count; exit 0 is the receipt.
 
 Links: [matrix](../README.md), [execution plan](../execution-plan.md),
-[reviewer instructions](../../../../../.agents/agents/contract-review.md).
+[reviewer instructions](../../../../../.agents/agents/contract-review.md),
+[Rust reviewer instructions](../../../../../.agents/agents/rust-principal-review.md).
