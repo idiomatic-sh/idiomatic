@@ -1,0 +1,3 @@
+# no-reexports 0.5.0
+
+A canonical inbound use-case interface may also forward, one unrenamed item per public use, an application type or trait of its crate that its contract is made of: one the signature of one of the interface's methods names, or one that a type so named names in its fields, variants or methods, or one that such a type implements or is implemented by, transitively. The handles a use case returns and the protocol traits they implement are part of its contract. The fixtures state the accepted handle, its parts and its protocol trait; an application type no signature reaches, an application service function and a sibling application module's forward stay refused. Everything else is as in 0.4.0.
