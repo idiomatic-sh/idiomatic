@@ -6,12 +6,10 @@ use crate::domain::reduction::types::{
     GroupColumns, GroupCounts, GroupOutput, HashScratch, StreamingReduction,
 };
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
-use ryo_values::{
-    cases::{Case, CaseName, Expect, Word, run},
-    domain::{
-        plan_parts::types::{ColumnIndex, WholeNumber},
-        rows::types::{RowCount, RowIndex, Table},
-    },
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, WholeNumber},
+    rows::types::{RowCount, RowIndex, Table},
 };
 #[derive(Clone, Copy)]
 enum Scenario {

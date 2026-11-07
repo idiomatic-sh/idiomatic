@@ -3,7 +3,7 @@ use super::service::join_row;
 use super::types::{JoinCells, JoinDriver, JoinInterrupted, JoinRow};
 use crate::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 
 #[derive(Clone, Copy)]

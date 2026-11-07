@@ -6,7 +6,7 @@ use ryo_matching::inbound::use_cases::matching::{
     interface::MatchingUseCase, types::RegexSource, use_case::MatchingUseCaseImpl,
 };
 use ryo_relations::domain::relations::types::{Integer, Offset, Span, Value as Cell};
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 #[derive(Clone, Copy)]
 enum Scenario {
     Lines,

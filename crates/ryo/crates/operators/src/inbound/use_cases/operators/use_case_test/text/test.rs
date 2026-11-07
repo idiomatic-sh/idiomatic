@@ -1,6 +1,6 @@
 //! Public text calls preserve Unicode word, path-capture, rank and literal replacement semantics.
 use crate::inbound::use_cases::operators::{fixtures, interface::*};
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::LiteralText;
 use std::borrow::Cow;
 

@@ -33,7 +33,7 @@ fn position_representation_keeps_slots_deferred_ordered_and_duplicate() {
     assert_eq!(target, vec![99, 4, 2, 9, 3, 4, 2, 1, 7, 4, 2, 9, 3]);
 }
 
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 type Input = fn();
 type Value = ();
 type Failure = std::convert::Infallible;

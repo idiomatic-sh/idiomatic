@@ -1,7 +1,7 @@
 //! Public inbound acceptance: actual semantic dispatch of row calls and borrowed outputs.
 use super::{interface::*, use_case::OperatorsUseCaseImpl};
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::borrow::Cow;
 

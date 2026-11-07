@@ -12,7 +12,10 @@ pub(crate) fn build(
     let data = match (&prepared.request, inputs) {
         (ViewRequest::Equality { columns }, DerivedInputs::Rows(rows)) => {
             let previous = match recycled {
-                Some(PayloadData::Equality(value)) => Arc::try_unwrap(value).ok(),
+                Some(PayloadData::Equality(value)) => match Arc::try_unwrap(value) {
+                    Ok(owned) => Some(owned),
+                    Err(_) => None,
+                },
                 _ => None,
             };
             PayloadData::Equality(Arc::new(super::equality::build(rows, columns, previous)?))
@@ -61,7 +64,10 @@ pub(crate) fn build(
             },
         ) => {
             let previous = match recycled {
-                Some(PayloadData::ClosureAdjacency(value)) => Arc::try_unwrap(value).ok(),
+                Some(PayloadData::ClosureAdjacency(value)) => match Arc::try_unwrap(value) {
+                    Ok(owned) => Some(owned),
+                    Err(_) => None,
+                },
                 _ => None,
             };
             PayloadData::ClosureAdjacency(Arc::new(super::closure::build(
@@ -126,7 +132,10 @@ pub(crate) fn build(
         }
         (ViewRequest::RawKeyOrder { stride }, DerivedInputs::RawWords(keys)) => {
             let previous = match recycled {
-                Some(PayloadData::RawKeyOrder(value)) => Arc::try_unwrap(value).ok(),
+                Some(PayloadData::RawKeyOrder(value)) => match Arc::try_unwrap(value) {
+                    Ok(owned) => Some(owned),
+                    Err(_) => None,
+                },
                 _ => None,
             };
             PayloadData::RawKeyOrder(Arc::new(super::raw_order::build(keys, *stride, previous)))

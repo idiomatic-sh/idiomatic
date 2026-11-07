@@ -2,7 +2,7 @@
 use crate::inbound::use_cases::operators::{fixtures, interface::*};
 use ryo_relations::domain::relations::types::{Integer, Offset, Span, Value as Cell};
 use ryo_relations::domain::terms::types::Symbol;
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use std::borrow::Cow;
 
 #[derive(Clone, Copy)]

@@ -275,7 +275,7 @@ fn original_project_reads_join_coordinates_with_reordered_repeated_left_columns(
     );
 }
 
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 type Input = fn();
 type Value = ();
 type Failure = std::convert::Infallible;

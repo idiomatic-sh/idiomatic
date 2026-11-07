@@ -3,10 +3,8 @@ use super::service::pairs;
 use crate::domain::contract::types::{PortableOperatorFault, SemanticInterrupted};
 use crate::domain::ordered_match::types::OrderedMatchDriver;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
-use ryo_values::{
-    cases::{Case, CaseName, Expect, Word, run},
-    domain::plan_parts::types::{ColumnIndex, JoinColumn, Side},
-};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 #[derive(Clone, Copy)]
 enum Scenario {
     Pairs,

@@ -2,10 +2,8 @@
 use super::service::rank;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::row_texts::types::CellText;
-use ryo_values::{
-    cases::{Case, CaseName, Expect, Word, run},
-    domain::plan_parts::types::LiteralText,
-};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::plan_parts::types::LiteralText;
 type Input = &'static str;
 type Value = Option<Integer>;
 type Failure = std::convert::Infallible;

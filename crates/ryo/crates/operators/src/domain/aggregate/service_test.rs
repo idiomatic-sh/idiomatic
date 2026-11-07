@@ -2,10 +2,8 @@
 use super::service::aggregate;
 use crate::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::types::{Count, Integer, Value as Cell};
-use ryo_values::{
-    cases::{Case, CaseName, Expect, Word, run},
-    domain::plan_parts::types::ColumnIndex,
-};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::plan_parts::types::ColumnIndex;
 type Input = (&'static [ColumnIndex], usize, Option<i64>);
 type Value = std::borrow::Cow<'static, [Cell]>;
 type Failure = PortableOperatorFault;

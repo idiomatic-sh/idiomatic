@@ -3,3 +3,6 @@
 
 mod domain;
 pub mod inbound;
+
+#[cfg(any(test, feature = "fixtures"))]
+pub mod cases;

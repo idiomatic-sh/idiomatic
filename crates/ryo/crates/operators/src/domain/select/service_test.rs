@@ -3,10 +3,8 @@ use super::service::select;
 use super::types::{PredicateOutcome, RowSelection};
 use crate::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
-use ryo_values::{
-    cases::{Case, CaseName, Expect, Word, run},
-    domain::plan_parts::types::ColumnIndex,
-};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::plan_parts::types::ColumnIndex;
 type Input = (bool, &'static [ColumnIndex]);
 type Value = (bool, std::borrow::Cow<'static, [Cell]>);
 type Failure = PortableOperatorFault;

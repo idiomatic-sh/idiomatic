@@ -5,7 +5,7 @@ use ryo_relations::domain::relations::{
     constants::NO_SPAN,
     types::{Integer, Offset, Span, Value as Cell},
 };
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 type Input = (Vec<Cell>, u32, u32, usize);
 type Value = Cell;

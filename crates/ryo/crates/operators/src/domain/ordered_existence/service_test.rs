@@ -24,7 +24,7 @@ impl OrderedExistenceDriver for Empty {
     }
 }
 
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 type Input = PartitionExtremum;
 type Value = ();
 type Failure = crate::domain::contract::types::PortableOperatorFault;

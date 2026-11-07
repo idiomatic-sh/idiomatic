@@ -23,7 +23,7 @@ pub(crate) fn build(
             positions,
             columns: projection,
         }) => fill(rows.count(), columns, &mut out, |row, column| {
-            let physical = usize::try_from(*positions.get(row)?).ok()?;
+            let physical = *positions.get(row)? as usize;
             stored_cell(source, physical, *projection.get(column.0 as usize)?)
         }),
         Some(BulkRows::Computed(table)) => fill(rows.count(), columns, &mut out, |row, column| {
@@ -57,7 +57,7 @@ fn stored_cell(
     row: usize,
     column: ColumnIndex,
 ) -> Option<Value> {
-    let at = usize::try_from(column.0).ok()?;
+    let at = column.0 as usize;
     let kind = *view.kinds.get(at)?;
     let bits = *view.columns.get(at)?.0.get(row)?;
     Some(ryo_relations::domain::relations::service::from_bits(

@@ -5,7 +5,7 @@ use crate::domain::contract::types::PortableOperatorFault;
 use ryo_matching::inbound::use_cases::matching::{
     interface::MatchingUseCase, types::RegexSource, use_case::MatchingUseCaseImpl,
 };
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::row_texts::types::CellText;
 type Input = (&'static str, &'static str, &'static str);
 type Value = std::borrow::Cow<'static, str>;

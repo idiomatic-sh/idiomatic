@@ -1,7 +1,7 @@
 //! Append preserves order and uses the engine's scratch storage.
 use super::service::append;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 
 type Input = ();
 type Value = [Cell; 3];

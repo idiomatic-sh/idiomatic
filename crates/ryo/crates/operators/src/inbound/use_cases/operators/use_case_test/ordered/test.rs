@@ -1,7 +1,7 @@
 //! The public ordered-pair call observes prepared inputs and immediately honors downstream refusal.
 use crate::inbound::use_cases::operators::{fixtures, interface::*};
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
 use std::borrow::Cow;

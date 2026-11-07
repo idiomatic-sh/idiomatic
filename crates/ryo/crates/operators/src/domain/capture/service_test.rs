@@ -1,7 +1,7 @@
 //! Enumerates UTF-8 character boundaries, nonempty slots and crossing policy.
 use super::service::matches;
 use super::types::{CaptureSlots, SlotPattern, SlotSubject};
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 type Input = (&'static str, &'static str);
 type Value = std::borrow::Cow<'static, str>;
 type Failure = std::convert::Infallible;

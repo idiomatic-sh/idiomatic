@@ -31,17 +31,17 @@ pub trait OrderedExistenceDriver {
 /// Per-step scratch supplied and owned by the engine; no completed population is retained.
 #[derive(Debug, Default)]
 pub struct OrderedExistenceScratch {
-    pub(crate) groups: std::collections::HashMap<
+    pub groups: std::collections::HashMap<
         Vec<ryo_relations::domain::relations::types::Value>,
         ExtremumWitness,
     >,
-    pub(crate) key: Vec<ryo_relations::domain::relations::types::Value>,
+    pub key: Vec<ryo_relations::domain::relations::types::Value>,
 }
 
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct ExtremumWitness {
-    pub(crate) value: ryo_relations::domain::relations::types::Integer,
-    pub(crate) row: usize,
+pub struct ExtremumWitness {
+    pub value: ryo_relations::domain::relations::types::Integer,
+    pub row: usize,
 }
 
 use crate::domain::equality_join::types::JoinInterrupted;
