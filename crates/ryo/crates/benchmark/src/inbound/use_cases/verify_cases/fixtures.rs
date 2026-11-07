@@ -79,30 +79,87 @@ pub fn exercise(scenario: Scenario, operate: Operate) -> Result<usize, Refusal> 
 /// Independent authored evidence, constructed apart from either contestant response.
 #[cfg(test)]
 pub(crate) mod shard {
-    use crate::outbound::{execution::fixtures::fake::ExecutionFake, suite::fixtures::fake::SuiteFake};
-    use crate::outbound::linter::fixtures::fake::LinterFake;
-    use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-    use ryo_benchmark_contracts::domain::reports::types::{
-        BenchmarkFinding, CoverageAccounting, ExecutionMetadata, PairCount, ProjectContext,
-        RuleCoverage, RunReport, SourceByteOffset,
-    };
-    use ryo_benchmark_contracts::domain::requests::types::{
-        CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration, ParserSelection,
-        ProviderSelection, RuleContextPreparation, RunRequest, SearchRoots, StagedSources,
-    };
-    use ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy;
-    use ryo_benchmark_contracts::domain::workloads::types::{
-        CaseComparison, FileObservation, PreparedCase,
-        PreparedReferenceBehavior, RuleContextProfile, Tool,
-    };
-
     use crate::inbound::use_cases::verify_cases::service::verify_prepared_shard;
-    use crate::outbound::execution::interface::ExecutionPort;
-    use crate::outbound::linter::interface::LinterPort;
-    use crate::outbound::receipts::fixtures::fake::ReceiptsFake;
+    use crate::outbound::execution::{fixtures::fake::ExecutionFake, interface::ExecutionPort};
+    use crate::outbound::linter::{fixtures::fake::LinterFake, interface::LinterPort};
+    use crate::outbound::receipts::{fixtures::fake::ReceiptsFake, types::CaseReceipts};
+    use crate::outbound::suite::fixtures::{authored, fake::SuiteFake};
     use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+    use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
     use ryo_benchmark_contracts::domain::requests::types::CaseSelection;
+    use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
     use std::path::Path;
+
+    /// The shape of the authored suite and of the findings both contestants report.
+    #[derive(Clone, Copy, Debug)]
+    pub(crate) enum Shape {
+        Agreement,
+        MissingCandidate,
+        MissingReference,
+        NoCases,
+        StartupFailure,
+        FullAgreement,
+        MissingFrontend,
+        RuleProjection,
+    }
+
+    /// Names what an error means by its message, so rows state the refusal and not its wording.
+    #[derive(Debug, PartialEq, Eq)]
+    pub(crate) enum Refusal {
+        CandidateMismatch,
+        ReferenceMismatch,
+        CandidateStartup,
+        ReferenceStartup,
+        UnaccountedDefault,
+        NoCases,
+        InputCoverage,
+        UnprovenEvidence,
+        MetadataDrift,
+        VerificationRequired,
+        Unexpected,
+    }
+
+    /// The refusal an error message states.
+    pub(crate) fn category(message: &str) -> Refusal {
+        let by_wording = [
+            ("expected-vs-candidate", Refusal::CandidateMismatch),
+            ("expected-vs-reference", Refusal::ReferenceMismatch),
+        ];
+        let by_content = [
+            ("reference: operational failure", Refusal::ReferenceStartup),
+            ("defaults lack implementation or explicit deferral", Refusal::UnaccountedDefault),
+            ("fixture has no independent discrepancy artifacts", Refusal::UnprovenEvidence),
+            ("executable metadata drifted", Refusal::MetadataDrift),
+            ("require verification preparation", Refusal::VerificationRequired),
+        ];
+        if message == "operational failure" {
+            return Refusal::CandidateStartup;
+        }
+        if message == crate::domain::suite::constants::NO_CASES {
+            return Refusal::NoCases;
+        }
+        if message == crate::domain::diagnostics::constants::INPUT_COVERAGE {
+            return Refusal::InputCoverage;
+        }
+        by_wording
+            .into_iter()
+            .chain(by_content)
+            .find_map(|(wording, refusal)| message.contains(wording).then_some(refusal))
+            .unwrap_or(Refusal::Unexpected)
+    }
+
+    /// The number of launches an execution fake recorded.
+    pub(crate) fn history_len(execution: &ExecutionFake) -> Option<usize> {
+        execution.history.lock().ok().map(|history| history.len())
+    }
+
+    /// An execution that exits cleanly.
+    pub(crate) fn succeeding() -> ExecutionFake {
+        ExecutionFake {
+            status: 0,
+            ..Default::default()
+        }
+    }
 
     /// Paired verification of every prepared case of `suite`, recording through `receipts`.
     pub(crate) fn verify_shard(
@@ -150,163 +207,20 @@ pub(crate) mod shard {
 
     /// Forgets the receipt file the fixture recorded, so a later verification records afresh.
     pub(crate) fn forget_receipts(receipts: &ReceiptsFake) {
-        match &receipts.case_receipts {
-            crate::outbound::receipts::types::CaseReceipts::Recorded(path) => {
-                std::fs::remove_file(path).unwrap();
-            }
-            crate::outbound::receipts::types::CaseReceipts::Unrecorded => {
-                unreachable!("fixture records receipts")
-            }
-        }
-    }
-
-    /// The shape of the authored suite and of the findings both contestants report.
-    #[derive(Clone, Copy, Debug)]
-    pub(crate) enum Shape {
-        Agreement,
-        MissingCandidate,
-        MissingReference,
-        NoCases,
-        StartupFailure,
-        FullAgreement,
-        MissingFrontend,
-        RuleProjection,
-    }
-
-    /// Names what an error means by its message, so rows state the refusal and not its wording.
-    #[derive(Debug, PartialEq, Eq)]
-    pub(crate) enum Refusal {
-        CandidateMismatch,
-        ReferenceMismatch,
-        CandidateStartup,
-        ReferenceStartup,
-        UnaccountedDefault,
-        NoCases,
-        InputCoverage,
-        UnprovenEvidence,
-        MetadataDrift,
-        VerificationRequired,
-        Unexpected,
-    }
-
-    /// The refusal an error message states.
-    pub(crate) fn category(message: &str) -> Refusal {
-        if message.contains("expected-vs-candidate") {
-            Refusal::CandidateMismatch
-        } else if message.contains("expected-vs-reference") {
-            Refusal::ReferenceMismatch
-        } else if message == "operational failure" {
-            Refusal::CandidateStartup
-        } else if message.contains("reference: operational failure") {
-            Refusal::ReferenceStartup
-        } else if message.contains("defaults lack implementation or explicit deferral") {
-            Refusal::UnaccountedDefault
-        } else if message == crate::domain::suite::constants::NO_CASES {
-            Refusal::NoCases
-        } else if message == crate::domain::diagnostics::constants::INPUT_COVERAGE {
-            Refusal::InputCoverage
-        } else if message.contains("fixture has no independent discrepancy artifacts") {
-            Refusal::UnprovenEvidence
-        } else if message.contains("executable metadata drifted") {
-            Refusal::MetadataDrift
-        } else if message.contains("require verification preparation") {
-            Refusal::VerificationRequired
-        } else {
-            Refusal::Unexpected
-        }
-    }
-
-    /// The number of launches an execution fake recorded.
-    pub(crate) fn history_len(execution: &ExecutionFake) -> Option<usize> {
-        execution.history.lock().ok().map(|history| history.len())
-    }
-
-    /// An execution that exits cleanly.
-    pub(crate) fn succeeding() -> ExecutionFake {
-        ExecutionFake {
-            status: 0,
-            ..Default::default()
-        }
-    }
-
-    /// The complete one-file report with `diagnostics`.
-    fn report(diagnostics: Vec<BenchmarkFinding>) -> RunReport {
-        RunReport {
-            execution_metadata: ExecutionMetadata::Complete,
-            project_context: ProjectContext::NotRequested,
-            files: vec![ryo::linter::RelativePath("case.py".into())],
-            skipped: Vec::new(),
-            coverage: CoverageAccounting::Accounted(RuleCoverage {
-                selected: PairCount(1),
-                evaluated: PairCount(1),
-                skipped: PairCount(0),
-                unknown_or_unread: PairCount(0),
-            }),
-            diagnostics,
-        }
-    }
-
-    /// A finding of `rule` over `start..end` bytes of the case file.
-    pub(crate) fn finding(rule: &str, start: usize, end: usize) -> BenchmarkFinding {
-        BenchmarkFinding {
-            rule: ryo::linter::RuleId::try_from(rule).expect("fixture rule identity"),
-            file: ryo::linter::RelativePath("case.py".into()),
-            start: SourceByteOffset(start),
-            end: SourceByteOffset(end),
-        }
-    }
-
-    /// A request over the one case file.
-    pub(crate) fn request() -> RunRequest {
-        RunRequest {
-            performance: Default::default(),
-            selected_rules: CohortSelection::Frozen,
-            rule_observations: InputDeclaration::Undeclared,
-            rule_context: RuleContextPreparation::Unconfigured,
-            project_search_roots: SearchRoots::Undeclared,
-            given_project_inventory: Default::default(),
-            staged_sources: StagedSources::Unlisted,
-            file_metadata: FileMetadataDeclaration::Undeclared,
-            context_manifest: ContextSeal::Unsealed,
-            root: ".".into(),
-            files: vec![ryo::linter::RelativePath("case.py".into())],
-            state: "cache".into(),
-        }
+        let CaseReceipts::Recorded(path) = &receipts.case_receipts else {
+            unreachable!("fixture records receipts")
+        };
+        std::fs::remove_file(path).unwrap();
     }
 
     /// Construct authored evidence independently from either contestant response.
     pub(crate) fn prepared(shape: Shape) -> (SuiteFake, BenchmarkFinding) {
-        let expected = finding("E722", 0, 6);
+        let expected = authored::finding("E722", 0, 6);
         let mut suite = SuiteFake::default();
         if !matches!(shape, Shape::NoCases) {
-            suite.prepared.push(PreparedCase {
-                reference_discrepancy: PreparedReferenceBehavior::Agrees,
-                comparison: CaseComparison::Rule,
-                rule: ryo::linter::RuleId::try_from("E722").unwrap(),
-                name: "positive".into(),
-                request: request(),
-                expected: report(vec![expected.clone()]),
-            });
+            suite.prepared.push(authored::case(&expected));
         }
-        suite.profile = Some(Tool {
-            rule_observation_selection: ObservationSelectionPolicy::Declared,
-            supporting_rules: Vec::new(),
-            rule_observations: Default::default(),
-            rule_context: RuleContextProfile::Undeclared,
-            file_observation: FileObservation::Undeclared,
-            project_context_mode: ProjectContextMode::default(),
-            tool: "fixture".into(),
-            version: "1".into(),
-            sha256: vec!["pin".into()],
-            defaults: vec!["E722".try_into().unwrap(), "F901".try_into().unwrap()],
-            deferred: std::collections::BTreeMap::default(),
-            pending: std::collections::BTreeMap::default(),
-            query_modules: std::collections::BTreeMap::default(),
-            rule_applicability: std::collections::BTreeMap::default(),
-            parser_configuration: ParserSelection::Unspecified,
-            source_language: ProviderSelection::Unspecified,
-            project_search_roots: SearchRoots::Undeclared,
-        });
+        suite.profile = Some(authored::profile());
         (suite, expected)
     }
 
@@ -317,25 +231,22 @@ pub(crate) mod shard {
         reference: &mut LinterFake,
         candidate: &mut LinterFake,
     ) {
-        if matches!(
-            shape,
-            Shape::FullAgreement | Shape::MissingFrontend | Shape::RuleProjection
-        ) {
-            let frontend = finding("invalid-syntax", 9, 19);
+        if matches!(shape, Shape::FullAgreement | Shape::MissingFrontend | Shape::RuleProjection) {
+            let frontend = authored::finding("invalid-syntax", 9, 19);
             reference.diagnostics.push(frontend.clone());
             if !matches!(shape, Shape::MissingFrontend) {
                 candidate.diagnostics.push(frontend.clone());
             }
             if matches!(shape, Shape::RuleProjection) {
-                let unrelated = finding("F401", 20, 24);
+                let unrelated = authored::finding("F401", 20, 24);
                 reference.diagnostics.push(unrelated.clone());
                 candidate.diagnostics.push(unrelated);
             }
-            let authored = suite.prepared.first_mut().expect("authored case");
+            let case = suite.prepared.first_mut().expect("authored case");
             if !matches!(shape, Shape::RuleProjection) {
-                authored.comparison = CaseComparison::Full;
+                case.comparison = CaseComparison::Full;
             }
-            authored.expected.diagnostics.push(frontend);
+            case.expected.diagnostics.push(frontend);
         }
     }
 }
@@ -344,62 +255,19 @@ pub(crate) mod shard {
 #[cfg(test)]
 pub(crate) mod discrepancy {
     use super::shard::{Shape, prepared};
-    use crate::outbound::{
-        linter::{fixtures::fake::LinterFake, interface::LinterPort},
-        suite::fixtures::fake::SuiteFake,
+    use crate::outbound::linter::{fixtures::fake::LinterFake, interface::LinterPort};
+    use crate::outbound::suite::fixtures::fake::SuiteFake;
+    use crate::outbound::suite::types::{
+        CaseClaim, ClaimedDiscrepancy, ClaimedEvidence, ClaimedIdentity, ClaimedMetadata, ClaimedProcess,
     };
     use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
     use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-    use ryo_benchmark_contracts::domain::measurements::types::{Invocation, ProcessOutput};
-    use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-    use ryo_benchmark_contracts::domain::reports::types::{CoverageAccounting, PairCount, RuleCoverage, RunReport};
-    use ryo_benchmark_contracts::domain::requests::types::{
-        ParserConfigurationName, ParserSelection, ProviderSelection, RunRequest, SearchRoots,
-    };
-    use crate::outbound::linter::types::CanonicalText;
-    use ryo_benchmark_contracts::domain::context::types::{ObservationSelectionPolicy, PreparedRuleContext};
+    use ryo_benchmark_contracts::domain::documents::types::text::value::{CaseName, RuleName, Sha256Text};
+    use ryo_benchmark_contracts::domain::requests::types::{ParserConfigurationName, ParserSelection};
     use ryo_benchmark_contracts::domain::workloads::types::{
-        CaseComparison, DiscrepancyBasis, PreparedCase, DiscrepancyReason, FileObservation,
-        MetadataDigestDeclaration, PreparedReferenceBehavior,
-        PreparedReferenceDiscrepancy, ReferenceDiscrepancyIdentity, RuleContextProfile, Tool,
-        discrepancy_evidence::value::{
-            DiscrepancyEvidence, DiscrepancyEvidenceKind, LanguageVersion, ParserTarget, Rationale,
-        },
+        CaseComparison, DiscrepancyBasis, DiscrepancyReason,
+        discrepancy_evidence::value::{LanguageVersion, ParserTarget, Rationale},
     };
-
-    /// Candidate fixture exposes complete execution accounting independently of its findings.
-    pub(crate) struct CoveredCandidate(pub LinterFake);
-    impl LinterPort for CoveredCandidate {
-        fn rule_configuration(
-            &self,
-        ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
-            ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Unsupported
-        }
-        fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
-            LinterPort::prepare(&self.0, request)
-        }
-        fn decode(&self, request: &RunRequest, output: ProcessOutput) -> Result<RunReport, Error> {
-            let mut report = LinterPort::decode(&self.0, request, output)?;
-            report.coverage = CoverageAccounting::Accounted(RuleCoverage {
-                selected: PairCount(1),
-                evaluated: PairCount(1),
-                skipped: PairCount(0),
-                unknown_or_unread: PairCount(0),
-            });
-            Ok(report)
-        }
-        fn settings_text(
-            &self,
-            normalized: &Invocation,
-            case: &PreparedCase,
-            profile: &Tool,
-        ) -> Result<CanonicalText, Error> {
-            LinterPort::settings_text(&self.0, normalized, case, profile)
-        }
-        fn rule_context_text(&self, prepared: &PreparedRuleContext) -> CanonicalText {
-            LinterPort::rule_context_text(&self.0, prepared)
-        }
-    }
 
     /// A suite whose one case documents how the pinned reference differs from the intended behavior.
     pub(crate) fn discrepancy_suite() -> SuiteFake {
@@ -411,144 +279,68 @@ pub(crate) mod discrepancy {
         reference.diagnostics.clear();
         let profile_hash = ArtifactDigest("a".repeat(64));
         let binary_hash = ArtifactDigest("b".repeat(64));
-        let profile = Tool {
-            rule_observation_selection: ObservationSelectionPolicy::Declared,
-            supporting_rules: Vec::new(),
-            rule_observations: Default::default(),
-            rule_context: RuleContextProfile::Undeclared,
-            file_observation: FileObservation::Undeclared,
-            project_context_mode: ProjectContextMode::Isolated,
-            tool: "fixture".into(),
-            version: "1".into(),
-            sha256: vec![binary_hash.0.clone().into()],
-            defaults: vec![case.rule.clone()],
-            deferred: std::collections::BTreeMap::default(),
-            pending: std::collections::BTreeMap::default(),
-            query_modules: std::collections::BTreeMap::default(),
-            rule_applicability: std::collections::BTreeMap::default(),
-            parser_configuration: ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName(
-                "python-target=3.10".into(),
-            )),
-            source_language: ProviderSelection::Unspecified,
-            project_search_roots: SearchRoots::Undeclared,
-        };
-        let invocation = LinterFake::default()
-            .prepare(&case.request)
-            .expect("fixture invocation");
+        let mut profile = suite.profile.take().expect("authored profile");
+        profile.project_context_mode = ProjectContextMode::Isolated;
+        profile.sha256 = vec![binary_hash.0.clone().into()];
+        profile.defaults = vec![case.rule.clone()];
+        profile.parser_configuration =
+            ParserSelection::Named(ParserConfigurationName("python-target=3.10".into()));
+        let invocation = LinterFake::default().prepare(&case.request).expect("fixture invocation");
         let settings = crate::domain::canonical_text::service::text_digest(
             &crate::application::discrepancy_validation::service::settings_text(
-                &crate::outbound::linter::fixtures::fake::LinterFake::default(),
+                &LinterFake::default(),
                 &invocation,
                 case,
                 &profile,
             )
             .expect("fixture settings"),
         );
-        case.reference_discrepancy = PreparedReferenceBehavior::Differs(PreparedReferenceDiscrepancy {
+        let sha = |digest: &ArtifactDigest| Sha256Text(digest.0.clone());
+        let evidence_digest = Sha256Text("d".repeat(64));
+        let claim = CaseClaim {
+            rule: RuleName(case.rule.to_string()),
+            name: CaseName(case.name.to_string()),
             basis: DiscrepancyBasis::LanguageDefect,
-            identity: ReferenceDiscrepancyIdentity {
-                file_metadata_sha256: MetadataDigestDeclaration::Undeclared,
-                tool: "fixture".into(),
-                version: "1".into(),
-                observed_executable_sha256: binary_hash.clone(),
-                profile_sha256: profile_hash.clone(),
-                settings_sha256: settings,
-                source_sha256: ArtifactDigest("c".repeat(64)),
-                intended_output_sha256: crate::domain::discrepancy::service::output_digest(
-                    &case.expected,
-                ),
-                reference_output_sha256: crate::domain::discrepancy::service::output_digest(&reference),
-            },
-            expected:
-                ryo_benchmark_contracts::domain::process::types::ReferenceExpectation::Diagnostics(
-                    reference,
-                ),
-            reason: DiscrepancyReason(
-                "independent language contract differs from the pinned reference".into(),
-            ),
-            evidence: vec![DiscrepancyEvidence::Language {
-                path: "evidence.json".into(),
-                sha256: ArtifactDigest("d".repeat(64)),
-                kind: DiscrepancyEvidenceKind::IndependentLanguageRun,
-                language_version: LanguageVersion("3.10".into()),
-                target_configuration: ParserTarget("python-target=3.10".into()),
-                version_rationale: Rationale("exact target independently evaluated".into()),
-            }],
-        });
-        suite.profile = Some(profile);
-        let _previous_profile = suite.artifact_digests.insert(
-            std::path::Path::new("/profile")
-                .join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST),
-            profile_hash,
-        );
-        let _previous_binary = suite.artifact_digests.insert("fixture".into(), binary_hash);
-        suite.discrepancy_artifacts_valid = true;
-        let authored_case = suite.prepared.first_mut().expect("authored case");
-        let PreparedReferenceBehavior::Differs(item) = std::mem::replace(
-            &mut authored_case.reference_discrepancy,
-            PreparedReferenceBehavior::Agrees,
-        ) else {
-            unreachable!("fixture canonical certificate")
-        };
-        let identity = item.identity;
-        let discrepancy = {
-            use crate::outbound::suite::types::{
-                ClaimedDiscrepancy, ClaimedEvidence, ClaimedIdentity, ClaimedMetadata, ClaimedProcess,
-            };
-            use ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text;
-            use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::{
-                LanguageVersion, ParserTarget, Rationale,
-            };
-            ClaimedDiscrepancy {
+            discrepancy: ClaimedDiscrepancy {
                 process: ClaimedProcess::Absent,
                 expected: Vec::new(),
                 identity: ClaimedIdentity {
                     file_metadata_sha256: ClaimedMetadata::Undeclared,
-                    tool: identity.tool,
-                    version: identity.version,
-                    observed_executable_sha256: Sha256Text(identity.observed_executable_sha256.0),
-                    profile_sha256: Sha256Text(identity.profile_sha256.0),
-                    settings_sha256: Sha256Text(identity.settings_sha256.0),
-                    source_sha256: Sha256Text(identity.source_sha256.0),
-                    reference_output_sha256: Sha256Text(identity.reference_output_sha256.0),
-                    intended_output_sha256: Sha256Text(identity.intended_output_sha256.0),
+                    tool: "fixture".into(),
+                    version: "1".into(),
+                    observed_executable_sha256: sha(&binary_hash),
+                    profile_sha256: sha(&profile_hash),
+                    settings_sha256: sha(&settings),
+                    source_sha256: Sha256Text("c".repeat(64)),
+                    reference_output_sha256: sha(&crate::domain::discrepancy::service::output_digest(&reference)),
+                    intended_output_sha256: sha(&crate::domain::discrepancy::service::output_digest(&case.expected)),
                 },
                 evidence: vec![ClaimedEvidence::IndependentLanguageRun {
                     path: "evidence.json".into(),
-                    sha256: Sha256Text("d".repeat(64)),
+                    sha256: evidence_digest,
                     language_version: LanguageVersion("3.10".into()),
                     target_configuration: ParserTarget("python-target=3.10".into()),
                     version_rationale: Rationale("exact target independently evaluated".into()),
                 }],
-                reason: item.reason,
-            }
-        };
-        suite.reference_claims.push(
-            crate::outbound::suite::types::CaseClaim {
-                rule: ryo_benchmark_contracts::domain::documents::types::text::value::RuleName(authored_case.rule.to_string()),
-                name: ryo_benchmark_contracts::domain::documents::types::text::value::CaseName(authored_case.name.to_string()),
-                basis: ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect,
-                discrepancy,
+                reason: DiscrepancyReason(
+                    "independent language contract differs from the pinned reference".into(),
+                ),
             },
-        );
+        };
+        suite.reference_claims.push(claim);
+        suite.profile = Some(profile);
+        let manifest = std::path::Path::new("/profile")
+            .join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
+        suite.artifact_digests.insert(manifest, profile_hash);
+        suite.artifact_digests.insert("fixture".into(), binary_hash);
+        suite.discrepancy_artifacts_valid = true;
         suite
     }
 }
 
-/// Raw invocation records, registered documents and the byte streams a fake process observes.
+/// What a validator answers over a replayed receipt, and the case whose unselected context stays bound.
 #[cfg(test)]
 pub(crate) mod process_identity {
-    use crate::outbound::execution::interface::ExecutionPort;
-    use crate::outbound::inventory::{interface::InventoryPort as _, types::Registration};
-    use ryo_benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
-    use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{
-        ArgumentText, CompleteInvocation, EnvironmentName, EnvironmentValue, InvocationDocument,
-    };
-    use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal, YesNo};
-    use ryo_benchmark_contracts::domain::measurements::types::{
-        CapturedBytes, ExecutionProfile, Invocation, ProcessExitCode, ProcessOutput,
-        ResourceObservation, TerminationSignal,
-    };
     use crate::outbound::suite::{
         interface::SuitePort as _,
         types::{ArtifactMetadata, ArtifactPath, ArtifactSet, CaseArtifacts},
@@ -556,8 +348,6 @@ pub(crate) mod process_identity {
     use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
     use ryo_benchmark_contracts::domain::requests::types::StagedSources;
     use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
-    use serde_json::{Value, json};
-    use std::collections::BTreeMap;
 
     /// What a validator answers over a replayed receipt: it admits the receipt or refuses it.
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -573,180 +363,6 @@ pub(crate) mod process_identity {
         match result {
             Ok(_) => Verdict::Accepted,
             Err(_) => Verdict::Refused,
-        }
-    }
-
-    fn pin_text(pin: &Pin) -> Value {
-        match pin {
-            Pin::Absent => Value::Null,
-            Pin::Sha256(digest) => json!(digest.0),
-        }
-    }
-
-    /// The raw invocation record file a capture keeps beside its process bytes.
-    pub(crate) fn invocation_bytes(invocation: &InvocationDocument) -> Vec<u8> {
-        let argument_texts = |values: &[ArgumentText]| {
-            values.iter().map(|value| value.0.clone()).collect::<Vec<_>>()
-        };
-        let environment_texts = |values: &BTreeMap<EnvironmentName, EnvironmentValue>| {
-            values
-                .iter()
-                .map(|(name, value)| (name.0.clone(), value.0.clone()))
-                .collect::<BTreeMap<_, _>>()
-        };
-        let signal = |signal: &Signal| match signal {
-            Signal::Absent => Value::Null,
-            Signal::Number(number) => json!(number.0),
-        };
-        let record = match invocation {
-            InvocationDocument::Complete(complete) => json!({
-                "actual_request_root": complete.actual_request_root.0,
-                "files": complete.files.iter().map(|file| file.0.clone()).collect::<Vec<_>>(),
-                "executable_sha256": complete.executable_sha256.0,
-                "settings_sha256": complete.settings_sha256.0,
-                "normalized_settings": serde_json::from_str::<Value>(&complete.normalized_settings.canonical.0).unwrap(),
-                "profile_sha256": complete.profile_sha256.0,
-                "tool": complete.tool.0, "version": complete.version.0, "state": complete.state.0,
-                "arguments": argument_texts(&complete.arguments),
-                "environment": environment_texts(&complete.environment),
-                "directory": complete.directory.0, "exit": complete.exit.0,
-                "signal": signal(&complete.signal),
-                "observer_no_deadline": complete.observer_no_deadline == YesNo::Yes,
-                "source_sha256": pin_text(&complete.source_sha256),
-                "file_metadata_sha256": pin_text(&complete.file_metadata_sha256),
-            }),
-            InvocationDocument::Failed(failed) => json!({
-                "actual_request_root": failed.actual_request_root.0,
-                "files": failed.files.iter().map(|file| file.0.clone()).collect::<Vec<_>>(),
-                "arguments": argument_texts(&failed.arguments),
-                "environment": environment_texts(&failed.environment),
-                "directory": failed.directory.0, "exit": failed.exit.0,
-                "signal": signal(&failed.signal),
-                "observer_no_deadline": failed.observer_no_deadline == YesNo::Yes,
-                "metadata_error": failed.metadata_error.0,
-                "source_sha256": pin_text(&failed.source_sha256),
-                "file_metadata_sha256": pin_text(&failed.file_metadata_sha256),
-            }),
-        };
-        serde_json::to_vec(&record).unwrap()
-    }
-
-    /// The complete variant of a capture whose process identity was recorded.
-    pub(crate) fn complete_of(invocation: &mut InvocationDocument) -> &mut CompleteInvocation {
-        match invocation {
-            InvocationDocument::Complete(complete) => complete,
-            InvocationDocument::Failed(_) => unreachable!("fixture capture records its identity"),
-        }
-    }
-
-    /// Read a registration the way the offline command does: through the adapter's schema.
-    pub(crate) fn registration_of(case: &Value) -> Registration {
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("registration.json");
-        std::fs::write(
-            &path,
-            json!({"authority":{"kind":"receipt-only"},"provider":"toy","defaults":["A001"],"rules":[{"rule_id":"A001","definition":null,"modules":{},"artifacts":{},"command":null,"reason":null,"cases":[case],"instance":null}]}).to_string(),
-        )
-        .unwrap();
-        crate::outbound::inventory::factory::local()
-            .load(&path)
-            .unwrap()
-    }
-
-    /// One registered case read through the adapter's schema.
-    pub(crate) fn document_of(case: &Value) -> CaseDocument {
-        registration_of(case).rules.remove(0).cases.remove(0)
-    }
-
-    /// Different observed byte streams, independent of any certificate matching implementation.
-    pub(crate) struct Streams {
-        pub stdout: Vec<u8>,
-        pub stderr: Vec<u8>,
-    }
-    impl ExecutionPort for Streams {
-        fn profile(&self) -> ExecutionProfile {
-            ExecutionProfile::Wall
-        }
-        fn exit_observation(&self) -> crate::outbound::execution::types::ExitObservationMode {
-            crate::outbound::execution::types::ExitObservationMode::Direct
-        }
-        fn run(
-            &self,
-            _: Invocation,
-        ) -> Result<ProcessOutput, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
-            Ok(ProcessOutput {
-                status: ProcessExitCode(2),
-                signal: TerminationSignal::Exited,
-                stdout: CapturedBytes(self.stdout.clone()),
-                stderr: CapturedBytes(self.stderr.clone()),
-                wall: std::time::Duration::ZERO,
-                resources: ResourceObservation::WallOnly,
-            })
-        }
-    }
-
-    /// Explicit no-deadline capability; the underlying fixture retains actual invocation history.
-    pub(crate) struct Observer(pub crate::outbound::execution::fixtures::fake::ExecutionFake);
-    impl ExecutionPort for Observer {
-        fn profile(&self) -> ExecutionProfile {
-            self.0.profile()
-        }
-        fn exit_observation(&self) -> crate::outbound::execution::types::ExitObservationMode {
-            crate::outbound::execution::types::ExitObservationMode::Direct
-        }
-        fn run(
-            &self,
-            invocation: Invocation,
-        ) -> Result<ProcessOutput, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
-            self.0.run(invocation)
-        }
-    }
-
-    /// Decode the process-failure certificate a test authored as JSON into its contract value.
-    pub(crate) fn process_failure(
-        value: &Value,
-    ) -> ryo_benchmark_contracts::domain::process::types::ProcessFailure {
-        use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-        use ryo_benchmark_contracts::domain::process::types::{
-            OutputPart, OutputText, PathEncoding, ProcessArtifact, ProcessFailure, ProcessObservation,
-        };
-        let text = |value: &Value| value.as_str().expect("certificate text").to_owned();
-        let parts = |value: &Value| -> Vec<OutputPart> {
-            value
-                .as_array()
-                .expect("output parts")
-                .iter()
-                .map(|part| match part["kind"].as_str().expect("part kind") {
-                    "literal" => OutputPart::Literal(OutputText(text(&part["value"]))),
-                    _ => OutputPart::InputPath {
-                        file: text(&part["file"]).into(),
-                        encoding: match part["encoding"].as_str().expect("encoding") {
-                            "utf8-bytes" => PathEncoding::Utf8Bytes,
-                            _ => PathEncoding::JsonStringContent,
-                        },
-                    },
-                })
-                .collect()
-        };
-        let artifact = |value: &Value| ProcessArtifact {
-            path: text(&value["path"]).into(),
-            sha256: ArtifactDigest(text(&value["sha256"])),
-        };
-        ProcessFailure {
-            exit: ProcessExitCode(i32::try_from(value["exit"].as_i64().expect("exit")).expect("exit")),
-            stdout: parts(&value["stdout"]),
-            stderr: parts(&value["stderr"]),
-            observations: value["observations"]
-                .as_array()
-                .expect("observations")
-                .iter()
-                .map(|row| ProcessObservation {
-                    executable_sha256: ArtifactDigest(text(&row["executable-sha256"])),
-                    invocation: artifact(&row["invocation"]),
-                    stdout: artifact(&row["stdout"]),
-                    stderr: artifact(&row["stderr"]),
-                })
-                .collect(),
         }
     }
 
@@ -818,10 +434,7 @@ pub(crate) mod process_identity {
 /// Small real-file fixtures; only child execution is substituted, not artifact or comparison policy.
 #[cfg(test)]
 pub(crate) mod process_capture {
-    use super::process_identity::{
-        Observer, Streams, Verdict, complete_of, document_of, invocation_bytes, process_failure,
-        registration_of, verdict,
-    };
+    use super::process_identity::{Verdict, verdict};
     use crate::application::case_execution::service::run as run_case;
     use crate::application::case_observation::service::write as record;
     use crate::domain::discrepancy::types::{
@@ -833,11 +446,15 @@ pub(crate) mod process_capture {
             interface::InventoryPort as _,
             types::{RawArtifacts, Registration},
         },
+        execution::fixtures::observers::{Observer, Streams},
+        inventory::fixtures::registrations::{
+            complete_of, document_of, invocation_bytes, process_failure, registration_of,
+        },
         receipts::{
             fixtures::fake::ReceiptsFake, interface::ReceiptsPort as _, types::ReceiptPath,
         },
         suite::{
-            fixtures::fake::SuiteFake,
+            fixtures::{authored, fake::SuiteFake},
             interface::SuitePort as _,
             types::ArtifactPath,
         },
@@ -852,12 +469,9 @@ pub(crate) mod process_capture {
     use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Sha256Text, YesNo};
     use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
     use ryo_benchmark_contracts::domain::process::types::{ProcessFailure, ReferenceExpectation};
-    use ryo_benchmark_contracts::domain::reports::types::{
-        ExecutionMetadata, RuleCoverage, RunReport,
-    };
-    use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+    use ryo_benchmark_contracts::domain::requests::types::{ParserConfigurationName, ParserSelection};
     use ryo_benchmark_contracts::domain::workloads::types::{
-        CaseComparison, PreparedCase, PreparedReferenceDiscrepancy, ReferenceDiscrepancyIdentity, Tool,
+        CaseComparison, PreparedCase, PreparedReferenceDiscrepancy, ReferenceDiscrepancyIdentity,
     };
     use serde_json::{Value, json};
     use sha2::Digest as _;
@@ -941,60 +555,21 @@ pub(crate) mod process_capture {
             std::fs::write(source.join("case.py"), b"x = 1\n").unwrap();
             let rules = source.join("rules");
             let receipt = source.join("cases.jsonl");
-            let profile = Tool {
-                rule_observation_selection:
-                    ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
-                supporting_rules: Vec::new(),
-                rule_observations: Default::default(),
-                rule_context: ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared,
-                file_observation: ryo_benchmark_contracts::domain::workloads::types::FileObservation::Undeclared,
-                project_context_mode: ProjectContextMode::Isolated,
-                tool: name.into(),
-                version: "1".into(),
-                sha256: vec!["a".repeat(64).into()],
-                defaults: vec![ryo::linter::RuleId::try_from("A001").unwrap()],
-                deferred: BTreeMap::new(),
-                pending: BTreeMap::new(),
-                query_modules: BTreeMap::new(),
-                rule_applicability: BTreeMap::new(),
-                parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName("python3.10".into())),
-                source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
-                project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
-            };
-            let expected = RunReport {
-                execution_metadata: ExecutionMetadata::Complete,
-                project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
-                diagnostics: vec![],
-                skipped: vec![],
-                coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(RuleCoverage {
-                    selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-                    evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-                    skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                    unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                }),
-                files: vec![ryo::linter::RelativePath("case.py".into())],
-            };
-            let mut prepared = PreparedCase {
-                comparison: CaseComparison::Full,
-                rule: ryo::linter::RuleId::try_from("A001").unwrap(),
-                name: name.into(),
-                request: RunRequest {
-                    performance: Default::default(),
-                    selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
-                    rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
-                    rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-                    project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
-                    given_project_inventory: Default::default(),
-                    staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
-                    file_metadata: ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
-                    root: source.clone(),
-                    state: source.join("state"),
-                    files: expected.files.clone(),
-                    context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
-                },
-                expected,
-                reference_discrepancy: ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees,
-            };
+            let rule = ryo::linter::RuleId::try_from("A001").unwrap();
+            let mut profile = authored::profile();
+            profile.tool = name.into();
+            profile.project_context_mode = ProjectContextMode::Isolated;
+            profile.sha256 = vec!["a".repeat(64).into()];
+            profile.defaults = vec![rule.clone()];
+            profile.parser_configuration =
+                ParserSelection::Named(ParserConfigurationName("python3.10".into()));
+            let mut prepared = authored::case(&authored::finding("A001", 0, 0));
+            prepared.comparison = CaseComparison::Full;
+            prepared.rule = rule;
+            prepared.name = name.into();
+            prepared.expected.diagnostics.clear();
+            prepared.request.root = source.clone();
+            prepared.request.state = source.join("state");
             let mut suite = SuiteFake {
                 profile: Some(profile.clone()),
                 discrepancy_artifacts_valid: true,

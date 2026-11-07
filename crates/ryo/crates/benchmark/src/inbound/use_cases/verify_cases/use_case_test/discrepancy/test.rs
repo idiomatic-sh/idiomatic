@@ -2,11 +2,12 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::discrepancy::types::IntentAgreement;
 use crate::inbound::use_cases::verify_cases::fixtures::{
-    discrepancy::{CoveredCandidate, discrepancy_suite},
+    discrepancy::discrepancy_suite,
     shard::{Refusal, category, history_len, succeeding, verify_shard},
 };
 use crate::outbound::{
-    execution::fixtures::fake::ExecutionFake, linter::fixtures::fake::LinterFake,
+    execution::fixtures::fake::ExecutionFake,
+    linter::fixtures::{covered::CoveredCandidate, fake::LinterFake},
     receipts::fixtures::fake::ReceiptsFake, suite::fixtures::fake::SuiteFake,
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;

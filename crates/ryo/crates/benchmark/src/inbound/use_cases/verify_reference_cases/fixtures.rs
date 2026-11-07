@@ -57,21 +57,8 @@ pub(crate) mod authored {
         execution::fixtures::fake::ExecutionFake, linter::fixtures::fake::LinterFake,
         receipts::fixtures::fake::ReceiptsFake, suite::fixtures::fake::SuiteFake,
     };
-    use ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy;
-    use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
     use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
-    use ryo_benchmark_contracts::domain::reports::types::{
-        BenchmarkFinding, CoverageAccounting, ExecutionMetadata, PairCount, ProjectContext,
-        RuleCoverage, RunReport, SourceByteOffset,
-    };
-    use ryo_benchmark_contracts::domain::requests::types::{
-        CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration, ParserSelection,
-        ProviderSelection, RuleContextPreparation, RunRequest, SearchRoots, StagedSources,
-    };
-    use ryo_benchmark_contracts::domain::workloads::types::{
-        CaseComparison, FileObservation, PreparedCase, PreparedReferenceBehavior,
-        RuleContextProfile, Tool,
-    };
+    use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
     use std::path::Path;
 
     /// The shape of the authored suite the reference answers.
@@ -120,92 +107,22 @@ pub(crate) mod authored {
         }
     }
 
-    /// The complete one-file report with `diagnostics`.
-    fn report(diagnostics: Vec<BenchmarkFinding>) -> RunReport {
-        RunReport {
-            execution_metadata: ExecutionMetadata::Complete,
-            project_context: ProjectContext::NotRequested,
-            files: vec![ryo::linter::RelativePath("case.py".into())],
-            skipped: Vec::new(),
-            coverage: CoverageAccounting::Accounted(RuleCoverage {
-                selected: PairCount(1),
-                evaluated: PairCount(1),
-                skipped: PairCount(0),
-                unknown_or_unread: PairCount(0),
-            }),
-            diagnostics,
-        }
-    }
-
-    /// A finding of `rule` over `start..end` bytes of the case file.
-    pub(crate) fn finding(rule: &str, start: usize, end: usize) -> BenchmarkFinding {
-        BenchmarkFinding {
-            rule: ryo::linter::RuleId::try_from(rule).expect("fixture rule identity"),
-            file: ryo::linter::RelativePath("case.py".into()),
-            start: SourceByteOffset(start),
-            end: SourceByteOffset(end),
-        }
-    }
-
-    /// A request over the one case file.
-    fn request() -> RunRequest {
-        RunRequest {
-            performance: Default::default(),
-            selected_rules: CohortSelection::Frozen,
-            rule_observations: InputDeclaration::Undeclared,
-            rule_context: RuleContextPreparation::Unconfigured,
-            project_search_roots: SearchRoots::Undeclared,
-            given_project_inventory: Default::default(),
-            staged_sources: StagedSources::Unlisted,
-            file_metadata: FileMetadataDeclaration::Undeclared,
-            context_manifest: ContextSeal::Unsealed,
-            root: ".".into(),
-            files: vec![ryo::linter::RelativePath("case.py".into())],
-            state: "cache".into(),
-        }
-    }
-
     /// Construct authored evidence independently from the reference's response.
     pub(crate) fn prepared(shape: Shape) -> (SuiteFake, BenchmarkFinding) {
-        let expected = finding("E722", 0, 6);
+        let expected = authored::finding("E722", 0, 6);
         let mut suite = SuiteFake::default();
         if !matches!(shape, Shape::NoCases) {
-            suite.prepared.push(PreparedCase {
-                reference_discrepancy: PreparedReferenceBehavior::Agrees,
-                comparison: CaseComparison::Rule,
-                rule: ryo::linter::RuleId::try_from("E722").unwrap(),
-                name: "positive".into(),
-                request: request(),
-                expected: report(vec![expected.clone()]),
-            });
+            suite.prepared.push(authored::case(&expected));
         }
-        suite.profile = Some(Tool {
-            rule_observation_selection: ObservationSelectionPolicy::Declared,
-            supporting_rules: Vec::new(),
-            rule_observations: Default::default(),
-            rule_context: RuleContextProfile::Undeclared,
-            file_observation: FileObservation::Undeclared,
-            project_context_mode: ProjectContextMode::default(),
-            tool: "fixture".into(),
-            version: "1".into(),
-            sha256: vec!["pin".into()],
-            defaults: vec!["E722".try_into().unwrap(), "F901".try_into().unwrap()],
-            deferred: std::collections::BTreeMap::default(),
-            pending: std::collections::BTreeMap::default(),
-            query_modules: std::collections::BTreeMap::default(),
-            rule_applicability: std::collections::BTreeMap::default(),
-            parser_configuration: ParserSelection::Unspecified,
-            source_language: ProviderSelection::Unspecified,
-            project_search_roots: SearchRoots::Undeclared,
-        });
+        suite.profile = Some(authored::profile());
         (suite, expected)
     }
 
     /// Give the reference parser diagnostics and an unrelated lint as a control, and the authored case the parser diagnostic.
     pub(crate) fn project_rules(suite: &mut SuiteFake, reference: &mut LinterFake) {
-        let frontend = finding("invalid-syntax", 9, 19);
+        let frontend = authored::finding("invalid-syntax", 9, 19);
         reference.diagnostics.push(frontend.clone());
-        reference.diagnostics.push(finding("F401", 20, 24));
+        reference.diagnostics.push(authored::finding("F401", 20, 24));
         suite
             .prepared
             .first_mut()

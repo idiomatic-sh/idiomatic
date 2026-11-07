@@ -29,15 +29,15 @@ fn matching() -> Input {
     let report = RunReport {
         execution_metadata:
             ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-        project_context: None,
+        project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
         files: vec![ryo::linter::RelativePath("input.txt".into())],
         skipped: Vec::new(),
-        coverage: Some(
+        coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
             ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                selected: 1,
-                evaluated: 1,
-                skipped: 0,
-                unknown_or_unread: 0,
+                selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+                evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+                skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+                unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
             },
         ),
         diagnostics: Vec::new(),

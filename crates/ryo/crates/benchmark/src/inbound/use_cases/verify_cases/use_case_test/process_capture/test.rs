@@ -6,11 +6,9 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::discrepancy::types::Contestant;
 use crate::domain::inventory_receipts::types::{ReceiptCounts, Tally};
 use crate::domain::process_failure::types::{CaptureRecord, ProcessCapture};
-use crate::inbound::use_cases::verify_cases::fixtures::{
-    process_capture::{Fixture, context, file_member},
-    process_identity::{Observer, complete_of},
-};
-use crate::outbound::execution::fixtures::fake::ExecutionFake;
+use crate::inbound::use_cases::verify_cases::fixtures::process_capture::{Fixture, context, file_member};
+use crate::outbound::execution::fixtures::{fake::ExecutionFake, observers::Observer};
+use crate::outbound::inventory::fixtures::registrations::complete_of;
 use crate::outbound::linter::fixtures::fake::LinterFake;
 use crate::outbound::receipts::{fixtures::fake::ReceiptsFake, types::CaseReceipts};
 use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;

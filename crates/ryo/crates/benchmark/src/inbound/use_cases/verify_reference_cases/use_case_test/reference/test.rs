@@ -1,9 +1,10 @@
 //! Reference-only verification holds the reference to its exact derived expectation.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::verify_reference_cases::fixtures::authored::{
-    Refusal, Shape, category, finding, history_len, prepared, project_rules, succeeding,
+    Refusal, Shape, category, history_len, prepared, project_rules, succeeding,
     verify_reference,
 };
+use crate::outbound::suite::fixtures::authored::finding;
 use crate::outbound::{
     execution::fixtures::fake::ExecutionFake,
     linter::fixtures::fake::LinterFake, suite::fixtures::fake::SuiteFake,
