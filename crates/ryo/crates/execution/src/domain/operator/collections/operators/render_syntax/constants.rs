@@ -20,11 +20,7 @@ pub(crate) fn description() -> OperatorDescription {
                 "Embedding role: assignment-target, attribute-receiver, or positional-argument.",
                 FieldRequirement::Required,
             ),
-            field(
-                OUTPUT,
-                "New exact text column.",
-                FieldRequirement::Required,
-            ),
+            field(OUTPUT, "New exact text column.", FieldRequirement::Required),
         ],
         &[],
         r#"let example = render-syntax(from="syntax-tree", node="id", context="assignment-target", output="rendered"); emit example subject file key(id);"#,

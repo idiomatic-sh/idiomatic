@@ -1,7 +1,7 @@
 //! The names of the `operator` concept: what each operator is called and how it is described,
 //! text that leaves the engine in `operator list` and `operator describe`.
 
-use crate::domain::describing::constants::{described, field, DESTINATION, RELATION};
+use crate::domain::describing::constants::{DESTINATION, RELATION, described, field};
 use ryo_relations::domain::relations::constants::SOURCE;
 use ryo_values::domain::descriptions::constants::{COLUMN, COLUMNS, DIGEST};
 use ryo_values::domain::descriptions::types::{FieldRequirement, OperatorDescription};
@@ -363,11 +363,7 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
             vec![
                 field("edges", "Directed edge rows.", FieldRequirement::Required),
                 field(SOURCE, "Edge source.", FieldRequirement::Required),
-                field(
-                    DESTINATION,
-                    "Edge destination.",
-                    FieldRequirement::Required,
-                ),
+                field(DESTINATION, "Edge destination.", FieldRequirement::Required),
                 field(
                     "keys",
                     "Optional columns defining independent exact graph partitions, in output order.",
@@ -401,11 +397,7 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
             vec![
                 field("edges", "Directed edge rows.", FieldRequirement::Required),
                 field(SOURCE, "Edge source.", FieldRequirement::Required),
-                field(
-                    DESTINATION,
-                    "Edge destination.",
-                    FieldRequirement::Required,
-                ),
+                field(DESTINATION, "Edge destination.", FieldRequirement::Required),
             ],
             &[],
             r#"let example = cycles(edges="source-dependency", source=source, destination=target); emit example subject source key(target);"#,

@@ -5,10 +5,10 @@ pub(crate) mod observations;
 
 use super::types::{FileProgramNode, NodeId, NodeInput, ObservationRequest, RequestGraph};
 
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{Input, Operand, QueryLiteral, StepId};
 use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::{Operation, Plan};
-use ryo_values::domain::plan_parts::types::StepScope;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
@@ -38,9 +38,7 @@ fn node_input(
         Input::BoundObservation(input) => Some((
             Input::Step(StepId(0)),
             NodeInput::Observation(super::types::ObservationGraphInputId(
-                bound_offsets
-                    .get(rule)?
-                    .checked_add(input.0 as usize)?,
+                bound_offsets.get(rule)?.checked_add(input.0 as usize)?,
             )),
         )),
         Input::Step(step) => Some((

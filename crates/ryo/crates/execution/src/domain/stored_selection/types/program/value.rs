@@ -100,12 +100,7 @@ impl<'a> SelectionProgram<'a> {
                 if !kept.is_empty() {
                     selector.columns = kept
                         .iter()
-                        .map(|index| {
-                            selector
-                                .columns
-                                .get(index.0 as usize)
-                                .copied()
-                        })
+                        .map(|index| selector.columns.get(index.0 as usize).copied())
                         .collect::<Option<_>>()?;
                 }
                 Some(selector)
@@ -118,12 +113,7 @@ impl<'a> SelectionProgram<'a> {
                 let mut selector = self.input(*from, steps)?;
                 selector.columns = columns
                     .iter()
-                    .map(|index| {
-                        selector
-                            .columns
-                            .get(index.0 as usize)
-                            .copied()
-                    })
+                    .map(|index| selector.columns.get(index.0 as usize).copied())
                     .collect::<Option<_>>()?;
                 selector.distinct = *distinct == RepeatedRows::Dropped;
                 Some(selector)
@@ -158,9 +148,7 @@ impl<'a> SelectionProgram<'a> {
     /// Remap physical columns and only the bindings this exact predicate sequence references.
     fn operand(&self, operand: &Operand, selector: &mut Selector) -> Option<Operand> {
         Some(match operand {
-            Operand::Column(index) => {
-                Operand::Column(*selector.columns.get(index.0 as usize)?)
-            }
+            Operand::Column(index) => Operand::Column(*selector.columns.get(index.0 as usize)?),
             Operand::Literal(value) => Operand::Literal(value.clone()),
             Operand::Parameter(id) => {
                 let value = self.bindings.get(id.0 as usize)?;

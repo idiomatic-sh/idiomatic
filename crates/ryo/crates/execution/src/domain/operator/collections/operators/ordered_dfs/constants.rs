@@ -1,5 +1,5 @@
 //! The ordered DFS call's public description.
-use crate::domain::describing::constants::{described, field, DESTINATION};
+use crate::domain::describing::constants::{DESTINATION, described, field};
 use ryo_values::domain::descriptions::constants::OUTPUT;
 use ryo_values::domain::descriptions::types::{FieldRequirement, OperatorDescription};
 /// Describe independent ordered graph walks and their emitted edge visits.
