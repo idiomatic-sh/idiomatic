@@ -5,13 +5,12 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use ryo_core::outbound::scheduler::factory::{pool, rayon, sequential, workers};
+use ryo_core::outbound::scheduler::factory::{rayon, sequential};
 use ryo_core::outbound::scheduler::interface::SchedulerPort;
-use ryo_core::outbound::scheduler::types::{JobCount, JobNumber};
-use ryo_values::domain::runs::types::WorkersAsked;
+use ryo_core::outbound::scheduler::types::{JobCount, JobNumber, WorkerCount};
 
-/// How many workers are asked for.
-const ASKED: usize = 4;
+/// How many workers the pool has.
+const ASKED: u32 = 4;
 
 /// How many jobs each run has.
 const JOBS: JobCount = JobCount(64);
@@ -43,7 +42,7 @@ fn job(total: &AtomicU64) -> Box<dyn FnMut(JobNumber) + Send + '_> {
 /// Runs `JOBS` jobs on `scheduler`, each summing a thousand numbers, and answers their total.
 fn run_jobs(scheduler: &dyn SchedulerPort) -> u64 {
     let total = AtomicU64::new(0);
-    let count = workers(WorkersAsked(ASKED)).0;
+    let count = ASKED;
     let mut each = std::iter::repeat_with(|| job(&total))
         .take(usize::try_from(count).unwrap_or(1))
         .collect::<Vec<_>>();
@@ -55,13 +54,13 @@ fn run_jobs(scheduler: &dyn SchedulerPort) -> u64 {
 /// Builds what the variant names, and for a scheduler runs the jobs on it.
 #[divan::bench(args = Variant::ALL)]
 fn build_and_run(variant: Variant) -> u64 {
-    let asked = WorkersAsked(ASKED);
+    let asked = WorkerCount(ASKED);
     match variant {
         Variant::Pool => {
-            drop(divan::black_box(pool(asked)));
-            u64::from(workers(asked).0)
+            drop(divan::black_box(rayon(asked)));
+            u64::from(asked.0)
         }
-        Variant::Rayon => run_jobs(&rayon(pool(asked))),
+        Variant::Rayon => run_jobs(&rayon(asked)),
         Variant::Sequential => run_jobs(&sequential()),
     }
 }

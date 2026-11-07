@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use ryo_core::inbound::use_cases::lint::types::{LintRequest, ParameterValue, Rule, RuleParameter};
 use ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl;
-use ryo_core::outbound::language::types::LanguageHandles;
+use ryo_core::outbound::language::factory::LanguageConnection;
 use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_values::domain::runs::types::Budget;
 use ryo_values::domain::runs::types::Session;
@@ -317,7 +317,7 @@ pub(crate) fn lint_report_with_languages(
     lint_store: Arc<dyn ryo_core::outbound::lint_store::interface::LintStorePort>,
     hosted: Vec<ryo_values::domain::hosted::types::HostRelation>,
     manifests_read: bool,
-    additional: Vec<LanguageHandles>,
+    additional: Vec<LanguageConnection>,
 ) -> Result<
     (
         Vec<Vec<String>>,
@@ -326,18 +326,18 @@ pub(crate) fn lint_report_with_languages(
     String,
 > {
     let rust = ryo_rust::linked();
-    let mut handles = vec![LanguageHandles::from(rust)];
+    let mut handles = vec![LanguageConnection::from(rust)];
     handles.extend(additional);
     // Rules that locate a finding in a manifest read its tree, which only the TOML language gives.
     if manifests_read {
         let toml = ryo_toml::linked();
-        handles.push(LanguageHandles::from(toml));
+        handles.push(LanguageConnection::from(toml));
     }
     let compile = CompileUseCaseImpl::new(
         Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
         Arc::new(ryo_query_language::outbound::catalog::factory::language()),
     );
-    let collected = row_sink::types::Collector::default();
+    let collected = row_sink::factory::CollectorConnection::default();
     let kept: Arc<dyn RowSinkPort> = Arc::new(row_sink::factory::collect(collected.clone()));
     let use_case = {
         let analysis_corpus: Arc<dyn corpus::interface::CorpusPort> =
@@ -354,6 +354,15 @@ pub(crate) fn lint_report_with_languages(
         let analysis_digest: Arc<
             dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
         > = Arc::new(digest::factory::blake3());
+        let started = scheduler::types::WorkerCount(
+            ryo_values::domain::runs::service::workers_to_start(
+                ryo_values::domain::runs::types::WorkersAsked(0),
+                ryo_values::domain::runs::types::MachineWorkers(
+                    u32::try_from(std::thread::available_parallelism().map_or(1, std::num::NonZero::get)).unwrap_or(1),
+                ),
+            )
+            .0,
+        );
         LintUseCaseImpl::new(
             ryo_core::application::file_analysis::service::FileAnalysis::new(
                 Arc::clone(&analysis_corpus),
@@ -382,10 +391,8 @@ pub(crate) fn lint_report_with_languages(
             std::sync::Arc::new(ryo_execution::outbound::derived::factory::use_case(
                 ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
             )),
-            Arc::new(scheduler::factory::rayon(scheduler::factory::pool(
-                ryo_values::domain::runs::types::WorkersAsked(0),
-            ))),
-            scheduler::factory::workers(ryo_values::domain::runs::types::WorkersAsked(0)),
+            Arc::new(scheduler::factory::rayon(started)),
+            started,
             Arc::clone(&kept),
             Arc::clone(&analysis_digest),
             lint_store,
@@ -449,7 +456,7 @@ pub(crate) fn does_not_run(each: &Recording) -> Option<String> {
 }
 
 /// The findings a lint kept, each as the text a recording holds: the rule, the subject, the key, the line and the character.
-pub(crate) fn base_rows(collected: &row_sink::types::Collector) -> Vec<Vec<String>> {
+pub(crate) fn base_rows(collected: &row_sink::factory::CollectorConnection) -> Vec<Vec<String>> {
     std::mem::take(
         &mut *collected
             .0

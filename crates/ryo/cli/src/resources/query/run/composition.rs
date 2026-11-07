@@ -64,6 +64,15 @@ pub(crate) fn build(
     let digests: Arc<dyn DigestPort> = Arc::new(digest::factory::blake3());
     let memory: Arc<dyn MemoryPort> = Arc::new(memory::factory::sysinfo(budget));
     let store: Arc<dyn LintStorePort> = Arc::new(lint_store::factory::postcard(kept_in));
+    let started = scheduler::types::WorkerCount(
+        ryo_values::domain::runs::service::workers_to_start(
+            workers,
+            ryo_values::domain::runs::types::MachineWorkers(
+                u32::try_from(std::thread::available_parallelism().map_or(1, std::num::NonZero::get)).unwrap_or(1),
+            ),
+        )
+        .0,
+    );
     compose(QueryRunParts {
         service: LintUseCaseImpl::new(
             FileAnalysis::new(
@@ -83,8 +92,8 @@ pub(crate) fn build(
                 ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
             )),
 std::sync::Arc::new(ryo_execution::outbound::derived::factory::use_case(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new())),
-            Arc::new(scheduler::factory::rayon(scheduler::factory::pool(workers))),
-            scheduler::factory::workers(workers),
+            Arc::new(scheduler::factory::rayon(started)),
+            started,
             Arc::new(crate::output::schemas::rows(out, edge.format)),
             digests,
             store,

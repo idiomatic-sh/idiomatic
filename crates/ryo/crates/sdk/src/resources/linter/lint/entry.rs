@@ -102,10 +102,7 @@ pub fn lint_with(linter: &Linter, mut request: LintRequest) -> Result<LintReport
 /// that cannot be started is answered by the first run over it, as `Io` of the scheduler.
 impl From<Workers> for WorkerPool {
     fn from(workers: Workers) -> Self {
-        let asked = schemas::workers(workers);
-        Self::scheduler(
-            super::composition::build_pool(asked),
-            super::composition::build_workers(asked),
-        )
+        let started = super::composition::build_workers(schemas::workers(workers));
+        Self::scheduler(super::composition::build_pool(started), started)
     }
 }

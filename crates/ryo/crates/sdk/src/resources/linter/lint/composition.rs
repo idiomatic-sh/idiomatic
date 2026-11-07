@@ -36,8 +36,8 @@ where
 }
 
 /// The production place the rows of a run are kept in, which the caller takes them from after the run.
-pub(crate) fn build_rows() -> row_sink::types::Collector {
-    row_sink::types::Collector::default()
+pub(crate) fn build_rows() -> row_sink::factory::CollectorConnection {
+    row_sink::factory::CollectorConnection::default()
 }
 
 /// What the caller set for one run's adapters: the repository the corpus reads and the memory the run may use. The pool
@@ -67,7 +67,7 @@ pub(crate) fn build_engine(
     );
     let handles = languages
         .into_iter()
-        .map(language::types::LanguageHandles::from)
+        .map(language::factory::LanguageConnection::from)
         .collect();
     let syntax = Arc::new(ryo_query_language::outbound::syntax::factory::winnow());
     let catalog = Arc::new(ryo_query_language::outbound::catalog::factory::language());
@@ -102,7 +102,7 @@ pub(crate) fn build_engine(
 /// them: the store in the cache directory the connections name, or one in memory for a run that keeps nothing.
 pub(crate) fn build(
     engine: &LinterLintEngine,
-    collector: row_sink::types::Collector,
+    collector: row_sink::factory::CollectorConnection,
     reading: Reading,
     connections: &LinterLintConnections,
     settings: LinterLintSettings,
@@ -192,16 +192,24 @@ std::sync::Arc::new(ryo_execution::outbound::derived::factory::use_case(ryo_deri
 /// Builds the scheduler over the pool of threads runs read files on: `asked` of them, at most as many as the machine has, and as many
 /// as it has when none is asked.
 pub(crate) fn build_pool(
-    asked: ryo_values::domain::runs::types::WorkersAsked,
+    workers: scheduler::types::WorkerCount,
 ) -> Arc<dyn scheduler::interface::SchedulerPort> {
-    Arc::new(scheduler::factory::rayon(scheduler::factory::pool(asked)))
+    Arc::new(scheduler::factory::rayon(workers))
 }
 
 /// How many workers `build_pool(asked)` runs jobs on.
 pub(crate) fn build_workers(
     asked: ryo_values::domain::runs::types::WorkersAsked,
 ) -> scheduler::types::WorkerCount {
-    scheduler::factory::workers(asked)
+    scheduler::types::WorkerCount(
+        ryo_values::domain::runs::service::workers_to_start(
+            asked,
+            ryo_values::domain::runs::types::MachineWorkers(
+                u32::try_from(std::thread::available_parallelism().map_or(1, std::num::NonZero::get)).unwrap_or(1),
+            ),
+        )
+        .0,
+    )
 }
 
 /// Chooses the service that checks the repository can be linted with the budget.
@@ -252,7 +260,7 @@ pub(crate) fn build_reading(
 /// A linked language as the engine's language port takes it: its name, its build and its two use cases. What every edge of the SDK, and
 /// the command line, composes the engine with: the use cases are reached through the engine, never through a method of the language.
 #[doc(hidden)]
-impl From<Language> for language::types::LanguageHandles {
+impl From<Language> for language::factory::LanguageConnection {
     fn from(linked: Language) -> Self {
         Self {
             name: ryo_values::domain::descriptions::types::LanguageName(linked.name().0.clone()),
@@ -269,7 +277,7 @@ impl From<Arc<rayon::ThreadPool>> for WorkerPool {
         let workers = scheduler::types::WorkerCount(
             u32::try_from(pool.current_num_threads()).unwrap_or(u32::MAX),
         );
-        Self::scheduler(Arc::new(scheduler::factory::rayon(Ok(pool))), workers)
+        Self::scheduler(Arc::new(scheduler::factory::rayon_over(pool)), workers)
     }
 }
 

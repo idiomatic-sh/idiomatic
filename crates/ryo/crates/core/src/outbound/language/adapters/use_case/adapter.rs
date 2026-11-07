@@ -20,7 +20,7 @@ use ryo_relations::domain::relations::types::{Bytes, Relation};
 
 use crate::outbound::language::errors::LanguageError;
 use crate::outbound::language::interface::LanguagePort;
-use crate::outbound::language::types::LanguageHandles;
+use super::connection::LanguageConnection;
 use crate::outbound::language::types::RoleWriting;
 use crate::outbound::language::types::{
     Absence, FileReading, FileToRead, LinkedName, ManifestReading, NoteWriting, ProjectAnswer,
@@ -63,7 +63,7 @@ fn project_request(input: &ProjectToRead<'_>, number: LanguageNumber) -> Project
 #[derive(Debug)]
 pub(crate) struct LanguageUseCaseAdapter {
     /// The languages linked, in the order they are listed and numbered in.
-    languages: Vec<LanguageHandles>,
+    languages: Vec<LanguageConnection>,
 }
 
 impl LanguageUseCaseAdapter {
@@ -75,7 +75,7 @@ impl LanguageUseCaseAdapter {
     }
 
     /// The adapter with one more language linked, after those already linked: the order it lists and numbers them in.
-    pub(crate) fn with(mut self, language: LanguageHandles) -> Self {
+    pub(crate) fn with(mut self, language: LanguageConnection) -> Self {
         self.languages.push(language);
         self
     }

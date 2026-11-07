@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use ryo_core::inbound::use_cases::lint::types::{LintRequest, Rule};
 use ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl;
-use ryo_core::outbound::language::types::LanguageHandles;
+use ryo_core::outbound::language::factory::LanguageConnection;
 use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_values::domain::runs::types::Budget;
 use ryo_values::domain::runs::types::Session;
@@ -162,7 +162,7 @@ pub(crate) fn lint_observing<T>(
         Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
         Arc::new(ryo_query_language::outbound::catalog::factory::language()),
     );
-    let collected = row_sink::types::Collector::default();
+    let collected = row_sink::factory::CollectorConnection::default();
     let kept: Arc<dyn RowSinkPort> = Arc::new(row_sink::factory::collect(collected.clone()));
     let use_case = {
         let analysis_corpus: Arc<dyn corpus::interface::CorpusPort> =
@@ -173,7 +173,7 @@ pub(crate) fn lint_observing<T>(
                 corpus::types::SkippedDirectories(vec![".ryo_cache".into()]),
             ));
         let analysis_language: Arc<dyn language::interface::LanguagePort> = Arc::new(Counting {
-            language: Arc::new(language::factory::use_case(vec![LanguageHandles::from(
+            language: Arc::new(language::factory::use_case(vec![LanguageConnection::from(
                 rust,
             )])),
             reads: Arc::clone(&reads),
@@ -184,6 +184,15 @@ pub(crate) fn lint_observing<T>(
         let analysis_digest: Arc<
             dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
         > = Arc::new(digest::factory::blake3());
+        let started = scheduler::types::WorkerCount(
+            ryo_values::domain::runs::service::workers_to_start(
+                ryo_values::domain::runs::types::WorkersAsked(workers),
+                ryo_values::domain::runs::types::MachineWorkers(
+                    u32::try_from(std::thread::available_parallelism().map_or(1, std::num::NonZero::get)).unwrap_or(1),
+                ),
+            )
+            .0,
+        );
         LintUseCaseImpl::new(
             ryo_core::application::file_analysis::service::FileAnalysis::new(
                 Arc::clone(&analysis_corpus),
@@ -212,10 +221,8 @@ pub(crate) fn lint_observing<T>(
             std::sync::Arc::new(ryo_execution::outbound::derived::factory::use_case(
                 ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
             )),
-            Arc::new(scheduler::factory::rayon(scheduler::factory::pool(
-                ryo_values::domain::runs::types::WorkersAsked(workers),
-            ))),
-            scheduler::factory::workers(ryo_values::domain::runs::types::WorkersAsked(workers)),
+            Arc::new(scheduler::factory::rayon(started)),
+            started,
             Arc::clone(&kept),
             Arc::clone(&analysis_digest),
             lint_store,

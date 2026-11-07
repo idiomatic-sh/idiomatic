@@ -142,7 +142,7 @@ struct LintRequestSchema(LintRequest);
 /// What a lint answered and what its findings were kept as.
 struct LintReportSchema {
     /// Where the rows the run wrote were kept.
-    collector: ryo_core::outbound::row_sink::types::Collector,
+    collector: ryo_core::outbound::row_sink::factory::CollectorConnection,
     /// The files nothing read.
     report: CoreReport,
 }
@@ -558,7 +558,7 @@ fn host_cell(kind: HostKind, cell: Cell) -> Option<RowCell> {
 ///
 /// `Io` of the output when a row the run wrote is not a finding as the run writes one: a fault of the run, never dropped.
 pub(super) fn report(
-    collector: ryo_core::outbound::row_sink::types::Collector,
+    collector: ryo_core::outbound::row_sink::factory::CollectorConnection,
     report: CoreReport,
 ) -> Result<LintReport, LintError> {
     LintReport::try_from(LintReportSchema { collector, report })

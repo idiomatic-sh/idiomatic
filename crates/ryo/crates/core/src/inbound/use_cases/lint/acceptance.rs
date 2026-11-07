@@ -91,7 +91,7 @@ fn runs(world: &mut Behavior) {
         plan: every_function(),
         ..QueryLanguageFake::default()
     };
-    let collected = row_sink::types::Collector::default();
+    let collected = row_sink::factory::CollectorConnection::default();
     let kept: Arc<dyn RowSinkPort> = Arc::new(row_sink::factory::collect(collected.clone()));
     let use_case = {
         let analysis_corpus: Arc<dyn ryo_core::outbound::corpus::interface::CorpusPort> =

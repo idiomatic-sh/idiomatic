@@ -240,7 +240,7 @@ fn converted_skip() -> Result<Value, Failure> {
         reason: ryo_values::domain::runs::types::SkipReason::SyntaxRejected,
     });
     let converted = report(
-        ryo_core::outbound::row_sink::types::Collector::default(),
+        ryo_core::outbound::row_sink::factory::CollectorConnection::default(),
         core,
     )
     .map_err(|_error| Refused::Policy)?;
@@ -294,7 +294,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
 fn written(
     cells: &[Option<Cell<CellText<'_>>>],
 ) -> Option<crate::resources::linter::lint::types::Finding> {
-    let collected = ryo_core::outbound::row_sink::types::Collector::default();
+    let collected = ryo_core::outbound::row_sink::factory::CollectorConnection::default();
     let collector = collect(collected.clone());
     collector.row(&mut cells.iter().copied().map(LentCell::from));
     match report(collected, CoreReport::default()) {

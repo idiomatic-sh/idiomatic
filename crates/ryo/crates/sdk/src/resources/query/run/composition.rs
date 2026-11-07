@@ -25,8 +25,8 @@ where
 }
 
 /// The production place the rows of a run are kept in, which the caller takes them from after the run.
-pub(crate) fn build_rows() -> row_sink::types::Collector {
-    row_sink::types::Collector::default()
+pub(crate) fn build_rows() -> row_sink::factory::CollectorConnection {
+    row_sink::factory::CollectorConnection::default()
 }
 
 /// Chooses the production adapters and hands `compose` the construction of the service over them: the languages that read files,
@@ -34,7 +34,7 @@ pub(crate) fn build_rows() -> row_sink::types::Collector {
 /// store is the one in memory, never read or written.
 pub(crate) fn build(
     languages: Vec<Language>,
-    collector: row_sink::types::Collector,
+    collector: row_sink::factory::CollectorConnection,
     root: ryo_language::inbound::use_cases::project::types::RootPath,
     budget: ryo_values::domain::runs::types::Budget,
     pool: WorkerPool,
@@ -49,7 +49,7 @@ pub(crate) fn build(
     );
     let handles = languages
         .into_iter()
-        .map(language::types::LanguageHandles::from)
+        .map(language::factory::LanguageConnection::from)
         .collect();
     let linked = language::factory::use_case(handles);
     compose(QueryRunParts {

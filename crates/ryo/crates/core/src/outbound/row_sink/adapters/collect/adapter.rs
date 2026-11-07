@@ -4,7 +4,8 @@ use std::sync::PoisonError;
 
 use crate::outbound::row_sink::errors::RowSinkError;
 use crate::outbound::row_sink::interface::RowSinkPort;
-use crate::outbound::row_sink::types::{Collector, LentCell, KeptRow, AnswerCounts};
+use super::connection::CollectorConnection;
+use crate::outbound::row_sink::types::{LentCell, KeptRow, AnswerCounts};
 use ryo_values::domain::plan_parts::types::Heading;
 use ryo_values::domain::records::service::owned;
 use ryo_values::domain::records::types::Unread;
@@ -13,12 +14,12 @@ use ryo_values::domain::records::types::Unread;
 #[derive(Debug)]
 pub(crate) struct RowSinkCollectAdapter {
     /// Where the rows are kept so far, with the headings and the summary.
-    into: Collector,
+    into: CollectorConnection,
 }
 
 impl RowSinkCollectAdapter {
     /// Keeps the rows it is given in `into`.
-    pub(crate) const fn new(into: Collector) -> Self {
+    pub(crate) const fn new(into: CollectorConnection) -> Self {
         Self { into }
     }
 }

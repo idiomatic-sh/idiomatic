@@ -598,7 +598,7 @@ fn use_case_over(
 
 /// The rows each rule gives over one copy of every input, by the rule's id.
 fn given(corpus: &Corpus, scheduler: Arc<dyn SchedulerPort>) -> Given {
-    let collected = row_sink::types::Collector::default();
+    let collected = row_sink::factory::CollectorConnection::default();
     let kept: Arc<dyn RowSinkPort> = Arc::new(row_sink::factory::collect(collected.clone()));
     let files = files(corpus, CopyNaming::Input, 1, 1);
     lint(

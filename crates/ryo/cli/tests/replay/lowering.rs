@@ -91,7 +91,7 @@ fn html_dom_and_absent_locations_are_stable_across_runs() -> Result<(), Box<dyn 
             Arc::new(LintStoreFake::default()),
             Vec::new(),
             false,
-            vec![ryo_core::outbound::language::types::LanguageHandles::from(
+            vec![ryo_core::outbound::language::factory::LanguageConnection::from(
                 html,
             )],
         );

@@ -5,7 +5,8 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::row_sink::errors::RowSinkError;
 use crate::outbound::row_sink::fixtures::contract::check;
 use crate::outbound::row_sink::interface::RowSinkPort as _;
-use crate::outbound::row_sink::types::{Collector, LentCell, KeptRow, AnswerCounts};
+use super::connection::CollectorConnection;
+use crate::outbound::row_sink::types::{LentCell, KeptRow, AnswerCounts};
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::row_texts::types::{Cell, CellText};
 
@@ -30,7 +31,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 }];
 
 fn subject(cells: Input) -> Result<Value, Failure> {
-    let collected = Collector::default();
+    let collected = CollectorConnection::default();
     let adapter = RowSinkCollectAdapter::new(collected.clone());
     adapter.row(&mut cells.iter().copied().map(LentCell::from));
     adapter.end(AnswerCounts::default(), &[])?;
@@ -50,6 +51,6 @@ fn subject(cells: Input) -> Result<Value, Failure> {
 
 #[test]
 fn succeeds() {
-    check(&RowSinkCollectAdapter::new(Collector::default()));
+    check(&RowSinkCollectAdapter::new(CollectorConnection::default()));
     run(CASES, Word::Succeeds, subject);
 }
