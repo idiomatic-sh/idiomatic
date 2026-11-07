@@ -1,5 +1,5 @@
 {
-  "source": "00c230f22d46237c30e6eafbb558e0602aee6ada",
+  "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
   "scope": "Ownership consolidation checkpoint 319 (all frozen 318 branches merged, one compile); not full product acceptance",
   "checks": {
     "libraries": {
@@ -258,8 +258,8 @@
   "evidence_reuse": [],
   "review": "../../audits/2026-11-06-derived/ownership/checkpoint.json",
   "new_performance_measurement": false,
-  "validation": 320,
-  "raw_identity": "/tmp/ryo-contract-validation320-20261107",
+  "validation": 319,
+  "raw_identity": "/tmp/ryo-contract-validation319-20261107",
   "tm_whole_tree": {
     "command": "tm --root crates/ryo check --format json (no --fix; git status unchanged)",
     "total": 2762,
@@ -348,27 +348,27 @@
       "scoped_directories": {"cli/tests/replay/imports.rs": 0}
     },
     "tm_source": {
-      "findings": 17,
-      "suppressed": 2,
-      "production": 14,
-      "test": 3,
+      "findings": 250,
+      "suppressed": 0,
+      "production": 200,
+      "test": 50,
       "scoped_directories": {
-        "crates/execution/src/application/file_dag/program": 3,
+        "crates/execution/src/application/file_dag/program": 39,
         "crates/execution/src/application/file_dag/invocation": 0,
-        "crates/execution/src/application/file_dag/derived": 1,
-        "crates/execution/src/domain/shared_walk": 0,
-        "crates/execution/tests/shared_walk": 0,
-        "crates/execution/src/domain/executable_program": 0,
-        "crates/execution/src/domain/step_classes": 0,
-        "crates/execution/src/domain/completion": 0,
-        "crates/execution/src/domain/coverage": 0,
+        "crates/execution/src/application/file_dag/derived": 23,
+        "crates/execution/src/domain/shared_walk": 6,
+        "crates/execution/tests/shared_walk": 8,
+        "crates/execution/src/domain/executable_program": 67,
+        "crates/execution/src/domain/step_classes": 1,
+        "crates/execution/src/domain/completion": 15,
+        "crates/execution/src/domain/coverage": 12,
         "crates/execution/src/domain/frontiers": 0,
         "crates/execution/src/application/file_dag/frontiers": 0,
         "crates/core/src/application/file_analysis": 4,
-        "crates/core/src/inbound/use_cases/lint": 7,
+        "crates/core/src/inbound/use_cases/lint": 14,
         "crates/core/src/domain/storing": 2,
-        "crates/core/src/outbound/lint_store": 0,
-        "crates/execution/src/domain/trust": 0
+        "crates/core/src/outbound/lint_store": 57,
+        "crates/execution/src/domain/trust": 2
       }
     }
   }
