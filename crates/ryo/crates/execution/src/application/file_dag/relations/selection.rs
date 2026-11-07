@@ -15,7 +15,7 @@ pub(in crate::application::file_dag) fn publish(
     }
     let (population, _) = admitted.identity(owner)?;
     if population != owner.result_population(source)
-        || !owner.matches_current(source, admitted.rows())
+        || owner.matches_current(source, admitted.rows()) == Sameness::Different
     {
         return Err(OperatingError::NotRead);
     }

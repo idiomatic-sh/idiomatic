@@ -16,12 +16,7 @@ pub(super) enum FrontierCommit {
     Pending,
     Committed,
 }
-/// Whether the resident source of a file may serve a later request.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ReuseEligibility {
-    Eligible,
-    Ineligible,
-}
+pub(crate) use crate::application::file_dag::relations::types::ReuseEligibility;
 /// Whether the native walk of a file has bound its roots.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum WalkPreparation {
@@ -44,11 +39,10 @@ pub(super) struct PreparedNamed {
 /// The delivery, observation and capture a file declared for one rule.
 #[derive(Clone, Copy, Debug)]
 pub(super) struct DeclaredIntent {
-    pub(super) diagnostic:
+    pub(super) delivery:
         crate::application::file_dag::program::protocol::types::DiagnosticDelivery,
-    pub(super) observations:
-        crate::application::file_dag::program::protocol::types::ObservationDemand,
-    pub(super) capture: crate::application::file_dag::program::protocol::types::CaptureIntent,
+    pub(super) demand: crate::application::file_dag::program::protocol::types::ObservationDemand,
+    pub(super) capture_intent: crate::application::file_dag::program::protocol::types::CaptureIntent,
 }
 /// The slot of a bound observation among the observation regions of a program.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

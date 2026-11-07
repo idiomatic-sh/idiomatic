@@ -1,17 +1,40 @@
-use super::*;
+use super::constants::{
+    KIND_EQUALITY, KIND_MEMBERSHIP, KIND_PREDICATE_MATCHES, MAX_KEYS, OWNER_BUILD,
+    SELECTOR_CANDIDATE_BUILD,
+};
+use super::profile::service::STATE;
+use super::schemas::document;
+use super::types::{
+    BuildRoute, RouteCount, RouteNodeIndex, RouteOrigin, RouteOwnerId, RouteOwnership, RoutePlanId,
+    RouteRuleIndex, RouteRuleName, RouteState, RouteTally,
+};
+use super::{event, identity, node, observe, owner, rule};
+use crate::application::file_dag::derived::constants::{OWNER_HIT, OWNER_REQUEST};
 use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
 use ryo_derived::domain::contract::types::DerivedView;
-fn capture(run: impl FnOnce()) -> State {
+use ryo_values::domain::runs::types::RuleId;
+use std::collections::HashMap;
+
+const BUILD_SUFFIX: &str = "build";
+const BUILD_ROUTE_SUFFIX: &str = "_build";
+const SCOPED_BUILD: &str = "scoped_build";
+const EXAMPLE_RULE: &str = "example";
+const QUERY_NAME: &str = "query-name";
+const QUERY_TWO: &str = "query-two";
+const ORIGINAL_FAILURE: &str = "original failure";
+const QUOTED_TEXT: &str = "a\"b\n";
+const QUOTED_JSON: &str = "\"a\\\"b\\n\"";
+fn capture(run: impl FnOnce()) -> RouteState {
     STATE.with_borrow_mut(|state| {
         assert!(state.is_none());
-        *state = Some(State {
-            file: 7,
-            origin: Origin::default(),
+        *state = Some(RouteState {
+            file: 7.into(),
+            origin: RouteOrigin::default(),
             counts: HashMap::new(),
-            overflow: 0,
+            overflow: RouteTally::default(),
             rules: HashMap::new(),
             #[cfg(feature = "diagnostic-row-progress")]
-            progress: ProgressState::new(),
+            progress: super::new_progress(),
         });
     });
     run();
@@ -20,44 +43,48 @@ fn capture(run: impl FnOnce()) -> State {
 #[test]
 fn physical_build_is_once_and_original_error_survives_nested_scopes() {
     let state = capture(|| {
-        let _rule = rule(3, "example");
+        let _rule = rule(3, &RuleId(EXAMPLE_RULE.into()));
         let _node = node(19);
         let _owner = owner(7);
-        event("owner_request", "Equality");
+        event(OWNER_REQUEST, KIND_EQUALITY);
         let outcome: Result<(), &str> =
-            observe("scoped_build", "Equality", || Err("original failure"));
-        assert_eq!(outcome, Err("original failure"));
-        event("owner_hit", "Equality");
+            observe(SCOPED_BUILD, KIND_EQUALITY, || Err(ORIGINAL_FAILURE));
+        assert_eq!(outcome, Err(ORIGINAL_FAILURE));
+        event(OWNER_HIT, KIND_EQUALITY);
     });
-    assert_eq!(state.origin, Origin::default());
+    assert_eq!(state.origin, RouteOrigin::default());
     let physical = state
         .counts
         .iter()
-        .filter(|(key, _)| key.route.ends_with("build"))
+        .filter(|(key, _)| key.route.0.ends_with(BUILD_SUFFIX))
         .collect::<Vec<_>>();
     assert_eq!(physical.len(), 1);
     assert_eq!(
         *physical[0].1,
-        Count {
-            calls: 1,
-            successes: 0,
-            failures: 1
+        RouteCount {
+            calls: RouteTally(1),
+            successes: RouteTally(0),
+            failures: RouteTally(1)
         }
     );
     assert_eq!(
         physical[0].0.origin,
-        Origin {
+        RouteOrigin {
             #[cfg(feature = "diagnostic-row-progress")]
-            namespace: "dag",
-            rule: Some(3),
-            node: Some(19),
-            owner: true,
-            owner_id: Some(7),
-            ..Origin::default()
+            namespace: super::types::RouteLabel(super::constants::DAG_NAMESPACE),
+            rule: Some(RouteRuleIndex(3)),
+            node: Some(RouteNodeIndex(19)),
+            owner: RouteOwnership::Owned,
+            owner_id: Some(RouteOwnerId(7)),
+            ..RouteOrigin::default()
         }
     );
     assert_eq!(
-        state.counts.values().map(|count| count.calls).sum::<u64>(),
+        state
+            .counts
+            .values()
+            .map(|count| count.calls.0)
+            .sum::<u64>(),
         3
     );
 }
@@ -65,22 +92,27 @@ fn physical_build_is_once_and_original_error_survives_nested_scopes() {
 fn cross_rule_origin_is_attributed_and_disabled_recording_allocates_no_state() {
     let state = capture(|| {
         for number in [1, 2] {
-            let _rule = rule(number, "example");
+            let _rule = rule(number, &RuleId(EXAMPLE_RULE.into()));
             let _node = node(41);
-            observe("scoped_build", "PredicateMatches", || Ok::<_, ()>(())).unwrap();
+            observe(SCOPED_BUILD, KIND_PREDICATE_MATCHES, || Ok::<_, ()>(())).unwrap();
         }
     });
     assert_eq!(state.counts.len(), 2);
-    assert!(state.counts.keys().all(|key| key.origin.node == Some(41)));
+    assert!(
+        state
+            .counts
+            .keys()
+            .all(|key| key.origin.node == Some(RouteNodeIndex(41)))
+    );
     assert_eq!(
         state
             .counts
             .values()
-            .map(|count| count.successes)
+            .map(|count| count.successes.0)
             .sum::<u64>(),
         2
     );
-    observe("scoped_build", "Equality", || Ok::<_, ()>(())).unwrap();
+    observe(SCOPED_BUILD, KIND_EQUALITY, || Ok::<_, ()>(())).unwrap();
     assert!(STATE.with_borrow(|state| state.is_none()));
 }
 #[test]
@@ -92,31 +124,36 @@ fn bounded_capture_reports_overflow_instead_of_claiming_complete_counts() {
         }
     });
     assert_eq!(state.counts.len(), MAX_KEYS);
-    assert_eq!(state.overflow, 3);
+    assert_eq!(state.overflow, RouteTally(3));
 }
 
 #[test]
 fn owner_identity_distinguishes_live_population_keys_and_rules_are_named_once() {
     let state = capture(|| {
-        let _rule = rule(2, "query-name");
+        let _rule = rule(2, &RuleId(QUERY_NAME.into()));
         let _node = node(41);
         let _owner = owner(17);
         for population in [3, 4] {
             let _identity = identity(29, [Some(population), None]);
-            event("owner_request", "Membership");
+            event(OWNER_REQUEST, KIND_MEMBERSHIP);
         }
     });
-    assert_eq!(state.rules.get(&2).map(String::as_str), Some("query-name"));
+    assert_eq!(
+        state.rules.get(&RouteRuleIndex(2)),
+        Some(&RouteRuleName(QUERY_NAME.to_owned()))
+    );
     assert_eq!(state.counts.len(), 2);
     assert!(
         state
             .counts
             .keys()
-            .all(|key| key.origin.plan == Some(29) && key.origin.owner_id == Some(17))
+            .all(|key| key.origin.plan == Some(RoutePlanId(29))
+                && key.origin.owner_id == Some(RouteOwnerId(17)))
     );
-    let mut json = String::new();
-    json_string(&mut json, "a\"b\n");
-    assert_eq!(json, "\"a\\\"b\\n\"");
+    assert_eq!(
+        document(&RouteRuleName(QUOTED_TEXT.to_owned())).0,
+        QUOTED_JSON
+    );
 }
 
 #[test]
@@ -150,10 +187,10 @@ fn owner_routes_count_each_physical_equality_build_once() {
         .unwrap(),
     );
     let state = capture(|| {
-        let _rule = rule(2, "query-two");
+        let _rule = rule(2, &RuleId(QUERY_TWO.into()));
         let _node = node(41);
         let owner = RelationOwner::new(
-            true,
+            crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
             crate::application::file_dag::testing::program_derived_port(),
         );
         let proof = owner
@@ -176,7 +213,7 @@ fn owner_routes_count_each_physical_equality_build_once() {
             .unwrap();
         assert!(matches!(held.view().unwrap(), DerivedView::Equality(_)));
         let selector_owner = RelationOwner::new(
-            true,
+            crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
             crate::application::file_dag::testing::program_derived_port(),
         );
         let proof = selector_owner
@@ -219,15 +256,15 @@ fn owner_routes_count_each_physical_equality_build_once() {
     let builds = state
         .counts
         .iter()
-        .filter(|(key, _)| key.route.ends_with("_build"))
+        .filter(|(key, _)| key.route.0.ends_with(BUILD_ROUTE_SUFFIX))
         .collect::<Vec<_>>();
     assert_eq!(builds.len(), 2);
-    for (route, owner) in [("owner_build", true), ("selector_candidate_build", true)] {
-        let (key, count) = builds.iter().find(|(key, _)| key.route == route).unwrap();
-        assert_eq!(key.origin.owner, owner);
-        assert_eq!(count.calls, 1);
-        assert_eq!(count.successes, 1);
-        assert_eq!(count.failures, 0);
+    for route in [OWNER_BUILD, SELECTOR_CANDIDATE_BUILD] {
+        let (key, count) = builds.iter().find(|(key, _)| key.route.0 == route).unwrap();
+        assert_eq!(key.origin.owner, RouteOwnership::Owned);
+        assert_eq!(count.calls, RouteTally(1));
+        assert_eq!(count.successes, RouteTally(1));
+        assert_eq!(count.failures, RouteTally(0));
     }
 }
 

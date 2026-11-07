@@ -78,7 +78,7 @@ impl super::super::KernelSession<'_, '_> {
             match input {
                 KernelInput::Continuation(row) => {
                     workspace.work.found(0, 1);
-                    let mut resources = InvocationResources::continuation(contract)
+                    let mut resources = crate::application::file_dag::invocation::service::continuation(contract)
                         .map_err(InvocationFailure::Semantic)?;
                     crate::application::file_dag::execution::lease::evaluate(
                         self.kernels,
@@ -173,7 +173,7 @@ impl super::super::KernelSession<'_, '_> {
                     None
                 } else {
                     Some(
-                        InvocationResources::prepare(
+                        crate::application::file_dag::invocation::service::prepare(
                             contract, &views, context, &originals, workspace, &setup_semantics,
                         )
                         .map_err(InvocationFailure::Semantic)?,
@@ -193,7 +193,7 @@ impl super::super::KernelSession<'_, '_> {
                     {
                         if resources.is_none() {
                             resources = Some(
-                                InvocationResources::prepare(
+                                crate::application::file_dag::invocation::service::prepare(
                                     contract,
                                     &views,
                                     context,
@@ -233,18 +233,18 @@ impl super::super::KernelSession<'_, '_> {
                             }
                             return match result {
                                 Ok(
-                                    crate::application::file_dag::executor::response::types::KernelAnswer::Complete,
+                                    crate::application::file_dag::executor::KernelAnswer::Complete,
                                 ) => Ok(()),
                                 Ok(_) => {
                                     Err(InvocationFailure::Semantic(OperatingError::WrongOperation))
                                 }
                                 Err(
-                                    crate::application::file_dag::executor::response::types::KernelFault::Refused(
+                                    crate::application::file_dag::executor::KernelFault::Refused(
                                         error,
                                     ),
                                 ) => Err(InvocationFailure::Semantic(error)),
                                 Err(
-                                    crate::application::file_dag::executor::response::types::KernelFault::Portable(
+                                    crate::application::file_dag::executor::KernelFault::Portable(
                                         error,
                                     ),
                                 ) => Err(InvocationFailure::Semantic(
@@ -347,7 +347,7 @@ impl super::super::KernelSession<'_, '_> {
                                     }
                                     if resources.is_none() {
                                         resources = Some(
-                                            InvocationResources::prepare(
+                                            crate::application::file_dag::invocation::service::prepare(
                                                 contract,
                                                 &views,
                                                 context,

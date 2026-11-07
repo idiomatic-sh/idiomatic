@@ -139,7 +139,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         let selected = fixture.select(&first, input, &mut context);
         assert_eq!(
             fixture.owner().checks.get(),
-            1,
+            crate::application::file_dag::relations::types::CheckCount(1),
             "the actual owner inspects the backing before declining optional selection"
         );
         assert_eq!(fixture.snapshot(None).counts.builds, 0);
@@ -283,7 +283,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             &selected.selection.rows,
             &changed.selection.rows
         ));
-        assert!(!selected.publication.same_record(&changed.publication));
+        assert_eq!(selected.publication.same_record(&changed.publication), crate::application::file_dag::relations::types::Sameness::Different);
     }
     Ok(1)
 }

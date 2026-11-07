@@ -12,7 +12,7 @@ use crate::domain::operating::types::OperatorContext;
 use crate::domain::{
     coverage::types::RuleIndex,
     executable_program::types::{InputSource, PartitionRequirement, ProducerPartitions},
-    operator::contract::{types::RequestOperators, views::BorrowedRows},
+    operator::contract::views::BorrowedRows,
     table_model::types::Rows,
 };
 use ryo_relations::domain::{
@@ -90,7 +90,7 @@ pub(in super::super) fn compiled() -> CompiledCase {
     let plans = [plan(Relation::Function), plan(Relation::Identifier)];
     let semantic = crate::application::file_dag::testing::program_derived_port();
     let prepared =
-        RequestOperators::prepare(&plans, &[vec![], vec![]], &[], Arc::clone(&semantic)).unwrap();
+        crate::application::file_dag::request::prepare(&plans, &[vec![], vec![]], &[], Arc::clone(&semantic)).unwrap();
     let graph = crate::domain::file_program::service::compile_prepared(&plans, &prepared);
     let program = Arc::new(
         crate::domain::executable_program::service::compile(
@@ -109,7 +109,7 @@ pub(in super::super) fn compiled() -> CompiledCase {
         roots[0], roots[1],
         "distinct source roots must remain distinct"
     );
-    let owner = Rc::new(RelationOwner::new(true, semantic));
+    let owner = Rc::new(RelationOwner::new(crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible, semantic));
     let partition = Partition::File(
         crate::application::file_dag::program::admission::FileGeneration::from_owner(
             FileId(0),

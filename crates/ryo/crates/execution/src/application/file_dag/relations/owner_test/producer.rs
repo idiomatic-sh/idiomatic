@@ -114,7 +114,7 @@ fn exercise_real_selector(limit: Retention) {
     );
     assert_eq!(
         owner.checks.get(),
-        1,
+        crate::application::file_dag::relations::types::CheckCount(1),
         "trusted output uses the producer's checked population"
     );
     let old_token = owner

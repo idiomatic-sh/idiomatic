@@ -103,7 +103,7 @@ mod census_acquire_stored_denied {
 pub(super) static ACQUIRE_STORED_WITH_ROUTE: Acquire = Acquire {
     positive: r#"
 mod census_acquire_stored_with_route {
-    use crate::application::file_dag::{route_counts::BuildRoute, derived::owner::{DerivedOwner, ViewContext, acquisition::{admission::service::{AcquiredView, AdmittedViewInputs}, selection::types::StoredColumns}}};
+    use crate::application::file_dag::{route_counts::types::BuildRoute, derived::owner::{DerivedOwner, ViewContext, acquisition::{admission::service::{AcquiredView, AdmittedViewInputs}, selection::types::StoredColumns}}};
     use crate::domain::{derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch}, operating::errors::OperatingError};
     use std::sync::Arc;
     fn demand(owner: &DerivedOwner, route: BuildRoute, plan: &Arc<DerivedContract>, admitted: &AdmittedViewInputs<'_>, inputs: DerivedInputs<'_, '_>, scratch: &mut DerivedScratch, stored: Option<StoredColumns>) -> Result<AcquiredView, OperatingError> { owner.acquire_stored_with_route(route, plan, admitted, ViewContext::default(), inputs, scratch, stored) }
@@ -113,7 +113,7 @@ mod census_acquire_stored_with_route {
     negative: refuses(
         r#"
 mod census_acquire_stored_with_route_denied {
-    use crate::application::file_dag::{route_counts::BuildRoute, derived::owner::{DerivedOwner, ViewContext}};
+    use crate::application::file_dag::{route_counts::types::BuildRoute, derived::owner::{DerivedOwner, ViewContext}};
     use crate::domain::derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch};
     use std::sync::Arc;
     fn bypass(owner: &DerivedOwner, route: BuildRoute, plan: &Arc<DerivedContract>, inputs: DerivedInputs<'_, '_>, scratch: &mut DerivedScratch) { let _ = owner.acquire_stored_with_route(route, plan, plan, ViewContext::default(), inputs, scratch, None); }
@@ -153,7 +153,7 @@ mod census_try_acquire_rows_denied {
 pub(super) static SCOPED_BUILD: Acquire = Acquire {
     positive: r#"
 mod census_scoped_build {
-    use crate::application::file_dag::{route_counts::BuildRoute, derived::owner::{DerivedOwner, acquisition::admission::service::{AcquiredView, AdmittedViewInputs}}};
+    use crate::application::file_dag::{route_counts::types::BuildRoute, derived::owner::{DerivedOwner, acquisition::admission::service::{AcquiredView, AdmittedViewInputs}}};
     use crate::domain::{derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch}, operating::errors::OperatingError};
     use std::sync::Arc;
     fn demand(owner: &DerivedOwner, route: BuildRoute, plan: &Arc<DerivedContract>, admitted: &AdmittedViewInputs<'_>, inputs: DerivedInputs<'_, '_>, recycled: Option<AcquiredView>, scratch: &mut DerivedScratch) -> Result<AcquiredView, OperatingError> { owner.scoped_build(route, plan, admitted, inputs, recycled, scratch) }
@@ -163,7 +163,7 @@ mod census_scoped_build {
     negative: refuses(
         r#"
 mod census_scoped_build_denied {
-    use crate::application::file_dag::{route_counts::BuildRoute, derived::owner::DerivedOwner};
+    use crate::application::file_dag::{route_counts::types::BuildRoute, derived::owner::DerivedOwner};
     use crate::domain::derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch};
     use std::sync::Arc;
     fn bypass(owner: &DerivedOwner, route: BuildRoute, plan: &Arc<DerivedContract>, inputs: DerivedInputs<'_, '_>, scratch: &mut DerivedScratch) { let _ = owner.scoped_build(route, plan, plan, inputs, None, scratch); }

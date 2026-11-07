@@ -1,4 +1,5 @@
 //! Test setup uses the production owner, original-row admission and physical dispatch.
+use ryo_values::domain::plan_parts::types::InputNumber;
 use crate::application::file_dag::derived::owner::graphs::{
     service::slot,
     types::{
@@ -47,8 +48,12 @@ impl GraphFixture {
     ) -> Self {
         let fixture = Self {
             owner: Rc::new(RelationOwner::for_request(
-                stable,
-                max_views,
+                if stable {
+                    crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible
+                } else {
+                    crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Ineligible
+                },
+                crate::application::file_dag::relations::types::PinnedViewCount(max_views),
                 (std::sync::Arc::new(
                     ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
                 )
@@ -225,7 +230,7 @@ impl GraphFixture {
                 Input::Relation(expected) if expected == relation => Ok(rows.clone()),
                 _ => Err(OperatingError::NotRead),
             })?;
-        let Some(source) = workspace.graph_input(0, &admitted_rows)? else {
+        let Some(source) = workspace.graph_input(InputNumber(0), &admitted_rows)? else {
             return Ok(None);
         };
         let mut cache = self.owner.derived.graph_cache()?;
@@ -245,7 +250,7 @@ impl GraphFixture {
                 Input::Relation(expected) if expected == relation => Ok(rows.clone()),
                 _ => Err(OperatingError::NotRead),
             })?;
-        drop(workspace.graph_input(0, &admitted_rows)?);
+        drop(workspace.graph_input(InputNumber(0), &admitted_rows)?);
         drop(admitted_rows);
         drop(workspace);
         drop(publication);
@@ -270,7 +275,7 @@ impl GraphFixture {
                 Input::Relation(expected) if expected == relation => Ok(rows.clone()),
                 _ => Err(OperatingError::NotRead),
             })?;
-        let Some(source) = workspace.graph_input(0, &admitted_rows)? else {
+        let Some(source) = workspace.graph_input(InputNumber(0), &admitted_rows)? else {
             return Ok(None);
         };
         let mut cache = self.owner.derived.graph_cache()?;

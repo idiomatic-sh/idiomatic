@@ -1,4 +1,5 @@
 //! Preparation and rows of the graph demand; the owner cache is required for both.
+use ryo_values::domain::plan_parts::types::InputNumber;
 use super::types::{AxisGraph, CachedGraph, KeyPosition, PartitionWidth, ReachGraph};
 use crate::application::file_dag::derived::owner::DerivedOwner;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
@@ -63,7 +64,7 @@ impl CachedGraph {
                 if !matches!(rows, Rows::Stored(_) | Rows::Selected(_)) {
                     return Ok(None);
                 }
-                let Some(source) = admission.graph_input(1, rows)? else {
+                let Some(source) = admission.graph_input(InputNumber(1), rows)? else {
                     return Ok(None);
                 };
                 let Some(access) =
@@ -103,7 +104,7 @@ impl CachedGraph {
                 if !matches!(edges, Rows::Stored(_) | Rows::Selected(_)) {
                     return Ok(None);
                 }
-                let Some(source) = admission.graph_input(1, edges)? else {
+                let Some(source) = admission.graph_input(InputNumber(1), edges)? else {
                     return Ok(None);
                 };
                 let Some(access) =
@@ -113,7 +114,7 @@ impl CachedGraph {
                 else {
                     return Ok(None);
                 };
-                let Some(domain_input) = admission.graph_input(2, domain_rows)? else {
+                let Some(domain_input) = admission.graph_input(InputNumber(2), domain_rows)? else {
                     return Ok(None);
                 };
                 let membership = domain_input.owner().acquire_graph_domain(

@@ -7,6 +7,7 @@ use ryo_relations::domain::relations::{
     types::{CellKind, FileId, Integer, Offset, Relation, Span, Value},
 };
 use ryo_values::domain::{
+    files::types::SourceView,
     plan_parts::types::{
         ColumnIndex, Input as PlanInput, LiteralText, Operand, QueryLiteral, StepId,
     },
@@ -24,18 +25,21 @@ fn evaluate(
     spans: &[Span],
     pattern: &'static str,
 ) -> Result<Vec<Span>, OperatingError> {
-    let providers = [(
-        Relation::SyntaxTree,
-        compiled::rows(
+    let providers = [compiled::Provider {
+        relation: Relation::SyntaxTree,
+        table: compiled::rows(
             &spans
                 .iter()
                 .copied()
-                .map(|span| (FileId(0), span))
+                .map(|span| compiled::FileSpan {
+            file: FileId(0),
+            span,
+        })
                 .collect::<Vec<_>>(),
         ),
-    )];
+    }];
     let steps = vec![
-        compiled::select(Relation::SyntaxTree, &[4]),
+        compiled::select(Relation::SyntaxTree, &[ColumnIndex(4)]),
         compiled::step(Operation::SourceMatches {
             from: PlanInput::Step(StepId(0)),
             span: ColumnIndex(0),
@@ -46,14 +50,8 @@ fn evaluate(
             capture_line: ryo_values::domain::query_operators::types::LineOutput::Omitted,
         }),
     ];
-    let (collected, _) = compiled::run(
-        steps.clone(),
-        &providers,
-        source,
-        &mut Symbols::default(),
-        false,
-    );
-    let (streamed, _) = compiled::run(steps, &providers, source, &mut Symbols::default(), true);
+    let compiled::CompiledRun { result: collected, .. } = compiled::run(steps.clone(), &providers, SourceView(source), &mut Symbols::default(), compiled::Downstream::Collected);
+    let compiled::CompiledRun { result: streamed, .. } = compiled::run(steps, &providers, SourceView(source), &mut Symbols::default(), compiled::Downstream::Streamed);
     assert_eq!(collected, streamed);
     let output = collected?;
     assert_eq!(output.kinds, vec![CellKind::Span, CellKind::Span]);
@@ -119,12 +117,15 @@ fn evaluate_lines(
     base_line: i64,
     pattern: &'static str,
 ) -> Result<Vec<(Span, i64)>, OperatingError> {
-    let providers = [(
-        Relation::SyntaxTree,
-        compiled::rows(&[(FileId(0), source_span)]),
-    )];
+    let providers = [compiled::Provider {
+        relation: Relation::SyntaxTree,
+        table: compiled::rows(&[compiled::FileSpan {
+            file: FileId(0),
+            span: source_span,
+        }]),
+    }];
     let steps = vec![
-        compiled::select(Relation::SyntaxTree, &[4]),
+        compiled::select(Relation::SyntaxTree, &[ColumnIndex(4)]),
         compiled::step(Operation::Extend {
             from: PlanInput::Step(StepId(0)),
             values: vec![Operand::Literal(QueryLiteral::Number(Integer(base_line)))],
@@ -139,7 +140,7 @@ fn evaluate_lines(
             capture_line: ryo_values::domain::query_operators::types::LineOutput::Omitted,
         }),
     ];
-    let (result, _) = compiled::run(steps, &providers, source, &mut Symbols::default(), false);
+    let compiled::CompiledRun { result: result, .. } = compiled::run(steps, &providers, SourceView(source), &mut Symbols::default(), compiled::Downstream::Collected);
     Ok(result?
         .cells
         .chunks_exact(4)
@@ -189,18 +190,21 @@ fn captured(
         types::ByteSlice,
     };
     use ryo_relations::domain::terms::types::NameText;
-    let providers = [(
-        Relation::SyntaxTree,
-        compiled::rows(
+    let providers = [compiled::Provider {
+        relation: Relation::SyntaxTree,
+        table: compiled::rows(
             &spans
                 .iter()
                 .copied()
-                .map(|span| (FileId(0), span))
+                .map(|span| compiled::FileSpan {
+            file: FileId(0),
+            span,
+        })
                 .collect::<Vec<_>>(),
         ),
-    )];
+    }];
     let steps = vec![
-        compiled::select(Relation::SyntaxTree, &[4]),
+        compiled::select(Relation::SyntaxTree, &[ColumnIndex(4)]),
         compiled::step(Operation::SourceMatches {
             from: PlanInput::Step(StepId(0)),
             span: ColumnIndex(0),
@@ -213,7 +217,7 @@ fn captured(
     ];
     let mut symbols = Symbols::default();
     let comment = intern_derived(&mut symbols, ByteSlice(source), NameText(" noqa: W605"));
-    let (result, _) = compiled::run(steps, &providers, source, &mut symbols, false);
+    let compiled::CompiledRun { result: result, .. } = compiled::run(steps, &providers, SourceView(source), &mut symbols, compiled::Downstream::Collected);
     let output = result?;
     assert_eq!(
         text_of(&symbols, ByteSlice(source), comment).map(|text| text.0),

@@ -262,11 +262,11 @@ impl FileWalk {
                 PermittedWalk::new(permit, prepared, admitted, context, &ready, &mut work);
             let batch = match kernels.execute(super::super::executor::KernelCall::Walk { request })
             {
-                Ok(super::super::executor::response::types::KernelAnswer::Walk(batch)) => batch,
-                Err(super::super::executor::response::types::KernelFault::Refused(error)) => {
+                Ok(super::super::executor::KernelAnswer::Walk(batch)) => batch,
+                Err(super::super::executor::KernelFault::Refused(error)) => {
                     return Err(error);
                 }
-                Err(super::super::executor::response::types::KernelFault::Portable(error)) => {
+                Err(super::super::executor::KernelFault::Portable(error)) => {
                     return Err(crate::domain::operator::contract::types::portable_fault(
                         error,
                     ));

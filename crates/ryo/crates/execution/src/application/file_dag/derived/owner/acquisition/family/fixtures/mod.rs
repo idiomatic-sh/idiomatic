@@ -6,7 +6,7 @@ pub(in crate::application::file_dag) mod route;
 use self::demand::demand;
 use self::request::{observed, request};
 use crate::application::file_dag::{
-    closure_partitions::PartitionedClosure, relations::RelationOwner, testing::program_derived_port,
+    relations::RelationOwner, testing::program_derived_port,
 };
 use crate::domain::{
     derived_views::types::{DerivedInputs, DerivedScratch, ViewRequest},
@@ -107,7 +107,7 @@ fn drive(
     } else {
         program_derived_port()
     };
-    let owner = Rc::new(RelationOwner::new(true, port));
+    let owner = Rc::new(RelationOwner::new(crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible, port));
     let mut leaked = None;
     let actual = acquire(kind, scenario, Rc::clone(&owner), release, &mut leaked);
     owner.release_population();
@@ -158,7 +158,7 @@ fn acquire(
             scenario,
             Scenario::Succeeds | Scenario::Cancelled | Scenario::Held
         ) {
-            let mut cursor = PartitionedClosure::prepare(
+            let mut cursor = crate::application::file_dag::closure_partitions::schemas::prepare(
                 &publication,
                 first.rows(),
                 &keys,

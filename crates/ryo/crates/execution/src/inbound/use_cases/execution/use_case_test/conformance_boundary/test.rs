@@ -2,6 +2,8 @@
 use super::super::super::types::OperatingError;
 use super::super::conformance::test::{compare_delivery, repeated, same_rows};
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::*;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::values::matrix;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::expectations::{SOURCE, assert_expected};
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
     plans::types::Operation,

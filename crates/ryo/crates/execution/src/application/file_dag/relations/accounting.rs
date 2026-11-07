@@ -136,7 +136,7 @@ impl RelationOwner {
                 address: BackingAddress(Arc::as_ptr(table) as usize),
             },
             retention_units: UnitCount(0),
-            bytes: ByteCount(table_bytes(table)),
+            bytes: table_bytes(table),
         }
     }
     fn resource_backings(
@@ -194,13 +194,15 @@ impl RelationOwner {
     }
 }
 
-fn table_bytes(table: &ryo_values::domain::rows::types::Table) -> usize {
-    table
+fn table_bytes(table: &ryo_values::domain::rows::types::Table) -> ByteCount {
+    ByteCount(
+        table
         .cells
         .capacity()
         .saturating_mul(size_of::<ryo_relations::domain::relations::types::Value>())
         .saturating_add(table.kinds.capacity().saturating_mul(size_of::<CellKind>()))
         .saturating_add(
             size_of::<ryo_values::domain::rows::types::Table>() + 2 * size_of::<usize>(),
-        )
+        ),
+    )
 }

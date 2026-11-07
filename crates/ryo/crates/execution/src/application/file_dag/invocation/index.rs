@@ -1,4 +1,5 @@
 //! Application-owned equality handles and direct selected projection views.
+use ryo_values::domain::plan_parts::types::InputNumber;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 use crate::application::file_dag::invocation::prepared_use::service::prepared;
 use crate::domain::operating::errors::OperatingError;
@@ -36,7 +37,7 @@ impl<'f> IndexResource<'f> {
         use ryo_derived::domain::contract::types::DerivedKind;
         let use_ = prepared(contract, DerivedKind::Equality)?;
         let place = use_.inputs[0];
-        let source = admission.input(place)?;
+        let source = admission.input(InputNumber(place))?;
         // Absence's established empty-RHS gate precedes key interpretation.
         if empty == EmptyInput::Skip
             && source.count() == 0
@@ -48,11 +49,11 @@ impl<'f> IndexResource<'f> {
                 index: KeyIndex::default(),
             });
         }
-        let source = admission.rows(place)?;
+        let source = admission.rows(InputNumber(place))?;
         let storage = admission.acquire_rows(use_, context)?;
         if let Some(crate::domain::table_model::types::Rows::Selected(selected)) = original {
             return Ok(Self::Selected(
-                super::super::selected::SelectedInput::from_derived(selected, storage)?,
+                super::super::selected::schemas::from_derived(selected, storage)?,
             ));
         }
         Ok(Self::Derived {
@@ -76,7 +77,7 @@ impl<'f> IndexResource<'f> {
                 };
                 IndexedRows {
                     #[cfg(feature = "diagnostic-row-progress")]
-                    progress: crate::application::file_dag::route_counts::progress,
+                    progress: crate::application::file_dag::route_counts::progress::service::progress,
                     rows: *rows,
                     columns,
                     index,
@@ -90,7 +91,7 @@ impl<'f> IndexResource<'f> {
                 };
                 IndexedRows {
                     #[cfg(feature = "diagnostic-row-progress")]
-                    progress: crate::application::file_dag::route_counts::progress,
+                    progress: crate::application::file_dag::route_counts::progress::service::progress,
                     rows: *rows,
                     columns,
                     index,

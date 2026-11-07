@@ -16,7 +16,7 @@ impl<'scope> KernelPermit<'scope> {
         execution: &ProgramExecution,
         region: RegionId,
     ) -> Result<&crate::domain::executable_program::types::Region, OperatingError> {
-        if !execution.owner.matches_generation(&execution.generation) {
+        if execution.owner.matches_generation(&execution.generation) == crate::application::file_dag::relations::types::Sameness::Different {
             return Err(OperatingError::NotRead);
         }
         let code = execution
@@ -199,7 +199,7 @@ impl<'scope> KernelPermit<'scope> {
         owner: &RelationOwner,
     ) -> Result<(), OperatingError> {
         self.validate_live()?;
-        if !std::ptr::eq(self.owner, owner) || !owner.matches_generation(self.generation) {
+        if !std::ptr::eq(self.owner, owner) || owner.matches_generation(self.generation) == crate::application::file_dag::relations::types::Sameness::Different {
             return Err(OperatingError::NotRead);
         }
         Ok(())

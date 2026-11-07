@@ -1,87 +1,31 @@
 //! Independent authored rows and expectations for every operation class.
-use ryo_language::domain::semantics::types::{RenderContext, RenderOutcome, RenderRequest};
-use ryo_language::domain::symbols::{
-    service::query_intern_derived,
-    types::{ByteSlice, Symbols},
-};
-use ryo_relations::domain::relations::service::node_id;
-use ryo_relations::domain::relations::types::{
-    CellKind, FileId, Integer, Offset, Position, Relation, Span, Value,
-};
-use ryo_relations::domain::terms::types::NameText;
-use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Direction, HostedNumber, Input, JoinColumn, LiteralText, Operand, ParameterId,
-    QueryLiteral, RepeatedRows, Side, TableKey,
-};
+use expectations::Expected;
+use expectations::Fixture;
+use expectations::cells;
+use ryo_language::domain::semantics::types::RenderContext;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::Integer;
+use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::plan_parts::types::Direction;
+use ryo_values::domain::plan_parts::types::HostedNumber;
+use ryo_values::domain::plan_parts::types::JoinColumn;
+use ryo_values::domain::plan_parts::types::LiteralText;
+use ryo_values::domain::plan_parts::types::Operand;
+use ryo_values::domain::plan_parts::types::ParameterId;
+use ryo_values::domain::plan_parts::types::QueryLiteral;
+use ryo_values::domain::plan_parts::types::RepeatedRows;
+use ryo_values::domain::plan_parts::types::Side;
+use ryo_values::domain::plan_parts::types::TableKey;
 use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_bindings::types::BindingCell;
+use ryo_values::domain::query_bindings::types::BindingTable;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::query_operators::types::OperationKind;
-use ryo_values::domain::rows::service::push_row;
-use std::sync::Arc;
+pub(crate) mod expectations;
+pub(crate) mod values;
+use values::{FROM, RIGHT, DOMAIN, n, span, node, table, numbers, matrix, text};
 
-#[derive(Debug)]
-pub(crate) struct KnownSyntax;
-impl crate::domain::operating::types::SemanticLookup for KnownSyntax {
-    fn render_batch(
-        &self,
-        requests: &[RenderRequest],
-        _: &[u8],
-    ) -> Result<Vec<RenderOutcome>, crate::domain::operating::errors::OperatingError> {
-        Ok(requests
-            .iter()
-            .map(|_| RenderOutcome::Known(ryo_language::domain::semantics::types::RenderedNode(Arc::from("a"))))
-            .collect())
-    }
-}
-pub(crate) const FROM: Input = Input::Relation(Relation::Function);
-pub(crate) const RIGHT: Input = Input::Relation(Relation::Scope);
-pub(crate) const DOMAIN: Input = Input::Relation(Relation::SyntaxTree);
-pub(crate) fn n(value: i64) -> Value {
-    Value::Number(Integer(value))
-}
-pub(crate) fn span(start: u32, end: u32) -> Value {
-    Value::Span(Span {
-        start: Offset(start),
-        end: Offset(end),
-    })
-}
-fn node(position: u32) -> Value {
-    Value::Node(node_id(FileId(0), Position(position)))
-}
-fn table(kinds: &[CellKind], rows: &[Vec<Value>]) -> Table {
-    let mut table = Table {
-        kinds: kinds.to_vec(),
-        ..Table::default()
-    };
-    for row in rows {
-        push_row(&mut table, row);
-    }
-    table
-}
-pub(crate) fn numbers(values: &[i64]) -> Table {
-    table(
-        &[CellKind::Number],
-        &values
-            .iter()
-            .map(|value| vec![n(*value)])
-            .collect::<Vec<_>>(),
-    )
-}
-pub(crate) fn matrix(rows: &[&[i64]]) -> Table {
-    table(
-        &vec![CellKind::Number; rows.first().map_or(0, |row| row.len())],
-        &rows
-            .iter()
-            .map(|row| row.iter().copied().map(n).collect())
-            .collect::<Vec<_>>(),
-    )
-}
-fn text(value: &str, symbols: &mut Symbols) -> Value {
-    Value::Symbol(query_intern_derived(
-        &mut symbols.into(),
-        ByteSlice(SOURCE),
-        NameText(value),
-    ))
-}
 pub(crate) fn fixture(kind: OperationKind) -> Fixture {
     let mut symbols = Symbols::default();
     let mut bindings = vec![];
@@ -431,11 +375,3 @@ pub(crate) fn fixture(kind: OperationKind) -> Fixture {
         expected,
     }
 }
-
-mod expectations;
-use expectations::{Expected, Fixture, cells};
-pub(crate) use expectations::{SOURCE, assert_expected};
-
-use ryo_values::domain::rows::types::Table;
-
-use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable, ParameterBinding};

@@ -5,8 +5,9 @@ use crate::domain::{
     operating::{errors::OperatingError, types::OperatorContext},
     operator::contract::views::BorrowedRows,
 };
-use crate::application::file_dag::derived::owner::acquisition::selection::types::StoredColumns;
 use std::sync::Arc;
+use self::constants::EXPECT_DEMANDED_INPUT;
+use ryo_values::domain::plan_parts::types::InputNumber;
 
 use crate::domain::operator::contract::{
     axis::AxisWorkspace,
@@ -20,8 +21,8 @@ use ryo_relations::domain::relations::types::{Position, Value};
 pub(crate) struct InvocationWorkspace {
     pub work: crate::domain::operator::contract::types::WorkCounters,
     #[cfg(feature = "diagnostic-row-progress")]
-    pub progress_origin: super::route_counts::CapturedOrigin,
-    pub derived_scratch: std::cell::RefCell<crate::domain::derived_views::types::DerivedScratch>,
+    pub progress_origin: super::route_counts::types::CapturedOrigin,
+    derived_scratch: std::cell::RefCell<crate::domain::derived_views::types::DerivedScratch>,
     relation_owner: std::rc::Rc<super::relations::RelationOwner>,
     pub publications:
         Vec<Option<crate::application::file_dag::relations::handle::service::PublishedInput>>,
@@ -174,7 +175,7 @@ impl<'a> GraphInput<'a> {
 impl InvocationWorkspace {
     pub(super) fn graph_input<'a>(
         &'a self,
-        place: usize,
+        place: InputNumber,
         rows: &'a crate::domain::table_model::types::Rows<'a>,
     ) -> Result<Option<GraphInput<'a>>, OperatingError> {
         let proof = self.admit(place, BorrowedRows::from(rows))?;
@@ -212,31 +213,31 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
     pub(super) fn owner_handle(&self) -> std::rc::Rc<super::relations::RelationOwner> {
         self.workspace.owner_handle()
     }
-    pub(super) fn input(&self, place: usize) -> Result<BorrowedRows<'f>, OperatingError> {
+    pub(super) fn input(&self, place: InputNumber) -> Result<BorrowedRows<'f>, OperatingError> {
         self.inputs
-            .get(place)
+            .get(place.0)
             .copied()
             .ok_or(OperatingError::MissingInput {
-                position: place + 1,
+                position: place.0 + 1,
             })
     }
-    pub(super) fn rows(&self, place: usize) -> Result<BorrowedRows<'f>, OperatingError> {
+    pub(super) fn rows(&self, place: InputNumber) -> Result<BorrowedRows<'f>, OperatingError> {
         Ok(self.proof(place)?.rows())
     }
-    fn proof(&self, place: usize) -> Result<&BorrowedInput<'f>, OperatingError> {
+    fn proof(&self, place: InputNumber) -> Result<&BorrowedInput<'f>, OperatingError> {
         use OperatingError;
         let cell = self
             .proofs
-            .get(place)
+            .get(place.0)
             .ok_or(OperatingError::WrongOperation)?;
         if cell.get().is_none() {
-            let rows = *self.inputs.get(place).ok_or(OperatingError::MissingInput {
-                position: place + 1,
+            let rows = *self.inputs.get(place.0).ok_or(OperatingError::MissingInput {
+                position: place.0 + 1,
             })?;
             cell.set(self.workspace.admit(place, rows)?)
                 .map_err(|_| OperatingError::WrongOperation)?;
         }
-        Ok(cell.get().expect("admitted demanded input"))
+        Ok(cell.get().expect(EXPECT_DEMANDED_INPUT))
     }
     pub(super) fn partitioned(
         &self,
@@ -245,12 +246,12 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
         input: BorrowedRows<'f>,
         context: &mut OperatorContext<'_>,
     ) -> Result<super::closure_partitions::PartitionedClosure<'f>, OperatingError> {
-        let proof = self.proof(order.inputs[0])?;
-        if !super::relations::same_admitted_rows(input, proof.rows()) {
+        let proof = self.proof(InputNumber(order.inputs[0]))?;
+        if super::relations::same_admitted_rows(input, proof.rows()) == crate::application::file_dag::relations::types::Sameness::Different {
             return Err(OperatingError::NotRead);
         }
         let storage = self.acquire_rows(order, context)?;
-        super::closure_partitions::PartitionedClosure::from_prepared(
+        super::closure_partitions::schemas::from_prepared(
             proof.clone(),
             Arc::clone(&order.plan),
             Arc::clone(&closure.plan),
@@ -270,8 +271,8 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
         {
             return Err(OperatingError::WrongOperation);
         }
-        let left = self.proof(use_.inputs[0])?;
-        let right = self.proof(use_.inputs[1])?;
+        let left = self.proof(InputNumber(use_.inputs[0]))?;
+        let right = self.proof(InputNumber(use_.inputs[1]))?;
         let owner = self.workspace.owner();
         let admitted = owner
             .derived
@@ -306,152 +307,9 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
             .acquire_admitted(use_, self, identity, supplied)
     }
 }
-impl InvocationWorkspace {
-    pub(super) fn inputs<'a, 'f>(
-        &'a self,
-        inputs: &'a [BorrowedRows<'f>],
-    ) -> InputAdmissions<'a, 'f> {
-        InputAdmissions {
-            workspace: self,
-            inputs,
-            proofs: std::array::from_fn(|_| std::cell::OnceCell::new()),
-        }
-    }
-    fn admit<'a>(
-        &self,
-        place: usize,
-        rows: BorrowedRows<'a>,
-    ) -> Result<BorrowedInput<'a>, OperatingError> {
-        let owner = self.owner();
-        if let Some(record) = self.publications.get(place).and_then(Option::as_ref) {
-            return owner.admit(record.as_ref(), rows);
-        }
-        if place >= self.publications.len() {
-            Err(OperatingError::MissingInput {
-                position: place + 1,
-            })
-        } else {
-            Err(OperatingError::NotRun)
-        }
-    }
 
-    fn acquire_admitted(
-        &self,
-        use_: &PreparedViewUse,
-        inputs: &InputAdmissions<'_, '_>,
-        identity: super::derived::owner::ViewContext,
-        supplied: ViewInputs<'_, '_>,
-    ) -> Result<super::derived::owner::acquisition::admission::service::AcquiredView, OperatingError>
-    {
-        use crate::domain::{
-            derived_views::types::{DerivedInputs, MembershipSpace},
-            operating::errors::OperatingError,
-            operator::contract::views::BorrowedRows,
-        };
-        use ryo_derived::domain::contract::types::DerivedKind;
-        let count = usize::from(use_.len);
-        if !(1..=2).contains(&count) {
-            return Err(OperatingError::WrongOperation);
-        }
-        if count < 2
-            && matches!(
-                &supplied,
-                ViewInputs::MembershipNative | ViewInputs::Dfs { .. }
-            )
-        {
-            return Err(OperatingError::MissingInput { position: 2 });
-        }
-        // The prepared Membership slot also declares the native tree space.
-        // Keep admission/error order for all demanded operands, while the value
-        // view's identity and row proof contain only its actual semantic source.
-        let semantic_sources = if matches!(&supplied, ViewInputs::MembershipValues) {
-            1
-        } else {
-            count
-        };
-        let mut proofs: [Option<&BorrowedInput<'_>>; 2] = [None, None];
-        let mut relations = [None; 2];
-        for at in 0..count {
-            let proof = inputs.proof(use_.inputs[at])?;
-            let (_, relation) = proof.identity(self.owner())?;
-            relations[at] = relation;
-            proofs[at] = Some(proof);
-        }
-        let rows = [
-            proofs[0].as_ref().expect("first admitted input").rows(),
-            proofs[1]
-                .as_ref()
-                .map_or(BorrowedRows::Computed(&EMPTY_DERIVED_INPUT), |proof| {
-                    proof.rows()
-                }),
-        ];
-        let supplied = match supplied {
-            ViewInputs::Rows => DerivedInputs::Rows(&rows[..count]),
-            ViewInputs::Text(texts) => DerivedInputs::Text {
-                rows: &rows[..count],
-                texts,
-            },
-            ViewInputs::MembershipValues => DerivedInputs::Membership {
-                rows: rows[0],
-                space: MembershipSpace::Values,
-            },
-            ViewInputs::MembershipNative => {
-                let BorrowedRows::Tree(tree) = rows[1] else {
-                    return Err(OperatingError::WrongOperation);
-                };
-                DerivedInputs::Membership {
-                    rows: rows[0],
-                    space: MembershipSpace::Native(tree),
-                }
-            }
-            ViewInputs::Dfs {
-                symbols,
-                source,
-                paths,
-                arenas,
-            } => DerivedInputs::Dfs {
-                roots: rows[0],
-                edges: rows[1],
-                symbols,
-                source,
-                paths,
-                arenas,
-            },
-        };
-        let stored = if use_.plan.kind == DerivedKind::Equality && count == 1 {
-            match rows[0] {
-                BorrowedRows::Stored(source) => relations[0]
-                    .or(use_.relations[0])
-                    .map(|relation| StoredColumns {
-                        relation,
-                    }),
-                _ => None,
-            }
-        } else {
-            None
-        };
-        let owner = &self.owner().derived;
-        let sources = proofs[..semantic_sources]
-            .iter()
-            .map(|proof| proof.expect("admitted input"))
-            .collect::<Vec<_>>();
-        let admitted = owner.admit_view(&use_.plan, self.owner(), &sources)?;
-        owner.acquire_stored(
-            &use_.plan,
-            &admitted,
-            identity,
-            supplied,
-            &mut self.derived_scratch.borrow_mut(),
-            stored,
-        )
-    }
-}
-static EMPTY_DERIVED_INPUT: Table = Table {
-    kinds: Vec::new(),
-    cells: Vec::new(),
-    count: ryo_values::domain::rows::types::RowCount(0),
-};
-
+mod constants;
+mod service;
 #[cfg(test)]
 mod test;
 

@@ -4,7 +4,6 @@ use crate::domain::coverage::types::RuleIndex;
 use crate::domain::executable_program::file_demand::types::FrontierPurpose;
 use crate::domain::executable_program::types::ExecutableProgram;
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operator::contract::types::RequestOperators;
 use crate::domain::prepared_request::types::Compiled;
 use crate::domain::prepared_request::types::ObservationIdentity;
 use crate::domain::source_partitions::types::source_partitions::value::SourcePartitions;
@@ -226,7 +225,7 @@ pub(crate) fn prepare(
     );
     let source_plans: Vec<_> = plans.iter().map(Ok).collect();
     let partitions = SourcePartitions::new(rules, &source_plans, &bindings, hosted, &observations)?;
-    let operators = RequestOperators::prepare(&plans, &bindings, hosted, derived.clone())?;
+    let operators = crate::application::file_dag::request::prepare(&plans, &bindings, hosted, derived.clone())?;
     let request = match identity {
         ObservationIdentity::Independent => {
             crate::domain::file_program::types::ObservationRequest::Independent

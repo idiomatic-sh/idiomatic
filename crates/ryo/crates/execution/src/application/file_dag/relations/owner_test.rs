@@ -57,7 +57,7 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     let compact = Arc::new(compact);
     let compact_weak = Arc::downgrade(&compact);
     let owner = RelationOwner::new(
-        true,
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
             ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
@@ -77,7 +77,7 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
             crate::domain::operator::contract::views::BorrowedRows::Compact(&compact),
         )
         .unwrap();
-    assert!(!first.same_record(&second));
+    assert_eq!(first.same_record(&second), crate::application::file_dag::relations::types::Sameness::Different);
     // A second publication of the same immutable Compact and word buffer
     // adds only its own record. Shared backing allocations are not charged
     // again to the owner ledger.
@@ -128,14 +128,16 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     assert!(words_weak.upgrade().is_none());
     assert_eq!(owner.derived.publication_ownership_bytes(), (0, 0, 0));
 }
+#[cfg(test)]
 mod fixtures;
 mod producer;
+mod projection;
 use fixtures::{columns, group, read, row, selected};
 
 #[test]
 fn every_catalog_relation_is_admitted_resolved_and_read_with_its_actual_schema() {
     let owner = RelationOwner::new(
-        true,
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
             ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
@@ -178,8 +180,8 @@ fn every_catalog_relation_is_admitted_resolved_and_read_with_its_actual_schema()
         [57, 8, 4],
         "69 catalog relations, separately from five physical representations"
     );
-    assert_eq!(owner.checks.get(), 69);
-    assert_eq!(owner.reuses.get(), 69);
+    assert_eq!(owner.checks.get(), crate::application::file_dag::relations::types::CheckCount(69));
+    assert_eq!(owner.reuses.get(), crate::application::file_dag::relations::types::CheckCount(69));
 }
 
 #[test]
@@ -188,7 +190,7 @@ fn population_epoch_invalidates_proofs_even_when_same_buffer_and_count_are_reuse
     let schema = kinds(relation);
     let mut physical = columns(schema);
     let owner = RelationOwner::new(
-        true,
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
             ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
@@ -237,12 +239,12 @@ fn population_epoch_invalidates_proofs_even_when_same_buffer_and_count_are_reuse
         "old epoch is refused before provider access"
     );
     let fresh = owner.source(relation, &rows).unwrap();
-    assert!(!original.same_record(&fresh));
+    assert_eq!(original.same_record(&fresh), crate::application::file_dag::relations::types::Sameness::Different);
     assert_eq!(
         owner.inspect(fresh.as_ref(), BorrowedRows::from(&rows)),
         Ok(PhysicalShape::Complete)
     );
-    assert_eq!(owner.checks.get(), 2);
+    assert_eq!(owner.checks.get(), crate::application::file_dag::relations::types::CheckCount(2));
     let resolved = owner
         .resolve(fresh.as_ref(), &|_| Ok(Rows::Stored(source)))
         .unwrap();
@@ -251,7 +253,7 @@ fn population_epoch_invalidates_proofs_even_when_same_buffer_and_count_are_reuse
     expected[1][1] = Value::Number(Integer(201));
     assert_eq!(read(&resolved), expected);
     let other = RelationOwner::new(
-        true,
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
             ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
@@ -260,200 +262,6 @@ fn population_epoch_invalidates_proofs_even_when_same_buffer_and_count_are_reuse
         other.inspect(fresh.as_ref(), BorrowedRows::from(&rows)),
         Err(OperatingError::NotRead)
     ));
-}
-
-#[test]
-fn different_projections_and_positions_have_distinct_admissions_and_correct_values() {
-    let schema = kinds(Relation::SourceLocation);
-    let physical = columns(schema);
-    let source = ColumnsView {
-        kinds: schema,
-        columns: &physical,
-    };
-    let numeric: Vec<_> = schema
-        .iter()
-        .enumerate()
-        .filter(|(_, kind)| **kind == CellKind::Number)
-        .map(|(at, _)| ColumnIndex(u32::try_from(at).unwrap()))
-        .take(2)
-        .collect();
-    assert_eq!(numeric.len(), 2);
-    let first = selected(
-        source,
-        vec![1, 0, 1],
-        vec![numeric[1], numeric[0], numeric[1]],
-        vec![CellKind::Number; 3],
-    );
-    let second = SelectedRows {
-        source,
-        selection: Arc::new(StoredSelection {
-            relation: Relation::SourceLocation,
-            rows: Arc::clone(&first.selection.rows),
-            columns: vec![numeric[0], numeric[1], numeric[0]],
-            kinds: vec![CellKind::Number; 3],
-            identity: Arc::clone(&first.selection.identity),
-        }),
-    };
-    assert!(Arc::ptr_eq(&first.selection.rows, &second.selection.rows));
-    let shifted = selected(
-        source,
-        vec![0, 1, 0],
-        first.selection.columns.clone(),
-        first.selection.kinds.clone(),
-    );
-    let owner = RelationOwner::new(
-        true,
-        (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
-    );
-    let mut publications = Vec::new();
-    let a = [
-        row(schema, 0)[numeric[0].0 as usize],
-        row(schema, 1)[numeric[0].0 as usize],
-    ];
-    let b = [
-        row(schema, 0)[numeric[1].0 as usize],
-        row(schema, 1)[numeric[1].0 as usize],
-    ];
-    for (view, expected) in [
-        (
-            &first,
-            vec![
-                vec![b[1], a[1], b[1]],
-                vec![b[0], a[0], b[0]],
-                vec![b[1], a[1], b[1]],
-            ],
-        ),
-        (
-            &second,
-            vec![
-                vec![a[1], b[1], a[1]],
-                vec![a[0], b[0], a[0]],
-                vec![a[1], b[1], a[1]],
-            ],
-        ),
-        (
-            &shifted,
-            vec![
-                vec![b[0], a[0], b[0]],
-                vec![b[1], a[1], b[1]],
-                vec![b[0], a[0], b[0]],
-            ],
-        ),
-    ] {
-        let rows = Rows::Selected(view.clone());
-        let publication = owner.source(Relation::SourceLocation, &rows).unwrap();
-        assert_eq!(
-            owner.inspect(publication.as_ref(), BorrowedRows::from(&rows)),
-            Ok(PhysicalShape::Complete)
-        );
-        let resolved = owner
-            .resolve(publication.as_ref(), &|_| Ok(Rows::Selected(view.clone())))
-            .unwrap();
-        assert_eq!(read(&resolved), expected);
-        publications.push(publication);
-    }
-    assert!(!publications[0].same_record(&publications[1]));
-    assert!(!publications[0].same_record(&publications[2]));
-    assert!(matches!(
-        owner.inspect(
-            publications[0].as_ref(),
-            BorrowedRows::from(&Rows::Selected(second))
-        ),
-        Err(OperatingError::NotRead)
-    ));
-    assert_eq!(owner.checks.get(), 3);
-}
-
-#[test]
-fn arbitrary_selected_metadata_never_gains_a_trusted_complete_stamp() {
-    let relation = Relation::SourceLocation;
-    let schema = kinds(relation);
-    let physical = columns(schema);
-    let source = ColumnsView {
-        kinds: schema,
-        columns: &physical,
-    };
-    let numeric = ColumnIndex(
-        u32::try_from(
-            schema
-                .iter()
-                .position(|kind| *kind == CellKind::Number)
-                .unwrap(),
-        )
-        .unwrap(),
-    );
-    let owner = RelationOwner::new(
-        true,
-        (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
-    );
-    for view in [
-        selected(
-            source,
-            vec![0],
-            vec![ColumnIndex(u32::MAX)],
-            vec![CellKind::Number],
-        ),
-        selected(source, vec![0], vec![numeric], vec![CellKind::Flag]),
-    ] {
-        let rows = Rows::Selected(view);
-        let publication = owner.source(relation, &rows).unwrap();
-        assert!(matches!(
-            owner.inspect(publication.as_ref(), BorrowedRows::from(&rows)),
-            Err(OperatingError::ShapeMismatch)
-        ));
-    }
-    let rows = Rows::Selected(selected(
-        source,
-        vec![9],
-        vec![numeric],
-        vec![CellKind::Number],
-    ));
-    let publication = owner.source(relation, &rows).unwrap();
-    assert_eq!(
-        owner.inspect(publication.as_ref(), BorrowedRows::from(&rows)),
-        Ok(PhysicalShape::ReadablePhysicalFallback)
-    );
-}
-
-#[derive(Debug)]
-struct Forged;
-impl PublishedRelation for Forged {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-}
-#[test]
-fn a_foreign_publication_with_correct_kind_has_no_admission_authority() {
-    let owner = RelationOwner::new(
-        true,
-        (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
-    );
-    let physical = columns(&[CellKind::Number]);
-    let rows = Rows::Stored(ColumnsView {
-        kinds: &[CellKind::Number],
-        columns: &physical,
-    });
-    assert!(matches!(
-        owner.inspect(&Forged, BorrowedRows::from(&rows)),
-        Err(OperatingError::NotRead)
-    ));
-    assert!(matches!(
-        owner.admit(&Forged, BorrowedRows::from(&rows)),
-        Err(OperatingError::NotRead)
-    ));
-    assert!(matches!(
-        owner.resolve(&Forged, &|_| panic!(
-            "forged publication must not acquire a provider"
-        )),
-        Err(OperatingError::NotRead)
-    ));
-    assert_eq!(owner.checks.get(), 0);
 }
 
 #[test]
@@ -471,21 +279,21 @@ fn stable_partial_population_reuses_structure_without_proving_semantic_absence()
         at: Some(FileId(9)),
     }];
     let owner = RelationOwner::new(
-        true,
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
             ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let first = owner.source(relation, &rows).unwrap();
     let second = owner.source(relation, &rows).unwrap();
-    assert!(first.same_record(&second));
+    assert_eq!(first.same_record(&second), crate::application::file_dag::relations::types::Sameness::Same);
     for publication in [&first, &second] {
         assert_eq!(
             owner.inspect(publication.as_ref(), BorrowedRows::from(&rows)),
             Ok(PhysicalShape::Complete)
         );
     }
-    assert_eq!(owner.checks.get(), 1);
+    assert_eq!(owner.checks.get(), crate::application::file_dag::relations::types::CheckCount(1));
     let plan = crate::application::file_dag::derived::owner::fixtures::source_plan(relation);
     let prepared = crate::application::file_dag::derived::owner::fixtures::prepared_sources(
         &[plan],
@@ -516,7 +324,7 @@ fn normalization_reuses_one_owned_fallback_without_promoting_missing_rows() {
         columns: &physical,
     };
     let owner = RelationOwner::new(
-        true,
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
             ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
@@ -532,7 +340,7 @@ fn normalization_reuses_one_owned_fallback_without_promoting_missing_rows() {
     assert!(std::ptr::eq(*first_table, *second_table));
     assert_eq!(read(&first), [row(schema, 0)]);
     assert_eq!(read(&second), read(&first));
-    assert_eq!(owner.checks.get(), 1);
+    assert_eq!(owner.checks.get(), crate::application::file_dag::relations::types::CheckCount(1));
 }
 
 mod reuse;

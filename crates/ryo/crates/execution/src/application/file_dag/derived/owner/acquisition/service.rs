@@ -5,7 +5,7 @@ use super::population::types::{
     Acquisition, BackendRetention, Construction, OptionalRetention, StoredObservation,
 };
 use super::selection::types::StoredColumns;
-use crate::application::file_dag::route_counts::{self, BuildRoute};
+use crate::application::file_dag::route_counts::{self, types::BuildRoute};
 
 impl DerivedOwner {
     pub(in crate::application::file_dag) fn acquire_stored(

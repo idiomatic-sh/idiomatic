@@ -1,5 +1,9 @@
 //! Observer normalization preserves column mappings, bag semantics and diagnostic ownership.
 use super::prefix;
+use crate::application::rule_compilation::constants::{
+    BAG_PRESERVING_PROJECTION, CALL_TEXT, COMPOSED_PREFIX, DISTINCT_IS_BARRIER, IDENTITY_SELECT,
+    RELATION_ROOTED_FILTER, ZERO_WIDTH_PROJECTION,
+};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
     Applied, ColumnIndex, PlanComparison, ComparisonOrigin, ComparisonOriginId, Function, Input,
@@ -8,12 +12,12 @@ use ryo_values::domain::plan_parts::types::{
 use ryo_values::domain::plans::types::Operation;
 
 /// A typed symbol predicate with independent source-origin ownership.
-fn comparison(column: u32, origin: u32) -> PlanComparison {
+fn comparison(column: ColumnIndex, origin: ComparisonOriginId) -> PlanComparison {
     PlanComparison {
         test: Test::Equal,
-        left: Operand::Column(ColumnIndex(column)),
-        right: Operand::Literal(QueryLiteral::Text(LiteralText("call".into()))),
-        origin: ComparisonOrigin::Recorded(ComparisonOriginId(origin)),
+        left: Operand::Column(column),
+        right: Operand::Literal(QueryLiteral::Text(LiteralText(CALL_TEXT.into()))),
+        origin: ComparisonOrigin::Recorded(origin),
     }
 }
 
@@ -23,11 +27,11 @@ fn observer_composes_reordered_and_repeated_projections_without_erasing_origins(
         &[],
         &Operation::Select {
             from: Input::Relation(Relation::SemanticSyntax),
-            comparisons: vec![comparison(1, 7)],
+            comparisons: vec![comparison(ColumnIndex(1), ComparisonOriginId(7))],
             kept: vec![ColumnIndex(2), ColumnIndex(0), ColumnIndex(1)],
         },
     )
-    .expect("relation-rooted filter");
+    .expect(RELATION_ROOTED_FILTER);
     let projected = prefix(
         &[Some(first.clone())],
         &Operation::Project {
@@ -41,7 +45,7 @@ fn observer_composes_reordered_and_repeated_projections_without_erasing_origins(
             distinct: RepeatedRows::Kept,
         },
     )
-    .expect("bag-preserving projection");
+    .expect(BAG_PRESERVING_PROJECTION);
     assert_eq!(
         projected.2,
         [
@@ -51,7 +55,7 @@ fn observer_composes_reordered_and_repeated_projections_without_erasing_origins(
             ColumnIndex(1)
         ]
     );
-    let mut tested = comparison(1, 99);
+    let mut tested = comparison(ColumnIndex(1), ComparisonOriginId(99));
     tested.left = Operand::Function(Applied {
         function: Function::Concat,
         arguments: vec![
@@ -68,7 +72,7 @@ fn observer_composes_reordered_and_repeated_projections_without_erasing_origins(
             kept: vec![ColumnIndex(2), ColumnIndex(0)],
         },
     )
-    .expect("composed prefix");
+    .expect(COMPOSED_PREFIX);
     assert_eq!(result.0, Relation::SemanticSyntax);
     assert_eq!(result.2, [ColumnIndex(2), ColumnIndex(0)]);
     assert_eq!(
@@ -99,7 +103,7 @@ fn observer_stops_at_distinct_and_invalid_inputs_and_distinguishes_empty_project
         comparisons: vec![],
         kept: vec![],
     };
-    let root = prefix(&[], &select).expect("identity select");
+    let root = prefix(&[], &select).expect(IDENTITY_SELECT);
     assert!(!root.2.is_empty());
     let empty = prefix(
         &[Some(root.clone())],
@@ -109,7 +113,7 @@ fn observer_stops_at_distinct_and_invalid_inputs_and_distinguishes_empty_project
             distinct: RepeatedRows::Kept,
         },
     )
-    .expect("zero-width bag projection");
+    .expect(ZERO_WIDTH_PROJECTION);
     assert!(empty.2.is_empty());
     assert!(
         prefix(
@@ -121,7 +125,7 @@ fn observer_stops_at_distinct_and_invalid_inputs_and_distinguishes_empty_project
             }
         )
         .is_none(),
-        "distinct is a semantic barrier, not an identity projection"
+        DISTINCT_IS_BARRIER
     );
     assert!(
         prefix(
@@ -139,7 +143,7 @@ fn observer_stops_at_distinct_and_invalid_inputs_and_distinguishes_empty_project
             &[],
             &Operation::Select {
                 from: Input::Relation(Relation::SemanticSyntax),
-                comparisons: vec![comparison(99, 7)],
+                comparisons: vec![comparison(ColumnIndex(99), ComparisonOriginId(7))],
                 kept: vec![],
             }
         )

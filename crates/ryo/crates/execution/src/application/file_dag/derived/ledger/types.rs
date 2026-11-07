@@ -53,7 +53,7 @@ pub(in crate::application::file_dag) enum LeaseClass {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(in crate::application::file_dag) struct Snapshot {
+pub(in crate::application::file_dag) struct LedgerSnapshot {
     pub required_bytes: ByteCount,
     /// Physical bytes retained by derived views, counted once per backing.
     pub optional_bytes: ByteCount,

@@ -9,7 +9,6 @@ pub(crate) mod request;
 pub(crate) mod resources;
 #[cfg(test)]
 pub(crate) mod testing;
-pub(crate) mod types;
 pub(crate) mod workspace;
 
 #[cfg(test)]

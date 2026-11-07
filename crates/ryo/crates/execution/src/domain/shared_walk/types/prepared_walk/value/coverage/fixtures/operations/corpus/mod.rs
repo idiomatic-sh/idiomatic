@@ -3,7 +3,6 @@ use super::super::plan;
 use super::heads::{FUNCTION, ROW_KEY, TEXT_A, equal, from, operations};
 use super::sources::Sources;
 use crate::domain::executable_program::types::ExecutableProgram;
-use crate::domain::operator::contract::types::RequestOperators;
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation,
 };
@@ -146,7 +145,7 @@ pub(in super::super::super) fn compiled_operations() -> Corpus {
         }],
         rows: vec![],
     }];
-    let operators = RequestOperators::prepare_with_schemas(
+    let operators = crate::application::file_dag::request::prepare_with_schemas(
         &plans,
         &bindings,
         &hosted,
@@ -170,7 +169,7 @@ pub(in super::super::super) fn compile_program(
     bindings: &[Vec<ParameterBinding>],
 ) -> ExecutableProgram {
     let hosted = Vec::new();
-    let operators = RequestOperators::prepare_with_schemas(
+    let operators = crate::application::file_dag::request::prepare_with_schemas(
         plans,
         bindings,
         &hosted,

@@ -101,7 +101,7 @@ fn build_matches(
         visits: Visits(0),
     };
     let outcome = crate::application::file_dag::route_counts::observe(
-        crate::application::file_dag::route_counts::BuildRoute::SelectorPredicate.label(),
+        crate::application::file_dag::route_counts::types::BuildRoute::SelectorPredicate.label(),
         crate::application::file_dag::route_counts::derived(views.predicate.kind),
         || {
             resources.build(

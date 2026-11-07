@@ -8,6 +8,7 @@ use ryo_relations::domain::relations::{
 };
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
+    files::types::SourceView,
     plan_parts::types::{ColumnIndex, Input as PlanInput, JoinColumn, Side, StepId},
     plans::types::Operation,
     query_operators::types::QueryOperator,
@@ -22,8 +23,8 @@ const fn span(start: u32, end: u32) -> Span {
 }
 fn subject((left, right, source): Input) -> Result<Span, Failure> {
     let steps = vec![
-        compiled::select(Relation::SyntaxTree, &[0, 4]),
-        compiled::select(Relation::SemanticSyntax, &[0, 4]),
+        compiled::select(Relation::SyntaxTree, &[ColumnIndex(0), ColumnIndex(4)]),
+        compiled::select(Relation::SemanticSyntax, &[ColumnIndex(0), ColumnIndex(4)]),
         compiled::step(Operation::Join {
             left: PlanInput::Step(StepId(0)),
             right: PlanInput::Step(StepId(1)),
@@ -50,23 +51,23 @@ fn subject((left, right, source): Input) -> Result<Span, Failure> {
         }),
     ];
     let providers = [
-        (
-            Relation::SyntaxTree,
-            compiled::rows(&[(FileId(0), left); 2]),
-        ),
-        (
-            Relation::SemanticSyntax,
-            compiled::rows(&[(FileId(0), right); 2]),
-        ),
+        compiled::Provider {
+            relation: Relation::SyntaxTree,
+            table: compiled::rows(&[compiled::FileSpan {
+                file: FileId(0),
+                span: left,
+            }; 2]),
+        },
+        compiled::Provider {
+            relation: Relation::SemanticSyntax,
+            table: compiled::rows(&[compiled::FileSpan {
+                file: FileId(0),
+                span: right,
+            }; 2]),
+        },
     ];
-    let (collected, _) = compiled::run(
-        steps.clone(),
-        &providers,
-        source,
-        &mut Symbols::default(),
-        false,
-    );
-    let (streamed, _) = compiled::run(steps, &providers, source, &mut Symbols::default(), true);
+    let compiled::CompiledRun { result: collected, .. } = compiled::run(steps.clone(), &providers, SourceView(source), &mut Symbols::default(), compiled::Downstream::Collected);
+    let compiled::CompiledRun { result: streamed, .. } = compiled::run(steps, &providers, SourceView(source), &mut Symbols::default(), compiled::Downstream::Streamed);
     assert_eq!(collected, streamed);
     let output = collected?;
     assert_eq!(output.count.0, 2);

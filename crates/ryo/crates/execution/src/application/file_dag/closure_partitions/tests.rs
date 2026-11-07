@@ -1,4 +1,3 @@
-use super::PartitionedClosure;
 use crate::domain::operator::contract::views::BorrowedRows;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -6,7 +5,7 @@ use ryo_values::domain::rows::service::push_row;
 
 fn scope() -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
     std::rc::Rc::new(crate::application::file_dag::relations::RelationOwner::new(
-        true,
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         crate::application::file_dag::testing::program_derived_port(),
     ))
 }
@@ -34,7 +33,7 @@ fn interleaved_partitions_keep_one_reused_adjacency() {
             Err(crate::domain::operating::errors::OperatingError::NotRead)
         })
         .unwrap();
-    let mut cursor = PartitionedClosure::prepare(
+    let mut cursor = super::schemas::prepare(
         &publication,
         BorrowedRows::from(&rows),
         &[ColumnIndex(2)],
@@ -86,7 +85,7 @@ fn separate_keys_never_share_edges() {
             Err(crate::domain::operating::errors::OperatingError::NotRead)
         })
         .unwrap();
-    let mut cursor = PartitionedClosure::prepare(
+    let mut cursor = super::schemas::prepare(
         &publication,
         BorrowedRows::from(&rows),
         &[ColumnIndex(2)],
@@ -134,7 +133,7 @@ fn advancing_releases_only_the_previous_partition_lease() {
         input_charge > 0,
         "the actual input publication remains live"
     );
-    let mut cursor = PartitionedClosure::prepare(
+    let mut cursor = super::schemas::prepare(
         &publication,
         BorrowedRows::from(&rows),
         &[ColumnIndex(2)],
@@ -206,7 +205,7 @@ fn empty_order_and_wrong_prepared_order_are_refused_precisely() {
             Err(crate::domain::operating::errors::OperatingError::NotRead)
         })
         .unwrap();
-    let cursor = PartitionedClosure::prepare(
+    let cursor = super::schemas::prepare(
         &publication,
         BorrowedRows::from(&rows),
         &[ColumnIndex(2)],
@@ -231,7 +230,7 @@ fn empty_order_and_wrong_prepared_order_are_refused_precisely() {
     ));
     let wrong_plan = std::sync::Arc::new((*empty.partition_plan).clone());
     assert!(matches!(
-        PartitionedClosure::from_prepared(
+        super::schemas::from_prepared(
             empty.proof.clone(),
             wrong_plan,
             std::sync::Arc::clone(&empty.closure_plan),

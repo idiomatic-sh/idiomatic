@@ -29,7 +29,7 @@ fn publication_constructor_rejects_same_owner_proof_substitution_even_for_canoni
     };
     let a = owner.computed(rows.clone()).unwrap();
     let b = owner.computed(rows).unwrap();
-    assert!(!a.same_record(&b));
+    assert_eq!(a.same_record(&b), crate::application::file_dag::relations::types::Sameness::Different);
     for aliases in [false, true] {
         if aliases {
             execution
@@ -72,11 +72,12 @@ fn publication_constructor_rejects_same_owner_proof_substitution_even_for_canoni
                     Readiness::Complete,
                 )
                 .unwrap();
-            assert!(
+            assert_eq!(
                 admitted
                     .publication(&owner)
                     .unwrap()
-                    .same_record(publication)
+                    .same_record(publication),
+                crate::application::file_dag::relations::types::Sameness::Same
             );
         }
         for (publication, proof) in [(&b, &a_proof), (&a, &b_proof)] {

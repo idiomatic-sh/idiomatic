@@ -136,7 +136,7 @@ impl AdmittedInput {
         required: &Partition,
         expected: ProducerRoot,
     ) -> Result<(), OperatingError> {
-        if !owner.matches_generation(generation)
+        if owner.matches_generation(generation) == crate::application::file_dag::relations::types::Sameness::Different
             || !Rc::ptr_eq(owner, &self.proof.owner)
             || !Arc::ptr_eq(&self.proof.generation, generation)
             || self.root != expected
@@ -219,7 +219,7 @@ impl AdmittedInput {
         owner: &Rc<RelationOwner>,
     ) -> Result<&PublishedInput, OperatingError> {
         if !Rc::ptr_eq(owner, &self.proof.owner)
-            || !owner.matches_generation(&self.proof.generation)
+            || owner.matches_generation(&self.proof.generation) == crate::application::file_dag::relations::types::Sameness::Different
         {
             return Err(OperatingError::NotRead);
         }

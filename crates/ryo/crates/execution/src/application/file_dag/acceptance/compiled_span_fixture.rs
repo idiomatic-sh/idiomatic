@@ -1,4 +1,5 @@
 //! Span fixtures assemble canonical provider rows and run the actual compiled owner API.
+use super::constants::{NO_TEXT, RULE_NAME};
 use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::file_execution::open_file;
 use crate::application::file_dag::program::facade_runtime::types::ProgramServices;
@@ -23,7 +24,9 @@ use ryo_relations::domain::relations::{
     types::{FileId, NodeId, Relation, Span, Value},
 };
 use ryo_values::domain::{
-    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
+    files::types::{
+        CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds, SourceView,
+    },
     plan_parts::types::{ColumnIndex, Input, StepId, StepScope},
     plans::types::{Emit, Operation, Plan, PlanStep},
     query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
@@ -34,14 +37,54 @@ use ryo_values::domain::{
 };
 use std::{collections::BTreeMap, sync::Arc};
 
-pub(super) fn rows(spans: &[(FileId, Span)]) -> Table {
+
+/// One syntax row's file and span.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct FileSpan {
+    /// The file the row belongs to.
+    pub file: FileId,
+    /// The span the row covers.
+    pub span: Span,
+}
+
+/// One relation and the rows a provider answers for it.
+pub(super) struct Provider {
+    /// The relation the provider answers.
+    pub relation: Relation,
+    /// The rows it answers with.
+    pub table: Table,
+}
+
+/// Whether a span operation's output is also demanded as a stream by a following operation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Downstream {
+    /// A downstream consumer demands the operation as a stream.
+    Streamed,
+    /// The operation's rows are collected.
+    Collected,
+}
+
+/// How many matchers a run built.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct Builds(pub usize);
+
+/// What a run answered and how many matchers it built.
+#[derive(Debug, PartialEq)]
+pub(super) struct CompiledRun {
+    /// The table the rule emitted, or why it did not.
+    pub result: Result<Table, OperatingError>,
+    /// The matchers it built.
+    pub builds: Builds,
+}
+
+pub(super) fn rows(spans: &[FileSpan]) -> Table {
     Table {
         kinds: kinds(Relation::SyntaxTree).to_vec(),
         count: RowCount(spans.len()),
         cells: spans
             .iter()
             .enumerate()
-            .flat_map(|(at, (file, span))| {
+            .flat_map(|(at, FileSpan { file, span })| {
                 [
                     Value::Node(NodeId(at as u64)),
                     Value::Symbol(ryo_relations::domain::terms::types::Symbol(0)),
@@ -59,23 +102,23 @@ pub(super) fn step(operation: Operation) -> PlanStep {
         scope: StepScope::PerFile,
     }
 }
-pub(super) fn select(relation: Relation, columns: &[u32]) -> PlanStep {
+pub(super) fn select(relation: Relation, columns: &[ColumnIndex]) -> PlanStep {
     step(Operation::Select {
         from: Input::Relation(relation),
         comparisons: vec![],
-        kept: columns.iter().copied().map(ColumnIndex).collect(),
+        kept: columns.to_vec(),
     })
 }
 /// The downstream Extend is an authored no-op row consumer; it demands the preceding
 /// span operation as a stream through the same normal scheduler, rather than a test feed.
 pub(super) fn run(
     mut steps: Vec<PlanStep>,
-    providers: &[(Relation, Table)],
-    source: &[u8],
+    providers: &[Provider],
+    source: SourceView<'_>,
     symbols: &mut Symbols,
-    downstream: bool,
-) -> (Result<Table, OperatingError>, usize) {
-    if downstream {
+    downstream: Downstream,
+) -> CompiledRun {
+    if downstream == Downstream::Streamed {
         steps.push(step(Operation::Extend {
             from: Input::Step(StepId((steps.len() - 1) as u32)),
             values: vec![],
@@ -96,18 +139,18 @@ pub(super) fn run(
         comparison_origins: vec![],
     };
     let rule = RuleSpec {
-        id: RuleId("span-contract".into()),
+        id: RuleId(RULE_NAME.into()),
         query: QueryBundle {
             root: QueryDocumentSource {
-                id: QuerySourceId("span-contract".into()),
-                text: "".into(),
+                id: QuerySourceId(RULE_NAME.into()),
+                text: NO_TEXT.into(),
             },
             modules: Default::default(),
         },
         applicability: RuleApplicability::Always,
         given: vec![],
         observations: vec![],
-        spelled: RuleParameters("".into()),
+        spelled: RuleParameters(NO_TEXT.into()),
         include: vec![],
         exclude: vec![],
     };
@@ -126,7 +169,12 @@ pub(super) fn run(
         ObservationIdentity::Independent,
     ) {
         Ok(prepared) => prepared,
-        Err(error) => return (Err(error), 0),
+        Err(error) => {
+            return CompiledRun {
+                result: Err(error),
+                builds: Builds(0),
+            };
+        }
     };
     let result = (|| {
         let services = Arc::new(ProgramServices::new(
@@ -136,8 +184,8 @@ pub(super) fn run(
             derived,
             &[CorpusInput::Available(CorpusEntry {
                 executable: ExecutablePermission::Unknown,
-                path: FilePath("span-contract.py".into()),
-                size: FileSize(source.len() as u64),
+                path: FilePath(RULE_NAME.into()),
+                size: FileSize(source.0.len() as u64),
                 modified: Nanoseconds(0),
             })],
         ));
@@ -154,7 +202,7 @@ pub(super) fn run(
                 capture: CaptureIntent::Disabled,
             }],
             services,
-            ryo_values::domain::files::types::SourceView(source),
+            source,
             crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
             symbols,
             None,
@@ -162,8 +210,8 @@ pub(super) fn run(
         let read = |relation| {
             providers
                 .iter()
-                .find(|(provider, _)| *provider == relation)
-                .map(|(_, table)| Rows::Computed(table))
+                .find(|provider| provider.relation == relation)
+                .map(|provider| Rows::Computed(&provider.table))
                 .ok_or(OperatingError::NotRead)
         };
         let outcome = file.rule(
@@ -183,11 +231,13 @@ pub(super) fn run(
         file.finish()?;
         result
     })();
-    (
+    CompiledRun {
         result,
-        prepared
-            .matchers()
-            .builds
-            .load(std::sync::atomic::Ordering::Relaxed),
-    )
+        builds: Builds(
+            prepared
+                .matchers()
+                .builds
+                .load(std::sync::atomic::Ordering::Relaxed),
+        ),
+    }
 }

@@ -1,8 +1,12 @@
 //! Named publication leases across declared project ready batches. No source IO or producer evaluation.
-use crate::application::file_dag::frontiers::types::{BoundInput, BoundMember, PublicationSlot};
+use super::constants::PUBLICATION_INCOMPLETE;
+use super::types::{
+    AdmittedOutput, ArenaCount, ConsumerCount, CrossPublications, CrossRoot, FinishState,
+    ReferenceCount,
+};
+use crate::application::file_dag::frontiers::types::{BoundInput, BoundMember, InputReadiness, PublicationSlot};
 use crate::application::file_dag::program::preparation::types::ObservationMetadata;
 use crate::application::file_dag::program::preparation::types::OutputRoot;
-use crate::domain::completion::types::CoverageState;
 use ryo_relations::domain::relations::types::{CROSS_FILE, WorkerNumber};
 use ryo_values::domain::{
     records::types::{ObservationIndex, ProducerReadiness},
@@ -16,44 +20,6 @@ use {
     ryo_values::domain::records::types::CrossPublicationTransfer,
 };
 
-enum CrossRoot {
-    Pending,
-    FileFrontier {
-        publication: crate::application::file_dag::relations::packed::service::PackedPublication,
-        token: crate::application::file_dag::program::restored::types::ValidatedFrontier,
-        arenas: Vec<WorkerNumber>,
-    },
-    Named {
-        publication: crate::application::file_dag::relations::packed::service::PackedPublication,
-        admitted: crate::application::file_dag::program::protocol::types::ObservedPublication,
-        arenas: Vec<WorkerNumber>,
-    },
-    Unavailable,
-}
-/// Every expected file has one validated frame; each logical state retains its file identity.
-pub(crate) struct FrontierPopulation<'a> {
-    frames: Vec<(
-        ryo_relations::domain::relations::types::FileId,
-        ryo_values::domain::observations::types::ValidatedFrontiers<'a>,
-    )>,
-}
-/// A checked physical frontier; aliases share this exact owned payload and common lease.
-pub(crate) struct PreparedFrontier {
-    publication: crate::application::file_dag::relations::packed::service::PackedPublication,
-    token: crate::application::file_dag::program::restored::types::ValidatedFrontier,
-    arenas: Vec<WorkerNumber>,
-}
-/// One invocation extends the existing arena vector; stable slot indices never move during execution.
-pub(crate) struct CrossPublications<'a> {
-    metadata: &'a ObservationMetadata,
-    owner: Rc<crate::application::file_dag::relations::RelationOwner>,
-    arenas: &'a mut Vec<ArenaBytes>,
-    inherited: usize,
-    references: Vec<usize>,
-    roots: Vec<Vec<CrossRoot>>,
-    remaining: Vec<Vec<usize>>,
-    finished: Vec<bool>,
-}
 impl<'a> CrossPublications<'a> {
     pub(crate) fn new(
         metadata: &'a ObservationMetadata,
@@ -64,8 +30,8 @@ impl<'a> CrossPublications<'a> {
         Self {
             metadata,
             owner: Rc::clone(scope.owner()),
-            inherited,
-            references: vec![0; inherited],
+            inherited: ArenaCount(inherited),
+            references: vec![ReferenceCount(0); inherited],
             arenas,
             roots: metadata
                 .outputs
@@ -86,99 +52,15 @@ impl<'a> CrossPublications<'a> {
                 .map(|outputs| {
                     outputs
                         .iter()
-                        .map(|output| output.consumers.len())
+                        .map(|output| ConsumerCount(output.consumers.len()))
                         .collect()
                 })
                 .collect(),
-            finished: vec![false; metadata.bindings.len()],
+            finished: vec![FinishState::Pending; metadata.bindings.len()],
         }
     }
     pub(crate) fn arenas(&self) -> &[ArenaBytes] {
         self.arenas
-    }
-    /// Decode and retain one actual physical bucket through the common publication owner.
-    pub(crate) fn prepare_frontier(
-        &self,
-        token: crate::application::file_dag::program::restored::types::ValidatedFrontier,
-    ) -> Result<PreparedFrontier, OperatingError> {
-        let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
-        let backing = std::sync::Arc::new(token.words().clone());
-        let ryo_values::domain::table_words::types::Admitted {
-            table: metadata, ..
-        } = ryo_values::domain::compact_table::service::admit_compact(
-            ryo_values::domain::table_words::types::CompactBacking(std::sync::Arc::clone(&backing)),
-            ryo_language::domain::symbols::service::places_mut(&mut symbols),
-            ryo_values::domain::table_words::types::DecodeMode::Complete,
-        )
-        .map_err(|error| OperatingError::ObservationIncomplete {
-            reason: error.to_string(),
-        })?;
-        drop(metadata);
-        let words =
-            std::sync::Arc::try_unwrap(backing).map_err(|_| OperatingError::WrongOperation)?;
-        let mut arenas = Vec::new();
-        for place in ryo_language::domain::names::service::places_of(&symbols) {
-            if let ryo_relations::domain::relations::types::Origin::Derived(worker) = place.origin {
-                if worker == CROSS_FILE || worker.0 as usize >= self.inherited {
-                    return Err(incomplete());
-                }
-                if !arenas.contains(&worker) {
-                    arenas.push(worker);
-                }
-            }
-        }
-        let backings = arenas
-            .iter()
-            .map(|worker| self.arenas.get(worker.0 as usize).ok_or_else(incomplete))
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok(PreparedFrontier {
-            publication: self.owner.packed_publication(words, &backings)?,
-            token,
-            arenas,
-        })
-    }
-    /// Each logical output retains its own readiness even when names share one physical bucket.
-    pub(crate) fn install_frontier(
-        &mut self,
-        slot: usize,
-        prepared: &PreparedFrontier,
-        readiness: &FrontierPopulation<'_>,
-    ) -> Result<(), OperatingError> {
-        if !frontier_compatible(slot, readiness, prepared.token.coverage())? {
-            return Err(incomplete());
-        }
-        let entry = self.metadata.frontiers.get(slot).ok_or_else(incomplete)?;
-        if !matches!(
-            self.metadata
-                .outputs
-                .get(entry.producer.0)
-                .and_then(|outputs| outputs.get(entry.output.0 as usize))
-                .map(|output| &output.root),
-            Some(OutputRoot::PerFile)
-        ) {
-            return Err(incomplete());
-        }
-        let root = self
-            .roots
-            .get_mut(entry.producer.0)
-            .and_then(|outputs| outputs.get_mut(entry.output.0 as usize))
-            .ok_or_else(incomplete)?;
-        if !matches!(root, CrossRoot::Unavailable) {
-            return Err(incomplete());
-        }
-        for arena in &prepared.arenas {
-            let count = self
-                .references
-                .get_mut(arena.0 as usize)
-                .ok_or_else(incomplete)?;
-            *count = count.checked_add(1).ok_or_else(incomplete)?;
-        }
-        *root = CrossRoot::FileFrontier {
-            publication: prepared.publication.clone(),
-            token: prepared.token.clone(),
-            arenas: prepared.arenas.clone(),
-        };
-        Ok(())
     }
     /// Prepared once for one task. Availability retains the producer's admitted
     /// coverage; a partial publication is usable without becoming complete-empty.
@@ -188,15 +70,28 @@ impl<'a> CrossPublications<'a> {
     ) -> Result<
         std::collections::BTreeMap<
             ryo_values::domain::plan_parts::types::ObservationBindingId,
-            bool,
+            InputReadiness,
         >,
         OperatingError,
     > {
         let bindings = self.metadata.bindings.get(rule.0).ok_or_else(incomplete)?;
-        Ok(bindings.iter().map(|binding| (binding.input, binding.producers.iter().all(|producer| match producer {
-            crate::domain::file_program::types::ResolvedObservationProducer::NoQuery { .. } => false,
-            crate::domain::file_program::types::ResolvedObservationProducer::Output { rule, output } => matches!(self.roots.get(rule.0).and_then(|roots| roots.get(output.0 as usize)), Some(CrossRoot::FileFrontier { .. } | CrossRoot::Named { .. })),
-        }))).collect())
+        Ok(bindings
+            .iter()
+            .map(|binding| {
+                let available = binding.producers.iter().all(|producer| match producer {
+                    crate::domain::file_program::types::ResolvedObservationProducer::NoQuery { .. } => false,
+                    crate::domain::file_program::types::ResolvedObservationProducer::Output { rule, output } => matches!(self.roots.get(rule.0).and_then(|roots| roots.get(output.0 as usize)), Some(CrossRoot::FileFrontier { .. } | CrossRoot::Named { .. })),
+                });
+                (
+                    binding.input,
+                    if available {
+                        InputReadiness::Ready
+                    } else {
+                        InputReadiness::Unavailable
+                    },
+                )
+            })
+            .collect())
     }
     /// Only phases with demanded cross roots reserve an ordinary arena slot.
     pub(crate) fn reserve(&mut self, rule: RuleIndex) -> Result<PublicationSlot, OperatingError> {
@@ -217,7 +112,7 @@ impl<'a> CrossPublications<'a> {
             return Err(OperatingError::NotRun);
         }
         self.arenas.push(ArenaBytes::default());
-        self.references.push(0);
+        self.references.push(ReferenceCount(0));
         Ok(PublicationSlot::Reserved(worker))
     }
     fn member(
@@ -257,15 +152,12 @@ impl<'a> CrossPublications<'a> {
         rule: RuleIndex,
         slot: PublicationSlot,
         transfer: CrossPublicationTransfer,
-        admitted: Vec<(
-            ObservationIndex,
-            crate::application::file_dag::program::protocol::types::ObservedPublication,
-        )>,
+        admitted: Vec<AdmittedOutput>,
     ) -> Result<(), OperatingError> {
         let count = admitted.len();
         let mut admitted = admitted
             .into_iter()
-            .map(|(output, publication)| (output.0, publication))
+            .map(|AdmittedOutput { output, publication }| (output.0, publication))
             .collect::<std::collections::BTreeMap<_, _>>();
         if admitted.len() != count {
             return Err(incomplete());
@@ -289,7 +181,7 @@ impl<'a> CrossPublications<'a> {
         };
         if transfer.worker != expected
             || expected == CROSS_FILE
-            || (expected.0 as usize) < self.inherited
+            || (expected.0 as usize) < self.inherited.0
         {
             return Err(OperatingError::NotRun);
         }
@@ -353,6 +245,7 @@ impl<'a> CrossPublications<'a> {
                     self.references
                         .get(at)
                         .ok_or_else(incomplete)?
+                        .0
                         .checked_add(*added)
                         .ok_or(OperatingError::NotRun)?;
                 }
@@ -383,7 +276,7 @@ impl<'a> CrossPublications<'a> {
         }
         self.arenas[at] = transfer.arena;
         for (count, added) in self.references.iter_mut().zip(additions) {
-            *count += added; // checked against the old count above
+            count.0 += added; // checked against the old count above
         }
         for (output, root) in prepared {
             self.roots[rule.0][output] = root;
@@ -401,10 +294,10 @@ impl<'a> CrossPublications<'a> {
             .finished
             .get_mut(consumer.0)
             .ok_or(OperatingError::NotRun)?;
-        if *finished {
+        if *finished == FinishState::Finished {
             return Err(OperatingError::NotRun);
         }
-        *finished = true;
+        *finished = FinishState::Finished;
         for edge in &self.metadata.retire[consumer.0] {
             if !matches!(
                 self.metadata.outputs[edge.producer.0][edge.output.0 as usize].root,
@@ -417,8 +310,8 @@ impl<'a> CrossPublications<'a> {
                 .get_mut(edge.producer.0)
                 .and_then(|outputs| outputs.get_mut(edge.output.0 as usize))
                 .ok_or(OperatingError::NotRun)?;
-            *count = count.checked_sub(1).ok_or(OperatingError::NotRun)?;
-            if *count == 0 {
+            count.0 = count.0.checked_sub(1).ok_or(OperatingError::NotRun)?;
+            if count.0 == 0 {
                 self.release(*edge)?;
             }
         }
@@ -451,15 +344,15 @@ impl<'a> CrossPublications<'a> {
                     .references
                     .get_mut(arena.0 as usize)
                     .ok_or(OperatingError::NotRun)?;
-                *count = count.checked_sub(1).ok_or(OperatingError::NotRun)?;
+                count.0 = count.0.checked_sub(1).ok_or(OperatingError::NotRun)?;
                 self.release_unused_arena(arena);
             }
         }
         Ok(())
     }
-    fn release_unused_arena(&mut self, worker: WorkerNumber) {
+    pub(in crate::application::file_dag::observations) fn release_unused_arena(&mut self, worker: WorkerNumber) {
         let index = worker.0 as usize;
-        if index >= self.inherited && self.references.get(index) == Some(&0) {
+        if index >= self.inherited.0 && self.references.get(index) == Some(&ReferenceCount(0)) {
             if let Some(arena) = self.arenas.get_mut(index) {
                 arena.0.clear();
                 arena.0.shrink_to_fit();
@@ -472,166 +365,11 @@ impl Drop for CrossPublications<'_> {
         // Every transfer and dependent publication is invocation-local. Unwind drops
         // all owned roots, then returns the inherited vector without renumbering its slots.
         self.roots.clear();
-        self.arenas.truncate(self.inherited);
+        self.arenas.truncate(self.inherited.0);
     }
 }
-fn incomplete() -> OperatingError {
+pub(in crate::application::file_dag::observations) fn incomplete() -> OperatingError {
     OperatingError::ObservationIncomplete {
-        reason: "cross producer publication is unavailable or malformed".into(),
+        reason: PUBLICATION_INCOMPLETE.into(),
     }
-}
-
-/// Validate the file-to-frame join once per invocation, before any producer bits are read.
-/// This does not infer completion from row count or from an absent file frame.
-pub(crate) fn frontier_readiness<'a>(
-    metadata: &ObservationMetadata,
-    files: &[ryo_relations::domain::relations::types::FileId],
-    frames: &'a [crate::domain::coverage::types::FileObservationReadiness],
-) -> Result<FrontierPopulation<'a>, OperatingError> {
-    use ryo_values::domain::observations::service::validate_frontiers;
-    use ryo_values::domain::records::types::ObservationReadinessCount;
-    let count = ObservationReadinessCount(
-        u32::try_from(metadata.frontiers.len()).map_err(|_| incomplete())?,
-    );
-    let mut indexed = std::collections::BTreeMap::new();
-    for frame in frames {
-        if indexed.insert(frame.file.0, &frame.root).is_some() {
-            return Err(incomplete());
-        }
-    }
-    let frames = files
-        .iter()
-        .map(|file| {
-            let frame = indexed.get(&file.0).ok_or_else(incomplete)?;
-            validate_frontiers(frame, metadata.layout, count)
-                .map(|frame| (*file, frame))
-                .map_err(|_| incomplete())
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    Ok(FrontierPopulation { frames })
-}
-
-/// Logical unavailability must agree with independently validated physical coverage.
-fn frontier_compatible(
-    slot: usize,
-    readiness: &FrontierPopulation<'_>,
-    physical: &CoverageState,
-) -> Result<bool, OperatingError> {
-    use ryo_values::domain::observations::service::frontier_state;
-    use ryo_values::domain::records::types::ObservationReadinessSlot;
-    let slot = ObservationReadinessSlot(u32::try_from(slot).map_err(|_| incomplete())?);
-    for (file, frame) in &readiness.frames {
-        if frontier_state(*frame, slot).map_err(|_| incomplete())? != ProducerReadiness::Complete {
-            // Logical unavailability may be localized only by independently
-            // admitted physical provenance, never by a cached readiness bit.
-            if !matches!(physical, CoverageState::Partial { files, .. }
-                if files.contains(&None) || files.contains(&Some(*file)))
-                && !matches!(physical, CoverageState::Inapplicable { files }
-                    if files.contains(file))
-            {
-                return Ok(false);
-            }
-        }
-    }
-    Ok(true)
-}
-
-/// Restore demanded file roots through the same request owner, once per physical bucket.
-pub(crate) fn restore_frontiers(
-    publications: &mut CrossPublications<'_>,
-    program: &std::sync::Arc<
-        crate::application::file_dag::program::preparation::types::PreparedProgram,
-    >,
-    services: &crate::application::file_dag::program::facade_runtime::types::ProgramServices,
-    publication: &crate::application::file_dag::program::facade_runtime::types::PublicationScope,
-    facts: &dyn crate::outbound::facts::interface::FactsFinish,
-    corpus: &[ryo_values::domain::files::types::CorpusInput],
-    covered: &[crate::domain::coverage::types::Covered],
-    skipped: &[ryo_values::domain::runs::types::Skipped],
-    inapplicable: &[crate::domain::coverage::types::InapplicableFiles],
-    frames: &[crate::domain::coverage::types::FileObservationReadiness],
-    first_bucket: &[ryo_values::domain::stored_facts::types::Bucket],
-    selected: &[bool],
-) -> Result<(), OperatingError> {
-    use crate::application::file_dag::program::facade_runtime;
-    use ryo_values::domain::stored_facts::types::Bucket;
-
-    use crate::application::file_dag::observations::cross::{PreparedFrontier, frontier_readiness};
-    // One set of inapplicable files per rule, or none for the whole run.
-    if !inapplicable.is_empty() && inapplicable.len() != program.program().rules().len() {
-        return Err(OperatingError::NotRun);
-    }
-    let metadata = program
-        .observation_metadata()
-        .ok_or(OperatingError::NotRun)?;
-    let files = (0..corpus.len())
-        .map(|file| {
-            u32::try_from(file)
-                .map(ryo_relations::domain::relations::types::FileId)
-                .map_err(|_| OperatingError::NotRun)
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    let readiness = match frontier_readiness(metadata, &files, frames) {
-        Ok(readiness) => readiness,
-        Err(OperatingError::ObservationIncomplete { .. }) => return Ok(()),
-        Err(error) => return Err(error),
-    };
-    let mut physical =
-        std::collections::BTreeMap::<Bucket, Result<PreparedFrontier, OperatingError>>::new();
-    for (slot, root) in metadata.frontiers.iter().enumerate() {
-        let needed = metadata
-            .outputs
-            .get(root.producer.0)
-            .and_then(|outputs| outputs.get(root.output.0 as usize))
-            .ok_or(OperatingError::NotRun)?
-            .consumers
-            .iter()
-            .any(|consumer| selected.get(consumer.0).copied().unwrap_or(false));
-        if !needed {
-            continue;
-        }
-        let first = *first_bucket
-            .get(root.producer.0)
-            .ok_or(OperatingError::NotRun)?;
-        let bucket =
-            ryo_values::domain::stored_facts::service::frontier_bucket(first, root.frontier);
-        if let std::collections::btree_map::Entry::Vacant(entry) = physical.entry(bucket) {
-            let required = facade_runtime::service::required_partitions(
-                program,
-                root.producer,
-                corpus,
-                covered,
-                skipped,
-                inapplicable
-                    .get(root.producer.0)
-                    .map_or(&[][..], |files| &files.0),
-                services,
-            )?;
-            let payload =
-                facts
-                    .kept(bucket)
-                    .map_err(|error| OperatingError::ObservationIncomplete {
-                        reason: error.to_string(),
-                    })?;
-            let restored =
-                crate::application::file_dag::program::restored::validate_restored_frontier(
-                    program,
-                    root.producer,
-                    root.frontier,
-                    first,
-                    bucket,
-                    &required,
-                    payload,
-                    publication,
-                )
-                .and_then(|token| publications.prepare_frontier(token));
-            entry.insert(restored);
-        }
-        match physical.get(&bucket).ok_or(OperatingError::NotRun)? {
-            Ok(prepared) => publications.install_frontier(slot, prepared, &readiness)?,
-            Err(OperatingError::ObservationIncomplete { .. }) => (),
-            Err(error) => return Err(error.clone()),
-        }
-    }
-    Ok(())
 }

@@ -7,6 +7,7 @@ use ryo_relations::domain::relations::{
     types::{CellKind, FileId, Integer, Offset, Relation, Span, Value},
 };
 use ryo_values::domain::{
+    files::types::SourceView,
     plan_parts::types::{ColumnIndex, Input as PlanInput, StepId},
     plans::types::Operation,
     query_operators::types::QueryOperator,
@@ -18,31 +19,28 @@ fn span(start: u32, end: u32) -> Span {
     }
 }
 fn evaluate(spans: &[Span]) -> Result<Vec<Value>, OperatingError> {
-    let providers = [(
-        Relation::SyntaxTree,
-        compiled::rows(
+    let providers = [compiled::Provider {
+        relation: Relation::SyntaxTree,
+        table: compiled::rows(
             &spans
                 .iter()
                 .copied()
-                .map(|span| (FileId(0), span))
+                .map(|span| compiled::FileSpan {
+            file: FileId(0),
+            span,
+        })
                 .collect::<Vec<_>>(),
         ),
-    )];
+    }];
     let steps = vec![
-        compiled::select(Relation::SyntaxTree, &[4]),
+        compiled::select(Relation::SyntaxTree, &[ColumnIndex(4)]),
         compiled::step(Operation::SpanBounds {
             from: PlanInput::Step(StepId(0)),
             span: ColumnIndex(0),
         }),
     ];
-    let (collected, _) = compiled::run(
-        steps.clone(),
-        &providers,
-        b"abcdef",
-        &mut Symbols::default(),
-        false,
-    );
-    let (streamed, _) = compiled::run(steps, &providers, b"abcdef", &mut Symbols::default(), true);
+    let compiled::CompiledRun { result: collected, .. } = compiled::run(steps.clone(), &providers, SourceView(b"abcdef"), &mut Symbols::default(), compiled::Downstream::Collected);
+    let compiled::CompiledRun { result: streamed, .. } = compiled::run(steps, &providers, SourceView(b"abcdef"), &mut Symbols::default(), compiled::Downstream::Streamed);
     assert_eq!(collected, streamed);
     let output = collected?;
     assert_eq!(
@@ -87,18 +85,27 @@ fn absent_and_reversed_spans_refuse_before_row_output() {
 
 #[test]
 fn equal_offsets_from_distinct_files_keep_both_file_identities() {
-    let providers = [(
-        Relation::SyntaxTree,
-        compiled::rows(&[(FileId(1), span(2, 4)), (FileId(2), span(2, 4))]),
-    )];
+    let providers = [compiled::Provider {
+        relation: Relation::SyntaxTree,
+        table: compiled::rows(&[
+            compiled::FileSpan {
+                file: FileId(1),
+                span: span(2, 4),
+            },
+            compiled::FileSpan {
+                file: FileId(2),
+                span: span(2, 4),
+            },
+        ]),
+    }];
     let steps = vec![
-        compiled::select(Relation::SyntaxTree, &[3, 4]),
+        compiled::select(Relation::SyntaxTree, &[ColumnIndex(3), ColumnIndex(4)]),
         compiled::step(Operation::SpanBounds {
             from: PlanInput::Step(StepId(0)),
             span: ColumnIndex(1),
         }),
     ];
-    let (result, _) = compiled::run(steps, &providers, b"", &mut Symbols::default(), false);
+    let compiled::CompiledRun { result: result, .. } = compiled::run(steps, &providers, SourceView(b""), &mut Symbols::default(), compiled::Downstream::Collected);
     assert_eq!(
         result.expect("pure cross-file projection").cells,
         vec![

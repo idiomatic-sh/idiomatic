@@ -1,7 +1,9 @@
 //! Real borrowed-index traversal, duplicate order and admission timing controls.
 use super::*;
+use super::view::AxisResource;
 use crate::domain::derived_views::types::{DerivedInputs, DerivedScratch, MembershipSpace};
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
+use ryo_values::domain::table_words::types::ColumnCount;
 use std::sync::Arc;
 use {
     crate::domain::operator::contract::axis::PreparedAxis,
@@ -10,13 +12,13 @@ use {
     ryo_values::domain::rows::service::push_row,
 };
 
-fn number(value: i64) -> Value {
-    Value::Number(Integer(value))
+fn number(value: Integer) -> Value {
+    Value::Number(value)
 }
 
-fn table(width: usize, rows: &[&[i64]]) -> Table {
+fn table(width: ColumnCount, rows: &[&[Integer]]) -> Table {
     let mut table = Table {
-        kinds: vec![CellKind::Number; width],
+        kinds: vec![CellKind::Number; width.0],
         ..Table::default()
     };
     for row in rows {
@@ -60,7 +62,7 @@ fn acquired(
         .unwrap(),
     );
     let owner = crate::application::file_dag::relations::RelationOwner::new(
-        false,
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Ineligible,
         (std::sync::Arc::new(
             ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
@@ -98,8 +100,15 @@ fn acquired(
 
 #[test]
 fn borrowed_axis_keeps_duplicate_direct_edges_and_breadth_order() {
-    let edges = table(2, &[&[1, 2], &[1, 2], &[2, 3]]);
-    let domain = table(1, &[&[2], &[3]]);
+    let edges = table(
+        ColumnCount(2),
+        &[
+            &[Integer(1), Integer(2)],
+            &[Integer(1), Integer(2)],
+            &[Integer(2), Integer(3)],
+        ],
+    );
+    let domain = table(ColumnCount(1), &[&[Integer(2)], &[Integer(3)]]);
     let resource = prepare_axis(
         &program(Direction::Child),
         BorrowedRows::Computed(&edges),
@@ -128,17 +137,17 @@ fn borrowed_axis_keeps_duplicate_direct_edges_and_breadth_order() {
     };
     let mut key = Vec::new();
     let mut direct = Vec::new();
-    follow(&view, to, number(1), &mut key, &mut direct);
-    assert_eq!(direct, vec![number(2), number(2)]);
+    follow(&view, to, number(Integer(1)), &mut key, &mut direct);
+    assert_eq!(direct, vec![number(Integer(2)), number(Integer(2))]);
     let mut walk = Walk::default();
-    reach_breadth(&view, to, number(1), &mut walk);
-    assert_eq!(walk.reached, vec![number(2), number(3)]);
+    reach_breadth(&view, to, number(Integer(1)), &mut walk);
+    assert_eq!(walk.reached, vec![number(Integer(2)), number(Integer(3))]);
 }
 
 #[test]
 fn unsupported_and_empty_gates_precede_derived_handle_requirement() {
-    let edges = table(2, &[&[1, 2]]);
-    let domain = table(1, &[]);
+    let edges = table(ColumnCount(2), &[&[Integer(1), Integer(2)]]);
+    let domain = table(ColumnCount(1), &[]);
     assert!(matches!(
         prepare_axis(
             &program(Direction::Child),
@@ -149,7 +158,7 @@ fn unsupported_and_empty_gates_precede_derived_handle_requirement() {
         ),
         Ok(AxisResource::Empty)
     ));
-    let nonempty = table(1, &[&[2]]);
+    let nonempty = table(ColumnCount(1), &[&[Integer(2)]]);
     assert_eq!(
         classify(
             &program(Direction::Deep),

@@ -69,6 +69,7 @@ impl AdmittedViewInputs<'_> {
                 .zip(admitted_rows)
                 .all(|(actual, admitted)| {
                     crate::application::file_dag::relations::same_admitted_rows(actual, *admitted)
+                        == crate::application::file_dag::relations::types::Sameness::Same
                 })
         {
             return Err(OperatingError::NotRead);

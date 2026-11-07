@@ -76,7 +76,7 @@ impl ExecutionRequest for RequestExecution {
             .ok_or(OperatingError::NotRun)?;
         let phase = self.project_phase()?;
         let publications =
-            crate::application::file_dag::observations::cross::CrossPublications::new(
+            crate::application::file_dag::observations::types::CrossPublications::new(
                 metadata,
                 &phase.publication,
                 arenas,
@@ -91,6 +91,19 @@ impl ExecutionRequest for RequestExecution {
         input: FrontierRequest<'_>,
         symbols: &mut Symbols,
     ) -> Result<PreparedFrontiers, PreparationError> {
+        let readiness = match input.demand {
+            FrontierDemand::Diagnostic => Vec::new(),
+            FrontierDemand::Observations { ready } => ready
+                .iter()
+                .map(|ready| {
+                    if *ready {
+                        crate::application::file_dag::frontiers::types::InputReadiness::Ready
+                    } else {
+                        crate::application::file_dag::frontiers::types::InputReadiness::Unavailable
+                    }
+                })
+                .collect(),
+        };
         self.frontiers.prepared(
             &self.program,
             input.rule,
@@ -104,8 +117,10 @@ impl ExecutionRequest for RequestExecution {
                 FrontierDemand::Diagnostic => {
                     crate::application::file_dag::frontiers::service::PreparationPolicy::Diagnostic
                 }
-                FrontierDemand::Observations { ready } => {
-                    crate::application::file_dag::frontiers::service::PreparationPolicy::Observations { ready }
+                FrontierDemand::Observations { .. } => {
+                    crate::application::file_dag::frontiers::service::PreparationPolicy::Observations {
+                        ready: &readiness,
+                    }
                 }
             },
         )
@@ -476,17 +491,13 @@ impl ExecutionCompilation for CompilationUseCaseImpl {
         digest: &dyn digest::DigestPort,
         rules: Vec<ryo_values::domain::stores::types::StoredRule>,
     ) -> Result<PreparedRuleIdentities, RuleCompilationError> {
-        let identities = crate::application::rule_compilation::identity::with_producers(
+        crate::application::rule_compilation::identity::with_producers(
             digest,
             rules,
             &queries.inner.plans,
             &queries.inner.schedule,
             &queries.inner.observations,
-        )?;
-        Ok(PreparedRuleIdentities {
-            rules: identities.rules,
-            observations: identities.observations,
-        })
+        )
     }
 }
 impl PreparedQueries for CompiledQueries {
@@ -515,7 +526,17 @@ impl ObservationExecution for ObservationStage<'_> {
         >,
         OperatingError,
     > {
-        self.publications.binding_readiness(rule)
+        Ok(self
+            .publications
+            .binding_readiness(rule)?
+            .into_iter()
+            .map(|(binding, readiness)| {
+                (
+                    binding,
+                    readiness == crate::application::file_dag::frontiers::types::InputReadiness::Ready,
+                )
+            })
+            .collect())
     }
     fn arenas(&self) -> &[ryo_values::domain::stored_facts::types::ArenaBytes] {
         self.publications.arenas()
@@ -551,8 +572,17 @@ impl ObservationPublication for ObservationStage<'_> {
             ObservedPublication,
         )>,
     ) -> Result<(), OperatingError> {
+        let admitted = publications
+            .into_iter()
+            .map(
+                |(output, publication)| crate::application::file_dag::observations::types::AdmittedOutput {
+                    output,
+                    publication,
+                },
+            )
+            .collect();
         self.publications
-            .install(rule, slot, transfer, publications)
+            .install(rule, slot, transfer, admitted)
     }
     fn restore_frontiers(
         &mut self,
@@ -565,7 +595,17 @@ impl ObservationPublication for ObservationStage<'_> {
         first_bucket: &[Bucket],
         selected: &[bool],
     ) -> Result<(), OperatingError> {
-        crate::application::file_dag::observations::cross::restore_frontiers(
+        let selected = selected
+            .iter()
+            .map(|selected| {
+                if *selected {
+                    crate::application::file_dag::observations::types::RuleSelection::Selected
+                } else {
+                    crate::application::file_dag::observations::types::RuleSelection::Unselected
+                }
+            })
+            .collect::<Vec<_>>();
+        crate::application::file_dag::observations::restore::service::restore_frontiers(
             &mut self.publications,
             &self.phase.request.program,
             &self.phase.request.services,
@@ -577,7 +617,7 @@ impl ObservationPublication for ObservationStage<'_> {
             inapplicable,
             frames,
             first_bucket,
-            selected,
+            &selected,
         )
     }
 }

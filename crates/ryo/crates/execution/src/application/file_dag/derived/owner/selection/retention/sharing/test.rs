@@ -46,7 +46,7 @@ fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> R
         &schema,
     )?);
     let owner = RelationOwner::new(
-        true,
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
             ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),

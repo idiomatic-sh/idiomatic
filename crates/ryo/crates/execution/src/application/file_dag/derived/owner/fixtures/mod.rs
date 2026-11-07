@@ -13,7 +13,6 @@ pub(crate) fn prepared_sources(
     semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
 ) -> super::super::prepared::RequestDerived {
     use crate::domain::{
-        operator::contract::types::RequestOperators,
         source_partitions::types::source_partitions::value::SourcePartitions,
     };
     use ryo_values::domain::{
@@ -42,7 +41,7 @@ pub(crate) fn prepared_sources(
         })
         .collect::<Vec<_>>();
     let bindings = vec![vec![]; plans.len()];
-    let request = RequestOperators::prepare(plans, &bindings, &[], semantic).unwrap();
+    let request = crate::application::file_dag::request::prepare(plans, &bindings, &[], semantic).unwrap();
     let borrowed = plans.iter().map(Ok).collect::<Vec<_>>();
     let partitions = SourcePartitions::new(
         &rules,

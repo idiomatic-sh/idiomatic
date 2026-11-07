@@ -2,8 +2,9 @@
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::FileGeneration;
 use crate::application::file_dag::program::admission::Partition;
+use crate::application::file_dag::derived::constants::TARGET_RESOURCE_ROUTES;
 use crate::application::file_dag::program::constants::{
-    FILE_OWNER_FINISH, PRODUCER_COVERAGE_INCOMPLETE, RESOURCE_ROUTES_TARGET,
+    FILE_OWNER_FINISH, PRODUCER_COVERAGE_INCOMPLETE,
 };
 use crate::application::file_dag::program::facade_runtime::source_admission::table_of;
 use crate::application::file_dag::program::facade_runtime::types::ProgramServices;
@@ -76,7 +77,7 @@ pub(crate) struct FileRun<'a> {
     context: super::super::context::RunContext<'a>,
     walk: super::super::native_walk::FileWalk,
     walk_prepared: WalkPreparation,
-    routes: crate::application::file_dag::route_counts::FileScope,
+    routes: crate::application::file_dag::route_counts::types::FileScope,
 }
 pub(crate) fn open_file<'a>(
     program: &'a Arc<PreparedProgram>,
@@ -101,15 +102,15 @@ pub(crate) fn open_file<'a>(
     if !matches!(partials, ScopePartials::File { .. }) {
         return Err(OperatingError::WrongOperation);
     }
-    let routes = crate::application::file_dag::route_counts::FileScope::begin(file.0 as usize);
+    let routes = crate::application::file_dag::route_counts::types::FileScope::begin(file.0 as usize);
     #[cfg(feature = "diagnostic-row-progress")]
     if let Some(path) = services.request.path(file) {
-        crate::application::file_dag::route_counts::file_name(&path.0);
+        crate::application::file_dag::route_counts::progress::service::file_name(path);
     }
     let owner = open_program_owner(
         program.program(),
         services.derived().clone(),
-        matches!(reuse_eligible, ReuseEligibility::Eligible),
+        reuse_eligible,
     );
     let ScopePartials::File { publication, .. } = partials else {
         return Err(OperatingError::WrongOperation);
@@ -161,7 +162,7 @@ impl FileRun<'_> {
             hits,
             refusals,
         ) = self.owner.derived.counts();
-        tracing::trace!(target: RESOURCE_ROUTES_TARGET, file = self.file.0, builds = builds.0, hits = hits.0, refusals = refusals.0, event = FILE_OWNER_FINISH);
+        tracing::trace!(target: TARGET_RESOURCE_ROUTES, file = self.file.0, builds = builds.0, hits = hits.0, refusals = refusals.0, event = FILE_OWNER_FINISH);
         self.execution.finish()?;
         drop(self.routes);
         Ok(readiness)
@@ -320,10 +321,6 @@ mod distinct_integration;
 #[cfg(test)]
 impl FileRun<'_> {
     pub(crate) fn source_reuse_eligible(&self) -> ReuseEligibility {
-        if self.owner.stable() {
-            ReuseEligibility::Eligible
-        } else {
-            ReuseEligibility::Ineligible
-        }
+        self.owner.stable()
     }
 }

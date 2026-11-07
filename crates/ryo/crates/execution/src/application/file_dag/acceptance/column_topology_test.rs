@@ -1,221 +1,31 @@
 //! Request-wide physical replacement must respect every reader of canonical nodes.
-use crate::domain::{
-    coverage::types::RuleIndex,
-    executable_program::{
-        column::ColumnCandidates,
-        service::{self, compile},
-        types::{ExecutableProgram, PartitionRequirement, ProducerPartitions, Route},
-    },
-    file_program::types::{NodeId, RequestGraph},
-    operating::errors::OperatingError,
-    operator::contract::types::RequestOperators,
-};
-use ryo_relations::domain::relations::types::{CellKind, Relation};
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::{
-    observations::types::{
-        ObservationColumn, ObservationColumnName, ObservationName, PlanObservation,
-    },
-    plan_parts::types::{
-        ColumnIndex, PlanComparison, HostedNumber, Input as PlanInput, JoinColumn, LiteralText,
-        Operand, ParameterId, QueryLiteral, RepeatedRows, Side, StepId, StepScope, Test,
-    },
-    plans::types::{Emit, Operation, Plan, PlanStep},
-};
-
-struct FileProducers;
-impl ProducerPartitions for FileProducers {
-    fn hosted(
-        &self,
-        _: RuleIndex,
-        _: HostedNumber,
-    ) -> Result<PartitionRequirement, OperatingError> {
-        Err(OperatingError::NotRead)
-    }
-
-    fn parameter(
-        &self,
-        _: RuleIndex,
-        _: ParameterId,
-    ) -> Result<PartitionRequirement, OperatingError> {
-        Err(OperatingError::Unbound)
-    }
-
-    fn relation(&self, _: Relation) -> PartitionRequirement {
-        PartitionRequirement::CurrentFile
-    }
-
-    fn observation(
-        &self,
-        _: RuleIndex,
-        _: ryo_values::domain::plan_parts::types::ObservationBindingId,
-    ) -> Result<PartitionRequirement, OperatingError> {
-        Err(OperatingError::NotRead)
-    }
-}
-
-fn column(at: u32) -> ColumnIndex {
-    ColumnIndex(at)
-}
-
-/// A real selected-left/stored-right physical shape. The left frontier keeps
-/// the source cut, while Join and Select are otherwise private ancestors.
-fn plan(projected: Vec<ColumnIndex>) -> Plan {
-    Plan {
-        observation_inputs: Vec::new(),
-        observations: Vec::new(),
-        parameters: Vec::new(),
-        steps: vec![
-            PlanStep {
-                scope: StepScope::PerFile,
-                operation: Operation::Project {
-                    from: PlanInput::Relation(Relation::Function),
-                    columns: vec![column(0), column(2)],
-                    distinct: RepeatedRows::Dropped,
-                },
-            },
-            PlanStep {
-                scope: StepScope::PerFile,
-                operation: Operation::Join {
-                    left: PlanInput::Step(StepId(0)),
-                    right: PlanInput::Relation(Relation::SemanticChild),
-                    left_on: vec![column(0), column(1)],
-                    right_on: vec![column(0), column(4)],
-                    output: vec![
-                        JoinColumn {
-                            side: Side::Left,
-                            column: column(0),
-                        },
-                        JoinColumn {
-                            side: Side::Left,
-                            column: column(1),
-                        },
-                        JoinColumn {
-                            side: Side::Right,
-                            column: column(1),
-                        },
-                        JoinColumn {
-                            side: Side::Right,
-                            column: column(3),
-                        },
-                    ],
-                    filter: Vec::new(),
-                    view: Vec::new(),
-                    reach: None,
-                },
-            },
-            PlanStep {
-                scope: StepScope::PerFile,
-                operation: Operation::Select {
-                    from: PlanInput::Step(StepId(1)),
-                    comparisons: vec![PlanComparison {
-                        test: Test::Equal,
-                        left: Operand::Column(column(3)),
-                        right: Operand::Literal(QueryLiteral::Text(LiteralText("body".into()))),
-                        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
-                    }],
-                    kept: Vec::new(),
-                },
-            },
-            PlanStep {
-                scope: StepScope::PerFile,
-                operation: Operation::Project {
-                    from: PlanInput::Step(StepId(2)),
-                    columns: projected,
-                    distinct: RepeatedRows::Dropped,
-                },
-            },
-        ],
-        comparison_origins: Vec::new(),
-        emit: Emit {
-            step: StepId(3),
-            subject: column(0),
-            key: vec![column(0)],
-            headings: Vec::new(),
-        },
-        frontier: vec![PlanInput::Step(StepId(0))],
-    }
-}
-
-fn join_output_observation() -> PlanObservation {
-    PlanObservation {
-        name: ObservationName("join-output".into()),
-        source: PlanInput::Step(StepId(1)),
-        columns: vec![
-            ObservationColumn {
-                name: ObservationColumnName("node".into()),
-                kind: CellKind::Node,
-            },
-            ObservationColumn {
-                name: ObservationColumnName("file".into()),
-                kind: CellKind::File,
-            },
-            ObservationColumn {
-                name: ObservationColumnName("child".into()),
-                kind: CellKind::Node,
-            },
-            ObservationColumn {
-                name: ObservationColumnName("field".into()),
-                kind: CellKind::Symbol,
-            },
-        ],
-        scope: StepScope::PerFile,
-    }
-}
-
-fn ordinary_plan() -> Plan {
-    plan(vec![column(0), column(1), column(2)])
-}
-
-fn graph(plans: &[Plan]) -> (RequestOperators, RequestGraph) {
-    let bindings = vec![Vec::new(); plans.len()];
-    let operators = RequestOperators::prepare(
-        plans,
-        &bindings,
-        &[],
-        (std::sync::Arc::new(
-            ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
-    )
-    .unwrap();
-    let graph = crate::domain::file_program::service::compile_prepared(plans, &operators);
-    (operators, graph)
-}
-
-fn node(graph: &RequestGraph, rule: usize, step: usize) -> NodeId {
-    *graph.program_nodes[rule][step].as_ref().unwrap()
-}
-
-fn program(plans: &[Plan], operators: &RequestOperators, graph: RequestGraph) -> ExecutableProgram {
-    compile(plans, graph, &FileProducers, operators).unwrap()
-}
-
-/// An instruction has exactly one route: the accessors agree with the kind, and at most one is set.
-fn assert_one_route(program: &ExecutableProgram) {
-    for region in program.regions() {
-        let route = &region.route;
-        let named = [
-            service::ordered_existence(route).is_some(),
-            service::column(route).is_some(),
-            service::selection(route).is_some(),
-            service::native_positions(route).is_some(),
-        ];
-        assert!(named.iter().filter(|each| **each).count() <= 1);
-        assert_eq!(
-            named.iter().any(|each| *each),
-            !matches!(route, Route::Generic)
-        );
-    }
-}
-
-fn column_count(program: &ExecutableProgram) -> usize {
-    assert_one_route(program);
-    program
-        .regions()
-        .iter()
-        .filter(|region| service::column(&region.route).is_some())
-        .count()
-}
+use crate::domain::executable_program::column::ColumnCandidates;
+use crate::domain::executable_program::service;
+use crate::domain::operating::errors::OperatingError;
+#[cfg(test)]
+mod fixtures;
+use fixtures::{column, plan, join_output_observation, ordinary_plan, graph, node, program, assert_one_route, column_count};
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::Relation;
+use ryo_values::cases::Case;
+use ryo_values::cases::CaseName;
+use ryo_values::cases::Expect;
+use ryo_values::cases::Word;
+use ryo_values::cases::run;
+use ryo_values::domain::observations::types::ObservationColumn;
+use ryo_values::domain::observations::types::ObservationColumnName;
+use ryo_values::domain::observations::types::ObservationName;
+use ryo_values::domain::observations::types::PlanObservation;
+use ryo_values::domain::plan_parts::types::Input as PlanInput;
+use ryo_values::domain::plan_parts::types::JoinColumn;
+use ryo_values::domain::plan_parts::types::RepeatedRows;
+use ryo_values::domain::plan_parts::types::Side;
+use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::plans::types::Emit;
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::plans::types::PlanStep;
 
 fn exclusive_chain_lowers_once_and_duplicate_rule_shares_one_physical_owner() -> usize {
     let single = vec![ordinary_plan()];

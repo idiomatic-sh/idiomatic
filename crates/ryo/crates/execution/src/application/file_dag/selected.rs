@@ -15,32 +15,16 @@ pub(crate) struct SelectedInput<'f> {
     index: AcquiredView,
 }
 impl<'f> SelectedInput<'f> {
-    pub(super) fn from_derived(
-        original: &SelectedRows<'f>,
-        index: AcquiredView,
-    ) -> Result<Self, OperatingError> {
-        if !matches!(
-            index.view()?,
-            ryo_derived::domain::contract::types::DerivedView::Equality(_)
-        ) {
-            return Err(OperatingError::WrongOperation);
-        }
-        Ok(Self {
-            original: original.clone(),
-            index,
-        })
-    }
     fn columns(&self) -> &[ColumnIndex] {
-        let crate::domain::derived_views::types::ViewRequest::Equality { columns } =
-            &self.index.contract().request
-        else {
-            unreachable!("prepared equality")
+        let columns = match &self.index.contract().request {
+            crate::domain::derived_views::types::ViewRequest::Equality { columns } => Some(columns),
+            _ => None,
         };
-        columns
+        columns.expect(constants::PREPARED_EQUALITY)
     }
     fn index(&self) -> &KeyIndex {
         let ryo_derived::domain::contract::types::DerivedView::Equality(index) =
-            self.index.view().expect("validated equality view")
+            self.index.view().expect(constants::VALIDATED_EQUALITY)
         else {
             unreachable!("validated equality view")
         };
@@ -49,7 +33,7 @@ impl<'f> SelectedInput<'f> {
     pub(crate) fn view(&self) -> IndexedRows<'_> {
         IndexedRows {
             #[cfg(feature = "diagnostic-row-progress")]
-            progress: crate::application::file_dag::route_counts::progress,
+            progress: crate::application::file_dag::route_counts::progress::service::progress,
             rows: BorrowedRows::Selected {
                 source: self.original.source,
                 positions: &self.original.selection.rows,
@@ -64,5 +48,7 @@ impl<'f> SelectedInput<'f> {
 
 #[cfg(test)]
 mod tests;
+mod constants;
+pub(in crate::application::file_dag) mod schemas;
 
 use ryo_derived::domain::contract::types::DerivedKind;

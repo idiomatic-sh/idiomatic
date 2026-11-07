@@ -22,12 +22,12 @@ fn admission_requires_a_live_matching_publication_in_test_builds_too() {
     let mut workspace = InvocationWorkspace::new(Rc::clone(&owner));
     let raw = table(&[7], 1);
     assert!(matches!(
-        workspace.admit(0, BorrowedRows::Computed(&raw)),
+        workspace.admit(InputNumber(0), BorrowedRows::Computed(&raw)),
         Err(OperatingError::MissingInput { position: 1 })
     ));
     workspace.publications = vec![None];
     assert!(matches!(
-        workspace.admit(0, BorrowedRows::Computed(&raw)),
+        workspace.admit(InputNumber(0), BorrowedRows::Computed(&raw)),
         Err(OperatingError::NotRun)
     ));
     let publication = owner.computed(raw.clone()).unwrap();
@@ -35,16 +35,16 @@ fn admission_requires_a_live_matching_publication_in_test_builds_too() {
         .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))
         .unwrap();
     workspace.capture_admitted(vec![publication.clone()]);
-    let admitted = workspace.admit(0, BorrowedRows::from(&rows)).unwrap();
+    let admitted = workspace.admit(InputNumber(0), BorrowedRows::from(&rows)).unwrap();
     assert_eq!(admitted.identity(&owner).unwrap().1, None);
     assert_eq!(admitted.rows().kinds(), &[CellKind::Number]);
     assert!(matches!(
-        workspace.admit(0, BorrowedRows::Computed(&raw)),
+        workspace.admit(InputNumber(0), BorrowedRows::Computed(&raw)),
         Err(OperatingError::NotRead)
     ));
     owner.release_population();
     assert!(matches!(
-        workspace.admit(0, BorrowedRows::from(&rows)),
+        workspace.admit(InputNumber(0), BorrowedRows::from(&rows)),
         Err(OperatingError::NotRead)
     ));
 }
@@ -158,7 +158,7 @@ fn immutable_demand_checks_identity_once_across_views_and_refuses_expired_proof(
         assert_eq!(values.len(), 2);
     }
     assert_eq!(
-        owner.identity_checks.get() - before,
+        owner.identity_checks.get().0 - before.0,
         1,
         "both actual families use the same admitted input"
     );
@@ -352,7 +352,7 @@ use ryo_derived::domain::contract::types::DerivedKind;
 
 fn owner() -> Rc<crate::application::file_dag::relations::RelationOwner> {
     Rc::new(crate::application::file_dag::relations::RelationOwner::new(
-        true,
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
             ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),

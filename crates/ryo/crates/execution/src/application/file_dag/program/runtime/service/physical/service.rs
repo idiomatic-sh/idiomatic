@@ -60,17 +60,17 @@ impl PermittedPhysical<'_, '_, '_> {
         port: &dyn crate::outbound::operators::interface::OperatorsPort,
     ) -> Result<
         ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer,
-        crate::application::file_dag::executor::response::types::KernelFault,
+        crate::application::file_dag::executor::KernelFault,
     > {
         if !self.permit.live.is_live() {
             return Err(
-                crate::application::file_dag::executor::response::types::KernelFault::Refused(
+                crate::application::file_dag::executor::KernelFault::Refused(
                     OperatingError::NotRead,
                 ),
             );
         }
         let _authority = self.authority;
         port.operators(self.meaning)
-            .map_err(crate::application::file_dag::executor::response::types::KernelFault::Portable)
+            .map_err(crate::application::file_dag::executor::KernelFault::Portable)
     }
 }

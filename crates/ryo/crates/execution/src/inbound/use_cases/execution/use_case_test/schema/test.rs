@@ -1,7 +1,7 @@
 //! Proves every operation schema against its actual empty and populated evaluator.
 
 use super::super::super::fixtures;
-use crate::application::file_dag::acceptance::operator_contract_test::fixtures::KnownSyntax;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::values::KnownSyntax;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::fixtures::{bindings, operations, tables};
 use crate::domain::operation_schema::service::schema_of;

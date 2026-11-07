@@ -29,7 +29,7 @@ impl FileRun<'_> {
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
         capture: CaptureScope<'_>,
     ) -> Result<Vec<FrontierCapture>, OperatingError> {
-        if self.declared(rule)?.capture == CaptureIntent::Disabled {
+        if self.declared(rule)?.capture_intent == CaptureIntent::Disabled {
             return Err(OperatingError::NotRun);
         }
         let captured = self.deliver_frontiers(rule, first, read, symbols, capture);
@@ -44,10 +44,7 @@ impl FileRun<'_> {
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
         capture: CaptureScope<'_>,
     ) -> Result<Vec<FrontierCapture>, OperatingError> {
-        let DeclaredIntent {
-            capture: capture_intent,
-            ..
-        } = self.declared(rule)?;
+        let DeclaredIntent { capture_intent, .. } = self.declared(rule)?;
         self.prepare_walk(read, symbols)?;
         let mut context = self.context.borrow(symbols, self.program, rule)?;
         let context = &mut context;
@@ -172,7 +169,10 @@ impl FileRun<'_> {
         rule: RuleIndex,
         input: InputNumber,
     ) -> Result<(), OperatingError> {
-        let DeclaredIntent { capture, .. } = self.declared(rule)?;
+        let DeclaredIntent {
+            capture_intent: capture,
+            ..
+        } = self.declared(rule)?;
         if capture == CaptureIntent::Disabled
             || (capture == CaptureIntent::Observations
                 && self.program.frontier_purpose(rule, input)? != crate::domain::executable_program::file_demand::types::FrontierPurpose::Observation)

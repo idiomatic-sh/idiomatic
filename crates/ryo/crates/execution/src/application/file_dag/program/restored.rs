@@ -137,7 +137,7 @@ impl ValidatedFrontier {
         context: &mut OperatorContext<'_>,
     ) -> Result<ObservedPublication, OperatingError> {
         if !Arc::ptr_eq(&self.program, scope.program())
-            || !scope.owner().matches_generation(&self.generation)
+            || scope.owner().matches_generation(&self.generation) == crate::application::file_dag::relations::types::Sameness::Different
             || self.partition.same_request(required)
                 == crate::application::file_dag::program::admission::Agreement::Different
         {

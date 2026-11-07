@@ -29,10 +29,10 @@ impl<'a> SelectionSource<'a> {
     ) -> Result<Self, OperatingError> {
         proof.require_publication(relation_owner, publication.as_ref())?;
         if !std::ptr::eq(owner, &relation_owner.derived)
-            || !crate::application::file_dag::relations::same_admitted_rows(
+            || crate::application::file_dag::relations::same_admitted_rows(
                 proof.rows(),
                 crate::domain::operator::contract::views::BorrowedRows::Stored(source),
-            )
+            ) == crate::application::file_dag::relations::types::Sameness::Different
         {
             return Err(OperatingError::NotRead);
         }
@@ -129,7 +129,7 @@ impl SelectionSource<'_> {
                     return Ok(None);
                 }
                 let storage = crate::application::file_dag::route_counts::observe(
-                    crate::application::file_dag::route_counts::BuildRoute::SelectorPostings
+                    crate::application::file_dag::route_counts::types::BuildRoute::SelectorPostings
                         .label(),
                     crate::application::file_dag::route_counts::derived(plan.kind),
                     || {
@@ -240,7 +240,7 @@ impl SelectionSource<'_> {
     }
     pub(in crate::application::file_dag::derived::owner) fn acquire(
         &self,
-        route: crate::application::file_dag::route_counts::BuildRoute,
+        route: crate::application::file_dag::route_counts::types::BuildRoute,
         cache: &mut CacheBackend,
         plan: &Arc<DerivedContract>,
         context: ViewContext,

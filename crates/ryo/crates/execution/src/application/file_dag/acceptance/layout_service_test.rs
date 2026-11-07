@@ -1,134 +1,33 @@
 //! Schema, publication and refusal controls through production request preparation.
-
-use crate::application::file_dag::frontiers::types::FrontierInput;
-use crate::domain::completion::types::CoverageState;
-use crate::domain::{
-    file_program::{
-        service::compile_prepared_observations,
-        types::{NodeInput, ObservationRequest, RuleSchedule},
-    },
-    operating::errors::OperatingError,
-    operator::contract::types::RequestOperators,
-    prepared_request::types::{Compiled, ObservationIdentity},
-};
-use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::{
-    service::kinds,
-    types::{CellKind, Integer, Relation, Value},
-};
-use ryo_values::domain::table_words::types::DecodeMode;
-use ryo_values::domain::{
-    plan_parts::types::{
-        ColumnIndex, Direction, Input, JoinColumn, LiteralText, Operand, QueryLiteral,
-        RepeatedRows, Side, StepId, StepScope,
-    },
-    plans::types::{Emit, Operation, Plan, PlanStep},
-    query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
-    rows::types::{RowCount, Table},
-    rule_requests::types::{RuleParameters, RuleSpec},
-    runs::types::{RuleApplicability, RuleId},
-    stored_facts::types::Digest,
-};
-use std::{collections::BTreeMap, sync::Arc};
-
-// Fixtures assemble authored requests only. The production compiler derives every schema,
-// retention boundary, reader count and frontier reference asserted below.
-fn plan(steps: Vec<PlanStep>, frontier: Vec<Input>) -> Plan {
-    Plan {
-        observation_inputs: vec![],
-        observations: vec![],
-        parameters: vec![],
-        emit: Emit {
-            step: StepId(steps.len().saturating_sub(1) as u32),
-            subject: ColumnIndex(0),
-            key: vec![],
-            headings: vec![],
-        },
-        steps,
-        frontier,
-        comparison_origins: vec![],
-    }
-}
-fn step(operation: Operation) -> PlanStep {
-    PlanStep {
-        operation,
-        scope: StepScope::PerFile,
-    }
-}
-fn select(from: Input) -> Operation {
-    Operation::Select {
-        from,
-        comparisons: vec![],
-        kept: vec![],
-    }
-}
-fn native_plan(cross: bool) -> Plan {
-    let mut tail = step(if cross {
-        Operation::GroupCount {
-            from: Input::Step(StepId(0)),
-            keys: vec![ColumnIndex(1)],
-            distinct: None,
-        }
-    } else {
-        Operation::Project {
-            from: Input::Step(StepId(0)),
-            columns: vec![ColumnIndex(0)],
-            distinct: RepeatedRows::Dropped,
-        }
-    });
-    if cross {
-        tail.scope = StepScope::CrossFile;
-    }
-    plan(
-        vec![step(select(Input::Relation(Relation::SyntaxTree))), tail],
-        if cross {
-            vec![Input::Step(StepId(0))]
-        } else {
-            vec![]
-        },
-    )
-}
-fn prepared(
-    plan: Plan,
-) -> Result<
-    Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
-    OperatingError,
-> {
-    let rule = RuleSpec {
-        id: RuleId("prepared-layout".into()),
-        query: QueryBundle {
-            root: QueryDocumentSource {
-                id: QuerySourceId("prepared-layout".into()),
-                text: "".into(),
-            },
-            modules: Default::default(),
-        },
-        applicability: RuleApplicability::Always,
-        given: vec![],
-        observations: vec![],
-        spelled: RuleParameters("".into()),
-        include: vec![],
-        exclude: vec![],
-    };
-    crate::application::file_dag::program::preparation::service::prepare(
-        Compiled {
-            schedule: RuleSchedule::Independent,
-            observations: vec![vec![]],
-            plans: vec![plan],
-            bindings: vec![vec![]],
-        },
-        &[rule],
-        &[Digest([0; 16])],
-        &[],
-        crate::application::file_dag::testing::program_derived_port(),
-        ObservationIdentity::Independent,
-    )
-}
+use crate::domain::file_program::service::compile_prepared_observations;
+use crate::domain::file_program::types::NodeInput;
+use crate::domain::file_program::types::ObservationRequest;
+use crate::domain::operating::errors::OperatingError;
+use ryo_relations::domain::relations::service::kinds;
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Value;
+use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::plan_parts::types::Direction;
+use ryo_values::domain::plan_parts::types::Input;
+use ryo_values::domain::plan_parts::types::JoinColumn;
+use ryo_values::domain::plan_parts::types::LiteralText;
+use ryo_values::domain::plan_parts::types::Operand;
+use ryo_values::domain::plan_parts::types::QueryLiteral;
+use ryo_values::domain::plan_parts::types::Side;
+use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::rows::types::RowCount;
+use ryo_values::domain::rows::types::Table;
+#[cfg(test)]
+mod fixtures;
+use fixtures::{plan, step, select, native_plan, prepared};
 
 #[test]
 fn only_the_emitted_native_step_is_a_retention_root_when_each_is_read_once() {
     let plans = [native_plan(false)];
-    let operators = RequestOperators::prepare(
+    let operators = crate::application::file_dag::request::prepare(
         &plans,
         &[vec![]],
         &[],
@@ -160,7 +59,7 @@ fn only_the_emitted_native_step_is_a_retention_root_when_each_is_read_once() {
 #[test]
 fn the_step_handed_to_cross_file_steps_is_a_retention_root() {
     let plans = [native_plan(true)];
-    let operators = RequestOperators::prepare(
+    let operators = crate::application::file_dag::request::prepare(
         &plans,
         &[vec![]],
         &[],
@@ -220,7 +119,7 @@ fn metadata_preparation_propagates_select_extend_and_graph_schemas_without_rows(
         ],
         vec![],
     )];
-    let operators = RequestOperators::prepare_with_schemas(
+    let operators = crate::application::file_dag::request::prepare_with_schemas(
         &plans,
         &[vec![]],
         &[],
@@ -273,7 +172,7 @@ fn preparation_keeps_ordered_relation_dependencies_without_probing_availability(
         probes.borrow_mut().push(relation);
         &[CellKind::Symbol, CellKind::File][..]
     };
-    let operators = RequestOperators::prepare_with_schemas(
+    let operators = crate::application::file_dag::request::prepare_with_schemas(
         &plans,
         &[vec![]],
         &[],
@@ -314,7 +213,7 @@ fn empty_native_frontier_has_the_deep_walk_schema_before_any_file_is_read() {
         })],
         vec![Input::Step(StepId(0))],
     )];
-    let operators = RequestOperators::prepare(
+    let operators = crate::application::file_dag::request::prepare(
         &plans,
         &[vec![]],
         &[],
@@ -372,7 +271,7 @@ fn preparing_from_borrowed_schemas_preserves_cell_allocations_and_prepared_metad
         Relation::SyntaxTree => native.kinds.as_slice(),
         _ => kinds(relation),
     };
-    let operators = RequestOperators::prepare_with_schemas(
+    let operators = crate::application::file_dag::request::prepare_with_schemas(
         &plans,
         &[vec![]],
         &[],
@@ -428,70 +327,4 @@ fn an_invalid_frontier_keeps_the_prior_source_and_its_own_typed_refusal() {
         Ok(crate::domain::executable_program::types::InputSource::Relation(Relation::Function))
     ));
     assert_eq!(frontier[1], Err(OperatingError::NotRun));
-}
-
-// Preparation leaves a stored frontier packed. Its decode runs on the first demand (open of the
-// project run), and a decode failure is the same typed refusal preparation used to record: it is
-// consulted at the same place, the first supply of that source, so the error precedence holds.
-
-/// A varint whose continuation bit is never closed: no canonical frame spells it.
-fn cut_words() -> Arc<ryo_values::domain::stored_facts::types::KeptWords> {
-    Arc::new(ryo_values::domain::stored_facts::types::KeptWords(
-        ryo_values::domain::stored_facts::types::PackedWords(vec![0x80]),
-    ))
-}
-fn packed(
-    input: Input,
-    mode: DecodeMode,
-) -> crate::application::file_dag::frontiers::types::PackedFrontier {
-    crate::application::file_dag::frontiers::types::PackedFrontier {
-        input,
-        words: cut_words(),
-        mode,
-        coverage: CoverageState::Complete,
-    }
-}
-
-#[test]
-fn a_cut_frontier_is_refused_by_its_input_when_admitted_in_complete_mode() {
-    let input = Input::Relation(Relation::Function);
-    let refused = crate::application::file_dag::frontiers::service::admit(
-        packed(input, DecodeMode::Complete),
-        &mut Symbols::default(),
-    )
-    .err()
-    .expect("a cut frame is never complete");
-    assert_eq!(refused.input, input);
-    assert!(matches!(
-        refused.error,
-        OperatingError::ObservationIncomplete { .. }
-    ));
-}
-
-#[test]
-fn a_cut_step_frontier_is_refused_by_its_input_when_admitted_in_complete_mode() {
-    let input = Input::Step(StepId(0));
-    let refused = crate::application::file_dag::frontiers::service::admit(
-        packed(input, DecodeMode::Complete),
-        &mut Symbols::default(),
-    )
-    .err()
-    .expect("a cut frame is never complete");
-    assert_eq!(refused.input, input);
-    assert!(matches!(
-        refused.error,
-        OperatingError::ObservationIncomplete { .. }
-    ));
-}
-
-#[test]
-fn the_permissive_diagnostic_decode_never_refuses_a_packed_frontier() {
-    let input = Input::Relation(Relation::Function);
-    let admitted = crate::application::file_dag::frontiers::service::admit(
-        packed(input, DecodeMode::Permissive),
-        &mut Symbols::default(),
-    )
-    .ok()
-    .expect("diagnostic frontiers decode what they can");
-    assert!(matches!(admitted, FrontierInput::Decoded { .. }));
 }

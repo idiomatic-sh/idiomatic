@@ -35,7 +35,7 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
         .unwrap(),
     );
     let owner = crate::application::file_dag::relations::RelationOwner::new(
-        true,
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
             ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),

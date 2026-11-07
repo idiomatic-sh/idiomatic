@@ -1,4 +1,8 @@
 //! Explicitly enabled compiled-prefix evidence; this observes plans and never executes or caches them.
+use super::constants::{
+    COMPILED_PREFIX_TARGET, COMPILED_SUBPLAN_TARGET, NORMALIZATION, RECORD_PLAN, RECORD_PREFIX,
+    RECORD_RULE, RECORD_STEP, SCOPE_PER_FILE,
+};
 use ryo_relations::domain::relations::{service::kinds, types::Relation};
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::{
@@ -12,6 +16,14 @@ use ryo_values::domain::rule_requests::types::RuleSpec;
 
 /// A relation identity, ordered predicates over its original columns, and a composed output projection.
 type Prefix = (Relation, Vec<PlanComparison>, Vec<ColumnIndex>);
+
+/// The column a kept column names in `columns`, when it names one.
+fn position(columns: &[ColumnIndex], column: ColumnIndex) -> Option<ColumnIndex> {
+    let Ok(index) = usize::try_from(column.0) else {
+        return None;
+    };
+    columns.get(index).copied()
+}
 
 /// Follow only bag-preserving relation-rooted filters and projections.
 /// Distinct, joins, hosted inputs, and other operators are normalization barriers.
@@ -58,17 +70,25 @@ fn prefix(below: &[Option<Prefix>], operation: &Operation) -> Option<Prefix> {
     };
     let (relation, mut chosen, columns) = match from {
         Input::BoundObservation(_) => return None,
-        Input::Relation(relation) => (
-            relation,
-            Vec::new(),
-            (0..u32::try_from(kinds(relation).len()).ok()?)
-                .map(ColumnIndex)
-                .collect::<Vec<_>>(),
-        ),
-        Input::Step(step) => below.get(usize::try_from(step.0).ok()?)?.as_ref()?.clone(),
+        Input::Relation(relation) => {
+            let Ok(width) = u32::try_from(kinds(relation).len()) else {
+                return None;
+            };
+            (
+                relation,
+                Vec::new(),
+                (0..width).map(ColumnIndex).collect::<Vec<_>>(),
+            )
+        }
+        Input::Step(step) => {
+            let Ok(index) = usize::try_from(step.0) else {
+                return None;
+            };
+            below.get(index)?.as_ref()?.clone()
+        }
     };
     for comparison in comparisons {
-        let map = |column: ColumnIndex| columns.get(usize::try_from(column.0).ok()?).copied();
+        let map = |column: ColumnIndex| position(&columns, column);
         chosen.push(PlanComparison {
             test: comparison.test,
             left: remapped(&comparison.left, &map)?,
@@ -80,7 +100,7 @@ fn prefix(below: &[Option<Prefix>], operation: &Operation) -> Option<Prefix> {
         columns
     } else {
         kept.iter()
-            .map(|column| columns.get(usize::try_from(column.0).ok()?).copied())
+            .map(|column| position(&columns, *column))
             .collect::<Option<Vec<_>>>()?
     };
     Some((relation, chosen, projection))
@@ -94,10 +114,10 @@ pub(super) fn compiled(
     bindings: &[Vec<ParameterBinding>],
     hosted: &[HostRelation],
 ) {
-    if tracing::enabled!(target: "ryo::diagnostic::compiled_subplan", tracing::Level::TRACE) {
+    if tracing::enabled!(target: COMPILED_SUBPLAN_TARGET, tracing::Level::TRACE) {
         subplans(rules, plans, bindings, hosted);
     }
-    if !tracing::enabled!(target: "ryo::diagnostic::compiled_prefix", tracing::Level::TRACE) {
+    if !tracing::enabled!(target: COMPILED_PREFIX_TARGET, tracing::Level::TRACE) {
         return;
     }
     for (rule_index, ((rule, plan), rule_bindings)) in
@@ -125,12 +145,12 @@ pub(super) fn compiled(
             })
             .collect::<Vec<_>>();
         tracing::event!(
-            target: "ryo::diagnostic::compiled_prefix", tracing::Level::TRACE,
-            record_kind = "rule", rule_index, rule = %rule.id.0,
+            target: COMPILED_PREFIX_TARGET, tracing::Level::TRACE,
+            record_kind = RECORD_RULE, rule_index, rule = %rule.id.0,
             sources = ?sources, parameters = ?plan.parameters, bindings = ?rule_bindings,
             applicability = ?rule.applicability, include = ?rule.include, exclude = ?rule.exclude,
             steps = plan.steps.len(), observed_prefixes = below.iter().filter(|item| item.is_some()).count(),
-            normalization = "ordered predicates and bag-preserving projections only",
+            normalization = NORMALIZATION,
         );
         for (step_index, observed) in below.iter().enumerate() {
             let Some((relation, comparisons, projection)) = observed else {
@@ -145,10 +165,10 @@ pub(super) fn compiled(
                 .map(|comparison| comparison.origin)
                 .collect::<Vec<_>>();
             tracing::event!(
-                target: "ryo::diagnostic::compiled_prefix", tracing::Level::TRACE,
-                record_kind = "prefix", rule_index, rule = %rule.id.0, step_index,
+                target: COMPILED_PREFIX_TARGET, tracing::Level::TRACE,
+                record_kind = RECORD_PREFIX, rule_index, rule = %rule.id.0, step_index,
                 relation = ?relation, comparisons = ?tests, projection = ?projection,
-                origin_ids = ?origins, scope = "per-file",
+                origin_ids = ?origins, scope = SCOPE_PER_FILE,
             );
         }
     }
@@ -177,16 +197,16 @@ fn subplans(
             })
             .collect::<Vec<_>>();
         tracing::event!(
-            target: "ryo::diagnostic::compiled_subplan", tracing::Level::TRACE,
-            record_kind = "plan", rule_index, rule = %rule.id.0, plan_identity = identity,
+            target: COMPILED_SUBPLAN_TARGET, tracing::Level::TRACE,
+            record_kind = RECORD_PLAN, rule_index, rule = %rule.id.0, plan_identity = identity,
             sources = ?sources, parameters = ?plan.parameters, bindings = ?bound,
             hosted = ?hosted, comparison_origins = ?plan.comparison_origins,
             emit = ?plan.emit, frontier = ?plan.frontier, steps = plan.steps.len(),
         );
         for (step_index, step) in plan.steps.iter().enumerate() {
             tracing::event!(
-                target: "ryo::diagnostic::compiled_subplan", tracing::Level::TRACE,
-                record_kind = "step", rule_index, rule = %rule.id.0, plan_identity = identity,
+                target: COMPILED_SUBPLAN_TARGET, tracing::Level::TRACE,
+                record_kind = RECORD_STEP, rule_index, rule = %rule.id.0, plan_identity = identity,
                 step_index, scope = ?step.scope, operation = ?step.operation,
             );
         }
