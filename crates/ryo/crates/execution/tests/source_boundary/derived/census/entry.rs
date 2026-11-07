@@ -512,12 +512,12 @@ impl Entry {
             Entry::SlotReplace => exempt(
                 owner!("graphs/service.rs"),
                 "replace",
-                "slot helper of the graph tables of the derived module itself",
+                "slot helper of the owner's own graph tables",
             ),
             Entry::SlotRead => exempt(
                 owner!("graphs/service.rs"),
                 "slot",
-                "slot helper of the graph tables of the derived module itself",
+                "slot helper of the owner's own graph tables",
             ),
             Entry::OptionalLease => exempt(
                 owner!("leases.rs"),
