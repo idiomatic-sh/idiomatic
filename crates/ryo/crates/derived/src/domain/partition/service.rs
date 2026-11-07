@@ -1,4 +1,4 @@
-//! Typed partition order; clustered order is deliberately distinct from RawKeyOrder.
+//! Typed partition order: the rows of each key together, in key order.
 use super::types::KeyRelation;
 use crate::domain::fault::types::DerivedFault;
 use crate::domain::key::service::{mix, word_of};

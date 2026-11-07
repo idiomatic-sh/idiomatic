@@ -8,7 +8,7 @@ use crate::domain::dfs::types::DfsColumns;
 use crate::domain::fault::types::DerivedFault;
 use crate::domain::membership::types::{DerivedMembership, MembershipView};
 use crate::domain::native::types::{NativeFinding, NativeForm};
-use crate::domain::positions::types::{DenseMarks, RowSlots};
+use crate::domain::positions::types::DenseMarks;
 use crate::domain::request::types::{DerivedKind, DerivedRequest};
 use std::sync::Arc;
 
@@ -37,28 +37,6 @@ pub fn build(
                 rows, columns, previous,
             )?))
         }
-        (DerivedRequest::PredicateMatches { .. }, BuildInputs::Predicate { rows, candidates }) => {
-            PayloadData::PredicateMatches(crate::domain::predicate::service::matches(
-                rows, candidates,
-            )?)
-        }
-        (
-            DerivedRequest::CandidatePostings { column, literals },
-            BuildInputs::Postings {
-                rows,
-                symbols,
-                source,
-                active,
-            },
-        ) => PayloadData::CandidatePostings(crate::domain::predicate::service::postings(
-            rows, *column, literals, active, symbols, source,
-        )?),
-        (
-            DerivedRequest::DistinctRepresentatives { columns },
-            BuildInputs::Distinct { rows, positions },
-        ) => PayloadData::DistinctRepresentatives(crate::domain::predicate::service::distinct(
-            rows, columns, positions,
-        )?),
         (DerivedRequest::Adjacency { endpoints, keys }, BuildInputs::Rows(rows)) => {
             let Some(graph) =
                 crate::domain::adjacency::service::build_borrowed(rows, *endpoints, keys)?
@@ -171,18 +149,6 @@ pub fn build(
             };
             PayloadData::NativeLookup(finding)
         }
-        (DerivedRequest::RawKeyOrder { stride }, BuildInputs::RawWords(keys)) => {
-            let previous = match recycled {
-                Some(PayloadData::RawKeyOrder(value)) => match Arc::try_unwrap(value) {
-                    Ok(owned) => Some(owned),
-                    Err(_) => None,
-                },
-                _ => None,
-            };
-            PayloadData::RawKeyOrder(Arc::new(crate::domain::raw_order::service::build(
-                keys, *stride, previous,
-            )))
-        }
         _ => return Err(DerivedFault::WrongOperation),
     };
     Ok(BuildOutcome::Built(DerivedPayload { data }))
@@ -202,13 +168,6 @@ pub fn view<'a>(
         &payload.data,
     ) {
         (DerivedKind::Equality, PayloadData::Equality(data)) => Ok(DerivedView::Equality(data)),
-        (DerivedKind::PredicateMatches, PayloadData::PredicateMatches(data))
-        | (DerivedKind::DistinctRepresentatives, PayloadData::DistinctRepresentatives(data)) => {
-            Ok(DerivedView::RowIds(RowSlots(data.0.as_slice())))
-        }
-        (DerivedKind::CandidatePostings, PayloadData::CandidatePostings(data)) => {
-            Ok(DerivedView::Postings(data))
-        }
         (DerivedKind::Adjacency, PayloadData::Adjacency(data)) => Ok(DerivedView::Adjacency(data)),
         (DerivedKind::Membership, PayloadData::Membership(data)) => {
             Ok(DerivedView::Membership(match data {
@@ -233,9 +192,6 @@ pub fn view<'a>(
         }
         (DerivedKind::NativeLookup, PayloadData::NativeLookup(data)) => {
             Ok(DerivedView::NativeLookup(data))
-        }
-        (DerivedKind::RawKeyOrder, PayloadData::RawKeyOrder(data)) => {
-            Ok(DerivedView::RawKeyOrder(data))
         }
         _ => Err(DerivedFault::WrongOperation),
     }

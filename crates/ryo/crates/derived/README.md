@@ -68,21 +68,9 @@ Orders rows by typed key, keeping a clustered stream as it came and sorting retu
 
 Names row positions and membership marks of the finite derived row sets.
 
-### predicate
-
-Lists the rows a predicate accepts, the first row of each distinct key and the postings of literal texts.
-
 ### preparation
 
 Checks a request against the schemas of its inputs without reading rows, and keeps the verdict.
-
-### raw_order
-
-Orders the rows of a flat list of lowered key words, keeping duplicates in their original order.
-
-### raw_words
-
-Names the lowered key words, strides and places of raw key ordering.
 
 ### request
 

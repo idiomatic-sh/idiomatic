@@ -1,6 +1,5 @@
 //! The types of the `request` concept: plain data, public fields and derives, with no constructor and no inherent impl.
-use crate::domain::raw_words::types::KeyStride;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, LiteralText};
+use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 macro_rules! kinds {
     ($($kind:ident),+ $(,)?) => {
@@ -20,9 +19,6 @@ macro_rules! kinds {
 }
 kinds!(
     Equality,
-    PredicateMatches,
-    CandidatePostings,
-    DistinctRepresentatives,
     Adjacency,
     Membership,
     PartitionOrder,
@@ -30,8 +26,7 @@ kinds!(
     CycleAdjacency,
     OrderedKeys,
     OrderedDfs,
-    NativeLookup,
-    RawKeyOrder
+    NativeLookup
 );
 
 /// Static requirements contain semantics only; population/generation and binding identities stay in the engine.
@@ -39,23 +34,6 @@ kinds!(
 pub enum DerivedRequest {
     /// A hash-chain index of the keys of the rows.
     Equality {
-        /// The key columns.
-        columns: Vec<ColumnIndex>,
-    },
-    /// The positions of the rows a predicate accepts.
-    PredicateMatches {
-        /// The columns the predicate reads.
-        needed: Vec<ColumnIndex>,
-    },
-    /// The positions of the rows that stand for each of some literal texts.
-    CandidatePostings {
-        /// The symbol column.
-        column: ColumnIndex,
-        /// The literal texts that may be asked for.
-        literals: Vec<LiteralText>,
-    },
-    /// The first row of each distinct key.
-    DistinctRepresentatives {
         /// The key columns.
         columns: Vec<ColumnIndex>,
     },
@@ -126,10 +104,5 @@ pub enum DerivedRequest {
         right_on: Vec<ColumnIndex>,
         /// The view columns.
         view: Vec<ColumnIndex>,
-    },
-    /// The raw lowered key ordering.
-    RawKeyOrder {
-        /// How many words make one key.
-        stride: KeyStride,
     },
 }

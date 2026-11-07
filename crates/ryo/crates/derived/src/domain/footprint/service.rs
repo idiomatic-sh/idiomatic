@@ -8,8 +8,7 @@ use crate::domain::fault::types::DerivedFault;
 use crate::domain::key::types::KeyCellsHash;
 use crate::domain::membership::types::DerivedMembership;
 use crate::domain::ordered::types::{OrderedText, OwnedOrderedKey, OwnedOrderedRow};
-use crate::domain::sharing::service::{marks_capacity, marks_key, positions_capacity, positions_key};
-use crate::domain::sharing::types::SharedPositions;
+use crate::domain::sharing::service::{marks_capacity, marks_key};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::rows::types::Table;
 use std::mem::size_of;
@@ -86,18 +85,6 @@ fn shared_model<T>(
         position_capacity: ElementCapacity(0),
     })
 }
-fn positions(value: &SharedPositions) -> SharedBacking {
-    SharedBacking {
-        tag: BackingKind(1),
-        allocation_key: positions_key(value),
-        bytes: AllocationBytes(
-            size_of::<Vec<u32>>()
-                + 2 * size_of::<usize>()
-                + positions_capacity(value).0 * size_of::<u32>(),
-        ),
-        position_capacity: positions_capacity(value),
-    }
-}
 
 /// What a payload occupies, as allocation facts.
 ///
@@ -109,17 +96,6 @@ pub fn describe(payload: &DerivedPayload) -> Result<PayloadFootprint, DerivedFau
         PayloadData::Equality(value) => {
             shared.push(shared_model(value, BackingKind(11), equality(value)?)?);
             AllocationBytes(0)
-        }
-        PayloadData::PredicateMatches(value) | PayloadData::DistinctRepresentatives(value) => {
-            shared.push(positions(value));
-            AllocationBytes(0)
-        }
-        PayloadData::CandidatePostings(values) => {
-            for value in values {
-                shared.push(positions(&value.rows));
-            }
-            sum(std::iter::once(vector(values))
-                .chain(values.iter().map(|value| AllocationBytes(value.text.0.len()))))?
         }
         PayloadData::Membership(DerivedMembership::Dense(value)) => {
             shared.push(SharedBacking {
@@ -141,11 +117,6 @@ pub fn describe(payload: &DerivedPayload) -> Result<PayloadFootprint, DerivedFau
             )
         }
         PayloadData::PartitionOrder(value) => vector(value),
-        PayloadData::RawKeyOrder(value) => {
-            let buffers = sum([vector(&value.keys.0), vector(&value.order)])?;
-            shared.push(shared_model(value, BackingKind(32), buffers)?);
-            AllocationBytes(0)
-        }
         PayloadData::ClosureAdjacency(value) => {
             let buffers = sum([
                 vector(&value.key),

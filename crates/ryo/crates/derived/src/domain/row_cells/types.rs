@@ -1,6 +1,5 @@
 //! The types of the `rows` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 use crate::domain::fault::types::DerivedFault;
-use crate::domain::positions::types::RowSlots;
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::row_texts::types::CellText;
@@ -11,26 +10,8 @@ use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 pub enum BulkRows<'a> {
     /// Rows stored in physical columns.
     Stored(ColumnsView<'a>),
-    /// Stored rows selected by positions and projected by columns.
-    Selected {
-        /// The stored columns.
-        source: ColumnsView<'a>,
-        /// The selected rows.
-        positions: RowSlots<'a>,
-        /// The projected columns.
-        columns: &'a [ColumnIndex],
-    },
     /// Rows computed into a table.
     Computed(&'a Table),
-}
-
-/// Whether a row satisfies a predicate.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PredicateVerdict {
-    /// The row satisfies the predicate.
-    Holds,
-    /// The row does not satisfy the predicate.
-    Fails,
 }
 
 /// Finite rows the derived builders read cell by cell.
@@ -60,14 +41,6 @@ pub trait RowCells {
     fn count(&self) -> RowCount;
     /// One cell, absent when the row or column does not exist.
     fn cell(&self, row: RowIndex, column: ColumnIndex) -> Option<Value>;
-}
-
-/// A finite predicate decision; the engine owns any sticky interrupted error.
-pub trait PredicateRows {
-    /// The number of rows.
-    fn count(&self) -> RowCount;
-    /// Whether one row satisfies the predicate.
-    fn holds(&mut self, row: RowIndex) -> Result<PredicateVerdict, DerivedFault>;
 }
 
 /// Finite textual decoding only; cannot schedule or retain a population.

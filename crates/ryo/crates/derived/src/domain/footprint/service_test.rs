@@ -6,16 +6,11 @@ use crate::domain::contract::types::BuildWorkspace;
 use crate::domain::contract::types::derived_payload::value::{DerivedPayload, PayloadData};
 use crate::domain::fault::types::DerivedFault;
 use crate::domain::native::types::NativeFinding;
-use crate::domain::sharing::service::positions_capacity;
-use crate::domain::sharing::types::SharedPositions;
-use std::sync::Arc;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 #[derive(Clone, Copy)]
 enum Scenario {
-    PositionsAreOneSharedBacking,
     NativeHoldsNoSharedBacking,
-    PositionBackingRecordsItsCapacity,
     EmptyWorkspaceHoldsNothing,
 }
 type Input = Scenario;
@@ -25,22 +20,10 @@ type Failure = DerivedFault;
 /// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("a_positions_payload_is_one_shared_backing"),
-        word: Word::Succeeds,
-        input: || Scenario::PositionsAreOneSharedBacking,
-        expect: Expect::Value(1),
-    },
-    Case {
         name: CaseName("a_native_payload_holds_no_shared_backing"),
         word: Word::Succeeds,
         input: || Scenario::NativeHoldsNoSharedBacking,
         expect: Expect::Value(0),
-    },
-    Case {
-        name: CaseName("the_backing_records_the_capacity_of_its_positions"),
-        word: Word::Succeeds,
-        input: || Scenario::PositionBackingRecordsItsCapacity,
-        expect: Expect::Value(1),
     },
     Case {
         name: CaseName("an_empty_workspace_holds_no_bytes"),
@@ -52,29 +35,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 /// Calls the part on one input.
 fn subject(input: Input) -> Result<Value, Failure> {
-    let positions = SharedPositions(Arc::new(vec![0, 3]));
     let payload = |data| DerivedPayload { data };
     match input {
-        Scenario::PositionsAreOneSharedBacking => Ok(describe(&payload(
-            PayloadData::PredicateMatches(positions),
-        ))?
-        .shared
-        .len()),
         Scenario::NativeHoldsNoSharedBacking => Ok(describe(&payload(PayloadData::NativeLookup(
             NativeFinding::Span(ColumnIndex(0)),
         )))?
         .shared
         .len()),
-        Scenario::PositionBackingRecordsItsCapacity => {
-            let capacity = positions_capacity(&positions);
-            let footprint = describe(&payload(PayloadData::PredicateMatches(positions)))?;
-            Ok(usize::from(
-                footprint
-                    .shared
-                    .iter()
-                    .all(|backing| backing.position_capacity == capacity),
-            ))
-        }
         Scenario::EmptyWorkspaceHoldsNothing => Ok(working_bytes(&BuildWorkspace::default())?.0),
     }
 }
