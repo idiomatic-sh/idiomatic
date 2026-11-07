@@ -1,5 +1,7 @@
 //! Compile rule programs once per bounded shared session and bind every request independently.
-use super::constants::COMPILED_PLANS;
+use super::constants::{
+    COMPILED_PLANS, EVERY_RULE_BOUND, EVERY_RULE_PLANNED, RULE_COMPILATION_NAME,
+};
 use super::errors::RuleCompilationError;
 use super::types::{CachedPlan, CompiledPlans};
 use crate::domain::prepared_request::types::Compiled;
@@ -21,7 +23,7 @@ pub(crate) struct RuleCompilation {
 
 impl std::fmt::Debug for RuleCompilation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("RuleCompilation").finish_non_exhaustive()
+        f.debug_struct(RULE_COMPILATION_NAME).finish_non_exhaustive()
     }
 }
 
@@ -74,12 +76,12 @@ impl RuleCompilation {
             let plans = plans
                 .into_iter()
                 .map(|plan| {
-                    plan.expect("topological preparation visits every original rule exactly once")
+                    plan.expect(EVERY_RULE_PLANNED)
                 })
                 .collect();
             let bindings = bindings
                 .into_iter()
-                .map(|bound| bound.expect("each prepared rule has its own checked bindings"))
+                .map(|bound| bound.expect(EVERY_RULE_BOUND))
                 .collect();
             return Ok(Compiled {
                 plans,

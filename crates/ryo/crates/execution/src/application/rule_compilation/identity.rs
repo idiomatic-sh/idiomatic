@@ -1,4 +1,5 @@
 //! Retained findings depend on actual producer digests, through original rule indices.
+use super::constants::OBSERVATION_PRODUCERS_DOMAIN;
 use super::errors::RuleCompilationError;
 use crate::domain::file_program::{
     errors::FileProgramError,
@@ -18,7 +19,7 @@ pub(crate) fn with_producers(
     let RuleSchedule::Dependencies { order, .. } = schedule else {
         return Ok(super::types::PreparedRuleIdentities {
             rules,
-            observations: super::types::ObservationIdentity::Independent,
+            observations: crate::domain::prepared_request::types::ObservationIdentity::Independent,
         });
     };
     if rules.len() != plans.len() {
@@ -76,7 +77,7 @@ pub(crate) fn with_producers(
             .clone();
         let mut parts = vec![
             own.digest,
-            digest.digest(DigestBytes(b"ryo-observation-producers-v1")),
+            digest.digest(DigestBytes(OBSERVATION_PRODUCERS_DOMAIN)),
         ];
         let mut across = own.crossing == Crossing::Across;
         for input in inputs {
@@ -106,7 +107,7 @@ pub(crate) fn with_producers(
     }
     Ok(super::types::PreparedRuleIdentities {
         rules,
-        observations: super::types::ObservationIdentity::Named(
+        observations: crate::domain::prepared_request::types::ObservationIdentity::Named(
             ryo_values::domain::records::types::ObservationReadinessLayout(layout),
         ),
     })
