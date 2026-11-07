@@ -51,11 +51,13 @@ impl<'a> From<&'a PublicationSample<'_>> for ObservationSchema<'a> {
 pub(super) fn encode(publication: &MeasuredPublication<'_>) -> Result<Vec<u8>, Error> {
     let samples = publication.samples();
     if samples.is_empty() {
-        return Err(Error::Invalid("no measured evidence".into()));
-    }
-    if samples.iter().any(|sample| !sample.complete_inventory) {
         return Err(Error::Invalid(
-            "diagnostic observations cannot publish benchmark metrics".into(),
+            ryo_benchmark_contracts::domain::reports::constants::NO_MEASURED_EVIDENCE.into(),
+        ));
+    }
+    if samples.iter().any(|sample| sample.inventory != ryo_benchmark_contracts::domain::measurements::types::InventoryStatus::Complete) {
+        return Err(Error::Invalid(
+            ryo_benchmark_contracts::domain::reports::constants::DIAGNOSTIC_OBSERVATIONS_CANNOT_PUBLISH.into(),
         ));
     }
     let mut grouped: BTreeMap<&str, BTreeMap<&str, Vec<f64>>> = BTreeMap::new();

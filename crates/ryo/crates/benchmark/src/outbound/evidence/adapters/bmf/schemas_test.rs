@@ -47,7 +47,7 @@ fn subject(scenario: Input) -> Result<serde_json::Value, Failure> {
     let samples: Vec<_> = [2, 8, 4, 6]
         .into_iter()
         .map(|millis| SampleInput {
-            complete_inventory:true,
+            inventory: ryo_benchmark_contracts::domain::measurements::types::InventoryStatus::Complete,
             name: ryo_benchmark_contracts::domain::measurements::types::SampleName(
                 "project/ryo/empty-tool-cache".into(),
             ),
@@ -70,9 +70,9 @@ fn subject(scenario: Input) -> Result<serde_json::Value, Failure> {
                 report: RunReport {
                     execution_metadata:
                         ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Unknown,
-                    project_context: None,
+                    project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
                     skipped: Vec::new(),
-                    coverage: None,
+                    coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Unaccounted,
                     diagnostics: Vec::new(),
                     files: vec![ryo::linter::RelativePath("input.py".into())],
                 },
@@ -127,14 +127,14 @@ fn refuses() {
 /// Owned test data, not a certification or measurement proof.
 #[derive(Clone)]
 struct SampleInput {
-    complete_inventory: bool,
+    inventory: ryo_benchmark_contracts::domain::measurements::types::InventoryStatus,
     name: SampleName,
     measurement: Measurement,
 }
 impl SampleInput {
     fn publication(&self) -> PublicationSample<'_> {
         PublicationSample {
-            complete_inventory: self.complete_inventory,
+            inventory: self.inventory,
             name: &self.name,
             measurement: &self.measurement,
         }

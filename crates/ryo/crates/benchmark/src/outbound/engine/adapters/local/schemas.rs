@@ -11,6 +11,22 @@ use ryo_benchmark_contracts::domain::requests::types::{
 use std::collections::BTreeMap;
 use std::path::Path;
 
+/// One requested source file as it lies on disk: its path, its bytes as text and its permission.
+struct SourceSchema {
+    executable: ryo::linter::ExecutablePermission,
+    path: linter::RelativePath,
+    text: String,
+}
+impl From<SourceSchema> for CaseSource {
+    fn from(wire: SourceSchema) -> Self {
+        Self {
+            executable: wire.executable,
+            path: wire.path,
+            text: SourceText(wire.text.into_boxed_str()),
+        }
+    }
+}
+
 /// Load all selected query files, refusing duplicate or empty inventories.
 pub(super) fn load_rules(
     directory: &std::path::Path,
@@ -227,11 +243,11 @@ pub(super) fn source_inputs(
             continue;
         }
         let source = std::fs::read_to_string(request.root.join(file.0.as_ref()))?;
-        sources.push(CaseSource {
+        sources.push(CaseSource::from(SourceSchema {
             executable: executable(&request.root.join(file.0.as_ref()))?,
             path: file.clone(),
-            text: SourceText(source.into_boxed_str()),
-        });
+            text: source,
+        }));
     }
     if accepted.is_empty() {
         return Err(Error::Invalid(constants::EMPTY_CORPUS.into()));

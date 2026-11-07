@@ -3,7 +3,7 @@ use ryo::linter::RelativePath;
 use std::collections::BTreeSet;
 
 /// An authored query that maps selected provider diagnostics to a benchmark rule identity.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FrontendDiagnosticProjection {
     /// The benchmark/reference rule identity emitted for selected rows.
     pub rule: ryo::linter::RuleId,

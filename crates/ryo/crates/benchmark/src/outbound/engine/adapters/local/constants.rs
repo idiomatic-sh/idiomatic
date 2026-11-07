@@ -2,7 +2,7 @@
 /// Refuse rule directory names outside the query identifier encoding.
 pub(super) const NON_UTF8_RULE: &str = "non-UTF8 rule";
 /// Canonical colocated query filename.
-pub(super) const QUERY_FILE: &str = "query.ryoql";
+pub(super) const QUERY_FILE: &str = ryo_benchmark_contracts::domain::requests::constants::QUERY_FILE;
 /// Refuse repeated rule identities rather than overwriting queries.
 pub(super) const DUPLICATE_RULE: &str = "duplicate candidate rule identity";
 /// A candidate run must evaluate at least one authored query.
@@ -32,7 +32,8 @@ pub(super) const SKIPPED_RULE_PAIRS_EXCEED_THE_CONFIGURED: &str =
 /// Text of the rules directory has no profile root in this part.
 pub(super) const RULES_DIRECTORY_HAS_NO_PROFILE_ROOT: &str = "rules directory has no profile root";
 /// Text of the module source in this part.
-pub(super) const MODULE_SOURCE: &str = "module source";
+pub(super) const MODULE_SOURCE: &str =
+    ryo_benchmark_contracts::domain::requests::constants::MODULE_NAME_PROBE;
 /// Text of the worker context mode requires a matching in this part.
 pub(super) const WORKER_CONTEXT_MODE_REQUIRES_A_MATCHING: &str =
     "worker context mode requires a matching explicit manifest";

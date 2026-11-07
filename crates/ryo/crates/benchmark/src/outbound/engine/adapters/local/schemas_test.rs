@@ -2,6 +2,8 @@
 use super::{load_rules, validate_skips};
 use ryo::linter::{self, RuleApplicability, RuleId};
 use crate::outbound::engine::adapters::local::constants;
+use ryo_benchmark_contracts::domain::requests::types::{ApplicabilityPolicy, QueryModuleName, RuleLabel};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use std::{collections::BTreeMap, path::PathBuf};
 
 fn profile() -> (tempfile::TempDir, PathBuf) {
@@ -16,7 +18,6 @@ fn profile() -> (tempfile::TempDir, PathBuf) {
     (root, rules)
 }
 
-#[test]
 fn worker_reads_explicit_module_text_from_the_frozen_profile() {
     let (root, rules) = profile();
     let module = root.path().join("fragments/suppress.ryoql");
@@ -24,7 +25,7 @@ fn worker_reads_explicit_module_text_from_the_frozen_profile() {
     let text = "input source: relation<id: node>;\n";
     std::fs::write(&module, text).expect(constants::MODULE_SOURCE);
     let registry = BTreeMap::from([(
-        "python/ruff/suppress".to_owned(),
+        QueryModuleName("python/ruff/suppress".to_owned()),
         PathBuf::from("fragments/suppress.ryoql"),
     )]);
     let queries =
@@ -41,11 +42,10 @@ fn worker_reads_explicit_module_text_from_the_frozen_profile() {
     );
 }
 
-#[test]
 fn selected_rules_receive_the_pinned_syntax_applicability() {
     let (_root, rules) = profile();
     let applicability =
-        BTreeMap::from([("F401".to_owned(), constants::ACCEPTED_SYNTAX.to_owned())]);
+        BTreeMap::from([(RuleLabel("F401".to_owned()), ApplicabilityPolicy(constants::ACCEPTED_SYNTAX.to_owned()))]);
     let queries =
         load_rules(&rules, &BTreeMap::default(), &applicability, None, None)
             .expect("complete applicability map loads");
@@ -55,12 +55,11 @@ fn selected_rules_receive_the_pinned_syntax_applicability() {
     );
 }
 
-#[test]
 fn explicit_applicability_must_match_every_loaded_rule() {
     let (_root, rules) = profile();
     let applicability = BTreeMap::from([
-        ("F401".to_owned(), constants::ACCEPTED_SYNTAX.to_owned()),
-        ("F402".to_owned(), constants::ALWAYS.to_owned()),
+        (RuleLabel("F401".to_owned()), ApplicabilityPolicy(constants::ACCEPTED_SYNTAX.to_owned())),
+        (RuleLabel("F402".to_owned()), ApplicabilityPolicy(constants::ALWAYS.to_owned())),
     ]);
     let error =
         load_rules(&rules, &BTreeMap::default(), &applicability, None, None)
@@ -68,29 +67,27 @@ fn explicit_applicability_must_match_every_loaded_rule() {
     assert!(error.to_string().contains("does not exactly match"));
 }
 
-#[test]
 fn explicit_applicability_rejects_unknown_policy_values() {
     let (_root, rules) = profile();
-    let applicability = BTreeMap::from([("F401".to_owned(), "parse-only".to_owned())]);
+    let applicability = BTreeMap::from([(RuleLabel("F401".to_owned()), ApplicabilityPolicy("parse-only".to_owned()))]);
     let error =
         load_rules(&rules, &BTreeMap::default(), &applicability, None, None)
             .expect_err("unknown applicability is refused");
     assert!(error.to_string().contains("unsupported applicability"));
 }
 
-#[test]
-fn typed_syntax_skips_require_matching_policy_input_and_projection() -> Result<(), String> {
+fn typed_syntax_skips_require_matching_policy_input_and_projection() {
     let (_root, _directory) = profile();
     let path = linter::RelativePath("input.py".into());
     let skipped = linter::Skipped {
-        rule: RuleId::try_from("F401").map_err(|error| error.to_string())?,
+        rule: RuleId::try_from("F401").expect("fixture rule"),
         path: path.clone(),
         reason: linter::SkipReason::SyntaxRejected,
     };
     let files = std::collections::BTreeSet::from([path]);
-    let policy = BTreeMap::from([("F401".to_owned(), constants::ACCEPTED_SYNTAX.to_owned())]);
+    let policy = BTreeMap::from([(RuleLabel("F401".to_owned()), ApplicabilityPolicy(constants::ACCEPTED_SYNTAX.to_owned()))]);
     let selected = std::collections::BTreeSet::from([
-        RuleId::try_from("F401").map_err(|error| error.to_string())?
+        RuleId::try_from("F401").expect("fixture rule")
     ]);
     validate_skips(
         std::slice::from_ref(&skipped),
@@ -129,14 +126,12 @@ fn typed_syntax_skips_require_matching_policy_input_and_projection() -> Result<(
     let _verified_5 =
         validate_skips(&[skipped], &selected, &policy, &other_file, true)
             .expect_err("expected refusal");
-    Ok(())
 }
 
-#[test]
 fn worker_refuses_module_paths_outside_the_profile() {
     let (_root, rules) = profile();
     let registry = BTreeMap::from([(
-        "python/ruff/suppress".to_owned(),
+        QueryModuleName("python/ruff/suppress".to_owned()),
         PathBuf::from("../outside.ryoql"),
     )]);
     let error = load_rules(&rules, &registry, &BTreeMap::default(), None, None)
@@ -145,7 +140,6 @@ fn worker_refuses_module_paths_outside_the_profile() {
 }
 
 #[cfg(unix)]
-#[test]
 fn worker_refuses_symlinked_module_paths() {
     let (root, rules) = profile();
     std::fs::create_dir_all(root.path().join("fragments")).expect("module folder");
@@ -154,7 +148,7 @@ fn worker_refuses_symlinked_module_paths() {
     std::os::unix::fs::symlink(&target, root.path().join("fragments/suppress.ryoql"))
         .expect("symlink fixture");
     let registry = BTreeMap::from([(
-        "python/ruff/suppress".to_owned(),
+        QueryModuleName("python/ruff/suppress".to_owned()),
         PathBuf::from("fragments/suppress.ryoql"),
     )]);
     let error = load_rules(&rules, &registry, &BTreeMap::default(), None, None)
@@ -162,7 +156,6 @@ fn worker_refuses_symlinked_module_paths() {
     assert!(error.to_string().contains("query module is a symlink"));
 }
 
-#[test]
 fn named_input_declarations_attach_to_registered_definitions_and_reject_unknown_consumers() {
     use ryo::linter::{
         ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName,
@@ -201,4 +194,68 @@ fn named_input_declarations_attach_to_registered_definitions_and_reject_unknown_
     )
     .unwrap_err();
     assert!(error.to_string().contains("unregistered consumer"));
+}
+
+type Scenario = fn();
+type Input = Scenario;
+type Value = ();
+type Failure = std::convert::Infallible;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("worker_reads_explicit_module_text_from_the_frozen_profile"),
+        word: Word::Succeeds,
+        input: || worker_reads_explicit_module_text_from_the_frozen_profile as Scenario,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("selected_rules_receive_the_pinned_syntax_applicability"),
+        word: Word::Succeeds,
+        input: || selected_rules_receive_the_pinned_syntax_applicability as Scenario,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("explicit_applicability_must_match_every_loaded_rule"),
+        word: Word::Succeeds,
+        input: || explicit_applicability_must_match_every_loaded_rule as Scenario,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("explicit_applicability_rejects_unknown_policy_values"),
+        word: Word::Succeeds,
+        input: || explicit_applicability_rejects_unknown_policy_values as Scenario,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("typed_syntax_skips_require_matching_policy_input_and_projection"),
+        word: Word::Succeeds,
+        input: || typed_syntax_skips_require_matching_policy_input_and_projection as Scenario,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("worker_refuses_module_paths_outside_the_profile"),
+        word: Word::Succeeds,
+        input: || worker_refuses_module_paths_outside_the_profile as Scenario,
+        expect: Expect::Value(()),
+    },
+    #[cfg(unix)]
+    Case {
+        name: CaseName("worker_refuses_symlinked_module_paths"),
+        word: Word::Succeeds,
+        input: || worker_refuses_symlinked_module_paths as Scenario,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("named_input_declarations_attach_to_registered_definitions_and_reject_unknown_consumers"),
+        word: Word::Succeeds,
+        input: || named_input_declarations_attach_to_registered_definitions_and_reject_unknown_consumers as Scenario,
+        expect: Expect::Value(()),
+    },
+];
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    scenario();
+    Ok(())
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

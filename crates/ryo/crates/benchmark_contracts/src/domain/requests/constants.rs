@@ -4,3 +4,7 @@ pub(super) const INVALID_SHARD: &str = "invalid case shard coordinates";
 pub const ALWAYS: &str = "always";
 /// The applicability policy under which a rule is skipped on a file the parser rejects.
 pub const ACCEPTED_SYNTAX: &str = "accepted-syntax";
+/// The filename of a rule's query inside its rule directory.
+pub const QUERY_FILE: &str = "query.ryoql";
+/// The module source a logical module name is probed with before the real source is read.
+pub const MODULE_NAME_PROBE: &str = "module source";
