@@ -3,7 +3,8 @@
 //! its rows: compilation and preparation succeed, and the error is the second rule's alone. Each rule's written text is
 //! compiled through the query-language port and its parameters bound from its written spec; the provider hands over the
 //! plans (RyoQL refuses both authoring errors itself, so a provider is the author that can hand them over).
-use super::super::super::{fixtures, interface::*, types::*};
+use super::super::super::{fixtures, interface::*};
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::outbound::query_language::{
     errors::QueryLanguageError, fixtures::fake::QueryLanguageFake, interface::QueryLanguagePort,
 };
@@ -41,13 +42,6 @@ use crate::domain::prepared_request::types::ObservationIdentity;
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
-use ryo_values::domain::query_tokens::types::QueryBundle;
-use ryo_values::domain::query_tokens::types::QueryDocumentSource;
-use ryo_values::domain::query_tokens::types::QuerySourceId;
-use ryo_values::domain::rule_requests::types::RuleParameters;
-use ryo_values::domain::rule_requests::types::RuleSpec;
-use ryo_values::domain::runs::types::RuleApplicability;
-use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stored_facts::types::Digest;
 use std::collections::BTreeMap;
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs::text;
@@ -92,7 +86,7 @@ fn sources() -> Table {
 /// The query-language provider the rules are written against: each written text compiles to the plan handed over for it.
 struct Provider(Vec<(&'static str, QueryLanguageFake)>);
 
-fn written(provider: &Provider, text: &QueryBundle) -> &QueryLanguageFake {
+fn written<'a>(provider: &'a Provider, text: &QueryBundle) -> &'a QueryLanguageFake {
     provider
         .0
         .iter()
@@ -146,11 +140,11 @@ fn an_errored_rule_answers_its_error_while_its_sibling_delivers_rows(authored: A
         comparisons: vec![],
         kept: vec![ColumnIndex(0)],
     };
-    let sound = fixtures::plan(vec![select()]);
+    let sound = inputs::plan(vec![select()]);
     let mut errored = match authored {
         // The step after the emit step names a column that is not there: the rule's origin is errored although its emit
         // step is sound.
-        Authored::InvalidColumn => fixtures::plan(vec![
+        Authored::InvalidColumn => inputs::plan(vec![
             select(),
             Operation::Project {
                 from: PlanInput::Step(StepId(0)),
@@ -159,7 +153,7 @@ fn an_errored_rule_answers_its_error_while_its_sibling_delivers_rows(authored: A
             },
         ]),
         // The step after the emit step reads the step after it: it reads a step that has not run.
-        Authored::DanglingStep => fixtures::plan(vec![
+        Authored::DanglingStep => inputs::plan(vec![
             select(),
             Operation::Project {
                 from: PlanInput::Step(StepId(2)),

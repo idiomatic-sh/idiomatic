@@ -43,7 +43,7 @@ pub(super) fn acquire(
     }
     // An empty primary has no representatives to acquire: the ordinary route
     // answers it without building any derived payload.
-    if shape.selector().distinct == ryo_values::domain::plan_parts::types::RepeatedRows::Dropped
+    if shape.selector.distinct == ryo_values::domain::plan_parts::types::RepeatedRows::Dropped
         && columns
             .columns
             .first()

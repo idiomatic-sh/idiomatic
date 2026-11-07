@@ -25,7 +25,7 @@ pub struct CompiledPlans(pub(super) Arc<Mutex<PlanCache>>);
 
 /// Request preparation retains its graph privately; callers may inspect source plans only.
 pub struct CompiledQueries {
-    pub(super) inner: crate::domain::prepared_request::types::Compiled,
+    pub(crate) inner: crate::domain::prepared_request::types::Compiled,
 }
 
 /// One cohesive compiler operation, sharing only bounded immutable plans across invocations.

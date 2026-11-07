@@ -17,8 +17,6 @@ impl DerivedPort for RefusingBuild {
     fn prepare(&self, request: ViewRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived {
         crate::application::file_dag::fixtures::derived().prepare(request, schemas)
     }
-}
-impl BuildUseCase for RefusingBuild {
     fn build(
         &self,
         _: &PreparedDerived,
@@ -28,8 +26,6 @@ impl BuildUseCase for RefusingBuild {
     ) -> Result<BuildOutcome, DerivedFault> {
         Err(DerivedFault::DuplicateOrder)
     }
-}
-impl ViewUseCase for RefusingBuild {
     fn view<'a>(
         &self,
         prepared: &PreparedDerived,

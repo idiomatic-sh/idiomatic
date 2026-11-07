@@ -35,7 +35,7 @@ pub(in crate::application::file_dag::program::preparation) fn prepare(
                 .map(|stride| {
                     crate::application::file_dag::derived::prepare::view(
                         derived.clone(),
-                        &crate::domain::derived_views::types::ViewRequest::RawKeyOrder { stride },
+                        &crate::domain::derived_views::types::ViewRequest::RawKeyOrder { stride: crate::domain::positions::types::Stride(stride) },
                         &[],
                     )
                     .map(Arc::new)

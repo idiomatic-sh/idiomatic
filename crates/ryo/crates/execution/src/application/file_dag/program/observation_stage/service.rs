@@ -6,7 +6,7 @@ use crate::application::file_dag::observations::types::{AdmittedOutput, RuleSele
 use crate::application::file_dag::program::observation_stage::interface::ObservationExecution;
 use crate::application::file_dag::program::observation_stage::interface::ObservationPublication;
 use crate::application::file_dag::program::observation_stage::types::ObservationStage;
-use crate::application::file_dag::program::project_phase::interface::ProjectRootExecution;
+use crate::application::file_dag::program::project_phase::interface::{ProjectRootExecution, ProjectStage};
 use crate::application::file_dag::program::project_phase::types::PhaseScope;
 use crate::application::file_dag::program::project_phase::types::ProjectTask;
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;

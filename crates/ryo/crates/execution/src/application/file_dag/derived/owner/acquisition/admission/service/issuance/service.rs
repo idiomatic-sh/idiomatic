@@ -8,7 +8,7 @@ impl AcquisitionOrigin {
         owner: &DerivedOwner,
         plan: &Arc<DerivedContract>,
     ) -> Result<(), OperatingError> {
-        if !Arc::ptr_eq(&self.owner, &owner.identity) || !self.live.is_live() {
+        if !Arc::ptr_eq(&self.owner, &owner.identity) || self.live.is_live() != crate::application::file_dag::relations::types::Liveness::Live {
             return Err(OperatingError::NotRead);
         }
         if !Arc::ptr_eq(&self.plan, plan) {

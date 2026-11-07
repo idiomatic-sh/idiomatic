@@ -118,12 +118,12 @@ impl Inputs for SourceInputs<'_, '_> {
                     .observation_metadata()
                     .ok_or(OperatingError::NotRun)?;
                 let declaration = named.slots.get(slot).ok_or(OperatingError::NotRun)?;
-                if declaration.rule != self.rule.0 {
+                if declaration.rule != self.rule {
                     return Err(OperatingError::NotRead);
                 }
                 let producer = named
                     .bindings
-                    .get(declaration.rule)
+                    .get(declaration.rule.0)
                     .and_then(|bindings| bindings.get(declaration.input.0 as usize))
                     .and_then(|binding| binding.producers.get(member))
                     .ok_or(OperatingError::NotRun)?;
@@ -134,7 +134,7 @@ impl Inputs for SourceInputs<'_, '_> {
                     } => {
                         if self
                             .file_outputs
-                            .and_then(|outputs| outputs.get(rule))
+                            .and_then(|outputs| outputs.get(&rule))
                             .and_then(|roots| roots.get(output.0 as usize))
                             .is_some_and(|root| {
                                 root.publication.is_some() || root.readiness.is_some()
@@ -142,14 +142,14 @@ impl Inputs for SourceInputs<'_, '_> {
                         {
                             return Ok(None);
                         }
-                        let metadata = self.program.rule_metadata(*rule)?;
+                        let metadata = self.program.rule_metadata(rule)?;
                         let root = metadata
                             .observations
                             .get(output.0 as usize)
                             .ok_or(OperatingError::NotRun)?;
                         if self
                             .completion
-                            .for_rule(*rule)
+                            .for_rule(rule)
                             .observation_admission(&root.reads)
                             != crate::domain::completion::types::ObservationAdmission::Ready
                         {

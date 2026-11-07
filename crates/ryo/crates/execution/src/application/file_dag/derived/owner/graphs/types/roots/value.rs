@@ -158,7 +158,7 @@ impl<'a> DemandAnswers<'a> {
         );
         if access
             .graph()
-            .forest(crate::domain::stored_graph::types::traversal::value::direction(orientation).0)
+            .forest(crate::domain::stored_graph::types::traversal::value::direction(orientation))
             .is_none()
         {
             crate::application::file_dag::route_counts::event(

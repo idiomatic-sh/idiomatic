@@ -60,7 +60,8 @@ pub(super) fn vocabularies() -> KindVocabularies {
 }
 /// Retain the former operator-service example/catalog assertion through public descriptors.
 pub(super) fn example_unknown_relations(example: &str) -> usize {
-    use ryo_relations::domain::relations::{service::relation_named, types::NameRef};
+    use ryo_relations::domain::relations::service::relation_named;
+    use ryo_relations::domain::labels::types::NameRef;
     let fields = [
         "from",
         "from=",

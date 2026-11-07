@@ -38,7 +38,7 @@ impl<'f> IndexResource<'f> {
         use ryo_derived::domain::request::types::DerivedKind;
         let use_ = prepared(contract, DerivedKind::Equality)?;
         let place = use_.inputs[0];
-        let source = admission.input(InputNumber(place))?;
+        let source = admission.input(place)?;
         // Absence's established empty-RHS gate precedes key interpretation.
         if empty == EmptyInput::Skip
             && source.count().0 == 0
@@ -50,7 +50,7 @@ impl<'f> IndexResource<'f> {
                 index: KeyIndex::default(),
             });
         }
-        let source = admission.rows(InputNumber(place))?;
+        let source = admission.rows(place)?;
         let storage = admission.acquire_rows(use_, context)?;
         if let Some(crate::domain::table_model::types::Rows::Selected(selected)) = original {
             return Ok(Self::Selected(
@@ -78,7 +78,7 @@ impl<'f> IndexResource<'f> {
                 };
                 IndexedRows {
                     #[cfg(feature = "diagnostic-row-progress")]
-                    progress: crate::application::file_dag::route_counts::progress::service::progress,
+                    progress: &crate::application::file_dag::route_counts::progress::service::RouteProgress,
                     rows: *rows,
                     columns,
                     index,
@@ -92,7 +92,7 @@ impl<'f> IndexResource<'f> {
                 };
                 IndexedRows {
                     #[cfg(feature = "diagnostic-row-progress")]
-                    progress: crate::application::file_dag::route_counts::progress::service::progress,
+                    progress: &crate::application::file_dag::route_counts::progress::service::RouteProgress,
                     rows: *rows,
                     columns,
                     index,

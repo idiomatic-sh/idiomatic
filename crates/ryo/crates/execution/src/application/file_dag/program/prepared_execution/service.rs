@@ -1,4 +1,5 @@
 //! The read-only views of a prepared program.
+use std::sync::Arc;
 use crate::application::file_dag::program::prepared_execution::interface::PreparedExecution;
 use crate::application::file_dag::program::prepared_execution::interface::PreparedReporting;
 use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;

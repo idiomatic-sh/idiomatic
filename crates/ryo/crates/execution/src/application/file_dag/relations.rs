@@ -17,7 +17,7 @@ use std::{
     sync::{Arc, OnceLock},
 };
 mod accounting;
-pub(in crate::application::file_dag) mod types;
+pub(crate) mod types;
 pub(in crate::application::file_dag) mod inspection;
 pub(in crate::application::file_dag) mod producer;
 pub(in crate::application::file_dag) mod source;

@@ -4,7 +4,7 @@ use crate::domain::{
     stored_selection::types::Selector,
 };
 use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::plan_parts::types::{StepId, StepScope};
 use std::sync::Arc;
 
 pub(crate) mod demand_program;

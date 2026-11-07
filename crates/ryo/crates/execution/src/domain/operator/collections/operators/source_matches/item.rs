@@ -97,8 +97,8 @@ impl OperatorsItem for SourceMatchesItem {
             input: SourceMatchesInput {
                 row,
                 source: ryo_operators::domain::source_matches::types::LineBytes(source),
-                base: ryo_operators::domain::source_matches::types::checked.base,
-                text: ryo_values::domain::row_texts::types::checked.text,
+                base: checked.base,
+                text: checked.text,
                 line: checked.line,
                 regex,
                 capture: capture.as_ref().map_or(

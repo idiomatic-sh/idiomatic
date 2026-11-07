@@ -119,8 +119,8 @@ impl DerivedOwner {
                         fanout_reused = entry.paths[8].0, admission_not_repeated = entry.admission[0].0,
                         admission_allocation_refused = entry.admission[1].0,
                         admission_budget_refused = entry.admission[2].0, admission_retained = entry.admission[3].0,
-                        retained_rows = retained.as_ref().map_or(0, |result| result.as_slice().len()),
-                        retained_slots = retained.as_ref().map_or(0, |result| result.capacity()));
+                        retained_rows = retained.as_ref().map_or(0, |result| result.0.len()),
+                        retained_slots = retained.as_ref().map_or(0, |result| result.0.capacity()));
                 }
             }
         }

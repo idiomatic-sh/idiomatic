@@ -2,6 +2,7 @@
 
 use crate::domain::stored_graph::types::{BreadthEnd, ExaminedVertices, ExpandedVertices, GraphDomain, GraphWalk, MemoStatus, Nearest, Neighbors, Orientation, VisitEpoch};
 use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
+use ryo_derived::domain::vertices::types::VertexId;
 
 /// No known nearest answer has been computed for this vertex/context.
 pub(crate) const UNKNOWN: VertexId = VertexId(u32::MAX);
@@ -47,7 +48,7 @@ impl<'a> GraphTraversal<'a> {
         self.follow(root, orientation);
         while let Some(vertex) = self.walk.queue.pop_front() {
             self.walk.reached.push(vertex);
-            if nearest.is_some_and(|domain| domain.members.as_slice().get(vertex.0 as usize) == Some(&true)) {
+            if nearest.is_some_and(|domain| domain.members.0.as_slice().get(vertex.0 as usize) == Some(&true)) {
                 return BreadthEnd::Stopped;
             }
             // Initial seeding already expanded the root. A real cycle may still emit it.
@@ -102,7 +103,7 @@ impl<'a> GraphTraversal<'a> {
             };
             self.walk.examined.0 += 1;
             let parent = VertexId(parent);
-            if domain.members.as_slice()[parent.0 as usize] {
+            if domain.members.0.as_slice()[parent.0 as usize] {
                 break parent;
             }
             if answers[parent.0 as usize] != UNKNOWN {

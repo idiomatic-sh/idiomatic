@@ -1,6 +1,6 @@
 //! One file session: the input it is opened with and what it answers.
 use crate::domain::coverage::types::Partial;
-use crate::domain::kind_sets::types::PreparedVocabulary;
+use crate::domain::kind_sets::types::vocabulary::value::PreparedVocabulary;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::SemanticLookup;
 use crate::domain::rule_intent::types::FileRuleIntent;

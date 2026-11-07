@@ -103,7 +103,7 @@ impl OperatorsItem for OrderedDfsItem {
                 let root_row = row_in(&prepared.roots, at).ok_or(OperatingError::ShapeMismatch)?;
                 key.clear();
                 for column in graph.root_columns {
-                    key.push(cell(root_row, *column)?);
+                    key.push(cell(root_row, column)?);
                 }
                 prefix.clear();
                 for column in root_keys.iter().copied().chain([*root]) {

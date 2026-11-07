@@ -13,7 +13,7 @@ pub(in crate::application::file_dag) fn publish(
     {
         return Err(OperatingError::NotRead);
     }
-    let (population, _) = admitted.identity(owner)?;
+    let population = admitted.identity(owner)?.population;
     if population != owner.result_population(source)
         || owner.matches_current(source, admitted.rows()) == Sameness::Different
     {

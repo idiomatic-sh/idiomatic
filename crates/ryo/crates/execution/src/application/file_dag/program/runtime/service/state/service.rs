@@ -185,7 +185,7 @@ impl ProgramExecution {
         &self,
         state: &RuntimeState,
     ) -> Result<(), OperatingError> {
-        if Arc::ptr_eq(&self.generation, &state.generation) && self.generation_live.is_live() {
+        if Arc::ptr_eq(&self.generation, &state.generation) && self.generation_live.is_live() == crate::application::file_dag::relations::types::Liveness::Live {
             Ok(())
         } else {
             Err(OperatingError::NotRead)
@@ -222,7 +222,7 @@ impl ProgramExecution {
         root: crate::application::file_dag::program::admission::ProducerRoot,
     ) -> Result<Partition, OperatingError> {
         use crate::domain::executable_program::types::{InputSource, PartitionRequirement};
-        if self.owner.matches_generation(&self.generation) == crate::application::file_dag::relations::types::Sameness::Different || !self.generation_live.is_live() {
+        if self.owner.matches_generation(&self.generation) == crate::application::file_dag::relations::types::Sameness::Different || self.generation_live.is_live() != crate::application::file_dag::relations::types::Liveness::Live {
             return Err(OperatingError::NotRead);
         }
         let source = match root {

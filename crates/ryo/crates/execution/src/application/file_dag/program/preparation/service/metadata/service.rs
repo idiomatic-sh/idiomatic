@@ -126,7 +126,7 @@ fn source(
                 observations
                     .slots
                     .iter()
-                    .position(|slot| slot.rule == rule.0 && slot.input == input)
+                    .position(|slot| slot.rule == rule && slot.input == input)
             })
             .map(InputSource::Observation)
             .ok_or(OperatingError::NotRun),

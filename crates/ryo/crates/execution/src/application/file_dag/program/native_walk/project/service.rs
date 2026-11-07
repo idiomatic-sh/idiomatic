@@ -31,7 +31,7 @@ use std::{
 /// An invocation of either partition cannot opt out of its shared-walk owner.
 pub(in crate::application::file_dag::program) enum WalkPartition<'a> {
     File(&'a FileWalk),
-    Project(&'a project::service::ProjectWalk),
+    Project(&'a ProjectWalk),
 }
 impl WalkPartition<'_> {
     pub(in crate::application::file_dag::program) fn validate(&self, permit: &KernelPermit<'_>) -> Result<(), OperatingError> {

@@ -70,7 +70,7 @@ impl RequestViews {
                     &mut slots,
                     kinds,
                     ViewRequest::Equality { columns },
-                    InputPositions(&[*input]),
+                    InputPositions(&[input.0]),
                 )?;
             }
             ResourceProgram::Join(join) => {

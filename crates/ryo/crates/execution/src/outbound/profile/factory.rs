@@ -5,6 +5,6 @@
 
 /// The profile adapter that keeps one profile for each thread.
 #[must_use]
-pub fn thread<State: Send + 'static>() -> impl crate::outbound::profile::interface::ProfilePort<State> {
+pub fn thread<State: Send + std::fmt::Debug + 'static>() -> impl crate::outbound::profile::interface::ProfilePort<State> {
     super::adapters::thread::adapter::ProfileThreadAdapter::new()
 }

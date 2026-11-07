@@ -169,7 +169,7 @@ fn literal(text: &str, columns: Vec<ColumnIndex>) -> Selector {
     };
     Selector {
         relation: Relation::Defines,
-        identity: Arc::new(crate::domain::table_model::types::SelectionIdentity {
+        identity: Arc::new(crate::domain::stored_selection::types::SelectionIdentity {
             comparisons: vec![PlanComparison {
                 test: Test::Equal,
                 left: Operand::Column(ColumnIndex(0)),
@@ -186,10 +186,9 @@ type Input = fn() -> Result<Value, Failure>;
 type Value = ();
 fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<(), Failure> {
     use ryo_language::domain::symbols::{service::intern_derived, types::ByteSlice};
-    use ryo_relations::domain::terms::{
-        service::term_symbol,
-        types::{DeclarationKind, NameText, Symbol},
-    };
+    use ryo_relations::domain::terms::service::term_symbol;
+    use ryo_relations::domain::declaration_kind::types::DeclarationKind;
+    use ryo_relations::domain::terms::types::{NameText, Symbol};
     let mut symbols = Symbols::default();
     let dynamic = intern_derived(&mut symbols, ByteSlice(b""), NameText("class"));
     let extras = (0..7)

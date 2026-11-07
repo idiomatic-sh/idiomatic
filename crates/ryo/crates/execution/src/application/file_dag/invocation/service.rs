@@ -81,10 +81,10 @@ pub(in crate::application::file_dag) fn prepare<'f>(
         .empty_results
         .iter()
         .find(|gate| {
-            gate.input > 0
+            gate.input.0 > 0
                 && gate.representation
                     == crate::domain::operator::contract::types::EmptyRepresentation::Computed
-                && originals.get(gate.input).is_some_and(|rows| {
+                && originals.get(gate.input.0).is_some_and(|rows| {
                     matches!(
                         rows,
                         crate::domain::table_model::types::Rows::Computed(_)

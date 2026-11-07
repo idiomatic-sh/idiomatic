@@ -76,7 +76,7 @@ impl InvocationWorkspace {
         let mut relations = [None; 2];
         for at in 0..count {
             let proof = inputs.proof(use_.inputs[at])?;
-            let (_, relation) = proof.identity(self.owner())?;
+            let relation = proof.identity(self.owner())?.relation;
             relations[at] = relation;
             proofs[at] = Some(proof);
         }

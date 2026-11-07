@@ -6,7 +6,7 @@ pub(crate) fn portable_fault(
 ) -> OperatingError {
     use ryo_derived::domain::fault::types::DerivedFault;
     match fault {
-        DerivedFault::MissingInput { position } => OperatingError::MissingInput { position },
+        DerivedFault::MissingInput { position } => OperatingError::MissingInput { position: position.0 },
         DerivedFault::NoSuchColumn { column } => {
             ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: column.0 }.into()
         }

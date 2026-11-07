@@ -125,7 +125,7 @@ impl<'f> RepresentationInput<'f> {
     }
     pub(crate) fn validate(self) -> Result<(), OperatingError> {
         let contract = self.contract()?;
-        if registered(contract.kind).inspect(&contract)? == PhysicalShape::Complete {
+        if crate::domain::table_model::service::registered(contract.kind).inspect(&contract)? == PhysicalShape::Complete {
             Ok(())
         } else {
             Err(OperatingError::ShapeMismatch)

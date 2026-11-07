@@ -26,7 +26,7 @@ impl DerivedOwner {
             matches!(&entry._plan.request, ViewRequest::Equality { columns: requested } if requested == columns)
                 && entry._plan.schemas.first().is_some_and(|schema| schema == rows.kinds)
                 && entry.weak.upgrade().is_some_and(|storage| {
-                    matches!(storage.view(), Ok(ryo_derived::domain::contract::types::DerivedView::Equality(index)) if index.rows().len() == count)
+                    matches!(storage.view(), Ok(ryo_derived::domain::contract::types::DerivedView::Equality(index)) if index.rows.len() == count)
                 })
         });
         if live {

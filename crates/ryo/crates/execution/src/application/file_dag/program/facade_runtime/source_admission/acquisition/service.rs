@@ -112,12 +112,12 @@ impl SourceInputs<'_, '_> {
                     .observation_metadata()
                     .ok_or(OperatingError::NotRun)?;
                 let declaration = named.slots.get(slot).ok_or(OperatingError::NotRun)?;
-                if declaration.rule != self.rule.0 {
+                if declaration.rule != self.rule {
                     return Err(OperatingError::NotRead);
                 }
                 let binding = named
                     .bindings
-                    .get(declaration.rule)
+                    .get(declaration.rule.0)
                     .and_then(|bindings| bindings.get(declaration.input.0 as usize))
                     .ok_or(OperatingError::NotRun)?;
                 if !binding.producers.is_empty() {
@@ -155,12 +155,12 @@ impl SourceInputs<'_, '_> {
                     .observation_metadata()
                     .ok_or(OperatingError::NotRun)?;
                 let declaration = named.slots.get(slot).ok_or(OperatingError::NotRun)?;
-                if declaration.rule != self.rule.0 {
+                if declaration.rule != self.rule {
                     return Err(OperatingError::NotRead);
                 }
                 let producer = named
                     .bindings
-                    .get(declaration.rule)
+                    .get(declaration.rule.0)
                     .and_then(|bindings| bindings.get(declaration.input.0 as usize))
                     .and_then(|binding| binding.producers.get(member))
                     .ok_or(OperatingError::NotRun)?;
@@ -174,12 +174,12 @@ impl SourceInputs<'_, '_> {
                     });
                 };
                 let published = outputs
-                    .get(rule)
+                    .get(&rule)
                     .and_then(|roots| roots.get(output.0 as usize))
                     .and_then(|root| root.publication.clone());
                 if published.is_none()
                     && outputs
-                        .get(rule)
+                        .get(&rule)
                         .and_then(|roots| roots.get(output.0 as usize))
                         .is_some_and(|root| root.readiness.is_some())
                 {
@@ -190,14 +190,14 @@ impl SourceInputs<'_, '_> {
                 let admitted = match published {
                     Some(input) => input,
                     None => {
-                        let metadata = self.program.rule_metadata(*rule)?;
+                        let metadata = self.program.rule_metadata(rule)?;
                         let root = metadata
                             .observations
                             .get(output.0 as usize)
                             .ok_or(OperatingError::NotRun)?;
                         if self
                             .completion
-                            .for_rule(*rule)
+                            .for_rule(rule)
                             .observation_admission(&root.reads)
                             != crate::domain::completion::types::ObservationAdmission::Ready
                         {
@@ -207,7 +207,7 @@ impl SourceInputs<'_, '_> {
                         }
                         let source = *root.source.as_ref().map_err(Clone::clone)?;
                         let previous = self.rule;
-                        self.bind_rule(*rule);
+                        self.bind_rule(rule);
                         let admitted = self.admit_source(source, partition, context);
                         self.bind_rule(previous);
                         admitted?

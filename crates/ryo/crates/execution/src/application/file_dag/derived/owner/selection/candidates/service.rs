@@ -117,7 +117,7 @@ pub(in crate::application::file_dag::derived::owner) fn candidates(
             order,
             &[value],
             #[cfg(feature = "diagnostic-row-progress")]
-            crate::application::file_dag::route_counts::progress::service::progress,
+            &crate::application::file_dag::route_counts::progress::service::RouteProgress,
         )
         .flat_map(|index| u32::try_from(index.0))
         .collect();

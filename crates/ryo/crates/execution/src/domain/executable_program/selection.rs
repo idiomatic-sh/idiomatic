@@ -101,7 +101,7 @@ pub(crate) fn compile(
                 || !prepared
                     .selection_views
                     .by_selector
-                    .contains_key(&(Arc::as_ptr(selector) as usize))
+                    .contains_key(&crate::domain::derived_views::types::SelectorAddress(Arc::as_ptr(selector) as usize))
             {
                 continue;
             }

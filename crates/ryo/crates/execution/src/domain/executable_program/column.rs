@@ -40,7 +40,7 @@ impl ColumnCandidates {
                 let Some(chain) = &physical.column else {
                     continue;
                 };
-                let rule = RuleIndex(physical.rule);
+                let rule = physical.rule;
                 let Some(target) = original(graph, rule, physical.step) else {
                     continue;
                 };

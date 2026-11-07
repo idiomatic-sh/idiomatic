@@ -25,8 +25,8 @@ impl PermittedNativeJoin<'_, '_, '_> {
             binding: crate::domain::executable_program::physical::PhysicalBinding {
                 bindings: self.context.bindings,
                 regex_identity: None,
-                native_join: true,
-                source_len: self.context.source.0.len(),
+                native_join: crate::domain::executable_program::types::JoinLease::Native,
+                source_len: ryo_operators::domain::contract::types::SourceByteLength(self.context.source.0.len()),
             },
             failure: &failure,
         };

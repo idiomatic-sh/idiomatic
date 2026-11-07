@@ -20,7 +20,7 @@ mod service_test;
 pub(crate) mod closure_partitions;
 pub(crate) mod selected;
 
-pub(in crate::application) mod relations;
+pub(crate) mod relations;
 
 pub(crate) mod executor;
 

@@ -114,6 +114,7 @@ fn source_rows<'a, 'facts: 'a>(
 
 impl FileSession<'_, '_> {
     /// Whether the source of this file may be reused by a later run.
+    #[cfg(test)]
     pub(crate) fn reuse_eligible(&self) -> ReuseEligibility {
         self.inner.source_reuse_eligible()
     }

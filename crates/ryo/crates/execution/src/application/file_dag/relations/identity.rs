@@ -86,7 +86,7 @@ pub(super) fn describe(relation: Relation, input: BorrowedRows<'_>) -> SourceDes
             columns,
             ..
         } => {
-            let mut addresses = vec![span(positions.as_ptr(), SpanLength(positions.len()))];
+            let mut addresses = vec![span(positions.0.as_ptr(), SpanLength(positions.0.len()))];
             addresses.extend(source.columns.iter().map(column_span));
             (addresses, columns.to_vec(), source.kinds.to_vec())
         }
@@ -138,7 +138,7 @@ pub(super) fn matches(source: &SourceDescriptor, input: BorrowedRows<'_>) -> Sam
             source.source_kinds == view.kinds
                 && source.projection == columns
                 && source.storage.first()
-                    == Some(&span(positions.as_ptr(), SpanLength(positions.len())))
+                    == Some(&span(positions.0.as_ptr(), SpanLength(positions.0.len())))
                 && same_columns(view.columns, &source.storage[1..]) == Sameness::Same
         }),
         BorrowedRows::Compact(table) => sameness!(source.storage == compact_spans(table)),
@@ -193,7 +193,7 @@ pub(super) fn same(left: BorrowedRows<'_>, right: BorrowedRows<'_>) -> Sameness 
             },
         ) => sameness!({
             columns(left, right) == Sameness::Same
-                && std::ptr::eq(lp, rp)
+                && std::ptr::eq(lp.0, rp.0)
                 && lc == rc
                 && lk == rk
         }),

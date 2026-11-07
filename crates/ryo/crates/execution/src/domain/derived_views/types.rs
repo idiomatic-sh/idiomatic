@@ -145,5 +145,5 @@ pub(crate) struct SelectorAddress(pub usize);
 pub(crate) struct ViewGroup(pub usize);
 
 /// How many groups of equal selectors a request has.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ViewGroupCount(pub usize);

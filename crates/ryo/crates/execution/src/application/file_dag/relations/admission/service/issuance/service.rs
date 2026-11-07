@@ -11,7 +11,7 @@ impl<'a> BorrowedInput<'a> {
         owner: &RelationOwner,
         publication: &dyn PublishedRelation,
     ) -> Result<(), OperatingError> {
-        let (population, _) = self.identity(owner)?;
+        let population = self.identity(owner)?.population;
         let actual = owner.private(publication)?;
         if self.publication_population != actual.population
             || population != owner.result_population(actual)

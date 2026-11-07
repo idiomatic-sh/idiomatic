@@ -54,7 +54,7 @@ impl PositionJoinDriver for StepMatches<'_> {
             let place = self.place;
             self.place.0 += 1;
             if let Some(right) = self.order.rows().get(place.0) {
-                self.current = Some(RowIndex(*right));
+                self.current = Some(*right);
                 self.counts.found(ryo_values::domain::plan_parts::types::InputNumber(1), crate::domain::operator::contract::types::FoundRows(1));
                 return Ok(Advance::Admitted);
             }

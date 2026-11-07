@@ -262,8 +262,8 @@ pub(crate) fn validate_bucket(
     let mut seen_files = std::collections::BTreeSet::new();
     let mut affected = Vec::new();
     for source in &payload.sources {
-        if source.start != at
-            || source.length == 0
+        if source.start.0 != at
+            || source.length.0 == 0
             || !required.files().contains(&source.file)
             || skipped.contains(&source.file)
             || !seen_files.insert(source.file)
@@ -273,7 +273,7 @@ pub(crate) fn validate_bucket(
         {
             return Err(refuse());
         }
-        let end = at.checked_add(source.length).ok_or_else(refuse)?;
+        let end = at.checked_add(source.length.0).ok_or_else(refuse)?;
         let frame = payload.words.0.0.get(at..end).ok_or_else(refuse)?;
         if ryo_values::domain::table_words::service::single_table_frame(
             ryo_values::domain::table_words::types::PackedSlice(frame),

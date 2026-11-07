@@ -246,13 +246,13 @@ impl Driver<'_, '_> {
                 self.started = Started::Yes;
                 self.positions.clear();
                 match native.finding {
-                    Finding::Node(column, key) => EntityVectorItem::find(
+                    NativeFinding::Node(column, key) => EntityVectorItem::find(
                         &native.tree,
                         self.left,
                         NodeColumns { left: column, key },
                         &mut self.positions,
                     )?,
-                    Finding::Stretch(..) | Finding::Span(_) => SpanIndexItem::find(
+                    NativeFinding::Stretch(..) | NativeFinding::Span(_) => SpanIndexItem::find(
                         &native.tree,
                         self.left,
                         native.finding,

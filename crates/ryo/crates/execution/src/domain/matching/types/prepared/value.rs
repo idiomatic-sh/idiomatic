@@ -53,7 +53,7 @@ impl PreparedMatchers {
                 Operation::Join { filter, .. } => filter.as_slice(),
                 Operation::Axis { domain_filter, .. } => domain_filter.as_slice(),
                 Operation::Replace { pattern, .. } | Operation::SourceMatches { pattern, .. } => {
-                    prepared.declare(Test::Matches, &pattern.0);
+                    prepared.declare(Test::Matches, crate::domain::table_texts::types::TextView(&pattern.0));
                     continue;
                 }
                 _ => continue,

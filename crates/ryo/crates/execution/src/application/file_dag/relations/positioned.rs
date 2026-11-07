@@ -10,7 +10,7 @@ pub(in crate::application::file_dag) fn publish(
     kinds: Arc<[CellKind]>,
 ) -> Result<PublishedInput, OperatingError> {
     owner.generation(source)?;
-    let (population, _) = admitted.identity(owner)?;
+    let population = admitted.identity(owner)?.population;
     if population != owner.result_population(source)
         || owner.matches_current(source, admitted.rows()) == Sameness::Different
     {

@@ -83,8 +83,8 @@ impl super::super::KernelSession<'_, '_> {
             binding: crate::domain::executable_program::physical::PhysicalBinding {
                 bindings: context.bindings,
                 regex_identity: None,
-                native_join: false,
-                source_len: context.source.0.len(),
+                native_join: crate::domain::executable_program::types::JoinLease::Absent,
+                source_len: ryo_operators::domain::contract::types::SourceByteLength(context.source.0.len()),
             },
         };
         let result = crate::application::file_dag::ordered_existence::evaluate(
@@ -276,8 +276,8 @@ impl super::super::KernelSession<'_, '_> {
             binding: crate::domain::executable_program::physical::PhysicalBinding {
                 bindings: context.bindings,
                 regex_identity: None,
-                native_join: false,
-                source_len: context.source.0.len(),
+                native_join: crate::domain::executable_program::types::JoinLease::Absent,
+                source_len: ryo_operators::domain::contract::types::SourceByteLength(context.source.0.len()),
             },
             failure: &failure,
         };

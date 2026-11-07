@@ -139,7 +139,7 @@ pub(crate) struct GraphObservations {
     /// Request-qualified bound slots; graph edges carry a compact ID rather than widening every ordinary edge.
     pub slots: Vec<ObservationSlot>,
     /// Frontier buckets actually needed by authored observations, prepared once.
-    pub observation_frontiers: Vec<Vec<FrontierPurpose>>,
+    pub observation_frontiers: Vec<Vec<crate::domain::rule_intent::types::FrontierPurpose>>,
     /// Logical output status slots in stable rule/output order; aliases may share a physical bucket.
     pub frontiers: Vec<ObservedFrontierRoot>,
     /// Prepared outgoing retirement edges, indexed by original consumer rule.

@@ -319,7 +319,7 @@ pub(super) fn alias_member(
     let declaration = named.slots.get(slot.0).ok_or(OperatingError::NotRun)?;
     let binding = named
         .bindings
-        .get(declaration.rule)
+        .get(declaration.rule.0)
         .and_then(|bindings| bindings.get(declaration.input.0 as usize))
         .ok_or(OperatingError::NotRun)?;
     let producer = binding
@@ -334,7 +334,7 @@ pub(super) fn alias_member(
         });
     };
     let root = prepared
-        .rule_metadata(*rule)?
+        .rule_metadata(rule)?
         .observations
         .get(output.0 as usize)
         .ok_or(OperatingError::NotRun)?;

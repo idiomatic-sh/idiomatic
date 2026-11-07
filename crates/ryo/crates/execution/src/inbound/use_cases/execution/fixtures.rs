@@ -1,4 +1,10 @@
 //! Authored request assembly; every operation runs through the public execution owner.
+use crate::domain::operating::errors::OperatingError;
+use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_values::domain::query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId};
+use ryo_values::domain::rule_requests::types::RuleParameters;
+use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
+use std::collections::BTreeMap;
 use crate::outbound::facts::types::ResidentStability;
 use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use crate::application::file_dag::derived::owner::types::DerivedAccess;
@@ -241,7 +247,7 @@ pub(super) fn run_prepared_context<'facts>(
     read: &dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
     semantic: Option<&dyn crate::domain::operating::types::SemanticLookup>,
 ) -> Result<(Table, crate::domain::operating::fixtures::ExecutionObservation), OperatingError> {
-    let last = super::interface::PreparedExecution::emit(prepared, RuleIndex(0))?.step;
+    let last = crate::application::file_dag::program::prepared_execution::interface::PreparedExecution::emit(prepared, RuleIndex(0))?.step;
     let corpus = [CorpusInput::Available(CorpusEntry {
         path: ryo_language::domain::files::types::FilePath("operator-contract.py".into()),
         executable: ExecutablePermission::Unknown,
@@ -261,10 +267,13 @@ pub(super) fn run_prepared_context<'facts>(
                 observations: ObservationDemand::NotRequired,
                 capture: CaptureIntent::Disabled,
             }],
-            source,
+            source: ryo_values::domain::files::types::SourceView(source),
             elements,
             read,
-            semantic,
+            semantic: match semantic {
+                Some(lookup) => crate::application::file_dag::program::file_session::types::SemanticSupport::Supplied(lookup),
+                None => crate::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+            },
             kinds: crate::application::file_dag::program::file_session::types::KindSupport::Absent,
         },
         symbols,

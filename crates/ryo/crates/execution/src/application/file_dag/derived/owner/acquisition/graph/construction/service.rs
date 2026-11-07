@@ -81,7 +81,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn adja
     let shared =
         owner.retain_graph(cache, population, &storage, &backings, &graph)? == GraphSharing::Shared;
     tracing::trace!(target: constants::TARGET_GRAPH, event = constants::EVENT_ADJACENCY, reused = false, shared,
-        relation = ?expected_identity.population.relation, vertices = graph.vertices().len(), edges = graph.neighbors()[0].len(),
+        relation = ?expected_identity.population.relation, vertices = graph.vertices().len(), edges = graph.neighbors(ryo_derived::domain::vertices::types::EdgeDirection::Forward).0.len(),
         graph_bytes = cache.graph_bytes.0, cache_bytes = cache.bytes.0, graph_enabled = ?cache.graph_enabled);
     Ok(Some(BuiltGraph {
         storage,
@@ -185,7 +185,7 @@ pub(in crate::application::file_dag::derived::owner::acquisition::graph) fn doma
     if let Some(cache) = cache.as_mut() {
         owner.retain_domain(cache, population, access, &domain, &storage, &backings)?;
     }
-    tracing::trace!(target: constants::TARGET_GRAPH, event = constants::EVENT_DOMAIN, vertices = domain.members.as_slice().len(), source_rows = count_of(rows).0, stable = domain.identity.is_some());
+    tracing::trace!(target: constants::TARGET_GRAPH, event = constants::EVENT_DOMAIN, vertices = domain.members.0.len(), source_rows = count_of(rows).0, stable = domain.identity.is_some());
     Ok(BuiltDomain {
         storage,
         construction: Construction::Built,

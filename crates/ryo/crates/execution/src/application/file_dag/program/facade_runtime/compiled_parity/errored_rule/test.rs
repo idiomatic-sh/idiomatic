@@ -20,7 +20,7 @@ use ryo_values::domain::plans::types::PlanStep;
 /// The query-language provider the rules are written against: each written text compiles to the plan handed over for it.
 struct Provider(Vec<(&'static str, QueryLanguageFake)>);
 
-fn written(provider: &Provider, text: &QueryBundle) -> &QueryLanguageFake {
+fn written<'a>(provider: &'a Provider, text: &QueryBundle) -> &'a QueryLanguageFake {
     provider
         .0
         .iter()
