@@ -5,7 +5,7 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use ryo_core::outbound::scheduler::factory::{rayon, sequential};
+use ryo_core::outbound::scheduler::factory::{rayon, rayon_over, sequential};
 use ryo_core::outbound::scheduler::interface::SchedulerPort;
 use ryo_core::outbound::scheduler::types::{JobCount, JobNumber, WorkerCount};
 
@@ -22,13 +22,15 @@ enum Variant {
     Pool,
     /// The scheduler over a pool.
     Rayon,
+    /// The scheduler over a pool the caller already runs.
+    Shared,
     /// The scheduler on the calling thread.
     Sequential,
 }
 
 impl Variant {
     /// Every function of the factory, run in turn.
-    const ALL: [Self; 3] = [Self::Pool, Self::Rayon, Self::Sequential];
+    const ALL: [Self; 4] = [Self::Pool, Self::Rayon, Self::Shared, Self::Sequential];
 }
 
 /// One worker: each job sums a thousand numbers and adds the sum, and the job's number, to `total`.
@@ -61,6 +63,13 @@ fn build_and_run(variant: Variant) -> u64 {
             u64::from(asked.0)
         }
         Variant::Rayon => run_jobs(&rayon(asked)),
+        Variant::Shared => {
+            let pool = rayon::ThreadPoolBuilder::new()
+                .num_threads(usize::try_from(ASKED).unwrap_or(1))
+                .build()
+                .map(std::sync::Arc::new);
+            pool.map_or(0, |pool| run_jobs(&rayon_over(pool)))
+        }
         Variant::Sequential => run_jobs(&sequential()),
     }
 }
