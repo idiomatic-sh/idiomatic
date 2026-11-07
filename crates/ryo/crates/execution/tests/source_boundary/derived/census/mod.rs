@@ -20,6 +20,11 @@ const PORT_NAMES: &[(&str, &[&str])] = &[
         "> DerivedPort for T",
         "T: ryo_derived::inbound::use_cases::derived::interface::DerivedUseCase",
     ]),
+    ("outbound/derived/factory.rs", &[
+        "use crate::outbound::derived::interface::DerivedPort;",
+        "semantics: impl ryo_derived::inbound::use_cases::derived::interface::DerivedUseCase",
+        ") -> impl DerivedPort {",
+    ]),
     ("inbound/use_cases/execution/types.rs", &["pub use crate::outbound::derived::interface::DerivedPort;"]),
     ("inbound/use_cases/execution/use_case.rs", &["pub fn new(operators: Arc<dyn OperatorsPort>, derived: Arc<dyn DerivedPort>) -> Self {"]),
 ];

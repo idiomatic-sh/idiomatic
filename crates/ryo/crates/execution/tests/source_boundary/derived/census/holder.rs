@@ -34,9 +34,12 @@ pub(super) enum Holder {
     DerivedAccessOrders,
     DerivedAccessInboundTypes,
     DerivedAccessInboundUseCase,
+    AddedClosurePartitionsSchemas,
+    AddedSelectedSchemas,
+    AddedWorkspaceService,
 }
 impl Holder {
-    pub(super) const ALL: [Holder; 25] = [
+    pub(super) const ALL: [Holder; 28] = [
         Holder::AxisResources,
         Holder::AxisView,
         Holder::ClosurePartitions,
@@ -62,6 +65,9 @@ impl Holder {
         Holder::DerivedAccessOrders,
         Holder::DerivedAccessInboundTypes,
         Holder::DerivedAccessInboundUseCase,
+        Holder::AddedClosurePartitionsSchemas,
+        Holder::AddedSelectedSchemas,
+        Holder::AddedWorkspaceService,
     ];
     pub(super) fn path(self) -> &'static str {
         match self {
@@ -90,6 +96,9 @@ impl Holder {
             Holder::DerivedAccessOrders => file!("program/preparation/service/orders/service.rs"),
             Holder::DerivedAccessInboundTypes => "inbound/use_cases/execution/types.rs",
             Holder::DerivedAccessInboundUseCase => "inbound/use_cases/execution/use_case.rs",
+            Holder::AddedClosurePartitionsSchemas => file!("closure_partitions/schemas.rs"),
+            Holder::AddedSelectedSchemas => file!("selected/schemas.rs"),
+            Holder::AddedWorkspaceService => file!("workspace/service.rs"),
         }
     }
     /// The authorities its source names, exhaustively.
@@ -119,6 +128,9 @@ impl Holder {
             | Holder::DerivedAccessOrders
             | Holder::DerivedAccessInboundTypes
             | Holder::DerivedAccessInboundUseCase => &[Authority::DerivedAccess],
+            Holder::AddedClosurePartitionsSchemas => &[Authority::AcquiredView],
+            Holder::AddedSelectedSchemas => &[Authority::AcquiredView],
+            Holder::AddedWorkspaceService => &[Authority::AcquiredView],
         }
     }
 }
