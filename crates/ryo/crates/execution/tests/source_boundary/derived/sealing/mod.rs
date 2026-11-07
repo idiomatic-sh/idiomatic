@@ -47,13 +47,13 @@ mod contract_read { use crate::domain::derived_views::types::{contract::value::D
 "#;
 const CONTRACT_PREPARED: &str = r#"
 mod contract_prepared {
-    use crate::domain::{derived_views::types::{contract::value::DerivedContract, DerivedRequest}, operating::errors::OperatingError, operation_schema::types::InputShape};
+    use crate::domain::{derived_views::types::{contract::value::DerivedContract, ViewRequest}, operating::errors::OperatingError, operation_schema::types::InputShape};
     use crate::outbound::derived::interface::DerivedPort;
     use std::sync::Arc;
-    fn authorized(port: Arc<dyn DerivedPort>, request: &DerivedRequest, schemas: &[InputShape<'_>]) -> Result<DerivedContract, OperatingError> {
+    fn authorized(port: Arc<dyn DerivedPort>, request: &ViewRequest, schemas: &[InputShape<'_>]) -> Result<DerivedContract, OperatingError> {
         crate::application::file_dag::derived::prepare::view(port, request, schemas)
     }
-    const _: fn(Arc<dyn DerivedPort>, &DerivedRequest, &[InputShape<'_>]) -> Result<DerivedContract, OperatingError> = authorized;
+    const _: fn(Arc<dyn DerivedPort>, &ViewRequest, &[InputShape<'_>]) -> Result<DerivedContract, OperatingError> = authorized;
 }
 "#;
 const CACHE_MUTATOR: &str = r#"

@@ -149,10 +149,10 @@ pub(super) fn controls() -> Vec<Probe> {
         refuse(
             PROGRAM,
             format!(
-                "mod retarget_region {{ use {COMPILED}::region::value::Region; use {COMPILED}::RegionId; fn retarget(value: Region, id: RegionId) -> Region {{ Region {{ id, ..value }} }} const _: fn(Region, RegionId) -> Region = retarget; }}"
+                "mod retarget_region {{ use {COMPILED}::region::value::Region; use crate::domain::coverage::types::RuleIndex; fn retarget(value: Region, producer: RuleIndex) -> Region {{ Region {{ producer, ..value }} }} const _: fn(Region, RuleIndex) -> Region = retarget; }}"
             ),
             "E0451",
-            "id",
+            "producer",
             "private",
         ),
         refuse(

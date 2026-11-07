@@ -1,6 +1,6 @@
 {
-  "source": "8315ae21dbe97b5eaf4dc5bdf87056dbffadf913",
-  "scope": "Ownership consolidation checkpoint 319 (all frozen 318 branches merged, one compile); not full product acceptance",
+  "source": "4f0a08dd7db4a49a5328e093665e6db6669e364b",
+  "scope": "Ownership consolidation checkpoint 321 (wave 3 and the benchmark branch merged, one compile, repair passes, lint step); not full product acceptance",
   "checks": {
     "libraries": {
       "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
@@ -191,37 +191,41 @@
   },
   "results": {
     "execution_library": {
-      "passed": 604,
-      "failed": 0,
-      "note": "the errored_rule rows (compiled_parity and use_case_test) pass after review repairs V"
+      "passed": 479,
+      "failed": 5,
+      "note": "compiled_parity succeeds/refuses (\"the target must execute its registered operator\"), use_case_test::axis_graph (0 against 1) and domain::operator::service_test (the census reads contract/axis.rs and contract/join.rs as kind modules): the kernel fold, the kernel consolidation row; output_coverage::service_test (the lineage row answers WrongOperation where Anywhere is expected): per-column lineage, the per-column lineage row"
     },
     "core_library": {
-      "passed": 105,
-      "failed": 1,
-      "note": "lint::use_case_test::succeeds (a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store): validate_bucket's file accounting refuses the replayed bucket, which holds no source for either surviving file"
+      "passed": 119,
+      "failed": 2,
+      "note": "lint::use_case_test::succeeds (a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store: frontier source proof refused, as at 320), the store replay row of review repairs V; cross_file::service_test::succeeds (population_test and root_set_test expect rule 0 to report one unknown and it reports none: the skipped syntax-rejected file is no longer Unknown), the six-rule unknowns row"
     },
-    "benchmark_passed": 153,
-    "sdk_passed": 29,
-    "other_libraries_passed": 219,
-    "libraries_total": {"passed": 1110, "failed": 2},
-    "execution_boundary": {
-      "passed": 98,
+    "benchmark_library": {
+      "passed": 216,
       "failed": 5,
-      "note": "the five project_phase::restoration::partition rows (step-key anchoring against file-key narrowing)"
+      "note": "rule_context::service_test (disabled pairs 1 where 3 is expected), validate_case_receipts refuses (a receipt lacks the field authority), verify_cases process_capture/process_identity/process_orchestration (the registrations fixture reads no JSON): the benchmark branch, the benchmark TM row"
+    },
+    "sdk_passed": 29,
+    "other_libraries_passed": 221,
+    "libraries_total": {"passed": 1064, "failed": 12},
+    "execution_boundary": {
+      "passed": 96,
+      "failed": 7,
+      "note": "the five project_phase::restoration::partition rows (test.rs:353, [None]: per-column lineage does not yet anchor them, the per-column lineage row); shared_walk::compact::selected_frontiers selected_join_shares_work_preserves_counts_and_exports_owned_frontiers (a stored-selection backing count of the deleted selection family, the kernel consolidation row); source_boundary actual_runtime_authority_is_private_to_its_owner (three probes named deleted or test-only fields: corrected after the run, the row passes in its narrow run)"
     },
     "activation": {"passed": 10, "failed": 0},
     "bdd": {"scenarios": 2, "failed": 0},
-    "core_bdd": {"scenarios": 21, "failed": 0},
+    "core_bdd": {"scenarios": 17, "failed": 0},
     "core_project_boundary": {"passed": 1, "failed": 0},
     "ruff_sharing": {
-      "passed": 1,
-      "failed": 0,
-      "note": "sharing::test::succeeds; the route differential every_strategy_unwired_answers_like_the_wired_engine is filtered out (its django() fixture drops column_kernel but not node_result_reuse, and its all-variants run reached 43.9 GB at 319)"
+      "passed": 0,
+      "failed": 2,
+      "note": "the_one_path_answers_the_django_canary_as_recorded: N999 over Django answers 110 diagnostics where the checkpoint recorded 112 (the one path changes output), the kernel consolidation row; sharing::test::succeeds: duplicate request census, the kernel consolidation row"
     },
     "ruff": {
-      "passed": 11,
-      "failed": 1,
-      "note": "engine_test::succeeds: the I001 observation row fails with the step-key anchoring of the partition rows, as at validation319"
+      "passed": 10,
+      "failed": 2,
+      "note": "engine_test::succeeds (rejected_syntax_test: I001 answers the valid file 0 where Ruff answers 1, per-column lineage, the per-column lineage row); engine_test::project_context::succeeds (ListedDisk has an active receipt, the benchmark TM row)"
     },
     "execution_program_authority": {"passed": 9, "failed": 0},
     "doctests": {
@@ -236,55 +240,41 @@
     "tm_cli_source_findings": 0,
     "tm_guards": "pass",
     "core_allocation": {"exit": 101, "phase": 7},
-    "cli_replay": {"passed": 73, "failed": 5},
-    "cli_replay_reds": ["behavior::what_ryo_could_not_decide_over_ruff_is_the_golden_or_a_recorded_difference", "behavior::every_recorded_rule_gives_the_recorded_rows", "behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows", "cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store", "peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound"],
+    "cli_replay": {"passed": 95, "failed": 3},
+    "cli_replay_reds": ["behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows", "cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store", "peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound"],
+    "cli_replay_note": "feed: 20 features fed fewer than 1,000 rows (first NaturalLessThan 0), the coverage missing-kinds row; cache: the store of ruff 78,525,063 bytes against 75,000,000, the coverage missing-kinds row; warm peak 113,983,488 bytes against 100,000,000: walk C retains packed words to scope end, the walk extension C row. The two behaviour reds of 320 pass.",
     "cli_cost": {
       "passed": 4,
       "failed": 3,
-      "note": "the ruff rows of the ratchet still hold placeholder bests; the seed branch set the Django bests only"
+      "note": "the ruff rows of the ratchet still hold placeholder bests (cold, warm/edit, peak), the perf ratchet seed"
     },
     "cli_other_targets": "blocks (dhat run, no panic), call_count 1/1, command_line 7/7, command_tree 11/11, readme 1/1",
     "conformance": {"targets": 10, "exit": 0},
-    "harness_hooks": {"passed": 15, "failed": 0},
-    "benchmark_red": {
-      "passed": 153,
-      "failed": 1,
-      "note": "outbound::execution::adapters::direct::adapter_test::succeeds answered ExecutableFileBusy where ExecutableFormat is expected (a write-then-exec race on the probe binary; 154/0 in the earlier run of the same source tree)"
-    }
+    "harness_hooks": {"passed": 15, "failed": 0}
   },
   "ownership_graph": {
-    "source": "8315ae21dbe97b5eaf4dc5bdf87056dbffadf913",
+    "source": "4f0a08dd7db4a49a5328e093665e6db6669e364b",
     "raw": "ownership_edges.log (kept outside the repository)",
-    "occurrences": 8748,
+    "occurrences": 6853,
     "targeted_cycles": [],
-    "other_cycles": 1,
-    "note": "file-level strongly connected components of the ownership edges, computed from ownership_edges.log of validation320: 1 (gate <= 6 holds), the pair domain/table_model/service.rs and domain/table_model/types/registered_representation/value.rs introduced when the representation registry left its collection; the native_walk pair of validation319 is gone."
+    "other_cycles": 0,
+    "note": "file-level strongly connected components of the ownership edges, computed from ownership_edges.log of validation321: 0 (1 at 320)"
   },
   "evidence_reuse": [],
   "review": "../../audits/2026-11-06-derived/ownership/checkpoint.json",
   "new_performance_measurement": false,
-  "validation": 320,
-  "raw_identity": "/tmp/ryo-contract-validation320-20261107",
+  "validation": 321,
+  "raw_identity": "/tmp/ryo-contract-validation321-20261107",
   "tm_whole_tree": {
     "command": "tm --root crates/ryo check --format json (no --fix; git status unchanged)",
-    "total": 1223,
+    "total": 34,
     "suppressed": 6,
-    "status": "measured whole-tree state at checkpoint 320; not a baseline and not a waiver",
+    "status": "measured whole-tree state at checkpoint 321; not a baseline and not a waiver",
     "at_checkpoint_319": 2762,
     "at_checkpoint_318": 3676,
     "at_checkpoint_317": 4251,
     "at_checkpoint_316": 8060,
-    "per_crate": {
-      "crates/benchmark": 927,
-      "crates/benchmark_contracts": 127,
-      "crates/execution": 108,
-      "languages/python": 31,
-      "crates/core": 14,
-      "crates/operators": 12,
-      "crates/relations": 2,
-      "crates/derived": 1,
-      "crates/values": 1
-    },
+    "per_crate": {"crates/execution": 29, "languages/python": 5},
     "per_crate_at_319": {
       "crates/execution": 1157,
       "crates/benchmark": 933,
@@ -309,10 +299,28 @@
       "languages/toml": 1,
       "languages/typescript": 1
     },
-    "module_cycles_findings": 15,
-    "no_domain_concept_cycles_findings": 29,
-    "tm_validate": "crates/ryo: 232 versions hold, 0 do not; repository root: 217 hold, 0 do not",
-    "unknown_findings": 0
+    "module_cycles_findings": 0,
+    "no_domain_concept_cycles_findings": 24,
+    "tm_validate": "crates/ryo: 233 versions hold, 0 do not; repository root: 217 hold, 0 do not",
+    "unknown_findings": 0,
+    "at_checkpoint_320": 1223,
+    "owned": {
+      "no-domain-concept-cycles (execution) 24": "the domain concept cycle row",
+      "import-directions 2 + layer-matrix 2 (execution outbound/publication adapter)": "the core pipeline row",
+      "use-case-module#template 1 (execution use case fixtures)": "the join leftovers row",
+      "io-at-boundary 5 (ruff host.rs)": "the benchmark TM row"
+    },
+    "per_crate_at_320": {
+      "crates/benchmark": 927,
+      "crates/benchmark_contracts": 127,
+      "crates/execution": 108,
+      "languages/python": 31,
+      "crates/core": 14,
+      "crates/operators": 12,
+      "crates/relations": 2,
+      "crates/derived": 1,
+      "crates/values": 1
+    }
   },
   "tm_targets": {
     "tm_cli_source": {
@@ -323,14 +331,14 @@
       "scoped_directories": {"cli/tests/replay/imports.rs": 0}
     },
     "tm_source": {
-      "findings": 17,
+      "findings": 0,
       "suppressed": 2,
-      "production": 14,
-      "test": 3,
+      "production": 0,
+      "test": 0,
       "scoped_directories": {
-        "crates/execution/src/application/file_dag/program": 3,
+        "crates/execution/src/application/file_dag/program": 0,
         "crates/execution/src/application/file_dag/invocation": 0,
-        "crates/execution/src/application/file_dag/derived": 1,
+        "crates/execution/src/application/file_dag/derived": 0,
         "crates/execution/src/domain/shared_walk": 0,
         "crates/execution/tests/shared_walk": 0,
         "crates/execution/src/domain/executable_program": 0,
@@ -339,9 +347,9 @@
         "crates/execution/src/domain/coverage": 0,
         "crates/execution/src/domain/frontiers": 0,
         "crates/execution/src/application/file_dag/frontiers": 0,
-        "crates/core/src/application/file_analysis": 4,
-        "crates/core/src/inbound/use_cases/lint": 7,
-        "crates/core/src/domain/storing": 2,
+        "crates/core/src/application/file_analysis": 0,
+        "crates/core/src/inbound/use_cases/lint": 0,
+        "crates/core/src/domain/storing": 0,
         "crates/core/src/outbound/lint_store": 0,
         "crates/execution/src/domain/trust": 0
       }

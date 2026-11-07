@@ -125,44 +125,44 @@ Branch `claude/w2-review-v` from checkpoint 319 `f2d8aaf1db` (the Phase 1 re-own
 - **R4, hardening-1 placement:** `Region`, `Instruction`, `DemandProgram` and `ExecutableProgram` are sealed values, each in `domain/executable_program/types/<value>/value.rs` with a `value_test.rs`; only the compiler constructs and writes them (`pub(in crate::domain::executable_program)`). `ColumnAlternative` (now one definition over original nodes and regions, which removes the mirrored `OriginalColumn`) and `SelectionAlternative` are plain route payloads in `types.rs`: the route lives in the sealed `Region`. Bare integers and bools are typed (`ObservationPlace`, `ProducerMember`, `DraftIndex`, `RegexIdentity`, `JoinLease`, `RowGate`, `Equivalence`, `StepUse`, `AbsenceInputs`); `service.rs` is split into `merge.rs`, `origins.rs` and `aliases.rs`, and `trust/service.rs` into `trust/reads.rs`. The observation slot proofs moved from the domain to `application/file_dag/acceptance/{observations_test.rs, observation_census_test.rs}` because they prepare through the application request preparation. Weak closures kept and closed by the store and runtime crates (hardening steps 2 and 3): `FrontierCache::new` stays `pub(crate)`, and `ReadProof::complete` stays callable within the program. Controls: `types::region::value_test`, `types::instruction::value_test`, `types::demand_program::value_test`, `types::executable_program::value_test`; `tm` over `domain/executable_program` and `domain/trust` is 0.
 - **R5:** this record.
 
-### Current ownership checkpoint — source `8315ae21db`, validation320
+### Current ownership checkpoint — source `4f0a08dd7d`, validation321
 
 Written by `evidence/checkpoint/run.py` from [validation.json](evidence/checkpoint/validation.json); do not edit by hand. Review: [checkpoint](audits/2026-11-06-derived/ownership/checkpoint.json).
 
 | Check | Result |
 |---|---|
-| Source | `8315ae21db` |
-| Validation | validation320 (raw logs in the directory named `ryo-contract-validation320-20261107`, kept outside the repository) |
-| execution library | 604 PASS / 0 failed (the errored_rule rows (compiled_parity and use_case_test) pass after review repairs V) |
-| core library | 105 PASS / 1 failed (lint::use_case_test::succeeds (a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store): validate_bucket's file accounting refuses the replayed bucket, which holds no source for either surviving file) |
-| benchmark passed | 153 |
+| Source | `4f0a08dd7d` |
+| Validation | validation321 (raw logs in the directory named `ryo-contract-validation321-20261107`, kept outside the repository) |
+| execution library | 479 PASS / 5 failed (compiled_parity succeeds/refuses ("the target must execute its registered operator"), use_case_test::axis_graph (0 against 1) and domain::operator::service_test (the census reads contract/axis.rs and contract/join.rs as kind modules): the kernel fold, the kernel consolidation row; output_coverage::service_test (the lineage row answers WrongOperation where Anywhere is expected): per-column lineage, the per-column lineage row) |
+| core library | 119 PASS / 2 failed (lint::use_case_test::succeeds (a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store: frontier source proof refused, as at 320), the store replay row of review repairs V; cross_file::service_test::succeeds (population_test and root_set_test expect rule 0 to report one unknown and it reports none: the skipped syntax-rejected file is no longer Unknown), the six-rule unknowns row) |
+| benchmark library | 216 PASS / 5 failed (rule_context::service_test (disabled pairs 1 where 3 is expected), validate_case_receipts refuses (a receipt lacks the field authority), verify_cases process_capture/process_identity/process_orchestration (the registrations fixture reads no JSON): the benchmark branch, the benchmark TM row) |
 | sdk passed | 29 |
-| other libraries passed | 219 |
-| libraries total | 1110 PASS / 2 failed |
-| execution boundary | 98 PASS / 5 failed (the five project_phase::restoration::partition rows (step-key anchoring against file-key narrowing)) |
+| other libraries passed | 221 |
+| libraries total | 1064 PASS / 12 failed |
+| execution boundary | 96 PASS / 7 failed (the five project_phase::restoration::partition rows (test.rs:353, [None]: per-column lineage does not yet anchor them, the per-column lineage row); shared_walk::compact::selected_frontiers selected_join_shares_work_preserves_counts_and_exports_owned_frontiers (a stored-selection backing count of the deleted selection family, the kernel consolidation row); source_boundary actual_runtime_authority_is_private_to_its_owner (three probes named deleted or test-only fields: corrected after the run, the row passes in its narrow run)) |
 | activation | 10 PASS / 0 failed |
 | bdd | scenarios 2, failed 0 |
-| core bdd | scenarios 21, failed 0 |
+| core bdd | scenarios 17, failed 0 |
 | core project boundary | 1 PASS / 0 failed |
-| ruff sharing | 1 PASS / 0 failed (sharing::test::succeeds; the route differential every_strategy_unwired_answers_like_the_wired_engine is filtered out (its django() fixture drops column_kernel but not node_result_reuse, and its all-variants run reached 43.9 GB at 319)) |
-| ruff | 11 PASS / 1 failed (engine_test::succeeds: the I001 observation row fails with the step-key anchoring of the partition rows, as at validation319) |
+| ruff sharing | 0 PASS / 2 failed (the_one_path_answers_the_django_canary_as_recorded: N999 over Django answers 110 diagnostics where the checkpoint recorded 112 (the one path changes output), the kernel consolidation row; sharing::test::succeeds: duplicate request census, the kernel consolidation row) |
+| ruff | 10 PASS / 2 failed (engine_test::succeeds (rejected_syntax_test: I001 answers the valid file 0 where Ruff answers 1, per-column lineage, the per-column lineage row); engine_test::project_context::succeeds (ListedDisk has an active receipt, the benchmark TM row)) |
 | execution program authority | 9 PASS / 0 failed |
 | doctests | execution 16, core 1, sdk 3, values 4, derived 11, failed 0 |
 | tm import cli | pass |
 | tm cli source findings | 0 |
 | tm guards | pass |
 | core allocation | exit 101, phase 7 |
-| cli replay | 73 PASS / 5 failed |
-| cli replay reds | 5: `behavior::what_ryo_could_not_decide_over_ruff_is_the_golden_or_a_recorded_difference`; `behavior::every_recorded_rule_gives_the_recorded_rows`; `behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows`; `cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store`; `peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound` |
-| cli cost | 4 PASS / 3 failed (the ruff rows of the ratchet still hold placeholder bests; the seed branch set the Django bests only) |
+| cli replay | 95 PASS / 3 failed |
+| cli replay reds | 3: `behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows`; `cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store`; `peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound` |
+| cli replay note | feed: 20 features fed fewer than 1,000 rows (first NaturalLessThan 0), the coverage missing-kinds row; cache: the store of ruff 78,525,063 bytes against 75,000,000, the coverage missing-kinds row; warm peak 113,983,488 bytes against 100,000,000: walk C retains packed words to scope end, the walk extension C row. The two behaviour reds of 320 pass. |
+| cli cost | 4 PASS / 3 failed (the ruff rows of the ratchet still hold placeholder bests (cold, warm/edit, peak), the perf ratchet seed) |
 | cli other targets | blocks (dhat run, no panic), call_count 1/1, command_line 7/7, command_tree 11/11, readme 1/1 |
 | conformance | targets 10, exit 0 |
 | harness hooks | 15 PASS / 0 failed |
-| benchmark red | 153 PASS / 1 failed (outbound::execution::adapters::direct::adapter_test::succeeds answered ExecutableFileBusy where ExecutableFormat is expected (a write-then-exec race on the probe binary; 154/0 in the earlier run of the same source tree)) |
 | tm_cli_source findings | 0 (0 production, 0 test), 0 suppressed, 1 scoped directories |
-| tm_source findings | 17 (14 production, 3 test), 2 suppressed, 16 scoped directories |
-| Whole-tree TM | 1223 findings, 6 suppressed (3676 at 318) |
-| File-level ownership cycles | 1 (0 targeted) |
+| tm_source findings | 0 (0 production, 0 test), 2 suppressed, 16 scoped directories |
+| Whole-tree TM | 34 findings, 6 suppressed (3676 at 318) |
+| File-level ownership cycles | 0 (0 targeted) |
 
 - [x] Correct restored last-use, physical-row and witness proof fixtures; execute publication controls. (validation319: the execution library and `boundary_contract` publication, restored-proof and witness controls pass apart from the named reds of the record below.)
 - [x] Validate the real CLI fixture and all eight import cases. (validation319: `tm_import_cli` exit 0.)

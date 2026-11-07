@@ -49,14 +49,14 @@ mod future_consumer {
 const ACQUIRED_ALIAS: &str = r#"
 mod acquired_alias {
     use super::admission::service::AcquiredView as Authority;
-    fn forge(value: Authority) -> Authority { Authority { construction: crate::application::file_dag::derived::owner::acquisition::population::types::Construction::Reused, ..value } }
+    fn forge(value: Authority) -> Authority { Authority { backings: std::sync::Arc::from(Vec::new()), ..value } }
     const _: fn(Authority) -> Authority = forge;
 }
 "#;
 const ACQUIRED_SELF: &str = r#"
 mod acquired_self {
     use super::admission::service::AcquiredView as Authority;
-    impl Authority { fn denied_record_update(value: Self) -> Self { Self { construction: crate::application::file_dag::derived::owner::acquisition::population::types::Construction::Reused, ..value } } }
+    impl Authority { fn denied_record_update(value: Self) -> Self { Self { backings: std::sync::Arc::from(Vec::new()), ..value } } }
     const _: fn(Authority) -> Authority = Authority::denied_record_update;
 }
 "#;
@@ -307,7 +307,7 @@ pub(super) fn controls() -> Vec<Probe> {
             source: ACQUIRED_ALIAS.into(),
             expected: Expectation::Refuse {
                 code: "E0451",
-                first: "construction",
+                first: "backings",
                 second: "private",
             },
         },
@@ -317,7 +317,7 @@ pub(super) fn controls() -> Vec<Probe> {
             source: ACQUIRED_SELF.into(),
             expected: Expectation::Refuse {
                 code: "E0451",
-                first: "construction",
+                first: "backings",
                 second: "private",
             },
         },

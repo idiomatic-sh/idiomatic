@@ -12,9 +12,9 @@ pub(super) fn controls() -> Vec<Probe> {
             owner: ROOT,
             source: fixtures::DETACHED_RECORD.into(),
             expected: Expectation::Refuse {
-                code: "E0624",
+                code: "E0599",
                 first: "record",
-                second: "private",
+                second: "no method named",
             },
         },
         Probe {
