@@ -1,4 +1,6 @@
 //! A selected join shares work, keeps counts and exports owned frontiers.
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::super::fixtures::{complete, input};
 use crate::boundary_fixture::{authored_request, corpus, demand, engine};
 use ryo_execution::application::file_dag::program::file_session::types::CaptureContext;
@@ -108,7 +110,7 @@ fn selected_join_shares_work_preserves_counts_and_exports_owned_frontiers() {
             authored.plans = vec![selected_join(distinct); 2];
             let program = engine.prepare(authored).unwrap();
             let corpus = corpus();
-            let request = engine.begin(&program, &corpus);
+            let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
             let mut symbols = Symbols::default();
             let source = functions(&mut symbols);
             let columns: Vec<FactColumn> = (0..source.kinds.len())

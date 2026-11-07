@@ -1,4 +1,5 @@
 //! File and project submission routes over independent and named programs.
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::outbound::facts::types::ResidentStability;
 use super::inventory::every_intent;
 use crate::boundary_fixture::{corpus, engine, prepared_rules};
@@ -54,7 +55,7 @@ pub(super) fn file_route() {
     };
     for program in &programs {
         for intent in every_intent() {
-            let request = engine.begin(program, &corpus);
+            let request = ExecutionUseCaseImpl::new().execution(program, &corpus);
             for length in [0, 1, 3] {
                 assert!(
                     matches!(
@@ -65,7 +66,7 @@ pub(super) fn file_route() {
                 );
             }
             request.finish();
-            let request = engine.begin(program, &corpus);
+            let request = ExecutionUseCaseImpl::new().execution(program, &corpus);
             assert!(
                 !matches!(
                     open(&request, &[intent, intent]),

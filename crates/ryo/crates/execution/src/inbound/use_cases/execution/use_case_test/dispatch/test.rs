@@ -1,4 +1,6 @@
 //! File-valued dispatch uses a real hosted schema and both declared corpus entries.
+use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::outbound::facts::types::ResidentStability;
 use super::super::super::fixtures;
 use crate::application::file_dag::program::file_session::types::FileInput;
@@ -63,10 +65,11 @@ fn subject(_: Input) -> Result<Value, Failure> {
             executable: ExecutablePermission::Unknown,
         })
     });
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let elements = Elements::default();
     let mut symbols = Symbols::default();
-    let read = |_| panic!("hosted File data never invokes a catalog provider");
+    // Hosted File data never invokes a catalog provider: were it called, the run would fail with the read refusal.
+    let read = |_| Err(OperatingError::NotRead);
     let mut file = request.open_file(
         FileInput {
             language: SourceLanguage::Recognized,

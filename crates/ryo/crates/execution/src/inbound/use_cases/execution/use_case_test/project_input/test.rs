@@ -1,4 +1,7 @@
 //! A project root cannot reconstruct an unhanded per-file step from a provider.
+use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::facts::types::ColumnsMut;
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::FactsFinish;
@@ -64,8 +67,7 @@ impl FactsFinish for UnavailableFacts {
         panic!("the plan declares no restored frontier to fetch")
     }
 }
-#[test]
-fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() {
+fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() -> Result<(), Failure> {
     let mut plan = fixtures::plan(vec![
         Operation::Select {
             from: Source::Relation(Relation::Function),
@@ -88,7 +90,7 @@ fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() {
         size: FileSize(0),
         modified: Nanoseconds(0),
     })];
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let covered = [Covered {
         file: FileId(0),
         rules: vec![RuleIndex(0)],
@@ -160,4 +162,30 @@ fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() {
     drop(scope);
     phase.finish().unwrap();
     request.finish();
+    Ok(())
+}
+/// The scenarios of this group, one row each.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    ProjectStepWithoutADeclaredHandoverCannotReadAPerFileSource,
+}
+type Input = Scenario;
+type Value = ();
+type Failure = OperatingError;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(stringify!(project_step_without_a_declared_handover_cannot_read_a_per_file_source)),
+        word: Word::Succeeds,
+        input: || Scenario::ProjectStepWithoutADeclaredHandoverCannotReadAPerFileSource,
+        expect: Expect::Value(()),
+    },
+];
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::ProjectStepWithoutADeclaredHandoverCannotReadAPerFileSource => project_step_without_a_declared_handover_cannot_read_a_per_file_source(),
+    }
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

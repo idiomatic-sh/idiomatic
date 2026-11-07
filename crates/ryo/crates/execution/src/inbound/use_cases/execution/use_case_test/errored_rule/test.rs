@@ -1,5 +1,7 @@
 //! One request of two rules whose second has a step beyond its operator contract answers the second rule's error through the
 //! public file owner while the first rule delivers its rows: preparation succeeds, and the error is the second rule's alone.
+use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::outbound::facts::types::ResidentStability;
 use super::super::super::fixtures;
 use crate::application::file_dag::program::file_session::types::FileInput;
@@ -88,7 +90,7 @@ fn an_errored_rule_answers_its_error_while_its_sibling_delivers_rows() {
         size: FileSize(0),
         modified: Nanoseconds(0),
     })];
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let elements = Elements::default();
     let mut symbols = Symbols::default();
     let run = FileRuleIntent::Run {

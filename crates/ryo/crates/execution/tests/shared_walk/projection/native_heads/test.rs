@@ -1,4 +1,5 @@
 //! Native heads keep their projected columns and source row order, and unused intents evaluate nothing.
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use super::super::super::fixtures::*;
 use super::super::super::no_catalog;
 use crate::boundary_fixture::{authored_request, corpus, demand};
@@ -50,7 +51,7 @@ fn distinct_native_heads_keep_reordered_duplicate_columns_and_source_row_order()
     }
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let intents = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,
@@ -128,7 +129,7 @@ fn fused_select_reads_projected_ordinals_and_forwards_exact_rows_in_source_order
         authored.plans[0].emit.step = StepId(1);
         let program = engine.prepare(authored).unwrap();
         let corpus = corpus();
-        let request = engine.begin(&program, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
         let (elements, mut symbols) = tree(FileId(0), b"abc");
         let intents = [FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Collected,
@@ -175,7 +176,7 @@ fn mixed_intents_keep_excluded_errors_unreachable_while_an_active_neighbor_walks
         ],
     );
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"[bc");
     let intents = [
         FileRuleIntent::Skipped(ApplicabilityReason::SyntaxRejected),
@@ -224,7 +225,7 @@ fn a_run_intent_with_no_enabled_roots_does_not_evaluate_its_predicates() {
     let (engine, _) = engine();
     let program = prepared(&engine, &[Selector::BadRegex, Selector::Kind("other")]);
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let intents = [
         FileRuleIntent::Run {

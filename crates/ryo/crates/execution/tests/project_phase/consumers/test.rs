@@ -1,4 +1,6 @@
 //! Same producer proof, distinct resolved input slots, one project batch protocol.
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::*;
 use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationExecution;
 use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationPublication;
@@ -75,7 +77,7 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
             ObservationIdentity::Named(ObservationReadinessLayout(Digest([71; 16])));
         let prepared = engine.prepare(authored).unwrap();
         let corpus = corpus();
-        let request = engine.begin(&prepared, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
         let covered = [Covered {
             file: FileId(0),
             rules: vec![RuleIndex(0), RuleIndex(1), RuleIndex(2)],

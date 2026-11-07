@@ -1,4 +1,5 @@
 //! Public canonical error/delivery parity and independent ordered-bag controls.
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use super::super::conformance::test::{compare_delivery, repeated, same_rows};
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::*;
@@ -10,8 +11,7 @@ use ryo_values::domain::{
     plans::types::Operation,
     query_operators::types::OperationKind,
 };
-#[test]
-fn select_join_and_union_keep_independent_ordered_bags() {
+fn select_join_and_union_keep_independent_ordered_bags() -> Result<(), Failure> {
     for kind in [
         OperationKind::Select,
         OperationKind::Join,
@@ -53,9 +53,9 @@ fn select_join_and_union_keep_independent_ordered_bags() {
             vec![n(12), n(21)]
         ]
     );
+    Ok(())
 }
-#[test]
-fn schema_failures_and_emitter_prefix_survive_the_common_path() {
+fn schema_failures_and_emitter_prefix_survive_the_common_path() -> Result<(), Failure> {
     for kind in [
         OperationKind::Select,
         OperationKind::Project,
@@ -92,9 +92,9 @@ fn schema_failures_and_emitter_prefix_survive_the_common_path() {
         let collected = observed.collected.unwrap();
         assert_eq!(observed.rows[0], collected.cells[..collected.kinds.len()]);
     }
+    Ok(())
 }
-#[test]
-fn binary_bad_shape_missing_input_and_sink_prefix_remain_observable() {
+fn binary_bad_shape_missing_input_and_sink_prefix_remain_observable() -> Result<(), Failure> {
     for kind in [OperationKind::Join, OperationKind::Union] {
         let mut case = fixture(kind);
         let mut invalid = case.operation.clone();
@@ -135,9 +135,9 @@ fn binary_bad_shape_missing_input_and_sink_prefix_remain_observable() {
         let collected = stopped.collected.unwrap();
         assert_eq!(stopped.rows[0], collected.cells[..collected.kinds.len()]);
     }
+    Ok(())
 }
-#[test]
-fn conformance_detects_a_deliberately_dropped_or_reordered_result() {
+fn conformance_detects_a_deliberately_dropped_or_reordered_result() -> Result<(), Failure> {
     let mut case = fixture(OperationKind::Select);
     let observed = compare_delivery(
         &case.operation,
@@ -157,10 +157,10 @@ fn conformance_detects_a_deliberately_dropped_or_reordered_result() {
     assert!(!same_rows(&table, &rows));
     rows.clear();
     assert!(!same_rows(&table, &rows));
+    Ok(())
 }
 
-#[test]
-fn positive_row_contracts_keep_partial_input_distinction() {
+fn positive_row_contracts_keep_partial_input_distinction() -> Result<(), Failure> {
     use crate::domain::coverage::types::{Lacking, Partial};
     use crate::domain::trust::{
         service::{blocked, needs_of, scoped_needs},
@@ -216,6 +216,64 @@ fn positive_row_contracts_keep_partial_input_distinction() {
             }
         }
     }
+    Ok(())
 }
 
 use ryo_values::domain::rows::types::Table;
+/// The scenarios of this group, one row each.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    SelectJoinAndUnionKeepIndependentOrderedBags,
+    SchemaFailuresAndEmitterPrefixSurviveTheCommonPath,
+    BinaryBadShapeMissingInputAndSinkPrefixRemainObservable,
+    ConformanceDetectsADeliberatelyDroppedOrReorderedResult,
+    PositiveRowContractsKeepPartialInputDistinction,
+}
+type Input = Scenario;
+type Value = ();
+type Failure = OperatingError;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(stringify!(select_join_and_union_keep_independent_ordered_bags)),
+        word: Word::Succeeds,
+        input: || Scenario::SelectJoinAndUnionKeepIndependentOrderedBags,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(stringify!(schema_failures_and_emitter_prefix_survive_the_common_path)),
+        word: Word::Succeeds,
+        input: || Scenario::SchemaFailuresAndEmitterPrefixSurviveTheCommonPath,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(stringify!(binary_bad_shape_missing_input_and_sink_prefix_remain_observable)),
+        word: Word::Succeeds,
+        input: || Scenario::BinaryBadShapeMissingInputAndSinkPrefixRemainObservable,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(stringify!(conformance_detects_a_deliberately_dropped_or_reordered_result)),
+        word: Word::Succeeds,
+        input: || Scenario::ConformanceDetectsADeliberatelyDroppedOrReorderedResult,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(stringify!(positive_row_contracts_keep_partial_input_distinction)),
+        word: Word::Succeeds,
+        input: || Scenario::PositiveRowContractsKeepPartialInputDistinction,
+        expect: Expect::Value(()),
+    },
+];
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::SelectJoinAndUnionKeepIndependentOrderedBags => select_join_and_union_keep_independent_ordered_bags(),
+        Scenario::SchemaFailuresAndEmitterPrefixSurviveTheCommonPath => schema_failures_and_emitter_prefix_survive_the_common_path(),
+        Scenario::BinaryBadShapeMissingInputAndSinkPrefixRemainObservable => binary_bad_shape_missing_input_and_sink_prefix_remain_observable(),
+        Scenario::ConformanceDetectsADeliberatelyDroppedOrReorderedResult => conformance_detects_a_deliberately_dropped_or_reordered_result(),
+        Scenario::PositiveRowContractsKeepPartialInputDistinction => positive_row_contracts_keep_partial_input_distinction(),
+    }
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}

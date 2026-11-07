@@ -1,4 +1,5 @@
 //! Deferred roots do not hide owning-phase faults or renumber file frontier refusals.
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::outbound::facts::types::ResidentStability;
 use super::super::super::source_facts::fixtures::ProjectFacts;
 use super::super::fixtures::NoFileFrontiers;
@@ -43,7 +44,7 @@ fn a_file_emit_defers_at_project_scope_but_its_real_file_failure_is_not_deferred
     let engine = engine();
     let prepared = prepared(&engine);
     let corpus = corpus();
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let covered = [Covered {
         file: FileId(0),
         rules: vec![RuleIndex(0)],
@@ -187,7 +188,7 @@ fn a_skipped_project_frontier_preserves_the_later_original_file_error_index() {
         .prepare(input)
         .expect("retain each frontier's independent refusal");
     let corpus = corpus();
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let table = source();
     let read = |actual| {
         assert_eq!(

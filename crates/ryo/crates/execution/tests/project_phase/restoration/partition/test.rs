@@ -1,5 +1,7 @@
 //! Actual two-file named restoration and absence publication, including a
 //! downstream projection that would erase the completeness key if fused early.
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::outbound::facts::types::ResidentStability;
 use super::super::super::*;
 use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationExecution;
@@ -408,7 +410,7 @@ fn exercise_with(
     };
     entry.path = FilePath("second.py".into());
     corpus.push(second);
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut table = source();
     if empty {

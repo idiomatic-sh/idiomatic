@@ -3,6 +3,7 @@ use super::inventory::{
     CAPTURES, DELIVERIES, DEMANDS, PROTOCOL, REASONS, REFUSALS, assert_inventory,
     covered, every_intent,
 };
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::outbound::facts::types::ResidentStability;
 use super::routes::{file_route, project_route};
 use super::witness::{ALL, Method, Witness, implements_every_entry_trait};
@@ -89,7 +90,7 @@ pub(super) fn observations_need_a_named_program() {
     let engine = engine();
     let corpus = corpus();
     let unnamed = prepared_rules(&engine, 2);
-    let request = engine.begin(&unnamed, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&unnamed, &corpus);
     let mut arenas = Vec::new();
     assert!(matches!(
         request.observations(&mut arenas),
@@ -97,7 +98,7 @@ pub(super) fn observations_need_a_named_program() {
     ));
     request.finish();
     let named = engine.prepare(named_request()).expect("named request");
-    let request = engine.begin(&named, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&named, &corpus);
     let mut arenas = Vec::new();
     request
         .observations(&mut arenas)
@@ -141,7 +142,7 @@ pub(super) fn file_session_undeclared_rule() {
     let engine = engine();
     let program = prepared_rules(&engine, 2);
     let corpus = corpus();
-    let request = engine.begin(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let read = |_| Err(OperatingError::NotRead);
     let intent = every_intent()

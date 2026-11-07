@@ -1,4 +1,5 @@
 //! Finishing the phase refuses while a scope still shares the publication.
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use super::super::super::source_facts::fixtures::ProjectFacts;
 use super::super::fixtures::NoFileFrontiers;
 use crate::boundary_fixture::{corpus, demand, engine, prepared, project_root};
@@ -21,7 +22,7 @@ fn finish_refuses_while_a_scope_still_shares_the_publication() {
     let engine = engine();
     let prepared = prepared(&engine);
     let corpus = corpus();
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let covered = [Covered {
         file: FileId(0),
         rules: vec![RuleIndex(0)],

@@ -1,3 +1,4 @@
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::outbound::facts::types::ColumnsMut;
 use ryo_execution::outbound::facts::errors::FactsError;
 use ryo_execution::outbound::facts::interface::FactsFinish;
@@ -76,7 +77,7 @@ pub(crate) fn measure_project(
     // The first cycle warms callsite registration and allocator metadata; the second
     // sees exactly the same real request and declared roots.
     for _ in 0..2 {
-        let request = engine.begin(&prepared, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
         let partials = Partials::default();
         let mut symbols = Symbols::default();
         tracing::dispatcher::with_default(&dispatch, || {

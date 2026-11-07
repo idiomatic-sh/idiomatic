@@ -1,3 +1,4 @@
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::outbound::facts::types::ResidentStability;
 use super::program::{corpus, engine, prepared};
 use super::subscriber::{Activation, Sample};
@@ -20,7 +21,7 @@ pub(crate) fn measure(total: usize, demanded: &[usize]) -> Sample {
     let engine = engine();
     let prepared = prepared(&engine, total);
     let corpus = corpus();
-    let request = engine.begin(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
     let mut intents = vec![FileRuleIntent::Undemanded; total];
     for &index in demanded {
         intents[index] = FileRuleIntent::Run {
