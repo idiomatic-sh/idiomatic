@@ -411,6 +411,9 @@ fn subject(path: Input) -> Result<Value, Failure> {
     if path == "project_entry_acquisition_deduplicates_provider_candidates_before_observing" {
         return project_entry_acquisition_deduplicates_provider_candidates_before_observing();
     }
+    if path == "forgotten-entry-receipt" {
+        return a_receipt_that_forgets_the_entries_is_refused();
+    }
     if path == "invalid-provider.rs" {
         return invalid_provider();
     }
@@ -675,6 +678,35 @@ fn visited_inputs_with_rule_demands(
     Ok((worker, language))
 }
 
+/// Reads a project whose language names one candidate entry and answers without the observation of it.
+fn a_receipt_that_forgets_the_entries_is_refused() -> Result<Value, Failure> {
+    let service = FileAnalysis::new(
+        Arc::new(CorpusFake::default()),
+        Arc::new(LanguageFake {
+            project_entry_paths: vec![FilePath("a.py".into())],
+            forgets_entries: true,
+            ..LanguageFake::default()
+        }),
+        Arc::new(DigestFake),
+        Arc::new(MemoryFake::default()),
+    );
+    let input = ProjectToRead {
+        search_scope: &Default::default(),
+        given_inventory: &Default::default(),
+        observed_entries: &Default::default(),
+        repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
+        root: &RootPath(".".into()),
+        manifests: &[],
+        files: &[],
+        notes: &ProjectNotes(Vec::new()),
+        wanted: &[],
+    };
+    let mut facts = FactsFake::default().worker()?;
+    service
+        .project_now(&input, &mut Symbols::default(), &mut *facts)
+        .map(|_| 0)
+}
+
 /// Visit a real fake file whose injected language emits an invalid node reference.
 fn invalid_provider() -> Result<Value, Failure> {
     let (worker, language) = visited(
@@ -743,6 +775,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Refusal(|error| {
             if matches!(error, FileAnalysisError::Provider { code: crate::domain::admission::errors::AdmissionError::NodeOutsideTable, provider } if provider == "fake ")
             {
+                Selection::Matches
+            } else {
+                Selection::Differs
+            }
+        }),
+    },
+    Case {
+        name: CaseName("a_project_receipt_that_forgets_the_observed_entries_is_refused"),
+        word: Word::Refuses,
+        input: || "forgotten-entry-receipt",
+        expect: Expect::Refusal(|error| {
+            if matches!(error, FileAnalysisError::ProjectObservationMismatch) {
                 Selection::Matches
             } else {
                 Selection::Differs
