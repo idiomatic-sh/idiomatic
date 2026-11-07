@@ -3,7 +3,7 @@ use super::types::KeyRelation;
 use crate::domain::fault::types::DerivedFault;
 use crate::domain::key::service::{mix, word_of};
 use crate::domain::key::types::{HashedRow, KeyCellsHash};
-use crate::domain::rows::types::RowCells;
+use crate::domain::row_cells::types::RowCells;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::RowIndex;
 

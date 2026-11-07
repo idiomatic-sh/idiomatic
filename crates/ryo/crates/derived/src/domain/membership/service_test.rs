@@ -4,7 +4,7 @@ use super::service::build;
 use super::types::{DerivedMembership, MarkSpace};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::fault::types::DerivedFault;
-use crate::domain::positions::types::Mark;
+use crate::domain::positions::types::MemberMark;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, Table};
@@ -61,7 +61,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
             let vertices = [3, 4, 7].map(|key| Cell::Number(Integer(key)));
             match build(&table(), first, MarkSpace::Dense(&vertices))? {
                 DerivedMembership::Dense(marks) => {
-                    if marks.as_slice() == [Mark::Member, Mark::Absent, Mark::Member] {
+                    if marks.as_slice() == [MemberMark::Member, MemberMark::Absent, MemberMark::Member] {
                         Ok(Vec::new())
                     } else {
                         Err(DerivedFault::ShapeMismatch)

@@ -3,9 +3,10 @@
 use super::service::build;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::fault::types::DerivedFault;
-use crate::domain::rows::types::ValueTexts;
+use crate::domain::row_cells::types::ValueTexts;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::row_texts::types::CellText;
 use ryo_values::domain::rows::types::{RowCount, Table};
 use std::borrow::Cow;
 
@@ -43,7 +44,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 struct NoTexts;
 impl ValueTexts for NoTexts {
-    fn text(&self, _value: Cell) -> Option<&str> {
+    fn text(&self, _value: Cell) -> Option<CellText<'_>> {
         None
     }
 }

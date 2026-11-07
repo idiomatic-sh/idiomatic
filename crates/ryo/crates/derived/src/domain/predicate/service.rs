@@ -3,8 +3,8 @@ use super::types::LiteralPostings;
 use crate::domain::fault::types::DerivedFault;
 use crate::domain::key::service::{mix, word_of};
 use crate::domain::key::types::KeyCellsHash;
-use crate::domain::positions::types::RowPosition;
-use crate::domain::rows::types::{PredicateRows, RowCells, Verdict};
+use crate::domain::positions::types::RowSlot;
+use crate::domain::row_cells::types::{PredicateRows, RowCells, PredicateVerdict};
 use crate::domain::sharing::types::shared_positions::value::SharedPositions;
 use ryo_language::domain::symbols::{
     service::text_of,
@@ -17,13 +17,13 @@ use ryo_values::domain::rows::types::RowIndex;
 /// The positions of the rows that satisfy the predicate, in ascending order.
 pub(crate) fn matches(
     rows: &mut dyn PredicateRows,
-    candidates: Option<&[RowPosition]>,
+    candidates: Option<&[RowSlot]>,
 ) -> Result<SharedPositions, DerivedFault> {
     let count = rows.count();
     let mut output = Vec::new();
     let mut decide = |at: RowIndex| -> Result<(), DerivedFault> {
-        if rows.holds(at)? == Verdict::Holds {
-            output.push(RowPosition(
+        if rows.holds(at)? == PredicateVerdict::Holds {
+            output.push(RowSlot(
                 u32::try_from(at.0).map_err(|_| DerivedFault::ShapeMismatch)?,
             ));
         }
@@ -50,9 +50,9 @@ pub(crate) fn matches(
 pub(crate) fn distinct(
     rows: &dyn RowCells,
     columns: &[ColumnIndex],
-    positions: &[RowPosition],
+    positions: &[RowSlot],
 ) -> Result<SharedPositions, DerivedFault> {
-    let mut seen = std::collections::HashMap::<KeyCellsHash, Vec<RowPosition>>::new();
+    let mut seen = std::collections::HashMap::<KeyCellsHash, Vec<RowSlot>>::new();
     let mut output = Vec::new();
     for &at in positions {
         let hash = columns.iter().try_fold(KeyCellsHash(0), |hash, column| {
@@ -105,7 +105,7 @@ pub(crate) fn postings(
             collected
                 .get_mut(place)
                 .ok_or(DerivedFault::NotRun)?
-                .push(RowPosition(
+                .push(RowSlot(
                     u32::try_from(at).map_err(|_| DerivedFault::ShapeMismatch)?,
                 ));
         }

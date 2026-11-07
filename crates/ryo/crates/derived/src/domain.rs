@@ -1,9 +1,9 @@
 //! Portable contracts and private semantic implementations.
 pub mod adjacency;
 pub mod allocation;
-pub mod closure;
+pub mod closure_adjacency;
 pub mod contract;
-pub mod cycles;
+pub mod cycle_adjacency;
 pub mod dfs;
 pub mod dispatch;
 pub mod equality;
@@ -20,6 +20,6 @@ pub mod preparation;
 pub mod raw_order;
 pub mod raw_words;
 pub mod request;
-pub mod rows;
+pub mod row_cells;
 pub mod sharing;
 pub mod vertices;

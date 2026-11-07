@@ -1,14 +1,14 @@
 //! Raw lowered key ordering: the value and its behaviour, owned together.
 use crate::domain::allocation::types::ElementCapacity;
 use crate::domain::raw_words::types::{
-    Keep, OrderCapacities, OrderPlace, RawWord, RowRun, Stride,
+    Keep, OrderCapacities, OrderPlace, RawWord, RowRun, KeyStride,
 };
 use ryo_values::domain::rows::types::RowIndex;
 
 /// Raw-word ordering deliberately differs from typed, cluster-preserving PartitionOrder.
 #[derive(Clone, Debug)]
 pub struct RawOrder {
-    pub(crate) stride: Stride,
+    pub(crate) stride: KeyStride,
     pub(crate) keys: Vec<RawWord>,
     pub(crate) order: Vec<RowIndex>,
 }

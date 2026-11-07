@@ -3,9 +3,10 @@ use super::types::{NativeFinding, NativeForm};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 fn source_column(view: &[ColumnIndex], column: ColumnIndex) -> ColumnIndex {
-    view.get(usize::try_from(column.0).unwrap_or(usize::MAX))
-        .copied()
-        .unwrap_or(column)
+    match view.get(usize::try_from(column.0).unwrap_or(usize::MAX)) {
+        Some(mapped) => *mapped,
+        None => column,
+    }
 }
 
 /// The native lookup a join of these key columns over this view reduces to, when it reduces to one.

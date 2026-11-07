@@ -2,11 +2,11 @@
 
 /// The position of one row in a shared list of positions.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct RowPosition(pub u32);
+pub struct RowSlot(pub u32);
 
 /// Whether one element is marked.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Mark {
+pub enum MemberMark {
     /// The element is a member.
     Member,
     /// The element is not a member.

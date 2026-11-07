@@ -6,7 +6,7 @@ use crate::domain::contract::types::BuildWorkspace;
 use crate::domain::contract::types::derived_payload::value::{DerivedPayload, PayloadData};
 use crate::domain::fault::types::DerivedFault;
 use crate::domain::native::types::NativeFinding;
-use crate::domain::positions::types::RowPosition;
+use crate::domain::positions::types::RowSlot;
 use crate::domain::sharing::types::shared_positions::value::SharedPositions;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
@@ -51,7 +51,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 /// Calls the part on one input.
 fn subject(input: Input) -> Result<Value, Failure> {
-    let positions = SharedPositions::new(vec![RowPosition(0), RowPosition(3)]);
+    let positions = SharedPositions::new(vec![RowSlot(0), RowSlot(3)]);
     let payload = |data| DerivedPayload { data };
     match input {
         Scenario::PositionsAreOneSharedBacking => Ok(describe(&payload(

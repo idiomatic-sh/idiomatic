@@ -15,7 +15,7 @@ pub struct EdgeOffset(pub u32);
 
 /// Which end of an edge a list is ordered by.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Direction {
+pub enum EdgeDirection {
     /// Edges listed by their source.
     Forward,
     /// Edges listed by their destination.

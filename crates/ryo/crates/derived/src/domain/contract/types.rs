@@ -1,17 +1,17 @@
 //! The types of the `contract` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 use crate::domain::adjacency::types::compact_graph::value::CompactGraph;
-use crate::domain::closure::types::ClosurePartition;
-use crate::domain::cycles::types::CycleGraph;
+use crate::domain::closure_adjacency::types::ClosurePartition;
+use crate::domain::cycle_adjacency::types::CycleGraph;
 use crate::domain::dfs::types::PreparedDfs;
 use crate::domain::equality::types::KeyIndex;
 use crate::domain::membership::types::{MarkSpace, MembershipView};
 use crate::domain::native::types::{NativeFinding, NativeForm};
 use crate::domain::ordered::types::OrderedMatching;
-use crate::domain::positions::types::RowPosition;
+use crate::domain::positions::types::RowSlot;
 use crate::domain::predicate::types::LiteralPostings;
 use crate::domain::raw_order::types::raw_order::value::RawOrder;
 use crate::domain::raw_words::types::RawWord;
-use crate::domain::rows::types::{CanonicalTexts, PredicateRows, RowCells, ValueTexts};
+use crate::domain::row_cells::types::{CanonicalTexts, PredicateRows, RowCells, ValueTexts};
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::LiteralText;
@@ -31,7 +31,7 @@ pub enum DerivedView<'a> {
     /// The key index.
     Equality(&'a KeyIndex),
     /// Row positions.
-    RowIds(&'a [RowPosition]),
+    RowIds(&'a [RowSlot]),
     /// Literal postings.
     Postings(&'a [LiteralPostings]),
     /// The compact graph.
@@ -63,7 +63,7 @@ pub enum BuildInputs<'a> {
         /// The predicate rows.
         rows: &'a mut dyn PredicateRows,
         /// The candidate positions.
-        candidates: Option<&'a [RowPosition]>,
+        candidates: Option<&'a [RowSlot]>,
     },
     /// Rows, symbols and the literals asked for.
     Postings {
@@ -81,7 +81,7 @@ pub enum BuildInputs<'a> {
         /// The rows.
         rows: &'a dyn RowCells,
         /// The positions to deduplicate.
-        positions: &'a [RowPosition],
+        positions: &'a [RowSlot],
     },
     /// Rows and the space to mark members in.
     Membership {

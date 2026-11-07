@@ -2,7 +2,7 @@
 use super::types::{ClosureCapacities, ClosurePartition};
 use crate::domain::allocation::types::ElementCapacity;
 use crate::domain::fault::types::DerivedFault;
-use crate::domain::rows::types::RowCells;
+use crate::domain::row_cells::types::RowCells;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::RowIndex;

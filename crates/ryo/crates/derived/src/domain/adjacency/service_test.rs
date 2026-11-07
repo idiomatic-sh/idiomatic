@@ -3,7 +3,7 @@
 use super::service::build_borrowed;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::fault::types::DerivedFault;
-use crate::domain::vertices::types::Direction;
+use crate::domain::vertices::types::EdgeDirection;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, Table};
@@ -67,9 +67,9 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Scenario::ChainHasThreeVertices => Ok(build(&edges(&[[1, 2], [2, 3]]), ends)?
             .map_or(0, |graph| graph.vertices().len())),
         Scenario::ChainHasAForest => Ok(build(&edges(&[[1, 2], [2, 3]]), ends)?
-            .map_or(0, |graph| usize::from(graph.forest(Direction::Forward).is_some()))),
+            .map_or(0, |graph| usize::from(graph.forest(EdgeDirection::Forward).is_some()))),
         Scenario::LoopHasNoForest => Ok(build(&edges(&[[1, 2], [2, 1]]), ends)?
-            .map_or(1, |graph| usize::from(graph.forest(Direction::Forward).is_some()))),
+            .map_or(1, |graph| usize::from(graph.forest(EdgeDirection::Forward).is_some()))),
         Scenario::AbsentEndpoint => build(&edges(&[[1, 2]]), [ColumnIndex(0), ColumnIndex(7)])
             .map(|_| 0),
     }

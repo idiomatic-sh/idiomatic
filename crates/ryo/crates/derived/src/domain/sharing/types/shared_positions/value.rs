@@ -1,18 +1,18 @@
 //! Immutable shared positions: the value, its weak handle and their behaviour, owned together.
 use crate::domain::allocation::types::{AllocationKey, ElementCapacity};
-use crate::domain::positions::types::RowPosition;
+use crate::domain::positions::types::RowSlot;
 use std::sync::{Arc, Weak};
 
 /// Immutable shared positions; its allocation identity never depends on liveness.
 #[derive(Clone, Debug)]
-pub struct SharedPositions(pub(crate) Arc<Vec<RowPosition>>);
+pub struct SharedPositions(pub(crate) Arc<Vec<RowSlot>>);
 
 /// Weak sharing observes an allocation without retaining row IDs or mutable map equality.
 #[derive(Clone, Debug)]
 pub struct WeakPositions {
     allocation_key: AllocationKey,
     capacity: ElementCapacity,
-    rows: Weak<Vec<RowPosition>>,
+    rows: Weak<Vec<RowSlot>>,
 }
 
 impl WeakPositions {
@@ -36,12 +36,12 @@ impl WeakPositions {
 impl SharedPositions {
     /// Shares the positions an owner built.
     #[must_use]
-    pub fn new(rows: Vec<RowPosition>) -> Self {
+    pub fn new(rows: Vec<RowSlot>) -> Self {
         Self(Arc::new(rows))
     }
     /// The positions.
     #[must_use]
-    pub fn as_slice(&self) -> &[RowPosition] {
+    pub fn as_slice(&self) -> &[RowSlot] {
         self.0.as_slice()
     }
     /// The identity of the allocation.

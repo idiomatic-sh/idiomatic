@@ -1,10 +1,10 @@
 //! Raw lowered key ordering; duplicate rows retain their original order.
 use super::types::raw_order::value::RawOrder;
-use crate::domain::raw_words::types::{RawWord, Stride};
+use crate::domain::raw_words::types::{RawWord, KeyStride};
 use ryo_values::domain::rows::types::RowIndex;
 
 /// Orders the rows of a flat key list by key, reusing the buffers of a recycled ordering.
-pub(crate) fn build(keys: &[RawWord], stride: Stride, recycled: Option<RawOrder>) -> RawOrder {
+pub(crate) fn build(keys: &[RawWord], stride: KeyStride, recycled: Option<RawOrder>) -> RawOrder {
     let mut out = recycled.unwrap_or_else(|| RawOrder {
         stride,
         keys: Vec::new(),

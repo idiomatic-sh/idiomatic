@@ -1,5 +1,5 @@
 //! The types of the `request` concept: plain data, public fields and derives, with no constructor and no inherent impl.
-use crate::domain::raw_words::types::Stride;
+use crate::domain::raw_words::types::KeyStride;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, LiteralText};
 
 macro_rules! kinds {
@@ -130,6 +130,6 @@ pub enum DerivedRequest {
     /// The raw lowered key ordering.
     RawKeyOrder {
         /// How many words make one key.
-        stride: Stride,
+        stride: KeyStride,
     },
 }

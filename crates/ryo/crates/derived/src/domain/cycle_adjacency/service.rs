@@ -1,7 +1,7 @@
 //! Existing dense cycle adjacency, preserving first-seen IDs and duplicate edges.
 use super::types::{CycleGraph, LeavingStart, NodeSlot};
 use crate::domain::fault::types::DerivedFault;
-use crate::domain::rows::types::RowCells;
+use crate::domain::row_cells::types::RowCells;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::RowIndex;

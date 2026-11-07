@@ -7,7 +7,7 @@ pub struct RawWord(pub u64);
 
 /// How many words make one key.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Stride(pub usize);
+pub struct KeyStride(pub usize);
 
 /// A place in an ordering of rows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]

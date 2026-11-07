@@ -26,7 +26,10 @@ pub fn build(
     let data = match (&prepared.request, inputs) {
         (DerivedRequest::Equality { columns }, BuildInputs::Rows(rows)) => {
             let previous = match recycled {
-                Some(PayloadData::Equality(value)) => Arc::try_unwrap(value).ok(),
+                Some(PayloadData::Equality(value)) => match Arc::try_unwrap(value) {
+                    Ok(owned) => Some(owned),
+                    Err(_) => None,
+                },
                 _ => None,
             };
             PayloadData::Equality(Arc::new(crate::domain::equality::service::build(
@@ -85,10 +88,13 @@ pub fn build(
             },
         ) => {
             let previous = match recycled {
-                Some(PayloadData::ClosureAdjacency(value)) => Arc::try_unwrap(value).ok(),
+                Some(PayloadData::ClosureAdjacency(value)) => match Arc::try_unwrap(value) {
+                    Ok(owned) => Some(owned),
+                    Err(_) => None,
+                },
                 _ => None,
             };
-            PayloadData::ClosureAdjacency(Arc::new(crate::domain::closure::service::build(
+            PayloadData::ClosureAdjacency(Arc::new(crate::domain::closure_adjacency::service::build(
                 rows,
                 positions,
                 key,
@@ -104,7 +110,7 @@ pub fn build(
                 destination,
             },
             BuildInputs::Rows(rows),
-        ) => PayloadData::CycleAdjacency(Arc::new(crate::domain::cycles::service::build(
+        ) => PayloadData::CycleAdjacency(Arc::new(crate::domain::cycle_adjacency::service::build(
             rows,
             *source,
             *destination,
@@ -166,7 +172,10 @@ pub fn build(
         }
         (DerivedRequest::RawKeyOrder { stride }, BuildInputs::RawWords(keys)) => {
             let previous = match recycled {
-                Some(PayloadData::RawKeyOrder(value)) => Arc::try_unwrap(value).ok(),
+                Some(PayloadData::RawKeyOrder(value)) => match Arc::try_unwrap(value) {
+                    Ok(owned) => Some(owned),
+                    Err(_) => None,
+                },
                 _ => None,
             };
             PayloadData::RawKeyOrder(Arc::new(crate::domain::raw_order::service::build(

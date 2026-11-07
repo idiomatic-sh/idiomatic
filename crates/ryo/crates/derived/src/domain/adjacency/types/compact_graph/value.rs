@@ -1,6 +1,6 @@
 //! Compact adjacency: the value and its behaviour, owned together.
 use crate::domain::adjacency::types::forest_parents::value::ForestParents;
-use crate::domain::vertices::types::{Direction, EdgeOffset, PartitionId, VertexId, VertexKey};
+use crate::domain::vertices::types::{EdgeDirection, EdgeOffset, PartitionId, VertexId, VertexKey};
 use ryo_relations::domain::relations::types::Value;
 use std::sync::Arc;
 
@@ -18,12 +18,6 @@ pub struct CompactGraph {
 }
 
 impl CompactGraph {
-    fn side(direction: Direction) -> usize {
-        match direction {
-            Direction::Forward => 0,
-            Direction::Backward => 1,
-        }
-    }
     /// The partition of a key tuple.
     #[must_use]
     pub fn partition(&self, tuple: &[Value]) -> Option<PartitionId> {
@@ -51,19 +45,27 @@ impl CompactGraph {
     }
     /// Where each vertex's edges begin, for one direction.
     #[must_use]
-    pub fn offsets(&self, direction: Direction) -> &[EdgeOffset] {
-        &self.offsets[Self::side(direction)]
+    pub fn offsets(&self, direction: EdgeDirection) -> &[EdgeOffset] {
+        match direction {
+            EdgeDirection::Forward => &self.offsets[0],
+            EdgeDirection::Backward => &self.offsets[1],
+        }
     }
     /// The neighbor list, for one direction.
     #[must_use]
-    pub fn neighbors(&self, direction: Direction) -> &[VertexId] {
-        &self.neighbors[Self::side(direction)]
+    pub fn neighbors(&self, direction: EdgeDirection) -> &[VertexId] {
+        match direction {
+            EdgeDirection::Forward => &self.neighbors[0],
+            EdgeDirection::Backward => &self.neighbors[1],
+        }
     }
     /// The validated ancestry of one direction, when each vertex has one parent and no cycle.
     #[must_use]
-    pub fn forest(&self, direction: Direction) -> Option<ForestParents<'_>> {
-        self.forests[Self::side(direction)]
-            .as_deref()
-            .map(|parents| ForestParents { parents })
+    pub fn forest(&self, direction: EdgeDirection) -> Option<ForestParents<'_>> {
+        let parents = match direction {
+            EdgeDirection::Forward => self.forests[0].as_deref(),
+            EdgeDirection::Backward => self.forests[1].as_deref(),
+        };
+        parents.map(|parents| ForestParents { parents })
     }
 }

@@ -1,8 +1,9 @@
 //! The types of the `rows` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 use crate::domain::fault::types::DerivedFault;
-use crate::domain::positions::types::RowPosition;
+use crate::domain::positions::types::RowSlot;
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::row_texts::types::CellText;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
 /// A finite already-admitted row view. Reading a cell cannot schedule upstream work.
@@ -15,7 +16,7 @@ pub enum BulkRows<'a> {
         /// The stored columns.
         source: ColumnsView<'a>,
         /// The selected rows.
-        positions: &'a [RowPosition],
+        positions: &'a [RowSlot],
         /// The projected columns.
         columns: &'a [ColumnIndex],
     },
@@ -25,7 +26,7 @@ pub enum BulkRows<'a> {
 
 /// Whether a row satisfies a predicate.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Verdict {
+pub enum PredicateVerdict {
     /// The row satisfies the predicate.
     Holds,
     /// The row does not satisfy the predicate.
@@ -66,19 +67,19 @@ pub trait PredicateRows {
     /// The number of rows.
     fn count(&self) -> RowCount;
     /// Whether one row satisfies the predicate.
-    fn holds(&mut self, row: RowIndex) -> Result<Verdict, DerivedFault>;
+    fn holds(&mut self, row: RowIndex) -> Result<PredicateVerdict, DerivedFault>;
 }
 
 /// Finite textual decoding only; cannot schedule or retain a population.
 pub trait ValueTexts {
     /// The text a symbol or name cell stands for.
-    fn text(&self, value: Value) -> Option<&str>;
+    fn text(&self, value: Value) -> Option<CellText<'_>>;
 }
 
 /// Source text access and query-symbol storage are finite data services, not acquisition policy.
 pub trait CanonicalTexts: ValueTexts {
     /// Interns a text and answers the cell standing for it.
-    fn intern(&mut self, text: &str) -> Result<Value, DerivedFault>;
+    fn intern(&mut self, text: CellText<'_>) -> Result<Value, DerivedFault>;
 }
 
 impl RowCells for Table {

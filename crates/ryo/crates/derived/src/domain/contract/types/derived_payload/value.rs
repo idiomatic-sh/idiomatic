@@ -1,8 +1,8 @@
 //! The built payload of one derived kind: the value and its behaviour, owned together.
 use crate::domain::adjacency::types::compact_graph::value::CompactGraph;
 use crate::domain::allocation::types::ElementCapacity;
-use crate::domain::closure::types::ClosurePartition;
-use crate::domain::cycles::types::CycleGraph;
+use crate::domain::closure_adjacency::types::ClosurePartition;
+use crate::domain::cycle_adjacency::types::CycleGraph;
 use crate::domain::dfs::types::PreparedDfs;
 use crate::domain::equality::types::KeyIndex;
 use crate::domain::membership::types::DerivedMembership;

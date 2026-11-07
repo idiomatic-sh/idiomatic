@@ -1,7 +1,7 @@
 //! The shared marks keep what they were given and their allocation identity.
 use super::value::SharedMarks;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::positions::types::Mark;
+use crate::domain::positions::types::MemberMark;
 
 #[derive(Clone, Copy)]
 enum Scenario {
@@ -30,9 +30,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 /// Calls the part on one input.
 fn subject(input: Input) -> Result<Value, Failure> {
-    let marks = SharedMarks::new(vec![Mark::Member, Mark::Absent]);
+    let marks = SharedMarks::new(vec![MemberMark::Member, MemberMark::Absent]);
     Ok(match input {
-        Scenario::MarksInOrder => u64::from(marks.as_slice() == [Mark::Member, Mark::Absent]),
+        Scenario::MarksInOrder => u64::from(marks.as_slice() == [MemberMark::Member, MemberMark::Absent]),
         Scenario::CloneKeepsIdentity => {
             u64::from(marks.clone().allocation_key() == marks.allocation_key())
         }

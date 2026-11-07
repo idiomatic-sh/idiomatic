@@ -3,8 +3,8 @@
 use super::service::{distinct, matches, postings};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::fault::types::DerivedFault;
-use crate::domain::positions::types::RowPosition;
-use crate::domain::rows::types::{PredicateRows, Verdict};
+use crate::domain::positions::types::RowSlot;
+use crate::domain::row_cells::types::{PredicateRows, PredicateVerdict};
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, LiteralText};
@@ -62,11 +62,11 @@ impl PredicateRows for EvenRows {
     fn count(&self) -> RowCount {
         self.0
     }
-    fn holds(&mut self, row: RowIndex) -> Result<Verdict, DerivedFault> {
+    fn holds(&mut self, row: RowIndex) -> Result<PredicateVerdict, DerivedFault> {
         Ok(if row.0 % 2 == 0 {
-            Verdict::Holds
+            PredicateVerdict::Holds
         } else {
-            Verdict::Fails
+            PredicateVerdict::Fails
         })
     }
 }
@@ -86,16 +86,16 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Scenario::EvenRowsHold => Ok(positions(&matches(&mut EvenRows(RowCount(4)), None)?)),
         Scenario::CandidatesSelectRows => Ok(positions(&matches(
             &mut EvenRows(RowCount(4)),
-            Some(&[RowPosition(1), RowPosition(2)]),
+            Some(&[RowSlot(1), RowSlot(2)]),
         )?)),
         Scenario::UnorderedCandidates => Ok(positions(&matches(
             &mut EvenRows(RowCount(4)),
-            Some(&[RowPosition(2), RowPosition(1)]),
+            Some(&[RowSlot(2), RowSlot(1)]),
         )?)),
         Scenario::DistinctKeepsFirstOfEachKey => Ok(positions(&distinct(
             &keys,
             &[ColumnIndex(0)],
-            &[RowPosition(0), RowPosition(1), RowPosition(2), RowPosition(3)],
+            &[RowSlot(0), RowSlot(1), RowSlot(2), RowSlot(3)],
         )?)),
         Scenario::UnknownLiteral => postings(
             &keys,

@@ -12,7 +12,7 @@ Builds the compact adjacency of engine-admitted edge rows, partitioned by key, w
 
 Names the numbers an allocation is described by: its identity, its element capacity and its bytes.
 
-### closure
+### closure_adjacency
 
 Builds one partition's closure adjacency from its edge rows, reusing a recycled partition's buffers.
 
@@ -20,7 +20,7 @@ Builds one partition's closure adjacency from its edge rows, reusing a recycled 
 
 Declares the finite build inputs, the borrowed views and the sealed prepared requests and payloads the use cases exchange.
 
-### cycles
+### cycle_adjacency
 
 Numbers the nodes of engine-admitted edge rows in first-seen order and groups each edge under its source.
 
@@ -88,7 +88,7 @@ Names the lowered key words, strides and places of raw key ordering.
 
 Declares the static requirements of every derived kind, semantics only.
 
-### rows
+### row_cells
 
 Declares the finite row views and the text services a derived build reads through.
 

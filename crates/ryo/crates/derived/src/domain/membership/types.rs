@@ -1,5 +1,5 @@
 //! The types of the `membership` concept: plain data, public fields and derives, with no constructor and no inherent impl.
-use crate::domain::positions::types::Mark;
+use crate::domain::positions::types::MemberMark;
 use crate::domain::sharing::types::shared_marks::value::SharedMarks;
 use ryo_relations::domain::relations::types::{FileId, Value};
 
@@ -37,5 +37,5 @@ pub enum MembershipView<'a> {
     /// The member values.
     Values(&'a hashbrown::HashSet<Value>),
     /// The marks of a dense space.
-    Dense(&'a [Mark]),
+    Dense(&'a [MemberMark]),
 }

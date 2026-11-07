@@ -6,13 +6,13 @@ use std::sync::Arc;
 
 /// Which kind of allocation a shared backing is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct BackingTag(pub u8);
+pub struct BackingKind(pub u8);
 
 /// Physical immutable sub-allocation description, without any lease/admission class.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SharedBacking {
     /// Which kind of allocation it is.
-    pub tag: BackingTag,
+    pub tag: BackingKind,
     /// The identity of the allocation.
     pub allocation_key: AllocationKey,
     /// The bytes it occupies.

@@ -1,7 +1,7 @@
 //! The shared positions keep their allocation identity and release it when no owner holds it.
 use super::value::SharedPositions;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::positions::types::RowPosition;
+use crate::domain::positions::types::RowSlot;
 
 #[derive(Clone, Copy)]
 enum Scenario {
@@ -37,7 +37,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 /// Calls the part on one input.
 fn subject(input: Input) -> Result<Value, Failure> {
-    let owner = SharedPositions::new(vec![RowPosition(2), RowPosition(5)]);
+    let owner = SharedPositions::new(vec![RowSlot(2), RowSlot(5)]);
     Ok(match input {
         Scenario::CloneKeepsIdentity => {
             u64::from(owner.clone().allocation_key() == owner.allocation_key())

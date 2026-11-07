@@ -4,7 +4,7 @@ use crate::domain::allocation::types::ElementCapacity;
 use crate::domain::fault::types::DerivedFault;
 use crate::domain::key::service::word_of;
 use crate::domain::key::types::{ChainLink, KeyCellsHash};
-use crate::domain::rows::types::{BulkRows, RowCells};
+use crate::domain::row_cells::types::{BulkRows, RowCells};
 use ryo_relations::domain::relations::types::{ColumnsView, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, RowIndex};

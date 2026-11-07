@@ -1,8 +1,8 @@
 //! Duplicate-insensitive membership; no domain cache identity or admission policy.
 use super::types::{DerivedMembership, MarkSpace};
 use crate::domain::fault::types::DerivedFault;
-use crate::domain::positions::types::Mark;
-use crate::domain::rows::types::RowCells;
+use crate::domain::positions::types::MemberMark;
+use crate::domain::row_cells::types::RowCells;
 use crate::domain::sharing::types::shared_marks::value::SharedMarks;
 use ryo_relations::domain::relations::{
     service::{node_file, node_position},
@@ -31,20 +31,20 @@ pub(crate) fn build(
                 .iter()
                 .map(|value| {
                     if values.contains(value) {
-                        Mark::Member
+                        MemberMark::Member
                     } else {
-                        Mark::Absent
+                        MemberMark::Absent
                     }
                 })
                 .collect(),
         )),
         MarkSpace::Native { file, elements } => {
-            let mut marks = vec![Mark::Absent; elements.0];
+            let mut marks = vec![MemberMark::Absent; elements.0];
             for value in values {
                 if let Value::Node(node) = value {
                     if node_file(node) == file {
                         if let Some(mark) = marks.get_mut(node_position(node).0 as usize) {
-                            *mark = Mark::Member;
+                            *mark = MemberMark::Member;
                         }
                     }
                 }

@@ -1,7 +1,7 @@
 //! The compact graph answers lookups of its partitions and vertices.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::adjacency::service::build_borrowed;
-use crate::domain::vertices::types::{Direction, PartitionId, VertexId};
+use crate::domain::vertices::types::{EdgeDirection, PartitionId, VertexId};
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, Table};
@@ -64,7 +64,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
             .vertex(PartitionId(0), Cell::Number(Integer(9)))
             .map(|vertex| vertex.0),
         Scenario::OffsetsCoverEveryVertex => {
-            u32::try_from(graph.offsets(Direction::Forward).len()).ok()
+            u32::try_from(graph.offsets(EdgeDirection::Forward).len()).ok()
         }
     })
 }

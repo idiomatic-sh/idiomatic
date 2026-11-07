@@ -1,7 +1,7 @@
 //! Existing ordered matching, retaining exact duplicate-order error semantics.
 use super::types::{OrderedMatching, OrderedText, OwnedOrderedKey, OwnedOrderedRow};
 use crate::domain::fault::types::DerivedFault;
-use crate::domain::rows::types::{RowCells, ValueTexts};
+use crate::domain::row_cells::types::{RowCells, ValueTexts};
 use ryo_values::domain::rows::types::RowIndex;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -42,7 +42,7 @@ fn ordered_rows(
                         let Some(text) = texts.text(value) else {
                             return Err(DerivedFault::ShapeMismatch);
                         };
-                        OwnedOrderedKey::Text(OrderedText(text.to_owned()))
+                        OwnedOrderedKey::Text(OrderedText(text.0.to_owned()))
                     }
                     _ => OwnedOrderedKey::Value(value),
                 })

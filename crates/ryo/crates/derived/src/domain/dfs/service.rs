@@ -1,7 +1,8 @@
 //! Ordered DFS lookup preparation; traversal and completion admission remain engine-owned.
 use super::types::{DfsColumns, EdgeRun, EdgeSlot, PreparedDfs};
 use crate::domain::fault::types::DerivedFault;
-use crate::domain::rows::types::{CanonicalTexts, RowCells};
+use crate::domain::row_cells::types::{CanonicalTexts, RowCells};
+use ryo_values::domain::row_texts::types::CellText;
 use ryo_values::domain::rows::types::RowIndex;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -75,8 +76,8 @@ fn canonical_columns(
             };
             let canonical = if let Some(text) = found {
                 buffer.clear();
-                buffer.push_str(text);
-                texts.intern(&buffer)?
+                buffer.push_str(text.0);
+                texts.intern(CellText(&buffer))?
             } else {
                 value
             };

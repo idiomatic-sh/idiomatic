@@ -2,7 +2,7 @@
 
 use super::service::build;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::raw_words::types::{Keep, OrderPlace, RawWord, Stride};
+use crate::domain::raw_words::types::{Keep, OrderPlace, RawWord, KeyStride};
 use std::borrow::Cow;
 
 #[derive(Clone, Copy)]
@@ -80,7 +80,7 @@ fn words(raw: &[u64]) -> Vec<RawWord> {
 
 /// Calls the part on one input.
 fn subject(input: Input) -> Result<Value, Failure> {
-    let order = build(&words(&WORDS), Stride(2), None);
+    let order = build(&words(&WORDS), KeyStride(2), None);
     let span = |hit: crate::domain::raw_words::types::RowRun| {
         let OrderPlace(start) = hit.start;
         let OrderPlace(end) = hit.end;
@@ -99,23 +99,23 @@ fn subject(input: Input) -> Result<Value, Failure> {
             keep.iter().map(|mark| usize::from(*mark == Keep::Yes)).collect()
         }
         Scenario::RecycledOrdering => {
-            let old = build(&words(&[u64::MAX, 0, u64::MAX]), Stride(1), None);
-            rows(&build(&words(&[7, 2]), Stride(1), Some(old)))
+            let old = build(&words(&[u64::MAX, 0, u64::MAX]), KeyStride(1), None);
+            rows(&build(&words(&[7, 2]), KeyStride(1), Some(old)))
         }
         Scenario::RecycledProbe => {
-            let old = build(&words(&[u64::MAX, 0, u64::MAX]), Stride(1), None);
-            span(build(&words(&[7, 2]), Stride(1), Some(old)).hits(&words(&[u64::MAX])))
+            let old = build(&words(&[u64::MAX, 0, u64::MAX]), KeyStride(1), None);
+            span(build(&words(&[7, 2]), KeyStride(1), Some(old)).hits(&words(&[u64::MAX])))
         }
         Scenario::ZeroStrideIsEmpty => {
-            let empty = build(&words(&[1, 2]), Stride(0), None);
+            let empty = build(&words(&[1, 2]), KeyStride(0), None);
             let mut place = span(empty.hits(&[]));
             place.extend(rows(&empty));
             place
         }
         Scenario::RecycledCapacity => {
-            let old = build(&words(&[u64::MAX, 0, u64::MAX]), Stride(1), None);
+            let old = build(&words(&[u64::MAX, 0, u64::MAX]), KeyStride(1), None);
             let capacities = old.capacities();
-            vec![usize::from(build(&words(&[7, 2]), Stride(1), Some(old)).capacities() == capacities)]
+            vec![usize::from(build(&words(&[7, 2]), KeyStride(1), Some(old)).capacities() == capacities)]
         }
     }))
 }

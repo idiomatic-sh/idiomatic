@@ -4,9 +4,10 @@ use super::service::build;
 use super::types::DfsColumns;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::fault::types::DerivedFault;
-use crate::domain::rows::types::{CanonicalTexts, ValueTexts};
+use crate::domain::row_cells::types::{CanonicalTexts, ValueTexts};
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::row_texts::types::CellText;
 use ryo_values::domain::rows::types::{RowCount, Table};
 
 #[derive(Clone, Copy)]
@@ -43,12 +44,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 struct NoTexts;
 impl ValueTexts for NoTexts {
-    fn text(&self, _value: Cell) -> Option<&str> {
+    fn text(&self, _value: Cell) -> Option<CellText<'_>> {
         None
     }
 }
 impl CanonicalTexts for NoTexts {
-    fn intern(&mut self, _text: &str) -> Result<Cell, DerivedFault> {
+    fn intern(&mut self, _text: CellText<'_>) -> Result<Cell, DerivedFault> {
         Err(DerivedFault::WrongOperation)
     }
 }

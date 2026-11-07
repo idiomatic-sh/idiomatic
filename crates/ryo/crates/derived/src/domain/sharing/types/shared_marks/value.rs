@@ -1,21 +1,21 @@
 //! Immutable shared marks: the value and its behaviour, owned together.
 use crate::domain::allocation::types::{AllocationKey, ElementCapacity};
-use crate::domain::positions::types::Mark;
+use crate::domain::positions::types::MemberMark;
 use std::sync::Arc;
 
 /// Immutable shared membership marks over a dense element space.
 #[derive(Clone, Debug)]
-pub struct SharedMarks(pub(crate) Arc<Vec<Mark>>);
+pub struct SharedMarks(pub(crate) Arc<Vec<MemberMark>>);
 
 impl SharedMarks {
     /// Shares the marks an owner built.
     #[must_use]
-    pub fn new(marks: Vec<Mark>) -> Self {
+    pub fn new(marks: Vec<MemberMark>) -> Self {
         Self(Arc::new(marks))
     }
     /// The marks.
     #[must_use]
-    pub fn as_slice(&self) -> &[Mark] {
+    pub fn as_slice(&self) -> &[MemberMark] {
         &self.0
     }
     /// The identity of the allocation.

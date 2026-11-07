@@ -1,7 +1,7 @@
 //! Existing compact adjacency algorithm; generation identity and retention are engine-owned.
 use super::types::compact_graph::value::CompactGraph;
 use crate::domain::fault::types::DerivedFault;
-use crate::domain::rows::types::RowCells;
+use crate::domain::row_cells::types::RowCells;
 use crate::domain::vertices::constants::FOREST_ROOT;
 use crate::domain::vertices::types::{EdgeOffset, PartitionId, VertexId, VertexKey};
 use ryo_relations::domain::relations::types::Value;

@@ -1,5 +1,5 @@
 //! Allocation facts only; the engine alone assigns lifetime classes and budgets.
-use super::types::{BackingTag, PartitionEntry, PayloadFootprint, SharedBacking, VertexEntry};
+use super::types::{BackingKind, PartitionEntry, PayloadFootprint, SharedBacking, VertexEntry};
 use crate::domain::allocation::types::{AllocationBytes, AllocationKey, ElementCapacity};
 use crate::domain::contract::types::BuildWorkspace;
 use crate::domain::contract::types::derived_payload::value::{DerivedPayload, PayloadData};
@@ -8,7 +8,7 @@ use crate::domain::fault::types::DerivedFault;
 use crate::domain::key::types::KeyCellsHash;
 use crate::domain::membership::types::DerivedMembership;
 use crate::domain::ordered::types::{OrderedText, OwnedOrderedKey, OwnedOrderedRow};
-use crate::domain::positions::types::{Mark, RowPosition};
+use crate::domain::positions::types::{MemberMark, RowSlot};
 use crate::domain::sharing::types::shared_positions::value::SharedPositions;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::rows::types::Table;
@@ -26,7 +26,7 @@ fn sum(
 fn vector<T>(value: &Vec<T>) -> AllocationBytes {
     AllocationBytes(value.capacity().saturating_mul(size_of::<T>()))
 }
-fn hash(capacity: ElementCapacity, entry: usize) -> AllocationBytes {
+fn hash(capacity: ElementCapacity, entry: AllocationBytes) -> AllocationBytes {
     if capacity.0 == 0 {
         AllocationBytes(0)
     } else {
@@ -36,7 +36,7 @@ fn hash(capacity: ElementCapacity, entry: usize) -> AllocationBytes {
                 .saturating_add(1)
                 .checked_next_power_of_two()
                 .unwrap_or(usize::MAX)
-                .saturating_mul(entry + 1)
+                .saturating_mul(entry.0 + 1)
                 .saturating_add(64),
         )
     }
@@ -51,7 +51,7 @@ fn equality(value: &KeyIndex) -> Result<AllocationBytes, DerivedFault> {
         vector(&value.pairs),
         hash(
             ElementCapacity(value.runs.capacity()),
-            size_of::<KeyCellsHash>(),
+            AllocationBytes(size_of::<KeyCellsHash>()),
         ),
     ])
 }
@@ -72,7 +72,7 @@ fn ordered(rows: &Vec<OwnedOrderedRow>) -> Result<AllocationBytes, DerivedFault>
 }
 fn shared_model<T>(
     value: &std::sync::Arc<T>,
-    tag: BackingTag,
+    tag: BackingKind,
     buffers: AllocationBytes,
 ) -> Result<SharedBacking, DerivedFault> {
     Ok(SharedBacking {
@@ -88,12 +88,12 @@ fn shared_model<T>(
 }
 fn positions(value: &SharedPositions) -> SharedBacking {
     SharedBacking {
-        tag: BackingTag(1),
+        tag: BackingKind(1),
         allocation_key: value.allocation_key(),
         bytes: AllocationBytes(
-            size_of::<Vec<RowPosition>>()
+            size_of::<Vec<RowSlot>>()
                 + 2 * size_of::<usize>()
-                + value.capacity().0 * size_of::<RowPosition>(),
+                + value.capacity().0 * size_of::<RowSlot>(),
         ),
         position_capacity: value.capacity(),
     }
@@ -107,7 +107,7 @@ pub fn describe(payload: &DerivedPayload) -> Result<PayloadFootprint, DerivedFau
     let mut shared = Vec::new();
     let owned = match &payload.data {
         PayloadData::Equality(value) => {
-            shared.push(shared_model(value, BackingTag(11), equality(value)?)?);
+            shared.push(shared_model(value, BackingKind(11), equality(value)?)?);
             AllocationBytes(0)
         }
         PayloadData::PredicateMatches(value) | PayloadData::DistinctRepresentatives(value) => {
@@ -123,24 +123,27 @@ pub fn describe(payload: &DerivedPayload) -> Result<PayloadFootprint, DerivedFau
         }
         PayloadData::Membership(DerivedMembership::Dense(value)) => {
             shared.push(SharedBacking {
-                tag: BackingTag(10),
+                tag: BackingKind(10),
                 allocation_key: value.allocation_key(),
                 bytes: AllocationBytes(
-                    size_of::<Vec<Mark>>()
+                    size_of::<Vec<MemberMark>>()
                         + 2 * size_of::<usize>()
-                        + value.capacity().0 * size_of::<Mark>(),
+                        + value.capacity().0 * size_of::<MemberMark>(),
                 ),
                 position_capacity: ElementCapacity(0),
             });
             AllocationBytes(0)
         }
         PayloadData::Membership(DerivedMembership::Values(value)) => {
-            hash(ElementCapacity(value.capacity()), size_of::<Value>())
+            hash(
+                ElementCapacity(value.capacity()),
+                AllocationBytes(size_of::<Value>()),
+            )
         }
         PayloadData::PartitionOrder(value) => vector(value),
         PayloadData::RawKeyOrder(value) => {
             let buffers = sum([vector(&value.keys), vector(&value.order)])?;
-            shared.push(shared_model(value, BackingTag(32), buffers)?);
+            shared.push(shared_model(value, BackingKind(32), buffers)?);
             AllocationBytes(0)
         }
         PayloadData::ClosureAdjacency(value) => {
@@ -150,7 +153,7 @@ pub fn describe(payload: &DerivedPayload) -> Result<PayloadFootprint, DerivedFau
                 equality(&value.index)?,
                 vector(&value.sources),
             ])?;
-            shared.push(shared_model(value, BackingTag(23), buffers)?);
+            shared.push(shared_model(value, BackingKind(23), buffers)?);
             AllocationBytes(0)
         }
         PayloadData::CycleAdjacency(value) => {
@@ -159,12 +162,12 @@ pub fn describe(payload: &DerivedPayload) -> Result<PayloadFootprint, DerivedFau
                 vector(&value.starts),
                 vector(&value.leaving),
             ])?;
-            shared.push(shared_model(value, BackingTag(24), buffers)?);
+            shared.push(shared_model(value, BackingKind(24), buffers)?);
             AllocationBytes(0)
         }
         PayloadData::OrderedKeys(value) => {
             let buffers = sum([ordered(&value.left)?, ordered(&value.right)?])?;
-            shared.push(shared_model(value, BackingTag(25), buffers)?);
+            shared.push(shared_model(value, BackingKind(25), buffers)?);
             AllocationBytes(0)
         }
         PayloadData::OrderedDfs(value) => {
@@ -177,7 +180,7 @@ pub fn describe(payload: &DerivedPayload) -> Result<PayloadFootprint, DerivedFau
                 vector(&value.edge_columns),
                 vector(&value.adjacency),
             ])?;
-            shared.push(shared_model(value, BackingTag(26), buffers)?);
+            shared.push(shared_model(value, BackingKind(26), buffers)?);
             AllocationBytes(0)
         }
         PayloadData::NativeLookup(_) => AllocationBytes(0),
@@ -189,11 +192,11 @@ pub fn describe(payload: &DerivedPayload) -> Result<PayloadFootprint, DerivedFau
                     vector(&value.vertex_partitions),
                     hash(
                         ElementCapacity(value.partition_ids.capacity()),
-                        size_of::<PartitionEntry>(),
+                        AllocationBytes(size_of::<PartitionEntry>()),
                     ),
                     hash(
                         ElementCapacity(value.vertex_ids.capacity()),
-                        size_of::<VertexEntry>(),
+                        AllocationBytes(size_of::<VertexEntry>()),
                     ),
                 ])?;
                 let partitions = sum(value.partitions.iter().map(|part| {
@@ -211,7 +214,7 @@ pub fn describe(payload: &DerivedPayload) -> Result<PayloadFootprint, DerivedFau
                 }))?;
                 sum([base, partitions, directions])?
             };
-            shared.push(shared_model(value, BackingTag(9), buffers)?);
+            shared.push(shared_model(value, BackingKind(9), buffers)?);
             AllocationBytes(0)
         }
     };
