@@ -1,6 +1,7 @@
 //! Documents the python authoring and the native producers write are read by their schemas; unknown fields are refused.
 use super::schemas::{RegistrationSchema, invocation};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use crate::outbound::inventory::types::{InvocationDocument, Registration};
 use crate::outbound::suite::{interface::SuitePort as _, types::ArtifactPath};
 
@@ -17,11 +18,13 @@ type Value = usize;
 
 /// Why a document was refused.
 #[derive(Debug, PartialEq, Eq)]
-enum Failure {
+enum Refusal {
     UnknownSurprise,
     UnknownOther,
     Malformed,
 }
+
+type Failure = Refusal;
 
 fn fixture(path: &str) -> String {
     std::fs::read_to_string(
@@ -111,7 +114,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a raw invocation field the capture never writes is refused by name"),
         word: Word::Refuses,
         input: || (Document::Invocation, complete_record("\"surprise\":1,")),
-        expect: Expect::Error(Failure::UnknownSurprise),
+        expect: Expect::Error(Refusal::UnknownSurprise),
     },
     Case {
         name: CaseName("a raw invocation record without its process identity is refused"),
@@ -122,7 +125,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 complete_record("").replace("\"tool\":\"fixture\",", ""),
             )
         },
-        expect: Expect::Error(Failure::Malformed),
+        expect: Expect::Error(Refusal::Malformed),
     },
     Case {
         name: CaseName("a case field the authoring never writes is refused by name"),
@@ -133,7 +136,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 python_registration_with("\"surprise\": 1, "),
             )
         },
-        expect: Expect::Error(Failure::UnknownSurprise),
+        expect: Expect::Error(Refusal::UnknownSurprise),
     },
     Case {
         name: CaseName("a receipt row field the producers never write is refused by name"),
@@ -144,24 +147,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 fixture("receipts/python-v2-rows.jsonl").replacen("{", "{\"surprise\":1,", 1),
             )
         },
-        expect: Expect::Error(Failure::UnknownSurprise),
+        expect: Expect::Error(Refusal::UnknownSurprise),
     },
     Case {
         name: CaseName("a receipt row that is not a document is refused"),
         word: Word::Refuses,
         input: || (Document::Observations, "[1]".into()),
-        expect: Expect::Error(Failure::Malformed),
+        expect: Expect::Error(Refusal::Malformed),
     },
 ];
 
 fn unknown_field(text: &str) -> Failure {
     text.split_once("unknown field `")
         .and_then(|(_, rest)| rest.split_once('`'))
-        .map_or(Failure::Malformed, |(name, _)| {
+        .map_or(Refusal::Malformed, |(name, _)| {
             if name == "surprise" {
-                Failure::UnknownSurprise
+                Refusal::UnknownSurprise
             } else {
-                Failure::UnknownOther
+                Refusal::UnknownOther
             }
         })
 }
@@ -172,22 +175,22 @@ fn named(text: &str) -> Failure {
         .split_once("unknown field `")
         .and_then(|(_, rest)| rest.split_once('`'))
     {
-        Some(("surprise", _)) => Failure::UnknownSurprise,
-        Some(_) => Failure::UnknownOther,
-        None => Failure::Malformed,
+        Some(("surprise", _)) => Refusal::UnknownSurprise,
+        Some(_) => Refusal::UnknownOther,
+        None => Refusal::Malformed,
     }
 }
 
 fn subject((document, text): Input) -> Result<Value, Failure> {
     match document {
-        Document::Invocation => invocation(text.as_bytes())
+        Document::Invocation => invocation(&CapturedBytes(text.into_bytes()))
             .map(|record| match record {
                 InvocationDocument::Complete(complete) => {
                     complete.normalized_settings.arguments.len()
                 }
                 InvocationDocument::Failed(failed) => failed.arguments.len(),
             })
-            .map_err(|error| named(&error)),
+            .map_err(|error| named(&error.to_string())),
         Document::Registration => serde_json::from_str::<RegistrationSchema>(&text)
             .map(Registration::from)
             .map(|registration| registration.rules.iter().map(|rule| rule.cases.len()).sum())
@@ -196,7 +199,7 @@ fn subject((document, text): Input) -> Result<Value, Failure> {
             let directory = tempfile::tempdir().expect("receipt directory");
             let receipt = directory.path().join("cases.jsonl");
             std::fs::write(&receipt, text).expect("receipt rows");
-            crate::outbound::suite::factory::local()
+            crate::outbound::suite::factory::local(crate::outbound::suite::types::CaseReceipts::Unrecorded)
                 .case_observations(ArtifactPath(&receipt))
                 .map(|rows| rows.len())
                 .map_err(|error| unknown_field(&error.to_string()))

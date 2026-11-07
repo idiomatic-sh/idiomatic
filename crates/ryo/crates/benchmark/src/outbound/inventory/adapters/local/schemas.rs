@@ -698,8 +698,7 @@ fn value(text: &CanonicalJson) -> Result<serde_json::Value, Error> {
 
 /// The wire shape of a row.
 fn row_schema(row: &Row) -> Result<RowSchema, Error> {
-    {
-        Ok(RowSchema {
+    Ok(RowSchema {
             rule_id: row.rule_id.0.clone(),
             status: match row.status {
                 RowStatus::Pass => constants::PASS,
@@ -721,8 +720,7 @@ fn row_schema(row: &Row) -> Result<RowSchema, Error> {
             raw_exact: row.raw_exact.0,
             documented_discrepancies: row.documented_discrepancies.0,
             contract_only: row.contract_only.0,
-        })
-    }
+    })
 }
 
 /// Encode one result row, pretty printed.

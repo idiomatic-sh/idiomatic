@@ -1,2 +1,3 @@
-//! Implementations of the inventory artifact port.
-pub(crate) mod local;
+//! The inventory port's implementations, one module each.
+
+pub(super) mod local;
