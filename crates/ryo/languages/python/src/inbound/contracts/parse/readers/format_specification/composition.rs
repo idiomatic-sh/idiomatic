@@ -25,7 +25,7 @@ fn completeness(
 
 ryo::reads! {
     FormatSpecificationItem => languages::FormatSpecification, model(Declarations) |tree, model, at, symbols| {
-        kinds: [Kind::Node(Node::Module)] as kind_bits,
+        kinds: [Kind::Node(Node::Module)] as kind_bits, expanded,
         given braces = prepare::<RuffLiteralBraceFormat>(tree, &model.brace_format, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == crate::domain::semantic_syntax::types::Visibility::Visible).into());
         given observations = observe(tree,&braces,model.language_target);
         each (observations.rows.iter()) as spec {

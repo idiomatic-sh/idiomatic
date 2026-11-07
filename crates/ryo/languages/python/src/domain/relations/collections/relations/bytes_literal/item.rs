@@ -47,7 +47,7 @@ fn decoded<'a>(tree: &'a languages::Tree<'_>, at: languages::Position) -> Decode
 }
 ryo::reads! {
     BytesLiteralItem => languages::BytesLiteral, model(Declarations) |tree, model, at, symbols| {
-        kinds: [Kind::Node(Node::Module)] as kind_bits,
+        kinds: [Kind::Node(Node::Module)] as kind_bits, expanded,
         each (crate::domain::semantic_syntax::service::positions(tree)) as expression {
             require crate::domain::semantic_syntax::service::visibility(tree, model, expression, symbols) == Visibility::Visible;
             when decoded(tree, expression) {

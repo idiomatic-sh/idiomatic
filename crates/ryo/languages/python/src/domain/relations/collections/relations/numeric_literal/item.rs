@@ -19,7 +19,7 @@ pub(crate) struct NumericLiteralItem;
 
 ryo::reads! {
     NumericLiteralItem => languages::NumericLiteral, model(Declarations) |tree, model, at, symbols| {
-        kinds: [Kind::Node(Node::Module)] as kind_bits,
+        kinds: [Kind::Node(Node::Module)] as kind_bits, expanded,
         each (crate::domain::semantic_syntax::service::positions(tree)) as expression {
             require crate::domain::semantic_syntax::service::visibility(tree, model, expression, symbols) == Visibility::Visible;
             when classify(tree, expression) {

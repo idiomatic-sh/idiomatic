@@ -65,9 +65,11 @@ fn a_demand_that_reads_no_expanded_element_expands_no_annotation() {
         (0, 0),
         "no wanted reader reads what completion adds"
     );
+    // The outer annotation and the string nested in it: one carrier parse, two embedded expressions (the preseal row
+    // `nested_runtime_alias_has_two_real_hosts_and_live_semantic_tokens` reads the same two).
     assert_eq!(
         read_with_demand(source, languages::Relation::EmbeddedExpression),
-        (1, 1),
+        (1, 2),
         "a reader of the embedded expressions has the carrier expanded"
     );
 }

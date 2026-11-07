@@ -16,7 +16,7 @@ use ryo::languages;
 pub(crate) struct ExpressionShapeItem;
 ryo::reads! {
  ExpressionShapeItem=>languages::ExpressionShape,model(Declarations)|tree,model,at,symbols|{
- kinds:[Kind::Node(Node::Module)] as kind_bits,
+ kinds:[Kind::Node(Node::Module)] as kind_bits, expanded,
  when prepare(tree,model,symbols){
   Some(index)=>{
    each(crate::domain::semantic_syntax::service::positions(tree))as expression{

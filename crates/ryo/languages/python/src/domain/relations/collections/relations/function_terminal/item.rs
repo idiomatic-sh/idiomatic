@@ -22,7 +22,7 @@ fn state(index: &TerminalIndex) -> IndexState {
 
 ryo::reads! {
     FunctionTerminalItem => languages::FunctionTerminal, model(Declarations) |tree, model, at, symbols| {
-        kinds: [Kind::Node(Node::Module)] as kind_bits,
+        kinds: [Kind::Node(Node::Module)] as kind_bits, expanded,
         given index = prepare(tree, &model.terminal_flow);
         when state(&index) {
             IndexState::Partial => { partial INCOMPLETE => languages::Missing::Any; }

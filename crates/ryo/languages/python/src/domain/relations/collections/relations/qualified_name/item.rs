@@ -18,7 +18,7 @@ use ryo::languages;
 pub(crate) struct QualifiedNameItem;
 ryo::reads! {
     QualifiedNameItem => languages::QualifiedName, model(Declarations) |tree, model, at, symbols| {
-        kinds:[Kind::Node(Node::Module)] as kind_bits,
+        kinds:[Kind::Node(Node::Module)] as kind_bits, expanded,
         when complete(tree, model) {
             None=>{partial INCOMPLETE => languages::Missing::Any;}
             Some(index)=>{
