@@ -18,7 +18,7 @@ use crate::domain::{
     stored_graph::types::{GraphWalk, Orientation, VertexId},
     table_model::types::Rows,
 };
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_relations::domain::relations::types::{Relation, Value};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Direction, Input, StepId, StepScope},
@@ -174,7 +174,7 @@ impl GraphFixture {
                     .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
                 self.owner.admit(
                     publication.as_ref(),
-                    crate::domain::table_model::types::representation_input::value::RepresentationInput::from(&supplied),
+                    crate::domain::table_model::types::RepresentationInput::from(&supplied),
                 )?;
                 publication
             }

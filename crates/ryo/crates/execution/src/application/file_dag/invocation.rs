@@ -20,7 +20,7 @@ use crate::domain::operator::contract::{
     types::OperatorContract,
     views::{IndexedRows},
 };
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use crate::domain::table_groups::types::Group;
 use ryo_derived::domain::contract::types::KeyIndex;
 use ryo_derived::domain::contract::types::{

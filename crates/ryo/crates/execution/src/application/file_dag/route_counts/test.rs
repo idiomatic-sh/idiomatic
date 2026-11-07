@@ -162,7 +162,7 @@ fn owner_routes_count_each_physical_equality_build_once() {
     use crate::application::file_dag::relations::RelationOwner;
     use crate::domain::{
         derived_views::types::*, operation_schema::types::InputShape};
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
     use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn};
     use ryo_values::domain::plan_parts::types::ColumnIndex;
     use std::sync::Arc;

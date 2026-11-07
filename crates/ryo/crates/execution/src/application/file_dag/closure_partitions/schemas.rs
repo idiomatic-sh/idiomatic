@@ -5,7 +5,7 @@ use crate::application::file_dag::{
 };
 use crate::domain::{
     derived_views::types::contract::value::DerivedContract, operating::errors::OperatingError};
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use std::{rc::Rc, sync::Arc};
 
 pub(in crate::application::file_dag) fn from_prepared<'f>(

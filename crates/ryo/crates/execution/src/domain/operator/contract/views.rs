@@ -4,10 +4,12 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::types::Verdict;
 use ryo_derived::domain::contract::types::KeyIndex;
 use ryo_operators::domain::set_rows::types::Membership;
+use ryo_operators::domain::source_matches::types::{BaseLine, SourceBase};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::row_texts::types::CellText;
 
-pub(crate) use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 
 /// Profile-only semantic observations. No execution or ownership policy is reachable.
 #[cfg(feature = "diagnostic-row-progress")]
@@ -200,4 +202,12 @@ pub(crate) trait PredicateProgram {
         row: &[Value],
         symbols: &ryo_language::domain::symbols::types::Symbols,
     ) -> Result<Verdict, OperatingError>;
+}
+
+/// The checked physical text of a source-matching span, with where it starts and the line it begins on.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ValidatedSource<'a> {
+    pub base: SourceBase,
+    pub text: CellText<'a>,
+    pub line: BaseLine,
 }

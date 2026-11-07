@@ -11,7 +11,7 @@ use crate::domain::operator::contract::{
     types::{PrimitiveSemantics, join_result},
     views::{IndexedRows},
 };
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use crate::domain::operator::types::PlanLayout;
 
 use ryo_operators::domain::equality_join::types::JoinInput;

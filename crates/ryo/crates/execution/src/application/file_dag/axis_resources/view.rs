@@ -8,7 +8,7 @@ use crate::domain::{
     },
     table_cells::types::TreeRows,
 };
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_derived::domain::contract::types::{DerivedView, MembershipView};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
@@ -38,8 +38,10 @@ impl AxisResource<'_> {
                 membership,
             } => {
                 let marks = match membership.as_ref().map(AcquiredView::view).transpose()? {
-                    Some(DerivedView::Membership(MembershipView::Dense(marks))) => marks,
-                    None if among.is_some() => &[],
+                    Some(DerivedView::Membership(MembershipView::Dense(marks))) => {
+                        crate::domain::operator::contract::axis::DenseMarks(marks)
+                    }
+                    None if among.is_some() => crate::domain::operator::contract::axis::DenseMarks(&[]),
                     _ => return Err(OperatingError::WrongBinding),
                 };
                 Ok(PreparedAxis::Native {

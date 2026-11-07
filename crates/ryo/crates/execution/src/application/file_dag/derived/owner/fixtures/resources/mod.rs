@@ -5,7 +5,7 @@ use crate::domain::{
     coverage::types::Partial, operating::errors::OperatingError,
     operator::contract:: table_model::types::Rows,
 };
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_derived::domain::contract::types::KeyIndex;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::ColumnIndex;

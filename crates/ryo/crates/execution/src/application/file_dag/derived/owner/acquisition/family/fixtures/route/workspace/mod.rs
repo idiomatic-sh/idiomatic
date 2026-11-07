@@ -17,7 +17,7 @@ use crate::domain::{
     table_model::types::Rows,
     table_texts::types::Texts,
 };
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_derived::domain::contract::types::DerivedKind;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, FileId, NodeId, Relation, Value};

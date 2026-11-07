@@ -1,7 +1,8 @@
 //! The `source_matches` item's cases, and the collection's shared cases.
 
 use super::super::fixtures::contract::check;
-use super::item::{SourceMatchesItem, ValidatedSource, validate};
+use super::item::{SourceMatchesItem, validate};
+use crate::domain::operator::contract::views::ValidatedSource;
 use super::super::interface::OperatorsItem;
 use crate::domain::operating::errors::OperatingError;
 use ryo_operators::domain::source_matches::types::BaseLine;

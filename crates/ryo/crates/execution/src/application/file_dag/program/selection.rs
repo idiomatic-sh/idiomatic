@@ -8,7 +8,7 @@ use crate::domain::{
     operator::contract::{types::WorkCounters, },
     table_model::{service::rectangular, types::Rows},
 };
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use std::rc::Rc;
 
 /// No provider callbacks or dependency requests enter this stage. The source is

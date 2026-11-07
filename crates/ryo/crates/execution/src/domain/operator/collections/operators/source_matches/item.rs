@@ -5,6 +5,7 @@ use crate::domain::operator::contract::failure::FailureLatch;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
+use crate::domain::operator::contract::views::ValidatedSource;
 use ryo_language::domain::symbols::service::query_intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
@@ -130,13 +131,6 @@ impl OperatorsItem for SourceMatchesItem {
         driver.lease.workspace.row = joined;
         result
     }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct ValidatedSource<'a> {
-    pub base: SourceBase,
-    pub text: CellText<'a>,
-    pub line: BaseLine,
 }
 
 /// The checked physical text of a span and where it starts in the source.

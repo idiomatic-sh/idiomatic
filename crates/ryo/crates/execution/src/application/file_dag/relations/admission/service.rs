@@ -5,7 +5,7 @@ use crate::domain::{
     operator::contract::
     table_model::collections::representations::types::PhysicalShape,
 };
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_relations::domain::relations::types::Relation;
 
 /// Only the representation owner can bind population identity to borrowed input.

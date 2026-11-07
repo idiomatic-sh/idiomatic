@@ -4,7 +4,7 @@
 use super::derived::owner::acquisition::admission::service::AcquiredView;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::views::{IndexedRows};
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use crate::domain::table_model::types::SelectedRows;
 use ryo_derived::domain::contract::types::KeyIndex;
 use ryo_values::domain::plan_parts::types::ColumnIndex;

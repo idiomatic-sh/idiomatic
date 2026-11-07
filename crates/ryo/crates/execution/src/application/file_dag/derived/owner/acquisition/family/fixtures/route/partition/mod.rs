@@ -5,7 +5,7 @@ use crate::application::file_dag::{
     relations::RelationOwner, testing::program_derived_port,
 };
 use crate::domain::{operating::errors::OperatingError};
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_derived::domain::contract::types::DerivedKind;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::rc::Rc;

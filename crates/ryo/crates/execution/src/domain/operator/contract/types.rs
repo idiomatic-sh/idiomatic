@@ -1,11 +1,10 @@
 //! Prepared metadata is request-owned; invocation capabilities borrow engine-owned data.
-use super::views::{BorrowedRows, IndexedRows, PredicateProgram};
+use super::views::{IndexedRows, PredicateProgram, ValidatedSource};
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::InputPlace;
 use ryo_language::domain::symbols::types::QuerySymbols;
-use ryo_operators::domain::source_matches::types::{BaseLine, SourceBase};
 use ryo_relations::domain::relations::types::{CellKind, Value};
-use ryo_values::domain::row_texts::types::CellText;
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::Inputs;
 use ryo_values::domain::plans::types::Operation;
@@ -210,14 +209,6 @@ pub(crate) trait PrimitiveResources {
         &self,
     ) -> Result<Option<&ryo_derived::domain::contract::types::OrderedMatching>, OperatingError>;
     fn groups(&self) -> Option<&[crate::domain::table_groups::types::Group]>;
-}
-
-/// The checked physical text of a source-matching span, with where it starts and the line it begins on.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct ValidatedSource<'a> {
-    pub base: SourceBase,
-    pub text: CellText<'a>,
-    pub line: BaseLine,
 }
 
 /// Only row-varying context is assembled at row delivery. Acquired resources

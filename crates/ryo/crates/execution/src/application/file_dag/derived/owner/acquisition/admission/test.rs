@@ -7,7 +7,7 @@ use crate::domain::{
     derived_views::types::{DerivedInputs, DerivedScratch, MembershipSpace, ViewRequest},
     operating::errors::OperatingError,
     operation_schema::types::InputShape};
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,

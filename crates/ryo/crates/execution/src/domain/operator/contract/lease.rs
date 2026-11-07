@@ -1,7 +1,7 @@
 //! The lease's own operations: the capabilities a primitive reaches through its borrowed context.
 use super::types::{
     DistinctWorkspace, FoundRows, PrimitiveLease, PrimitiveSemantics, PrimitiveViews, PrimitiveWorkspace,
-    WorkCounters, portable_fault,
+    WorkCounters, WorkTotals, portable_fault,
 };
 use super::views::PredicateProgram;
 use crate::domain::operating::errors::OperatingError;
@@ -14,11 +14,11 @@ impl WorkCounters {
             total.set(total.get().saturating_add(rows.0));
         }
     }
-    pub(crate) fn take(&self) -> [u64; 3] {
-        std::array::from_fn(|at| self.0[at].replace(0))
+    pub(crate) fn take(&self) -> WorkTotals {
+        WorkTotals(std::array::from_fn(|at| FoundRows(self.0[at].replace(0))))
     }
-    pub(crate) fn snapshot(&self) -> [u64; 3] {
-        std::array::from_fn(|at| self.0[at].get())
+    pub(crate) fn snapshot(&self) -> WorkTotals {
+        WorkTotals(std::array::from_fn(|at| FoundRows(self.0[at].get())))
     }
 }
 

@@ -12,7 +12,7 @@ use crate::{
         table_model::{service::count_of, types::Rows},
     },
 };
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use std::rc::Rc;
 
 impl super::super::KernelSession<'_, '_> {

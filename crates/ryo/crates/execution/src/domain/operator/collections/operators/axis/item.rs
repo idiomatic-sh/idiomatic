@@ -180,6 +180,7 @@ impl OperatorsItem for AxisItem {
                             lease.holds(&element_of(&reached, position))? == Verdict::Holds
                         } else {
                             *marks
+                                .0
                                 .get(each.0 as usize)
                                 .ok_or(OperatingError::ShapeMismatch)?
                         };

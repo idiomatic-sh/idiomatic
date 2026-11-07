@@ -7,7 +7,7 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use {
     crate::domain::operator::contract:: crate::domain::table_model::types::Rows,
 };
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Number];
 fn fixture(columns: &[FactColumn]) -> ResourceFixture {
     let fixture = ResourceFixture::new(

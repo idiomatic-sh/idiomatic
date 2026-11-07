@@ -11,7 +11,7 @@ use crate::domain::{
     stored_selection::types::{CandidateRepeat, Selector},
     table_model::service::matching_stored,
 };
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_language::domain::symbols::{
     service::{find_hashed, hash_of},

@@ -2,7 +2,7 @@
 use crate::domain::operator::contract::{
     failure::FailureLatch, types::portable_fault, 
 };
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use crate::domain::{operating::errors::OperatingError, self_join_recogniser::types::Extremum};
 use ryo_operators::domain::equality_join::errors::EqualityJoinError;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;

@@ -40,7 +40,7 @@ mod census_admit_view {
 mod census_admit_view_denied {
     use crate::application::file_dag::{derived::owner::DerivedOwner, relations::RelationOwner};
     use crate::domain::{derived_views::types::contract::value::DerivedContract};
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
     use std::sync::Arc;
     fn bypass(owner: &DerivedOwner, plan: &Arc<DerivedContract>, relations: &RelationOwner, rows: BorrowedRows<'_>) { let _ = owner.admit_view(plan, relations, &[&rows]); }
     const _: () = { let _ = bypass; };

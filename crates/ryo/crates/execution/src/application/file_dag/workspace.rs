@@ -3,7 +3,7 @@ use super::relations::admission::service::BorrowedInput;
 use crate::domain::{
     derived_views::types::{InputsUsed, contract::value::PreparedViewUse},
     operating::{errors::OperatingError, types::OperatorContext}};
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use std::sync::Arc;
 use self::constants::EXPECT_DEMANDED_INPUT;
 use ryo_values::domain::plan_parts::types::InputNumber;

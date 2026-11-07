@@ -7,7 +7,7 @@ use super::borrowed::reach_breadth;
 use super::service::reach_all;
 use super::types::{Edges, Walk};
 use crate::domain::operator::contract::views::{IndexedRows};
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use crate::domain::positions::service_test::prepared_index;
 use crate::domain::table_model::types::Rows;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};

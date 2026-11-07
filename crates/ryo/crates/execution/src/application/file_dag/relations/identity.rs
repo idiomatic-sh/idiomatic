@@ -5,7 +5,7 @@ use crate::application::file_dag::relations::publication::types::{
 };
 use crate::application::file_dag::relations::types::Sameness;
 
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use crate::domain::table_model::service::kind;
 use ryo_relations::domain::relations::types::{FactColumn, Relation};
 use ryo_values::domain::rows::types::RowCount;

@@ -19,7 +19,7 @@ use {
     crate::domain::stored_selection::types::{BorrowedPositions, Selector}, crate::domain::table_cells::types::TreeRows,
     crate::domain::table_texts::types::Texts, ryo_values::domain::files::types::SourceView,
 };
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 
 #[derive(Clone, Debug)]
 pub(crate) enum ViewRequest {

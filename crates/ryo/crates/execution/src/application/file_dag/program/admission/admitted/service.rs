@@ -196,7 +196,7 @@ impl AdmittedInput {
             operator::contract::
             table_model::{service::kinds_of, types::Rows},
         };
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
         if self.root != ProducerRoot::Input(InputSource::Relation(relation)) {
             return Err(OperatingError::WrongOperation);
         }

@@ -15,7 +15,7 @@ use {
     crate::domain::lowering::types::LoweredShape, crate::domain::lowering::types::RowPosition,
     crate::domain::lowering::types::RowWidth, crate::domain::operating::errors::OperatingError,
     crate::domain::operating::types::OperatorContext,
-    crate::domain::operator::contract::types::WorkCounters,
+    crate::domain::operator::contract::types::{FoundRows, WorkCounters, WorkTotals},
     crate::domain::positions::service_test::SMALL_SOURCE,
     crate::domain::positions::service_test::rows_over,
     crate::domain::positions::service_test::small_tree, crate::domain::positions::types::Positions,
@@ -42,7 +42,7 @@ enum Scenario {
     BoundDomain,
 }
 type Input = Scenario;
-type Value = (Option<(u32, u32)>, [u64; 3]);
+type Value = (Option<(u32, u32)>, WorkTotals);
 type Failure = OperatingError;
 
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -50,13 +50,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("step_domain_is_third_operand_and_supports_wide_domain_id"),
         word: Word::Succeeds,
         input: || Scenario::Subset,
-        expect: Expect::Value((Some((0, 2)), [1, 3, 1])),
+        expect: Expect::Value((Some((0, 2)), WorkTotals([FoundRows(1), FoundRows(3), FoundRows(1)]))),
     },
     Case {
         name: CaseName("empty_step_domain_rejects_every_reached_child"),
         word: Word::Succeeds,
         input: || Scenario::Empty,
-        expect: Expect::Value((None, [1, 3, 0])),
+        expect: Expect::Value((None, WorkTotals([FoundRows(1), FoundRows(3), FoundRows(0)]))),
     },
     // The control of this row is the first one: the same operation over a step domain answers.
     Case {

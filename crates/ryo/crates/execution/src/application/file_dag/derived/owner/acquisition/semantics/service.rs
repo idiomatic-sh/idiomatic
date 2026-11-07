@@ -6,7 +6,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::{
     derived::portable_fault, failure::FailureLatch, 
 };
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use crate::outbound::derived::interface::DerivedPort;
 use ryo_derived::domain::contract::types::{self as semantic};
 use ryo_language::domain::symbols::types::ByteSlice;

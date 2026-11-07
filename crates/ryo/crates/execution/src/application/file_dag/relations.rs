@@ -1,7 +1,7 @@
 //! One file generation owns representation descriptors and lazy admission proofs.
 use super::derived::population::types::PopulationId;
 
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use crate::domain::table_model::collections::representations::types::{
     PhysicalShape, RepresentationKind,
 };

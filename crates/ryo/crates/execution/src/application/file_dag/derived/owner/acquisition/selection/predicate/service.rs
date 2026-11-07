@@ -15,7 +15,7 @@ use crate::domain::{
     stored_selection::types::Selector,
     table_model::service::check_columns,
 };
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_language::domain::names::service::name_count;
 use ryo_relations::domain::relations::types::ColumnsView;
 use ryo_values::domain::plan_parts::types::ColumnIndex;

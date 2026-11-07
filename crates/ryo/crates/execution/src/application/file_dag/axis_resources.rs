@@ -13,7 +13,7 @@ use crate::domain::{
     table_model::service::check_columns,
     tree_walk::service::entity_of,
 };
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 
 #[derive(Clone, Copy)]

@@ -15,7 +15,7 @@ fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> R
         crate::domain::operator::contract::
         ryo_values::domain::rows::service::push_row,
     };
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 
     let mut table = Table {
         kinds: vec![CellKind::Number],

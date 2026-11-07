@@ -4,7 +4,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::contract::types::OperatorContract;
 
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use crate::domain::table_groups::types::Group;
 use crate::domain::table_texts::types::Texts;
 use ryo_derived::domain::contract::types::On;

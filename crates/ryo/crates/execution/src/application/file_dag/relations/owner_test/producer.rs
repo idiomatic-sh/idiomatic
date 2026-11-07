@@ -21,7 +21,7 @@ use {
     crate::domain::table_scratch::types::OperatorScratch,
     ryo_values::domain::files::types::SourceView,
 };
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 
 #[test]
 fn real_selector_producer_is_the_only_trusted_selection_path() {

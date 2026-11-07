@@ -15,7 +15,7 @@ use crate::domain::{
     operator::contract::
     table_model::types::Rows,
 };
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_relations::domain::{
     relations::{
         service::kinds,

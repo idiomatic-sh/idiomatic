@@ -10,7 +10,7 @@ use crate::domain::{
         types::{SelectedRows, StoredSelection},
     },
 };
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_relations::domain::relations::types::ColumnsView;
 use std::sync::Arc;
 pub(super) mod candidates;

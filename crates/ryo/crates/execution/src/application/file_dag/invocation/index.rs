@@ -6,7 +6,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::contract::types::OperatorContract;
 use crate::domain::operator::contract::views::{IndexedRows};
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
 use ryo_derived::domain::contract::types::KeyIndex;
 /// Owned immutable view handles stay in application; primitives borrow only the index.
 /// Whether an index over an empty input is skipped or still built.

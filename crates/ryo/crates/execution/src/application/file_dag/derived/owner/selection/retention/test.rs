@@ -134,7 +134,7 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
         stored_selection::types::SelectionIdentity,
         table_model::types::Verdict,
     };
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
     use ryo_relations::domain::relations::types::Value;
 
     struct AlwaysHolds;

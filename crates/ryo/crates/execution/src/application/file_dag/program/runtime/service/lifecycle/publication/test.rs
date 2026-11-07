@@ -7,7 +7,7 @@ use std::rc::Rc;
 fn publication_constructor_rejects_same_owner_proof_substitution_even_for_canonical_aliases() {
     use crate::application::file_dag::program::admission::{ProducerRoot, ReadProof};
 
-use crate::domain::table_model::types::representation_input::value::RepresentationInput as BorrowedRows;
+use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
     use ryo_values::domain::rows::types::{RowCount, Table};
     let CompiledCase { execution, roots } = compiled();
     let owner = Rc::clone(&execution.owner);
