@@ -1,231 +1,230 @@
 {
   "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
-  "scope": "Ownership consolidation checkpoint 321 (wave 3 and the benchmark branch merged, one compile, repair passes, lint step); not full product acceptance",
+  "scope": "Ownership consolidation checkpoint 322 (wave 4: benchmark reds, fold repair, leftovers, lineage repairs, harness repairs; one compile, repair passes, lint step); not full product acceptance",
   "checks": {
     "libraries": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "-p", "idiomatic-sh-ryo-core", "-p", "idiomatic-sh-ryo-sdk", "-p", "idiomatic-sh-ryo-values", "-p", "idiomatic-sh-ryo-query_language", "-p", "idiomatic-sh-ryo-operators", "-p", "idiomatic-sh-ryo-matching", "-p", "idiomatic-sh-ryo-derived", "--lib", "--no-fail-fast", "-p", "idiomatic-sh-ryo-benchmark", "--", "--test-threads=6"],
       "exit": 101,
-      "elapsed_seconds": 66.42150211334229
+      "elapsed_seconds": 92.85159158706665
     },
     "boundary": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "--test", "boundary_contract", "--", "--test-threads=6"],
       "exit": 101,
-      "elapsed_seconds": 507.37602400779724
+      "elapsed_seconds": 431.4938921928406
     },
     "project_boundary": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-core", "--test", "project_batch_boundary", "--", "--test-threads=6"],
       "exit": 0,
-      "elapsed_seconds": 36.98640584945679
+      "elapsed_seconds": 48.35809874534607
     },
     "activation": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "--test", "activation"],
       "exit": 0,
-      "elapsed_seconds": 1.8003120422363281
+      "elapsed_seconds": 13.186339616775513
     },
     "bdd": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "--test", "bdd"],
       "exit": 0,
-      "elapsed_seconds": 2.651642084121704
+      "elapsed_seconds": 25.76528263092041
     },
     "doctest": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "--doc"],
       "exit": 0,
-      "elapsed_seconds": 0.855400800704956
+      "elapsed_seconds": 0.8596217632293701
     },
     "ruff_sharing": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
-      "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-python", "--test", "ruff_sharing", "--", "--test-threads=6", "--skip", "every_strategy_unwired_answers_like_the_wired_engine"],
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
+      "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-python", "--test", "ruff_sharing", "--", "--test-threads=6", "--skip", "the_one_path_answers_the_django_canary_as_recorded"],
       "exit": 0,
-      "elapsed_seconds": 54.5976665019989
+      "elapsed_seconds": 56.007800579071045
+    },
+    "ruff_canary": {
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
+      "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-python", "--test", "ruff_sharing", "--", "the_one_path_answers_the_django_canary_as_recorded"],
+      "exit": 0,
+      "elapsed_seconds": 4114.246071815491
     },
     "ruff": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-python", "--test", "ruff", "--no-fail-fast", "--", "--test-threads=6"],
       "exit": 101,
-      "elapsed_seconds": 21.167140245437622
+      "elapsed_seconds": 33.712682247161865
+    },
+    "ruff_rule_phases": {
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
+      "command": ["python3", "-I", "crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py", "--self-test"],
+      "exit": 1,
+      "elapsed_seconds": 55.56916689872742
     },
     "core_bdd": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-core", "--test", "bdd"],
       "exit": 0,
-      "elapsed_seconds": 3.4252147674560547
+      "elapsed_seconds": 5.720906972885132
     },
     "core_allocation": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-core", "--test", "allocation"],
       "exit": 101,
-      "elapsed_seconds": 1.81718111038208
+      "elapsed_seconds": 1.8965036869049072
     },
     "execution_program_authority": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "--test", "executable_program_authority", "--test", "owner_resource_capabilities", "--test", "representation_capabilities", "--no-fail-fast", "--", "--test-threads=6"],
       "exit": 0,
-      "elapsed_seconds": 0.9948279857635498
+      "elapsed_seconds": 1.1055915355682373
     },
     "doctest_values": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-values", "--doc"],
       "exit": 0,
-      "elapsed_seconds": 1.9074287414550781
+      "elapsed_seconds": 2.1434993743896484
     },
     "doctest_core": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-core", "--doc"],
       "exit": 0,
-      "elapsed_seconds": 0.3736751079559326
+      "elapsed_seconds": 0.5827963352203369
     },
     "doctest_sdk": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-sdk", "--doc"],
       "exit": 0,
-      "elapsed_seconds": 20.28496026992798
+      "elapsed_seconds": 20.669456958770752
     },
     "doctest_derived": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-derived", "--doc"],
       "exit": 0,
-      "elapsed_seconds": 1.8624992370605469
+      "elapsed_seconds": 58.34518384933472
     },
     "tm_import_cli": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["cargo", "test", "--manifest-path", "crates/tastemaker/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "-p", "idiomatic-sh-tastemaker", "--no-default-features", "--features", "rust,toml", "--test", "replay", "imports::visibility_scopes_do_not_authorize_real_imports_types_or_calls", "--", "--exact"],
       "exit": 0,
-      "elapsed_seconds": 0.7329699993133545
+      "elapsed_seconds": 25.15878701210022
     },
     "tm_cli_source": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["tm", "--root", "crates/tastemaker", "check", "--fix", "cli/tests/replay/imports.rs", "--format", "json"],
       "exit": 0,
-      "elapsed_seconds": 0.39664697647094727
+      "elapsed_seconds": 341.31971883773804
     },
     "conformance": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-css", "-p", "idiomatic-sh-ryo-go", "-p", "idiomatic-sh-ryo-html", "-p", "idiomatic-sh-ryo-javascript", "-p", "idiomatic-sh-ryo-json", "-p", "idiomatic-sh-ryo-markdown", "-p", "idiomatic-sh-ryo-python", "-p", "idiomatic-sh-ryo-rust", "-p", "idiomatic-sh-ryo-toml", "-p", "idiomatic-sh-ryo-typescript", "--test", "conformance", "--no-fail-fast"],
       "exit": 0,
-      "elapsed_seconds": 195.00667071342468
+      "elapsed_seconds": 193.93896293640137
     },
     "cli_tests": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo", "--test", "replay", "--test", "blocks", "--test", "call_count", "--test", "command_line", "--test", "command_tree", "--test", "readme", "--no-fail-fast", "--", "--skip", "cost::"],
       "exit": 101,
-      "elapsed_seconds": 1147.4013566970825
+      "elapsed_seconds": 1218.2479929924011
     },
     "cli_cost": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo", "--test", "replay", "cost::", "--", "--test-threads=1", "--nocapture"],
       "exit": 101,
-      "elapsed_seconds": 35.08245801925659
+      "elapsed_seconds": 37.91598439216614
     },
     "bench_build": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["cargo", "bench", "--no-run", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo", "--bench", "lint", "-p", "idiomatic-sh-ryo-core", "--benches"],
       "exit": 0,
-      "elapsed_seconds": 116.68327021598816
+      "elapsed_seconds": 122.8252489566803
     },
     "no_print": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["cargo", "clippy", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-benchmark-guards/target", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "-p", "idiomatic-sh-ryo-core", "--lib", "--no-deps", "--", "-A", "clippy::all", "-A", "clippy::pedantic", "-A", "clippy::nursery", "-A", "clippy::restriction", "-A", "clippy::cargo", "-A", "dead_code", "-A", "unused", "-D", "clippy::print_stderr", "-D", "clippy::print_stdout"],
       "exit": 0,
-      "elapsed_seconds": 6.068734407424927
+      "elapsed_seconds": 16.45964026451111
     },
     "tm_source": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["tm", "--root", "crates/ryo", "check", "crates/execution/src/application/file_dag/program", "crates/execution/src/application/file_dag/invocation", "crates/execution/src/application/file_dag/derived", "crates/execution/src/domain/shared_walk", "crates/execution/tests/shared_walk", "crates/execution/src/domain/executable_program", "crates/execution/src/domain/step_classes", "crates/execution/src/domain/completion", "crates/execution/src/domain/coverage", "crates/execution/src/domain/frontiers", "crates/execution/src/application/file_dag/frontiers", "crates/core/src/application/file_analysis", "crates/core/src/inbound/use_cases/lint", "crates/core/src/domain/storing", "crates/core/src/outbound/lint_store", "crates/execution/src/domain/trust", "--format", "json"],
-      "exit": 1,
-      "elapsed_seconds": 16.613791942596436,
-      "findings": {
-        "total": 250,
-        "suppressed": 0,
-        "production": 177,
-        "test": 73,
-        "by_directory": {
-          "crates/execution/src/application/file_dag/program": {"production": 12, "test": 27},
-          "crates/execution/src/application/file_dag/invocation": {"production": 0, "test": 0},
-          "crates/execution/src/application/file_dag/derived": {"production": 23, "test": 0},
-          "crates/execution/src/domain/shared_walk": {"production": 0, "test": 6},
-          "crates/execution/tests/shared_walk": {"production": 0, "test": 8},
-          "crates/execution/src/domain/executable_program": {"production": 67, "test": 0},
-          "crates/execution/src/domain/step_classes": {"production": 0, "test": 1},
-          "crates/execution/src/domain/completion": {"production": 5, "test": 10},
-          "crates/execution/src/domain/coverage": {"production": 5, "test": 7},
-          "crates/execution/src/domain/frontiers": {"production": 0, "test": 0},
-          "crates/execution/src/application/file_dag/frontiers": {"production": 0, "test": 0},
-          "crates/core/src/application/file_analysis": {"production": 3, "test": 1},
-          "crates/core/src/inbound/use_cases/lint": {"production": 12, "test": 2},
-          "crates/core/src/domain/storing": {"production": 1, "test": 1},
-          "crates/core/src/outbound/lint_store": {"production": 47, "test": 10},
-          "crates/execution/src/domain/trust": {"production": 2, "test": 0}
-        }
-      }
+      "exit": 0,
+      "elapsed_seconds": 18.416112661361694
     },
     "tm_guards": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["tm", "--root", "crates/ryo", "validate", "rule/program-implementation-boundary", "rule/shared-walk-owner", "rule/collection-members", "rule/runtime-authority", "template/value", "template/value-module", "template/value-test", "--format", "json"],
       "exit": 0,
-      "elapsed_seconds": 0.033350229263305664
+      "elapsed_seconds": 0.043209075927734375
     },
     "ownership_edges": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["ryo", "query", "run", "--root", "crates/ryo", "--text", "let nodes = select id, kind, file, span from \"syntax-tree\" where text = \"\" and glob_any(file, \"crates/execution/src/**\");\nlet paths = select * from nodes where kind = \"path\";\nlet visibility = select * from nodes where kind = \"visibility\";\nlet nested = axis(from=visibility, relation=\"syntax-child\", direction=descendant, domain=paths);\nlet restricted = select r.file as source, r.span as span from nested as l join paths as r on l.related = r.id;\nlet declared = select source, target, written, span from \"source-dependency\" where glob_any(source, \"crates/execution/src/**\");\nlet dependencies = antijoin(left=declared, right=restricted, left-on=[\"source\",\"span\"], right-on=[\"source\",\"span\"]);\nemit dependencies subject source key(source,target,written,span);\n", "--limit", "100000", "--format", "json"],
       "exit": 0,
-      "elapsed_seconds": 0.9452271461486816
+      "elapsed_seconds": 1.1865229606628418
     },
     "harness_hooks": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["sh", "-c", "cd .claude/hooks && python3 -I -m unittest -v"],
       "exit": 0,
-      "elapsed_seconds": 1.1176016330718994
+      "elapsed_seconds": 1.1933069229125977
     },
     "tm_validate_no_heap_accounting": {
-      "source": "da1fe3eff3391b57d11353bf7aff6465b810d422",
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
       "command": ["tm", "validate", "rule/no-heap-accounting@0.2.0", "spec/idiomatic-rust@0.1.2", "--format", "json"],
       "exit": 0,
-      "elapsed_seconds": 0.03801226615905762
+      "elapsed_seconds": 0.11557126045227051
+    },
+    "checkpoint_check": {
+      "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
+      "command": ["python3", "-I", "crates/ryo/docs/contracts/evidence/checkpoint/run_test.py", "-v"],
+      "exit": 0,
+      "elapsed_seconds": 0.04293060302734375
     }
   },
   "results": {
     "execution_library": {
-      "passed": 479,
-      "failed": 5,
-      "note": "compiled_parity succeeds/refuses (\"the target must execute its registered operator\"), use_case_test::axis_graph (0 against 1) and domain::operator::service_test (the census reads contract/axis.rs and contract/join.rs as kind modules): the kernel fold, the kernel consolidation row; output_coverage::service_test (the lineage row answers WrongOperation where Anywhere is expected): per-column lineage, the per-column lineage row"
+      "passed": 486,
+      "failed": 0,
+      "note": "every row of every table ran (collected runners); the five 321 reds pass (compiled parity, axis graph, operator census, output_coverage lineage)"
     },
     "core_library": {
-      "passed": 119,
-      "failed": 2,
-      "note": "lint::use_case_test::succeeds (a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store: frontier source proof refused, as at 320), the store replay row of review repairs V; cross_file::service_test::succeeds (population_test and root_set_test expect rule 0 to report one unknown and it reports none: the skipped syntax-rejected file is no longer Unknown), the six-rule unknowns row"
+      "passed": 120,
+      "failed": 1,
+      "note": "lint::use_case_test::succeeds, one red row a_removed_file_leaves_no_unknown_or_skip_behind_in_any_store: the narrow instrumented run (narrow-removed_file-instrumented.log) shows the red call is the row's oracle run over the discard store (a.rs and c.rs), whose project phase receives an empty bucket (0 sources) for two required files; hand_words_again and remap_packed are not on that path; the store replay row; the two cross_file rows of 321 pass"
     },
     "benchmark_library": {
-      "passed": 216,
-      "failed": 5,
-      "note": "rule_context::service_test (disabled pairs 1 where 3 is expected), validate_case_receipts refuses (a receipt lacks the field authority), verify_cases process_capture/process_identity/process_orchestration (the registrations fixture reads no JSON): the benchmark branch, the benchmark TM row"
+      "passed": 221,
+      "failed": 1,
+      "note": "verify_cases process_capture succeeds, one red row (a metadata failure preserves the process bytes and cannot be admitted): the failure text carries the raw process identity error (entity not found) where the row expects the bare operational failure, the benchmark TM row"
     },
     "sdk_passed": 29,
-    "other_libraries_passed": 221,
-    "libraries_total": {"passed": 1064, "failed": 12},
+    "other_libraries_passed": 222,
+    "libraries_total": {"passed": 1078, "failed": 2},
     "execution_boundary": {
-      "passed": 96,
-      "failed": 7,
-      "note": "the five project_phase::restoration::partition rows (test.rs:353, [None]: per-column lineage does not yet anchor them, the per-column lineage row); shared_walk::compact::selected_frontiers selected_join_shares_work_preserves_counts_and_exports_owned_frontiers (a stored-selection backing count of the deleted selection family, the kernel consolidation row); source_boundary actual_runtime_authority_is_private_to_its_owner (three probes named deleted or test-only fields: the probes were corrected after the run and not run again with a raw log, so the row is red at validation321)"
+      "passed": 101,
+      "failed": 2,
+      "note": "source_boundary::derived::census (inbound/use_cases/prepare/use_case.rs names the derived port DerivedPort since the digest is threaded through the prepare use case: the join leftovers row); source_boundary::activation::test::rejects (the open_file mutant no longer compiles: E0599, open_file is sealed under fixtures; the probe must certify a runtime mutant: the join leftovers row); the five partition rows and selected_frontiers of 321 pass"
     },
     "activation": {"passed": 10, "failed": 0},
-    "bdd": {"scenarios": 2, "failed": 0},
-    "core_bdd": {"scenarios": 17, "failed": 0},
+    "bdd": {"scenarios": 7, "failed": 0},
+    "core_bdd": {"scenarios": 18, "failed": 0},
     "core_project_boundary": {"passed": 1, "failed": 0},
-    "ruff_sharing": {
-      "passed": 0,
-      "failed": 2,
-      "note": "the_one_path_answers_the_django_canary_as_recorded: N999 over Django answers 110 diagnostics where the checkpoint recorded 112 (the one path changes output), the kernel consolidation row; sharing::test::succeeds: duplicate request census, the kernel consolidation row"
+    "ruff_sharing": {"passed": 1, "failed": 0, "note": "sharing::test::succeeds without the canary in its process"},
+    "ruff_canary": {
+      "passed": 1,
+      "failed": 0,
+      "note": "the_one_path_answers_the_django_canary_as_recorded alone: 112 = 110 N999 + 2 invalid-syntax, as recorded"
     },
     "ruff": {
-      "passed": 10,
-      "failed": 2,
-      "note": "engine_test::succeeds (rejected_syntax_test: I001 answers the valid file 0 where Ruff answers 1, per-column lineage, the per-column lineage row); engine_test::project_context::succeeds (ListedDisk has an active receipt, the benchmark TM row)"
+      "passed": 11,
+      "failed": 1,
+      "note": "engine_test::succeeds, two red rows collected: a_rejected_file_leaves_i001_plw0406_and_ruf100_answering_the_valid_file (I001 answers the valid file 0 where Ruff answers 1; what it could not decide: [] so I001 answers no finding, not Unknown) and i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory (the valid file keeps its I001 answer: 0 against 1), the per-column lineage row; project_context passes"
+    },
+    "ruff_rule_phases": {
+      "exit": 1,
+      "note": "registry and base-profile guards and the native standalone guards pass; the staging guard exits 1 (durable verifier output or identities were not preserved), red at 321 too, the benchmark TM row"
     },
     "execution_program_authority": {"passed": 9, "failed": 0},
     "doctests": {
@@ -240,25 +239,30 @@
     "tm_cli_source_findings": 0,
     "tm_guards": "pass",
     "core_allocation": {"exit": 101, "phase": 7},
-    "cli_replay": {"passed": 95, "failed": 3},
+    "cli_replay": {"passed": 75, "failed": 3},
     "cli_replay_reds": ["behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows", "cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store", "peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound"],
-    "cli_replay_note": "feed: 20 features fed fewer than 1,000 rows (first NaturalLessThan 0), the coverage missing-kinds row; cache: the store of ruff 78,525,063 bytes against 75,000,000, the coverage missing-kinds row; warm peak 113,983,488 bytes against 100,000,000: walk C retains packed words to scope end, the walk extension C row. The two behaviour reds of 320 pass.",
+    "cli_replay_note": "feed: 3 features fed fewer than 1,000 rows (operation:Closure, Cycles, Scope: the graph drivers record no WorkCounters::found, the fold area); cache: the store of ruff 78,525,063 bytes against 75,000,000 = tables 5,840,171 + rest 34,393,894 (texts 18,752,067, proofs 8,800,035, notes 6,841,785) + 38 bucket sections 38,290,563 (narrow-cache_size-per_table.log), the coverage missing-kinds row; warm peak 114,180,096 bytes against 100,000,000 with the packed words released after decode: the walk extension C row",
     "cli_cost": {
       "passed": 4,
       "failed": 3,
-      "note": "the ruff rows of the ratchet still hold placeholder bests (cold, warm/edit, peak), the perf ratchet seed"
+      "note": "the ruff rows of the ratchet still hold placeholder bests (cold, warm/edit, peak): perf 321 pending"
     },
     "cli_other_targets": "blocks (dhat run, no panic), call_count 1/1, command_line 7/7, command_tree 11/11, readme 1/1",
     "conformance": {"targets": 10, "exit": 0},
-    "harness_hooks": {"passed": 15, "failed": 0}
+    "harness_hooks": {
+      "passed": 15,
+      "failed": 0,
+      "note": "27 / 0 after the hook branches merged on 6e8b1a8c88 (harness_hooks-rerun-6e8b1a8c88.log)"
+    },
+    "checkpoint_check": {"passed": 9, "failed": 0}
   },
   "ownership_graph": {
-    "source": "4f0a08dd7db4a49a5328e093665e6db6669e364b",
+    "source": "05d5c56a83e3c0a31ee16e170260da2ee9607476",
     "raw": "ownership_edges.log (kept outside the repository)",
-    "occurrences": 6853,
+    "occurrences": 6877,
     "targeted_cycles": [],
     "other_cycles": 0,
-    "note": "file-level strongly connected components of the ownership edges, computed from ownership_edges.log of validation321: 0 (1 at 320)"
+    "note": "file-level strongly connected components of the ownership edges, computed from ownership_edges.log of validation322: 0 (0 at 321)"
   },
   "evidence_reuse": [],
   "review": "../../audits/2026-11-06-derived/ownership/checkpoint.json",
@@ -267,14 +271,14 @@
   "raw_identity": "/tmp/ryo-contract-validation322-20261107",
   "tm_whole_tree": {
     "command": "tm --root crates/ryo check --format json (no --fix; git status unchanged)",
-    "total": 34,
+    "total": 24,
     "suppressed": 6,
-    "status": "measured whole-tree state at checkpoint 321; not a baseline and not a waiver",
+    "status": "measured whole-tree state at checkpoint 322; not a baseline and not a waiver",
     "at_checkpoint_319": 2762,
     "at_checkpoint_318": 3676,
     "at_checkpoint_317": 4251,
     "at_checkpoint_316": 8060,
-    "per_crate": {"crates/execution": 29, "languages/python": 5},
+    "per_crate": {"crates/execution": 24},
     "per_crate_at_319": {
       "crates/execution": 1157,
       "crates/benchmark": 933,
@@ -301,15 +305,10 @@
     },
     "module_cycles_findings": 0,
     "no_domain_concept_cycles_findings": 24,
-    "tm_validate": "crates/ryo: 233 versions hold, 0 do not; repository root: 217 hold, 0 do not",
+    "tm_validate": "crates/ryo: 234 versions hold, 0 do not; repository root: 217 hold, 0 do not",
     "unknown_findings": 0,
     "at_checkpoint_320": 1223,
-    "owned": {
-      "no-domain-concept-cycles (execution) 24": "the domain concept cycle row",
-      "import-directions 2 + layer-matrix 2 (execution outbound/publication adapter)": "the core pipeline row",
-      "use-case-module#template 1 (execution use case fixtures)": "the join leftovers row",
-      "io-at-boundary 5 (ruff host.rs)": "the benchmark TM row"
-    },
+    "owned": {"no-domain-concept-cycles (execution) 24": "the domain concept cycle row"},
     "per_crate_at_320": {
       "crates/benchmark": 927,
       "crates/benchmark_contracts": 127,
@@ -320,7 +319,8 @@
       "crates/relations": 2,
       "crates/derived": 1,
       "crates/values": 1
-    }
+    },
+    "at_checkpoint_321": 34
   },
   "tm_targets": {
     "tm_cli_source": {
