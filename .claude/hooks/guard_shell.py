@@ -14,7 +14,7 @@ FIXTURE_FIX = "cli/tests/replay/imports.rs"
 CARGO_BUILDS = {"build", "test", "bench", "clippy", "run", "check", "doc"}
 INTEGRATION = re.compile(r"claude/(checkpoint-\d+|ryo-consolidation)")
 MEASUREMENT = "/workspaces/ryo-perf-"
-CHECK_FORM = "cargo check -p <crate> --target-dir " + CHECK_TARGET
+CHECK_FORM = ("cargo check -p <crate> --target-dir " + CHECK_TARGET + " or --target-dir " + CHECK_TARGET + "/<worktree name>")
 BUILDERS_AUTHOR = ("Builders author; the integrator compiles. cargo builds only in an integration worktree "
                    "(branch claude/checkpoint-N); builders may run " + CHECK_FORM)
 COMMENT = re.compile(r"(^|\s)#.*$", re.MULTILINE)
@@ -129,6 +129,14 @@ def target_dir(rest):
     return None
 
 
+def is_check_target(target):
+    """The check dir itself or one path component under it."""
+    if target == CHECK_TARGET:
+        return True
+    name = (target or "")[len(CHECK_TARGET) + 1:] if (target or "").startswith(CHECK_TARGET + "/") else ""
+    return name not in ("", ".", "..") and "/" not in name
+
+
 def cargo_rules(words, before):
     at = cargo_index(words)
     if at is None:
@@ -136,9 +144,9 @@ def cargo_rules(words, before):
     rest = [w for w in words[at + 1:] if not w.startswith("+")]
     sub = next((w for w in rest if not w.startswith("-")), "")
     target = target_dir(rest)
-    checking = sub == "check" and target == CHECK_TARGET
+    checking = sub == "check" and is_check_target(target)
     if target is not None and target != TARGET and not checking:
-        return "cargo --target-dir must be " + TARGET + " (or " + CHECK_TARGET + " for cargo check)"
+        return "cargo --target-dir must be " + TARGET + " (or " + CHECK_TARGET + " or " + CHECK_TARGET + "/<worktree name> for cargo check)"
     if sub in CARGO_BUILDS and not checking and LOCK not in " ".join(words[:at]) and LOCK not in before:
         return "cargo " + sub + " must run as: flock " + LOCK + " cargo " + sub
     return None
@@ -160,7 +168,7 @@ def builder_check(words, here):
     rest = [w for w in words[at + 1:] if not w.startswith("+")]
     if next((w for w in rest if not w.startswith("-")), "") != "check":
         return BUILDERS_AUTHOR
-    if target_dir(rest) != CHECK_TARGET:
+    if not is_check_target(target_dir(rest)):
         return "cargo check outside an integration tree must run as: " + CHECK_FORM
     if any(w in ("--workspace", "--all") for w in rest):
         return "a workspace-wide cargo check is the integrator's; run: " + CHECK_FORM

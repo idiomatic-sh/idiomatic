@@ -91,6 +91,17 @@ class GuardShell(unittest.TestCase):
                 self.assertEqual(result.returncode, 2)
                 self.assertIn("cargo check -p <crate> --target-dir /workspaces/idiomatic-check-target", result.stderr)
 
+    def test_builder_check_per_worktree_target_passes(self):
+        self.assertEqual(shell("cargo check -p x --target-dir /workspaces/idiomatic-check-target/ryo-w5", self.builder), 0)
+
+    def test_builder_check_two_component_target_is_refused(self):
+        for target in ["a/b", "", "..", "a/"]:
+            with self.subTest(target=target):
+                command = "cargo check -p x --target-dir /workspaces/idiomatic-check-target/" + target
+                result = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.builder})
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("/workspaces/idiomatic-check-target/<worktree name>", result.stderr)
+
     def test_builder_workspace_wide_check_is_refused(self):
         for command in ["cargo check" + CHECK, "cargo check --workspace -p x" + CHECK, "cargo check --all" + CHECK,
                         "cargo check --manifest-path Cargo.toml" + CHECK, "cargo check --manifest-path nope/Cargo.toml" + CHECK]:
