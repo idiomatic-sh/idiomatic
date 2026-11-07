@@ -130,7 +130,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("relation_coverage_names_the_kind_a_partial_lacks"),
         word: Word::Succeeds,
-        input: relation_coverage_keeps_the_kind_a_partial_lacks_and_any_row_otherwise,
+        input: || relation_coverage_keeps_the_kind_a_partial_lacks_and_any_row_otherwise,
         expect: Expect::Value(()),
     },
     Case {
