@@ -6,6 +6,12 @@
         "hooks": [
           { "type": "command", "command": "python3 -I \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard_shell.py" }
         ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          { "type": "command", "command": "python3 -I \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/no_subagent_builders.py" }
+        ]
       }
     ],
     "SubagentStop": [

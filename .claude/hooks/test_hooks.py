@@ -1,4 +1,4 @@
-"""Tests for the guard_shell and acceptance_on_stop hooks, run with `python3 -I -m unittest`."""
+"""Tests for the guard_shell, acceptance_on_stop and no_subagent_builders hooks, run with `python3 -I -m unittest`."""
 
 import json
 import os
@@ -296,6 +296,30 @@ class Acceptance(unittest.TestCase):
         self.fake_bd("false")
         codes = [self.stop(self.brief(), "DONE: x").returncode for _ in range(5)]
         self.assertEqual(codes, [2, 2, 2, 2, 0])
+
+
+class NoSubagentBuilders(unittest.TestCase):
+    SUB = "/home/u/.claude/projects/p/s1/subagents/agent-a1.jsonl"
+    MAIN = "/home/u/.claude/projects/p/s1.jsonl"
+
+    def spawn(self, tool, path):
+        return run_hook("no_subagent_builders.py", {"tool_name": tool, "tool_input": {}, "transcript_path": path})
+
+    def test_refused_from_subagent(self):
+        result = self.spawn("Agent", self.SUB)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("Blocked: a builder never spawns subagents", result.stderr)
+
+    def test_allowed_from_main_session(self):
+        self.assertEqual(self.spawn("Agent", self.MAIN).returncode, 0)
+
+    def test_allowed_for_other_tool(self):
+        self.assertEqual(self.spawn("Bash", self.SUB).returncode, 0)
+
+    def test_allowed_on_malformed_input(self):
+        result = subprocess.run(["python3", "-I", os.path.join(HERE, "no_subagent_builders.py")],
+                                input="not json", capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0)
 
 
 if __name__ == "__main__":
