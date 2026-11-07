@@ -1,7 +1,7 @@
 # Engine consolidation review
 
 Reviewer brief for the integration branch `claude/ryo-consolidation`, which
-carries the engine consolidation (epic ryo-9ukc) toward the phases in
+carries the engine consolidation toward the phases in
 [the matrix](../README.md). One phase is active at a time; integration is never
 red except for the known-red list below.
 
@@ -54,10 +54,10 @@ enforcement. See "Adversarial pass" and "Architectural enforcement" there.
 ## Known red
 
 - `core_allocation` (core `allocation` test, exit 101, about 1,880 blocks per
-  file): a Phase 7 measurement, bead ryo-l3mj.
+  file): a Phase 7 measurement.
 - Python `ruff` target, Phase 1: 11 passed / 1 failed,
   `i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory`
-  (the syntax-poisoning case), bead ryo-xqxb.
+  (the syntax-poisoning case).
 
 ## Verification limits
 
@@ -69,7 +69,7 @@ checkpoint 317; "not full product acceptance"):
   derived-scope bare integers/bool).
 - No new performance measurement; the benchmark harness is not part of the set.
 - Cli replay/blocks/lint tests and the core performance bench do not compile
-  (bead ryo-4i09).
+  (a known repair).
 
 Links: [matrix](../README.md), [execution plan](../execution-plan.md),
 [reviewer instructions](../../../../../.agents/agents/contract-review.md).
