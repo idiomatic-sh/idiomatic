@@ -6,7 +6,6 @@ use super::super::types::{Course, FileVisit, RequestVisitSetting, StreamRun, Str
 use crate::domain::choosing::service::chosen;
 use crate::domain::ordering::service::{PENDING_LIMIT, admitted, offer, sort_findings};
 use crate::domain::ordering::types::{Admittance, Ordered, Turn};
-use crate::domain::project::types::Projected;
 use crate::domain::render::constants::{
     column_heading, columns_heading, key_heading, line_heading, path_heading, rule_heading,
 };
@@ -17,8 +16,7 @@ use crate::domain::reporting::types::RowCounts;
 use crate::domain::repository::service::paths_of;
 use crate::domain::storing::types::ReadAlone;
 use crate::domain::workers::service::{absorb, gathering, size_at, tables_for};
-use crate::domain::workers::types::{FileOrder, ProjectHandle, Visited};
-use crate::outbound::language::types::ProjectToRead;
+use crate::domain::workers::types::{FileOrder, Visited};
 use crate::outbound::row_sink::interface::RowSinkPort;
 use crate::outbound::row_sink::types::{AnswerCounts, LentCell};
 use crate::outbound::scheduler::errors::SchedulerError;
@@ -36,15 +34,15 @@ use std::sync::{Arc, Condvar, Mutex, PoisonError};
 /// The visits of a run's files: the analysis of one file, the workers it runs in, and where their findings go.
 pub(crate) struct FileVisits {
     /// Reads, parses and evaluates one file in the worker that took its job.
-    analysis: FileAnalysis,
+    pub(in crate::application::file_analysis) analysis: FileAnalysis,
     /// Holds each worker's rows of a file and keeps the words the cross-file steps read.
-    facts: Arc<dyn FactsPort>,
+    pub(in crate::application::file_analysis) facts: Arc<dyn FactsPort>,
     /// Runs the files' jobs on the workers.
-    scheduler: Arc<dyn SchedulerPort>,
+    pub(in crate::application::file_analysis) scheduler: Arc<dyn SchedulerPort>,
     /// How many workers the scheduler runs jobs on: the run makes one worker for each.
-    workers: WorkerCount,
+    pub(in crate::application::file_analysis) workers: WorkerCount,
     /// Takes the findings the rules write.
-    rows: Arc<dyn RowSinkPort>,
+    pub(in crate::application::file_analysis) rows: Arc<dyn RowSinkPort>,
 }
 
 impl std::fmt::Debug for FileVisits {
@@ -78,19 +76,21 @@ impl FileVisits {
     }
 
     /// Reads each file once, whatever the rules read of it, and lets the workers meet. Every worker owns its buffers and its
-    /// tables, so no job takes a lock; what the workers kept meets once, after the jobs.
+    /// tables, so no job takes a lock; what the workers kept meets once, after the jobs. The outer refusal is the scheduler's, the
+    /// inner one the visits'.
     pub(crate) fn visited(
         &self,
         run: &StreamRun<'_>,
         visit: &FileVisit<'_>,
-    ) -> Result<Visited<Box<dyn FactsWorker>>, FileAnalysisError> {
+    ) -> Result<Result<Visited<Box<dyn FactsWorker>>, FileAnalysisError>, SchedulerError> {
         let _reading = tracing::info_span!("read").entered();
         let mut states = Vec::new();
         for number in 0..self.workers.0 {
-            states.push(Worker::new(
-                tables_for(WorkerNumber(number), run.metadata),
-                self.facts.worker()?,
-            ));
+            let facts = match self.facts.worker() {
+                Ok(facts) => facts,
+                Err(error) => return Ok(Err(error.into())),
+            };
+            states.push(Worker::new(tables_for(WorkerNumber(number), run.metadata), facts));
         }
         let (mut headings, limit) = match run.answering {
             Answering::Findings => (
@@ -135,7 +135,7 @@ impl FileVisits {
         let mut workers = Vec::new();
         for state in states {
             if let Some(error) = state.failure {
-                return Err(error);
+                return Ok(Err(error));
             }
             workers.push(state.facts);
             absorb(&mut met, state.tables);
@@ -151,12 +151,12 @@ impl FileVisits {
                     .total
             }
         };
-        Ok(Visited {
+        Ok(Ok(Visited {
             workers,
             met,
             counted,
             total,
-        })
+        }))
     }
 
     /// The job of one file: wait to be admitted, visit the file, and write its findings when it is the file's turn, or when the
@@ -328,29 +328,5 @@ impl FileVisits {
             unknowns: worker.tables.unknowns,
             skipped: worker.tables.skipped,
         })
-    }
-
-    /// What the project writes now, made from its manifests and the notes the files left, on the scheduler's pool, the one the edge
-    /// built: whatever parallel work a language does inside it runs on that pool's workers, never on a pool of its own.
-    pub(crate) fn projected(
-        &self,
-        input: &ProjectToRead<'_>,
-        project: &mut ProjectHandle<Box<dyn FactsWorker>>,
-    ) -> Result<Projected, FileAnalysisError> {
-        let mut projected = None;
-        {
-            let analysis = &self.analysis;
-            let made = &mut projected;
-            let mut job: Box<dyn FnMut(JobNumber) + Send + '_> = Box::new(move |_| {
-                *made = Some(analysis.project_now(
-                    input,
-                    &mut project.symbols,
-                    &mut *project.facts,
-                ));
-            });
-            self.scheduler
-                .run(std::slice::from_mut(&mut job), JobCount(1))?;
-        }
-        projected.ok_or(FileAnalysisError::from(SchedulerError::NoWorkers))?
     }
 }

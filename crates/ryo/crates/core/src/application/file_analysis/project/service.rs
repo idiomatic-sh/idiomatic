@@ -19,6 +19,13 @@ use ryo_values::domain::stored_facts::types::ReadInPart;
 use ryo_values::domain::stores::types::StoredFile;
 use super::super::errors::FileAnalysisError;
 use super::super::service::FileAnalysis;
+use super::super::streaming::service::FileVisits;
+use super::super::types::ProjectMaking;
+use crate::domain::workers::service::note_slots;
+use crate::domain::workers::types::{FileTotal, FreshNotes, ProjectHandle};
+use crate::outbound::language::types::{ManifestReading, ProjectNotes};
+use crate::outbound::scheduler::errors::SchedulerError;
+use crate::outbound::scheduler::types::{JobCount, JobNumber};
 
 impl FileAnalysis {
     /// Reads primary inventoried manifests once before project preparation, retaining genuine read failures.
@@ -144,5 +151,86 @@ impl FileAnalysis {
             });
         }
         Ok(())
+    }
+}
+
+impl FileVisits {
+    /// The project made now on the scheduler's pool, and what the rules that read it could not decide for its partly read
+    /// relations: a primary manifest that could not be read is not a complete empty project. The outer refusal is the scheduler's,
+    /// the inner one the project's.
+    pub(crate) fn project(
+        &self,
+        run: &ProjectMaking<'_>,
+        project: &mut ProjectHandle<Box<dyn FactsWorker>>,
+        notes: &mut FreshNotes,
+    ) -> Result<Result<Projected, FileAnalysisError>, SchedulerError> {
+        // What the languages wrote of each file this run read, in the order of the files: every file is read when the project is made.
+        let notes = ProjectNotes(note_slots(notes, FileTotal(run.files.len())));
+        let input = ProjectToRead {
+            root: &run.session.root,
+            repository: run.session.repository,
+            search_scope: &run.session.search_scope,
+            given_inventory: &run.session.given_inventory,
+            observed_entries: &Default::default(),
+            manifests: run.manifests,
+            files: run.files,
+            notes: &notes,
+            wanted: run.wanted,
+        };
+        let mut now = match self.projected(&input, project)? {
+            Ok(now) => now,
+            Err(error) => return Ok(Err(error)),
+        };
+        // This affects project facts, not the disk-failure diagnosis of unrelated files.
+        for input in run.files {
+            let detail = match input {
+                CorpusInput::ReadFailed { reason, .. } | CorpusInput::Unreadable { reason, .. }
+                    if self.analysis.language.reads_manifest(input_path(input)) == ManifestReading::Read =>
+                {
+                    reason
+                }
+                _ => continue,
+            };
+            now.partials
+                .extend(crate::domain::project::service::unread_manifest_partials(
+                    run.wanted,
+                    input_path(input),
+                    detail,
+                ));
+        }
+        // The files the rows of the project are about: those the run lists, then the manifests it does not.
+        let named: Vec<FilePath> = run
+            .files
+            .iter()
+            .map(|file| input_path(file).clone())
+            .chain(now.unlisted.iter().cloned())
+            .collect();
+        now.unknowns = MetadataUseCaseImpl.project_unknowns(&now.partials, &named, run.needs, run.ids);
+        Ok(Ok(now))
+    }
+
+    /// What the project writes now, made from its manifests and the notes the files left, on the scheduler's pool, the one the edge
+    /// built: whatever parallel work a language does inside it runs on that pool's workers, never on a pool of its own. The outer
+    /// refusal is the scheduler's, the inner one the project's.
+    fn projected(
+        &self,
+        input: &ProjectToRead<'_>,
+        project: &mut ProjectHandle<Box<dyn FactsWorker>>,
+    ) -> Result<Result<Projected, FileAnalysisError>, SchedulerError> {
+        let mut projected = None;
+        {
+            let analysis = &self.analysis;
+            let made = &mut projected;
+            let mut job: Box<dyn FnMut(JobNumber) + Send + '_> = Box::new(move |_| {
+                *made = Some(analysis.project_now(
+                    input,
+                    &mut project.symbols,
+                    &mut *project.facts,
+                ));
+            });
+            self.scheduler
+                .run(std::slice::from_mut(&mut job), JobCount(1))?;
+        }
+        projected.ok_or(SchedulerError::NoWorkers)
     }
 }

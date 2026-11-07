@@ -5,6 +5,7 @@ pub(crate) mod errors;
 #[cfg(test)]
 mod fixtures;
 pub(crate) mod ordinary;
+pub(crate) mod phase;
 pub(crate) mod preparation;
 pub(crate) mod publication;
 #[cfg(test)]

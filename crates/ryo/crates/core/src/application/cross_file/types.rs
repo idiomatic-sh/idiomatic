@@ -116,3 +116,65 @@ pub(crate) struct OrdinaryOutcome {
     /// The symbols the phase named.
     pub symbols: Symbols,
 }
+
+/// What the cross-file phase of a run reads of it: what the store kept and what the run uses again of it, the rules, the files, the
+/// request's program and execution, and the budget each rule is made within.
+pub(crate) struct PhaseRun<'a> {
+    /// What the run uses again of what the last kept.
+    pub again: &'a ryo_values::domain::stores::types::Reuse,
+    /// What the last run of this build kept.
+    pub stored: &'a ryo_values::domain::stores::types::Stored,
+    /// The rules' ids.
+    pub ids: &'a [ryo_values::domain::runs::types::RuleId],
+    /// The files whose stored rows are theirs no more.
+    pub read_again: &'a [ryo_language::domain::files::types::FilePath],
+    /// What the rules could not decide in the changed files read alone before the run.
+    pub alone: &'a [ryo_execution::inbound::use_cases::metadata::interface::Unknown],
+    /// Pure rule facts retained for source demand, frontier and work accounting.
+    pub metadata: &'a [ryo_values::domain::run_metadata::types::RuleRunMetadata],
+    /// What each rule needs of the files.
+    pub needs: &'a [ryo_execution::inbound::use_cases::metadata::interface::Needs],
+    /// Which rule governs which file.
+    pub placed: &'a ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes,
+    /// The path of each file, by file number.
+    pub paths: &'a [ryo_language::domain::files::types::FilePath],
+    /// The files, in the order of their paths.
+    pub files: &'a [ryo_values::domain::files::types::CorpusInput],
+    /// How the rows the rules emit are answered.
+    pub answering: &'a crate::domain::render::types::Answering,
+    /// The one prepared executable program shared by all scopes in this request.
+    pub program: &'a Arc<PreparedExecutionProgram>,
+    /// The request's execution capabilities.
+    pub services: &'a RequestExecution,
+    /// The first bucket of each rule's frontier.
+    pub first_bucket: &'a [Bucket],
+    /// The most memory the run may hold.
+    pub budget: ryo_values::domain::runs::types::MemoryBytes,
+}
+
+/// The ports the cross-file phase finishes the facts with, names the languages' reasons by and is guarded by.
+#[derive(Clone, Copy)]
+pub(crate) struct PhasePorts<'a> {
+    /// Finishes the words the files handed the cross-file steps.
+    pub facts: &'a dyn ryo_execution::outbound::facts::interface::FactsPort,
+    /// Names the reasons of the linked languages.
+    pub language: &'a dyn crate::outbound::language::interface::LanguagePort,
+    /// Says how much memory the process holds.
+    pub memory: &'a dyn crate::outbound::memory::interface::MemoryPort,
+}
+
+/// What is left to settle of the cross-file phase: nothing, or the ordinary phase's outcomes.
+pub(crate) enum Settling {
+    /// The phase settled its answers itself, or made no rule.
+    Settled,
+    /// The ordinary phase's outcomes, for the caller to settle.
+    Ordinary(OrdinaryOutcome),
+}
+
+/// What the cross-file phase came to: the project, and what is left to settle.
+pub(crate) struct PhaseOutcome {
+    /// The project made now, made again or kept.
+    pub project: crate::domain::project::types::Projected,
+    /// What is left to settle.
+    pub settling: Settling,
+}

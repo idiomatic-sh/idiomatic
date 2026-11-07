@@ -1,6 +1,7 @@
 //! The ordinary project phase: the shared stage opened once, each declared rule's scope and frontiers prepared within the budget,
 //! the sealed batch evaluated and completed, and the stage released.
-use super::super::constants::MISSING_FRONTIER_BUCKET;
+use super::super::constants::{CROSS_RULE_MEMORY, MISSING_FRONTIER_BUCKET};
+use ryo_values::domain::table_words::constants::LIFECYCLE_TARGET;
 use super::super::errors::CrossFileError;
 use super::super::preparation::service::Preparation;
 use super::super::preparation::types::PreparedProject;
@@ -49,6 +50,12 @@ impl CrossFile {
             if occurrence.0 != 0 {
                 within(memory.resident_bytes()?, run.budget, || vec![each.id.clone()])?;
             }
+            // Rule identity on the decoder events of the opt-in lifecycle memory diagnostics.
+            let _memory_rule = tracing::enabled!(target: LIFECYCLE_TARGET, tracing::Level::TRACE)
+                .then(|| {
+                    tracing::trace_span!(target: LIFECYCLE_TARGET, CROSS_RULE_MEMORY, rule = %each.id.0, rule_index = each.rule.0)
+                        .entered()
+                });
             let first = *run.first_bucket.get(each.rule.0).ok_or_else(|| {
                 CrossFileError::from(failed(&each.id, &MISSING_FRONTIER_BUCKET))
             })?;

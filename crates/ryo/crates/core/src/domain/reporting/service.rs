@@ -49,3 +49,30 @@ pub(crate) fn report_refused(unread: &mut Vec<Unread>, refused: &[ManifestRefuse
     }));
     unread.sort_by(|left, right| left.path.cmp(&right.path));
 }
+
+/// Collect retry paths before adding refused manifests to the final unread report.
+pub(crate) fn read_outcomes(
+    unread: &mut Vec<Unread>,
+    unrecorded: Vec<FilePath>,
+    refused: &[ManifestRefused],
+) -> Vec<FilePath> {
+    let mut failed: Vec<FilePath> = unread
+        .iter()
+        .filter(|each| matches!(each.reason, Unreadable::Failed(_)))
+        .map(|each| each.path.clone())
+        .collect();
+    failed.extend(unrecorded);
+    failed.sort_unstable();
+    failed.dedup();
+    report_refused(unread, refused);
+    failed
+}
+
+/// Preserve one ordered occurrence of each completed coverage record.
+pub(crate) fn sort_unique<T>(records: &mut Vec<T>)
+where
+    T: Ord,
+{
+    records.sort();
+    records.dedup();
+}

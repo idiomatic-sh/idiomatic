@@ -124,3 +124,20 @@ pub(crate) struct Course<'a> {
     /// How many findings the workers wrote.
     pub counted: &'a std::sync::atomic::AtomicU64,
 }
+
+/// What the project is made from: the files listed, the session, the manifests, the relations the rules read, and what the rules
+/// need of the project's partly read relations.
+pub(crate) struct ProjectMaking<'a> {
+    /// The files, in the order of their paths.
+    pub files: &'a [ryo_values::domain::files::types::CorpusInput],
+    /// Where the run reads the repository.
+    pub session: &'a ryo_values::domain::runs::types::Session,
+    /// The manifests the project reads.
+    pub manifests: &'a [ryo_language::inbound::use_cases::project::types::ManifestFile],
+    /// The relations the rules read.
+    pub wanted: &'a [ryo_relations::domain::relations::types::Relation],
+    /// What each rule needs of the files.
+    pub needs: &'a [ryo_execution::inbound::use_cases::metadata::interface::Needs],
+    /// The rules' ids.
+    pub ids: &'a [ryo_values::domain::runs::types::RuleId],
+}

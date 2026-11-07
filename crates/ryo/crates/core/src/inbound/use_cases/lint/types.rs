@@ -28,23 +28,6 @@ use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded, Stored, Store
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Condvar, Mutex};
 
-/// Whether the opt-in lifecycle memory diagnostics are on.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum MemoryDiagnostics {
-    /// The diagnostics are written.
-    Enabled,
-    /// No capacity traversal and no diagnostic span is made.
-    Disabled,
-}
-
-/// The point of a run a memory diagnostic is written at.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct MemoryPhase(pub &'static str);
-
-/// What a memory diagnostic measures.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct MemoryOwner(pub &'static str);
-
 /// Which linked provider reads the sources of a request.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SourceProvider {
@@ -232,27 +215,6 @@ pub(crate) struct Wanting {
     pub wants: Wants,
 }
 
-/// The repository as this run finds it, and what the last run kept of it.
-pub(crate) struct RepositoryListing {
-    /// The files, in the order of their paths.
-    pub files: Vec<CorpusInput>,
-    /// What the last run of this build kept; empty when it kept nothing.
-    pub stored: Stored,
-    /// The store those tables were read from, none when the run reads none: what this run reads of it later, and keeps against, is of
-    /// it alone.
-    pub read: Option<Arc<dyn ReadStore>>,
-    /// The most memory the run may hold.
-    pub budget: MemoryBytes,
-}
-
-/// The findings waiting for their turn to leave, and the workers waiting for it.
-pub(crate) struct Streaming {
-    /// What waits, and how much is being read.
-    pub ordered: Mutex<Ordered>,
-    /// Signalled when a file's findings left or its bytes were released.
-    pub turn: Condvar,
-}
-
 /// What was wrong with the output a language wrote for a file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ProviderFault {
@@ -264,31 +226,6 @@ pub enum ProviderFault {
     NodeOfAnotherFile,
     /// A cell that names a file names one that is not the file visited.
     FileNotVisited,
-}
-
-/// What one of the two jobs that open a lint answered: the files under the root, or what the last run kept, each or the
-/// error `E` it failed with.
-#[derive(Debug)]
-pub(crate) enum Listed<E> {
-    /// The files under the root.
-    Files(Result<Vec<CorpusInput>, E>),
-    /// What the last run of this build kept, boxed: it is far larger than a list of files.
-    Stored(Result<Option<Arc<dyn ReadStore>>, E>),
-}
-
-/// What the workers read together while the files are visited: the files, what every visit reads, where the findings wait for their
-/// turn and how many were written.
-pub(crate) struct Course<'a> {
-    /// The files, in the order of their paths.
-    pub files: &'a [CorpusInput],
-    /// What every visit reads.
-    pub visit: &'a FileVisit<'a>,
-    /// Where the findings wait for their turn.
-    pub streaming: &'a Streaming,
-    /// Only findings in these files are written; none means every file.
-    pub only: &'a [FilePath],
-    /// How many findings the workers wrote.
-    pub counted: &'a AtomicU64,
 }
 
 impl From<&Rule> for RuleSpec {
@@ -351,7 +288,7 @@ pub(super) struct LintRun<'a> {
     /// What the rules read of the files.
     pub wants: &'a Wants,
     /// The files listed.
-    pub listing: &'a RepositoryListing,
+    pub listing: &'a crate::application::storing::types::RepositoryListing,
     /// The path of each file, by file number.
     pub paths: &'a [FilePath],
     /// The manifests the project reads.
