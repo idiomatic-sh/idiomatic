@@ -1,5 +1,5 @@
 //! Construct and release the finite primitive capability at one scheduled evaluation.
-use crate::application::file_dag::executor::response::types::{KernelAnswer, KernelFault};
+use crate::application::file_dag::executor::{KernelAnswer, KernelFault};
 pub(crate) mod capability;
 use super::super::executor::{KernelCall, PrimitiveExecutor};
 use super::super::{
@@ -88,8 +88,8 @@ fn evaluate_once(
     };
     #[cfg(feature = "diagnostic-row-progress")]
     if let Some(row) = row {
-        crate::application::file_dag::route_counts::row_file(row, context.paths);
-        crate::application::file_dag::route_counts::progress(
+        crate::application::file_dag::route_counts::progress::service::row_file(row, context.paths);
+        crate::application::file_dag::route_counts::progress::service::progress(
             crate::domain::operator::contract::views::ProgressCounter::InputRows,
             1,
         );

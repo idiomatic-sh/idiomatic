@@ -23,7 +23,7 @@ pub(in crate::application::file_dag) const TARGET_RESOURCE_ROUTES: &str =
 pub(in crate::application::file_dag) const TARGET_STORED_JOIN: &str =
     "ryo::diagnostic::stored_join";
 pub(in crate::application::file_dag) const TARGET_LIFECYCLE_MEMORY: &str =
-    "ryo::diagnostic::lifecycle_memory";
+    ryo_values::domain::table_words::constants::LIFECYCLE_TARGET;
 pub(in crate::application::file_dag) const EVENT_SELECTOR_OCCUPANCY_SUMMARY: &str =
     "selector_occupancy_summary";
 pub(in crate::application::file_dag) const EVENT_SELECTOR_OCCUPANCY_ENTRY: &str =

@@ -2,7 +2,6 @@
 use super::service::compile_prepared;
 use super::types::{NodeInput, RequestGraph};
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operator::contract::types::RequestOperators;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::*;
@@ -97,7 +96,7 @@ fn graph(
     plans: &[Plan],
     bindings: &[Vec<ParameterBinding>],
 ) -> Result<RequestGraph, OperatingError> {
-    let operators = RequestOperators::prepare_with_schemas(
+    let operators = crate::application::file_dag::request::prepare_with_schemas(
         plans,
         bindings,
         &[],

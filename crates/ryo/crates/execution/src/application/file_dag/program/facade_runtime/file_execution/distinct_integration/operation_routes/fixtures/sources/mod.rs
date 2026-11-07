@@ -48,7 +48,7 @@ impl Sources {
                         .map(|cell| match cell {
                             Cell::Number(number) => HostedCell::Number(*number),
                             Cell::Symbol(symbol) => HostedCell::Text(
-                                text_of(symbols, ByteSlice(fixtures::SOURCE), *symbol)
+                                text_of(symbols, ByteSlice(fixtures::expectations::SOURCE), *symbol)
                                     .expect("fixture symbol text")
                                     .0
                                     .into(),

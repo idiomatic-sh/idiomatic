@@ -1,8 +1,10 @@
 //! The injected semantic adapter. Acquisition and invocation state are elsewhere.
+use self::constants::BRIDGE_NAME;
 use super::executor::{KernelCall, PrimitiveExecutor};
-use crate::application::file_dag::executor::response::types::{KernelAnswer, KernelFault};
+use crate::application::file_dag::executor::{KernelAnswer, KernelFault};
 use crate::domain::operator::contract::types::PrimitiveSemantics;
 use crate::outbound::operators::interface::OperatorsPort;
+mod constants;
 pub(in crate::application::file_dag) mod lease;
 pub(in crate::application::file_dag) mod output;
 
@@ -45,7 +47,7 @@ pub(super) struct PrimitiveSemanticsBridge<'a> {
 impl PrimitiveSemantics for PrimitiveSemanticsBridge<'_> {
     #[cfg(feature = "diagnostic-row-progress")]
     fn progress(&self) -> crate::domain::operator::contract::views::ProgressObserver {
-        super::route_counts::progress
+        super::route_counts::progress::service::progress
     }
     fn operators(
         &self,
@@ -79,7 +81,7 @@ impl PrimitiveSemantics for PrimitiveSemanticsBridge<'_> {
 impl std::fmt::Debug for PrimitiveSemanticsBridge<'_> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("PrimitiveSemanticsBridge")
+            .debug_struct(BRIDGE_NAME)
             .finish_non_exhaustive()
     }
 }

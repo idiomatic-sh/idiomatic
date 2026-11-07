@@ -4,7 +4,6 @@ use crate::domain::executable_program::types::{
     ExecutableProgram, PartitionRequirement, ProducerPartitions,
 };
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operator::contract::types::RequestOperators;
 use ryo_relations::domain::relations::service::ALL;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::StepScope;
@@ -166,7 +165,7 @@ pub(in super::super) fn prepare(
     operated: &[ryo_values::domain::plans::types::Plan],
 ) -> (ExecutableProgram, super::super::super::PreparedWalk) {
     let bindings = vec![vec![]; plans.len()];
-    let operators = RequestOperators::prepare_with_schemas(
+    let operators = crate::application::file_dag::request::prepare_with_schemas(
         operated,
         &bindings,
         &[],

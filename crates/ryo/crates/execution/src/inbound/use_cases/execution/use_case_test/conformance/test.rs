@@ -3,6 +3,8 @@ use super::super::super::{
     fixtures as owner_fixtures, interface::*, types::*, use_case::ExecutionUseCaseImpl,
 };
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::*;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::values::KnownSyntax;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::expectations::{SOURCE, assert_expected};
 use crate::domain::operating::types::ExecutionObservation;
 use crate::domain::operator::service::registered;
 use ryo_language::domain::{

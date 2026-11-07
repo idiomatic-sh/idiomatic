@@ -222,7 +222,7 @@ impl ProgramExecution {
         root: crate::application::file_dag::program::admission::ProducerRoot,
     ) -> Result<Partition, OperatingError> {
         use crate::domain::executable_program::types::{InputSource, PartitionRequirement};
-        if !self.owner.matches_generation(&self.generation) || !self.generation_live.is_live() {
+        if self.owner.matches_generation(&self.generation) == crate::application::file_dag::relations::types::Sameness::Different || !self.generation_live.is_live() {
             return Err(OperatingError::NotRead);
         }
         let source = match root {

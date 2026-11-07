@@ -57,7 +57,7 @@ impl RawScope {
             .cloned()
             .ok_or(OperatingError::WrongOperation)?;
         let acquired = self.owner.derived.scoped_build(
-            crate::application::file_dag::route_counts::BuildRoute::OwnerAcquire,
+            crate::application::file_dag::route_counts::types::BuildRoute::OwnerAcquire,
             &plan,
             self.admitted
                 .as_ref()

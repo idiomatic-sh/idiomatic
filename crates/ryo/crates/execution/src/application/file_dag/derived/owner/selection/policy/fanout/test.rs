@@ -281,7 +281,7 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
         ),
         "a fresh owner inspects and refuses mismatched schema width"
     );
-    assert_eq!(malformed.owner().checks.get(), 1);
+    assert_eq!(malformed.owner().checks.get(), crate::application::file_dag::relations::types::CheckCount(1));
     drop(empty_context);
     let partial = Partial {
         relation: Relation::Defines,

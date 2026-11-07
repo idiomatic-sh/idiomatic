@@ -162,7 +162,7 @@ pub(crate) fn fixture(frontier: FrontierSlots, names: Names) -> Fixture {
             }],
         }],
     ];
-    let operators = RequestOperators::prepare(
+    let operators = crate::application::file_dag::request::prepare(
         &plans,
         &[vec![], vec![], vec![], vec![]],
         &[],

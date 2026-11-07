@@ -1,11 +1,17 @@
 //! One compact admission operation for diagnostic and observed project phases.
 //! Store reads and name/spelling preparation keep their existing eager order;
 //! row-cell allocation belongs to the shared executable invocation owner.
-use super::types::{FrontierCache, FrontierInput, FrontierSource, PackedFrontier, PreparedFrontiers};
-use crate::outbound::facts::{
-    errors::FactsError,
-    interface::{FactsFinish, FactsWorker},
+use super::constants::{
+    INPUT_MEMORY_SPAN, OWNER_FRONTIER_DESCRIPTORS, OWNER_PACKED_INPUT, PHASE_COMPACT_PREPARED,
+    PHASE_INPUT_PACKED, PRODUCER_UNAVAILABLE, PROOF_MISMATCH, SOURCES_SKIPPED,
 };
+use super::errors::PreparationError;
+use super::types::{
+    FileAccounting, FrontierCache, FrontierInput, FrontierSource, InputReadiness, PackedFrontier,
+    PreparedFrontiers, ProviderAddress, Providers,
+};
+use crate::application::file_dag::derived::constants::TARGET_LIFECYCLE_MEMORY;
+use crate::outbound::facts::interface::{FactsFinish, FactsWorker};
 use ryo_language::domain::symbols::{service::places_mut, types::Symbols};
 use ryo_values::domain::{
     plan_parts::types::{Input, InputNumber},
@@ -24,14 +30,7 @@ use {
 #[derive(Clone, Copy)]
 pub(crate) enum PreparationPolicy<'a> {
     Diagnostic,
-    Observations { ready: &'a [bool] },
-}
-#[derive(Debug, thiserror::Error)]
-pub enum PreparationError {
-    #[error(transparent)]
-    Facts(#[from] FactsError),
-    #[error(transparent)]
-    Metadata(#[from] OperatingError),
+    Observations { ready: &'a [InputReadiness] },
 }
 
 pub(super) fn prepare(
@@ -66,16 +65,15 @@ pub(super) fn prepare(
         .into();
     let mut admitted = Vec::new();
     let mut refused = Vec::new();
-    let memory =
-        tracing::enabled!(target: "ryo::diagnostic::lifecycle_memory", tracing::Level::TRACE);
+    let memory = tracing::enabled!(target: TARGET_LIFECYCLE_MEMORY, tracing::Level::TRACE);
     for (place, input) in program.frontiers(rule)?.iter().copied().enumerate() {
-        let _input = memory.then(|| tracing::trace_span!(target:"ryo::diagnostic::lifecycle_memory", "cross_input_memory", input_index=place, input=?input).entered());
+        let _input = memory.then(|| tracing::trace_span!(target: TARGET_LIFECYCLE_MEMORY, INPUT_MEMORY_SPAN, input_index=place, input=?input).entered());
         if let PreparationPolicy::Observations { ready } = policy {
-            if !ready.get(place).copied().ok_or(OperatingError::NotRun)? {
+            if ready.get(place).copied().ok_or(OperatingError::NotRun)? == InputReadiness::Unavailable {
                 refused.push(RefusedFrontier {
                     input,
                     error: OperatingError::ObservationIncomplete {
-                        reason: "a producer feeding this retained frontier is unavailable".into(),
+                        reason: PRODUCER_UNAVAILABLE.into(),
                     },
                 });
                 continue;
@@ -109,7 +107,7 @@ pub(super) fn prepare(
             refused.push(RefusedFrontier {
                 input,
                 error: OperatingError::ObservationIncomplete {
-                    reason: "every source partition was explicitly skipped".into(),
+                    reason: SOURCES_SKIPPED.into(),
                 },
             });
             continue;
@@ -118,7 +116,7 @@ pub(super) fn prepare(
             let bytes = ryo_values::domain::stores::types::retention::value::RetainedBytes::packed(
                 &words.words,
             );
-            tracing::trace!(target:"ryo::diagnostic::lifecycle_memory", phase="cross_input_packed", owner="packed_input", packed_live_bytes=bytes.packed_live.0, packed_capacity_bytes=bytes.packed_capacity.0);
+            tracing::trace!(target: TARGET_LIFECYCLE_MEMORY, phase=PHASE_INPUT_PACKED, owner=OWNER_PACKED_INPUT, packed_live_bytes=bytes.packed_live.0, packed_capacity_bytes=bytes.packed_capacity.0);
         }
         let mode = match policy {
             PreparationPolicy::Diagnostic => DecodeMode::Permissive,
@@ -143,16 +141,7 @@ pub(super) fn prepare(
                 FrontierInput::Decoded { .. } | FrontierInput::Packed(_) => 0,
             })
             .sum::<usize>();
-        let spelling_capacity = admitted
-            .iter()
-            .map(|input| match input {
-                FrontierInput::Compact { spelling, .. } => {
-                    spelling.capacity() * size_of::<ryo_relations::domain::relations::types::Name>()
-                }
-                FrontierInput::Decoded { .. } | FrontierInput::Packed(_) => 0,
-            })
-            .sum::<usize>();
-        tracing::trace!(target:"ryo::diagnostic::lifecycle_memory", phase="compact_inputs_prepared", owner="frontier_descriptors", inputs=admitted.len(), compact_rows, spelling_capacity_bytes=spelling_capacity);
+        tracing::trace!(target: TARGET_LIFECYCLE_MEMORY, phase=PHASE_COMPACT_PREPARED, owner=OWNER_FRONTIER_DESCRIPTORS, inputs=admitted.len(), compact_rows);
     }
     Ok(PreparedFrontiers {
         producer: rule,
@@ -250,7 +239,7 @@ pub(crate) fn admit(
 pub(crate) fn validate_bucket(
     program: &crate::application::file_dag::program::preparation::types::PreparedProgram,
     rule: crate::domain::coverage::types::RuleIndex,
-    input: usize,
+    input: InputNumber,
     first: Bucket,
     bucket: Bucket,
     required: &crate::application::file_dag::program::admission::RequiredPartitions,
@@ -258,13 +247,13 @@ pub(crate) fn validate_bucket(
 ) -> Result<crate::domain::completion::types::CoverageState, OperatingError> {
     use ryo_values::domain::records::types::{FrontierAffected, FrontierCoverage};
     let refuse = || OperatingError::ObservationIncomplete {
-        reason: "frontier source proof does not match the prepared program".into(),
+        reason: PROOF_MISMATCH.into(),
     };
     let expected = program.rule_digest(rule)?;
     let skipped = required.skipped_files(program, rule)?;
-    if ryo_values::domain::stored_facts::service::frontier_bucket(first, InputNumber(input))
+    if ryo_values::domain::stored_facts::service::frontier_bucket(first, input)
         != bucket
-        || program.frontiers(rule)?.get(input).is_none()
+        || program.frontiers(rule)?.get(input.0).is_none()
     {
         return Err(refuse());
     }
@@ -276,9 +265,9 @@ pub(crate) fn validate_bucket(
             || source.length == 0
             || !required.files().contains(&source.file)
             || skipped.contains(&source.file)
-            || !seen_files.insert(source.file.0)
+            || !seen_files.insert(source.file)
             || source.proof.rule.0 != u32::try_from(rule.0).map_err(|_| refuse())?
-            || source.proof.input.0 != u32::try_from(input).map_err(|_| refuse())?
+            || source.proof.input.0 != u32::try_from(input.0).map_err(|_| refuse())?
             || source.proof.rule_digest != expected
         {
             return Err(refuse());
@@ -307,16 +296,18 @@ pub(crate) fn validate_bucket(
     }
     // Account for known unavailable partitions without inventing encoded empty
     // frames. Their identities remain attached to the admitted partial input.
-    seen_files.extend(skipped.iter().map(|file| file.0));
+    seen_files.extend(skipped.iter().copied());
     // A required source with no frame is discharged only when the edge named the file inapplicable to this rule.
     seen_files.extend(
         required
             .inapplicable()
             .iter()
             .filter(|file| required.files().contains(file))
-            .map(|file| file.0),
+            .copied(),
     );
-    if at != payload.words.0.0.len() || !exact_required_files(required.files(), &seen_files) {
+    if at != payload.words.0.0.len()
+        || exact_required_files(required.files(), &seen_files) == FileAccounting::Inexact
+    {
         return Err(refuse());
     }
     affected.sort_unstable();
@@ -336,24 +327,14 @@ pub(crate) fn validate_bucket(
     })
 }
 
-fn exact_required_files(
+pub(super) fn exact_required_files(
     required: &[ryo_relations::domain::relations::types::FileId],
-    seen: &std::collections::BTreeSet<u32>,
-) -> bool {
-    seen.len() == required.len() && required.iter().all(|file| seen.contains(&file.0))
-}
-
-#[cfg(test)]
-mod source_proof_test {
-    use super::exact_required_files;
-    use ryo_relations::domain::relations::types::FileId;
-
-    #[test]
-    fn a_complete_bucket_requires_every_declared_project_file() {
-        let required = [FileId(0), FileId(1)];
-        assert!(!exact_required_files(&required, &[0].into()));
-        assert!(exact_required_files(&required, &[0, 1].into()));
-        assert!(!exact_required_files(&required, &[0, 1, 2].into()));
+    seen: &std::collections::BTreeSet<ryo_relations::domain::relations::types::FileId>,
+) -> FileAccounting {
+    if seen.len() == required.len() && required.iter().all(|file| seen.contains(file)) {
+        FileAccounting::Exact
+    } else {
+        FileAccounting::Inexact
     }
 }
 
@@ -375,10 +356,10 @@ impl FrontierCache {
             PreparationPolicy::Diagnostic => None,
             PreparationPolicy::Observations { ready } => Some(ready),
         };
-        let providers = (
-            std::ptr::from_ref(facts).cast::<()>().addr(),
-            std::ptr::from_ref(project).cast::<()>().addr(),
-        );
+        let providers = Providers {
+            facts: ProviderAddress(std::ptr::from_ref(facts).cast::<()>().addr()),
+            project: ProviderAddress(std::ptr::from_ref(project).cast::<()>().addr()),
+        };
         self.shared(rule, first, ready, required, providers, || {
             prepare(
                 program,

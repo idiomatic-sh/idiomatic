@@ -1,5 +1,5 @@
 //! Opening one publication scope and naming the physical files of one project request.
-use super::types::{ProgramServices, PublicationScope};
+use super::types::{ProgramServices, PublicationScope, ReuseEligibility};
 use crate::application::file_dag::program::admission::RequiredPartitions;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::scope::open_program_owner;
@@ -15,7 +15,7 @@ pub(crate) fn publication_owner(
     Ok(PublicationScope {
         request: Arc::clone(&services.request),
         program: Arc::clone(program.program()),
-        owner: open_program_owner(program.program(), services.derived().clone(), true),
+        owner: open_program_owner(program.program(), services.derived().clone(), ReuseEligibility::Eligible),
         execution: std::cell::OnceCell::new(),
         populations: std::cell::RefCell::new(Default::default()),
         symbols: std::cell::OnceCell::new(),

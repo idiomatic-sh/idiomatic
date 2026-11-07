@@ -51,9 +51,9 @@ pub struct PreparedFrontiers {
 struct FrontierKey {
     rule: crate::domain::coverage::types::RuleIndex,
     first: ryo_values::domain::stored_facts::types::Bucket,
-    ready: Option<Vec<bool>>,
+    ready: Option<Vec<InputReadiness>>,
     required: crate::application::file_dag::program::admission::RequiredPartitions,
-    providers: (usize, usize),
+    providers: Providers,
 }
 
 /// One acquisition, kept only while some root still holds its rows: the rows are held weakly, so a
@@ -76,9 +76,9 @@ impl FrontierCache {
         &self,
         rule: crate::domain::coverage::types::RuleIndex,
         first: ryo_values::domain::stored_facts::types::Bucket,
-        ready: Option<&[bool]>,
+        ready: Option<&[InputReadiness]>,
         required: &crate::application::file_dag::program::admission::RequiredPartitions,
-        providers: (usize, usize),
+        providers: Providers,
         acquire: impl FnOnce() -> Result<PreparedFrontiers, E>,
     ) -> Result<PreparedFrontiers, E> {
         let mut held = self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -104,7 +104,7 @@ impl FrontierCache {
             key: FrontierKey {
                 rule,
                 first,
-                ready: ready.map(<[bool]>::to_vec),
+                ready: ready.map(<[InputReadiness]>::to_vec),
                 required: required.clone(),
                 providers,
             },
@@ -192,4 +192,33 @@ pub(in crate::application::file_dag) fn validate_consumer_sources(
         }
     }
     Ok(())
+}
+
+/// Whether the producer feeding one retained frontier is available to this phase.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum InputReadiness {
+    /// The producer published; the frontier is read.
+    Ready,
+    /// The producer is unavailable; the frontier is refused.
+    Unavailable,
+}
+
+/// The address of one provider, the identity of what a population was read from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::application::file_dag) struct ProviderAddress(pub usize);
+
+/// The two providers a population is read from: the facts provider and the project provider.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::application::file_dag) struct Providers {
+    pub facts: ProviderAddress,
+    pub project: ProviderAddress,
+}
+
+/// Whether the files a source proof accounts for are exactly the files the request requires.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::application::file_dag) enum FileAccounting {
+    /// Every required file is accounted for, and no other.
+    Exact,
+    /// A required file is missing, or an unrequired one is named.
+    Inexact,
 }

@@ -71,7 +71,7 @@ pub(crate) fn run_chain(
     if ryo_language::domain::names::service::name_count(&case.symbols).0 == 0 {
         query_intern_derived(
             &mut (&mut case.symbols).into(),
-            ByteSlice(fixtures::SOURCE),
+            ByteSlice(fixtures::expectations::SOURCE),
             NameText(""),
         );
     }
@@ -202,11 +202,11 @@ pub(crate) fn run_chain(
         &[CorpusInput::Available(CorpusEntry {
             executable: ExecutablePermission::Unknown,
             path: FilePath("operation-route.py".into()),
-            size: FileSize(fixtures::SOURCE.len() as u64),
+            size: FileSize(fixtures::expectations::SOURCE.len() as u64),
             modified: Nanoseconds(0),
         })],
     ));
-    let semantic = fixtures::KnownSyntax;
+    let semantic = fixtures::values::KnownSyntax;
     let mut file = open_file(
         &prepared,
         FileId(0),
@@ -220,7 +220,7 @@ pub(crate) fn run_chain(
             capture: CaptureIntent::Disabled,
         }],
         services,
-        ryo_values::domain::files::types::SourceView(fixtures::SOURCE),
+        ryo_values::domain::files::types::SourceView(fixtures::expectations::SOURCE),
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         &mut case.symbols,
         Some(&semantic),
@@ -256,6 +256,6 @@ pub(crate) fn run_chain(
         .chunks_exact(actual.kinds.len())
         .map(<[_]>::to_vec)
         .collect::<Vec<_>>();
-    fixtures::assert_expected(&case.expected, &rows, &case.symbols);
+    fixtures::expectations::assert_expected(&case.expected, &rows, &case.symbols);
     Ok((actual, case.symbols))
 }

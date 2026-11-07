@@ -14,7 +14,7 @@ use crate::application::file_dag::derived::owner::*;
 impl DerivedOwner {
     pub(in crate::application::file_dag) fn scoped_build(
         &self,
-        route: crate::application::file_dag::route_counts::BuildRoute,
+        route: crate::application::file_dag::route_counts::types::BuildRoute,
         plan: &Arc<DerivedContract>,
         admitted: &AdmittedViewInputs<'_>,
         inputs: DerivedInputs<'_, '_>,

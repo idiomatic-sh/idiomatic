@@ -216,7 +216,7 @@ pub struct FrontierRequest<'a> {
     pub project: &'a dyn facts::FactsWorker,
     pub project_symbols: &'a ryo_language::domain::symbols::types::Symbols,
 }
-pub use crate::application::file_dag::frontiers::service::PreparationError;
+pub use crate::application::file_dag::frontiers::errors::PreparationError;
 
 pub use crate::domain::file_program::types::ObservedFrontierRoot;
 pub use crate::domain::trust::types::RelationRead;
@@ -227,23 +227,19 @@ pub mod query_language {
     };
 }
 pub use crate::application::rule_compilation::{
-    errors::RuleCompilationError, types::CompiledPlans,
+    errors::RuleCompilationError,
+    types::{CompiledPlans, PreparedRuleIdentities},
 };
 /// Request preparation retains its graph privately; callers may inspect source plans only.
 pub struct CompiledQueries {
     pub(super) inner: crate::domain::prepared_request::types::Compiled,
 }
 
-pub struct PreparedRuleIdentities {
-    pub rules: Vec<ryo_values::domain::stores::types::StoredRule>,
-    pub observations: ObservationIdentity,
-}
-
 /// One project publication generation shared by every ready batch.
 pub struct ObservationStage<'a> {
     pub(super) phase: ProjectPhase<'a>,
     pub(super) publications:
-        crate::application::file_dag::observations::cross::CrossPublications<'a>,
+        crate::application::file_dag::observations::types::CrossPublications<'a>,
 }
 pub use crate::application::file_dag::program::protocol::types::ObservedPublication;
 

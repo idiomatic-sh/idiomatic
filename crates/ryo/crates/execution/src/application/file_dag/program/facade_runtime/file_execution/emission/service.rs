@@ -26,7 +26,7 @@ impl FileRun<'_> {
         ) -> Result<(), OperatingError>,
     ) -> Result<crate::application::file_dag::program::protocol::types::RowEmission, OperatingError>
     {
-        if self.declared(rule)?.diagnostic != DiagnosticDelivery::Forwarded {
+        if self.declared(rule)?.delivery != DiagnosticDelivery::Forwarded {
             return Err(OperatingError::NotRun);
         }
         let emission = self.deliver_rows(rule, read, symbols, each);
@@ -63,7 +63,7 @@ impl FileRun<'_> {
         self.prepare_walk(read, symbols)?;
         let _rule_origin = crate::application::file_dag::route_counts::rule(
             rule.0,
-            &self.program.rule_id(rule)?.0,
+            self.program.rule_id(rule)?,
         );
         let _consumer_origin =
             crate::application::file_dag::route_counts::consumer(FILE_STREAM_CONSUMER);

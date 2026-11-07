@@ -13,7 +13,7 @@ fn prepare_cycles(
     destination: ColumnIndex,
 ) -> Result<super::derived::owner::acquisition::admission::service::AcquiredView, OperatingError> {
     let owner = super::relations::RelationOwner::new(
-        true,
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
             ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
@@ -53,7 +53,7 @@ fn prepare_closure(
 ) -> Result<Vec<super::derived::owner::acquisition::admission::service::AcquiredView>, OperatingError>
 {
     let owner = std::rc::Rc::new(super::relations::RelationOwner::new(
-        true,
+        crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
             ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
@@ -64,7 +64,7 @@ fn prepare_closure(
     let publication = owner.computed(table.clone())?;
     let rows = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
     let input = BorrowedRows::from(&rows);
-    let mut cursor = super::closure_partitions::PartitionedClosure::prepare(
+    let mut cursor = super::closure_partitions::schemas::prepare(
         &publication,
         input,
         keys,
@@ -82,12 +82,13 @@ fn prepare_closure(
 mod tests {
     use super::*;
     use ryo_relations::domain::relations::types::Integer;
-    fn number(value: i64) -> Value {
-        Value::Number(Integer(value))
+    use ryo_values::domain::table_words::types::ColumnCount;
+    fn number(value: Integer) -> Value {
+        Value::Number(value)
     }
-    fn table(width: usize, rows: &[&[i64]]) -> Table {
+    fn table(width: ColumnCount, rows: &[&[Integer]]) -> Table {
         let mut table = Table {
-            kinds: vec![CellKind::Number; width],
+            kinds: vec![CellKind::Number; width.0],
             ..Table::default()
         };
         for row in rows {
@@ -100,7 +101,15 @@ mod tests {
     }
     #[test]
     fn adjacency_keeps_parallel_edges_and_first_entity_numbering() -> Result<(), OperatingError> {
-        let input = table(2, &[&[9, 1], &[9, 1], &[1, 9], &[7, 7]]);
+        let input = table(
+            ColumnCount(2),
+            &[
+                &[Integer(9), Integer(1)],
+                &[Integer(9), Integer(1)],
+                &[Integer(1), Integer(9)],
+                &[Integer(7), Integer(7)],
+            ],
+        );
         let graph = prepare_cycles(
             BorrowedRows::Computed(&input),
             ColumnIndex(0),
@@ -112,7 +121,7 @@ mod tests {
         else {
             return Err(OperatingError::WrongOperation);
         };
-        assert_eq!(graph.values(), vec![number(9), number(1), number(7)]);
+        assert_eq!(graph.values(), vec![number(Integer(9)), number(Integer(1)), number(Integer(7))]);
         assert_eq!(graph.starts(), vec![0, 2, 3, 4]);
         assert_eq!(graph.leaving(), vec![1, 1, 0, 2]);
         Ok(())
@@ -120,7 +129,14 @@ mod tests {
     #[test]
     fn closure_preparation_preserves_clustered_partition_order_and_sorts_sources()
     -> Result<(), OperatingError> {
-        let input = table(3, &[&[9, 4, 3], &[9, 2, 4], &[1, 7, 8]]);
+        let input = table(
+            ColumnCount(3),
+            &[
+                &[Integer(9), Integer(4), Integer(3)],
+                &[Integer(9), Integer(2), Integer(4)],
+                &[Integer(1), Integer(7), Integer(8)],
+            ],
+        );
         let partitions = prepare_closure(
             BorrowedRows::Computed(&input),
             &[ColumnIndex(0)],
@@ -132,13 +148,13 @@ mod tests {
         use crate::domain::operator::contract::views::ClosureParts;
         let first = ClosureParts::get(&partitions, 0)?;
         let second = ClosureParts::get(&partitions, 1)?;
-        assert_eq!(first.key(), vec![number(9)]);
-        assert_eq!(first.sources(), vec![number(2), number(4)]);
+        assert_eq!(first.key(), vec![number(Integer(9))]);
+        assert_eq!(first.sources(), vec![number(Integer(2)), number(Integer(4))]);
         assert_eq!(
             first.table().cells,
-            vec![number(4), number(3), number(2), number(4)]
+            vec![number(Integer(4)), number(Integer(3)), number(Integer(2)), number(Integer(4))]
         );
-        assert_eq!(second.key(), vec![number(1)]);
+        assert_eq!(second.key(), vec![number(Integer(1))]);
         Ok(())
     }
 }

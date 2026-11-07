@@ -93,7 +93,7 @@ pub(in crate::application::file_dag::derived::owner) fn candidates(
             continue;
         }
         let acquired = resources.acquire(
-            crate::application::file_dag::route_counts::BuildRoute::SelectorCandidate,
+            crate::application::file_dag::route_counts::types::BuildRoute::SelectorCandidate,
             cache,
             &equality,
             crate::application::file_dag::derived::owner::ViewContext::default(),
@@ -115,7 +115,7 @@ pub(in crate::application::file_dag::derived::owner) fn candidates(
             order,
             &[value],
             #[cfg(feature = "diagnostic-row-progress")]
-            crate::application::file_dag::route_counts::progress,
+            crate::application::file_dag::route_counts::progress::service::progress,
         )
         .flat_map(|index| u32::try_from(index.0))
         .collect();

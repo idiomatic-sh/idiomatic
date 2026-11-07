@@ -41,8 +41,8 @@ impl FileRun<'_> {
     }
     fn admit_rule(&self, rule: RuleIndex, demand: RuleDemand) -> Result<(), OperatingError> {
         let DeclaredIntent {
-            diagnostic,
-            observations,
+            delivery: diagnostic,
+            demand: observations,
             ..
         } = self.declared(rule)?;
         let emit = match diagnostic {
@@ -77,7 +77,7 @@ impl FileRun<'_> {
         }
         let _rule_origin = crate::application::file_dag::route_counts::rule(
             rule.0,
-            &self.program.rule_id(rule)?.0,
+            self.program.rule_id(rule)?,
         );
         let _consumer_origin =
             crate::application::file_dag::route_counts::consumer(FILE_RULE_CONSUMER);

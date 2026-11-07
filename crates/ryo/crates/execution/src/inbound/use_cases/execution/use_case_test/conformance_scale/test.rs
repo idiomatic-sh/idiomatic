@@ -1,6 +1,8 @@
 //! Actual engine visit and scratch bounds over increasing authored input populations.
 use super::super::conformance::test::{compare_delivery, repeated};
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::*;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::values::numbers;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::expectations::SOURCE;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,

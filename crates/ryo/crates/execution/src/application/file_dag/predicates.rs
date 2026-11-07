@@ -26,7 +26,7 @@ pub(crate) struct BoundPredicate<'a> {
 impl PredicateProgram for BoundPredicate<'_> {
     fn holds(&mut self, row: &[Value], symbols: &Symbols) -> Result<Verdict, OperatingError> {
         #[cfg(feature = "diagnostic-row-progress")]
-        super::route_counts::progress(
+        super::route_counts::progress::service::progress(
             crate::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
             1,
         );
@@ -66,6 +66,9 @@ impl PredicateProgram for BoundPredicate<'_> {
 }
 
 #[cfg(test)]
+mod constants;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use ryo_relations::domain::relations::types::Relation;
@@ -75,18 +78,20 @@ mod tests {
     use ryo_values::domain::plans::types::Operation;
     use std::sync::atomic::Ordering;
 
+    use super::constants::{EMPTY_SOURCE, INVALID_PATTERN, PASS, STOP, SUBJECT};
+
     #[test]
     fn failed_preceding_predicate_never_acquires_invalid_regex() {
         let comparisons = vec![
             PlanComparison {
                 left: Operand::Column(ryo_values::domain::plan_parts::types::ColumnIndex(0)),
-                right: Operand::Literal(QueryLiteral::Text(LiteralText("pass".into()))),
+                right: Operand::Literal(QueryLiteral::Text(LiteralText(PASS.into()))),
                 test: Test::Equal,
                 origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             },
             PlanComparison {
-                left: Operand::Literal(QueryLiteral::Text(LiteralText("subject".into()))),
-                right: Operand::Literal(QueryLiteral::Text(LiteralText("[".into()))),
+                left: Operand::Literal(QueryLiteral::Text(LiteralText(SUBJECT.into()))),
+                right: Operand::Literal(QueryLiteral::Text(LiteralText(INVALID_PATTERN.into()))),
                 test: Test::Matches,
                 origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             },
@@ -107,13 +112,13 @@ mod tests {
         let mut symbols = Symbols::default();
         let stop = ryo_language::domain::symbols::service::intern_derived(
             &mut symbols,
-            ryo_language::domain::symbols::types::ByteSlice(b""),
-            ryo_relations::domain::terms::types::NameText("stop"),
+            ryo_language::domain::symbols::types::ByteSlice(EMPTY_SOURCE),
+            ryo_relations::domain::terms::types::NameText(STOP),
         );
         let pass = ryo_language::domain::symbols::service::intern_derived(
             &mut symbols,
-            ryo_language::domain::symbols::types::ByteSlice(b""),
-            ryo_relations::domain::terms::types::NameText("pass"),
+            ryo_language::domain::symbols::types::ByteSlice(EMPTY_SOURCE),
+            ryo_relations::domain::terms::types::NameText(PASS),
         );
         let mut state = Default::default();
         let mut memo = Vec::new();
@@ -121,7 +126,7 @@ mod tests {
         let mut evaluator = BoundPredicate {
             program: &program,
             bindings: &[],
-            source: SourceView(b""),
+            source: SourceView(EMPTY_SOURCE),
             paths: &[],
             arenas: &[],
             prepared: Some(&prepared),

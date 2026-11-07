@@ -1,7 +1,7 @@
 //! Axis admission and engine-owned prepared views over original borrowed populations.
 use ryo_derived::domain::contract::types::{DerivedView, MembershipView};
-mod view;
-pub(crate) use view::AxisResource;
+pub(in crate::application::file_dag) mod view;
+use view::AxisResource;
 #[cfg(test)]
 mod tests;
 

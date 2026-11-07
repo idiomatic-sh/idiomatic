@@ -92,7 +92,7 @@ fn make<'a>(
     // Each terminal projection owns its representative IDs independently of other output maps.
     let rows = if program.distinct {
         let acquired = resources.acquire(
-            crate::application::file_dag::route_counts::BuildRoute::SelectorDistinct,
+            crate::application::file_dag::route_counts::types::BuildRoute::SelectorDistinct,
             cache,
             &views.distinct,
             crate::application::file_dag::derived::owner::ViewContext::for_predicate(

@@ -24,7 +24,7 @@ use ryo_values::domain::files::types::SourceView;
 use std::{rc::Rc, sync::Arc};
 
 pub(super) fn workspace(kind: DerivedKind, exit: Exit) -> Result<DerivedKind, OperatingError> {
-    let owner = Rc::new(RelationOwner::new(true, program_derived_port()));
+    let owner = Rc::new(RelationOwner::new(crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible, program_derived_port()));
     let result = through_workspace(kind, exit, &owner);
     owner.release_population();
     released(kind, exit, owner.derived.publication_ownership_bytes());

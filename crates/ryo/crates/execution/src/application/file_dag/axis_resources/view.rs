@@ -65,7 +65,7 @@ impl AxisResource<'_> {
                 Ok(PreparedAxis::Indexed {
                     edges: IndexedRows {
                         #[cfg(feature = "diagnostic-row-progress")]
-                        progress: crate::application::file_dag::route_counts::progress,
+                        progress: crate::application::file_dag::route_counts::progress::service::progress,
                         rows: *edges,
                         columns: from,
                         index,

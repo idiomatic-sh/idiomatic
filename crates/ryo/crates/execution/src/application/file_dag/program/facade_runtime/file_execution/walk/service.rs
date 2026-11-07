@@ -188,9 +188,9 @@ impl FileRun<'_> {
                 observations,
                 capture,
             }) => Ok(DeclaredIntent {
-                diagnostic: *diagnostic,
-                observations: *observations,
-                capture: *capture,
+                delivery: *diagnostic,
+                demand: *observations,
+                capture_intent: *capture,
             }),
             _ => Err(OperatingError::NotRun),
         }
