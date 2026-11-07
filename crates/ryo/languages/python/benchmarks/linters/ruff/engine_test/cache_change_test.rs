@@ -22,20 +22,20 @@ pub(super) fn projection_cache_query_change(root: &std::path::Path) -> Result<bo
     )?;
     let request = WorkerRequest {
         performance: Default::default(),
-        selected_rules: Some(selected_rules),
-        rule_observations: None,
-        rule_context: None,
-        project_search_roots: None,
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(selected_rules),
+        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode:
             ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
-        context_manifest: None,
+        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: root.to_owned(),
         rules,
-        query_modules: suppress_modules(),
+        query_modules: super::prepared_engine_test::module_names(suppress_modules()),
         rule_applicability: BTreeMap::default(),
-        parser_configuration: None,
-        source_language: None,
+        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: vec![ryo::linter::RelativePath(file.into())],
         state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
     };
@@ -45,7 +45,7 @@ pub(super) fn projection_cache_query_change(root: &std::path::Path) -> Result<bo
         let query = format!(
             "let diagnostics = select id, file, span from \"syntax-error\" where code = \"{code}\";\nemit diagnostics subject file key(id);\n"
         );
-        let projection = factory::FrontendDiagnosticProjection {
+        let projection = ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection {
             rule: rule.clone(),
             query: ryo::query::RyoQlQuery::try_from(query.as_str())
                 .map_err(|error| Error::Invalid(error.to_string()))?,
@@ -57,7 +57,7 @@ pub(super) fn projection_cache_query_change(root: &std::path::Path) -> Result<bo
         ))
     };
     let first = run("nonlocal-at-module")?.run_prepared(WorkerRequest {
-        project_search_roots: None,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Retained(
             root.join("retained-parse-cache"),
@@ -65,7 +65,7 @@ pub(super) fn projection_cache_query_change(root: &std::path::Path) -> Result<bo
         ..request.clone()
     })?;
     let second = run("no-such-parser-code")?.run_prepared(WorkerRequest {
-        project_search_roots: None,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Retained(
             root.join("retained-parse-cache"),
@@ -91,20 +91,20 @@ pub(super) fn query_module_inline_equivalence(root: &std::path::Path) -> Result<
     let languages = ryo::linter::Languages(vec![ryo_python::linked()]);
     let plain = factory::local(languages.clone(), None).run_prepared(WorkerRequest {
         performance: Default::default(),
-        selected_rules: Some(fixture_cohort(&["fixture"])),
-        rule_observations: None,
-        rule_context: None,
-        project_search_roots: None,
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(fixture_cohort(&["fixture"])),
+        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode:
             ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
-        context_manifest: None,
+        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: root.into(),
         rules: rules.clone(),
         query_modules: BTreeMap::default(),
         rule_applicability: BTreeMap::default(),
-        parser_configuration: None,
-        source_language: None,
+        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: vec![ryo::linter::RelativePath("input.py".into())],
         state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
     })?;
@@ -128,20 +128,20 @@ pub(super) fn query_module_inline_equivalence(root: &std::path::Path) -> Result<
     );
     let imported = factory::local(languages, None).run_prepared(WorkerRequest {
         performance: Default::default(),
-        selected_rules: Some(fixture_cohort(&["fixture"])),
-        rule_observations: None,
-        rule_context: None,
-        project_search_roots: None,
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(fixture_cohort(&["fixture"])),
+        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode:
             ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
-        context_manifest: None,
+        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: root.into(),
         rules,
-        query_modules: modules,
+        query_modules: super::prepared_engine_test::module_names(modules),
         rule_applicability: BTreeMap::default(),
-        parser_configuration: None,
-        source_language: None,
+        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: vec![ryo::linter::RelativePath("input.py".into())],
         state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
     })?;
@@ -240,20 +240,20 @@ pub(super) fn target_configuration_cache_change(root: &std::path::Path) -> Resul
         )
         .run_prepared(WorkerRequest {
             performance: Default::default(),
-            selected_rules: Some(fixture_cohort(&["UP017"])),
-            rule_observations: None,
-            rule_context: None,
-            project_search_roots: None,
+            selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(fixture_cohort(&["UP017"])),
+            rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+            project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
             given_project_inventory: Default::default(),
             project_context_mode:
                 ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
-            context_manifest: None,
+            context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
             root: root.to_owned(),
             rules: rules.clone(),
-            query_modules: query_modules.clone(),
+            query_modules: super::prepared_engine_test::module_names(query_modules.clone()),
             rule_applicability: BTreeMap::default(),
-            parser_configuration: Some(identity.to_owned()),
-            source_language: None,
+            parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName(identity.to_owned())),
+            source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
             files: files.clone(),
             state,
         })

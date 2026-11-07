@@ -44,9 +44,9 @@ pub(super) fn declared_configuration_uses_real_sdk_scope_and_hosted_inputs_on_un
         .map(|file| ryo::linter::RelativePath(file.into()))
         .collect::<Vec<_>>();
     let tables = RuleContextTables {
-        selected: "config.selected".into(),
-        disabled: "config.disabled".into(),
-        external: "config.external".into(),
+        selected: ryo_benchmark_contracts::domain::context::types::TableName("config.selected".into()),
+        disabled: ryo_benchmark_contracts::domain::context::types::TableName("config.disabled".into()),
+        external: ryo_benchmark_contracts::domain::context::types::TableName("config.external".into()),
     };
     for (prefix, exclude, expected) in [
         ("V", false, 2),
@@ -62,25 +62,25 @@ pub(super) fn declared_configuration_uses_real_sdk_scope_and_hosted_inputs_on_un
         };
         let request = WorkerRequest {
             performance: Default::default(),
-            project_search_roots: None,
+            project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
             given_project_inventory: Default::default(),
-            selected_rules: Some(selected.clone()),
-            rule_observations: None,
-            rule_context: Some(PreparedRuleContext {
+            selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(selected.clone()),
+            rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Prepared(PreparedRuleContext {
                 tables: tables.clone(),
                 configuration: RuleConfiguration {
-                    external_prefixes: vec![prefix.into()],
+                    external_prefixes: vec![ryo_benchmark_contracts::domain::context::types::ExternalPrefix(prefix.into())],
                     disabled_rules,
                 },
             }),
             project_context_mode: ProjectContextMode::Isolated,
-            context_manifest: None,
+            context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
             root: corpus.clone(),
             rules: rules.clone(),
             query_modules: BTreeMap::new(),
             rule_applicability: BTreeMap::new(),
-            parser_configuration: Some("python-target=3.10".into()),
-            source_language: None,
+            parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName("python-target=3.10".into())),
+            source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
             files: files.clone(),
             state: WorkerState::Retained(root.path().join("cache")),
         };
@@ -108,8 +108,13 @@ pub(super) fn declared_configuration_uses_real_sdk_scope_and_hosted_inputs_on_un
             assert_eq!(configured[0].file.0.as_ref(), "pkg/input.py");
         }
         assert_eq!(
-            report.coverage.as_ref().unwrap().selected,
-            if exclude { 3 } else { 4 }
+            match report.coverage {
+                ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
+                    coverage,
+                ) => Some(coverage.selected.0),
+                ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Unaccounted => None,
+            },
+            Some(if exclude { 3 } else { 4 })
         );
     }
     assert_eq!(

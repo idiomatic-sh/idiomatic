@@ -276,20 +276,20 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     }
     let request = WorkerRequest {
         performance: Default::default(),
-        selected_rules: Some(selected_rules),
-        rule_observations: None,
-        rule_context: None,
-        project_search_roots: None,
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(selected_rules),
+        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode:
             ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
-        context_manifest: None,
+        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: root.path().to_owned(),
         rules,
-        query_modules: modules_for(scenario)?,
+        query_modules: prepared_engine_test::module_names(modules_for(scenario)?),
         rule_applicability: BTreeMap::default(),
-        parser_configuration: None,
-        source_language: None,
+        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: vec![ryo::linter::RelativePath(file.into())],
         state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
     };

@@ -21,20 +21,20 @@ pub(super) fn literal_properties_reach_engine_queries_for_true_and_false_boolean
     std::fs::write(root.path().join("false.py"), "value = False\n")?;
     let report = factory::local(python_310(), None).run_prepared(WorkerRequest {
         performance: Default::default(),
-        selected_rules: Some(fixture_cohort(&["LIT"])),
-        rule_observations: None,
-        rule_context: None,
-        project_search_roots: None,
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(fixture_cohort(&["LIT"])),
+        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode:
             ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
-        context_manifest: None,
+        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: root.path().to_owned(),
         rules,
         query_modules: BTreeMap::default(),
         rule_applicability: BTreeMap::default(),
-        parser_configuration: None,
-        source_language: None,
+        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: ["true.py", "false.py"]
             .into_iter()
             .map(|path| ryo::linter::RelativePath(path.into()))
@@ -90,20 +90,20 @@ pub(super) fn decoded_numeric_payloads_and_strict_greater_composition_reach_engi
     std::fs::write(root.path().join("numeric.py"), source)?;
     let report = factory::local(python_310(), None).run_prepared(WorkerRequest {
         performance: Default::default(),
-        selected_rules: Some(fixture_cohort(&["EXACT", "STRICT", "SUCCESSOR"])),
-        rule_observations: None,
-        rule_context: None,
-        project_search_roots: None,
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(fixture_cohort(&["EXACT", "STRICT", "SUCCESSOR"])),
+        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode:
             ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
-        context_manifest: None,
+        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: root.path().to_owned(),
         rules,
         query_modules: BTreeMap::default(),
         rule_applicability: BTreeMap::default(),
-        parser_configuration: None,
-        source_language: None,
+        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: vec![ryo::linter::RelativePath("numeric.py".into())],
         state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
     })?;

@@ -12,6 +12,10 @@ Exact artifact identity retains the original framing and display vocabulary.
 
 Declared and observed source context and owned rule-observation declarations preserve their existing data semantics.
 
+### documents
+
+The registered case and native observation documents are plain values that both the suite and the inventory ports read and write.
+
 ### measurements
 
 Raw process measurements and borrowed publication observations carry no certified sample constructor.
@@ -19,6 +23,10 @@ Raw process measurements and borrowed publication observations carry no certifie
 ### process
 
 Declared process expectations and archived observations remain distinct from diagnostic reports.
+
+### receipts
+
+The audit of registered case receipts reports which cases verified and which failed, with their identities.
 
 ### reports
 

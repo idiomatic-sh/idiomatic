@@ -31,7 +31,7 @@ pub struct SourceRevision(
 
 /// Public source path of a tool contract.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ContractContractSourcePath(
+pub struct ContractSourcePath(
     /// The path as published.
     pub String,
 );

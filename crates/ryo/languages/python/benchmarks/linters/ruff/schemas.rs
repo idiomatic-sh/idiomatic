@@ -88,9 +88,8 @@ impl TryFrom<RuffReportSchema<'_>> for RunReport {
         } = schema;
         check_status(output)?;
         let declared_missing = |file: &RelativePath| {
-            request.context_manifest.as_ref().is_some_and(|manifest| {
-                ryo_benchmark::domain::suite::service::declares_missing(manifest, file)
-            })
+            matches!(&request.context_manifest, ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(manifest) if
+                ryo_benchmark::domain::suite::service::declares_missing(manifest, file) == ryo_benchmark::domain::suite::types::ContextAbsence::Sealed)
         };
         if sources.keys().any(|file| !request.files.contains(file))
             || request
@@ -168,13 +167,14 @@ impl TryFrom<RuffReportSchema<'_>> for RunReport {
         Ok(RunReport {
             execution_metadata:
                 ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Unavailable {
-                    reason: "Ruff JSON findings format has no rule/file execution accounting"
-                        .into(),
+                    reason: ryo_benchmark_contracts::domain::reports::types::UnavailableReason(
+                        "Ruff JSON findings format has no rule/file execution accounting".into(),
+                    ),
                 },
-            project_context: None,
+            project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
             diagnostics,
             skipped: Vec::new(),
-            coverage: None,
+            coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Unaccounted,
             files: request.files.clone(),
         })
     }
@@ -249,7 +249,13 @@ pub(super) fn configuration_arguments(
         arguments.push("--config".into());
         arguments.push(section(
             "external",
-            strings(configuration.external_prefixes.clone()),
+            strings(
+                configuration
+                    .external_prefixes
+                    .iter()
+                    .map(|prefix| prefix.0.clone())
+                    .collect(),
+            ),
         )?);
     }
     if !configuration.disabled_rules.is_empty() {
@@ -259,7 +265,7 @@ pub(super) fn configuration_arguments(
             let text = absolute
                 .to_str()
                 .ok_or_else(|| Error::Invalid("non-UTF8 configuration path".into()))?;
-            let literal = ryo_benchmark::domain::suite::rule_context::literal_glob(text);
+            let literal = ryo_benchmark::domain::rule_context::service::literal_glob(text);
             let rules: Vec<_> = rules.iter().map(ToString::to_string).collect();
             entries.insert(literal, strings(rules));
         }

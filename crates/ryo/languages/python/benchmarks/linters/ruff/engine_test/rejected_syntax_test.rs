@@ -22,23 +22,23 @@ pub(super) fn rejected_syntax_with_provider_partials_skips_only_accepted_syntax_
     std::fs::write(root.path().join("input.py"), "value = ur\"hello\"\n")?;
     let request = WorkerRequest {
         performance: Default::default(),
-        selected_rules: Some(fixture_cohort(&["ASYNC100", "UP025"])),
-        rule_observations: None,
-        rule_context: None,
-        project_search_roots: None,
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(fixture_cohort(&["ASYNC100", "UP025"])),
+        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode:
             ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
-        context_manifest: None,
+        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: root.path().to_owned(),
         rules,
         query_modules: BTreeMap::default(),
         rule_applicability: BTreeMap::from([
-            ("ASYNC100".to_owned(), "always".to_owned()),
-            ("UP025".to_owned(), "accepted-syntax".to_owned()),
+            (ryo_benchmark_contracts::domain::requests::types::RuleLabel("ASYNC100".to_owned()), ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy("always".to_owned())),
+            (ryo_benchmark_contracts::domain::requests::types::RuleLabel("UP025".to_owned()), ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy("accepted-syntax".to_owned())),
         ]),
-        parser_configuration: Some("python-target=3.10".to_owned()),
-        source_language: None,
+        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName("python-target=3.10".to_owned())),
+        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: vec![ryo::linter::RelativePath("input.py".into())],
         state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
     };

@@ -21,7 +21,7 @@ pub(crate) fn run(
         .skip(1)
         .filter(|argument| argument != self::constants::CARGO_BENCH_ARGUMENT);
     let suite_source: Arc<dyn ryo_benchmark::outbound::suite::interface::SuitePort> =
-        Arc::new(ryo_benchmark::outbound::suite::factory::local());
+        Arc::new(ryo_benchmark::outbound::suite::factory::local(ryo_benchmark::outbound::suite::types::CaseReceipts::Unrecorded));
     let command = args.next();
     match command.as_deref() {
         Some(

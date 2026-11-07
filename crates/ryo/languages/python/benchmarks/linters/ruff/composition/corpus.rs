@@ -2,8 +2,7 @@
 use super::commands;
 use super::constants;
 use super::output;
-use ryo::linter::{RelativePath, RuleId};
-use ryo_benchmark::application::run::service::run as execute;
+use ryo_benchmark::application::measurement::service::run as execute;
 use ryo_benchmark::domain::measurements::types::sample::value::BenchmarkSample;
 use ryo_benchmark::domain::suite::types::certificate::value::Certificate;
 use ryo_benchmark::inbound::use_cases::compare::{
@@ -15,9 +14,8 @@ use ryo_benchmark::inbound::use_cases::measure::{
 use ryo_benchmark::outbound::execution::interface::ExecutionPort;
 use ryo_benchmark::outbound::linter::interface::LinterPort;
 use ryo_benchmark::outbound::suite::interface::SuitePort;
-use ryo_benchmark::outbound::suite::types::{ArtifactPath, ArtifactSet};
+use ryo_benchmark::outbound::suite::types::{ArtifactPath, ArtifactSet, ArtifactText};
 use ryo_benchmark::outbound::workspace::interface::WorkspacePort as _;
-use ryo_benchmark_contracts::domain::context::types::RuleContextDeclaration;
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use ryo_benchmark_contracts::domain::measurements::types::RunOrder;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -57,11 +55,11 @@ pub(super) struct Corpus<'a> {
     /// The report comparison operation.
     pub(super) comparison: &'a CompareUseCaseImpl,
     /// The rules both contestants run.
-    pub(super) configured_cohort: &'a Option<Vec<RuleId>>,
+    pub(super) configured_cohort: &'a ryo_benchmark_contracts::domain::requests::types::CohortSelection,
     /// The declared rule context.
-    pub(super) declared_rule_context: &'a Option<RuleContextDeclaration>,
+    pub(super) declared_rule_context: &'a ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile,
     /// The declared project search roots.
-    pub(super) project_search_roots: &'a Option<Vec<RelativePath>>,
+    pub(super) project_search_roots: &'a ryo_benchmark_contracts::domain::requests::types::SearchRoots,
     /// How project context is sealed.
     pub(super) project_context_mode: ProjectContextMode,
 }
@@ -112,15 +110,15 @@ impl Corpus<'_> {
             let preflight = RunRequest {
                 performance: Default::default(),
                 selected_rules: self.configured_cohort.clone(),
-                rule_observations: None,
-                rule_context: ryo_benchmark::domain::suite::rule_context::resolve(
-                    self.declared_rule_context.as_ref(),
-                    None,
+                rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+                rule_context: ryo_benchmark::domain::rule_context::service::resolve(
+                    self.declared_rule_context,
+                    &ryo_benchmark_contracts::domain::workloads::types::ConfigurationOverride::Inherited,
                 )?,
                 project_search_roots: self.project_search_roots.clone(),
                 given_project_inventory: Default::default(),
-                staged_sources: None,
-                file_metadata: None,
+                staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
+                file_metadata: ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
                 context_manifest: commands::seal_context(
                     self.suite_source,
                     self.project_context_mode,
@@ -135,7 +133,7 @@ impl Corpus<'_> {
                     .join(constants::PREFLIGHT_DIRECTORY)
                     .join(&project.name.0),
             };
-            let parsed = execute(self.reference, self.execution, &preflight)?;
+            let parsed = execute(&ryo_benchmark::outbound::context::factory::local(), self.reference, self.execution, &preflight)?;
             let invalid: std::collections::BTreeSet<_> = parsed
                 .report
                 .diagnostics
@@ -161,7 +159,7 @@ impl Corpus<'_> {
             .iter()
             .map(|file| workspace.root().join(file.0.as_ref()))
             .collect();
-        let bytes = self.suite_source.total_size(&paths)?;
+        let bytes = self.suite_source.total_size(ArtifactSet(&paths))?.0;
         writeln!(
             observations,
             "{}: measured source files={} bytes={bytes} digest={} input-profile={}",
@@ -183,19 +181,20 @@ impl Corpus<'_> {
             // even if an earlier trial left caches behind in the caller's root.
             let trial = self
                 .suite_source
-                .scratch(ArtifactPath(self.cache), constants::TRIAL_PREFIX)?;
+                .scratch(ArtifactPath(self.cache), ArtifactText(constants::TRIAL_PREFIX))?
+                .0;
             let request = RunRequest {
                 performance: Default::default(),
                 selected_rules: self.configured_cohort.clone(),
-                rule_observations: None,
-                rule_context: ryo_benchmark::domain::suite::rule_context::resolve(
-                    self.declared_rule_context.as_ref(),
-                    None,
+                rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+                rule_context: ryo_benchmark::domain::rule_context::service::resolve(
+                    self.declared_rule_context,
+                    &ryo_benchmark_contracts::domain::workloads::types::ConfigurationOverride::Inherited,
                 )?,
                 project_search_roots: self.project_search_roots.clone(),
                 given_project_inventory: Default::default(),
-                staged_sources: None,
-                file_metadata: None,
+                staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
+                file_metadata: ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
                 context_manifest: commands::seal_context(
                     self.suite_source,
                     self.project_context_mode,
@@ -247,8 +246,8 @@ impl Corpus<'_> {
             let edited = self
                 .measurements
                 .measure(self.certificate, &edited_request, order);
-            let clean_reference = execute(self.reference, self.execution, &clean_request);
-            let clean_candidate = execute(self.candidate, self.execution, &clean_request);
+            let clean_reference = execute(&ryo_benchmark::outbound::context::factory::local(), self.reference, self.execution, &clean_request);
+            let clean_candidate = execute(&ryo_benchmark::outbound::context::factory::local(), self.candidate, self.execution, &clean_request);
             workspaces.reset(&mut workspace)?;
             let edited = edited?;
             self.comparison

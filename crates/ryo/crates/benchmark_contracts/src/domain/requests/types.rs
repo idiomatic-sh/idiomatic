@@ -146,14 +146,14 @@ pub enum CertificationCases {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CaseSelection<'a> {
     /// Globally audited deterministic shard, or all cases.
-    pub shard: ShardSelection,
+    pub shard: ShardPartition,
     /// An explicit subset of IDs assigned to this shard, or the whole shard.
     pub ids: IdSelection<'a>,
 }
 
 /// Which partition of the case inventory a verification covers.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum ShardSelection {
+pub enum ShardPartition {
     /// Every case.
     #[default]
     All,

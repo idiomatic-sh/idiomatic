@@ -362,9 +362,9 @@ mod repository_url;
 
 mod project_revision;
 
-mod tool_name;
+pub mod tool_name;
 
-mod tool_version;
+pub mod tool_version;
 
 mod tool_digest;
 

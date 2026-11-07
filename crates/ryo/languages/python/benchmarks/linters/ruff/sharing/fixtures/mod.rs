@@ -127,26 +127,30 @@ pub(super) fn observe() -> Result<Observation, Box<dyn std::error::Error>> {
         std::path::PathBuf::from("case.py"),
         std::path::PathBuf::from("second.py"),
     ];
-    let context = suite.seal_context(ArtifactPath(&root), &files, &tracked)?;
+    let context = suite.seal_context(
+        ArtifactPath(&root),
+        &files,
+        ryo_benchmark::outbound::suite::types::ArtifactSet(&tracked),
+    )?;
     let request = RunRequest {
         performance: PerformanceOptions {
             diagnostics: DiagnosticOptions {
-                execution: true,
+                execution: ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On,
                 ..Default::default()
             },
             ..Default::default()
         },
-        selected_rules: Some(profile.defaults.clone()),
-        rule_observations: None,
-        rule_context: ryo_benchmark::domain::suite::rule_context::resolve(
-            profile.rule_context.as_ref(),
-            None,
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(profile.defaults.clone()),
+        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context: ryo_benchmark::domain::rule_context::service::resolve(
+            &profile.rule_context,
+            &ryo_benchmark_contracts::domain::workloads::types::ConfigurationOverride::Inherited,
         )?,
         project_search_roots: profile.project_search_roots.clone(),
         given_project_inventory: Default::default(),
-        staged_sources: Some(files.clone()),
-        file_metadata: None,
-        context_manifest: Some(context),
+        staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Listed(files.clone()),
+        file_metadata: ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(context),
         root,
         files,
         state: temporary.path().join("state"),
@@ -174,7 +178,7 @@ pub(super) fn observe() -> Result<Observation, Box<dyn std::error::Error>> {
             ),
         )]),
         destination.clone(),
-        factory::FrontendDiagnosticProjection {
+        ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection {
             rule: ryo::linter::RuleId::try_from("invalid-syntax")?,
             query: ryo::query::RyoQlQuery::try_from(
                 crate::frontend_projection::constants::FRONTEND_DIAGNOSTIC_QUERY,
@@ -475,7 +479,7 @@ fn measured(
                 ryo_python::settings::PythonTargetVersion::Py310,
             ),
         )]),
-        factory::FrontendDiagnosticProjection {
+        ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection {
             rule: ryo::linter::RuleId::try_from("invalid-syntax")?,
             query: ryo::query::RyoQlQuery::try_from(
                 crate::frontend_projection::constants::FRONTEND_DIAGNOSTIC_QUERY,
@@ -575,20 +579,24 @@ impl Inventory {
             files.push(ryo::linter::RelativePath(name.as_str().into()));
             tracked.push(PathBuf::from(name));
         }
-        let context = suite.seal_context(ArtifactPath(&root), &files, &tracked)?;
+        let context = suite.seal_context(
+        ArtifactPath(&root),
+        &files,
+        ryo_benchmark::outbound::suite::types::ArtifactSet(&tracked),
+    )?;
         let request = RunRequest {
             performance: PerformanceOptions { diagnostics: DiagnosticOptions::default() },
-            selected_rules: Some(self.profile.defaults.clone()),
-            rule_observations: None,
-            rule_context: ryo_benchmark::domain::suite::rule_context::resolve(
-                self.profile.rule_context.as_ref(),
-                None,
+            selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(self.profile.defaults.clone()),
+            rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            rule_context: ryo_benchmark::domain::rule_context::service::resolve(
+                &self.profile.rule_context,
+                &ryo_benchmark_contracts::domain::workloads::types::ConfigurationOverride::Inherited,
             )?,
             project_search_roots: self.profile.project_search_roots.clone(),
             given_project_inventory: Default::default(),
-            staged_sources: Some(files.clone()),
-            file_metadata: None,
-            context_manifest: Some(context),
+            staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Listed(files.clone()),
+            file_metadata: ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+            context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(context),
             root,
             files,
             state: self.temporary.path().join("state"),

@@ -40,24 +40,24 @@ pub(super) fn reference_roots_must_match_the_declared_project_scope() -> Result<
     });
     let mut request = RunRequest {
         performance: Default::default(),
-        selected_rules: None,
-        rule_observations: None,
-        rule_context: None,
-        project_search_roots: Some(vec![RelativePath("".into()), RelativePath("src".into())]),
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
+        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Declared(vec![RelativePath("".into()), RelativePath("src".into())]),
         given_project_inventory: Default::default(),
-        staged_sources: None,
-        file_metadata: None,
-        context_manifest: None,
+        staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
+        file_metadata: ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: "/tmp".into(),
         files: vec![RelativePath("input.py".into())],
         state: "/tmp/cache".into(),
     };
     adapter.prepare(&request)?;
-    request.project_search_roots = Some(vec![RelativePath("".into())]);
+    request.project_search_roots = ryo_benchmark_contracts::domain::requests::types::SearchRoots::Declared(vec![RelativePath("".into())]);
     assert!(matches!(adapter.prepare(&request), Err(Error::Invalid(_))));
-    request.project_search_roots = Some(Vec::new());
+    request.project_search_roots = ryo_benchmark_contracts::domain::requests::types::SearchRoots::Declared(Vec::new());
     assert!(matches!(adapter.prepare(&request), Err(Error::Invalid(_))));
-    request.project_search_roots = None;
+    request.project_search_roots = ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared;
     adapter.prepare(&request)?;
     let unrelated = LinterRuffAdapter::new(LinterRuffSettings {
         executable: "/missing-ruff".into(),
@@ -66,7 +66,7 @@ pub(super) fn reference_roots_must_match_the_declared_project_scope() -> Result<
             .collect(),
         target_version: "py310".into(),
     });
-    request.project_search_roots = Some(vec![RelativePath("".into())]);
+    request.project_search_roots = ryo_benchmark_contracts::domain::requests::types::SearchRoots::Declared(vec![RelativePath("".into())]);
     assert!(matches!(
         unrelated.prepare(&request),
         Err(Error::Invalid(_))

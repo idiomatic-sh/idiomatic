@@ -12,7 +12,7 @@ use ryo_benchmark::inbound::use_cases::stage_suite::{
     interface::StageSuiteUseCase as _, use_case::StageSuiteUseCaseImpl,
 };
 use ryo_benchmark::outbound::suite::interface::SuitePort;
-use ryo_benchmark::outbound::suite::types::ArtifactPath;
+use ryo_benchmark::outbound::suite::types::{ArtifactPath, ArtifactText};
 use ryo_benchmark_contracts::domain::measurements::types::MeasurementMode;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::types::{BenchmarkCoverage, CertificationCases};
@@ -62,10 +62,12 @@ pub(super) fn paths(
 
 /// Make a scratch directory under the suite boundary's default location.
 pub(super) fn scratch(suite: &dyn SuitePort, prefix: &str) -> Result<PathBuf, Error> {
-    suite.scratch(
-        ArtifactPath(std::path::Path::new(constants::DEFAULT_SCRATCH_ROOT)),
-        prefix,
-    )
+    suite
+        .scratch(
+            ArtifactPath(std::path::Path::new(constants::DEFAULT_SCRATCH_ROOT)),
+            ArtifactText(prefix),
+        )
+        .map(|directory| directory.0)
 }
 
 /// The registered case inventory an accounted measurement is held to, with the scratch directory for its results.
@@ -80,7 +82,9 @@ fn registered_cases(
         .ok_or_else(|| Error::Invalid(CANONICAL_BENCHMARK_REQUIRES_EXPLI.into()))?;
     Ok(CertificationCases::Registered {
         registration: PathBuf::from(input).canonicalize()?,
-        output: suite_source.scratch(ArtifactPath(cache), REGISTERED_CASE_RESULTS)?,
+        output: suite_source
+            .scratch(ArtifactPath(cache), ArtifactText(REGISTERED_CASE_RESULTS))?
+            .0,
     })
 }
 
@@ -97,7 +101,9 @@ pub(super) fn stage(
     cache: &Path,
     authored: &[ryo::linter::RuleId],
 ) -> Result<StagedSuite, Error> {
-    let scratch = suite_source.scratch(ArtifactPath(cache), constants::CERTIFICATION_PREFIX)?;
+    let scratch = suite_source
+        .scratch(ArtifactPath(cache), ArtifactText(constants::CERTIFICATION_PREFIX))?
+        .0;
     let profile = scratch.join(constants::PROFILE_DIRECTORY);
     StageSuiteUseCaseImpl::new(suite_source.as_ref()).stage_suite(
         &commands::directory(),

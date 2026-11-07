@@ -42,20 +42,20 @@ pub(super) fn lazy_future_stays_visible_without_a_dedicated_selected_rule() -> R
             )
             .run_prepared(WorkerRequest {
                 performance: Default::default(),
-                selected_rules: Some(fixture_cohort(&[selected])),
-                rule_observations: None,
-                rule_context: None,
-                project_search_roots: None,
+                selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(fixture_cohort(&[selected])),
+                rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+                rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+                project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
                 given_project_inventory: Default::default(),
                 project_context_mode:
                     ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
-                context_manifest: None,
+                context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
                 root: root.path().to_owned(),
                 rules,
                 query_modules: BTreeMap::default(),
                 rule_applicability: BTreeMap::default(),
-                parser_configuration: Some(PYTHON_TARGET_3_15.to_owned()),
-                source_language: None,
+                parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName(PYTHON_TARGET_3_15.to_owned())),
+                source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
                 files: vec![ryo::linter::RelativePath(INPUT_PY.into())],
                 state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
             })?;

@@ -167,14 +167,14 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     }
     let mut request = RunRequest {
         performance: Default::default(),
-        selected_rules: None,
-        rule_observations: None,
-        rule_context: None,
-        project_search_roots: None,
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
+        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
-        staged_sources: None,
-        file_metadata: None,
-        context_manifest: None,
+        staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
+        file_metadata: ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: root.path().to_owned(),
         files: vec![ryo::linter::RelativePath("case.py".into())],
         state: root.path().join("cache"),
@@ -244,7 +244,7 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     let report = ruff.decode(
         &request,
         ProcessOutput {
-            signal: None,
+            signal: ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
             status: ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode(status),
             stdout: ryo_benchmark_contracts::domain::measurements::types::CapturedBytes(stdout),
             stderr: ryo_benchmark_contracts::domain::measurements::types::CapturedBytes(
@@ -286,7 +286,7 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
             report.execution_metadata,
             ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Unavailable { .. }
         )
-        && report.coverage.is_none())
+        && report.coverage == ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Unaccounted)
 }
 fn subject(input: Input) -> Result<Value, Failure> {
     exercise(input).map_err(failure)

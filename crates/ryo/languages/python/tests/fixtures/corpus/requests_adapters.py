@@ -65,7 +65,7 @@ except ImportError:
 
 
 if typing.TYPE_CHECKING:
-    from .models import PreparedRequest
+    from .models import PreparedWorkerRequest
 
 
 DEFAULT_POOLBLOCK = False
@@ -88,7 +88,7 @@ except ImportError:
 
 
 def _urllib3_request_context(
-    request: "PreparedRequest",
+    request: "PreparedWorkerRequest",
     verify: "bool | str | None",
     client_cert: "typing.Tuple[str, str] | str | None",
     poolmanager: "PoolManager",
@@ -143,9 +143,9 @@ class BaseAdapter:
     def send(
         self, request, stream=False, timeout=None, verify=True, cert=None, proxies=None
     ):
-        """Sends PreparedRequest object. Returns Response object.
+        """Sends PreparedWorkerRequest object. Returns Response object.
 
-        :param request: The :class:`PreparedRequest <PreparedRequest>` being sent.
+        :param request: The :class:`PreparedWorkerRequest <PreparedWorkerRequest>` being sent.
         :param stream: (optional) Whether to stream the request content.
         :param timeout: (optional) How long to wait for the server to send
             data before giving up, as a float, or a :ref:`(connect timeout,
@@ -362,7 +362,7 @@ class HTTPAdapter(BaseAdapter):
         for use when subclassing the
         :class:`HTTPAdapter <requests.adapters.HTTPAdapter>`
 
-        :param req: The :class:`PreparedRequest <PreparedRequest>` used to generate the response.
+        :param req: The :class:`PreparedWorkerRequest <PreparedWorkerRequest>` used to generate the response.
         :param resp: The urllib3 response object.
         :rtype: requests.Response
         """
@@ -396,7 +396,7 @@ class HTTPAdapter(BaseAdapter):
     def build_connection_pool_key_attributes(self, request, verify, cert=None):
         """Build the PoolKey attributes used by urllib3 to return a connection.
 
-        This looks at the PreparedRequest, the user-specified verify value,
+        This looks at the PreparedWorkerRequest, the user-specified verify value,
         and the value of the cert parameter to determine what PoolKey values
         to use to select a connection from a given urllib3 Connection Pool.
 
@@ -425,7 +425,7 @@ class HTTPAdapter(BaseAdapter):
         :param request:
             The PreparedReqest being sent over the connection.
         :type request:
-            :class:`~requests.models.PreparedRequest`
+            :class:`~requests.models.PreparedWorkerRequest`
         :param verify:
             Either a boolean, in which case it controls whether
             we verify the server's TLS certificate, or a string, in which case it
@@ -449,7 +449,7 @@ class HTTPAdapter(BaseAdapter):
         when subclassing the :class:`HTTPAdapter <requests.adapters.HTTPAdapter>`.
 
         :param request:
-            The :class:`PreparedRequest <PreparedRequest>` object to be sent
+            The :class:`PreparedWorkerRequest <PreparedWorkerRequest>` object to be sent
             over the connection.
         :param verify:
             Either a boolean, in which case it controls whether we verify the
@@ -553,7 +553,7 @@ class HTTPAdapter(BaseAdapter):
         when subclassing the
         :class:`HTTPAdapter <requests.adapters.HTTPAdapter>`.
 
-        :param request: The :class:`PreparedRequest <PreparedRequest>` being sent.
+        :param request: The :class:`PreparedWorkerRequest <PreparedWorkerRequest>` being sent.
         :param proxies: A dictionary of schemes or schemes and hosts to proxy URLs.
         :rtype: str
         """
@@ -584,7 +584,7 @@ class HTTPAdapter(BaseAdapter):
         when subclassing the
         :class:`HTTPAdapter <requests.adapters.HTTPAdapter>`.
 
-        :param request: The :class:`PreparedRequest <PreparedRequest>` to add headers to.
+        :param request: The :class:`PreparedWorkerRequest <PreparedWorkerRequest>` to add headers to.
         :param kwargs: The keyword arguments from the call to send().
         """
         pass
@@ -613,9 +613,9 @@ class HTTPAdapter(BaseAdapter):
     def send(
         self, request, stream=False, timeout=None, verify=True, cert=None, proxies=None
     ):
-        """Sends PreparedRequest object. Returns Response object.
+        """Sends PreparedWorkerRequest object. Returns Response object.
 
-        :param request: The :class:`PreparedRequest <PreparedRequest>` being sent.
+        :param request: The :class:`PreparedWorkerRequest <PreparedWorkerRequest>` being sent.
         :param stream: (optional) Whether to stream the request content.
         :param timeout: (optional) How long to wait for the server to send
             data before giving up, as a float, or a :ref:`(connect timeout,
