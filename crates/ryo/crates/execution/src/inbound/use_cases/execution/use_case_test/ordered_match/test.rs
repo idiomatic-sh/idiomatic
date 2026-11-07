@@ -35,12 +35,12 @@ fn subject(input: Input) -> Result<Value, Failure> {
         .map(|(key, order)| [*key, *order])
         .collect();
     let hosted = vec![
-        fixtures::numbers(
+        fixtures::requests::numbers(
             "left",
             2,
             &left.iter().map(|row| row.as_slice()).collect::<Vec<_>>(),
         ),
-        fixtures::numbers(
+        fixtures::requests::numbers(
             "right",
             2,
             &right.iter().map(|row| row.as_slice()).collect::<Vec<_>>(),
@@ -72,7 +72,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
             ],
         },
     ]);
-    let output = fixtures::published(plan, vec![], hosted, &mut Symbols::default())?;
+    let output = fixtures::requests::published(plan, vec![], hosted, &mut Symbols::default())?;
     assert_eq!(output.count.0, input.expected.len());
     let actual: Vec<_> = output
         .cells

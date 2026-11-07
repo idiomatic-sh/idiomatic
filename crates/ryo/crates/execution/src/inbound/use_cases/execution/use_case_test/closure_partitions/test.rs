@@ -52,7 +52,7 @@ fn compute_with_observation(
     bindings: &[ParameterBinding],
     observed: &mut ExecutionObservation,
 ) -> Result<Table, OperatingError> {
-    let (table, actual) = fixtures::table_request(
+    let (table, actual) = fixtures::requests::table_request(
         operation.clone(),
         inputs,
         bindings.to_vec(),

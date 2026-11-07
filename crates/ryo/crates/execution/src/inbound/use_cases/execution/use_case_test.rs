@@ -1,5 +1,5 @@
 //! A request execution begins over a prepared program, and its file owner reuses only recognized stable sources.
-use super::fixtures::{Authored, Preparation};
+use super::fixtures::requests::{Authored, Preparation};
 use super::{interface::ExecutionUseCase, use_case::ExecutionUseCaseImpl};
 use crate::application::file_dag::program::file_session::interface::FileExecution;
 use crate::application::file_dag::program::file_session::types::{FileInput, SourceLanguage};

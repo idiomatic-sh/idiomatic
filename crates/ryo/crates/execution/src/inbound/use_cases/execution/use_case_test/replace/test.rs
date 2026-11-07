@@ -39,10 +39,10 @@ fn subject(input: Input) -> Result<Value, Failure> {
         ryo_language::domain::symbols::types::ByteSlice(&[]),
         ryo_relations::domain::terms::types::NameText(input.text),
     );
-    let output = fixtures::published(
+    let output = fixtures::requests::published(
         plan,
         vec![],
-        vec![fixtures::texts("texts", &[input.text])],
+        vec![fixtures::requests::texts("texts", &[input.text])],
         &mut symbols,
     )?;
     assert_eq!(output.count.0, 1);

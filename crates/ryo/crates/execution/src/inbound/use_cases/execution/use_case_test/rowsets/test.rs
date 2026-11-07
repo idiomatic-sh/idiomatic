@@ -1,5 +1,5 @@
 //! Rowset contracts use independently authored host populations and the actual public owner.
-use super::super::super::fixtures::numbers;
+use super::super::super::fixtures::requests::numbers;
 use super::super::super::fixtures;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
@@ -197,7 +197,7 @@ fn authored(scenario: Input) -> (Plan, Vec<HostRelation>) {
 }
 fn subject(input: Input) -> Result<Value, Failure> {
     let (plan, hosts) = authored(input);
-    let table = fixtures::published(plan, vec![], hosts, &mut Symbols::default())?;
+    let table = fixtures::requests::published(plan, vec![], hosts, &mut Symbols::default())?;
     let values = table
         .cells
         .iter()

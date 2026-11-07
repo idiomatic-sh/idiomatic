@@ -44,10 +44,10 @@ fn subject((names, binding): Input) -> Result<Value, Failure> {
             kind: ryo_values::domain::query_bindings::types::ParameterType::TextSets,
         });
     let mut symbols = Symbols::default();
-    let output = fixtures::published(
+    let output = fixtures::requests::published(
         plan,
         binding.into_iter().collect(),
-        vec![fixtures::texts("names", names)],
+        vec![fixtures::requests::texts("names", names)],
         &mut symbols,
     )?;
     let found: Vec<_> = output

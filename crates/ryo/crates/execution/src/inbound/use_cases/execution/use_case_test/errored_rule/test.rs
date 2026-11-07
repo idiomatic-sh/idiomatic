@@ -204,7 +204,7 @@ fn an_errored_rule_answers_its_error_while_its_sibling_delivers_rows(authored: A
         .map(|(plan, rule)| ryo_values::domain::rule_requests::service::bind(plan, rule))
         .collect::<Result<Vec<_>, _>>()
         .expect("both written rules bind their parameters");
-    let (engine, prepared) = fixtures::prepared_many(plans, bindings, vec![])
+    let (engine, prepared) = fixtures::requests::prepared_many(plans, bindings, vec![])
         .expect("an errored rule does not refuse the request: it is refused on its own roots");
     let population = sources();
     let read = |relation| match relation {
@@ -217,7 +217,7 @@ fn an_errored_rule_answers_its_error_while_its_sibling_delivers_rows(authored: A
         size: FileSize(0),
         modified: Nanoseconds(0),
     })];
-    let request = fixtures::execution().execution(&prepared, &corpus);
+    let request = fixtures::requests::execution().execution(&prepared, &corpus);
     let elements = Elements::default();
     let mut symbols = Symbols::default();
     let run = FileRuleIntent::Run {

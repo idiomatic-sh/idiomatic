@@ -56,7 +56,7 @@ fn prepare(
     shadow: &Operation,
 ) -> Result<
     (
-        fixtures::Preparation,
+        fixtures::requests::Preparation,
         PreparedExecutionProgram,
         Symbols,
         Table,
@@ -83,17 +83,17 @@ fn prepare(
         scope: StepScope::PerFile,
         operation: shadow,
     });
-    let (engine, program) = fixtures::prepared(authored.plan, bindings.to_vec(), authored.hosted)?;
+    let (engine, program) = fixtures::requests::prepared(authored.plan, bindings.to_vec(), authored.hosted)?;
     Ok((engine, program, symbols, input))
 }
 fn evaluate(
-    engine: &fixtures::Preparation,
+    engine: &fixtures::requests::Preparation,
     program: &PreparedExecutionProgram,
     symbols: &mut Symbols,
 ) -> Result<(Table, usize, usize), Failure> {
     let read = |_| Err(OperatingError::NotRead);
     let (table, observed) =
-        fixtures::run_prepared(engine, program, b"", &Elements::default(), symbols, &read)?;
+        fixtures::requests::run_prepared(engine, program, b"", &Elements::default(), symbols, &read)?;
     assert!(
         observed.file_owner_released,
         "actual file-owner weak handle is dead after finish, so mandatory workspace references were released"

@@ -101,13 +101,13 @@ fn stored_prefix_keeps_static_error_order_and_source_identity() {
                 columns: &columns,
             }))
         };
-        let (engine, prepared) = fixtures::prepared(
+        let (engine, prepared) = fixtures::requests::prepared(
             inputs::plan(vec![operation(OperationKind::Project, bad_layout)]),
             vec![],
             vec![],
         )
         .unwrap();
-        let result = fixtures::run_prepared(
+        let result = fixtures::requests::run_prepared(
             &engine,
             &prepared,
             b"",

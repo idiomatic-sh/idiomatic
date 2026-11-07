@@ -84,7 +84,7 @@ fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() -> R
     ]);
     plan.steps[1].scope = StepScope::CrossFile;
     assert!(plan.frontier.is_empty());
-    let (engine, program) = fixtures::prepared(plan, vec![], vec![])
+    let (engine, program) = fixtures::requests::prepared(plan, vec![], vec![])
         .expect("compile exact phase dependency without inventing a handover");
     let corpus = [CorpusInput::Available(CorpusEntry {
         path: ryo_language::domain::files::types::FilePath("operator-contract.py".into()),
@@ -92,7 +92,7 @@ fn project_step_without_a_declared_handover_cannot_read_a_per_file_source() -> R
         size: FileSize(0),
         modified: Nanoseconds(0),
     })];
-    let request = fixtures::execution().execution(&program, &corpus);
+    let request = fixtures::requests::execution().execution(&program, &corpus);
     let covered = [Covered {
         file: FileId(0),
         rules: vec![RuleIndex(0)],
