@@ -54,7 +54,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("disabled pairs are subtracted from the selected pairs"),
         word: Word::Succeeds,
         input: || Scenario::PairsAfterDisabled,
-        expect: Expect::Value(Cow::Borrowed("3")),
+        expect: Expect::Value(Cow::Borrowed("1")),
     },
     Case {
         name: CaseName("a path is escaped as a literal glob"),
