@@ -21,7 +21,6 @@ use std::sync::Arc;
 mod census;
 mod demands;
 mod metadata;
-mod orders;
 mod replay;
 mod schedule;
 
@@ -46,17 +45,6 @@ impl PreparedProgram {
             .map(AsRef::as_ref)
             .ok_or(OperatingError::NotRun)
     }
-    pub(in crate::application::file_dag::program) fn native_order(
-        &self,
-        region: crate::domain::executable_program::types::RegionId,
-    ) -> Result<Option<Arc<crate::domain::derived_views::types::contract::value::DerivedContract>>, OperatingError>
-    {
-        self.native_orders
-            .get(region.0)
-            .cloned()
-            .ok_or(OperatingError::NotRun)
-    }
-
     pub(in crate::application::file_dag::program) fn walk(
         &self,
     ) -> &crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk {
@@ -287,7 +275,6 @@ pub(crate) fn prepare(
     )?);
     walk.retain_program_consumers(&program)?;
     census::service::trace(rules, &walk, &program);
-    let native_orders = orders::service::prepare(&program, &derived)?;
     let derived = crate::application::file_dag::derived::prepared::RequestDerived::compile(
         &program, &operators,
     )?;
@@ -315,7 +302,6 @@ pub(crate) fn prepare(
     };
     Ok(Arc::new(PreparedProgram {
         program,
-        native_orders,
         rule_ids: rules.iter().map(|rule| rule.id.clone()).collect(),
         applicability: rules.iter().map(|rule| rule.applicability).collect(),
         rule_digests: rule_digests.to_vec().into_boxed_slice(),

@@ -134,7 +134,6 @@ impl ProgramExecution {
             return Ok(Default::default());
         };
         Ok(crate::domain::operating::fixtures::ExecutionObservation {
-            native_positions: slot.native_positions.0,
             registered_calls: slot.registered_calls.0,
             ..slot.observed
         })

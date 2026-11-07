@@ -3,8 +3,6 @@
 mod continuation;
 #[cfg(test)]
 mod derived_barrier;
-#[cfg(test)]
-mod distinct_gate;
 #[cfg(any(test, feature = "fixtures"))]
 mod fixtures;
 #[cfg(test)]
@@ -17,5 +15,3 @@ mod observation;
 mod retention;
 #[cfg(test)]
 mod row_semantics;
-#[cfg(test)]
-mod selection;

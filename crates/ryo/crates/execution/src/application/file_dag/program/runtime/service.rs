@@ -106,8 +106,6 @@ struct Slot {
     #[cfg(test)]
     observed: crate::domain::operating::fixtures::ExecutionObservation,
     #[cfg(test)]
-    native_positions: CallCount,
-    #[cfg(test)]
     registered_calls: CallCount,
     state: State,
     scratch: Vec<KernelScratch>,

@@ -1,12 +1,12 @@
-//! The service keeps the generic route when no family offers one, equivalent drafted regions merge as the linear scan
+//! A region the recogniser did not resolve keeps its registered operators, equivalent drafted regions merge as the linear scan
 //! would in linear cost, and demand compilation preserves declared order.
 use super::{
     fusion::types::RegionSharing,
     merge::merge_equivalent,
-    service::{choose, column, native_positions, ordered_existence, selection},
+    service::ordered_existence,
     types::{
         DemandAction, DraftIndex, DraftRegion, LogicalInstruction, OperandSource,
-        PartitionRequirement, ReaderMultiplicity, RegionMerge, Route, RouteOffers, demand_program::value::DemandProgram,
+        PartitionRequirement, ReaderMultiplicity, RegionMerge, Route, demand_program::value::DemandProgram,
         instruction::value::Instruction,
     },
 };
@@ -31,7 +31,7 @@ enum Check {
     Demand(DemandOrder, usize, &'static [usize]),
     MergeMatchesLinearScan,
     MergeCostIsLinear,
-    NoOfferKeepsTheGenericRoute,
+    UnresolvedRegionKeepsItsOperators,
 }
 type Input = Check;
 type Value = ();
@@ -86,9 +86,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName("a_region_no_family_offers_a_route_keeps_the_generic_route"),
+        name: CaseName("an_unresolved_region_keeps_its_registered_operators"),
         word: Word::Succeeds,
-        input: || Check::NoOfferKeepsTheGenericRoute,
+        input: || Check::UnresolvedRegionKeepsItsOperators,
         expect: Expect::Value(()),
     },
 ];
@@ -103,13 +103,10 @@ fn subject(check: Input) -> Result<Value, Failure> {
             regions_merge_cost_is_linear_in_rule_count();
             Ok(())
         }
-        Check::NoOfferKeepsTheGenericRoute => {
-            let route = choose(RouteOffers::default());
+        Check::UnresolvedRegionKeepsItsOperators => {
+            let route = Route::default();
             assert!(matches!(route, Route::Generic));
             assert!(ordered_existence(&route).is_none());
-            assert!(column(&route).is_none());
-            assert!(selection(&route).is_none());
-            assert!(native_positions(&route).is_none());
             Ok(())
         }
     }

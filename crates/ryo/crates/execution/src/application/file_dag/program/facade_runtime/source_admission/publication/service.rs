@@ -38,8 +38,6 @@ impl SourceInputs<'_, '_> {
                 .regions()
                 .get(region.0)
                 .ok_or(OperatingError::NotRun)?;
-            let column = crate::domain::executable_program::service::column(&code.route())
-                .filter(|_| inputs.len() == 2);
             let ordered = crate::domain::executable_program::service::ordered_existence(
                 &code.route(),
             )
@@ -48,18 +46,7 @@ impl SourceInputs<'_, '_> {
                     && inputs[0].has_root(ProducerRoot::Region(shape.source))
                         == crate::application::file_dag::program::admission::Agreement::Same
             });
-            // Alternatives certify their original semantic operands, not the
-            // unary Project/Select that owns the final publication boundary.
-            let semantic = if let Some(shape) = column {
-                self.program
-                    .program()
-                    .regions()
-                    .get(shape.join.0)
-                    .ok_or(OperatingError::NotRun)?
-            } else {
-                code
-            };
-            let instruction = semantic
+            let instruction = code
                 .instructions()
                 .first()
                 .ok_or(OperatingError::NotRun)?;

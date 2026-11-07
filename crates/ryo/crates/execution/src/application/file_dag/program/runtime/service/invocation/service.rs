@@ -234,8 +234,6 @@ impl Drop for Invocation<'_> {
                     #[cfg(test)]
                     {
                         slot.observed = workspace.measured();
-                        slot.native_positions.0 +=
-                            std::mem::take(&mut workspace.observation.native_positions);
                         slot.registered_calls.0 +=
                             std::mem::take(&mut workspace.observation.registered_calls);
                     }

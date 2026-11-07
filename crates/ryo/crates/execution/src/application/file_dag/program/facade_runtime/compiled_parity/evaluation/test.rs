@@ -50,39 +50,6 @@ pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
         ObservationIdentity::Independent,
     )?;
     let target = StepId((plan(scenario).steps.len() - 1) as u32);
-    let target_region = {
-        let program = prepared.program();
-        let logical = program.rules()[0].original_steps[target.0 as usize]
-            .as_ref()
-            .unwrap()
-            .logical;
-        program.logical_regions()[logical.0]
-    };
-    let expects_native = matches!(
-        scenario,
-        Scenario::NativeAntijoin
-            | Scenario::NativeUnion
-            | Scenario::NativeJoinSteps
-            | Scenario::NativeJoinTree
-    );
-    if expects_native {
-        assert!(
-            crate::domain::executable_program::service::native_positions(
-                &prepared.program().regions()[target_region.0].route()
-            )
-            .is_some(),
-            "this case requires the compiled native-position strategy to be installed"
-        );
-    }
-    if matches!(scenario, Scenario::OrdinaryFunctionJoin) {
-        assert!(
-            crate::domain::executable_program::service::native_positions(
-                &prepared.program().regions()[target_region.0].route()
-            )
-            .is_none(),
-            "the non-tree RHS must decline native-position installation"
-        );
-    }
     let engine = Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
         crate::application::file_dag::fixtures::operators(),
     )));
@@ -149,23 +116,11 @@ pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
         &mut symbols,
     )?;
     let routes = file.route_observation(crate::domain::coverage::types::RuleIndex(0), target)?;
-    if expects_native {
-        assert!(
-            routes.native_positions > 0,
-            "published rows must come from actual native-position execution; ordinary parity alone is insufficient"
-        );
-        assert_eq!(
-            routes.registered_calls, 0,
-            "the target did not dispatch through ordinary registration"
-        );
-    }
-    if matches!(scenario, Scenario::OrdinaryFunctionJoin) {
-        assert_eq!(routes.native_positions, 0);
-        assert!(
-            routes.registered_calls > 0,
-            "a declined native shape must execute the real registered operator"
-        );
-    }
+    // Every target, tree-backed or not, is evaluated by its registered operators: the one path.
+    assert!(
+        routes.registered_calls > 0,
+        "the target must execute its registered operator"
+    );
     let table = match outcome.emit {
         RootOutcome::Complete(table) => table,
         RootOutcome::Unknown(error) | RootOutcome::Failed(error) => return Err(error),

@@ -23,8 +23,6 @@ pub(crate) struct Observation {
     pub(crate) derived_builds: Vec<ryo_derived::domain::request::types::DerivedRequest>,
     pub(crate) fed: Vec<crate::domain::operator::types::RowsFed>,
     pub(crate) instructions: usize,
-    pub(crate) native_prepared: bool,
-    pub(crate) column_prepared: bool,
     pub(crate) frontiers: Vec<Table>,
     pub(crate) frontier_errors: Vec<OperatingError>,
     pub(crate) affected: Vec<Option<FileId>>,
@@ -112,13 +110,6 @@ pub(crate) fn execute(
         .logical;
     let region = program.logical_regions()[logical.0];
     let instructions = program.regions()[region.0].instructions().len();
-    let native_prepared = crate::domain::executable_program::service::native_positions(
-        &program.regions()[region.0].route(),
-    )
-    .is_some();
-    let column_prepared =
-        crate::domain::executable_program::service::column(&program.regions()[region.0].route())
-            .is_some();
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(port)),
         derived,
@@ -294,8 +285,6 @@ pub(crate) fn execute(
         derived_builds: faults.derived.builds(),
         fed,
         instructions,
-        native_prepared,
-        column_prepared,
         frontiers,
         frontier_errors,
         affected,

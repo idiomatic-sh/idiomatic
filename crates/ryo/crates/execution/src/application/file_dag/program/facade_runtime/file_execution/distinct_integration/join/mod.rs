@@ -32,8 +32,6 @@ mod lifecycle;
 #[cfg(test)]
 mod populations;
 
-#[cfg(test)]
-mod column_chain;
 
 #[cfg(test)]
 mod diagnostics;
@@ -46,8 +44,6 @@ mod direct;
 #[cfg(test)]
 mod generations;
 
-#[cfg(test)]
-mod raw_scope;
 
 #[cfg(test)]
 mod release;

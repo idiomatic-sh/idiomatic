@@ -49,14 +49,6 @@ fn exercise(residency: Residency) -> Result<(), OperatingError> {
         rules[1].emit.as_ref().unwrap(),
         "an Extend of another literal is a different region"
     );
-    let plain = program.prepared.program().rules()[3].emit.as_ref().unwrap();
-    assert!(
-        crate::domain::executable_program::service::selection(
-            &program.prepared.program().regions()[plain.0].route()
-        )
-        .is_some(),
-        "the singleton consumer must reach the real stored-selection alternative"
-    );
     let mut symbols = Symbols::default();
     let mut file = program.open(&mut symbols)?;
     let read = |relation| program.read(relation);

@@ -341,7 +341,6 @@ fn exercise(
 }
 use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
 
-mod selected_join;
 
 #[cfg(test)]
 mod test;
