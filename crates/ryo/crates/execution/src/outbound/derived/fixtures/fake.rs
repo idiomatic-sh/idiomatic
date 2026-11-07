@@ -6,9 +6,6 @@ use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDeriv
 use ryo_derived::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace, DerivedView};
 use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_derived::domain::request::types::DerivedRequest;
-use ryo_derived::inbound::use_cases::build::interface::BuildUseCase;
-use ryo_derived::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_derived::inbound::use_cases::view::interface::ViewUseCase;
 use ryo_relations::domain::relations::types::CellKind;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -19,16 +16,11 @@ pub struct DerivedFake {
     pub calls: AtomicUsize,
 }
 
-impl DerivedPort for DerivedFake {}
-
-impl PrepareUseCase for DerivedFake {
+impl DerivedPort for DerivedFake {
     fn prepare(&self, request: DerivedRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived {
         self.calls.fetch_add(1, Ordering::Relaxed);
         semantics().prepare(request, schemas)
     }
-}
-
-impl BuildUseCase for DerivedFake {
     fn build(
         &self,
         prepared: &PreparedDerived,
@@ -39,9 +31,6 @@ impl BuildUseCase for DerivedFake {
         self.calls.fetch_add(1, Ordering::Relaxed);
         semantics().build(prepared, inputs, room, recycled)
     }
-}
-
-impl ViewUseCase for DerivedFake {
     fn view<'a>(
         &self,
         prepared: &PreparedDerived,

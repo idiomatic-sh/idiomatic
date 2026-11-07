@@ -67,7 +67,7 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
             let engine = PrepareUseCaseImpl::new(
                 semantics.clone(),
                 Arc::new(
-                    ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+                    ryo_execution::outbound::derived::factory::semantics(),
                 ),
             );
             let mut authored = authored_request(1);

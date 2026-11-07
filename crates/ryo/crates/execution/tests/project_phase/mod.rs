@@ -821,7 +821,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     let union_semantic_calls = Arc::new(UnionSemanticCalls::default());
     let engine = PrepareUseCaseImpl::new(
         union_semantic_calls.clone(),
-        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+        Arc::new(ryo_execution::outbound::derived::factory::semantics()),
     );
     let mut authored = authored_request(2);
     let relation = Relation::ModuleIdentity;

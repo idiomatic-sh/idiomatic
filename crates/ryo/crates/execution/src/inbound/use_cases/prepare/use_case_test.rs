@@ -50,7 +50,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 ryo_operators::outbound::matching::factory::use_case(),
             ))),
         ),
-        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+        Arc::new(crate::outbound::derived::factory::semantics()),
     );
     prepare.prepare(input).map(|program| program.rule_count())
 }

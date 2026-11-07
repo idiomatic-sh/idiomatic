@@ -19,7 +19,7 @@ fn runs(world: &mut Behavior) {
                 ryo_operators::outbound::matching::factory::use_case(),
             ))),
         ),
-        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+        Arc::new(ryo_execution::outbound::derived::factory::semantics()),
     );
     let bindings = if world.input == "mismatched bindings" {
         vec![vec![]]

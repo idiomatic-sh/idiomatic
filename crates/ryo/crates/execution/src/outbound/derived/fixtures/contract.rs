@@ -2,7 +2,6 @@
 use crate::outbound::derived::interface::DerivedPort;
 use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_derived::domain::request::types::DerivedRequest;
-use ryo_derived::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;

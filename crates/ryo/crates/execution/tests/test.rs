@@ -676,7 +676,7 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
     let semantics = Arc::new(ReductionAudit::default());
     let engine = PrepareUseCaseImpl::new(
         semantics.clone(),
-        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+        Arc::new(ryo_execution::outbound::derived::factory::semantics()),
     );
     let mut input = authored_request(1);
     input.plans[0].steps.push(PlanStep {

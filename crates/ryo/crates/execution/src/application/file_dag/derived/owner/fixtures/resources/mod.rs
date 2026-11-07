@@ -1,3 +1,4 @@
+use crate::outbound::derived::interface::DerivedPort;
 //! Pure derived-owner fixtures; no operator evaluator or legacy transport.
 use crate::application::file_dag::derived::owner::*;
 use crate::application::file_dag::relations::RelationOwner;
@@ -5,7 +6,7 @@ use crate::domain::{
     coverage::types::Partial, operating::errors::OperatingError,
     operator::contract::views::BorrowedRows, table_model::types::Rows,
 };
-use ryo_derived::domain::contract::types::KeyIndex;
+use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::rc::Rc;
@@ -21,7 +22,7 @@ pub(crate) struct ResourceFixture {
 impl ResourceFixture {
     pub(crate) fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> Option<Self> {
         let owner = Rc::new(RelationOwner::new(
-            crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+            crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,
             crate::application::file_dag::testing::program_derived_port(),
         ));
         let plans = wanted
@@ -116,12 +117,12 @@ pub(crate) fn weak_storage(
 /// production derived use case. No evaluator, scheduling or owner lives here.
 #[derive(Debug, Default)]
 pub(in crate::application::file_dag) struct RecordedDerived {
-    builds: std::sync::Mutex<Vec<ryo_derived::domain::contract::types::ViewRequest>>,
-    raw_failure: Option<ryo_derived::domain::contract::types::DerivedFault>,
+    builds: std::sync::Mutex<Vec<ryo_derived::domain::request::types::DerivedRequest>>,
+    raw_failure: Option<ryo_derived::domain::fault::types::DerivedFault>,
 }
 impl RecordedDerived {
     pub(in crate::application::file_dag) fn refusing_raw(
-        fault: ryo_derived::domain::contract::types::DerivedFault,
+        fault: ryo_derived::domain::fault::types::DerivedFault,
     ) -> Self {
         Self {
             raw_failure: Some(fault),
@@ -131,58 +132,50 @@ impl RecordedDerived {
 
     pub(in crate::application::file_dag) fn builds(
         &self,
-    ) -> Vec<ryo_derived::domain::contract::types::ViewRequest> {
+    ) -> Vec<ryo_derived::domain::request::types::DerivedRequest> {
         self.builds.lock().expect("recorded semantic calls").clone()
     }
 }
-impl ryo_derived::inbound::use_cases::derived::interface::DerivedUseCase for RecordedDerived {
+impl DerivedPort for RecordedDerived {
     fn prepare(
         &self,
-        request: ryo_derived::domain::contract::types::ViewRequest,
+        request: ryo_derived::domain::request::types::DerivedRequest,
         schemas: Vec<Vec<ryo_relations::domain::relations::types::CellKind>>,
-    ) -> Arc<ryo_derived::domain::contract::types::PreparedDerived> {
-        use ryo_derived::inbound::use_cases::derived::{
-            interface::DerivedUseCase, use_case::DerivedUseCaseImpl,
-        };
-        DerivedUseCaseImpl::new().prepare(request, schemas)
+    ) -> ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived {
+        crate::outbound::derived::factory::semantics().prepare(request, schemas)
     }
     fn build(
         &self,
-        prepared: &ryo_derived::domain::contract::types::PreparedDerived,
-        inputs: ryo_derived::domain::contract::types::DerivedInputs<'_>,
+        prepared: &ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived,
+        inputs: ryo_derived::domain::contract::types::BuildInputs<'_>,
         room: &mut ryo_derived::domain::contract::types::BuildWorkspace,
-        recycled: Option<ryo_derived::domain::contract::types::DerivedPayload>,
+        recycled: Option<ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload>,
     ) -> Result<
         ryo_derived::domain::contract::types::BuildOutcome,
-        ryo_derived::domain::contract::types::DerivedFault,
+        ryo_derived::domain::fault::types::DerivedFault,
     > {
-        use ryo_derived::inbound::use_cases::derived::{
-            interface::DerivedUseCase, use_case::DerivedUseCaseImpl,
-        };
         self.builds
             .lock()
             .expect("recorded semantic calls")
             .push(prepared.request().clone());
         if matches!(
             prepared.request(),
-            ryo_derived::domain::contract::types::ViewRequest::RawKeyOrder { .. }
+            ryo_derived::domain::request::types::DerivedRequest::RawKeyOrder { .. }
         ) && let Some(fault) = &self.raw_failure
         {
             return Err(fault.clone());
         }
-        DerivedUseCaseImpl::new().build(prepared, inputs, room, recycled)
+        crate::outbound::derived::factory::semantics().build(prepared, inputs, room, recycled)
     }
     fn view<'a>(
         &self,
-        prepared: &ryo_derived::domain::contract::types::PreparedDerived,
-        payload: &'a ryo_derived::domain::contract::types::DerivedPayload,
+        prepared: &ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived,
+        payload: &'a ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload,
     ) -> Result<
         ryo_derived::domain::contract::types::DerivedView<'a>,
-        ryo_derived::domain::contract::types::DerivedFault,
+        ryo_derived::domain::fault::types::DerivedFault,
     > {
-        use ryo_derived::inbound::use_cases::derived::{
-            interface::DerivedUseCase, use_case::DerivedUseCaseImpl,
-        };
-        DerivedUseCaseImpl::new().view(prepared, payload)
+        crate::outbound::derived::factory::semantics().view(prepared, payload)
     }
 }
+

@@ -129,7 +129,7 @@ impl Preparation {
     pub(super) fn real() -> Self {
         Self::new(
             Arc::new(operators()),
-            Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+            Arc::new(crate::outbound::derived::factory::semantics()),
         )
     }
     pub(super) fn new(operators: Arc<dyn OperatorsPort>, derived: Arc<dyn DerivedPort>) -> Self {

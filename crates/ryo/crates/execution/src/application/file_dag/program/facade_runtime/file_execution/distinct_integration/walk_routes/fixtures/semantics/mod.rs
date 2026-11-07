@@ -1,16 +1,18 @@
+use crate::outbound::derived::interface::DerivedPort;
 //! Real portable use cases with counted calls and one explicit dependency failure.
-use ryo_derived::domain::contract::types::{
-    BuildOutcome, BuildWorkspace, DerivedFault, DerivedInputs, DerivedPayload, DerivedView,
-    PreparedDerived, ViewRequest,
-};
-use ryo_derived::inbound::use_cases::derived::{
-    interface::DerivedUseCase, use_case::DerivedUseCaseImpl,
-};
-use crate::outbound::operators::interface::OperatorsPort as _;
+use ryo_derived::domain::contract::types::BuildOutcome;
+use ryo_derived::domain::contract::types::BuildWorkspace;
+use ryo_derived::domain::fault::types::DerivedFault;
+use ryo_derived::domain::contract::types::BuildInputs as DerivedInputs;
+use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
+use ryo_derived::domain::contract::types::DerivedView;
+use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
+use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use std::sync::{
     Arc, Mutex,
@@ -61,7 +63,7 @@ impl crate::outbound::operators::interface::OperatorsPort for Meanings {
             }
             _ => {}
         }
-        crate::outbound::operators::fixtures::fake::OperatorsFake::default().operators(call)
+        OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)
     }
 }
 
@@ -96,9 +98,9 @@ impl Derived {
         )
     }
 }
-impl DerivedUseCase for Derived {
-    fn prepare(&self, request: ViewRequest, schemas: Vec<Vec<CellKind>>) -> Arc<PreparedDerived> {
-        DerivedUseCaseImpl::new().prepare(request, schemas)
+impl DerivedPort for Derived {
+    fn prepare(&self, request: ViewRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived {
+        crate::outbound::derived::factory::semantics().prepare(request, schemas)
     }
     fn build(
         &self,
@@ -116,13 +118,14 @@ impl DerivedUseCase for Derived {
         {
             return Err(DerivedFault::DuplicateOrder);
         }
-        DerivedUseCaseImpl::new().build(prepared, inputs, room, recycled)
+        crate::outbound::derived::factory::semantics().build(prepared, inputs, room, recycled)
     }
     fn view<'a>(
         &self,
         prepared: &PreparedDerived,
         payload: &'a DerivedPayload,
     ) -> Result<DerivedView<'a>, DerivedFault> {
-        DerivedUseCaseImpl::new().view(prepared, payload)
+        crate::outbound::derived::factory::semantics().view(prepared, payload)
     }
 }
+

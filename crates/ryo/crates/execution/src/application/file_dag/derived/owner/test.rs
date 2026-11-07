@@ -30,7 +30,7 @@ fn plan() -> Arc<DerivedContract> {
     Arc::new(
         crate::application::file_dag::derived::prepare::view(
             (std::sync::Arc::new(
-                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+                crate::outbound::derived::factory::semantics(),
             ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             &ViewRequest::PartitionOrder {
                 keys: vec![ColumnIndex(0)],

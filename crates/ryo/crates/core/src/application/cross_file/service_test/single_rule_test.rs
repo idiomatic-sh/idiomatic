@@ -106,7 +106,7 @@ pub(super) fn project_evaluation_rejects_frontiers_from_another_request()
         Arc::new(ryo_execution::outbound::operators::factory::use_case(
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
         )),
-        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+        Arc::new(ryo_execution::outbound::derived::factory::semantics()),
     );
     let next = ExecutionUseCaseImpl::new().execution(&rules.program, &rules.files);
     let next_phase = next.project_phase().expect("independent project phase");
