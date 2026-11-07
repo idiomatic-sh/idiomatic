@@ -11,7 +11,7 @@ use crate::domain::ordered::types::OrderedMatching;
 use crate::domain::predicate::types::LiteralPostings;
 use crate::domain::raw_order::types::raw_order::value::RawOrder;
 use crate::domain::sharing::types::{SharedGraph, SharedKeyIndex, SharedMarks, SharedPositions};
-use ryo_values::domain::plan_parts::types::LiteralText;
+use ryo_values::domain::row_texts::types::CellText;
 use ryo_values::domain::rows::types::RowIndex;
 use std::sync::Arc;
 
@@ -74,11 +74,11 @@ impl DerivedPayload {
     }
     /// The shared positions of one literal of a postings payload.
     #[must_use]
-    pub fn share_posting_positions(&self, text: &LiteralText) -> Option<SharedPositions> {
+    pub fn share_posting_positions(&self, text: CellText<'_>) -> Option<SharedPositions> {
         let PayloadData::CandidatePostings(values) = &self.data else {
             return None;
         };
-        let Ok(at) = values.binary_search_by(|entry| entry.text.0.cmp(&text.0)) else {
+        let Ok(at) = values.binary_search_by(|entry| (*entry.text.0).cmp(text.0)) else {
             return None;
         };
         values.get(at).map(|entry| entry.rows.clone())
