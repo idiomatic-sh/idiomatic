@@ -27,11 +27,11 @@ use fixtures::{plan, step, select, native_plan, prepared};
 #[test]
 fn only_the_emitted_native_step_is_a_retention_root_when_each_is_read_once() {
     let plans = [native_plan(false)];
-    let operators = crate::application::file_dag::request::prepare(
+    let operators = crate::application::file_dag::service::prepare(
         &plans,
         &[vec![]],
         &[],
-        crate::application::file_dag::fakes_test::program_derived_port(),
+        crate::application::file_dag::fixtures::program_derived_port(),
     )
     .unwrap();
     assert_eq!(
@@ -59,11 +59,11 @@ fn only_the_emitted_native_step_is_a_retention_root_when_each_is_read_once() {
 #[test]
 fn the_step_handed_to_cross_file_steps_is_a_retention_root() {
     let plans = [native_plan(true)];
-    let operators = crate::application::file_dag::request::prepare(
+    let operators = crate::application::file_dag::service::prepare(
         &plans,
         &[vec![]],
         &[],
-        crate::application::file_dag::fakes_test::program_derived_port(),
+        crate::application::file_dag::fixtures::program_derived_port(),
     )
     .unwrap();
     assert_eq!(
@@ -119,12 +119,12 @@ fn metadata_preparation_propagates_select_extend_and_graph_schemas_without_rows(
         ],
         vec![],
     )];
-    let operators = crate::application::file_dag::request::prepare_with_schemas(
+    let operators = crate::application::file_dag::service::prepare_with_schemas(
         &plans,
         &[vec![]],
         &[],
         &|_| &[CellKind::Symbol, CellKind::File],
-        crate::application::file_dag::fakes_test::program_derived_port(),
+        crate::application::file_dag::fixtures::program_derived_port(),
     )
     .unwrap();
     let graph = compile_prepared_observations(&plans, &operators, ObservationRequest::Independent);
@@ -172,12 +172,12 @@ fn preparation_keeps_ordered_relation_dependencies_without_probing_availability(
         probes.borrow_mut().push(relation);
         &[CellKind::Symbol, CellKind::File][..]
     };
-    let operators = crate::application::file_dag::request::prepare_with_schemas(
+    let operators = crate::application::file_dag::service::prepare_with_schemas(
         &plans,
         &[vec![]],
         &[],
         &metadata,
-        crate::application::file_dag::fakes_test::program_derived_port(),
+        crate::application::file_dag::fixtures::program_derived_port(),
     )
     .unwrap();
     let graph = compile_prepared_observations(&plans, &operators, ObservationRequest::Independent);
@@ -213,11 +213,11 @@ fn empty_native_frontier_has_the_deep_walk_schema_before_any_file_is_read() {
         })],
         vec![Input::Step(StepId(0))],
     )];
-    let operators = crate::application::file_dag::request::prepare(
+    let operators = crate::application::file_dag::service::prepare(
         &plans,
         &[vec![]],
         &[],
-        crate::application::file_dag::fakes_test::program_derived_port(),
+        crate::application::file_dag::fixtures::program_derived_port(),
     )
     .unwrap();
     let graph = compile_prepared_observations(&plans, &operators, ObservationRequest::Independent);
@@ -271,12 +271,12 @@ fn preparing_from_borrowed_schemas_preserves_cell_allocations_and_prepared_metad
         Relation::SyntaxTree => native.kinds.as_slice(),
         _ => kinds(relation),
     };
-    let operators = crate::application::file_dag::request::prepare_with_schemas(
+    let operators = crate::application::file_dag::service::prepare_with_schemas(
         &plans,
         &[vec![]],
         &[],
         &metadata,
-        crate::application::file_dag::fakes_test::program_derived_port(),
+        crate::application::file_dag::fixtures::program_derived_port(),
     )
     .unwrap();
     let prepared_kinds = operators.rules[0][1]

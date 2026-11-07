@@ -19,7 +19,8 @@ pub(crate) mod operator_contract_test;
 pub(crate) mod table_scratch_service_test;
 
 mod constants;
-pub(crate) mod compiled_span_fixture;
+#[cfg(test)]
+pub(crate) mod fixtures;
 
 #[cfg(test)]
 pub(crate) mod observed_replay_test;

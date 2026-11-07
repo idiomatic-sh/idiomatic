@@ -149,7 +149,7 @@ fn prepare(
     bindings: Vec<Vec<ParameterBinding>>,
 ) -> Prepared {
     let count = bindings.len();
-    let derived = crate::application::file_dag::fakes_test::program_derived_port();
+    let derived = crate::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
@@ -167,7 +167,7 @@ fn prepare(
     .unwrap();
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
-            crate::application::file_dag::fakes_test::operators(),
+            crate::application::file_dag::fixtures::operators(),
         ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {

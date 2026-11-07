@@ -14,7 +14,7 @@ impl crate::outbound::operators::interface::OperatorsPort for JoinReads {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         let before = matches!(&call, OperatorCall::EqualityJoin { .. }).then(read_row_counts);
         let answer =
-            crate::application::file_dag::fakes_test::operators()
+            crate::application::file_dag::fixtures::operators()
                 .operators(call);
         if let Some(before) = before {
             let after = read_row_counts();
@@ -105,7 +105,7 @@ fn edges(pairs: &[(u64, u64)]) -> Vec<FactColumn> {
 #[test]
 fn selected_join_keeps_duplicate_bag_order_and_decodes_only_projected_cells()
 -> Result<(), OperatingError> {
-    let derived = crate::application::file_dag::fakes_test::program_derived_port();
+    let derived = crate::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,

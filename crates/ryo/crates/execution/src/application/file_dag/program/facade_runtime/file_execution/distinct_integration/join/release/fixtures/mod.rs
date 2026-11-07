@@ -22,7 +22,7 @@ impl crate::outbound::operators::interface::OperatorsPort for OrderedPort {
                 return Err(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(REFUSAL) });
             }
         }
-        crate::application::file_dag::fakes_test::operators().operators(call)
+        crate::application::file_dag::fixtures::operators().operators(call)
     }
 }
 /// The error every refusing port raises, as the owner reports it.

@@ -96,7 +96,7 @@ fn graph(
     plans: &[Plan],
     bindings: &[Vec<ParameterBinding>],
 ) -> Result<RequestGraph, OperatingError> {
-    let operators = crate::application::file_dag::request::prepare_with_schemas(
+    let operators = crate::application::file_dag::service::prepare_with_schemas(
         plans,
         bindings,
         &[],

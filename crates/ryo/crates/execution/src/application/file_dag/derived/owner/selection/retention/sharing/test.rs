@@ -29,7 +29,7 @@ fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> R
     }];
     let distinct = Arc::new(crate::application::file_dag::derived::prepare::view(
         (std::sync::Arc::new(
-            crate::application::file_dag::fakes_test::derived(),
+            crate::application::file_dag::fixtures::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
         &ViewRequest::DistinctRepresentatives {
             columns: vec![ColumnIndex(0)],
@@ -38,7 +38,7 @@ fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> R
     )?);
     let order = Arc::new(crate::application::file_dag::derived::prepare::view(
         (std::sync::Arc::new(
-            crate::application::file_dag::fakes_test::derived(),
+            crate::application::file_dag::fixtures::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
         &ViewRequest::PartitionOrder {
             keys: vec![ColumnIndex(0)],
@@ -48,7 +48,7 @@ fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> R
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            crate::application::file_dag::fakes_test::derived(),
+            crate::application::file_dag::fixtures::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let publication = owner.computed(table.clone())?;

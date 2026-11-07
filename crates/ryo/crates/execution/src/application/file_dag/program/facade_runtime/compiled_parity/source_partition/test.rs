@@ -78,7 +78,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
             },
         ])]));
     }
-    let derived = crate::application::file_dag::fakes_test::program_derived_port();
+    let derived = crate::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
@@ -95,7 +95,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
     let engine: Arc<dyn crate::application::file_dag::executor::PrimitiveExecutor + Send> =
         Arc::new(CommonOperatorEngine::new(
             (std::sync::Arc::new(
-                crate::application::file_dag::fakes_test::operators(),
+                crate::application::file_dag::fixtures::operators(),
             )
                 as std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>),
         ));

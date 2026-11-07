@@ -3,7 +3,7 @@ use ryo_derived::domain::contract::types::{DerivedView, MembershipView};
 pub(in crate::application::file_dag) mod view;
 use view::AxisResource;
 #[cfg(test)]
-mod tests;
+mod test;
 
 use super::derived::owner::acquisition::admission::service::AcquiredView;
 use crate::domain::{

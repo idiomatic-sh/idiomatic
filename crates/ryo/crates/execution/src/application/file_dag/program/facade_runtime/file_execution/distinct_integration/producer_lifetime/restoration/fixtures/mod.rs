@@ -171,7 +171,7 @@ impl CapturedProject {
             vec![vec![]; rules.len()],
             &rules,
         )?;
-        let derived = crate::application::file_dag::fakes_test::program_derived_port();
+        let derived = crate::application::file_dag::fixtures::program_derived_port();
         let prepared = crate::application::file_dag::program::preparation::service::prepare(
             compiled,
             &rules,
@@ -188,7 +188,7 @@ impl CapturedProject {
         })];
         let services = Arc::new(ProgramServices::new(
             Arc::new(CommonOperatorEngine::new(Arc::new(
-                crate::application::file_dag::fakes_test::operators(),
+                crate::application::file_dag::fixtures::operators(),
             ))),
             derived,
             &corpus,

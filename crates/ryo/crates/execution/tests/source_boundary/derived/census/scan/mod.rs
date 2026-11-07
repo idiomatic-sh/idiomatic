@@ -7,7 +7,7 @@ use std::{
 };
 
 pub(super) const OWNER_TREE: &str = "application/file_dag/derived/owner";
-pub(super) const OWNER_FILE: &str = "application/file_dag/derived/owner.rs";
+pub(super) const OWNER_FILE: &str = "application/file_dag/derived/owner/mod.rs";
 
 fn walk(dir: &Path, found: &mut Vec<PathBuf>) {
     for entry in fs::read_dir(dir).unwrap() {

@@ -9,7 +9,7 @@ pub(crate) fn source(rows: Rows<'_>) -> Result<Table, OperatingError> {
         comparisons: vec![],
         kept: vec![],
     };
-    let derived = crate::application::file_dag::fakes_test::program_derived_port();
+    let derived = crate::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
@@ -25,7 +25,7 @@ pub(crate) fn source(rows: Rows<'_>) -> Result<Table, OperatingError> {
     )?;
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
-            crate::application::file_dag::fakes_test::operators(),
+            crate::application::file_dag::fixtures::operators(),
         ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {

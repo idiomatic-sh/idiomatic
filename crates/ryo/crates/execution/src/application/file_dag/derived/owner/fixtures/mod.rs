@@ -41,7 +41,7 @@ pub(crate) fn prepared_sources(
         })
         .collect::<Vec<_>>();
     let bindings = vec![vec![]; plans.len()];
-    let request = crate::application::file_dag::request::prepare(plans, &bindings, &[], semantic).unwrap();
+    let request = crate::application::file_dag::service::prepare(plans, &bindings, &[], semantic).unwrap();
     let borrowed = plans.iter().map(Ok).collect::<Vec<_>>();
     let partitions = SourcePartitions::new(
         &rules,

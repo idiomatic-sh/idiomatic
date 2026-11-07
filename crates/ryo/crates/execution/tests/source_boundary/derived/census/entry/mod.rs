@@ -240,7 +240,7 @@ impl Entry {
         let setup = owner!("setup.rs");
         let view = owner!("acquisition/admission/service.rs");
         let handles = owner!("graphs/types/handles/service.rs");
-        let owner = "application/file_dag/derived/owner.rs";
+        let owner = "application/file_dag/derived/owner/mod.rs";
         let accounting = "accounting: bytes and counts the owner reports, no view crosses";
         // The graph demand lives under the owner: no file outside it calls these entries.
         let cached: &'static [&'static str] = &[];
@@ -252,7 +252,7 @@ impl Entry {
                 &[
                     file!("closure_partitions/schemas.rs"),
                     file!("relations/selected_access.rs"),
-                    file!("workspace.rs"),
+                    file!("workspace/mod.rs"),
                     file!("workspace/service.rs"),
                 ],
                 ".admit_view(",
@@ -292,7 +292,7 @@ impl Entry {
                 acquisition,
                 "try_acquire_rows",
                 &c::TRY_ACQUIRE_ROWS,
-                &[file!("workspace.rs")],
+                &[file!("workspace/mod.rs")],
                 ".try_acquire_rows(",
                 "",
             ),
@@ -415,7 +415,7 @@ impl Entry {
                 owner!("selection/preparation/service.rs"),
                 "prepare_views_with_schemas",
                 &c::PREPARE_VIEWS,
-                &[file!("request.rs")],
+                &[file!("service.rs")],
                 "prepare_views_with_schemas(",
                 "",
             ),

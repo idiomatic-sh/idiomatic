@@ -55,7 +55,7 @@ fn chained_registered_evaluations_reuse_downstream_invocation_state() {
             .map(|number| vec![HostedCell::Number(Integer(number))])
             .collect(),
     );
-    let derived = crate::application::file_dag::fakes_test::program_derived_port();
+    let derived = crate::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
@@ -72,7 +72,7 @@ fn chained_registered_evaluations_reuse_downstream_invocation_state() {
     .unwrap();
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
-            crate::application::file_dag::fakes_test::operators(),
+            crate::application::file_dag::fixtures::operators(),
         ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {

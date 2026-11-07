@@ -178,7 +178,7 @@ pub(crate) fn observe(omit: bool) -> Coverage {
             spec.id = RuleId(format!("ready-{index}").into());
             rules.push(spec);
         }
-        let derived = crate::application::file_dag::fakes_test::program_derived_port();
+        let derived = crate::application::file_dag::fixtures::program_derived_port();
         let prepared = crate::application::file_dag::program::preparation::service::prepare(
             Compiled {
                 schedule: RuleSchedule::Independent,
@@ -222,7 +222,7 @@ pub(crate) fn observe(omit: bool) -> Coverage {
         }
         let services = Arc::new(ProgramServices::new(
             Arc::new(CommonOperatorEngine::new(Arc::new(
-                crate::application::file_dag::fakes_test::operators(),
+                crate::application::file_dag::fixtures::operators(),
             ))),
             derived,
             &[CorpusInput::Available(CorpusEntry {

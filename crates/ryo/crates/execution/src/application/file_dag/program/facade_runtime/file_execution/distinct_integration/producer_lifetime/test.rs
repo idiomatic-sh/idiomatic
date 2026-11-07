@@ -14,7 +14,7 @@ use ryo_values::domain::rows::errors::RowsError;
 fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
     let skipped_at_start = matches!(final_consumer, FinalConsumer::SkippedAtStart);
     let refuse_provider = matches!(final_consumer, FinalConsumer::RefusingProvider);
-    let derived = crate::application::file_dag::fakes_test::program_derived_port();
+    let derived = crate::application::file_dag::fixtures::program_derived_port();
     let mut second = rule();
     second.id = RuleId("second-derived-consumer".into());
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
@@ -49,7 +49,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
     assert_eq!(prepared.program().regions()[producer.0].consumers(), 2);
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
-            crate::application::file_dag::fakes_test::operators(),
+            crate::application::file_dag::fixtures::operators(),
         ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {

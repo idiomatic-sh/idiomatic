@@ -183,7 +183,7 @@ fn one_file_owner_resets_dfs_across_closure_empty_and_different_graph() {
         })
         .into_iter()
         .collect::<Vec<_>>();
-    let derived = crate::application::file_dag::fakes_test::program_derived_port();
+    let derived = crate::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             plans,
@@ -200,7 +200,7 @@ fn one_file_owner_resets_dfs_across_closure_empty_and_different_graph() {
     .unwrap();
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(Arc::new(
-            crate::application::file_dag::fakes_test::operators(),
+            crate::application::file_dag::fixtures::operators(),
         ))),
         derived,
         &[CorpusInput::Available(CorpusEntry {

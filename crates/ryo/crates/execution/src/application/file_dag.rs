@@ -5,17 +5,17 @@ pub(crate) mod execution;
 mod graph_resources;
 pub(crate) mod invocation;
 pub(crate) mod predicates;
-pub(crate) mod request;
+pub mod service;
 pub(crate) mod resources;
 #[cfg(any(test, feature = "fixtures"))]
 pub(crate) mod testing;
 
-#[cfg(test)]
-pub(crate) mod fakes_test;
+#[cfg(any(test, feature = "fixtures"))]
+pub(crate) mod fixtures;
 pub(crate) mod workspace;
 
 #[cfg(test)]
-mod contract_route_test;
+mod service_test;
 
 pub(crate) mod closure_partitions;
 pub(crate) mod selected;

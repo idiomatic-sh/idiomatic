@@ -51,7 +51,7 @@ fn acquired(
     let plan = Arc::new(
         crate::application::file_dag::derived::prepare::view(
             (std::sync::Arc::new(
-                crate::application::file_dag::fakes_test::derived(),
+                crate::application::file_dag::fixtures::derived(),
             ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             &request,
             &[crate::domain::operation_schema::types::InputShape {
@@ -64,7 +64,7 @@ fn acquired(
     let owner = crate::application::file_dag::relations::RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Ineligible,
         (std::sync::Arc::new(
-            crate::application::file_dag::fakes_test::derived(),
+            crate::application::file_dag::fixtures::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let BorrowedRows::Computed(table) = rows else {

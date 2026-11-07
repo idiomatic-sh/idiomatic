@@ -11,11 +11,11 @@ fn prepare_cycles(
     input: BorrowedRows<'_>,
     source: ColumnIndex,
     destination: ColumnIndex,
-) -> Result<super::derived::owner::acquisition::admission::service::AcquiredView, OperatingError> {
-    let owner = super::relations::RelationOwner::new(
+) -> Result<super::super::derived::owner::acquisition::admission::service::AcquiredView, OperatingError> {
+    let owner = super::super::relations::RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            crate::application::file_dag::fakes_test::derived(),
+            crate::application::file_dag::fixtures::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let BorrowedRows::Computed(table) = input else {
@@ -39,7 +39,7 @@ fn prepare_cycles(
     owner.derived().acquire_stored(
         &plan,
         &admitted,
-        super::derived::owner::ViewContext::default(),
+        super::super::derived::owner::ViewContext::default(),
         DerivedInputs::Rows(&[proof.rows()]),
         &mut DerivedScratch::default(),
         None,
@@ -50,12 +50,12 @@ fn prepare_closure(
     keys: &[ColumnIndex],
     source: ColumnIndex,
     destination: ColumnIndex,
-) -> Result<Vec<super::derived::owner::acquisition::admission::service::AcquiredView>, OperatingError>
+) -> Result<Vec<super::super::derived::owner::acquisition::admission::service::AcquiredView>, OperatingError>
 {
-    let owner = std::rc::Rc::new(super::relations::RelationOwner::new(
+    let owner = std::rc::Rc::new(super::super::relations::RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            crate::application::file_dag::fakes_test::derived(),
+            crate::application::file_dag::fixtures::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     ));
     let BorrowedRows::Computed(table) = input else {
@@ -64,7 +64,7 @@ fn prepare_closure(
     let publication = owner.computed(table.clone())?;
     let rows = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
     let input = BorrowedRows::from(&rows);
-    let mut cursor = super::closure_partitions::schemas::prepare(
+    let mut cursor = super::super::closure_partitions::schemas::prepare(
         &publication,
         input,
         keys,

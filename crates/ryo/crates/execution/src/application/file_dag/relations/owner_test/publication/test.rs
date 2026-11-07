@@ -6,7 +6,7 @@ fn lazy_source_normalization_is_shared_and_lives_until_the_last_consumer() {
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            crate::application::file_dag::fakes_test::derived(),
+            crate::application::file_dag::fixtures::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let relation = Relation::SourceLocation;
@@ -62,7 +62,7 @@ fn computed_publication_clones_keep_required_backing_until_last_handle_in_live_g
     use ryo_values::domain::rows::types::{RowCount, Table};
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        crate::application::file_dag::fakes_test::program_derived_port(),
+        crate::application::file_dag::fixtures::program_derived_port(),
     );
     let generation = owner.generation_guard();
     let publication = owner

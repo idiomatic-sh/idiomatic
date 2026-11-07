@@ -42,7 +42,7 @@ fn different_projections_and_positions_have_distinct_admissions_and_correct_valu
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            crate::application::file_dag::fakes_test::derived(),
+            crate::application::file_dag::fixtures::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let mut publications = Vec::new();
@@ -125,7 +125,7 @@ fn arbitrary_selected_metadata_never_gains_a_trusted_complete_stamp() {
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            crate::application::file_dag::fakes_test::derived(),
+            crate::application::file_dag::fixtures::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     for view in [
@@ -169,7 +169,7 @@ fn a_foreign_publication_with_correct_kind_has_no_admission_authority() {
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
-            crate::application::file_dag::fakes_test::derived(),
+            crate::application::file_dag::fixtures::derived(),
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let physical = columns(&[CellKind::Number]);

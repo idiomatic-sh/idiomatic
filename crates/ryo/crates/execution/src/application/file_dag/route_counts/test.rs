@@ -175,7 +175,7 @@ fn owner_routes_count_each_physical_equality_build_once() {
     let on = [ColumnIndex(0)];
     let plan = Arc::new(
         crate::application::file_dag::derived::prepare::view(
-            crate::application::file_dag::fakes_test::program_derived_port(),
+            crate::application::file_dag::fixtures::program_derived_port(),
             &ViewRequest::Equality {
                 columns: on.to_vec(),
             },
@@ -191,7 +191,7 @@ fn owner_routes_count_each_physical_equality_build_once() {
         let _node = node(41);
         let owner = RelationOwner::new(
             crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-            crate::application::file_dag::fakes_test::program_derived_port(),
+            crate::application::file_dag::fixtures::program_derived_port(),
         );
         let proof = owner
             .admit_relation(
@@ -214,7 +214,7 @@ fn owner_routes_count_each_physical_equality_build_once() {
         assert!(matches!(held.view().unwrap(), DerivedView::Equality(_)));
         let selector_owner = RelationOwner::new(
             crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-            crate::application::file_dag::fakes_test::program_derived_port(),
+            crate::application::file_dag::fixtures::program_derived_port(),
         );
         let proof = selector_owner
             .admit_relation(
