@@ -35,23 +35,23 @@ best = 1
 tolerance-percent = 5
 
 [django-n999.wall-milliseconds]
-best = 1
+best = 10297
 tolerance-percent = 5
 
 [django-n999.cpu-milliseconds]
-best = 1
+best = 10294
 tolerance-percent = 5
 
 [django-n999.peak-megabytes]
-best = 1
+best = 979
 tolerance-percent = 5
 
 [django-one-file-413.wall-milliseconds]
-best = 1
+best = 10157
 tolerance-percent = 5
 
 [django-one-file-413.peak-megabytes]
-best = 1
+best = 1182
 tolerance-percent = 5
 
 [django-413-cold.wall-milliseconds]

@@ -152,9 +152,7 @@
    "--test",
    "ruff_sharing",
    "--",
-   "--test-threads=6",
-   "--skip",
-   "every_strategy_unwired_answers_like_the_wired_engine"
+   "--test-threads=6"
   ]
  ],
  [
