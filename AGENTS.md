@@ -30,6 +30,10 @@ A test whose checked property changes is renamed in the same commit, and its mat
 
 A review request carries three receipts (`tm check` over the review's scope at 0 findings and 0 suppressed, `run.py --check` exit 0, and the `no_print` target green with file-level cycles 0 in `validation.json`), and a request without them is refused by the reviewer, because what a linter or check catches is resolved before a person reads the source.
 
+## PM check-in
+
+The main session posts a message starting `**CHECK-IN HH:MM UTC**` at least every 60 minutes, holding eight tables under bold numbered headings in this order: 1. Roadmap, 2. Running, 3. Changed since last check-in, 4. Cycle metrics, 5. Decisions I took without you, and anything outside what we agreed, 6. Suggested process improvements, 7. Needs you, 8. Next; `.claude/hooks/check_in_on_stop.py` (a `Stop` hook) blocks the main session's stop when the last check-in is older than 60 minutes or the one posted lacks a table or has them out of order.
+
 ## Builder brief contract
 
 A builder stops in exactly two states, and `.claude/hooks/acceptance_on_stop.py` enforces both; `.claude/hooks/guard_shell.py` refuses the shell habits listed in its source.

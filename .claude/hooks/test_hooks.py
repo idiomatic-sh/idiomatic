@@ -1,4 +1,4 @@
-"""Tests for the guard_shell, acceptance_on_stop and no_subagent_builders hooks, run with `python3 -I -m unittest`."""
+"""Tests for the guard_shell, acceptance_on_stop, no_subagent_builders and check_in_on_stop hooks, run with `python3 -I -m unittest`."""
 
 import json
 import os
@@ -318,6 +318,72 @@ class NoSubagentBuilders(unittest.TestCase):
 
     def test_allowed_on_malformed_input(self):
         result = subprocess.run(["python3", "-I", os.path.join(HERE, "no_subagent_builders.py")],
+                                input="not json", capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0)
+
+
+class CheckInOnStop(unittest.TestCase):
+    NAMES = ["Roadmap", "Running", "Changed since last check-in", "Cycle metrics",
+             "Decisions I took without you, and anything outside what we agreed",
+             "Suggested process improvements", "Needs you", "Next"]
+
+    def checkin(self, order=None, skip=None):
+        parts = ["**CHECK-IN 12:00 UTC**"]
+        for n in order or range(1, 9):
+            if n != skip:
+                parts.append("**%d. %s**\n\n| a | b |\n|---|---|\n| 1 | 2 |" % (n, self.NAMES[n - 1]))
+        return "\n\n".join(parts)
+
+    def stop(self, rows, path=None, active=False):
+        from datetime import datetime, timedelta, timezone
+        with tempfile.TemporaryDirectory() as tmp:
+            transcript = os.path.join(tmp, "s.jsonl")
+            with open(transcript, "w", encoding="utf-8") as handle:
+                for minutes, text in rows:
+                    stamp = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
+                    handle.write(json.dumps({"type": "assistant", "timestamp": stamp,
+                                             "message": {"role": "assistant",
+                                                         "content": [{"type": "text", "text": text}]}}) + "\n")
+            return run_hook("check_in_on_stop.py", {"transcript_path": path or transcript,
+                                                    "stop_hook_active": active})
+
+    def test_valid_checkin_passes(self):
+        self.assertEqual(self.stop([(0, self.checkin())]).returncode, 0)
+
+    def test_missing_table_blocks(self):
+        result = self.stop([(0, self.checkin(skip=4))])
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("missing table 4 (Cycle metrics)", result.stderr)
+
+    def test_out_of_order_blocks(self):
+        result = self.stop([(0, self.checkin(order=[1, 3, 2, 4, 5, 6, 7, 8]))])
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("Blocked: the CHECK-IN is missing table", result.stderr)
+
+    def test_heading_without_table_blocks(self):
+        text = self.checkin().replace("| a | b |\n|---|---|\n| 1 | 2 |", "none", 1)
+        self.assertEqual(self.stop([(0, text)]).returncode, 2)
+
+    def test_recent_checkin_then_other_message_passes(self):
+        self.assertEqual(self.stop([(30, self.checkin()), (1, "working")]).returncode, 0)
+
+    def test_old_checkin_blocks(self):
+        result = self.stop([(90, self.checkin()), (1, "working")])
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("more than 60 minutes", result.stderr)
+
+    def test_no_checkin_blocks(self):
+        self.assertEqual(self.stop([(1, "working")]).returncode, 2)
+
+    def test_subagent_transcript_passes(self):
+        path = "/home/u/.claude/projects/p/s1/subagents/agent-a1.jsonl"
+        self.assertEqual(self.stop([(1, "working")], path=path).returncode, 0)
+
+    def test_stop_hook_active_passes(self):
+        self.assertEqual(self.stop([(1, "working")], active=True).returncode, 0)
+
+    def test_malformed_input_passes(self):
+        result = subprocess.run(["python3", "-I", os.path.join(HERE, "check_in_on_stop.py")],
                                 input="not json", capture_output=True, text=True, check=False)
         self.assertEqual(result.returncode, 0)
 

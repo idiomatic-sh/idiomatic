@@ -21,6 +21,14 @@
           { "type": "command", "command": "python3 -I \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/acceptance_on_stop.py" }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "python3 -I \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check_in_on_stop.py" }
+        ]
+      }
     ]
   }
 }
