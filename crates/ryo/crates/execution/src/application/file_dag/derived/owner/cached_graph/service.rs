@@ -28,7 +28,6 @@ impl CachedGraph {
         original_inputs: &[Rows<'_>],
         cache: &mut CacheBackend,
     ) -> Result<Option<Self>, OperatingError> {
-        use crate::domain::derived_views::service::slot;
         use ryo_derived::domain::request::types::DerivedKind;
         let slots = &contract.derived.slots;
         let adjacency = || {
@@ -119,7 +118,7 @@ impl CachedGraph {
                     return Ok(None);
                 };
                 let membership = domain_input.owner().acquire_graph_domain(
-                    &slots[slot(DerivedKind::Membership)]
+                    &slots[DerivedKind::Membership.ordinal()]
                         .as_ref()
                         .ok_or(OperatingError::NotRun)?
                         .primary

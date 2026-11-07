@@ -150,9 +150,7 @@ pub(in super::super::super) fn compiled_operations() -> Corpus {
         &bindings,
         &hosted,
         &ryo_relations::domain::relations::service::kinds,
-        std::sync::Arc::new(
-            crate::outbound::derived::factory::semantics(),
-        ),
+        crate::application::file_dag::fixtures::real_derived_port(),
     )
     .unwrap();
     let graph = crate::domain::file_program::service::compile_prepared(&plans, &operators);
@@ -174,9 +172,7 @@ pub(in super::super::super) fn compile_program(
         bindings,
         &hosted,
         &ryo_relations::domain::relations::service::kinds,
-        std::sync::Arc::new(
-            crate::outbound::derived::factory::semantics(),
-        ),
+        crate::application::file_dag::fixtures::real_derived_port(),
     )
     .unwrap();
     let graph = crate::domain::file_program::service::compile_prepared(plans, &operators);

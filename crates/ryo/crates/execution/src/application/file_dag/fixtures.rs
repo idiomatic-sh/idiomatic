@@ -15,3 +15,8 @@ pub(crate) fn program_derived_port()
 -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
     std::sync::Arc::new(derived())
 }
+
+/// The derived capability with its real portable semantics, behind its port.
+pub(crate) fn real_derived_port() -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
+    std::sync::Arc::new(crate::outbound::derived::factory::semantics())
+}
