@@ -42,6 +42,8 @@ dhat.workspace = true
 toml.workspace = true
 ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.1.2", features = ["fixtures"] }
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.2", features = ["fixtures"] }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.2", features = ["fixtures"] }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.2", features = ["fixtures"] }
 cargo_metadata.workspace = true
 cucumber.workspace = true
 tokio.workspace = true
@@ -51,7 +53,7 @@ name = "bdd"
 harness = false
 
 [features]
-fixtures = ["ryo_values/fixtures"]
+fixtures = ["ryo_values/fixtures", "ryo_relations/fixtures", "ryo_language/fixtures"]
 diagnostic-row-progress = []
 
 [lints]
