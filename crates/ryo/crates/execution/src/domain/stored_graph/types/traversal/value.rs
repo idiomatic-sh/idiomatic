@@ -1,9 +1,6 @@
 //! Iterative positive reach, ordered early stop and validated-forest path compression.
 
-use crate::domain::stored_graph::types::{
-    BreadthEnd, ExaminedVertices, ExpandedVertices, GraphDomain, GraphWalk, MemoStatus, Nearest,
-    Neighbors, Orientation, VertexId, VisitEpoch,
-};
+use crate::domain::stored_graph::types::{BreadthEnd, ExaminedVertices, ExpandedVertices, GraphDomain, GraphWalk, MemoStatus, Nearest, Neighbors, Orientation, VisitEpoch};
 use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
 
 /// No known nearest answer has been computed for this vertex/context.

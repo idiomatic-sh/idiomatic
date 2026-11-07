@@ -18,7 +18,7 @@ pub(in crate::application::file_dag::derived::owner) struct NearestSlot(pub usiz
 #[derive(Debug)]
 pub(in crate::application::file_dag::derived::owner) struct RootMemo {
     /// Dense root already identifies its partition.
-    pub(in crate::application::file_dag::derived::owner) root: GraphVertex,
+    pub(in crate::application::file_dag::derived::owner) root: VertexId,
     /// Requested traversal orientation.
     pub(in crate::application::file_dag::derived::owner) orientation: Orientation,
     /// Reachable dense IDs in typed Value order.

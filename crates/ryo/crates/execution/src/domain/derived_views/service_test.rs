@@ -1,13 +1,13 @@
 //! The `derived_views` service's cases, on values alone.
 
 use super::service::validate;
-use super::types::{DerivedContract, IdentityHash, ViewRequest};
+use super::types::contract::value::DerivedContract;
+use super::types::{IdentityHash, ViewRequest};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_cells::types::ColumnPlaces;
-use ryo_derived::domain::contract::types::{DerivedKind, ViewRequest as SemanticRequest};
-use ryo_derived::inbound::use_cases::derived::{
-    interface::DerivedUseCase, use_case::DerivedUseCaseImpl,
-};
+use ryo_derived::domain::request::types::DerivedKind;
+use ryo_derived::domain::request::types::DerivedRequest as SemanticRequest;
+use crate::outbound::derived::interface::DerivedPort;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -20,7 +20,7 @@ type Failure = OperatingError;
 /// An equality contract over one number column.
 fn equality() -> DerivedContract {
     let schemas = vec![vec![CellKind::Number]];
-    let prepared = DerivedUseCaseImpl::new().prepare(
+    let prepared = crate::outbound::derived::factory::semantics().prepare(
         SemanticRequest::Equality {
             columns: vec![ColumnIndex(0)],
         },

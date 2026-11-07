@@ -2,7 +2,7 @@
 
 use super::service::Compilation;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_execution::inbound::use_cases::execution::interface::{ExecutionCompilation as _, PreparedQueries as _};
+use ryo_execution::application::rule_compilation::service::{ExecutionCompilation as _, PreparedQueries as _};
 use ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake;
 
 /// What a row of the cases asks of the service.
@@ -24,7 +24,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 fn subject(_: Input) -> Result<Value, Failure> {
     let compilation = Compilation::new(std::sync::Arc::new(QueryLanguageFake::default()));
     Ok(compilation
-        .compile(&[], &[])
+        .compile(&[], &[], &ryo_execution::outbound::digest::fixtures::fake::DigestFake::default())
         .expect("no rules compile")
         .plans()
         .is_empty())

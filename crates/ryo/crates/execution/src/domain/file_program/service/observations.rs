@@ -2,8 +2,9 @@
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::file_program::constants::{EXPECT_BINDING_INDEX, EXPECT_OUTPUT_INDEX};
 use crate::domain::file_program::errors::FileProgramError;
+use crate::domain::rule_intent::types::FrontierPurpose;
 use crate::domain::file_program::types::{
-    FrontierPurpose, PreparedObservationInputs, ResolvedObservationBinding, ResolvedObservationProducer,
+    PreparedObservationInputs, ResolvedObservationBinding, ResolvedObservationProducer,
     RuleSchedule,
 };
 use ryo_values::domain::observations::types::{BoundObservationInput, ObservationProducer};

@@ -1,11 +1,9 @@
 //! Ordered nearest and forest compression are different from sorted closure order.
+use ryo_derived::domain::vertices::types::VertexId;
 
 use super::value::{ABSENT, GraphTraversal, UNKNOWN};
 
-use crate::domain::stored_graph::types::{
-    BreadthEnd, ExaminedVertices, ExpandedVertices, GraphDomain, GraphWalk, MemoStatus, Nearest,
-    Orientation, VertexId, VisitEpoch,
-};
+use crate::domain::stored_graph::types::{BreadthEnd, ExaminedVertices, ExpandedVertices, GraphDomain, GraphWalk, MemoStatus, Nearest, Orientation, VisitEpoch};
 use ryo_derived::domain::contract::types::BuildOutcome;
 use ryo_derived::domain::contract::types::BuildWorkspace;
 use ryo_derived::domain::row_cells::types::BulkRows;
@@ -107,7 +105,7 @@ fn bfs_nearest_stops_in_edge_encounter_order_and_direct_retains_duplicates() {
     marks[vertex(&graph, 2).0 as usize] = true;
     let domain = GraphDomain {
         identity: None,
-        members: SharedMarks::from(marks),
+        members: SharedMarks(Arc::new(marks)),
     };
     let mut walk = GraphWalk::default();
     let root = vertex(&graph, 1);
@@ -144,7 +142,7 @@ fn validated_forest_compresses_shared_chains_without_including_the_start() {
     marks[vertex(&graph, 1).0 as usize] = true;
     let domain = GraphDomain {
         identity: None,
-        members: SharedMarks::from(marks),
+        members: SharedMarks(Arc::new(marks)),
     };
     let mut walk = GraphWalk::default();
     let mut answers = Vec::new();

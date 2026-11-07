@@ -1,10 +1,10 @@
 //! Test setup uses the production owner, original-row admission and physical dispatch.
+use ryo_derived::domain::vertices::types::VertexId;
 use ryo_values::domain::plan_parts::types::InputNumber;
 use crate::application::file_dag::derived::owner::graphs::{
     service::slot,
     types::{
         handles::service::{DomainHandle, GraphHandle, RootAnswer},
-        retained::types::{GraphVertex, NearestAnswers},
         roots::value::DemandAnswers,
     },
 };
@@ -15,7 +15,7 @@ use crate::application::file_dag::{
 };
 use crate::domain::{
     coverage::types::Partial,
-    stored_graph::types::{GraphWalk, Orientation, VertexId},
+    stored_graph::types::{GraphWalk, Orientation},
     table_model::types::Rows,
 };
 use crate::domain::table_model::types::RepresentationInput as BorrowedRows;
@@ -305,10 +305,10 @@ impl GraphFixture {
         walk: &mut GraphWalk,
     ) -> Result<Option<u32>, OperatingError> {
         let mut cache = self.owner.derived().graph_cache()?;
-        let mut answers = NearestAnswers(std::mem::take(local));
+        let mut answers = std::mem::take(local);
         let found = DemandAnswers::new(self.owner.derived(), &mut cache)
-            .nearest(access, domain, GraphVertex(root), orientation, &mut answers, walk);
-        *local = answers.0;
+            .nearest(access, domain, VertexId(root), orientation, &mut answers, walk);
+        *local = answers;
         found.map(|found| found.map(|vertex| vertex.0))
     }
     pub(in crate::application::file_dag) fn index(

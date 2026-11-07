@@ -1,14 +1,16 @@
 //! Native cell reading and lookup strategy decisions use their actual pure owners.
+use crate::outbound::derived::interface::DerivedPort;
 use crate::domain::{
     table_cells::types::{TreeForm, TreeRows},
     tree_join::service::{driver::tree_value, source_column},
 };
-use ryo_derived::{
-    domain::contract::types::{
-        BuildOutcome, BuildWorkspace, DerivedInputs, DerivedView, Finding, NativeForm, ViewRequest,
-    },
-    inbound::use_cases::derived::interface::DerivedUseCase,
-};
+use ryo_derived::domain::contract::types::BuildOutcome;
+use ryo_derived::domain::contract::types::BuildWorkspace;
+use ryo_derived::domain::contract::types::BuildInputs as DerivedInputs;
+use ryo_derived::domain::contract::types::DerivedView;
+use ryo_derived::domain::native::types::NativeFinding as Finding;
+use ryo_derived::domain::native::types::NativeForm;
+use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
 use ryo_language::domain::{completion::service::{completion, name_kind}, elements::types::Elements, symbols::types::{ByteSlice, Symbols}};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_relations::domain::{

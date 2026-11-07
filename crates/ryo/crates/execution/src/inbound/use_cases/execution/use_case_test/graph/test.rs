@@ -1,4 +1,5 @@
 //! Compact adjacency matches the actual public closure owner without enumerating unrelated roots.
+use ryo_derived::domain::vertices::types::VertexId;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use super::super::super::fixtures;
 use crate::domain::operating::errors::OperatingError;
@@ -6,10 +7,7 @@ use ryo_values::domain::rows::errors::RowsError;
 
 use crate::application::file_dag::testing::CompleteTableRows;
 use crate::domain::stored_graph::types::traversal::value::GraphTraversal;
-use crate::domain::stored_graph::types::{
-    ExaminedVertices, ExpandedVertices, GraphIdentity, GraphWalk, Orientation,
-    RelationPopulation, VertexId, VisitEpoch,
-};
+use crate::domain::stored_graph::types::{ExaminedVertices, ExpandedVertices, GraphIdentity, GraphWalk, Orientation, RelationPopulation, VisitEpoch};
 use crate::domain::table_model::types::Rows;
 use ryo_derived::domain::contract::types::BuildOutcome;
 use ryo_derived::domain::contract::types::BuildWorkspace;

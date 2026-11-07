@@ -6,7 +6,7 @@ use super::types::{
 };
 use crate::domain::{
     coverage::types::RuleIndex,
-    file_program::types::{GraphObservations, NodeId},
+    file_program::types::{GraphObservations, ProgramNodeId},
     operating::errors::OperatingError,
 };
 use ryo_values::domain::{
@@ -52,7 +52,7 @@ fn unread_steps(plan: &Plan) -> Vec<StepUse> {
 /// is at fault (`faults`, by original node).
 pub(super) fn rule_programs(
     plans: &[Plan],
-    program_nodes: Vec<Vec<Result<NodeId, OperatingError>>>,
+    program_nodes: Vec<Vec<Result<ProgramNodeId, OperatingError>>>,
     observations: Option<&GraphObservations>,
     representative: &[LogicalInstruction],
     logical_regions: &[RegionId],

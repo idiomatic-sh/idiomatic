@@ -57,12 +57,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 use ryo_values::domain::plan_parts::types::Input as InputSource;
 /// The request graph of `plans` over the operators the application prepares for them.
 fn graph(plans: &[Plan], bindings: &[Vec<ParameterBinding>]) -> Result<RequestGraph, OperatingError> {
-    let operators = crate::application::file_dag::request::prepare_with_schemas(
+    let operators = crate::application::file_dag::service::prepare_with_schemas(
         plans,
         bindings,
         &[],
         &ryo_relations::domain::relations::service::kinds,
-        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+        Arc::new(crate::outbound::derived::factory::semantics()),
     )?;
     Ok(compile_prepared(plans, &operators))
 }

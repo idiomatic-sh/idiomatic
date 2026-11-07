@@ -15,7 +15,7 @@ use std::sync::Arc;
 /// fusion fences, then drops this value after lowering them into regions.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct ColumnCandidates {
-    candidates: Vec<ColumnAlternative<NodeId>>,
+    candidates: Vec<ColumnAlternative<ProgramNodeId>>,
 }
 
 fn original(graph: &RequestGraph, rule: RuleIndex, step: StepId) -> Option<ProgramNodeId> {
@@ -116,7 +116,7 @@ impl ColumnCandidates {
         self.candidates
             .iter()
             .filter_map(|each| {
-                let place = |NodeId(node): NodeId| regions.get(node).copied();
+                let place = |ProgramNodeId(node): ProgramNodeId| regions.get(node).copied();
                 Some(ColumnAlternative {
                     target: place(each.target)?,
                     left: place(each.left)?,

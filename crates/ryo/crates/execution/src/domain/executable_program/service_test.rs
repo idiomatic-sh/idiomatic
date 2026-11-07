@@ -263,7 +263,7 @@ fn reference(state: &mut State) -> Vec<DraftIndex> {
             .inputs
             .iter()
             .map(|input| match input {
-                NodeInput::Node(child) => NodeInput::Node(NodeId(mapping[child.0].0)),
+                NodeInput::Node(child) => NodeInput::Node(ProgramNodeId(mapping[child.0].0)),
                 other => *other,
             })
             .collect()

@@ -5,7 +5,7 @@ use super::{
     types::{AfterTheFiles, Family},
 };
 use crate::domain::operator::contract::derived::portable_fault;
-use ryo_derived::domain::contract::types::DerivedFault;
+use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::plan_parts::types::Test,

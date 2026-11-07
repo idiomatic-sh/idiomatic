@@ -1,17 +1,22 @@
 //! Boundary values for the actual borrowed graph preparation and traversal APIs.
+use crate::outbound::derived::interface::DerivedPort;
 use super::{
     service::{begin_ordered, next_ordered},
     types::{Edges, OrderedVisit, OrderedWalk},
 };
 use crate::domain::operating::errors::OperatingError;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_derived::{
-    domain::contract::types::{
-        BuildOutcome, BuildWorkspace, BulkRows, CanonicalTexts, DerivedFault, DerivedInputs,
-        DerivedView, PreparedDfs, RowCells, ValueTexts, ViewRequest,
-    },
-    inbound::use_cases::derived::{interface::DerivedUseCase, use_case::DerivedUseCaseImpl},
-};
+use ryo_derived::domain::contract::types::BuildOutcome;
+use ryo_derived::domain::contract::types::BuildWorkspace;
+use ryo_derived::domain::row_cells::types::BulkRows;
+use ryo_derived::domain::row_cells::types::CanonicalTexts;
+use ryo_derived::domain::fault::types::DerivedFault;
+use ryo_derived::domain::contract::types::BuildInputs as DerivedInputs;
+use ryo_derived::domain::contract::types::DerivedView;
+use ryo_derived::domain::dfs::types::PreparedDfs;
+use ryo_derived::domain::row_cells::types::RowCells;
+use ryo_derived::domain::row_cells::types::ValueTexts;
+use ryo_derived::domain::request::types::DerivedRequest as ViewRequest;
 use ryo_relations::{
     domain::relations::types::{CellKind, Integer, Name, PlaceNumber, TextHash, Value as Cell},
     domain::terms::types::Symbol,

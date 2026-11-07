@@ -1,4 +1,5 @@
 //! Pure traversals feed completed answers to the common resource owner.
+use ryo_derived::domain::vertices::types::VertexId;
 use super::super::{
     handles::{
         service::{DomainHandle, GraphHandle, RootAnswer},
@@ -6,7 +7,7 @@ use super::super::{
     },
     reserve::types::Reserve,
     retained::types::{
-        GraphEntry, GraphVertex, NearestAnswers, NearestMemo, NearestSlot, ReachedVertices,
+        GraphEntry, NearestMemo, NearestSlot, ReachedVertices,
         RootMemo,
     },
 };
@@ -25,10 +26,7 @@ use crate::application::file_dag::derived::{
 };
 use crate::domain::{
     operating::errors::OperatingError,
-    stored_graph::types::{
-        BreadthEnd, ExaminedVertices, ExpandedVertices, GraphDomain, GraphWalk, MemoStatus,
-        Nearest, Orientation, VertexId,
-        traversal::value::{GraphTraversal, UNKNOWN},
+    stored_graph::types::{BreadthEnd, ExaminedVertices, ExpandedVertices, GraphDomain, GraphWalk, MemoStatus, Nearest, Orientation, traversal::value::{GraphTraversal, UNKNOWN},
     },
 };
 use ryo_relations::domain::relations::types::Value;
@@ -114,13 +112,13 @@ impl<'a> DemandAnswers<'a> {
         if stopped || access.sharing() == GraphSharing::Local {
             return Ok(None);
         }
-        self.admit(access, GraphVertex(root), walk)
+        self.admit(access, VertexId(root), walk)
     }
     /// One-step or closure traversal for an axis row; the owner alone records its walk work.
     pub(in crate::application::file_dag) fn axis(
         &mut self,
         access: &GraphHandle,
-        root: GraphVertex,
+        root: VertexId,
         orientation: Orientation,
         direction: ryo_values::domain::plan_parts::types::Direction,
         walk: &mut GraphWalk,
@@ -146,11 +144,11 @@ impl<'a> DemandAnswers<'a> {
         &mut self,
         access: &GraphHandle,
         domain: &DomainHandle,
-        root: GraphVertex,
+        root: VertexId,
         orientation: Orientation,
         local: &mut Vec<VertexId>,
         walk: &mut GraphWalk,
-    ) -> Result<Option<GraphVertex>, OperatingError> {
+    ) -> Result<Option<VertexId>, OperatingError> {
         access.validate_owner(self.owner)?;
         domain.validate_owner(self.owner, access)?;
         let domain = domain.raw_domain();
@@ -224,7 +222,7 @@ impl<'a> DemandAnswers<'a> {
     fn admit(
         &mut self,
         access: &GraphHandle,
-        root: GraphVertex,
+        root: VertexId,
         walk: &GraphWalk,
     ) -> Result<Option<RootAnswer>, OperatingError> {
         let cache = &mut *self.cache;

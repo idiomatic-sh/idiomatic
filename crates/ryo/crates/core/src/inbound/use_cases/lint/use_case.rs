@@ -6,8 +6,6 @@
 //! files and the rows is the domain's; this calls it between the calls of the ports.
 use ryo_execution::application::file_dag::program::preparation::types::ReplayClosure;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use super::errors::LintError;
 use super::interface::LintUseCase;
@@ -1471,7 +1469,7 @@ impl LintUseCase for LintUseCaseImpl {
                     )
                 })?,
         );
-        let services = ExecutionUseCaseImpl::new().execution(&program, &listing.files);
+        let services = execution.begin(&program, &listing.files);
         let metadata = program.metadata();
         let mut setting = RequestVisitSetting {
             program: Arc::clone(&program),

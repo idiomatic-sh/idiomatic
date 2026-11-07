@@ -27,6 +27,6 @@ pub fn operators() -> Arc<dyn OperatorsPort> {
 #[must_use]
 pub fn derived() -> Arc<dyn DerivedPort> {
     Arc::new(ryo_execution::outbound::derived::factory::use_case(
-        ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+        ryo_execution::outbound::derived::factory::semantics(),
     ))
 }

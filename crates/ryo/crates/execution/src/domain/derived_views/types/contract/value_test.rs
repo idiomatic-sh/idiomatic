@@ -3,7 +3,7 @@
 use super::value::kind_of;
 use crate::domain::derived_views::types::ViewRequest;
 use crate::domain::positions::types::Stride;
-use ryo_derived::domain::contract::types::DerivedKind;
+use ryo_derived::domain::request::types::DerivedKind;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 

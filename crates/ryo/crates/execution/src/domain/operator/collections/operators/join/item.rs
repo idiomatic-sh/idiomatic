@@ -16,7 +16,7 @@ use crate::domain::tree_join::{
     },
     service::{driver::tree_value, source_column},
 };
-use ryo_derived::domain::contract::types::Finding;
+use ryo_derived::domain::native::types::NativeFinding;
 use ryo_operators::domain::equality_join::errors::EqualityJoinError;
 use ryo_operators::domain::equality_join::types::{Advance, JoinDriver};
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;

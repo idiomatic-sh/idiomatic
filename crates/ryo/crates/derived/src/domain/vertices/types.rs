@@ -6,7 +6,7 @@ use ryo_relations::domain::relations::types::Value;
 pub struct PartitionId(pub u32);
 
 /// The number of one vertex of a graph, in first-seen order.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VertexId(pub u32);
 
 /// Where the edges leaving each vertex begin in the neighbor list: the bare offsets inside are named here.

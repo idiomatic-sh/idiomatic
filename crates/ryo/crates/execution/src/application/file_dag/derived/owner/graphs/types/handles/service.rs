@@ -1,7 +1,7 @@
 //! Required invocation leases travel with the immutable graph/domain handles.
 #[cfg(test)]
 use super::types::DataIdentity;
-use super::types::DomainMarks;
+use ryo_derived::domain::positions::types::DenseMarks;
 use super::types::GraphSharing;
 #[cfg(test)]
 use crate::application::file_dag::derived::constants;
@@ -104,12 +104,12 @@ impl DomainHandle {
             _lease: lease,
         })
     }
-    pub(in crate::application::file_dag) fn members(&self) -> DomainMarks<'_> {
+    pub(in crate::application::file_dag) fn members(&self) -> DenseMarks<'_> {
         #[cfg(test)]
         self.acquired
             .view()
             .expect(constants::EXPECT_MEMBERSHIP_LEASE);
-        DomainMarks(self.domain.members.0.as_slice())
+        DenseMarks(self.domain.members.0.as_slice())
     }
     pub(in crate::application::file_dag::derived::owner) fn raw_domain(&self) -> &Arc<GraphDomain> {
         &self.domain

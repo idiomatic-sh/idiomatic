@@ -231,15 +231,6 @@ pub(crate) struct PendingStep {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct DerivedSources(pub Vec<bool>);
 
-/// What a retained frontier of rows is kept for.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum FrontierPurpose {
-    /// The rows are read by the diagnostic emit only.
-    Diagnostic,
-    /// The rows are read by a named observation.
-    Observation,
-}
-
 /// Whether the contract of a node and of everything it reads has a valid schema.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum SchemaValidity {

@@ -5,7 +5,7 @@ use super::types::{
     ComparisonCount, DraftIndex, DraftRegion, Equivalence, LogicalInstruction, ReaderMultiplicity, RegionBucket,
     RegionMerge,
 };
-use crate::domain::file_program::types::{NodeId, NodeInput};
+use crate::domain::file_program::types::{ProgramNodeId, NodeInput};
 
 /// The canonical inputs of a region: producers named by the region that now serves them.
 /// Built once per region; every later comparison and lookup reads this form.
@@ -14,7 +14,7 @@ fn canonical(draft: &DraftRegion<Instruction>, mapping: &[DraftIndex]) -> Vec<No
         .inputs
         .iter()
         .map(|input| match input {
-            NodeInput::Node(child) => NodeInput::Node(NodeId(mapping[child.0].0)),
+            NodeInput::Node(child) => NodeInput::Node(ProgramNodeId(mapping[child.0].0)),
             other => *other,
         })
         .collect()

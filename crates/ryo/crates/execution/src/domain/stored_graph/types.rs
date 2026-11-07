@@ -1,8 +1,9 @@
 //! Plain compact graph, population, traversal and bounded memo data.
+use ryo_derived::domain::vertices::types::VertexId;
 
 use crate::domain::stored_selection::types::{SelectedPositions, SelectionIdentity};
 use ryo_relations::domain::relations::types::{CellKind, FileId, Relation, Value};
-use ryo_derived::domain::contract::types::SharedMarks;
+use ryo_derived::domain::sharing::types::SharedMarks;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::RowCount;
 use std::sync::Arc;
@@ -86,17 +87,9 @@ pub(crate) struct GraphDomain {
 
 /// One domain-specific nearest context; mutable answers remain under the generation owner.
 
-/// Which of an adjacency's two arrays, forward then reverse, a lookup reads.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct AdjacencySide(pub usize);
-
 /// The dense vertices one vertex reaches in one orientation, in the adjacency's own numbering.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Neighbors<'a>(pub &'a [u32]);
-
-/// A dense vertex of one compact adjacency.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct VertexId(pub u32);
 
 /// The traversal in which a vertex was last visited; zero marks no traversal.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

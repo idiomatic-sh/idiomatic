@@ -256,7 +256,7 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
         .share_marks()
         .ok_or(OperatingError::WrongOperation)?;
     let found = cache.graph_domains.iter().find(|entry| {
-        Arc::ptr_eq(&entry.graph, access.raw_graph()) && Arc::ptr_eq(entry.domain.members.backing(), members.backing())
+        Arc::ptr_eq(&entry.graph, access.raw_graph()) && Arc::ptr_eq(&entry.domain.members.0, &members.0)
     });
     let domain = found.map_or_else(
         || {
