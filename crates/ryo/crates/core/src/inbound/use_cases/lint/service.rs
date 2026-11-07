@@ -2,6 +2,11 @@
 
 use super::constants::TASK_ANSWERED;
 use super::errors::LintError;
+use super::types::{MemoryDiagnostics, MemoryOwner, MemoryPhase, SourceProvider};
+use crate::domain::project::types::Projected;
+use crate::domain::reporting::service::report_refused;
+use ryo_language::domain::files::types::FilePath;
+use ryo_values::domain::records::types::Unreadable;
 use crate::domain::reading::service::buckets_of;
 use crate::inbound::use_cases::lint::constants::{
     CROSS_RULE_MEMORY, CROSS_SYMBOLS, FRESH_RECORDS, LIFECYCLE_MEMORY_DIAGNOSTIC, STORE_HANDED,
@@ -17,6 +22,16 @@ use {
     crate::domain::storing::types::HandedAgain, ryo_values::domain::stores::types::MadeAgain,
     ryo_values::domain::stores::types::Reuse,
 };
+
+/// The provider a request names, when it names one.
+pub(super) fn named_provider(
+    provider: &SourceProvider,
+) -> Option<&ryo_values::domain::descriptions::types::LanguageName> {
+    match provider {
+        SourceProvider::Recognized => None,
+        SourceProvider::Named(name) => Some(name),
+    }
+}
 
 /// What a task's slot holds once the workers are done: its answer.
 ///
@@ -81,17 +96,21 @@ pub(super) fn handed_of(
 }
 
 /// One explicit opt-in gate; no capacity traversal or diagnostic span construction when disabled.
-pub(super) fn memory_enabled() -> bool {
-    tracing::enabled!(target: LIFECYCLE_MEMORY_DIAGNOSTIC, tracing::Level::TRACE)
+pub(super) fn memory_diagnostics() -> MemoryDiagnostics {
+    if tracing::enabled!(target: LIFECYCLE_MEMORY_DIAGNOSTIC, tracing::Level::TRACE) {
+        MemoryDiagnostics::Enabled
+    } else {
+        MemoryDiagnostics::Disabled
+    }
 }
 
 /// Component capacities are distinct from RSS, allocator retention and unmeasured provider storage.
 pub(super) fn observed_memory(
-    phase: &'static str,
-    owner: &'static str,
+    phase: MemoryPhase,
+    owner: MemoryOwner,
     bytes: ryo_values::domain::stores::types::retention::value::RetainedBytes,
 ) {
-    tracing::trace!(target: LIFECYCLE_MEMORY_DIAGNOSTIC, phase, owner,
+    tracing::trace!(target: LIFECYCLE_MEMORY_DIAGNOSTIC, phase = phase.0, owner = owner.0,
         objects = bytes.objects.0, metadata_capacity_bytes = bytes.metadata.0,
         packed_live_bytes = bytes.packed_live.0, packed_capacity_bytes = bytes.packed_capacity.0,
         staged_objects = bytes.staged_objects.0, staged_payload_bytes = bytes.staged_payload_bytes.0,
@@ -103,8 +122,8 @@ pub(super) fn observed_memory(
 }
 
 /// Record capacity traversal is disabled on the normal lint path.
-pub(super) fn observed_records(phase: &'static str, records: &Vec<Record>) {
-    if memory_enabled() {
+pub(super) fn observed_records(phase: MemoryPhase, records: &Vec<Record>) {
+    if memory_diagnostics() == MemoryDiagnostics::Enabled {
         observed_memory(
             phase,
             FRESH_RECORDS,
@@ -115,10 +134,10 @@ pub(super) fn observed_records(phase: &'static str, records: &Vec<Record>) {
 
 /// The arena owner survives independently of the normalized text in fresh records.
 pub(super) fn observed_arenas(
-    phase: &'static str,
+    phase: MemoryPhase,
     arenas: &Vec<ryo_values::domain::stored_facts::types::ArenaBytes>,
 ) {
-    if memory_enabled() {
+    if memory_diagnostics() == MemoryDiagnostics::Enabled {
         observed_memory(
             phase,
             WORKER_ARENAS,
@@ -129,10 +148,10 @@ pub(super) fn observed_arenas(
 
 /// Observe the cross-file symbols owned here; execution owns input residency.
 pub(super) fn observed_cross_symbols(
-    phase: &'static str,
+    phase: MemoryPhase,
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
 ) {
-    if memory_enabled() {
+    if memory_diagnostics() == MemoryDiagnostics::Enabled {
         let mut bytes =
             ryo_values::domain::stores::types::retention::value::RetainedBytes::default();
         let places = ryo_language::domain::symbols::service::places_mut(symbols);
@@ -149,10 +168,10 @@ pub(super) fn observed_cross_symbols(
 
 /// Worker notes are a separate owner from their normalized record copy.
 pub(super) fn observed_notes(
-    phase: &'static str,
+    phase: MemoryPhase,
     notes: &crate::domain::workers::types::FreshNotes,
 ) {
-    if memory_enabled() {
+    if memory_diagnostics() == MemoryDiagnostics::Enabled {
         observed_memory(
             phase,
             WORKER_NOTES,
@@ -169,12 +188,12 @@ pub(super) fn memory_rule(
     id: &ryo_values::domain::runs::types::RuleId,
     index: usize,
 ) -> Option<tracing::span::EnteredSpan> {
-    memory_enabled().then(|| tracing::trace_span!(target: LIFECYCLE_MEMORY_DIAGNOSTIC, CROSS_RULE_MEMORY, rule = %id.0, rule_index = index).entered())
+    (memory_diagnostics() == MemoryDiagnostics::Enabled).then(|| tracing::trace_span!(target: LIFECYCLE_MEMORY_DIAGNOSTIC, CROSS_RULE_MEMORY, rule = %id.0, rule_index = index).entered())
 }
 
 /// Do not walk stored payload metadata on ordinary lints.
-pub(super) fn observed_stored(phase: &'static str, handed: &StoredHanded) {
-    if memory_enabled() {
+pub(super) fn observed_stored(phase: MemoryPhase, handed: &StoredHanded) {
+    if memory_diagnostics() == MemoryDiagnostics::Enabled {
         observed_memory(
             phase,
             STORE_HANDED,
@@ -185,14 +204,60 @@ pub(super) fn observed_stored(phase: &'static str, handed: &StoredHanded) {
 
 /// Publication observes staged descriptor capacity without reading spool contents.
 pub(super) fn observed_staged(
-    phase: &'static str,
+    phase: MemoryPhase,
     kept: &ryo_values::domain::stores::types::KeptRows,
 ) {
-    if memory_enabled() {
+    if memory_diagnostics() == MemoryDiagnostics::Enabled {
         observed_memory(
             phase,
             STORE_STAGED_DESCRIPTORS,
             ryo_values::domain::stores::types::retention::value::RetainedBytes::staged(kept),
         );
     }
+}
+
+/// Preserve present and absent project dependencies in the completed report.
+pub(super) fn project_dependencies(now: &Projected) -> Vec<super::types::ProjectDependency> {
+    now.consulted
+        .iter()
+        .map(|dependency| super::types::ProjectDependency {
+            path: dependency.path.clone(),
+            state: super::types::ProjectDependencyState::Present(dependency.digest),
+        })
+        .chain(
+            now.consulted_absent
+                .iter()
+                .map(|path| super::types::ProjectDependency {
+                    path: path.clone(),
+                    state: super::types::ProjectDependencyState::Missing,
+                }),
+        )
+        .collect()
+}
+
+/// Collect retry paths before adding refused manifests to the final unread report.
+pub(super) fn read_outcomes(
+    unread: &mut Vec<ryo_values::domain::records::types::Unread>,
+    unrecorded: Vec<FilePath>,
+    refused: &[ryo_values::domain::runs::types::ManifestRefused],
+) -> Vec<FilePath> {
+    let mut failed: Vec<FilePath> = unread
+        .iter()
+        .filter(|each| matches!(each.reason, Unreadable::Failed(_)))
+        .map(|each| each.path.clone())
+        .collect();
+    failed.extend(unrecorded);
+    failed.sort_unstable();
+    failed.dedup();
+    report_refused(unread, refused);
+    failed
+}
+
+/// Preserve one ordered occurrence of each completed coverage record.
+pub(super) fn sort_unique<T>(records: &mut Vec<T>)
+where
+    T: Ord,
+{
+    records.sort();
+    records.dedup();
 }

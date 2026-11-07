@@ -60,6 +60,10 @@ enum Scenario {
     /// A file the store kept and the run no longer lists leaves no unknown and no skip of its own behind; a file still listed is
     /// never gone.
     GoneFile,
+    /// executable changes invalidate early store and equal digest routes in both directions.
+    ExecutableChangesInvalidateEarlyStoreAndEqualDigestRoutesInBothDirections,
+    /// unavailable primary cannot reuse a cached cross file interface.
+    UnavailablePrimaryCannotReuseACachedCrossFileInterface,
 }
 
 /// What a row of the cases does.
@@ -311,6 +315,8 @@ fn stored_round_trip() -> Value {
 
 fn subject(scenario: Input) -> Value {
     match scenario {
+        Scenario::ExecutableChangesInvalidateEarlyStoreAndEqualDigestRoutesInBothDirections => executable_changes_invalidate_early_store_and_equal_digest_routes_in_both_directions(),
+        Scenario::UnavailablePrimaryCannotReuseACachedCrossFileInterface => unavailable_primary_cannot_reuse_a_cached_cross_file_interface(),
         Scenario::DecideWhole => {
             let other_rules = vec![StoredRule {
                 digest: Digest([7; 16]),
@@ -490,6 +496,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::GoneFile,
         expect: Expect::Value(1110),
     },
+    Case {
+        name: CaseName("executable_changes_invalidate_early_store_and_equal_digest_routes_in_both_directions"),
+        word: Word::Succeeds,
+        input: || Scenario::ExecutableChangesInvalidateEarlyStoreAndEqualDigestRoutesInBothDirections,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("unavailable_primary_cannot_reuse_a_cached_cross_file_interface"),
+        word: Word::Succeeds,
+        input: || Scenario::UnavailablePrimaryCannotReuseACachedCrossFileInterface,
+        expect: Expect::Value(1),
+    },
 ];
 
 #[test]
@@ -497,8 +515,7 @@ fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
 }
 
-#[test]
-fn executable_changes_invalidate_early_store_and_equal_digest_routes_in_both_directions() {
+fn executable_changes_invalidate_early_store_and_equal_digest_routes_in_both_directions() -> Value {
     use ryo_values::domain::files::types::ExecutablePermission;
     let posix = |executable: bool| {
         if executable {
@@ -541,10 +558,10 @@ fn executable_changes_invalidate_early_store_and_equal_digest_routes_in_both_dir
             "equal byte/interface digests cannot hide changed input observations"
         );
     }
+    1
 }
 
-#[test]
-fn unavailable_primary_cannot_reuse_a_cached_cross_file_interface() {
+fn unavailable_primary_cannot_reuse_a_cached_cross_file_interface() -> Value {
     use ryo_values::domain::files::types::{CorpusInput, InputReadFailure};
     for failed in [
         CorpusInput::Unreadable {
@@ -562,4 +579,5 @@ fn unavailable_primary_cannot_reuse_a_cached_cross_file_interface() {
             Decision::Whole
         );
     }
+    1
 }

@@ -28,11 +28,37 @@ use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded, Stored, Store
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Condvar, Mutex};
 
+/// Whether the opt-in lifecycle memory diagnostics are on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MemoryDiagnostics {
+    /// The diagnostics are written.
+    Enabled,
+    /// No capacity traversal and no diagnostic span is made.
+    Disabled,
+}
+
+/// The point of a run a memory diagnostic is written at.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MemoryPhase(pub &'static str);
+
+/// What a memory diagnostic measures.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MemoryOwner(pub &'static str);
+
+/// Which linked provider reads the sources of a request.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SourceProvider {
+    /// The providers decide by each file's path, in the order they were linked.
+    Recognized,
+    /// The linked provider the request names reads every file.
+    Named(ryo_values::domain::descriptions::types::LanguageName),
+}
+
 /// The rules to check in a session.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LintRequest {
-    /// Explicit provider for these sources; none preserves ordinary path recognition.
-    pub source_language: Option<ryo_values::domain::descriptions::types::LanguageName>,
+    /// The provider for these sources: the one the request names, or ordinary path recognition.
+    pub source_language: SourceProvider,
     /// The session `open` returned.
     pub session: Session,
     /// Only findings in these files are reported; none means every file.
@@ -280,9 +306,7 @@ impl From<&Rule> for RuleSpec {
                 })
                 .collect(),
             observations: rule.observations.clone(),
-            spelled: RuleParameters(
-                format!("{:?}|{:?}", rule.parameters, rule.applicability).into(),
-            ),
+            spelled: RuleParameters(format!("{:?}", rule.parameters).into()),
             include: rule.include.clone(),
             exclude: rule.exclude.clone(),
         }

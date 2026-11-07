@@ -21,6 +21,7 @@ use ryo_values::domain::records::types::Unreadable;
 use ryo_values::domain::row_texts::types::Cell;
 use ryo_values::domain::row_texts::types::PlacedRule;
 use ryo_values::domain::row_texts::types::{PlacedColumn, PlacedLine};
+use ryo_values::domain::runs::constants::SYNTAX_REJECTED;
 use ryo_values::domain::runs::types::{ManifestRefused, RuleId, SkipReason, Skipped};
 #[cfg(test)]
 use ryo_values::domain::stored_facts::types::PackedWords;
@@ -51,7 +52,7 @@ struct EntrySchema {
     state: EntryStateSchema,
 }
 
-/// Stable entry-kind tags in the checked store version.
+/// Stable entry-kind tags in the checked store.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 enum EntryStateSchema {
     File,
@@ -99,7 +100,7 @@ pub(super) struct RuleSchema {
 /// A file: one row for each, numbered by its place in the table.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(super) struct FileSchema {
-    /// Explicit permission observation in this versioned store format.
+    /// Explicit permission observation in this store.
     executable: ExecutableSchema,
     /// Its path.
     path: TextSchema,
@@ -283,7 +284,7 @@ pub(super) enum ObservationReadinessSchema {
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(super) struct ObservationSchema {
     file: u32,
-    version: u32,
+    edition: u32,
     layout: [u8; 16],
     slots: u32,
     complete: Vec<u64>,
@@ -626,7 +627,7 @@ impl<'a> From<&'a Stored> for TablesSchema<'a> {
                 said: text(
                     &mut strings,
                     match each.reason {
-                        SkipReason::SyntaxRejected => "syntax-rejected",
+                        SkipReason::SyntaxRejected => SYNTAX_REJECTED,
                     },
                 ),
             })
@@ -816,10 +817,12 @@ impl TryFrom<TablesSchema<'_>> for Stored {
             .iter()
             .map(|each| {
                 let said = named(strings, each.said)?;
-                let reason = match said.as_ref() {
-                    "syntax-rejected" => SkipReason::SyntaxRejected,
-                    _ => return Err(postcard::Error::DeserializeBadEncoding),
-                };
+                let reason = [SkipReason::SyntaxRejected]
+                    .into_iter()
+                    .find(|candidate| match candidate {
+                        SkipReason::SyntaxRejected => said.as_ref() == SYNTAX_REJECTED,
+                    })
+                    .ok_or(postcard::Error::DeserializeBadEncoding)?;
                 Ok(Skipped {
                     rule: RuleId(named(strings, each.first)?),
                     path: FilePath(named(strings, each.path)?),
@@ -963,7 +966,7 @@ fn rest_of<'a>(stored: &'a StoredHanded) -> RestSchema<'a> {
         .iter()
         .map(|each| ObservationSchema {
             file: each.file.0,
-            version: each.root.version.0,
+            edition: each.root.version.0,
             layout: each.root.layout.0.0,
             slots: each.root.slots.0,
             complete: each.root.complete.0.clone(),
@@ -1077,7 +1080,7 @@ fn handed_of(rest: &RestSchema<'_>) -> Result<StoredHanded, postcard::Error> {
                     Ok(ryo_values::domain::stores::types::StoredFrontierReadiness {
                         file: StoredFileNumber(each.file),
                         root: std::sync::Arc::new(FrontierReadiness {
-                            version: ObservationReadinessVersion(each.version),
+                            version: ObservationReadinessVersion(each.edition),
                             layout: ObservationReadinessLayout(Digest(each.layout)),
                             slots: ObservationReadinessCount(each.slots),
                             complete: ryo_values::domain::records::types::ReadinessBits(

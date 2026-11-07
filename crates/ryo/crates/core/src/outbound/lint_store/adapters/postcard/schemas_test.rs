@@ -25,6 +25,10 @@ enum Offered {
     CutShort,
     /// A thousand findings in one file: how many times its path is written.
     APathOfManyFindings,
+    /// named frontier readiness roundtrips independently of row bytes.
+    NamedFrontierReadinessRoundtripsIndependentlyOfRowBytes,
+    /// frontier proof roundtrip preserves partial and rejects old layout.
+    FrontierProofRoundtripPreservesPartialAndRejectsOldLayout,
 }
 
 type Input = Offered;
@@ -54,6 +58,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_text_is_written_once_however_many_rows_name_it"),
         word: Word::Succeeds,
         input: || Offered::APathOfManyFindings,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("named_frontier_readiness_roundtrips_independently_of_row_bytes"),
+        word: Word::Succeeds,
+        input: || Offered::NamedFrontierReadinessRoundtripsIndependentlyOfRowBytes,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("frontier_proof_roundtrip_preserves_partial_and_rejects_old_layout"),
+        word: Word::Succeeds,
+        input: || Offered::FrontierProofRoundtripPreservesPartialAndRejectsOldLayout,
         expect: Expect::Value(true),
     },
 ];
@@ -108,6 +124,8 @@ fn handed_reads_back(stored: &Stored) -> bool {
 
 fn subject(offered: Input) -> Value {
     match offered {
+        Offered::NamedFrontierReadinessRoundtripsIndependentlyOfRowBytes => named_frontier_readiness_roundtrips_independently_of_row_bytes(),
+        Offered::FrontierProofRoundtripPreservesPartialAndRejectsOldLayout => frontier_proof_roundtrip_preserves_partial_and_rejects_old_layout(),
         Offered::TheSameBuild => {
             let mut stored = stored(1);
             stored.skipped = vec![Skipped {
@@ -154,8 +172,7 @@ fn succeeds() {
     run(CASES, Word::Succeeds, |offered| Ok(subject(offered)));
 }
 
-#[test]
-fn named_frontier_readiness_roundtrips_independently_of_row_bytes() {
+fn named_frontier_readiness_roundtrips_independently_of_row_bytes() -> Value {
     use ryo_values::domain::records::types::ObservationReadinessCount;
     use ryo_values::domain::records::types::ObservationReadinessLayout;
     use ryo_values::domain::records::types::ObservationReadinessSlot;
@@ -198,10 +215,10 @@ fn named_frontier_readiness_roundtrips_independently_of_row_bytes() {
         rest_from(&bytes[..bytes.len() - 1]).is_none(),
         "truncated readiness cannot become a complete empty source"
     );
+    true
 }
 
-#[test]
-fn frontier_proof_roundtrip_preserves_partial_and_rejects_old_layout() {
+fn frontier_proof_roundtrip_preserves_partial_and_rejects_old_layout() -> Value {
     use ryo_values::domain::{
         records::types::{FrontierAffected, FrontierCoverage, FrontierMissing},
         stored_facts::types::{Bucket, Digest},
@@ -254,4 +271,5 @@ fn frontier_proof_roundtrip_preserves_partial_and_rejects_old_layout() {
         proof: crate::outbound::lint_store::fixtures::proof(),
     });
     assert_eq!(rest_from(&rest_bytes(&complete).unwrap()), Some(complete));
+    true
 }

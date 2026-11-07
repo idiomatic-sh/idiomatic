@@ -219,10 +219,14 @@ impl TryFrom<LintRequestSchema> for CoreRequest {
         };
         Ok(Self {
             source_language: match request.source_language {
-                crate::domain::language::types::SourceLanguage::Recognized => None,
-                crate::domain::language::types::SourceLanguage::Named(name) => Some(
-                    ryo_values::domain::descriptions::types::LanguageName(name.0),
-                ),
+                crate::domain::language::types::SourceLanguage::Recognized => {
+                    ryo_core::inbound::use_cases::lint::types::SourceProvider::Recognized
+                }
+                crate::domain::language::types::SourceLanguage::Named(name) => {
+                    ryo_core::inbound::use_cases::lint::types::SourceProvider::Named(
+                        ryo_values::domain::descriptions::types::LanguageName(name.0),
+                    )
+                }
             },
             session: Session {
                 root: RootPath(root.into()),

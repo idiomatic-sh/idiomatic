@@ -1,16 +1,9 @@
 //! The `core` domain's outbound ports: what it needs from outside, one module each.
 
 pub mod corpus;
-pub mod digest;
-pub mod facts;
 pub mod language;
 pub mod lint_store;
-pub mod matching;
 pub mod memory;
-pub mod operators;
 pub mod publication;
-pub mod query_language;
 pub mod row_sink;
 pub mod scheduler;
-
-pub mod derived;

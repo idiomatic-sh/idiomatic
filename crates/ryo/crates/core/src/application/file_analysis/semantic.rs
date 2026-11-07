@@ -3,6 +3,7 @@
 use crate::application::file_analysis::constants::{
     FILE, NODES, SEMANTICSTATE, THE_SELECTED_LANGUAGE_DOES_NOT_OFFER,
 };
+use super::types::FileCompleteness;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
@@ -19,9 +20,9 @@ use ryo_relations::domain::relations::types::{Count, FileId};
 /// The application keeps this only while evaluating one freshly parsed file.
 pub(crate) struct SemanticState {
     file: FileId,
-    nodes: usize,
+    nodes: Count,
     session: RefCell<Option<Box<dyn SemanticSession>>>,
-    incomplete: Cell<bool>,
+    completeness: Cell<FileCompleteness>,
 }
 
 impl std::fmt::Debug for SemanticState {
@@ -42,19 +43,20 @@ impl SemanticState {
     ) -> Self {
         Self {
             file,
-            nodes: real_count(elements).0,
+            nodes: real_count(elements),
             session: RefCell::new(session),
-            incomplete: Cell::new(false),
+            completeness: Cell::new(FileCompleteness::Complete),
         }
     }
 
     /// An incomplete rule result cannot become a complete warm/edit record.
     pub(crate) fn mark_incomplete(&self) {
-        self.incomplete.set(true);
+        self.completeness.set(FileCompleteness::Incomplete);
     }
 
-    pub(crate) fn is_incomplete(&self) -> bool {
-        self.incomplete.get()
+    /// Whether every rule result of this file generation is whole.
+    pub(crate) fn completeness(&self) -> FileCompleteness {
+        self.completeness.get()
     }
 }
 
@@ -69,7 +71,7 @@ impl SemanticLookup for SemanticState {
         let mut unique = Vec::new();
         let mut seen = std::collections::HashSet::new();
         for request in requests {
-            admit(request, self.file, Count(self.nodes))?;
+            admit(request, self.file, self.nodes)?;
             if seen.insert(*request) {
                 unique.push(*request);
             }

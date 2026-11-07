@@ -17,7 +17,7 @@ use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 // this operation owns one bounded worker and the read, parse, admission, evaluation, and retention sequence for its file; its private methods share that invocation state, while domain computations remain separate pure functions.
 use super::errors::FileAnalysisError;
-use super::types::{FileVisit, RequestVisitSetting, Worker};
+use super::types::{FileCompleteness, FileVisit, RequestVisitSetting, RuleGate, Worker};
 use crate::domain::admission::errors::AdmissionError;
 use crate::domain::admission::service::{admit_elements, admit_view, limits_of};
 
@@ -229,10 +229,15 @@ impl FileAnalysis {
     }
 
     /// Whether this setting contains a policy that can change a file's active rules.
-    pub(super) fn may_gate_rules(setting: &RequestVisitSetting<'_>, acceptance: SyntaxAcceptance) -> bool {
-        setting.applicability_can_gate == Gating::MayGate
+    pub(super) fn may_gate_rules(setting: &RequestVisitSetting<'_>, acceptance: SyntaxAcceptance) -> Gating {
+        if setting.applicability_can_gate == Gating::MayGate
             && !(acceptance == SyntaxAcceptance::Accepted
                 && setting.applicability.len() == setting.metadata.len())
+        {
+            Gating::MayGate
+        } else {
+            Gating::NeverGates
+        }
     }
 
     /// Bind the resources used by every analysis invocation.
@@ -286,22 +291,28 @@ impl FileAnalysis {
         setting: &RequestVisitSetting<'_>,
         file: FileId,
         acceptance: SyntaxAcceptance,
-    ) -> Vec<bool> {
+    ) -> Vec<RuleGate> {
         let demanded = setting
             .program
             .demanded_rules(|place| governs_rule(tables, RuleIndex(place)) == Governing::Governs);
-        let mut skipped = vec![false; setting.metadata.len()];
+        let mut skipped = vec![RuleGate::Open; setting.metadata.len()];
         for (place, blocked) in skipped.iter_mut().enumerate() {
             if !demanded.get(place).copied().unwrap_or(false) {
                 continue;
             }
             let applicability = setting.applicability.get(place).copied();
             *blocked = match applicability {
-                Some(RuleApplicability::Always) => false,
-                Some(RuleApplicability::AcceptedSyntax) => acceptance != SyntaxAcceptance::Accepted,
-                None => true,
+                Some(RuleApplicability::Always) => RuleGate::Open,
+                Some(RuleApplicability::AcceptedSyntax) => {
+                    if acceptance == SyntaxAcceptance::Accepted {
+                        RuleGate::Open
+                    } else {
+                        RuleGate::Blocked
+                    }
+                }
+                None => RuleGate::Blocked,
             };
-            if !*blocked {
+            if *blocked == RuleGate::Open {
                 continue;
             }
             MetadataUseCaseImpl.unplace(
@@ -388,7 +399,7 @@ impl FileAnalysis {
                 if !demanded {
                     return FileRuleIntent::Undemanded;
                 }
-                if skipped[place] {
+                if skipped[place] == RuleGate::Blocked {
                     return match (visit.setting.applicability.get(place), acceptance) {
                         (Some(RuleApplicability::AcceptedSyntax), SyntaxAcceptance::Rejected) => {
                             FileRuleIntent::Skipped(ApplicabilityReason::SyntaxRejected)
@@ -744,9 +755,9 @@ impl FileAnalysis {
                     number,
                     &entry.path,
                     entry.executable,
-                    &reason.0,
+                    FailureDetail(&reason.0),
                     PrimaryFailureKind::Disk,
-                    true,
+                    ObservedFile::Observed,
                 );
             }
             CorpusInput::Unreadable { path, reason } => {
@@ -756,9 +767,9 @@ impl FileAnalysis {
                     number,
                     path,
                     ExecutablePermission::Unknown,
-                    &reason.0,
+                    FailureDetail(&reason.0),
                     PrimaryFailureKind::Disk,
-                    false,
+                    ObservedFile::Unobserved,
                 );
             }
         };
@@ -790,9 +801,9 @@ impl FileAnalysis {
                 number,
                 &file.path,
                 file.executable,
-                &error.to_string(),
+                FailureDetail(&error.to_string()),
                 kind,
-                true,
+                ObservedFile::Observed,
             );
         }
         // Only a store reads the digest of a file's bytes.
@@ -833,9 +844,9 @@ impl FileAnalysis {
         number: FileId,
         path: &FilePath,
         executable: ExecutablePermission,
-        detail: &str,
+        detail: FailureDetail<'_>,
         kind: PrimaryFailureKind,
-        observed_file: bool,
+        observed_file: ObservedFile,
     ) -> Result<(), FileAnalysisError> {
         use ryo_language::domain::symbols::service::intern_derived;
         use ryo_language::domain::symbols::types::ByteSlice;
@@ -853,17 +864,13 @@ impl FileAnalysis {
         let mut said = failure_partials(
             setting.wanted,
             number,
-            FailureDetail(detail),
-            if observed_file {
-                ObservedFile::Observed
-            } else {
-                ObservedFile::Unobserved
-            },
+            detail,
+            observed_file,
         );
         Self::write_engine_rows(
             worker,
             EngineAsked {
-                file: if observed_file {
+                file: if observed_file == ObservedFile::Observed {
                     asked.file
                 } else {
                     EngineRows::NotAsked
@@ -877,7 +884,7 @@ impl FileAnalysis {
         )?;
         if asked.read_failure == EngineRows::Asked && kind == PrimaryFailureKind::Disk {
             let detail =
-                intern_derived(&mut worker.tables.symbols, ByteSlice(&[]), NameText(detail));
+                intern_derived(&mut worker.tables.symbols, ByteSlice(&[]), NameText(detail.0));
             worker.facts.columns_mut()?.write(FilesystemReadFailureRow {
                 path: number,
                 detail,
@@ -890,7 +897,7 @@ impl FileAnalysis {
         start_partials(&mut worker.tables, &said, Recovery::Whole, setting.wanted);
         worker.tables.unread.push(Unread {
             path: path.clone(),
-            reason: Unreadable::Failed(ReadFailure(detail.into())),
+            reason: Unreadable::Failed(ReadFailure(detail.0.into())),
         });
         let acceptance = syntax_acceptance(&worker.tables.elements);
         if asked.any == EngineRows::Asked {
@@ -898,7 +905,7 @@ impl FileAnalysis {
             let semantic =
                 super::semantic::SemanticState::new(number, &worker.tables.elements, None);
             self.read_file(worker, visit, number, &semantic)?;
-        } else if Self::may_gate_rules(setting, acceptance) {
+        } else if Self::may_gate_rules(setting, acceptance) == Gating::MayGate {
             drop(Self::gate_rules(
                 &mut worker.tables,
                 setting,
@@ -1247,7 +1254,7 @@ impl FileAnalysis {
             FileReading::Read(_) | FileReading::Manifest => {
                 index_kinds(&mut worker.tables.elements);
                 self.read_file(worker, visit, number, &semantic)?;
-                if semantic.is_incomplete() {
+                if semantic.completeness() == FileCompleteness::Incomplete {
                     None
                 } else {
                     self.recorded(worker, visit, number, base)
@@ -1272,7 +1279,7 @@ impl FileAnalysis {
                     self.read_file(worker, visit, number, &semantic)?;
                 } else {
                     let unavailable_acceptance = syntax_acceptance(&worker.tables.elements);
-                    if Self::may_gate_rules(setting, unavailable_acceptance) {
+                    if Self::may_gate_rules(setting, unavailable_acceptance) == Gating::MayGate {
                         drop(Self::gate_rules(
                             &mut worker.tables,
                             setting,
@@ -1287,7 +1294,7 @@ impl FileAnalysis {
                         Some(FileOutcome::Unread { reason, ran: None })
                     }
                     (Answering::Findings, EngineRows::Asked) => {
-                        if semantic.is_incomplete() {
+                        if semantic.completeness() == FileCompleteness::Incomplete {
                             None
                         } else {
                             self.recorded(worker, visit, number, base).map(|ran| {

@@ -65,7 +65,7 @@ harness = false
 
 [features]
 diagnostic-row-progress = []
-fixtures = ["dep:dhat", "ryo_language/fixtures", "ryo_values/fixtures"]
+fixtures = ["dep:dhat", "ryo_execution/fixtures", "ryo_language/fixtures", "ryo_values/fixtures"]
 
 [lints]
 workspace = true

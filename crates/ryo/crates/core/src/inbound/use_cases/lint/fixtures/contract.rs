@@ -45,7 +45,7 @@ use crate::domain::corpus_copies::types::{
     CopyCount, CopyDigits, CopyNaming, CorpusInputs, Extension, ItemName, ListShape, Repeat,
 };
 use crate::outbound::corpus::fixtures::fake::CorpusFake;
-use crate::outbound::facts::fixtures::fake::FactsFake;
+use ryo_execution::outbound::facts::fixtures::fake::FactsFake;
 use crate::outbound::language::fixtures::fake::{LanguageFake, READ};
 use crate::outbound::language::{interface::LanguagePort, types::Absence};
 use crate::outbound::lint_store::interface::LintStorePort;
@@ -110,7 +110,7 @@ fn rule(id: &str, query: &str, include: Vec<Glob>) -> Rule {
 /// A request to lint the repository at the working directory with rules of these ids, whose queries are never run.
 fn asking(ids: &[&str]) -> LintRequest {
     LintRequest {
-        source_language: None,
+        source_language: crate::inbound::use_cases::lint::types::SourceProvider::Recognized,
         answer: AnswerShape::Findings,
         hosted: Vec::new(),
         session: Session {
@@ -531,7 +531,7 @@ fn lint_keeping(
     let rules =
         rules.map(|(id, (query, governs))| rule(id, query, vec![Glob(governs.as_str().into())]));
     let request = LintRequest {
-        source_language: None,
+        source_language: crate::inbound::use_cases::lint::types::SourceProvider::Recognized,
         rules: rules.collect(),
         ..asking(&[])
     };
@@ -562,7 +562,7 @@ fn use_case_over(
             Arc::new(MemoryFake::default());
         let analysis_digest: Arc<
             dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
-        > = Arc::new(crate::outbound::digest::fixtures::fake::DigestFake);
+        > = Arc::new(ryo_execution::outbound::digest::fixtures::fake::DigestFake);
         LintUseCaseImpl::new(
             crate::application::file_analysis::service::FileAnalysis::new(
                 Arc::clone(&analysis_corpus),
@@ -580,10 +580,10 @@ fn use_case_over(
                 Arc::new(typecheck()),
             )),
             Arc::clone(&analysis_memory),
-            Arc::new(crate::outbound::operators::factory::use_case(
+            Arc::new(ryo_execution::outbound::operators::factory::use_case(
                 ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
             )),
-            std::sync::Arc::new(crate::outbound::derived::factory::use_case(
+            std::sync::Arc::new(ryo_execution::outbound::derived::factory::use_case(
                 ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
             )),
             scheduler,
@@ -831,7 +831,7 @@ fn run_query(
     );
     let text = "let a = select * from \"syntax-tree\"; emit a subject file key(span);";
     let request = LintRequest {
-        source_language: None,
+        source_language: crate::inbound::use_cases::lint::types::SourceProvider::Recognized,
         rules: vec![rule("query", text, Vec::new())],
         answer: AnswerShape::Rows(RowTotal(limit)),
         ..asking(&[])

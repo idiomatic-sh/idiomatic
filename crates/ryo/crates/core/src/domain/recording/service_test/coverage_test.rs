@@ -113,9 +113,9 @@ fn own_partiality_is_one_unknown_and_foreign_partiality_is_its_own() {
     assert_eq!(unknowns_after(&[Some(FileId(3)), Some(FileId(4))]), two);
     // The project phase asks the same of each affected file: named there only when the rule reads the relation read in part.
     use crate::domain::recording::service::names_at_file;
-    use ryo_execution::inbound::use_cases::metadata::interface::{Needs, RelationRead};
+    use ryo_execution::inbound::use_cases::metadata::interface::{Bearing, Needs, RelationRead};
     use ryo_relations::domain::relations::types::Relation;
-    assert!(names_at_file(&[partial()], Some(&needs())));
+    assert_eq!(names_at_file(&[partial()], Some(&needs())), Bearing::Matters);
     let elsewhere = Needs {
         reads: vec![RelationRead {
             relation: Relation::Function,
@@ -123,8 +123,8 @@ fn own_partiality_is_one_unknown_and_foreign_partiality_is_its_own() {
         }],
         ..Needs::default()
     };
-    assert!(!names_at_file(&[partial()], Some(&elsewhere)));
-    assert!(!names_at_file(&[partial()], None));
+    assert_eq!(names_at_file(&[partial()], Some(&elsewhere)), Bearing::DoesNotMatter);
+    assert_eq!(names_at_file(&[partial()], None), Bearing::DoesNotMatter);
 }
 
 type Input = fn();

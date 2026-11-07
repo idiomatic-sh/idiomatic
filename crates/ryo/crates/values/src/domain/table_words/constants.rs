@@ -10,6 +10,8 @@ pub const BEFORE_SHRINK: &str = "decode_before_shrink";
 pub const AFTER_SHRINK: &str = "decode_after_shrink";
 /// The target lifecycle memory diagnostics are written to.
 pub const LIFECYCLE_TARGET: &str = "ryo::diagnostic::lifecycle_memory";
+/// The target execution diagnostics are written to.
+pub const EXECUTION_TARGET: &str = "ryo::diagnostic::execution";
 /// The owner named in the decoding diagnostic.
 pub const DECODING_OWNER: &str = "decoding_input";
 /// The phase named in the compact admission diagnostic.

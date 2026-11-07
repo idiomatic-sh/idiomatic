@@ -10,7 +10,7 @@ use ryo_core::inbound::use_cases::validate::types::ValidateRequest;
 use ryo_core::inbound::use_cases::validate::use_case::ValidateUseCaseImpl;
 use ryo_core::outbound::language::fixtures::fake::LanguageFake;
 use ryo_core::outbound::language::interface::LanguagePort;
-use ryo_core::outbound::query_language::fixtures::fake::{QueryLanguageFake, REFUSED};
+use ryo_execution::outbound::query_language::fixtures::fake::{QueryLanguageFake, REFUSED};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::hosted::types::{ColumnLabel, HostedColumn, HostedName, HostedRelation};
 use ryo_values::domain::plan_parts::types::QueryText;

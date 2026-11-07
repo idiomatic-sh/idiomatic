@@ -44,7 +44,7 @@ fn lint(files: &[(&str, &str)]) -> (Pairs, Pairs) {
     let (rows, report) = base::lint_report(
         root.path(),
         rules,
-        Arc::new(ryo_core::outbound::facts::factory::memory()),
+        Arc::new(ryo_execution::outbound::facts::factory::memory()),
         Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
     )
     .expect("the rules run");
@@ -153,7 +153,7 @@ fn lint_in(
     let (mut rows, report) = base::lint_report(
         root,
         rules,
-        Arc::new(ryo_core::outbound::facts::factory::memory()),
+        Arc::new(ryo_execution::outbound::facts::factory::memory()),
         kept,
     )
     .expect("the rules run");
@@ -313,7 +313,7 @@ fn unadvertised_semantics_are_unknown_and_never_prove_absence_cold_or_warm() {
         let (rows, report) = base::lint_report(
             root.path(),
             rules,
-            Arc::new(ryo_core::outbound::facts::factory::memory()),
+            Arc::new(ryo_execution::outbound::facts::factory::memory()),
             Arc::clone(&kept),
         )
         .expect("optional capability queries compile and execute");

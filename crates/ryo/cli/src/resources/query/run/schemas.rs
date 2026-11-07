@@ -79,7 +79,7 @@ impl TryFrom<RunArgumentsSchema> for LintRequest {
             return Err(RunSchemaError::BlankText);
         }
         Ok(Self {
-            source_language: None,
+            source_language: ryo_core::inbound::use_cases::lint::types::SourceProvider::Recognized,
             session: Session {
                 search_scope: Default::default(),
                 given_inventory: Default::default(),

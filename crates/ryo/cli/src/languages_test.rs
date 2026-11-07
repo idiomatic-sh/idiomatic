@@ -43,7 +43,7 @@ fn the_walk_does_not_enter_the_directories_the_linked_languages_declare() {
         ryo_values::domain::runs::types::WorkersAsked(0),
     )
     .lint(LintRequest {
-        source_language: None,
+        source_language: ryo_core::inbound::use_cases::lint::types::SourceProvider::Recognized,
         session: Session {
             search_scope: Default::default(),
             given_inventory: Default::default(),

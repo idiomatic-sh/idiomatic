@@ -8,7 +8,7 @@
     reason = "a bench that cannot set up its own input has nothing to measure: the panic is the failure"
 )]
 
-use ryo_core::outbound::facts::factory::{memory, spill, spill_scratch};
+use ryo_execution::outbound::facts::factory::{memory, spill, spill_scratch};
 use ryo_execution::inbound::use_cases::execution::types::facts::{
     FactsPort, FactsWorker, WordsToKeep,
 };

@@ -5,6 +5,24 @@ use ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker;
 use ryo_execution::inbound::use_cases::execution::types::{PreparedExecutionProgram, RequestExecution};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
+/// Whether the rule results of one file generation are all there.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum FileCompleteness {
+    /// Every rule result is whole.
+    Complete,
+    /// A rule result is missing, so no warm or edit record may be made of the file.
+    Incomplete,
+}
+
+/// Whether a rule runs on one file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum RuleGate {
+    /// The rule runs.
+    Open,
+    /// The rule does not run: its applicability is not met or not known.
+    Blocked,
+}
+
 /// What one worker owns while the jobs run: its tables, its handle of the fact store and the first thing that went wrong in it.
 pub(crate) struct Worker {
     /// What the worker owns besides its handle.

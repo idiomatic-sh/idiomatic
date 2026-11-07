@@ -7,11 +7,13 @@
 use super::errors::LintError;
 use super::interface::LintUseCase;
 use super::service::{
-    answered, handed_of, memory_enabled, memory_rule, observed_arenas, observed_cross_symbols,
-    observed_notes, observed_records, observed_staged, observed_stored, records_of,
+    answered, handed_of, memory_diagnostics, memory_rule, observed_arenas, observed_cross_symbols,
+    observed_notes, observed_records, observed_staged, named_provider, observed_stored, project_dependencies,
+    read_outcomes, records_of, sort_unique,
 };
 use super::types::{
-    Course, FeatureFed, LintReport, LintRequest, LintRun, Listed, RepositoryListing, RuleWork,
+    Course, FeatureFed, LintReport, LintRequest, LintRun, Listed, MemoryDiagnostics,
+    RepositoryListing, RuleWork,
     StepFed, Streaming, Wanting,
 };
 use crate::application::file_analysis::types::{FileVisit, RequestVisitSetting, Worker};
@@ -39,7 +41,6 @@ use crate::domain::choosing::service::chosen;
 use crate::domain::keeping::service::{rendered_of, rows_of};
 use crate::domain::ordering::service::{PENDING_LIMIT, admitted, offer, sort_findings};
 use crate::domain::ordering::types::{Admittance, Ordered, Turn};
-use crate::domain::reporting::service::report_refused;
 use ryo_execution::inbound::use_cases::execution::types::Counting;
 use ryo_execution::inbound::use_cases::execution::types::RowsFed;
 use ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes;
@@ -102,13 +103,15 @@ use ryo_relations::domain::relations::types::WorkerNumber;
 
 use ryo_language::domain::symbols::types::Symbols;
 
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::service::input_path;
 use ryo_values::domain::files::types::{CorpusInput, Glob};
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::{Heading, InputNumber};
 use ryo_values::domain::plans::types::Plan;
-use ryo_values::domain::records::types::{Freshness, Unreadable};
+use ryo_values::domain::records::types::Freshness;
 use ryo_values::domain::row_texts::types::PlacedRule;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded};
@@ -1097,9 +1100,9 @@ impl LintUseCaseImpl {
             observed_stored(BEFORE_STORE_WRITE, &to_store.stored.handed);
             observed_staged(BEFORE_STORE_WRITE, &to_store.kept);
             let written = read.keep(to_store.stored, &to_store.kept);
-            if memory_enabled() {
+            if memory_diagnostics() == MemoryDiagnostics::Enabled {
                 // Ownership moved into the outbound call; this does not claim it freed allocator pages.
-                tracing::trace!(target: LIFECYCLE_MEMORY_DIAGNOSTIC, phase = AFTER_STORE_WRITE, owner = STORE_HANDED, caller_payload_owned = false, success = written.is_ok());
+                tracing::trace!(target: LIFECYCLE_MEMORY_DIAGNOSTIC, phase = AFTER_STORE_WRITE.0, owner = STORE_HANDED.0, caller_payload_owned = false, success = written.is_ok());
             }
             written?;
         }
@@ -1360,7 +1363,7 @@ impl LintUseCaseImpl {
 impl LintUseCase for LintUseCaseImpl {
     fn lint(&self, request: LintRequest) -> Result<LintReport, LintError> {
         self.file_analysis
-            .validate_source_language(request.source_language.as_ref())?;
+            .validate_source_language(named_provider(&request.source_language))?;
         let rules: Vec<RuleSpec> = request.rules.iter().map(RuleSpec::from).collect();
         let compiling = tracing::info_span!("compile").entered();
         let compiled = self.checked_rules(&rules, &request.hosted)?;
@@ -1403,7 +1406,7 @@ impl LintUseCase for LintUseCaseImpl {
             &plans,
             &request.hosted,
             resolved,
-            request.source_language.as_ref(),
+            named_provider(&request.source_language),
         );
         let identities =
             self.compilation
@@ -1438,7 +1441,7 @@ impl LintUseCase for LintUseCaseImpl {
         let metadata = program.metadata();
         let mut setting = RequestVisitSetting {
             program: Arc::clone(&program),
-            source_language: request.source_language.as_ref(),
+            source_language: named_provider(&request.source_language),
             services: &services,
             domain: crate::domain::workers::types::VisitSetting {
                 metadata,
@@ -1526,52 +1529,3 @@ impl LintUseCase for LintUseCaseImpl {
         self.answer(&run, &visit, &mut project)
     }
 }
-
-/// Preserve present and absent project dependencies in the completed report.
-fn project_dependencies(now: &Projected) -> Vec<super::types::ProjectDependency> {
-    now.consulted
-        .iter()
-        .map(|dependency| super::types::ProjectDependency {
-            path: dependency.path.clone(),
-            state: super::types::ProjectDependencyState::Present(dependency.digest),
-        })
-        .chain(
-            now.consulted_absent
-                .iter()
-                .map(|path| super::types::ProjectDependency {
-                    path: path.clone(),
-                    state: super::types::ProjectDependencyState::Missing,
-                }),
-        )
-        .collect()
-}
-
-/// Collect retry paths before adding refused manifests to the final unread report.
-fn read_outcomes(
-    unread: &mut Vec<ryo_values::domain::records::types::Unread>,
-    unrecorded: Vec<FilePath>,
-    refused: &[ryo_values::domain::runs::types::ManifestRefused],
-) -> Vec<FilePath> {
-    let mut failed: Vec<FilePath> = unread
-        .iter()
-        .filter(|each| matches!(each.reason, Unreadable::Failed(_)))
-        .map(|each| each.path.clone())
-        .collect();
-    failed.extend(unrecorded);
-    failed.sort_unstable();
-    failed.dedup();
-    report_refused(unread, refused);
-    failed
-}
-
-/// Preserve one ordered occurrence of each completed coverage record.
-fn sort_unique<T>(records: &mut Vec<T>)
-where
-    T: Ord,
-{
-    records.sort();
-    records.dedup();
-}
-
-use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
-use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;

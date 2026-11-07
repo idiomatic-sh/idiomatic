@@ -1,3 +1,9 @@
-//! Injected matching contract; no execution authority is exposed.
-pub(crate) mod errors;
-pub(crate) mod interface;
+//! The `matching` port.
+
+pub mod interface;
+pub mod errors;
+pub(crate) mod adapters;
+pub mod factory;
+
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;

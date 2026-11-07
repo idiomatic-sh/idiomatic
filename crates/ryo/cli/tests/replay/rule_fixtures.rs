@@ -144,7 +144,7 @@ fn check(rule: &str) {
         let (rows, report) = base::lint_report_hosted(
             root.path(),
             vec![each],
-            Arc::new(ryo_core::outbound::facts::factory::memory()),
+            Arc::new(ryo_execution::outbound::facts::factory::memory()),
             Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
             hosted,
             true,

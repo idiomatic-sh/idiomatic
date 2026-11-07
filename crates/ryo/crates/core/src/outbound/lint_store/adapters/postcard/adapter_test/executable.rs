@@ -1,5 +1,5 @@
 //! Actual positional-store metadata roundtrip and predecode format admission.
-use super::super::constants::{FILE, FORMAT};
+use super::super::constants::{FILE, TRAILER};
 use super::*;
 use ryo_values::domain::files::types::ExecutablePermission;
 
@@ -21,7 +21,7 @@ fn known_true_false_and_unavailable_observations_roundtrip_through_the_store() {
             .keep(kept.clone(), &KeptRows::default())
             .unwrap();
         let bytes = std::fs::read(root.path().join(FILE)).unwrap();
-        assert!(bytes.ends_with(FORMAT));
+        assert!(bytes.ends_with(TRAILER));
         assert_eq!(adapter.stored().unwrap().tables().files, kept.files);
     }
 }
@@ -37,7 +37,7 @@ fn missing_or_changed_format_tag_is_a_cache_miss_without_mutating_old_bytes() {
         .unwrap();
     let path = root.path().join(FILE);
     let valid = std::fs::read(&path).unwrap();
-    let untagged = valid[..valid.len() - FORMAT.len()].to_vec();
+    let untagged = valid[..valid.len() - TRAILER.len()].to_vec();
     let mut changed = valid.clone();
     *changed.last_mut().unwrap() ^= 1;
     for bytes in [untagged, changed] {

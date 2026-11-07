@@ -331,9 +331,9 @@ fn explicit_source_language_is_preserved_at_sdk_request_boundary() -> usize {
     .expect("request conversion");
     assert_eq!(
         converted.source_language,
-        Some(ryo_values::domain::descriptions::types::LanguageName(
-            "selected-provider".into()
-        ))
+        ryo_core::inbound::use_cases::lint::types::SourceProvider::Named(
+            ryo_values::domain::descriptions::types::LanguageName("selected-provider".into())
+        )
     );
     1
 }

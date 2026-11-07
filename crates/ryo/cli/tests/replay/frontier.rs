@@ -40,7 +40,7 @@ fn handed_by(root: &std::path::Path, name: &str) -> (usize, usize) {
         .find(|(each, _)| each == name)
         .expect("the recorded rule");
     let counting = Arc::new(Counting {
-        store: Arc::new(ryo_core::outbound::facts::factory::memory()),
+        store: Arc::new(ryo_execution::outbound::facts::factory::memory()),
         words: Arc::new(AtomicUsize::new(0)),
     });
     let (rows, _) = base::lint_with(

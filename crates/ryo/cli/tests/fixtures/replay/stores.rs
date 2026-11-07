@@ -168,6 +168,12 @@ impl ReadStore for CountingRead {
     ) -> Result<(), LintStoreError> {
         self.read.read_staged(words, into)
     }
+    fn begin_old_rows(
+        &self,
+        _wanted: &BucketsWanted,
+    ) -> Result<Option<Box<dyn ryo_core::outbound::lint_store::interface::OldRowBatch>>, LintStoreError> {
+        Ok(None)
+    }
     fn keep(&self, stored: Stored, kept: &KeptRows) -> Result<(), LintStoreError> {
         let mut files: Vec<u32> = stored
             .handed
