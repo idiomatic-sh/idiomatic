@@ -1,7 +1,7 @@
 //! Pure coordinate adaptation of already-admitted borrowed row representations.
 use super::{
     keys,
-    types::{PositionInput, PositionWork, RawKeys},
+    types::{DirectPositions, PositionInput, PositionWork, RawKeys},
 };
 use crate::domain::{
     lowering::types::{LoweredColumn, LoweredShape, RowPosition, RowWidth},
@@ -17,7 +17,7 @@ use ryo_values::domain::plans::types::Operation;
 pub(crate) struct Staged<'s, 'a> {
     tree: TreeRows<'a>,
     rows: &'s [Rows<'a>],
-    direct: Vec<Option<(LoweredShape, Positions)>>,
+    direct: Vec<Option<DirectPositions>>,
 }
 
 /// Adapt the source rows; none when they are not tree rows this module can read.
@@ -49,13 +49,13 @@ pub(crate) fn stage<'s, 'a>(rows: &'s [Rows<'a>]) -> Result<Option<Staged<'s, 'a
                     .map(u32::try_from)
                     .collect::<Result<Vec<_>, _>>()
                     .map_err(|_| OperatingError::ShapeMismatch)?;
-                direct.push(Some((
+                direct.push(Some(DirectPositions {
                     shape,
-                    Positions {
+                    positions: Positions {
                         width: RowWidth(1),
                         slots: Slots(slots),
                     },
-                )));
+                }));
             }
             Rows::Positioned(_) => {
                 direct.push(None);
@@ -76,7 +76,7 @@ impl Staged<'_, '_> {
                 shape: view.shape,
                 rows: view.positions,
             }),
-            (_, Some((shape, positions))) => Ok(PositionInput {
+            (_, Some(DirectPositions { shape, positions })) => Ok(PositionInput {
                 shape,
                 rows: positions,
             }),

@@ -30,3 +30,9 @@ pub(crate) struct RawKeys {
     pub keys: Keys,
     pub stride: Stride,
 }
+
+/// A tree source adapted to coordinates: the shape of its columns and the positions it holds.
+pub(crate) struct DirectPositions {
+    pub shape: LoweredShape,
+    pub positions: Positions,
+}
