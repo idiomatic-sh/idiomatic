@@ -2,7 +2,7 @@
 
 use ryo_core::inbound::use_cases::validate::interface::ValidateUseCase as _;
 
-use crate::outcome::Outcome;
+use crate::outcome::CommandOutcome;
 
 /// The arguments of `query validate`.
 #[derive(Clone, Debug, clap::Args)]
@@ -21,20 +21,20 @@ pub struct ValidateArguments {
 
 /// Checks the arguments, composes the service, calls it once and shapes its answer; when it cannot
 /// answer, the error is said on stderr and the outcome the command ends with is returned.
-pub(super) fn answer(arguments: ValidateArguments) -> Result<impl crate::output::Encoded, Outcome> {
+pub(super) fn answer(arguments: ValidateArguments) -> Result<impl crate::output::Encoded, CommandOutcome> {
     let request = super::schemas::request(arguments.text)
-        .map_err(|error| crate::output::fail(&error, Outcome::Failure))?;
+        .map_err(|error| crate::output::fail(&error, CommandOutcome::Failure))?;
     super::composition::build()
         .validate(request)
         .map(super::schemas::answer)
-        .map_err(|error| crate::output::fail(&error, Outcome::Error))
+        .map_err(|error| crate::output::fail(&error, CommandOutcome::Error))
 }
 
 /// Runs `query validate`: checks its arguments through its schemas, connects and composes its
 /// service, calls it once, and prints the answer in the format `--format` chose.
-pub fn run(arguments: ValidateArguments, edge: &crate::edge::Edge) -> Outcome {
+pub fn run(arguments: ValidateArguments, edge: &crate::edge::Edge) -> CommandOutcome {
     match answer(arguments) {
-        Ok(answer) => crate::output::present(edge.format, &answer, Outcome::Success),
+        Ok(answer) => crate::output::present(edge.format, &answer, CommandOutcome::Success),
         Err(outcome) => outcome,
     }
 }

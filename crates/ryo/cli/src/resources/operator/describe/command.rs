@@ -2,7 +2,7 @@
 
 use ryo_core::inbound::use_cases::describe_operator::interface::DescribeOperatorUseCase as _;
 
-use crate::outcome::Outcome;
+use crate::outcome::CommandOutcome;
 
 /// The arguments of `operator describe`.
 #[derive(Clone, Debug, clap::Args)]
@@ -18,20 +18,20 @@ pub struct DescribeArguments {
 
 /// Checks the arguments, composes the service, calls it once and shapes its answer; when it cannot
 /// answer, the error is said on stderr and the outcome the command ends with is returned.
-pub(super) fn answer(arguments: DescribeArguments) -> Result<impl crate::output::Encoded, Outcome> {
+pub(super) fn answer(arguments: DescribeArguments) -> Result<impl crate::output::Encoded, CommandOutcome> {
     let request = super::schemas::request(arguments.name)
-        .map_err(|error| crate::output::fail(&error, Outcome::Failure))?;
+        .map_err(|error| crate::output::fail(&error, CommandOutcome::Failure))?;
     super::composition::build()
         .describe_operator(request)
         .map(super::schemas::answer)
-        .map_err(|error| crate::output::fail(&error, Outcome::Error))
+        .map_err(|error| crate::output::fail(&error, CommandOutcome::Error))
 }
 
 /// Runs `operator describe`: checks its arguments through its schemas, connects and composes its
 /// service, calls it once, and prints the answer in the format `--format` chose.
-pub fn run(arguments: DescribeArguments, edge: &crate::edge::Edge) -> Outcome {
+pub fn run(arguments: DescribeArguments, edge: &crate::edge::Edge) -> CommandOutcome {
     match answer(arguments) {
-        Ok(answer) => crate::output::present(edge.format, &answer, Outcome::Success),
+        Ok(answer) => crate::output::present(edge.format, &answer, CommandOutcome::Success),
         Err(outcome) => outcome,
     }
 }

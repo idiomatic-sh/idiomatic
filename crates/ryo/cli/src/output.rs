@@ -27,7 +27,7 @@ mod tests;
 
 use std::io::Write as _;
 
-use crate::outcome::Outcome;
+use crate::outcome::CommandOutcome;
 
 /// The formats an answer is printed in.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, clap::ValueEnum)]
@@ -94,9 +94,9 @@ pub trait Encoded: std::fmt::Display {
 }
 
 /// Prints `answer` on stdout in `format` and ends the command as `outcome`, or as
-/// [`Outcome::Error`] when stdout refuses it: the answer never reached its reader. A
+/// [`CommandOutcome::Error`] when stdout refuses it: the answer never reached its reader. A
 /// reader that closed the pipe (`| head`) took what it wanted, so the outcome stands.
-pub fn present(format: Format, answer: &impl Encoded, outcome: Outcome) -> Outcome {
+pub fn present(format: Format, answer: &impl Encoded, outcome: CommandOutcome) -> CommandOutcome {
     progress::settle();
     match print(format, answer) {
         Err(failed) if failed.kind() != std::io::ErrorKind::BrokenPipe => unwritten(&failed),
@@ -106,13 +106,13 @@ pub fn present(format: Format, answer: &impl Encoded, outcome: Outcome) -> Outco
 
 /// Streams the answer `body` writes in `format`: through the pager on a terminal, to stdout
 /// otherwise, and nowhere under `--quiet`. The body owns the stream and writes to it as it
-/// pleases: row by row, or, for an answer that must be one whole document, once at the end. Ends as [`Outcome::Error`] when the pager cannot be waited
+/// pleases: row by row, or, for an answer that must be one whole document, once at the end. Ends as [`CommandOutcome::Error`] when the pager cannot be waited
 /// for, and as `outcome` otherwise.
 pub fn stream(
     format: Format,
-    outcome: Outcome,
+    outcome: CommandOutcome,
     body: impl FnOnce(Box<dyn std::io::Write + Send>),
-) -> Outcome {
+) -> CommandOutcome {
     progress::settle();
     let delivered = match format {
         Format::Quiet => {
@@ -178,15 +178,15 @@ pub fn written<E>(
         .map_err(|error| unwritable(&error))
 }
 
-/// Ends a command whose answer stdout `failed` to take, as [`Outcome::Error`]: the answer
+/// Ends a command whose answer stdout `failed` to take, as [`CommandOutcome::Error`]: the answer
 /// never reached its reader, which stderr says with what to do next.
-pub fn unwritten(failed: &std::io::Error) -> Outcome {
+pub fn unwritten(failed: &std::io::Error) -> CommandOutcome {
     // Nothing is left to say when stderr is gone; the exit code still says it.
     let _unused = writeln!(
         anstream::stderr(),
         "error: could not write the answer to stdout: {failed}\nhelp: give the command a stdout that takes its answer (a full disk or a closed file refuses it), or pass `--quiet`"
     );
-    Outcome::Error
+    CommandOutcome::Error
 }
 
 /// Says why the command could not answer, `error` with each cause beneath it once
@@ -194,8 +194,8 @@ pub fn unwritten(failed: &std::io::Error) -> Outcome {
 /// and ends the command as `outcome`, unless stderr refuses delivery.
 pub fn fail(
     error: &(impl std::error::Error + crate::outcome::remedy::Remedy),
-    outcome: Outcome,
-) -> Outcome {
+    outcome: CommandOutcome,
+) -> CommandOutcome {
     progress::settle();
     let mut message = error.to_string();
     let mut cause = error.source();
@@ -210,12 +210,12 @@ pub fn fail(
         error.next()
     ) {
         Ok(()) => outcome,
-        Err(_) => Outcome::Error,
+        Err(_) => CommandOutcome::Error,
     }
 }
 
 /// Says that the command panicked: what happened, where, and where to report it, on stderr,
-/// in place of Rust's own text; the command then ends as [`Outcome::Error`].
+/// in place of Rust's own text; the command then ends as [`CommandOutcome::Error`].
 pub fn panicked(panic: &std::panic::PanicHookInfo<'_>) {
     let place = panic
         .location()

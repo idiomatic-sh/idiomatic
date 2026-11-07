@@ -81,13 +81,13 @@ pub fn edge_at(
 pub fn run(here: String) -> std::process::ExitCode {
     report_panics();
     let outcome = std::panic::catch_unwind(|| run_from(std::env::args_os().collect(), here))
-        .unwrap_or(crate::outcome::Outcome::Error);
+        .unwrap_or(crate::outcome::CommandOutcome::Error);
     crate::output::progress::settle();
     std::process::ExitCode::from(outcome)
 }
 
 /// Runs the command line `arguments`, the program's name first.
-fn run_from(arguments: Vec<std::ffi::OsString>, here: String) -> crate::outcome::Outcome {
+fn run_from(arguments: Vec<std::ffi::OsString>, here: String) -> crate::outcome::CommandOutcome {
     let started = std::time::Instant::now();
     color(&arguments);
     crate::output::quiet(&arguments);
@@ -101,7 +101,7 @@ fn run_from(arguments: Vec<std::ffi::OsString>, here: String) -> crate::outcome:
     };
     let _timings = match crate::timings::install(cli.timings.timings, started) {
         Ok(guard) => guard,
-        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Error),
+        Err(error) => return crate::output::fail(&error, crate::outcome::CommandOutcome::Error),
     };
     let here = ryo_language::inbound::use_cases::project::types::RootPath(here.into());
     let start = cli.root.map_or_else(
@@ -146,23 +146,23 @@ fn color(arguments: &[std::ffi::OsString]) {
 }
 
 /// Replaces Rust's panic message with what happened, where, and where to report it, on
-/// stderr; the command then ends as [`crate::outcome::Outcome::Error`], never with Rust's 101.
+/// stderr; the command then ends as [`crate::outcome::CommandOutcome::Error`], never with Rust's 101.
 fn report_panics() {
     std::panic::set_hook(Box::new(crate::output::panicked));
 }
 
 /// Prints clap's own answer, help, the version or a usage error, on the stream clap
-/// chooses, and ends as clap does: help and the version as [`crate::outcome::Outcome::Success`], a usage
-/// error as [`crate::outcome::Outcome::Error`]. A reader that closed the pipe does not make help fail.
-fn usage(error: &clap::Error) -> crate::outcome::Outcome {
+/// chooses, and ends as clap does: help and the version as [`crate::outcome::CommandOutcome::Success`], a usage
+/// error as [`crate::outcome::CommandOutcome::Error`]. A reader that closed the pipe does not make help fail.
+fn usage(error: &clap::Error) -> crate::outcome::CommandOutcome {
     let outcome = if error.use_stderr() {
-        crate::outcome::Outcome::Error
+        crate::outcome::CommandOutcome::Error
     } else {
-        crate::outcome::Outcome::Success
+        crate::outcome::CommandOutcome::Success
     };
     match error.print() {
         Err(failed) if failed.kind() != std::io::ErrorKind::BrokenPipe => {
-            crate::outcome::Outcome::Error
+            crate::outcome::CommandOutcome::Error
         }
         _ => outcome,
     }

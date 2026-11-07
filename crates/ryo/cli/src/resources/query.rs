@@ -13,7 +13,7 @@ pub enum QueryCommand {
 }
 
 /// Runs one `query` command.
-pub fn run(command: QueryCommand, edge: &crate::edge::Edge) -> crate::outcome::Outcome {
+pub fn run(command: QueryCommand, edge: &crate::edge::Edge) -> crate::outcome::CommandOutcome {
     match command {
         QueryCommand::Run(arguments) => run::command::run(arguments, edge),
         QueryCommand::Validate(arguments) => validate::command::run(arguments, edge),
