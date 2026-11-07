@@ -120,7 +120,7 @@ emit unreached subject "file" key("span");
 [diagnostic]
 primary = "span"
 message = "`{enum}::{variant}` is matched by no test of its crate"
-help = "Add a test of this crate that produces this variant and matches it (`matches!(result, Err({enum}::{variant}..))`): drive the input that causes it, or make the dependency fail (`fails_when_<dependency>_fails` with a failing fake from fixtures.rs). A variant nothing can produce is dead code: remove it. Ignore only a variant no test can produce (a failure no fake can cause): `// ignore: idiomatic.arch/error-variants-reached - <why no test can produce it>` on its own line above the variant."
+help = "Add a test of this crate that produces this variant and matches it (`matches!(result, Err({enum}::{variant}..))`): drive the input that causes it, or make the dependency fail (`fails_when_<dependency>_fails` with a failing fake from fixtures.rs). A variant nothing can produce is dead code: remove it. Ignore only a variant no test can produce (a failure no fake can cause): a line comment on its own line above the variant, written as two slashes, a space, then `ignore: idiomatic.arch/error-variants-reached - <why no test can produce it>`."
 
 [[scenarios]]
 id = 'comparator-backed-error-expectation'
