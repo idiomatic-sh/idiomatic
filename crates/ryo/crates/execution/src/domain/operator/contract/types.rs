@@ -221,12 +221,16 @@ pub(crate) struct PrimitiveViews<'a> {
     pub cached_axis: Option<super::graph_view::AxisResult<'a>>,
 }
 
+/// The text an operator builds in place, handed back with its capacity kept.
+#[derive(Debug, Default)]
+pub(crate) struct ScratchText(pub String);
+
 /// Allocation slots owned once by the application invocation. A primitive only
 /// receives a reborrow; no cache, owner or generation identity is reachable.
 pub(crate) struct PrimitiveWorkspace {
     pub row: Vec<Value>,
     pub other: Vec<Value>,
-    pub text: String,
+    pub text: ScratchText,
     pub word: crate::domain::table_scratch::types::ScratchWord,
     pub stretches: crate::domain::table_scratch::types::Stretches,
     pub captured: Vec<Value>,
@@ -237,49 +241,17 @@ pub(crate) struct PrimitiveWorkspace {
     pub closure_walk: Option<crate::domain::table_reach::types::Walk>,
     pub distinct: Option<DistinctWorkspace>,
 }
-impl Default for PrimitiveWorkspace {
-    fn default() -> Self {
-        Self {
-            row: Default::default(),
-            other: Default::default(),
-            text: Default::default(),
-            word: Default::default(),
-            stretches: Default::default(),
-            captured: Default::default(),
-            axis: Some(Default::default()),
-            positions: Default::default(),
-            dfs: Some(Default::default()),
-            cycles: Some(Default::default()),
-            closure_walk: Some(Default::default()),
-            distinct: Some(Default::default()),
-        }
-    }
-}
-
 /// The engine constructs and releases this borrow; a primitive owns no service state.
 /// Borrowed logical work counters; storage belongs to the invocation owner.
 #[derive(Default)]
-pub(crate) struct WorkCounters([std::cell::Cell<u64>; 3]);
-impl WorkCounters {
-    pub(crate) fn found(&self, input: usize, rows: u64) {
-        if let Some(total) = self.0.get(input) {
-            total.set(total.get().saturating_add(rows));
-        }
-    }
-    pub(crate) fn take(&self) -> [u64; 3] {
-        std::array::from_fn(|at| self.0[at].replace(0))
-    }
-    pub(crate) fn snapshot(&self) -> [u64; 3] {
-        std::array::from_fn(|at| self.0[at].get())
-    }
-}
+pub(crate) struct WorkCounters(pub(super) [std::cell::Cell<u64>; 3]);
 pub(crate) struct PrimitiveLease<'a> {
     pub views: PrimitiveViews<'a>,
     pub workspace: &'a mut PrimitiveWorkspace,
     pub derived: QuerySymbols<'a>,
-    predicate: &'a mut dyn PredicateProgram,
-    semantics: &'a dyn PrimitiveSemantics,
-    work: &'a WorkCounters,
+    pub(super) predicate: &'a mut dyn PredicateProgram,
+    pub(super) semantics: &'a dyn PrimitiveSemantics,
+    pub(super) work: &'a WorkCounters,
 }
 
 /// Borrowed portable primitive meanings; the application supplies the implementation.
@@ -331,6 +303,10 @@ pub(crate) struct DistinctWorkspace {
     pub seen: hashbrown::HashTable<ryo_values::domain::rows::types::RowIndex>,
 }
 
+/// How many operations a request prepared.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct PreparationCount(pub usize);
+
 /// Prepared metadata belongs to the request; workers only borrow this immutable value.
 #[derive(Debug)]
 pub(crate) struct RequestOperators {
@@ -340,143 +316,12 @@ pub(crate) struct RequestOperators {
     pub selection_views:
         std::sync::Arc<crate::domain::derived_views::types::PreparedSelectionViews>,
     pub rules: Vec<Vec<std::sync::Arc<OperatorContract>>>,
-    pub preparations: usize,
+    pub preparations: PreparationCount,
     pub physical: Vec<
         Vec<
             crate::domain::table_model::collections::representations::publication::PreparedPhysical,
         >,
     >,
-}
-
-impl<'a> PrimitiveLease<'a> {
-    pub(crate) fn distinct(&mut self) -> Result<&mut DistinctWorkspace, OperatingError> {
-        let state = self
-            .workspace
-            .distinct
-            .as_mut()
-            .ok_or(OperatingError::WrongBinding)?;
-        state.schema.as_ref().map_err(Clone::clone)?;
-        Ok(state)
-    }
-
-    #[cfg(feature = "diagnostic-row-progress")]
-    pub(crate) fn progress(
-        &self,
-        counter: crate::domain::operator::contract::views::ProgressCounter,
-        amount: u64,
-    ) {
-        (self.semantics.progress())(counter, amount);
-    }
-
-    /// Copy the request-lived semantic port before borrowing this lease for row delivery.
-    pub(crate) fn semantics(&self) -> &'a dyn PrimitiveSemantics {
-        self.semantics
-    }
-
-    pub(super) fn new(
-        views: PrimitiveViews<'a>,
-        workspace: &'a mut PrimitiveWorkspace,
-        derived: QuerySymbols<'a>,
-        predicate: &'a mut dyn PredicateProgram,
-        semantics: &'a dyn PrimitiveSemantics,
-        work: &'a WorkCounters,
-    ) -> Self {
-        Self {
-            views,
-            workspace,
-            derived,
-            predicate,
-            semantics,
-            work,
-        }
-    }
-    pub(crate) fn found(&self, input: usize, rows: u64) {
-        self.work.found(input, rows);
-    }
-    pub(crate) fn project(
-        &self,
-        row: &[Value],
-        columns: &[ryo_values::domain::plan_parts::types::ColumnIndex],
-        projected: &mut Vec<Value>,
-    ) -> Result<(), OperatingError> {
-        match self.semantics.operators(
-            ryo_operators::inbound::use_cases::operators::types::OperatorCall::Project {
-                row,
-                columns,
-                target: projected,
-            },
-        ) {
-            Ok(
-                ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Written,
-            ) => Ok(()),
-            Err(error) => Err(portable_fault(error)),
-            _ => Err(OperatingError::WrongOperation),
-        }
-    }
-    pub(crate) fn append(
-        &self,
-        row: &[Value],
-        appended: &[Value],
-        joined: &mut Vec<Value>,
-    ) -> Result<(), OperatingError> {
-        match self.semantics.operators(
-            ryo_operators::inbound::use_cases::operators::types::OperatorCall::Append {
-                row,
-                appended,
-                target: joined,
-            },
-        ) {
-            Ok(
-                ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Written,
-            ) => Ok(()),
-            Err(error) => Err(portable_fault(error)),
-            _ => Err(OperatingError::WrongOperation),
-        }
-    }
-    pub(crate) fn span_bounds(
-        &self,
-        row: &[Value],
-        column: ryo_values::domain::plan_parts::types::ColumnIndex,
-    ) -> Result<[Value; 2], OperatingError> {
-        use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
-        use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
-        match self
-            .semantics
-            .operators(OperatorCall::SpanBounds { row, column })
-        {
-            Ok(OperatorAnswer::SpanBounds(bounds)) => Ok(bounds),
-            Err(error) => Err(portable_fault(error)),
-            _ => Err(OperatingError::WrongOperation),
-        }
-    }
-    pub(crate) fn span_between(
-        &self,
-        row: &[Value],
-        start: ryo_values::domain::plan_parts::types::ColumnIndex,
-        end: ryo_values::domain::plan_parts::types::ColumnIndex,
-        source_len: usize,
-    ) -> Result<Value, OperatingError> {
-        use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
-        use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
-        use ryo_operators::domain::contract::types::SourceByteLength;
-        match self.semantics.operators(OperatorCall::SpanBetween {
-            row,
-            start,
-            end,
-            source_len: SourceByteLength(source_len),
-        }) {
-            Ok(OperatorAnswer::SpanBetween(span)) => Ok(span),
-            Err(error) => Err(portable_fault(error)),
-            _ => Err(OperatingError::WrongOperation),
-        }
-    }
-    /// Only the bound semantic program can be requested by a primitive.
-    pub(crate) fn holds(
-        &mut self,
-        row: &[Value],
-    ) -> Result<crate::domain::table_model::types::Verdict, OperatingError> {
-        self.predicate.holds(row, self.derived.as_ref())
-    }
 }
 
 /// Exact semantic program bound once; a primitive cannot substitute comparisons.
@@ -500,7 +345,7 @@ pub(crate) enum EmptyRepresentation {
 }
 #[derive(Clone, Debug)]
 pub(crate) struct EmptyResult {
-    pub input: usize,
+    pub input: ryo_values::domain::plan_parts::types::InputNumber,
     pub representation: EmptyRepresentation,
     pub kinds: Result<Vec<CellKind>, OperatingError>,
 }

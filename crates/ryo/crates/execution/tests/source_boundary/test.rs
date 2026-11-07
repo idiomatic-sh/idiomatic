@@ -343,7 +343,7 @@ fn actual_runtime_authority_is_private_to_its_owner() {
         },
         Probe { compilation: Compilation::Library,
             owner: PROGRAM,
-            source: "mod registered_operator_preparation { use crate::domain::{operator::contract::types::OperatorContract, operating::errors::OperatingError}; use ryo_values::domain::plans::types::Operation; fn prepare(operation: &Operation) -> Result<OperatorContract, OperatingError> { crate::domain::operator::service::registered(ryo_values::domain::plans::service::kind_of(operation)).prepare(operation, &[], &[]) } const _: fn(&Operation) -> Result<OperatorContract, OperatingError> = prepare; }".into(),
+            source: "mod registered_operator_preparation { use crate::domain::{operator::contract::types::OperatorContract, operating::errors::OperatingError}; use ryo_values::domain::plans::types::Operation; fn prepare(operation: &Operation) -> Result<OperatorContract, OperatingError> { crate::domain::operator::service::prepare_operator(ryo_values::domain::plans::service::kind_of(operation), operation, &[], &[]) } const _: fn(&Operation) -> Result<OperatorContract, OperatingError> = prepare; }".into(),
             expected: Expectation::Accept,
         },
         Probe { compilation: Compilation::Library,

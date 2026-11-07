@@ -36,7 +36,7 @@ fn program(direction: Direction) -> AxisResources {
         parent: ColumnIndex(0),
         child: ColumnIndex(1),
         domain_id: ColumnIndex(0),
-        has_filter: false,
+        has_filter: crate::domain::operator::contract::resources::Filtering::Unfiltered,
         domain_view: Vec::new(),
         output: Vec::new(),
         direction,

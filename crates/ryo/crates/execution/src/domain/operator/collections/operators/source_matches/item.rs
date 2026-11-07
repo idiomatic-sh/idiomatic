@@ -115,11 +115,11 @@ impl OperatorsItem for SourceMatchesItem {
             target: &mut joined,
         });
         let result = match answer {
-            Err(PortableOperatorFault::MissingCapture) if !driver.error.failed() => {
+            Err(PortableOperatorFault::MissingCapture) if driver.error.failed() == crate::domain::operator::contract::failure::LatchState::Open => {
                 Err(OperatingError::InvalidRegex {
                     reason: format!(
                         "missing named capture `{}`",
-                        capture.as_ref().map_or("", |name| name.0.as_ref())
+                        capture.as_ref().map(|name| &*name.0).unwrap_or_default()
                     ),
                 })
             }

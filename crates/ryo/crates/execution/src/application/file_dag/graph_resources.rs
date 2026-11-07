@@ -146,8 +146,14 @@ mod tests {
         .unwrap();
         assert_eq!(partitions.len(), 2);
         use crate::domain::operator::contract::views::ClosureParts;
-        let first = ClosureParts::get(&partitions, 0)?;
-        let second = ClosureParts::get(&partitions, 1)?;
+        let first = ClosureParts::get(
+            &partitions,
+            crate::domain::operator::contract::views::PartitionIndex(0),
+        )?;
+        let second = ClosureParts::get(
+            &partitions,
+            crate::domain::operator::contract::views::PartitionIndex(1),
+        )?;
         assert_eq!(first.key(), vec![number(Integer(9))]);
         assert_eq!(first.sources(), vec![number(Integer(2)), number(Integer(4))]);
         assert_eq!(

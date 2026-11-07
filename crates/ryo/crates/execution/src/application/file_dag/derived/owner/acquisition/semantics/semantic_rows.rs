@@ -23,7 +23,9 @@ pub(super) struct AdmittedRows<'a, 'f> {
 }
 impl RowCells for AdmittedRows<'_, '_> {
     fn bulk(&self) -> Option<semantic::BulkRows<'_>> {
-        if self.failure.borrow().failed() {
+        if self.failure.borrow().failed()
+            == crate::domain::operator::contract::failure::LatchState::Failed
+        {
             return None;
         }
         let Ok(rows) = self.failure.borrow_mut().run(|| self.rows.bulk()) else {
@@ -52,7 +54,9 @@ impl RowCells for AdmittedRows<'_, '_> {
         self.rows.count()
     }
     fn cell(&self, row: usize, column: ColumnIndex) -> Option<Value> {
-        if self.failure.borrow().failed() {
+        if self.failure.borrow().failed()
+            == crate::domain::operator::contract::failure::LatchState::Failed
+        {
             return None;
         }
         self.rows.cell(RowIndex(row), column)
@@ -64,7 +68,9 @@ impl RowCells for AdmittedRows<'_, '_> {
             .map_err(|()| semantic::DerivedFault::Interrupted)
     }
     fn read_row<'a>(&'a self, row: usize, buffer: &'a mut Vec<Value>) -> Option<&'a [Value]> {
-        if self.failure.borrow().failed() {
+        if self.failure.borrow().failed()
+            == crate::domain::operator::contract::failure::LatchState::Failed
+        {
             return None;
         }
         self.rows.read(RowIndex(row), buffer)
@@ -136,7 +142,9 @@ pub(super) struct CanonicalTexts<'a, 's> {
 }
 impl semantic::ValueTexts for CanonicalTexts<'_, '_> {
     fn text(&self, value: Value) -> Option<&str> {
-        if self.failure.borrow().failed() {
+        if self.failure.borrow().failed()
+            == crate::domain::operator::contract::failure::LatchState::Failed
+        {
             return None;
         }
         let texts = Texts {

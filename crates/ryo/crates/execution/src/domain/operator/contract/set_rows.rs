@@ -43,7 +43,7 @@ impl SetRowDriver for EngineRows<'_, '_> {
                     .resources
                     .index()
                     .ok_or(OperatingError::WrongBinding)?;
-                Ok(Membership::from(index.contains(key)))
+                Ok(index.contains(key))
             })
             .map_err(|()| SetRowsError::Interrupted)
     }

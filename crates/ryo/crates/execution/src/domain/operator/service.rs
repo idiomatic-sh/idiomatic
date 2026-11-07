@@ -4,22 +4,15 @@ use crate::domain::{
     operator::contract::types::OperatorContract,
 };
 use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::query_operators::types::OperationKind;
 
 /// Read-only contract preparation. This surface cannot evaluate an operation.
-pub(crate) struct PreparationRoute(OperationKind);
-impl PreparationRoute {
-    pub(crate) fn prepare(
-        &self,
-        operation: &Operation,
-        inputs: &[InputShape<'_>],
-        bindings: &[ParameterBinding],
-    ) -> Result<OperatorContract, OperatingError> {
-        super::contract::registration::registered(self.0).prepare(operation, inputs, bindings)
-    }
+pub(crate) fn prepare_operator(
+    kind: OperationKind,
+    operation: &Operation,
+    inputs: &[InputShape<'_>],
+    bindings: &[ParameterBinding],
+) -> Result<OperatorContract, OperatingError> {
+    super::contract::registration::registered(kind).prepare(operation, inputs, bindings)
 }
-pub(crate) fn registered(kind: OperationKind) -> PreparationRoute {
-    PreparationRoute(kind)
-}
-
-use ryo_values::domain::query_bindings::types::ParameterBinding;

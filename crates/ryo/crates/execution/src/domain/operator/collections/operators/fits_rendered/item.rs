@@ -73,12 +73,12 @@ impl OperatorsItem for FitsRenderedItem {
         if literals.len() != columns.len() + 1 {
             return Err(OperatingError::ShapeMismatch);
         }
-        let mut rendered = std::mem::take(&mut lease.workspace.text);
+        let mut rendered = std::mem::take(&mut lease.workspace.text.0);
         rendered.clear();
         for (literal, column) in literals.iter().zip(columns) {
             rendered.push_str(&literal.0);
             let Datum::Text(value) = datum(cell(row, *column)?, &texts) else {
-                lease.workspace.text = rendered;
+                lease.workspace.text.0 = rendered;
                 return Err(OperatingError::ShapeMismatch);
             };
             rendered.push_str(value.0);
@@ -99,7 +99,7 @@ impl OperatorsItem for FitsRenderedItem {
                 tab_width: ryo_operators::domain::fits_rendered::types::TabStop(tab_width),
             },
         );
-        lease.workspace.text = rendered;
+        lease.workspace.text.0 = rendered;
         match answer {
             Ok(ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Selected(
                 ryo_operators::domain::select::types::RowSelection::Kept,

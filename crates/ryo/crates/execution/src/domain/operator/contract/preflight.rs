@@ -3,11 +3,12 @@ use super::types::*;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::types::InputShape;
 use ryo_relations::domain::relations::types::CellKind;
+use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::plans::types::Operation;
 pub(crate) fn empty_results(operation: &Operation, inputs: &[InputShape<'_>]) -> Vec<EmptyResult> {
     match operation {
         Operation::Antijoin { .. } => vec![EmptyResult {
-            input: 0,
+            input: InputNumber(0),
             representation: EmptyRepresentation::Any,
             kinds: inputs
                 .first()
@@ -34,7 +35,7 @@ pub(crate) fn empty_results(operation: &Operation, inputs: &[InputShape<'_>]) ->
                 Ok(out.kinds)
             })();
             let mut gates = vec![EmptyResult {
-                input: 0,
+                input: InputNumber(0),
                 representation: EmptyRepresentation::Any,
                 kinds: root_kinds,
             }];
@@ -49,7 +50,7 @@ pub(crate) fn empty_results(operation: &Operation, inputs: &[InputShape<'_>]) ->
                     Ok(kinds)
                 })();
                 gates.push(EmptyResult {
-                    input: 2,
+                    input: InputNumber(2),
                     representation: EmptyRepresentation::Computed,
                     kinds,
                 });
@@ -73,7 +74,8 @@ pub(crate) fn output_layout(
     crate::domain::operating::errors::OperatingError,
 > {
     use ryo_relations::domain::relations::types::CellKind;
-    use ryo_values::domain::plans::types::Operation;
+    use ryo_values::domain::plan_parts::types::InputNumber;
+use ryo_values::domain::plans::types::Operation;
     let mut kinds = inputs.first().map_or(&[][..], |input| input.kinds).to_vec();
     match operation {
         Operation::Select { kept, .. } => {

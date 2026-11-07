@@ -268,7 +268,7 @@ pub(crate) fn prepare_for(
         literal_pattern,
         predicates,
         effects,
-        reuse: if effects == Effects::Pure && !super::resources::binding_dependent(operation) {
+        reuse: if effects == Effects::Pure && super::resources::binding_dependent(operation) == super::resources::BindingUse::Independent {
             ReuseScope::Request
         } else {
             ReuseScope::Rule

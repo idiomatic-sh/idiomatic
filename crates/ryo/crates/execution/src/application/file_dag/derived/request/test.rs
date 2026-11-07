@@ -19,7 +19,7 @@ fn missing_input_is_prepared_but_refused_only_when_the_view_is_demanded() {
         ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let program = ResourceProgram::Index {
-        input: 1,
+        input: ryo_values::domain::plan_parts::types::InputNumber(1),
         columns: IndexColumns::Whole,
     };
     let first = views.bind_resources(&program, &kinds()[..1]).unwrap();
@@ -59,7 +59,7 @@ fn plain_join_and_axis_bind_finite_ordered_inputs_and_share_identical_plans() {
         left_on: vec![ColumnIndex(0)],
         right_on: vec![ColumnIndex(1)],
         view: vec![ColumnIndex(0)],
-        has_filter: false,
+        has_filter: crate::domain::operator::contract::resources::Filtering::Unfiltered,
         reach: None,
     });
     let first = views.bind_resources(&join, &kinds[..2]).unwrap();
@@ -94,7 +94,7 @@ fn plain_join_and_axis_bind_finite_ordered_inputs_and_share_identical_plans() {
         parent: ColumnIndex(0),
         child: ColumnIndex(1),
         domain_id: ColumnIndex(0),
-        has_filter: false,
+        has_filter: crate::domain::operator::contract::resources::Filtering::Unfiltered,
         domain_view: vec![],
         output: vec![],
         direction: Direction::Parent,
@@ -131,7 +131,7 @@ fn family_slots_hold_compact_shared_binding_handles() {
     let first = views
         .bind_resources(
             &ResourceProgram::Index {
-                input: 1,
+                input: ryo_values::domain::plan_parts::types::InputNumber(1),
                 columns: IndexColumns::Columns(vec![ColumnIndex(0)]),
             },
             &schema,
@@ -140,7 +140,7 @@ fn family_slots_hold_compact_shared_binding_handles() {
     let second = views
         .bind_resources(
             &ResourceProgram::Index {
-                input: 1,
+                input: ryo_values::domain::plan_parts::types::InputNumber(1),
                 columns: IndexColumns::Columns(vec![ColumnIndex(0)]),
             },
             &schema,

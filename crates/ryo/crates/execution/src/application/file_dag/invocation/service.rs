@@ -122,7 +122,7 @@ pub(in crate::application::file_dag) fn prepare<'f>(
             input: place,
             columns,
         } => {
-            let source = input(inputs, InputNumber(*place))?;
+            let source = input(inputs, *place)?;
             let empty = if matches!(columns, IndexColumns::ColumnsUnlessEmpty(_)) {
                 EmptyInput::Skip
             } else {
@@ -130,7 +130,7 @@ pub(in crate::application::file_dag) fn prepare<'f>(
             };
             resources.inputs.index = Some(IndexResource::acquired(
                 contract,
-                originals.get(*place),
+                originals.get(place.0),
                 &admitted,
                 context,
                 empty,
@@ -175,7 +175,7 @@ pub(in crate::application::file_dag) fn prepare<'f>(
                     });
                     resources.inputs.native_storage = Some(acquired);
                 } else {
-                    if *has_filter || !view.is_empty() {
+                    if *has_filter == crate::domain::operator::contract::resources::Filtering::Filtered || !view.is_empty() {
                         return Err(OperatingError::WrongOperation);
                     }
                     resources.inputs.index = Some(IndexResource::acquired(

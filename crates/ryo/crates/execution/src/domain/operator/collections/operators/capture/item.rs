@@ -57,7 +57,7 @@ impl OperatorsItem for CaptureItem {
             return Ok(());
         };
         // Own the input while derived interning may grow the symbol table.
-        let mut text = std::mem::take(&mut lease.workspace.text);
+        let mut text = std::mem::take(&mut lease.workspace.text.0);
         text.clear();
         text.push_str(value.0);
         let after = lease.views.phase;
@@ -87,7 +87,7 @@ impl OperatorsItem for CaptureItem {
         );
         if let Err(error) = crate::domain::operator::contract::types::written_result(answer, None) {
             lease.workspace.captured = captured;
-            lease.workspace.text = text;
+            lease.workspace.text.0 = text;
             lease.workspace.stretches = slots;
             return Err(error);
         }
@@ -107,7 +107,7 @@ impl OperatorsItem for CaptureItem {
         })();
         lease.workspace.row = joined;
         lease.workspace.captured = captured;
-        lease.workspace.text = text;
+        lease.workspace.text.0 = text;
         lease.workspace.stretches = slots;
         result
     }

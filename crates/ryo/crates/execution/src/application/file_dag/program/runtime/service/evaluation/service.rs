@@ -82,9 +82,9 @@ impl ProgramExecution {
         }
         if progress.preflight_done == StageProgress::Pending {
             for gate in &first.contract().empty_results {
-                let input = admitted.get(gate.input).ok_or(InvocationFailure::Semantic(
+                let input = admitted.get(gate.input.0).ok_or(InvocationFailure::Semantic(
                     OperatingError::MissingInput {
-                        position: gate.input + 1,
+                        position: gate.input.0 + 1,
                     },
                 ))?;
                 if progress
@@ -92,9 +92,9 @@ impl ProgramExecution {
                         inputs,
                         *region
                             .inputs()
-                            .get(gate.input)
+                            .get(gate.input.0)
                             .ok_or(InvocationFailure::Semantic(OperatingError::MissingInput {
-                                position: gate.input + 1,
+                                position: gate.input.0 + 1,
                             }))?,
                         input,
                         gate.representation,

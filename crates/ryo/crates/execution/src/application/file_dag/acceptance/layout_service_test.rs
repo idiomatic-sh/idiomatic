@@ -128,7 +128,7 @@ fn metadata_preparation_propagates_select_extend_and_graph_schemas_without_rows(
     )
     .unwrap();
     let graph = compile_prepared_observations(&plans, &operators, ObservationRequest::Independent);
-    assert_eq!(operators.preparations, 3);
+    assert_eq!(operators.preparations.0, 3);
     let schemas = graph.program_nodes[0]
         .iter()
         .map(|node| {

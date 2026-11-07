@@ -53,7 +53,7 @@ impl RequestViews {
         match program {
             ResourceProgram::Index { input, columns } => {
                 let columns = match columns {
-                    IndexColumns::Whole => (0..kinds.get(*input).map_or(0, Vec::len))
+                    IndexColumns::Whole => (0..kinds.get(input.0).map_or(0, Vec::len))
                         .map(|at| ColumnIndex(u32::try_from(at).unwrap_or(u32::MAX)))
                         .collect(),
                     IndexColumns::Columns(columns) | IndexColumns::ColumnsUnlessEmpty(columns) => {

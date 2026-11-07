@@ -55,7 +55,7 @@ pub(crate) fn classify<'f>(
             && entity_of(domain_view, *domain_id) == ColumnIndex(0);
         if tree.form == TreeForm::Edges
             && (*parent, *child) == (ColumnIndex(0), ColumnIndex(1))
-            && ((!*has_filter && domain_view.is_empty()) || domain_of_tree)
+            && ((*has_filter == crate::domain::operator::contract::resources::Filtering::Unfiltered && domain_view.is_empty()) || domain_of_tree)
         {
             let among = if let BorrowedRows::Tree(each) = domain {
                 (each.form == TreeForm::Elements).then_some(each)
@@ -65,7 +65,7 @@ pub(crate) fn classify<'f>(
             return Ok(AxisMode::Native { tree, among });
         }
     }
-    if *has_filter
+    if *has_filter == crate::domain::operator::contract::resources::Filtering::Filtered
         || !domain_view.is_empty()
         || !output.is_empty()
         || matches!(
