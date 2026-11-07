@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - the one validation file the entry spec admits: its wire shapes and their conversions stay in the single schemas.rs
 //! The shape of the data this entry does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
 
 use ryo_core::inbound::use_cases::lint::errors::LintError as CoreError;

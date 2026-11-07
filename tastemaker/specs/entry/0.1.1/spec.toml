@@ -12,6 +12,7 @@ templates = [
   { template = "idiomatic.arch/schemas-test@0.1.0", file = "schemas_test.rs", params = { kind = "entry" }, description = "The accepted and the refused inputs of the part's schemas." },
   { template = "idiomatic.arch/composition-test@0.1.0", file = "composition_test.rs", count = { min = 0 }, description = "The real compose path run over fake connections, as rows of cases: consequential substitution, shared-instance and error-order proofs." },
   { template = "idiomatic.arch/edge-fixtures@0.1.0", file = "fixtures.rs", count = { min = 0 }, description = "The edge's test data, compiled only for tests and under the `fixtures` feature." },
+  { template = "entry-fixture", file = "fixtures/{*fixture}", count = { min = 0 }, description = "One file of an entry's `fixtures/` tree when its test data is too long for `fixtures.rs`: the data one case needs, at any depth beneath `fixtures/`, of which the template asks nothing." },
 ]
 rules = [
   { rule = "idiomatic.arch/orphan-rust-files@0.1.0", include = ["**"], exclude = ["**/tests/fixtures/**", "**/tests/ui/**"], description = "Every Rust file of the function is a module the crate reaches: a file its module file does not declare is never compiled." },

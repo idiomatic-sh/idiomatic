@@ -1,4 +1,4 @@
-description = "Each `{ resource, path, as }` of the `reexports` list is a `pub use <path> as <as>;` of `src/resources/<resource>.rs`, and each `pub use` there is in the list."
+description = "Each `{ resource, path, as }` of the `reexports` list is a `pub use <path> as <as>;` of `src/resources/<resource>.rs`, and each `pub use` there is in the list, but a `pub use` under a `cfg` that names the `fixtures` feature, a test seam."
 why = "The list states once what each resource of the SDK exposes from the crates it wraps, and the resource template writes its `pub use` lines from it. A line written by hand beside it, or a listed item whose line was dropped, makes the list and the API differ silently: the API listing and the template then disagree with no finding. Read syntactically: a `pub use` is one with a visibility, and a listed item is matched by its resource, its path as written and the name it is bound to (the last segment when there is no `as`)."
 params = { reexports = { type = "list<table>", description = "The items the SDK's resource modules re-export from the crates it exposes, each `{ resource, path, as }`: the list the SDK's entry passes its resource template." } }
 
@@ -9,7 +9,13 @@ let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", 
 let uses = select * from tree-nodes where kind = "use";
 let visibilities = select * from tree-nodes where kind = "visibility";
 let visible = select l."parent" as "id" from "syntax-child" as l join visibilities as r on l."child" = r."id";
-let public-uses = select l."id" as "id" from uses as l join visible as r on l."id" = r."id";
+let visible-uses = select l."id" as "id" from uses as l join visible as r on l."id" = r."id";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let attrs = select * from tree-nodes where kind = "attr";
+let fixture-tokens = select * from tree-tokens where glob_any(text, "*fixtures*");
+let seam-attrs = axis(from=attrs, relation="syntax-child", direction=descendant, domain=fixture-tokens);
+let seam-uses = select l."parent" as "id" from "syntax-child" as l join seam-attrs as r on l."child" = r."id";
+let public-uses = antijoin(left=visible-uses, right=seam-uses, left-on=["id"], right-on=["id"]);
 let imports = select l."occurrence" as "id", l."target" as "target", l."binding" as "binding", l."file" as "file", l."span" as "span" from "static-import" as l;
 let placed = capture(from=imports, path="file", pattern="{*lead}resources/{resource}.rs", captures=["lead", "resource"]);
 let owning-uses = axis(from=placed, relation="syntax-child", direction=nearest-ancestor, domain=uses);
@@ -105,3 +111,34 @@ pub fn said(local: &dyn Debug) -> String {
     format!("{local:?}")
 }
 '''
+
+[[scenarios]]
+id = 'fixtures-seam-unlisted'
+scenario = 'A `pub use` under `cfg(feature = "fixtures")` is a test seam, no re-export of public surface.'
+given.files.'src/resources/languages.rs' = '''
+//! The languages resource.
+
+mod types;
+
+#[cfg(feature = "fixtures")]
+pub use dep::Seam as Seam;
+pub use dep::Thing as Thing;
+pub use types::Local;
+'''
+
+[[scenarios]]
+id = 'other-cfg-unlisted'
+scenario = 'A `pub use` under another `cfg` is still a re-export the list must have.'
+given.files.'src/resources/languages.rs' = '''
+//! The languages resource.
+
+mod types;
+
+#[cfg(unix)]
+pub use dep::Other as Other;
+pub use dep::Thing as Thing;
+pub use types::Local;
+'''
+then.findings = [
+  { path = 'src/resources/languages.rs' },
+]

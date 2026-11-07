@@ -21,3 +21,7 @@ The first version, split from the retired `part` spec by kind. It lists its own 
 **`entry-names` allows no request and a unit report.** An entry takes no parameter when the verb has no input (`pub fn list() -> Result<ListReport, ListError>`) and may return `Result<(), <Verb>Error>` when no caller reads an answer; a parameter it does take must still be a `*Request`. Fixtures `no-request` (passes) and `unit-report`.
 
 - **`test-runners-match-rows`** is placed beside `test-shape`: a test file has a `run(CASES, Word::<word>, subject)` runner exactly for each case word its `CASES` table has rows of. The test templates (`unit-test`, `item-test`, `schemas-test`, `composition-test`, `command-test`, `entry-test`, `use-case-test`, `adapter-test`) no longer render all four runners: an empty table has no runner. The fixtures `*-without-rejects-runner` became `*-with-rejects-row-without-runner`.
+
+## 0.1.1
+
+- **Fixtures directory**: a new optional template `entry-fixture` places `fixtures/{*fixture}`, one test-data file per thing it fixes, beside `fixtures.rs`; the long `fixtures.rs` of an entry splits into it. The template asks nothing of the file but its doc comment.
