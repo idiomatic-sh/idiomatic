@@ -276,7 +276,7 @@ fn stable_partial_population_reuses_structure_without_proving_semantic_absence()
         relation,
         cause: PartialCause("fixture partial".into()),
         lacking: Lacking::Any,
-        at: Some(FileId(9)),
+        at: crate::domain::coverage::types::PartialPlace::File(FileId(9)),
     }];
     let owner = RelationOwner::new(
         crate::application::file_dag::program::facade_runtime::types::ReuseEligibility::Eligible,

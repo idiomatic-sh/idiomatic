@@ -91,9 +91,14 @@ pub(crate) fn stored_of(partials: &[Partial]) -> Vec<StoredPartial> {
         .map(|each| StoredPartial {
             relation_name: RelationName(name(each.relation).0.into()),
             cause: PartialCause(each.cause.0.clone()),
-            at: each.at.map_or(PartialScope::Repository, |at| {
-                PartialScope::OneFile(PartialAt(at.0))
-            }),
+            at: match each.at {
+                ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::File(at) => {
+                    PartialScope::OneFile(PartialAt(at.0))
+                }
+                ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::Repository => {
+                    PartialScope::Repository
+                }
+            },
             lacking_kind: PartialKind(match &each.lacking {
                 Lacking::Any => Box::default(),
                 Lacking::Kind(kind) => kind.0.clone(),

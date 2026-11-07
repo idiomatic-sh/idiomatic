@@ -128,7 +128,7 @@ fn any_physical_partial_kind_and_inactive_relations_are_ineligible() {
         relation: Relation::Function,
         cause: PartialCause("some function kinds absent".into()),
         lacking: Lacking::Kind(LackingKind("unknown".into())),
-        at: None,
+        at: crate::domain::coverage::types::PartialPlace::Repository,
     }];
     let cache = new(&[Relation::Function], &partials, ByteLimit(LIMIT));
     let columns = [FactColumn(vec![1])];

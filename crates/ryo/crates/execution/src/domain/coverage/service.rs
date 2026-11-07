@@ -11,7 +11,7 @@ use super::constants::REPOSITORY;
 use super::constants::{UNKNOWN_BECAUSE, UNKNOWN_IN};
 use super::types::{
     CoverageScope, DeclaredFiles, FileOrdinal, Keying, KeyColumn, Lacking, LackingKind, Message, Partial,
-    Recovery,
+    PartialPlace, Recovery,
 };
 
 use ryo_values::domain::plans::types::Operation;
@@ -203,8 +203,8 @@ pub(crate) fn partial_of(
             relation: each.relation,
             cause: PartialCause(each.cause.0.clone()),
             at: match each.at {
-                PartialScope::OneFile(file) => Some(FileId(file.0)),
-                PartialScope::Repository => None,
+                PartialScope::OneFile(file) => PartialPlace::File(FileId(file.0)),
+                PartialScope::Repository => PartialPlace::Repository,
             },
             lacking: match &each.lacking {
                 Missing::Any => Lacking::Any,
@@ -233,7 +233,7 @@ pub(crate) fn partial_of(
                 relation: *relation,
                 cause: PartialCause(cause.into()),
                 lacking: Lacking::Any,
-                at: None,
+                at: PartialPlace::Repository,
             });
         }
     }

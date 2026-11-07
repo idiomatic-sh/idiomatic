@@ -194,7 +194,7 @@ fn physical_partiality_ragged_views_and_next_generation_never_hit_old_graphs() {
         relation: Relation::Function,
         cause: PartialCause("missing kind".into()),
         lacking: Lacking::Kind(LackingKind("unknown".into())),
-        at: None,
+        at: crate::domain::coverage::types::PartialPlace::Repository,
     }];
     let partial = GraphFixture::new(&[Relation::Function], &partials, LIMIT);
     assert!(

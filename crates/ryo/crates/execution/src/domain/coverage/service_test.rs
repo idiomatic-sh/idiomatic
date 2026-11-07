@@ -281,7 +281,13 @@ fn recovered_byte_literals_refuse_absence() -> Value {
             &antijoin(1),
             &[CellKind::File, CellKind::Number],
             &mut absent,
-            &partial.iter().map(|part| part.at).collect::<Vec<_>>(),
+            &partial
+                .iter()
+                .map(|part| match part.at {
+                    super::types::PartialPlace::File(file) => Some(file),
+                    super::types::PartialPlace::Repository => None,
+                })
+                .collect::<Vec<_>>(),
         );
         left += absent.count.0;
     }

@@ -146,8 +146,14 @@ pub(crate) fn partials_of(stored: &[StoredPartial]) -> Vec<Partial> {
                 relation,
                 cause: PartialCause(each.cause.0.clone()),
                 at: match each.at {
-                    PartialScope::OneFile(file) => Some(FileId(file.0)),
-                    PartialScope::Repository => None,
+                    PartialScope::OneFile(file) => {
+                        ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::File(
+                            FileId(file.0),
+                        )
+                    }
+                    PartialScope::Repository => {
+                        ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::Repository
+                    }
                 },
                 lacking: if each.lacking_kind.0.is_empty() {
                     Lacking::Any

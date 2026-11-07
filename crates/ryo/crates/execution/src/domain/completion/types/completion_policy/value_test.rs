@@ -16,7 +16,7 @@ fn partial() -> Partial {
         relation: Relation::SourceLocation,
         cause: PartialCause("fixture missing facts".into()),
         lacking: Lacking::Any,
-        at: Some(FileId(0)),
+        at: crate::domain::coverage::types::PartialPlace::File(FileId(0)),
     }
 }
 fn anti() -> Operation {
@@ -56,7 +56,7 @@ fn evaluation_refusal_cannot_become_complete_when_publication_inputs_are_complet
 fn project_filter_preserves_other_files_and_exact_physical_coverage() {
     let partials = Partials {
         entries: vec![FilePartial {
-            file: Some(FileId(0)),
+            file: crate::domain::coverage::types::PartialPlace::File(FileId(0)),
             partial: partial(),
         }],
         unavailable_files: vec![],
@@ -90,7 +90,7 @@ fn relation_coverage_keeps_the_kind_a_partial_lacks_and_any_row_otherwise() {
     let of = |lacking: Lacking| {
         let partials = Partials {
             entries: vec![FilePartial {
-                file: Some(FileId(0)),
+                file: crate::domain::coverage::types::PartialPlace::File(FileId(0)),
                 partial: Partial {
                     relation: Relation::Defines,
                     lacking,

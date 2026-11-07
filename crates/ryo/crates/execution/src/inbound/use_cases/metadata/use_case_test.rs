@@ -328,7 +328,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 relation: Relation::Function,
                 cause: PartialCause("failed read".into()),
                 lacking: Lacking::Any,
-                at: Some(FileId(0)),
+                at: crate::domain::coverage::types::PartialPlace::File(FileId(0)),
             };
             assert_eq!(
                 metadata.matters(&needs.reads[0], &partial),

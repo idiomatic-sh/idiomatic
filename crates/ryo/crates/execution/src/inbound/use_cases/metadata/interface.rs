@@ -21,6 +21,7 @@ pub use crate::domain::coverage::types::Lacking;
 pub use crate::domain::coverage::types::LackingKind;
 pub use crate::domain::coverage::types::Message;
 pub use crate::domain::coverage::types::Partial;
+pub use crate::domain::coverage::types::PartialPlace;
 pub use crate::domain::coverage::types::Partials;
 pub use crate::domain::coverage::types::Recovery;
 pub use crate::domain::coverage::types::RuleIndex;

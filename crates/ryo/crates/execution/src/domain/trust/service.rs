@@ -371,7 +371,10 @@ pub(crate) fn partial_files_for(
                 .iter()
                 .any(|read| matches!(matters(read, &each.partial), Bearing::Matters))
         })
-        .map(|each| each.file)
+        .map(|each| match each.file {
+            crate::domain::coverage::types::PartialPlace::File(file) => Some(file),
+            crate::domain::coverage::types::PartialPlace::Repository => None,
+        })
         .collect();
     files.sort();
     files.dedup();
@@ -414,9 +417,12 @@ pub(crate) fn project_unknowns(
                 .iter()
                 .any(|read| matters(read, partial) == Bearing::Matters)
             {
-                let at = partial
-                    .at
-                    .and_then(|file| named.get(usize::try_from(file.0).unwrap_or(usize::MAX)));
+                let at = match partial.at {
+                    crate::domain::coverage::types::PartialPlace::File(file) => {
+                        named.get(usize::try_from(file.0).unwrap_or(usize::MAX))
+                    }
+                    crate::domain::coverage::types::PartialPlace::Repository => None,
+                };
                 unknowns.push(Unknown {
                     rule: id_at(ids, RuleIndex(rule)),
                     path: at.cloned().unwrap_or_else(|| FilePath(REPOSITORY.into())),

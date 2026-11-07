@@ -287,7 +287,7 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
         relation: Relation::Defines,
         cause: PartialCause("missing syntax".into()),
         lacking: Lacking::Any,
-        at: None,
+        at: crate::domain::coverage::types::PartialPlace::Repository,
     };
     let incomplete = SelectionFixture::new(
         &[Relation::Defines],

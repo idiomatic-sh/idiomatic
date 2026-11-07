@@ -119,7 +119,14 @@ impl CompletionPolicy {
                 partials
                     .entries
                     .iter()
-                    .filter(|each| each.file == file && each.partial.relation == relation)
+                    .filter(|each| {
+                        each.file
+                            == file.map_or(
+                                crate::domain::coverage::types::PartialPlace::Repository,
+                                crate::domain::coverage::types::PartialPlace::File,
+                            )
+                            && each.partial.relation == relation
+                    })
                     .map(|each| &each.partial),
             ),
         };

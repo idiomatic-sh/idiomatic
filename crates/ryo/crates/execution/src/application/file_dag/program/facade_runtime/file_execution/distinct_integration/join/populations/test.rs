@@ -168,7 +168,7 @@ fn partial_empty_population_keeps_exact_empty_rows_and_partial_provenance() {
                     "incomplete fixture".into(),
                 ),
                 lacking: crate::domain::coverage::types::Lacking::Any,
-                at: None,
+                at: crate::domain::coverage::types::PartialPlace::Repository,
             }],
             optional_limit: Some(0),
             ..Faults::default()

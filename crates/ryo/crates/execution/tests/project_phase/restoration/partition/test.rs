@@ -500,14 +500,14 @@ fn exercise_with(
         use ryo_execution::inbound::use_cases::metadata::interface::{FilePartial, Lacking};
         Partials {
             entries: vec![FilePartial {
-                file: Some(FileId(1)),
+                file: ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::File(FileId(1)),
                 partial: Partial {
                     relation: Relation::ModuleIdentity,
                     cause: ryo_values::domain::stored_facts::types::PartialCause(
                         "missing project partition".into(),
                     ),
                     lacking: Lacking::Any,
-                    at: Some(FileId(1)),
+                    at: ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::File(FileId(1)),
                 },
             }],
             unavailable_files: vec![],

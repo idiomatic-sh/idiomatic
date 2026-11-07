@@ -72,7 +72,7 @@ pub(crate) fn partials_for_reads(
                             .iter()
                             .filter(matter)
                             .map(move |partial| FilePartial {
-                                file: Some(each.file),
+                                file: ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::File(each.file),
                                 partial: partial.clone(),
                             })
                     }),

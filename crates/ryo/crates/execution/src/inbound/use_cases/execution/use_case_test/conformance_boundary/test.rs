@@ -209,7 +209,7 @@ fn positive_row_contracts_keep_partial_input_distinction() {
                     relation: *relation,
                     cause: PartialCause("fixture partial".into()),
                     lacking: Lacking::Any,
-                    at: None,
+                    at: crate::domain::coverage::types::PartialPlace::Repository,
                 };
                 assert_eq!(blocked(&needs[0], &[partial]), Blocking::Free);
                 assert!(scoped.reads.iter().any(|read| read.relation == *relation));
