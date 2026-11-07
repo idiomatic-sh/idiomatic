@@ -1,18 +1,40 @@
 //! Small real-file fixtures; only child execution is substituted, not artifact or comparison policy.
-use super::*;
-use crate::domain::discrepancy::types::{OptionalDigest, ReferenceKind, ReferenceProof};
+use ryo_benchmark_contracts::domain::documents::types::{text::{Sha256Text, YesNo}};
+use crate::application::case_execution::service::run as run_case;
+use crate::application::case_observation::service::write as record;
+use crate::domain::discrepancy::types::{
+    Contestant, OptionalDigest, ReferenceKind, ReferenceProof,
+};
 use crate::outbound::{
-    inventory::types::{CapturedObservation, Registration, case_document::CaseDocument},
-    suite::{fixtures::fake::SuiteFake, types::ArtifactPath},
+    inventory::{
+        interface::InventoryPort as _,
+        types::{CapturedObservation, Pin, Registration, case_document::CaseDocument},
+    },
+    suite::{
+        fixtures::fake::SuiteFake,
+        interface::SuitePort as _,
+        types::ArtifactPath,
+    },
 };
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use ryo_benchmark_contracts::domain::process::types::ReferenceExpectation;
+use ryo_benchmark_contracts::domain::reports::types::{
+    ExecutionMetadata, RuleCoverage, RunReport,
+};
 use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+use ryo_benchmark_contracts::domain::workloads::types::{
+    CaseComparison, PreparedCase, PreparedReferenceDiscrepancy, ReferenceDiscrepancyIdentity, Tool,
+};
+use serde_json::{Value, json};
+use super::super::process_identity::fixtures::{
+    Observer, Streams, complete_of, document_of, invocation_bytes, registration_of,
+};
 use sha2::Digest as _;
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-pub(super) struct Fixture {
+pub(crate) struct Fixture {
     pub root: tempfile::TempDir,
     pub suite: SuiteFake,
     pub prepared: PreparedCase,
@@ -25,6 +47,7 @@ pub(super) struct Fixture {
 fn pin(bytes: &[u8]) -> String {
     format!("{:x}", sha2::Sha256::digest(bytes))
 }
+
 impl Fixture {
     pub fn new(name: &str) -> Self {
         Self::build(name, false)
@@ -47,11 +70,11 @@ impl Fixture {
         let receipt = source.join("cases.jsonl");
         let profile = Tool {
             rule_observation_selection:
-                ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
+                ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
             supporting_rules: Vec::new(),
             rule_observations: Default::default(),
-            rule_context: None,
-            file_observation: None,
+            rule_context: ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared,
+            file_observation: ryo_benchmark_contracts::domain::workloads::types::FileObservation::Undeclared,
             project_context_mode: ProjectContextMode::Isolated,
             tool: name.into(),
             version: "1".into(),
@@ -61,20 +84,20 @@ impl Fixture {
             pending: BTreeMap::new(),
             query_modules: BTreeMap::new(),
             rule_applicability: BTreeMap::new(),
-            parser_configuration: Some("python3.10".into()),
-            source_language: None,
-            project_search_roots: None,
+            parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName("python3.10".into())),
+            source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+            project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         };
         let expected = RunReport {
             execution_metadata: ExecutionMetadata::Complete,
-            project_context: None,
+            project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
             diagnostics: vec![],
             skipped: vec![],
-            coverage: Some(RuleCoverage {
-                selected: 1,
-                evaluated: 1,
-                skipped: 0,
-                unknown_or_unread: 0,
+            coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(RuleCoverage {
+                selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+                evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+                skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+                unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
             }),
             files: vec![ryo::linter::RelativePath("case.py".into())],
         };
@@ -84,20 +107,20 @@ impl Fixture {
             name: name.into(),
             request: RunRequest {
                 performance: Default::default(),
-                selected_rules: None,
-                rule_observations: None,
-                rule_context: None,
-                project_search_roots: None,
+                selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
+                rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+                rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+                project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
                 given_project_inventory: Default::default(),
-                staged_sources: None,
-                file_metadata: None,
+                staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
+                file_metadata: ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
                 root: source.clone(),
                 state: source.join("state"),
                 files: expected.files.clone(),
-                context_manifest: None,
+                context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
             },
             expected,
-            reference_discrepancy: None,
+            reference_discrepancy: ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees,
         };
         let mut suite = SuiteFake {
             case_receipt: Some(receipt.clone()),
@@ -109,7 +132,7 @@ impl Fixture {
             .artifact_digests
             .insert(PathBuf::from("fixture"), ArtifactDigest("a".repeat(64)));
         suite.artifact_digests.insert(
-            source.join("benchmark.toml"),
+            source.join(crate::domain::suite::constants::BENCHMARK_TOML),
             ArtifactDigest("c".repeat(64)),
         );
         let linter = crate::outbound::linter::fixtures::fake::LinterFake::default();
@@ -131,17 +154,26 @@ impl Fixture {
             )
         };
         let execution = Streams { stdout, stderr };
-        let mut capture = case_execution::run(&suite, &linter, &execution, &prepared, &rules)
+        let mut capture = run_case(
+            &suite,
+            &crate::outbound::context::factory::local(),
+            &linter,
+            &execution,
+            &prepared,
+            &rules,
+        )
             .capture
             .unwrap();
         let source_digest = suite
-            .case_source_digest(ArtifactPath(&source), &["case.py".into()])
-            .unwrap();
-        capture.invocation["source_sha256"] = json!(source_digest);
-        let settings = capture.invocation["settings_sha256"]
-            .as_str()
+            .case_source_digest(
+                ArtifactPath(&source),
+                crate::outbound::suite::types::ArtifactSet(&["case.py".into()]),
+            )
             .unwrap()
-            .to_owned();
+            .0;
+        complete_of(&mut capture.invocation).source_sha256 =
+            Pin::Sha256(Sha256Text(source_digest.clone()));
+        let settings = complete_of(&mut capture.invocation).settings_sha256.0.clone();
         let mut observations = Vec::new();
         for attempt in 0..2 {
             let directory = source.join(format!("archive-{attempt}"));
@@ -151,7 +183,7 @@ impl Fixture {
                 (
                     "invocation",
                     "invocation.json",
-                    serde_json::to_vec(&capture.invocation).unwrap(),
+                    invocation_bytes(&capture.invocation),
                 ),
                 ("stdout", "stdout.bin", capture.output.stdout.0.clone()),
                 ("stderr", "stderr.bin", capture.output.stderr.0.clone()),
@@ -163,15 +195,9 @@ impl Fixture {
             observations.push(row);
         }
         let wire = json!({"kind":"process-failure","exit":2,"stdout":stdout_parts,"stderr":stderr_parts,"observations":observations});
-        let process = ryo_benchmark_contracts::domain::process::types::ProcessFailure::try_from(
-            serde_json::from_value::<crate::outbound::suite::types::process::ProcessFailureWire>(
-                wire.clone(),
-            )
-            .unwrap(),
-        )
-        .unwrap();
+        let process = crate::outbound::suite::fixtures::process::failure(&(wire).to_string());
         let identity = ReferenceDiscrepancyIdentity {
-            file_metadata_sha256: None,
+            file_metadata_sha256: ryo_benchmark_contracts::domain::workloads::types::MetadataDigestDeclaration::Undeclared,
             tool: profile.tool.clone(),
             version: profile.version.clone(),
             observed_executable_sha256: ArtifactDigest("a".repeat(64)),
@@ -185,26 +211,22 @@ impl Fixture {
                 &prepared.expected,
             ),
         };
-        let proof = json!({
-            "actual_executable_sha256":"a".repeat(64),"settings_sha256":settings,"profile_sha256":identity.profile_sha256.0,
-            "source_sha256":source_digest,"reference_output_sha256":identity.reference_output_sha256.0,"intended_output_sha256":identity.intended_output_sha256.0,
-            "reference_expectation_kind":"process-failure","process_observation_group_sha256":crate::domain::process_failure::service::group_digest(&process,&ArtifactDigest("a".repeat(64))).unwrap().0,
-        });
-        prepared.reference_discrepancy = Some(PreparedReferenceDiscrepancy {
+        prepared.reference_discrepancy = ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(PreparedReferenceDiscrepancy {
             basis:
                 ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect,
             expected: ReferenceExpectation::ProcessFailure(process),
             identity: identity.clone(),
             evidence: vec![],
-            reason: "independent toy language expectation".into(),
+            reason: ryo_benchmark_contracts::domain::workloads::types::DiscrepancyReason("independent toy language expectation".into()),
         });
         crate::application::discrepancy_validation::service::validate_archives(
             &suite,
             &crate::outbound::inventory::factory::local(),
+            &crate::outbound::linter::fixtures::fake::LinterFake::default(),
             &source,
             &profile,
             &prepared,
-            match &prepared.reference_discrepancy.as_ref().unwrap().expected {
+            match &differing(&prepared).expected {
                 ReferenceExpectation::ProcessFailure(process) => process,
                 ReferenceExpectation::Diagnostics(_) => unreachable!("registered process"),
             },
@@ -216,7 +238,7 @@ impl Fixture {
                 ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect,
             process_group: OptionalDigest::Pinned(
                 crate::domain::process_failure::service::group_digest(
-                    match &prepared.reference_discrepancy.as_ref().unwrap().expected {
+                    match &differing(&prepared).expected {
                         ReferenceExpectation::ProcessFailure(process) => process,
                         ReferenceExpectation::Diagnostics(_) => unreachable!("registered process"),
                     },
@@ -235,23 +257,23 @@ impl Fixture {
         };
         crate::application::process_discrepancy::service::matches(
             &prepared,
-            &crate::outbound::inventory::factory::local()
-                .decode_invocation(&serde_json::to_vec(&capture.invocation).unwrap())
-                .unwrap(),
+            &capture.invocation,
             &capture.output,
             &typed_proof,
             &suite,
             &rules,
         )
         .unwrap();
-        case_observations::write(
+        let context = crate::outbound::context::factory::local();
+        record(
             &suite,
+            &context,
             &prepared,
-            "reference",
+            Contestant::Reference,
             None,
             None,
-            true,
-            Some(&proof),
+            YesNo::Yes,
+            Some(&typed_proof),
             Some(&capture),
         )
         .unwrap();
@@ -261,16 +283,17 @@ impl Fixture {
                 ..Default::default()
             });
         let candidate =
-            case_execution::run(&suite, &linter, &candidate_execution, &prepared, &rules);
+            run_case(&suite, &context, &linter, &candidate_execution, &prepared, &rules);
         assert!(candidate.capture.is_none());
-        case_observations::write(
+        record(
             &suite,
+            &context,
             &prepared,
-            "candidate",
+            Contestant::Candidate,
             Some(&candidate.result.unwrap().report),
             None,
-            true,
-            Some(&proof),
+            YesNo::Yes,
+            Some(&typed_proof),
             None,
         )
         .unwrap();
@@ -329,48 +352,11 @@ impl Fixture {
     }
 }
 
-/// Read a registration the way the offline command does: through the adapter's schema.
-pub(super) fn registration_of(case: &Value) -> Registration {
-    let directory = tempfile::tempdir().unwrap();
-    let path = directory.path().join("registration.json");
-    std::fs::write(
-        &path,
-        json!({"authority":{"kind":"receipt-only"},"provider":"toy","defaults":["A001"],"rules":[{"rule_id":"A001","definition":null,"modules":{},"artifacts":{},"command":null,"reason":null,"cases":[case],"instance":null}]}).to_string(),
-    )
-    .unwrap();
-    crate::outbound::inventory::factory::local()
-        .load(&path)
-        .unwrap()
-}
 
-/// One registered case read through the adapter's schema.
-pub(super) fn document_of(case: &Value) -> CaseDocument {
-    registration_of(case).rules.remove(0).cases.remove(0)
-}
-
-/// Different observed byte streams, independent of any certificate matching implementation.
-struct Streams {
-    stdout: Vec<u8>,
-    stderr: Vec<u8>,
-}
-impl ExecutionPort for Streams {
-    fn profile(&self) -> ExecutionProfile {
-        ExecutionProfile::Wall
-    }
-    fn observes_completed_processes_without_deadline(&self) -> bool {
-        true
-    }
-    fn run(
-        &self,
-        _: Invocation,
-    ) -> Result<ProcessOutput, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
-        Ok(ProcessOutput {
-            status: ProcessExitCode(2),
-            signal: None,
-            stdout: CapturedBytes(self.stdout.clone()),
-            stderr: CapturedBytes(self.stderr.clone()),
-            wall: std::time::Duration::ZERO,
-            resources: ResourceObservation::WallOnly,
-        })
+/// The prepared discrepancy of a case the fixture made differ.
+fn differing(prepared: &ryo_benchmark_contracts::domain::workloads::types::PreparedCase) -> &ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceDiscrepancy {
+    match &prepared.reference_discrepancy {
+        ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(discrepancy) => discrepancy,
+        ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees => panic!("fixture discrepancy"),
     }
 }

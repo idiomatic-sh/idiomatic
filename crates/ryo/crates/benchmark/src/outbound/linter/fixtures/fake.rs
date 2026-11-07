@@ -1,5 +1,8 @@
 //! Deterministic linter output for orchestration tests.
 use crate::outbound::linter::interface::LinterPort;
+use crate::outbound::linter::types::CanonicalText;
+use ryo_benchmark_contracts::domain::context::types::PreparedRuleContext;
+use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -30,25 +33,36 @@ impl LinterPort for LinterFake {
         })
     }
     fn decode(&self, request: &RunRequest, output: ProcessOutput) -> Result<RunReport, Error> {
-        if output.signal.is_some() || !(0_i32..=1_i32).contains(&output.status.0) {
+        if output.signal != ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited || !(0_i32..=1_i32).contains(&output.status.0) {
             return Err(Error::Invalid("operational failure".into()));
         }
         Ok(RunReport {
             execution_metadata:
                 ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-            project_context: None,
+            project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
             files: request.files.clone(),
             skipped: Vec::new(),
-            coverage: Some(
+            coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
                 ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                    selected: request.files.len(),
-                    evaluated: request.files.len(),
-                    skipped: 0,
-                    unknown_or_unread: 0,
+                    selected: ryo_benchmark_contracts::domain::reports::types::PairCount(request.files.len()),
+                    evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(request.files.len()),
+                    skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+                    unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
                 },
             ),
             diagnostics: self.diagnostics.clone(),
         })
+    }
+    fn settings_text(
+        &self,
+        normalized: &Invocation,
+        _case: &PreparedCase,
+        _profile: &Tool,
+    ) -> Result<CanonicalText, Error> {
+        Ok(CanonicalText(format!("{normalized:?}")))
+    }
+    fn rule_context_text(&self, prepared: &PreparedRuleContext) -> CanonicalText {
+        CanonicalText(format!("{prepared:?}"))
     }
 }
 #[cfg(test)]

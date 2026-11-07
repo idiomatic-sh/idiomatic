@@ -11,6 +11,15 @@ pub struct FrontendDiagnosticProjection {
     pub query: ryo::query::RyoQlQuery,
 }
 
+/// One completed SDK run: the canonical report and the project lookups it observed.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EngineRun {
+    /// The report, without a project context receipt; the use case seals it.
+    pub report: ryo_benchmark_contracts::domain::reports::types::RunReport,
+    /// Every project lookup the run observed, for the context port to seal.
+    pub dependencies: Vec<ryo::linter::ProjectDependency>,
+}
+
 /// How many rule and file pairs the request selected.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SelectedPairs(pub usize);

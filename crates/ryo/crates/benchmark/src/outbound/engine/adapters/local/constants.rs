@@ -16,9 +16,10 @@ pub(super) const SPAN_COLUMN: &str = "span";
 /// Refuse absent, duplicate or untyped diagnostic source ranges.
 pub(super) const INVALID_SPAN: &str = "finding requires one typed span column";
 /// Text of the always in this part.
-pub(super) const ALWAYS: &str = "always";
+pub(super) const ALWAYS: &str = ryo_benchmark_contracts::domain::requests::constants::ALWAYS;
 /// Text of the accepted syntax in this part.
-pub(super) const ACCEPTED_SYNTAX: &str = "accepted-syntax";
+pub(super) const ACCEPTED_SYNTAX: &str =
+    ryo_benchmark_contracts::domain::requests::constants::ACCEPTED_SYNTAX;
 /// Text of the applicability map does not exactly match in this part.
 pub(super) const APPLICABILITY_MAP_DOES_NOT_EXACTLY_MATCH: &str =
     "applicability map does not exactly match selected candidate rules";

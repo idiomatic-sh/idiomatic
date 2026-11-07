@@ -8,6 +8,7 @@ use ryo_benchmark::inbound::use_cases::run_ryo::{
     interface::RunRyoUseCase as _, use_case::RunRyoUseCaseImpl,
 };
 use ryo_benchmark::outbound::{
+    context::fixtures::fake::ContextFake,
     engine::fixtures::fake::EngineFake,
     worker::fixtures::{data::request, fake::WorkerFake},
 };
@@ -20,6 +21,7 @@ fn succeeds(world: &mut crate::Behavior) {
     RunRyoUseCaseImpl::new(
         Arc::new(EngineFake::default()),
         Arc::<WorkerFake>::clone(&transport),
+        Arc::new(ContextFake),
     )
     .run_ryo()
     .expect("worker report");
@@ -37,6 +39,7 @@ fn refuses(world: &mut crate::Behavior) {
     let error = RunRyoUseCaseImpl::new(
         Arc::new(EngineFake { refuses: true }),
         Arc::<WorkerFake>::clone(&transport),
+        Arc::new(ContextFake),
     )
     .run_ryo()
     .expect_err("engine failure");

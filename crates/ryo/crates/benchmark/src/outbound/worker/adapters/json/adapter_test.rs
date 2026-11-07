@@ -138,14 +138,14 @@ fn subject(operation: Input) -> Result<Value, Failure> {
     let temporary = tempfile::tempdir().map_err(|_invalid_parser| Refusal::Unexpected)?;
     let request = RunRequest {
         performance: Default::default(),
-        selected_rules: None,
-        rule_observations: None,
-        rule_context: None,
-        project_search_roots: None,
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
+        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
-        staged_sources: None,
-        file_metadata: None,
-        context_manifest: None,
+        staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
+        file_metadata: ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: "workspace".into(),
         files: vec![ryo::linter::RelativePath("source.txt".into())],
         state: temporary.path().join("cache"),
@@ -212,7 +212,7 @@ fn subject(operation: Input) -> Result<Value, Failure> {
                 .decode(
                     &request,
                     ProcessOutput {
-                        signal: None,
+                        signal: ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
                         status: ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode(0),
                         stdout: ryo_benchmark_contracts::domain::measurements::types::CapturedBytes(
                             capture.bytes.clone(),

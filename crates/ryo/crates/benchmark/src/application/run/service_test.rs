@@ -279,14 +279,14 @@ fn refuses() {
 fn omitted_input() -> Result<Value, Error> {
     let request = RunRequest {
         performance: Default::default(),
-        selected_rules: None,
-        rule_observations: None,
-        rule_context: None,
-        project_search_roots: None,
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
+        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
-        staged_sources: None,
-        file_metadata: None,
-        context_manifest: None,
+        staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
+        file_metadata: ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: ".".into(),
         state: "cache".into(),
         files: vec![ryo::linter::RelativePath("input.py".into())],
@@ -698,14 +698,14 @@ impl LinterPort for Empty {
         Ok(RunReport {
             execution_metadata:
                 ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-            project_context: None,
+            project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
             skipped: Vec::new(),
-            coverage: Some(
+            coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
                 ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                    selected: 1,
-                    evaluated: 1,
-                    skipped: 0,
-                    unknown_or_unread: 0,
+                    selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+                    evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+                    skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+                    unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
                 },
             ),
             diagnostics: vec![],
@@ -719,7 +719,7 @@ impl ExecutionPort for Empty {
     }
     fn run(&self, _: Invocation) -> Result<ProcessOutput, Error> {
         Ok(ProcessOutput {
-            signal: None,
+            signal: ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
             status: ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode(0),
             stdout: ryo_benchmark_contracts::domain::measurements::types::CapturedBytes(vec![]),
             stderr: ryo_benchmark_contracts::domain::measurements::types::CapturedBytes(vec![]),
@@ -792,20 +792,20 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
     let mut suite = SuiteFake::default();
     if !matches!(scenario, Scenario::NoCases) {
         suite.prepared.push(PreparedCase {
-            reference_discrepancy: None,
+            reference_discrepancy: ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees,
             comparison: ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Rule,
             rule: ryo::linter::RuleId::try_from("E722").unwrap(),
             name: "positive".into(),
             request: RunRequest {
                 performance: Default::default(),
-                selected_rules: None,
-                rule_observations: None,
-                rule_context: None,
-                project_search_roots: None,
+                selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
+                rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+                rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+                project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
                 given_project_inventory: Default::default(),
-                staged_sources: None,
-                file_metadata: None,
-                context_manifest: None,
+                staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
+                file_metadata: ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+                context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
                 root: ".".into(),
                 files: vec![ryo::linter::RelativePath("case.py".into())],
                 state: "cache".into(),
@@ -813,15 +813,15 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
             expected: RunReport {
                 execution_metadata:
                     ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-                project_context: None,
+                project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
                 files: vec![ryo::linter::RelativePath("case.py".into())],
                 skipped: Vec::new(),
-                coverage: Some(
+                coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
                     ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                        selected: 1,
-                        evaluated: 1,
-                        skipped: 0,
-                        unknown_or_unread: 0,
+                        selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+                        evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+                        skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+                        unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
                     },
                 ),
                 diagnostics: vec![expected.clone()],
@@ -830,11 +830,11 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
     }
     suite.profile = Some(ryo_benchmark_contracts::domain::workloads::types::Tool {
         rule_observation_selection:
-            ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
+            ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
         supporting_rules: Vec::new(),
         rule_observations: Default::default(),
-        rule_context: None,
-        file_observation: None,
+        rule_context: ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared,
+        file_observation: ryo_benchmark_contracts::domain::workloads::types::FileObservation::Undeclared,
         project_context_mode:
             ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
         tool: "fixture".into(),
@@ -845,9 +845,9 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
         pending: std::collections::BTreeMap::default(),
         query_modules: std::collections::BTreeMap::default(),
         rule_applicability: std::collections::BTreeMap::default(),
-        parser_configuration: None,
-        source_language: None,
-        project_search_roots: None,
+        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
     });
     (suite, expected)
 }
@@ -867,10 +867,10 @@ impl LinterPort for CoveredCandidate {
         let mut report = LinterPort::decode(&self.0, request, output)?;
         report.coverage = Some(
             ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                selected: 1,
-                evaluated: 1,
-                skipped: 0,
-                unknown_or_unread: 0,
+                selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+                evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+                skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+                unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
             },
         );
         Ok(report)
@@ -896,11 +896,11 @@ fn discrepancy_suite() -> SuiteFake {
     let binary_hash = ArtifactDigest("b".repeat(64));
     let profile = Tool {
         rule_observation_selection:
-            ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
+            ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
         supporting_rules: Vec::new(),
         rule_observations: Default::default(),
-        rule_context: None,
-        file_observation: None,
+        rule_context: ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared,
+        file_observation: ryo_benchmark_contracts::domain::workloads::types::FileObservation::Undeclared,
         project_context_mode: ProjectContextMode::Isolated,
         tool: "fixture".into(),
         version: "1".into(),
@@ -910,15 +910,16 @@ fn discrepancy_suite() -> SuiteFake {
         pending: std::collections::BTreeMap::default(),
         query_modules: std::collections::BTreeMap::default(),
         rule_applicability: std::collections::BTreeMap::default(),
-        parser_configuration: Some("python-target=3.10".into()),
-        source_language: None,
-        project_search_roots: None,
+        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName("python-target=3.10".into())),
+        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
     };
     let invocation = LinterFake::default()
         .prepare(&case.request)
         .expect("fixture invocation");
     let settings = crate::domain::canonical_text::service::text_digest(
         &crate::application::discrepancy_validation::service::settings_text(
+            &LinterFake::default(),
             &invocation,
             case,
             &profile,
@@ -966,7 +967,7 @@ fn discrepancy_suite() -> SuiteFake {
         .take()
         .expect("fixture canonical certificate");
     let identity = item.identity;
-    let discrepancy = serde_json::from_value(serde_json::json!({
+    let discrepancy = crate::outbound::suite::fixtures::reference::claim(&serde_json::json!({
         "expected": [], "reason": item.reason,
         "identity": { "tool": identity.tool.to_string(), "version": identity.version.to_string(),
             "observed-executable-sha256": identity.observed_executable_sha256.0, "profile-sha256": identity.profile_sha256.0,
@@ -974,12 +975,12 @@ fn discrepancy_suite() -> SuiteFake {
             "reference-output-sha256": identity.reference_output_sha256.0, "intended-output-sha256": identity.intended_output_sha256.0 },
         "evidence": [{ "path": "evidence.json", "sha256": "d".repeat(64), "kind": "independent-language-run",
             "language-version": "3.10", "target-configuration": "python-target=3.10", "version-rationale": "exact target independently evaluated" }],
-    })).expect("boundary-owned raw wire certificate");
-    suite.reference_wires.push(
-        crate::outbound::suite::types::discrepancy::CaseReferenceWire {
-            rule: authored_case.rule.to_string(),
-            name: authored_case.name.to_string(),
-            basis: crate::outbound::suite::types::discrepancy::DiscrepancyBasisWire::LanguageDefect,
+    }).to_string());
+    suite.reference_claims.push(
+        crate::outbound::suite::types::CaseClaim {
+            rule: ryo_benchmark_contracts::domain::documents::types::text::RuleName(authored_case.rule.to_string()),
+            name: ryo_benchmark_contracts::domain::documents::types::text::CaseName(authored_case.name.to_string()),
+            basis: ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect,
             discrepancy,
         },
     );

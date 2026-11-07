@@ -3,14 +3,14 @@ use super::constants;
 use crate::outbound::engine::types::FrontendDiagnosticProjection;
 use crate::outbound::engine::types::loaded_engine_session::value::EngineExecution;
 use crate::outbound::engine::types::{
-    EngineConfiguration, loaded_engine_session::value::LoadedEngineSession,
+    EngineConfiguration, EngineRun, loaded_engine_session::value::LoadedEngineSession,
 };
 use ryo::linter::{
     self, Cache, Cell, Corpus, Languages, LintRequest, MemoryBudget, Rule, RuleId, Slot,
     WorkerPool, Workers,
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
+use ryo_benchmark_contracts::domain::reports::types::{BenchmarkFinding, PairCount};
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
 use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::collections::BTreeMap;
@@ -74,7 +74,6 @@ impl EngineLocalAdapter {
 }
 impl EnginePort for EngineLocalAdapter {
     fn load<'a>(&'a self, request: &'a WorkerRequest) -> Result<LoadedEngineSession<'a>, Error> {
-        validate_context(request)?;
         let trace = if let Some(path) = &self.trace {
             let (layer, guard) = tracing_chrome::ChromeLayerBuilder::new().file(path).build();
             tracing::subscriber::set_global_default(
@@ -99,7 +98,10 @@ impl EnginePort for EngineLocalAdapter {
             &request.query_modules,
             &request.rule_applicability,
             self.frontend_diagnostic.clone(),
-            request.rule_observations.as_ref(),
+            match &request.rule_observations {
+                ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Declared(declared) => Some(declared),
+                ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared => None,
+            },
         )?;
         Ok(LoadedEngineSession::new(
             request,
@@ -131,7 +133,7 @@ impl EngineExecution for LocalEngineSession<'_> {
         self: Box<Self>,
         rules: BTreeMap<RuleId, Rule>,
         prepared: EngineConfiguration,
-    ) -> Result<RunReport, Error> {
+    ) -> Result<EngineRun, Error> {
         // Keep the named guard until this function returns, including SDK/report errors.
         let LocalEngineSession {
             adapter,
@@ -172,19 +174,19 @@ impl EngineExecution for LocalEngineSession<'_> {
         let report = linter::lint_with(
             &engine,
             LintRequest {
-                source_language: request.source_language.clone().map_or(
-                    ryo::linter::SourceLanguage::Recognized,
-                    |name| {
-                        ryo::linter::SourceLanguage::Named(ryo::languages::LanguageName(
-                            name.into(),
-                        ))
-                    },
-                ),
+                source_language: match &request.source_language {
+                    ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified => ryo::linter::SourceLanguage::Recognized,
+                    ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Selected(name) => ryo::linter::SourceLanguage::Named(
+                        ryo::languages::LanguageName(name.0.clone().into()),
+                    ),
+                },
                 root: request.root.clone(),
-                project_search_scope: request.project_search_roots.clone().map_or(
-                    ryo::linter::ProjectSearchScope::Undeclared,
-                    ryo::linter::ProjectSearchScope::Declared,
-                ),
+                project_search_scope: match &request.project_search_roots {
+                    ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared => ryo::linter::ProjectSearchScope::Undeclared,
+                    ryo_benchmark_contracts::domain::requests::types::SearchRoots::Declared(roots) => {
+                        ryo::linter::ProjectSearchScope::Declared(roots.clone())
+                    }
+                },
                 given_project_inventory: request.given_project_inventory.clone(),
                 rules,
                 files: vec![],
@@ -216,56 +218,27 @@ impl EngineExecution for LocalEngineSession<'_> {
             adapter.frontend_diagnostic.is_some(),
         )?;
         let skips_count = report.skipped.len();
-        let project_context = request
-            .context_manifest
-            .as_ref()
-            .map(|manifest| {
-                crate::outbound::context::adapters::local::adapter::receipt(
-                    manifest,
-                    &request.root,
-                    report.dependencies,
-                )
-            })
-            .transpose()?;
         let diagnostics = diagnostic_findings(report.findings)?;
-        Ok(RunReport {
+        let dependencies = report.dependencies;
+        Ok(EngineRun { dependencies, report: RunReport {
             execution_metadata:
                 ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-            project_context,
+            project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
             diagnostics,
             skipped: report.skipped,
-            coverage: Some(
+            coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
                 ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                    selected: selected_pairs,
-                    evaluated: selected_pairs.checked_sub(skips_count).ok_or_else(|| {
-                        Error::Invalid(crate::outbound::engine::adapters::local::constants::SKIPPED_RULE_PAIRS_EXCEED_THE_CONFIGURED.into())
-                    })?,
-                    skipped: skips_count,
-                    unknown_or_unread: 0,
+                    selected: PairCount(selected_pairs),
+                    evaluated: PairCount(selected_pairs.checked_sub(skips_count).ok_or_else(|| {
+                        Error::Invalid(constants::SKIPPED_RULE_PAIRS_EXCEED_THE_CONFIGURED.into())
+                    })?),
+                    skipped: PairCount(skips_count),
+                    unknown_or_unread: PairCount(0),
                 },
             ),
             files: accepted.into_iter().collect(),
-        })
+        } })
     }
-}
-
-/// Require the declared context mode and exact source inventory before initializing the SDK.
-fn validate_context(request: &WorkerRequest) -> Result<(), Error> {
-    match (request.project_context_mode, &request.context_manifest) {
-        (ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated, None) => {}
-        (
-            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk,
-            Some(manifest),
-        ) => {
-            crate::outbound::context::adapters::local::adapter::validate(manifest, &request.root)?;
-        }
-        _ => {
-            return Err(Error::Invalid(
-                crate::outbound::engine::adapters::local::constants::WORKER_CONTEXT_MODE_REQUIRES_A_MATCHING.into(),
-            ));
-        }
-    }
-    Ok(())
 }
 
 /// Decode the explicit file/span projection, refusing malformed candidate rows.
@@ -309,7 +282,11 @@ fn configuration_files(
     request: &WorkerRequest,
     languages: &Languages,
 ) -> Result<Vec<linter::RelativePath>, Error> {
-    let matching: Vec<_> = match request.source_language.as_deref() {
+    let selected_language = match &request.source_language {
+        ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Selected(name) => Some(name.0.as_str()),
+        ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified => None,
+    };
+    let matching: Vec<_> = match selected_language {
         Some(selected) => languages
             .0
             .iter()

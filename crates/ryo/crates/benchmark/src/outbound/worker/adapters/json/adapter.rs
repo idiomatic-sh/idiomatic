@@ -1,5 +1,8 @@
 //! The worker port, implemented with an immutable request and injected output connection.
-use super::{connection::WorkerJsonConnection, schemas};
+use super::{
+    connection::WorkerJsonConnection,
+    types::{WorkerPayload, WorkerResponseBytes},
+};
 use crate::outbound::worker::interface::WorkerPort;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
@@ -25,11 +28,12 @@ impl WorkerJsonAdapter {
 }
 impl WorkerPort for WorkerJsonAdapter {
     fn receive(&self) -> Result<WorkerRequest, Error> {
-        schemas::request(self.payload.as_os_str())
+        WorkerRequest::try_from(WorkerPayload(self.payload.as_os_str()))
             .map_err(|error| Error::Invalid(error.to_string()))
     }
     fn respond(&self, report: &RunReport) -> Result<(), Error> {
-        let bytes = schemas::report(report).map_err(|error| Error::Invalid(error.to_string()))?;
+        let bytes = WorkerResponseBytes::try_from(report)
+            .map_err(|error| Error::Invalid(error.to_string()))?;
         self.connection.publish(&bytes)
     }
 }

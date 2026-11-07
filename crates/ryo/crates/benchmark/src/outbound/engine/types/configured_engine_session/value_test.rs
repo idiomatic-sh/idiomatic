@@ -36,7 +36,10 @@ fn subject((): Input) -> Result<Value, Failure> {
     );
     let report = configured.execute().expect("actual port fake executes");
     assert_eq!(report.files, request.files);
-    Ok(report.coverage.expect("accounting retained").selected)
+    let ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(coverage) = report.coverage else {
+        panic!("accounting retained");
+    };
+    Ok(coverage.selected.0)
 }
 #[test]
 fn succeeds() {

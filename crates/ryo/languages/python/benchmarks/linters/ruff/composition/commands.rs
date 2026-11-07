@@ -101,7 +101,12 @@ pub(super) fn worker(
         };
     let transport =
         ryo_benchmark::outbound::worker::factory::json(input.0.into(), Box::new(std::io::stdout()));
-    RunRyoUseCaseImpl::new(engine, Arc::new(transport)).run_ryo()
+    RunRyoUseCaseImpl::new(
+        engine,
+        Arc::new(transport),
+        Arc::new(ryo_benchmark::outbound::context::factory::local()),
+    )
+    .run_ryo()
 }
 
 /// Verify pinned tools, complete rule accounting and independently authored findings.

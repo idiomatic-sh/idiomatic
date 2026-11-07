@@ -61,25 +61,28 @@ pub(super) fn subscriber(
     path: &Path,
     options: ryo_benchmark_contracts::domain::requests::types::DiagnosticOptions,
 ) -> io::Result<impl tracing::Subscriber + Send + Sync + 'static> {
-    let aggregate_level = if options.execution && !options.lifecycle_memory {
+    let on = |switch: ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch| {
+        matches!(switch, ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On)
+    };
+    let aggregate_level = if on(options.execution) && !on(options.lifecycle_memory) {
         tracing_subscriber::filter::LevelFilter::TRACE
     } else {
         tracing_subscriber::filter::LevelFilter::OFF
     };
-    let lifecycle_only = options.lifecycle_memory;
-    let resource_routes = options.resource_routes;
+    let lifecycle_only = on(options.lifecycle_memory);
+    let resource_routes = on(options.resource_routes);
     let lifecycle_level = if lifecycle_only {
         tracing_subscriber::filter::LevelFilter::TRACE
     } else {
         aggregate_level
     };
     let writer = DiagnosticEventWriter::new(open(path)?);
-    let progress_only = options.row_progress;
-    let include_steps = options.steps && !lifecycle_only && !progress_only;
-    let include_joins = options.joins && !lifecycle_only;
-    let include_prefixes = options.prefixes && !lifecycle_only;
-    let include_subplans = options.subplans && !lifecycle_only;
-    let include_selection_detail = options.selection_detail && !lifecycle_only;
+    let progress_only = on(options.row_progress);
+    let include_steps = on(options.steps) && !lifecycle_only && !progress_only;
+    let include_joins = on(options.joins) && !lifecycle_only;
+    let include_prefixes = on(options.prefixes) && !lifecycle_only;
+    let include_subplans = on(options.subplans) && !lifecycle_only;
+    let include_selection_detail = on(options.selection_detail) && !lifecycle_only;
     use tracing_subscriber::Layer as _;
     use tracing_subscriber::layer::SubscriberExt as _;
     let layer = tracing_subscriber::fmt::layer()
@@ -99,7 +102,7 @@ pub(super) fn subscriber(
                 )
                 .with_target(
                     constants::RYO_DIAGNOSTIC_ROW_PROGRESS,
-                    if options.row_progress {
+                    if on(options.row_progress) {
                         tracing_subscriber::filter::LevelFilter::TRACE
                     } else {
                         tracing_subscriber::filter::LevelFilter::OFF

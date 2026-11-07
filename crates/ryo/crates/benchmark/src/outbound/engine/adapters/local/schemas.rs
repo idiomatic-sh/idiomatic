@@ -5,15 +5,17 @@ use ryo::linter::{self, CaseSource, Rule, RuleApplicability, RuleId, SourceText}
 use ryo::query::RyoQlQuery;
 use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
+use ryo_benchmark_contracts::domain::requests::types::{
+    ApplicabilityPolicy, QueryModuleName, RuleLabel, WorkerRequest,
+};
 use std::collections::BTreeMap;
 use std::path::Path;
 
 /// Load all selected query files, refusing duplicate or empty inventories.
 pub(super) fn load_rules(
     directory: &std::path::Path,
-    registry: &BTreeMap<String, std::path::PathBuf>,
-    applicability_by_rule: &BTreeMap<String, String>,
+    registry: &BTreeMap<QueryModuleName, std::path::PathBuf>,
+    applicability_by_rule: &BTreeMap<RuleLabel, ApplicabilityPolicy>,
     frontend_diagnostic: Option<FrontendDiagnosticProjection>,
     declarations: Option<
         &ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
@@ -29,7 +31,9 @@ pub(super) fn load_rules(
             .into_string()
             .map_err(|_name| Error::Invalid(constants::NON_UTF8_RULE.into()))?;
         let query = std::fs::read_to_string(entry.path().join(constants::QUERY_FILE))?;
-        let applicability = match applicability_by_rule.get(&id).map(String::as_str) {
+        let applicability = match applicability_by_rule
+                .get(&RuleLabel(id.clone()))
+                .map(|policy| policy.0.as_str()) {
             Some(constants::ALWAYS) => {
                 RuleApplicability::Always
             }
@@ -48,7 +52,7 @@ pub(super) fn load_rules(
                 )));
             }
         };
-        let _new_mapping = mapped_rules.insert(id.clone());
+        let _new_mapping = mapped_rules.insert(RuleLabel(id.clone()));
         let id =
             RuleId::try_from(id.as_str()).map_err(|error| Error::Invalid(error.to_string()))?;
         let query = if modules.content() == ryo::query::CatalogContent::Empty {
@@ -123,7 +127,7 @@ pub(super) fn load_rules(
 pub(super) fn validate_skips(
     skipped: &[linter::Skipped],
     selected_rules: &std::collections::BTreeSet<RuleId>,
-    applicability_by_rule: &BTreeMap<String, String>,
+    applicability_by_rule: &BTreeMap<RuleLabel, ApplicabilityPolicy>,
     files: &std::collections::BTreeSet<linter::RelativePath>,
     frontend_diagnostic_enabled: bool,
 ) -> Result<(), Error> {
@@ -133,8 +137,8 @@ pub(super) fn validate_skips(
             || !files.contains(&skip.path)
             || !selected_rules.contains(&skip.rule)
             || applicability_by_rule
-                .get(skip.rule.as_ref())
-                .map(String::as_str)
+                .get(&RuleLabel(skip.rule.as_ref().to_owned()))
+                .map(|policy| policy.0.as_str())
                 != Some(constants::ACCEPTED_SYNTAX)
             || !seen.insert((skip.rule.clone(), skip.path.clone()))
         {
@@ -163,7 +167,7 @@ fn query_modules(
     let mut modules = Vec::with_capacity(registry.len());
     for (id, relative) in registry {
         let _module = ryo::query::QueryModuleSource::try_new(
-            id,
+            &id.0,
             constants::MODULE_SOURCE,
         )
         .map_err(|error| Error::Invalid(error.to_string()))?;
@@ -188,7 +192,7 @@ fn query_modules(
         }
         let source = std::fs::read_to_string(canonical)?;
         modules.push(
-            ryo::query::QueryModuleSource::try_new(id, &source)
+            ryo::query::QueryModuleSource::try_new(&id.0, &source)
                 .map_err(|error| Error::Invalid(error.to_string()))?,
         );
     }

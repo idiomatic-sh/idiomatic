@@ -185,7 +185,12 @@ pub(super) fn observe() -> Result<Observation, Box<dyn std::error::Error>> {
             )?,
         },
     );
-    RunRyoUseCaseImpl::new(std::sync::Arc::new(engine), std::sync::Arc::new(worker)).run_ryo()?;
+    RunRyoUseCaseImpl::new(
+        std::sync::Arc::new(engine),
+        std::sync::Arc::new(worker),
+        std::sync::Arc::new(ryo_benchmark::outbound::context::factory::local()),
+    )
+    .run_ryo()?;
     decode(selected, &fs::read_to_string(destination)?)
 }
 
@@ -490,7 +495,12 @@ fn measured(
     reset_peak();
     let cpu = process_cpu_seconds();
     let started = Instant::now();
-    let run = RunRyoUseCaseImpl::new(Arc::new(engine), Arc::new(worker)).run_ryo();
+    let run = RunRyoUseCaseImpl::new(
+        Arc::new(engine),
+        Arc::new(worker),
+        Arc::new(ryo_benchmark::outbound::context::factory::local()),
+    )
+    .run_ryo();
     let wall_seconds = started.elapsed().as_secs_f64();
     let cpu_seconds = process_cpu_seconds().zip(cpu).map(|(after, before)| after - before);
     let text = String::from_utf8(captured.0.lock().map_err(|_| "capture poisoned")?.clone())?;

@@ -5,9 +5,9 @@ use super::adapters::ryo::adapter::LinterRyoAdapter;
 pub fn ryo(
     executable: std::path::PathBuf,
     rules: std::path::PathBuf,
-    query_modules: std::collections::BTreeMap<String, std::path::PathBuf>,
-    rule_applicability: std::collections::BTreeMap<String, String>,
-    parser_configuration: Option<String>,
+    query_modules: std::collections::BTreeMap<ryo_benchmark_contracts::domain::requests::types::QueryModuleName, std::path::PathBuf>,
+    rule_applicability: std::collections::BTreeMap<ryo_benchmark_contracts::domain::requests::types::RuleLabel, ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy>,
+    parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection,
     defaults: Vec<ryo::linter::RuleId>,
     rule_observations: ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
 ) -> impl super::interface::LinterPort {
@@ -17,10 +17,10 @@ pub fn ryo(
         query_modules,
         rule_applicability,
         parser_configuration,
-        None,
+        ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated,
         defaults,
-        ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
+        ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
         rule_observations,
     )
 }
@@ -30,13 +30,13 @@ pub fn ryo(
 pub fn ryo_context(
     executable: std::path::PathBuf,
     rules: std::path::PathBuf,
-    query_modules: std::collections::BTreeMap<String, std::path::PathBuf>,
-    rule_applicability: std::collections::BTreeMap<String, String>,
-    parser_configuration: Option<String>,
-    source_language: Option<String>,
+    query_modules: std::collections::BTreeMap<ryo_benchmark_contracts::domain::requests::types::QueryModuleName, std::path::PathBuf>,
+    rule_applicability: std::collections::BTreeMap<ryo_benchmark_contracts::domain::requests::types::RuleLabel, ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy>,
+    parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection,
+    source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection,
     project_context_mode: ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode,
     defaults: Vec<ryo::linter::RuleId>,
-    rule_observation_selection: ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy,
+    rule_observation_selection: ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy,
     rule_observations: ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
 ) -> impl super::interface::LinterPort {
     LinterRyoAdapter {

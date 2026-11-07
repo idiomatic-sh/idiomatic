@@ -1,8 +1,8 @@
 //! Opaque loaded SDK state; callers can forward it but cannot replace its association.
-use crate::outbound::engine::types::EngineConfiguration;
+use crate::outbound::engine::types::{EngineConfiguration, EngineRun};
 use ryo::linter::{RelativePath, Rule, RuleId};
 use ryo_benchmark_contracts::domain::{
-    reports::{errors::ReportsError, types::RunReport},
+    reports::errors::ReportsError,
     requests::types::WorkerRequest,
 };
 use std::collections::BTreeMap;
@@ -65,7 +65,7 @@ impl<'a> LoadedEngineSession<'a> {
     pub(crate) fn execute(
         self,
         configuration: EngineConfiguration,
-    ) -> Result<RunReport, ReportsError> {
+    ) -> Result<EngineRun, ReportsError> {
         self.execution.execute(self.rules, configuration)
     }
 }
@@ -77,5 +77,5 @@ pub(crate) trait EngineExecution {
         self: Box<Self>,
         rules: BTreeMap<RuleId, Rule>,
         configuration: EngineConfiguration,
-    ) -> Result<RunReport, ReportsError>;
+    ) -> Result<EngineRun, ReportsError>;
 }

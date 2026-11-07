@@ -49,20 +49,20 @@ pub fn check(adapter: &impl EnginePort) {
     let subject = |scenario| {
         let request = WorkerRequest {
                     performance: Default::default(),
-                    selected_rules: None,
-                    rule_observations: None,
-                    rule_context: None,
-                    project_search_roots: None,
+                    selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
+                    rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+                    rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+                    project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
                     given_project_inventory: Default::default(),
                     project_context_mode: ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(
                     ),
-                    context_manifest: None,
+                    context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
                     root: temporary.path().into(),
                     rules: temporary.path().into(),
                     query_modules: std::collections::BTreeMap::default(),
                     rule_applicability: std::collections::BTreeMap::default(),
-                    parser_configuration: None,
-                    source_language: None,
+                    parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+                    source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
                     files: vec![ryo::linter::RelativePath("input.txt".into())],
                     state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
                 };
@@ -73,8 +73,10 @@ pub fn check(adapter: &impl EnginePort) {
             std::fs::create_dir_all(request.rules.join("R1")).expect("rule directory");
             std::fs::write(request.rules.join("R1/query.ryoql"), "let missing = select path as file, span from \"filesystem.read-failure\"; emit missing subject file key(file);").expect("query");
             let boundary = temporary.path().join("snapshot");
-            request.context_manifest = Some(
-                crate::outbound::context::adapters::local::adapter::materialize(
+            request.context_manifest = ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(
+                {
+                    use crate::outbound::context::interface::ContextPort as _;
+                    crate::outbound::context::factory::local().materialize(
                     &boundary,
                     &ryo_benchmark_contracts::domain::context::types::CaseContext {
                         logical_root: "project".into(),
@@ -83,12 +85,13 @@ pub fn check(adapter: &impl EnginePort) {
                     },
                     &Default::default(),
                 )
-                .expect("sealed absence"),
+                }.expect("sealed absence"),
             );
             request.project_context_mode = ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk;
             request.root = boundary.join("project");
             request.files = vec![ryo::linter::RelativePath("missing.py".into())];
-            request.selected_rules = Some(vec![id.clone()]);
+            request.selected_rules =
+                ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(vec![id.clone()]);
             let mut session = adapter.load(&request).map_err(|_| Failure::Unexpected)?;
             assert_eq!(session.rules_mut().len(), 1);
             assert!(session.frontend_rule().is_none());
@@ -105,7 +108,10 @@ pub fn check(adapter: &impl EnginePort) {
                 selected_pairs: crate::outbound::engine::types::SelectedPairs(1),
                 hosted: Vec::new(),
             };
-            let report = session.execute(inputs).map_err(|_| Failure::Unexpected)?;
+            let report = session
+                .execute(inputs)
+                .map_err(|_| Failure::Unexpected)?
+                .report;
             assert_eq!(report.files, request.files);
             assert_eq!(
                 report.diagnostics,

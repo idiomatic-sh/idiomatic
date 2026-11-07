@@ -26,7 +26,7 @@ type Value = Outcome;
 type Failure = DiscrepancyValidationError;
 
 fn unregistered() -> Validation {
-    edited(evidenced, |case| case.reference_discrepancy = None)
+    edited(evidenced, |case| case.reference_discrepancy = ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees)
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -178,6 +178,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Step::Archives(archive) => validate_archives(
             &served,
             &crate::outbound::inventory::factory::local(),
+            &LinterFake::default(),
             archive.root.path(),
             &profile(),
             &input.case,

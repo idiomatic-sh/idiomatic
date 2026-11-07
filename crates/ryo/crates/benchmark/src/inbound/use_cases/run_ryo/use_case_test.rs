@@ -55,7 +55,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             received: 1,
             loaded: 1,
             closed: 1,
-            evaluated: 1,
+            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
             responded: 1,
             published: true,
         }),
@@ -109,7 +109,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             received: 1,
             loaded: 1,
             closed: 1,
-            evaluated: 1,
+            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
             responded: 1,
             published: true,
         }),
@@ -135,7 +135,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             received: 1,
             loaded: 1,
             closed: 1,
-            evaluated: 1,
+            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
             responded: 0,
             published: false,
         })),
@@ -148,7 +148,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             received: 1,
             loaded: 1,
             closed: 1,
-            evaluated: 1,
+            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
             responded: 1,
             published: false,
         })),
@@ -208,7 +208,7 @@ impl EngineExecution for Session<'_> {
         self: Box<Self>,
         _rules: std::collections::BTreeMap<ryo::linter::RuleId, ryo::linter::Rule>,
         configured: crate::outbound::engine::types::EngineConfiguration,
-    ) -> Result<RunReport, Error> {
+    ) -> Result<crate::outbound::engine::types::EngineRun, Error> {
         assert_eq!(
             self.engine.closed.load(Ordering::SeqCst),
             0,
@@ -218,24 +218,29 @@ impl EngineExecution for Session<'_> {
         if matches!(self.engine.stage, Stage::Engine) {
             return Err(Error::Invalid("fixture engine failure".into()));
         }
-        assert_eq!(configured.selected_pairs, 1);
+        assert_eq!(
+            configured.selected_pairs,
+            crate::outbound::engine::types::SelectedPairs(1)
+        );
         assert!(configured.hosted.is_empty());
-        Ok(RunReport {
+        Ok(crate::outbound::engine::types::EngineRun {
+            dependencies: Vec::new(),
+            report: RunReport {
             execution_metadata:
                 ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-            project_context: None,
+            project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
             files: self.request.files.clone(),
             skipped: Vec::new(),
-            coverage: Some(
+            coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
                 ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                    selected: 1,
-                    evaluated: 1,
-                    skipped: 0,
-                    unknown_or_unread: 0,
+                    selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+                    evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+                    skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+                    unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
                 },
             ),
             diagnostics: Vec::new(),
-        })
+        } })
     }
 }
 // This wrapper uses only the public EnginePort contract: it cannot inspect or mutate the handle.
@@ -278,7 +283,12 @@ fn subject(stage: Input) -> Result<Value, Failure> {
     } else {
         Arc::clone(&engine) as Arc<dyn EnginePort>
     };
-    let result = RunRyoUseCaseImpl::new(port, Arc::<WorkerFake>::clone(&transport)).run_ryo();
+    let result = RunRyoUseCaseImpl::new(
+        port,
+        Arc::<WorkerFake>::clone(&transport),
+        Arc::new(crate::outbound::context::fixtures::fake::ContextFake),
+    )
+    .run_ryo();
     let trace = Trace {
         received: transport.receive_calls(),
         loaded: engine.loaded.load(Ordering::SeqCst),
@@ -289,15 +299,15 @@ fn subject(stage: Input) -> Result<Value, Failure> {
             == [RunReport {
                 execution_metadata:
                     ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-                project_context: None,
+                project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
                 files: request().files,
                 skipped: Vec::new(),
-                coverage: Some(
+                coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
                     ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                        selected: 1,
-                        evaluated: 1,
-                        skipped: 0,
-                        unknown_or_unread: 0,
+                        selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+                        evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+                        skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+                        unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
                     },
                 ),
                 diagnostics: Vec::new(),

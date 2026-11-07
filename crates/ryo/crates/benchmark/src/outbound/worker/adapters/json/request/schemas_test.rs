@@ -1,7 +1,11 @@
 //! Request validation rejects unknown and missing fields without exposing wire types.
-use super::{WorkerSchemaError, request};
+use crate::outbound::worker::adapters::json::types::WorkerPayload;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::requests::types::{WorkerRequest, WorkerState};
+use ryo_benchmark_contracts::domain::context::types::{ExternalPrefix, TableName};
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use ryo_benchmark_contracts::domain::requests::types::{
+    CohortSelection, QueryModuleName, RuleContextPreparation, WorkerRequest, WorkerState,
+};
 use std::borrow::Cow;
 use std::ffi::OsStr;
 /// What the decoded request must show; a refused wire has none.
@@ -25,27 +29,32 @@ fn unicode_source_path(request: &WorkerRequest) -> bool {
 fn explicit_query_module_registry(request: &WorkerRequest) -> bool {
     request
         .query_modules
-        .get("python/ruff/suppress")
+        .get(&QueryModuleName("python/ruff/suppress".into()))
         .is_some_and(|path| path == std::path::Path::new("fragments/suppress.ryoql"))
         && fresh_with_files(request, "source.py")
 }
 fn legacy_absence(request: &WorkerRequest) -> bool {
-    request.selected_rules.is_none()
+    matches!(request.selected_rules, CohortSelection::Frozen)
 }
 fn explicit_cohort(request: &WorkerRequest) -> bool {
-    request.selected_rules.as_ref().is_some_and(|rules| {
-        rules.iter().map(ToString::to_string).collect::<Vec<_>>() == ["F401", "RUF100"]
-    })
+    matches!(&request.selected_rules, CohortSelection::Explicit(rules)
+        if rules.iter().map(ToString::to_string).collect::<Vec<_>>() == ["F401", "RUF100"])
 }
 fn configured_context(request: &WorkerRequest) -> bool {
-    let (Some(prepared), Some(selected)) = (&request.rule_context, request.selected_rules.as_deref())
+    let (RuleContextPreparation::Prepared(prepared), CohortSelection::Explicit(selected)) =
+        (&request.rule_context, &request.selected_rules)
     else {
         return false;
     };
-    prepared.tables.selected == "chosen"
-        && prepared.configuration.external_prefixes == ["V101"]
-        && crate::domain::rule_context::service::selected_pairs(prepared, selected, &request.files)
-            .is_ok_and(|pairs| pairs == 1)
+    let disabled: usize = prepared
+        .configuration
+        .disabled_rules
+        .values()
+        .map(Vec::len)
+        .sum();
+    prepared.tables.selected == TableName("chosen".into())
+        && prepared.configuration.external_prefixes == [ExternalPrefix("V101".into())]
+        && (selected.len() * request.files.len()).checked_sub(disabled) == Some(1)
 }
 
 /// The configured-context wire, with one configuration key removed or an undeclared one added.
@@ -159,14 +168,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 fn subject((text, check): Input) -> Result<Value, Failure> {
-    request(OsStr::new(&*text))
+    WorkerRequest::try_from(WorkerPayload(OsStr::new(&*text)))
         .map(|request| check.is_some_and(|check| check(&request)))
         .map_err(|error| match error {
-            WorkerSchemaError::Json(_) => Refusal::InvalidJson,
-            WorkerSchemaError::NotText
-            | WorkerSchemaError::InvalidRule(_)
-            | WorkerSchemaError::Observation(_)
-            | WorkerSchemaError::Configuration(_) => Refusal::Unexpected,
+            ReportsError::Json(_) => Refusal::InvalidJson,
+            _ => Refusal::Unexpected,
         })
 }
 #[test]
