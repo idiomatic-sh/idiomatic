@@ -12,6 +12,7 @@ use crate::domain::answering::types::Todo;
 use crate::domain::crossing::types::ObservedRoot;
 use crate::domain::crossing::types::PhaseRoots;
 use crate::outbound::publication::interface::PublicationPort;
+use ryo_execution::application::file_dag::program::preparation::types::ObservationContract;
 use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::application::file_dag::program::rule_outcome::types::ProjectObservation;
@@ -129,7 +130,8 @@ impl ProjectCompletion {
                 if crossing
                     .program
                     .has_observation_contract(todo.rule)
-                    .map_err(|reason| failed(&todo.id, &reason))? =>
+                    .map_err(|reason| failed(&todo.id, &reason))?
+                    == ObservationContract::Declared =>
             {
                 unknowns.extend(
                     crossing

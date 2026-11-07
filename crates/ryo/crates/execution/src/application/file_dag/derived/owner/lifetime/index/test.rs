@@ -87,7 +87,7 @@ fn reclaim(fixture: &ResourceFixture) -> Room {
         .bytes
         .checked_sub(payload)
         .expect("charged optional payload belongs to this cache");
-    let cost = cache.limit - metadata;
+    let cost = cache.limit.0 - metadata;
     owner
         .prepare_graph_room(
             cache,

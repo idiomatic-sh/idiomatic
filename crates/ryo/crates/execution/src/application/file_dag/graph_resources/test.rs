@@ -73,7 +73,7 @@ fn prepare_closure(
         owner,
     )?;
     let mut parts = Vec::new();
-    while cursor.advance()? {
+    while cursor.advance()? == crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced {
         parts.push(cursor.take_current()?);
     }
     Ok(parts)

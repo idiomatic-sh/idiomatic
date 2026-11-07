@@ -2,6 +2,7 @@
 use super::{
     errors::PublicationError,
     fixtures::{Scenario, subject as fixture_subject},
+    service::publication,
 };
 use crate::domain::finish::types::PublicationReason;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -32,7 +33,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 fn subject(input: Input) -> Result<Value, Failure> {
-    fixture_subject(input)
+    fixture_subject(input, publication)
 }
 #[test]
 fn succeeds() {

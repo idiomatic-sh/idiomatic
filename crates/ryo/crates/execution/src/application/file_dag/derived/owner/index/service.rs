@@ -1,6 +1,7 @@
 //! Budgeted acquisition of complete typed indexes, with invocation-local fallback.
 use super::types::{ByteLimit, IndexBytes, IndexRowCount, KeyColumns};
 use crate::application::file_dag::derived::constants as activation;
+use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::owner::selection::types::Retainability;
 use crate::domain::coverage::types::Partial;
@@ -54,8 +55,8 @@ pub(in crate::application::file_dag::derived::owner) fn new(
         selection_views: None,
         graph_enabled:
             crate::application::file_dag::derived::owner::cache::types::GraphAdmission::Disabled,
-        graph_bytes: 0,
-        memo_bytes: 0,
+        graph_bytes: ByteCount(0),
+        memo_bytes: ByteCount(0),
         graphs: Vec::new(),
         graph_domains: Vec::new(),
         nearest: Vec::new(),
@@ -71,8 +72,8 @@ pub(in crate::application::file_dag::derived::owner) fn new(
             tracing::enabled!(target: activation::TARGET_SELECTION_DETAIL, tracing::Level::TRACE)
                 .then(Vec::new),
         eligible,
-        bytes,
-        limit: limit.0,
+        bytes: ByteCount(bytes),
+        limit,
         builds: Default::default(),
         reuses: Default::default(),
         refusals: Default::default(),
@@ -83,7 +84,7 @@ pub(in crate::application::file_dag::derived::owner) fn new(
 pub(in crate::application::file_dag::derived::owner) fn non_graph_limit(
     cache: &CacheBackend,
 ) -> ByteLimit {
-    ByteLimit(cache.limit)
+    ByteLimit(cache.limit.0)
 }
 
 /// Prepare bounded equality demand; duplicate projections alone cannot justify a new index.
@@ -119,10 +120,10 @@ pub(in crate::application::file_dag::derived::owner) fn candidate_columns(
         crate::application::file_dag::derived::ledger::capacity::checked::<CandidateColumn>(
             crate::application::file_dag::derived::ledger::types::SlotCount(columns.capacity()),
         )
-        .and_then(|bytes| cache.bytes.checked_add(bytes.0))
+        .and_then(|bytes| cache.bytes.0.checked_add(bytes.0))
         .filter(|bytes| *bytes <= non_graph_limit(cache).0)
     {
-        cache.bytes = bytes;
+        cache.bytes.0 = bytes;
         cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
         cache.discriminator_columns = columns;
     }
@@ -153,7 +154,7 @@ pub(in crate::application::file_dag::derived::owner) fn can_retain(
 ) -> Retainability {
     let rows = view.columns.first().map_or(0, |column| column.0.len());
     let fits = minimum_bytes(IndexRowCount(rows), KeyColumns(columns.len()))
-        .and_then(|bytes| cache.bytes.checked_add(bytes.0))
+        .and_then(|bytes| cache.bytes.0.checked_add(bytes.0))
         .is_some_and(|bytes| bytes <= non_graph_limit(cache).0);
     if fits {
         Retainability::Retainable

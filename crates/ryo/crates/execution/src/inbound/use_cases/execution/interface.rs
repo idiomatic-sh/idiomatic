@@ -19,6 +19,8 @@ pub use crate::domain::frontier_capture::types::CapturedFrontier;
 pub use crate::domain::frontier_capture::types::FrontierCapture;
 pub use crate::domain::kind_sets::types::PreparedVocabulary;
 pub use crate::domain::lowering::types::Counting;
+pub use crate::domain::rule_intent::types::FrontierPurpose;
+pub use crate::domain::finish::types::Arena;
 pub use crate::domain::finish::types::PublicationReason;
 pub use crate::domain::operating::errors::OperatingError;
 pub use crate::domain::operating::types::SemanticLookup;

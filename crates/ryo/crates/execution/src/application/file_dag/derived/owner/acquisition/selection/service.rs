@@ -180,7 +180,7 @@ impl SelectionSource<'_> {
             tracing::trace!(target: constants::TARGET_SELECTION_DETAIL, event = constants::EVENT_SELECTOR_EQUALITY_REFUSED,
                 population = ?self.population, relation = ?relation, columns = ?columns,
                 rows = source.columns.first().map_or(0, |column| column.0.len()),
-                cache_bytes = cache.bytes, cache_limit = cache.limit,
+                cache_bytes = cache.bytes.0, cache_limit = cache.limit.0,
                 minimum_index_bytes = crate::application::file_dag::derived::owner::index::service::minimum_bytes(IndexRowCount(source.columns.first().map_or(0, |column| column.0.len())), KeyColumns(columns.len())).map(|bytes| bytes.0),
                 live_hint = ?live_hint, ledger = ?self.owner.ledger.borrow().snapshot());
         }

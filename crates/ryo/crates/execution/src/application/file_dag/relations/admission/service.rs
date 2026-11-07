@@ -15,7 +15,7 @@ pub(in crate::application::file_dag) struct BorrowedInput<'a> {
     shape: PhysicalShape,
     backing_population: PopulationId,
     backing_relation: Option<Relation>,
-    canonical_backing: bool,
+    canonical_backing: crate::application::file_dag::relations::types::BackingForm,
     origin: AdmissionOrigin,
     publication_population: PopulationId,
 }

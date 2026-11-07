@@ -6,6 +6,8 @@ use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::boundary_fixture::{authored_request, corpus, engine, source};
 use ryo_execution::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution::inbound::use_cases::execution::interface::FrontierPurpose;
+use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_execution::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution::application::file_dag::program::file_session::types::SourceRows;
@@ -140,8 +142,14 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
                 Input::Step(StepId(0))
             ]
         );
-        assert!(program.captures_observation(RuleIndex(1), 0).unwrap());
-        assert!(program.captures_observation(RuleIndex(1), 1).unwrap());
+        assert_eq!(
+            program.frontier_purpose(RuleIndex(1), InputNumber(0)).unwrap(),
+            FrontierPurpose::Observation
+        );
+        assert_eq!(
+            program.frontier_purpose(RuleIndex(1), InputNumber(1)).unwrap(),
+            FrontierPurpose::Observation
+        );
         let corpus = corpus();
         let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
         let table = source();
@@ -168,11 +176,11 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
                     evaluation: &[],
                     publication: &[],
                     intents: &intents,
-                    source: b"abc",
+                    source: ryo_values::domain::files::types::SourceView(b"abc"),
                     elements: &elements,
                     read: &read,
-                    semantic: None,
-                    kinds: None,
+                    semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                    kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
                 },
                 &mut symbols,
             )
@@ -213,7 +221,7 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
                 &mut symbols,
                 CaptureContext {
                     worker: WorkerNumber(0),
-                    arena: &mut arena,
+                    arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
                     places: &mut places,
                     words: &mut words,
                 },
@@ -261,8 +269,14 @@ fn a_refused_named_member_cannot_be_replaced_with_a_typed_empty_or_provider_retr
             Input::Step(StepId(0))
         ]
     );
-    assert!(program.captures_observation(RuleIndex(1), 0).unwrap());
-    assert!(program.captures_observation(RuleIndex(1), 1).unwrap());
+    assert_eq!(
+            program.frontier_purpose(RuleIndex(1), InputNumber(0)).unwrap(),
+            FrontierPurpose::Observation
+        );
+    assert_eq!(
+            program.frontier_purpose(RuleIndex(1), InputNumber(1)).unwrap(),
+            FrontierPurpose::Observation
+        );
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let read = |_| panic!("refused member cannot acquire a relation");
@@ -286,11 +300,11 @@ fn a_refused_named_member_cannot_be_replaced_with_a_typed_empty_or_provider_retr
                 evaluation: &[],
                 publication: &[],
                 intents: &intents,
-                source: b"abc",
+                source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read: &read,
-                semantic: None,
-                kinds: None,
+                semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )

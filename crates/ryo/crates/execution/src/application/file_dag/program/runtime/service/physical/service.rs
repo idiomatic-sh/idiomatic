@@ -13,7 +13,7 @@ impl<'scope> SemanticPermit<'scope> {
     pub(in crate::application::file_dag::program::runtime::service) fn validate_live(
         &self,
     ) -> Result<(), OperatingError> {
-        if self.live.is_live() {
+        if self.live.is_live() == crate::application::file_dag::relations::types::Liveness::Live {
             Ok(())
         } else {
             Err(OperatingError::NotRead)
@@ -63,7 +63,7 @@ impl PermittedPhysical<'_, '_, '_> {
         ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
         crate::application::file_dag::executor::KernelFault,
     > {
-        if !self.permit.live.is_live() {
+        if self.permit.live.is_live() != crate::application::file_dag::relations::types::Liveness::Live {
             return Err(
                 crate::application::file_dag::executor::KernelFault::Refused(
                     OperatingError::NotRead,

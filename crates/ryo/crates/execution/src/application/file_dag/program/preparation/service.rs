@@ -1,7 +1,7 @@
 //! Immutable request preparation, physical metadata and compilation ownership.
 use super::types::*;
 use crate::domain::coverage::types::RuleIndex;
-use crate::domain::executable_program::file_demand::types::FrontierPurpose;
+use crate::domain::rule_intent::types::FrontierPurpose;
 use crate::domain::executable_program::types::ExecutableProgram;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::prepared_request::types::Compiled;

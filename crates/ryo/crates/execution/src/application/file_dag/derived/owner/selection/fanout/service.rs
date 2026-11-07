@@ -37,11 +37,11 @@ pub(in crate::application::file_dag::derived::owner::selection) fn prepare_activ
     cache: &mut CacheBackend,
 ) {
     let previous = std::mem::take(&mut cache.active_postings);
-    let Some(base) = active_bytes(&previous).and_then(|bytes| cache.bytes.checked_sub(bytes.0))
+    let Some(base) = active_bytes(&previous).and_then(|bytes| cache.bytes.0.checked_sub(bytes.0))
     else {
         return;
     };
-    cache.bytes = base;
+    cache.bytes.0 = base;
     drop(previous);
     let Some(views) = cache.selection_views.as_ref() else {
         return;
@@ -75,10 +75,10 @@ pub(in crate::application::file_dag::derived::owner::selection) fn prepare_activ
     }
     let bytes = active_bytes(&active);
     if let Some(bytes) = bytes
-        .and_then(|bytes| cache.bytes.checked_add(bytes.0))
-        .filter(|bytes| *bytes <= cache.limit)
+        .and_then(|bytes| cache.bytes.0.checked_add(bytes.0))
+        .filter(|bytes| *bytes <= cache.limit.0)
     {
-        cache.bytes = bytes;
+        cache.bytes.0 = bytes;
         cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
         cache.active_postings = active;
     }

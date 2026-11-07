@@ -4,6 +4,7 @@
 //! the rules that govern it on them. Only the words of the rows the rules emit and the cross-file steps read are kept; the workers'
 //! tables meet once, the cross-file steps run on the kept words, and the findings are written. What is decided of the rules, the
 //! files and the rows is the domain's; this calls it between the calls of the ports.
+use ryo_execution::application::file_dag::program::preparation::types::ReplayClosure;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
@@ -743,7 +744,7 @@ impl LintUseCaseImpl {
         rules: &[RuleSpec],
         hosted: &[HostRelation],
     ) -> Result<CompiledQueries, LintError> {
-        let compiled = self.compilation.compile(rules, hosted)?;
+        let compiled = self.compilation.compile(rules, hosted, self.digest.as_ref())?;
         // A word a rule writes for a kind that no linked language has fails the run before a file is read: nothing runs until it is fixed.
         // Rules that write no word for a kind need no vocabulary.
         if compiled
@@ -1503,15 +1504,17 @@ impl LintUseCase for LintUseCaseImpl {
             skipped: alone_skipped,
             read_again,
         } = self.reused(&setting, &listing, &manifests, &stored_rules, &ids)?;
-        let (again, producer_buckets) =
-            program
-                .replay_closure(again, &first_bucket)
-                .map_err(|error| {
-                    ryo_values::domain::rule_requests::service::failed(
-                        &RuleId(REQUEST.into()),
-                        &error,
-                    )
-                })?;
+        let ReplayClosure {
+            reuse: again,
+            buckets: producer_buckets,
+        } = program
+            .replay_closure(again, &first_bucket)
+            .map_err(|error| {
+                ryo_values::domain::rule_requests::service::failed(
+                    &RuleId(REQUEST.into()),
+                    &error,
+                )
+            })?;
         let reuse_now = again.clone();
         setting.reuse = &reuse_now;
         // A run that makes cross-file steps again reads what the files handed them: the buckets of those rules alone.

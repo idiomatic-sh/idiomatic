@@ -8,6 +8,8 @@ use crate::application::file_analysis::constants::{
 use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
 use ryo_execution::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution;
+use ryo_execution::application::file_dag::program::preparation::types::{Demand, NamedLayout, SemanticNeed};
+use ryo_execution::inbound::use_cases::execution::interface::Arena;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityRefusal;
 use ryo_execution::application::file_dag::program::file_session::types::CaptureContext;
@@ -15,6 +17,9 @@ use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::EmitDemand;
 use ryo_execution::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution::application::file_dag::program::file_session::types::FinishedReadiness;
+use ryo_execution::application::file_dag::program::file_session::types::KindSupport;
+use ryo_execution::application::file_dag::program::file_session::types::SemanticSupport;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::application::file_dag::program::rule_outcome::types::RootOutcome;
@@ -212,7 +217,13 @@ impl FileAnalysis {
         }
         let demanded = setting
             .program
-            .demanded_rules(|place| governs_rule(tables, RuleIndex(place)) == Governing::Governs);
+            .demanded_rules(|rule| {
+                if governs_rule(tables, rule) == Governing::Governs {
+                    Demand::Demanded
+                } else {
+                    Demand::Undemanded
+                }
+            });
         Cow::Owned(
             setting
                 .wanted
@@ -220,7 +231,7 @@ impl FileAnalysis {
                 .copied()
                 .filter(|relation| {
                     setting.metadata.iter().enumerate().any(|(place, _)| {
-                        demanded.get(place).copied().unwrap_or(false)
+                        demanded.get(place).copied() == Some(Demand::Demanded)
                             && match setting.applicability.get(place).copied() {
                                 Some(RuleApplicability::Always) => true,
                                 Some(RuleApplicability::AcceptedSyntax) => {
@@ -303,10 +314,16 @@ impl FileAnalysis {
     ) -> Vec<RuleGate> {
         let demanded = setting
             .program
-            .demanded_rules(|place| governs_rule(tables, RuleIndex(place)) == Governing::Governs);
+            .demanded_rules(|rule| {
+                if governs_rule(tables, rule) == Governing::Governs {
+                    Demand::Demanded
+                } else {
+                    Demand::Undemanded
+                }
+            });
         let mut skipped = vec![RuleGate::Open; setting.metadata.len()];
         for (place, blocked) in skipped.iter_mut().enumerate() {
-            if !demanded.get(place).copied().unwrap_or(false) {
+            if demanded.get(place).copied() != Some(Demand::Demanded) {
                 continue;
             }
             let applicability = setting.applicability.get(place).copied();
@@ -400,12 +417,18 @@ impl FileAnalysis {
         let demanded = visit
             .setting
             .program
-            .demanded_rules(|place| governs_rule(tables, RuleIndex(place)) == Governing::Governs);
+            .demanded_rules(|rule| {
+                if governs_rule(tables, rule) == Governing::Governs {
+                    Demand::Demanded
+                } else {
+                    Demand::Undemanded
+                }
+            });
         let intents = demanded
             .iter()
             .enumerate()
             .map(|(place, demanded)| {
-                if !demanded {
+                if *demanded != Demand::Demanded {
                     return FileRuleIntent::Undemanded;
                 }
                 if skipped[place] == RuleGate::Blocked {
@@ -452,7 +475,7 @@ impl FileAnalysis {
                 evaluation,
                 publication: &physical,
                 intents: &intents,
-                source: &tables.bytes.0,
+                source: ryo_values::domain::files::types::SourceView(&tables.bytes.0),
                 elements: &tables.elements,
                 language: if tables.language.is_some() {
                     SourceLanguage::Recognized
@@ -461,8 +484,11 @@ impl FileAnalysis {
                 },
                 resident_stability: worker.facts.resident_stability(),
                 read: &read,
-                semantic: Some(semantic),
-                kinds: tables.kind_vocabulary.as_ref().map(Arc::clone),
+                semantic: SemanticSupport::Supplied(semantic),
+                kinds: match tables.kind_vocabulary.as_ref() {
+                    Some(vocabulary) => KindSupport::Prepared(Arc::clone(vocabulary)),
+                    None => KindSupport::Absent,
+                },
             },
             &mut tables.symbols,
         )?;
@@ -592,7 +618,7 @@ impl FileAnalysis {
                     &mut tables.symbols,
                     CaptureContext {
                         worker: tables.number,
-                        arena: &mut tables.arena.0,
+                        arena: Arena(&mut tables.arena.0),
                         places: &mut tables.places,
                         words: &mut tables.words,
                     },
@@ -658,7 +684,10 @@ impl FileAnalysis {
                 }
             }
         }
-        tables.current_observations = run.finish()?.readiness;
+        tables.current_observations = match run.finish()?.readiness {
+            FinishedReadiness::Observed(readiness) => Some(readiness),
+            FinishedReadiness::Unobserved => None,
+        };
         if let Some(root) = &tables.current_observations {
             tables.observations.push(
                 ryo_execution::inbound::use_cases::metadata::interface::FileObservationReadiness {
@@ -1238,7 +1267,7 @@ impl FileAnalysis {
             active_wanted.as_ref(),
         );
         let semantic_needed = setting.program.semantic_needed();
-        let session = if semantic_needed {
+        let session = if semantic_needed == SemanticNeed::Required {
             worker.tables.language.and_then(|language| {
                 let source = FileToRead {
                     source_language: setting
@@ -1393,7 +1422,13 @@ impl FileAnalysis {
         let moved = moved_words(tables, number, base)?;
         let layout = setting.program.observation_layout();
         let (observations, slots) = match (tables.current_observations.as_deref(), layout) {
-            (Some(map), Some((layout, slots))) => {
+            (
+                Some(map),
+                Some(NamedLayout {
+                    layout,
+                    frontiers: slots,
+                }),
+            ) => {
                 let Ok(slot_count) = u32::try_from(slots.len()) else {
                     return None;
                 };
@@ -1406,7 +1441,7 @@ impl FileAnalysis {
                 };
                 (Some(checked), slots)
             }
-            (None, Some((_, slots))) if !slots.is_empty() => return None,
+            (None, Some(NamedLayout { frontiers: slots, .. })) if !slots.is_empty() => return None,
             (Some(_), None) => return None,
             _ => (None, &[][..]),
         };

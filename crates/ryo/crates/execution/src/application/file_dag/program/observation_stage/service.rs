@@ -1,13 +1,14 @@
 //! An observation stage: its reservations, installs and restored frontiers.
 use crate::application::file_dag::frontiers::types::BoundInput;
+use crate::application::file_dag::frontiers::types::InputReadiness;
 use crate::application::file_dag::frontiers::types::PublicationSlot;
+use crate::application::file_dag::observations::types::{AdmittedOutput, RuleSelection};
 use crate::application::file_dag::program::observation_stage::interface::ObservationExecution;
 use crate::application::file_dag::program::observation_stage::interface::ObservationPublication;
 use crate::application::file_dag::program::observation_stage::types::ObservationStage;
 use crate::application::file_dag::program::project_phase::interface::ProjectRootExecution;
 use crate::application::file_dag::program::project_phase::types::PhaseScope;
 use crate::application::file_dag::program::project_phase::types::ProjectTask;
-use crate::application::file_dag::program::observed_publication::types::ObservedPublication;
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
@@ -49,21 +50,11 @@ impl ObservationExecution for ObservationStage<'_> {
     ) -> Result<
         std::collections::BTreeMap<
             ryo_values::domain::plan_parts::types::ObservationBindingId,
-            bool,
+            InputReadiness,
         >,
         OperatingError,
     > {
-        Ok(self
-            .publications
-            .binding_readiness(rule)?
-            .into_iter()
-            .map(|(binding, readiness)| {
-                (
-                    binding,
-                    readiness == crate::application::file_dag::frontiers::types::InputReadiness::Ready,
-                )
-            })
-            .collect())
+        self.publications.binding_readiness(rule)
     }
     fn arenas(&self) -> &[ryo_values::domain::stored_facts::types::ArenaBytes] {
         self.publications.arenas()
@@ -93,22 +84,10 @@ impl ObservationPublication for ObservationStage<'_> {
         rule: RuleIndex,
         slot: PublicationSlot,
         transfer: CrossPublicationTransfer,
-        publications: Vec<(
-            ryo_values::domain::records::types::ObservationIndex,
-            ObservedPublication,
-        )>,
+        publications: Vec<AdmittedOutput>,
     ) -> Result<(), OperatingError> {
-        let admitted = publications
-            .into_iter()
-            .map(
-                |(output, publication)| crate::application::file_dag::observations::types::AdmittedOutput {
-                    output,
-                    publication,
-                },
-            )
-            .collect();
         self.publications
-            .install(rule, slot, transfer, admitted)
+            .install(rule, slot, transfer, publications)
     }
     fn restore_frontiers(
         &mut self,
@@ -119,18 +98,8 @@ impl ObservationPublication for ObservationStage<'_> {
         inapplicable: &[InapplicableFiles],
         frames: &[FileObservationReadiness],
         first_bucket: &[Bucket],
-        selected: &[bool],
+        selected: &[RuleSelection],
     ) -> Result<(), OperatingError> {
-        let selected = selected
-            .iter()
-            .map(|selected| {
-                if *selected {
-                    crate::application::file_dag::observations::types::RuleSelection::Selected
-                } else {
-                    crate::application::file_dag::observations::types::RuleSelection::Unselected
-                }
-            })
-            .collect::<Vec<_>>();
         crate::application::file_dag::observations::restore::service::restore_frontiers(
             &mut self.publications,
             &self.phase.request.program,
@@ -143,7 +112,7 @@ impl ObservationPublication for ObservationStage<'_> {
             inapplicable,
             frames,
             first_bucket,
-            &selected,
+            selected,
         )
     }
 }

@@ -174,6 +174,10 @@ pub mod domain {
 pub mod application { pub mod file_dag {
   pub mod relations {
     pub struct RelationOwner;
+    pub mod types {
+      #[derive(PartialEq)]
+      pub enum Liveness { Live, Released }
+    }
     pub mod generation { pub mod service {
       __LEASE__
       __LEASE_METHODS__
@@ -182,7 +186,8 @@ pub mod application { pub mod file_dag {
       let lease = generation::service::GenerationLease::new();
       let before = lease.is_live();
       lease.invalidate();
-      before && !lease.is_live()
+      before == crate::application::file_dag::relations::types::Liveness::Live
+        && lease.is_live() == crate::application::file_dag::relations::types::Liveness::Released
     }
   }
   pub mod program {

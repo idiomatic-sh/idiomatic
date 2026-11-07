@@ -3,7 +3,10 @@ use crate::application::file_dag::program::prepared_execution::interface::Prepar
 use crate::application::file_dag::program::prepared_execution::interface::PreparedReporting;
 use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use crate::domain::coverage::types::RuleIndex;
-use crate::domain::file_program::types::ObservedFrontierRoot;
+use crate::application::file_dag::program::preparation::types::{
+    Demand, NamedLayout, ObservationContract, ReplayClosure, RuleTotal, SemanticNeed,
+};
+use crate::domain::rule_intent::types::FrontierPurpose;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::trust::types::RelationRead;
 use ryo_values::domain::stored_facts::types::Bucket;
@@ -19,25 +22,14 @@ impl PreparedExecution for PreparedExecutionProgram {
     fn observation_batches(&self) -> Option<&[Vec<RuleIndex>]> {
         self.inner.observation_batches()
     }
-    fn rule_count(&self) -> usize {
-        self.inner.rule_count().0
+    fn rule_count(&self) -> RuleTotal {
+        self.inner.rule_count()
     }
     fn rule_order(&self) -> impl Iterator<Item = RuleIndex> + '_ {
         self.inner.rule_order()
     }
-    fn demanded_rules(&self, governs: impl Fn(usize) -> bool) -> Vec<bool> {
-        use crate::application::file_dag::program::preparation::types::Demand;
-        self.inner
-            .demanded_rules(|rule| {
-                if governs(rule.0) {
-                    Demand::Demanded
-                } else {
-                    Demand::Undemanded
-                }
-            })
-            .into_iter()
-            .map(|demand| demand == Demand::Demanded)
-            .collect()
+    fn demanded_rules(&self, governs: impl Fn(RuleIndex) -> Demand) -> Vec<Demand> {
+        self.inner.demanded_rules(governs)
     }
     fn emit(
         &self,
@@ -57,31 +49,27 @@ impl PreparedExecution for PreparedExecutionProgram {
     ) -> Result<&[ryo_values::domain::plan_parts::types::Input], OperatingError> {
         self.inner.frontiers(rule)
     }
-    fn captures_observation(&self, rule: RuleIndex, input: usize) -> Result<bool, OperatingError> {
-        Ok(self
-            .inner
-            .frontier_purpose(rule, ryo_values::domain::plan_parts::types::InputNumber(input))?
-            == crate::domain::executable_program::file_demand::types::FrontierPurpose::Observation)
-    }
-    fn semantic_needed(&self) -> bool {
-        self.inner.semantic_needed() == crate::application::file_dag::program::preparation::types::SemanticNeed::Required
-    }
-    fn observation_layout(
+    fn frontier_purpose(
         &self,
-    ) -> Option<(
-        ryo_values::domain::records::types::ObservationReadinessLayout,
-        &[ObservedFrontierRoot],
-    )> {
-        self.inner
-            .observation_layout()
-            .map(|named| (named.layout, named.frontiers))
+        rule: RuleIndex,
+        input: ryo_values::domain::plan_parts::types::InputNumber,
+    ) -> Result<FrontierPurpose, OperatingError> {
+        self.inner.frontier_purpose(rule, input)
+    }
+    fn semantic_needed(&self) -> SemanticNeed {
+        self.inner.semantic_needed()
+    }
+    fn observation_layout(&self) -> Option<NamedLayout<'_>> {
+        self.inner.observation_layout()
     }
     fn observation_reads(&self, rule: RuleIndex) -> Result<Vec<RelationRead>, OperatingError> {
         self.inner.observation_reads(rule)
     }
-    fn has_observation_contract(&self, rule: RuleIndex) -> Result<bool, OperatingError> {
-        Ok(self.inner.has_observation_contract(rule)?
-            == crate::application::file_dag::program::preparation::types::ObservationContract::Declared)
+    fn has_observation_contract(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<ObservationContract, OperatingError> {
+        self.inner.has_observation_contract(rule)
     }
     fn frontier_dependencies(
         &self,
@@ -99,9 +87,8 @@ impl PreparedReporting for PreparedExecutionProgram {
         &self,
         again: ryo_values::domain::stores::types::Reuse,
         first: &[Bucket],
-    ) -> Result<(ryo_values::domain::stores::types::Reuse, Vec<Bucket>), OperatingError> {
-        let closure = self.inner.replay_closure(again, first)?;
-        Ok((closure.reuse, closure.buckets))
+    ) -> Result<ReplayClosure, OperatingError> {
+        self.inner.replay_closure(again, first)
     }
 }
 

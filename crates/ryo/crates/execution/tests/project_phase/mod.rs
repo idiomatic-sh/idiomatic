@@ -1,4 +1,6 @@
 //! A compiled project emit defers at file scope while real file frontiers remain available.
+use ryo_execution::application::file_dag::observations::types::AdmittedOutput;
+use ryo_execution::application::file_dag::frontiers::types::InputReadiness;
 use ryo_execution::outbound::operators::interface::OperatorsPort as _;
 use ryo_execution::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
@@ -144,11 +146,11 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
                         observations: ObservationDemand::NotRequired,
                         capture: CaptureIntent::DiagnosticAndObservations,
                     }],
-                    source: b"abc",
+                    source: ryo_values::domain::files::types::SourceView(b"abc"),
                     elements: &elements,
                     read: &read,
-                    semantic: None,
-                    kinds: None,
+                    semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                    kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
                 },
                 &mut symbols,
             )
@@ -188,11 +190,11 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
                         observations: ObservationDemand::NotRequired,
                         capture: CaptureIntent::DiagnosticAndObservations,
                     }],
-                    source: b"abc",
+                    source: ryo_values::domain::files::types::SourceView(b"abc"),
                     elements: &elements,
                     read: &read,
-                    semantic: None,
-                    kinds: None,
+                    semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                    kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
                 },
                 &mut symbols,
             )
@@ -223,7 +225,7 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
                 &mut symbols,
                 CaptureContext {
                     worker: WorkerNumber(0),
-                    arena: &mut arena,
+                    arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
                     places: &mut places,
                     words: &mut words,
                 },
@@ -302,7 +304,7 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
         let _other = prepare(
             &mut symbols,
             FrontierDemand::Observations {
-                ready: &[true, true],
+                ready: &[InputReadiness::Ready, InputReadiness::Ready],
             },
         );
         assert_eq!(
@@ -456,11 +458,11 @@ fn project_grouping_reads_only_actual_captured_function_names() {
                         observations: ObservationDemand::NotRequired,
                         capture: CaptureIntent::DiagnosticAndObservations,
                     }],
-                    source: b"mainother",
+                    source: ryo_values::domain::files::types::SourceView(b"mainother"),
                     elements: &elements,
                     read: &read,
-                    semantic: None,
-                    kinds: None,
+                    semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                    kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
                 },
                 &mut symbols,
             )
@@ -481,7 +483,7 @@ fn project_grouping_reads_only_actual_captured_function_names() {
                 &mut symbols,
                 CaptureContext {
                     worker: WorkerNumber(0),
-                    arena: &mut arena,
+                    arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
                     places: &mut places,
                     words: &mut words,
                 },
@@ -667,11 +669,11 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
                             capture: CaptureIntent::DiagnosticAndObservations,
                         },
                     ],
-                    source: b"mainother",
+                    source: ryo_values::domain::files::types::SourceView(b"mainother"),
                     elements: &elements,
                     read: &read,
-                    semantic: None,
-                    kinds: None,
+                    semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                    kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
                 },
                 &mut symbols,
             )
@@ -713,7 +715,7 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
                     &mut symbols,
                     CaptureContext {
                         worker: WorkerNumber(0),
-                        arena: &mut arena,
+                        arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
                         places: &mut places,
                         words: &mut words,
                     },
@@ -1066,7 +1068,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
                     },
                 }],
             },
-            vec![(output, publication)],
+            vec![AdmittedOutput { output, publication }],
         )
         .unwrap();
     stage.finish(RuleIndex(0)).unwrap();
@@ -1086,7 +1088,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
         "the real stage supplies members, not a whole-union packet"
     );
     let reads = project.reads.load(Ordering::SeqCst);
-    let ready = [false];
+    let ready = [InputReadiness::Unavailable];
     let ordinary = request
         .prepare_frontiers(
             FrontierRequest {

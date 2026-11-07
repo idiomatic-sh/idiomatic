@@ -22,6 +22,20 @@ pub(in crate::application::file_dag) enum NormalizationCharge {
     Uncharged,
 }
 
+/// Whether an admitted backing is a source relation the owner holds, or any other backing.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::application::file_dag) enum BackingForm {
+    Canonical,
+    Foreign,
+}
+
+/// Whether a generation's admissions may still be consumed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::application::file_dag) enum Liveness {
+    Live,
+    Released,
+}
+
 /// Whether the resident source of a file may serve a later request.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ReuseEligibility {

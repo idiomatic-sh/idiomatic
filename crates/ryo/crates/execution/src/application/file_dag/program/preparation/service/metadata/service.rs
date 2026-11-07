@@ -3,7 +3,7 @@ use crate::application::file_dag::program::preparation::types::{
     ObservationMetadata, RootMetadata, RuleMetadata, SemanticNeed,
 };
 use crate::domain::coverage::types::RuleIndex;
-use crate::domain::executable_program::file_demand::types::FrontierPurpose;
+use crate::domain::rule_intent::types::FrontierPurpose;
 use crate::domain::executable_program::types::{ExecutableProgram, InputSource};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::trust::types::RelationRead;

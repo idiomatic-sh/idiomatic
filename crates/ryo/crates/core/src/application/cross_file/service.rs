@@ -22,6 +22,8 @@ use crate::domain::crossing::service::partials_for_reads;
 use crate::domain::render::types::Answering;
 use crate::outbound::corpus::interface::CorpusPort;
 use crate::outbound::publication::interface::PublicationPort;
+use ryo_execution::application::file_dag::frontiers::types::InputReadiness;
+use ryo_execution::application::file_dag::observations::types::{AdmittedOutput, RuleSelection};
 use ryo_execution::application::file_dag::program::request_execution::interface::ExecutionRequest;
 use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationExecution;
 use ryo_execution::application::file_dag::program::observation_stage::interface::ObservationPublication;
@@ -185,14 +187,14 @@ impl CrossFile {
         mut guard: impl FnMut(RuleIndex) -> Result<(), CrossFileError>,
     ) -> Result<(), CrossFileError> {
         let mut stage = run.services.observations(arenas)?;
-        let mut selected = vec![false; run.domain.metadata.len()];
+        let mut selected = vec![RuleSelection::Unselected; run.domain.metadata.len()];
         for todo in run.todo {
             *selected
                 .get_mut(todo.rule.0)
-                .ok_or(OperatingError::NotRun)? = true;
+                .ok_or(OperatingError::NotRun)? = RuleSelection::Selected;
         }
         for (rule, selected) in selected.iter().enumerate() {
-            if !selected {
+            if *selected == RuleSelection::Unselected {
                 stage.finish(RuleIndex(rule))?;
             }
         }
@@ -287,7 +289,10 @@ fn deliver(
     let publications = result
         .publications
         .into_iter()
-        .map(|each| (each.output, each.publication))
+        .map(|each| AdmittedOutput {
+            output: each.output,
+            publication: each.publication,
+        })
         .collect();
     stage.install(todo.rule, result.slot, transfer, publications)?;
     Ok(())
@@ -306,9 +311,14 @@ fn prepare_project(
     let frontier_ready = dependencies
         .iter()
         .map(|inputs| {
-            inputs
+            if inputs
                 .iter()
-                .all(|input| readiness.get(input).copied() == Some(true))
+                .all(|input| readiness.get(input).copied() == Some(InputReadiness::Ready))
+            {
+                InputReadiness::Ready
+            } else {
+                InputReadiness::Unavailable
+            }
         })
         .collect::<Vec<_>>();
     let slot = stage.reserve(todo.rule)?;

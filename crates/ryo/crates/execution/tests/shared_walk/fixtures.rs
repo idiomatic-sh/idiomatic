@@ -166,8 +166,8 @@ pub(super) fn input<'a, 'facts>(
         source,
         elements,
         read,
-        semantic: None,
-        kinds: None,
+        semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+        kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
     }
 }
 pub(super) fn expected(file: FileId, elements: &Elements, positions: &[u32]) -> Table {

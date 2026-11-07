@@ -147,7 +147,7 @@ pub(in crate::application::file_dag) fn prepare<'f>(
             let right = input(inputs, InputNumber(1))?;
             if let Some(reach) = reach {
                 let mut cursor = partitioned(contract, right, &admitted, context)?;
-                while cursor.advance()? {
+                while cursor.advance()? == crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced {
                     resources.inputs.closure.push(cursor.take_current()?);
                 }
             } else {

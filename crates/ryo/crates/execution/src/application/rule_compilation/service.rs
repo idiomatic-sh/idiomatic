@@ -203,8 +203,9 @@ pub(crate) fn observed(
     plans: &[ryo_values::domain::plans::types::Plan],
     bindings: &[Vec<ryo_values::domain::query_bindings::types::ParameterBinding>],
     hosted: &[HostRelation],
+    digest: &dyn DigestPort,
 ) {
-    super::observing::compiled(rules, plans, bindings, hosted);
+    super::observing::compiled(rules, plans, bindings, hosted, digest);
 }
 
 pub trait ExecutionCompilation {
@@ -213,6 +214,7 @@ pub trait ExecutionCompilation {
         &self,
         rules: &[ryo_values::domain::rule_requests::types::RuleSpec],
         hosted: &[ryo_values::domain::hosted::types::HostRelation],
+        digest: &dyn DigestPort,
     ) -> Result<CompiledQueries, RuleCompilationError>;
     fn identify(
         &self,
@@ -246,6 +248,7 @@ impl ExecutionCompilation for QueryCompilation {
         &self,
         rules: &[ryo_values::domain::rule_requests::types::RuleSpec],
         hosted: &[ryo_values::domain::hosted::types::HostRelation],
+        digest: &dyn DigestPort,
     ) -> Result<CompiledQueries, RuleCompilationError> {
         let inner = self.inner.prepare(rules, hosted)?;
         crate::application::rule_compilation::service::observed(
@@ -253,6 +256,7 @@ impl ExecutionCompilation for QueryCompilation {
             &inner.plans,
             &inner.bindings,
             hosted,
+            digest,
         );
         Ok(CompiledQueries { inner })
     }

@@ -1,8 +1,9 @@
 //! What an observation stage offers a caller.
 use crate::application::file_dag::frontiers::types::BoundInput;
+use crate::application::file_dag::frontiers::types::InputReadiness;
+use crate::application::file_dag::observations::types::{AdmittedOutput, RuleSelection};
 use crate::application::file_dag::frontiers::types::PublicationSlot;
 use crate::application::file_dag::program::project_phase::types::PhaseScope;
-use crate::application::file_dag::program::observed_publication::types::ObservedPublication;
 use crate::domain::coverage::types::Covered;
 use crate::domain::coverage::types::FileObservationReadiness;
 use crate::domain::coverage::types::InapplicableFiles;
@@ -22,7 +23,7 @@ pub trait ObservationExecution {
     ) -> Result<
         std::collections::BTreeMap<
             ryo_values::domain::plan_parts::types::ObservationBindingId,
-            bool,
+            InputReadiness,
         >,
         OperatingError,
     >;
@@ -44,10 +45,7 @@ pub trait ObservationPublication {
         rule: RuleIndex,
         slot: PublicationSlot,
         transfer: CrossPublicationTransfer,
-        publications: Vec<(
-            ryo_values::domain::records::types::ObservationIndex,
-            ObservedPublication,
-        )>,
+        publications: Vec<AdmittedOutput>,
     ) -> Result<(), OperatingError>;
     fn restore_frontiers(
         &mut self,
@@ -58,6 +56,6 @@ pub trait ObservationPublication {
         inapplicable: &[InapplicableFiles],
         readiness: &[FileObservationReadiness],
         first_bucket: &[Bucket],
-        selected: &[bool],
+        selected: &[RuleSelection],
     ) -> Result<(), OperatingError>;
 }

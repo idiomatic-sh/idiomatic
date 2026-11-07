@@ -23,10 +23,10 @@ impl DerivedOwner {
         if room(cache, cost).is_some() && required_units == 0 {
             return Ok(Room::Fits);
         }
-        let Some(total) = cache.bytes.checked_add(cost.0) else {
+        let Some(total) = cache.bytes.0.checked_add(cost.0) else {
             return Ok(Room::Full);
         };
-        let required = total.saturating_sub(cache.limit);
+        let required = total.saturating_sub(cache.limit.0);
         let outlook = self.graph_reclaim_credit(protected)?;
         let Some(credit) = outlook.available else {
             return Ok(Room::Full);
@@ -127,8 +127,9 @@ impl DerivedOwner {
         for (_, key) in candidates {
             if cache
                 .bytes
+                .0
                 .checked_add(cost.0)
-                .is_some_and(|bytes| bytes <= cache.limit)
+                .is_some_and(|bytes| bytes <= cache.limit.0)
                 && self
                     .ledger
                     .borrow()
@@ -153,7 +154,7 @@ impl DerivedOwner {
             drop(removed);
             let after = self.ledger.borrow().snapshot().view_optional_bytes.0;
             let physical = before.saturating_sub(after);
-            cache.bytes = cache.bytes.saturating_sub(physical);
+            cache.bytes.0 = cache.bytes.0.saturating_sub(physical);
             cache.graph_counts.reclaimed_bytes += physical as u64;
         }
         state.retained_bytes = ByteCount(state.retained_bytes.0.saturating_sub(released.0));

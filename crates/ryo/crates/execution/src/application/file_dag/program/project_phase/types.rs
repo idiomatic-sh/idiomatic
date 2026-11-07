@@ -1,5 +1,6 @@
 //! One project phase: its scope, its inputs and its tasks.
 use crate::application::file_dag::frontiers::types::BoundInput;
+use crate::application::file_dag::frontiers::types::InputReadiness;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::program::request_execution::types::RequestExecution;
 use crate::domain::coverage::types::Partials;
@@ -34,7 +35,7 @@ pub struct ProjectTask<'a> {
 }
 pub enum FrontierDemand<'a> {
     Diagnostic,
-    Observations { ready: &'a [bool] },
+    Observations { ready: &'a [InputReadiness] },
 }
 pub struct FrontierRequest<'a> {
     pub demand: FrontierDemand<'a>,

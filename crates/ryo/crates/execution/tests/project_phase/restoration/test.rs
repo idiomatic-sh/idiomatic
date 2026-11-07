@@ -1,4 +1,6 @@
 //! Named restoration retains partition-qualified physical coverage despite cached readiness.
+use ryo_execution::application::file_dag::observations::types::RuleSelection;
+use ryo_execution::application::file_dag::frontiers::types::InputReadiness;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::outbound::facts::types::ResidentStability;
@@ -63,11 +65,11 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
                             },
                             FileRuleIntent::Undemanded,
                         ],
-                        source: b"abc",
+                        source: ryo_values::domain::files::types::SourceView(b"abc"),
                         elements: &elements,
                         read: &read,
-                        semantic: None,
-                        kinds: None,
+                        semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                        kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
                     },
                     &mut symbols,
                 )
@@ -82,7 +84,7 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
                     &mut symbols,
                     CaptureContext {
                         worker: WorkerNumber(0),
-                        arena: &mut arena,
+                        arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
                         places: &mut places,
                         words: &mut words,
                     },
@@ -125,7 +127,7 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
                 &[],
                 &readiness,
                 &[Bucket(0), Bucket(10)],
-                &[false, true],
+                &[RuleSelection::Unselected, RuleSelection::Selected],
             )
             .unwrap();
         assert_eq!(
@@ -138,7 +140,7 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
                 .binding_readiness(RuleIndex(1))
                 .unwrap()
                 .get(&ObservationBindingId(0)),
-            Some(&true)
+            Some(&InputReadiness::Ready)
         );
     }
 }

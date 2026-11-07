@@ -30,11 +30,6 @@ impl FileDemand {
         capture: FrontierSelection::Disabled,
     };
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum FrontierPurpose {
-    Diagnostic,
-    Observation,
-}
 pub(crate) struct ObservationDemandSource {
     pub source: Result<InputSource, OperatingError>,
     pub phase: StepScope,

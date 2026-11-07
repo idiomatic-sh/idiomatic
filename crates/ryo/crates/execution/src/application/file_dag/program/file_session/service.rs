@@ -2,6 +2,7 @@
 use crate::application::file_dag::program::file_session::interface::FileExecution;
 use crate::application::file_dag::program::file_session::types::CaptureContext;
 use crate::application::file_dag::program::file_session::types::FileFinished;
+use crate::application::file_dag::program::file_session::types::FinishedReadiness;
 use crate::application::file_dag::program::file_session::types::FileSession;
 use crate::application::file_dag::program::file_session::types::SourceRows;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
@@ -38,7 +39,10 @@ impl FileExecution for FileSession<'_, '_> {
     }
     fn finish(self) -> Result<FileFinished, OperatingError> {
         Ok(FileFinished {
-            readiness: self.inner.finish()?,
+            readiness: match self.inner.finish()? {
+                Some(readiness) => FinishedReadiness::Observed(readiness),
+                None => FinishedReadiness::Unobserved,
+            },
         })
     }
 
@@ -64,7 +68,7 @@ impl FileExecution for FileSession<'_, '_> {
             rule_digest: self.program.rule_digest(rule)?,
             worker: capture.worker,
             retained: crate::domain::finish::types::Retained {
-                arena: crate::domain::finish::types::Arena(capture.arena),
+                arena: capture.arena,
                 places: capture.places,
             },
             words: capture.words,
@@ -110,7 +114,7 @@ fn source_rows<'a, 'facts: 'a>(
 
 impl FileSession<'_, '_> {
     /// Whether the source of this file may be reused by a later run.
-    pub(crate) fn reuse_eligible(&self) -> bool {
-        self.inner.source_reuse_eligible() == ReuseEligibility::Eligible
+    pub(crate) fn reuse_eligible(&self) -> ReuseEligibility {
+        self.inner.source_reuse_eligible()
     }
 }

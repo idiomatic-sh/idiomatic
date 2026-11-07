@@ -1,5 +1,7 @@
 //! Private application backend storage. Only derived-owner algorithms can access mutable fields.
 
+use crate::application::file_dag::derived::ledger::types::ByteCount;
+use crate::application::file_dag::derived::owner::index::types::ByteLimit;
 use crate::application::file_dag::derived::owner::types::{BuildCount, RefusalCount, ReuseCount};
 use ryo_relations::domain::relations::types::Relation;
 use std::sync::Arc;
@@ -56,9 +58,9 @@ pub(in crate::application::file_dag) struct CacheBackend {
     /// An active eligible graph consumer may request bounded adjacency admission.
     pub(in crate::application::file_dag::derived::owner) graph_enabled: GraphAdmission,
     /// Charged graph/domain/memo bytes within `bytes`.
-    pub(in crate::application::file_dag::derived::owner) graph_bytes: usize,
+    pub(in crate::application::file_dag::derived::owner) graph_bytes: ByteCount,
     /// Successful root and nearest memo payload admitted within its smaller sub-budget.
-    pub(in crate::application::file_dag::derived::owner) memo_bytes: usize,
+    pub(in crate::application::file_dag::derived::owner) memo_bytes: ByteCount,
     /// Complete immutable graph populations.
     pub(in crate::application::file_dag::derived::owner) graphs: Vec<
         crate::application::file_dag::derived::owner::graphs::types::retained::types::GraphEntry,
@@ -91,9 +93,9 @@ pub(in crate::application::file_dag) struct CacheBackend {
     /// Active relations whose physical read reported no partiality, of any missing kind.
     pub(in crate::application::file_dag::derived::owner) eligible: Vec<Relation>,
     /// Accounted actual capacities and conservative allocation metadata.
-    pub(in crate::application::file_dag::derived::owner) bytes: usize,
+    pub(in crate::application::file_dag::derived::owner) bytes: ByteCount,
     /// Maximum retained cache bytes for this file and worker.
-    pub(in crate::application::file_dag::derived::owner) limit: usize,
+    pub(in crate::application::file_dag::derived::owner) limit: ByteLimit,
     /// Physical stored-key builds, including invocation-local admission refusals.
     pub(in crate::application::file_dag::derived::owner) builds: BuildCount,
     /// Successful immutable index reuse.

@@ -23,7 +23,7 @@ enum Scenario {
 #[derive(Debug, PartialEq, Eq)]
 enum Outcome {
     Finished,
-    Reuse(bool),
+    Reuse(crate::application::file_dag::relations::types::ReuseEligibility),
 }
 type Input = Scenario;
 type Value = Outcome;
@@ -39,19 +39,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName(stringify!(a_recognized_stable_source_is_reused)),
         word: Word::Succeeds,
         input: || Scenario::File(SourceLanguage::Recognized, ResidentStability::Stable),
-        expect: Expect::Value(Outcome::Reuse(true)),
+        expect: Expect::Value(Outcome::Reuse(crate::application::file_dag::relations::types::ReuseEligibility::Eligible)),
     },
     Case {
         name: CaseName(stringify!(an_unstable_source_is_not_reused)),
         word: Word::Succeeds,
         input: || Scenario::File(SourceLanguage::Recognized, ResidentStability::Unstable),
-        expect: Expect::Value(Outcome::Reuse(false)),
+        expect: Expect::Value(Outcome::Reuse(crate::application::file_dag::relations::types::ReuseEligibility::Ineligible)),
     },
     Case {
         name: CaseName(stringify!(an_unrecognized_source_is_not_reused)),
         word: Word::Succeeds,
         input: || Scenario::File(SourceLanguage::Unrecognized, ResidentStability::Stable),
-        expect: Expect::Value(Outcome::Reuse(false)),
+        expect: Expect::Value(Outcome::Reuse(crate::application::file_dag::relations::types::ReuseEligibility::Ineligible)),
     },
 ];
 fn subject(input: Input) -> Result<Value, Failure> {
@@ -87,11 +87,11 @@ fn subject(input: Input) -> Result<Value, Failure> {
                     evaluation: &[],
                     publication: &[],
                     intents: &[],
-                    source: &[],
+                    source: ryo_values::domain::files::types::SourceView(&[]),
                     elements: &elements,
                     read: &read,
-                    semantic: None,
-                    kinds: None,
+                    semantic: crate::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                    kinds: crate::application::file_dag::program::file_session::types::KindSupport::Absent,
                 },
                 &mut symbols,
             )?;

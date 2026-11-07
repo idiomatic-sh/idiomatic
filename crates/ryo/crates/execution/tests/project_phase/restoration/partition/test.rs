@@ -1,5 +1,8 @@
 //! Actual two-file named restoration and absence publication, including a
 //! downstream projection that would erase the completeness key if fused early.
+use ryo_execution::application::file_dag::observations::types::AdmittedOutput;
+use ryo_execution::application::file_dag::observations::types::RuleSelection;
+use ryo_execution::application::file_dag::frontiers::types::InputReadiness;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::outbound::facts::types::ResidentStability;
@@ -444,11 +447,11 @@ fn exercise_with(
                     evaluation: &[],
                     publication: &[],
                     intents: &intents,
-                    source: b"abc",
+                    source: ryo_values::domain::files::types::SourceView(b"abc"),
                     elements: &elements,
                     read: &read,
-                    semantic: None,
-                    kinds: None,
+                    semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                    kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
                 },
                 &mut symbols,
             )
@@ -462,7 +465,7 @@ fn exercise_with(
                     &mut symbols,
                     CaptureContext {
                         worker: WorkerNumber(0),
-                        arena: &mut arena,
+                        arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
                         places: &mut places,
                         words: &mut words,
                     },
@@ -530,7 +533,7 @@ fn exercise_with(
             &[],
             &readiness,
             &[Bucket(0), Bucket(10), Bucket(20)],
-            &[false, true, true],
+            &[RuleSelection::Unselected, RuleSelection::Selected, RuleSelection::Selected],
         )
         .unwrap();
     let mut symbols = Symbols::default();
@@ -637,14 +640,14 @@ fn exercise_with(
                     RuleIndex(1),
                     slot,
                     forged,
-                    vec![(output, publication.clone())]
+                    vec![AdmittedOutput { output, publication: publication.clone() }]
                 )
                 .is_err(),
             "a Partial owner proof cannot be relabeled Complete"
         );
     }
     stage
-        .install(RuleIndex(1), slot, transfer, vec![(output, publication)])
+        .install(RuleIndex(1), slot, transfer, vec![AdmittedOutput { output, publication }])
         .unwrap();
     stage.finish(RuleIndex(1)).unwrap();
     drop(scope);
@@ -665,7 +668,7 @@ fn exercise_with(
             .binding_readiness(RuleIndex(2))
             .unwrap()
             .get(&ObservationBindingId(0)),
-        Some(&true)
+        Some(&InputReadiness::Ready)
     );
     // One acquisition of the frontier sources serves both declared roots of the one population.
     let prepared = request

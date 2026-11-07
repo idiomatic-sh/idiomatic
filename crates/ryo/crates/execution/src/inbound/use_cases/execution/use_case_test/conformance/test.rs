@@ -246,7 +246,7 @@ pub(in super::super) fn compare_delivery_with_port(
         elements: &elements,
         read: &read,
         semantic,
-        kinds: None,
+        kinds: crate::application::file_dag::program::file_session::types::KindSupport::Absent,
     };
     let collected_intent = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,

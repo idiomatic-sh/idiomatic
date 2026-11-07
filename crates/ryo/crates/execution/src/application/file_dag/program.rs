@@ -7,7 +7,7 @@ pub mod prepared_execution;
 pub mod project_phase;
 pub mod request_execution;
 pub(super) mod kernel_session;
-pub(crate) mod preparation;
+pub mod preparation;
 pub mod observed_publication;
 pub mod rule_outcome;
 pub(super) mod runtime;

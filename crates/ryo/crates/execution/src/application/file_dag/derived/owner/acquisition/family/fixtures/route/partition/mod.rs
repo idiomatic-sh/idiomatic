@@ -34,7 +34,7 @@ fn through_partition(
     match exit {
         Exit::Cancelled => Ok(kind),
         Exit::Succeeds => {
-            assert!(cursor.advance()?, "{kind:?}: the first partition is built");
+            assert_eq!(cursor.advance()?, crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced, "{kind:?}: the first partition is built");
             Ok(kind)
         }
         Exit::Errors => {

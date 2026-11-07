@@ -69,8 +69,8 @@ fn two_population_view_survives_either_release_and_repin_without_duplicate_depen
     let plan = pair_plan();
     let mut scratch = DerivedScratch::default();
     let mut cache = indexes::new(&[], &[], ByteLimit(4096)).unwrap();
-    let metadata_charge = cache.bytes;
-    cache.limit = 0;
+    let metadata_charge = cache.bytes.0;
+    cache.limit.0 = 0;
     owner.backend.borrow_mut().replace(cache);
     let mut stable_metadata = None;
 
@@ -102,7 +102,7 @@ fn two_population_view_survives_either_release_and_repin_without_duplicate_depen
         assert!(weak.upgrade().is_none());
         assert_eq!(owner.working_bytes(), 0);
         assert_eq!(
-            owner.backend.borrow().as_ref().unwrap().bytes,
+            owner.backend.borrow().as_ref().unwrap().bytes.0,
             metadata_charge,
             "zero payload budget never removes existing owner metadata"
         );

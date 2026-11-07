@@ -166,7 +166,7 @@ fn acquire(
                 destination,
                 Rc::clone(&owner),
             )?;
-            assert!(cursor.advance()?);
+            assert_eq!(cursor.advance()?, crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced);
             assert_eq!(cursor.current()?.key(), &[Value::Number(Integer(0))]);
             match scenario {
                 Scenario::Cancelled => {}
@@ -183,12 +183,9 @@ fn acquire(
                     );
                 }
                 _ => {
-                    assert!(
-                        cursor.advance()?,
-                        "the second actual partition rebuilds the scoped acquired view"
-                    );
+                    assert_eq!(cursor.advance()?, crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced, "the second actual partition rebuilds the scoped acquired view");
                     assert_eq!(cursor.current()?.key(), &[Value::Number(Integer(1))]);
-                    assert!(!cursor.advance()?);
+                    assert_eq!(cursor.advance()?, crate::application::file_dag::closure_partitions::types::PartitionAdvance::Exhausted);
                 }
             }
             return Ok(DerivedKind::ClosureAdjacency);

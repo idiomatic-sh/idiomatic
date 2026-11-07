@@ -56,7 +56,7 @@ fn frontier_and_callback_share_the_same_atomic_semantic_failure() {
                         &mut symbols,
                         CaptureContext {
                             worker: WorkerNumber(0),
-                            arena: &mut arena,
+                            arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
                             places: &mut places,
                             words: &mut words,
                         },
@@ -214,7 +214,7 @@ fn callback_and_frontier_use_one_dependency_contract_in_both_orders() {
                         &mut symbols,
                         CaptureContext {
                             worker: WorkerNumber(0),
-                            arena: &mut arena,
+                            arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
                             places: &mut places,
                             words: &mut words,
                         },

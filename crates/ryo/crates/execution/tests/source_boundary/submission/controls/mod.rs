@@ -1,4 +1,5 @@
 //! A control for every entry method: an incomplete, extra or undeclared root is refused.
+use ryo_execution::application::file_dag::observations::types::RuleSelection;
 use super::inventory::{
     CAPTURES, DELIVERIES, DEMANDS, PROTOCOL, REASONS, REFUSALS, assert_inventory,
     covered, every_intent,
@@ -160,11 +161,11 @@ pub(super) fn file_session_undeclared_rule() {
                 evaluation: &[],
                 publication: &[],
                 intents: &intents,
-                source: b"abc",
+                source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read: &read,
-                semantic: None,
-                kinds: None,
+                semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )
@@ -189,7 +190,7 @@ pub(super) fn file_session_undeclared_rule() {
             &mut symbols,
             CaptureContext {
                 worker: ryo_relations::domain::relations::types::WorkerNumber(0),
-                arena: &mut arena,
+                arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
                 places: &mut places,
                 words: &mut words,
             },
@@ -252,7 +253,7 @@ pub(super) fn restore_inapplicable_per_rule() {
                 &vec![InapplicableFiles::default(); inapplicable],
                 &[],
                 &[ryo_values::domain::stored_facts::types::Bucket(0); 3],
-                &[false; 3],
+                &[RuleSelection::Unselected; 3],
             )
         };
         for wrong in [1, 2, 4] {

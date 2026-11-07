@@ -67,8 +67,8 @@ impl DerivedOwner {
                 roots = indexes.graph_counts.roots, traversals = indexes.graph_counts.traversals, memo_hits = indexes.graph_counts.memo_hits,
                 vertices_expanded = indexes.graph_counts.expanded, edges_examined = indexes.graph_counts.examined,
                 nearest_early_stops = indexes.graph_counts.early_stops, forest_hits = indexes.graph_counts.forest_hits,
-                graph_bytes = indexes.graph_bytes, memo_bytes = indexes.memo_bytes, graph_enabled = ?indexes.graph_enabled,
-                cache_bytes = indexes.bytes, cache_limit = indexes.limit, cache_peak_bytes = indexes.graph_counts.peak_bytes,
+                graph_bytes = indexes.graph_bytes.0, memo_bytes = indexes.memo_bytes.0, graph_enabled = ?indexes.graph_enabled,
+                cache_bytes = indexes.bytes.0, cache_limit = indexes.limit.0, cache_peak_bytes = indexes.graph_counts.peak_bytes,
                 reclaimed_indexes = indexes.graph_counts.reclaimed_indexes, reclaimed_selections = indexes.graph_counts.reclaimed_selections,
                 reclaimed_bytes = indexes.graph_counts.reclaimed_bytes, pinned_refusals = indexes.graph_counts.pinned_refusals, index_refusals = indexes.refusals.0,
                 selector_refusals = indexes.selection_counts.refusals);
@@ -76,12 +76,12 @@ impl DerivedOwner {
                 source_rows_scanned = indexes.selection_counts.scanned, indexed_candidates = indexes.selection_counts.candidates,
                 predicate_cells_decoded = indexes.selection_counts.predicate_cells, output_cells_decoded = indexes.selection_counts.output_cells,
                 selections_built = indexes.selection_counts.builds, selections_reused = indexes.selection_counts.reuses,
-                selections_refused = indexes.selection_counts.refusals, cache_bytes = indexes.bytes,
+                selections_refused = indexes.selection_counts.refusals, cache_bytes = indexes.bytes.0,
                 collected_cell_bytes = indexes.selection_counts.collected_cells.saturating_mul(size_of::<ryo_relations::domain::relations::types::Value>() as u64),
                 compact_id_bytes = self.ledger.borrow().snapshot().optional_units.0.saturating_mul(size_of::<u32>()));
             tracing::trace!(target: constants::TARGET_STORED_JOIN, event = constants::EVENT_FILE_INDEXES, file = file.0,
                 entries = state.entries.values().filter(|entry| entry._plan.kind == DerivedKind::Equality && entry.retained.is_some()).count(), eligible_relations = indexes.eligible.len(),
-                retained_bytes = indexes.bytes, physical_builds = indexes.builds.0,
+                retained_bytes = indexes.bytes.0, physical_builds = indexes.builds.0,
                 reuses = indexes.reuses.0, refusals = indexes.refusals.0);
             if let Some(entries) = &indexes.selection_histogram {
                 for entry in entries {

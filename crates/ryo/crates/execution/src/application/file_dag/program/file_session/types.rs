@@ -17,6 +17,21 @@ pub enum SourceLanguage {
     Recognized,
     Unrecognized,
 }
+/// The semantic session a file may be read with.
+pub enum SemanticSupport<'a> {
+    Supplied(&'a dyn SemanticLookup),
+    Absent,
+}
+/// The kind vocabulary a file may be prepared with.
+pub enum KindSupport {
+    Prepared(Arc<PreparedVocabulary>),
+    Absent,
+}
+/// What the file's run observed of the producers that feed named observations.
+pub enum FinishedReadiness {
+    Observed(Arc<ryo_values::domain::records::types::FrontierReadiness>),
+    Unobserved,
+}
 pub struct FileInput<'a, 'facts> {
     pub language: SourceLanguage,
     pub resident_stability: ResidentStability,
@@ -25,14 +40,14 @@ pub struct FileInput<'a, 'facts> {
     pub publication: &'a [Partial],
     /// Exactly one intent for every prepared rule, bound to the engine-issued generation.
     pub intents: &'a [FileRuleIntent],
-    pub source: &'a [u8],
+    pub source: ryo_values::domain::files::types::SourceView<'a>,
     pub elements: &'a ryo_language::domain::elements::types::Elements,
     /// The immutable provider snapshot is bound once, never replaced per rule.
     pub read: &'a dyn Fn(
         ryo_relations::domain::relations::types::Relation,
     ) -> Result<SourceRows<'facts>, OperatingError>,
-    pub semantic: Option<&'a dyn SemanticLookup>,
-    pub kinds: Option<Arc<PreparedVocabulary>>,
+    pub semantic: SemanticSupport<'a>,
+    pub kinds: KindSupport,
 }
 pub struct FileSession<'a, 'facts> {
     pub(crate) inner:
@@ -46,12 +61,12 @@ pub struct FileSession<'a, 'facts> {
     ) -> Result<SourceRows<'facts>, OperatingError>,
 }
 pub struct FileFinished {
-    pub readiness: Option<Arc<ryo_values::domain::records::types::FrontierReadiness>>,
+    pub readiness: FinishedReadiness,
 }
 /// Output storage only; source file and rule digest come from the bound session.
 pub struct CaptureContext<'a> {
     pub worker: ryo_relations::domain::relations::types::WorkerNumber,
-    pub arena: &'a mut Vec<u8>,
+    pub arena: crate::domain::finish::types::Arena<'a>,
     pub places: &'a mut Vec<ryo_relations::domain::relations::types::NamePlace>,
     pub words: &'a mut ryo_relations::domain::relations::types::Words,
 }

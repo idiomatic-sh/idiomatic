@@ -217,7 +217,7 @@ fn selected_join_shares_work_preserves_counts_and_exports_owned_frontiers() {
                         &mut symbols,
                         CaptureContext {
                             worker: WorkerNumber(0),
-                            arena: &mut arena,
+                            arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
                             places: &mut places,
                             words: &mut words,
                         },

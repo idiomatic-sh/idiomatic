@@ -256,7 +256,7 @@ pub(super) fn run_prepared_context<'facts>(
             elements,
             read,
             semantic,
-            kinds: None,
+            kinds: crate::application::file_dag::program::file_session::types::KindSupport::Absent,
         },
         symbols,
     )?;

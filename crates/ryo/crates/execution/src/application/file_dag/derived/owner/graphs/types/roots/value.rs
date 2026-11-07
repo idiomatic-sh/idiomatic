@@ -288,10 +288,10 @@ impl<'a> DemandAnswers<'a> {
             reached: Arc::clone(&reached),
             _lease: lease,
         });
-        cache.bytes += cost;
-        cache.graph_bytes += cost;
-        cache.memo_bytes += cost;
-        cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(cache.bytes);
+        cache.bytes.0 += cost;
+        cache.graph_bytes.0 += cost;
+        cache.memo_bytes.0 += cost;
+        cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(cache.bytes.0);
         completed(self.owner, &cache.graphs[index], reached).map(Some)
     }
     /// Exact graph allocation, exact admitted domain and orientation jointly
@@ -380,10 +380,10 @@ impl<'a> DemandAnswers<'a> {
             answers,
             _lease: lease,
         });
-        cache.bytes += cost;
-        cache.graph_bytes += cost;
-        cache.memo_bytes += cost;
-        cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(cache.bytes);
+        cache.bytes.0 += cost;
+        cache.graph_bytes.0 += cost;
+        cache.memo_bytes.0 += cost;
+        cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(cache.bytes.0);
         Ok(Some(cache.nearest.len() - 1))
     }
 }

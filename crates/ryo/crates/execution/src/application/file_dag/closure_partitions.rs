@@ -8,8 +8,7 @@ use crate::domain::{
     operator::contract::views::BorrowedRows,
 };
 use ryo_derived::domain::contract::types::ClosurePartition;
-use ryo_derived::domain::contract::types::{ChainLink, HashedRow, KeyCellsHash};
-use ryo_relations::domain::relations::types::{CellKind, Value};
+use ryo_relations::domain::relations::types::Value;
 use std::{rc::Rc, sync::Arc};
 
 /// Ordering metadata can be shared across consumers; only the current partition
@@ -29,7 +28,7 @@ pub(crate) struct PartitionedClosure<'f> {
     scratch: DerivedScratch,
 }
 impl<'f> PartitionedClosure<'f> {
-    pub(crate) fn advance(&mut self) -> Result<bool, OperatingError> {
+    pub(in crate::application::file_dag) fn advance(&mut self) -> Result<PartitionAdvance, OperatingError> {
         let ryo_derived::domain::contract::types::DerivedView::PartitionOrder(order) =
             self.ordered.view()?
         else {
@@ -37,7 +36,7 @@ impl<'f> PartitionedClosure<'f> {
         };
         let Some(&first) = order.get(self.cursor.0) else {
             self.current = None;
-            return Ok(false);
+            return Ok(PartitionAdvance::Exhausted);
         };
         let ViewRequest::PartitionOrder { keys } = &self.partition_plan.request else {
             return Err(OperatingError::WrongOperation);
@@ -87,7 +86,7 @@ impl<'f> PartitionedClosure<'f> {
             self.current.take(),
             &mut self.scratch,
         )?);
-        Ok(true)
+        Ok(PartitionAdvance::Advanced)
     }
     pub(in crate::application::file_dag) fn take_current(
         &mut self,
@@ -103,53 +102,12 @@ impl<'f> PartitionedClosure<'f> {
             _ => Err(OperatingError::WrongOperation),
         }
     }
-
-    /// All live Value payload cells owned by this cursor, not only adjacency rows.
-    #[cfg(test)]
-    pub(crate) fn working_cells(&self) -> usize {
-        self.current.as_ref().map_or(0, |_| {
-            let current = self.current().expect(constants::LIVE_PARTITION_VIEW);
-            current.table().cells.len() + current.key().len() + current.sources().len()
-        }) + self.key.len()
-            + self.scratch.row.len()
-    }
-    /// Reserved Value buffers; shared ordering remains charged independently.
-    #[cfg(test)]
-    pub(crate) fn working_capacity(&self) -> usize {
-        self.current.as_ref().map_or(0, |_| {
-            let current = self.current().expect(constants::LIVE_PARTITION_VIEW);
-            let (keys, sources) = current.capacities();
-            current.table().cells.capacity() + keys + sources
-        }) + self.key.capacity()
-            + self.scratch.row.capacity()
-    }
-    #[cfg(test)]
-    pub(crate) fn ordering_bytes(&self) -> usize {
-        let mut bytes = self
-            .ordering_capacity
-            .0
-            .saturating_mul(size_of::<RowIndex>())
-            .saturating_add(self.working_capacity().saturating_mul(size_of::<Value>()));
-        if self.current.is_some() {
-            let current = self.current().expect(constants::LIVE_PARTITION_VIEW);
-            let [rows, hashes, heads, links, sorted, pairs, runs] = current.index().capacities();
-            bytes = bytes
-                .saturating_add(current.table().kinds.capacity() * size_of::<CellKind>())
-                .saturating_add((rows + sorted) * size_of::<RowIndex>())
-                .saturating_add(hashes * size_of::<KeyCellsHash>())
-                .saturating_add((heads + links) * size_of::<ChainLink>())
-                .saturating_add(pairs * size_of::<HashedRow>())
-                .saturating_add(runs.saturating_mul(size_of::<KeyCellsHash>() + 1));
-        }
-        bytes
-    }
 }
 
 #[cfg(test)]
 mod partitions_test;
 mod constants;
 pub(in crate::application::file_dag) mod schemas;
-mod types;
-use types::OrderCursor;
+pub(in crate::application::file_dag) mod types;
+use types::{PartitionAdvance, OrderCursor};
 
-use ryo_values::domain::rows::types::RowIndex;

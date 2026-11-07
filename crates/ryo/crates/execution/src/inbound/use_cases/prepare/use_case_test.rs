@@ -52,7 +52,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         ),
         Arc::new(crate::outbound::derived::factory::semantics()),
     );
-    prepare.prepare(input).map(|program| program.rule_count())
+    prepare.prepare(input).map(|program| program.rule_count().0)
 }
 #[test]
 fn succeeds() {

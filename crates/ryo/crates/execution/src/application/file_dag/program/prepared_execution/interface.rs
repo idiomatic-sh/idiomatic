@@ -1,15 +1,18 @@
 //! What a caller may read of a prepared program.
+use crate::application::file_dag::program::preparation::types::{
+    Demand, NamedLayout, ObservationContract, ReplayClosure, RuleTotal, SemanticNeed,
+};
 use crate::domain::coverage::types::RuleIndex;
-use crate::domain::file_program::types::ObservedFrontierRoot;
+use crate::domain::rule_intent::types::FrontierPurpose;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::trust::types::RelationRead;
 use ryo_values::domain::stored_facts::types::Bucket;
 /// Read-only request metadata; no mutable program, permit or population escapes.
 pub trait PreparedExecution {
     fn observation_batches(&self) -> Option<&[Vec<RuleIndex>]>;
-    fn rule_count(&self) -> usize;
+    fn rule_count(&self) -> RuleTotal;
     fn rule_order(&self) -> impl Iterator<Item = RuleIndex> + '_;
-    fn demanded_rules(&self, governs: impl Fn(usize) -> bool) -> Vec<bool>;
+    fn demanded_rules(&self, governs: impl Fn(RuleIndex) -> Demand) -> Vec<Demand>;
     fn emit(
         &self,
         rule: RuleIndex,
@@ -22,16 +25,18 @@ pub trait PreparedExecution {
         &self,
         rule: RuleIndex,
     ) -> Result<&[ryo_values::domain::plan_parts::types::Input], OperatingError>;
-    fn captures_observation(&self, rule: RuleIndex, input: usize) -> Result<bool, OperatingError>;
-    fn semantic_needed(&self) -> bool;
-    fn observation_layout(
+    fn frontier_purpose(
         &self,
-    ) -> Option<(
-        ryo_values::domain::records::types::ObservationReadinessLayout,
-        &[ObservedFrontierRoot],
-    )>;
+        rule: RuleIndex,
+        input: ryo_values::domain::plan_parts::types::InputNumber,
+    ) -> Result<FrontierPurpose, OperatingError>;
+    fn semantic_needed(&self) -> SemanticNeed;
+    fn observation_layout(&self) -> Option<NamedLayout<'_>>;
     fn observation_reads(&self, rule: RuleIndex) -> Result<Vec<RelationRead>, OperatingError>;
-    fn has_observation_contract(&self, rule: RuleIndex) -> Result<bool, OperatingError>;
+    fn has_observation_contract(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<ObservationContract, OperatingError>;
     fn frontier_dependencies(
         &self,
         rule: RuleIndex,
@@ -43,5 +48,5 @@ pub trait PreparedReporting {
         &self,
         again: ryo_values::domain::stores::types::Reuse,
         first: &[Bucket],
-    ) -> Result<(ryo_values::domain::stores::types::Reuse, Vec<Bucket>), OperatingError>;
+    ) -> Result<ReplayClosure, OperatingError>;
 }

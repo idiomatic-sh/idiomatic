@@ -1,4 +1,5 @@
 //! Same producer proof, distinct resolved input slots, one project batch protocol.
+use ryo_execution::application::file_dag::observations::types::AdmittedOutput;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::*;
@@ -186,7 +187,7 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
                         arenas: vec![],
                     }],
                 },
-                vec![(output, publication)],
+                vec![AdmittedOutput { output, publication }],
             )
             .unwrap();
         stage.finish(RuleIndex(0)).unwrap();

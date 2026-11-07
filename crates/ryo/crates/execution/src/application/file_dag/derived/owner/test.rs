@@ -168,7 +168,7 @@ fn pinned_population_shares_even_with_zero_entry_and_retained_budget() {
     let plan = plan();
     let mut scratch = DerivedScratch::default();
     let mut cache = indexes::new(&[], &[], ByteLimit(4096)).unwrap();
-    cache.limit = 0;
+    cache.limit.0 = 0;
     owner.backend.borrow_mut().replace(cache);
 
     let first = acquire(

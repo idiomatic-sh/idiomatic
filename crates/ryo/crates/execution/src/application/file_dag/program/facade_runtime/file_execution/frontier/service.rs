@@ -95,7 +95,7 @@ impl FileRun<'_> {
         let crate::domain::finish::types::Retained { arena, places: _ } = retained;
         for (index, source) in sources.into_iter().enumerate() {
             if capture_intent == CaptureIntent::Observations
-                && self.program.frontier_purpose(rule, InputNumber(index))? != crate::domain::executable_program::file_demand::types::FrontierPurpose::Observation
+                && self.program.frontier_purpose(rule, InputNumber(index))? != crate::domain::rule_intent::types::FrontierPurpose::Observation
             {
                 continue;
             }
@@ -175,7 +175,7 @@ impl FileRun<'_> {
         } = self.declared(rule)?;
         if capture == CaptureIntent::Disabled
             || (capture == CaptureIntent::Observations
-                && self.program.frontier_purpose(rule, input)? != crate::domain::executable_program::file_demand::types::FrontierPurpose::Observation)
+                && self.program.frontier_purpose(rule, input)? != crate::domain::rule_intent::types::FrontierPurpose::Observation)
             || input.0 >= self.program.frontiers(rule)?.len()
         {
             return Err(OperatingError::NotRun);

@@ -1,5 +1,5 @@
 //! The publication service's real producer table and storage scenarios.
-use super::{errors::PublicationError, service::publication, types::PublicationInput};
+use super::{errors::PublicationError, types::PublicationInput};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CROSS_FILE, CellKind, Integer, Value, WorkerNumber};
 use ryo_values::domain::{
@@ -15,8 +15,12 @@ pub(super) enum Scenario {
 }
 const NAME_BYTES: &[u8] = &[b'a', b'l', b'p', b'h', b'a'];
 
+/// The service entry the scenario runs through.
+pub(super) type Publish = fn(PublicationInput<'_>) -> Result<(), PublicationError>;
+
 pub(super) fn subject(
     scenario: Scenario,
+    publication: Publish,
 ) -> Result<(), PublicationError> {
     let mut symbols = Symbols::default();
     let cells = if matches!(scenario, Scenario::Symbol) {

@@ -159,7 +159,7 @@ impl DerivedOwner {
     ) -> Result<AdmittedViewInputs<'a>, OperatingError> {
         let mut admitted = input.admission(plan)?;
         admitted.origin.populations = vec![input.population()?];
-        if !input.canonical_backing() {
+        if input.canonical_backing() == crate::application::file_dag::relations::types::BackingForm::Foreign {
             admitted.origin.lifetime = AcquisitionLifetime::Invocation;
         }
         Ok(admitted)

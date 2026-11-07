@@ -1,7 +1,50 @@
+use super::PartitionedClosure;
+use super::constants::LIVE_PARTITION_VIEW;
 use crate::domain::operator::contract::views::BorrowedRows;
+use ryo_derived::domain::contract::types::{ChainLink, HashedRow, KeyCellsHash};
+use ryo_values::domain::rows::types::RowIndex;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::service::push_row;
+
+/// All live Value payload cells owned by this cursor, not only adjacency rows.
+fn working_cells(closure: &PartitionedClosure<'_>) -> usize {
+    closure.current.as_ref().map_or(0, |_| {
+        let current = closure.current().expect(LIVE_PARTITION_VIEW);
+        current.table().cells.len() + current.key().len() + current.sources().len()
+    }) + closure.key.len()
+        + closure.scratch.row.len()
+}
+
+/// Reserved Value buffers; shared ordering remains charged independently.
+fn working_capacity(closure: &PartitionedClosure<'_>) -> usize {
+    closure.current.as_ref().map_or(0, |_| {
+        let current = closure.current().expect(LIVE_PARTITION_VIEW);
+        let (keys, sources) = current.capacities();
+        current.table().cells.capacity() + keys + sources
+    }) + closure.key.capacity()
+        + closure.scratch.row.capacity()
+}
+
+fn ordering_bytes(closure: &PartitionedClosure<'_>) -> usize {
+    let mut bytes = closure
+        .ordering_capacity
+        .0
+        .saturating_mul(size_of::<RowIndex>())
+        .saturating_add(working_capacity(closure).saturating_mul(size_of::<Value>()));
+    if closure.current.is_some() {
+        let current = closure.current().expect(LIVE_PARTITION_VIEW);
+        let [rows, hashes, heads, links, sorted, pairs, runs] = current.index().capacities();
+        bytes = bytes
+            .saturating_add(current.table().kinds.capacity() * size_of::<CellKind>())
+            .saturating_add((rows + sorted) * size_of::<RowIndex>())
+            .saturating_add(hashes * size_of::<KeyCellsHash>())
+            .saturating_add((heads + links) * size_of::<ChainLink>())
+            .saturating_add(pairs * size_of::<HashedRow>())
+            .saturating_add(runs.saturating_mul(size_of::<KeyCellsHash>() + 1));
+    }
+    bytes
+}
 
 fn scope() -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
     std::rc::Rc::new(crate::application::file_dag::relations::RelationOwner::new(
@@ -45,15 +88,15 @@ fn interleaved_partitions_keep_one_reused_adjacency() {
     let mut seen = 0;
     let mut maximum_live = 0;
     let mut maximum_reserved = 0;
-    while cursor.advance().unwrap() {
+    while cursor.advance().unwrap() == crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced {
         let part = cursor.current().unwrap();
         assert_eq!(part.table().count.0, 3);
         assert_eq!(part.table().cells.len(), 6);
         assert_eq!(part.key().len(), 1);
         assert_eq!(part.sources(), vec![number(1), number(2)]);
         seen += 1;
-        maximum_live = maximum_live.max(cursor.working_cells());
-        maximum_reserved = maximum_reserved.max(cursor.working_capacity());
+        maximum_live = maximum_live.max(working_cells(&cursor));
+        maximum_reserved = maximum_reserved.max(working_capacity(&cursor));
     }
     assert_eq!(seen, partitions as usize);
     assert!(
@@ -65,8 +108,8 @@ fn interleaved_partitions_keep_one_reused_adjacency() {
         "retained Value capacity: {maximum_reserved}"
     );
     // Ordering metadata scales with row IDs, not the number of partition graphs.
-    assert!(cursor.ordering_bytes() < input.count.0 * 64);
-    assert!(!cursor.advance().unwrap());
+    assert!(ordering_bytes(&cursor) < input.count.0 * 64);
+    assert_eq!(cursor.advance().unwrap(), crate::application::file_dag::closure_partitions::types::PartitionAdvance::Exhausted);
 }
 
 #[test]
@@ -95,7 +138,7 @@ fn separate_keys_never_share_edges() {
     )
     .unwrap();
     let mut observed = Vec::new();
-    while cursor.advance().unwrap() {
+    while cursor.advance().unwrap() == crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced {
         observed.push((
             cursor.current().unwrap().key().to_vec(),
             cursor.current().unwrap().table().cells.clone(),
@@ -142,7 +185,7 @@ fn advancing_releases_only_the_previous_partition_lease() {
         std::rc::Rc::clone(&scope),
     )
     .unwrap();
-    assert!(cursor.advance().unwrap());
+    assert_eq!(cursor.advance().unwrap(), crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced);
     let owner = std::rc::Rc::clone(&scope);
     let first_backing =
         crate::application::file_dag::derived::owner::fixtures::resources::weak_storage(
@@ -150,7 +193,7 @@ fn advancing_releases_only_the_previous_partition_lease() {
         );
     let first_charge = owner.derived().publication_ownership_bytes().0;
     assert!(first_charge > input_charge);
-    assert!(cursor.advance().unwrap());
+    assert_eq!(cursor.advance().unwrap(), crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced);
     assert!(
         first_backing.upgrade().is_none(),
         "advance releases the previous physical backing"
@@ -219,7 +262,7 @@ fn empty_order_and_wrong_prepared_order_are_refused_precisely() {
         empty.current(),
         Err(crate::domain::operating::errors::OperatingError::NotRun)
     ));
-    assert!(!empty.advance().unwrap());
+    assert_eq!(empty.advance().unwrap(), crate::application::file_dag::closure_partitions::types::PartitionAdvance::Exhausted);
     assert!(matches!(
         empty.current(),
         Err(crate::domain::operating::errors::OperatingError::NotRun)

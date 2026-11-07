@@ -3,6 +3,8 @@ use crate::application::file_dag::frontiers::errors::PreparationError;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::program::facade_runtime;
 use crate::application::file_dag::program::file_session::types::FileInput;
+use crate::application::file_dag::program::file_session::types::KindSupport;
+use crate::application::file_dag::program::file_session::types::SemanticSupport;
 use crate::application::file_dag::program::file_session::types::FileSession;
 use crate::application::file_dag::program::file_session::types::SourceLanguage;
 use crate::application::file_dag::program::observation_stage::types::ObservationStage;
@@ -48,16 +50,7 @@ impl ExecutionRequest for RequestExecution {
     ) -> Result<PreparedFrontiers, PreparationError> {
         let readiness = match input.demand {
             FrontierDemand::Diagnostic => Vec::new(),
-            FrontierDemand::Observations { ready } => ready
-                .iter()
-                .map(|ready| {
-                    if *ready {
-                        crate::application::file_dag::frontiers::types::InputReadiness::Ready
-                    } else {
-                        crate::application::file_dag::frontiers::types::InputReadiness::Unavailable
-                    }
-                })
-                .collect(),
+            FrontierDemand::Observations { ready } => ready.to_vec(),
         };
         self.frontiers.prepared(
             &self.program,
@@ -89,12 +82,15 @@ impl ExecutionRequest for RequestExecution {
         input: FileInput<'a, 'facts>,
         symbols: &mut Symbols,
     ) -> Result<FileSession<'a, 'facts>, OperatingError> {
-        let mut vocabulary = input.kinds;
+        let mut vocabulary = match input.kinds {
+            KindSupport::Prepared(vocabulary) => Some(vocabulary),
+            KindSupport::Absent => None,
+        };
         let vocabulary = crate::domain::kind_sets::service::prepare_vocabulary(
             &mut vocabulary,
             input.elements,
             symbols,
-            ryo_values::domain::files::types::SourceView(input.source),
+            input.source,
         );
         let inner = facade_runtime::file_execution::open_file(
             &self.program,
@@ -105,7 +101,7 @@ impl ExecutionRequest for RequestExecution {
             },
             input.intents,
             Arc::clone(&self.services),
-            ryo_values::domain::files::types::SourceView(input.source),
+            input.source,
             if matches!(input.language, SourceLanguage::Recognized)
                 && input.resident_stability == ResidentStability::Stable
             {
@@ -114,7 +110,10 @@ impl ExecutionRequest for RequestExecution {
                 crate::application::file_dag::relations::types::ReuseEligibility::Ineligible
             },
             symbols,
-            input.semantic,
+            match input.semantic {
+                SemanticSupport::Supplied(lookup) => Some(lookup),
+                SemanticSupport::Absent => None,
+            },
             vocabulary,
         )?;
         Ok(FileSession {

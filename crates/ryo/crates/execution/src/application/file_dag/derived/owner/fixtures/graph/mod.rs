@@ -136,7 +136,7 @@ impl GraphFixture {
         owner: Rc<RelationOwner>,
         wanted: &[Relation],
     ) -> Self {
-        let limit = owner.derived().backend.borrow().as_ref().unwrap().limit;
+        let limit = owner.derived().backend.borrow().as_ref().unwrap().limit.0;
         let fixture = Self {
             owner,
             wanted: wanted.to_vec(),

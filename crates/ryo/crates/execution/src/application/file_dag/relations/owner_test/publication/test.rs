@@ -99,7 +99,7 @@ fn computed_publication_clones_keep_required_backing_until_last_handle_in_live_g
         assert_eq!(owner.derived.publication_ownership_bytes(), charged);
     }
     assert_eq!(owner.matches_generation(&generation), crate::application::file_dag::relations::types::Sameness::Same);
-    assert!(owner.generation_liveness().is_live());
+    assert_eq!(owner.generation_liveness().is_live(), crate::application::file_dag::relations::types::Liveness::Live);
     drop(alias);
     assert!(
         record.upgrade().is_none(),
@@ -111,5 +111,5 @@ fn computed_publication_clones_keep_required_backing_until_last_handle_in_live_g
         crate::application::file_dag::relations::types::Sameness::Same,
         "release did not rely on retiring the generation"
     );
-    assert!(owner.generation_liveness().is_live());
+    assert_eq!(owner.generation_liveness().is_live(), crate::application::file_dag::relations::types::Liveness::Live);
 }

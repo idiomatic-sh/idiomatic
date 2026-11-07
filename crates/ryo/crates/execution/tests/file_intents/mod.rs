@@ -7,6 +7,7 @@ use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::*;
 use ryo_execution::application::file_dag::program::prepared_execution::interface::PreparedExecution;
+use ryo_execution::application::file_dag::program::preparation::types::Demand;
 use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 
 fn input<'a, 'facts>(
@@ -21,11 +22,11 @@ fn input<'a, 'facts>(
         evaluation: &[],
         publication: &[],
         intents,
-        source: b"abc",
+        source: ryo_values::domain::files::types::SourceView(b"abc"),
         elements,
         read,
-        semantic: None,
-        kinds: None,
+        semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+        kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
     }
 }
 
@@ -86,7 +87,7 @@ fn absent_skipped_and_refused_rules_cannot_acquire_any_root() {
                 &mut symbols,
                 CaptureContext {
                     worker: WorkerNumber(0),
-                    arena: &mut arena,
+                    arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
                     places: &mut places,
                     words: &mut words
                 },
@@ -151,7 +152,7 @@ fn rule_demand_is_immutable_and_capture_cannot_be_added_after_open() {
             &mut symbols,
             CaptureContext {
                 worker: WorkerNumber(0),
-                arena: &mut arena,
+                arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
                 places: &mut places,
                 words: &mut words
             },
@@ -241,7 +242,14 @@ fn diagnostic_disabled_observation_producer_runs_and_captures_only_named_frontie
     let program = engine
         .prepare(authored)
         .expect("named producer and consumer");
-    assert_eq!(program.demanded_rules(|place| place == 1), [true, true]);
+    assert_eq!(
+        program.demanded_rules(|rule| if rule.0 == 1 {
+            Demand::Demanded
+        } else {
+            Demand::Undemanded
+        }),
+        [Demand::Demanded, Demand::Demanded]
+    );
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let elements = ryo_language::domain::elements::types::Elements::default();
@@ -294,7 +302,7 @@ fn diagnostic_disabled_observation_producer_runs_and_captures_only_named_frontie
             &mut symbols,
             CaptureContext {
                 worker: WorkerNumber(0),
-                arena: &mut arena,
+                arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
                 places: &mut places,
                 words: &mut words,
             },

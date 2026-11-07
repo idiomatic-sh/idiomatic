@@ -65,4 +65,4 @@ pub(crate) struct Retained<'a> {
 
 /// The text a worker made and keeps for the whole run, which a name that leaves its file may be moved to the end of.
 #[derive(Debug)]
-pub(crate) struct Arena<'a>(pub &'a mut Vec<u8>);
+pub struct Arena<'a>(pub &'a mut Vec<u8>);

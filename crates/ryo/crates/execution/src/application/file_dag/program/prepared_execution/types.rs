@@ -50,7 +50,7 @@ use std::sync::Arc;
 /// use ryo_execution::application::file_dag::program::prepared_execution::{
 ///     interface::PreparedExecution, types::PreparedExecutionProgram,
 /// };
-/// fn count(program: &PreparedExecutionProgram) -> usize { program.rule_count() }
+/// fn count(program: &PreparedExecutionProgram) -> usize { program.rule_count().0 }
 /// ```
 /// They cannot be minted by a caller.
 /// ```compile_fail,E0451

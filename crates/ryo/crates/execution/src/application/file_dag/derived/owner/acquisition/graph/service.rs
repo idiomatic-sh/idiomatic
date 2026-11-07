@@ -35,7 +35,7 @@ pub(in crate::application::file_dag::derived::owner) fn acquire(
 ) -> Result<Option<GraphHandle>, OperatingError> {
     // Without a generation-stable admitted backing, use the existing ordinary
     // traversal rather than retain duplicate artifacts under fresh local IDs.
-    if !input.canonical_backing() {
+    if input.canonical_backing() == crate::application::file_dag::relations::types::BackingForm::Foreign {
         return Ok(None);
     }
     let owner = input.owner();
@@ -162,8 +162,8 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
     };
     validate_input(plan, rows)?;
     check_columns(kinds_of(rows), &[*column])?;
-    let identity = input
-        .canonical_backing()
+    let identity = (input.canonical_backing()
+        == crate::application::file_dag::relations::types::BackingForm::Canonical)
         .then_some(&cache.eligible)
         .and_then(|eligible| domain_identity(input, *column, eligible));
     let physical_column = identity
@@ -185,7 +185,9 @@ pub(in crate::application::file_dag::derived::owner) fn domain(
     };
     let requirement = owner.canonical_graph_requirement(requirement, admitted.populations());
     let invoked = std::cell::Cell::new(false);
-    let acquired = if input.canonical_backing() {
+    let acquired = if input.canonical_backing()
+        == crate::application::file_dag::relations::types::BackingForm::Canonical
+    {
         owner.acquire_shared_with_requirement(
             requirement,
             plan,

@@ -52,3 +52,10 @@ pub enum FileRuleIntent {
         capture: CaptureIntent,
     },
 }
+
+/// What a rule's retained frontier serves: its own diagnostics or a named observation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FrontierPurpose {
+    Diagnostic,
+    Observation,
+}

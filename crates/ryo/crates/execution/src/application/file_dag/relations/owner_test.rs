@@ -345,6 +345,7 @@ fn normalization_reuses_one_owned_fallback_without_promoting_missing_rows() {
     assert_eq!(owner.checks.get(), crate::application::file_dag::relations::types::CheckCount(1));
 }
 
+#[cfg(test)]
 mod reuse_test;
 
 mod publication;

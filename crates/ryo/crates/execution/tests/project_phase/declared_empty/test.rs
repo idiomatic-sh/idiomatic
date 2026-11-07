@@ -1,4 +1,5 @@
 //! Closed empty declarations remain typed populations; absent declarations remain refusals.
+use ryo_execution::application::file_dag::frontiers::types::InputReadiness;
 use ryo_execution::outbound::facts::types::ResidentStability;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
@@ -78,11 +79,11 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
                     observations: ObservationDemand::NotRequired,
                     capture: CaptureIntent::DiagnosticAndObservations,
                 }],
-                source: b"abc",
+                source: ryo_values::domain::files::types::SourceView(b"abc"),
                 elements: &elements,
                 read: &read,
-                semantic: None,
-                kinds: None,
+                semantic: ryo_execution::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
         )
@@ -105,7 +106,7 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
             &mut symbols,
             CaptureContext {
                 worker: WorkerNumber(0),
-                arena: &mut arena,
+                arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
                 places: &mut places,
                 words: &mut words,
             },
@@ -136,7 +137,7 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
             .binding_readiness(RuleIndex(0))
             .unwrap()
             .get(&ObservationBindingId(0)),
-        Some(&true)
+        Some(&InputReadiness::Ready)
     );
     let bound = stage.bindings(RuleIndex(0)).unwrap();
     let scope = stage
@@ -195,10 +196,14 @@ fn no_query_is_unavailable_rather_than_an_empty_population() {
     input.rules[0].observations[0].producers = vec![ObservationProducer::NoQuery {
         rule: RuleId("not-executable".into()),
     }];
-    project_refuses(input, "observation producer has no executable query", false);
+    project_refuses(
+        input,
+        "observation producer has no executable query",
+        InputReadiness::Unavailable,
+    );
 }
 
-fn project_refuses(input: PrepareRequest, expected: &str, ready: bool) {
+fn project_refuses(input: PrepareRequest, expected: &str, ready: InputReadiness) {
     let engine = engine();
     let prepared = engine
         .prepare(input)
@@ -298,7 +303,7 @@ fn missing_declarations_outputs_and_mismatched_schemas_are_not_closed_empty() {
     project_refuses(
         mismatch,
         "observation does not match its actual consumer declaration",
-        true,
+        InputReadiness::Ready,
     );
 
     let mut unknown = declared();

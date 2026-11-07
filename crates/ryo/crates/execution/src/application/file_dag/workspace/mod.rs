@@ -157,7 +157,7 @@ impl<'a> GraphInput<'a> {
     pub(super) fn owner(&self) -> &super::derived::owner::DerivedOwner {
         self.owner.derived()
     }
-    pub(super) fn canonical_backing(&self) -> bool {
+    pub(super) fn canonical_backing(&self) -> super::relations::types::BackingForm {
         self.proof.canonical_backing()
     }
     pub(super) fn population(
